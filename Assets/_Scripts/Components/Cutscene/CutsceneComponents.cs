@@ -41,6 +41,15 @@ public struct CutsceneRequestBindingOverride : IBufferElementData
 public struct CutsceneActor : IComponentData, IEnableableComponent { }
 
 /// <summary>
+/// Enabled while a game-side path request is out for the toolkit's <c>CutsceneMoveToMark</c> order.
+/// It is the edge detector: the mark's own enabled bit says "walk there", this says "we already
+/// asked", so one order becomes exactly one <c>BeginPathRequest</c> and one <c>HaltPathing</c>.
+/// Baked disabled on every unit (<c>UnitBakingUtil.BakeRequirements</c>), reset by
+/// <c>SpawnStateInitSystem</c>. Never set on the <c>Player</c>, who walks to their mark by hand.
+/// </summary>
+public struct CutsceneMarkIssued : IComponentData, IEnableableComponent { }
+
+/// <summary>
 /// Baked disabled on the <c>NarrativeEventTag</c> singleton (see <c>NarrativeEventAuthoring</c>).
 /// Enabled by <c>CutsceneStartSystem</c> while a cutscene is running; <c>playRequest</c> is the
 /// toolkit's own request entity (carries <c>CutscenePlaybackState</c>). Only one cutscene may run

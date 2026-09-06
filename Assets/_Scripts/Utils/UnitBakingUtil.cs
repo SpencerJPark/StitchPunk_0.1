@@ -60,6 +60,9 @@ public static class UnitBakingUtil
         baker.AddComponent<CutsceneActor>(entity);
         baker.SetComponentEnabled<CutsceneActor>(entity, false);
 
+        baker.AddComponent<CutsceneMarkIssued>(entity);
+        baker.SetComponentEnabled<CutsceneMarkIssued>(entity, false);
+
         baker.AddBuffer<MotivationChangeRequest>(entity);
         baker.AddBuffer<RecentWaypoint>(entity);
         baker.AddBuffer<RecentInteraction>(entity);

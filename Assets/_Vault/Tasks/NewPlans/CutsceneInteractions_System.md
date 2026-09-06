@@ -67,7 +67,7 @@ Main thread or Burst with a lookup: for every entity with `CutsceneDetachSignal`
 
 ## 5. Build phases
 
-- [ ] **Phase 1 — marks (§3.1, 3.2) + `CutsceneMarkIssued` baking.** Test (PlayMode): `MoveToMark_IssuesAPathRequestForUnitsButNotThePlayer` (two entities, one with `Player`; enable marks; update; assert `PathRequest` enabled only on the unit with the mark's position) and `MarkResolved_HaltsPathing`.
+- [x] **Phase 1 — marks (§3.1, 3.2) + `CutsceneMarkIssued` baking.** Test (PlayMode): `MoveToMark_IssuesAPathRequestForUnitsButNotThePlayer` (two entities, one with `Player`; enable marks; update; assert `PathRequest` enabled only on the unit with the mark's position) and `MarkResolved_HaltsPathing`.
 - [ ] **Phase 2 — dialogue cue (§3.3, 3.6) + registry entry.** Test (PlayMode): `DialogueCue_StartsActiveDialogue_AndReleasesTheHoldWhenItEnds` (hand-built request entity with an `AnimEventOutput` Dialogue event and a playback state paused on hold `"Dialogue"`; update; assert `ActiveDialogue` enabled; disable it; update; assert `CutsceneHoldRelease` enabled with the id).
 - [ ] **Phase 3 — facing (§3.4).** Test (PlayMode, extend the existing facing fixture if one exists — grep `UnitFacingSystem` in `Tests/`): `CutsceneFacing_OverridesMovementDerivedFacing`.
 - [ ] **Phase 4 — detach (§3.5).** Test (PlayMode): `DetachSignal_BecomesAThrownItemRequestOnItems`.
@@ -75,3 +75,33 @@ Main thread or Burst with a lookup: for every entity with `CutsceneDetachSignal`
 - [ ] **⏸ Owner checkpoint.** In `DOTSTestScene`: a cutscene with marks for the player and one minion beside a crate, a rendezvous hold, then a Dialogue holding event, then a clip. Press F9: the minion pathfinds to its disc; you walk to yours; the moment both arrive the hold releases and WASD stops working; dialogue opens; closing it continues the cutscene; the minion faces the way its root keys carry it.
 
 ## 6. Notes / build log
+
+### Phase 1 — marks (2026-09-06)
+
+**A `[WithDisabled]` that matched nothing, with no error.** `ClearResolvedMarkJob` was written the
+obvious way — `[WithDisabled(typeof(CutsceneMoveToMark))]` on a job that also takes
+`EnabledRefRW<CutsceneMarkIssued>` — and it silently matched zero entities every frame while a
+hand-built `EntityQueryBuilder` with the *identical* five constraints matched the same entity
+(measured live through `execute_code`: `handQueryCount=1`, job body never reached). Rewriting the
+switch-off as `[WithPresent(typeof(CutsceneMoveToMark))]` plus an explicit `EnabledRefRO`/`ValueRO`
+check — the shape `Gotchas.md` already prescribes for reacting to a component being switched *off* —
+made it match. Recorded in `Gotchas.md`; the rule to carry forward is that `[WithPresent]` + a body
+check is the only reliable "react to a disable", even when `[WithDisabled]` looks like it says
+exactly that.
+
+**Two spec readings resolved rather than silently picked.**
+
+1. §3.1 says the resolve pass writes `Movement.targetPosition = position`. Ambiguous between the
+   mark's position and the unit's own. It writes the **unit's own** `LocalTransform.Position`: an
+   arrival is already inside tolerance, a timeout has already placed the unit *on* the mark, and it
+   is the same "stop where you stand" idiom `CutsceneStartSystem` uses when it gates an actor.
+   Writing the mark instead would keep `UnitMoverSystem` walking a unit that has arrived.
+2. §3.2's rendezvous exception **overrides a `blockPlayerInput` narrative event**, rather than
+   deferring to the existing "only disable when no narrative event is active" guard. Deferring would
+   have made the exception dead code on the primary path — a cutscene started by `PlayCutsceneAction`
+   always has `ActiveNarrativeEvent` enabled — and an author who gave the player a mark has asked for
+   them to walk to it. The lock returns the frame the mark resolves.
+
+`ClearResolvedMarkJob` also takes `Movement` as `[WithPresent]`, not enabled-only: a unit that dies
+mid-walk has `Movement` disabled by `DeathSystem`, and an enabled-only query would strand
+`CutsceneMarkIssued` on it forever, swallowing its next order after a pool reclaim.
