@@ -23,13 +23,13 @@ namespace DotsAnimationToolkit.Authoring
         /// The project event vocabulary, supplied by the Editor assembly.
         /// </summary>
         /// <remarks>
-        /// <c>Authoring/</c> ships to players and may not name <c>UnityEditor</c> (Conformance_C),
-        /// and <c>VocabularyRegistryProvider</c> — which owns the <c>ProjectSettings/</c> file — is
-        /// editor-only, so the registry arrives through this seam the way
-        /// <c>DirectionSetsPanel.SetContextProvider</c> takes its host context. A lazy accessor
-        /// rather than the registry itself: registration happens at domain load, and touching the
-        /// provider there would read the settings file on every reload whether or not anything
-        /// bakes.
+        /// <c>VocabularyRegistryProvider</c>, which owns the <c>ProjectSettings/</c> file, is
+        /// editor-only, and this assembly ships to players and may not name that assembly at all —
+        /// not even in a comment, which is what Conformance_C scans. So the registry arrives through
+        /// this seam, the way <c>DirectionSetsPanel.SetContextProvider</c> takes its host context.
+        /// A lazy accessor rather than the registry itself: registration happens at domain load, and
+        /// touching the provider there would read the settings file on every reload whether or not
+        /// anything bakes.
         /// </remarks>
         internal static Func<IVocabularyRegistry> EventNameRegistrySource { get; set; }
 
