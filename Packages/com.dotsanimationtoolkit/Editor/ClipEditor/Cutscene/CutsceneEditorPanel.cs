@@ -3364,8 +3364,18 @@ namespace DotsAnimationToolkit.Editor
             inspectorScroll.Add(BuildHeading("Event"));
             AddBoundField(eventProperty, "time", "Time (s)");
             AddBoundField(eventProperty, "eventKey", "Event Key");
-            AddBoundField(eventProperty, "intParam", "Int Param");
-            AddBoundField(eventProperty, "floatParam", "Float Param");
+
+            // The payload's own container, so a host provider can own it whole (amendment A65
+            // 3.1): "sequence id 7" is a number here and a named line in the game that authored it.
+            VisualElement payloadContainer = new VisualElement();
+            inspectorScroll.Add(payloadContainer);
+            if (!CutsceneEventInspectorProviders.TryBuild(
+                    cutscene.events[eventIndex].eventKey, eventProperty, payloadContainer))
+            {
+                AddBoundField(eventProperty, "intParam", "Int Param", payloadContainer);
+                AddBoundField(eventProperty, "floatParam", "Float Param", payloadContainer);
+            }
+
             AddBoundField(eventProperty, "fireOnSkip", "Fire On Skip");
 
             // Not AddBoundField: this one changes the marker's glyph and adds a ghost to the Holds
@@ -3410,11 +3420,17 @@ namespace DotsAnimationToolkit.Editor
 
         private void AddBoundField(SerializedProperty parent, string relativePropertyName, string label)
         {
+            AddBoundField(parent, relativePropertyName, label, inspectorScroll);
+        }
+
+        private void AddBoundField(
+            SerializedProperty parent, string relativePropertyName, string label, VisualElement container)
+        {
             SerializedProperty property = parent.FindPropertyRelative(relativePropertyName);
             PropertyField field = new PropertyField(property, label);
             field.Bind(serializedObject);
             field.RegisterCallback<SerializedPropertyChangeEvent>(_ => RebuildTimeline());
-            inspectorScroll.Add(field);
+            container.Add(field);
         }
 
         private static Label BuildHeading(string text)
