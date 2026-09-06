@@ -474,6 +474,7 @@ namespace DotsAnimationToolkit.Authoring
                 }
 
                 CutsceneSlot slot = cutscene.slots[slotIndex];
+                WarnOnFacingWithNothingToMirror(slot, warnings);
                 BucketClipBlocks(slot, boundaries, warnings, clipBlocksBySlotSegment, slotIndex);
                 BucketTransformKeys(effectiveRootKeysBySlot[slotIndex], boundaries, transformKeysBySlotSegment, slotIndex);
                 BucketFacingKeys(slot.facingKeys, boundaries, facingKeysBySlotSegment, slotIndex);
@@ -976,6 +977,21 @@ namespace DotsAnimationToolkit.Authoring
                     hideWhileAttached = marker.hideWhileAttached,
                     detachImpulse = marker.detachImpulse
                 });
+            }
+        }
+
+        /// <summary>
+        /// Reports a slot that resolves a facing its rig cannot show — see
+        /// <see cref="CutsceneDirectionVariants.DescribeFacingRigProblem"/> for the two ways that
+        /// happens. Both are silent otherwise: everything downstream works and the actor does not
+        /// turn, which cost an owner checkpoint on 2026-09-06.
+        /// </summary>
+        private static void WarnOnFacingWithNothingToMirror(CutsceneSlot slot, List<string> warnings)
+        {
+            string problem = CutsceneDirectionVariants.DescribeFacingRigProblem(slot);
+            if (problem != null)
+            {
+                warnings.Add("Cutscene slot '" + slot.name + "': " + problem);
             }
         }
 

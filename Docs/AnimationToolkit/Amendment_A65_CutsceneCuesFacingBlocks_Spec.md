@@ -154,6 +154,37 @@ its own remark: the feature *is* the pairing of a bake-time boundary with the ru
 hold mechanics, and a hand-built blob would assert that pairing by writing it out itself. The
 EditMode fixture isolates the bake half.
 
+**Owner checkpoint, first pass (2026-09-06): the actor did not turn, and nobody saw the cue.** Two
+findings, both outside the code A65 wrote and both now fixed:
+
+1. **`NewRig.asset` had `facesDirection` false on all 16 targets.** That flag is what bakes
+   `PartFacing` and what gates the editor's own mirror, so the facing resolved correctly (SouthEast,
+   mirrored), the variant was picked, and *nothing turned* — the A37 remark predicted exactly this
+   ("the case the owner tested first and found inert") and it happened again. Same shape as A63-T0's
+   empty `RigAsset.sockets`: the content declared nothing for the feature to act on.
+2. **Opting every part in was still wrong, because this rig is nested.** The mirror negates a part's
+   local x scale, so a mirrored part inside a mirrored parent multiplies back to +1. Measured with
+   all 16 opted in: Pelvis −1, Torso +1, Neck −1, **BaseHead +1** — the head and its whole face never
+   flipped, and the pose was mirrored on every second level only, which is what the owner saw. The
+   per-part mirror in `TransformSampleSystem` (and its preview twin) is only correct on a **flat**
+   rig, where every part hangs off the actor root. `MaleCitizen` and the checkpoint walker both have
+   13 of 16 parts nested under another part.
+
+   Fixed by opting in the top-most part of each chain only — `Pelvis`, `UpperLeftLeg`,
+   `UpperRightLeg` — whose subtrees then inherit the reflection exactly once. Verified: at t=1 every
+   part reads world scale.x +1, at t=4 every part reads −1 and every world x offset negates, face
+   included. **Open question for the owner (§8):** whether the sampler should enforce "mirror once
+   per chain" itself rather than trusting the flag to be set only on chain roots. That is a change to
+   shipped runtime behaviour, so it is not made here.
+
+   Both failure modes are now named at bake time and in the slot inspector by one shared check,
+   `CutsceneDirectionVariants.DescribeFacingRigProblem`.
+
+3. **The cue's banner was on screen but unreadable in practice.** The transport's status label sat
+   at the far right of the row, past Speed / Loop / Skip Holds — 350px from the Continue button it
+   describes, in the same grey as everything else. It now sits immediately beside Continue and turns
+   bold hold-yellow while the clock is stopped: `⏸ Holding on 'Dialogue' — the event cue fired.`
+
 **Editor flicker check (T1).** The event inspector's `holdUntilReleased` toggle routes through
 `CutsceneEditorPanel.ShouldIgnoreBindingEcho`. Sampled the inspector's child `GetHashCode()`s from
 two `execute_code` calls seconds apart: identical instances, so the panel is stable rather than

@@ -23,7 +23,7 @@ MonoBehaviour:
       y: 0.25354224
       z: 0.02
     framesPerVariant: 1
-    facesDirection: 0
+    facesDirection: 1
     tagId: 1945739799
   - displayName: Torso
     stableId: 264798881
@@ -133,7 +133,7 @@ MonoBehaviour:
       y: 0.46796584
       z: 0.02
     framesPerVariant: 1
-    facesDirection: 0
+    facesDirection: 1
     tagId: 1185793452
   - displayName: LeftLowerLeg
     stableId: 1711980931
@@ -166,7 +166,7 @@ MonoBehaviour:
       y: 0.467665
       z: 0.02
     framesPerVariant: 1
-    facesDirection: 0
+    facesDirection: 1
     tagId: 2932757636
   - displayName: RightLowerLeg
     stableId: 2283231638

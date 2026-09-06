@@ -453,6 +453,27 @@ text of every file outside `Editor/` and `Tests/` for `UnityEditor` — a doc co
 a seam exists ("`Authoring/` may not name `UnityEditor`") fails the same test it is describing.
 Found 2026-09-06 building A65's hold-name seam. Say "the editor assembly" in prose there.
 
+### A mirrored part inside a mirrored parent cancels — facing only works on a FLAT rig
+`TransformSampleSystem` (and the cutscene preview's twin) mirrors a part by negating its local
+`scale.x`, `localPosition.x` and its y/z rotations. On a **nested** rig that multiplies down the
+chain: with `facesDirection` ticked on every target, `MaleCitizen` measured Pelvis −1, Torso +1,
+Neck −1, **BaseHead +1** — the head and its whole face never flipped and the pose mirrored on every
+second level. It reads as "the images flipped but the animation didn't". `MaleCitizen` and the
+`MaleUnitVisual`-based units have 13 of 16 parts nested under another part.
+
+**Tick `facesDirection` on the top-most part of each chain only** — for `NewRig` that is `Pelvis`,
+`UpperLeftLeg`, `UpperRightLeg` — and the subtree inherits the reflection exactly once (a part's
+non-uniform scale rides `PostTransformMatrix`, which composes into children's `LocalToWorld`).
+And note the flag is per *rig* while correctness depends on the *prefab* hierarchy, so a flat actor
+and a nested one sharing a rig cannot both be right. `CutsceneDirectionVariants.DescribeFacingRigProblem`
+now names both this and the "nothing opted in" case, at bake time and in the slot inspector.
+
+### `facesDirection` is the opt-in that makes facing do anything at all, and it defaults to false
+A rig whose targets all leave it false resolves facings, picks direction-set variants and turns
+nothing, with no error anywhere — `PartFacing` is never even baked. `NewRig.asset` was in that state
+project-wide until 2026-09-06, which is why A65's checkpoint appeared not to turn. Same family as
+the empty `RigAsset.sockets` above: check the content declares the thing before debugging the code.
+
 ### Two facing-angle conventions live in the cutscene code, and they were silently mixed
 A facing angle in this toolkit is measured **from +X toward +Z** — 0 east, 90 north — because
 `FacingResolver.FromMovement` reads a vector whose x is east and y is north, and every consumer

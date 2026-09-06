@@ -1431,6 +1431,19 @@
     border-bottom-color: rgb(32, 32, 32);
 }
 
+/* The transport's status line sits beside Continue, and shouts only when the clock is actually
+   stopped: a hold nobody notices reads as a cutscene that froze. */
+.cutscene-editor__transport-status {
+    margin-left: 10px;
+    -unity-text-align: middle-left;
+    color: rgb(178, 178, 178);
+}
+
+.cutscene-editor__transport-status--holding {
+    color: rgb(242, 217, 77);
+    -unity-font-style: bold;
+}
+
 .cutscene-editor__transport-button {
     width: 28px;
     height: 22px;

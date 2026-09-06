@@ -133,6 +133,16 @@ the mark while the order is outstanding (A65-D4). EditMode `CutsceneBlobBuilderT
 `CutsceneBlockTimingTests` 4/4, PlayMode `CutsceneFacingTests` 2/2 and `CutsceneTimelineSystemTests`
 10/10; every new fixture was watched failing with its fix reverted.
 
+**Checkpoint, first pass (2026-09-06): the owner watched it and it did not turn.** Root cause was
+content, not A65's code: `NewRig.asset` had `facesDirection` false on all 16 targets, so `PartFacing`
+was never baked and the editor's mirror was gated off — the facing resolved and nothing moved.
+Opting *every* part in was still wrong, because the rig is nested and a mirrored part inside a
+mirrored parent cancels (measured: Pelvis −1, Torso +1, Neck −1, BaseHead +1 — the head never
+flipped). It is now set on the three chain roots only. **§8 question for the owner:** whether the
+sampler should enforce "mirror once per chain" itself instead of trusting the flag; that is a
+shipped-runtime change and was not made unilaterally. The transport's hold banner also moved beside
+Continue and turns bold yellow — it was legible only in principle at the far right of the row.
+
 **What is owed:** the owner's eyes on `Assets/Scenes/CutsceneA65Checkpoint.unity` — and A63's, A64's
 and G1's checkpoints are still waiting too. Next spec on the critical path is **G2** (game-side
 consumers: marks → `MovementAPI`, the dialogue cue ↔ `ActiveDialogue`, `CutsceneFacing` →
@@ -719,6 +729,13 @@ Work top to bottom. Commit each task separately (stage paths explicitly; never `
   error — when the clip plays, or baked into every VAT frame. `ClipPreviewController.IsSkinnedBone(int)`
   is public and makes the guard cheap. Recommendation on file: guard it. The owner asked for
   hierarchy dragging, so excluding bones is their call.
+- **Should the facing mirror enforce "once per chain"?** `TransformSampleSystem` negates each opted-in
+  part's local `scale.x`, which is correct for a flat rig and cancels on a nested one (§7). A65 fixed
+  the content and added a warning; the alternative is for the sampler to skip a part whose ancestor
+  also mirrors, which would make the flag safe to tick anywhere but changes shipped playback for any
+  project already relying on the current behaviour. Recommendation on file: do it, in its own
+  amendment, with a PlayMode fixture on a two-deep rig.
+
 - **Q1 — the Spatial3D twist axis.** `twistLimitDegrees` has no defined axis; D2 provisionally used
   the child's rest-local +Y. Owner said "ignore for now"; it blocks D8 only.
 
@@ -741,6 +758,12 @@ it agrees with your code. That habit sank three earlier gates.
 - Restart the Editor to rotate `Logs/Editor.log` if it has grown huge.
 - `Docs/AnimationToolkit/shader-contract.md` and `Documentation~/shader-contract.md` are near-identical
   mirrors that differ only in host-specific paths. They will drift; neither is marked authoritative.
+- **The per-part facing mirror is only correct on a flat rig.** Negating each part's local `scale.x`
+  multiplies down a nested chain and cancels at every second level, so `facesDirection` must be set
+  on the top-most part of each chain and nowhere else. The flag lives on the *rig* while correctness
+  depends on the *prefab* hierarchy, so one rig shared by a flat actor and a nested one cannot be
+  right for both. A65 added a warning naming it at bake and in the slot inspector; making the
+  sampler mirror once per chain is an owner decision (§6).
 
 ## 8. Not yet judged by eye
 

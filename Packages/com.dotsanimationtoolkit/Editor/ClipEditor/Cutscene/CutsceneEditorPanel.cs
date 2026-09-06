@@ -437,6 +437,13 @@ namespace DotsAnimationToolkit.Editor
             continueButton.style.marginLeft = 8f;
             row.Add(continueButton);
 
+            // Beside the button that acts on it, not at the far end of the row past Speed and two
+            // toggles: the owner watched a cutscene stop dead at a cue and saw nothing say so,
+            // because the sentence explaining the stop sat 350px away from the Continue it explains.
+            transportStatusLabel = new Label(string.Empty);
+            transportStatusLabel.AddToClassList("cutscene-editor__transport-status");
+            row.Add(transportStatusLabel);
+
             speedField = new FloatField("Speed") { value = playbackSpeed };
             speedField.style.width = 96f;
             speedField.style.marginLeft = 12f;
@@ -456,11 +463,6 @@ namespace DotsAnimationToolkit.Editor
             skipHoldsToggle.style.marginLeft = 8f;
             skipHoldsToggle.tooltip = "Run straight through hold markers instead of waiting for Continue.";
             row.Add(skipHoldsToggle);
-
-            transportStatusLabel = new Label(string.Empty);
-            transportStatusLabel.style.marginLeft = 12f;
-            transportStatusLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
-            row.Add(transportStatusLabel);
 
             return row;
         }
@@ -550,6 +552,9 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>Nudge past a released hold, well under one frame at any sane speed.</summary>
         private const float HoldReleaseEpsilon = 1e-3f;
+
+        /// <summary>Turns the transport's status line into a banner while the clock is stopped on a hold.</summary>
+        private const string HoldingStatusUssClassName = "cutscene-editor__transport-status--holding";
 
         /// <summary>
         /// One transport frame: advance the elastic clock, stop dead on a hold, and re-pose.
@@ -784,8 +789,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 string holdId = gatingHold.holdId;
                 transportStatusLabel.text =
-                    "Holding on '" + (string.IsNullOrEmpty(holdId) ? "(unnamed hold)" : holdId) + "'"
-                    + (gatingHold.isDerivedFromEvent ? " (event cue)." : ".");
+                    "⏸ Holding on '" + (string.IsNullOrEmpty(holdId) ? "(unnamed hold)" : holdId) + "'"
+                    + (gatingHold.isDerivedFromEvent ? " — the event cue fired." : ".");
+                transportStatusLabel.EnableInClassList(HoldingStatusUssClassName, true);
                 continueButton.style.display = DisplayStyle.Flex;
                 return;
             }
@@ -793,6 +799,7 @@ namespace DotsAnimationToolkit.Editor
             // No running time in the label: it would rebuild this row's layout every tick, and the
             // playhead already says where the clock is.
             continueButton.style.display = DisplayStyle.None;
+            transportStatusLabel.EnableInClassList(HoldingStatusUssClassName, false);
             transportStatusLabel.text = isPlaying ? "Playing" : string.Empty;
         }
 
@@ -2915,7 +2922,8 @@ namespace DotsAnimationToolkit.Editor
                     + (isOverride ? " (override key)" : " (derived from root travel)")
                     + (slot.directionSet == null
                         ? " — assign a Direction Set to apply it in the preview."
-                        : " — " + CutscenePreviewController.DescribeResolvedFacing(slot, playheadSeconds)));
+                        : " — " + CutscenePreviewController.DescribeResolvedFacing(slot, playheadSeconds))
+                    + DescribeMissingFacingParts(slot));
                 facingLabel.style.marginTop = 4f;
                 facingLabel.style.whiteSpace = WhiteSpace.Normal;
                 inspectorScroll.Add(facingLabel);
@@ -2926,6 +2934,16 @@ namespace DotsAnimationToolkit.Editor
             Button removeButton = new Button(() => RemoveSlot(slotIndex)) { text = "Remove Slot" };
             removeButton.style.marginTop = 8f;
             inspectorScroll.Add(removeButton);
+        }
+
+        /// <summary>
+        /// Says so when a slot's facing resolves but its rig cannot show it. Said here because this
+        /// is the line where an author reads that facing, and both failures are otherwise silent.
+        /// </summary>
+        private static string DescribeMissingFacingParts(CutsceneSlot slot)
+        {
+            string problem = CutsceneDirectionVariants.DescribeFacingRigProblem(slot);
+            return problem == null ? string.Empty : " ⚠ " + problem;
         }
 
         private void BuildSceneBindingRow(int slotIndex)
