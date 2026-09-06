@@ -70,6 +70,13 @@ namespace DotsAnimationToolkit
 
         /// <summary>Event markers within this segment, segment-relative.</summary>
         public BlobArray<CutsceneEventMarkerBlob> events;
+
+        /// <summary>
+        /// Whether the hold this segment ends on resumes by itself once every outstanding mark has
+        /// been reached (amendment A64 §3.2). Always false for the final segment, which ends on
+        /// nothing.
+        /// </summary>
+        public bool autoReleaseWhenMarksReached;
     }
 
     /// <summary>One slot's baked timeline for one segment (Phase G §2).</summary>
@@ -89,6 +96,28 @@ namespace DotsAnimationToolkit
 
         /// <summary>Attach/detach moments within this segment, segment-relative (amendment A63).</summary>
         public BlobArray<CutsceneAttachMarkerBlob> attachMarkers;
+
+        /// <summary>Move-to marks within this segment, segment-relative (amendment A64).</summary>
+        public BlobArray<CutsceneMarkKeyBlob> markKeys;
+    }
+
+    /// <summary>One baked move-to mark (amendment A64 §3.2), bucketed by the instant its order is issued.</summary>
+    public struct CutsceneMarkKeyBlob
+    {
+        /// <summary>When the move order is issued, segment-relative seconds.</summary>
+        public float time;
+
+        /// <summary>The world position to reach.</summary>
+        public float3 position;
+
+        /// <summary>Arrival facing in radians, converted from the authored degrees at bake.</summary>
+        public float facingRadians;
+
+        /// <summary>XZ distance that counts as arrived.</summary>
+        public float toleranceMeters;
+
+        /// <summary>0 waits forever; otherwise the mark resolves by teleport after this many real seconds.</summary>
+        public float timeoutSeconds;
     }
 
     /// <summary>One baked attach/detach moment (amendment A63 §3.2), bucketed by its own instant like an event.</summary>

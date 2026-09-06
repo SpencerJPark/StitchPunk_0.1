@@ -161,5 +161,87 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 blob.Dispose();
             }
         }
+
+        /// <summary>
+        /// Decision A64-D2: a mark is also a root key, at the instant the rehearsed walk arrives.
+        /// Without the merge the editor shows no travel at all and A62's boundary pass has no
+        /// arrival pose to bake, so the segment after a rendezvous hold starts wherever the actor
+        /// was standing when the order was issued.
+        /// </summary>
+        [Test]
+        public void Mark_IsMergedIntoTheRootLaneAtArrivalTime()
+        {
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            CutsceneSlot actorSlot = new CutsceneSlot { name = "Walker", kind = CutsceneSlotKind.Actor };
+            actorSlot.markKeys.Add(new CutsceneMarkKey
+            {
+                time = 1f,
+                position = new float3(5f, 0f, 0f),
+                toleranceMeters = 0.5f,
+                previewTravelSeconds = 2f
+            });
+            cutscene.slots.Add(actorSlot);
+            cutscene.EnsureStableIds();
+
+            List<string> warnings = new List<string>();
+            BlobAssetReference<CutsceneBlob> blob;
+            CutsceneBlobBuilder.Build(cutscene, out blob, warnings);
+            try
+            {
+                ref CutsceneSlotSegmentBlob slotSegment = ref blob.Value.segments[0].slotTracks[0];
+                Assert.AreEqual(1, slotSegment.transformKeys.Length,
+                    "the mark bakes one merged root key even though the slot has no authored root lane");
+                Assert.AreEqual(3f, slotSegment.transformKeys[0].time, 1e-4f,
+                    "the merged key sits at time + previewTravelSeconds, where the walk arrives");
+                Assert.AreEqual(5f, slotSegment.transformKeys[0].position.x, 1e-4f);
+                Assert.AreEqual(1f, slotSegment.transformKeys[0].scale.x, 1e-4f,
+                    "an empty authored lane gives the merged key unit scale, never zero");
+                Assert.AreEqual(1, slotSegment.markKeys.Length,
+                    "the mark itself still bakes, bucketed by the instant its order is issued");
+                Assert.AreEqual(1f, slotSegment.markKeys[0].time, 1e-4f);
+                Assert.IsEmpty(warnings, "nothing to warn about without a hold in the way");
+            }
+            finally
+            {
+                blob.Dispose();
+            }
+
+            Object.DestroyImmediate(cutscene);
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            CutsceneSlot heldSlot = new CutsceneSlot { name = "Walker", kind = CutsceneSlotKind.Actor };
+            heldSlot.markKeys.Add(new CutsceneMarkKey
+            {
+                time = 1f,
+                position = new float3(5f, 0f, 0f),
+                toleranceMeters = 0.5f,
+                previewTravelSeconds = 2f
+            });
+            cutscene.slots.Add(heldSlot);
+            cutscene.holdMarkers.Add(new CutsceneHoldMarker
+            {
+                time = 2f,
+                holdId = "Rendezvous",
+                autoReleaseWhenMarksReached = true
+            });
+            cutscene.EnsureStableIds();
+
+            List<string> holdWarnings = new List<string>();
+            BlobAssetReference<CutsceneBlob> heldBlob;
+            LogAssert.Expect(LogType.Warning, new Regex("walking through rendezvous hold"));
+            CutsceneBlobBuilder.Build(cutscene, out heldBlob, holdWarnings);
+            try
+            {
+                Assert.AreEqual(1, holdWarnings.Count,
+                    "a rehearsal that walks through a rendezvous hold releases it mid-walk - warned, not fatal");
+                Assert.IsTrue(heldBlob.Value.segments[0].autoReleaseWhenMarksReached,
+                    "the hold's rendezvous flag bakes onto the segment it ends");
+                Assert.IsFalse(heldBlob.Value.segments[1].autoReleaseWhenMarksReached,
+                    "the final segment ends on nothing and can never auto-release");
+            }
+            finally
+            {
+                heldBlob.Dispose();
+            }
+        }
     }
 }

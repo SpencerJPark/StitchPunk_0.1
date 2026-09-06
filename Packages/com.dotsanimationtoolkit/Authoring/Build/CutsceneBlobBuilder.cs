@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Authoring
     public static class CutsceneBlobBuilder
     {
         /// <summary>Blob layout version; bumped on any layout change and stamped at bake.</summary>
-        public const int SchemaVersion = 3;
+        public const int SchemaVersion = 4;
 
         private const float BoundaryEpsilon = 1e-5f;
 
@@ -66,7 +66,13 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             List<string> warnings = validationWarnings ?? new List<string>();
-            List<SegmentBoundary> boundaries = ComputeSegmentBoundaries(cutscene);
+
+            // Marks fold into the root lane BEFORE anything else looks at it (decision A64-D2), so
+            // the boundary pass, the content end and the bucketing all see the same lane the editor
+            // preview walks.
+            List<CutsceneTransformKey>[] effectiveRootKeysBySlot = BuildEffectiveRootKeysBySlot(cutscene);
+            List<SegmentBoundary> boundaries = ComputeSegmentBoundaries(cutscene, effectiveRootKeysBySlot);
+            WarnOnMarksWalkingThroughARendezvousHold(cutscene, warnings);
 
             BlobBuilder builder = new BlobBuilder(Allocator.Temp);
             try
@@ -76,7 +82,7 @@ namespace DotsAnimationToolkit.Authoring
                 root.cutsceneKey = cutscene.StableId;
 
                 FillSlotMeta(ref builder, ref root, cutscene);
-                FillSegments(ref builder, ref root, cutscene, boundaries, warnings);
+                FillSegments(ref builder, ref root, cutscene, boundaries, effectiveRootKeysBySlot, warnings);
 
                 blob = builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
             }
@@ -99,13 +105,71 @@ namespace DotsAnimationToolkit.Authoring
         {
             public float time;
             public string holdId;
+
+            /// <summary>Whether the hold at this boundary is a rendezvous (amendment A64 §3.2). Meaningless on boundary 0 and on the final end-of-content boundary, neither of which is a hold.</summary>
+            public bool autoReleaseWhenMarksReached;
+        }
+
+        private static List<CutsceneTransformKey>[] BuildEffectiveRootKeysBySlot(CutsceneAsset cutscene)
+        {
+            int slotCount = cutscene.slots?.Count ?? 0;
+            List<CutsceneTransformKey>[] effectiveRootKeysBySlot = new List<CutsceneTransformKey>[slotCount];
+            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
+            {
+                effectiveRootKeysBySlot[slotIndex] = CutsceneMarkMerge.BuildEffectiveRootKeys(cutscene.slots[slotIndex]);
+            }
+            return effectiveRootKeysBySlot;
+        }
+
+        /// <summary>
+        /// Reports a mark whose rehearsed walk straddles a rendezvous hold (§3.2): in the editor the
+        /// hold would release mid-walk, because rehearsal arrival IS timeline time. Not fatal — the
+        /// runtime, where arrival is a real distance test, plays it correctly either way.
+        /// </summary>
+        private static void WarnOnMarksWalkingThroughARendezvousHold(CutsceneAsset cutscene, List<string> warnings)
+        {
+            if (cutscene.slots == null || cutscene.holdMarkers == null)
+            {
+                return;
+            }
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                CutsceneSlot slot = cutscene.slots[slotIndex];
+                if (slot == null || slot.markKeys == null)
+                {
+                    continue;
+                }
+                for (int markIndex = 0; markIndex < slot.markKeys.Count; markIndex++)
+                {
+                    CutsceneMarkKey mark = slot.markKeys[markIndex];
+                    float arrivalTime = CutsceneMarkMerge.ArrivalTime(mark);
+                    for (int holdIndex = 0; holdIndex < cutscene.holdMarkers.Count; holdIndex++)
+                    {
+                        CutsceneHoldMarker hold = cutscene.holdMarkers[holdIndex];
+                        if (hold == null || !hold.autoReleaseWhenMarksReached)
+                        {
+                            continue;
+                        }
+                        if (hold.time > mark.time + BoundaryEpsilon && hold.time < arrivalTime - BoundaryEpsilon)
+                        {
+                            warnings.Add(
+                                "Cutscene mark " + markIndex + " on slot '" + slot.name + "' is issued at "
+                                + mark.time.ToString("0.###") + "s and arrives at " + arrivalTime.ToString("0.###")
+                                + "s, walking through rendezvous hold '" + hold.holdId + "' at "
+                                + hold.time.ToString("0.###") + "s. The editor rehearsal releases that hold "
+                                + "mid-walk; at run time arrival is a real distance test and plays correctly.");
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
         /// Boundary <c>i</c> opens segment <c>i</c>; boundary <c>i + 1</c>'s <c>holdId</c> is what
         /// segment <c>i</c> pauses on (empty for the final, synthetic end-of-content boundary).
         /// </summary>
-        private static List<SegmentBoundary> ComputeSegmentBoundaries(CutsceneAsset cutscene)
+        private static List<SegmentBoundary> ComputeSegmentBoundaries(
+            CutsceneAsset cutscene, List<CutsceneTransformKey>[] effectiveRootKeysBySlot)
         {
             List<SegmentBoundary> boundaries = new List<SegmentBoundary> { new SegmentBoundary { time = 0f, holdId = null } };
 
@@ -118,12 +182,13 @@ namespace DotsAnimationToolkit.Authoring
                     boundaries.Add(new SegmentBoundary
                     {
                         time = Mathf.Max(0f, sortedHolds[i].time),
-                        holdId = sortedHolds[i].holdId ?? string.Empty
+                        holdId = sortedHolds[i].holdId ?? string.Empty,
+                        autoReleaseWhenMarksReached = sortedHolds[i].autoReleaseWhenMarksReached
                     });
                 }
             }
 
-            float naturalEnd = ComputeContentEndSeconds(cutscene);
+            float naturalEnd = ComputeContentEndSeconds(cutscene, effectiveRootKeysBySlot);
             float lastBoundaryTime = boundaries[boundaries.Count - 1].time;
             if (naturalEnd > lastBoundaryTime + BoundaryEpsilon || boundaries.Count == 1)
             {
@@ -133,7 +198,8 @@ namespace DotsAnimationToolkit.Authoring
             return boundaries;
         }
 
-        private static float ComputeContentEndSeconds(CutsceneAsset cutscene)
+        private static float ComputeContentEndSeconds(
+            CutsceneAsset cutscene, List<CutsceneTransformKey>[] effectiveRootKeysBySlot)
         {
             float latest = 0f;
             if (cutscene.slots != null)
@@ -152,7 +218,7 @@ namespace DotsAnimationToolkit.Authoring
                             latest = Mathf.Max(latest, slot.clipBlocks[i].start + slot.clipBlocks[i].duration);
                         }
                     }
-                    latest = Mathf.Max(latest, LatestTime(slot.transformKeys));
+                    latest = Mathf.Max(latest, LatestTime(effectiveRootKeysBySlot[slotIndex]));
                     latest = Mathf.Max(latest, LatestFacingTime(slot.facingKeys));
                     if (slot.partTracks != null)
                     {
@@ -272,7 +338,8 @@ namespace DotsAnimationToolkit.Authoring
 
         private static void FillSegments(
             ref BlobBuilder builder, ref CutsceneBlob root, CutsceneAsset cutscene,
-            List<SegmentBoundary> boundaries, List<string> warnings)
+            List<SegmentBoundary> boundaries, List<CutsceneTransformKey>[] effectiveRootKeysBySlot,
+            List<string> warnings)
         {
             int segmentCount = boundaries.Count - 1;
             BlobBuilderArray<CutsceneSegmentBlob> segmentArray = builder.Allocate(ref root.segments, segmentCount);
@@ -285,6 +352,7 @@ namespace DotsAnimationToolkit.Authoring
             List<CutsceneFacingKeyBlob>[,] facingKeysBySlotSegment = new List<CutsceneFacingKeyBlob>[cutscene.slots?.Count ?? 0, segmentCount];
             List<PartTrackBucket>[,] partTracksBySlotSegment = new List<PartTrackBucket>[cutscene.slots?.Count ?? 0, segmentCount];
             List<CutsceneAttachMarkerBlob>[,] attachMarkersBySlotSegment = new List<CutsceneAttachMarkerBlob>[cutscene.slots?.Count ?? 0, segmentCount];
+            List<CutsceneMarkKeyBlob>[,] markKeysBySlotSegment = new List<CutsceneMarkKeyBlob>[cutscene.slots?.Count ?? 0, segmentCount];
 
             for (int slotIndex = 0; slotIndex < (cutscene.slots?.Count ?? 0); slotIndex++)
             {
@@ -295,14 +363,16 @@ namespace DotsAnimationToolkit.Authoring
                     facingKeysBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneFacingKeyBlob>();
                     partTracksBySlotSegment[slotIndex, segmentIndex] = new List<PartTrackBucket>();
                     attachMarkersBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneAttachMarkerBlob>();
+                    markKeysBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneMarkKeyBlob>();
                 }
 
                 CutsceneSlot slot = cutscene.slots[slotIndex];
                 BucketClipBlocks(slot, boundaries, warnings, clipBlocksBySlotSegment, slotIndex);
-                BucketTransformKeys(slot.transformKeys, boundaries, transformKeysBySlotSegment, slotIndex);
+                BucketTransformKeys(effectiveRootKeysBySlot[slotIndex], boundaries, transformKeysBySlotSegment, slotIndex);
                 BucketFacingKeys(slot.facingKeys, boundaries, facingKeysBySlotSegment, slotIndex);
                 BucketPartTracks(slot, boundaries, warnings, partTracksBySlotSegment, slotIndex);
                 BucketAttachMarkers(cutscene, slot, boundaries, warnings, attachMarkersBySlotSegment, slotIndex);
+                BucketMarkKeys(slot.markKeys, boundaries, markKeysBySlotSegment, slotIndex);
             }
 
             List<CutsceneCameraKeyBlob>[] cameraKeysBySegment = new List<CutsceneCameraKeyBlob>[segmentCount];
@@ -319,8 +389,8 @@ namespace DotsAnimationToolkit.Authoring
             BucketEvents(cutscene.events, boundaries, eventsBySegment);
 
             InsertBoundaryContinuityKeys(
-                cutscene, boundaries, transformKeysBySlotSegment, facingKeysBySlotSegment,
-                partTracksBySlotSegment, cameraKeysBySegment);
+                cutscene, boundaries, effectiveRootKeysBySlot, transformKeysBySlotSegment,
+                facingKeysBySlotSegment, partTracksBySlotSegment, cameraKeysBySegment);
 
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
@@ -329,6 +399,7 @@ namespace DotsAnimationToolkit.Authoring
                 FixedString64Bytes holdId = default;
                 holdId.CopyFromTruncated(boundaries[segmentIndex + 1].holdId ?? string.Empty);
                 segmentBlob.holdId = holdId;
+                segmentBlob.autoReleaseWhenMarksReached = boundaries[segmentIndex + 1].autoReleaseWhenMarksReached;
 
                 int slotCount = cutscene.slots?.Count ?? 0;
                 BlobBuilderArray<CutsceneSlotSegmentBlob> slotTrackArray =
@@ -341,7 +412,8 @@ namespace DotsAnimationToolkit.Authoring
                         transformKeysBySlotSegment[slotIndex, segmentIndex],
                         facingKeysBySlotSegment[slotIndex, segmentIndex],
                         partTracksBySlotSegment[slotIndex, segmentIndex],
-                        attachMarkersBySlotSegment[slotIndex, segmentIndex]);
+                        attachMarkersBySlotSegment[slotIndex, segmentIndex],
+                        markKeysBySlotSegment[slotIndex, segmentIndex]);
                 }
 
                 BlobBuilderArray<CutsceneCameraKeyBlob> cameraKeyArray =
@@ -379,7 +451,7 @@ namespace DotsAnimationToolkit.Authoring
             ref BlobBuilder builder, ref CutsceneSlotSegmentBlob slotSegmentBlob,
             List<CutsceneClipBlockBlob> clipBlocks, List<CutsceneTransformKeyBlob> transformKeys,
             List<CutsceneFacingKeyBlob> facingKeys, List<PartTrackBucket> partTracks,
-            List<CutsceneAttachMarkerBlob> attachMarkers)
+            List<CutsceneAttachMarkerBlob> attachMarkers, List<CutsceneMarkKeyBlob> markKeys)
         {
             BlobBuilderArray<CutsceneClipBlockBlob> clipBlockArray =
                 builder.Allocate(ref slotSegmentBlob.clipBlocks, clipBlocks.Count);
@@ -422,6 +494,13 @@ namespace DotsAnimationToolkit.Authoring
             for (int i = 0; i < attachMarkers.Count; i++)
             {
                 attachMarkerArray[i] = attachMarkers[i];
+            }
+
+            BlobBuilderArray<CutsceneMarkKeyBlob> markKeyArray =
+                builder.Allocate(ref slotSegmentBlob.markKeys, markKeys.Count);
+            for (int i = 0; i < markKeys.Count; i++)
+            {
+                markKeyArray[i] = markKeys[i];
             }
         }
 
@@ -537,6 +616,38 @@ namespace DotsAnimationToolkit.Authoring
                 {
                     time = keys[i].time - segmentStart,
                     angleRadians = math.radians(keys[i].angleDegrees)
+                });
+            }
+        }
+
+        /// <summary>
+        /// Buckets one slot's marks by the instant their order is issued (§3.2). The arrival key
+        /// they merge into the root lane is bucketed separately, by its own later time — the two
+        /// routinely land in different segments, which is exactly what a rendezvous hold is.
+        /// </summary>
+        private static void BucketMarkKeys(
+            List<CutsceneMarkKey> markKeys, List<SegmentBoundary> boundaries,
+            List<CutsceneMarkKeyBlob>[,] bucket, int slotIndex)
+        {
+            if (markKeys == null)
+            {
+                return;
+            }
+
+            List<CutsceneMarkKey> sortedMarks = new List<CutsceneMarkKey>(markKeys);
+            sortedMarks.Sort((left, right) => left.time.CompareTo(right.time));
+
+            for (int i = 0; i < sortedMarks.Count; i++)
+            {
+                float segmentStart;
+                int segmentIndex = AssignToSegment(boundaries, sortedMarks[i].time, out segmentStart);
+                bucket[slotIndex, segmentIndex].Add(new CutsceneMarkKeyBlob
+                {
+                    time = sortedMarks[i].time - segmentStart,
+                    position = sortedMarks[i].position,
+                    facingRadians = math.radians(sortedMarks[i].facingDegrees),
+                    toleranceMeters = sortedMarks[i].toleranceMeters,
+                    timeoutSeconds = sortedMarks[i].timeoutSeconds
                 });
             }
         }
@@ -818,6 +929,7 @@ namespace DotsAnimationToolkit.Authoring
 
         private static void InsertBoundaryContinuityKeys(
             CutsceneAsset cutscene, List<SegmentBoundary> boundaries,
+            List<CutsceneTransformKey>[] effectiveRootKeysBySlot,
             List<CutsceneTransformKeyBlob>[,] transformKeysBySlotSegment,
             List<CutsceneFacingKeyBlob>[,] facingKeysBySlotSegment,
             List<PartTrackBucket>[,] partTracksBySlotSegment,
@@ -844,7 +956,7 @@ namespace DotsAnimationToolkit.Authoring
                     }
 
                     InsertTransformContinuity(
-                        slot.transformKeys, boundaryTime, endingSegmentDuration,
+                        effectiveRootKeysBySlot[slotIndex], boundaryTime, endingSegmentDuration,
                         transformKeysBySlotSegment[slotIndex, endingSegmentIndex],
                         transformKeysBySlotSegment[slotIndex, startingSegmentIndex]);
 

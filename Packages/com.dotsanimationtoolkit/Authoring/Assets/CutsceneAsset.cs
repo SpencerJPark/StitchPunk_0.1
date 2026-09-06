@@ -204,6 +204,9 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>When this slot rides another slot, and when it lets go (amendment A63 §3.1). Authored on Actor and Prop slots alike — a crate rides a cart exactly as an actor does.</summary>
         public List<CutsceneAttachMarker> attachMarkers = new List<CutsceneAttachMarker>();
 
+        /// <summary>Spots this slot must reach before a rendezvous hold releases (amendment A64 §3.1). Authored on Prop slots too — a self-driving cart is an actor without a rig, and the host decides what "move" means.</summary>
+        public List<CutsceneMarkKey> markKeys = new List<CutsceneMarkKey>();
+
         /// <summary>This slot's stable 32-bit identity within the owning cutscene — what a host's <c>CutsceneActorBinding</c> buffer resolves against (spec §6), never <see cref="name"/> or list position.</summary>
         public uint SlotId
         {
@@ -409,6 +412,46 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>The id a <c>CutsceneHoldRelease</c> names to release this specific hold.</summary>
         public string holdId = string.Empty;
+
+        /// <summary>
+        /// Makes this a <em>rendezvous</em> hold (amendment A64 §3.1): the clock resumes on its own
+        /// once every slot with an outstanding mark has arrived. A host's own
+        /// <c>CutsceneHoldRelease</c> still overrides it — leaving without them stays possible.
+        /// </summary>
+        public bool autoReleaseWhenMarksReached = true;
+    }
+
+    /// <summary>
+    /// One spot a slot is ordered to move to (amendment A64 §3.1). The toolkit issues the order and
+    /// judges arrival; what walks the entity there is the host's pathfinding (decision A64-D1).
+    /// </summary>
+    /// <remarks>
+    /// A struct, unlike <see cref="CutsceneAttachMarker"/>: every field's zero is either a sane
+    /// default or explicitly means "off" except the two the editor's own Add path writes
+    /// (<see cref="toleranceMeters"/>, <see cref="previewTravelSeconds"/>), which a fresh row from
+    /// Unity's list UI would otherwise leave at 0 — the same contract
+    /// <see cref="CutsceneCameraKey.fieldOfView"/> documents.
+    /// </remarks>
+    [Serializable]
+    public struct CutsceneMarkKey
+    {
+        /// <summary>When the move order is issued, in raw timeline seconds.</summary>
+        public float time;
+
+        /// <summary>The world position to reach.</summary>
+        public float3 position;
+
+        /// <summary>Arrival facing, same 0–360 model as <see cref="CutsceneFacingKey"/>.</summary>
+        [Range(0f, 360f)] public float facingDegrees;
+
+        /// <summary>XZ distance that counts as "there". Authored default 0.5.</summary>
+        public float toleranceMeters;
+
+        /// <summary>0 waits forever; otherwise the mark resolves by teleport after this many real seconds (decision A64-D3, so a paused cutscene never ticks it down).</summary>
+        public float timeoutSeconds;
+
+        /// <summary>Editor-only rehearsal of how long the walk takes; also where the merged root key lands (decision A64-D2). Authored default 2.</summary>
+        public float previewTravelSeconds;
     }
 
     /// <summary>
