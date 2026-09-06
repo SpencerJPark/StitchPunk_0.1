@@ -8,22 +8,10 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Reads and writes authored bone tracks at a point in time.
+    /// Reads and writes authored bone tracks at a point in time. Sampling goes through
+    /// <c>BoneTrackPoser</c>, the same function the preview skeleton and the VAT bake use. Angles
+    /// are exchanged as signed Euler degrees but stored as a quaternion, the authored form.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Sampling goes through <c>BoneTrackPoser</c>, the same function the preview skeleton and the
-    /// VAT bake use, so the numbers in the inspector are the pose that will be baked rather than a
-    /// second reading of the same keys.
-    /// </para>
-    /// <para>
-    /// <strong>Angles are exchanged as signed Euler degrees, stored as a quaternion.</strong> The
-    /// quaternion is the authored form — it is what the bake samples and what has no gimbal order
-    /// to agree on — but it is not a thing anyone types, so the editor converts at the boundary.
-    /// Signed rather than <c>eulerAngles</c>' [0, 360) because a joint at −30° must not read as
-    /// +330° in a field the user is about to nudge.
-    /// </para>
-    /// </remarks>
     public static class ClipBoneEditing
     {
         /// <summary>The index of the key at a time, or −1 when none is close enough.</summary>
@@ -129,19 +117,15 @@ namespace DotsAnimationToolkit.Editor
                 SignedDegrees(euler.x), SignedDegrees(euler.y), SignedDegrees(euler.z));
         }
 
+        // Signed rather than eulerAngles' [0, 360): a joint at −30° must not read as +330° in a
+        // field the user is about to nudge.
         private static float SignedDegrees(float degrees)
         {
             return degrees > 180f ? degrees - 360f : degrees;
         }
 
-        /// <summary>
-        /// The easing of the key a new one lands after — its mode and its handles both.
-        /// </summary>
-        /// <remarks>
-        /// The handles travel with the mode because a Bézier without them is not a curve: the
-        /// sampler reads an all-zero pair as linear, so inheriting the mode alone would turn the one
-        /// segment the author had shaped by hand back into a straight line.
-        /// </remarks>
+        // The easing of the key a new one lands after — mode and handles both, since a Bézier
+        // without handles reads as linear and would flatten a hand-shaped segment.
         private static Interpolation InheritInterpolationAt(
             BoneTrack track, float normalizedTime,
             out float2 bezierStartHandle, out float2 bezierEndHandle)

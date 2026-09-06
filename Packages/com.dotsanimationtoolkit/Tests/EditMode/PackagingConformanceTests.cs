@@ -427,7 +427,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                     bool hit = false;
                     foreach (string bannedLiteral in bannedLiterals)
                     {
-                        if (line.Contains(bannedLiteral))
+                        if (line.IndexOf(bannedLiteral, System.StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             hit = true;
                             break;

@@ -6,21 +6,9 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Shades the timeline outside the clip and marks where the clip begins and ends.
+    /// Shades the timeline outside the clip and marks where the clip begins and ends. Shared by
+    /// the ruler and every lane so no two elements can disagree about where the clip ends.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Shared by the ruler and every lane on purpose.</strong> Two elements drawing "where
-    /// the clip ends" from their own arithmetic is the same class of bug <c>TimelineGeometry</c>
-    /// exists to prevent — a boundary line one pixel from the shading it bounds looks like a
-    /// rendering fault and hides a real disagreement about the clip extent.
-    /// </para>
-    /// <para>
-    /// Keys outside the clip still paint, select and drag normally. The shading says "this time is
-    /// past the end", not "nothing here is real" — which matters because scaling keys past the end
-    /// is a legitimate thing to do and then undo.
-    /// </para>
-    /// </remarks>
     internal static class TimelineRangeShading
     {
         /// <summary>Darker than any lane background, so it reads as outside rather than as a stripe.</summary>

@@ -10,50 +10,15 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The custom inspector for <see cref="RigAsset"/> (architecture section 7.1). Its reason to
-    /// exist is the socket list: sockets are the one part of a rig the default inspector cannot
-    /// author safely.
+    /// Custom inspector for <see cref="RigAsset"/>. Its reason to exist is the socket list:
+    /// replacing a free-text bone name and a raw target-id integer with dropdowns built from real
+    /// data removes a typo class that otherwise fails silently — a socket baked at the actor origin.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The bug this closes.</strong> In the default inspector a bone socket's
-    /// <c>boneName</c> is a free-text field, and a rig-target socket's <c>targetId</c> is a raw
-    /// unsigned integer. Both are unverifiable at the point of authoring, and both fail silently:
-    /// the VAT bake logs one warning and then bakes a socket pinned to the actor origin, so the
-    /// symptom the user actually sees is a sword hovering at a character's feet, hours later, in a
-    /// different module. Replacing the two free-form fields with dropdowns built from real data —
-    /// the rig's own targets, and the bones of a user-assigned source hierarchy — removes the whole
-    /// class of typo rather than reporting it downstream.
-    /// </para>
-    /// <para>
-    /// <strong>Everything that can be a bound <see cref="PropertyField"/> is one.</strong> Binding
-    /// through <see cref="SerializedObject"/> buys Undo, dirtying, and prefab-override handling for
-    /// free; hand-rolled fields that write the asset directly buy none of those, and the audit that
-    /// preceded the package found exactly that defect in the host's own editors. Only the two
-    /// dropdowns are hand-driven, because the value a user picks (a bone name, a target row) is not
-    /// the value stored (a string, an id) — and even those write through
-    /// <see cref="SerializedProperty"/> and <see cref="SerializedObject.ApplyModifiedProperties"/>
-    /// so they land on the same Undo stack as everything else.
-    /// </para>
-    /// <para>
-    /// UI Toolkit only, per section 7 and enforced by
-    /// <c>PackagingConformanceTests.Conformance_E_NoImguiApis_InEditorSources</c>: this type
-    /// overrides <see cref="UnityEditor.Editor.CreateInspectorGUI"/> and never the immediate-mode
-    /// entry point.
-    /// </para>
-    /// </remarks>
     [CustomEditor(typeof(RigAsset))]
     public sealed class RigAssetEditor : UnityEditor.Editor
     {
-        /// <summary>
-        /// Prefix of the per-asset editor preference that remembers the bone name source.
-        /// </summary>
-        /// <remarks>
-        /// Keyed by the rig's asset GUID rather than its path, so moving or renaming the rig keeps
-        /// the association. Prefixed with the full type name because
-        /// <see cref="EditorPrefs"/> is a single global namespace shared with every other tool the
-        /// user has installed.
-        /// </remarks>
+        // Full-type-named because EditorPrefs is a single namespace shared with every installed
+        // tool; keyed elsewhere by the rig's GUID, not path, so a rename keeps the association.
         private const string BoneNameSourcePreferenceKeyPrefix =
             "DotsAnimationToolkit.RigAssetEditor.boneNameSource.";
 
@@ -86,7 +51,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<SocketRowElements> socketRows = new List<SocketRowElements>();
 
         // -----------------------------------------------------------------------------------
-        // Target tags (Phase E target-tags spec §4.2, E2).
+        // Target tags.
         // -----------------------------------------------------------------------------------
 
         private const string NoTagChoiceLabel = "(none)";
@@ -104,17 +69,6 @@ namespace DotsAnimationToolkit.Editor
         private int builtSocketCount;
         private string builtTargetSignature = string.Empty;
 
-        /// <summary>
-        /// Builds the inspector: the three ordinary rig lists, then the socket authoring section.
-        /// </summary>
-        /// <returns>The root of the inspector's visual tree.</returns>
-        /// <remarks>
-        /// <see cref="BindingExtensions.Bind(VisualElement, SerializedObject)"/> is called on the
-        /// root explicitly rather than left to the hosting inspector element. Binding an already
-        /// bound tree is idempotent, whereas an unbound tree renders every
-        /// <see cref="PropertyField"/> empty — a failure mode that looks like a broken asset rather
-        /// than a broken editor, and is worth one redundant call to make impossible.
-        /// </remarks>
         public override VisualElement CreateInspectorGUI()
         {
             targetsProperty = serializedObject.FindProperty("targets");
@@ -157,6 +111,8 @@ namespace DotsAnimationToolkit.Editor
             // to be local.
             inspectorRoot.TrackSerializedObjectValue(serializedObject, OnSerializedObjectChanged);
 
+            // Called explicitly rather than left to the hosting inspector element: binding an
+            // already-bound tree is idempotent, but an unbound tree renders every field empty.
             inspectorRoot.Bind(serializedObject);
             return inspectorRoot;
         }
@@ -174,13 +130,8 @@ namespace DotsAnimationToolkit.Editor
             return heading;
         }
 
-        /// <summary>
-        /// The rig's own stable id, drawn read-only.
-        /// </summary>
-        /// <remarks>
-        /// Selectable on purpose: the id is only useful if it can be copied out into a bug report or
-        /// a comparison against a baked registry, and a plain label cannot be copied.
-        /// </remarks>
+        // Selection is enabled on purpose: the id is only useful if it can be copied into a bug
+        // report or a comparison against a baked registry.
         private Label BuildIdentityBadge()
         {
             RigAsset rig = target as RigAsset;
@@ -195,29 +146,11 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Target tags (Phase E target-tags spec §4.2, E2). "Map the rig, then tag the parts."
+        // Target tags. "Map the rig, then tag the parts."
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// One row per target: its name, and a button showing its current tag that opens the
-        /// searchable <see cref="TargetTagPicker"/> — this rig's tag column (spec §4.2.1, §4.2).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>A separate hand-built section rather than folded into the Targets
-        /// <see cref="PropertyField"/> above.</strong> <see cref="RigTargetDefinition.tagId"/> is
-        /// marked <c>[HideInInspector]</c> specifically so the default array drawer above can never
-        /// render it as a raw <c>uint</c> field — the one thing spec §4.2.1 rules out is a tag ever
-        /// being typed anywhere but the registry. This section is the column that field's default
-        /// rendering would otherwise have been; it exists only to host the picker.
-        /// </para>
-        /// <para>
-        /// Rows are rebuilt only when the target count changes, mirroring
-        /// <see cref="RebuildSocketRows"/>'s reasoning: each row caches a
-        /// <see cref="SerializedProperty"/> handle into the targets array, and inserting or removing
-        /// a target re-points every handle after the edit site.
-        /// </para>
-        /// </remarks>
+        // One row per target: its name, and a button opening the searchable TargetTagPicker.
+        // RigTargetDefinition.tagId is [HideInInspector] so a tag is only ever picked, never typed.
         private VisualElement BuildTargetTagSection()
         {
             VisualElement section = new VisualElement();
@@ -322,7 +255,7 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Opens the searchable tag picker anchored to <paramref name="row"/>'s button, the one
-        /// surface allowed to write <see cref="RigTargetDefinition.tagId"/> (spec §4.2.1).
+        /// surface allowed to write <see cref="RigTargetDefinition.tagId"/>.
         /// </summary>
         private void OpenTargetTagPicker(TargetTagRowElements row)
         {
@@ -361,11 +294,8 @@ namespace DotsAnimationToolkit.Editor
             RefreshTargetTagBadges();
         }
 
-        /// <summary>
-        /// Re-runs <see cref="ClipValidation.ValidateRig"/> and redraws one <see cref="HelpBox"/> per
-        /// T1 finding (V34) — the rule a rig's own target list can violate on its own, without
-        /// needing a track or a set to be involved.
-        /// </summary>
+        // Re-runs ClipValidation.ValidateRig and redraws one HelpBox per V34 finding — the rule a
+        // rig's own target list can violate on its own, without a track or a set involved.
         private void RefreshTargetTagBadges()
         {
             if (targetTagBadgeContainer == null)
@@ -394,14 +324,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The visual elements and serialized handles of one target tag row.
-        /// </summary>
-        /// <remarks>
-        /// Same discipline as <see cref="SocketRowElements"/>: the handle is only valid while the
-        /// targets array's shape is unchanged, so <see cref="RebuildTargetTagRows"/> discards every
-        /// row whenever a target is inserted or removed.
-        /// </remarks>
+        // Handles are only valid while the targets array's shape is unchanged, so
+        // RebuildTargetTagRows discards every row whenever a target is inserted or removed.
         private sealed class TargetTagRowElements
         {
             public int targetIndex;
@@ -413,28 +337,12 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Billboard section (amendment A44).
+        // Billboard section.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// The rig's billboard roots, drawn as a plain list with the explanation a reader needs to
-        /// know what marking one actually does.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Deliberately a <see cref="PropertyField"/> over the list rather than the hand-built rows
-        /// the socket section uses. Sockets earn that treatment because they carry cross-row
-        /// warnings and a mode-dependent target picker; a billboard root is a flat block of values
-        /// whose one cross-cutting rule - two roots on one node - is already reported by validation
-        /// rule V22 wherever the rig is validated. Hand-drawing it would add a second place for that
-        /// rule to be stated slightly differently.
-        /// </para>
-        /// <para>
-        /// The most useful place to <em>create</em> one is the Clip Editor's hierarchy, where the
-        /// node being marked is in front of the author and the address is filled in for them. This
-        /// section is for tuning what a root does once it exists.
-        /// </para>
-        /// </remarks>
+        // A plain PropertyField over the list, not hand-built rows: a billboard root has no
+        // cross-row warnings the way a socket does, since its only cross-cutting rule (two roots on
+        // one node) is already reported wherever the rig is validated.
         private VisualElement BuildBillboardSection()
         {
             VisualElement section = new VisualElement();
@@ -459,30 +367,11 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Ragdoll section (Phase D, amendment A50).
+        // Ragdoll section.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// The rig's ragdoll settings and bodies, plus a badge for every ragdoll validation finding
-        /// (V26–V32).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Same shape as <see cref="BuildBillboardSection"/> and for the same reason: a ragdoll body
-        /// is a flat block of values with no cross-row UI of its own at this phase, so a plain
-        /// <see cref="PropertyField"/> over the list is enough. The one thing this section adds that
-        /// the billboard one does not is the badge list — billboarding's only cross-cutting rules
-        /// (V21–V23) are rare enough in practice that the default inspector's own error icons on a
-        /// broken <see cref="PropertyField"/> row were judged sufficient; a ragdoll body carries
-        /// seven rules including one, V31, that is rig-wide rather than per-row and so has no row of
-        /// its own to badge.
-        /// </para>
-        /// <para>
-        /// <strong>Placing and dragging boxes in the viewport, and the "Fix addresses" reconciler,
-        /// are out of scope here.</strong> Both are Phase D6 and D-later work respectively (spec
-        /// §8.3, §8.7); this section only renders what a rig asset alone can show.
-        /// </para>
-        /// </remarks>
+        // Same PropertyField shape as BuildBillboardSection, plus a badge list: a ragdoll body
+        // carries a rig-wide rule (no per-row home) that the default inspector's error icons cannot show.
         private VisualElement BuildRagdollSection()
         {
             VisualElement section = new VisualElement();
@@ -515,11 +404,8 @@ namespace DotsAnimationToolkit.Editor
             return section;
         }
 
-        /// <summary>
-        /// Re-runs <see cref="ClipValidation.ValidateRig"/> and redraws one <see cref="HelpBox"/> per
-        /// ragdoll finding (V26–V32). A full rig validation rather than a hand-rolled subset, so this
-        /// badge list can never drift from what the bake actually enforces.
-        /// </summary>
+        // A full rig validation, not a hand-rolled subset, so this badge list can never drift from
+        // what the bake actually enforces.
         private void RefreshRagdollBadges()
         {
             if (ragdollBadgeContainer == null)
@@ -597,16 +483,8 @@ namespace DotsAnimationToolkit.Editor
             return section;
         }
 
-        /// <summary>
-        /// Tears down and rebuilds every socket row from the current serialized array.
-        /// </summary>
-        /// <remarks>
-        /// A full rebuild rather than an incremental diff. Every row caches
-        /// <see cref="SerializedProperty"/> handles into the array, and inserting or deleting an
-        /// element re-points every handle after the edit site — so a partial update would leave
-        /// surviving rows editing their neighbours' data. That bug is silent and destructive, and
-        /// rebuilding a list of a few sockets costs nothing.
-        /// </remarks>
+        // A full rebuild, not an incremental diff: every row caches SerializedProperty handles into
+        // the array, and inserting or deleting an element re-points every handle after the edit site.
         private void RebuildSocketRows()
         {
             socketRows.Clear();
@@ -758,29 +636,7 @@ namespace DotsAnimationToolkit.Editor
         // Add and remove.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Appends a socket row and gives it a fresh stable id.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Why the id is minted here rather than left to the asset.</strong>
-        /// <c>RigAsset.EnsureStableIds</c> is <c>internal</c> to the Authoring assembly, so this
-        /// assembly cannot call it; the obvious workaround is to insert the element, apply, and let
-        /// the asset's own <c>OnValidate</c> mint the id. That route is real —
-        /// <c>OnValidate</c> exists on <see cref="RigAsset"/> and does call it — but it is not
-        /// sufficient here, because <see cref="SerializedProperty.InsertArrayElementAtIndex"/>
-        /// duplicates the neighbouring element's values, and <c>EnsureStableIds</c> is idempotent:
-        /// it only fills ids that are still 0. A duplicated non-zero id would therefore be left
-        /// alone, and the rig would ship two sockets sharing one identity — every attachment aimed
-        /// at either would resolve to whichever the registry sorted first.
-        /// </para>
-        /// <para>
-        /// So every field of the new row is written explicitly, including a fresh id from the
-        /// public <c>StableIdMinting</c> the asset itself uses. <c>OnValidate</c> still runs on
-        /// apply and still acts as the backstop for rows created any other way; this path simply
-        /// never leaves it anything to do.
-        /// </para>
-        /// </remarks>
+        /// <summary>Appends a socket row and gives it a fresh stable id.</summary>
         private void AddSocket()
         {
             if (socketsProperty == null)
@@ -796,6 +652,8 @@ namespace DotsAnimationToolkit.Editor
 
             newSocket.FindPropertyRelative("displayName").stringValue =
                 "Socket " + (newSocketIndex + 1).ToString();
+            // Minted explicitly, not left to RigAsset's own OnValidate: InsertArrayElementAtIndex
+            // duplicates the neighbour's id, and EnsureStableIds only fills ids still at 0.
             newSocket.FindPropertyRelative("stableId").uintValue = StableIdMinting.NewTargetStableId();
             newSocket.FindPropertyRelative("mode").enumValueIndex = (int)SocketAttachMode.RigTarget;
             newSocket.FindPropertyRelative("targetId").uintValue = 0u;
@@ -808,15 +666,8 @@ namespace DotsAnimationToolkit.Editor
             RebuildSocketRows();
         }
 
-        /// <summary>
-        /// Deletes one socket row.
-        /// </summary>
-        /// <remarks>
-        /// A single <see cref="SerializedProperty.DeleteArrayElementAtIndex"/> is enough here.
-        /// The familiar "first delete only nulls the entry" quirk applies to arrays of
-        /// <see cref="UnityEngine.Object"/> references; <c>SocketDefinition</c> is a plain
-        /// serializable class stored by value, so the element is removed outright.
-        /// </remarks>
+        // A single DeleteArrayElementAtIndex is enough — the "first delete only nulls the entry"
+        // quirk applies to Object-reference arrays; SocketDefinition is a plain value type.
         private void RemoveSocket(int socketIndex)
         {
             if (socketsProperty == null || socketIndex < 0 || socketIndex >= socketsProperty.arraySize)
@@ -834,20 +685,8 @@ namespace DotsAnimationToolkit.Editor
         // Bone name source (editor-only).
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// The editor preference key holding this rig's remembered bone name source.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Why this is not a field on <see cref="RigAsset"/>.</strong> The source hierarchy
-        /// is an authoring aid — a place to read a list of names from — not rig data. Nothing in the
-        /// bake, the blob, or the runtime reads it. Serialising it would make every rig carry a hard
-        /// reference to a prefab it does not otherwise depend on, which drags that prefab and its
-        /// meshes into any build or asset bundle the rig lands in, and makes deleting an obsolete
-        /// source prefab break assets that never needed it. An editor preference keyed by the rig's
-        /// GUID gives the same convenience and none of that.
-        /// </para>
-        /// </remarks>
+        // Not a field on RigAsset: nothing in the bake, blob, or runtime reads this source
+        // hierarchy, and serializing it would drag an unneeded prefab into every build.
         private string BuildBoneNameSourcePreferenceKey()
         {
             string assetPath = AssetDatabase.GetAssetPath(target);
@@ -916,16 +755,8 @@ namespace DotsAnimationToolkit.Editor
             RebuildSocketRows();
         }
 
-        /// <summary>
-        /// Reads the bone names out of the assigned source hierarchy.
-        /// </summary>
-        /// <remarks>
-        /// Inactive children are included, and duplicates collapse to their first occurrence, so the
-        /// list matches exactly what <c>VatTextureBaker</c> will resolve against at bake time: it
-        /// walks <c>GetComponentsInChildren&lt;Transform&gt;(true)</c> and takes the first exact name
-        /// match. Offering a name the baker would not find, or hiding one it would, would make this
-        /// dropdown a second source of truth — which is the failure it was written to prevent.
-        /// </remarks>
+        // Inactive children included, duplicates collapsed to their first occurrence — matches
+        // exactly what VatTextureBaker resolves against at bake time, so this can't drift from it.
         private void RefreshBoneNameChoices()
         {
             boneChoiceLabels.Clear();
@@ -953,15 +784,9 @@ namespace DotsAnimationToolkit.Editor
         // Target choices.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Rebuilds the shared rig-target dropdown choices from the rig's own target list.
-        /// </summary>
-        /// <remarks>
-        /// Labels are forced unique — an unnamed target gets a placeholder and a repeated name gets
-        /// its row index appended. The dropdown selects by string, so two identical labels would
-        /// make the second target unreachable; uniqueness is cheaper than teaching every call site
-        /// to select by index.
-        /// </remarks>
+        // Labels are forced unique — an unnamed target gets a placeholder and a repeated name gets
+        // its row index appended, since the dropdown selects by string and a duplicate label would
+        // make the second target unreachable.
         private void RefreshTargetChoices()
         {
             targetChoiceLabels.Clear();
@@ -1140,14 +965,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Re-derives one row's mode-dependent visibility, dropdown contents, and warning text.
-        /// </summary>
-        /// <remarks>
-        /// The mode-dependent halves are shown and hidden through <c>display</c>, not disabled: a
-        /// greyed-out Bone Name under a rig-target socket still reads as a field that matters, and
-        /// the whole point of the mode switch is that only one of the two bindings exists at a time.
-        /// </remarks>
+        // Mode-dependent halves are shown/hidden via display, not disabled — a greyed-out field
+        // still reads as one that matters, and only one binding exists at a time.
         private void RefreshRow(SocketRowElements row)
         {
             if (row == null || row.modeProperty == null)
@@ -1242,15 +1061,8 @@ namespace DotsAnimationToolkit.Editor
             row.boneDropdown.SetValueWithoutNotify(selectedLabel);
         }
 
-        /// <summary>
-        /// Fills in the row's inline warning box.
-        /// </summary>
-        /// <remarks>
-        /// Every condition here is non-fatal — the rig still bakes — which is precisely why it is
-        /// worth surfacing at authoring time. A bone that resolves to nothing, or a target id that
-        /// matches no target, produces a socket sitting at the actor origin; nothing throws, and the
-        /// only signal downstream is one bake warning that is easy to scroll past.
-        /// </remarks>
+        // Every condition here is non-fatal — the rig still bakes with a socket sitting at the
+        // actor origin — which is exactly why it is worth surfacing at authoring time.
         private void RefreshRowWarnings(SocketRowElements row, bool isBoneMode, bool hasBoneNameSource)
         {
             List<string> messages = new List<string>();
@@ -1358,15 +1170,8 @@ namespace DotsAnimationToolkit.Editor
             return matchCount > 1;
         }
 
-        /// <summary>
-        /// The visual elements and serialized handles of one socket row.
-        /// </summary>
-        /// <remarks>
-        /// A row owns its <see cref="SerializedProperty"/> handles so refreshes never re-walk the
-        /// array by path. The handles are only valid while the array's shape is unchanged, which is
-        /// why <see cref="RigAssetEditor.RebuildSocketRows"/> discards every row whenever an element
-        /// is inserted or deleted.
-        /// </remarks>
+        // Handles are only valid while the array's shape is unchanged, which is why
+        // RebuildSocketRows discards every row whenever an element is inserted or deleted.
         private sealed class SocketRowElements
         {
             public int socketIndex;

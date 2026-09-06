@@ -7,38 +7,15 @@ using UnityEditor;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Checks rule T4 (V37, Phase E target-tags spec §6): a clip referenced by more than one
-    /// <see cref="ClipSetAsset"/> that still binds one of its tracks by target id rather than by tag
-    /// — the rule that turns "my shared clip does nothing on the second character" into a message at
-    /// authoring time, instead of a silent mystery discovered on screen.
+    /// Flags a clip referenced by more than one <see cref="ClipSetAsset"/> that still binds one of
+    /// its tracks by target id rather than by tag, so a shared clip that does nothing on the second
+    /// character is a message at authoring time, not a silent mystery on screen.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>This cannot live in <see cref="ClipValidation"/>.</strong> That type validates one
-    /// clip or one set in isolation (its own doc comment says so), but "how many sets reference this
-    /// clip" is a fact about the whole project — the same reason
-    /// <see cref="TargetTagBindingUtility"/>'s project-wide overloads live here instead of in the
-    /// Authoring assembly, which has no <c>AssetDatabase</c> to ask.
-    /// </para>
-    /// <para>
-    /// <strong>Split into a pure overload and a project-scanning one</strong>, the same shape
-    /// <see cref="TargetTagBindingUtility"/> already uses: <see cref="CountReferencingClipSets"/>
-    /// does the counting against whatever set list it is handed, with no asset database in the way,
-    /// so an EditMode fixture can exercise it directly; <see cref="ValidateSharedClipBinding(ClipAsset)"/>
-    /// is the thin entry point that finds every <see cref="ClipSetAsset"/> in the project and hands
-    /// the list to the pure logic.
-    /// </para>
-    /// </remarks>
     public static class SharedClipBindingUtility
     {
-        /// <summary>
-        /// Counts how many of <paramref name="clipSets"/> list <paramref name="clip"/>, each set
-        /// counted at most once regardless of how many times it repeats the clip (rule V11 already
-        /// covers a set repeating its own clip; this rule is about distinct sets).
-        /// </summary>
-        /// <param name="clip">The clip to search for. Null always counts 0.</param>
-        /// <param name="clipSets">The sets to search. Null, or a null entry within it, contributes 0.</param>
-        /// <returns>The number of distinct sets that reference the clip.</returns>
+        // Each set counts at most once regardless of how many times it repeats the clip.
+        /// <param name="clip">Null always counts 0.</param>
+        /// <param name="clipSets">Null, or a null entry within it, contributes 0.</param>
         public static int CountReferencingClipSets(ClipAsset clip, IReadOnlyList<ClipSetAsset> clipSets)
         {
             if (clip == null || clipSets == null)
@@ -66,18 +43,10 @@ namespace DotsAnimationToolkit.Editor
             return referencingSetCount;
         }
 
-        /// <summary>
-        /// Validates <paramref name="clip"/> against T4 (V37) given an explicit list of the project's
-        /// clip sets — the pure overload a test exercises directly, with no asset database access.
-        /// </summary>
-        /// <param name="clip">The clip to check. Null reports nothing.</param>
-        /// <param name="clipSets">Every clip set in the project (or, in a test, every clip set the
-        /// fixture cares about).</param>
+        /// <param name="clip">Null reports nothing.</param>
         /// <returns>
-        /// One V37 warning per <see cref="TransformTrack"/> or <see cref="SpriteTrack"/> that still
-        /// binds by target id (<c>tagId == 0</c>, <c>targetId != 0</c>), when the clip is referenced
-        /// by more than one set. Empty when the clip is referenced by at most one set, or every
-        /// track that names a real target is already tag-bound.
+        /// One warning per <see cref="TransformTrack"/> or <see cref="SpriteTrack"/> that still
+        /// binds by target id when the clip is referenced by more than one set; empty otherwise.
         /// </returns>
         public static List<ValidationMessage> ValidateSharedClipBinding(
             ClipAsset clip, IReadOnlyList<ClipSetAsset> clipSets)
@@ -99,12 +68,6 @@ namespace DotsAnimationToolkit.Editor
             return messages;
         }
 
-        /// <summary>
-        /// Validates <paramref name="clip"/> against every <see cref="ClipSetAsset"/> the project's
-        /// asset database can find — the entry point a live inspector or the Clip Editor's
-        /// validation badge actually calls.
-        /// </summary>
-        /// <param name="clip">The clip to check.</param>
         /// <returns>See <see cref="ValidateSharedClipBinding(ClipAsset, IReadOnlyList{ClipSetAsset})"/>.</returns>
         public static List<ValidationMessage> ValidateSharedClipBinding(ClipAsset clip)
         {

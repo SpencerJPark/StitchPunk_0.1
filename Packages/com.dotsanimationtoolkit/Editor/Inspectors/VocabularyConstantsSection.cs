@@ -10,35 +10,10 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The generated-constants status line both vocabulary inspectors show (amendment E6 Task 2,
-    /// amendment A54): no button, no dialog, ever. The first time a row is added, removed, or a name
-    /// field loses focus, this picks a destination on its own and writes the file there; every edit
-    /// after that keeps it in sync the same way — see <see cref="RegenerateIfConfigured"/>.
+    /// The generated-constants status line both vocabulary inspectors show: no button, no dialog,
+    /// ever. On first use it picks <see cref="DefaultDestinationDirectory"/> automatically and
+    /// writes there; every later edit keeps the file in sync the same way.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The destination used to be asked for.</strong> The original design opened a save
-    /// dialog on first use, reasoning that a package cannot know which assembly in the host project
-    /// should own generated constants. The owner rejected that in favour of zero interaction —
-    /// <em>"I don't wanna have to barely do that... auto deal with all that stuff for me"</em> — so
-    /// this now picks a fixed, conventional path itself (<see cref="DefaultDestinationDirectory"/>)
-    /// the first time anything needs generating, and never asks again. If that default is ever wrong
-    /// for a project, the fix is to change <see cref="IVocabularyRegistry.GeneratedConstantsPath"/>
-    /// directly on the registry asset; there is deliberately no UI for it any more.
-    /// </para>
-    /// <para>
-    /// <strong>One class serving both vocabularies rather than a block per inspector.</strong> The
-    /// two registries differ here only in four strings, and the same standardisation directive that
-    /// produced <see cref="VocabularyPicker"/> and <see cref="VocabularyQuickEditWindow"/> applies:
-    /// tags and events must not grow parallel implementations of the same control.
-    /// </para>
-    /// <para>
-    /// <strong>Names that could not survive the trip to C# are reported, not swallowed.</strong> The
-    /// whole point of the feature (spec §4.2.3) is that the owner works in names; a tag called
-    /// <c>"Eye L"</c> silently becoming <c>Eye_L</c> would break that promise at the one moment it
-    /// matters. Every such substitution is logged as a warning naming both forms.
-    /// </para>
-    /// </remarks>
     public sealed class VocabularyConstantsSection : VisualElement
     {
         private const string LogPrefix = "[DOTS Animation Toolkit] ";
@@ -53,24 +28,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly string fallbackEntryNamePrefix;
         private readonly Action persistRegistry;
 
-        /// <summary>Builds the block for one vocabulary.</summary>
-        /// <param name="registry">The vocabulary to emit constants for.</param>
-        /// <param name="registryContext">
-        /// The same registry as a <see cref="UnityEngine.Object"/>, used only so a console message
-        /// about it can be clicked back to its inspector.
-        /// </param>
-        /// <param name="defaultFileName">
-        /// The generated file's name without extension, e.g. "TargetTags" — and, because the class
-        /// name is derived from the file name, this is what makes the owner's
-        /// <c>TargetTags.Jaw</c> the default shape without anyone typing a class name.
-        /// </param>
-        /// <param name="entryNoun">How one row reads in prose, e.g. "Target tag".</param>
-        /// <param name="fallbackEntryNamePrefix">Stem for an unnameable row, e.g. "Tag".</param>
-        /// <param name="persistRegistry">
-        /// Called after the remembered path changes. The project vocabularies live outside the asset
-        /// database and have no autosave, so a path this block stores and does not persist is lost on
-        /// the next domain reload.
-        /// </param>
+        /// <param name="registryContext">The same registry as a <see cref="UnityEngine.Object"/>, so a console message can be clicked back to its inspector.</param>
+        /// <param name="persistRegistry">Called after the remembered path changes — the project
+        /// vocabularies have no autosave, so a path left unpersisted is lost on domain reload.</param>
         public VocabularyConstantsSection(
             IVocabularyRegistry registry,
             UnityEngine.Object registryContext,
@@ -127,10 +87,9 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Rewrites the generated file from the current rows, picking a destination automatically the
-        /// first time one is needed. The owning inspector calls this after every edit that could
-        /// change what the file should say — a row added, removed, or a name field losing focus —
-        /// which is what makes the file self-maintaining with nothing to click (amendment A54).
+        /// Rewrites the generated file from the current rows, picking a destination automatically
+        /// the first time one is needed. The owning inspector calls this after every edit that
+        /// could change what the file should say.
         /// </summary>
         public void RegenerateIfConfigured()
         {
@@ -153,10 +112,8 @@ namespace DotsAnimationToolkit.Editor
             string generatedSource = ConstantsGenerator.BuildVocabularyConstantsSource(
                 registry, className, entryNoun, fallbackEntryNamePrefix, reports);
 
-            // This runs on every field blur, not one deliberate button press, and a same-content
-            // rewrite would still touch the file's timestamp and trigger AssetDatabase.Refresh - a
-            // compile-scale cost, since the default destination sits under Assets/ - for a click
-            // that changed nothing. Skipped whenever the bytes would be identical.
+            // Runs on every field blur, not one deliberate button press, so a same-content rewrite
+            // is skipped — it would still trigger a compile-scale AssetDatabase.Refresh for nothing.
             if (File.Exists(storedPath) && File.ReadAllText(storedPath) == generatedSource)
             {
                 return;

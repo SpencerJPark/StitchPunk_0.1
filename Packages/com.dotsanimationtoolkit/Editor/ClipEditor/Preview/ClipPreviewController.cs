@@ -11,48 +11,12 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Drives the clip preview: transient registry blob in, rendered texture out
-    /// (architecture section 7.3).
+    /// Drives the clip preview: transient registry blob in, rendered texture out. Visual parity is
+    /// by construction, not effort — the pose comes from <see cref="ClipSampler"/> and a registry
+    /// built by <see cref="ClipRegistryBuilder"/>, the same functions the runtime and baker use.
+    /// <see cref="Render"/> never depends on selection: it draws whatever the scene holds, at
+    /// minimum the reference grid, whether or not a clip is selected.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Visual parity is by construction, not by effort.</strong> The pose comes from
-    /// <see cref="ClipSampler"/> — the runtime's own functions — sampled out of a registry blob
-    /// built by <see cref="ClipRegistryBuilder"/>, the same builder the baker uses. There is no
-    /// second, editor-only sampler to drift from the real one, which is the failure the host's old
-    /// preview had.
-    /// </para>
-    /// <para>
-    /// <strong>This blob is the one manually-owned blob in the toolkit</strong>, and only in the
-    /// editor. Everything else is owned by a <c>BlobAssetStore</c> and freed with it; this one is
-    /// built with <see cref="Allocator.Persistent"/> because it must outlive the call that made it,
-    /// so <see cref="Dispose"/> is not optional. Every path that replaces it disposes the old one
-    /// first.
-    /// </para>
-    /// <para>
-    /// <strong>Rest poses come from the prefab in the toolbar's rig field.</strong> Each target
-    /// binds by name to a transform of that prefab and takes its root-relative position, rotation
-    /// and scale; authored keys are offsets *from* that, which is exactly how the runtime composes.
-    /// They used to be identity, which showed the authored motion faithfully but showed it about
-    /// the origin rather than about where the part sits on a built actor — every part a unit quad
-    /// in a heap. A target with no matching transform still falls back to identity, which is what a
-    /// set with no prefab loaded gets.
-    /// </para>
-    /// <para>
-    /// <strong>The rig is built at the origin and the camera is aimed at the rig.</strong> Those are
-    /// separate questions and conflating them is why the view used to look at the ground between a
-    /// character's feet: the origin is where the rig is *placed* — it is what the floor grid is
-    /// drawn for — but a character stands on the floor, so none of it is near 0,0,0.
-    /// </para>
-    /// <para>
-    /// <strong>Rendering does not depend on selection.</strong> <see cref="Render"/> draws whatever
-    /// the preview scene currently holds — at minimum the reference grid — and returns a texture
-    /// whether or not a clip is selected, a set is assigned, or a registry could be built. Selection
-    /// decides what is <em>in</em> the scene and where the selection marker sits; it never decides
-    /// whether there is a picture. The window relied on the opposite for a long time, and the result
-    /// was a viewport that looked broken until something was clicked.
-    /// </para>
-    /// </remarks>
     public sealed class ClipPreviewController : IDisposable
     {
         /// <summary>Used only when there is no geometry to frame, so nothing tells us how far back to be.</summary>
@@ -70,14 +34,8 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Shift's multiplier on the fly speed, matching the Scene view's own accelerator.</summary>
         private const float FlyFastMultiplier = 4f;
 
-        /// <summary>
-        /// What fraction of the current distance one pixel of Alt + RMB drag closes.
-        /// </summary>
-        /// <remarks>
-        /// A fraction rather than a fixed step, so a dolly covers ground when the camera is backed
-        /// off a vehicle and creeps when it is up against a hand — the same drag reads as the same
-        /// gesture at both.
-        /// </remarks>
+        // What fraction of the current distance one pixel of Alt + RMB drag closes. A fraction
+        // rather than a fixed step, so the same drag reads as the same gesture near and far.
         private const float DollyFractionPerPixel = 0.005f;
 
         /// <summary>How much bigger than a joint marker the frame around a bone is.</summary>
@@ -92,65 +50,40 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Keeps a degenerate rig — one flat quad, or nothing but a socket marker — framable.</summary>
         private const float MinimumFrameRadius = 0.25f;
 
-        /// <summary>
-        /// How high above the floor the camera aims, at the least, in world units.
-        /// </summary>
-        /// <remarks>
-        /// Aiming at the rig's centre is right when the rig has one; aiming at the origin, which is
-        /// what happens when the parts are laid out around it, points the camera at the floor and
-        /// hands the bottom half of the frame to empty ground. A unit up is roughly chest height on
-        /// a two-unit character, so the space above the floor — the space anything is animated in —
-        /// is the space the viewport shows.
-        /// </remarks>
+        // How high above the floor the camera aims, at the least, in world units. Aiming at the
+        // origin points the camera at the floor and hands the bottom half of the frame to empty ground.
         private const float MinimumFocusHeight = 1f;
 
         private PreviewRenderUtility renderUtility;
         private readonly PreviewRigMirror rigMirror = new PreviewRigMirror();
 
-        /// <summary>
-        /// Socket markers and their preview attachments.
-        /// </summary>
-        /// <remarks>
-        /// Its own object rather than part of either mirror, because a socket may follow either
-        /// one -- a rig-target part or a posed skeleton bone -- and living inside one of them would
-        /// have made the other kind the awkward case forever.
-        /// </remarks>
+        // Socket markers and their preview attachments. Its own object rather than part of either
+        // mirror, since a socket may follow a rig-target part or a posed skeleton bone.
         private readonly PreviewSocketMarkers socketMarkers = new PreviewSocketMarkers();
         private bool socketRootAdded;
 
         /// <summary>The rig the part quads were built from, so an edit does not rebuild them.</summary>
         private RigAsset mirrorRig;
 
-        /// <summary>
-        /// Whether the mirror's <em>current</em> root has joined the preview scene. Tracked
-        /// separately from the utility's own lifetime because the mirror is rebuilt whenever the rig
-        /// changes: a flag tied to "the utility exists" would leave every root after the first one
-        /// outside the scene, rendering an empty preview that looks exactly like a broken clip.
-        /// </summary>
+        // Whether the mirror's current root has joined the preview scene. Tracked separately from
+        // the utility's lifetime: the mirror rebuilds whenever the rig changes, so a flag tied to
+        // "the utility exists" would leave every root after the first outside the scene.
         private bool mirrorRootAdded;
 
         private readonly PreviewSkeletonMirror skeletonMirror = new PreviewSkeletonMirror();
         private GameObject skinnedSourcePrefab;
 
-        /// <summary>
-        /// Tracked separately from <see cref="mirrorRootAdded"/> for the same reason it exists: the
-        /// skeleton instance is rebuilt whenever the source changes, and a flag tied to "the render
-        /// utility exists" would leave every instance after the first outside the preview scene —
-        /// an empty preview that looks exactly like a broken clip.
-        /// </summary>
+        // Tracked separately from mirrorRootAdded for the same reason: the skeleton instance
+        // rebuilds whenever the source changes.
         private bool skeletonRootAdded;
 
-        /// <summary>
-        /// The grid and the selection marker. Built once and never rebuilt, so unlike the mirrors
-        /// these join the preview scene a single time.
-        /// </summary>
+        // The grid and the selection marker. Built once and never rebuilt, so unlike the mirrors
+        // these join the preview scene a single time.
         private readonly PreviewSceneGizmos sceneGizmos = new PreviewSceneGizmos();
         private bool gizmosAdded;
 
-        /// <summary>
-        /// Joint markers for the skinned source. Rebuilt with the skeleton, so it joins the preview
-        /// scene again each time — tracked by its own flag for the reason above.
-        /// </summary>
+        // Joint markers for the skinned source. Rebuilt with the skeleton, so it joins the preview
+        // scene again each time — tracked by its own flag for the same reason.
         private readonly PreviewBoneHandles boneHandles = new PreviewBoneHandles();
         private bool boneHandlesAdded;
 
@@ -161,74 +94,55 @@ namespace DotsAnimationToolkit.Editor
         private Vector3 gizmoPivot;
         private GizmoHandle activeGizmoHandle;
 
-        /// <summary>
-        /// The Ragdoll toolbar toggle's own simulation (Phase D6, spec §8.4, §8.5). Not the box
-        /// handles' authoring gizmo (<see cref="PreviewRagdollBoxHandles"/>) — this is the physics.
-        /// </summary>
+        // The Ragdoll toolbar toggle's own simulation — the physics, not PreviewRagdollBoxHandles'
+        // authoring gizmo.
         private readonly RagdollPreviewSimulation ragdollSimulation = new RagdollPreviewSimulation();
         private bool ragdollPreviewEnabled;
 
-        /// <summary>The viewport's ragdoll box wireframes and the selected body's grab handles (Phase D6, spec §8.3).</summary>
+        /// <summary>The viewport's ragdoll box wireframes and the selected body's grab handles.</summary>
         private readonly PreviewRagdollBoxHandles ragdollBoxHandles = new PreviewRagdollBoxHandles();
         private bool ragdollBoxHandlesAdded;
         private uint selectedRagdollBodyId;
         private RagdollBoxHandle activeRagdollBoxHandle;
 
-        /// <summary>
-        /// When the ragdoll last stepped, so <see cref="Render"/> can advance it by real elapsed
-        /// time rather than a fixed guess — the "editor delta time is jittery" problem spec §8.5
-        /// names, solved by measuring it directly rather than trusting a caller's estimate.
-        /// </summary>
+        // When the ragdoll last stepped, so Render can advance it by real elapsed time measured
+        // directly rather than a fixed guess.
         private double lastRagdollTickTime;
 
-        /// <summary>
-        /// What is selected, as an index into the skeleton mirror's depth-first transform list.
-        /// -1 is nothing. Not a <c>Transform</c> reference, because the instance is destroyed and
-        /// rebuilt whenever the rig changes and a held reference would be a destroyed object.
-        /// </summary>
+        // What is selected, as an index into the skeleton mirror's depth-first transform list. -1
+        // is nothing. Not a Transform reference, since the instance is destroyed and rebuilt
+        // whenever the rig changes.
         private int selectedHierarchyIndex = -1;
 
-        /// <summary>
-        /// The rig target the outline follows when a part is selected instead of a bone, or 0 for
-        /// none. Separate from <see cref="selectedHierarchyIndex"/> because the two name things in
-        /// different hierarchies — a target lives in the rig, a bone in the previewed prefab.
-        /// </summary>
+        // The rig target the outline follows when a part is selected instead of a bone, or 0 for
+        // none. Separate from selectedHierarchyIndex: a target lives in the rig, a bone in the previewed prefab.
         private uint selectedTargetId;
 
         /// <summary>The socket the outline follows, or 0. A third selectable kind, hence a third field.</summary>
         private uint selectedSocketId;
 
+        // The one manually-owned blob in the toolkit, and only in the editor: built Persistent
+        // because it must outlive the call that made it, so Dispose is not optional.
         private BlobAssetReference<ClipRegistryBlob> registry;
         private ClipSetAsset boundClipSet;
 
-        /// <summary>
-        /// The rig the bound set is being previewed on. Supplied by the window rather than read off
-        /// the set, because a set names no rig — the pairing is the window's, and at run time an
-        /// actor's.
-        /// </summary>
+        // The rig the bound set is being previewed on. Supplied by the window rather than read off
+        // the set, since a set names no rig.
         private RigAsset boundRig;
 
-        /// <summary>
-        /// What the last <see cref="SamplePose"/> was for, so the billboard pass can read the same
-        /// clip's keyed channels at the same instant the pose came from.
-        /// </summary>
+        // What the last SamplePose was for, so the billboard pass can read the same clip's keyed
+        // channels at the same instant the pose came from.
         private ulong lastSampledClipId;
         private float lastSampledNormalizedTime;
         private bool hasSampledClip;
 
-        /// <summary>
-        /// Whether the viewport shows billboarding (amendment A44). On by default, because a preview
-        /// that silently differs from the game is worse than no preview.
-        /// </summary>
-        /// <remarks>
-        /// Switchable because a billboarded rig always faces the camera, which makes the authored
-        /// pose impossible to inspect from any other angle - orbiting shows you the same view. An
-        /// author placing parts needs to be able to turn it off and see what they actually authored.
-        /// </remarks>
+        // Whether the viewport shows billboarding. On by default, since a preview that silently
+        // differs from the game is worse than no preview; switchable because a billboarded rig
+        // always faces the camera, making the authored pose impossible to inspect from any other angle.
         public bool BillboardPreviewEnabled { get; set; } = true;
         private string statusMessage = "No clip set assigned.";
 
-        /// <summary>Whether the ragdoll toggle is currently dropping the previewed rig (spec §8.4).</summary>
+        /// <summary>Whether the ragdoll toggle is currently dropping the previewed rig.</summary>
         public bool RagdollPreviewEnabled
         {
             get { return ragdollPreviewEnabled; }
@@ -240,11 +154,9 @@ namespace DotsAnimationToolkit.Editor
             get { return ragdollSimulation.Sleeping; }
         }
 
-        /// <summary>
-        /// Off → On (spec §8.4): captures whatever pose is currently on screen, builds the body
-        /// array against it, and starts stepping. Refuses — leaving the toggle unchanged — when the
-        /// rig has no ragdoll bodies or none of them resolve in this preview, reporting why.
-        /// </summary>
+        // Off to on: captures whatever pose is currently on screen, builds the body array against
+        // it, and starts stepping. Refuses, leaving the toggle unchanged, when the rig has no
+        // ragdoll bodies or none resolve in this preview, reporting why.
         public bool TryEnableRagdollPreview(out string refusalReason)
         {
             refusalReason = string.Empty;
@@ -266,25 +178,10 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// On → Off (spec §8.4): restores every simulated node's pre-drop pose, then discards the
-        /// simulation.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The restore is explicit, and an earlier version's assumption that it need not be
-        /// was wrong.</strong> That version reasoned that the playhead never moves while ragdolling,
-        /// so the caller's next <see cref="SamplePose"/> at the same unchanged time would reproduce
-        /// the pre-drop pose on its own. That holds only for nodes the current clip actually drives.
-        /// A bone with no bone track in this clip, or a part that has never been keyed, is not
-        /// touched by a resample at all — it simply stays wherever the ragdoll dropped it, and the
-        /// toggle visibly fails to put the character back.
-        /// </para>
-        /// <para>
-        /// Restoring first and disposing second, because <see cref="RagdollPreviewSimulation.Dispose"/>
-        /// drops the captured poses along with everything else.
-        /// </para>
-        /// </remarks>
+        // On to off: restores every simulated node's pre-drop pose, then discards the simulation.
+        // The restore is explicit rather than left to the next SamplePose, since a node the current
+        // clip does not key is never touched by a resample and would stay wherever the ragdoll
+        // dropped it. Restoring first, disposing second: Dispose drops the captured poses too.
         public void DisableRagdollPreview()
         {
             if (!ragdollPreviewEnabled)
@@ -300,18 +197,9 @@ namespace DotsAnimationToolkit.Editor
         private float orbitPitch = 0f;
         private float orbitDistance = DefaultOrbitDistance;
 
-        /// <summary>
-        /// Where the camera is looking from, in degrees. Read/write so a caller that needs a fixed
-        /// angle can take one and give it back.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Deliberately separate from <see cref="FrameRig"/>, which does not touch them.</strong>
-        /// Framing answers "how far back and aimed at what"; these answer "from which side", and a
-        /// view that must be head-on — the 2D Direction Sets viewer, where the direction comes from
-        /// a slider and not from the camera — has to set them itself. It matters because the two
-        /// views share one controller: without a getter as well as a setter, visiting that tab would
-        /// silently discard whatever angle the author had orbited the Clip Editor to.
-        /// </remarks>
+        // Where the camera is looking from, in degrees. Read/write so a caller that needs a fixed
+        // angle (the 2D Direction Sets viewer) can take one and give it back — the two views share
+        // one controller, and a setter alone would discard whatever angle the author had orbited to.
         public float OrbitYaw
         {
             get { return orbitYaw; }
@@ -328,15 +216,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>The point the camera orbits and looks at — the middle of the rig, not the origin.</summary>
         private Vector3 orbitFocus = Vector3.zero;
 
-        /// <summary>
-        /// Whether the camera should reframe on the next render.
-        /// </summary>
-        /// <remarks>
-        /// Deferred rather than framed at the moment the rig changes, because the two halves of a
-        /// rig arrive separately: the clip set brings the part quads and the toolbar's prefab field
-        /// brings the mesh. Framing on whichever landed first would aim the camera at half a
-        /// character. A render is the first moment both are known to be in place.
-        /// </remarks>
+        // Whether the camera should reframe on the next render. Deferred rather than framed the
+        // moment the rig changes, since the clip set and the prefab field arrive separately and a
+        // render is the first moment both are known to be in place.
         private bool framePending = true;
 
         /// <summary>Why the preview is empty, or an empty string when it is fine.</summary>
@@ -345,13 +227,8 @@ namespace DotsAnimationToolkit.Editor
             get { return statusMessage; }
         }
 
-        /// <summary>
-        /// Overwrites the status line, for feedback that belongs to one moment rather than to the
-        /// preview's ongoing state (spec §8.4: "the toggle refuses to engage, and the status line
-        /// says why"). Persists until the next <see cref="Refresh"/> or <see cref="SamplePose"/>
-        /// call has its own, more current thing to say — the same lifetime every other reason this
-        /// field is set already has.
-        /// </summary>
+        // Overwrites the status line, for feedback that belongs to one moment rather than the
+        // preview's ongoing state. Persists until the next Refresh or SamplePose call has its own thing to say.
         public void ReportTransientStatus(string message)
         {
             statusMessage = message ?? string.Empty;
@@ -363,15 +240,8 @@ namespace DotsAnimationToolkit.Editor
             get { return registry.IsCreated; }
         }
 
-        /// <summary>
-        /// Whether the built registry holds a clip id — "would <see cref="SamplePose"/> find this".
-        /// </summary>
-        /// <remarks>
-        /// Exposed so a caller can mark a clip it cannot show <em>before</em> trying to show it,
-        /// rather than inferring it from a failed sample after the fact. The same linear scan
-        /// <see cref="SamplePose"/> runs, against the same array, so the two cannot disagree about
-        /// what is in there.
-        /// </remarks>
+        // Whether the built registry holds a clip id — "would SamplePose find this". The same
+        // linear scan SamplePose runs, against the same array, so the two cannot disagree.
         public bool IsClipInRegistry(ulong clipId)
         {
             if (!registry.IsCreated)
@@ -389,15 +259,9 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>
-        /// Rebuilds the transient registry for <paramref name="clipSet"/> and the mirror for its rig.
-        /// </summary>
-        /// <remarks>
-        /// Validation failures are caught rather than propagated. <c>ClipRegistryBuilder.Build</c>
-        /// throws on any error-severity rule, and an authoring window that dies on an invalid clip
-        /// is useless precisely when it is most needed — while the clip is being fixed. What it
-        /// does <em>not</em> do is report them: see <see cref="RebuildRegistry"/>.
-        /// </remarks>
+        // Rebuilds the transient registry for clipSet and the mirror for its rig. Validation
+        // failures are caught rather than propagated, since an authoring window that dies on an
+        // invalid clip is useless precisely while the clip is being fixed.
         public void SetClipSet(ClipSetAsset clipSet)
         {
             boundClipSet = clipSet;
@@ -414,17 +278,9 @@ namespace DotsAnimationToolkit.Editor
             Refresh();
         }
 
-        /// <summary>
-        /// Rebuilds the part quads, but only when the rig they were built from has actually changed.
-        /// </summary>
-        /// <remarks>
-        /// <strong>The guard is the point.</strong> Every clip edit refreshes the preview, and this
-        /// used to destroy and recreate all 30-odd part objects each time. A fresh quad is a unit
-        /// quad at the origin until the next pose lands on it, so an edit that had nothing to do
-        /// with transforms — keying a flipbook index, say — made the whole rig visibly jump. Parts
-        /// are a function of the rig, not of the clip being edited, so they should survive an edit
-        /// to the clip.
-        /// </remarks>
+        // Rebuilds the part quads, but only when the rig they were built from has actually changed.
+        // The guard is the point: without it, every clip edit destroyed and recreated all 30-odd
+        // part objects, and a fresh quad at the origin made an unrelated edit visibly jump the rig.
         private void RebuildMirrorIfRigChanged(RigAsset rig)
         {
             if (mirrorRig == rig && rigMirror.PartCount > 0)
@@ -432,8 +288,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            // A rig swap invalidates every node the simulation is holding onto (Phase D6): the old
-            // mirror is about to be disposed out from under it.
+            // A rig swap invalidates every node the simulation is holding onto: the old mirror is
+            // about to be disposed out from under it.
             DisableRagdollPreview();
 
             mirrorRig = rig;
@@ -447,14 +303,8 @@ namespace DotsAnimationToolkit.Editor
             ApplyRestPoses();
         }
 
-        /// <summary>
-        /// Puts every part at its rest pose, with no clip applied.
-        /// </summary>
-        /// <remarks>
-        /// What a freshly built mirror should look like: the character standing as the prefab has
-        /// it. Without this a new mirror is a heap of unit quads on the origin until a clip is
-        /// selected and sampled, which reads as a broken rig rather than as an unposed one.
-        /// </remarks>
+        // Puts every part at its rest pose, with no clip applied. Without this a new mirror is a
+        // heap of unit quads on the origin until a clip is selected and sampled.
         private void ApplyRestPoses()
         {
             if (mirrorRig == null || mirrorRig.targets == null)
@@ -485,32 +335,18 @@ namespace DotsAnimationToolkit.Editor
             socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
         }
 
-        /// <summary>
-        /// Builds the preview registry, or records why it could not be built.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>A validation failure is named here, not listed here.</strong>
-        /// <see cref="ClipValidationException.Message"/> is every offending rule on its own line,
-        /// and <see cref="StatusMessage"/> ends up in a wrapping label directly above the 3D
-        /// preview — so putting it there turned each finding into two or three lines of pane the
-        /// rig no longer had, at exactly the moment the rig was what you were looking at. It also
-        /// made this the window's second renderer of one rule set, disagreeing in wording and order
-        /// with <c>ValidationBadgeElement</c>, which is the one that can be switched off and the one
-        /// whose findings are clickable. One sentence pointing at it is the whole job here.
-        /// </para>
-        /// <para>
-        /// Anything else thrown still reports in full. An unexpected build failure has no other
-        /// surface in this window, and a message nobody planned for is worth more than a category.
-        /// </para>
-        /// </remarks>
+        // Builds the preview registry, or records why it could not be built. A validation failure
+        // is named here, not listed: ClipValidationException.Message is every offending rule on its
+        // own line, which would squeeze the 3D preview out of a status label meant for one sentence
+        // — ValidationBadgeElement is the surface for the full list. Anything else thrown reports in
+        // full, since an unexpected build failure has no other surface here.
         private void RebuildRegistry(ClipSetAsset clipSet)
         {
             try
             {
                 Unity.Entities.Hash128 contentHash;
                 // The preview binds the one set the window has open to the rig the window is
-                // showing — the same shape an actor's bind has, with a list of one (Phase F §5).
+                // showing — the same shape an actor's bind has, with a list of one.
                 ClipRegistryBuilder.Build(
                     boundRig,
                     new ClipSetAsset[] { clipSet },
@@ -534,15 +370,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Assigns the rigged prefab whose skeleton authored bone tracks pose (amendment A42, B4).
-        /// </summary>
-        /// <remarks>
-        /// Optional. Passing null returns the preview to quads-only, which is exactly right for a
-        /// cutout clip set — that workflow must not pay for a feature it does not use. This is the
-        /// same prefab the VAT bake samples; using a different one would preview motion against a
-        /// skeleton the bake never sees.
-        /// </remarks>
+        // Assigns the rigged prefab whose skeleton authored bone tracks pose. Optional: null
+        // returns the preview to quads-only. Must be the same prefab the VAT bake samples.
         public void SetSkinnedSource(GameObject prefab)
         {
             if (skinnedSourcePrefab == prefab)
@@ -551,7 +380,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             // The skeleton instance every Bone-kind and HierarchyPath-kind ragdoll body resolves
-            // against (Phase D6) is about to be destroyed and rebuilt.
+            // against is about to be destroyed and rebuilt.
             DisableRagdollPreview();
 
             skinnedSourcePrefab = prefab;
@@ -573,13 +402,9 @@ namespace DotsAnimationToolkit.Editor
             sceneGizmos.HideSelection();
         }
 
-        /// <summary>The previewed rig's root, which the hierarchy pane lists. Null when none.</summary>
-        /// <remarks>
-        /// The window builds its tree from this live instance rather than from the prefab asset, so
-        /// a picked transform is literally a node of the tree's own source. Two walks of two
-        /// hierarchies would have to agree about ordering forever; one hierarchy cannot disagree
-        /// with itself.
-        /// </remarks>
+        // The previewed rig's root, which the hierarchy pane lists. Null when none. The window
+        // builds its tree from this live instance rather than the prefab asset, so a picked
+        // transform is literally a node of the tree's own source.
         public Transform HierarchyRoot
         {
             get
@@ -596,31 +421,19 @@ namespace DotsAnimationToolkit.Editor
             return skeletonMirror.GetTransformByIndex(hierarchyIndex);
         }
 
-        /// <summary>
-        /// Whether a hierarchy index names an imported skinned-mesh bone, as opposed to an authored
-        /// guiding transform (Phase D5, spec §2). A ragdoll body addresses the two differently: a
-        /// bone's path below the prefab root is not stable the way a bare transform's is, so it is
-        /// addressed by name instead — <see cref="RigNodeAddressKind.Bone"/>, generalised from
-        /// <c>SocketDefinition.boneName</c>'s precedent.
-        /// </summary>
+        // Whether a hierarchy index names an imported skinned-mesh bone, as opposed to an authored
+        // guiding transform. A ragdoll body addresses the two differently: a bone's path below the
+        // prefab root is not stable the way a bare transform's is, so it is addressed by name instead.
         public bool IsSkinnedBone(int hierarchyIndex)
         {
             Transform node = skeletonMirror.GetTransformByIndex(hierarchyIndex);
             return node != null && IsSkinnedBone(node);
         }
 
-        /// <summary>
-        /// A hierarchy node's own renderer bounds, local to its transform, or false when it carries
-        /// no renderer to measure.
-        /// </summary>
-        /// <remarks>
-        /// What a freshly added Ragdoll component sizes its box from (Phase D5, spec §8.1): a node
-        /// with geometry gets a box that hugs it, and a bare grouping transform keeps the
-        /// <c>RagdollBodyDefinition</c> field initializer's unit-box default instead. Built on
-        /// <see cref="TryGetLocalBounds"/>, the same local-space bounds the selection outline already
-        /// measures, for the same reason that one avoids <c>Renderer.bounds</c>: a world-axis-aligned
-        /// box would swell and swing as the rig turns rather than hugging the node that owns it.
-        /// </remarks>
+        // A hierarchy node's own renderer bounds, local to its transform, or false when it carries
+        // no renderer to measure. What a freshly added Ragdoll component sizes its box from. Built
+        // on TryGetLocalBounds, the same local-space bounds the selection outline uses, since a
+        // world-axis-aligned box would swell and swing as the rig turns.
         public bool TryGetLocalRendererBounds(int hierarchyIndex, out Vector3 center, out Vector3 size)
         {
             center = Vector3.zero;
@@ -642,30 +455,12 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Resolves a <see cref="RigNodeAddress"/> to the preview transform it names — the reverse
-        /// of what D5's <c>ClipEditorWindow.BuildRagdollAddressFor</c> already does (node → address).
-        /// Shared by <c>RagdollPreviewSimulation</c> and <c>PreviewRagdollBoxHandles</c> (Phase D6,
-        /// spec §8.3, §8.5) so neither invents its own address→node lookup that could disagree with
-        /// the other's.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Two mirrors, three address kinds, two live trees.</strong>
-        /// <see cref="RigNodeAddressKind.RigTarget"/> resolves against <see cref="rigMirror"/> by a
-        /// plain id lookup — the mirror's quads are flat, so this is the only address kind that
-        /// never needs a hierarchy. <see cref="RigNodeAddressKind.Bone"/> resolves against
-        /// <see cref="skeletonMirror"/> by name. <see cref="RigNodeAddressKind.HierarchyPath"/>
-        /// names a bare grouping transform of the <em>real</em> authoring prefab — not a row this
-        /// package owns — and the only preview surface that is a literal instantiation of that
-        /// prefab, carrying its real nested structure, is <see cref="skeletonMirror"/>'s instance
-        /// (<see cref="HierarchyRoot"/>, exactly as <see cref="ApplyBillboards"/> already assumes for
-        /// the same address kind). With no skinned source assigned there is no such tree to search,
-        /// so a <see cref="RigNodeAddressKind.HierarchyPath"/> body on a pure-cutout rig resolves to
-        /// nothing here — the same pre-existing gap a <see cref="RigNodeAddressKind.HierarchyPath"/>
-        /// billboard root already has on a pure-cutout preview, not a new one this method introduces.
-        /// </para>
-        /// </remarks>
+        // Resolves a RigNodeAddress to the preview transform it names — the reverse of node→address.
+        // Shared by RagdollPreviewSimulation and PreviewRagdollBoxHandles so neither invents its own
+        // address→node lookup. RigTarget resolves against rigMirror by id; Bone resolves against
+        // skeletonMirror by name; HierarchyPath resolves against skeletonMirror's instance, the only
+        // preview surface with the prefab's real nested structure — resolving to nothing when no
+        // skinned source is assigned.
         public Transform ResolveRagdollNode(in RigNodeAddress address)
         {
             switch (address.kind)
@@ -707,13 +502,8 @@ namespace DotsAnimationToolkit.Editor
             return socketMarkers.GetMarker(socketId);
         }
 
-        /// <summary>
-        /// The transform a socket currently follows, or null when its binding resolves to nothing.
-        /// </summary>
-        /// <remarks>
-        /// Exposed so the window can invert the marker's composition when a gizmo drag ends —
-        /// turning a dragged world-ish pose back into the local offset a socket actually stores.
-        /// </remarks>
+        // The transform a socket currently follows, or null when its binding resolves to nothing.
+        // Exposed so the window can invert the marker's composition when a gizmo drag ends.
         public Transform GetSocketFollowedTransform(SocketDefinition socket)
         {
             return socketMarkers.GetFollowedTransform(socket, rigMirror, skeletonMirror);
@@ -731,25 +521,17 @@ namespace DotsAnimationToolkit.Editor
             socketMarkers.RebuildAttachments();
         }
 
-        /// <summary>
-        /// Rebuilds socket markers after the rig's socket list itself has changed.
-        /// </summary>
-        /// <remarks>
-        /// Separate from the rig-mirror rebuild, which is guarded on the rig <em>asset</em> changing
-        /// and so would not notice a socket being added to the rig it already holds.
-        /// </remarks>
-        /// <summary>Re-places the socket markers without rebuilding them.</summary>
-        /// <remarks>
-        /// What an offset edit actually needs. <see cref="RebuildSockets"/> destroys and recreates
-        /// every marker object and re-fetches their material, which is a heavy thing to do on each
-        /// mouse move of a drag and none of which an offset change invalidates — a marker is placed
-        /// from the socket's numbers every time it is updated, so moving it is the whole job.
-        /// </remarks>
+        // Re-places the socket markers without rebuilding them. What an offset edit actually needs:
+        // RebuildSockets destroys and recreates every marker object, which is heavy to do on each
+        // mouse move of a drag and unnecessary since a marker is placed from the socket's numbers each update.
         public void RefreshSocketPlacement()
         {
             socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
         }
 
+        // Rebuilds socket markers after the rig's socket list itself has changed. Separate from the
+        // rig-mirror rebuild, which is guarded on the rig asset changing and would not notice a
+        // socket added to the rig it already holds.
         public void RebuildSockets()
         {
             socketMarkers.Rebuild(mirrorRig, AssetDatabase
@@ -758,15 +540,9 @@ namespace DotsAnimationToolkit.Editor
             socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
         }
 
-        /// <summary>
-        /// Every transform name in the loaded prefab, for checking which bindings still resolve.
-        /// </summary>
-        /// <remarks>
-        /// Names rather than transforms because that is the shape every name-based binding in the
-        /// toolkit is checked against — a bone track's <c>boneName</c>, a bone socket's, and a rig
-        /// target's <c>displayName</c>. An empty set means no prefab is loaded, which callers must
-        /// read as "cannot tell" rather than "everything is broken".
-        /// </remarks>
+        // Every transform name in the loaded prefab, for checking which bindings still resolve. An
+        // empty set means no prefab is loaded, which callers must read as "cannot tell" rather than
+        // "everything is broken".
         public void CollectHierarchyNames(HashSet<string> names)
         {
             names.Clear();
@@ -781,14 +557,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Sets what the selection outline follows, by hierarchy index. -1 for nothing.
-        /// </summary>
-        /// <remarks>
-        /// This is the whole of what selection does to the viewport. Nothing here affects whether
-        /// the preview renders, what is in the scene, or where the camera is — an index that no
-        /// longer resolves hides the outline and changes nothing else.
-        /// </remarks>
+        /// <summary>Sets what the selection outline follows, by hierarchy index. -1 for nothing.</summary>
         public void SetSelectedHierarchyIndex(int hierarchyIndex)
         {
             selectedHierarchyIndex = hierarchyIndex;
@@ -800,14 +569,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Sets the outline to follow a rig target's mirrored part instead of a prefab transform.
-        /// </summary>
-        /// <remarks>
-        /// The two selections are mutually exclusive because there is one outline and one inspector.
-        /// Clearing the other here is what stops a stale bone index outlining a joint while the
-        /// inspector talks about a part.
-        /// </remarks>
+        // Sets the outline to follow a rig target's mirrored part instead of a prefab transform.
+        // Mutually exclusive with the hierarchy-index selection: clearing the other here stops a
+        // stale bone index outlining a joint while the inspector talks about a part.
         public void SetSelectedTargetId(uint targetId)
         {
             selectedTargetId = targetId;
@@ -853,12 +617,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>A world ray through a viewport point, for gizmo picking and dragging.</summary>
-        /// <remarks>
-        /// Poses the camera first for the same reason <see cref="CollectPickHits"/> does: a drag is
-        /// handled outside the render loop, and a stale camera turns a gizmo drag into a value that
-        /// tracks nothing the user can see.
-        /// </remarks>
+        // A world ray through a viewport point, for gizmo picking and dragging. Poses the camera
+        // first, since a drag is handled outside the render loop and a stale camera pose would
+        // track nothing the user can see.
         public Ray BuildViewportRay(Vector2 viewportPoint, float aspect)
         {
             EnsureRenderUtility();
@@ -867,7 +628,7 @@ namespace DotsAnimationToolkit.Editor
                 renderUtility.camera.transform, renderUtility.camera.fieldOfView, aspect, viewportPoint);
         }
 
-        /// <summary>The preview camera's current forward direction — the free-drag plane a ragdoll box's centre handle moves within (spec §8.3).</summary>
+        /// <summary>The preview camera's current forward direction — the free-drag plane a ragdoll box's centre handle moves within.</summary>
         public Vector3 CameraForward
         {
             get
@@ -889,13 +650,9 @@ namespace DotsAnimationToolkit.Editor
                 BuildViewportRay(viewportPoint, aspect), gizmoMode, gizmoPivot, GizmoHandleLength);
         }
 
-        /// <summary>
-        /// Points the ragdoll box handles at one body, or none (spec §8.3). Separate from
-        /// <see cref="SetSelectedSocketId"/>/<see cref="SetSelectedTargetId"/> rather than a fourth
-        /// branch of the same field: a Ragdoll component selection does not move the ordinary
-        /// selection outline (a body's node may itself be the outlined part), so the two must be
-        /// able to disagree.
-        /// </summary>
+        // Points the ragdoll box handles at one body, or none. Separate from
+        // SetSelectedSocketId/SetSelectedTargetId rather than a fourth branch of the same field: a
+        // Ragdoll selection does not move the ordinary selection outline.
         public void SetSelectedRagdollBodyId(uint bodyId)
         {
             selectedRagdollBodyId = bodyId;
@@ -1008,14 +765,7 @@ namespace DotsAnimationToolkit.Editor
             return skeletonMirror.FindIndexByName(boneName);
         }
 
-        /// <summary>
-        /// Describes what a hierarchy item is, for the inspector's subtitle.
-        /// </summary>
-        /// <remarks>
-        /// Worth saying out loud because the hierarchy lists <em>every</em> transform, and what you
-        /// can usefully do with one depends on which kind it is: only a skinned bone moves the mesh
-        /// when a bone track drives it.
-        /// </remarks>
+        /// <summary>Describes what a hierarchy item is, for the inspector's subtitle.</summary>
         public string DescribeHierarchyItem(int hierarchyIndex)
         {
             Transform node = skeletonMirror.GetTransformByIndex(hierarchyIndex);
@@ -1052,25 +802,12 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>
-        /// Hit-tests the previewed rig under a viewport point, nearest first.
-        /// </summary>
+        // Hit-tests the previewed rig under a viewport point, nearest first. The camera is posed
+        // here as well as in Render, since a click is handled outside the render loop and picking
+        // against a stale camera pose would select something not under the cursor.
         /// <param name="viewportPoint">Pointer position, (0,0) bottom-left to (1,1) top-right.</param>
         /// <param name="aspect">Width over height of the rect the viewport is drawn into.</param>
         /// <param name="hits">Filled with what is under the pointer. Cleared first.</param>
-        /// <remarks>
-        /// <para>
-        /// Only the previewed rig is pickable. The grid, the selection outline and the cutout
-        /// mirror's quads are deliberately not: the first two are furniture, and the quads have no
-        /// row in the hierarchy pane to select, so a click on one could only select something the
-        /// user cannot see selected.
-        /// </para>
-        /// <para>
-        /// The camera is posed here as well as in <see cref="Render"/>. A click is handled outside
-        /// the render loop, and picking against a camera left wherever the last frame put it is a
-        /// whole class of "it selected something that is not under my cursor" bug.
-        /// </para>
-        /// </remarks>
         public void CollectPickHits(Vector2 viewportPoint, float aspect, List<PreviewPickHit> hits)
         {
             hits.Clear();
@@ -1119,27 +856,15 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// How big a joint marker is, in world units — drawn <em>and</em> clicked.
-        /// </summary>
-        /// <remarks>
-        /// Scaled by camera distance so it holds roughly the same size on screen at any zoom, and
-        /// read from this one property by both the drawing and the picking so the click target
-        /// cannot drift away from the marker the user is aiming at.
-        /// </remarks>
+        // How big a joint marker is, in world units — drawn and clicked from this one property so
+        // the click target cannot drift from the marker the user is aiming at.
         private float BoneHandleRadius
         {
             get { return Mathf.Clamp(orbitDistance * 0.018f, 0.005f, 0.6f); }
         }
 
-        /// <summary>
-        /// Finds the authoring clip behind a baked clip id.
-        /// </summary>
-        /// <remarks>
-        /// Bone tracks are authoring-only data — amendment A42's correction: they never reach the
-        /// blob, because nothing at runtime samples a bone. So posing the skeleton needs the
-        /// <c>ClipAsset</c> itself, which the blob's id is the only handle back to.
-        /// </remarks>
+        // Finds the authoring clip behind a baked clip id. Bone tracks are authoring-only data —
+        // they never reach the blob, so posing the skeleton needs the ClipAsset itself.
         private List<BoneTrack> FindClipById(ulong clipId)
         {
             if (boundClipSet == null || boundClipSet.clips == null)
@@ -1157,14 +882,9 @@ namespace DotsAnimationToolkit.Editor
             return null;
         }
 
-        /// <summary>
-        /// Rebuilds the registry against the currently bound set — call after an edit.
-        /// </summary>
-        /// <remarks>
-        /// An edit changes the clip's <em>data</em>, so only the registry built from it is stale.
-        /// The part quads are built from the rig and are left standing, which is what stops an edit
-        /// to one track from making every part blink through the origin on its way back.
-        /// </remarks>
+        // Rebuilds the registry against the currently bound set — call after an edit. An edit
+        // changes the clip's data, so only the registry is stale; the part quads are built from the
+        // rig and are left standing.
         public void Refresh()
         {
             ReleaseRegistry();
@@ -1270,23 +990,9 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Poses one target from a value that is not in the registry yet.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>This is what makes an unkeyed edit visible.</strong> The registry is built from
-        /// committed keys, so with auto-key off there is nothing in it to sample: dragging a number
-        /// field moved the numbers and left the character standing still, which reads as the field
-        /// being broken rather than as the edit being held.
-        /// </para>
-        /// <para>
-        /// Layered on top of <see cref="SamplePose"/> rather than folded into it, and composed the
-        /// way <c>ClipSampler.ApplyClipToPose</c> composes an Override transform track — position
-        /// and rotation added to the rest pose, scale multiplying it (section 5.11) — so the held
-        /// value lands exactly where the same value would once it is keyed.
-        /// </para>
-        /// </remarks>
+        // Poses one target from a value that is not in the registry yet — what makes an unkeyed
+        // edit visible while auto-key is off. Composed the way ClipSampler.ApplyClipToPose composes
+        // an Override transform track: position and rotation added to rest, scale multiplying it.
         /// <param name="targetId">The part being held.</param>
         /// <param name="localPosition">Held position offset from the rest pose.</param>
         /// <param name="rotationDegrees">Held rotation offset, in the degrees the editor authors in.</param>
@@ -1317,40 +1023,12 @@ namespace DotsAnimationToolkit.Editor
             socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
         }
 
-        /// <summary>
-        /// The rest pose every part is animated <em>from</em>, taken from the loaded prefab.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>A part's rest pose is where the prefab puts it, not the origin.</strong> This
-        /// used to be a hard-coded identity, which made every part a unit quad stacked on the origin
-        /// and meant the preview showed the authored offsets rather than the character. Worse, it
-        /// made the preview disagree with the runtime for no reason: <c>TransformApplySystem</c>
-        /// composes against the entity's real rest pose, so a clip that looked right here would not
-        /// look right in play.
-        /// </para>
-        /// <para>
-        /// The composition rules are what make this the correct fix rather than a cosmetic one.
-        /// Position and rotation are <em>additive</em> against the rest pose and scale is
-        /// <em>multiplicative</em> (§5.11), so a part with no track, or a track authored at zero
-        /// offset and unit scale, now sits exactly where the prefab has it. Nothing about the
-        /// authored data changes; a key of "no offset" finally means no offset.
-        /// </para>
-        /// <para>
-        /// Matched by name, because a rig target's <c>displayName</c> is the only thing it and a
-        /// prefab transform have in common — a target carries a stable id the prefab has never heard
-        /// of. An unmatched target falls back to identity, which is what a cutout set with no prefab
-        /// loaded gets, and is the old behaviour exactly.
-        /// </para>
-        /// <para>
-        /// <strong>Measured relative to the prefab root, not to the transform's own parent.</strong>
-        /// The mirror parents every part under one flat root, so a part's <c>localPosition</c> is
-        /// meaningless here — a cutout prefab nests deeply (pelvis → torso → neck → head → eyes),
-        /// and taking the local offset of each would pile the whole character back onto the origin
-        /// one link at a time. The root-relative transform is what "where this part sits in the
-        /// character" actually means once the hierarchy is flattened.
-        /// </para>
-        /// </remarks>
+        // The rest pose every part is animated from, taken from the loaded prefab (not the origin):
+        // position and rotation are additive against it, scale multiplicative, matching how
+        // TransformApplySystem composes at runtime. Matched by name against the prefab, since a rig
+        // target's displayName is the only thing it and a prefab transform share; unmatched falls
+        // back to identity. Measured relative to the prefab root, not the transform's own parent,
+        // since the mirror flattens every part under one root regardless of the prefab's real nesting.
         private readonly Dictionary<uint, TargetRestPose> targetRestPoses =
             new Dictionary<uint, TargetRestPose>();
 
@@ -1418,8 +1096,8 @@ namespace DotsAnimationToolkit.Editor
                 Vector3 relativeEuler = rootRelative.rotation.eulerAngles;
                 Vector3 relativeScale = rootRelative.lossyScale;
 
-                // Degrees to radians because the blob's rotations are radians (§4.5) and this value
-                // is added to them before ApplyPose converts the sum back for the Transform.
+                // Degrees to radians because the blob's rotations are radians, and this value is
+                // added to them before ApplyPose converts the sum back for the Transform.
                 targetRestPoses[target.Id.Value] = new TargetRestPose
                 {
                     localPosition = new Unity.Mathematics.float3(
@@ -1450,16 +1128,9 @@ namespace DotsAnimationToolkit.Editor
                 orbitDistance + amount, MinimumOrbitDistance, MaximumOrbitDistance);
         }
 
-        /// <summary>
-        /// Slides the camera sideways and up without turning it — the Scene view's middle-drag pan.
-        /// </summary>
-        /// <remarks>
-        /// <strong>The viewport's height has to come from the caller.</strong> A pan only tracks the
-        /// pointer if a pixel of drag is worth exactly the world distance a pixel spans at the focus,
-        /// and that depends on how tall the rendered image currently is — which this controller is
-        /// handed a render at a time and never keeps. Any fixed rate instead would drift under the
-        /// cursor the moment the pane was resized.
-        /// </remarks>
+        // Slides the camera sideways and up without turning it — the Scene view's middle-drag pan.
+        // The viewport's height has to come from the caller, since a pan only tracks the pointer if
+        // a pixel of drag is worth exactly the world distance a pixel spans at the focus.
         public void Pan(Vector2 pixelDelta, float viewportHeightPixels)
         {
             if (viewportHeightPixels < 1f)
@@ -1477,17 +1148,9 @@ namespace DotsAnimationToolkit.Editor
                 -pixelDelta.x * worldUnitsPerPixel, pixelDelta.y * worldUnitsPerPixel, 0f);
         }
 
-        /// <summary>
-        /// Turns the camera about its own position rather than about the rig — the Scene view's
-        /// right-drag look, and the steering half of fly mode.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Looking and orbiting are the same rotation about different pivots.</strong> This
-        /// rig has no camera position of its own to store — the position is derived from the focus —
-        /// so a look has to hold the position still and move the focus to wherever the new direction
-        /// puts it, <see cref="orbitDistance"/> ahead. That is also what makes a later orbit pivot on
-        /// the point you turned to face, exactly as the Scene view does.
-        /// </remarks>
+        // Turns the camera about its own position rather than about the rig — the Scene view's
+        // right-drag look. This class has no camera position of its own to store — it is derived
+        // from the focus — so a look holds the position still and moves the focus to match.
         public void LookAround(Vector2 pixelDelta)
         {
             Vector3 heldCameraPosition = CameraOrbitPosition;
@@ -1517,12 +1180,8 @@ namespace DotsAnimationToolkit.Editor
         /// Movement in camera space: +Z forward, +X right, +Y up. Length is ignored; it is
         /// normalised so a diagonal is not faster than a straight line.
         /// </param>
-        /// <remarks>
-        /// Moves the focus, which carries the camera with it because the camera's position is derived
-        /// from it. The distance between them is untouched on purpose: after a flight the orbit pivot
-        /// sits the same way ahead of the camera as it did before, so orbiting still works where you
-        /// flew to instead of swinging back around wherever you took off from.
-        /// </remarks>
+        // Moves the focus, which carries the camera with it; the distance between them is untouched
+        // on purpose, so the orbit pivot stays the same way ahead of the camera after a flight.
         public void Fly(Vector3 localDirection, float deltaSeconds, bool fast)
         {
             if (localDirection.sqrMagnitude < Mathf.Epsilon || deltaSeconds <= 0f)
@@ -1534,17 +1193,7 @@ namespace DotsAnimationToolkit.Editor
             orbitFocus += OrbitRotation * localDirection.normalized * speed * deltaSeconds;
         }
 
-        /// <summary>
-        /// Returns the camera to the pose the window opens with: head-on, framing the rig.
-        /// </summary>
-        /// <remarks>
-        /// Needed precisely because the viewport now lives independently of selection. An orbit that
-        /// wandered off the rig used to be fixed by selecting something else and forcing a rebuild;
-        /// with the camera persisting across every selection change, there has to be a way back —
-        /// and since panning and flying move the focus itself, that way back now has to restore
-        /// <em>where</em> the camera looks as well as from which side. <see cref="FrameRig"/> does,
-        /// because it recomputes the focus from the rig's current bounds rather than nudging it.
-        /// </remarks>
+        /// <summary>Returns the camera to the pose the window opens with: head-on, framing the rig.</summary>
         public void ResetView()
         {
             orbitYaw = 0f;
@@ -1552,14 +1201,9 @@ namespace DotsAnimationToolkit.Editor
             FrameRig();
         }
 
-        /// <summary>
-        /// Frames whatever is selected, or the whole rig when nothing is — the F key.
-        /// </summary>
-        /// <remarks>
-        /// Aims where the selection actually is, with no <see cref="MinimumFocusHeight"/> lift:
-        /// that lift exists so a rig laid out around the origin is not framed on the floor, and
-        /// applying it to a deliberate pick would aim a metre above a selected foot.
-        /// </remarks>
+        // Frames whatever is selected, or the whole rig when nothing is — the F key. No
+        // MinimumFocusHeight lift here: that exists for an unposed rig laid out around the origin,
+        // and applying it to a deliberate pick would aim a metre above a selected foot.
         public void FrameSelection()
         {
             Transform selectedTransform = ResolveSelectedTransform();
@@ -1588,27 +1232,9 @@ namespace DotsAnimationToolkit.Editor
                 Mathf.Max(selectionBounds.extents.magnitude, MinimumFrameRadius));
         }
 
-        /// <summary>
-        /// Points the camera at the rig and backs off far enough to hold all of it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Placement and framing are separate questions.</strong> The rig is built at the
-        /// origin — that is where it belongs in the space, and the floor grid is drawn for it there.
-        /// But a character stands <em>on</em> the floor, so none of it is near 0,0,0; a camera aimed
-        /// at the origin looks at the ground between its feet. This aims at the middle of what is
-        /// actually there, and never lower than <see cref="MinimumFocusHeight"/> — a paper-doll rig
-        /// whose parts are laid out around the origin has its middle on the floor, which is the
-        /// same low aim by another route.
-        /// </para>
-        /// <para>
-        /// Distance comes from the bounding sphere and the vertical field of view, so it fits a
-        /// two-metre character and a twenty-metre vehicle without either being guesswork. The
-        /// padding leaves a margin so the rig is not flush against the viewport edge, and the clamp
-        /// is the same one <see cref="Zoom"/> uses — framing must not put the camera somewhere the
-        /// user cannot zoom back out of.
-        /// </para>
-        /// </remarks>
+        // Points the camera at the rig and backs off far enough to hold all of it. Placement and
+        // framing are separate questions: the rig is built at the origin, but a character stands on
+        // the floor, so this aims at the middle of what is actually there, never lower than MinimumFocusHeight.
         public void FrameRig()
         {
             framePending = false;
@@ -1648,18 +1274,9 @@ namespace DotsAnimationToolkit.Editor
                 MaximumOrbitDistance);
         }
 
-        /// <summary>
-        /// The world bounds of everything the preview draws as the rig.
-        /// </summary>
-        /// <remarks>
-        /// Both mirrors count. The cutout parts are the rig for a paper-doll set, and the
-        /// instantiated prefab is the rig for a skinned one — a rigged character's targets are a
-        /// handful of quads at rest, so framing those alone would zoom in on nothing. Renderers are
-        /// taken as they are, which means an extra in the prefab that is not really part of the
-        /// character (a health bar above its head, say) widens the frame a little. That is the right
-        /// trade: guessing which children "count" by name would be wrong in ways nobody could
-        /// predict.
-        /// </remarks>
+        // The world bounds of everything the preview draws as the rig. Both mirrors count: a rigged
+        // character's targets are a handful of quads at rest, so framing those alone would zoom in
+        // on nothing.
         private bool TryComputeRigBounds(out Bounds rigBounds)
         {
             rigBounds = new Bounds(Vector3.zero, Vector3.zero);
@@ -1697,15 +1314,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Renders the preview scene and returns the resulting texture. The texture is owned by the
-        /// render utility — never destroy it here.
-        /// </summary>
-        /// <remarks>
-        /// Returns null only for a degenerate size or a render utility that could not be created.
-        /// An empty scene is not a failure: with no clip set, no rig and no selection, this still
-        /// renders the grid, which is what the window shows on open.
-        /// </remarks>
+        // Renders the preview scene and returns the resulting texture. The texture is owned by the
+        // render utility — never destroy it here. Returns null only for a degenerate size or a
+        // render utility that could not be created; an empty scene still renders the grid.
         public Texture Render(int pixelWidth, int pixelHeight)
         {
             if (pixelWidth <= 0 || pixelHeight <= 0)
@@ -1750,10 +1361,8 @@ namespace DotsAnimationToolkit.Editor
             // be, or the viewport would answer a different question from the game.
             ApplyBillboards();
 
-            // After billboarding, matching AnimationToolkitRagdollSystemGroup's own
-            // [UpdateAfter(BillboardResolveSystem)] edge (spec §7): a ragdolling body's node
-            // overwrites whatever ApplyBillboards just wrote it, exactly as RagdollApplySystem
-            // overwrites BillboardResolveSystem's write at runtime (§9 G1's own shape).
+            // After billboarding: a ragdolling body's node overwrites whatever ApplyBillboards just
+            // wrote, exactly as RagdollApplySystem overwrites BillboardResolveSystem's write at runtime.
             StepRagdollPreview();
 
             // NEVER read-and-restore GUIUtility.hotControl around this render. Amendment A54 wrapped
@@ -1773,56 +1382,11 @@ namespace DotsAnimationToolkit.Editor
             return renderUtility.EndPreview();
         }
 
-        /// <summary>
-        /// Poses the camera on its orbit around <see cref="orbitFocus"/>.
-        /// </summary>
-        /// <remarks>
-        /// The focus is a field rather than the origin because the rig is <em>placed</em> at the
-        /// origin but does not sit centred on it — a character stands on the floor, so its mass is
-        /// entirely above y = 0. Orbiting the origin put it in the top half of the frame and
-        /// swung it around a point below its feet.
-        /// </remarks>
-        /// <summary>
-        /// Turns the preview's billboard roots to face the preview camera (amendment A44).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Every number here comes from <c>BillboardMath</c>, and none of it is
-        /// re-derived.</strong> The viewport's only job is to feed that function the same inputs the
-        /// runtime job feeds it - this camera instead of the game's, these transforms instead of
-        /// those entities - so the two cannot disagree about facing, snapping, clamping or blending.
-        /// A preview with its own copy of the arithmetic would agree until either gained a feature
-        /// and then diverge silently, which is the failure <c>SocketPreviewParityTests</c> exists to
-        /// prevent for sockets.
-        /// </para>
-        /// <para>
-        /// <strong>Shallowest first, writing world rotations.</strong> Unity's <c>Transform</c>
-        /// converts a world rotation into the parent's space for us, so setting
-        /// <c>node.rotation</c> does what the runtime's inverse-parent multiply does by hand - and
-        /// because the hierarchy updates immediately, a nested root reading its own world rotation
-        /// after its ancestor was written already sees the ancestor's billboard. Same mechanism,
-        /// reached more cheaply, and it is why a held item does not turn twice here either.
-        /// </para>
-        /// </remarks>
-        /// <summary>
-        /// Nodes this preview has billboarded, and the local rotation each had immediately before
-        /// the billboard overwrote it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>A preview that writes a pose owes a way to un-write it.</strong>
-        /// <see cref="ApplyBillboards"/> assigns <c>node.rotation</c> outright. Turning the toggle
-        /// off, or deleting the billboard root, merely stops that assignment happening — it does not
-        /// put the node back, so the node keeps the last rotation the billboard gave it and the
-        /// authored pose is unreachable until the scene is rebuilt. Only nodes the current clip
-        /// actually keys are rescued by the next resample, which is why this was visible on some
-        /// nodes and not others.
-        /// </para>
-        /// <para>
-        /// Local rather than world rotation, so restoring is order-independent: a parent restored
-        /// after its child would otherwise drag the child back off its restored world pose.
-        /// </para>
-        /// </remarks>
+        // Nodes this preview has billboarded, and the local rotation (and position) each had
+        // immediately before the billboard overwrote it. Turning the toggle off or deleting the
+        // root only stops future writes — it does not restore the node, so this is what
+        // RestoreBillboardedNodes uses to un-write a billboard. Local rather than world rotation, so
+        // restoring is order-independent (a parent restored after its child would drag it off its restored pose).
         private readonly List<Transform> billboardedNodes = new List<Transform>();
         private readonly List<Quaternion> billboardedNodeLocalRotations = new List<Quaternion>();
         private readonly List<Vector3> billboardedNodeLocalPositions = new List<Vector3>();
@@ -1877,15 +1441,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>Records a node's pre-billboard local rotation, once.</summary>
-        /// <remarks>
-        /// <strong>Deliberately does not refresh an existing record.</strong> Re-recording on every
-        /// render tick looks harmless and is not: a node the current clip does not key is never
-        /// rewritten by <see cref="SamplePose"/>, so on the second tick its local rotation is already
-        /// the billboarded one, and refreshing would store that as the value to "restore" to. The
-        /// record is invalidated by <see cref="SamplePose"/> instead, which is the only thing that
-        /// legitimately changes the authored pose underneath it.
-        /// </remarks>
+        // Records a node's pre-billboard local rotation, once. Deliberately does not refresh an
+        // existing record: a node the current clip does not key is never rewritten by SamplePose, so
+        // re-recording on a later tick would store the already-billboarded rotation as the "restore" value.
         private void RecordBillboardedNode(Transform node)
         {
             for (int index = 0; index < billboardedNodes.Count; index++)
@@ -1900,6 +1458,11 @@ namespace DotsAnimationToolkit.Editor
             billboardedNodeLocalPositions.Add(node.localPosition);
         }
 
+        // Turns the preview's billboard roots to face the preview camera. Every number comes from
+        // BillboardMath, none re-derived: the viewport feeds it this camera and these transforms
+        // instead of the game's, so the two cannot disagree about facing, snapping, clamping or
+        // blending. Written shallowest first, in world rotations, so a nested root reading its own
+        // world rotation after its ancestor was written already sees the ancestor's billboard.
         private void ApplyBillboards()
         {
             Transform previewRoot = HierarchyRoot;
@@ -1957,18 +1520,10 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The runtime parameter block for one authored root, with the selected clip's keyed
-        /// channels folded in at the playhead.
-        /// </summary>
-        /// <remarks>
-        /// Mirrors <c>ActorBaker.BuildBillboardSettings</c> and
-        /// <c>BillboardResolveSystem.ApplyKeyedChannels</c> together, because the preview has neither
-        /// a bake nor playback layers to go through. The conversions - degrees to radians, the two
-        /// opt-in booleans to sentinels, the arc halved - are the one thing this pass repeats rather
-        /// than calls. If a third caller ever needs them they belong on
-        /// <c>BillboardRootDefinition</c> itself.
-        /// </remarks>
+        // The runtime parameter block for one authored root, with the selected clip's keyed
+        // channels folded in at the playhead. Mirrors ActorBaker.BuildBillboardSettings and
+        // BillboardResolveSystem.ApplyKeyedChannels together, since the preview has neither a bake
+        // nor playback layers to go through.
         private BillboardSettings BuildPreviewSettings(BillboardRootDefinition definition)
         {
             BillboardSettings settings = new BillboardSettings
@@ -2027,15 +1582,9 @@ namespace DotsAnimationToolkit.Editor
             return settings;
         }
 
-        /// <summary>
-        /// Advances the Ragdoll toggle's simulation by real elapsed time (spec §8.5).
-        /// </summary>
-        /// <remarks>
-        /// Ticked from here rather than from <c>ClipEditorWindow</c>'s own per-frame hook, because
-        /// this is where <see cref="ApplyBillboards"/> just ran and where the ragdoll's own gravity
-        /// frame — the billboard root's freshly-written world rotation — is still cheap to read
-        /// straight off the transform it was written onto (see <see cref="ResolveRagdollFrameRotation"/>).
-        /// </remarks>
+        // Advances the Ragdoll toggle's simulation by real elapsed time. Ticked from here rather
+        // than a per-frame hook on the window, since ApplyBillboards just ran and the ragdoll's
+        // gravity frame is still cheap to read straight off the transform it was written onto.
         private void StepRagdollPreview()
         {
             if (!ragdollPreviewEnabled || !ragdollSimulation.IsBuilt || mirrorRig == null)
@@ -2052,20 +1601,10 @@ namespace DotsAnimationToolkit.Editor
                 mirrorRig, in frameRotation, RagdollPreviewScenery.instance.Props, realDeltaTime);
         }
 
-        /// <summary>
-        /// This step's gravity frame for <see cref="RagdollSpace.Planar2D"/> (spec §6.2) — identity
-        /// for <see cref="RagdollSpace.Spatial3D"/> or when the ragdoll's root body inherits no
-        /// billboard root.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Reads a transform <see cref="ApplyBillboards"/> just wrote; does not resolve
-        /// billboarding a second time.</strong> The runtime's own <c>SolveRagdollJob</c> calls
-        /// <c>BillboardApi.TryGetFrame</c> against the baked <c>BillboardRootElement</c> buffer
-        /// <c>BillboardResolveSystem</c> filled earlier the same frame — a cache read, not a second
-        /// resolve. This is the preview's equivalent: <see cref="ApplyBillboards"/> already ran this
-        /// call and already wrote the nearest billboard root's resolved world rotation onto its
-        /// transform, so reading that transform's current <c>rotation</c> is the cache read.
-        /// </remarks>
+        // This step's gravity frame for RagdollSpace.Planar2D — identity for Spatial3D or when the
+        // ragdoll's root body inherits no billboard root. Reads a transform ApplyBillboards just
+        // wrote rather than resolving billboarding a second time, the same cache-read shape the
+        // runtime's SolveRagdollJob uses against BillboardResolveSystem's earlier write.
         private quaternion ResolveRagdollFrameRotation(RigAsset rig)
         {
             if (rig.ragdollSettings.space != RagdollSpace.Planar2D)
@@ -2101,21 +1640,17 @@ namespace DotsAnimationToolkit.Editor
             get { return orbitFocus + OrbitRotation * new Vector3(0f, 0f, -orbitDistance); }
         }
 
+        // Poses the camera on its orbit around orbitFocus, a field rather than the origin: the rig
+        // is placed at the origin but a character stands on the floor, so its mass sits above y = 0.
         private void ApplyCameraPose()
         {
             renderUtility.camera.transform.position = CameraOrbitPosition;
             renderUtility.camera.transform.rotation = OrbitRotation;
         }
 
-        /// <summary>
-        /// Adds whatever exists but has not yet joined the preview scene.
-        /// </summary>
-        /// <remarks>
-        /// Each root is tracked by its own flag rather than by one "scene is populated" flag: the
-        /// mirrors are rebuilt whenever the set or the rig changes, and a shared flag would leave
-        /// every rebuilt root outside the scene — an empty preview that looks exactly like a broken
-        /// clip.
-        /// </remarks>
+        // Adds whatever exists but has not yet joined the preview scene. Each root is tracked by
+        // its own flag rather than one "scene is populated" flag, since the mirrors rebuild
+        // whenever the set or rig changes and a shared flag would leave every rebuilt root outside the scene.
         private void PopulatePreviewScene()
         {
             sceneGizmos.EnsureBuilt();
@@ -2165,18 +1700,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Outlines the selected transform, or hides the outline when nothing resolves.
-        /// </summary>
-        /// <remarks>
-        /// Resolved every frame rather than cached on selection, because the transform moves: the
-        /// outline has to follow the posed skeleton as the playhead scrubs, not sit where the object
-        /// was when it was clicked.
-        /// </remarks>
-        /// <summary>
-        /// The preview transform the current selection points at, or null. Shared by the outline and
-        /// by <see cref="FrameSelection"/>, so the F key always frames the thing that is outlined.
-        /// </summary>
+        // The preview transform the current selection points at, or null. Shared by the outline and
+        // by FrameSelection, so the F key always frames the thing that is outlined.
         private Transform ResolveSelectedTransform()
         {
             if (selectedSocketId != 0u)
@@ -2190,6 +1715,8 @@ namespace DotsAnimationToolkit.Editor
             return skeletonMirror.GetTransformByIndex(selectedHierarchyIndex);
         }
 
+        // Outlines the selected transform, or hides it when nothing resolves. Resolved every frame
+        // rather than cached, since the outline has to follow the posed skeleton as the playhead scrubs.
         private void UpdateSelectionMarker()
         {
             Transform selectedTransform = ResolveSelectedTransform();
@@ -2218,15 +1745,9 @@ namespace DotsAnimationToolkit.Editor
                 new Vector3(markerSize, markerSize, markerSize));
         }
 
-        /// <summary>
-        /// The object's own bounds in its local space, so the outline can be an oriented box.
-        /// </summary>
-        /// <remarks>
-        /// <c>Renderer.bounds</c> is deliberately not used: it is a world-axis-aligned box, so an
-        /// outline built from it would swell and swing as the rig turns instead of hugging the
-        /// object. <c>localBounds</c> and the mesh's own bounds are in the renderer's space, which
-        /// is what makes the highlight follow the object's rotation.
-        /// </remarks>
+        // The object's own bounds in its local space, so the outline can be an oriented box.
+        // Renderer.bounds is deliberately not used: it is world-axis-aligned, so an outline built
+        // from it would swell and swing as the rig turns.
         private static bool TryGetLocalBounds(Transform node, out Bounds localBounds)
         {
             localBounds = default(Bounds);

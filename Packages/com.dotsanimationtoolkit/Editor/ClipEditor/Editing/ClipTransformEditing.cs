@@ -24,50 +24,19 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// Reads and writes authored transform tracks at a point in time.
+    /// Reads and writes authored transform tracks at a point in time. This is the one place a
+    /// transform value is written — the inspector's numeric fields and the viewport's gizmos both
+    /// come through here. Rotation is in degrees, as on the authored key; the bake converts once to radians.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>This is the one place a transform value is written.</strong> The inspector's numeric
-    /// fields and the viewport's gizmos both come through here, so a drag and a typed number produce
-    /// the same key with the same rounding and the same insertion rules. Two write paths would drift
-    /// in exactly the places that are hardest to notice — which key a value lands on, whether a new
-    /// one is created, what happens at a time that already has one.
-    /// </para>
-    /// <para>
-    /// It samples the <em>authored</em> keys rather than a built blob, because the editor edits
-    /// assets and a blob is a bake of them. The easing comes from <c>ClipSampler.Ease</c>, so what
-    /// the fields show while scrubbing is the curve the runtime will play, not a second
-    /// approximation of it — the same discipline <c>BoneTrackPoser</c> follows.
-    /// </para>
-    /// <para>
-    /// Rotation is in <strong>degrees</strong> here, as it is on the authored key. The bake converts
-    /// once to radians (architecture section 4.5 point 2); an editor that showed radians would be
-    /// the only surface in the toolkit that did.
-    /// </para>
-    /// </remarks>
     public static class ClipTransformEditing
     {
-        /// <summary>
-        /// How close a key must be to the playhead to count as "at" it.
-        /// </summary>
-        /// <remarks>
-        /// In normalized clip time, so a tolerance of 1e-4 is a tenth of a frame on a 1000-frame
-        /// clip. It exists because the playhead lands on floats: a key placed by a click at
-        /// 0.3333333 and a playhead at 0.33333331 are the same key to everyone except an equality
-        /// test.
-        /// </remarks>
+        // How close a key must be to the playhead to count as "at" it, in normalized clip time — a
+        // key placed at 0.3333333 and a playhead at 0.33333331 are the same key to everyone but an equality test.
         public const float KeyTimeTolerance = 1e-4f;
 
-        /// <summary>The first transform track aimed at a target by id, or null.</summary>
-        /// <remarks>
-        /// Blind to tag-bound tracks (Phase E target-tags spec §4.3) — a track whose
-        /// <c>tagId</c> is non-zero never matches here regardless of what it resolves to, because
-        /// this overload has no rig to resolve a tag against. Prefer
-        /// <see cref="FindTransformTrack(ClipAsset, RigAsset, uint)"/> wherever a rig is available,
-        /// which is everywhere in the window; this overload remains for tests and callers that
-        /// deliberately want the target-id-only view.
-        /// </remarks>
+        // The first transform track aimed at a target by id, or null. Blind to tag-bound tracks:
+        // prefer FindTransformTrack(ClipAsset, RigAsset, uint) wherever a rig is available; this
+        // overload remains for tests and callers that deliberately want the target-id-only view.
         public static TransformTrack FindTransformTrack(ClipAsset clip, uint targetId)
         {
             if (clip == null || clip.transformTracks == null)
@@ -85,23 +54,12 @@ namespace DotsAnimationToolkit.Editor
             return null;
         }
 
-        /// <summary>
-        /// The first transform track that animates the rig target <paramref name="targetId"/>,
-        /// whether the track binds it directly or through a tag that resolves to it (Phase E
-        /// target-tags spec §4.3).
-        /// </summary>
-        /// <remarks>
-        /// This is what keeps a tag-bound track discoverable by the one node it currently resolves
-        /// to: without it, every editing and keying path here would find no track for that node,
-        /// key against it anyway, and mint a second, target-id-bound track alongside the one already
-        /// there — the exact "two tracks pose the same node" failure
-        /// <see cref="ClipComponentModel.MigrateBoneTrackToTransform"/> already refuses to create for
-        /// bone tracks, now avoided here for the same reason.
-        /// </remarks>
+        // The first transform track that animates the rig target targetId, whether the track binds
+        // it directly or through a tag that resolves to it. Without this, every editing and keying
+        // path would find no track for a tag-bound node and mint a second, target-id-bound track alongside it.
         /// <param name="rig">
-        /// The clip's rig, used only to resolve a tag-bound track's <c>tagId</c> to the target it
-        /// currently carries. Null falls back to <see cref="FindTransformTrack(ClipAsset, uint)"/>'s
-        /// target-id-only behaviour.
+        /// The clip's rig, used only to resolve a tag-bound track's <c>tagId</c>. Null falls back to
+        /// <see cref="FindTransformTrack(ClipAsset, uint)"/>'s target-id-only behaviour.
         /// </param>
         public static TransformTrack FindTransformTrack(ClipAsset clip, RigAsset rig, uint targetId)
         {
@@ -208,16 +166,10 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Writes a transform value into the key at a time, creating that key if there is none.
-        /// </summary>
+        // Writes a transform value into the key at a time, creating that key if there is none. A
+        // new key inherits the interpolation of the key before it rather than the type default. The
+        // list is kept sorted here rather than by the caller.
         /// <returns>The index of the key written, or −1 when there was no track to write into.</returns>
-        /// <remarks>
-        /// A new key inherits the interpolation of the key before it rather than the type default,
-        /// so keying halfway through a stepped run does not silently turn that segment linear. The
-        /// list is kept sorted here rather than by the caller, because a key inserted out of order
-        /// is invisible to validation rule V03 until something else sorts it.
-        /// </remarks>
         public static int SetKeyValues(
             TransformTrack track, float normalizedTime,
             float3 position, float3 rotationDegrees, float3 scale)
@@ -261,14 +213,8 @@ namespace DotsAnimationToolkit.Editor
             return FindKeyIndexAt(track, normalizedTime);
         }
 
-        /// <summary>
-        /// The easing of the key a new one lands after — its mode and its handles both.
-        /// </summary>
-        /// <remarks>
-        /// The handles travel with the mode because a Bézier without them is not a curve: the
-        /// sampler reads an all-zero pair as linear, so inheriting the mode alone would turn the one
-        /// segment the author had shaped by hand back into a straight line.
-        /// </remarks>
+        // The easing of the key a new one lands after — mode and handles both, since a Bézier
+        // without handles reads as linear and would flatten a hand-shaped segment.
         private static Interpolation InheritInterpolationAt(
             TransformTrack track, float normalizedTime,
             out float2 bezierStartHandle, out float2 bezierEndHandle)

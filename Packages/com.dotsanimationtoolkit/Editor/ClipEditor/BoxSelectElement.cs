@@ -6,14 +6,10 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The rubber band drawn while dragging a selection box across the timeline's lanes.
+    /// The rubber band drawn while dragging a selection box across the timeline's lanes. Spans the
+    /// whole lane stack so a band can start in one lane and end in another; pointer events pass
+    /// straight through to the lanes underneath, which own the drag.
     /// </summary>
-    /// <remarks>
-    /// An overlay spanning the whole lane stack, like the playhead, so a band can start in one lane
-    /// and end in another — a box that could only cover the row it began on would not be a box
-    /// select. Pointer events pass straight through: the lanes underneath own the drag, and this
-    /// only draws it.
-    /// </remarks>
     public sealed class BoxSelectElement : VisualElement
     {
         public const string UssClassName = "clip-editor__box-select";
@@ -39,11 +35,7 @@ namespace DotsAnimationToolkit.Editor
             MarkDirtyRepaint();
         }
 
-        /// <summary>Hides the band. Idempotent.</summary>
-        /// <remarks>
-        /// Named for the band rather than called <c>Clear</c>, which on a <c>VisualElement</c> already
-        /// means "remove every child" — two very different operations behind one name.
-        /// </remarks>
+        // Named HideBand rather than Clear, which on a VisualElement already means "remove every child".
         public void HideBand()
         {
             if (!isActive)

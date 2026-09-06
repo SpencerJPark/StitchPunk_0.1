@@ -7,23 +7,6 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// Modal grab and scale for the selected keys — the Blender <c>G</c> and <c>S</c> gestures.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Modal, not drag-based, and that is the point.</strong> A drag can only express what
-    /// the hand does between press and release; a modal operator can be steered with the mouse,
-    /// corrected with a typed number, snapped or unsnapped mid-gesture, and abandoned with Escape
-    /// leaving nothing behind. Retiming is exactly the kind of edit that wants all four.
-    /// </para>
-    /// <para>
-    /// Every update recomputes each key's time from the time it had when the gesture began, never
-    /// from the time it has now. Accumulating deltas instead would drift as the pointer moved back
-    /// and forth, and — worse — would make snapping sticky, since a snapped value would become the
-    /// base the next delta was measured from.
-    /// </para>
-    /// </remarks>
     public sealed partial class ClipEditorWindow
     {
         private const string PivotPrefKey = "DotsAnimationToolkit.ClipEditor.TransformPivot";
@@ -49,21 +32,16 @@ namespace DotsAnimationToolkit.Editor
             SelectionStart
         }
 
-        /// <summary>
-        /// One track's key times as they were when the gesture began, plus where each has moved to.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="currentIndexOfOriginal"/> is what survives a re-sort. Scaling through a
-        /// negative factor mirrors the selection, which reverses its keys, and after that a key's
-        /// index is no longer the index it started at. Composing the sort's index map into this
-        /// array each update keeps "original key 3" addressable however far it has moved.
-        /// </remarks>
+        /// <summary>One track's key times as they were when the gesture began, plus where each has moved to.</summary>
         private sealed class KeyTransformTrackSnapshot
         {
             public TimelineTrackKind trackKind;
             public int trackIndex;
             public float[] originalTimes;
             public bool[] isSelected;
+
+            // Survives a re-sort: a negative scale mirrors (and so reverses) the selection, after
+            // which a key's index is no longer the index it started at.
             public int[] currentIndexOfOriginal;
         }
 
@@ -167,14 +145,9 @@ namespace DotsAnimationToolkit.Editor
             ApplyKeyTransform();
         }
 
-        /// <summary>
-        /// Records every key on every track the selection touches, not only the selected ones.
-        /// </summary>
-        /// <remarks>
-        /// The unselected keys are recorded because they take part in the sort. Their times never
-        /// change, but their indices do, and rewriting the whole track from one snapshot each update
-        /// is what keeps times and indices in step.
-        /// </remarks>
+        /// <summary>Records every key on every track the selection touches, not only the selected ones.</summary>
+        // Unselected keys are recorded too because they take part in the sort — their times never
+        // change, but their indices do.
         private bool CaptureTransformSnapshots()
         {
             transformSnapshots.Clear();
@@ -303,16 +276,8 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// Drops a running gesture without restoring anything and without touching the undo stack.
-        /// </summary>
-        /// <remarks>
-        /// For the one case where cancelling would be wrong: an undo performed mid-gesture. The
-        /// snapshot holds times recorded before the undo, so restoring them would write the undone
-        /// state straight back, and reverting the gesture group from inside undoRedoPerformed would
-        /// re-enter it. The gesture is simply abandoned; the undo has already decided what the data
-        /// should be.
-        /// </remarks>
+        // Drops a running gesture without restoring anything or touching the undo stack — for an
+        // undo performed mid-gesture, where restoring the snapshot would write the undone state back.
         private void DiscardKeyTransform()
         {
             if (!IsTransformActive)
@@ -419,17 +384,9 @@ namespace DotsAnimationToolkit.Editor
             ShowTransformReadout(grabDelta, scaleFactor, snapping);
         }
 
-        /// <summary>
-        /// Grab distance, in normalized time.
-        /// </summary>
-        /// <remarks>
-        /// <strong>The distance is snapped, not the resulting times.</strong> Snapping each key
-        /// individually would flatten the spacing inside a selection whose keys sit off the frame
-        /// grid — a move would silently become a quantize. Snapping the distance moved keeps the
-        /// shape being moved intact, and <c>Quantize Keys</c> is there for when flattening is
-        /// actually what is wanted. Scale snaps per key instead, because a scale changes the spacing
-        /// by definition and there is no shape left to preserve.
-        /// </remarks>
+        /// <summary>Grab distance, in normalized time.</summary>
+        // The distance is snapped, not the resulting times — snapping each key individually would
+        // flatten the spacing of a selection sitting off the frame grid, silently quantizing a move.
         private float ResolveGrabDelta(bool snapping)
         {
             float typedFrames;
@@ -668,14 +625,8 @@ namespace DotsAnimationToolkit.Editor
             return laneColumn != null ? worldX - laneColumn.worldBound.xMin : worldX;
         }
 
-        /// <summary>
-        /// Where the gesture starts measuring from.
-        /// </summary>
-        /// <remarks>
-        /// The gesture starts from the keyboard, so there is no pointer event to read. Anchoring on
-        /// the playhead makes the first pixel of mouse movement a small change rather than a jump
-        /// from wherever the pointer happened to be resting.
-        /// </remarks>
+        // The gesture starts from the keyboard, with no pointer event to read; anchoring on the
+        // playhead makes the first pixel of mouse movement a small change rather than a jump.
         private float PlayheadLaneX()
         {
             return TimelineGeometry.Create(LaneWidth, viewZoom, viewPan).TimeToX(playheadTime);

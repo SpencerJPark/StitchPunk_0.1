@@ -5,14 +5,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The tick strip above the lanes (architecture section 7.2).
-    /// </summary>
-    /// <remarks>
-    /// Ticks come from <see cref="TimelineGeometry"/>, the same converter the lanes and playhead
-    /// use, so a tick labelled 0.5s sits exactly where a key at 0.5s is drawn. A ruler with its own
-    /// maths is the classic way for a timeline to start lying about where things are.
-    /// </remarks>
+    /// <summary>The tick strip above the lanes, sharing <see cref="TimelineGeometry"/> with the lanes and playhead so nothing can disagree about where a time sits.</summary>
     public sealed class TimeRulerElement : VisualElement
     {
         private static readonly Color RulerBackground = new Color(0.15f, 0.15f, 0.16f);
@@ -22,13 +15,8 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Frame 0 and the last frame, tinted to match the clip boundary lines.</summary>
         private static readonly Color ClipBoundaryLabel = new Color(0.85f, 0.62f, 0.28f);
 
-        /// <summary>
-        /// How much room a frame number needs, and how much a minor tick needs.
-        /// </summary>
-        /// <remarks>
-        /// Shared by the tick painter and the label builder so the two cannot pick different steps
-        /// and leave numbers floating between ticks.
-        /// </remarks>
+        // How much room a frame number needs, and how much a minor tick needs. Shared by the tick
+        // painter and the label builder so the two cannot pick different steps.
         private const float MinimumLabelSpacingPixels = 46f;
         private const float MinimumMinorSpacingPixels = 5f;
 
@@ -57,17 +45,9 @@ namespace DotsAnimationToolkit.Editor
         public const string UssClassName = "clip-editor__ruler";
 
 
-        /// <summary>
-        /// The timeline width the window wants used, in pixels. Zero means "measure yourself".
-        /// </summary>
-        /// <remarks>
-        /// <strong>Pushed in for the same reason zoom and pan are.</strong> The ruler and playhead
-        /// sit in the lane stack while the lanes sit in a column inside it, so each element
-        /// measuring its own <c>contentRect</c> gave three widths that agreed only once layout had
-        /// settled. Any difference between them is multiplied by the zoom, so a few pixels of
-        /// disagreement at 1x became a visible gap between the cursor and the key at 20x. One width
-        /// for the whole timeline makes that gap unrepresentable.
-        /// </remarks>
+        /// <summary>The timeline width the window wants used, in pixels. Zero means "measure yourself".</summary>
+        // Pushed in rather than measured locally: per-element contentRect widths disagreed until layout
+        // settled, and any disagreement is multiplied by zoom into a visible gap at high zoom.
         public float viewLaneWidth;
 
         /// <summary>The width to build geometry from: the pushed one, or our own before layout.</summary>
@@ -110,22 +90,9 @@ namespace DotsAnimationToolkit.Editor
             this.ReleasePointer(upEvent.pointerId);
         }
 
-        /// <summary>
-        /// Reports a scrub, snapped to the frame grid unless the caller asks for a free scrub.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Snapped by default.</strong> A frame is the unit the clip is actually evaluated
-        /// at, so an unsnapped playhead shows a pose between two frames — a pose the game will never
-        /// display. Landing on frames by default means what the viewport shows is a frame that
-        /// exists.
-        /// </para>
-        /// <para>
-        /// <strong>Alt scrubs freely</strong>, not Shift: Shift already means "larger step" on the
-        /// arrow keys, and one modifier meaning two things in the same window is how a shortcut
-        /// stops being learnable. Alt is Unity's usual "ignore the grid" modifier.
-        /// </para>
-        /// </remarks>
+        // Reports a scrub, snapped to the frame grid unless the caller asks for a free scrub. Snapped
+        // by default so the viewport always shows a pose that exists. Alt scrubs freely, not Shift
+        // (which already means "larger step" on the arrow keys).
         private void RaiseScrub(float localX, bool freeScrub)
         {
             if (scrubbed == null)
@@ -143,28 +110,9 @@ namespace DotsAnimationToolkit.Editor
             scrubbed(normalizedTime);
         }
 
-        /// <summary>
-        /// Rebuilds the frame-number labels. Call after changing the view or the clip timing.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Never call this from <c>generateVisualContent</c>.</strong> It did exactly that
-        /// once: Clear() and Add() mutate the visual tree, and mutating the tree from inside a
-        /// repaint neither clears reliably nor re-lays-out, so labels accumulated on every zoom step
-        /// and stacked into an unreadable smear. Repaint draws; it does not restructure.
-        /// </para>
-        /// <para>
-        /// <strong>Labels are frame numbers now, not seconds.</strong> The seconds stride was
-        /// computed from the <em>unzoomed</em> track width, so it never responded to zoom at all --
-        /// which is what made the numbering collide as you zoomed out. Frames are also what the
-        /// ticks are made of, so numbering frames means the number above a tick is that tick.
-        /// Seconds remain readable in the transport bar and in this element tooltip.
-        /// </para>
-        /// <para>
-        /// Labels span the <em>visible</em> range rather than the clip, so they continue into
-        /// negative frames and past the clip end -- which is where keys are now allowed to live.
-        /// </para>
-        /// </remarks>
+        // Rebuilds the frame-number labels. Call after changing the view or the clip timing; never
+        // from generateVisualContent, which mutating the tree from inside a repaint does not survive.
+        // Labels span the visible range rather than the clip, continuing past either end.
         public void RefreshSecondLabels()
         {
             Clear();

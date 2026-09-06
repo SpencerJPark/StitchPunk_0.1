@@ -11,27 +11,9 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The VAT bake UI (architecture section 7.1) — the shell over <see cref="VatTextureBaker"/>.
+    /// VAT bake UI: the shared shell over <see cref="VatTextureBaker"/>, used by both the
+    /// standalone <see cref="VatBakeWindow"/> and the Clip Editor's VAT Bake tab.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The panel decides nothing.</strong> Every rule about what gets baked lives in the
-    /// data: a clip is VAT-bound when its <c>ClipAsset</c> names a <c>vatSource.sourceClip</c>
-    /// (amendment A36), and its id comes from the clip asset. That keeps the panel and a headless
-    /// batch bake producing identical output, which is the whole reason
-    /// <see cref="VatTextureBaker.Bake"/> is a plain static taking a struct.
-    /// </para>
-    /// <para>
-    /// <strong>An element rather than a window, so two hosts can show the same thing.</strong>
-    /// <see cref="VatBakeWindow"/> is one of them; the Clip Editor's VAT Bake tab is the other, and
-    /// a bake produced from either is the same bake. Splitting the two would mean two places to fix
-    /// every time the bake grew a setting, and the second one would be the one nobody updated.
-    /// </para>
-    /// <para>
-    /// UI Toolkit rather than IMGUI, per section 7 and enforced by
-    /// <c>PackagingConformanceTests.Conformance_E_NoImguiApis_InEditorSources</c>.
-    /// </para>
-    /// </remarks>
     public sealed class VatBakePanel : VisualElement
     {
         private ObjectField clipSetField;
@@ -47,9 +29,8 @@ namespace DotsAnimationToolkit.Editor
 
         public VatBakePanel()
         {
-            // Written inline rather than through a stylesheet because this element carries no
-            // stylesheet of its own: it is added to whatever host asks for it, and a host's sheet
-            // has no reason to know the names of the rows inside a bake panel.
+            // Styled inline, not via a stylesheet: this element is added to whatever host asks for
+            // it, and a host's sheet has no reason to know this panel's internal row names.
             VisualElement root = this;
             root.style.flexGrow = 1f;
             root.style.paddingLeft = 10f;
@@ -66,9 +47,8 @@ namespace DotsAnimationToolkit.Editor
             };
             root.Add(clipSetField);
 
-            // A set no longer names a rig (Phase F §3), and the bake needs one twice over: to read
-            // the socket rows it samples, and to stamp sourceRigKey so a later bind cannot pair
-            // these textures with another character's mesh (§8, rule V40).
+            // The bake needs the rig twice over: to read the socket rows it samples, and to stamp
+            // sourceRigKey so a later bind cannot pair these textures with another character's mesh.
             rigField = new ObjectField("Rig")
             {
                 objectType = typeof(RigAsset),
@@ -78,9 +58,8 @@ namespace DotsAnimationToolkit.Editor
             };
             root.Add(rigField);
 
-            // Hidden until a host calls SetSource. In the standalone window the two fields above are
-            // the only way to say what to bake, and a line telling you to change them somewhere else
-            // would be pointing at a window that is not open.
+            // Hidden until a host calls SetSource — in the standalone window there is nowhere else
+            // to change these fields, so a line pointing elsewhere would be pointing at nothing.
             sourceBoundHint = new Label(
                 "Clip Set and Rig follow the Clip Editor's own — change them in its top bar.");
             sourceBoundHint.style.whiteSpace = WhiteSpace.Normal;
@@ -116,13 +95,11 @@ namespace DotsAnimationToolkit.Editor
             fullPrecisionField = new Toggle("Full Precision (RGBAFloat)");
             fullPrecisionField.tooltip =
                 "Doubles memory. Needed for rigs much larger than a couple of metres, where half "
-                + "precision quantisation becomes visible as stepping (risk R2).";
+                + "precision quantisation becomes visible as stepping.";
             root.Add(fullPrecisionField);
 
-            // Left empty on purpose. A package must not name a host's project folders — the
-            // conformance scan forbids it, and rightly: a hardcoded default would be wrong in every
-            // project that organises differently. Empty means "beside the clip set", which is where
-            // a bake belongs anyway.
+            // Left empty on purpose: a package must not hardcode a host's project folders, since
+            // that would be wrong in every project organised differently.
             outputFolderField = new TextField("Output Folder")
             {
                 value = string.Empty,
@@ -150,24 +127,9 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Binds what is baked to the host's own selection, taking both fields over.
+        /// Binds what is baked to the host's own selection, disabling both fields so they follow
+        /// the host rather than a stale local choice. <see cref="VatBakeWindow"/> never calls this.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>This overrules, where the offer it replaced only filled a blank.</strong> The
-        /// earlier behaviour was chosen so a correction made here could be held — and the cost was a
-        /// panel that could sit showing a set the Clip Editor had stopped showing, offering to bake
-        /// it, with nothing on screen admitting the two had diverged. The owner's call (2026-08-29)
-        /// is that the window's selection is the selection: baking something else now means
-        /// switching the window to it first.
-        /// </para>
-        /// <para>
-        /// The fields are disabled rather than removed, and are still the assets themselves rather
-        /// than their names — so they can be clicked through to and pinged, and the hint says where
-        /// to change them. <see cref="VatBakeWindow"/> never calls this and keeps both pickers live;
-        /// baking without a clip open to edit is the reason that window still exists.
-        /// </para>
-        /// </remarks>
         public void SetSource(ClipSetAsset clipSet, RigAsset rig)
         {
             if (clipSetField != null)
@@ -224,10 +186,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 ReportFailure(
                     "No clip in '" + clipSet.name + "' names a VAT source. Set "
-                    + "vatSource.sourceClip on the ClipAssets you want baked (amendment A36), or add "
-                    + "a vatTracks entry naming a target and a source clip for a target-scoped VAT "
-                    + "part (C10), or author bone tracks in the Clip Editor (A42) — any of those "
-                    + "marks a clip as VAT-bound.");
+                    + "vatSource.sourceClip on the ClipAssets you want baked, or add a vatTracks "
+                    + "entry naming a target and a source clip for a target-scoped VAT part, or "
+                    + "author bone tracks in the Clip Editor — any of those marks a clip as VAT-bound.");
                 return;
             }
 
@@ -277,21 +238,9 @@ namespace DotsAnimationToolkit.Editor
             ReportSuccess(bakeResult, bakeClips, setPath);
         }
 
-        /// <summary>
-        /// The clips a set wants baked: one entry per clip's untargeted <c>vatSource</c> when it
-        /// names a source clip, plus one further entry per <c>vatTracks</c> row that names a source
-        /// clip (C10) — so one <c>ClipAsset</c> can contribute several bake passes, each occupying its
-        /// own frame block in the same texture.
-        /// </summary>
-        /// <remarks>
-        /// Ids come from the <c>ClipAsset</c> and its tracks, never minted here. A texture set whose
-        /// ranges do not match the registry's clip/target ids is a set that resolves to nothing at
-        /// runtime, and the failure is silent — <c>VatMaterialSystem</c> simply holds the last frame.
-        /// A <c>vatTracks</c> row with no source clip yet (added in the inspector but not filled in)
-        /// carries no VAT intent and is skipped, exactly like an empty <c>vatSource</c> — the same
-        /// rule <c>ClipValidation</c>'s coverage check applies when deciding whether a clip counts as
-        /// VAT-sourced.
-        /// </remarks>
+        // Ids come from the ClipAsset and its tracks, never minted here — a texture set whose
+        // ranges do not match the registry's clip/target ids resolves to nothing at runtime, and
+        // the failure is silent (VatMaterialSystem just holds the last frame).
         private static List<VatBakeClip> CollectVatClips(ClipSetAsset clipSet)
         {
             List<VatBakeClip> bakeClips = new List<VatBakeClip>();
@@ -311,10 +260,8 @@ namespace DotsAnimationToolkit.Editor
                 int boneTrackCount = clip.boneTracks == null ? 0 : clip.boneTracks.Count;
                 bool hasImportedSource = clip.vatSource != null && clip.vatSource.sourceClip != null;
 
-                // Authored bone tracks make a clip VAT-bound on their own (amendment A42), so a
-                // clip animated entirely inside the Clip Editor bakes without ever naming an
-                // imported AnimationClip. When it has both, one bake pass carries both and the
-                // baker applies the authored keys on top.
+                // Authored bone tracks make a clip VAT-bound on their own, so a clip animated
+                // entirely inside the Clip Editor bakes without naming an imported AnimationClip.
                 if (hasImportedSource || boneTrackCount > 0)
                 {
                     bakeClips.Add(new VatBakeClip
@@ -422,8 +369,8 @@ namespace DotsAnimationToolkit.Editor
             string setPath = outputFolder + "/" + baseName + "Set.asset";
             CreateOrReplaceAsset(textureSet, setPath);
 
-            // Assigning the set back onto the clip set is what clears validation rule V07 — a clip
-            // with a VAT source and a set with no textures is an error that bakes no registry at all.
+            // Assigning the set back onto the clip set is what clears a clip's VAT source from
+            // pointing at a set with no textures for it.
             clipSet.vatTextures = textureSet;
             EditorUtility.SetDirty(clipSet);
 
@@ -459,14 +406,8 @@ namespace DotsAnimationToolkit.Editor
             AppendLog(detail.ToString());
         }
 
-        /// <summary>
-        /// Gathers the rig's bone sockets for the bake.
-        /// </summary>
-        /// <remarks>
-        /// Rig-target sockets are deliberately excluded: their motion is the part's own transform,
-        /// computed live every frame by the sampler, so baking it would store a second copy that
-        /// could only ever go stale.
-        /// </remarks>
+        // Rig-target sockets are deliberately excluded: their motion is the part's own transform,
+        // computed live every frame, so baking it would store a second copy that could go stale.
         private static List<VatBakeSocket> CollectBoneSockets(RigAsset rig)
         {
             List<VatBakeSocket> boneSockets = new List<VatBakeSocket>();

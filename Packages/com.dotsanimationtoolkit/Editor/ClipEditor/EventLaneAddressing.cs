@@ -7,30 +7,10 @@ namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Maps an event marker's <see cref="KeyAddress"/> between the flat, unordered storage
-    /// <see cref="ClipAsset.events"/> uses and the per-event-name lane a track index now identifies
-    /// (E6 Task 2: "an event lane must be addressed per event name").
+    /// <see cref="ClipAsset.events"/> uses and the per-event-name lane a track index identifies.
+    /// A pure function of the marker list alone — no registry, no clip set — so the timeline and
+    /// the copy/paste buffer always agree on which lane a marker belongs to.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>A pure function of the marker list alone — no registry, no clip set.</strong> Lane
-    /// order is first-appearance order in the list, not name order: sorting by name would need a
-    /// registry threaded into every caller, and a lane's numeric <em>position</em> is UI addressing
-    /// nobody reads meaning into — only its label, resolved separately for display, has to be a name
-    /// (spec §4.2.3). Keeping this a pure function of <c>events</c> is also what lets both the
-    /// timeline (<see cref="ClipEditorWindow"/>) and the copy/paste buffer
-    /// (<see cref="ClipKeyClipboard"/>, a static class with no window instance to share state with)
-    /// agree on which lane a marker belongs to without sharing anything else.
-    /// </para>
-    /// <para>
-    /// <strong>Storage order does not change what a lane contains.</strong> Sorting one lane (see
-    /// <c>ClipEditorWindow.SortTrackKeys</c>) writes its markers back into the same flat slots they
-    /// already occupied, in their new time order — it never touches another lane's slots. That
-    /// leaves <c>events</c> no longer globally time-sorted, which is safe only because nothing
-    /// downstream needs it to be: validation checks events against V04/V09 only, never V03, and
-    /// <c>ClipRegistryBuilder.FillEvents</c> re-sorts by time before baking regardless of authoring
-    /// order.
-    /// </para>
-    /// </remarks>
     public static class EventLaneAddressing
     {
         /// <summary>Every distinct event key present, in first-appearance order — one entry per lane.</summary>

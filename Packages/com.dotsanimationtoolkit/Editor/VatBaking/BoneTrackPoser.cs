@@ -8,31 +8,9 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Poses a skinned hierarchy from authored <see cref="BoneTrack"/>s so the VAT baker can capture
-    /// it (amendment A42, phase B2).
+    /// Poses a skinned hierarchy from authored <see cref="BoneTrack"/>s so the VAT baker can
+    /// capture it, as an alternative posing step to <c>AnimationMode.SampleAnimationClip</c>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>This is a second <em>source</em> for the existing bake, not a second output.</strong>
-    /// <c>VatTextureBaker</c> already walks a clip frame by frame, poses the hierarchy, and reads
-    /// <c>bones[i].localToWorldMatrix</c>. Today the posing step is
-    /// <c>AnimationMode.SampleAnimationClip</c>; this class is the alternative posing step. Nothing
-    /// downstream — matrix capture, texel layout, the loop-safe duplicate frame, socket sampling —
-    /// changes at all, which is what makes authored bones a small feature rather than a rewrite.
-    /// </para>
-    /// <para>
-    /// <strong>The easing is <see cref="ClipSampler"/>'s, not a local reimplementation.</strong> An
-    /// authored curve must bake to exactly what the clip editor previewed and what the runtime
-    /// would produce for the same keys. A second easing function here would drift from the first
-    /// and the difference would show up as animation that looks subtly wrong only after baking —
-    /// the most expensive kind of bug to trace, because the authoring tool and the result disagree.
-    /// </para>
-    /// <para>
-    /// <strong>Rotation slerps.</strong> Component-wise lerp on a quaternion is not a rotation
-    /// interpolation; it shortens the arc and de-normalises, which reads as a joint that speeds up
-    /// through the middle of its swing and subtly shrinks the mesh around it.
-    /// </para>
-    /// </remarks>
     public sealed class BoneTrackPoser
     {
         private readonly Dictionary<string, Transform> bonesByName = new Dictionary<string, Transform>();
@@ -44,13 +22,8 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Bone names that matched nothing in the hierarchy, in encounter order.</summary>
         public List<string> UnresolvedBoneNames { get; } = new List<string>();
 
-        /// <summary>
-        /// Indexes <paramref name="rootTransform"/>'s hierarchy by bone name.
-        /// </summary>
-        /// <remarks>
-        /// Built once per bake rather than per sample: the hierarchy does not change between frames,
-        /// and a full tree walk per bone per frame is how a bake of a real rig becomes unusable.
-        /// </remarks>
+        // Call once per bake, not per sample: the hierarchy does not change between frames, and a
+        // full tree walk per bone per frame is how a bake of a real rig becomes unusable.
         public void Bind(Transform rootTransform)
         {
             bonesByName.Clear();
@@ -70,16 +43,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Writes every track's sampled local TRS onto its bone at <paramref name="normalizedTime"/>.
-        /// </summary>
-        /// <remarks>
-        /// Applied <em>after</em> any imported clip has posed the hierarchy, so authored keys
-        /// override imported motion on the bones they name. That order is the useful one: the case
-        /// this feature exists for is an imported walk cycle with a hand-authored arm on top, and it
-        /// makes an authored track the more specific statement of intent. The reverse would let an
-        /// imported clip silently erase deliberate hand-authoring.
-        /// </remarks>
+        // Call after any imported clip has posed the hierarchy — authored keys are meant to
+        // override imported motion on the bones they name, not the other way round.
         public void ApplyTracks(List<BoneTrack> boneTracks, float normalizedTime)
         {
             if (boneTracks == null)
@@ -171,9 +136,8 @@ namespace DotsAnimationToolkit.Editor
             BoneKey toKey = keys[segmentIndex + 1];
             float segmentSpan = toKey.normalizedTime - fromKey.normalizedTime;
 
-            // A zero-length segment would divide by zero. Two keys at the same time are a validation
-            // error (V03), but a baker must not produce NaN geometry while the author is still
-            // fixing it — the clip editor is live against invalid clips by design.
+            // A zero-length segment would divide by zero. Two keys at the same time are invalid,
+            // but a baker must not produce NaN geometry while the author is still fixing it.
             float linearTime = segmentSpan > 1e-6f
                 ? (normalizedTime - fromKey.normalizedTime) / segmentSpan
                 : 0f;
@@ -185,19 +149,14 @@ namespace DotsAnimationToolkit.Editor
                 in fromKey.bezierStartHandle, in fromKey.bezierEndHandle);
 
             position = math.lerp(fromKey.localPosition, toKey.localPosition, easedTime);
+            // slerp, not lerp — a component-wise lerp on a quaternion shortens the arc and
+            // de-normalises, which reads as the joint speeding up mid-swing.
             rotation = math.slerp(fromKey.localRotation, toKey.localRotation, easedTime);
             scale = math.lerp(fromKey.localScale, toKey.localScale, easedTime);
         }
 
-        /// <summary>
-        /// Restores every bone this poser wrote to the transform it had before the bake.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Not optional.</strong> <c>AnimationMode</c> restores what it posed; direct writes
-        /// to a Transform do not. Without this, baking leaves the user's rig permanently stuck in
-        /// the last sampled pose of the last clip — a destructive edit to their scene as a side
-        /// effect of a read-only-looking operation. Call it from a <c>finally</c>.
-        /// </remarks>
+        // Call from a finally block. Unlike AnimationMode, direct Transform writes are not
+        // auto-restored — skipping this leaves the user's rig stuck in the last sampled pose.
         public void RestoreOriginalPose()
         {
             for (int boneIndex = 0; boneIndex < posedBones.Count; boneIndex++)

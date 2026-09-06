@@ -10,35 +10,11 @@ namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Non-destructive Scene-view preview and gizmo keying: clip blocks, seam crossfades, root
-    /// motion and part-track overrides, posed onto the real bound actors (Phase G decision G-D1,
-    /// amendment A58 §3.1).
+    /// motion and part-track overrides, posed onto the real bound actors. Poses real scene
+    /// GameObjects, never a mirror, so Unity's built-in Move/Rotate/Scale gizmos work on them for
+    /// free. Sampled through the runtime's own <c>ClipSampler</c>/<c>CutsceneBlockTiming</c>, so
+    /// there is no second animation pipeline to drift from.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Poses real scene GameObjects, never a mirror.</strong> Spec §3 makes Unity's own Scene
-    /// view the viewport, so unlike the Clip Editor's <c>ClipPreviewController</c> (a
-    /// <c>PreviewRenderUtility</c> instance over its own mirrored hierarchy) this writes straight
-    /// onto the bound actors — which is also what makes Unity's built-in Move/Rotate/Scale gizmos
-    /// work on them for free the moment one is selected; nothing here draws a custom gizmo.
-    /// </para>
-    /// <para>
-    /// <strong>Entering capture, leaving restore, exactly.</strong> <see cref="EnterPreview"/>
-    /// snapshots every bound GameObject's local transform, every bound part's, and every bound
-    /// part renderer's material property block, before this controller ever writes to them;
-    /// <see cref="ExitPreview"/> writes every snapshot back unconditionally. Nothing here uses Undo
-    /// for the pose write/restore cycle — Undo is for authored changes (a keyed value), and a scrub
-    /// is not one.
-    /// </para>
-    /// <para>
-    /// <strong>The clip lane is sampled through the runtime's own sampler.</strong> Each actor slot
-    /// builds the <c>ClipRegistryBlob</c> its (rig, clip sets) bind would bake
-    /// (<see cref="CutsceneSlotClipPreview"/>) and every part goes through
-    /// <c>ClipSampler.SamplePose</c> against a rest pose captured by the same
-    /// <see cref="RestPoseCapture"/> the bake uses. Block phase and seam weight come from
-    /// <see cref="CutsceneBlockTiming"/>, the one copy the runtime player also reads (A58-D1), so
-    /// there is no second animation pipeline to drift.
-    /// </para>
-    /// </remarks>
     internal sealed class CutscenePreviewController
     {
         private static readonly int ImageIndexPropertyId = Shader.PropertyToID("_ImageIndex");
@@ -68,18 +44,15 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>One bound rig-target child: what to pose, what it looked like, what it rests at.</summary>
-        /// <summary>
-        /// One renderer's <c>enabled</c> flag as it was before preview touched it. Captured for
-        /// every bound object, not only the ones a cutscene hides — whether a slot is hidden depends
-        /// on the playhead, and the snapshot has to predate any scrub.
-        /// </summary>
+        // One renderer's enabled flag as it was before preview touched it. Captured for every bound
+        // object, not only the ones a cutscene hides, since the snapshot has to predate any scrub.
         private struct RendererVisibilitySnapshot
         {
             public Renderer renderer;
             public bool wasEnabled;
         }
 
+        /// <summary>One bound rig-target child: what to pose, what it looked like, what it rests at.</summary>
         private sealed class PartBinding
         {
             public Transform partTransform;
@@ -99,8 +72,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly Dictionary<uint, CutsceneSlotClipPreview> clipPreviewsBySlot =
             new Dictionary<uint, CutsceneSlotClipPreview>();
 
-        // Reused every tick: the risk note in A58 §6 is that a 30s vignette must not churn the
-        // editor with a fresh allocation per part per frame.
+        // Reused every tick, so a 30s vignette does not churn the editor with a fresh allocation
+        // per part per frame.
         private readonly Dictionary<uint, TargetPose> composedPoses = new Dictionary<uint, TargetPose>();
         private readonly MaterialPropertyBlock scratchPropertyBlock = new MaterialPropertyBlock();
 
@@ -108,8 +81,7 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Extra seconds of clip phase beyond the playhead, accumulated while the transport is
-        /// paused on a hold marker (A58 §2.4: "loops keep cycling, camera holds"). The cutscene
-        /// clock stops at a hold; the actors' own playback does not.
+        /// paused on a hold marker. The cutscene clock stops at a hold; the actors' own playback does not.
         /// </summary>
         public float HoldClipPhaseSeconds { get; set; }
 
@@ -120,7 +92,9 @@ namespace DotsAnimationToolkit.Editor
             return clipPreviewsBySlot.TryGetValue(slotId, out clipPreview) ? clipPreview.StatusMessage : null;
         }
 
-        /// <summary>Captures every bound GameObject's (and bound part's) current state, then marks preview active.</summary>
+        // Captures every bound GameObject's (and bound part's) current state, then marks preview
+        // active. Nothing here uses Undo for the pose write/restore cycle — Undo is for authored
+        // changes, and a scrub is not one; ExitPreview writes every snapshot back unconditionally instead.
         public void EnterPreview(CutsceneAsset cutscene, string sceneGuid)
         {
             if (IsActive || cutscene == null || cutscene.slots == null || string.IsNullOrEmpty(sceneGuid))
@@ -361,10 +335,9 @@ namespace DotsAnimationToolkit.Editor
                 float3 position;
                 float3 eulerDegrees;
                 float3 scale;
-                // An attached slot's root lane is ignored exactly as it is at run time (§3.1) — the
-                // host owns the transform, and the placement pass below writes it.
-                // The merged lane, not the authored one (decision A64-D2): a mark IS a root key, and
-                // rehearsing the walk here is the whole reason the merge is shared with the builder.
+                // An attached slot's root lane is ignored exactly as it is at run time — the host
+                // owns the transform, and the placement pass below writes it. The merged lane, not
+                // the authored one: a mark IS a root key.
                 if (!resolvedAttachments[slotIndex].isAttached
                     && CutsceneKeySampler.TrySampleTransform(
                         CutsceneMarkMerge.BuildEffectiveRootKeys(slot), timeSeconds, out position, out eulerDegrees, out scale))
@@ -373,8 +346,8 @@ namespace DotsAnimationToolkit.Editor
                     boundObject.transform.localRotation = Quaternion.Euler(eulerDegrees.x, eulerDegrees.y, eulerDegrees.z);
                     boundObject.transform.localScale = new Vector3(scale.x, scale.y, scale.z);
                 }
-                // No root keys authored for this slot (amendment A62 defect 2): leave the bound
-                // GameObject's captured rest transform alone rather than snapping it to the origin.
+                // No root keys authored for this slot: leave the bound GameObject's captured rest
+                // transform alone rather than snapping it to the origin.
 
                 if (slot.kind != CutsceneSlotKind.Actor)
                 {
@@ -388,9 +361,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Attach lane preview (amendment A63 §3.4). Mirrors the runtime's composition rather than
-        // approximating it: preview and playback disagreeing is the defect this whole tool exists
-        // to avoid.
+        // Attach lane preview. Mirrors the runtime's composition rather than approximating it.
         // -----------------------------------------------------------------------------------
 
         private struct ResolvedAttachment
@@ -501,7 +472,7 @@ namespace DotsAnimationToolkit.Editor
                 socketTransform = GetBoundPartTransformByTargetId(hostSlot.SlotId, socket.targetId);
             }
             // A Bone socket's motion lives in a VAT texture the editor never samples, so it previews
-            // at the host root — a recorded limitation the inspector says out loud (§3.4).
+            // at the host root — a recorded limitation the inspector says out loud.
 
             if (socketTransform != null)
             {
@@ -704,15 +675,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The block a lane is playing at <paramref name="timeSeconds"/>: the last one to have
-        /// started. −1 before the lane's first block.
-        /// </summary>
-        /// <remarks>
-        /// A block's <c>duration</c> deliberately does not end it — see
-        /// <see cref="CutsceneBlockTiming"/>. Scanned rather than tracked with the runtime player's
-        /// forward-only <c>nextClipBlockIndex</c> cursor, because a scrub jumps backwards.
-        /// </remarks>
+        // The block a lane is playing at timeSeconds: the last one to have started. −1 before the
+        // lane's first block. Scanned rather than tracked with the runtime player's forward-only
+        // cursor, since a scrub jumps backwards.
         private static int ResolveActiveBlockIndex(List<CutsceneClipBlock> clipBlocks, float timeSeconds)
         {
             int activeIndex = -1;
@@ -728,8 +693,8 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Facing (A58 §3.1, T4): the angle is resolved, run through the runtime's own resolver,
-        // and applied — not merely displayed as a number.
+        // Facing: the angle is resolved, run through the runtime's own resolver, and applied — not
+        // merely displayed as a number.
         // -----------------------------------------------------------------------------------
 
         /// <summary>Which authored-side clip a slot's facing calls for at the playhead, and whether it mirrors.</summary>
@@ -771,17 +736,9 @@ namespace DotsAnimationToolkit.Editor
             return facing;
         }
 
-        /// <summary>
-        /// The clip a block actually plays once facing has had its say: the direction set's sibling
-        /// for the resolved side.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Substituted only when the block already names a member of the set</strong>
-        /// (decision A58-D5). A block naming the set's SouthEast walk is asking for "the walk",
-        /// and turning the actor should re-pick the variant; a block naming a one-off clip the set
-        /// has never heard of — a wave, a stumble — is asking for that clip exactly, and swapping it
-        /// out for a walk because the actor happens to face north-east would be silent nonsense.
-        /// </remarks>
+        // The clip a block actually plays once facing has had its say: the direction set's sibling
+        // for the resolved side. Substituted only when the block already names a member of the set
+        // — a block naming a one-off clip the set has never heard of plays that clip exactly.
         private static ulong ResolveFacingVariantClipId(
             CutsceneSlot slot, in SlotFacing facing, ulong authoredClipId)
         {
@@ -1005,20 +962,11 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>
-        /// Pushes the camera lane's pose at <paramref name="timeSeconds"/> onto the last active
-        /// Scene view (spec §4, G4: "scrub preview of the shot"), respecting cut markers (G-D7).
-        /// A no-op with no camera keys authored yet, or no Scene view to drive.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Placed by solving for the pivot a desired camera <em>position</em> implies,
-        /// not by aiming at it.</strong> <c>SceneView.LookAt</c> takes an orbit pivot and a distance
-        /// (<c>size</c>), not a camera position — the relationship, confirmed empirically against
-        /// this Editor version, is <c>cameraDistance = size / sin(fov · 0.5)</c>, then
-        /// <c>pivot = position + rotation · forward · cameraDistance</c>. <c>size</c> itself is
-        /// arbitrary (chosen as 1) because only the ratio matters once <c>cameraDistance</c> is
-        /// solved for; any positive value reproduces the same camera position and rotation.
-        /// </remarks>
+        // Pushes the camera lane's pose at timeSeconds onto the last active Scene view, respecting
+        // cut markers. A no-op with no camera keys authored yet, or no Scene view to drive.
+        // SceneView.LookAt takes an orbit pivot and a distance (size), not a camera position, so the
+        // pivot is solved for: cameraDistance = size / sin(fov * 0.5), pivot = position + rotation *
+        // forward * cameraDistance. size itself is arbitrary since only the ratio matters.
         public void ApplyCameraPose(CutsceneAsset cutscene, float timeSeconds)
         {
             if (!IsActive || cutscene?.cameraLane?.keys == null || cutscene.cameraLane.keys.Count == 0)
@@ -1060,8 +1008,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Gizmo keying (spec §3): move the actor or a part with Unity's own transform tool,
-        // then press Key — the same interaction family Rig Edit and Unity Timeline recording use.
+        // Gizmo keying: move the actor or a part with Unity's own transform tool, then press Key.
         // -----------------------------------------------------------------------------------
 
         /// <summary>Keys the currently live root pose of <paramref name="slot"/> at <paramref name="timeSeconds"/>.</summary>

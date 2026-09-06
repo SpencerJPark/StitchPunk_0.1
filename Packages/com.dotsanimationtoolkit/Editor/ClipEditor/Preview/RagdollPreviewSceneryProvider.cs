@@ -8,15 +8,9 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The Project Settings page for <see cref="RagdollPreviewScenery"/> (Phase D6, spec §8.6): the
-    /// only place a developer authors drop-in test props, since none of them belong on a rig asset.
+    /// The Project Settings page for <see cref="RagdollPreviewScenery"/>: the only place a
+    /// developer authors drop-in test props, since none of them belong on a rig asset.
     /// </summary>
-    /// <remarks>
-    /// UI Toolkit throughout — <c>Conformance_E</c> bans IMGUI in package editor sources, and a
-    /// <see cref="SettingsProvider"/> can be built entirely on the <c>rootElement</c> its activate
-    /// handler receives instead of an <c>OnGUI</c> callback, exactly as every other panel in this
-    /// package is built.
-    /// </remarks>
     internal static class RagdollPreviewSceneryProvider
     {
         [SettingsProvider]

@@ -8,22 +8,11 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Reads and writes authored billboard tracks at a point in time.
+    /// Reads and writes authored billboard tracks at a point in time. A billboard key carries both
+    /// continuous channels (angle, blend weight — eased between keys) and a discrete one
+    /// (<c>enabled</c>, held from its key like a flipbook index), sampled through the same
+    /// <c>ClipSampler.Ease</c> playback uses.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The counterpart to <see cref="ClipTransformEditing"/> and <see cref="ClipSpriteEditing"/> for
-    /// the billboard channels, and it splits the difference between them because a billboard key
-    /// carries both kinds of channel. Angle and blend weight are continuous and are eased between
-    /// keys; <c>enabled</c> is a discrete instruction that fires at a moment and is held from its
-    /// key, exactly as a flipbook index is (rule amendment A43). Sampling all three the same way
-    /// would either make an enable flag flicker halfway through a segment or make the angle step.
-    /// </para>
-    /// <para>
-    /// Easing is read through <c>ClipSampler.Ease</c>, so the value this shows at the playhead is
-    /// the value playback produces there.
-    /// </para>
-    /// </remarks>
     public static class ClipBillboardEditing
     {
         /// <summary>The tracks animating one billboard root, with their indices in the clip's list.</summary>
@@ -169,15 +158,10 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Writes the billboard channels into the key at a time, creating that key if there is none.
-        /// </summary>
+        // Writes the billboard channels into the key at a time, creating that key if there is none.
+        // A new key inherits the easing of the key before it, mode and handles both: a Bézier with
+        // no handles reads as linear, so inheriting the mode alone would flatten a hand-shaped segment.
         /// <returns>The index of the key written, or −1 when there was no track to write into.</returns>
-        /// <remarks>
-        /// A new key inherits the easing of the key before it — mode and handles both — for the
-        /// reason the transform and bone tracks do: a Bézier with no handles is read as linear, so
-        /// inheriting the mode alone would flatten the one segment somebody had shaped by hand.
-        /// </remarks>
         public static int SetKeyValues(
             BillboardTrack track, float normalizedTime,
             float angleOffsetDegrees, float blendWeight, bool enabled)

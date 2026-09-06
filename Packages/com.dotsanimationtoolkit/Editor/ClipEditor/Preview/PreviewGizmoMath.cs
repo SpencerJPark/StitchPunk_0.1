@@ -26,32 +26,17 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// The geometry behind gizmo picking and dragging: ray against axis, ray against plane.
+    /// The geometry behind gizmo picking and dragging: ray against axis, ray against plane. Pure
+    /// functions, separate from drawing and editing, so this arithmetic can be tested without a
+    /// render utility or a clip.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Pure functions, separate from the drawing and from the editing, so the arithmetic that
-    /// decides where a drag lands can be reasoned about and tested without a render utility or a
-    /// clip. It is the part most likely to be subtly wrong and least likely to look wrong.
-    /// </para>
-    /// <para>
-    /// All three axes are offered for move, rotate and scale, because the authored key carries all
-    /// three: nothing animated in this system is assumed to be flat. A 2.5D cutout simply leaves the
-    /// axes it does not use at their identity and pays nothing for them.
-    /// </para>
-    /// </remarks>
     public static class PreviewGizmoMath
     {
         /// <summary>How close, in world units, the ray must pass to a handle to hit it.</summary>
         public const float HandlePickRadiusFactor = 0.09f;
 
-        /// <summary>
-        /// The parameter along an infinite axis at the point closest to a ray.
-        /// </summary>
-        /// <remarks>
-        /// Returns false for a ray parallel to the axis, where "closest point" is every point and
-        /// any answer would be arbitrary — a drag in that view would jump rather than track.
-        /// </remarks>
+        // The parameter along an infinite axis at the point closest to a ray. Returns false for a
+        // ray parallel to the axis, where "closest point" is every point and any answer is arbitrary.
         public static bool TryGetClosestAxisParameter(
             Ray ray, Vector3 axisOrigin, Vector3 axisDirection, out float axisParameter)
         {
@@ -142,13 +127,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The angle, in degrees, of a point around a pivot within a ring's own plane.
-        /// </summary>
-        /// <remarks>
-        /// Measured in the plane the ring lies in, so a drag of 90° on any axis writes 90 to that
-        /// axis rather than something that merely looks like a right angle from this camera.
-        /// </remarks>
+        // The angle, in degrees, of a point around a pivot within a ring's own plane — so a drag of
+        // 90° on any axis writes 90, not something that merely looks like a right angle from this camera.
         public static float AngleAroundPivotDegrees(Vector3 point, Vector3 pivot, GizmoHandle handle)
         {
             Vector3 offset = point - pivot;
@@ -163,14 +143,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Picks the handle under a ray for a mode, or <see cref="GizmoHandle.None"/>.
-        /// </summary>
-        /// <remarks>
-        /// Axes are tested nearest-first so overlapping handles resolve to the one actually under
-        /// the cursor. The uniform-scale handle is tested before the axes because it sits at the
-        /// pivot, where all three axes begin — testing it last would make it unreachable.
-        /// </remarks>
+        // Picks the handle under a ray for a mode, or GizmoHandle.None. The uniform-scale handle is
+        // tested before the axes because it sits at the pivot, where all three axes begin.
         public static GizmoHandle PickHandle(
             Ray ray, GizmoMode mode, Vector3 pivot, float handleLength)
         {

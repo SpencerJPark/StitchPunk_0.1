@@ -9,36 +9,10 @@ using UnityEditor;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Turns an authored name list into a C# file of <c>public const</c> ids — the one code path
-    /// behind every "Generate … Constants" button in this package (Phase E target-tags spec §4.2.3,
-    /// amendment E6 Task 2).
+    /// Turns an authored name list into a C# file of <c>public const uint</c> ids — the code path
+    /// behind every "Generate … Constants" button in this package. Names exist for authors; Burst
+    /// jobs cannot compare managed strings, so consumers need the generated integer instead.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Why generated constants exist at all.</strong> The owner directive in §4.2.3 is that
-    /// a number is never something a person types, reads, or compares — yet the runtime cannot be
-    /// handed a name. Event and tag consumers run inside Burst jobs, and Burst cannot compare
-    /// managed strings, so a <c>uint</c> compare is the only legal form. A generated constant is the
-    /// only shape that is simultaneously name-shaped in source and a bare integer at run time.
-    /// </para>
-    /// <para>
-    /// <strong>Why one class rather than a copy per button.</strong> Every rule below is a rule about
-    /// emitting *legal C#* from *arbitrary user text*, and every one of them is a silent generator
-    /// bug when it is wrong — a duplicate constant name or an unescaped keyword does not fail here,
-    /// it fails in the customer's compiler, in a file they were told not to hand-edit. This started
-    /// as private machinery inside <see cref="ClipSetAssetEditor"/>; Task 2 needed the same rules for
-    /// two more buttons, and three copies of a rule is three places for it to drift.
-    /// </para>
-    /// <para>
-    /// <strong>Every edge case in an authored name is resolved deterministically, not hopefully.</strong>
-    /// A name is reduced to <c>[A-Za-z0-9_]</c> by <see cref="SanitizeIdentifier"/>; one that
-    /// sanitizes to nothing falls back to a positional name that cannot collide with itself; one
-    /// that starts with a digit gains a leading underscore; two names that sanitize to the same
-    /// identifier are disambiguated by <see cref="MakeUniqueName"/> against every name already
-    /// emitted, so a suffix can never itself collide; and a name that lands on a reserved word is
-    /// escaped with the verbatim prefix <c>@</c>, which is legal regardless of which keyword it is.
-    /// </para>
-    /// </remarks>
     public static class ConstantsGenerator
     {
         /// <summary>The extension offered by every generate dialog, without the dot.</summary>
@@ -64,25 +38,11 @@ namespace DotsAnimationToolkit.Editor
         // -----------------------------------------------------------------------------------
 
         /// <summary>
-        /// Builds the full source text for a project vocabulary: a generated-file header explaining
-        /// why the file exists, then one <c>public const uint</c> per usable row.
+        /// Builds the full source text for a project vocabulary: a generated-file header, then one
+        /// <c>public const uint</c> per usable row.
         /// </summary>
-        /// <param name="registry">The vocabulary to emit. Rows are read in authoring order, so the
-        /// output is stable across regenerations that did not change the list.</param>
-        /// <param name="className">The static class to emit. Already sanitized by the caller — see
-        /// <see cref="ClassNameFromFilePath"/>.</param>
-        /// <param name="entryNoun">How one row is named in prose, e.g. "Target tag" or "Event".
-        /// Sentence-cased; the header lower-cases it where it needs to.</param>
-        /// <param name="fallbackEntryNamePrefix">Stem for a row whose name survives sanitizing as
-        /// nothing, e.g. "Tag" produces <c>Tag3</c> for the third row.</param>
-        /// <param name="reports">
-        /// Optional accumulator, one line per row whose emitted constant is not what was authored —
-        /// a name that had to be sanitized, renamed to avoid a collision, escaped as a keyword, or
-        /// skipped outright. Callers surface these; §4.2.3's promise is that the owner works in
-        /// names, so a name that could not survive the trip to C# is exactly the case they must be
-        /// told about rather than left to discover by reading the generated file.
-        /// </param>
-        /// <returns>The complete file text, ready to write.</returns>
+        /// <param name="reports">Optional accumulator; one line per row whose emitted constant was
+        /// not what was authored (sanitized, renamed, escaped, or skipped).</param>
         public static string BuildVocabularyConstantsSource(
             IVocabularyRegistry registry,
             string className,
@@ -166,11 +126,6 @@ namespace DotsAnimationToolkit.Editor
             return source.ToString();
         }
 
-        /// <summary>
-        /// Writes the generated-file banner, including the two explanations a customer opening this
-        /// file needs: why it holds numbers when the whole feature is about names, and why it is
-        /// allowed to break their build.
-        /// </summary>
         private static void AppendVocabularyHeader(StringBuilder source, string entryNoun, int entryCount)
         {
             string vocabularyDescription = entryNoun.ToLowerInvariant() + " registry";
@@ -213,19 +168,7 @@ namespace DotsAnimationToolkit.Editor
         // Shared identifier machinery.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Derives the static class name from the file the constants are being written to, so the
-        /// type and its file agree without asking twice.
-        /// </summary>
-        /// <remarks>
-        /// A file name is the one place the user has already expressed what they want this called,
-        /// and it is the name they will see in the project browser — deriving from it means renaming
-        /// the file and regenerating renames the class, rather than producing a file whose name and
-        /// type disagree.
-        /// </remarks>
-        /// <param name="filePath">Absolute or project-relative path of the file to write.</param>
         /// <param name="fallbackClassName">Used when the file name sanitizes to nothing.</param>
-        /// <returns>A legal C# identifier.</returns>
         public static string ClassNameFromFilePath(string filePath, string fallbackClassName)
         {
             string fileNameWithoutExtension = string.IsNullOrEmpty(filePath)
@@ -241,13 +184,10 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Reduces <paramref name="rawName"/> to a legal C# identifier's character set. Every
-        /// character outside <c>[A-Za-z0-9_]</c> becomes an underscore, and a leading digit is
-        /// prefixed with one - both deterministic, both always producing a syntactically legal
-        /// identifier (or an empty string when nothing survives, left for the caller to fall back on).
+        /// Reduces <paramref name="rawName"/> to a legal C# identifier: every character outside
+        /// <c>[A-Za-z0-9_]</c> becomes an underscore, and a leading digit is prefixed with one.
         /// </summary>
-        /// <param name="rawName">The authored name, exactly as typed.</param>
-        /// <returns>A legal identifier, or the empty string.</returns>
+        /// <returns>A legal identifier, or the empty string when nothing survives.</returns>
         public static string SanitizeIdentifier(string rawName)
         {
             if (string.IsNullOrEmpty(rawName))
@@ -280,13 +220,9 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Returns <paramref name="baseName"/> unchanged the first time it is seen; every later call
-        /// with the same base gets a <c>_1</c>, <c>_2</c>, ... suffix, incrementing past any suffix
-        /// that a distinct row already produced — including one a row's own authored name happened
-        /// to spell — so the returned name is always unused so far.
+        /// with the same base gets a <c>_1</c>, <c>_2</c>, ... suffix that has not itself been used.
         /// </summary>
-        /// <param name="baseName">The sanitized identifier this row wants.</param>
         /// <param name="usedNameCounts">Accumulator shared across one generation pass.</param>
-        /// <returns>An identifier not yet emitted in this pass.</returns>
         public static string MakeUniqueName(string baseName, Dictionary<string, int> usedNameCounts)
         {
             if (!usedNameCounts.ContainsKey(baseName))
@@ -309,25 +245,14 @@ namespace DotsAnimationToolkit.Editor
             return candidateName;
         }
 
-        /// <summary>
-        /// Prefixes <paramref name="identifierName"/> with <c>@</c> when it is a reserved word, which
-        /// is legal C# regardless of which keyword it is.
-        /// </summary>
-        /// <param name="identifierName">A sanitized identifier.</param>
-        /// <returns>The identifier, verbatim-escaped if it had to be.</returns>
+        /// <summary>Prefixes <paramref name="identifierName"/> with <c>@</c> when it is a reserved word.</summary>
         public static string EscapeReservedKeyword(string identifierName)
         {
             return ReservedCSharpKeywords.Contains(identifierName) ? "@" + identifierName : identifierName;
         }
 
-        /// <summary>
-        /// Makes raw authored text safe to sit inside a single <c>///</c> XML doc comment line: line
-        /// breaks are folded to spaces (an embedded newline would otherwise end the comment mid-name
-        /// and leave the rest as bare, invalid code), and the three XML-significant characters are
-        /// entity-escaped.
-        /// </summary>
-        /// <param name="rawText">The authored text.</param>
-        /// <returns>Text safe for one doc-comment line.</returns>
+        // Line breaks are folded to spaces — an embedded newline would otherwise end the comment
+        // mid-name and leave the rest as bare, invalid code.
         public static string EscapeXmlDocText(string rawText)
         {
             if (string.IsNullOrEmpty(rawText))
@@ -342,21 +267,6 @@ namespace DotsAnimationToolkit.Editor
         // Writing.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Writes generated source to <paramref name="filePath"/> and tells Unity it is there.
-        /// </summary>
-        /// <remarks>
-        /// The directory is created when missing because a remembered path outlives the folder it
-        /// pointed at — a regenerate that throws <see cref="DirectoryNotFoundException"/> because
-        /// someone reorganised a folder is a worse answer than simply recreating it. The write goes
-        /// through a plain file API rather than <c>AssetDatabase</c> (the target may legitimately sit
-        /// outside the project), so an explicit refresh is what makes Unity notice and compile it.
-        /// That refresh is deferred: every caller is a UI callback, and one of them runs inside an
-        /// <c>Editor.OnDisable</c> raised by <c>DestroyImmediate</c>. Recompiling from there means
-        /// starting a domain reload underneath a stack Unity is still unwinding.
-        /// </remarks>
-        /// <param name="filePath">Absolute or project-relative destination.</param>
-        /// <param name="generatedSource">The full file text.</param>
         public static void WriteGeneratedFile(string filePath, string generatedSource)
         {
             string containingDirectory = Path.GetDirectoryName(filePath);
@@ -366,16 +276,15 @@ namespace DotsAnimationToolkit.Editor
             }
 
             File.WriteAllText(filePath, generatedSource);
+            // Deferred: a caller can run inside an Editor.OnDisable raised by DestroyImmediate,
+            // and refreshing immediately there means a domain reload under a stack still unwinding.
             EditorApplication.delayCall += AssetDatabase.Refresh;
         }
 
         /// <summary>
         /// The path to remember for <paramref name="absoluteFilePath"/>: project-relative when it
-        /// sits inside the project, so the destination survives being opened on another machine, and
-        /// otherwise the absolute path unchanged.
+        /// sits inside the project, so the destination survives being opened on another machine.
         /// </summary>
-        /// <param name="absoluteFilePath">What a save dialog returned.</param>
-        /// <returns>The path to store on the registry.</returns>
         public static string ToStorablePath(string absoluteFilePath)
         {
             if (string.IsNullOrEmpty(absoluteFilePath))

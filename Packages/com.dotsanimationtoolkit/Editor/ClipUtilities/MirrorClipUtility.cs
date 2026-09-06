@@ -8,68 +8,10 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The Mirror Clip utility (architecture section 7.1, module M5): turns a clip authored for one
-    /// side into the clip for the other side, either as a fresh asset on disk
-    /// (<see cref="CreateMirroredCopy"/>) or in place on an existing one
-    /// (<see cref="MirrorInPlace"/>). It is the first and only consumer of
-    /// <see cref="RigAsset.mirrorPairs"/>.
+    /// Turns a clip authored for one side into the clip for the other: a fresh asset on disk
+    /// (<see cref="CreateMirroredCopy"/>) or an edit in place (<see cref="MirrorInPlace"/>). The
+    /// only consumer of <see cref="RigAsset.mirrorPairs"/>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>A mirror is three edits, and dropping any one of them produces something that looks
-    /// almost right.</strong>
-    /// </para>
-    /// <list type="number">
-    /// <item><description>
-    /// <em>Paired tracks swap targets.</em> A track bound to the left upper arm rebinds to the right
-    /// one and vice versa, following the rig's authored <see cref="MirrorPair"/> table. Negating the
-    /// keys without swapping the binding leaves the character swinging the wrong limb — a reflected
-    /// pose composed of the wrong parts, which reads as "the walk is slightly off" rather than as an
-    /// obvious break.
-    /// </description></item>
-    /// <item><description>
-    /// <em>Every transform key negates its handed channels:</em> <c>position.x</c>, because the part
-    /// belongs on the other side of the body, and <c>rotationZ</c>, because rotation is handed — an
-    /// arm swung +30 degrees reflects to −30. <c>TransformKey.rotationZ</c> is in <em>degrees</em>
-    /// in authoring (radians only after the bake converts it), so the negation is unit-agnostic and
-    /// needs no conversion here.
-    /// </description></item>
-    /// <item><description>
-    /// <em>Sprite tracks rebind but keep every key value.</em> See below — this is deliberate and is
-    /// the part a future reader is most likely to "fix".
-    /// </description></item>
-    /// </list>
-    /// <para>
-    /// <strong>Slice and atlas keys are never rewritten, and neither is <c>scale.x</c>.</strong>
-    /// Amendment A37a splits facing into two independent things: an <em>alt view</em> is different
-    /// art (a different slice, driven by <c>PartFacing.viewOffset</c>) and a <em>mirror</em> is the
-    /// same art reflected (a negative <c>scale.x</c>, driven by <c>PartFacing.mirrorX</c>). Both are
-    /// applied at runtime after composition, to every clip on every layer at once. Were this utility
-    /// to also rewrite slice keys or flip <c>scale.x</c>, two mechanisms would be moving the same
-    /// value and would fight each other — and mirroring a part the animator had deliberately
-    /// authored flipped would silently un-flip it. Mirroring transforms only is also what makes the
-    /// involution exact rather than approximate: mirror twice and every value is back where it
-    /// started, because negation and a symmetric target swap are both their own inverse.
-    /// </para>
-    /// <para>
-    /// <strong>A mirrored clip and a runtime <c>PartFacing.mirrorX</c> must never both apply to the
-    /// same facing</strong> (amendment A38) — baked mirrored keys plus a runtime reflection is a
-    /// double reflection, which is no reflection at all. The two are alternatives: <c>mirrorX</c> is
-    /// the cheap default that serves two facings from one clip, and this utility is the escape hatch
-    /// for a facing that must <em>deviate</em> from a pure reflection (an asymmetric costume detail,
-    /// a satchel on one hip, a limp). Pressing Flip is the moment a derived facing becomes an
-    /// authored one; from then on the copy is ordinary hand-editable data.
-    /// </para>
-    /// <para>
-    /// <strong>Why the menu path is assembled from string fragments.</strong> Packaging conformance
-    /// test (d) scans every package file for the host project's content-folder prefix, and the root
-    /// of Unity's project-browser context menu happens to be spelled exactly that way. The scan is
-    /// raw-text and has no comment or string exemption, so a literal would fail the suite even
-    /// though nothing about it references the host project. The conformance suite itself builds its
-    /// own scan patterns from fragments for the same reason, so this follows an established idiom
-    /// rather than inventing one.
-    /// </para>
-    /// </remarks>
     public static class MirrorClipUtility
     {
         /// <summary>Suffix appended to a clip's name when the menu entry names the mirrored copy.</summary>
@@ -82,7 +24,8 @@ namespace DotsAnimationToolkit.Editor
 
         private const string AssetExtension = ".asset";
 
-        // Assembled from fragments; see the type remarks for why a literal cannot be used.
+        // Assembled from fragments: a packaging conformance test scans every package file, raw
+        // text, for the host project's content-folder prefix, which this menu path spells exactly.
         private const string MirrorMenuPath =
             "Asse" + "ts/" + "DOTS Animation Toolkit/Create Mirrored Clip";
 
@@ -95,43 +38,12 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>
         /// Writes a mirrored copy of <paramref name="source"/> to disk and returns it.
         /// </summary>
-        /// <param name="source">The clip to mirror. Never modified.</param>
         /// <param name="rig">
-        /// The rig supplying the <see cref="MirrorPair"/> table, and the rig whose target ids the
-        /// copy's id-bound tracks will be rebound within. A clip records no rig, so the caller must
-        /// name the one it means — mirroring with a foreign rig's table rebinds every track to ids
-        /// that rig does not have, and the result opens, plays, and animates nothing.
-        /// </param>
-        /// <param name="destinationAssetPath">
-        /// Project-relative path for the new asset, including the <c>.asset</c> extension. Passed
-        /// through <see cref="AssetDatabase.GenerateUniqueAssetPath"/> first, so an occupied path is
-        /// stepped past rather than overwritten.
+        /// The rig supplying the <see cref="MirrorPair"/> table. A clip records no rig, so the
+        /// caller must name the one it means — a foreign rig's table rebinds every track to ids
+        /// that rig does not have, and the result animates nothing.
         /// </param>
         /// <returns>The created clip, or null when the inputs were rejected (the reason is logged).</returns>
-        /// <remarks>
-        /// <para>
-        /// <strong>The copy mints its own <c>ClipId</c> rather than inheriting one.</strong> Two
-        /// distinct clips sharing an id is validation rule V05 and would make the baked registry
-        /// ambiguous — the registry binary-searches on that id, so a duplicate silently resolves
-        /// every play request for one clip to the other. Nothing here has to arrange that:
-        /// <c>ClipAsset</c> mints an id in <c>Awake</c>, which Unity raises on
-        /// <see cref="ScriptableObject.CreateInstance{T}()"/>, and this method builds a genuinely new
-        /// instance and copies field by field rather than duplicating the asset file, so the source's
-        /// id is never in a position to be carried across. <c>EnsureStableIds</c> is still called
-        /// explicitly before the write: it is idempotent, it costs nothing, and it makes the
-        /// guarantee local to this method instead of resting on a constructor callback in another
-        /// assembly. (The Authoring assembly grants <c>InternalsVisibleTo</c> to this one — see its
-        /// <c>AssemblyInfo</c> — so the internal minting entry point is a contracted route here, not
-        /// a reflection trick or a <c>SerializedObject</c> workaround.)
-        /// </para>
-        /// <para>
-        /// The path is uniquified rather than trusted because <see cref="AssetDatabase.CreateAsset"/>
-        /// destroys whatever already lives at the path it is given. Doing that to an existing clip
-        /// would take its <c>ClipId</c> out of the project with it, breaking every clip set and every
-        /// baked reference pointing at it — a far worse outcome than a file named with a numeric
-        /// suffix.
-        /// </para>
-        /// </remarks>
         public static ClipAsset CreateMirroredCopy(ClipAsset source, RigAsset rig, string destinationAssetPath)
         {
             if (source == null)
@@ -169,8 +81,12 @@ namespace DotsAnimationToolkit.Editor
             mirroredClip.vatTracks = CopyVatTracks(source);
 
             MirrorTracks(mirroredClip, mirroredTargetIds);
+            // Mints its own ClipId — two clips sharing an id makes the baked registry's binary
+            // search ambiguous, silently resolving one clip's plays to the other.
             mirroredClip.EnsureStableIds();
 
+            // Uniquified rather than trusted: CreateAsset destroys whatever already lives at the
+            // given path, which for an existing clip would take its ClipId out of the project with it.
             string uniqueAssetPath = AssetDatabase.GenerateUniqueAssetPath(destinationAssetPath);
             mirroredClip.name = ExtractAssetName(uniqueAssetPath);
             AssetDatabase.CreateAsset(mirroredClip, uniqueAssetPath);
@@ -185,27 +101,10 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Mirrors <paramref name="clip"/>'s own tracks, as one undoable step.
+        /// Mirrors <paramref name="clip"/>'s own tracks in place, as one undoable step. Keeps the
+        /// clip's <c>ClipId</c> — this is an edit, not a new clip.
         /// </summary>
-        /// <param name="clip">The clip to modify.</param>
-        /// <param name="rig">
-        /// The rig supplying the <see cref="MirrorPair"/> table. Must be the rig
-        /// <paramref name="clip"/> is authored against.
-        /// </param>
-        /// <remarks>
-        /// <para>
-        /// The clip keeps its <c>ClipId</c>. Mirroring in place is an <em>edit</em> to an existing
-        /// clip, not the creation of a new one, so every clip set, actor and baked reference that
-        /// points at it must keep pointing at it; re-minting here would orphan all of them.
-        /// </para>
-        /// <para>
-        /// One <c>RecordObject</c> before any mutation is all the undo bookkeeping this needs — the
-        /// whole operation is synchronous and touches only this asset, so there is no gesture to
-        /// collapse the way a timeline drag has. <c>SetDirty</c> still follows the mutation: undo
-        /// registration and the dirty flag are separate concerns, and the clip editor's edit paths
-        /// set both for the same reason.
-        /// </para>
-        /// </remarks>
+        /// <param name="rig">Must be the rig <paramref name="clip"/> is authored against.</param>
         public static void MirrorInPlace(ClipAsset clip, RigAsset rig)
         {
             if (clip == null)
@@ -232,17 +131,9 @@ namespace DotsAnimationToolkit.Editor
         // Project-browser context menu
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Creates a mirrored copy of the selected clip beside it in the project browser.
-        /// </summary>
-        /// <remarks>
-        /// The copy is written next to the source and selected, so the flip-then-tune loop the
-        /// utility exists for starts with the new clip already open in the inspector. A clip that is
-        /// a sub-asset of a <see cref="ClipSetAsset"/> yields a free-standing asset in the set's
-        /// folder — this utility deliberately does not add it to the set, because joining a set is a
-        /// registration decision and silently enlarging a shipped registry is not something a
-        /// "duplicate and flip" action should do behind the user's back.
-        /// </remarks>
+        // Deliberately does not add the copy to a clip set, even when the source is a sub-asset of
+        // one: joining a set is a registration decision this "duplicate and flip" action should not
+        // make behind the user's back.
         [MenuItem(MirrorMenuPath, false, MirrorMenuPriority)]
         private static void CreateMirroredClipFromSelection()
         {
@@ -311,14 +202,8 @@ namespace DotsAnimationToolkit.Editor
         // Mirroring
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Applies the mirror to <paramref name="clip"/>'s tracks in place.
-        /// </summary>
-        /// <remarks>
-        /// Transform, sprite, and VAT tracks (C10) all rebind, because a mirror moves the whole part
-        /// to the other side of the body whether that part is animated by pose, by frame, or by a
-        /// target-scoped VAT source. Only transform keys have their values touched.
-        /// </remarks>
+        // Transform, sprite, and VAT tracks all rebind — a mirror moves the whole part to the
+        // other side regardless of how it's animated. Only transform keys have their values touched.
         private static void MirrorTracks(ClipAsset clip, Dictionary<uint, uint> mirroredTargetIds)
         {
             if (clip.transformTracks != null)
@@ -342,9 +227,8 @@ namespace DotsAnimationToolkit.Editor
                     {
                         TransformKey transformKey = transformTrack.keys[keyIndex];
 
-                        // The two handed channels, and only those. normalizedTime, scale and
-                        // interpolation are unhanded; see the type remarks for why scale.x in
-                        // particular is left to the runtime facing term.
+                        // The two handed channels only — scale.x stays authored as-is; a runtime
+                        // facing term (PartFacing.mirrorX) handles reflection at composition time.
                         transformKey.position.x = -transformKey.position.x;
                         transformKey.rotationZ = -transformKey.rotationZ;
 
@@ -363,9 +247,8 @@ namespace DotsAnimationToolkit.Editor
                         continue;
                     }
 
-                    // Rebind only. Slice indices and atlas rects are left exactly as authored — that
-                    // is not an omission, it is the A37a division of labour described in the type
-                    // remarks.
+                    // Rebind only — slice indices and atlas rects stay exactly as authored.
+                    // Reflecting the art itself is PartFacing.mirrorX's job, at runtime.
                     spriteTrack.targetId = ResolveMirroredTargetId(spriteTrack.targetId, mirroredTargetIds);
                 }
             }
@@ -382,22 +265,14 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                // Rebind only, exactly like a sprite track (C10): which part plays this baked range
-                // is independent of the motion inside it, so the target id still swaps to its mirror
-                // partner even though CopyVatTracks left the source clip itself unmirrored.
+                // Rebind only, like a sprite track: the target id swaps to its mirror partner even
+                // though CopyVatTracks left the source clip itself unmirrored.
                 vatTrack.targetId = ResolveMirroredTargetId(vatTrack.targetId, mirroredTargetIds);
             }
         }
 
-        /// <summary>
-        /// Returns the partner of <paramref name="targetId"/>, or the id unchanged when it is in no
-        /// pair.
-        /// </summary>
-        /// <remarks>
-        /// An unpaired target staying put is correct, not an error: a spine, a head or a pelvis has
-        /// no partner to swap with, and a mirror leaves it exactly where it is (its keys still
-        /// negate, which is what makes a spine lean the other way).
-        /// </remarks>
+        // Staying put is correct, not an error, for an unpaired target — a spine or head has no
+        // partner to swap with, and its keys still negate, which is what makes it lean the other way.
         private static uint ResolveMirroredTargetId(uint targetId, Dictionary<uint, uint> mirroredTargetIds)
         {
             uint partnerTargetId;
@@ -408,25 +283,9 @@ namespace DotsAnimationToolkit.Editor
             return targetId;
         }
 
-        /// <summary>
-        /// Builds the bidirectional left-to-right target lookup from the rig's authored pairs.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>An empty table warns but does not abort.</strong> A rig with no pairs is either a
-        /// genuinely unpaired one — a tentacle, a banner, a single quad, where negating the keys
-        /// <em>is</em> the whole correct mirror — or a paired rig whose table was never filled in,
-        /// where the result is a character swinging the wrong limbs. Nothing in the data
-        /// distinguishes those two, so refusing would block the legitimate case and proceeding
-        /// silently would ship the broken one. Warning and proceeding is the only honest option, and
-        /// the message names the rig so the check takes seconds.
-        /// </para>
-        /// <para>
-        /// Pairs are validated against the rig's declared targets before being trusted. A pair naming
-        /// an id no target carries would rebind a real track onto a dangling binding, which surfaces
-        /// much later as validation rule V02 on a clip whose tracks the animator never edited.
-        /// </para>
-        /// </remarks>
+        // An empty pair table warns but does not abort: it is ambiguous whether the rig is
+        // genuinely unpaired (correct) or paired but never filled in (broken), so silently
+        // succeeding or refusing would both be wrong for one of the two cases.
         private static Dictionary<uint, uint> BuildMirrorPairMap(RigAsset rig, Object logContext)
         {
             Dictionary<uint, uint> mirroredTargetIds = new Dictionary<uint, uint>();
@@ -513,21 +372,12 @@ namespace DotsAnimationToolkit.Editor
             return declaredTargetIds;
         }
 
-        /// <summary>
         // -------------------------------------------------------------------------------------
         // Copying
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Deep-copies the transform tracks so the copy shares no list or track object with its
-        /// source.
-        /// </summary>
-        /// <remarks>
-        /// Reference sharing would survive until the next serialization and no longer: two assets
-        /// pointing at one <see cref="TransformTrack"/> instance edit each other in memory, then
-        /// silently stop doing so once Unity writes them out as independent inline data. A bug that
-        /// disappears when you save is the worst kind to be handed.
-        /// </remarks>
+        // Deep-copies so the mirrored clip shares no list or track object with its source, which
+        // would otherwise edit both assets in memory until the next serialization.
         private static List<TransformTrack> CopyTransformTracks(List<TransformTrack> sourceTracks)
         {
             List<TransformTrack> copiedTracks = new List<TransformTrack>();
@@ -598,17 +448,8 @@ namespace DotsAnimationToolkit.Editor
             return new List<EventMarker>(sourceMarkers);
         }
 
-        /// <summary>
-        /// Copies the clip's VAT bake source, unmirrored, and says so.
-        /// </summary>
-        /// <remarks>
-        /// A VAT clip's motion lives inside a Unity <c>AnimationClip</c> and a baked texture, neither
-        /// of which this utility can reflect — it mirrors authored cutout tracks. Dropping the source
-        /// would quietly lose authoring data and break validation rule V07's pairing with the set's
-        /// texture ranges; carrying it across unchanged would let the mirrored clip bake mesh motion
-        /// that still faces the original way. Copying plus a warning is the only option that loses
-        /// nothing and hides nothing.
-        /// </remarks>
+        // Copies the VAT bake source unmirrored and warns: its motion lives inside a Unity
+        // AnimationClip and a baked texture, neither of which this utility can reflect.
         private static VatClipSource CopyVatSource(ClipAsset source)
         {
             VatClipSource sourceVat = source.vatSource;
@@ -631,19 +472,8 @@ namespace DotsAnimationToolkit.Editor
             };
         }
 
-        /// <summary>
-        /// Copies the clip's target-scoped VAT bake sources (C10), unmirrored, and warns once.
-        /// </summary>
-        /// <remarks>
-        /// Same limitation as <see cref="CopyVatSource"/>, applied per track: a <see cref="VatTrack"/>
-        /// names a Unity <c>AnimationClip</c> this utility cannot reflect, so every copied track keeps
-        /// its <c>sourceClip</c> exactly as authored. Unlike <see cref="CopyVatSource"/>'s single
-        /// clip-wide source, though, <see cref="VatTrack.targetId"/> is data this utility already
-        /// knows how to rebind — <see cref="MirrorTracks"/> swaps it to the target's mirror partner
-        /// the same way it does for a sprite track, so a cape track authored against the left socket
-        /// still lands on the right one in the copy. Only the motion inside the track is left for the
-        /// caller to fix.
-        /// </remarks>
+        // Same limitation as CopyVatSource, per track: sourceClip is copied unmirrored, but
+        // targetId is rebound to the mirror partner like a sprite track's.
         private static List<VatTrack> CopyVatTracks(ClipAsset source)
         {
             List<VatTrack> copiedTracks = new List<VatTrack>();
@@ -666,7 +496,7 @@ namespace DotsAnimationToolkit.Editor
                     warnedAboutUnmirroredSource = true;
                     Debug.LogWarning(
                         LogPrefix + "Clip '" + source.name + "' carries one or more target-scoped " +
-                        "VAT tracks (C10). Mirroring reflects authored transform tracks only, so each " +
+                        "VAT tracks. Mirroring reflects authored transform tracks only, so each " +
                         "copy keeps its source clip unmirrored — its target id is still rebound to " +
                         "the mirror partner, but point the source clip at a mirrored animation and " +
                         "re-bake, or clear it, before the copy is used.",
@@ -688,16 +518,8 @@ namespace DotsAnimationToolkit.Editor
         // Paths
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Builds a path to <paramref name="assetName"/> in the folder holding
-        /// <paramref name="sourceAssetPath"/>.
-        /// </summary>
-        /// <remarks>
-        /// Split by hand rather than through <c>System.IO.Path</c>: on Windows that returns a
-        /// backslash-separated directory, and the asset database only understands forward slashes, so
-        /// the resulting path would be rejected on one platform and work on the others. The VAT bake
-        /// window resolves its output folder the same way for the same reason.
-        /// </remarks>
+        // Split by hand, not System.IO.Path: on Windows that returns a backslash-separated
+        // directory, and the asset database only understands forward slashes.
         private static string BuildSiblingAssetPath(string sourceAssetPath, string assetName)
         {
             int lastSeparatorIndex = sourceAssetPath.LastIndexOf('/');

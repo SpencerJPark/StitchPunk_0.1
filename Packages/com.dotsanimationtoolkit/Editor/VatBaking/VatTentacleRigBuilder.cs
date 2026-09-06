@@ -7,25 +7,10 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Builds a procedural tentacle — a tall strip with a bone chain down its length — as the
-    /// reference subject for VAT baking.
+    /// Builds a procedural tentacle — a tall strip with a bone chain down its length — as a
+    /// reference subject for VAT baking, generated rather than imported so no binary test
+    /// content ships with the package.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Why a tentacle and not a humanoid.</strong> It is the shape this system is actually
-    /// for: the owner describes the whole animation model as "spline but for ECS", and a bending
-    /// strip is a spline made visible. It also fails loudly — a chain that bends wrongly looks
-    /// obviously wrong, where a humanoid arm off by a few degrees looks like a slightly different
-    /// pose. For a first VAT bake, a subject that cannot fail subtly is worth more than a realistic
-    /// one.
-    /// </para>
-    /// <para>
-    /// It is procedural rather than an imported asset so the package carries no binary test content
-    /// and anyone can regenerate it. The clip is a travelling sine down the chain, which exercises
-    /// the two things a VAT bake must get right: every bone moving independently, and the pose
-    /// differing on every frame so a bake that sampled once is immediately visible as a stiff rod.
-    /// </para>
-    /// </remarks>
     public static class VatTentacleRigBuilder
     {
         private const int SegmentCount = 12;
@@ -72,14 +57,8 @@ namespace DotsAnimationToolkit.Editor
             return renderer;
         }
 
-        /// <summary>
-        /// A two-vertex-wide strip running up Y, skinned to the chain.
-        /// </summary>
-        /// <remarks>
-        /// Each ring of vertices is weighted between the two bones it sits between, linearly by how
-        /// far along the segment it is. Two influences is enough for a chain and keeps the bake
-        /// inside the two-influence budget §12 R3 recommends for crowds on constrained hardware.
-        /// </remarks>
+        // A two-vertex-wide strip running up Y, skinned to the chain: each ring is weighted
+        // between its two neighboring bones, linearly by how far along the segment it sits.
         private static Mesh BuildStripMesh(Transform[] bones, Transform rootTransform)
         {
             int ringCount = SegmentCount + 1;
@@ -151,15 +130,8 @@ namespace DotsAnimationToolkit.Editor
             return mesh;
         }
 
-        /// <summary>
-        /// A travelling wave: every bone rotates on Z, each lagging the one below it.
-        /// </summary>
-        /// <remarks>
-        /// The phase offset is what makes it a wave rather than a windscreen wiper. It also means
-        /// no two bones hold the same value on any frame, so a bake that collapsed the chain — one
-        /// bone's matrix written for all of them, a common addressing slip — shows up as a rigid rod
-        /// rather than as a slightly wrong curve.
-        /// </remarks>
+        // A travelling wave: every bone rotates on Z, each lagging the one below it, so a bake
+        // that collapses the chain onto one bone's matrix shows up as a rigid rod, not a subtle bug.
         private static AnimationClip BuildWaveClip()
         {
             AnimationClip clip = new AnimationClip();

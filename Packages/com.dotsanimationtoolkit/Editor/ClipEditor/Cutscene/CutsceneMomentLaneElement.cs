@@ -7,19 +7,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// One lane of point-in-time markers: root keys, facing overrides, a part track's keys, camera
-    /// keys, event markers, or hold markers all reduce to "a list of moments, each just a time" for
-    /// timeline purposes — what a moment <em>contains</em> is edited in the inspector once selected,
-    /// never inline here. One reusable lane serves all six rather than six near-identical ones.
-    /// </summary>
-    /// <remarks>
-    /// Drag is visual-only until release: a marker's on-screen position updates every pointer move
-    /// (and <see cref="MomentMoved"/> fires for a live consumer such as scene-view preview, spec
-    /// §3), but the authored data is written only once, from <see cref="MomentMoveCommitted"/> on
-    /// pointer-up — the same "many visual frames, one Undo step" shape
-    /// <c>ClipEditorWindow</c>'s own held-transform-edit history settled on.
-    /// </remarks>
+    /// <summary>One reusable lane of point-in-time markers, shared by root keys, facing overrides, camera keys, event markers, and hold markers.</summary>
     public sealed class CutsceneMomentLaneElement : VisualElement
     {
         public const string UssClassName = "cutscene-editor__moment-lane";
@@ -50,6 +38,8 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Raised on every pointer move while dragging a marker — visual/live-preview only, never authored.</summary>
         public event Action<int, float> MomentMoved;
 
+        // Drag is visual-only until release: the authored data is written once, here, so many
+        // visual frames collapse into one Undo step.
         /// <summary>Raised once, on release, with the final time to actually write.</summary>
         public event Action<int, float> MomentMoveCommitted;
 
@@ -73,8 +63,8 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// As <see cref="SetTimes(IReadOnlyList{float}, int)"/>, plus one extra USS class per marker
-        /// so a lane whose moments are not all the same <em>kind</em> can say so by shape — the
-        /// attach lane's Attach and Detach (amendment A63 §3.4). Null entries are simply skipped.
+        /// so a lane whose moments are not all the same kind can say so by shape — the attach lane's
+        /// Attach and Detach. Null entries are simply skipped.
         /// </summary>
         public void SetTimes(IReadOnlyList<float> newTimes, int newSelectedIndex, IReadOnlyList<string> markerVariantClasses)
         {
@@ -84,7 +74,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>
         /// As the variant-class overload, plus a per-marker read-only flag: a read-only marker is
         /// drawn and never picked, so a lane can show a moment it does not own — the ghost a holding
-        /// event casts onto the Holds row (amendment A65 §3.1), whose editable half is the event.
+        /// event casts onto the Holds row, whose editable half is the event.
         /// </summary>
         public void SetTimes(
             IReadOnlyList<float> newTimes, int newSelectedIndex,

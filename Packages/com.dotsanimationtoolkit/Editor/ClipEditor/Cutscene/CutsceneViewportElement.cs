@@ -10,18 +10,9 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The Cutscene Editor's in-tab scene viewport (amendment A59): a hidden utility camera
-    /// rendering the <em>open</em> scene into a texture on demand. Never a preview world — the
-    /// scene is already open and the preview already poses its real objects, so this element only
-    /// has to look at them (A59 §1).
+    /// The Cutscene Editor's in-tab scene viewport: a hidden utility camera rendering the open
+    /// scene into a texture on demand, never a preview world of its own.
     /// </summary>
-    /// <remarks>
-    /// Two camera modes (A59 §3.3): <em>Free</em> is an orbit rig (focus + yaw/pitch + distance,
-    /// the Clip Editor's own camera model); <em>Shot</em> is not stored here at all — the panel
-    /// samples the camera lane and passes the pose into <see cref="RenderShot"/>. Starting any
-    /// navigation gesture while a shot is displayed raises <see cref="NavigationBrokeShot"/> so
-    /// the panel can drop back to Free rather than fight the drag.
-    /// </remarks>
     internal sealed class CutsceneViewportElement : VisualElement
     {
         public const string UssClassName = "cutscene-editor__viewport";
@@ -119,7 +110,7 @@ namespace DotsAnimationToolkit.Editor
             else
             {
                 // Outside URP (or a pipeline refusing requests) the legacy path still works and is
-                // better than a black pane — A59 §1's recorded fallback.
+                // better than a black pane.
                 utilityCamera.targetTexture = renderTarget;
                 utilityCamera.Render();
                 utilityCamera.targetTexture = null;
@@ -230,7 +221,7 @@ namespace DotsAnimationToolkit.Editor
 
         // -----------------------------------------------------------------------------------
         // Navigation: left-drag orbits, middle-drag pans, wheel dollies — the same defaults the
-        // Clip Editor viewport opens with. Fly/look are A59 backlog, not silently missing.
+        // Clip Editor viewport opens with.
         // -----------------------------------------------------------------------------------
 
         private void OnPointerDown(PointerDownEvent pointerEvent)

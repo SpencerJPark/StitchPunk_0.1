@@ -25,43 +25,18 @@ namespace DotsAnimationToolkit.Editor
 
     /// <summary>
     /// Hit-tests the clip viewport's preview scene against a ray built from the pointer.
+    /// <c>Physics.Raycast</c> does not work against a <c>PreviewRenderUtility</c> scene (it is
+    /// never simulated), so colliders are walked one at a time via <see cref="Collider.Raycast"/>.
+    /// Bone handles are ordered ahead of geometry, not merged with it by distance, since a bone
+    /// sits inside the mesh it drives.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Physics queries do not work here, and that is not a bug to fix.</strong> A
-    /// <c>PreviewRenderUtility</c> scene is never simulated, so <c>Physics.Raycast</c> and
-    /// <c>PhysicsScene.Raycast</c> against it return nothing at all — verified, not assumed.
-    /// <see cref="Collider.Raycast"/> does work, because it tests one collider's shape directly
-    /// rather than querying a broadphase, which is why colliders are walked one at a time below.
-    /// </para>
-    /// <para>
-    /// <strong>Bone handles are ordered ahead of geometry, not merged with it by distance.</strong>
-    /// A bone sits inside the mesh it drives, so the mesh's front face is nearer the camera almost
-    /// always — sorting purely by distance would mean a bone could never be clicked, which is the
-    /// one thing bone handles exist to make possible. Geometry underneath is still reachable
-    /// through the cycle modifier.
-    /// </para>
-    /// <para>
-    /// <strong>Renderer hits are bounds-level.</strong> Triangle-accurate picking would need every
-    /// mesh marked readable, and for a <see cref="SkinnedMeshRenderer"/> a <c>BakeMesh</c> per click
-    /// on top. Colliders give exact hits where they exist, and cycling resolves the ambiguity where
-    /// they do not — <see cref="PreviewPickHit.isExact"/> records which kind a hit was.
-    /// </para>
-    /// </remarks>
     public static class PreviewScenePicker
     {
         private const float MaximumPickDistance = 1000f;
 
-        /// <summary>
-        /// Builds a world-space ray through a viewport point, where (0,0) is bottom-left and
-        /// (1,1) top-right.
-        /// </summary>
-        /// <remarks>
-        /// Composed from the camera's transform and field of view rather than through
-        /// <c>Camera.ViewportPointToRay</c>, because a preview camera's projection and pixel rect
-        /// belong to <c>BeginPreview</c>/<c>EndPreview</c> and mean nothing between renders — which
-        /// is exactly when a click arrives.
-        /// </remarks>
+        // Builds a world-space ray through a viewport point, where (0,0) is bottom-left and (1,1)
+        // top-right. Composed from the camera's transform and field of view rather than through
+        // Camera.ViewportPointToRay, since a preview camera's projection means nothing between renders.
         public static Ray BuildRay(
             Transform cameraTransform, float verticalFieldOfView, float aspect, Vector2 viewportPoint)
         {
@@ -90,10 +65,8 @@ namespace DotsAnimationToolkit.Editor
 
             CollectBoneHandleHits(boneHandles, boneHandleRadius, ray, hits);
 
-            // Deduplicated *before* ordering, keeping the most precise hit per transform. Sorting
-            // first and dropping later duplicates would decide by distance, and a collider's exact
-            // hit sits within float noise of its own renderer's bounding-box hit — so the tie would
-            // be broken arbitrarily and the approximate answer would win about half the time.
+            // Deduplicated before ordering, keeping the most precise hit per transform — sorting
+            // first could let the approximate bounding-box hit win a float-noise-close tie.
             List<PreviewPickHit> geometryHits = new List<PreviewPickHit>();
             CollectRendererHits(hierarchyRoot, ray, geometryHits);
             CollectColliderHits(hierarchyRoot, ray, geometryHits);
@@ -108,14 +81,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Records a hit, replacing any existing hit on the same transform when it is better.
-        /// </summary>
-        /// <remarks>
-        /// Exact always beats approximate, whatever the distances say: both describe the same
-        /// object, and the collider knows where its surface is while a bounding box only knows where
-        /// the object roughly is.
-        /// </remarks>
+        // Records a hit, replacing any existing hit on the same transform when it is better. Exact
+        // always beats approximate, whatever the distances say.
         private static void OfferHit(List<PreviewPickHit> geometryHits, PreviewPickHit candidate)
         {
             for (int hitIndex = 0; hitIndex < geometryHits.Count; hitIndex++)

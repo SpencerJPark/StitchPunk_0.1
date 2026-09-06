@@ -8,18 +8,13 @@ namespace DotsAnimationToolkit.Editor
     /// Creates the material every line-drawn preview overlay uses — grid, selection box, bone
     /// handles.
     /// </summary>
-    /// <remarks>
-    /// One place for the shader choice because the fallback chain is the interesting part.
-    /// <c>Hidden/Internal-Colored</c> is the editor's own line shader: it multiplies vertex colour
-    /// by <c>_Color</c> and declares no <c>LightMode</c> pass tag, which URP renders as
-    /// <c>SRPDefaultUnlit</c>. The fallbacks mean a missing shader degrades to a flat-coloured
-    /// overlay rather than a magenta one — an overlay is never worth throwing over.
-    /// </remarks>
     public static class PreviewLineMaterial
     {
         /// <summary>Creates a hidden, unsaved line material, or null if no shader resolves.</summary>
         public static Material Create(string materialName)
         {
+            // Hidden/Internal-Colored has no LightMode tag, which URP renders as SRPDefaultUnlit;
+            // the fallbacks mean a missing shader degrades to flat-coloured rather than magenta.
             Shader lineShader = Shader.Find("Hidden/Internal-Colored");
             if (lineShader == null)
             {

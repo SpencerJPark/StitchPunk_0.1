@@ -10,16 +10,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The cutscene's own view of the scene (amendment A58 §3.3): one row per slot, its binding
-    /// state, and the four things an author does with it — Place, Bind, Select, Frame.
-    /// </summary>
-    /// <remarks>
-    /// It does not replace Unity's Hierarchy or Inspector; selecting a row drives
-    /// <see cref="Selection.activeGameObject"/> so both of those, and the transform gizmo, land on
-    /// the same object. What it adds is the mapping the Hierarchy cannot show — which abstract slot
-    /// a given scene object is currently cast as.
-    /// </remarks>
+    /// <summary>The cutscene's own view of the scene: one row per slot, its binding state, and Place/Bind/Select/Frame.</summary>
     internal sealed class CutsceneCastPanel : VisualElement
     {
         private enum BindingState
@@ -45,7 +36,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Raised with the slot index whose bound object should be framed in the Scene view.</summary>
         public event Action<int> FrameRequested;
 
-        /// <summary>Raised when the author presses Sync to Stage (amendment A61-T3).</summary>
+        /// <summary>Raised when the author presses Sync to Stage.</summary>
         public event Action SyncToStageRequested;
 
         public CutsceneCastPanel()
@@ -72,8 +63,8 @@ namespace DotsAnimationToolkit.Editor
             syncToStageButton = new Button(() => SyncToStageRequested?.Invoke()) { text = "Sync to Stage" };
             syncToStageButton.tooltip =
                 "Writes every bound slot into this scene's CutsceneStageAuthoring component, baking "
-                + "one CutsceneStage entity that plays this cutscene at runtime (amendment A61). "
-                + "Explicit, never automatic — press it after the cast is the way you want it.";
+                + "one CutsceneStage entity that plays this cutscene at runtime. Explicit, never "
+                + "automatic — press it after the cast is the way you want it.";
             headerRow.Add(syncToStageButton);
 
             Add(headerRow);
@@ -84,7 +75,7 @@ namespace DotsAnimationToolkit.Editor
             Add(rowsScroll);
         }
 
-        /// <summary>Sets the Stage status text (A61-D2: sync is explicit, so this only ever reports state — it never triggers a write).</summary>
+        /// <summary>Sets the Stage status text. Sync is explicit, so this only ever reports state — it never triggers a write.</summary>
         public void SetStageStatus(string statusText)
         {
             stageStatusLabel.text = statusText;
@@ -254,12 +245,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>The slot whose bound object is <paramref name="selected"/> or an ancestor of it, or −1.</summary>
-        /// <remarks>
-        /// Walks up the hierarchy because clicking a character in the Scene view usually selects a
-        /// part, not the root the slot is bound to — a row that only lit for an exact hit would look
-        /// broken most of the time.
-        /// </remarks>
+        // The slot whose bound object is `selected` or an ancestor of it, or −1. Walks up the
+        // hierarchy because clicking a character in the Scene view usually selects a part, not the root.
         public static int FindSlotIndexForSelection(
             CutsceneAsset cutscene, string currentSceneGuid, GameObject selected)
         {

@@ -7,9 +7,9 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// A host's editor for one event key's payload (amendment A65 §3.1). A cue's
-    /// <c>intParam</c> is a dialogue sequence id in the game that authored it and a raw number
-    /// everywhere else; only the host can turn it into something an author can pick.
+    /// A host's editor for one event key's payload. A cue's <c>intParam</c> is a dialogue
+    /// sequence id in the game that authored it and a raw number everywhere else; only the host
+    /// can turn it into something an author can pick.
     /// </summary>
     public interface ICutsceneEventInspectorProvider
     {
@@ -22,15 +22,10 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// The host seam for event payload editors, registered from an
-    /// <c>[InitializeOnLoadMethod]</c> the way <c>DirectionSetsPanel.SetContextProvider</c> is.
+    /// The host seam for event payload editors. Holds a list rather than one provider, since a
+    /// host can register one editor per typed-event family; the first provider that claims a key
+    /// wins, so registration order is the tie-break.
     /// </summary>
-    /// <remarks>
-    /// A list rather than one provider: a host with several typed events registers one editor per
-    /// family, and the package cannot know which of them owns a given key. The first provider that
-    /// claims the key wins, so registration order is the tie-break — a host registering two
-    /// providers for one key has a bug of its own to fix.
-    /// </remarks>
     public static class CutsceneEventInspectorProviders
     {
         private static readonly List<ICutsceneEventInspectorProvider> providers =

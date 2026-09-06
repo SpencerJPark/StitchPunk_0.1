@@ -40,41 +40,11 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// Finds animation bindings that a prefab restructure has broken.
+    /// Finds animation bindings that a prefab restructure has broken. Only name-based bindings can
+    /// break — transform and sprite tracks bind to a stable id and cannot — and the three that do
+    /// are <c>BoneTrack.boneName</c>, a bone-mode socket's <c>boneName</c>, and a rig target's
+    /// <c>displayName</c> (which only misleads the preview rather than losing data).
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Only name-based bindings can break, and knowing which those are is the whole
-    /// point.</strong> Transform and sprite tracks bind to a rig target's <em>stable id</em>, minted
-    /// once and never derived from a name, so renaming a part or reparenting it changes nothing they
-    /// depend on — that is precisely why the ids exist. Reporting them as "possibly broken" after
-    /// every prefab edit would be noise that trains the user to dismiss the panel unread.
-    /// </para>
-    /// <para>
-    /// Three bindings are genuinely name-based and do break:
-    /// </para>
-    /// <list type="bullet">
-    /// <item><description>
-    /// <c>BoneTrack.boneName</c> — the bake resolves it by name against the skinned prefab. A rename
-    /// leaves the track authored but posing nothing, which shows up as an animation that silently
-    /// does not play.
-    /// </description></item>
-    /// <item><description>
-    /// A socket with <c>mode = Bone</c>, for the same reason. The bake reports these, but after the
-    /// bake, which is late.
-    /// </description></item>
-    /// <item><description>
-    /// A rig target's <c>displayName</c>, which is how the Clip Editor's preview finds the prefab
-    /// transform to take a rest pose from. Breaking this loses no authored data — the track still
-    /// plays — but the part drops back to the origin at unit scale in the preview, which looks like
-    /// a corrupted clip.
-    /// </description></item>
-    /// </list>
-    /// <para>
-    /// The severity difference matters and is carried through to the panel: the first two are data
-    /// that will not bake, the third is a preview that will mislead.
-    /// </para>
-    /// </remarks>
     public static class BindingReconciler
     {
         /// <summary>
@@ -199,13 +169,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Points a broken binding at <paramref name="newName"/>.
-        /// </summary>
-        /// <remarks>
-        /// The caller records undo and marks dirty; this only performs the write, so the same
-        /// function is usable from a test with no editor state involved.
-        /// </remarks>
+        // Points a broken binding at newName. The caller records undo and marks dirty; this only
+        // performs the write, so it is usable from a test with no editor state involved.
         /// <returns>False when the binding's index no longer addresses anything.</returns>
         public static bool Remap(BrokenBinding binding, RigAsset rig, string newName)
         {
@@ -248,16 +213,9 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>
-        /// Removes what a broken binding points at.
-        /// </summary>
-        /// <remarks>
-        /// Only offered for the two track-like kinds. A rig target is not deletable from here: it
-        /// carries the stable id that every transform and sprite track in every clip of the set
-        /// binds to, so removing it to fix a preview annoyance would break animation data that was
-        /// working perfectly. Renaming it is the fix; deleting it is a rig edit, made in the rig
-        /// asset where its consequences are visible.
-        /// </remarks>
+        // Removes what a broken binding points at. Only offered for the two track-like kinds: a rig
+        // target is not deletable from here, since it carries the stable id every track in the set
+        // binds to — renaming it is the fix, deleting it is a rig edit made on the rig asset.
         /// <returns>False when the binding is not deletable or no longer addresses anything.</returns>
         public static bool Delete(BrokenBinding binding, RigAsset rig)
         {

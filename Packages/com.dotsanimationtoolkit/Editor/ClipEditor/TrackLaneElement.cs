@@ -7,16 +7,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// One row of the timeline: the keys of a single track, drawn and grabbed through
-    /// <see cref="TimelineGeometry"/> (architecture section 7.2).
-    /// </summary>
-    /// <remarks>
-    /// Drawn with <c>generateVisualContent</c> rather than IMGUI, per section 7 and enforced by the
-    /// packaging conformance scan. The element owns no layout maths of its own — every position
-    /// comes from the shared geometry, which is what stops the drawn diamond and its grab box
-    /// drifting apart under zoom.
-    /// </remarks>
+    /// <summary>One row of the timeline: the keys of a single track, drawn and grabbed through <see cref="TimelineGeometry"/>.</summary>
     public sealed class TrackLaneElement : VisualElement
     {
         private static readonly Color LaneBackground = new Color(0.18f, 0.18f, 0.19f);
@@ -29,14 +20,8 @@ namespace DotsAnimationToolkit.Editor
         private static readonly Color EventKeyFill = new Color(0.92f, 0.72f, 0.32f);
         private static readonly Color EventWindowFill = new Color(0.92f, 0.72f, 0.32f, 0.30f);
 
-        /// <summary>
-        /// Half the event marker's drawn width, in pixels.
-        /// </summary>
-        /// <remarks>
-        /// Narrower than <see cref="EventMarkerHalfHeight"/> on purpose: a pin reads as a pin
-        /// because it is taller than it is wide, the way a real one is. Widened to match the
-        /// height it would stop being a pin and start being a rounded diamond again.
-        /// </remarks>
+        // Half the event marker's drawn width, in pixels. Narrower than EventMarkerHalfHeight on
+        // purpose: a pin reads as a pin because it is taller than it is wide.
         private const float EventMarkerHalfWidth = 5f;
 
         /// <summary>
@@ -52,26 +37,12 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private const float EventMarkerShoulderFraction = 0.2f;
 
-        /// <summary>
-        /// Half-width of an event marker's grab box, in pixels.
-        /// </summary>
-        /// <remarks>
-        /// Matched to <see cref="EventMarkerHalfWidth"/> plus roughly the same margin
-        /// <see cref="TimelineGeometry.KeyHitRadius"/> carries over a pose key's draw radius (7
-        /// over 5, a 2px pad) — so the new shape is exactly as forgiving to click as the old one
-        /// was, no more and no less.
-        /// </remarks>
+        // Half-width of an event marker's grab box, in pixels — the same 2px pad KeyHitRadius
+        // carries over a pose key's draw radius, so the pin is exactly as forgiving to click.
         private const float EventKeyHitRadius = EventMarkerHalfWidth + 2f;
 
-        /// <summary>
-        /// How much closer one hit-tested key must be than another before OnPointerDown treats them
-        /// as genuinely different distances rather than a tie.
-        /// </summary>
-        /// <remarks>
-        /// Two keys sharing a normalized time produce an identical <c>TimeToX</c> result and
-        /// therefore bit-for-bit equal distance-to-pointer values — this exists only to make that
-        /// comparison robust.
-        /// </remarks>
+        // How much closer one hit-tested key must be than another before OnPointerDown treats them
+        // as genuinely different rather than a tie — two keys at the same time give bit-for-bit equal distances.
         private const float PointerTieEpsilonPixels = 0.01f;
 
         private readonly List<float> keyTimes = new List<float>();
@@ -93,15 +64,8 @@ namespace DotsAnimationToolkit.Editor
         public int trackIndex;
         public bool isAlternateRow;
 
-        /// <summary>
-        /// Whether this row is one channel of an expanded track rather than the track itself.
-        /// </summary>
-        /// <remarks>
-        /// Drawn smaller and dimmer, because a channel row shows the <em>same</em> keys as its
-        /// track: one key carries position, rotation and scale together, so the channel rows are a
-        /// reading of one set of keys, not several sets. Making them look identical to track rows
-        /// would imply keys that can be moved independently, which they cannot.
-        /// </remarks>
+        // Whether this row is one channel of an expanded track rather than the track itself. Drawn
+        // smaller and dimmer, since a channel row shows the same keys as its track, not a separate set.
         public bool isChannelRow;
 
         /// <summary>The times this lane currently draws, for box selection to test against.</summary>
@@ -144,15 +108,8 @@ namespace DotsAnimationToolkit.Editor
             MarkDirtyRepaint();
         }
 
-        /// <summary>
-        /// Supplies the window length behind each event key, as a fraction of the clip.
-        /// </summary>
-        /// <remarks>
-        /// Call after <see cref="SetKeyTimes"/>, which clears these — a lane that has been given new
-        /// key times but no new windows would otherwise draw the old bars under the new keys. A
-        /// shorter list than the key list simply leaves the remaining keys unbarred.
-        /// </remarks>
-        /// <param name="windows">Window length per key, parallel to the key times.</param>
+        // Supplies the window length behind each event key, as a fraction of the clip. Call after
+        // SetKeyTimes, which clears these.
         public void SetKeyWindows(IReadOnlyList<float> windows)
         {
             keyWindows.Clear();
@@ -172,17 +129,9 @@ namespace DotsAnimationToolkit.Editor
         public float viewPan;
 
 
-        /// <summary>
-        /// The timeline width the window wants used, in pixels. Zero means "measure yourself".
-        /// </summary>
-        /// <remarks>
-        /// <strong>Pushed in for the same reason zoom and pan are.</strong> The ruler and playhead
-        /// sit in the lane stack while the lanes sit in a column inside it, so each element
-        /// measuring its own <c>contentRect</c> gave three widths that agreed only once layout had
-        /// settled. Any difference between them is multiplied by the zoom, so a few pixels of
-        /// disagreement at 1x became a visible gap between the cursor and the key at 20x. One width
-        /// for the whole timeline makes that gap unrepresentable.
-        /// </remarks>
+        /// <summary>The timeline width the window wants used, in pixels. Zero means "measure yourself".</summary>
+        // Pushed in rather than measured locally: per-element contentRect widths disagreed until layout
+        // settled, and any disagreement is multiplied by zoom into a visible gap at high zoom.
         public float viewLaneWidth;
 
         /// <summary>The width to build geometry from: the pushed one, or our own before layout.</summary>
@@ -268,26 +217,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Chooses which member of a group tied for nearest-to-the-pointer a click should select,
-        /// given whichever member (if any) is already selected (D14, Task 2).
-        /// </summary>
-        /// <remarks>
-        /// Two keys can still tie for nearest-to-the-pointer within one lane — most often two
-        /// markers sharing a time on the same event, since E6 Task 2 gives every event name its own
-        /// lane and different names can no longer collide on screen. There is no pixel position that
-        /// means "the second one" for keys that share an x, so cycling is what makes each one
-        /// reachable anyway: the first click on a tied group lands on its first member, and a click
-        /// repeated at the same spot walks forward through the rest before wrapping back to the
-        /// start. This is pure — no <see cref="VisualElement"/>, no painter — specifically so the
-        /// cycling policy can be unit tested without a viewport; <see cref="OnPointerDown"/> is the
-        /// only caller and supplies the group in draw order (ascending key index).
-        /// </remarks>
-        /// <param name="tiedIndices">
-        /// The key indices tied for nearest-to-the-pointer, in draw order. Never empty when called
-        /// from <see cref="OnPointerDown"/>.
-        /// </param>
-        /// <param name="isSelected">Whether a given key index is currently selected.</param>
+        // Chooses which member of a group tied for nearest-to-the-pointer a click should select: the
+        // first click lands on the first member, and a repeated click cycles forward through the
+        // rest. Pure — no VisualElement, no painter — so the cycling policy can be unit tested.
         /// <returns>The index in <paramref name="tiedIndices"/> the click should select.</returns>
         public static int ResolveTiedClick(IReadOnlyList<int> tiedIndices, Func<int, bool> isSelected)
         {
@@ -381,23 +313,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Draws one event marker as a pin — flat shoulders tapering to a single point at the
-        /// exact key time — instead of a bigger diamond.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Why a pin and not a bigger diamond.</strong> The pose key is already a diamond,
-        /// so scaling that same shape up only ever reads as "a bigger key," not "a different kind
-        /// of thing" — which was the actual ask: an event obviously not-a-pose-key at a glance. A
-        /// pin is also the shape most non-linear editors already use for a timeline marker, so it
-        /// borrows recognition nobody watching has to learn fresh.
-        /// <strong>Legibility at 8-12px is the real constraint,</strong> not looking clever at
-        /// full size. Five straight edges hold their silhouette at a few pixels the way a circle
-        /// or a rounded blob does not — a curve is the first thing anti-aliasing eats at small
-        /// sizes, a corner is the last. And the point still lands exactly on the key's time, the
-        /// same way the diamond's widest point did, so precise placement reads at a glance the
-        /// same as before.
-        /// </remarks>
+        // Draws one event marker as a pin — flat shoulders tapering to a single point at the exact
+        // key time — rather than a bigger diamond, so an event reads as obviously not-a-pose-key.
         private static void DrawEventMarker(Painter2D painter, float x, float centreY)
         {
             float shoulderY = centreY - EventMarkerHalfHeight;
@@ -415,17 +332,9 @@ namespace DotsAnimationToolkit.Editor
             painter.Stroke();
         }
 
-        /// <summary>
-        /// Draws the translucent bar spanning each event marker's window, so a hit frame's duration
-        /// is visible against the poses it has to line up with.
-        /// </summary>
-        /// <remarks>
-        /// A window that runs past the end of the clip is clipped at the lane's right edge rather
-        /// than wrapped around to the left. On a looping clip the runtime does wrap it, so this
-        /// under-draws — but a bar that reappeared at the start of the lane reads as a second,
-        /// earlier window, and inventing an event the author never placed is the worse of the two
-        /// errors.
-        /// </remarks>
+        // Draws the translucent bar spanning each event marker's window. A window past the clip end
+        // is clipped at the lane's right edge rather than wrapped to the left, which would read as a
+        // second, invented window.
         private void DrawEventWindows(
             Painter2D painter,
             TimelineGeometry geometry,

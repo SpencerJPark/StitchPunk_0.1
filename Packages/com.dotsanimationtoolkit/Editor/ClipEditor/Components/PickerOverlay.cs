@@ -6,30 +6,10 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The overlay chrome shared by every searchable picker in the Clip Editor (Phase E target-tags
-    /// spec §4.2.1): a full-window scrim that dismisses on an outside press or Escape, a list panel
-    /// hung under an anchor and pulled back inside the host when it would overhang, and a hover card
-    /// beside the list that explains whatever row the pointer is over.
+    /// The overlay chrome shared by every searchable picker in the Clip Editor: a full-window scrim
+    /// that dismisses on an outside press or Escape, a list panel hung under an anchor, and a hover
+    /// card beside the list. Each subclass owns its own row content and entry type.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Extracted from <see cref="ClipComponentPicker"/> rather than left duplicated.</strong>
-    /// <see cref="ClipComponentPicker"/> was the only picker in the package before Phase E target
-    /// tags needed a second one — <see cref="TargetTagPicker"/> — for selecting a tag by name, and a
-    /// filterable search field on top (Phase E target-tags spec §4.2.1). The two pickers pick
-    /// different kinds of thing (a <c>ClipComponentKind</c> versus a tag id) and the Add Component
-    /// picker has no search field, so what is shared is exactly the chrome around the choice — not
-    /// the choice itself. This class owns that chrome; each subclass owns its own row content, its
-    /// own entry type, and (for <see cref="TargetTagPicker"/>) its own filter field above the list.
-    /// </para>
-    /// <para>
-    /// <strong>An overlay inside the window rather than a dropdown window of its own</strong>, for the
-    /// reason <see cref="ClipComponentPicker"/> always documented: a separate <c>EditorWindow</c>
-    /// would have to convert the anchor's panel-space rect into screen coordinates, which drifts the
-    /// moment the host window is docked somewhere new. Living in the same panel means placement uses
-    /// <see cref="VisualElement.WorldToLocal"/> against layout that has already been resolved.
-    /// </para>
-    /// </remarks>
     public abstract class PickerOverlay : VisualElement
     {
         public const string OverlayUssClassName = "clip-editor__picker-overlay";
@@ -115,15 +95,6 @@ namespace DotsAnimationToolkit.Editor
             RemoveFromHierarchy();
         }
 
-        /// <summary>
-        /// Adds this picker to <paramref name="host"/>, hangs its panel under <paramref name="anchor"/>,
-        /// and gives it keyboard focus so Escape reaches it.
-        /// </summary>
-        /// <param name="host">
-        /// The element the overlay covers, and the space the panel and card are placed in. The
-        /// window root, so a card beside a narrow inspector still has somewhere to go.
-        /// </param>
-        /// <param name="anchor">The control that opened it; the panel hangs from its lower-left.</param>
         protected void FinalizeOpen(VisualElement host, VisualElement anchor)
         {
             host.Add(this);
@@ -139,11 +110,7 @@ namespace DotsAnimationToolkit.Editor
         /// <param name="description">Shown in the card body on hover.</param>
         /// <param name="isAvailable">Whether the row can be picked; unavailable rows are dimmed.</param>
         /// <param name="unavailableReason">Why not, appended to the card when unavailable.</param>
-        /// <param name="onPicked">
-        /// Invoked when an available row is pressed, after the picker has already closed — the same
-        /// order <see cref="ClipComponentPicker"/> always used, so a callback that opens another
-        /// picker or dialog is not fighting this one for the panel it is still attached to.
-        /// </param>
+        /// <param name="onPicked">Invoked when an available row is pressed, after the picker has already closed.</param>
         protected VisualElement BuildRow(
             string displayName,
             string description,
@@ -216,14 +183,8 @@ namespace DotsAnimationToolkit.Editor
             card.style.display = DisplayStyle.None;
         }
 
-        /// <summary>
-        /// Hangs the panel off the anchor, pulled back inside the host when it would overhang.
-        /// </summary>
-        /// <remarks>
-        /// The height is not known until the panel has been laid out, so the vertical clamp waits for
-        /// the first geometry pass. Guessing it from the row count would be a second layout engine,
-        /// agreeing with the real one until a style changed.
-        /// </remarks>
+        // Hangs the panel off the anchor, pulled back inside the host when it would overhang. The
+        // vertical clamp waits for the panel's first geometry pass, since its height isn't known before layout.
         private void PlacePanel(VisualElement host, VisualElement anchor)
         {
             Rect anchorBounds = anchor != null

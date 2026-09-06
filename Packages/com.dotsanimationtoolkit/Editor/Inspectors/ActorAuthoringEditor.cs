@@ -11,34 +11,10 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The custom inspector for <see cref="ActorAuthoring"/> (architecture section 7.1): a starting
-    /// layer editor that shows layer identity honestly, plus the escape hatch to the Clip Editor.
+    /// Custom inspector for <see cref="ActorAuthoring"/>: a starting-layer editor that replaces the
+    /// raw layer-index integer with a "index: displayName" dropdown built from the actor's own
+    /// rig, plus the escape hatch to the Clip Editor.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The bug this closes.</strong> <see cref="RigAsset"/>'s own doc comment is explicit
-    /// that a layer's identity <em>is</em> its list position — index = priority, higher composites
-    /// later — and never a name. The default inspector draws
-    /// <see cref="StartingLayerState.layerIndex"/> as a bare integer field with no hint of what that
-    /// number means on the actor's own rig, so authoring a starting layer is a guessing game unless
-    /// the author has the rig asset open in a second inspector to count rows. This editor replaces
-    /// the integer with a dropdown built from the actor's own rig, labelled
-    /// <c>"index: displayName"</c>, so the number and its meaning are never separated.
-    /// </para>
-    /// <para>
-    /// <strong>Dropdown-with-fallback, the same shape twice.</strong> Both the layer dropdown and
-    /// the clip dropdown fall back to a bound, unverified field when the data needed to populate
-    /// choices is not yet available (no rig, a rig with no layers, or no clip sets) — the same
-    /// pattern <c>RigAssetEditor</c> uses for its bone-name dropdown. An author working before a
-    /// rig is assigned still has a working field, just not a verified one.
-    /// </para>
-    /// <para>
-    /// UI Toolkit only, per section 7 and enforced by
-    /// <c>PackagingConformanceTests.Conformance_E_NoImguiApis_InEditorSources</c>: this type
-    /// overrides <see cref="UnityEditor.Editor.CreateInspectorGUI"/> and never the immediate-mode
-    /// entry point.
-    /// </para>
-    /// </remarks>
     [CustomEditor(typeof(ActorAuthoring))]
     public sealed class ActorAuthoringEditor : UnityEditor.Editor
     {
@@ -163,16 +139,8 @@ namespace DotsAnimationToolkit.Editor
             return heading;
         }
 
-        /// <summary>
-        /// Binds only <c>sampleOverride.rateHz</c>, never the whole <c>SampleSettings</c> struct.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="ActorAuthoring.sampleOverride"/>'s own doc comment says <c>phase01</c> "is not
-        /// authored" — it is a per-instance value derived at bake and re-derived at spawn (section
-        /// 5.6). Drawing it as an ordinary bound field would offer an author a control that looks
-        /// meaningful and is silently discarded the moment <c>RigBindingSystem</c> re-derives it, so
-        /// this inspector exposes only the field the bake actually reads.
-        /// </remarks>
+        // Binds only sampleOverride.rateHz, never the whole SampleSettings struct — phase01 is
+        // derived at bake and re-derived at spawn, so an authored value would be silently discarded.
         private VisualElement BuildSampleRateField()
         {
             if (sampleOverrideProperty == null)
@@ -188,7 +156,7 @@ namespace DotsAnimationToolkit.Editor
             sampleRateField.tooltip =
                 "0 falls back to AnimationToolkitConfig.defaultSampleRateHz. The override's phase01 "
                 + "is not shown here — it is derived per instance at bake and re-derived at spawn, "
-                + "never authored (architecture section 5.6).";
+                + "never authored.";
             return sampleRateField;
         }
 
@@ -263,10 +231,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Re-reads the bind off the serialized object: the rig, the sets in list order, and the
-        /// union of their clips that a starting layer may name (Phase F section 6).
-        /// </summary>
+        // Re-reads the bind off the serialized object: the rig, the sets in list order, and the
+        // union of their clips that a starting layer may name.
         private void CaptureBind()
         {
             builtRig = rigProperty != null ? rigProperty.objectReferenceValue as RigAsset : null;
@@ -343,15 +309,8 @@ namespace DotsAnimationToolkit.Editor
         // Starting layer rows.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Tears down and rebuilds every starting-layer row from the current serialized array.
-        /// </summary>
-        /// <remarks>
-        /// A full rebuild rather than an incremental diff, for the same reason
-        /// <c>RigAssetEditor.RebuildSocketRows</c> gives: every row caches
-        /// <see cref="SerializedProperty"/> handles into the array, and an insert or delete
-        /// re-points every handle after the edit site.
-        /// </remarks>
+        // A full rebuild, not an incremental diff: every row caches SerializedProperty handles into
+        // the array, and an insert or delete re-points every handle after the edit site.
         private void RebuildStartingLayerRows()
         {
             startingLayerRows.Clear();
@@ -450,16 +409,9 @@ namespace DotsAnimationToolkit.Editor
         // Add and remove.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Appends a starting-layer entry with explicit, safe defaults.
-        /// </summary>
-        /// <remarks>
-        /// Written explicitly rather than left to <see cref="SerializedProperty.InsertArrayElementAtIndex"/>'s
-        /// "duplicate the previous element" behaviour — the same quirk <c>RigAssetEditor.AddSocket</c>
-        /// works around for identity fields. A starting layer carries no id to duplicate, but a
-        /// duplicated <c>clip</c> reference would silently seed a new layer with someone else's
-        /// clip, which reads as intentional and is not.
-        /// </remarks>
+        // Explicit, safe defaults, not InsertArrayElementAtIndex's "duplicate the previous element"
+        // behaviour — a duplicated clip reference would silently seed a new layer with someone
+        // else's clip, which reads as intentional and is not.
         private void AddStartingLayer()
         {
             if (startingLayersProperty == null)
@@ -686,15 +638,8 @@ namespace DotsAnimationToolkit.Editor
             row.clipDropdown.SetValueWithoutNotify(row.clipChoiceLabels[selectedChoice]);
         }
 
-        /// <summary>
-        /// Fills in one row's inline warning box.
-        /// </summary>
-        /// <remarks>
-        /// Both conditions mirror exactly what <c>ActorBaker.SeedStartingLayers</c> checks and logs:
-        /// an out-of-range layer index or an unresolved clip makes the baker ignore the entry and
-        /// print an error naming this actor. Surfacing the same rule here, at authoring time, is the
-        /// one-source-of-truth requirement architecture section 7.6 sets for validation.
-        /// </remarks>
+        // Both conditions mirror exactly what ActorBaker.SeedStartingLayers checks and logs: an
+        // out-of-range layer index or an unresolved clip makes the baker ignore the entry.
         private static void RefreshStartingLayerWarnings(StartingLayerRowElements row, RigAsset rig)
         {
             List<string> messages = new List<string>();
@@ -732,17 +677,9 @@ namespace DotsAnimationToolkit.Editor
             row.warningBox.text = string.Join("\n\n", messages.ToArray());
         }
 
-        /// <summary>
-        /// The visual elements and serialized handles of one starting-layer row.
-        /// </summary>
-        /// <remarks>
-        /// A row owns its <see cref="SerializedProperty"/> handles so refreshes never re-walk the
-        /// array by path, and reaches back to the owning editor's captured bind for the
-        /// data its dropdowns are built from — the same shape <c>RigAssetEditor.SocketRowElements</c>
-        /// uses. The handles are only valid while the array's shape is unchanged, which is why
-        /// <see cref="RebuildStartingLayerRows"/> discards every row whenever an element is inserted
-        /// or deleted.
-        /// </remarks>
+        // The visual elements and serialized handles of one starting-layer row. Handles are only
+        // valid while the array's shape is unchanged, which is why RebuildStartingLayerRows
+        // discards every row whenever an element is inserted or deleted.
         private sealed class StartingLayerRowElements
         {
             public int entryIndex;

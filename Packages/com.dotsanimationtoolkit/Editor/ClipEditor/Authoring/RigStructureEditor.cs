@@ -7,43 +7,11 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Writes structural edits to a prefab asset through Unity's own prefab APIs.
+    /// Writes structural edits to a prefab asset through Unity's own prefab APIs, never touching
+    /// serialized prefab data directly. Prefers an open prefab stage (undoable, on-screen) over
+    /// <c>LoadPrefabContents</c>/<c>SaveAsPrefabAsset</c> (an immediate, non-undoable asset write);
+    /// a pose edit tries a third, undoable <see cref="SerializedObject"/> route first.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Nothing here touches serialized prefab data directly.</strong> Every write goes
-    /// through one of the two supported routes, and which one is used depends on whether the user
-    /// already has the prefab open:
-    /// </para>
-    /// <list type="number">
-    /// <item><description>
-    /// <strong>A prefab stage is open for this asset</strong> — the edit is applied to
-    /// <c>prefabContentsRoot</c> and the stage's scene is marked dirty. This is the better route
-    /// whenever it is available: the edit lands on Unity's undo stack, the user sees it happen in
-    /// prefab mode, and it is saved by the stage's own save. Editing the asset behind the back of an
-    /// open stage would be worse than useless — the stage would overwrite it on save.
-    /// </description></item>
-    /// <item><description>
-    /// <strong>No stage is open</strong> — <c>LoadPrefabContents</c> gives an isolated copy of the
-    /// asset in a temporary scene, the edit is applied there, and <c>SaveAsPrefabAsset</c> writes it
-    /// back. This is Unity's supported way to edit a prefab asset without opening it.
-    /// </description></item>
-    /// </list>
-    /// <para>
-    /// <strong>The second route is an immediate asset write and is not undoable.</strong> The
-    /// temporary scene is discarded straight after saving, so there is no object left for the undo
-    /// system to restore. That is a real limitation, not an oversight: callers should say so at the
-    /// point of use, and it is the reason the stage route is preferred whenever a stage exists.
-    /// </para>
-    /// <para>
-    /// <strong>A pose edit therefore tries a third route first</strong>
-    /// (<see cref="TryWriteUndoablePose"/>): the asset's own Transform, written through
-    /// <see cref="SerializedObject"/>, which does land on the undo stack. It only suits property
-    /// edits — a reparent is structural and still has the two routes above — and it is verified by
-    /// reading the value back, so a refused write falls through to the load-and-save route rather
-    /// than leaving the part where it was and reporting success.
-    /// </para>
-    /// </remarks>
     public static class RigStructureEditor
     {
         /// <summary>How far the read-back rotation may sit from the one asked for and still count as
@@ -144,11 +112,8 @@ namespace DotsAnimationToolkit.Editor
         /// <param name="childPath">Path of the object to move. Must not be empty — the root cannot move.</param>
         /// <param name="newParentPath">Path of the new parent. Empty means the prefab root.</param>
         /// <param name="error">Why it failed, or empty on success.</param>
-        /// <remarks>
-        /// <strong>World pose is preserved.</strong> Reparenting with <c>worldPositionStays: true</c>
-        /// means the part does not jump when its parent changes, which is what someone restructuring
-        /// a rig means by "move this under that" — they are changing who drives it, not where it is.
-        /// </remarks>
+        // World pose is preserved (worldPositionStays: true): the part does not jump when its
+        // parent changes, since restructuring a rig changes who drives a part, not where it is.
         public static bool TryReparent(
             GameObject prefab, string childPath, string newParentPath, out string error)
         {
@@ -211,10 +176,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Whether an edit will land on Unity's undo stack rather than writing the asset.</summary>
-        /// <remarks>
-        /// The window uses this to say which of the two it is about to do, because "this is undoable"
-        /// and "this writes the asset now" are things a user should be told before, not after.
-        /// </remarks>
         public static bool HasOpenStage(GameObject prefab)
         {
             return FindOpenStage(PrefabAuthoringBridge.ResolveAssetPath(prefab)) != null;
@@ -242,24 +203,10 @@ namespace DotsAnimationToolkit.Editor
             target.localScale = localScale;
         }
 
-        /// <summary>
-        /// Writes a pose onto a prefab asset's own Transform through <see cref="SerializedObject"/>,
-        /// which is what makes it undoable. False when the write did not take, leaving the caller to
-        /// fall back to the load-and-save route.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <c>ApplyModifiedProperties</c> is the reason for the detour: it registers the undo step
-        /// itself, where a direct <c>target.localPosition =</c> on an asset would not, and Unity
-        /// treats a prefab asset's objects as read-only to direct assignment in the first place.
-        /// </para>
-        /// <para>
-        /// <strong>The result is read back rather than assumed.</strong> A refused write to an asset
-        /// reports no error, it simply leaves the old value in place — and a rig part that silently
-        /// did not move is a worse outcome than one that moved by the route nobody can undo. Reading
-        /// it back is what lets the caller tell those two apart.
-        /// </para>
-        /// </remarks>
+        // Writes a pose onto a prefab asset's own Transform through SerializedObject, whose
+        // ApplyModifiedProperties registers the undo step a direct assignment would not. The result
+        // is read back rather than assumed: a refused write leaves the old value with no error.
+        /// <returns>False when the write did not take, leaving the caller to fall back to the load-and-save route.</returns>
         private static bool TryWriteUndoablePose(
             Transform assetTarget,
             Vector3 localPosition,
@@ -298,22 +245,9 @@ namespace DotsAnimationToolkit.Editor
                 && Quaternion.Angle(assetTarget.localRotation, localRotation) <= RotationEpsilonDegrees;
         }
 
-        /// <summary>
-        /// Rejects the reparents that would corrupt the hierarchy rather than change it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Parenting something under itself or under one of its own descendants detaches that whole
-        /// subtree from the prefab into a cycle. Unity does guard this, but it guards it with an
-        /// error after the fact; refusing here means the asset is never written at all.
-        /// </para>
-        /// <para>
-        /// Public so a drag can ask before it drops. The preview hierarchy is a copy of the
-        /// prefab's, so the same question answered against the copy predicts the answer against the
-        /// asset — which turns an illegal drop into a rejected cursor rather than a notification
-        /// after the fact.
-        /// </para>
-        /// </remarks>
+        // Rejects the reparents that would corrupt the hierarchy rather than change it. Public so a
+        // drag can ask before it drops: the preview hierarchy is a copy of the prefab's, so the same
+        // question answered against the copy predicts the answer against the asset.
         public static bool ValidateReparent(Transform child, Transform parent, out string error)
         {
             error = string.Empty;

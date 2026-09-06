@@ -7,28 +7,9 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The Clip Editor's top-bar views, reachable from inside the Scene view.
+    /// The Clip Editor's top-bar shortcuts, shown as a Scene view overlay so they stay reachable
+    /// while editing a prefab docks the Clip Editor behind the Scene view's tab group.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Prefab editing happens in Unity's Scene view, and no window of ours can hold it.</strong>
-    /// A prefab stage is a scene the Scene view opens; there is no API to host one somewhere else,
-    /// so "keep the top bar visible while editing the prefab" cannot mean putting the stage inside
-    /// the Clip Editor. It has to mean the other direction — putting the bar's exits where the user
-    /// already is. That is what an overlay is for.
-    /// </para>
-    /// <para>
-    /// <strong>Why it is needed at all:</strong> Edit Prefab docks the Clip Editor into the Scene
-    /// view's tab group on the first trip, on purpose — a floating window sits above everything and
-    /// has to be dragged aside. The cost of that is what this pays back: sharing a tab group means
-    /// the Scene view coming forward puts the Clip Editor behind it, top bar and all.
-    /// </para>
-    /// <para>
-    /// <strong>Navigation only, never state.</strong> Both buttons are one-way commands — go there,
-    /// show that. Mirroring a toggle here would put its state in two places, and the copy in the
-    /// Scene view is the one nobody would think to update.
-    /// </para>
-    /// </remarks>
     [Overlay(typeof(SceneView), "dots-animation-toolkit-clip-editor", "Clip Editor", true)]
     public sealed class ClipEditorStageOverlay : Overlay
     {

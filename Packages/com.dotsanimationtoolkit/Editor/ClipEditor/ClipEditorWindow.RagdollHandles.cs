@@ -6,29 +6,6 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The viewport's ragdoll box handles (Phase D6, spec §8.3): selecting a body, and dragging its
-    /// centre, faces or rotation ring(s).
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Its own drag pipeline, parallel to <c>TryBeginGizmoDrag</c>/<c>ContinueGizmoDrag</c>/
-    /// <c>EndGizmoDrag</c>, not a mode of it.</strong> A ragdoll box is picked and drawn by
-    /// <see cref="PreviewRagdollBoxHandles"/>, an entirely different mesh and hit-test from
-    /// <see cref="PreviewTransformGizmo"/>'s move/rotate/scale handles, so the two cannot share one
-    /// state machine without one of them growing branches the other never takes. What they do share
-    /// is the <em>destination</em> a finished drag routes to — <see cref="GizmoDragRouting"/> — per
-    /// spec §8.3's explicit instruction to route through the existing router rather than committing
-    /// directly.
-    /// </para>
-    /// <para>
-    /// <strong>Undo is recorded once, at the press, never per pointer move.</strong> The asset field
-    /// is mutated live during the drag so the handles and the box track the cursor, exactly the
-    /// shape <c>ContinueGizmoDrag</c> uses for a Rig Edit drag — the difference is only that a
-    /// ragdoll body has no separate "held" representation to fall back to, because spec §8.3 never
-    /// offers one: placing a box always writes the rig, live.
-    /// </para>
-    /// </remarks>
     public sealed partial class ClipEditorWindow
     {
         private const float RagdollBoxMinimumFullSize = 0.02f;
@@ -59,13 +36,9 @@ namespace DotsAnimationToolkit.Editor
         private Vector3 ragdollDragPlaneAxis2;
         private float ragdollDragStartAngleDegrees;
 
-        /// <summary>
-        /// Points the component stack's active marking and the viewport handles at one ragdoll body
-        /// (spec §8.3, mirroring <c>FocusSocket</c>). Separate field from
-        /// <see cref="selectedSocketId"/>/<see cref="selectedTargetId"/> because a Ragdoll selection
-        /// does not move the ordinary hierarchy selection or outline — a body's node may itself be
-        /// the object already outlined.
-        /// </summary>
+        // Points the component stack's active marking and the viewport handles at one ragdoll body.
+        // Separate field from selectedSocketId/selectedTargetId: a Ragdoll selection does not move
+        // the ordinary hierarchy selection or outline.
         private void FocusRagdollBody(uint bodyId)
         {
             selectedRagdollBodyId = bodyId;
@@ -159,8 +132,7 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            // One undo group for the whole gesture — never per pointer move (spec §8.3's own "Undo
-            // recorded on the rig asset", singular).
+            // One undo group for the whole gesture, never per pointer move.
             Undo.RecordObject(rig, "Edit Ragdoll Box");
 
             activeRagdollBoxHandle = handle;
@@ -288,8 +260,7 @@ namespace DotsAnimationToolkit.Editor
             if (symmetric)
             {
                 // Both faces move together: the centre never moves, and the dragged face's own
-                // motion is mirrored onto the opposite face (spec §8.3: "symmetric with a modifier
-                // held").
+                // motion is mirrored onto the opposite face.
                 float sizeDelta = 2f * ragdollDragHandleSign * rawDelta;
                 SetAxisComponent(
                     ref newSize, ragdollDragAxisComponent,
@@ -297,8 +268,7 @@ namespace DotsAnimationToolkit.Editor
             }
             else
             {
-                // One-sided: only the dragged face moves, so the centre shifts by half of what the
-                // face moved (see the Phase D6 report for the full derivation).
+                // One-sided: only the dragged face moves, so the centre shifts by half of what the face moved.
                 float sizeDelta = ragdollDragHandleSign * rawDelta;
                 SetAxisComponent(
                     ref newSize, ragdollDragAxisComponent,
@@ -339,12 +309,8 @@ namespace DotsAnimationToolkit.Editor
             body.boxEulerAngles = ToFloat3(newEuler);
         }
 
-        /// <summary>
-        /// Ends a ragdoll box drag, routed through <see cref="GizmoDragRouting"/> per spec §8.3 —
-        /// always <see cref="GizmoDragDestination.RagdollBody"/> in practice, since a selected body
-        /// wins outright, but decided by the same table every other viewport drag answers to rather
-        /// than special-cased out of it.
-        /// </summary>
+        // Ends a ragdoll box drag, routed through GizmoDragRouting like every other viewport drag —
+        // always RagdollBody in practice, since a selected body wins outright.
         private void EndRagdollBoxDrag()
         {
             if (activeRagdollBoxHandle == RagdollBoxHandle.None)

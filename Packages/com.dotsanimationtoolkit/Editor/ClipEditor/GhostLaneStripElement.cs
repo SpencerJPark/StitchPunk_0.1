@@ -6,27 +6,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The empty rows under the last track, drawn to the bottom of the timeline.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>These rows exist to be pressed on, not to be looked at.</strong> A box select starts
-    /// on whichever element the pointer went down on, so before this the space below a short clip's
-    /// rows belonged to no element at all and a band could not be started there: the one part of the
-    /// timeline with room to begin a drag was the one part that refused to.
-    /// </para>
-    /// <para>
-    /// The strip picks and its rows do not. One capture target for the whole area means a drag that
-    /// starts in one ghost row and travels through several keeps its pointer, which is what a band
-    /// begun near the bottom edge does every time.
-    /// </para>
-    /// <para>
-    /// Row height is never written here. It comes from <c>--clip-editor-lane-height</c> by way of
-    /// the row class, and the count is derived by measuring a row that already exists — a copy of
-    /// that number in C# would be free to drift from the track headers it has to line up with.
-    /// </para>
-    /// </remarks>
+    /// <summary>The empty rows under the last track, drawn to the bottom of the timeline so a box select can start there too.</summary>
     public sealed class GhostLaneStripElement : VisualElement
     {
         public const string UssClassName = "clip-editor__ghost-lanes";
@@ -109,14 +89,8 @@ namespace DotsAnimationToolkit.Editor
             return Mathf.CeilToInt(stripHeight / rowHeight);
         }
 
-        /// <summary>
-        /// Resizes the strip to the space left under the tracks and fills it with rows.
-        /// </summary>
-        /// <remarks>
-        /// The height is written inline because it is measured rather than authored — the same
-        /// reason the ruler's frame markers set their own <c>left</c>. Everything about a row that
-        /// could be authored still lives in the stylesheet.
-        /// </remarks>
+        // Resizes the strip to the space left under the tracks and fills it with rows. The height
+        // is written inline because it is measured rather than authored.
         /// <param name="availableHeight">Timeline height left under the last track row, in pixels.</param>
         /// <param name="continuesOnAlternateRow">
         /// Whether the first ghost row is an odd row, so the stripes carry on from the tracks above

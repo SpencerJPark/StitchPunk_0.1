@@ -9,44 +9,21 @@ namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Brings the right window forward when the user moves between animating and authoring.
+    /// Docking is the fix, focusing only the mechanism — once the window is docked in the Scene
+    /// view's tab group, focusing either one brings it forward through Unity's own layout system.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Docking is the fix; focusing is only the mechanism.</strong> A floating window sits
-    /// above the main window whatever has keyboard focus, so no amount of focusing the Scene view
-    /// will get a floating Clip Editor out of the way — the user ends up dragging it, which is the
-    /// complaint. Once the window is docked in the Scene view's tab group, focusing the Scene view
-    /// puts the Clip Editor behind it automatically and focusing the Clip Editor brings it back.
-    /// That is the whole swap, and it is Unity's own layout system doing it.
-    /// </para>
-    /// <para>
-    /// <strong>Why not a layout swap.</strong> <c>EditorUtility.LoadWindowLayout</c> destroys and
-    /// recreates every editor window, including this one. That would take the preview's render
-    /// utility and its <c>Persistent</c>-allocator registry blob with it, along with the playhead
-    /// and selection the round trip is supposed to preserve — and it would rearrange windows the
-    /// user never asked this feature to touch. Sending one window behind another is a smaller
-    /// action with a smaller blast radius, and it is the one that survives a failure gracefully:
-    /// the worst case is a window that did not come forward, not a rebuilt editor.
-    /// </para>
-    /// </remarks>
     public static class ClipEditorDocking
     {
-        /// <summary>
-        /// State carried across the one re-creation needed to dock a floating window.
-        /// </summary>
-        /// <remarks>
-        /// Docking an existing floating window is not something Unity exposes, so the window is
-        /// closed and reopened asking to be docked. That loses the instance, hence this: the few
-        /// values that make the window feel like the same window when it comes back.
-        /// </remarks>
+        // State carried across the one re-creation needed to dock a floating window. Unity does not
+        // expose docking an existing floating window, so it is closed and reopened docked instead,
+        // and this is what makes the reopened window feel like the same one.
         public sealed class CarriedState
         {
             public UnityEngine.Object clipSet;
             public UnityEngine.Object selectedClip;
 
-            // A RigAsset rather than the prefab it used to carry (Phase D11): the toolbar field
-            // now picks the rig, and the rig itself says which prefab the preview loads, so there
-            // is no separate prefab reference to round-trip here any more.
+            // A RigAsset rather than the prefab it used to carry: the toolbar field now picks the
+            // rig, and the rig itself says which prefab the preview loads.
             public UnityEngine.Object rig;
             public float playheadTime;
             public bool rigEditMode;
@@ -59,6 +36,8 @@ namespace DotsAnimationToolkit.Editor
             public readonly List<string> selectedNames = new List<string>();
         }
 
+        // Not a LoadWindowLayout swap: that destroys and recreates every editor window, including
+        // this one's Persistent-allocator registry blob, for a smaller-blast-radius bring-forward.
         private static CarriedState pendingState;
 
         /// <summary>The state a reopened window should adopt, consumed once.</summary>
@@ -75,28 +54,16 @@ namespace DotsAnimationToolkit.Editor
             pendingState = state;
         }
 
-        /// <summary>
-        /// The window types the Clip Editor prefers to dock beside.
-        /// </summary>
-        /// <remarks>
-        /// The Scene view first, and the whole point of that choice: the two are alternatives, never
-        /// wanted at the same instant. Animating uses the Clip Editor's own viewport, and authoring
-        /// structure uses the Scene view. Sharing one tab group makes "switch to prefab mode" a tab
-        /// change rather than a window arrangement.
-        /// </remarks>
+        // The window types the Clip Editor prefers to dock beside. The Scene view, since the two are
+        // alternatives never wanted at the same instant — sharing one tab group makes "switch to
+        // prefab mode" a tab change rather than a window arrangement.
         public static Type[] PreferredDockNeighbours()
         {
             return new Type[] { typeof(SceneView) };
         }
 
-        /// <summary>
-        /// Brings the prefab-authoring surface forward: the hierarchy, then the Scene view.
-        /// </summary>
-        /// <remarks>
-        /// In that order deliberately. Each call brings its window to the front of whatever tab
-        /// group it lives in, and the last one also takes keyboard focus — which belongs to the
-        /// Scene view, because that is where the user is about to click and drag.
-        /// </remarks>
+        // Brings the prefab-authoring surface forward: the hierarchy, then the Scene view, in that
+        // order — the last call also takes keyboard focus, which belongs to the Scene view.
         public static void FocusPrefabAuthoring()
         {
             Type hierarchyType = ResolveHierarchyWindowType();
@@ -113,16 +80,9 @@ namespace DotsAnimationToolkit.Editor
             EditorWindow.FocusWindowIfItsOpen<SceneView>();
         }
 
-        /// <summary>
-        /// Unity's hierarchy window type, whatever it is called in this version.
-        /// </summary>
-        /// <remarks>
-        /// Resolved from the open windows rather than hard-coded, because the type moved: Unity 6.5
-        /// opens a <c>HierarchyWindow</c> where earlier versions opened a
-        /// <c>SceneHierarchyWindow</c>, and both names still exist. Asking the editor what it
-        /// actually has cannot be wrong about it, whereas a hard-coded name silently focuses nothing
-        /// the day it changes again.
-        /// </remarks>
+        // Unity's hierarchy window type, whatever it is called in this version. Resolved from the
+        // open windows rather than hard-coded, since Unity 6.5 opens HierarchyWindow where earlier
+        // versions opened SceneHierarchyWindow.
         private static Type ResolveHierarchyWindowType()
         {
             EditorWindow[] openWindows = Resources.FindObjectsOfTypeAll<EditorWindow>();

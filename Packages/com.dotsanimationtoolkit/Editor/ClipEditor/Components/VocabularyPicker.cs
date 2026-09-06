@@ -10,16 +10,15 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The fixed text and per-row description this picker shows for one <see cref="IVocabularyRegistry"/>
-    /// — everything that differs between a target-tag picker and an event-name picker (amendment E6
-    /// Task 3: "one shared searchable picker serves both vocabularies").
+    /// The fixed text and per-row description this picker shows for one
+    /// <see cref="IVocabularyRegistry"/> — everything that differs between a target-tag picker and
+    /// an event-name picker.
     /// </summary>
     public readonly struct VocabularyPickerConfig
     {
         /// <summary>
         /// Label for the always-first "clear the binding" row, or null/empty to omit that row
-        /// entirely. Tags offer this (untagged is an ordinary state, spec §4.2); an event marker
-        /// always fires <em>some</em> event, so the event picker passes null here.
+        /// entirely. An event marker always fires some event, so the event picker passes null here.
         /// </summary>
         public readonly string NoneRowLabel;
         public readonly string NoneRowDescription;
@@ -73,22 +72,9 @@ namespace DotsAnimationToolkit.Editor
             DescribeEntryId = describeEntryId;
         }
 
-        /// <summary>
-        /// The target-tag flavour of this config, in one place rather than at each call site.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Two surfaces open a tag picker — the rig inspector's tag column and the Clip Editor's
-        /// track-binding button — and every string they show has to match, or the same control reads
-        /// as two different features depending on where it was opened from. A shared factory is what
-        /// makes that structural rather than a thing two files must remember to keep in step.
-        /// </para>
-        /// <para>
-        /// <strong>The "(none)" row exists here and does not for events.</strong> Untagged is an
-        /// ordinary state for a target (spec §4.2), while an event marker always fires
-        /// <em>some</em> event, so there is nothing for an event picker to clear to.
-        /// </para>
-        /// </remarks>
+        // The target-tag flavour of this config, in one place rather than at each call site — the
+        // rig inspector's tag column and the Clip Editor's track-binding button both open a tag
+        // picker, and every string they show has to match.
         public static VocabularyPickerConfig ForTargetTags(TargetTagRegistry registry)
         {
             return new VocabularyPickerConfig(
@@ -103,18 +89,17 @@ namespace DotsAnimationToolkit.Editor
                 "No tag registry is available yet.",
                 tagId =>
                 {
-                    // Never the raw number where a name exists (spec §4.2.3). The hex form is the
-                    // one permitted exception: a dangling id after its tag was deleted has no name
-                    // left to show, and the number is what makes that row findable again.
+                    // Never the raw number where a name exists. The hex form is the one permitted
+                    // exception: a dangling id after its tag was deleted has no name left to show.
                     string resolvedName = registry != null ? registry.FindName(tagId) : null;
                     return resolvedName ?? "(unresolved 0x" + tagId.ToString("X8") + ")";
                 });
         }
 
         /// <summary>
-        /// The tag picker a keyed track's binding opens (amendment A56 D5). Same strings as
-        /// <see cref="ForTargetTags"/> but no "(none)" row: a row's keys are stored against its tag,
-        /// so a keyed track has nothing legal to clear to — only a rig <em>part</em> may be untagged.
+        /// The tag picker a keyed track's binding opens. Same strings as <see cref="ForTargetTags"/>
+        /// but no "(none)" row: a keyed track has nothing legal to clear to, since its keys are
+        /// stored against its tag.
         /// </summary>
         public static VocabularyPickerConfig ForTrackTagRebind(TargetTagRegistry registry)
         {
@@ -131,18 +116,8 @@ namespace DotsAnimationToolkit.Editor
                 partConfig.DescribeEntryId);
         }
 
-        /// <summary>
-        /// The event-name flavour of this config (E6 Task 4). No "(none)" row: unlike a rig target,
-        /// an event marker always fires <em>some</em> event, so there is nothing to clear a binding
-        /// to.
-        /// </summary>
-        /// <remarks>
-        /// An event's hover text is its own authored description
-        /// (<see cref="AnimEventKeyEntry.description"/>) rather than its name, which the row above
-        /// the card already shows — that note is written in the registry precisely so the person
-        /// choosing an event can read what it does before picking it. Target tags carry no such
-        /// field, so they keep describing themselves by name.
-        /// </remarks>
+        // The event-name flavour of this config. No "(none)" row: an event marker always fires some
+        // event, so there is nothing to clear a binding to.
         public static VocabularyPickerConfig ForEventKeys(AnimEventKeyRegistry registry)
         {
             return new VocabularyPickerConfig(
@@ -172,37 +147,10 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// The searchable vocabulary picker (Phase E target-tags spec §4.2.1, generalised in amendment
-    /// E6 Task 3): the one control that may ever choose an id out of a project vocabulary — a
-    /// <see cref="TargetTagRegistry"/> tag or an <see cref="AnimEventKeyRegistry"/> event name — for
-    /// a rig target's tag, a track's tag binding, or an event marker's key.
+    /// The searchable vocabulary picker: the one control that may ever choose an id out of a
+    /// project vocabulary, selection only, never typing — a name is typed exactly once, in the
+    /// registry, when the row is defined.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Selection only, never typing — this is the whole safety argument for spec §6.1's
-    /// lenient T2.</strong> A name is typed exactly once, in the registry, when the row is defined
-    /// (spec §4.2.1). Every other surface offers the existing rows and nothing else, so a wrong pick
-    /// is a wrong <em>selection</em> from a visible list — a mistake you can see — rather than a typo
-    /// that resolves to nothing and gets skipped with a warning nobody reads.
-    /// </para>
-    /// <para>
-    /// <strong>One picker for both vocabularies, not two.</strong> Originally built as
-    /// <c>TargetTagPicker</c> for target tags alone (E1.5), this class was generalised for amendment
-    /// E6 Task 3 rather than duplicated for event names: the row content, filtering, "(none)"
-    /// handling, the "Create…" row, and the pinned Edit button are identical in shape between a
-    /// tag and an event, differing only in the strings in <see cref="VocabularyPickerConfig"/> and which
-    /// <see cref="IVocabularyRegistry"/> is asked. <see cref="Open"/> takes both an
-    /// <see cref="IVocabularyRegistry"/> (the id lookups and minting) and the underlying
-    /// <see cref="ScriptableObject"/> (needed only to hand to <see cref="VocabularyQuickEditWindow"/>,
-    /// which hosts a real <see cref="UnityEditor.Editor"/> for it).
-    /// </para>
-    /// <para>
-    /// <strong>Built on <see cref="PickerOverlay"/>, the base <c>ClipComponentPicker</c> was
-    /// generalised into.</strong> The overlay chrome — dismiss-on-outside-press, Escape, the hover
-    /// card, panel placement and its overhang clamp — is identical between every picker in this
-    /// package; only the row content and the filter field are new here.
-    /// </para>
-    /// </remarks>
     public sealed class VocabularyPicker : PickerOverlay
     {
         private const float PanelWidth = 260f;
@@ -235,8 +183,7 @@ namespace DotsAnimationToolkit.Editor
             this.onRegistryChanged = onRegistryChanged;
 
             // Search field and Edit button share a row, Edit fixed at its right edge, so the edit
-            // affordance stays one place to look regardless of how many rows the list holds below
-            // it — the owner's complaint with the old trailing "Edit tags…" row (spec §4.2.2).
+            // affordance stays one place to look regardless of how many rows the list holds below it.
             VisualElement searchRow = new VisualElement();
             searchRow.style.flexDirection = FlexDirection.Row;
             searchRow.style.alignItems = Align.Center;
@@ -248,7 +195,7 @@ namespace DotsAnimationToolkit.Editor
             filterField.style.marginRight = 4f;
             filterField.style.marginTop = 2f;
             filterField.style.marginBottom = 2f;
-            // Filtering only ever narrows the list; it never binds anything by itself (spec §4.2.1).
+            // Filtering only ever narrows the list; it never binds anything by itself.
             filterField.RegisterValueChangedCallback(changeEvent => RefreshRows());
             searchRow.Add(filterField);
 
@@ -272,40 +219,19 @@ namespace DotsAnimationToolkit.Editor
 
             RefreshRows();
 
-            // Amendment A54: a still-open picker's row list stays current while a separate
-            // VocabularyQuickEditWindow (or the Project Settings page) edits the same registry —
-            // including an add or remove, which has no field to bubble a FocusOutEvent from and so
-            // could not be caught any other way. Unsubscribes on DetachFromPanelEvent rather than in
-            // Close() so this stays self-contained without PickerOverlay needing to know about it;
-            // Close() always ends in RemoveFromHierarchy(), which is what raises that event.
+            // Keeps a still-open picker's row list current while a separate VocabularyQuickEditWindow
+            // (or the Project Settings page) edits the same registry. Unsubscribes on
+            // DetachFromPanelEvent, which Close()'s RemoveFromHierarchy() always raises.
             VocabularyRegistryProvider.RegistryChanged += RefreshRows;
             RegisterCallback<DetachFromPanelEvent>(
                 detachFromPanelEvent => VocabularyRegistryProvider.RegistryChanged -= RefreshRows);
         }
 
-        /// <summary>Opens the picker over <paramref name="host"/>, hung under <paramref name="anchor"/>.</summary>
-        /// <param name="host">The element the overlay covers and is placed within.</param>
-        /// <param name="anchor">The control that opened it; the panel hangs from its lower-left.</param>
         /// <param name="registry">
         /// The vocabulary to pick from. A null or empty registry still opens — the list is then just
-        /// "(none)" (when configured) and "Create…", with the Edit button beside the search field
-        /// always available — because a project with no rows yet is exactly when a person most needs
-        /// the in-flow create-and-edit path.
+        /// "(none)" (when configured) and "Create…", with the Edit button always available.
         /// </param>
-        /// <param name="registryObject">
-        /// The same registry as a <see cref="ScriptableObject"/>, so the Edit button can hand it to
-        /// <see cref="VocabularyQuickEditWindow"/>. May be null alongside a null
-        /// <paramref name="registry"/>.
-        /// </param>
-        /// <param name="config">The strings and per-row hover text this vocabulary uses.</param>
-        /// <param name="onPick">
-        /// Invoked with the chosen row's id, or 0 for "(none)". Not invoked when the picker is
-        /// dismissed without a choice, or when the Edit button is pressed.
-        /// </param>
-        /// <param name="onRegistryChanged">
-        /// Invoked after a row is minted through "Create…", or after the quick-edit window closes —
-        /// either can change what a caller's own cached names should show.
-        /// </param>
+        /// <param name="onPick">Invoked with the chosen row's id, or 0 for "(none)".</param>
         public static VocabularyPicker Open(
             VisualElement host,
             VisualElement anchor,
@@ -372,17 +298,12 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Builds the optional "Create…" row (spec §4.2.1). Still one typing surface — the filter
-        /// text becomes the row's name at the moment it is defined, not a second way to spell an
-        /// existing one — which is why it only appears once nothing already matches.
-        /// </summary>
+        // Builds the optional "Create…" row: still one typing surface, since the filter text becomes
+        // the row's name at the moment it is defined rather than a second way to spell an existing one.
         private VisualElement BuildCreateRow(string filterText)
         {
-            // The filter list already guarantees no *substring* match exists, which rules out the
-            // ordinary duplicate. This is a second, exact, case-insensitive check against the trimmed
-            // name regardless, so a registry entry the filter loop skipped (empty name, id 0) can
-            // never be "created over" — see IsNearDuplicateName's remarks.
+            // A second, exact, case-insensitive check against the trimmed name: the filter list only
+            // guarantees no substring match, so a skipped entry (empty name, id 0) could otherwise slip through.
             if (IsNearDuplicateName(registry, filterText))
             {
                 return BuildRow(
@@ -417,13 +338,8 @@ namespace DotsAnimationToolkit.Editor
             onPick?.Invoke(newId);
         }
 
-        /// <summary>
-        /// Opens the registry's quick-edit window. The picker stays open behind it now that Edit is a
-        /// pinned button rather than a self-closing row; its own row list stays current regardless via
-        /// the <see cref="VocabularyRegistryProvider.RegistryChanged"/> subscription taken out in the
-        /// constructor, so this only has to worry about the outer caller's own refresh once the
-        /// quick-edit window actually closes.
-        /// </summary>
+        // Opens the registry's quick-edit window. The picker stays open behind it, its own row list
+        // kept current by the RegistryChanged subscription taken out in the constructor.
         private void OpenQuickEditWindow()
         {
             VocabularyQuickEditWindow.Open(
@@ -442,12 +358,9 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// True when <paramref name="entryName"/> should be listed under the filter text
-        /// <paramref name="filterText"/> (spec §4.2.1): a case-insensitive substring match, and an
-        /// empty (or whitespace-only) filter matches everything.
+        /// <paramref name="filterText"/>: a case-insensitive substring match, and an empty (or
+        /// whitespace-only) filter matches everything.
         /// </summary>
-        /// <param name="entryName">A row's display name. Null is treated as empty.</param>
-        /// <param name="filterText">The filter field's current text. Null is treated as empty.</param>
-        /// <returns>True when the row should be shown.</returns>
         public static bool MatchesFilter(string entryName, string filterText)
         {
             string trimmedFilter = filterText == null ? string.Empty : filterText.Trim();
@@ -462,14 +375,8 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>
         /// True when <paramref name="candidateName"/> matches an existing name in
         /// <paramref name="existingNames"/>, ignoring case and leading/trailing whitespace — the
-        /// guard that keeps "Create…" from ever minting a second, differently-cased spelling of a
-        /// row that already exists (spec §4.2.1: "it must reject near-duplicates case-insensitively").
+        /// guard that keeps "Create…" from minting a differently-cased spelling of an existing row.
         /// </summary>
-        /// <param name="existingNames">Every row's current name. Null or empty never counts as a
-        /// duplicate. A null entry in the list is treated as empty.</param>
-        /// <param name="candidateName">The prospective new row's name. Null is treated as empty.</param>
-        /// <returns>True when an existing name equals <paramref name="candidateName"/> case- and
-        /// whitespace-insensitively.</returns>
         public static bool IsNearDuplicateName(IReadOnlyList<string> existingNames, string candidateName)
         {
             if (existingNames == null)

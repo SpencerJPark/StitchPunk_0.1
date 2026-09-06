@@ -6,66 +6,21 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The clip viewport's permanent scene furniture: a reference grid and a selection marker.
+    /// The clip viewport's permanent scene furniture: a reference grid and a selection marker, so a
+    /// viewport always draws something rather than leaving an unselected clip looking uninitialised.
+    /// Two grids — a floor in XZ at y=0, a backdrop in XY at z=0 rising from it — plus an origin
+    /// marker, all as line meshes rather than <c>Handles</c>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The grid is what makes the viewport a viewport rather than a symptom.</strong> Before
-    /// it, an unselected clip rendered nothing, which is indistinguishable from a preview that has
-    /// failed to initialise — and the two were routinely confused. A viewport that always draws
-    /// something answers "is this thing alive?" without the user having to select anything to find
-    /// out.
-    /// </para>
-    /// <para>
-    /// <strong>Line meshes, not <c>Handles</c>.</strong> The packaging conformance scan forbids
-    /// immediate-mode drawing anywhere in package Editor code, and the preview renders through a
-    /// <c>PreviewRenderUtility</c> camera in its own scene, where an immediate-mode handle would
-    /// have nothing to draw into anyway. A <see cref="MeshTopology.Lines"/> mesh is the same picture
-    /// with none of that.
-    /// </para>
-    /// <para>
-    /// <strong>There are two grids, they answer different questions, and one stands on the
-    /// other.</strong> The floor lies in the XZ plane at y = 0 and is the base: it says which way is
-    /// down, gives a 3D prop or vehicle something to stand on, and shows at a glance whether a
-    /// character's feet are on the ground or sunk through it. The backdrop lies in the XY plane at
-    /// z = 0 — the plane cutout parts live in and the one the default camera faces head-on — and
-    /// rises from the floor rather than being centred on the origin, so reading up it is reading
-    /// height above the ground. Its lower half used to hang below the floor, measuring a space
-    /// nothing is animated in: a character stands on y = 0, so its mass is entirely above it.
-    /// </para>
-    /// <para>
-    /// The origin is drawn as three short axis stubs, so 0,0,0 is a place you can see rather than
-    /// one you infer from where lines happen to cross. Everything the preview composes is measured
-    /// from it: the camera orbits it, and the rig's parts are laid out around it.
-    /// </para>
-    /// <para>
-    /// Everything here carries <see cref="HideFlags.HideAndDontSave"/> and is destroyed by
-    /// <see cref="Dispose"/>. The meshes and material are created rather than loaded, so they leak
-    /// as native allocations across domain reloads if that is skipped.
-    /// </para>
-    /// </remarks>
     public sealed class PreviewSceneGizmos
     {
         private const int GridHalfLineCount = 5;
 
-        /// <summary>
-        /// One world unit per square — the height of Unity's default cube.
-        /// </summary>
-        /// <remarks>
-        /// The point of a grid is to be a ruler, and it can only be one if a square means something
-        /// you already know the size of. A character runs about two units tall, so a one-unit square
-        /// reads directly as "half this character" without anyone having to work out a scale factor.
-        /// </remarks>
+        // One world unit per square — the height of Unity's default cube, so a square reads
+        // directly as "half a character" without a scale factor.
         private const float GridCellSize = 1f;
 
-        /// <summary>
-        /// How far the upright backdrop reaches above the floor, in world units.
-        /// </summary>
-        /// <remarks>
-        /// Half the floor's width rather than the full span, because the backdrop no longer has a
-        /// lower half to balance an upper one: five squares is already more than twice a character's
-        /// height, and a wall taller than that measures nothing anyone is animating.
-        /// </remarks>
+        // How far the upright backdrop reaches above the floor, in world units — half the floor's
+        // width, since the backdrop has no lower half to balance.
         private const float BackdropHeight = GridHalfLineCount * GridCellSize;
 
         /// <summary>Keeps a flat object's outline from collapsing to a zero-scale nothing.</summary>
@@ -76,14 +31,7 @@ namespace DotsAnimationToolkit.Editor
 
         private static readonly Color GridLineColor = new Color(0.32f, 0.32f, 0.34f, 1f);
 
-        /// <summary>
-        /// Dimmer than the backdrop's.
-        /// </summary>
-        /// <remarks>
-        /// The two grids meet along the X axis and cross at the origin, so drawing them in one
-        /// colour makes a thicket at exactly the place the eye needs to read. The floor recedes and
-        /// the backdrop stays the one being measured against.
-        /// </remarks>
+        // Dimmer than the backdrop's, so the floor recedes and the backdrop stays the one measured against.
         private static readonly Color FloorLineColor = new Color(0.24f, 0.24f, 0.26f, 1f);
 
         private static readonly Color HorizontalAxisColor = new Color(0.68f, 0.32f, 0.30f, 1f);
@@ -135,21 +83,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Draws the selection outline as a box of the given world size, centre and orientation.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// A box rather than a point marker so that selecting a mesh outlines <em>that mesh</em>:
-        /// callers pass a renderer's local bounds mapped to world space, which makes the highlight
-        /// an oriented bounding box that follows the object's rotation. A world-axis-aligned box
-        /// would swing about as the rig turns and stop reading as "this object".
-        /// </para>
-        /// <para>
-        /// Each axis is clamped to a minimum because a flat object — a cutout quad, a plane — has a
-        /// zero-thickness bound, and a zero scale collapses the outline to nothing at all.
-        /// </para>
-        /// </remarks>
+        // Draws the selection outline as a box of the given world size, centre and orientation. An
+        // oriented box, not axis-aligned, so it follows the object's rotation; each axis is clamped
+        // to a minimum since a flat object has a zero-thickness bound that would collapse it.
         public void ShowSelection(Vector3 worldCenter, Quaternion worldRotation, Vector3 worldSize)
         {
             if (selectionObject == null)
@@ -248,14 +184,8 @@ namespace DotsAnimationToolkit.Editor
             return BuildLineMesh("ClipPreviewGridMesh", vertices, colors, indices);
         }
 
-        /// <summary>
-        /// Three short axis stubs at 0,0,0, in the usual X-red, Y-green, Z-blue convention.
-        /// </summary>
-        /// <remarks>
-        /// Drawn out of the origin in the positive direction only, so the stubs say which way each
-        /// axis runs rather than only where the centre is — the negative half would be a mirror that
-        /// carries no extra information and makes the crossing busier.
-        /// </remarks>
+        // Three short axis stubs at 0,0,0, in the usual X-red, Y-green, Z-blue convention. Drawn in
+        // the positive direction only, so the stubs say which way each axis runs.
         private static void AddOriginMarker(
             List<Vector3> vertices, List<Color> colors, List<int> indices)
         {

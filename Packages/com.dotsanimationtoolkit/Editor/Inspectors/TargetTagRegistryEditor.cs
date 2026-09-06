@@ -10,26 +10,10 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The custom inspector for <see cref="TargetTagRegistry"/> (Phase E target-tags spec §4.1,
-    /// §4.2.2): add, rename and remove tag rows, with rule T5's findings surfaced the same way
-    /// <see cref="RigAssetEditor"/> surfaces a rig's.
+    /// Custom inspector for <see cref="TargetTagRegistry"/>: add, rename and remove tag rows.
+    /// Rows are hand-built, not the default array drawer, so a delete can show its binding count
+    /// first — the same shape <see cref="AnimEventKeyRegistryEditor"/> uses for events.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Rows are hand-built rather than left to the default array drawer</strong>, so a
-    /// delete can be intercepted and show its cost first — §4.2.2 requires the count of bindings a
-    /// tag has before it is removed, and there is no way to get that in front of the array drawer's
-    /// own remove button. <see cref="AnimEventKeyRegistryEditor"/> now builds its rows the same way
-    /// (amendment A55), for the analogous reason on the event registry: a marker count shown before
-    /// its own delete.
-    /// </para>
-    /// <para>
-    /// UI Toolkit only, per section 7 and enforced by
-    /// <c>PackagingConformanceTests.Conformance_E_NoImguiApis_InEditorSources</c>: this type
-    /// overrides <see cref="UnityEditor.Editor.CreateInspectorGUI"/> and never the immediate-mode
-    /// entry point.
-    /// </para>
-    /// </remarks>
     [CustomEditor(typeof(TargetTagRegistry))]
     public sealed class TargetTagRegistryEditor : UnityEditor.Editor
     {
@@ -42,11 +26,8 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement findingsContainer;
         private VocabularyConstantsSection constantsSection;
 
-        /// <summary>
-        /// Row count as of the last <see cref="RefreshRows"/>, so <see cref="OnSerializedObjectChanged"/>
-        /// can tell a resize (rows added/removed elsewhere) from an ordinary keystroke — see that
-        /// method's remarks for why the distinction matters.
-        /// </summary>
+        // Row count as of the last RefreshRows, so OnSerializedObjectChanged can tell a resize
+        // (rows added/removed elsewhere) from an ordinary rename keystroke.
         private int builtEntryCount = -1;
 
         public override VisualElement CreateInspectorGUI()
@@ -75,9 +56,8 @@ namespace DotsAnimationToolkit.Editor
             findingsContainer.style.marginTop = 8f;
             root.Add(findingsContainer);
 
-            // Task 2's generator. It sits on the registry inspector rather than somewhere in the
-            // Clip Editor because that inspector is also what VocabularyQuickEditWindow hosts, so
-            // "Edit Target Tags..." from any picker reaches it without a second entry point.
+            // Sits on the registry inspector, not the Clip Editor, because this inspector is also
+            // what VocabularyQuickEditWindow hosts — one entry point for every "Edit Target Tags..." picker.
             constantsSection = new VocabularyConstantsSection(
                 target as TargetTagRegistry,
                 target,
@@ -97,42 +77,23 @@ namespace DotsAnimationToolkit.Editor
             RefreshRows();
             RefreshFindings();
 
-            // Picks up Undo/Redo and edits made from anywhere else, the same way the anim event key
-            // registry and the clip-set roster do - without re-walking the list on every repaint.
-            // The explicit PersistChange() is the reason this callback exists at all for this
-            // asset: TargetTagRegistry lives outside the AssetDatabase (Task 1), so a rename typed
-            // into the bound name field above has nothing else that would ever write it to disk.
+            // Picks up Undo/Redo and edits made elsewhere without re-walking the list every repaint.
+            // TargetTagRegistry lives outside the AssetDatabase, so a rename typed into the bound
+            // name field above has nothing else that would ever write it to disk.
             root.TrackSerializedObjectValue(serializedObject, OnSerializedObjectChanged);
 
             return root;
         }
 
-        /// <summary>
-        /// Flushes a pending rename's constants regeneration when this inspector goes away — the
-        /// window closes, the selection changes, or the Project Settings tab is left.
-        /// </summary>
-        /// <remarks>
-        /// Amendment A54 originally regenerated on every <c>FocusOutEvent</c> anywhere in this
-        /// inspector, so simply clicking out of a renamed row's field — the ordinary way to finish a
-        /// rename — rewrote the constants file immediately. A rename has no row-count change for
-        /// <see cref="OnSerializedObjectChanged"/> to catch, so it has nothing else to regenerate on;
-        /// deferring it here instead of to every keystroke's blur is what stops an in-progress rename
-        /// from forcing a recompile mid-edit. An add or remove still regenerates immediately, in
-        /// <see cref="OnSerializedObjectChanged"/> — this is only the rename-only path's backstop.
-        /// </remarks>
+        // Flushes a pending rename's regeneration here, not on every keystroke's blur, so an
+        // in-progress rename does not force a recompile mid-edit.
         private void OnDisable()
         {
             constantsSection?.RegenerateIfConfigured();
         }
 
-        /// <summary>
-        /// Persists every change, but only tears down and rebuilds the rows when the entry count
-        /// itself changed (add/remove/Undo) — not on an ordinary rename keystroke, which is a change
-        /// to the very row it would be destroying. Each <see cref="PropertyField"/> is already bound
-        /// and refreshes its own displayed value; rebuilding it mid-edit only threw away focus and
-        /// the character just typed, so a name was un-typeable a keystroke at a time. Same guard
-        /// <see cref="RigAssetEditor"/>'s own target-tag rows use for the identical reason.
-        /// </summary>
+        // Rebuilds rows only on a count change (add/remove/Undo) — rebuilding a bound PropertyField
+        // on an ordinary rename keystroke would throw away focus and the character just typed.
         private void OnSerializedObjectChanged(SerializedObject changedSerializedObject)
         {
             TargetTagRegistry changedRegistry = target as TargetTagRegistry;
@@ -148,10 +109,8 @@ namespace DotsAnimationToolkit.Editor
             }
             RefreshFindings();
 
-            // A resize (Undo/Redo, or an edit made on a different open copy of this inspector) has
-            // no OnDisable to flush it promptly either -- nothing guarantees this inspector is ever
-            // closed in the same session -- so it still regenerates immediately. An ordinary rename
-            // keystroke does nothing here: OnDisable is what regenerates once that edit is done.
+            // A resize regenerates immediately, since nothing guarantees OnDisable ever runs to
+            // flush it; an ordinary rename does nothing here and waits for OnDisable instead.
             if (rowCountChanged)
             {
                 constantsSection?.RegenerateIfConfigured();
@@ -212,8 +171,8 @@ namespace DotsAnimationToolkit.Editor
             idLabel.style.marginLeft = 6f;
             idLabel.style.marginRight = 6f;
             idLabel.tooltip =
-                "Stable tag id. What a rig target's tagId (E2) and a track's tag binding (E3) " +
-                "actually store - renaming the row above never touches this value.";
+                "Stable tag id. What a rig target's tagId and a track's tag binding actually " +
+                "store - renaming the row above never touches this value.";
             rowContainer.Add(idLabel);
 
             Button removeButton = new Button(() => RemoveEntry(entryIndex)) { text = "Remove" };
@@ -230,10 +189,9 @@ namespace DotsAnimationToolkit.Editor
         {
             TargetTagRegistry registry = (TargetTagRegistry)target;
 
-            // CreateVocabularyEntry only mints the id in memory; it cannot persist itself
-            // (Authoring/ never references UnityEditor). The explicit PersistVocabulary call is
-            // required here because this mutates the registry directly rather than through
-            // SerializedProperty, so TrackSerializedObjectValue below never fires for it.
+            // CreateVocabularyEntry only mints the id in memory and cannot persist itself, and this
+            // mutates the registry directly rather than through SerializedProperty, so the explicit
+            // PersistVocabulary call is required — TrackSerializedObjectValue never fires for it.
             registry.CreateVocabularyEntry("NewTag");
             VocabularyRegistryProvider.PersistVocabulary(registry);
 
@@ -244,12 +202,9 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Removes one tag row, behind a confirmation naming how many bindings it will break
-        /// (Phase E target-tags spec §4.2.2) — a rename is safe by construction, but a delete
-        /// produces T3 errors on every clip that used the tag, and that cost should be visible
-        /// before it happens rather than discovered afterwards in the console.
+        /// Removes one tag row, behind a confirmation naming how many bindings it will break —
+        /// unlike a rename, a delete fails validation on every clip that used the tag.
         /// </summary>
-        /// <param name="entryIndex">Index into <see cref="TargetTagRegistry.entries"/> to remove.</param>
         private void RemoveEntry(int entryIndex)
         {
             TargetTagRegistry registry = (TargetTagRegistry)target;
@@ -262,14 +217,14 @@ namespace DotsAnimationToolkit.Editor
             string entryLabel = entry != null && !string.IsNullOrEmpty(entry.name)
                 ? "'" + entry.name + "'"
                 : "entry " + entryIndex;
-            // Rig-target bindings (E2) plus track bindings (E3): a delete breaks both kinds, and a
-            // person deciding whether to confirm needs the real total, not half of it.
+            // Rig-target bindings plus track bindings: a delete breaks both kinds, and the
+            // confirmation needs the real total, not half of it.
             int bindingCount = TargetTagBindingUtility.CountRigTargetBindings(entry)
                 + TargetTagBindingUtility.CountTrackBindings(entry);
 
             string question = bindingCount > 0
                 ? "Delete tag " + entryLabel + "?\n\n" + bindingCount + " binding(s) use it and " +
-                    "will fail validation rule T3 the moment it is gone."
+                    "will fail validation the moment it is gone."
                 : "Delete tag " + entryLabel + "? Nothing currently binds to it.";
 
             if (!EditorUtility.DisplayDialog("Delete Target Tag", question, "Delete", "Cancel"))
@@ -310,7 +265,7 @@ namespace DotsAnimationToolkit.Editor
                 findingsContainer.Add(MakeNote(
                     entryCount == 0
                         ? "No tags yet."
-                        : entryCount + " tag(s), all valid (rule T5).",
+                        : entryCount + " tag(s), all valid.",
                     CleanColor));
                 return;
             }

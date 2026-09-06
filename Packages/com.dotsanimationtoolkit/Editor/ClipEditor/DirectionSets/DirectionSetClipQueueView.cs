@@ -9,26 +9,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The clip queue: one row per east-side slot, showing which clip serves it and which facings
-    /// that slot covers once its free mirror is counted.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>UI over the five slots, not a list of its own.</strong> A row <em>is</em> a slot of
-    /// the open <see cref="DirectionSetAsset"/>; there is no queue data structure behind it and no
-    /// (clip, facing-flags) pairing to keep in step. That is what makes the coverage readout and the
-    /// bake's warning incapable of disagreeing — both read
-    /// <see cref="DirectionSetAsset.TryGetEffectiveDirections"/>, and this view never derives
-    /// coverage itself.
-    /// </para>
-    /// <para>
-    /// Which rows exist is a display question: the required slots for the current target coverage,
-    /// plus every slot that already holds a clip, plus any the author asked for with Add Clip.
-    /// Unfilled required slots show as empty rows on purpose — "what do I still have to draw" is the
-    /// question this panel exists to answer at a glance.
-    /// </para>
-    /// </remarks>
+    /// <summary>The clip queue: one row per east-side slot the open direction set fills.</summary>
     public sealed class DirectionSetClipQueueView : VisualElement
     {
         /// <summary>Promotion order — which slot a set fills next as its coverage climbs.</summary>
@@ -65,15 +46,8 @@ namespace DotsAnimationToolkit.Editor
             Add(rowScroll);
         }
 
-        /// <summary>
-        /// Rebuilds every row from the set as it currently stands.
-        /// </summary>
+        /// <summary>Rebuilds every row from the set as it currently stands.</summary>
         /// <param name="directionSet">The open set, or null for an empty queue.</param>
-        /// <param name="visibleSlots">Which slots get a row, in promotion order.</param>
-        /// <param name="clipWarnings">
-        /// Per-clip warnings to show inline — a clip that failed validation against the preview rig,
-        /// keyed by the clip itself so only the offending row is marked and the rest keep previewing.
-        /// </param>
         public void Rebuild(
             DirectionSetAsset directionSet,
             IReadOnlyList<Direction> visibleSlots,

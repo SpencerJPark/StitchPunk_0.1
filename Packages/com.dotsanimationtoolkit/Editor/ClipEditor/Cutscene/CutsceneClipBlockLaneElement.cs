@@ -25,10 +25,9 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// A slot's clip lane (Phase G spec §2): named blocks the author drags to move or resize.
-    /// Overlap between two blocks <em>is</em> the crossfade window and touching blocks are a hard
-    /// cut — both read straight off <see cref="CutsceneClipBlockDisplay.start"/>/<c>duration</c>, so
-    /// this element paints the overlap and authors nothing else about it.
+    /// A slot's clip lane: named blocks the author drags to move or resize. Overlap between two
+    /// blocks is the crossfade window and touching blocks are a hard cut — both read straight off
+    /// <see cref="CutsceneClipBlockDisplay.start"/>/<c>duration</c>.
     /// </summary>
     public sealed class CutsceneClipBlockLaneElement : VisualElement
     {

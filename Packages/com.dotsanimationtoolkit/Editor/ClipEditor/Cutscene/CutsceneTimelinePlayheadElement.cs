@@ -6,7 +6,6 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>The current-time line drawn over a cutscene's ruler and lanes.</summary>
-    /// <remarks>Seconds-based sibling of <see cref="PlayheadElement"/> — see <see cref="CutsceneTimelineGeometry"/>'s remarks (decision G-D2).</remarks>
     public sealed class CutsceneTimelinePlayheadElement : VisualElement
     {
         private static readonly Color PlayheadColor = new Color(0.95f, 0.36f, 0.30f);

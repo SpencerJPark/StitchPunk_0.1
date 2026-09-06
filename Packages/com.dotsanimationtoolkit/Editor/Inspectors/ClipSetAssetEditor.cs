@@ -12,41 +12,10 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The custom inspector for <see cref="ClipSetAsset"/> (architecture section 7.1): a clip
-    /// roster with per-clip validation status, an entry point for minting new clips into the set,
-    /// and a generator that turns clip names into compile-time constants so game code never
-    /// carries a magic <c>ulong</c>.
+    /// Custom inspector for <see cref="ClipSetAsset"/>: a clip roster with per-clip validation
+    /// status from a single <see cref="ClipValidation.ValidateBind"/> call, an entry point for
+    /// minting new clips, and a generator that turns clip names into compile-time id constants.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>This inspector never decides what is valid — same discipline as
-    /// <see cref="ValidationBadgeElement"/>.</strong> Every finding shown here, in the top summary
-    /// and in a clip row's expanded list, comes from a single <see cref="ClipValidation.ValidateBind"/>
-    /// call; nothing here re-implements a rule. The roster's contribution is purely presentational:
-    /// it buckets the one authoritative message list by <see cref="ValidationMessage.assetContext"/>
-    /// so a clip's own row shows only what is about that clip, while set- and VAT-texture-set
-    /// scoped findings (V05's set-level half, V07, V08, V39) surface in an "Other findings"
-    /// block instead of being silently dropped because no clip row exists to hold them. Rules that
-    /// need a rig cannot fire here at all — a set is not bound to one.
-    /// </para>
-    /// <para>
-    /// <strong>Validation runs once per meaningful event, never per repaint.</strong>
-    /// <see cref="ClipValidation.ValidateBind"/> walks every clip, every track and every key
-    /// in the set; at sixty repaints a second that cost is invisible on a five-clip demo set and
-    /// crippling on a real roster. <see cref="RefreshValidation"/> is therefore called exactly from
-    /// three places: once when the inspector is built, once from
-    /// <see cref="VisualElement.TrackSerializedObjectValue"/> so external edits (Undo/Redo, a drag
-    /// onto the Rig field, another window's edit to a clip) are picked up, and once explicitly at the
-    /// end of each button handler in this file — mirroring <c>RigAssetEditor.AddSocket</c>, which
-    /// does not wait for the tracked callback to notice its own edit before rebuilding. Nothing here
-    /// calls it from a layout, geometry, or paint callback.
-    /// </para>
-    /// <para>
-    /// UI Toolkit only, per section 7 and enforced by
-    /// <c>PackagingConformanceTests.Conformance_E_NoImguiApis_InEditorSources</c>: this type overrides
-    /// <see cref="UnityEditor.Editor.CreateInspectorGUI"/> and never the immediate-mode entry point.
-    /// </para>
-    /// </remarks>
     [CustomEditor(typeof(ClipSetAsset))]
     public sealed class ClipSetAssetEditor : UnityEditor.Editor
     {
@@ -161,10 +130,8 @@ namespace DotsAnimationToolkit.Editor
             RefreshValidation();
         }
 
-        /// <summary>
-        /// Runs <see cref="ClipValidation.ValidateBind"/> once, buckets the result by clip, and
-        /// repaints both the summary and the roster from that one pass.
-        /// </summary>
+        // Walks every clip, track and key in the set, so this must run once per meaningful event
+        // (built, tracked edit, button handler) and never from a layout or repaint callback.
         private void RefreshValidation()
         {
             currentMessages.Clear();
@@ -300,11 +267,8 @@ namespace DotsAnimationToolkit.Editor
             return messageButton;
         }
 
-        /// <summary>Selects and pings a finding's context asset; a null context is left alone.</summary>
-        /// <remarks>
-        /// Mirrors <c>ValidationBadgeElement.SelectContext</c> exactly: a finding about a missing
-        /// reference legitimately has no asset to point at, so doing nothing is correct, not a bug.
-        /// </remarks>
+        // A null context is left alone — a finding about a missing reference legitimately has no
+        // asset to point at, so doing nothing is correct, not a bug.
         private static void SelectAndPing(Object contextAsset)
         {
             if (contextAsset == null)
@@ -319,14 +283,8 @@ namespace DotsAnimationToolkit.Editor
         // Clip roster.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Tears down and rebuilds every clip row. A full rebuild rather than an incremental diff,
-        /// for the same reason <c>RigAssetEditor.RebuildSocketRows</c> gives: every row's
-        /// <see cref="SerializedProperty"/> handle points at an array index, and inserting or
-        /// removing a clip re-points every handle after the edit site, so a partial update would
-        /// leave surviving rows editing their neighbour's slot. A set's clip count is small enough
-        /// that rebuilding costs nothing next to the validation pass that already ran.
-        /// </summary>
+        // A full rebuild, not an incremental diff: each row's SerializedProperty handle points at
+        // an array index, and inserting or removing a clip re-points every handle after that site.
         private void RebuildRoster()
         {
             rosterContainer.Clear();
@@ -484,16 +442,6 @@ namespace DotsAnimationToolkit.Editor
         /// Removes one entry from <see cref="ClipSetAsset.clips"/>, leaving the clip asset itself on
         /// disk - this only un-registers it from the set.
         /// </summary>
-        /// <remarks>
-        /// <see cref="SerializedProperty.DeleteArrayElementAtIndex"/> on an array of
-        /// <see cref="Object"/> references only nulls a non-null element on its first call; a second
-        /// call at the same index removes the now-null slot. <c>RigAssetEditor.RemoveSocket</c>'s own
-        /// remarks document this exact quirk for a by-value array and note it does not apply there -
-        /// it very much applies here, since <see cref="ClipSetAsset.clips"/> is a
-        /// <c>List&lt;ClipAsset&gt;</c> of object references. Skipping the second call would leave a
-        /// null entry behind instead of shortening the list, which is silently wrong: the roster would
-        /// show one fewer clip than <c>clipsProperty.arraySize</c> actually holds.
-        /// </remarks>
         private void RemoveClipAt(int clipIndex)
         {
             if (clipsProperty == null || clipIndex < 0 || clipIndex >= clipsProperty.arraySize)
@@ -503,6 +451,8 @@ namespace DotsAnimationToolkit.Editor
 
             serializedObject.Update();
             SerializedProperty elementProperty = clipsProperty.GetArrayElementAtIndex(clipIndex);
+            // DeleteArrayElementAtIndex on a non-null object reference only nulls it on the first
+            // call; a second call at the same index actually removes the now-empty slot.
             bool wasNonNullReference = elementProperty.objectReferenceValue != null;
             clipsProperty.DeleteArrayElementAtIndex(clipIndex);
 
@@ -521,17 +471,7 @@ namespace DotsAnimationToolkit.Editor
         // New Clip in Set.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Creates a fresh <see cref="ClipAsset"/> in the set, then selects and pings it.
-        /// </summary>
-        /// <remarks>
-        /// The creation itself lives in <see cref="ClipAssetUtility"/>, shared with the clip
-        /// editor's Clips pane. A clip made here and a clip made there have to be
-        /// indistinguishable — same folder, same inherited rig, same id minting, same undo entry —
-        /// and two implementations of that would agree only until one of them was edited. What stays
-        /// here is what is specific to being an inspector: revealing the result in the Project
-        /// window, and revalidating the roster this editor draws.
-        /// </remarks>
+        /// <summary>Creates a fresh <see cref="ClipAsset"/> in the set, then selects and pings it.</summary>
         private void CreateNewClipInSet()
         {
             ClipSetAsset clipSetAsset = target as ClipSetAsset;
@@ -563,12 +503,6 @@ namespace DotsAnimationToolkit.Editor
         /// Writes a C# file of <c>public const ulong</c> clip id constants so game code can write
         /// <c>MyClipIds.Walk</c> instead of a bare 64-bit literal.
         /// </summary>
-        /// <remarks>
-        /// The write target is chosen through <see cref="EditorUtility.SaveFilePanel"/> rather than a
-        /// fixed location, because this package cannot know - and must not guess - which assembly in
-        /// the host project is meant to own the generated constants. An empty return means the user
-        /// cancelled the dialog, which is the documented contract of that API.
-        /// </remarks>
         private void GenerateClipIdConstants()
         {
             ClipSetAsset clipSetAsset = target as ClipSetAsset;
@@ -578,6 +512,8 @@ namespace DotsAnimationToolkit.Editor
             }
 
             string defaultClassName = BuildGeneratedClassName(clipSetAsset.name);
+            // A save dialog, not a fixed location: this package cannot know which assembly in the
+            // host project should own the generated constants.
             string chosenFilePath = EditorUtility.SaveFilePanel(
                 "Generate Clip Id Constants", null, defaultClassName,
                 ConstantsGenerator.GeneratedFileExtension);
@@ -610,41 +546,9 @@ namespace DotsAnimationToolkit.Editor
             return ConstantsGenerator.EscapeReservedKeyword(sanitizedSetName + GeneratedClassNameSuffix);
         }
 
-        /// <summary>
-        /// Builds the full generated source text: a generated-file header, then one
-        /// <c>public const ulong</c> per clip.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Every edge case in the clip name is resolved deterministically, not hopefully.</strong>
-        /// A name is first reduced to <c>[A-Za-z0-9_]</c> by
-        /// <see cref="ConstantsGenerator.SanitizeIdentifier"/> (punctuation and spaces become
-        /// underscores, non-ASCII collapses to underscores too - always a legal identifier character
-        /// set, never a guess). A name that sanitizes to nothing (empty,
-        /// or entirely punctuation) falls back to <c>Clip&lt;position&gt;</c>, keyed by the clip's
-        /// authoring-order position so it can never collide with itself. A name that starts with a
-        /// digit is prefixed with an underscore inside
-        /// <see cref="ConstantsGenerator.SanitizeIdentifier"/>. Two clips whose names sanitize to the
-        /// same identifier - whether they were literal duplicates or only became identical after
-        /// punctuation was stripped - are disambiguated by
-        /// <see cref="ConstantsGenerator.MakeUniqueName"/> with a deterministic <c>_1</c>, <c>_2</c>,
-        /// ... suffix, always checked against every name already emitted so a suffix can never
-        /// itself collide. A name
-        /// that happens to be a reserved word (a clip called "class") is escaped with the verbatim
-        /// identifier prefix <c>@</c>, which is always legal C# regardless of which keyword it is.
-        /// </para>
-        /// <para>
-        /// The clip's original, un-sanitized name still appears as the constant's XML doc summary, so
-        /// the mapping from constant back to authored name survives even when they differ - but that
-        /// text is scrubbed of line breaks and XML-significant characters first
-        /// (<see cref="ConstantsGenerator.EscapeXmlDocText"/>), because an embedded newline would
-        /// split a single <c>///</c> line comment into a second, uncommented line of raw text - which
-        /// is invalid C#,
-        /// not merely ugly. Doc comments are emitted as <c>///</c> lines rather than a <c>/* */</c>
-        /// block specifically so a clip name containing the literal text <c>*/</c> can never
-        /// prematurely close the comment.
-        /// </para>
-        /// </remarks>
+        // Builds the generated source: a header, then one public const ulong per clip. Name
+        // collisions and reserved words are resolved the same deterministic way ConstantsGenerator
+        // uses for a vocabulary — see that type for the sanitize/dedupe/escape rules.
         private static string BuildClipIdConstantsSource(ClipSetAsset clipSetAsset, string className)
         {
             StringBuilder source = new StringBuilder();

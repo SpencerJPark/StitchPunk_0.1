@@ -6,46 +6,10 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The viewport's camera gestures: the Scene view's orbit, pan, look, dolly and WASD fly, plus
-    /// the Reset Camera button and the F key.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Its own gesture, resolved at the press and held until the release.</strong> Which
-    /// camera move a drag is depends on the button and the modifiers <em>at the moment the button
-    /// went down</em>, never on what they are during the drag: releasing Alt halfway through an
-    /// Alt + right-drag would otherwise turn a dolly into a look mid-gesture, and the camera would
-    /// lurch. <see cref="activeCameraGesture"/> is that decision, and it is also what makes the
-    /// gesture exclusive — while it is set, the viewport does not pick, does not start a gizmo drag
-    /// and does not read W/E/R as gizmo modes.
-    /// </para>
-    /// <para>
-    /// <strong>Left-drag still orbits, and is not resolved here.</strong> The Scene view reserves
-    /// left for selection and orbits on Alt + left; this viewport has orbited on <em>any</em>
-    /// left-drag since it existed, with a click inside a few pixels of the press selecting instead.
-    /// So Alt + left orbits as the Scene view does, but through that older path in
-    /// <c>OnPreviewPointerMove</c> rather than as a gesture of this one — see
-    /// <see cref="ResolveCameraGesture"/> for why claiming it here would cost the Alt-click pick
-    /// cycling.
-    /// </para>
-    /// <para>
-    /// <strong>Flying is stepped on the editor tick, not on key events.</strong> Key repeat is a
-    /// keyboard setting — it starts late and fires at whatever rate the OS is set to — so moving on
-    /// each <c>KeyDownEvent</c> would make the fly speed a property of the user's control panel. The
-    /// keys only record what is held; <see cref="StepCameraFly"/> integrates it against real elapsed
-    /// time from the same 30 Hz tick that renders the preview.
-    /// </para>
-    /// </remarks>
     public sealed partial class ClipEditorWindow
     {
-        /// <summary>
-        /// Which camera move a drag in the viewport is, for as long as it lasts.
-        /// </summary>
-        /// <remarks>
-        /// There is no Orbit member, and that is the point: orbiting is the left button's older,
-        /// non-exclusive path in <c>OnPreviewPointerMove</c> — see <see cref="ResolveCameraGesture"/>.
-        /// </remarks>
+        // Which camera move a drag in the viewport is. No Orbit member: orbiting is the left
+        // button's older, non-exclusive path in OnPreviewPointerMove — see ResolveCameraGesture.
         private enum CameraGesture
         {
             None,
@@ -60,6 +24,8 @@ namespace DotsAnimationToolkit.Editor
             Dolly
         }
 
+        // Resolved once at the press and held for the drag, never re-read from live modifiers —
+        // releasing Alt mid-drag must not turn a dolly into a look.
         private CameraGesture activeCameraGesture = CameraGesture.None;
 
         /// <summary>
@@ -76,15 +42,8 @@ namespace DotsAnimationToolkit.Editor
             get { return activeCameraGesture == CameraGesture.Look; }
         }
 
-        /// <summary>
-        /// Whether this press is a camera gesture rather than a pick or a gizmo drag, and if so,
-        /// starts it.
-        /// </summary>
-        /// <remarks>
-        /// Called after the pointer is captured and the image is focused: the capture is what makes
-        /// the moves and the release arrive here even when the pointer leaves the viewport, and the
-        /// focus is what makes the fly keys arrive at all.
-        /// </remarks>
+        // Whether this press is a camera gesture rather than a pick or gizmo drag, and if so starts
+        // it. Called after the pointer is captured, so moves and release still arrive off-viewport.
         private bool TryBeginCameraGesture(PointerDownEvent pointerEvent)
         {
             CameraGesture requested =
@@ -100,18 +59,9 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// The Scene view's own mapping from button and modifier to camera move. Middle is tested
-        /// first so Alt + middle pans rather than falling into the Alt branch.
-        /// </summary>
-        /// <remarks>
-        /// <strong>The left button is deliberately absent, Alt or no Alt.</strong> Alt + left orbits
-        /// here too — but through the older path in <c>OnPreviewPointerMove</c>, which orbits on any
-        /// plain left-drag. Claiming it as an exclusive gesture instead would cost the pick cycling:
-        /// Alt + <em>click</em> is what steps through overlapping hits, and an exclusive gesture
-        /// never reaches the pick. The old path already tells a drag from a click by how far the
-        /// pointer travelled, so it gets both right where this could only get one.
-        /// </remarks>
+        // The Scene view's own mapping from button and modifier to camera move. The left button is
+        // deliberately absent: it orbits through the older OnPreviewPointerMove path instead, which
+        // can also tell an Alt+click pick from an Alt+drag orbit — an exclusive gesture here could not.
         private static CameraGesture ResolveCameraGesture(int button, bool altKey)
         {
             const int RightButton = 1;
@@ -152,16 +102,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Ends whatever camera gesture was in flight, and stops the fly.
-        /// </summary>
-        /// <remarks>
-        /// Called from the pointer release <em>and</em> from <c>PointerCaptureOutEvent</c>. The
-        /// second is not belt-and-braces: a capture lost to a domain reload, a modal dialog or
-        /// another element taking it never delivers a release, and a viewport left in
-        /// <see cref="CameraGesture.Look"/> goes on swallowing every keystroke as a fly key — W and
-        /// E would stop switching gizmo modes with nothing on screen to say why.
-        /// </remarks>
+        // Ends whatever camera gesture was in flight, and stops the fly. Called from the pointer
+        // release and from PointerCaptureOutEvent — a lost capture never delivers a release, and a
+        // viewport stuck in Look mode would go on swallowing every keystroke as a fly key.
         private void EndCameraGesture()
         {
             activeCameraGesture = CameraGesture.None;
@@ -169,15 +112,8 @@ namespace DotsAnimationToolkit.Editor
             isFlyingFast = false;
         }
 
-        /// <summary>
-        /// Records a key while flying. Returns whether the key belonged to the camera and must not
-        /// reach the gizmo shortcuts.
-        /// </summary>
-        /// <remarks>
-        /// Every key is swallowed while flying, not only the six that move: the Scene view does the
-        /// same, and the alternative is W meaning "forward" while R two keys later means "scale",
-        /// which is the mode confusion this exists to avoid.
-        /// </remarks>
+        // Records a key while flying, and swallows every key while flying (not only the six that
+        // move) — otherwise W could mean "forward" while R two keys later means "scale".
         private bool TryHandleFlyKeyDown(KeyDownEvent keyEvent)
         {
             if (!IsCameraFlying)
@@ -211,9 +147,8 @@ namespace DotsAnimationToolkit.Editor
                 || keyCode == KeyCode.E;
         }
 
-        /// <summary>
-        /// Moves the camera for whatever fly keys are held, from the window's editor tick.
-        /// </summary>
+        // Moves the camera for whatever fly keys are held, from the window's editor tick rather
+        // than KeyDownEvent repeat — which fires at whatever rate the OS is set to.
         private void StepCameraFly(float deltaSeconds)
         {
             if (!IsCameraFlying || heldFlyKeys.Count == 0 || previewController == null)
@@ -254,11 +189,6 @@ namespace DotsAnimationToolkit.Editor
         /// Puts the camera back where the window opened it: head-on, centred on the rig currently in
         /// the viewport and backed off to fit it. The Reset Camera button, and a double-click.
         /// </summary>
-        /// <remarks>
-        /// Ends any gesture in flight first. Resetting from the button while the right mouse button
-        /// is still down would otherwise leave the fly keys armed against a camera that had just
-        /// jumped somewhere else.
-        /// </remarks>
         private void ResetViewportCamera()
         {
             if (previewController == null)
@@ -266,6 +196,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // Otherwise a reset while right mouse is still held leaves the fly keys armed against a
+            // camera that just jumped somewhere else.
             EndCameraGesture();
             previewController.ResetView();
             Repaint();

@@ -8,24 +8,6 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The transport bar: everything in the Clip Editor that answers <em>when</em>.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>One place for time.</strong> Play, the playhead readout, the two fields that define
-    /// the frame grid, loop and speed used to be scattered across the top toolbar next to controls
-    /// about what an edit <em>writes</em> (Auto Key, Rig Edit, Snap). Two unrelated concerns sharing
-    /// a strip made both harder to find. The bar is docked immediately above the timeline because
-    /// that is the thing every control in it acts on.
-    /// </para>
-    /// <para>
-    /// <strong>A separate file, not a bigger window class.</strong> <c>ClipEditorWindow</c> is
-    /// already the largest file in the package; adding a transport to it would make the next reader's
-    /// job worse for no benefit. This is a partial of the same class, so it shares the window's
-    /// private state without exposing any of it.
-    /// </para>
-    /// </remarks>
     public sealed partial class ClipEditorWindow
     {
         /// <summary>Default for the shift-modified step, in frames.</summary>
@@ -96,14 +78,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The frame a normalized time lands on.
-        /// </summary>
-        /// <remarks>
-        /// Frames are numbered 0..FrameCount, so the last frame is the clip's end rather than one
-        /// short of it. An author scrubbing to the end expects to see the final pose, not the one
-        /// before it.
-        /// </remarks>
+        // Frames are numbered 0..FrameCount, so the last frame is the clip's end, not one short of it.
         private int NormalizedToFrame(float normalizedTime)
         {
             return Mathf.Clamp(
@@ -121,25 +96,9 @@ namespace DotsAnimationToolkit.Editor
         // -----------------------------------------------------------------------------------
 
         /// <summary>
-        /// Makes a transport caption the drag handle for the field beside it.
+        /// Makes a transport caption the drag handle for the field beside it, via a real
+        /// <see cref="FieldMouseDragger{T}"/> so sensitivity and modifiers match Unity's own fields.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The bar's captions are standalone labels rather than the fields' own, because a
-        /// <c>BaseField</c>'s label carries an inspector's width and this is a compact strip. The
-        /// cost was that none of these numbers had a drag zone at all — a field's dragger lives on
-        /// its own label, and these fields have none, so there was nothing to take hold of. This
-        /// hands the caption to a real <see cref="FieldMouseDragger{T}"/>, the same object Unity's
-        /// own fields use, so the sensitivity, the acceleration and the shift/alt modifiers are
-        /// Unity's rather than an imitation of them.
-        /// </para>
-        /// <para>
-        /// <strong><c>isDelayed</c> is lifted for the length of the drag, and put back after.</strong>
-        /// A delayed field's drag writes only the displayed text and commits on release — which is
-        /// exactly "the number moves but nothing happens until I let go". It has to come back
-        /// afterwards because typing still needs it, for the reason the fields' own comments give.
-        /// </para>
-        /// </remarks>
         private static void MakeCaptionDragHandle<TValue>(
             VisualElement caption, TextValueField<TValue> field)
         {
@@ -155,6 +114,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
+            // Lifted for the drag so the value moves live, then restored — typing still needs it delayed.
             caption.RegisterCallback<PointerDownEvent>(downEvent => field.isDelayed = false);
 
             // PointerCaptureOut rather than PointerUp: the dragger captures the caption, and a
@@ -241,11 +201,8 @@ namespace DotsAnimationToolkit.Editor
             clipLengthField = rootVisualElement.Q<FloatField>("clip-length-field");
             if (clipLengthField != null)
             {
-                // Typing commits on blur or Enter, not per keystroke: "0.5" arrives as "0" first,
-                // and the minimum-duration clamp would collapse the clip to a millisecond and
-                // rebuild the timeline around it between two keystrokes. MakeCaptionDragHandle
-                // lifts this for the length of a drag, where every value it passes through is one
-                // the author is deliberately looking at.
+                // Commits on blur/Enter, not per keystroke: "0.5" arrives as "0" first, and the
+                // minimum-duration clamp would collapse the clip mid-keystroke otherwise.
                 clipLengthField.isDelayed = true;
                 clipLengthField.tooltip =
                     "Clip length in seconds. With the frame rate this defines the frame count. "
@@ -267,12 +224,8 @@ namespace DotsAnimationToolkit.Editor
                     rootVisualElement.Q<Label>("length-caption"), clipLengthField);
             }
 
-            // An integer field rather than a float one: the rate is whole frames per second here.
-            // The frame count it defines is rounded to an integer anyway (ClipAsset.FrameCount) and
-            // a VAT bake turns it into a whole number of texture rows, so dragging it steps one
-            // frame at a time — the unit the number is actually read in. A clip carrying a
-            // fractional rate from elsewhere reads back rounded, and is rounded the first time this
-            // field writes it.
+            // Integer, not float: the frame count it defines rounds to a whole number anyway, and a
+            // clip carrying a fractional rate reads back rounded.
             frameRateField = rootVisualElement.Q<IntegerField>("frame-rate-field");
             if (frameRateField != null)
             {
@@ -308,10 +261,7 @@ namespace DotsAnimationToolkit.Editor
             loopButton = rootVisualElement.Q<Button>("loop-button");
             if (loopButton != null)
             {
-                // The built-in loop glyph, so the button reads at transport size without a word in
-                // it. Carried on a child Image rather than the button's own background, because the
-                // editor theme draws the button's chrome there. Falls back to text rather than
-                // shipping a blank button if the icon ever leaves the editor's icon set.
+                // Falls back to text if this icon ever leaves the editor's icon set.
                 GUIContent loopIconContent = EditorGUIUtility.IconContent("preAudioLoopOff");
                 Texture2D loopIcon = loopIconContent != null ? loopIconContent.image as Texture2D : null;
                 Image loopIconImage = loopButton.Q<Image>("loop-icon");
@@ -359,17 +309,13 @@ namespace DotsAnimationToolkit.Editor
                     + "setting must not rewrite it without being asked.";
             }
 
-            // Lives in the status row over the key area, not the transport bar (D14) — same reason
-            // Quantize Keys does, above: it edits keys rather than answering "when". Bound here
-            // anyway, same as that one, because BindTransportBar already resolves every control by
-            // name and one place for that beats a binding split across files by which row a control
-            // happens to sit in.
+            // Lives in the status row over the key area, not the transport bar — it edits keys
+            // rather than answering "when" — but is bound here since this method resolves every
+            // control by name regardless of which row it sits in.
             addEventButton = rootVisualElement.Q<Button>("add-event-button");
             if (addEventButton != null)
             {
-                // Amendment A55: opens the event picker rather than guessing which event to place.
-                // addEventButton is kept as a field (rather than captured locally) because the
-                // picker needs it as its anchor.
+                // Kept as a field rather than captured locally: the event picker needs it as its anchor.
                 addEventButton.clicked += OpenAddEventPicker;
             }
 
@@ -386,11 +332,8 @@ namespace DotsAnimationToolkit.Editor
             SetPlayheadTime(FrameToNormalized(NormalizedToFrame(playheadTime) + frameDelta));
         }
 
-        /// <summary>Pushes the window's current state into the bar's readouts.</summary>
-        /// <remarks>
-        /// Guarded by <see cref="isSyncingTransport"/>: writing a field notifies its callback, and a
-        /// callback that moved the playhead would fight the value being written into it.
-        /// </remarks>
+        // Guarded by isSyncingTransport: writing a field notifies its callback, and a callback that
+        // moved the playhead would fight the value being written into it.
         private void SyncTransportFromClip()
         {
             isSyncingTransport = true;
@@ -398,9 +341,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 bool hasClip = selectedClip != null;
 
-                // Enabled state is always pushed; the value is not pushed into a field the user is
-                // typing in. This sync runs from OnClipTimingChanged, which the field's own callback
-                // raises, so writing back unconditionally means the field fights its own edit.
+                // Enabled state is always pushed; the value is not, into a field the user is typing in.
                 if (clipLengthField != null)
                 {
                     clipLengthField.SetEnabled(hasClip);
@@ -449,11 +390,9 @@ namespace DotsAnimationToolkit.Editor
             isSyncingTransport = true;
             try
             {
-                // Not written into a field being typed in, for the reason SyncTransportFromClip
-                // gives: this runs from the field's own callback, so an unconditional write means
-                // the field fights its own edit and the caret jumps on every keystroke. A caption
-                // drag is deliberately not excluded — the capture is on the caption, not inside the
-                // field — because the write-back is what clamps the readout at the clip's ends.
+                // Not written into a field being typed in — an unconditional write would make the
+                // caret jump on every keystroke. A caption drag is not excluded: the write-back is
+                // what clamps the readout at the clip's ends.
                 if (currentFrameField != null && !IsBeingEdited(currentFrameField))
                 {
                     currentFrameField.SetValueWithoutNotify(NormalizedToFrame(playheadTime));
@@ -500,15 +439,8 @@ namespace DotsAnimationToolkit.Editor
             loopButton.EnableInClassList("clip-editor__transport-loop--on", isLoopEnabled);
         }
 
-        /// <summary>
-        /// Re-rules the timeline after a length or rate edit.
-        /// </summary>
-        /// <remarks>
-        /// The playhead is held at the same <em>normalized</em> position rather than the same frame
-        /// number, because the clip it indexes into just changed length: staying at frame 12 of a
-        /// clip that is now half as long would move the viewport to a different pose than the one
-        /// being looked at.
-        /// </remarks>
+        // Re-rules the timeline after a length or rate edit. The playhead holds its normalized
+        // position rather than its frame number, since the frame it indexed into just changed length.
         private void OnClipTimingChanged()
         {
             if (ruler != null)
@@ -528,15 +460,8 @@ namespace DotsAnimationToolkit.Editor
         // Off-grid keys.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Shows the quantize action only when some key does not land on a frame of the current
-        /// grid.
-        /// </summary>
-        /// <remarks>
-        /// A permanently visible button that usually does nothing teaches people to ignore it. This
-        /// one appearing IS the report that a rate change left keys between frames — which the spec
-        /// asks to be surfaced rather than silently corrected.
-        /// </remarks>
+        // Shows the quantize action only when some key does not land on the current grid — a
+        // permanently visible button that usually does nothing teaches people to ignore it.
         private void RefreshQuantizeButton()
         {
             if (quantizeKeysButton == null)
@@ -589,15 +514,9 @@ namespace DotsAnimationToolkit.Editor
             RefreshQuantizeButton();
         }
 
-        /// <summary>
-        /// Visits every authored key time in a clip, replacing it with whatever the visitor returns.
-        /// </summary>
-        /// <remarks>
-        /// One traversal for read and write, so "which keys are off the grid" and "move the keys
-        /// onto it" cannot disagree about what a key is. Every track kind is listed explicitly:
-        /// a new kind that forgets to appear here is a kind the quantize action silently skips, and
-        /// an explicit list is at least greppable.
-        /// </remarks>
+        /// <summary>Visits every authored key time in a clip, replacing it with whatever the visitor returns.</summary>
+        // Every track kind is listed explicitly: a new kind that forgets to appear here is one the
+        // quantize action silently skips.
         private static void ForEachKeyTime(ClipAsset clip, System.Func<float, float> visitor)
         {
             if (clip.transformTracks != null)
@@ -671,25 +590,8 @@ namespace DotsAnimationToolkit.Editor
         // Keyboard.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Registers the transport shortcuts on the window's own root.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Scoped to this window, and inert while typing — except for undo.</strong>
-        /// Registered on <c>rootVisualElement</c> rather than through Unity's global shortcut
-        /// system, so Space and the arrows keep their meaning everywhere else in the Editor. And a
-        /// key pressed while a field has focus is left alone: Space must type a space and the arrows
-        /// must move the caret when someone is editing the frame number, which is a field this very
-        /// bar puts under their cursor. Ctrl+Z is the exception, and has to be: nothing else in the
-        /// window or the Editor would receive it, so declining it there is not deferring to a better
-        /// handler, it is dropping the key.
-        /// </para>
-        /// <para>
-        /// <c>TrickleDown</c> is deliberately NOT used — the event is handled on the bubble phase so
-        /// a focused field sees it first and can consume it.
-        /// </para>
-        /// </remarks>
+        // Registered on rootVisualElement, not Unity's global shortcut system, so Space and the
+        // arrows keep their meaning elsewhere; bubble phase so a focused field sees the key first.
         private void RegisterTransportShortcuts()
         {
             rootVisualElement.focusable = true;
@@ -704,20 +606,14 @@ namespace DotsAnimationToolkit.Editor
         {
             bool commandKey = keyEvent.ctrlKey || keyEvent.commandKey;
 
-            // Undo and redo are answered before the text-entry guard below, and that ordering is
-            // the whole of the fix: a focused UI Toolkit window keeps the keystroke, so a Ctrl+Z
-            // this handler declines is a Ctrl+Z that reaches nothing at all — not the field, which
-            // has no undo of its own, and not the Editor. Declining it because a numeric field
-            // happened to hold focus is what made undo look dead after any value typed into the
-            // inspector, which is exactly when a person reaches for it.
+            // Answered before the text-entry guard below: a focused UI Toolkit window keeps the
+            // keystroke, so a Ctrl+Z declined here reaches nothing at all, not even the Editor.
             bool isRedoKey = commandKey
                 && (keyEvent.keyCode == KeyCode.Y
                     || (keyEvent.keyCode == KeyCode.Z && keyEvent.shiftKey));
             if (isRedoKey || (commandKey && keyEvent.keyCode == KeyCode.Z))
             {
-                // The gesture still gets first refusal, because mid-grab Ctrl+Z means "get me out
-                // of this" rather than a real undo. HandleTransformKeyDown declines every
-                // ctrl-modified key when no gesture is running, so this costs nothing otherwise.
+                // The gesture gets first refusal: mid-grab Ctrl+Z means "get me out of this", not a real undo.
                 if (!HandleTransformKeyDown(keyEvent))
                 {
                     if (isRedoKey)
@@ -738,9 +634,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            // First refusal, and it has to be first: while a grab or scale is running every key
-            // belongs to it, including the ones the transport would otherwise claim. Space starting
-            // playback in the middle of a retime is the exact confusion a modal gesture avoids.
+            // First refusal: while a grab or scale is running, every key belongs to it.
             if (HandleTransformKeyDown(keyEvent))
             {
                 keyEvent.StopPropagation();
@@ -796,11 +690,8 @@ namespace DotsAnimationToolkit.Editor
                     }
                     break;
 
-                // Copy, paste and duplicate are handled window-wide as well as on the lane stack,
-                // because pasting keys onto a different object means selecting that object first —
-                // and selecting it puts the focus in the hierarchy, where the timeline's own
-                // handler never runs. The lane stack still gets first refusal and stops the event
-                // when it acts, so a paste is never made twice.
+                // Also handled window-wide: pasting onto a different object means selecting it
+                // first, which puts focus in the hierarchy where the lane stack's handler never runs.
                 case KeyCode.C:
                     if (commandKey && selectedClip != null)
                     {
@@ -845,15 +736,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Undo one step and let the window catch up.
-        /// </summary>
-        /// <remarks>
-        /// The refresh is not done here: <c>Undo.PerformUndo</c> raises
-        /// <c>Undo.undoRedoPerformed</c>, which the window is already subscribed to. Refreshing in
-        /// both places would rebuild the timeline twice per keystroke and, worse, would leave the
-        /// button path and the shortcut path with different behaviour.
-        /// </remarks>
+        // No refresh here: Undo.PerformUndo raises undoRedoPerformed, which the window already subscribes to.
         private void PerformUndo()
         {
             Undo.PerformUndo();
@@ -864,15 +747,8 @@ namespace DotsAnimationToolkit.Editor
             Undo.PerformRedo();
         }
 
-        /// <summary>
-        /// Whether a control that consumes typing currently has focus.
-        /// </summary>
-        /// <remarks>
-        /// Checked by capability rather than by type name: any element that takes text input is one
-        /// where Space and the arrows already mean something to the user. Unity's numeric fields are
-        /// <c>TextField</c>s underneath, so this catches the frame and seconds fields this bar owns
-        /// as well as any field added later.
-        /// </remarks>
+        // Checked by capability (TextField / ITextEdition) rather than by type name, so this also
+        // catches Unity's numeric fields, which are TextFields underneath.
         private bool IsTextEntryFocused()
         {
             VisualElement focused = rootVisualElement.focusController != null

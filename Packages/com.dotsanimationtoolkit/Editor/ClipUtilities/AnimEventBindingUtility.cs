@@ -7,27 +7,14 @@ using UnityEditor;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Counts how many event markers use a given <see cref="AnimEventKeyEntry"/>'s key (amendment
-    /// A55): the number <see cref="AnimEventKeyRegistryEditor"/> shows before a delete, mirroring
-    /// <see cref="TargetTagBindingUtility"/>'s pair for the tag registry.
+    /// Counts how many event markers use a given <see cref="AnimEventKeyEntry"/>'s key, so
+    /// <see cref="AnimEventKeyRegistryEditor"/> can show that count before a delete. Unlike a tag
+    /// id, an event key is not validated — removing its registry row only leaves it unresolved.
     /// </summary>
-    /// <remarks>
-    /// Deleting an event is not the same cost as deleting a tag. A tag's id is baked into a track's
-    /// binding and its absence fails validation (rule T3); an event key is arithmetic a marker
-    /// already carries, and removing its registry row only means the key can no longer be resolved
-    /// to a name — the marker keeps firing the same number, forever. The confirmation dialog this
-    /// utility feeds must say "shows as an unresolved key", never "fails validation".
-    /// </remarks>
     public static class AnimEventBindingUtility
     {
-        /// <summary>
-        /// Counts, across <paramref name="clips"/>, the event markers whose <c>eventKey</c> equals
-        /// <paramref name="eventKey"/>. Pure — no asset database access.
-        /// </summary>
-        /// <param name="eventKey">The event key to count bindings for. 0 always counts 0 — reserved,
-        /// never a real event a marker would carry.</param>
-        /// <param name="clips">The clips to search. Null, or a null entry within it, contributes 0.</param>
-        /// <returns>The total number of matching markers.</returns>
+        /// <param name="eventKey">0 always counts 0 — reserved, never a real event key.</param>
+        /// <param name="clips">Null, or a null entry within it, contributes 0.</param>
         public static int CountMarkerBindings(uint eventKey, IReadOnlyList<ClipAsset> clips)
         {
             if (eventKey == 0u || clips == null)
@@ -56,14 +43,7 @@ namespace DotsAnimationToolkit.Editor
             return bindingCount;
         }
 
-        /// <summary>
-        /// Counts <paramref name="entry"/>'s marker bindings across every <see cref="ClipAsset"/> the
-        /// project's asset database can find. The entry point <see cref="AnimEventKeyRegistryEditor"/>
-        /// actually calls.
-        /// </summary>
-        /// <param name="entry">The event entry about to be removed. Null, or an entry still at the
-        /// reserved 0 key, counts 0.</param>
-        /// <returns>The number of matching markers project-wide.</returns>
+        /// <param name="entry">Null, or an entry still at the reserved 0 key, counts 0.</param>
         public static int CountMarkerBindings(AnimEventKeyEntry entry)
         {
             if (entry == null || entry.eventKey == 0u)
@@ -73,12 +53,6 @@ namespace DotsAnimationToolkit.Editor
             return CountMarkerBindings(entry.eventKey, FindAllClipAssetsInProject());
         }
 
-        /// <summary>
-        /// Counts, across <paramref name="clips"/>, how many distinct clips carry at least one marker
-        /// with <paramref name="eventKey"/> — the delete-confirmation dialog's "across N clip(s)"
-        /// half, alongside <see cref="CountMarkerBindings(uint, IReadOnlyList{ClipAsset})"/>'s marker
-        /// total.
-        /// </summary>
         public static int CountBoundClips(uint eventKey, IReadOnlyList<ClipAsset> clips)
         {
             if (eventKey == 0u || clips == null)
@@ -116,13 +90,8 @@ namespace DotsAnimationToolkit.Editor
             return CountBoundClips(entry.eventKey, FindAllClipAssetsInProject());
         }
 
-        /// <summary>
-        /// Finds every <see cref="ClipAsset"/> in the project, whether it is a free-standing asset or
-        /// a sub-asset of a <see cref="ClipSetAsset"/> file. See
-        /// <see cref="TargetTagBindingUtility"/>'s identical helper for why
-        /// <see cref="AssetDatabase.LoadAllAssetsAtPath"/> is required here instead of
-        /// <c>LoadAssetAtPath&lt;ClipAsset&gt;</c>.
-        /// </summary>
+        // Uses LoadAllAssetsAtPath, not LoadAssetAtPath<ClipAsset> — the latter would silently
+        // miss a clip that is a sub-asset rather than its file's main object.
         private static List<ClipAsset> FindAllClipAssetsInProject()
         {
             List<ClipAsset> clips = new List<ClipAsset>();

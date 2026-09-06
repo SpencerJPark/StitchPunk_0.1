@@ -8,29 +8,9 @@ namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// What components an object has, what it could have, and what adding or removing one does to
-    /// the asset.
+    /// the asset. Pure over the assets, with no window state and no undo — the caller records undo
+    /// on the right object and marks it dirty. Presence is derived, never stored.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Pure over the assets, with no window state and no undo.</strong> The caller records
-    /// undo on the right object — the clip for a clip-scoped component, the rig for a rig-scoped one
-    /// — and marks it dirty; this decides only what changes. That split is what lets the rules be
-    /// tested without a window, and it is where the rules belong: "keying this node writes a bone
-    /// track, not a transform track" is a fact about the data model, not about a panel.
-    /// </para>
-    /// <para>
-    /// <strong>Presence is derived, never stored.</strong> An object has a Flipbook component
-    /// exactly when a sprite track is bound to it. There is no second list to keep in step, so
-    /// a clip hand-edited outside this window — or authored before the stack existed — reads back
-    /// with precisely the components its tracks describe.
-    /// </para>
-    /// <para>
-    /// <strong>Transform is the one component nothing has to derive.</strong> Every object has one,
-    /// so it is reported present on every object whether or not a track exists yet, and the track is
-    /// minted by the first key. Which of the two transform kinds an object gets is decided by
-    /// <see cref="TransformKindFor"/> and is not a choice the user makes.
-    /// </para>
-    /// </remarks>
     public static class ClipComponentModel
     {
         /// <summary>Kinds in the order the inspector stacks them, which is the order added here.</summary>
@@ -62,15 +42,8 @@ namespace DotsAnimationToolkit.Editor
             get { return stackOrder; }
         }
 
-        /// <summary>
-        /// The kinds Add Component offers, which is every kind that is not intrinsic.
-        /// </summary>
-        /// <remarks>
-        /// The transform kinds are absent because they are on every object already. Offering "add
-        /// Transform" would be offering to add a thing that is never missing, and the one time it
-        /// looked missing — an object with no track yet — is exactly the case the stack now shows
-        /// unkeyed rather than absent.
-        /// </remarks>
+        // The kinds Add Component offers, which is every kind that is not intrinsic — the transform
+        // kinds are on every object already, so there is nothing to add.
         public static IReadOnlyList<ClipComponentKind> AddableKinds
         {
             get { return addableKinds; }
@@ -89,15 +62,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// What a kind does, in the words the picker shows when a row is hovered.
-        /// </summary>
-        /// <remarks>
-        /// Held here rather than in the panel for the same reason the rules are: what a Flipbook is
-        /// does not change with which window is asking. Written as one sentence about the thing
-        /// itself, not about the button — a description that starts "click to…" is describing the
-        /// menu rather than the component.
-        /// </remarks>
+        /// <summary>What a kind does, in the words the picker shows when a row is hovered.</summary>
         public static string Describe(ClipComponentKind kind)
         {
             switch (kind)
@@ -132,18 +97,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Which asset a kind is stored on, and therefore how far an edit to it reaches.
-        /// </summary>
-        /// <remarks>
-        /// Billboard counts as rig-scoped because the component <em>is</em> the billboard root, which
-        /// is rig structure: a node carrying it turns to face the viewer in every clip, whether or
-        /// not this clip animates how much. Its keys are clip data hanging off that, the same way a
-        /// socket's offset is rig data every clip shares. Ragdoll is rig-scoped for the same reason
-        /// as Socket rather than Billboard's: its fields are not animatable at all (spec §3.3 has no
-        /// key data, only authored tuning), so there is no clip-side half to distinguish from the rig
-        /// structure — moving a box here moves it, full stop, in every clip that previews this rig.
-        /// </remarks>
+        // Which asset a kind is stored on, and therefore how far an edit to it reaches. Billboard is
+        // rig-scoped because the component is the billboard root; Ragdoll is rig-scoped because its
+        // fields are not animatable at all, so there is no clip-side half to distinguish.
         public static ClipComponentScope Scope(ClipComponentKind kind)
         {
             return kind == ClipComponentKind.Socket || kind == ClipComponentKind.Billboard
@@ -152,36 +108,15 @@ namespace DotsAnimationToolkit.Editor
                 : ClipComponentScope.Clip;
         }
 
-        /// <summary>
-        /// Whether a kind is on every object it applies to, rather than being added to it.
-        /// </summary>
-        /// <remarks>
-        /// Only the transform kinds are. An intrinsic component is never offered by Add Component
-        /// and never carries a remove button, and it is reported present before its track exists —
-        /// the three things that together make "every object has a transform" true in the panel and
-        /// not merely in the documentation.
-        /// </remarks>
+        /// <summary>Whether a kind is on every object it applies to, rather than being added to it.</summary>
         public static bool IsIntrinsic(ClipComponentKind kind)
         {
             return kind == ClipComponentKind.Transform || kind == ClipComponentKind.BoneTransform;
         }
 
-        /// <summary>
-        /// Which of the two transform kinds an object carries.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Decided by whether the rig declares a part for the object, not by which pane its row came
-        /// from. A part is posed through a transform track bound to its id, and everything else
-        /// through a bone track bound to its name — that is how the bake reads them, so it is how
-        /// the panel has to write them.
-        /// </para>
-        /// <para>
-        /// It follows that promoting a node to a part changes which track its poses live on, which
-        /// is why <see cref="Add"/> migrates the keys rather than leaving them on a track nothing
-        /// samples any more.
-        /// </para>
-        /// </remarks>
+        // Which of the two transform kinds an object carries, decided by whether the rig declares a
+        // part for it: a part is posed through a transform track bound to its id, everything else
+        // through a bone track bound to its name, matching how the bake reads them.
         public static ClipComponentKind TransformKindFor(ClipObjectRef objectRef)
         {
             return objectRef.HasRigTarget
@@ -189,66 +124,22 @@ namespace DotsAnimationToolkit.Editor
                 : ClipComponentKind.BoneTransform;
         }
 
-        /// <summary>
-        /// Whether a kind binds by rig-target id, and so needs the object to be a declared part.
-        /// </summary>
-        /// <remarks>
-        /// A sprite track has one binding field and it is a target id, so a node the rig declares
-        /// nothing for has nothing for it to point at. That used to be shown as "Flipbook is
-        /// unavailable here", which is a true statement about the data model and a useless one to
-        /// the person looking at a plane they want to animate. Adding the component now mints the
-        /// part instead — see <see cref="PromoteToRigTarget"/>.
-        /// </remarks>
+        // Whether a kind binds by rig-target id, and so needs the object to be a declared part.
+        // Adding such a component on an undeclared node mints the part instead of refusing — see PromoteToRigTarget.
         public static bool RequiresRigTarget(ClipComponentKind kind)
         {
             return kind == ClipComponentKind.Transform || kind == ClipComponentKind.Flipbook;
         }
 
-        /// <summary>
-        /// Whether an object can carry more than one of a kind.
-        /// </summary>
-        /// <remarks>
-        /// Flipbook and Socket can. A part carries one flipbook track per independent feature set —
-        /// a mouth based at 0 and eyes based at 32 driving the same part — and an object can hang
-        /// several attachment points off itself. The rest are one to an object: two transform tracks
-        /// on one part is a validation error whichever wins the bake.
-        /// </remarks>
+        /// <summary>Whether an object can carry more than one of a kind. True for Flipbook and Socket only.</summary>
         public static bool AllowsMultiple(ClipComponentKind kind)
         {
             return kind == ClipComponentKind.Flipbook || kind == ClipComponentKind.Socket;
         }
 
-        /// <summary>
-        /// Whether a kind is offerable on an object at all, and why not when it is not.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Every add-on applies to every object now.</strong> Flipbook used to be refused on
-        /// anything but a declared part, which made "add a flipbook to this plane" impossible for
-        /// the ordinary reason that the plane was not a part yet — a distinction the data model
-        /// cares about and the person animating does not. Adding one promotes the node instead.
-        /// </para>
-        /// <para>
-        /// <strong>Billboard applies everywhere too, and deliberately so.</strong> Put it on an
-        /// object and that object turns to face the viewer; everything beneath it comes along,
-        /// because everything beneath it is a transform child and rides on the parent it is already
-        /// riding on. There is nothing further to decide, so there is nothing further to refuse —
-        /// including on the prefab root, where the empty path is the address rather than a missing
-        /// one and the whole actor turning is exactly what somebody meant by it.
-        /// </para>
-        /// <para>
-        /// <strong>Which is a statement about kinds, not about right now.</strong> An add-on can
-        /// still be unavailable because of the state around it — no clip open, no rig to store it
-        /// on — and <see cref="CanAdd"/> is where those are answered. Keeping them apart is what
-        /// stops a passing circumstance being recorded as a permanent fact about the component.
-        /// </para>
-        /// <para>
-        /// The transform kinds are the only ones that can answer no, and they answer it about each
-        /// other: an object has exactly one of them, chosen by
-        /// <see cref="TransformKindFor"/>. The reason is still returned rather than the kind simply
-        /// being hidden, because a stack that silently omits a component reads as a bug.
-        /// </para>
-        /// </remarks>
+        // Whether a kind is offerable on an object at all, and why not when it is not — a statement
+        // about kinds, not about the current state (no clip open, etc.), which CanAdd answers
+        // instead. Only the transform kinds can answer no, each about the other one.
         public static bool AppliesTo(
             ClipComponentKind kind, ClipObjectRef objectRef, out string unavailableReason)
         {
@@ -272,13 +163,8 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>
-        /// The components this object has, in stack order, its transform always first.
-        /// </summary>
-        /// <remarks>
-        /// Cleared and refilled rather than returning a new list: the inspector rebuilds this on
-        /// every selection change and every edit, and a panel is not a place to allocate per frame.
-        /// </remarks>
+        // The components this object has, in stack order, its transform always first. Cleared and
+        // refilled rather than returning a new list, since the inspector rebuilds this on every edit.
         public static void CollectInstances(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef,
             List<ClipComponentInstance> instances)
@@ -306,15 +192,8 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                // The object's own transform kind is present whether or not its track is. Nothing
-                // found means "not keyed yet", which is a state the object is genuinely in — not a
-                // reason to leave a transform out of the stack.
-                //
-                // The other transform kind is shown only when a track for it actually exists, which
-                // happens to a node promoted to a part while it was already posed as a bone and the
-                // part it adopted was already keyed. Those keys cannot be carried across safely, so
-                // the stack shows the track rather than leaving something that animates the object
-                // with no way to see it.
+                // The object's own transform kind is present whether or not its track is yet —
+                // "not keyed" is a real state, not a reason to leave it out of the stack.
                 if (kind == primaryTransform && instances.Count == countBefore)
                 {
                     instances.Add(
@@ -323,25 +202,14 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Whether a component is the object's own transform, as opposed to one left behind.
-        /// </summary>
-        /// <remarks>
-        /// The panel asks this to decide whether to draw a remove button: an object's transform has
-        /// none, because there is no state in which it has no transform, while a bone track stranded
-        /// on a promoted node is a leftover and removing it is the whole point of showing it.
-        /// </remarks>
+        /// <summary>Whether a component is the object's own transform, as opposed to one left behind.</summary>
         public static bool IsPrimaryTransform(ClipComponentKind kind, ClipObjectRef objectRef)
         {
             return IsIntrinsic(kind) && kind == TransformKindFor(objectRef);
         }
 
-        /// <summary>Whether the object already carries at least one of a kind.</summary>
-        /// <remarks>
-        /// Answered through the shared scratch list rather than a fresh one. This runs once per
-        /// kind per Add Component menu build, and the editor is single-threaded, so the list is
-        /// reused for the same reason <see cref="CollectInstances"/> takes one from its caller.
-        /// </remarks>
+        // Whether the object already carries at least one of a kind. Answered through the shared
+        // scratch list rather than a fresh one, since the editor is single-threaded.
         public static bool HasAny(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind)
         {
@@ -350,15 +218,8 @@ namespace DotsAnimationToolkit.Editor
             return presenceScratch.Count > 0;
         }
 
-        /// <summary>
-        /// Whether Add Component should offer a kind, given what the object already has.
-        /// </summary>
-        /// <remarks>
-        /// Everything refused here is refused by circumstance rather than by kind — no clip
-        /// selected, no rig to store it on, one of this kind already there — which is why these
-        /// live here and not in <see cref="AppliesTo"/>. Each one is a sentence the picker can show
-        /// on the row's hover card, and each one names something the author can go and change.
-        /// </remarks>
+        // Whether Add Component should offer a kind, given what the object already has. Everything
+        // refused here is refused by circumstance rather than by kind, unlike AppliesTo.
         public static bool CanAdd(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind,
             out string unavailableReason)
@@ -403,14 +264,8 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// How many keys a component holds — what makes removing it destructive.
-        /// </summary>
-        /// <remarks>
-        /// A socket answers 0 because it has no keys at all, not because it is empty. The caller
-        /// confirms its removal on different grounds: it is rig structure, and something in a scene
-        /// may be attached to it.
-        /// </remarks>
+        // How many keys a component holds — what makes removing it destructive. A socket answers 0
+        // because it has no keys at all, not because it is empty; its removal is confirmed on other grounds.
         public static int KeyCount(
             ClipAsset clip, ClipObjectRef objectRef, ClipComponentInstance instance)
         {
@@ -460,30 +315,9 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Declares a rig target for a previewed node, so part-bound components have an id to bind
-        /// to.
+        /// to. An existing target is adopted before a new one is minted, and any bone track the node
+        /// already had is carried across to the new transform track rather than dropped.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>An existing target is adopted before a new one is minted.</strong> A rig authored
-        /// before nodes could be promoted binds its parts to scene objects by
-        /// <c>RigTargetAuthoring</c>, and the editor's own path resolution has always matched a
-        /// target to a node by display name. Minting a second target for a node that already has one
-        /// would split one part in two — one baked and one not — which is worse than the problem
-        /// this solves.
-        /// </para>
-        /// <para>
-        /// <strong>Bone keys move with the node.</strong> A promoted node is posed on a transform
-        /// track from here on (<see cref="TransformKindFor"/>), so any bone track it already had
-        /// would stop being sampled. Its keys are carried across rather than dropped: the two key
-        /// types hold the same pose, differing only in whether the rotation is stored as a
-        /// quaternion or as the Euler degrees a person types.
-        /// </para>
-        /// <para>
-        /// The caller mints the stable id through <c>RigAsset.EnsureStableIds</c>, as it does for a
-        /// socket, and records undo on the rig. Id 0 is the sentinel for "no target", so a row that
-        /// keeps it is not merely unidentified — it is a part no track can address.
-        /// </para>
-        /// </remarks>
         /// <returns>The definition the node is now bound to, or null when it could not be made.</returns>
         public static RigTargetDefinition PromoteToRigTarget(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef)
@@ -522,15 +356,9 @@ namespace DotsAnimationToolkit.Editor
             return minted;
         }
 
-        /// <summary>
-        /// The target already standing for a node — by recorded path first, then by name.
-        /// </summary>
-        /// <remarks>
-        /// The name fallback exists for rigs authored before <c>sourceNodePath</c> did, where the
-        /// only link between a part and its node is that they are called the same thing. It is
-        /// consulted only when promoting, never when reading the stack, so an accidental name
-        /// collision cannot silently rebind a part that is working.
-        /// </remarks>
+        // The target already standing for a node — by recorded path first, then by name. The name
+        // fallback is consulted only when promoting, never when reading the stack, so an accidental
+        // name collision cannot silently rebind a part that is working.
         public static RigTargetDefinition FindTargetForNode(RigAsset rig, ClipObjectRef objectRef)
         {
             if (rig == null || rig.targets == null)
@@ -569,15 +397,8 @@ namespace DotsAnimationToolkit.Editor
             return null;
         }
 
-        /// <summary>
-        /// The target claiming a node's path, or 0 when none does.
-        /// </summary>
-        /// <remarks>
-        /// By path only, which is the whole difference between this and
-        /// <see cref="FindTargetForNode"/>. This one runs on every hierarchy rebuild and decides
-        /// which components a row shows, so it answers from what the rig recorded rather than from
-        /// a name that happens to match.
-        /// </remarks>
+        // The target claiming a node's path, or 0 when none does. By path only, unlike
+        // FindTargetForNode: this runs on every hierarchy rebuild, so it must not match by name.
         public static uint ResolveTargetIdForNode(RigAsset rig, string nodePath)
         {
             if (rig == null || rig.targets == null || string.IsNullOrEmpty(nodePath))
@@ -596,45 +417,8 @@ namespace DotsAnimationToolkit.Editor
             return 0u;
         }
 
-        /// <summary>
-        /// Creates the track or socket a kind stands for, bound to the object.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The new track is empty, and an empty track is valid: every rule that walks keys
-        /// short-circuits on zero of them, the bake writes a zero-length blob, and every sampler
-        /// path already answers "no keys" without touching the array. So "added, not yet keyed" is a
-        /// state the asset can genuinely hold — which is what lets adding a component be a decision
-        /// separate from making the first key.
-        /// </para>
-        /// <para>
-        /// A part-bound kind on an unclaimed node promotes it first, so the object this returns
-        /// against may be a part that did not exist when the call was made. The caller rebuilds its
-        /// object reference from the hierarchy afterwards rather than being handed a new one — the
-        /// rig is the record of what happened, and a second copy of that answer could disagree with
-        /// it.
-        /// </para>
-        /// <para>
-        /// A socket is minted with its stable id left to the caller's <c>EnsureStableIds</c>. Id 0
-        /// is the sentinel for "no socket selected", so a socket that keeps it is not merely
-        /// unidentified — it is unselectable and its marker unfindable.
-        /// </para>
-        /// </remarks>
-        /// <param name="newComponentName">
-        /// Cosmetic label for the rig-scoped kinds, which are the ones a person names: a socket and
-        /// a billboard root both appear in lists of their own. Ignored by the track kinds, whose
-        /// identity is the object they are bound to.
-        /// </param>
-        /// <summary>
-        /// The tag a newly created track binds by: the target's own tag when it carries one, 0
-        /// (bind by target id) when it does not.
-        /// </summary>
-        /// <remarks>
-        /// Phase F §7, decision D6. Under the rig-centric model tag-binding is the primary authoring
-        /// intent — it is what lets a set play on a second rig at all — so a track created on a
-        /// tagged target defaults to it. Creation default only: no existing track is rewritten, and
-        /// the header's tag button still flips either way.
-        /// </remarks>
+        // The tag a newly created track binds by: the target's own tag when it carries one, 0 (bind
+        // by target id) when it does not. Creation default only: no existing track is rewritten.
         public static uint ResolveNewTrackTagId(RigAsset rig, uint targetId)
         {
             if (rig == null || rig.targets == null || targetId == 0u)
@@ -653,16 +437,12 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Guarantees the target wears a tag (amendment A56 D4), reusing the registry entry named
-        /// like the part when nothing else on this rig wears it, minting <c>Name 2</c>, <c>Name 3</c>…
-        /// otherwise. Returns the tag id, or 0 when the target does not exist on this rig.
+        /// Guarantees the target wears a tag, reusing the registry entry named like the part when
+        /// nothing else on this rig wears it, minting <c>Name 2</c>, <c>Name 3</c>… otherwise.
+        /// Returns the tag id, or 0 when the target does not exist on this rig.
         /// </summary>
-        /// <remarks>
-        /// The registry is a parameter, never fetched from <c>VocabularyRegistryProvider</c> here —
-        /// EditMode tests drive this with an in-memory registry, and a provider call would mint test
-        /// tags into the project's real ProjectSettings vocabulary. The caller persists the registry
-        /// when <paramref name="createdRegistryEntry"/> comes back true, and owns undo on the rig.
-        /// </remarks>
+        // The registry is a parameter, never fetched from VocabularyRegistryProvider here: EditMode
+        // tests drive this with an in-memory registry, and a provider call would mint real ones.
         public static uint EnsureTargetTagged(
             RigAsset rig, uint targetId, IVocabularyRegistry tagRegistry,
             out bool createdRegistryEntry)
@@ -701,7 +481,7 @@ namespace DotsAnimationToolkit.Editor
                 uint existingTagId = FindVocabularyIdByName(tagRegistry, candidateName);
                 if (existingTagId != 0u)
                 {
-                    // Rule T1: reuse only when no other part on this rig already wears it.
+                    // Reuse only when no other part on this rig already wears it.
                     if (FindTargetByTag(rig, existingTagId) == null)
                     {
                         target.tagId = existingTagId;
@@ -737,15 +517,9 @@ namespace DotsAnimationToolkit.Editor
             return 0u;
         }
 
-        /// <summary>
-        /// Moves every key of <paramref name="source"/> into <paramref name="destination"/> and
-        /// unions the animated channels — the data half of "move this row to that tag" (A56 D2).
-        /// The caller deletes the source track and owns undo.
-        /// </summary>
-        /// <remarks>
-        /// On a same-time collision (within <see cref="ClipTransformEditing.KeyTimeTolerance"/>) the
-        /// source key wins: the gesture was "put <em>these</em> keys there".
-        /// </remarks>
+        // Moves every key of source into destination and unions the animated channels — the data
+        // half of "move this row to that tag". The caller deletes the source track and owns undo.
+        // On a same-time collision the source key wins: the gesture was "put these keys there".
         public static void MergeTransformTracks(TransformTrack source, TransformTrack destination)
         {
             if (source == null || destination == null || source == destination)
@@ -822,13 +596,8 @@ namespace DotsAnimationToolkit.Editor
                     firstKey.normalizedTime.CompareTo(secondKey.normalizedTime));
         }
 
-        /// <summary>
-        /// What <see cref="MoveTracksToTag"/> did to one clip, for the caller to report.
-        /// </summary>
-        /// <remarks>
-        /// Counted rather than logged because the caller is sweeping a whole clip set: a per-clip
-        /// message would be a wall of them, and the number that matters is the total.
-        /// </remarks>
+        // What MoveTracksToTag did to one clip, for the caller to report. Counted rather than
+        // logged, since the caller sweeps a whole clip set and only the total matters.
         public struct TagMoveOutcome
         {
             /// <summary>Rows that simply took the new tag, their keys untouched.</summary>
@@ -849,26 +618,11 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Re-tags every row in one clip keyed against <paramref name="fromTagId"/> so its keys
-        /// belong to <paramref name="toTagId"/> instead.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// This is the data half of "the part is called something else now, and its animation comes
-        /// along" — a rig part's tag changing, carried into the clips keyed against the old one. A
-        /// row's tag is its identity, so two rows cannot share one: where the clip already has a row
-        /// on the destination tag, the moving row is merged into it under the same rules the
-        /// timeline's own retag uses (A56 D2 — incoming key wins a same-time collision, a flipbook
-        /// merge is refused outright rather than retuning keys under settings they were not authored
-        /// against).
-        /// </para>
-        /// <para>
-        /// The caller owns undo and dirtying, and must treat any stored track index as invalid
-        /// afterwards when <see cref="TagMoveOutcome.mergedTrackCount"/> is non-zero: a merge
-        /// removes a track, so every index past it moves.
-        /// </para>
-        /// </remarks>
+        // Re-tags every row in one clip keyed against fromTagId so its keys belong to toTagId
+        // instead. A row's tag is its identity, so where the clip already has a row on the
+        // destination tag, the moving row is merged into it instead of creating a duplicate.
+        // The caller owns undo/dirtying, and must treat any stored track index as invalid
+        // afterwards when TagMoveOutcome.mergedTrackCount is non-zero.
         public static TagMoveOutcome MoveTracksToTag(ClipAsset clip, uint fromTagId, uint toTagId)
         {
             TagMoveOutcome outcome = new TagMoveOutcome();
@@ -929,14 +683,8 @@ namespace DotsAnimationToolkit.Editor
             return outcome;
         }
 
-        /// <summary>
-        /// Whether any transform or flipbook row in this clip is keyed against
-        /// <paramref name="tagId"/>.
-        /// </summary>
-        /// <remarks>
-        /// For a caller sweeping a clip set: recording undo on a clip means snapshotting the whole
-        /// asset, so the clips a retag will not touch are worth skipping before that cost, not after.
-        /// </remarks>
+        // Whether any transform or flipbook row in this clip is keyed against tagId — for a caller
+        // sweeping a clip set to skip clips a retag will not touch before paying for undo.
         public static bool ClipHasTrackTagged(ClipAsset clip, uint tagId)
         {
             if (clip == null || tagId == 0u)
@@ -975,6 +723,11 @@ namespace DotsAnimationToolkit.Editor
             return -1;
         }
 
+        /// <summary>
+        /// Creates the track or socket a kind stands for, bound to the object. A part-bound kind on
+        /// an unclaimed node promotes it first, so the object this binds against may be a part that
+        /// did not exist when the call was made.
+        /// </summary>
         /// <returns>The instance created, or an index of −1 when nothing could be added.</returns>
         public static ClipComponentInstance Add(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind,
@@ -1052,10 +805,8 @@ namespace DotsAnimationToolkit.Editor
                     rig.ragdollBodies.Add(body);
 
                     // Box, mass, damping and limits are left at the definition's own field
-                    // initializers — a unit box at the node's origin, 1kg, light damping, a ±45°
-                    // hinge. The window sizes the box from the node's renderer immediately after
-                    // this call when it has one (spec §8.1); the model has no viewport to measure
-                    // against, only the assets.
+                    // initializers; the window sizes the box from the node's renderer afterwards
+                    // when it has one, since the model has no viewport to measure against.
                     return new ClipComponentInstance(kind, rig.ragdollBodies.Count - 1);
                 }
                 default:
@@ -1096,9 +847,8 @@ namespace DotsAnimationToolkit.Editor
                     return RemoveAt(clip == null ? null : clip.spriteTracks, instance.index);
                 case ClipComponentKind.Billboard:
                 {
-                    // The tracks go with the root. A track bound to a root the rig no longer
-                    // declares is a validation error (V24) that animates nothing, so leaving one
-                    // behind would be a broken clip with no visible cause.
+                    // The tracks go with the root: a track bound to a root the rig no longer
+                    // declares animates nothing, so leaving one behind would be silently broken.
                     BillboardRootDefinition definition =
                         GetAt(rig == null ? null : rig.billboardRoots, instance.index);
                     if (definition == null)
@@ -1120,23 +870,16 @@ namespace DotsAnimationToolkit.Editor
                     return RemoveAt(rig.billboardRoots, instance.index);
                 }
                 case ClipComponentKind.Ragdoll:
-                    // No clip-side data to take with it — a ragdoll body carries no keys (spec §3.3
-                    // has no animatable field on it at all), so unlike Billboard there is nothing
-                    // here for the caller to warn about beyond the body itself going away.
+                    // No clip-side data to take with it — a ragdoll body carries no keys at all, so
+                    // unlike Billboard there is nothing here for the caller to warn about.
                     return RemoveAt(rig == null ? null : rig.ragdollBodies, instance.index);
                 default:
                     return RemoveAt(rig == null ? null : rig.sockets, instance.index);
             }
         }
 
-        /// <summary>
-        /// Moves a node's bone keys onto a transform track bound to the part it just became.
-        /// </summary>
-        /// <remarks>
-        /// Silent when there is nothing to move, which is the ordinary case. When there is, the bone
-        /// track is deleted afterwards: two tracks posing the same node is not a merge the bake can
-        /// make sense of, and the bone one is the copy nothing samples once the node is a part.
-        /// </remarks>
+        // Moves a node's bone keys onto a transform track bound to the part it just became, then
+        // deletes the bone track: two tracks posing the same node is not a merge the bake can make sense of.
         private static void MigrateBoneTrackToTransform(
             ClipAsset clip, string boneName, RigTargetDefinition target)
         {
@@ -1214,15 +957,9 @@ namespace DotsAnimationToolkit.Editor
             clip.boneTracks.RemoveAt(boneTrackIndex);
         }
 
-        /// <summary>
-        /// The instances of one kind on one object, in the order the owning list holds them.
-        /// </summary>
-        /// <remarks>
-        /// Public because a caller sometimes wants one kind rather than the whole stack — a paste
-        /// asking "does this object have a third flipbook yet" has no use for its sockets. Unlike
-        /// <see cref="CollectInstances"/> this never invents the placeholder an unkeyed intrinsic
-        /// component carries: the question here is what exists, not what the panel shows.
-        /// </remarks>
+        // The instances of one kind on one object, in the order the owning list holds them. Unlike
+        // CollectInstances, this never invents the placeholder an unkeyed intrinsic component
+        // carries: the question here is what exists, not what the panel shows.
         public static void CollectInstancesOfKind(
             ClipAsset clip, RigAsset rig, ClipObjectRef objectRef, ClipComponentKind kind,
             List<ClipComponentInstance> instances)
@@ -1260,10 +997,8 @@ namespace DotsAnimationToolkit.Editor
                 }
                 case ClipComponentKind.BoneTransform:
                 {
-                    // The empty name is refused rather than matched. A rig-target row has no node
-                    // name at all, and a hand-edited clip can hold a track whose name is blank
-                    // (validation rule V15) — matching the two would hang that track off every part
-                    // in the rig.
+                    // The empty name is refused rather than matched: a rig-target row has no node
+                    // name, so matching a blank-named track to it would hang that track off every part.
                     if (clip == null || clip.boneTracks == null
                         || string.IsNullOrEmpty(objectRef.boneName))
                     {
@@ -1361,21 +1096,12 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>
         /// Whether a <see cref="TransformTrack"/> or <see cref="SpriteTrack"/> animates the rig
         /// target <paramref name="objectTargetId"/> — directly by <paramref name="trackTargetId"/>,
-        /// or through <paramref name="trackTagId"/> resolving to it (Phase E target-tags spec §4.3).
+        /// or through <paramref name="trackTagId"/> resolving to it.
         /// </summary>
-        /// <remarks>
-        /// Public because <see cref="ClipTransformEditing.FindTransformTrack(ClipAsset, RigAsset, uint)"/>
-        /// needs the identical resolution — a tag-bound track has to be found by the one node it
-        /// currently resolves to whether the question is "what does this stack show" or "what does
-        /// keying this node write into", and two implementations of that question are two things
-        /// that can disagree about which track a node's edits land on.
-        /// </remarks>
         /// <param name="rig">
         /// The rig <paramref name="trackTagId"/> resolves against. Null (or a rig declaring no
-        /// target with that tag) makes a tag-bound track match nothing — the same "report and skip"
-        /// shape the bake takes for rule T2, rather than falling back to matching by
-        /// <paramref name="trackTargetId"/>, which a tag-bound track leaves at 0 (see
-        /// <see cref="TransformTrack.tagId"/>'s remarks).
+        /// target with that tag) makes a tag-bound track match nothing, rather than falling back to
+        /// matching by <paramref name="trackTargetId"/>.
         /// </param>
         public static bool TrackBindsTarget(
             uint trackTargetId, uint trackTagId, uint objectTargetId, RigAsset rig)

@@ -12,37 +12,11 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The clip timeline editor (architecture section 7.1, 7.2).
+    /// The clip timeline editor: clip selector, transport, timeline, viewport, hierarchy and
+    /// inspector docked around ClipEditorWindow.uxml's layout. Undo is per gesture, not per
+    /// mutation — a key drag collapses into one Ctrl+Z — and the viewport renders independently of
+    /// selection, from the moment the window opens.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Replaces the host's immediate-mode window, whose verified feature list is the parity target:
-    /// clip selector, transport, timeline, draggable keys, double-click add, context inspector,
-    /// keyboard map, copy/paste. Built entirely on UI Toolkit — the packaging conformance scan
-    /// forbids immediate-mode drawing calls anywhere in package Editor code.
-    /// </para>
-    /// <para>
-    /// <strong>The layout is a persistent dock, declared in ClipEditorWindow.uxml.</strong> Three
-    /// zones: hierarchy, viewport and inspector across the top, timeline along the bottom, nested
-    /// <c>TwoPaneSplitView</c>s all the way down so every boundary is draggable. This file builds no
-    /// layout of its own — it resolves the named slots and fills them — and it sets no sizes: those
-    /// live in ClipEditorWindow.uss, because an inline style beats every rule in a stylesheet and so
-    /// one stray <c>style.height</c> is a value nobody can override.
-    /// </para>
-    /// <para>
-    /// <strong>The viewport is independent of selection.</strong> It initialises and renders from
-    /// the moment the window opens, showing the reference grid when there is nothing else to show.
-    /// Selection moves the marker and changes what the inspector displays; it decides nothing about
-    /// whether the viewport draws. It used to decide exactly that, and an empty viewport was
-    /// indistinguishable from a preview that had failed to start.
-    /// </para>
-    /// <para>
-    /// <strong>Undo is per gesture, not per mutation</strong> (section 7.4). A key drag records the
-    /// clip once on pointer-down and collapses everything up to pointer-up into one step, so one
-    /// drag is one Ctrl+Z. The audit found the host's timeline was dirty-flag-only — drags and
-    /// inspector edits simply were not undoable — which is the gap this closes.
-    /// </para>
-    /// </remarks>
     public sealed partial class ClipEditorWindow : EditorWindow
     {
         private const float PlaybackHertz = 30f;
@@ -50,16 +24,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>How long the preview waits for a gesture to go quiet before rebuilding.</summary>
         private const double PreviewSettleSeconds = 0.25;
 
-        /// <summary>
-        /// The longest the preview may go without a rebuild while it is dirty.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="PreviewSettleSeconds"/> alone is a trailing edge, and
-        /// <see cref="MarkPreviewDirty"/> re-stamps it on every mouse move: a continuous drag never
-        /// went quiet, so the viewport did not move until the drag ended. This bound is what makes a
-        /// drag live. The tick itself is capped at <see cref="PlaybackHertz"/>, so the real ceiling
-        /// is one rebuild every other tick.
-        /// </remarks>
+        // The longest the preview may go without a rebuild while it is dirty. PreviewSettleSeconds
+        // alone is a trailing edge that never fires during a continuous drag; this bound is what
+        // makes the drag live.
         private const double PreviewMaxWaitSeconds = 0.06;
 
         private const string LayoutAssetPath =
@@ -85,25 +52,15 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Narrow enough to be a deliberate choice, wide enough to still name a row.</summary>
         private const float MinimumTrackHeaderWidth = 90f;
 
-        /// <summary>
-        /// The ceiling on the name column, and the width the lanes are never dragged below.
-        /// </summary>
-        /// <remarks>
-        /// The second is the one that matters: the column does not shrink, so without a floor for
-        /// the lanes a narrow window would leave the keys with no room at all — and the keys are
-        /// what the window is for. It is applied on every resize, not only while dragging, so
-        /// shrinking the window narrows the column and widening it hands the width back.
-        /// </remarks>
+        // The ceiling on the name column, and the width the lanes are never dragged below. The
+        // second is the one that matters: without a floor for the lanes, a narrow window would
+        // leave the keys with no room at all.
         private const float MaximumTrackHeaderWidth = 480f;
         private const float MinimumLaneWidth = 160f;
 
-        /// <summary>
-        /// How far the pointer may travel between press and release and still count as a click.
-        /// </summary>
-        /// <remarks>
-        /// A drag in the viewport orbits the camera. Without this, every orbit would also change the
-        /// selection, because an orbit begins with exactly the same press a selection does.
-        /// </remarks>
+        // How far the pointer may travel between press and release and still count as a click.
+        // Without this, every viewport orbit (which begins with the same press as a selection)
+        // would also change the selection.
         private const float ClickMovementToleranceSquared = 9f;
 
         private const string HiddenUssClassName = "clip-editor--hidden";
@@ -197,14 +154,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Which tracks show their per-channel rows, keyed by kind and index.</summary>
         private readonly HashSet<long> expandedTrackKeys = new HashSet<long>();
 
-        /// <summary>
-        /// Where the held, unkeyed transform value lives — in an object, so Ctrl+Z can reach it.
-        /// </summary>
-        /// <remarks>
-        /// The reasoning is in <see cref="HeldTransformEdit"/>. The properties below keep every
-        /// reader in this file reading the value the way it always did; which object it sits in is
-        /// how undo gets at it, not a second concept.
-        /// </remarks>
+        // Where the held, unkeyed transform value lives — in an object, so Ctrl+Z can reach it (see
+        // HeldTransformEdit). The properties below let every reader in this file keep reading the
+        // value the way it always did.
         private HeldTransformEdit heldTransformEdit;
 
         private bool hasPendingTransformEdit
@@ -251,14 +203,9 @@ namespace DotsAnimationToolkit.Editor
             return heldTransformEdit;
         }
 
-        /// <summary>
-        /// Opens one undo step for the value a part is about to hold without keying.
-        /// </summary>
-        /// <remarks>
-        /// With Auto Key off this is the <em>only</em> record of the move — the clip has not
-        /// changed, so nothing else on the stack describes it. Recorded before the write, so the
-        /// step holds the value the part is moving away from.
-        /// </remarks>
+        // Opens one undo step for the value a part is about to hold without keying. With Auto Key
+        // off this is the only record of the move; recorded before the write, so the step holds the
+        // value the part is moving away from.
         private void RecordHeldTransformEdit(string actionName)
         {
             Undo.RecordObject(EnsureHeldTransformEdit(), actionName);
@@ -276,18 +223,10 @@ namespace DotsAnimationToolkit.Editor
         private float3 pendingRigRotationDegrees;
         private float3 pendingRigScale;
 
-        /// <summary>
-        /// Whether this window has written the prefab's base pose since it opened, which decides
-        /// how much an undo has to put back.
-        /// </summary>
-        /// <remarks>
-        /// An undo that reverts a base pose changes the prefab asset, and the preview is an instance
-        /// taken from that asset — nothing in the ordinary undo refresh re-reads it, so the viewport
-        /// would keep showing the pose that was just undone. Reloading unconditionally would put a
-        /// preview re-instantiation on every Ctrl+Z in the window, including the clip-key undos that
-        /// have nothing to do with the prefab; this flag is what keeps that cost on the sessions that
-        /// actually did a rig edit.
-        /// </remarks>
+        // Whether this window has written the prefab's base pose since it opened. An undo that
+        // reverts a base pose changes the prefab asset, but nothing in the ordinary undo refresh
+        // re-reads the preview instance — this flag is what limits the reload to sessions that
+        // actually did a rig edit, rather than reloading on every Ctrl+Z.
         private bool hasWrittenPrefabPose;
 
         /// <summary>The VAT bake tab, and the panel built into it the first time it is opened.</summary>
@@ -339,15 +278,9 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement laneStack;
         private GhostLaneStripElement ghostLanes;
 
-        /// <summary>
-        /// The name column, its drag strip, and the width the user last asked that column to be.
-        /// </summary>
-        /// <remarks>
-        /// The requested width is kept unclamped by the window's own size so a window narrowed and
-        /// widened again returns the column to where it was left, rather than to whatever the
-        /// narrowest moment allowed. Zero means nobody has ever dragged it and the stylesheet's
-        /// default is still in force.
-        /// </remarks>
+        // The name column, its drag strip, and the width the user last asked that column to be.
+        // Kept unclamped by the window's own size, so narrowing and widening the window again
+        // returns the column to where it was left. Zero means nobody has ever dragged it.
         private VisualElement trackHeaderStack;
         private VisualElement trackHeaderResizer;
         private float requestedTrackHeaderWidth;
@@ -355,14 +288,8 @@ namespace DotsAnimationToolkit.Editor
         private float trackHeaderDragStartWidth;
         private float trackHeaderDragStartPointerX;
 
-        /// <summary>
-        /// How many rows the last rebuild put in the lane column, tracks and channel rows together.
-        /// </summary>
-        /// <remarks>
-        /// Kept so the ghost rows below can carry on the stripe alternation. Counted rather than
-        /// read back off the column because the column is also asked for its height on the same
-        /// pass, and a count taken from <c>childCount</c> would have to be re-derived every time.
-        /// </remarks>
+        // Rows the last rebuild put in the lane column (tracks + channel rows), so the ghost rows
+        // below can carry on the stripe alternation without re-deriving it from childCount.
         private int timelineRowCount;
         private TimeRulerElement ruler;
         private PlayheadElement playhead;
@@ -381,9 +308,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>
         /// Pane rebuilds a live pointer gesture has postponed, flushed by the tick once it ends.
         /// </summary>
-        /// <remarks>
-        /// See <see cref="IsPointerGestureInProgress"/> for why a rebuild during a drag is fatal.
-        /// </remarks>
+        // See IsPointerGestureInProgress for why a rebuild during a drag is fatal.
         private bool inspectorRebuildPending;
         private bool timelineRebuildPending;
         private bool hierarchyRebuildPending;
@@ -397,15 +322,8 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private RigAsset activeRig;
 
-        /// <summary>
-        /// The rig an open Clip Editor is currently showing, or null when none is open or none is
-        /// picked.
-        /// </summary>
-        /// <remarks>
-        /// The one way a rig reaches code outside this window now that no asset records one. Used by
-        /// <c>MirrorClipUtility</c>'s project-browser action, which needs a rig's mirror-pair table
-        /// and has nothing on the clip to read it from.
-        /// </remarks>
+        // The rig an open Clip Editor is currently showing, or null when none is open or none is
+        // picked. The one way a rig reaches code outside this window now that no asset records one.
         internal static RigAsset RigOfOpenWindow
         {
             get
@@ -428,50 +346,20 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly HashSet<KeyAddress> selectedKeys = new HashSet<KeyAddress>();
 
-        /// <summary>
-        /// The key the inspector edits: the one most recently clicked, not an arbitrary member of
-        /// the selection.
-        /// </summary>
-        /// <remarks>
-        /// The inspector used to take "the last" address by iterating <see cref="selectedKeys"/> and
-        /// keeping the final value. A <c>HashSet</c> has no order, so that was whichever key the
-        /// hash buckets happened to yield last — with one key selected it looked right, and the
-        /// moment a second was added the panel showed a key the user had not clicked. Selection is a
-        /// set; the ACTIVE element is not, and it has to be stored separately.
-        /// </remarks>
+        // The key the inspector edits: the one most recently clicked, not an arbitrary member of the
+        // selection. A HashSet has no order, so iterating selectedKeys for "the last" one showed
+        // whichever key the hash buckets happened to yield, not the one the user clicked.
         private KeyAddress activeKey;
         private bool hasActiveKey;
 
-        /// <summary>
-        /// What is selected in the hierarchy, as the tree item id — which is also the preview's
-        /// index for the same transform. -1 is nothing.
-        /// </summary>
-        /// <remarks>
-        /// An index rather than a name because names repeat: a rig with two bones called
-        /// <c>Hand</c> needs the tree, the outline and the inspector to agree on <em>which</em> one,
-        /// and a name cannot say. An index rather than a <c>Transform</c> because the preview
-        /// skeleton is a throwaway instance rebuilt whenever the rig changes, so a held reference
-        /// would be a destroyed object more often than not.
-        /// </remarks>
+        // What is selected in the hierarchy, as the tree item id — which is also the preview's
+        // index for the same transform. -1 is nothing. An index rather than a name, since names
+        // repeat; an index rather than a Transform, since the preview skeleton rebuilds whenever the rig changes.
         private int selectedHierarchyItemId = NothingSelectedItemId;
 
-        /// <summary>
-        /// What the hierarchy pane lists: the rig's parts, and the previewed prefab's transforms.
-        /// </summary>
-        /// <remarks>
-        /// Two genuinely different things share the tree because they are the two kinds of thing a
-        /// clip animates — a rig target carries transform and flipbook tracks, a bone carries bone
-        /// tracks — and an author picking "what am I keying" should not have to know which pane each
-        /// lives in. The kind is carried on the item rather than inferred from the id, so adding a
-        /// third kind later does not mean re-encoding the id space.
-        /// </remarks>
-        /// <summary>What a hierarchy row stands for.</summary>
-        /// <remarks>
-        /// An enum rather than a pair of booleans, because most of the code that cares asks "is this
-        /// a prefab transform" by writing <c>!isRigTarget</c>. Adding sockets as a second flag would
-        /// have made every one of those sites quietly wrong about the new kind, and wrong in the
-        /// direction that offers bone-track buttons for a socket.
-        /// </remarks>
+        // What a hierarchy row stands for: the rig's parts, and the previewed prefab's transforms —
+        // two kinds sharing one tree since they are the two kinds of thing a clip animates. An enum
+        // rather than a pair of booleans, since most code asks "is this a prefab transform".
         private enum HierarchyItemKind
         {
             /// <summary>A transform of the previewed prefab.</summary>
@@ -486,16 +374,9 @@ namespace DotsAnimationToolkit.Editor
             public HierarchyItemKind kind;
             public string displayName;
 
-            /// <summary>
-            /// The rig part this row is, or 0 when the rig declares none for it.
-            /// </summary>
-            /// <remarks>
-            /// Set for a rig-target row always, and for a previewed node whenever a part records
-            /// that node's path as its source. Everything that asks "which part is this row"
-            /// therefore reads this rather than the row's kind — a claimed plane is as much a part
-            /// as a row in the rig's own list, and a lookup that checked the kind would find the
-            /// flipbook it carries had no row to belong to.
-            /// </remarks>
+            // The rig part this row is, or 0 when the rig declares none for it. Set for a rig-target
+            // row always, and for a previewed node whenever a part records that node's path as its
+            // source — everything asking "which part is this row" reads this, not the row's kind.
             public uint targetId;
 
             /// <summary>Set for a previewed transform: its index in the preview's hierarchy.</summary>
@@ -547,11 +428,9 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement viewportFrame;
         private Label rigEditBanner;
 
-        /// <summary>
-        /// The selected transform's name, which is the identity bone <em>tracks</em> bind by.
-        /// Carried alongside the index rather than derived from it so the bake's contract and the
-        /// window's selection stay separate things.
-        /// </summary>
+        // The selected transform's name, which is the identity bone tracks bind by. Carried
+        // alongside the index rather than derived from it, so the bake's contract and the window's
+        // selection stay separate things.
         private string selectedBoneName;
 
         /// <summary>The selected rig target, or 0 when the selection is a bone or nothing.</summary>
@@ -594,14 +473,9 @@ namespace DotsAnimationToolkit.Editor
         private TimelineTrackKind dragTrackKind;
         private int dragTrackIndex;
 
-        /// <summary>
-        /// Opens the Clip Editor, docked beside the Scene view when it is being created.
-        /// </summary>
-        /// <remarks>
-        /// The dock neighbour is a request, not a command — Unity honours it only when the window
-        /// is created, and an existing window keeps wherever the user put it. That is the right
-        /// division: this decides the default, the user decides thereafter.
-        /// </remarks>
+        // Opens the Clip Editor, docked beside the Scene view when it is being created. The dock
+        // neighbour is a request, not a command: Unity honours it only when the window is created,
+        // and an existing window keeps wherever the user put it.
         [MenuItem("Window/DOTS Animation Toolkit/Clip Editor")]
         public static void ShowWindow()
         {
@@ -611,17 +485,11 @@ namespace DotsAnimationToolkit.Editor
             window.minSize = new Vector2(820f, 460f);
         }
 
-        /// <summary>
-        /// Brings the Clip Editor forward with the 2D Direction Sets pane up and
-        /// <paramref name="directionSet"/> loaded into it. What opening a direction set means.
-        /// </summary>
-        /// <remarks>
-        /// The set is handed over <em>after</em> <see cref="FocusTab"/> has switched, because the
-        /// pane's panel is built on the first switch to it — addressing it beforehand would be
-        /// addressing a panel that does not exist yet on the first open of a session.
-        /// </remarks>
+        /// <summary>Brings the Clip Editor forward on its Direction Sets tab, with <paramref name="directionSet"/> loaded.</summary>
         public static void FocusDirectionSetsTab(DirectionSetAsset directionSet)
         {
+            // After FocusTab, not before: the pane's panel is built on first switch to it, so
+            // addressing it earlier would target a panel that does not exist yet this session.
             ClipEditorWindow window = FocusTab(ClipEditorTab.DirectionSets);
             if (window != null && window.directionSetsPanel != null && directionSet != null)
             {
@@ -651,17 +519,9 @@ namespace DotsAnimationToolkit.Editor
             FocusTab(ClipEditorTab.VatBake);
         }
 
-        /// <summary>
-        /// What every "go there, show that" entry point resolves to — the prefab stage overlay's two
-        /// buttons and a double-clicked direction set — so the window is opened, focused and switched
-        /// by one path rather than three.
-        /// </summary>
-        /// <remarks>
-        /// <strong>The view is switched through <see cref="SetActiveTab"/>, never by calling a
-        /// <c>Show…Tab</c> method directly.</strong> That is the single writer of
-        /// <see cref="activeTab"/> and of the four toggles' lit state; reaching past it would leave a
-        /// pane showing under a dark tab, with nothing on screen saying which was right.
-        /// </remarks>
+        // What every "go there, show that" entry point resolves to, so the window is opened,
+        // focused and switched by one path. The view is switched through SetActiveTab, never by
+        // calling a Show…Tab method directly, since that is the single writer of the toggles' lit state.
         private static ClipEditorWindow FocusTab(ClipEditorTab tab)
         {
             ClipEditorWindow window = FindOpenWindow();
@@ -692,21 +552,10 @@ namespace DotsAnimationToolkit.Editor
             return null;
         }
 
-        /// <summary>
-        /// Re-creates a floating window as a docked one, carrying what makes it the same window.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Unity has no API to dock a window that already exists, so the only route is to close it
-        /// and reopen it asking for a dock neighbour. The close is deferred: this is called from
-        /// inside the window's own event handling, and destroying the instance mid-callback is how
-        /// a null reference gets thrown at a stack frame nobody will recognise.
-        /// </para>
-        /// <para>
-        /// One-time, in practice. Once docked the window stays docked, so the cost is paid on the
-        /// first trip into prefab mode and never again.
-        /// </para>
-        /// </remarks>
+        // Re-creates a floating window as a docked one, carrying what makes it the same window.
+        // Unity has no API to dock an existing window, so the only route is to close and reopen it
+        // asking for a dock neighbour; the close is deferred since this runs from inside the
+        // window's own event handling.
         private void RedockBesideSceneView(System.Action afterDocked)
         {
             ClipEditorDocking.CarriedState state = new ClipEditorDocking.CarriedState
@@ -772,24 +621,10 @@ namespace DotsAnimationToolkit.Editor
         // Surviving a domain reload.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>What the window was looking at, kept across a recompile.</summary>
-        /// <remarks>
-        /// <para>
-        /// A domain reload destroys and re-creates this instance, and every plain field on it —
-        /// <see cref="clipSet"/> and <see cref="selectedClip"/> included — comes back at its default.
-        /// Unity then calls <see cref="CreateGUI"/> again, so the window redraws looking perfectly
-        /// healthy while holding nothing: the hierarchy is empty, and every control gated on a clip
-        /// set quietly does nothing when pressed. The part-tag button is the clearest case — it
-        /// returns immediately on a null clip set, so it reads as a dead button rather than as lost
-        /// state.
-        /// </para>
-        /// <para>
-        /// This is not a rare event to shrug at. The toolkit's own vocabulary editors write a
-        /// generated constants file under <c>Assets/</c> whenever a tag or event name changes, which
-        /// makes an ordinary rename a recompile — so before this, editing a tag from inside the Clip
-        /// Editor reliably left the Clip Editor inert.
-        /// </para>
-        /// </remarks>
+        // What the window was looking at, kept across a recompile. A domain reload destroys and
+        // re-creates this instance, and every plain field comes back at its default, so the window
+        // redraws looking healthy while holding nothing (every control gated on a clip set quietly
+        // does nothing when pressed) unless this is restored.
         [SerializeField] private ClipSetAsset sessionClipSet;
         [SerializeField] private RigAsset sessionRig;
         [SerializeField] private ClipAsset sessionSelectedClip;
@@ -831,15 +666,9 @@ namespace DotsAnimationToolkit.Editor
                 sessionPlayheadTime, sessionTab, sessionSelectedNames);
         }
 
-        /// <summary>
-        /// Puts a remembered view back on a tree that has just been built from scratch — the one
-        /// operation a re-dock and a domain reload both need.
-        /// </summary>
-        /// <remarks>
-        /// The clip is selected through the list rather than by calling <see cref="SelectClip"/>, so
-        /// the row is highlighted as well as loaded; the list's own notification is what runs the
-        /// timeline rebuild and the transport sync, exactly as clicking the row would.
-        /// </remarks>
+        // Puts a remembered view back on a tree that has just been built from scratch — the one
+        // operation a re-dock and a domain reload both need. The clip is selected through the list
+        // rather than by calling SelectClip directly, so the row is highlighted too.
         private void RestoreView(
             ClipSetAsset restoredClipSet,
             RigAsset restoredRig,
@@ -1005,22 +834,10 @@ namespace DotsAnimationToolkit.Editor
         // Layout. The tree comes from UXML; everything below resolves slots and wires behaviour.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Builds the tree and wires every control to it. Unity's one call per live visual tree —
-        /// including the one it makes again after every domain reload, which is what puts this window
-        /// back together rather than anything in <see cref="OnEnable"/>.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Must run exactly once per tree, and must not be called by hand.</strong> Most of
-        /// what it binds hangs off elements it has just cloned, so a second pass would simply rebind
-        /// the new ones — but <see cref="RegisterTransportShortcuts"/> and
-        /// <see cref="BindKeyTransform"/> register on <c>rootVisualElement</c> itself, which survives
-        /// the <c>Clear()</c> below along with its callback list. Running this twice therefore leaves
-        /// two copies of the transport's <c>KeyDownEvent</c> handler on one element, and
-        /// <c>StopPropagation</c> does not stop the second (only <c>StopImmediatePropagation</c>
-        /// would): Space toggles play twice and so does nothing, an arrow steps two frames, Ctrl+Z
-        /// undoes twice, and G restarts the gesture it just began.
-        /// </remarks>
+        // Builds the tree and wires every control to it. Unity's one call per live visual tree,
+        // including after every domain reload. Must run exactly once per tree and never be called by
+        // hand: RegisterTransportShortcuts and BindKeyTransform register on rootVisualElement itself,
+        // which survives Clear() below, so a second run doubles the transport's key handlers.
         private void CreateGUI()
         {
             rootVisualElement.Clear();
@@ -1128,10 +945,8 @@ namespace DotsAnimationToolkit.Editor
                 });
             }
 
-            // Phase D6: the toolkit's own preview simulation (RagdollPreviewSimulation), not a hook
-            // into any host game's ragdoll systems — the conformance scan forbids naming a host's
-            // namespaces, and rightly, since a package that only worked inside one project would
-            // not be a package.
+            // Drives the toolkit's own preview simulation (RagdollPreviewSimulation), never a host
+            // game's ragdoll systems — a package cannot name a consuming project's namespaces.
             ragdollPreviewToggle = rootVisualElement.Q<ToolbarToggle>("ragdoll-preview-toggle");
             if (ragdollPreviewToggle != null)
             {
@@ -1267,23 +1082,9 @@ namespace DotsAnimationToolkit.Editor
             clipListView.itemsSource = new List<ClipAsset>();
         }
 
-        /// <summary>
-        /// Creates a clip in the assigned set and selects it, ready to author.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The creation is <see cref="ClipAssetUtility"/>'s, shared with the clip set's own
-        /// inspector, so a clip made here is indistinguishable from one made there — same folder,
-        /// same inherited rig, same id minting, same undo entry.
-        /// </para>
-        /// <para>
-        /// Selecting the new clip immediately is the point of having the button here at all: the
-        /// alternative is creating it in the Project window and coming back to find it in the list.
-        /// It is pinged as well, because it is written to disk without asking where, and a file
-        /// appearing somewhere the user was not told about is worse than a moment's flicker in the
-        /// Project window.
-        /// </para>
-        /// </remarks>
+        // Creates a clip in the assigned set and selects it, ready to author. Shared with the clip
+        // set's own inspector via ClipAssetUtility, so a clip made here is indistinguishable from
+        // one made there. Pinged as well as selected, since it is written to disk without asking where.
         private void CreateClip()
         {
             if (clipSet == null)
@@ -1326,15 +1127,9 @@ namespace DotsAnimationToolkit.Editor
             clipListView.Rebuild();
         }
 
-        /// <summary>
-        /// Enables the Clips pane's actions for the states in which they mean something.
-        /// </summary>
-        /// <remarks>
-        /// A clip is only meaningful inside a set — it inherits the set's rig, and validation rule
-        /// V06 refuses a clip whose rig is anything else. So "no set assigned" is not a case to
-        /// invent a home for; it is a case to disable. Delete additionally needs a clip selected to
-        /// be about.
-        /// </remarks>
+        // Enables the Clips pane's actions for the states in which they mean something. A clip is
+        // only meaningful inside a set, so "no set assigned" disables New; Delete additionally needs
+        // a clip selected.
         private void RefreshClipActionButtons()
         {
             if (newClipButton != null)
@@ -1347,24 +1142,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Asks what to do with the selected clip, then un-registers it and optionally trashes it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Three answers, because there are genuinely three.</strong> "Remove from the set"
-        /// and "delete the file" are different intentions with very different consequences, and a
-        /// two-button dialog would make the safe one unreachable from here — so someone who meant
-        /// "take this out of the set" would confirm a deletion to get it. The dialog names both
-        /// outcomes rather than making the user infer them from one word on a button.
-        /// </para>
-        /// <para>
-        /// The dialog says plainly which outcome is undoable. Deleting the asset is not, on purpose:
-        /// undo cannot bring a file back, so an undoable delete would restore a set entry pointing
-        /// at something in the trash. The file going to the operating system's trash rather than
-        /// being unlinked outright is the one recovery path a mis-click actually has.
-        /// </para>
-        /// </remarks>
+        // Asks what to do with the selected clip, then un-registers it and optionally trashes it.
+        // Three answers, since "remove from the set" and "delete the file" are different intentions
+        // a two-button dialog would conflate. Deleting the asset is not undoable; removing from the set is.
         private void DeleteSelectedClip()
         {
             if (clipSet == null || selectedClip == null || clipSet.clips == null)
@@ -1414,13 +1194,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Selects whatever now occupies <paramref name="removedIndex"/>, or the last clip.
-        /// </summary>
-        /// <remarks>
-        /// Landing on the neighbour is what makes deleting several clips in a row workable — leaving
-        /// nothing selected would mean re-selecting by hand between every deletion.
-        /// </remarks>
+        /// <summary>Selects whatever now occupies <paramref name="removedIndex"/>, or the last clip.</summary>
         private void SelectClipNearIndex(int removedIndex)
         {
             if (clipListView == null || clipSet == null || clipSet.clips == null
@@ -1435,22 +1209,7 @@ namespace DotsAnimationToolkit.Editor
             clipListView.ScrollToItem(nextIndex);
         }
 
-        /// <summary>
-        /// Creates a clip set wherever the user chooses, and loads it into the window.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The location is asked for rather than derived. A clip is created beside its set because
-        /// the set is a natural anchor; a set is the root of the graph and has no anchor at all, so
-        /// there is nothing to infer a home from — and a package guessing a folder is how projects
-        /// end up with assets scattered wherever a tool felt like putting them.
-        /// </para>
-        /// <para>
-        /// Assigned through the toolbar field rather than to <c>clipSet</c> directly, so loading a
-        /// new set runs the same path as picking one by hand: the clip list, preview, validation
-        /// badge and button states all follow from the one change notification.
-        /// </para>
-        /// </remarks>
+        /// <summary>Creates a clip set wherever the user chooses, and loads it into the window.</summary>
         private void CreateClipSet()
         {
             string assetPath = EditorUtility.SaveFilePanelInProject(
@@ -1471,6 +1230,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (clipSetField != null)
             {
+                // Through the toolbar field, not the clipSet backing field directly, so this
+                // follows the same change-notification path as picking a set by hand.
                 clipSetField.value = newClipSet;
             }
             EditorGUIUtility.PingObject(newClipSet);
@@ -1502,13 +1263,8 @@ namespace DotsAnimationToolkit.Editor
             RefreshPrefabActionState();
         }
 
-        /// <summary>
-        /// Enables the prefab entry points only when there is a prefab asset behind the rig field.
-        /// </summary>
-        /// <remarks>
-        /// A scene object dropped into that field has no asset to open, and a button that reports
-        /// its own failure after being pressed is worse than one that shows it cannot be pressed.
-        /// </remarks>
+        // Disabled rather than left to fail on click: a scene object dropped into the rig field
+        // has no prefab asset behind it to open.
         private void RefreshPrefabActionState()
         {
             if (editPrefabButton == null)
@@ -1523,16 +1279,8 @@ namespace DotsAnimationToolkit.Editor
                 : "Assign a rig in the toolbar's Rig field, and give that rig a Source Prefab, to edit it.";
         }
 
-        /// <summary>
-        /// The prefab the preview instantiates: the source prefab of the rig assigned in the
-        /// toolbar (Phase D11), not a value the toolbar field holds directly any more.
-        /// </summary>
-        /// <remarks>
-        /// The one place that reads the rig's prefab, so every consumer below follows the rig
-        /// field to the same answer whether the rig is fully set up or was assigned before it had
-        /// a source prefab of its own (see <see cref="ResolveHierarchyEmptyMessage"/> for how that
-        /// second case is surfaced rather than left to look like nothing happened).
-        /// </remarks>
+        // The one place that reads the rig's prefab, so every consumer below follows the rig field
+        // to the same answer.
         private GameObject LoadedPrefab
         {
             get
@@ -1542,15 +1290,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The path of a hierarchy row's object below the prefab root, for addressing it in a stage.
-        /// </summary>
-        /// <remarks>
-        /// A rig-target row has no transform of its own — it stands for an entry in the rig asset —
-        /// so it resolves through the name it binds by. That is the same lookup the rest pose uses,
-        /// which means "Open Prefab Here" lands on exactly the object the preview took its rest pose
-        /// from, or on the root when there is none to land on.
-        /// </remarks>
+        /// <summary>The path of a hierarchy row's object below the prefab root, for addressing it in a stage.</summary>
         private string ResolveHierarchyPath(HierarchyItem item)
         {
             if (item == null || previewController == null)
@@ -1614,16 +1354,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<string> roundTripSelectedNames = new List<string>();
         private bool hasRoundTripState;
 
-        /// <summary>
-        /// Captures what should survive a trip through prefab mode.
-        /// </summary>
-        /// <remarks>
-        /// Selection is remembered <em>by name</em> rather than by tree id, because the ids are
-        /// indices into a hierarchy walk that the prefab edit is about to invalidate. A name is the
-        /// only handle that can still mean something on the other side — and when it cannot, that is
-        /// itself the signal that the object was renamed or deleted, which is what the reconciler
-        /// reports.
-        /// </remarks>
+        // Remembered by name, not tree id: the ids index a hierarchy walk the prefab edit is about
+        // to invalidate, and a name that fails to resolve is the rename/delete signal the reconciler reports.
         private void RememberRoundTripState()
         {
             roundTripPlayheadTime = playheadTime;
@@ -1662,13 +1394,10 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Brings this window forward, guarding against the instance having gone.</summary>
-        /// <remarks>
-        /// Called from a deferred callback, which can outlive the window if the user closed it while
-        /// prefab mode was open. <c>this == null</c> is the Unity-object null check that catches a
-        /// destroyed window a plain reference comparison would miss.
-        /// </remarks>
         private void FocusSelf()
         {
+            // Called from a deferred callback that can outlive the window; this is the
+            // Unity-object null check, which a plain reference comparison would miss.
             if (this == null)
             {
                 return;
@@ -1677,11 +1406,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Whether a stage is editing the prefab this window has loaded.</summary>
-        /// <remarks>
-        /// Without this the window would rebuild itself every time anyone in the project saved any
-        /// prefab, which is both wasteful and confusing — a reconciliation panel that appeared
-        /// because of an unrelated edit would be noise of the worst kind.
-        /// </remarks>
         private bool IsStageOurPrefab(PrefabStage stage)
         {
             if (stage == null)
@@ -1692,15 +1416,7 @@ namespace DotsAnimationToolkit.Editor
             return !string.IsNullOrEmpty(loadedPath) && stage.assetPath == loadedPath;
         }
 
-        /// <summary>
-        /// Rebuilds everything downstream of the prefab, then reports what no longer binds.
-        /// </summary>
-        /// <remarks>
-        /// The order matters. The preview is reinstantiated first so the hierarchy is the new one;
-        /// the tree is rebuilt from it; selection and playhead are restored against that tree; and
-        /// only then is reconciliation run, because it asks "which names are missing from the
-        /// hierarchy" and needs the new hierarchy to ask it of.
-        /// </remarks>
+        /// <summary>Rebuilds everything downstream of the prefab, then reports what no longer binds.</summary>
         private void ReloadAfterPrefabEdit()
         {
             if (previewController == null)
@@ -1715,6 +1431,8 @@ namespace DotsAnimationToolkit.Editor
             previewController.SetSkinnedSource(null);
             previewController.SetSkinnedSource(prefab);
 
+            // Order matters: the tree must rebuild from the new hierarchy before selection/playhead
+            // restore, and reconciliation last, since it diffs against that rebuilt hierarchy.
             RebuildHierarchy();
             RestoreRoundTripState();
             RebuildTimeline();
@@ -1771,25 +1489,9 @@ namespace DotsAnimationToolkit.Editor
         // Rig Edit mode.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Whether a gizmo drag edits the rig's base setup instead of keying the clip.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The two modes must never be confusable, because their outputs are not
-        /// interchangeable.</strong> A drag in Animate mode writes a key into a clip; the same drag
-        /// in Rig Edit mode writes the prefab asset. Neither is recoverable by doing the other, and a
-        /// user who mistook one for the other would find out only later — a pose silently baked into
-        /// every clip, or a key nobody meant to create.
-        /// </para>
-        /// <para>
-        /// So the mode is stated three times over: the toolbar toggle is tinted, the viewport frame
-        /// is bordered in the same colour, and a banner across the top of the viewport says in words
-        /// what a drag will do. Keying is also switched off outright rather than merely discouraged —
-        /// Auto Key is disabled and the edit path refuses — so the ambiguity is removed in behaviour
-        /// and not only in signage.
-        /// </para>
-        /// </remarks>
+        // A drag in Animate mode writes a key into a clip; the same drag in Rig Edit mode writes the
+        // prefab asset instead, so the toolbar, viewport border and Auto Key all reflect the mode.
+        /// <summary>Whether a gizmo drag edits the rig's base setup instead of keying the clip.</summary>
         private bool IsRigEditMode
         {
             get { return rigEditToggle != null && rigEditToggle.value; }
@@ -1805,15 +1507,7 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
-        /// <summary>
-        /// Wires the Ragdoll toolbar toggle (Phase D6, spec §8.4).
-        /// </summary>
-        /// <remarks>
-        /// Off → On and On → Off are both handled by <see cref="ClipPreviewController"/> itself
-        /// (<c>TryEnableRagdollPreview</c> / <c>DisableRagdollPreview</c>); this callback is the
-        /// thin routing layer spec §8.4's table describes, plus reverting the toggle's own visual
-        /// state when the rig refuses to engage.
-        /// </remarks>
+        /// <summary>Wires the Ragdoll toolbar toggle to the preview controller's enable/disable calls.</summary>
         private void OnRagdollPreviewToggleChanged(ChangeEvent<bool> changeEvent)
         {
             if (previewController == null)
@@ -1826,8 +1520,7 @@ namespace DotsAnimationToolkit.Editor
                 string refusalReason;
                 if (!previewController.TryEnableRagdollPreview(out refusalReason))
                 {
-                    // Refuses to engage: the toggle snaps back off and the status line says why,
-                    // exactly as spec §8.4's "no bodies" row requires.
+                    // Refuses to engage: the toggle snaps back off and the status line says why.
                     ragdollPreviewToggle.SetValueWithoutNotify(false);
                     previewController.ReportTransientStatus(refusalReason);
                     return;
@@ -1845,16 +1538,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// Binds the four tab toggles as a radio group.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Clicking the lit tab is a no-op, not a toggle-off.</strong> There is nothing
-        /// behind a tab to reveal — Clip Editor <em>is</em> what is behind the other three — so a
-        /// click that wrote <c>false</c> would leave the window showing a pane with no tab claiming
-        /// it. The toggle is put back to <c>true</c> rather than left as the user dropped it, so the
-        /// bar always describes what is on screen.
-        /// </remarks>
+        // Clicking the lit tab is a no-op, not a toggle-off: nothing sits behind a tab to reveal, so
+        // a false value would leave the window showing a pane no tab claims. Snapped back to true.
+        /// <summary>Binds the four tab toggles as a radio group.</summary>
         private void BindTabs()
         {
             BindTab(ClipEditorTab.ClipEditor, "tab-clip-editor",
@@ -1897,16 +1583,9 @@ namespace DotsAnimationToolkit.Editor
             });
         }
 
-        /// <summary>
-        /// Switches the window to <paramref name="tab"/>. The single writer of
-        /// <see cref="activeTab"/>, and the only caller of the three <c>Show…Tab</c> methods.
-        /// </summary>
-        /// <remarks>
-        /// Everything that wants to change the view goes through here — the toggles, the Scene
-        /// view's overlay buttons, a double-clicked asset, and the New Rig flow closing itself. One
-        /// writer is what stops a pane being shown behind a dark tab, which is the failure the three
-        /// independent toggles this replaced had by construction.
-        /// </remarks>
+        // The one place every tab-changing caller goes through, so a pane can never be shown
+        // behind a tab that isn't lit.
+        /// <summary>Switches the window to <paramref name="tab"/>.</summary>
         private void SetActiveTab(ClipEditorTab tab)
         {
             activeTab = tab;
@@ -1947,16 +1626,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Shows or hides the Cutscene Editor over the dock (Phase G, G2).
-        /// </summary>
-        /// <remarks>
-        /// Covers the dock rather than replacing it, and tears nothing down on hide — the same shape
-        /// <see cref="ShowVatBakeTab"/>, <see cref="ShowNewRigTab"/> and
-        /// <see cref="Show2DDirectionSetsTab"/> already establish, for the same
-        /// <c>.clip-editor__cover-pane</c> reason: a hidden <c>TwoPaneSplitView</c> underneath one of
-        /// these panes is laid out at zero by zero and comes back collapsed with no handle to reopen.
-        /// </remarks>
+        /// <summary>Shows or hides the Cutscene Editor over the dock.</summary>
         private void ShowCutsceneTab(bool isShown)
         {
             if (cutscenePane == null)
@@ -1975,25 +1645,13 @@ namespace DotsAnimationToolkit.Editor
                 cutscenePanel.OnHidden();
             }
 
+            // Covers the dock rather than replacing it (same for the VAT bake, New Rig and
+            // Direction Sets cover panes): a hidden TwoPaneSplitView lays out at zero by zero
+            // and comes back collapsed with no handle to reopen it.
             cutscenePane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
-        /// <summary>
-        /// Shows or hides the VAT bake tab over the editor.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The pane covers the dock; it does not replace it.</strong> The reasoning is in
-        /// <c>.clip-editor__cover-pane</c> — a <c>TwoPaneSplitView</c> laid out at zero by zero
-        /// keeps the zero, and you would come back to a collapsed pane. Covering means switching
-        /// back costs nothing and changes nothing.
-        /// </para>
-        /// <para>
-        /// The panel is built on first use rather than at bind time. It is a stack of object fields
-        /// most sessions never open, and building it eagerly would put its cost on every window that
-        /// only ever wanted to edit a clip.
-        /// </para>
-        /// </remarks>
+        /// <summary>Shows or hides the VAT bake tab over the editor.</summary>
         private void ShowVatBakeTab(bool isShown)
         {
             if (vatBakePane == null)
@@ -2003,6 +1661,9 @@ namespace DotsAnimationToolkit.Editor
 
             if (isShown)
             {
+                // Built on first use, not at bind time: most sessions never open this stack of
+                // object fields, and building it eagerly would tax every window that only ever
+                // wanted to edit a clip.
                 if (vatBakePanel == null)
                 {
                     vatBakePanel = new VatBakePanel();
@@ -2015,19 +1676,7 @@ namespace DotsAnimationToolkit.Editor
             vatBakePane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
-        /// <summary>
-        /// Shows or hides the New Rig creation flow over the editor.
-        /// </summary>
-        /// <remarks>
-        /// Covers the dock rather than replacing it, for the same reason <see cref="ShowVatBakeTab"/>
-        /// does — the reasoning is in <c>.clip-editor__cover-pane</c>'s USS comment: a
-        /// <c>TwoPaneSplitView</c> hidden with <c>display:none</c> is laid out at zero by zero and
-        /// comes back collapsed with no handle to drag it open again. Covering leaves the dock's
-        /// geometry untouched underneath, so closing the flow costs nothing.
-        /// Nothing in the panel is torn down on hide either, matching the VAT bake tab: the prefab,
-        /// the ticked nodes and their tags are where you left them, so stepping out to check
-        /// something and stepping back is two clicks rather than a re-scan.
-        /// </remarks>
+        /// <summary>Shows or hides the New Rig creation flow over the editor.</summary>
         private void ShowNewRigTab(bool isShown)
         {
             if (newRigPane == null)
@@ -2046,23 +1695,7 @@ namespace DotsAnimationToolkit.Editor
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
-        /// <summary>
-        /// Shows or hides the 2D Direction Sets pane over the editor.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Covers the dock rather than replacing it, and tears nothing down on hide — the same shape
-        /// as <see cref="ShowVatBakeTab"/> and <see cref="ShowNewRigTab"/>, for the reason
-        /// <c>.clip-editor__cover-pane</c>'s USS comment gives. It also matters more here
-        /// than for either of those: the panel holds a preview registry and a rig instance, and
-        /// rebuilding those on every toggle would put a visible hitch between checking a clip in the
-        /// editor and checking how it turns.
-        /// </para>
-        /// <para>
-        /// The three cover panes do not close each other, matching how VAT Bake and New Rig already
-        /// coexist. Whichever was opened last is on top, and unticking it reveals the one underneath.
-        /// </para>
-        /// </remarks>
+        /// <summary>Shows or hides the 2D Direction Sets pane over the editor.</summary>
         private void Show2DDirectionSetsTab(bool isShown)
         {
             if (directionSetsPane == null)
@@ -2089,16 +1722,10 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Pushes the window's clip set and rig at whichever pane is open, after one of them
-        /// changed.
-        /// </summary>
-        /// <remarks>
-        /// Both panes read the window's selection rather than holding their own (owner directive
-        /// 2026-08-29), so a change made while a pane is open has to reach it — otherwise VAT Bake
-        /// would sit there offering to bake a set the window stopped showing, which is exactly the
-        /// silent wrong-thing the shared selection was meant to remove.
-        /// </remarks>
+        // Both panes read the window's selection rather than holding their own, so a change made
+        // while a pane is open has to reach it or it would offer to act on a set the window
+        // stopped showing.
+        /// <summary>Pushes the window's clip set and rig at whichever pane is open.</summary>
         private void RefreshOpenPaneSource()
         {
             if (vatBakePanel != null)
@@ -2111,18 +1738,11 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Answers the direction sets pane asking for a different clip set and rig — what picking a
-        /// unit context does.
-        /// </summary>
-        /// <remarks>
-        /// Written through the two toolbar fields rather than at <see cref="clipSet"/> and
-        /// <see cref="activeRig"/> directly, so a unit pick and a hand pick run the same
-        /// <see cref="OnClipSetChanged"/> / <see cref="OnSkinnedSourceChanged"/> path. There is one
-        /// place that decides what loading a set or a rig means, and this is not a second one.
-        /// </remarks>
+        /// <summary>Answers the direction sets pane asking for a different clip set and rig.</summary>
         private void OnDirectionSetsSelectionRequested(ClipSetAsset requestedClipSet, RigAsset requestedRig)
         {
+            // Through the toolbar fields, not the clipSet/activeRig backing fields, so this runs
+            // the same OnClipSetChanged/OnSkinnedSourceChanged path a manual pick would.
             if (requestedRig != null && skinnedSourceField != null)
             {
                 skinnedSourceField.value = requestedRig;
@@ -2133,30 +1753,13 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Closes the New Rig flow at the panel's own request, once it has created a rig.
-        /// </summary>
-        /// <remarks>
-        /// Under tabs there is no "closed" for a pane to be — there is only some other tab — so
-        /// finishing the flow lands on the Clip Editor, which is where a freshly created rig is
-        /// meant to be looked at. Written through <see cref="SetActiveTab"/> rather than straight at
-        /// the pane, so the tab bar cannot end up describing a view nobody is on.
-        /// </remarks>
+        /// <summary>Closes the New Rig flow at the panel's own request, once it has created a rig.</summary>
         private void CloseNewRigTab()
         {
             SetActiveTab(ClipEditorTab.ClipEditor);
         }
 
-        /// <summary>
-        /// Loads a freshly created rig into this window, when the New Rig flow's own toggle asked
-        /// for it.
-        /// </summary>
-        /// <remarks>
-        /// Routed through <see cref="skinnedSourceField"/>'s value setter rather than writing
-        /// <see cref="activeRig"/> directly, so there remains exactly one place —
-        /// <see cref="OnSkinnedSourceChanged"/> — that rebuilds the hierarchy, the preview and the
-        /// badge, whether the rig came from a manual pick or from this flow.
-        /// </remarks>
+        /// <summary>Loads a freshly created rig into this window, when the New Rig flow's own toggle asked for it.</summary>
         private void OnNewRigCreated(RigAsset createdRig, bool loadIntoEditor)
         {
             if (loadIntoEditor && skinnedSourceField != null)
@@ -2191,27 +1794,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Writes a gizmo drag into the prefab's base pose.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>These are absolute local values, not an offset.</strong> A clip key is meaningful
-        /// only relative to the rest pose, but Rig Edit's drag starts from the node's own live
-        /// preview transform (see <c>TryBeginGizmoDrag</c>'s Rig Edit branch and
-        /// <see cref="PreviewRigNodeDrag"/>), so what arrives here already <em>is</em> the pose to
-        /// write — no rest-pose composition or decomposition happens on either end.
-        /// </para>
-        /// <para>
-        /// Addressed by the current hierarchy selection rather than by a rig-target id: Rig Edit
-        /// operates on whichever node is selected — a declared rig target, a bare grouping transform,
-        /// or a skinned bone — and only the first of those has an id at all.
-        /// </para>
-        /// <para>
-        /// Nothing is written until the drag is released. A per-frame write would mean one asset
-        /// save per pointer move.
-        /// </para>
-        /// </remarks>
+        /// <summary>Writes a gizmo drag into the prefab's base pose.</summary>
         private void CommitRigBaseEdit(float3 position, float3 rotationDegrees, float3 scale)
         {
             HierarchyItem item = ActiveHierarchyItem;
@@ -2229,6 +1812,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // Absolute local values, not a rest-pose offset: Rig Edit's drag starts from the node's
+            // live preview transform, so what arrives here is already the pose to write.
             string error;
             bool written = RigStructureEditor.TrySetLocalPose(
                 prefab, path,
@@ -2254,23 +1839,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<BrokenBinding> brokenBindings = new List<BrokenBinding>();
         private readonly HashSet<string> hierarchyNameCache = new HashSet<string>();
 
-        /// <summary>
-        /// Re-checks every name-based binding and shows the panel when any has broken.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Nothing is dropped, and nothing is guessed.</strong> A binding whose name has
-        /// gone could be a rename, a reparent that also renamed, or a deliberate deletion, and the
-        /// difference is not recoverable from the data — only the person who made the edit knows.
-        /// So the panel states the fact and offers the two honest answers: point it at a name that
-        /// exists, or remove it.
-        /// </para>
-        /// <para>
-        /// Transform and sprite tracks are absent from this panel on purpose. They bind to a rig
-        /// target's stable id, which no prefab edit can touch, so listing them would be inventing a
-        /// problem to make the panel look thorough.
-        /// </para>
-        /// </remarks>
+        // Transform and sprite tracks never appear here: they bind to a rig target's stable id,
+        // which no prefab edit can touch, so listing them would invent a problem to look thorough.
+        /// <summary>Re-checks every name-based binding and shows the panel when any has broken.</summary>
         private void RunReconciliation()
         {
             if (previewController == null)
@@ -2396,14 +1967,7 @@ namespace DotsAnimationToolkit.Editor
             AfterReconcileEdit();
         }
 
-        /// <summary>
-        /// Deletes a broken track, behind a confirmation naming what is lost.
-        /// </summary>
-        /// <remarks>
-        /// Confirmed because this is the one action in the panel that destroys authored work, and
-        /// the count of keys is in the prompt because "delete this track" and "delete these forty
-        /// keys" are different decisions.
-        /// </remarks>
+        /// <summary>Deletes a broken track, behind a confirmation naming what is lost.</summary>
         private void ConfirmDeleteBinding(BrokenBinding binding)
         {
             string question = binding.kind == BrokenBindingKind.BoneTrack
@@ -2436,14 +2000,9 @@ namespace DotsAnimationToolkit.Editor
             AfterReconcileEdit();
         }
 
-        /// <summary>
-        /// Re-runs the whole check after one fix.
-        /// </summary>
-        /// <remarks>
-        /// Recollected rather than removing the fixed row, because a delete shifts every later index
-        /// into the same list. Patching the remaining findings by hand is exactly the bookkeeping
-        /// that goes wrong; asking the question again cannot.
-        /// </remarks>
+        // Recollected rather than removing the fixed row: a delete shifts every later index into
+        // the same list, and patching findings by hand is exactly the bookkeeping that goes wrong.
+        /// <summary>Re-runs the whole check after one fix.</summary>
         private void AfterReconcileEdit()
         {
             RefreshSerializedClip();
@@ -2497,15 +2056,7 @@ namespace DotsAnimationToolkit.Editor
             EditorApplication.delayCall += ClipEditorDocking.FocusPrefabAuthoring;
         }
 
-        /// <summary>
-        /// Builds the right-click menu for one hierarchy row.
-        /// </summary>
-        /// <remarks>
-        /// Three entries, and the split between them is deliberate: "Open Prefab Here" is the one
-        /// that changes what you are editing, while "Ping" and "Select" only move the cursor. Making
-        /// a select silently open a stage would leave the user in prefab mode without having asked
-        /// to be.
-        /// </remarks>
+        /// <summary>Builds the right-click menu for one hierarchy row.</summary>
         private void BuildHierarchyContextMenu(ContextualMenuPopulateEvent menuEvent, HierarchyItem item)
         {
             bool canOpen = PrefabAuthoringBridge.CanOpen(LoadedPrefab);
@@ -2536,22 +2087,10 @@ namespace DotsAnimationToolkit.Editor
             AppendBillboardMenuActions(menuEvent, item);
         }
 
-        /// <summary>
-        /// Adds the make/clear billboard-root entries for one row (amendment A44).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The entry writes the <em>rig asset</em>, not the prefab, because that is where billboard
-        /// configuration lives — it has to travel with the rig and be shared by every actor
-        /// instanced from it. So unlike the reparent drag, this is not gated on Rig Edit mode: it
-        /// edits an asset the window already owns rather than restructuring a prefab.
-        /// </para>
-        /// <para>
-        /// A rig-target row is addressed by stable id and anything else by path, which is the same
-        /// split <c>RigNodeAddress</c> makes and for the same reason: only a target has an id
-        /// to be addressed by.
-        /// </para>
-        /// </remarks>
+        // Writes the rig asset, not the prefab: billboard configuration travels with the rig and is
+        // shared by every actor instanced from it, so unlike the reparent drag this is not gated on
+        // Rig Edit mode.
+        /// <summary>Adds the make/clear billboard-root entries for one row.</summary>
         private void AppendBillboardMenuActions(
             ContextualMenuPopulateEvent menuEvent, HierarchyItem item)
         {
@@ -2629,12 +2168,7 @@ namespace DotsAnimationToolkit.Editor
             };
         }
 
-        /// <summary>The rig's ragdoll body addressing this row, or −1 (Phase D5).</summary>
-        /// <remarks>
-        /// The reverse of this lookup — which node a body's address resolves to — is D6's problem,
-        /// for the viewport box handles. This direction is all the component stack needs: given the
-        /// row the author is looking at, is there already a body welded to it.
-        /// </remarks>
+        /// <summary>The rig's ragdoll body addressing this row, or −1.</summary>
         private int FindRagdollBodyIndexFor(RigAsset rig, HierarchyItem item)
         {
             if (rig.ragdollBodies == null)
@@ -2678,13 +2212,9 @@ namespace DotsAnimationToolkit.Editor
             return -1;
         }
 
-        /// <summary>
-        /// How a ragdoll body would address this row — by rig-target id, by a skinned bone's name,
-        /// or by hierarchy path, the same three-way split <see cref="RigNodeAddress"/> itself makes
-        /// (spec §2). Unlike <see cref="BuildBillboardAddressFor"/> this can come back
-        /// <see cref="RigNodeAddressKind.Bone"/>: billboarding rejects that kind at validation
-        /// (rule V-R8), but a ragdoll body welds cleanly to a skinned bone.
-        /// </summary>
+        // Unlike BuildBillboardAddressFor, this can come back RigNodeAddressKind.Bone: billboarding
+        // rejects that kind at validation, but a ragdoll body welds cleanly to a skinned bone.
+        /// <summary>How a ragdoll body would address this row: by rig-target id, bone name, or hierarchy path.</summary>
         private RigNodeAddress BuildRagdollAddressFor(HierarchyItem item)
         {
             if (item.kind == HierarchyItemKind.RigTarget)
@@ -2832,15 +2362,9 @@ namespace DotsAnimationToolkit.Editor
         // Split persistence
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Restores each split's stored position and keeps storing it as the user drags.
-        /// </summary>
-        /// <remarks>
-        /// The fixed pane of each split is resolved by name rather than through
-        /// <c>TwoPaneSplitView.fixedPane</c>, which is only populated once the split has laid itself
-        /// out — and this runs before first layout, which is the only time the initial dimension can
-        /// still be set.
-        /// </remarks>
+        // Fixed panes are resolved by name, not TwoPaneSplitView.fixedPane: that property is only
+        // populated once the split has laid itself out, and this runs before first layout.
+        /// <summary>Restores each split's stored position and keeps storing it as the user drags.</summary>
         private void BindSplits()
         {
             // The timeline's default is a proportion, not a pixel count: "about a quarter" only
@@ -2888,16 +2412,9 @@ namespace DotsAnimationToolkit.Editor
                 geometryEvent => OnSplitPaneGeometryChanged(prefsKey, fixedPane, isHorizontal));
         }
 
-        /// <summary>
-        /// Sizes a never-before-opened split to a fraction of itself, once it knows how big it is.
-        /// </summary>
-        /// <remarks>
-        /// Deferred to the split's first layout because that is the earliest moment its dimension
-        /// exists — <c>position</c> in <see cref="CreateGUI"/> is whatever the window last was, which
-        /// for a first open is the default rect and not what the user ends up looking at. Applied
-        /// through <c>fixedPaneInitialDimension</c> for the reason above, and then stored, so the
-        /// proportion decides exactly once and every open after that restores a remembered position.
-        /// </remarks>
+        // Deferred to the split's first layout: that is the earliest moment its real dimension
+        // exists, since a first-open window's position is still the default rect.
+        /// <summary>Sizes a never-before-opened split to a fraction of itself, once it knows how big it is.</summary>
         private void ScheduleFirstRunProportion(
             string prefsKey, TwoPaneSplitView splitView, bool isHorizontal, float proportion)
         {
@@ -2957,24 +2474,10 @@ namespace DotsAnimationToolkit.Editor
             EditorPrefs.SetFloat(prefsKey, currentDimension);
         }
 
-        /// <summary>
-        /// Makes the track-name column draggable, and remembers where it was left.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>A drag strip rather than a <c>TwoPaneSplitView</c>.</strong> The split divides its
-        /// own rect between two panes, and this row lives inside the timeline's scroll view where its
-        /// height is whatever the tracks happen to add up to — there would be nothing definite for
-        /// the split to divide, and the lane stack it wrapped would stop reporting the resizes the
-        /// whole timeline converts against.
-        /// </para>
-        /// <para>
-        /// Nothing is written to the width until the strip is actually dragged, so the stylesheet's
-        /// token remains the real default and changing it still moves every window nobody has
-        /// resized. Persisted on release rather than per move: a drag is one decision, not sixty
-        /// registry writes.
-        /// </para>
-        /// </remarks>
+        // A drag strip, not a TwoPaneSplitView: this row lives inside the timeline's scroll view,
+        // whose height is whatever the tracks add up to, so there is nothing definite for a split
+        // to divide.
+        /// <summary>Makes the track-name column draggable, and remembers where it was left.</summary>
         private void BindTrackHeaderResizer()
         {
             trackHeaderStack = rootVisualElement.Q<VisualElement>("track-header-stack");
@@ -3089,15 +2592,6 @@ namespace DotsAnimationToolkit.Editor
         // -------------------------------------------------------------------------------------
 
         /// <summary>
-        /// Starts an orbit and casts the pick ray, from the exact position of the press.
-        /// </summary>
-        /// <remarks>
-        /// The ray is cast here, not on release, so it uses the position the user aimed at rather
-        /// than wherever the pointer drifted to before the button came up. What it finds is only
-        /// <em>applied</em> on release, and only if this turned out to be a click rather than an
-        /// orbit — see <see cref="OnPreviewPointerUp"/>.
-        /// </remarks>
-        /// <summary>
         /// W / E / R switch the gizmo mode, matching every other 3D tool — unless the right button
         /// is down, where the same keys fly the camera, matching the Scene view. F frames.
         /// </summary>
@@ -3140,17 +2634,9 @@ namespace DotsAnimationToolkit.Editor
             keyEvent.StopPropagation();
         }
 
-        /// <summary>
-        /// The single writer of <see cref="gizmoMode"/>, called by the W/E/R keys and by the
-        /// viewport overlay's three buttons.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Both ways in must land here, and the toggles must be written whichever it was.</strong>
-        /// The keys pre-date the buttons by a long way, so the failure to avoid is pressing W and
-        /// leaving Rotate lit — a gizmo describing itself as the mode it is not, which costs a drag
-        /// to discover. Nothing about the gizmo's own behaviour changes: this sets the same field
-        /// the key handler always set and calls the same refresh.
-        /// </remarks>
+        // Both the W/E/R keys and the overlay's buttons must land here: the toggles have to be
+        // written whichever one triggered the change, or a gizmo can describe a mode it isn't in.
+        /// <summary>The single writer of gizmo mode.</summary>
         private void SetGizmoMode(GizmoMode mode)
         {
             gizmoMode = mode;
@@ -3191,14 +2677,9 @@ namespace DotsAnimationToolkit.Editor
             });
         }
 
-        /// <summary>
-        /// Puts the gizmo on the selected part at the value currently displayed.
-        /// </summary>
-        /// <remarks>
-        /// The pivot comes from the authored value rather than from the mirrored quad, because the
-        /// quad follows the built registry and that is rebuilt on a debounce — a gizmo anchored to it
-        /// would lag its own drag by a quarter of a second.
-        /// </remarks>
+        // Pivot comes from the authored value, not the mirrored quad: the quad follows the built
+        // registry, which rebuilds on a debounce, so a gizmo anchored to it would lag its own drag.
+        /// <summary>Puts the gizmo on the selected part at the value currently displayed.</summary>
         private void RefreshGizmo()
         {
             if (previewController == null)
@@ -3248,17 +2729,9 @@ namespace DotsAnimationToolkit.Editor
                 true, gizmoMode, new Vector3(position.x, position.y, position.z), activeGizmoHandle);
         }
 
-        /// <summary>
-        /// Rig Edit's gizmo pivot: the selected node's own live preview transform, held-drag value
-        /// if one is in progress.
-        /// </summary>
-        /// <remarks>
-        /// Unlike clip authoring there is no track to sample -- <see cref="ResolveDisplayedTransform"/>
-        /// would return an offset-from-rest value (zero, for an unkeyed part) that has no relationship
-        /// to where the node actually sits, which is the bug this mode shipped with. The live preview
-        /// transform is always the node's actual current pose, whether or not it is a declared rig
-        /// target.
-        /// </remarks>
+        // Unlike clip authoring there is no track to sample: ResolveDisplayedTransform would return
+        // an offset-from-rest value with no relationship to where the node actually sits.
+        /// <summary>Rig Edit's gizmo pivot: the selected node's own live preview transform, or a held drag's value.</summary>
         private void RefreshRigEditGizmo(HierarchyItem item)
         {
             Transform node = ResolveHierarchyTransform(item);
@@ -3274,8 +2747,12 @@ namespace DotsAnimationToolkit.Editor
             previewController.SetGizmo(true, gizmoMode, pivot, activeGizmoHandle);
         }
 
+        /// <summary>Starts an orbit and casts the pick ray, from the exact position of the press.</summary>
         private void OnPreviewPointerDown(PointerDownEvent pointerEvent)
         {
+            // Cast here, not on release, so it uses the position the user aimed at rather than
+            // wherever the pointer drifted to before the button came up. Applied only on release,
+            // and only if this turned out to be a click rather than an orbit.
             isPickPending = false;
 
             // Double click reframes. With the camera persisting across every selection change, an
@@ -3472,15 +2949,7 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Turns pointer motion into a transform value and writes it through the shared path.
-        /// </summary>
-        /// <remarks>
-        /// Every frame of the drag writes with <c>forceKey: false</c>, so with auto-key off the
-        /// whole gesture stays a held edit and the clip gains nothing until release. With auto-key
-        /// on the first write creates the key and the rest update it, because
-        /// <c>SetKeyValues</c> finds the key already at the playhead.
-        /// </remarks>
+        /// <summary>Turns pointer motion into a transform value and writes it through the shared path.</summary>
         private void ContinueGizmoDrag(Vector2 localPosition)
         {
             Vector2 viewportPoint;
@@ -3579,15 +3048,7 @@ namespace DotsAnimationToolkit.Editor
             RefreshGizmo();
         }
 
-        /// <summary>
-        /// Sends a drag's value wherever the current selection says it belongs.
-        /// </summary>
-        /// <remarks>
-        /// One dispatcher rather than a test at each of the branches, so "what does a gizmo drag
-        /// write" has a single answer in a single place. A socket and a Rig Edit node are both held
-        /// live rather than written per frame for the same reason a clip edit is: one asset write per
-        /// pointer move would be absurd, and the viewport already shows the result.
-        /// </remarks>
+        /// <summary>Sends a drag's value wherever the current selection says it belongs.</summary>
         private void ApplyGizmoDragValue(float3 position, float3 rotationDegrees, float3 scale)
         {
             if (selectedSocketId != 0u)
@@ -3640,23 +3101,7 @@ namespace DotsAnimationToolkit.Editor
                 rotationDegrees.x, rotationDegrees.y, rotationDegrees.z);
         }
 
-        /// <summary>
-        /// Writes a finished socket drag back as an offset in the followed thing's space.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The gizmo works in the mirror root's space, because that is where it is drawn; a socket
-        /// stores its offset in the space of the part or bone it follows. So the followed pose is
-        /// divided back out here — the inverse of the composition
-        /// <see cref="PreviewSocketMarkers"/> and <c>SocketResolveSystem</c> both perform. Writing
-        /// the drag's raw numbers instead would look right until the rig rotated, and then put the
-        /// sword somewhere else entirely.
-        /// </para>
-        /// <para>
-        /// Undo goes on the rig, matching every other socket edit: the offset is rig structure that
-        /// all clips share.
-        /// </para>
-        /// </remarks>
+        /// <summary>Writes a finished socket drag back as an offset in the followed thing's space.</summary>
         private void CommitSocketDrag()
         {
             SocketDefinition socket = FindSocket(selectedSocketId);
@@ -3682,6 +3127,8 @@ namespace DotsAnimationToolkit.Editor
                 baseRotation = followed.localRotation;
             }
 
+            // The gizmo works in the mirror root's space; a socket stores its offset in the
+            // followed part's space, so the followed pose has to be divided back out here.
             Quaternion inverseBase = Quaternion.Inverse(baseRotation);
             Undo.RecordObject(rig, "Place Socket");
             socket.localPosition = inverseBase * (draggedPosition - basePosition);
@@ -3690,13 +3137,7 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// Ends a gizmo drag, keying the result when auto-key asked for it.
-        /// </summary>
-        /// <remarks>
-        /// The key is written on release rather than per frame so a drag is one key and one undo
-        /// step, not one per pointer move.
-        /// </remarks>
+        /// <summary>Ends a gizmo drag, keying the result when auto-key asked for it.</summary>
         private void EndGizmoDrag()
         {
             if (activeGizmoHandle == GizmoHandle.None)
@@ -3758,14 +3199,9 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Ends the orbit and, if the pointer never really moved, applies the pick.
-        /// </summary>
-        /// <remarks>
-        /// Selecting on press would mean every orbit also reselected whatever the camera happened to
-        /// start over. Committing on release, only within a few pixels of the press, is what lets
-        /// one button both orbit and select without the two fighting.
-        /// </remarks>
+        // Selecting on press would mean every orbit also reselected whatever the camera happened
+        // to start over; committing on release, within a few pixels, lets one button do both.
+        /// <summary>Ends the orbit and, if the pointer never really moved, applies the pick.</summary>
         private void OnPreviewPointerUp(PointerUpEvent upEvent)
         {
             previewImage.ReleasePointer(upEvent.pointerId);
@@ -3803,15 +3239,9 @@ namespace DotsAnimationToolkit.Editor
             ApplyViewportPick();
         }
 
-        /// <summary>
-        /// Selects whichever of the press's hits is current, cycling on a modified click.
-        /// </summary>
-        /// <remarks>
-        /// The cycle advances only when the same click lands on the same set of candidates again;
-        /// anything else resets to the nearest. Otherwise a modified click somewhere new would open
-        /// on whatever ordinal the last one left behind, which reads as the viewport selecting at
-        /// random.
-        /// </remarks>
+        // Cycle advances only when the click lands on the same set of candidates again; anything
+        // else resets to the nearest, or a click somewhere new would resume at a stale ordinal.
+        /// <summary>Selects whichever of the press's hits is current, cycling on a modified click.</summary>
         private void ApplyViewportPick()
         {
             if (pickCandidates.Count == 0)
@@ -3855,15 +3285,9 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Selects a transform of the previewed rig by driving the tree, not by bypassing it.
-        /// </summary>
-        /// <remarks>
-        /// Routing a viewport click through <c>SetSelectionById</c> makes it fire the tree's own
-        /// selection-changed handler, so clicking in the viewport and clicking in the tree run the
-        /// same code and cannot end up meaning different things. That is the whole of the
-        /// bidirectional sync: the tree is the one place selection is decided.
-        /// </remarks>
+        // Routed through SetSelectionById so it fires the tree's own selection-changed handler:
+        // a viewport click and a tree click run the same code and cannot mean different things.
+        /// <summary>Selects a transform of the previewed rig by driving the tree, not by bypassing it.</summary>
         private void SelectHierarchyTransform(Transform pickedTransform)
         {
             if (hierarchyTreeView == null || previewController == null)
@@ -3926,23 +3350,9 @@ namespace DotsAnimationToolkit.Editor
             wheelEvent.StopPropagation();
         }
 
-        /// <summary>
-        /// Handles a pick in the toolbar's Rig field: records it as this window's rig and refreshes
-        /// everything downstream of the prefab that rig's <c>sourcePrefab</c> resolves to.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Window state, written to no asset.</strong> Nothing in the data model pairs a rig
-        /// with a clip or a set — that pairing exists in exactly one place, an
-        /// <c>ActorAuthoring</c> — so this field records which rig <em>this window</em> is currently
-        /// playing the open set against, and nothing else. There is no undo step because no asset
-        /// changed, and picking a different rig here cannot alter what any actor bakes.
-        /// </para>
-        /// <para>
-        /// It survives a domain reload and a re-dock through <see cref="sessionRig"/> and
-        /// <c>CarriedState.rig</c>, the same way the open clip set does.
-        /// </para>
-        /// </remarks>
+        // Window state, written to no asset: no data model pairs a rig with a clip set, so this
+        // only records what this window plays the set against — no undo step, no actor bake changes.
+        /// <summary>Handles a pick in the toolbar's Rig field: records it and refreshes everything downstream.</summary>
         private void OnSkinnedSourceChanged(ChangeEvent<Object> changeEvent)
         {
             activeRig = changeEvent.newValue as RigAsset;
@@ -4000,15 +3410,7 @@ namespace DotsAnimationToolkit.Editor
         // Prefab hierarchy. The rig's transforms, as the pick list for bone tracks.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Rebuilds the hierarchy from the assigned rigged prefab.
-        /// </summary>
-        /// <remarks>
-        /// A tree rather than the sorted name list this replaced, because a skeleton read as a flat
-        /// alphabetical list tells you nothing about which bone you are picking — two bones named
-        /// <c>Hand</c> and <c>Hand.001</c> are distinguishable only by where they sit. Tracks still
-        /// bind by name, so the tree is a picker, not a new binding model.
-        /// </remarks>
+        /// <summary>Rebuilds the hierarchy from the assigned rigged prefab.</summary>
         private void RebuildHierarchy()
         {
             if (hierarchyTreeView == null)
@@ -4050,15 +3452,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// What the empty-hierarchy hint should say, given why it is empty (Phase D11).
-        /// </summary>
-        /// <remarks>
-        /// A rig whose <c>sourcePrefab</c> is unset — every clip set built before this phase, the
-        /// moment it loads — used to show nothing here at all: the hierarchy pane went quiet and
-        /// gave no reason why, which reads as broken rather than as a one-time step still owed. This
-        /// is that reason, named specifically enough to act on without opening anything else.
-        /// </remarks>
+        /// <summary>What the empty-hierarchy hint should say, given why it is empty.</summary>
         private string ResolveHierarchyEmptyMessage()
         {
             if (clipSet == null)
@@ -4077,13 +3471,9 @@ namespace DotsAnimationToolkit.Editor
             return "This rig's source prefab has no child transforms to show.";
         }
 
-        /// <summary>
-        /// Builds one tree item, taking its id from the preview rather than from a counter here.
-        /// </summary>
-        /// <remarks>
-        /// The id <em>is</em> the preview's index for that transform. Numbering them here instead
-        /// would mean two independent walks that agree only as long as nobody changes one of them.
-        /// </remarks>
+        // The id is the preview's own index for that transform, not a counter kept here — two
+        // independent walks would agree only as long as nobody changed one of them.
+        /// <summary>Builds one tree item, taking its id from the preview.</summary>
         private TreeViewItemData<HierarchyItem> BuildHierarchyItem(Transform transformNode)
         {
             List<TreeViewItemData<HierarchyItem>> childItems =
@@ -4118,18 +3508,9 @@ namespace DotsAnimationToolkit.Editor
                 rig, PrefabAuthoringBridge.GetHierarchyPath(transformNode, root));
         }
 
-        /// <summary>
-        /// One row per rig target that has no node of its own, flat — a rig declares a list of
-        /// parts, not a tree of them.
-        /// </summary>
-        /// <remarks>
-        /// A target that records which previewed node it stands for is skipped here, because that
-        /// node's own row is where it appears. Two rows for one part would each offer to add the
-        /// same components to the same thing, and the author would have no way to tell which one was
-        /// the real one. Only a target whose node cannot be found falls back to a row of its own —
-        /// with no prefab loaded, that is every one of them, which is the behaviour rigs authored
-        /// before nodes could be claimed have always had.
-        /// </remarks>
+        // A target recording which previewed node it stands for is skipped: that node's own row is
+        // where it appears, and two rows for one part could not be told apart.
+        /// <summary>One row per rig target that has no node of its own, flat.</summary>
         private List<TreeViewItemData<HierarchyItem>> BuildRigTargetItems()
         {
             List<TreeViewItemData<HierarchyItem>> targetItems =
@@ -4173,17 +3554,7 @@ namespace DotsAnimationToolkit.Editor
             return targetItems;
         }
 
-        /// <summary>
-        /// A socket's one-line label: its name, what it follows, and a mark when that resolves to
-        /// nothing.
-        /// </summary>
-        /// <remarks>
-        /// The binding travels with the name because an unresolved socket is the failure that
-        /// otherwise surfaces at run time as a weapon pinned to the actor's feet. Saying it in the
-        /// list costs nothing and catches it before a bake — which matters more now that a socket
-        /// with no resolvable source has no object's stack to appear in, and the clip inspector's
-        /// list is where it can still be found.
-        /// </remarks>
+        /// <summary>A socket's one-line label: its name, what it follows, and a mark when that resolves to nothing.</summary>
         private string DescribeSocketLabel(SocketDefinition socket)
         {
             string name = string.IsNullOrEmpty(socket.displayName)
@@ -4235,15 +3606,10 @@ namespace DotsAnimationToolkit.Editor
             return -1;
         }
 
-        /// <summary>
-        /// One hierarchy row, wired for the two gestures that reach prefab mode.
-        /// </summary>
-        /// <remarks>
-        /// The manipulator and the double-click callback are attached once, at construction, and
-        /// read the row's <em>current</em> item through a field the bind step refreshes. Rows are
-        /// recycled as the tree scrolls, so registering per bind would stack a new handler on the
-        /// same element every time it came back into view.
-        /// </remarks>
+        // Manipulator and double-click callback are attached once, reading the row's current item
+        // through a field the bind step refreshes — rows are recycled, so binding per-item would
+        // stack a new handler on the same element every time it scrolled back into view.
+        /// <summary>One hierarchy row, wired for the two gestures that reach prefab mode.</summary>
         private VisualElement MakeHierarchyRow()
         {
             HierarchyRowLabel label = new HierarchyRowLabel();
@@ -4265,23 +3631,10 @@ namespace DotsAnimationToolkit.Editor
             return label;
         }
 
-        /// <summary>
-        /// Wires one row for drag-to-reparent, which only does anything in Rig Edit mode.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Gated on the mode for the same reason gizmos are: dragging a row is a natural way to
-        /// scroll or to rearrange a selection, and a drag that silently rewrote the prefab asset
-        /// would be the worst kind of surprise. Outside Rig Edit the drag never starts, so the
-        /// gesture is simply not available rather than available and dangerous.
-        /// </para>
-        /// <para>
-        /// Built on <c>DragAndDrop</c> and UI Toolkit's drag events rather than the TreeView's own
-        /// drag hooks, which are not public in this Unity version. The alternative — the built-in
-        /// <c>reorderable</c> flag — would reorder the <em>view</em> and leave the prefab untouched,
-        /// which is precisely the parallel hierarchy this must not become.
-        /// </para>
-        /// </remarks>
+        // Built on DragAndDrop and UI Toolkit's drag events, not the TreeView's own drag hooks
+        // (not public in this Unity version) — the built-in reorderable flag would reorder the
+        // view and leave the prefab untouched, which is the parallel hierarchy this must not become.
+        /// <summary>Wires one row for drag-to-reparent, which only does anything in Rig Edit mode.</summary>
         private void RegisterReparentDrag(HierarchyRowLabel label)
         {
             label.RegisterCallback<PointerMoveEvent>(pointerEvent =>
@@ -4352,15 +3705,7 @@ namespace DotsAnimationToolkit.Editor
             return RigStructureEditor.ValidateReparent(draggedNode, targetNode, out ignoredError);
         }
 
-        /// <summary>
-        /// Moves a dragged object under the row it was dropped on, in the prefab asset.
-        /// </summary>
-        /// <remarks>
-        /// The deep checks — parenting into your own subtree, already-a-child — live in
-        /// <see cref="RigStructureEditor"/> rather than here, because they need the prefab's
-        /// hierarchy and this one has only the preview's. Failure is reported rather than swallowed:
-        /// a drag that appears to work and changes nothing is a bug report waiting to happen.
-        /// </remarks>
+        /// <summary>Moves a dragged object under the row it was dropped on, in the prefab asset.</summary>
         private void ReparentInPrefab(HierarchyItem dragged, HierarchyItem newParent)
         {
             GameObject prefab = LoadedPrefab;
@@ -4440,22 +3785,10 @@ namespace DotsAnimationToolkit.Editor
             return null;
         }
 
-        /// <summary>
-        /// Marks a row as a billboard root, as inheriting one, or as neither (amendment A44).
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Three states rather than two, because "this node billboards" and "this node <em>decides</em>
-        /// how it billboards" are different facts and an author acting on the wrong one edits the
-        /// wrong rig row. The inherited marker names its source on hover for the same reason: knowing
-        /// a node billboards is useless without knowing which root to go and change.
-        /// </para>
-        /// <para>
-        /// This matters more than decoration. A fully billboarded node's animated rotation is
-        /// replaced outright at resolve time, so keying rotation on one changes nothing visible —
-        /// and without a marker in the tree that is discovered only after an afternoon of keying.
-        /// </para>
-        /// </remarks>
+        // Three states, not two: "this node billboards" and "this node decides how it billboards"
+        // are different facts, and a fully billboarded node's animated rotation is replaced outright
+        // at resolve time, so keying it changes nothing visible without a marker to explain why.
+        /// <summary>Marks a row as a billboard root, as inheriting one, or as neither.</summary>
         private void ApplyBillboardIndicator(HierarchyRowLabel label, HierarchyItem item)
         {
             label.EnableInClassList(BillboardRootUssClassName, false);
@@ -4503,14 +3836,7 @@ namespace DotsAnimationToolkit.Editor
             label.tooltip = "Billboards with «" + rootName + "»";
         }
 
-        /// <summary>
-        /// The preview transform a hierarchy row stands for, or null when it stands for none.
-        /// </summary>
-        /// <remarks>
-        /// A rig-target row has no transform of its own — it stands for a row of the rig asset — so
-        /// it resolves through the name it binds by, exactly as <see cref="ResolveHierarchyPath"/>
-        /// does. A socket row resolves to whatever it follows.
-        /// </remarks>
+        /// <summary>The preview transform a hierarchy row stands for, or null when it stands for none.</summary>
         private Transform ResolveHierarchyTransform(HierarchyItem item)
         {
             if (item == null || previewController == null)
@@ -4532,15 +3858,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The hierarchy row a socket hangs off: the part or bone it follows.
-        /// </summary>
-        /// <remarks>
-        /// Sockets have no rows of their own — they are components of their source — so picking a
-        /// socket's marker in the viewport selects that source and points the gizmo at the socket.
-        /// A socket whose source resolves to nothing has no row to offer, which is what the clip
-        /// inspector's socket list exists to catch.
-        /// </remarks>
+        // Sockets have no rows of their own; a socket whose source resolves to nothing has no row
+        // to offer, which is what the clip inspector's socket list exists to catch.
+        /// <summary>The hierarchy row a socket hangs off: the part or bone it follows.</summary>
         private bool TryFindSocketSourceItemId(uint socketId, out int itemId)
         {
             itemId = NothingSelectedItemId;
@@ -4571,14 +3891,7 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>
-        /// The row standing for a part, whichever pane it came from.
-        /// </summary>
-        /// <remarks>
-        /// Matched on the id alone. A part claimed by a previewed node has no flat row of its own —
-        /// that node's row is where it lives — and checking the kind here would leave its tracks
-        /// unable to find the object they belong to.
-        /// </remarks>
+        /// <summary>The row standing for a part, whichever pane it came from.</summary>
         private bool TryFindRigTargetItemId(uint targetId, out int itemId)
         {
             foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
@@ -4625,31 +3938,7 @@ namespace DotsAnimationToolkit.Editor
             return trackCount;
         }
 
-        /// <summary>
-        /// The single place a hierarchy selection takes effect, whichever surface caused it.
-        /// </summary>
-        /// <remarks>
-        /// A viewport click reaches this by setting the tree's selection rather than by doing its
-        /// own thing, so "clicked in the tree" and "clicked in the viewport" cannot drift into
-        /// meaning two different things.
-        /// </remarks>
-        /// <summary>
-        /// Adopts the tree's whole selection and works out which row of it is active.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Every selected row gets its own block in the inspector and its own rows on the timeline.
-        /// One of them is additionally the <em>active</em> row — the one the viewport outline and
-        /// the gizmo follow, because those can only be in one place. The distinction is "which one
-        /// is the gizmo on", not "which one am I editing".
-        /// </para>
-        /// <para>
-        /// <strong>Active is the row just added, found by diffing against the previous selection
-        /// rather than by taking the last of <c>selectedIndices</c>.</strong> That enumerable is
-        /// ordered by row, not by when each row was clicked, so ctrl-clicking a row above an
-        /// existing selection would otherwise put the gizmo on the row the user did not touch.
-        /// </para>
-        /// </remarks>
+        /// <summary>The single place a hierarchy selection takes effect, whichever surface caused it.</summary>
         private void OnHierarchySelectionChanged(IEnumerable<object> selection)
         {
             // Re-entry guard, and not an optional one. A selection change rebuilds the timeline,
@@ -4672,6 +3961,9 @@ namespace DotsAnimationToolkit.Editor
 
         }
 
+        // Active is the row just added, found by diffing against the previous selection rather than
+        // taking the last of selectedIndices, which is ordered by row position, not click order.
+        /// <summary>Adopts the tree's whole selection and works out which row of it is active.</summary>
         private void ApplyHierarchySelectionChange()
         {
             // An echo is not a click. RefreshItems re-resolves the tree's selection and notifies
@@ -4740,21 +4032,10 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// Whether the tree is reporting the selection that has already been applied.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Compares by resolved item, not only by id. A rebuilt hierarchy can hand out the same ids
-        /// for freshly constructed items, and treating that as an echo would leave
-        /// <see cref="selectedHierarchyItems"/> holding detached objects the inspector would then
-        /// edit — a quieter bug than the one this fixes.
-        /// </para>
-        /// <para>
-        /// A user re-clicking an already-selected row also lands here and is skipped. That is the
-        /// behaviour worth having: it keeps a key selection alive across a redundant click.
-        /// </para>
-        /// </remarks>
+        // Compared by resolved item, not only by id: a rebuilt hierarchy can hand out the same ids
+        // for freshly constructed items, and treating that as an echo would leave
+        // selectedHierarchyItems holding detached objects the inspector would then edit.
+        /// <summary>Whether the tree is reporting the selection that has already been applied.</summary>
         private bool IsHierarchySelectionEcho()
         {
             if (hierarchyTreeView == null)
@@ -4785,14 +4066,9 @@ namespace DotsAnimationToolkit.Editor
                 && matchedCount == selectedHierarchyItems.Count;
         }
 
-        /// <summary>
-        /// Repaints the tree's rows without letting the repaint pose as a selection change.
-        /// </summary>
-        /// <remarks>
-        /// <c>RefreshItems</c> re-resolves the tree's selection as part of redrawing it, which
-        /// raises <c>selectionChanged</c>. Every call here is a redraw — the marks for which rows
-        /// are animated or billboarded — so none of them should reach the selection handler.
-        /// </remarks>
+        // RefreshItems re-resolves the tree's selection while redrawing it, which raises
+        // selectionChanged — every call here is only a redraw and must not reach the selection handler.
+        /// <summary>Repaints the tree's rows without letting the repaint pose as a selection change.</summary>
         private void RefreshHierarchyRows()
         {
             if (hierarchyTreeView == null)
@@ -4916,11 +4192,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Whether a transform or flipbook track's target is in the current selection.</summary>
-        /// <remarks>
-        /// On the id rather than the row's kind, for the same reason
-        /// <see cref="TryFindRigTargetItemId"/> is: a claimed node is a part, and its tracks are
-        /// what the timeline shows when it is selected.
-        /// </remarks>
         private bool IsTargetSelected(uint targetId)
         {
             if (targetId == 0u)
@@ -4955,14 +4226,7 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>
-        /// Names what the timeline is focused on, for the status line.
-        /// </summary>
-        /// <remarks>
-        /// Hiding rows without saying why would read as tracks having been lost. Past two names the
-        /// list is replaced by a count, because a status line that wraps is worse than one that
-        /// summarises.
-        /// </remarks>
+        /// <summary>Names what the timeline is focused on, for the status line.</summary>
         private string DescribeSelection()
         {
             if (selectedHierarchyItems.Count == 0)
@@ -5171,27 +4435,16 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Marks the preview's registry stale; the tick rebuilds it after a short delay.</summary>
-        /// <remarks>
-        /// Debounced rather than immediate because a drag mutates the clip dozens of times a second
-        /// and each rebuild re-canonicalises the whole set. Collapsing a gesture into one rebuild is
-        /// the difference between a live preview and a stuttering one.
-        /// </remarks>
         private void MarkPreviewDirty()
         {
             previewRegistryDirty = true;
             previewDirtiedAt = EditorApplication.timeSinceStartup;
         }
 
-        /// <summary>
-        /// Advances the viewport one frame.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Every early exit here is about the pose, not about the picture.</strong> With no
-        /// clip, no registry or a clip the registry does not contain, the mirror simply is not
-        /// re-posed — the render still runs and still returns the scene, which at worst is the
-        /// reference grid. The old version returned early and blanked <c>previewImage.image</c> in
-        /// each of those cases, which is why the window looked dead until something was selected.
-        /// </remarks>
+        // Every early exit below is about the pose, not the picture: with no clip, no registry, or
+        // a clip the registry lacks, the mirror is simply not re-posed — the render still runs and
+        // returns the scene, rather than leaving the window looking dead.
+        /// <summary>Advances the viewport one frame.</summary>
         private void UpdatePreview(double now)
         {
             if (previewController == null || previewImage == null)
@@ -5222,10 +4475,8 @@ namespace DotsAnimationToolkit.Editor
 
             string viewportStatus = previewController.StatusMessage;
 
-            // A ragdoll has no timeline (spec §8.4): the playhead is frozen while it runs, which
-            // means not re-sampling the clip at all, not merely leaving the transport paused. Every
-            // other tick still writes the mirrors' transforms — the ragdoll step does, in Render —
-            // so skipping this call is what "frozen" actually means rather than a cosmetic pause.
+            // A ragdoll has no timeline: the playhead is frozen while it runs, meaning the clip is
+            // not re-sampled at all — the ragdoll step still writes the mirrors' transforms, in Render.
             if (previewController.RagdollPreviewEnabled)
             {
                 // Falls through to the render below unconditionally; the ragdoll step happens there.
@@ -5300,11 +4551,8 @@ namespace DotsAnimationToolkit.Editor
                 RequestInspectorRebuild();
             }
 
-            // Spec §8.4: "Scrubbing while on turns the toggle off first — a ragdoll has no
-            // timeline; pretending it does would be a lie the transport cannot keep." Play advances
-            // time through this same setter every tick, so it is caught by the identical rule: a
-            // ragdoll owns the pose from here on, and nothing about a playing or scrubbed clip can
-            // be shown at the same time as a drop.
+            // Scrubbing while ragdoll preview is on turns it off first: a ragdoll has no timeline,
+            // and Play advances time through this same setter every tick, so the rule catches both.
             if (timeIsActuallyMoving && previewController != null && previewController.RagdollPreviewEnabled)
             {
                 previewController.DisableRagdollPreview();
@@ -5450,8 +4698,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             // Bone rows sit between the part rows and the events, so a character's skeleton and its
-            // cutout parts read as one stack — which is the entire point of authoring both here
-            // rather than in two applications (amendment A42).
+            // cutout parts read as one stack.
             List<BoneTrack> boneTracks = selectedClip.boneTracks;
             for (int trackIndex = 0; boneTracks != null && trackIndex < boneTracks.Count; trackIndex++)
             {
@@ -5527,33 +4774,10 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// Adds a track's row and, when it is expanded, one row per animated channel.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Channel rows show the same keys as their track, not keys of their own.</strong>
-        /// One <c>TransformKey</c> carries position, rotation and scale together, so the rows are a
-        /// reading of one set of keys rather than independent curves — dragging a key on any of them
-        /// retimes the one underlying key. Independent per-channel keying would mean splitting the
-        /// key struct into per-channel curves, which changes the blob, the sampler and every baked
-        /// clip; it is not something the dopesheet can decide on its own.
-        /// </remarks>
-        /// <param name="partText">
-        /// The rig part the tag in <paramref name="headerText"/> currently lands on, drawn after it
-        /// in grey — null for the kinds that bind by something other than a tag. Secondary because
-        /// it is derived from the rig rather than stored in the clip: the keys belong to the tag,
-        /// and this only says where they are landing today.
-        /// </param>
-        /// <param name="detailText">
-        /// The track's kind and channels or mode, for the tooltip only. The name column is
-        /// draggable and a long name wraps, but three things on one row is a row nobody scans.
-        /// </param>
-        /// <param name="hasBindingControls">
-        /// Amendment A56 D1: on a tag-bound kind both halves are pickers — the tag half moves the
-        /// row's keys to another tag, the part half moves the tag to another rig part — and
-        /// selecting the track's keys moves to the row's empty background. Bone and event rows
-        /// keep the old label-click-selects shape.
-        /// </param>
+        // Channel rows show the same keys as their track, not keys of their own: one TransformKey
+        // carries position, rotation and scale together, so dragging a key on any channel retimes
+        // the one underlying key.
+        /// <summary>Adds a track's row and, when it is expanded, one row per animated channel.</summary>
         private void AddTrackRow(
             string headerText, string partText, string detailText, TimelineTrackKind trackKind,
             int trackIndex, List<float> times, bool hasBindingControls, ref int rowIndex)
@@ -5669,9 +4893,8 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            // Amendment A55 Task 3: an event lane's header is its own authoring surface, not just a
-            // label — the other track kinds have no equivalent menu because none of them names a
-            // project-wide vocabulary entry the way a lane does.
+            // An event lane's header is its own authoring surface, not just a label: the other track
+            // kinds have no equivalent menu because none names a project-wide vocabulary entry.
             if (trackKind == TimelineTrackKind.Event)
             {
                 headerLabel.AddManipulator(new ContextualMenuManipulator(
@@ -5701,15 +4924,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// One event lane's window lengths as a fraction of the clip, parallel to that lane's own
-        /// filtered key times — for the lane to bar.
-        /// </summary>
-        /// <remarks>
-        /// Normalized here rather than in the lane because the lane draws in normalized time and
-        /// has no idea what the clip's duration is — and the window is authored in seconds, so
-        /// something has to divide.
-        /// </remarks>
+        // Normalized here, not in the lane: the lane draws in normalized time and has no idea what
+        // the clip's duration is, and the window is authored in seconds.
+        /// <summary>One event lane's window lengths as a fraction of the clip, parallel to its filtered key times.</summary>
         private List<float> CollectEventWindowLengths(int laneIndex)
         {
             eventWindowLengths.Clear();
@@ -5759,23 +4976,10 @@ namespace DotsAnimationToolkit.Editor
             return lane;
         }
 
-        /// <summary>
-        /// Keeps a header that has wrapped onto a second line exactly as tall as its own lane.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The header column and the lane column agree row for row only because a header is exactly
-        /// a lane tall, so a header left to grow with its content would slide every row beneath it
-        /// away from its own keys. The wrap is therefore never a measured height: a header line is
-        /// one lane, a wrapped row is two, and the one class pair sizes both columns together.
-        /// </para>
-        /// <para>
-        /// Watched on the part group rather than on the row, because the row's height is this
-        /// callback's own output and watching it would be watching itself. The group's y <em>is</em>
-        /// the wrap — zero while it sits beside the tag, a lane's height once it has dropped below
-        /// it — and it changes only when the column's width does.
-        /// </para>
-        /// </remarks>
+        // Watched on the part group, not the row: the row's height is this callback's own output,
+        // and watching it would be watching itself. The group's y is zero beside the tag, a lane's
+        // height once it has wrapped below it.
+        /// <summary>Keeps a header that has wrapped onto a second line exactly as tall as its own lane.</summary>
         private static void BindTrackHeaderWrap(
             VisualElement headerRow, VisualElement partGroup, TrackLaneElement lane)
         {
@@ -5833,23 +5037,10 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Re-reads every lane key time from the clip, then repaints.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Use this, not <see cref="RepaintLanes"/>, whenever key times have changed.</strong>
-        /// A lane holds the times it was built with, so a plain repaint faithfully redraws the
-        /// positions the keys had when the row was created. That is invisible for a selection
-        /// change and catastrophic for a drag: the underlying times moved with the cursor while
-        /// every diamond stayed exactly where it was, so the gesture felt like dragging nothing.
-        /// </para>
-        /// <para>
-        /// The alternative — rebuilding the timeline on every move, as the drag used to — destroys
-        /// the element holding the pointer capture and kills the gesture after one event. Updating
-        /// the rows in place is the only option that both moves the keys and keeps the drag alive.
-        /// </para>
-        /// </remarks>
+        // Use this, not RepaintLanes, whenever key times have changed: a lane holds the times it
+        // was built with, so a plain repaint redraws stale positions during a drag. Rebuilding the
+        // timeline instead would destroy the element holding the pointer capture mid-gesture.
+        /// <summary>Re-reads every lane key time from the clip, then repaints.</summary>
         private void RefreshLaneKeys()
         {
             if (laneColumn == null || selectedClip == null)
@@ -5880,7 +5071,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Gestures. One undo step per gesture (section 7.4).
+        // Gestures. One undo step per gesture.
         // -------------------------------------------------------------------------------------
 
         private void OnKeyPointerDown(KeyAddress address, PointerDownEvent pointerEvent)
@@ -5949,15 +5140,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// Moves the viewport outline and the tree onto the bone whose key was grabbed.
-        /// </summary>
-        /// <remarks>
-        /// The third direction of the same sync: the timeline is as much a selection surface as the
-        /// tree and the viewport. The tree's selection is set <em>without</em> notifying here,
-        /// because the notification clears the key selection — the click would deselect the very key
-        /// that caused it.
-        /// </remarks>
+        // The tree's selection is set without notifying: the notification clears the key selection,
+        // so the click would deselect the very key that caused it.
+        /// <summary>Moves the viewport outline and the tree onto the bone whose key was grabbed.</summary>
         private void SyncBoneSelectionToKey(KeyAddress address)
         {
             string boneName = null;
@@ -6013,32 +5198,7 @@ namespace DotsAnimationToolkit.Editor
             UpdateKeyDrag();
         }
 
-        /// <summary>
-        /// Moves the selection to follow the pointer, using the view as it is right now.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Three separate faults lived in the old version of this, and only one of them was
-        /// the clamp.</strong>
-        /// </para>
-        /// <para>
-        /// It built its geometry with <c>TimelineGeometry.Create(width)</c> — the one-argument
-        /// overload, which means zoom 1 and pan 0. Every pointer position was therefore converted
-        /// as though the timeline were unzoomed and unscrolled, so at 4x zoom a key crawled at a
-        /// quarter of the cursor speed and looked like it was refusing to keep up.
-        /// </para>
-        /// <para>
-        /// It finished by calling <c>RebuildTimeline</c>, which clears the lane column and builds
-        /// new lanes. The element holding the pointer capture was destroyed mid-gesture, so the
-        /// drag stopped receiving moves after the first one — the "stops short" half of the report.
-        /// Repainting the existing lanes is both correct and enormously cheaper.
-        /// </para>
-        /// <para>
-        /// And it clamped each key to [0, 1], which is the same restriction that stopped keys being
-        /// placed outside the clip. Removed here and everywhere else it appeared; out-of-range keys
-        /// are authored data, and the shaded region either side of the clip exists to show them.
-        /// </para>
-        /// </remarks>
+        /// <summary>Moves the selection to follow the pointer, using the view as it is right now.</summary>
         private void UpdateKeyDrag()
         {
             if (!isDraggingKeys || selectedClip == null)
@@ -6074,13 +5234,7 @@ namespace DotsAnimationToolkit.Editor
             ShowDragReadout(pointerTime);
         }
 
-        /// <summary>
-        /// Says which frame the drag is landing on, in the status line.
-        /// </summary>
-        /// <remarks>
-        /// The playhead already follows the drag, so the position is visible; this is the number.
-        /// Between the two there is no part of "where is this key going" left to guess at.
-        /// </remarks>
+        /// <summary>Says which frame the drag is landing on, in the status line.</summary>
         private void ShowDragReadout(float normalizedTime)
         {
             if (statusLabel == null)
@@ -6095,15 +5249,9 @@ namespace DotsAnimationToolkit.Editor
                 + "   " + selectedKeys.Count.ToString() + " key(s)" + range;
         }
 
-        /// <summary>
-        /// Scrolls the view when a drag reaches the edge of the lane, so the gesture can continue.
-        /// </summary>
-        /// <remarks>
-        /// Driven by a scheduler rather than by pointer movement, because the case that matters is
-        /// the pointer held still against the edge. Scrolling only on movement would mean the view
-        /// stopped the moment the user stopped wiggling the mouse, which is the behaviour that
-        /// makes an edge feel like a wall.
-        /// </remarks>
+        // Driven by a scheduler, not pointer movement: the case that matters is the pointer held
+        // still against the edge, which a movement-only trigger would not scroll for.
+        /// <summary>Scrolls the view when a drag reaches the edge of the lane, so the gesture can continue.</summary>
         private void TickDragAutoScroll()
         {
             if (!isDraggingKeys)
@@ -6215,17 +5363,7 @@ namespace DotsAnimationToolkit.Editor
             RebuildTimeline();
         }
 
-        /// <summary>
-        /// Handles a press on the empty rows below the last track: the same click-clears-and-scrubs,
-        /// drag-selects gesture the lanes have, minus the double click that would add a key.
-        /// </summary>
-        /// <remarks>
-        /// <strong>This is the point of the ghost rows.</strong> A band starts on the element the
-        /// pointer went down on, so a clip with three tracks used to offer a three-row-tall strip to
-        /// start one in and a pane full of dead space below it. There is no track under a ghost row
-        /// to insert into, so a double click here scrubs like a single one rather than keying
-        /// something the user cannot see.
-        /// </remarks>
+        /// <summary>Handles a press on the empty rows below the last track: click-clears-and-scrubs, drag-selects.</summary>
         private void OnGhostLanePointerDown(float normalizedTime, PointerDownEvent pointerEvent)
         {
             laneStack.Focus();
@@ -6342,14 +5480,7 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// Adds every key whose lane row and time fall inside the band.
-        /// </summary>
-        /// <remarks>
-        /// A channel row and its track row select the same key, so a band covering both simply
-        /// yields that key once — <see cref="selectedKeys"/> is a set, and the duplicate collapses
-        /// rather than needing a special case.
-        /// </remarks>
+        /// <summary>Adds every key whose lane row and time fall inside the band.</summary>
         private void SelectKeysInsideBand(Rect bandRect)
         {
             if (!isBoxSelectAdditive)
@@ -6403,23 +5534,9 @@ namespace DotsAnimationToolkit.Editor
             Undo.RecordObject(selectedClip, actionName);
         }
 
-        /// <summary>
-        /// Re-records the clip before another step of an in-progress gesture.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Recording once at the start of a gesture is not enough, and this is why undo
-        /// appeared to do nothing after a scale.</strong> <c>Undo.RecordObject</c> takes a snapshot
-        /// and Unity diffs the object against it at the end of that frame. A modal scale or a key
-        /// drag runs over many frames, and every frame after the first mutated the clip with no
-        /// snapshot registered — so those changes were never recorded at all. Ctrl+Z reverted the
-        /// first micro-step of the gesture and looked like a no-op.
-        /// </para>
-        /// <para>
-        /// Recording every step is the supported pattern for a multi-frame gesture; the pile of
-        /// entries it produces is what <see cref="EndUndoGesture"/> collapses back into one.
-        /// </para>
-        /// </remarks>
+        // Undo.RecordObject snapshots once per frame; a multi-frame drag mutating every frame after
+        // the first needs a fresh recording each step, or those changes are never captured at all.
+        /// <summary>Re-records the clip before another step of an in-progress gesture.</summary>
         private void RecordUndoGestureStep()
         {
             if (selectedClip == null)
@@ -6441,7 +5558,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Keyboard map (parity item "full keyboard map")
+        // Keyboard map
         // -------------------------------------------------------------------------------------
 
         private void OnTimelineKeyDown(KeyDownEvent keyEvent)
@@ -6531,26 +5648,7 @@ namespace DotsAnimationToolkit.Editor
                 + ClipKeyClipboard.ObjectCount.ToString() + " object(s)"));
         }
 
-        /// <summary>
-        /// Pastes the clipboard onto the selected objects, anchored at the playhead.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The playhead is the anchor and the hierarchy selection is the destination.</strong>
-        /// The buffer holds times relative to its earliest key, so the group lands where the
-        /// playhead is with its internal rhythm intact, on whatever object is selected — which is
-        /// what makes "copy this part's bounce and put it on that one" a thing you can do. With
-        /// nothing selected the keys go back onto the objects they came from, which is what
-        /// duplicate has always meant.
-        /// </para>
-        /// <para>
-        /// <strong>The rig is recorded whether or not the paste turns out to write it.</strong>
-        /// Pasting a flipbook onto a node the rig declares no part for declares one, and there is no
-        /// way to know that before the paste runs. Recording an object that does not change costs an
-        /// empty diff; recording it too late would leave one Ctrl+Z undoing half of what one
-        /// keystroke did.
-        /// </para>
-        /// </remarks>
+        /// <summary>Pastes the clipboard onto the selected objects, anchored at the playhead.</summary>
         private void PasteKeysAtPlayhead()
         {
             if (!ClipKeyClipboard.HasContent || selectedClip == null)
@@ -6564,6 +5662,8 @@ namespace DotsAnimationToolkit.Editor
                 pasteDestinations.Add(BuildObjectRef(selectedHierarchyItems[itemIndex]));
             }
 
+            // Recorded whether or not the paste turns out to write the rig: a flipbook pasted onto
+            // an untagged node can declare a new part, and that can't be known before it runs.
             RigAsset rig = ActiveRig;
             if (rig != null)
             {
@@ -6604,14 +5704,7 @@ namespace DotsAnimationToolkit.Editor
             ShowNotification(new GUIContent(DescribePasteResult(pasteResult)));
         }
 
-        /// <summary>
-        /// One line saying what the paste did, including the parts of it that did nothing.
-        /// </summary>
-        /// <remarks>
-        /// The dropped count is the one that matters: a paste onto an object whose component could
-        /// not be created writes fewer keys than were copied, and without saying so the difference
-        /// shows up later as an animation that is missing a channel nobody remembers losing.
-        /// </remarks>
+        /// <summary>One line saying what the paste did, including the parts of it that did nothing.</summary>
         private static string DescribePasteResult(ClipKeyPasteResult pasteResult)
         {
             if (pasteResult.keyCount == 0 && pasteResult.addedComponentCount == 0)
@@ -6632,23 +5725,11 @@ namespace DotsAnimationToolkit.Editor
             return described;
         }
 
-        /// <summary>
-        /// Removes every selected key.
-        /// </summary>
-        /// <remarks>
-        /// Addresses are removed in <em>descending</em> index order. Deleting ascending would shift
-        /// the indices of the not-yet-deleted addresses down by one each time, so the second
-        /// deletion within any track would silently hit the wrong key.
-        /// <para>
-        /// <strong>Event addresses sort by their flat storage index, not their lane-local one.</strong>
-        /// Every event lane (E6 Task 2) shares one underlying <c>selectedClip.events</c> list, so
-        /// removing one lane's marker can shift a not-yet-processed marker's flat position in a
-        /// <em>different</em> lane — descending lane-local order alone would not protect against
-        /// that the way it does for a track kind where each track owns a separate list. The flat
-        /// index for every event address is resolved once, before any removal begins, so a later
-        /// removal never invalidates an index still waiting to be used.
-        /// </para>
-        /// </remarks>
+        // Removed in descending index order: ascending would shift not-yet-deleted indices down by
+        // one each time. Event addresses sort by flat storage index, not lane-local, since every
+        // event lane shares one underlying events list and a removal can shift a different lane's
+        // not-yet-processed marker.
+        /// <summary>Removes every selected key.</summary>
         private void DeleteSelectedKeys()
         {
             if (selectedKeys.Count == 0)
@@ -6794,22 +5875,9 @@ namespace DotsAnimationToolkit.Editor
                 selectedClip.events, address.trackIndex, address.keyIndex);
         }
 
-        /// <summary>
-        /// Adds a key at <paramref name="normalizedTime"/>, copying the key at or before it.
-        /// </summary>
-        /// <remarks>
-        /// Copying the preceding key means adding a key does not change the pose the clip produces
-        /// — it only creates somewhere to edit. A key inserted at type defaults would snap the part
-        /// to the origin at zero scale the moment it appeared, which reads as the editor having
-        /// broken the animation.
-        /// </remarks>
-        /// <param name="explicitEventKey">
-        /// Amendment A55: the event a toolbar-triggered Add Event should place, chosen through the
-        /// picker before this is even called. Ignored unless <paramref name="trackKind"/> is
-        /// <see cref="TimelineTrackKind.Event"/> and <paramref name="trackIndex"/> is negative — a
-        /// double-click inside an existing lane always uses that lane's own key instead, the same
-        /// as before this amendment.
-        /// </param>
+        // Copies the preceding key rather than type defaults, so adding a key does not change the
+        // pose the clip produces — a key at zero scale would snap the part to the origin on insert.
+        /// <summary>Adds a key at <paramref name="normalizedTime"/>, copying the key at or before it.</summary>
         private void InsertKey(
             TimelineTrackKind trackKind, int trackIndex, float normalizedTime, uint explicitEventKey = 0u)
         {
@@ -6878,14 +5946,11 @@ namespace DotsAnimationToolkit.Editor
                 }
                 default:
                 {
-                    // trackIndex addresses an existing event lane (E6 Task 2) — double-clicking the
-                    // "Footstep" lane adds another Footstep, not whatever was chosen elsewhere. A
-                    // negative trackIndex (the transport bar's Add Event button) has no lane to read,
-                    // so it carries the key the picker already chose (amendment A55) instead of
-                    // guessing one. Never key 0 either way: the struct's default is the reserved
-                    // "invalid" key, so a marker placed and left alone used to fail validation rule
-                    // V09 — the clip broke at bake for having been authored, which is the worst
-                    // possible default.
+                    // trackIndex addresses an existing event lane — double-clicking the "Footstep"
+                    // lane adds another Footstep. A negative trackIndex (the transport bar's Add
+                    // Event button) has no lane to read, so it carries the key the picker already
+                    // chose instead of guessing one. Never key 0: that struct default is the
+                    // reserved "invalid" key, which used to fail validation at bake time.
                     List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
                     uint eventKey = trackIndex >= 0 && trackIndex < laneKeys.Count
                         ? laneKeys[trackIndex]
@@ -6901,11 +5966,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The Add Event button on the transport bar (amendment A55): opens the event picker
-        /// anchored to the button rather than guessing which event to place. The chosen key is
-        /// handed to <see cref="AddEventAtPlayhead(uint)"/>, which does the actual placing.
-        /// </summary>
+        /// <summary>The Add Event button on the transport bar: opens the event picker anchored to it.</summary>
         private void OpenAddEventPicker()
         {
             if (selectedClip == null)
@@ -6926,19 +5987,9 @@ namespace DotsAnimationToolkit.Editor
                 RebuildTimeline);
         }
 
-        /// <summary>
-        /// Places a marker for <paramref name="eventKey"/> at the playhead and selects it, so its
-        /// inspector fields are already on screen once the picker closes.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Deliberately not the double-click add path with a button in front of it.</strong>
-        /// Double-clicking a lane clears the selection on add (parity with double-click add on
-        /// every other lane kind) because the gesture already has the author looking at the spot
-        /// they clicked. A toolbar button gives no such cue — the whole reason it exists is to let
-        /// someone author an event without first finding the Events lane — so this path selects the
-        /// new marker instead of clearing the selection, which is the one place it and
-        /// <see cref="OnLanePointerDown"/> intentionally disagree.
-        /// </remarks>
+        // Selects the new marker rather than clearing selection, unlike a double-click add: a
+        // toolbar button gives the author no on-screen cue to where the marker landed.
+        /// <summary>Places a marker for <paramref name="eventKey"/> at the playhead and selects it.</summary>
         private void AddEventAtPlayhead(uint eventKey)
         {
             if (selectedClip == null)
@@ -6949,9 +6000,8 @@ namespace DotsAnimationToolkit.Editor
             float insertTime = TimelineGeometry.Snap(playheadTime, SnapFrameCount);
             BeginUndoGesture("Add Event");
 
-            // -1: this button targets no particular lane, unlike a double-click inside one (E6
-            // Task 2), so InsertKey carries the key the picker already chose (amendment A55)
-            // instead of reading laneKeys[-1].
+            // -1: this button targets no particular lane, unlike a double-click inside one, so
+            // InsertKey carries the key the picker already chose instead of reading laneKeys[-1].
             InsertKey(TimelineTrackKind.Event, -1, insertTime, eventKey);
             EndUndoGesture();
 
@@ -6986,7 +6036,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Event lane header menu (amendment A55 Task 3).
+        // Event lane header menu.
         // -------------------------------------------------------------------------------------
 
         /// <summary>
@@ -7117,39 +6167,10 @@ namespace DotsAnimationToolkit.Editor
             RebuildTimeline();
         }
 
-        /// <summary>
-        /// Restores ascending key order after an edit.
-        /// </summary>
-        /// <remarks>
-        /// Validation rule V03 requires ascending times and the sampler's segment search assumes
-        /// it — an out-of-order key does not throw, it silently makes a segment unreachable.
-        /// Sorting once at the end of a gesture rather than per move keeps indices stable for its
-        /// duration, which is what lets a multi-key selection survive a drag.
-        /// </remarks>
-        /// <remarks>
-        /// <strong>Dragging a key past a neighbour reorders, it does not clamp.</strong> Keys move
-        /// freely for the whole gesture and the list is sorted here, on release, so a key dragged
-        /// over another ends up on the far side of it. Clamping was the alternative and would have
-        /// been easier to implement, but it makes the common retiming edit — pulling a pose earlier
-        /// than the one before it — impossible without first moving the other key out of the way.
-        /// The cost is that indices change, which is why the selection is cleared below.
-        /// </remarks>
-        /// <summary>
-        /// Re-sorts one track by time and moves the selection with the keys.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>It used to clear the selection instead.</strong> That was defensible — an address
-        /// is an index, and sorting moves indices — but the sort runs on every pointer-up of a key
-        /// drag, including the zero-distance drag that is an ordinary click. So clicking a key
-        /// selected it and then deselected it a moment later, which is what made the key inspector
-        /// look broken.
-        /// </para>
-        /// <para>
-        /// Dropping a selection is also wrong for a reorder that a scale caused: mirroring a
-        /// selection across a pivot reverses its keys, and the user expects to still have them.
-        /// </para>
-        /// </remarks>
+        // The sampler's segment search assumes ascending times; an out-of-order key does not throw,
+        // it silently makes a segment unreachable. Dragging a key past a neighbour reorders rather
+        // than clamps, so indices change here — the selection is remapped, not cleared, below.
+        /// <summary>Restores ascending key order after an edit, and moves the selection with the keys.</summary>
         private void SortTrackKeys(TimelineTrackKind trackKind, int trackIndex)
         {
             int[] newIndexOfOldIndex;
@@ -7176,14 +6197,9 @@ namespace DotsAnimationToolkit.Editor
             RemapSelectionAfterSort(trackKind, trackIndex, newIndexOfOldIndex);
         }
 
-        /// <summary>
-        /// Sorts one event lane's markers by time in place, without disturbing any other lane's
-        /// markers (E6 Task 2). Every lane shares <see cref="ClipAsset.events"/>, so this writes the
-        /// sorted markers back into the exact flat slots this lane's markers already occupied,
-        /// rather than sorting the whole list the way <see cref="SortKeysTrackingIndices{TKey}"/>
-        /// does for a track kind with a list of its own.
-        /// </summary>
-        /// <returns>A LOCAL (lane-relative) index map, in the same shape every other track kind's does.</returns>
+        // Writes sorted markers back into the exact flat slots this lane's markers already occupied,
+        // rather than sorting the whole list, since every lane shares ClipAsset.events.
+        /// <summary>Sorts one event lane's markers by time in place, without disturbing any other lane's markers.</summary>
         private int[] SortEventLaneKeys(int laneIndex)
         {
             List<int> flatIndices = EventLaneAddressing.ResolveLaneFlatIndices(
@@ -7203,35 +6219,20 @@ namespace DotsAnimationToolkit.Editor
             return newIndexOfOldIndex;
         }
 
-        /// <summary>
-        /// The index map produced by the most recent <see cref="SortTrackKeys"/>.
-        /// </summary>
-        /// <remarks>
-        /// Read by the modal grab/scale gesture, which tracks keys by the index they had when the
-        /// gesture began and has to follow them through every re-sort a mirroring scale causes.
-        /// Returning it from the sort instead would mean changing three call sites that do not
-        /// want it, for one that does.
-        /// </remarks>
+        // Read by the modal grab/scale gesture, which tracks keys by their index at gesture start
+        // and must follow them through every re-sort a mirroring scale causes.
+        /// <summary>The index map produced by the most recent sort.</summary>
         private int[] lastSortIndexMap;
 
+        // The width is deliberately not cached alongside it: a cached width is how the cursor and
+        // the key came apart.
         /// <summary>Pointer x within the dragged lane, as of the last move.</summary>
-        /// <remarks>
-        /// Held as state because the auto-scroll ticker runs without a pointer event to read: the
-        /// case it exists for is a pointer resting against the edge. The width is deliberately not
-        /// held alongside it -- a cached width is how the cursor and the key came apart.
-        /// </remarks>
         private float dragPointerLaneX;
         private IVisualElementScheduledItem dragAutoScroll;
 
-        /// <summary>
-        /// Sorts a key list by time and reports where each key ended up.
-        /// </summary>
-        /// <returns>A map from a key's index before the sort to its index after it.</returns>
-        /// <remarks>
-        /// The comparison breaks ties on the original index, which makes the sort stable. Two keys
-        /// stacked on the same frame therefore keep their order rather than swapping on every
-        /// re-sort — and a selection that covered one of them keeps covering the same one.
-        /// </remarks>
+        // Ties break on the original index, making the sort stable: two keys stacked on the same
+        // frame keep their order rather than swapping on every re-sort.
+        /// <summary>Sorts a key list by time and reports where each key ended up.</summary>
         private static int[] SortKeysTrackingIndices<TKey>(List<TKey> keys, System.Func<TKey, float> timeOf)
         {
             int keyCount = keys.Count;
@@ -7451,18 +6452,10 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Inspector. Bound fields get undo, dirtying and prefab overrides for free (section 7.4),
-        // so nothing here hand-rolls an edit path.
+        // Inspector. Bound fields get undo, dirtying and prefab overrides for free, so nothing
+        // here hand-rolls an edit path.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Fills the inspector for whatever is selected: a key, a bone, or the clip itself.
-        /// </summary>
-        /// <remarks>
-        /// The three cases are ordered by how specific they are, and the last of them is the
-        /// fallback — the pane is never empty, because "nothing here" and "the window is broken"
-        /// look identical to someone who has just opened it.
-        /// </remarks>
         /// <summary>One flipbook track's live fields, so a scrub can update them without a rebuild.</summary>
         private sealed class LiveFlipbookBinding
         {
@@ -7474,25 +6467,14 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>One selected object's transform fields, so a scrub can update them in place.</summary>
-        /// <remarks>
-        /// One of these per selected object rather than one per window: with several parts selected
-        /// the panel is a stack of blocks, and a single set of field references would leave every
-        /// block but the last frozen at the value it was built with.
-        /// </remarks>
         private sealed class LiveTransformBinding
         {
             /// <summary>The rig target this block edits; 0 when <see cref="boneName"/> is set.</summary>
             public uint targetId;
 
-            /// <summary>
-            /// The node this block edits by name; empty for a part.
-            /// </summary>
-            /// <remarks>
-            /// The name rather than the track, because a node with no keys yet still has a block on
-            /// screen and the track that will hold its poses does not exist. Holding a track would
-            /// have made "unkeyed" indistinguishable from "a part", and a scrub would have refreshed
-            /// the block against the wrong reading.
-            /// </remarks>
+            // The name, not the track: a node with no keys yet still has a block on screen, and the
+            // track that will hold its poses does not exist yet either.
+            /// <summary>The node this block edits by name; empty for a part.</summary>
             public string boneName;
 
             public VisualElement block;
@@ -7513,22 +6495,9 @@ namespace DotsAnimationToolkit.Editor
             liveFlipbookBindings.Clear();
         }
 
-        /// <summary>
-        /// Pushes the value at the playhead into the fields already on screen.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>This is what makes the panel live.</strong> Scrubbing used to leave it showing
-        /// whatever it held when the selection last changed, which made it a snapshot wearing a
-        /// live panel's clothes. Rebuilding the pane per tick would have been the easy fix and the
-        /// wrong one: it destroys and recreates the very field a user is typing into.
-        /// </para>
-        /// <para>
-        /// A focused field is therefore skipped rather than overwritten. Half-typed text is a value
-        /// the user is in the middle of authoring, and a scrub that stamped over it would be the
-        /// panel arguing with the person using it.
-        /// </para>
-        /// </remarks>
+        // A focused field is skipped, not overwritten: half-typed text is a value the user is
+        // mid-authoring, and a scrub that stamped over it would fight the person using it.
+        /// <summary>Pushes the value at the playhead into the fields already on screen.</summary>
         private void RefreshLiveInspectorValues()
         {
             for (int bindingIndex = 0; bindingIndex < liveTransformBindings.Count; bindingIndex++)
@@ -7720,13 +6689,9 @@ namespace DotsAnimationToolkit.Editor
             field.SetValueWithoutNotify(value);
         }
 
+        // The capture test is not redundant with the focus test: a field's drag handle captures the
+        // mouse without focusing the input behind it, so focus alone misses a number being dragged.
         /// <summary>Whether the user is currently typing in a field, or dragging it.</summary>
-        /// <remarks>
-        /// The capture test is not redundant with the focus test. A field's drag handle captures the
-        /// mouse without focusing the input behind it, so a version that asked only about focus
-        /// stamped the sampled value over a number being dragged — the drag and the refresh fighting
-        /// each other for the same field.
-        /// </remarks>
         private static bool IsBeingEdited(VisualElement field)
         {
             if (field == null || field.panel == null)
@@ -7749,24 +6714,9 @@ namespace DotsAnimationToolkit.Editor
         // Deferred pane rebuilds.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Whether a pointer gesture inside this window is live, so nothing may be torn down yet.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>This is what makes dragging a number field work.</strong> A field's drag handle
-        /// captures the mouse on the element itself, so removing that element from the panel — which
-        /// every <c>Clear()</c> in a rebuild does — releases the capture and ends the drag. A
-        /// rebuild fired from a value-changed callback therefore kills the very drag that produced
-        /// the value, after roughly one pixel.
-        /// </para>
-        /// <para>
-        /// Guarded here rather than at each call site so a new field cannot reintroduce the bug by
-        /// forgetting. The capture is asked of the whole window, not of one pane: a rebuild of any
-        /// pane during a drag is at best dozens of wasted rebuilds a second, and the panes rebuild
-        /// each other (a hierarchy rebuild notifies its selection, which rebuilds the other two).
-        /// </para>
-        /// </remarks>
+        // A field's drag handle captures the mouse on the element itself, so a rebuild's Clear()
+        // releases the capture and ends the drag after roughly one pixel — this guard stops that.
+        /// <summary>Whether a pointer gesture inside this window is live, so nothing may be torn down yet.</summary>
         private bool IsPointerGestureInProgress()
         {
             IPanel panel = rootVisualElement != null ? rootVisualElement.panel : null;
@@ -7806,12 +6756,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildHierarchy();
         }
 
+        // Driven from the tick, not a pointer-capture-out callback: a capture released by the
+        // element's own removal has no handler left to notify.
         /// <summary>Runs what a gesture deferred, once the gesture is over.</summary>
-        /// <remarks>
-        /// Driven from the tick rather than from a pointer-capture-out callback because the tick
-        /// already runs at <see cref="PlaybackHertz"/> and needs no element to stay alive to fire —
-        /// a capture released by the element's own removal has no handler left to notify.
-        /// </remarks>
         private void FlushDeferredPaneRebuilds()
         {
             if (!hierarchyRebuildPending && !timelineRebuildPending && !inspectorRebuildPending)
@@ -7847,6 +6794,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        /// <summary>Fills the inspector for whatever is selected: a key, a bone, or the clip itself.</summary>
         private void RebuildInspector()
         {
             if (inspectorPane == null)
@@ -7962,17 +6910,10 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// The key's own values, each as its own field, with the easing fields left out.
-        /// </summary>
-        /// <remarks>
-        /// Flattened rather than one <see cref="PropertyField"/> on the struct, because the drawer
-        /// renders an array element as a foldout named "Element 3" — a number that means nothing
-        /// beside a heading already naming the key by its time. The easing fields are skipped
-        /// because <see cref="AddInterpolationControls"/> shows them below as a curve; drawn twice,
-        /// the raw enum and its two handle vectors are the same setting in a form that contradicts
-        /// what the curve says the moment either is touched.
-        /// </remarks>
+        // Flattened rather than one PropertyField on the struct: the drawer renders an array
+        // element as a foldout named "Element 3", meaningless beside a heading naming the key by
+        // its time. Easing fields are skipped since AddInterpolationControls shows them as a curve.
+        /// <summary>The key's own values, each as its own field, with the easing fields left out.</summary>
         private void AddKeyValueFields(SerializedProperty keyProperty)
         {
             SerializedProperty childProperty = keyProperty.Copy();
@@ -7997,23 +6938,9 @@ namespace DotsAnimationToolkit.Editor
                 || propertyName == "bezierEndHandle";
         }
 
-        /// <summary>
-        /// The selected event marker: which event it is, how long its window runs, and its payload.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The window edits in frames and stores seconds.</strong> Animation is timed in
-        /// frames and gameplay has to be framerate-independent, so the conversion happens here, at
-        /// the one point where a person is looking at the number. The resolved seconds are shown
-        /// beside the field so the stored value is never hidden.
-        /// </para>
-        /// <para>
-        /// <strong>The key is a dropdown only when the clip set names its events.</strong> Without a
-        /// registry the field falls back to a raw number rather than disabling itself — a project
-        /// that has not made a registry yet can still author events, and the toolkit ships without
-        /// requiring one.
-        /// </para>
-        /// </remarks>
+        // The window field edits in frames but stores seconds — the conversion happens here, at the
+        // one point a person is looking at the number, with resolved seconds shown beside it.
+        /// <summary>The selected event marker: which event it is, how long its window runs, and its payload.</summary>
         private void AddSelectedEventMarkerFields(KeyAddress address)
         {
             int flatIndex = ResolveEventFlatIndex(address);
@@ -8070,10 +6997,7 @@ namespace DotsAnimationToolkit.Editor
             inspectorPane.Add(MakeHint(DescribeEventKey(marker.eventKey, registry)));
         }
 
-        /// <summary>
-        /// The event's name, or the one exception spec §4.2.3 permits — an unresolved id, when the
-        /// registry does not (or no longer) names it.
-        /// </summary>
+        /// <summary>The event's name, or an unresolved id when the registry does not (or no longer) names it.</summary>
         private static string DescribeEventName(uint eventKey, AnimEventKeyRegistry registry)
         {
             string resolvedName = registry != null ? registry.FindName(eventKey) : null;
@@ -8210,10 +7134,7 @@ namespace DotsAnimationToolkit.Editor
             return displayName + " · mask bit " + (eventKey - AnimEventMaskKeys.FirstMaskKey) + ".";
         }
 
-        /// <summary>
-        /// The project-wide event registry (<see cref="VocabularyRegistryProvider.AnimEventKeys"/>).
-        /// The per-set override died with Phase F decision D4; this is now the only source.
-        /// </summary>
+        /// <summary>The project-wide event registry; the only source now that the per-set override is gone.</summary>
         private AnimEventKeyRegistry ResolveEventKeyRegistry()
         {
             return VocabularyRegistryProvider.AnimEventKeys;
@@ -8229,14 +7150,7 @@ namespace DotsAnimationToolkit.Editor
             return registry.referenceFrameRate;
         }
 
-        /// <summary>
-        /// Applies one undoable edit to an event marker and refreshes what shows it.
-        /// </summary>
-        /// <remarks>
-        /// The timeline is rebuilt as well as the inspector because an event marker's window is
-        /// drawn on the lane — editing the number without redrawing the bar would leave the two
-        /// disagreeing until something else happened to trigger a rebuild.
-        /// </remarks>
+        /// <summary>Applies one undoable edit to an event marker and refreshes what shows it.</summary>
         private void EditEventMarker(
             KeyAddress address, string undoLabel, System.Func<EventMarker, EventMarker> edit)
         {
@@ -8306,29 +7220,9 @@ namespace DotsAnimationToolkit.Editor
             inspectorPane.Add(baseIndexField);
         }
 
-        /// <summary>
-        /// The selected key's easing: a named preset to start from, and the curve it draws, whose
-        /// handles are dragged to shape it further.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>One control, not a mode plus a conditional curve.</strong> The curve is always on
-        /// screen because the shape is the thing being authored; the preset dropdown is a way of
-        /// jumping to a known one, and a drag is a way of leaving it. A key that has never been
-        /// touched sits on Linear, which is both the preset list's first entry and the enum's
-        /// default, so a fresh key and a key explicitly set to linear are the same key.
-        /// </para>
-        /// <para>
-        /// Dragging writes <see cref="Interpolation.Bezier"/> and refreshes the dropdown's label in
-        /// place rather than rebuilding the inspector: a rebuild mid-gesture would replace the
-        /// element under the captured pointer and drop the drag on its first frame.
-        /// </para>
-        /// <para>
-        /// Only transform and bone keys have easing. A flipbook key is chosen by nearest neighbour
-        /// rather than blended — an index cannot be halfway between two frames — so offering it an
-        /// interpolation mode would be offering a setting with no effect.
-        /// </para>
-        /// </remarks>
+        // Dragging writes Bezier and refreshes the dropdown's label in place rather than rebuilding
+        // the inspector: a rebuild mid-gesture would replace the element under the captured pointer.
+        /// <summary>The selected key's easing: a named preset to start from, and the curve it draws.</summary>
         private void AddInterpolationControls(KeyAddress address)
         {
             if (address.trackKind != TimelineTrackKind.Transform
@@ -8374,15 +7268,9 @@ namespace DotsAnimationToolkit.Editor
                 + "time, or overshoots further than the baked bounds allow."));
         }
 
-        /// <summary>
-        /// Writes the chosen preset onto the key and onto the curve widget.
-        /// </summary>
-        /// <remarks>
-        /// Choosing <see cref="EasingPresets.CustomDisplayName"/> keeps the shape already on screen
-        /// and only changes what stores it — the fixed mode's matching handles become the key's own
-        /// Bézier handles. Picking "Custom" is a request to start editing, not a request to look
-        /// different, so a jump to some canonical curve would throw away the shape being edited.
-        /// </remarks>
+        // Picking "Custom" keeps the shape already on screen and only changes what stores it: it is
+        // a request to start editing, not a request to look different.
+        /// <summary>Writes the chosen preset onto the key and onto the curve widget.</summary>
         private void ApplyEasingPreset(
             KeyAddress address, EasingCurveEditorElement curveEditor, string chosenDisplayName)
         {
@@ -8418,15 +7306,9 @@ namespace DotsAnimationToolkit.Editor
             return selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex].interpolation;
         }
 
-        /// <summary>
-        /// Writes a key's easing mode and its handles together.
-        /// </summary>
-        /// <remarks>
-        /// The handles are written even for the fixed modes, which never read them. They are the
-        /// cubic that matches the mode's curve, so a key later switched to Bézier — by picking
-        /// Custom, or by dragging a handle — starts from the shape it was already playing instead of
-        /// snapping to a straight line.
-        /// </remarks>
+        // Handles are written even for fixed modes, which never read them: they are the matching
+        // cubic, so a key later switched to Bezier starts from the shape it was already playing.
+        /// <summary>Writes a key's easing mode and its handles together.</summary>
         private void SetKeyCurve(
             KeyAddress address, Interpolation interpolation, float2 startHandle, float2 endHandle)
         {
@@ -8453,15 +7335,9 @@ namespace DotsAnimationToolkit.Editor
             CommitClipEdit();
         }
 
-        /// <summary>
-        /// Gives a Bézier key with no handles the ones that describe a straight line.
-        /// </summary>
-        /// <remarks>
-        /// A key that has never carried handles holds two zeros, which the sampler reads as linear.
-        /// Writing the diagonal handles on the switch means the curve the editor draws and the curve
-        /// the sampler evaluates agree from the first frame, rather than the widget showing a
-        /// straight line because it substituted one while the asset held zeros.
-        /// </remarks>
+        // A key that never carried handles holds two zeros, which the sampler reads as linear;
+        // writing the diagonal handles on the switch keeps the editor and the sampler agreeing.
+        /// <summary>Gives a Bezier key with no handles the ones that describe a straight line.</summary>
         private static void EnsureUsableBezierHandles(
             ref float2 startHandle, ref float2 endHandle, Interpolation interpolation)
         {
@@ -8492,14 +7368,7 @@ namespace DotsAnimationToolkit.Editor
             endHandle = transformKey.bezierEndHandle;
         }
 
-        /// <summary>
-        /// The live pose of a bone at the playhead, editable in place.
-        /// </summary>
-        /// <remarks>
-        /// This replaced a property drawer on the whole <c>BoneTrack</c>, which rendered every key
-        /// as an array — the panel showing a list of keys rather than the value at the time being
-        /// looked at. The keys belong on the timeline; this answers "what is this bone doing now".
-        /// </remarks>
+        /// <summary>The live pose of a bone at the playhead, editable in place.</summary>
         private void AddBoneTransformFields(VisualElement parent, string boneName)
         {
             LiveTransformBinding binding = new LiveTransformBinding { boneName = boneName };
@@ -8656,22 +7525,9 @@ namespace DotsAnimationToolkit.Editor
                 : "Between keys — this value is sampled, not stored.";
         }
 
-        /// <summary>
-        /// Writes a bone pose at the playhead, creating the track if this is its first key.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Always keys, unlike a transform edit. A bone track has no rest pose in this window to
-        /// fall back to, so a held-but-unkeyed value would have nothing to be shown against — it
-        /// would just be a number that vanished on the next scrub.
-        /// </para>
-        /// <para>
-        /// <strong>The track is minted here rather than by an act of adding.</strong> Every object
-        /// carries a transform, so the panel shows one for a node nothing has keyed yet; making the
-        /// author add a track first would be a step that exists only because of how the data is
-        /// shaped. This mirrors what <see cref="CommitPendingTransformEdit"/> does for a part.
-        /// </para>
-        /// </remarks>
+        // Always keys, unlike a transform edit: a bone track has no rest pose in this window to
+        // fall back to, so a held-but-unkeyed value would vanish on the next scrub.
+        /// <summary>Writes a bone pose at the playhead, creating the track if this is its first key.</summary>
         private void ApplyBoneEdit(
             string boneName, float3 position, float3 rotationDegrees, float3 scale)
         {
@@ -8718,14 +7574,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Writes a bone transform block's three fields as one key, then re-states the block.
-        /// </summary>
-        /// <remarks>
-        /// The part block's reasoning applies unchanged here — see
-        /// <see cref="ApplyTransformEditFromFields"/> for why the values come off the fields rather
-        /// than out of the closure.
-        /// </remarks>
+        /// <summary>Writes a bone transform block's three fields as one key, then re-states the block.</summary>
         private void ApplyBoneEditFromFields(LiveTransformBinding binding)
         {
             if (binding == null
@@ -8749,29 +7598,10 @@ namespace DotsAnimationToolkit.Editor
         // Sockets.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// A socket's fields: what it follows, where it sits, and what to hang off it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Sockets were previously authored only in the rig asset's own inspector, which meant
-        /// tuning an offset against a character you could not see and a pose you could not scrub.
-        /// The numbers are the same numbers; the difference is that here they are next to the thing
-        /// they move.
-        /// </para>
-        /// <para>
-        /// <strong>The socket is a component of its source.</strong> It hangs off the bone or part
-        /// it follows and is edited there, rather than being a row of its own to hunt for — the
-        /// source is the thing you are looking at when you decide where the attachment goes. Which
-        /// is also why "Follows" is fixed here: changing it would move the socket onto a different
-        /// object, so it is done by removing it and adding one where it belongs.
-        /// </para>
-        /// <para>
-        /// Every edit records undo on the <em>rig</em>, not the clip. A socket is rig structure —
-        /// every clip in the set sees the same one — and putting it on the clip's undo stack would
-        /// make an undo in one clip silently move an attachment in all the others.
-        /// </para>
-        /// </remarks>
+        // "Follows" is fixed here: changing it would move the socket onto a different object, so
+        // that is done by removing it and adding one where it belongs. Every edit records undo on
+        // the rig, not the clip: a socket is rig structure every clip in the set shares.
+        /// <summary>A socket's fields: what it follows, where it sits, and what to hang off it.</summary>
         private void AddSocketFields(VisualElement parent, SocketDefinition socket)
         {
             RigAsset rig = ActiveRig;
@@ -8880,23 +7710,10 @@ namespace DotsAnimationToolkit.Editor
 
         }
 
-        /// <summary>
-        /// Says whether a bone socket has baked motion yet, and for how many clips.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Only a bone socket needs baking, and the asymmetry is the thing worth stating.
-        /// </strong> A rig-target socket's motion <em>is</em> its part's transform, resolved live
-        /// every frame, so there is nothing to capture. A bone socket follows a bone that exists at
-        /// run time only as texels in a VAT texture, so its motion has to be sampled at bake time
-        /// and stored — and until that has happened it resolves to the actor's origin.
-        /// </para>
-        /// <para>
-        /// Reported here because "attachment sits at the actor's feet" is otherwise a play-mode
-        /// discovery with no obvious cause. The preview marker itself is honest either way: it
-        /// follows the posed skeleton, which is where the socket <em>will</em> be once baked.
-        /// </para>
-        /// </remarks>
+        // Only a bone socket needs baking: a rig-target socket's motion is its part's transform,
+        // resolved live every frame, while a bone socket follows a bone that exists at run time
+        // only as VAT texels, so its motion has to be sampled and stored ahead of time.
+        /// <summary>Says whether a bone socket has baked motion yet, and for how many clips.</summary>
         private Label MakeSocketBakeHint(SocketDefinition socket)
         {
             VatTextureSetAsset textures = clipSet != null ? clipSet.vatTextures : null;
@@ -8969,14 +7786,7 @@ namespace DotsAnimationToolkit.Editor
             return targetField;
         }
 
-        /// <summary>
-        /// A dropdown of the loaded prefab's transform names, falling back to typing.
-        /// </summary>
-        /// <remarks>
-        /// The dropdown is the point — a bone binding that resolves to nothing bakes an attachment
-        /// at the origin, and typing is how you get one. The text field remains for a set with no
-        /// prefab loaded, which is the only case where there are no names to offer.
-        /// </remarks>
+        /// <summary>A dropdown of the loaded prefab's transform names, falling back to typing.</summary>
         private VisualElement BuildSocketBoneField(RigAsset rig, SocketDefinition socket)
         {
             previewController.CollectHierarchyNames(hierarchyNameCache);
@@ -9025,27 +7835,10 @@ namespace DotsAnimationToolkit.Editor
             CommitSocketEdit(rebuildMarkers, true);
         }
 
-        /// <summary>
-        /// Persists a socket edit, saying separately whether the hierarchy rows went stale with it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>A socket's numbers are not in any row label, and passing false for
-        /// <paramref name="rebuildRows"/> is what makes them draggable.</strong> A hierarchy rebuild
-        /// notifies its own selection — deliberately not treated as an echo, since a rebuilt tree
-        /// hands out fresh items (see <c>IsHierarchySelectionEcho</c>) — and that notification
-        /// rebuilds the inspector, taking the offset field being dragged with it.
-        /// </para>
-        /// <para>
-        /// The rows do have to come back for a rename, a rebind or a mode change: the label carries
-        /// the binding and the unresolved mark, so it is stale the moment either changes. That is
-        /// what the parameter distinguishes.
-        /// </para>
-        /// </remarks>
-        /// <param name="rebuildMarkers">
-        /// Whether the change moves or rebinds a marker, as opposed to only relabelling it.
-        /// </param>
-        /// <param name="rebuildRows">Whether the change alters what a hierarchy row says.</param>
+        // Passing false for rebuildRows is what makes a socket's numbers draggable: a hierarchy
+        // rebuild notifies its own selection, which rebuilds the inspector mid-drag and destroys
+        // the field being dragged.
+        /// <summary>Persists a socket edit, saying separately whether the hierarchy rows went stale with it.</summary>
         private void CommitSocketEdit(bool rebuildMarkers, bool rebuildRows)
         {
             RigAsset rig = ActiveRig;
@@ -9067,14 +7860,7 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
-        /// <summary>
-        /// Persists a socket edit that only moved it: the cheapest refresh a dragged number needs.
-        /// </summary>
-        /// <remarks>
-        /// Neither the markers nor the hierarchy rows are rebuilt. A marker reads the socket's
-        /// numbers every time it is placed, so it only has to be re-placed; a row label carries the
-        /// binding and the unresolved mark, neither of which an offset touches.
-        /// </remarks>
+        /// <summary>Persists a socket edit that only moved it: the cheapest refresh a dragged number needs.</summary>
         private void CommitSocketPlacementEdit()
         {
             CommitSocketEdit(false, false);
@@ -9084,12 +7870,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>Adds a socket bound to whatever is selected, or to the first part.</summary>
-        /// <remarks>
-        /// Pre-bound rather than left blank: a socket that follows nothing is the state this whole
-        /// feature exists to make visible, and creating one in that state as a matter of course
-        /// would train the author to ignore the warning.
-        /// </remarks>
+        /// <summary>Deletes a socket, behind a confirmation naming what will lose its attachment point.</summary>
         private void ConfirmDeleteSocket(SocketDefinition socket)
         {
             RigAsset rig = ActiveRig;
@@ -9123,14 +7904,7 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
-        /// <summary>
-        /// A block's name, marked when it is the active row.
-        /// </summary>
-        /// <remarks>
-        /// With several objects selected the panel is a stack of near-identical blocks, so each one
-        /// has to say whose numbers it holds. The active marker explains why only one of them has a
-        /// gizmo in the viewport.
-        /// </remarks>
+        /// <summary>A block's name, marked when it is the active row.</summary>
         private SelectionHeadingElement MakeSelectionHeading(string name, bool isActive)
         {
             Label label = MakeHeading(isActive ? name + "   (active)" : name);
@@ -9282,15 +8056,9 @@ namespace DotsAnimationToolkit.Editor
             return trackBlock;
         }
 
-        /// <summary>
-        /// Writes a flipbook index at the playhead, creating a key there when there is none.
-        /// </summary>
-        /// <remarks>
-        /// Unlike a transform edit this always keys, regardless of the auto-key toggle. A flipbook
-        /// value is a discrete frame with no in-between to hold: there is no equivalent of "showing
-        /// a modified pose without committing it", so a held edit would only be a value that
-        /// silently disappeared.
-        /// </remarks>
+        // Unlike a transform edit this always keys, regardless of auto-key: a flipbook value is a
+        // discrete frame with no in-between to hold, so a held edit would just silently disappear.
+        /// <summary>Writes a flipbook index at the playhead, creating a key there when there is none.</summary>
         private void ApplyFlipbookEdit(SpriteTrack track, int storedValue, SpriteIndexMode indexMode)
         {
             if (selectedClip == null || track == null)
@@ -9351,14 +8119,7 @@ namespace DotsAnimationToolkit.Editor
                 key.indexMode == SpriteIndexMode.RelativeToBase && resolvedIndex < 0);
         }
 
-        /// <summary>
-        /// Switches a key between absolute and relative without moving the frame it shows.
-        /// </summary>
-        /// <remarks>
-        /// Absolute→Relative subtracts the base to recover the offset; Relative→Absolute writes the
-        /// resolved value out. Both go through <c>SpriteIndexResolver</c>, so this conversion cannot
-        /// drift from the resolution the sampler performs.
-        /// </remarks>
+        /// <summary>Switches a key between absolute and relative without moving the frame it shows.</summary>
         private void ToggleFlipbookKeyMode(SpriteTrack track, int keyIndex, SpriteIndexMode newMode)
         {
             SpriteKey key = track.keys[keyIndex];
@@ -9396,8 +8157,8 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            // Same "(unresolved 0x...)" form as a dangling tag or event key (spec §4.2.3) — the
-            // rig has no name for this id, whether because no rig is assigned or the target is gone.
+            // Same "(unresolved 0x...)" form as a dangling tag or event key: the rig has no name
+            // for this id, whether because no rig is assigned or the target is gone.
             return "(unresolved 0x" + targetId.ToString("X8") + ")";
         }
 
@@ -9435,10 +8196,9 @@ namespace DotsAnimationToolkit.Editor
         {
             if (tagId == 0u)
             {
-                // Legacy target-bound track (amendment A56 D5): creation now always assigns a tag,
-                // so this state only survives in assets authored before it. The keys are real and
-                // still play; the tag half reads as the action that fixes it rather than as a
-                // state — "(untagged)" implied a keyed row could legitimately have no identity.
+                // Legacy target-bound track: creation now always assigns a tag, so this state only
+                // survives in assets authored before that. The keys are real and still play; the
+                // tag half reads as the action that fixes it, not as a state.
                 return new TrackBindingLabel(
                     "(assign tag)", ResolveTargetDisplayName(targetId), targetId);
             }
@@ -9447,12 +8207,12 @@ namespace DotsAnimationToolkit.Editor
             string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
             string tagText = tagName ?? "(unresolved 0x" + tagId.ToString("X8") + ")";
 
-            // Rule T1 (V34) makes a tag unique within a rig, so there is at most one part to name.
+            // A tag is unique within a rig, so there is at most one part to name.
             RigTargetDefinition boundTarget = ClipComponentModel.FindTargetByTag(ActiveRig, tagId);
             if (boundTarget == null)
             {
-                // The T2 case: nothing on this rig wears the tag, so the track drives nothing here.
-                // Still a row — the keys exist and will play on a rig that does tag a part this way.
+                // Nothing on this rig wears the tag, so the track drives nothing here. Still a row:
+                // the keys exist and will play on a rig that does tag a part this way.
                 return new TrackBindingLabel(tagText, "(no tagged part)", 0u);
             }
 
@@ -9465,8 +8225,8 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Timeline binding surface (amendment A56): a row's tag half moves the row's keys to
-        // another tag (clip edit), its part half moves the tag to another rig part (rig edit).
+        // Timeline binding surface: a row's tag half moves the row's keys to another tag (clip
+        // edit), its part half moves the tag to another rig part (rig edit).
         // -------------------------------------------------------------------------------------
 
         private TransformTrack GetTransformTrackAt(int trackIndex)
@@ -9653,15 +8413,9 @@ namespace DotsAnimationToolkit.Editor
             expandedTrackKeys.Clear();
         }
 
-        /// <summary>
-        /// Moves <paramref name="tagId"/> onto another rig part (A56 D3). A rig edit, never a clip
-        /// one: the old wearer is cleared (rule T1 keeps a tag unique per rig) and every clip set
-        /// sharing the rig follows the keys to the new part — which is the point of tags.
-        /// </summary>
-        /// <summary>
-        /// Lands an existing row's tag on another rig part: the row is the subject, so its keys are
-        /// already where they belong and only the tag's wearer moves.
-        /// </summary>
+        // Lands an existing row's tag on another rig part: the row is the subject, so its keys are
+        // already where they belong and only the tag's wearer moves. A rig edit, never a clip one —
+        // the old wearer is cleared, and every clip set sharing the rig follows the keys to the new part.
         private void MoveTagToRigPart(uint tagId, uint newTargetId)
         {
             RigAsset rig = ActiveRig;
@@ -9673,25 +8427,10 @@ namespace DotsAnimationToolkit.Editor
             FinishRigTagEdit(rig);
         }
 
-        /// <summary>
-        /// Renames what a rig part is, from the inspector — and brings its animation along.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The mirror image of <see cref="MoveTagToRigPart"/>, and the reason they are not
-        /// one method.</strong> There the row is the subject and the part is being chosen for it, so
-        /// the keys are already on the right tag. Here the <em>part</em> is the subject — "this part
-        /// is the Torso now" — and its keys are expected to follow onto the new tag rather than
-        /// being left on a tag nothing wears any more (owner call, 2026-08-28).
-        /// </para>
-        /// <para>
-        /// The carry is scoped to the open clip set, because that is the set of clips this window
-        /// has. Another clip set keyed against the old tag on this same rig is not opened and not
-        /// rewritten, and its rows will read "(no tagged part)" until it is retagged in its own
-        /// window — which is why the notification says how much moved rather than leaving the sweep
-        /// silent.
-        /// </para>
-        /// </remarks>
+        // Renames what a rig part is, from the inspector — and brings its animation along. The
+        // mirror image of MoveTagToRigPart: there the row is the subject, here the part is, so its
+        // keys are expected to follow onto the new tag rather than being left behind. The carry is
+        // scoped to the open clip set; another clip set keyed against the old tag is not rewritten.
         private void RetagRigPart(RigTargetDefinition wearer, uint chosenTagId)
         {
             RigAsset rig = ActiveRig;
@@ -9717,17 +8456,9 @@ namespace DotsAnimationToolkit.Editor
             FinishRigTagEdit(rig);
         }
 
-        /// <summary>
-        /// Writes which tag a rig part wears — the one core behind both surfaces that can change it
-        /// (A56 D3): the timeline row's part half, and the inspector's part-tag button.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Rule T1 is enforced here, so it cannot be enforced on one surface and not the
-        /// other.</strong> The inspector's button used to assign straight to the field, which let two
-        /// parts on one rig wear the same tag — a state every "which part wears this tag" lookup in
-        /// the toolkit answers by picking whichever it reaches first.
-        /// </remarks>
-        /// <returns>Whether anything changed; false leaves undo and the refresh to the caller.</returns>
+        // Enforces a tag's uniqueness within a rig here, the one core behind both surfaces that can
+        // change it, so it cannot be enforced on one and not the other.
+        /// <summary>Writes which tag a rig part wears.</summary>
         private bool WriteRigPartTag(
             RigAsset rig, RigTargetDefinition wearer, uint tagId, string operationName)
         {
@@ -9750,16 +8481,9 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Moves every row in the open clip set keyed against <paramref name="fromTagId"/> onto
-        /// <paramref name="toTagId"/>, and says on screen how much moved.
-        /// </summary>
-        /// <remarks>
-        /// Every clip in the set, not only the open one: a part's animation living in four clips
-        /// would otherwise have one clip follow the retag and three left behind, which is a worse
-        /// state than either answer to "should the keys follow" on its own. Nothing is carried onto
-        /// or off the "(none)" tag — a keyed row has no legal tagless state to move to (A56 D5).
-        /// </remarks>
+        // Every clip in the set, not only the open one: a part's animation living in four clips
+        // would otherwise have one clip follow the retag and three left behind.
+        /// <summary>Moves every row keyed against <paramref name="fromTagId"/> onto <paramref name="toTagId"/>.</summary>
         private void CarryClipSetKeysToTag(uint fromTagId, uint toTagId)
         {
             if (clipSet == null || clipSet.clips == null || fromTagId == 0u || toTagId == 0u)
@@ -9920,21 +8644,12 @@ namespace DotsAnimationToolkit.Editor
             if (mintedAnyEntry)
             {
                 // CreateVocabularyEntry only mints in memory; an unpersisted row is lost on the
-                // next domain reload (vocabulary rule, amendment A52).
+                // next domain reload.
                 VocabularyRegistryProvider.PersistVocabulary(tagRegistry);
             }
         }
 
-        /// <summary>
-        /// Opens one undo step for a direct edit to the clip's own objects.
-        /// </summary>
-        /// <remarks>
-        /// The flipbook rows edit <c>SpriteTrack</c> instances directly rather than through
-        /// <c>SerializedProperty</c>, because a track's meaning spans two fields the property
-        /// drawers cannot relate — a key's stored number is only interpretable beside its mode and
-        /// its track's base. Direct edits get none of the binding machinery's undo for free, so the
-        /// gesture is recorded explicitly, exactly as the timeline's own gestures are.
-        /// </remarks>
+        /// <summary>Opens one undo step for a direct edit to the clip's own objects.</summary>
         private void RecordClipEdit(string actionName)
         {
             Undo.IncrementCurrentGroup();
@@ -9987,16 +8702,10 @@ namespace DotsAnimationToolkit.Editor
                 : TransformValueState.Interpolated;
         }
 
-        /// <summary>
-        /// <strong>The single path a transform value is written through.</strong>
-        /// </summary>
-        /// <remarks>
-        /// The numeric fields and the viewport gizmos both call this. With auto-key on it writes a
-        /// key at the playhead; with it off the value is held and drawn as modified, which is what
-        /// makes "change it and look at it" possible without littering the clip with keys. A gizmo
-        /// drag passes <paramref name="forceKey"/> on release so a completed drag is kept even
-        /// though the frames during it were not.
-        /// </remarks>
+        // With auto-key on this writes a key at the playhead; with it off the value is held and
+        // drawn as modified. A gizmo drag passes forceKey on release so the completed drag is kept
+        // even though the frames during it were not.
+        /// <summary>The single path a transform value is written through.</summary>
         private void ApplyTransformEdit(
             uint targetId, float3 position, float3 rotationDegrees, float3 scale, bool forceKey)
         {
@@ -10036,22 +8745,10 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
-        /// <summary>
-        /// Writes a part transform block's three fields as one edit, then re-states the block.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The values are read back off the fields, not closed over at build time.</strong>
-        /// The block no longer rebuilds on every change — that rebuild is what killed the drag — so
-        /// a captured value would stay the one the block was built with: dragging Position and then
-        /// Rotation would write the stale position back and silently undo the first drag.
-        /// </para>
-        /// <para>
-        /// The refresh is in place for the same reason. A numeric edit can only make the state chip
-        /// and the block's highlight stale, and
-        /// <see cref="RefreshLiveTransformBinding"/> already knows how to restate exactly those.
-        /// </para>
-        /// </remarks>
+        // Values are read back off the fields, not closed over at build time: the block no longer
+        // rebuilds on every change, so a captured value would stay stale and silently undo a
+        // second field's drag.
+        /// <summary>Writes a part transform block's three fields as one edit, then re-states the block.</summary>
         private void ApplyTransformEditFromFields(LiveTransformBinding binding)
         {
             if (binding == null
@@ -10134,15 +8831,7 @@ namespace DotsAnimationToolkit.Editor
             hasPendingTransformEdit = false;
         }
 
-        /// <summary>
-        /// The always-visible transform block for the selected part.
-        /// </summary>
-        /// <remarks>
-        /// Shown whether or not a key exists at the playhead, because "what is this part doing right
-        /// now" is a question with an answer at every time, and an inspector that goes blank between
-        /// keys makes scrubbing useless for judging a pose. The state chip says which kind of value
-        /// is on screen so a sampled number is never mistaken for a stored one.
-        /// </remarks>
+        /// <summary>The always-visible transform block for the selected part.</summary>
         private void AddTransformFields(VisualElement parent, uint targetId)
         {
             LiveTransformBinding binding = new LiveTransformBinding { targetId = targetId };
@@ -10199,7 +8888,7 @@ namespace DotsAnimationToolkit.Editor
                 new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
             rotationField.SetEnabled(!isRigEdit);
             rotationField.tooltip =
-                "Euler degrees in Unity's ZXY order. The bake converts to radians once (section 4.5). "
+                "Euler degrees in Unity's ZXY order. The bake converts to radians once. "
                 + "A flat rig leaves x and y at zero.";
             rotationField.RegisterValueChangedCallback(changeEvent =>
             {
@@ -10335,15 +9024,7 @@ namespace DotsAnimationToolkit.Editor
             inspectorPane.Bind(clipSerializedObject);
         }
 
-        /// <summary>
-        /// Clip-level bone-track summary, plus the by-name fallback for a set with no rig assigned.
-        /// </summary>
-        /// <remarks>
-        /// With a rig assigned, the hierarchy pane is the picker and this only points at it — a
-        /// second dropdown listing the same bones would be one more thing to keep in sync with the
-        /// tree for no gain. Without one there is nothing to pick from, so the typed field remains
-        /// the only way to author a bone track, exactly as before.
-        /// </remarks>
+        /// <summary>Clip-level bone-track summary, plus the by-name fallback for a set with no rig assigned.</summary>
         private void AddBoneTrackControls()
         {
             inspectorPane.Add(MakeHeading("Bone Tracks"));
@@ -10351,9 +9032,8 @@ namespace DotsAnimationToolkit.Editor
             int boneTrackCount = selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0;
             inspectorPane.Add(new Label(boneTrackCount.ToString() + " track(s)"));
 
-            // LoadedPrefab, not just whether a rig is assigned: a rig with no sourcePrefab yet
-            // (Phase D11 migration case) has no hierarchy to pick a bone from either, and the
-            // typed fallback below is exactly what that state needs.
+            // LoadedPrefab, not just whether a rig is assigned: a rig with no sourcePrefab yet has
+            // no hierarchy to pick a bone from either, and the typed fallback covers that state.
             bool hasHierarchy = LoadedPrefab != null;
             if (hasHierarchy)
             {
@@ -10406,22 +9086,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildTimeline();
         }
 
-        /// <summary>
-        /// The clip's asset name, editable in place.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Here rather than only in the Project window because a clip's name is not cosmetic: the
-        /// clip set's id-constant generator turns it into a C# identifier, so a set full of
-        /// "NewClip 3" produces constants nobody can read. Creating a clip from this window and
-        /// having to leave it to give the clip a name is the flow this closes.
-        /// </para>
-        /// <para>
-        /// <c>isDelayed</c> is load-bearing: without it the field commits on every keystroke, and
-        /// each commit is a file rename on disk. Typing "Walk" would rename the asset four times and
-        /// leave three stale <c>.meta</c> shuffles behind it.
-        /// </para>
-        /// </remarks>
+        // isDelayed is load-bearing: without it the field commits on every keystroke, and each
+        // commit is a file rename on disk.
+        /// <summary>The clip's asset name, editable in place.</summary>
         private TextField MakeClipNameField()
         {
             TextField nameField = new TextField("Name");

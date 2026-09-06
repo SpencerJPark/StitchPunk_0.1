@@ -38,35 +38,12 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// The viewport's ragdoll box handles (Phase D6, spec §8.3): a wireframe box for every body the
-    /// rig declares, the selected one highlighted, plus the selected body's own grab handles — six
-    /// face handles that resize, a centre handle that moves, and one rotation ring in
-    /// <see cref="RagdollSpace.Planar2D"/> or three in <see cref="RagdollSpace.Spatial3D"/>.
+    /// The viewport's ragdoll box handles: a wireframe box for every body the rig declares, the
+    /// selected one highlighted, plus the selected body's own grab handles — six face handles that
+    /// resize, a centre handle that moves, and one rotation ring in <see cref="RagdollSpace.Planar2D"/>
+    /// or three in <see cref="RagdollSpace.Spatial3D"/>. One line mesh, geometry baked in world
+    /// space since several boxes with arbitrary rotations draw into it at once.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Two different things share one mesh, the same way <see cref="PreviewSceneGizmos"/>'s
-    /// grid and selection outline are two different things in two different objects.</strong> Every
-    /// body's wireframe is scene furniture — drawn whenever the rig has bodies, exactly as
-    /// <c>PreviewSocketMarkers</c> shows every socket regardless of which one is selected. The grab
-    /// handles are authoring surface — drawn only for the selected body, live whenever a Ragdoll
-    /// component is selected rather than only in Rig Edit mode (spec §8.3: "placing a box is a rig
-    /// edit but not a hierarchy edit," the same call socket placement already makes).
-    /// </para>
-    /// <para>
-    /// <strong>Line mesh, not <c>Handles</c>, matching <see cref="PreviewTransformGizmo"/> exactly.</strong>
-    /// <c>Conformance_E</c> bans immediate-mode drawing in package editor sources, and the preview
-    /// renders through its own <c>PreviewRenderUtility</c> scene where an immediate-mode handle would
-    /// have nothing to draw into regardless.
-    /// </para>
-    /// <para>
-    /// <strong>Geometry is baked in world space, not carried by a <c>Transform</c>.</strong> A body's
-    /// box can be rotated arbitrarily relative to the viewport, and several boxes are drawn into one
-    /// mesh at once (every body's wireframe, plus one selected body's handles) — there is no single
-    /// object transform that could carry all of that, so every vertex is computed in world space
-    /// directly, the same choice <see cref="PreviewTransformGizmo"/> makes for its own handles.
-    /// </para>
-    /// </remarks>
     public sealed class PreviewRagdollBoxHandles
     {
         private const int RingSegments = 48;
@@ -135,15 +112,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Picks the selected body's grab handle under a ray, or <see cref="RagdollBoxHandle.None"/>.
-        /// </summary>
-        /// <remarks>
-        /// <strong>What is drawn is exactly what this tests</strong> — the same discipline
-        /// <see cref="PreviewTransformGizmo"/>'s own remarks name: this method and
-        /// <see cref="AppendGrabHandles"/> share the same size constants rather than each picking
-        /// its own, so a handle is grabbable precisely where it appears.
-        /// </remarks>
+        // Picks the selected body's grab handle under a ray, or RagdollBoxHandle.None. Shares its
+        // size constants with AppendGrabHandles, so a handle is grabbable precisely where it appears.
         public static RagdollBoxHandle Pick(Ray ray, in RagdollBoxVisual box, RagdollSpace space, float handleLength)
         {
             float pickRadius = handleLength * PreviewGizmoMath.HandlePickRadiusFactor;
@@ -307,10 +277,8 @@ namespace DotsAnimationToolkit.Editor
             float ringRadius = handleLength * RotateRingRadiusFactor;
             if (space == RagdollSpace.Planar2D)
             {
-                // The body's own local Z — the twist axis every limit and boxEulerAngles' own
-                // authoring convention already measures about (spec §6.2's plane normal, expressed
-                // in this body's own axes rather than recomputed from the billboard frame, since the
-                // handle rotates the box's authored data, not the live simulated pose).
+                // The body's own local Z, expressed in this body's own axes rather than recomputed
+                // from the billboard frame: the handle rotates the box's authored data, not the live simulated pose.
                 AppendRing(box.center, axisX, axisY, ringRadius,
                     activeHandle == RagdollBoxHandle.RotateZ ? HighlightColor : RotateRingColor);
             }

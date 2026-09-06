@@ -7,29 +7,14 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Reads and writes authored flipbook tracks at a point in time.
+    /// Reads and writes authored flipbook tracks at a point in time. Evaluation holds the last key,
+    /// matching <c>ClipSampler.SampleSpriteTrack</c> — an index cannot be halfway between two
+    /// frames, so a flipbook does not interpolate.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The flipbook counterpart to <see cref="ClipTransformEditing"/>, and for the same reason: the
-    /// inspector shows the value at the playhead and writes edits back to a key, so both need one
-    /// implementation of "what is this track showing right now" rather than two that drift.
-    /// </para>
-    /// <para>
-    /// <strong>Evaluation holds the last key, matching <c>ClipSampler.SampleSpriteTrack</c>.</strong>
-    /// An index cannot be halfway between two frames, so a flipbook does not interpolate — the key
-    /// at or before the playhead is shown until the next key's own time is reached. An editor that
-    /// interpolated here, or that switched at the midpoint, would show a frame at a time the runtime
-    /// does not.
-    /// </para>
-    /// </remarks>
     public static class ClipSpriteEditing
     {
-        /// <summary>Every flipbook track on a clip that drives one rig target.</summary>
-        /// <remarks>
-        /// A list rather than a single track: several tracks per target is how one texture array
-        /// holds independent feature sets, and each carries its own base index.
-        /// </remarks>
+        // Every flipbook track on a clip that drives one rig target. A list rather than a single
+        // track: several tracks per target is how one texture array holds independent feature sets.
         public static void CollectTracksForTarget(
             ClipAsset clip, uint targetId, List<SpriteTrack> tracks, List<int> trackIndices)
         {
@@ -68,14 +53,8 @@ namespace DotsAnimationToolkit.Editor
             return -1;
         }
 
-        /// <summary>
-        /// The index of the key holding the track at a time, or −1 for an empty track.
-        /// </summary>
-        /// <remarks>
-        /// The last key at or before the time, which is the rule <c>ClipSampler</c> applies — the
-        /// index changes on the key, not between keys. Before the first key the first key holds, so
-        /// scrubbing to the head of a clip shows the frame it starts on.
-        /// </remarks>
+        // The index of the key holding the track at a time, or −1 for an empty track. The last key
+        // at or before the time, matching ClipSampler; before the first key, the first key holds.
         public static int FindEffectiveKeyIndex(SpriteTrack track, float normalizedTime)
         {
             if (track == null || track.keys == null || track.keys.Count == 0)

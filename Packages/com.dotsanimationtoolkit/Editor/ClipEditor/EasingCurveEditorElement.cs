@@ -7,31 +7,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// A key's easing, drawn as a curve with draggable handles.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The curve drawn is sampled through <c>ClipSampler.Ease</c></strong>, the same
-    /// function the runtime evaluates. A widget that plotted the shapes with its own arithmetic
-    /// would eventually disagree with playback, and the disagreement would be invisible — the shape
-    /// would simply be a little wrong in a way nobody could point at.
-    /// </para>
-    /// <para>
-    /// <strong>Every mode draws on the same handles, including the fixed ones.</strong> The handles
-    /// of a fixed mode are the cubic that matches its curve (see <see cref="EasingPresets"/>), shown
-    /// dimmed because they are not what the key stores yet. Dragging one is the gesture that turns
-    /// the preset into a custom Bézier, which is why they are visible and grabbable rather than
-    /// hidden until the author has already chosen Bézier from a menu: the shape on screen is the
-    /// thing you reach for.
-    /// </para>
-    /// <para>
-    /// Handles are clamped to the unit square, which is validation rule V17's constraint rather than
-    /// a drawing convenience: x outside it makes the curve non-functional, and y outside it is
-    /// overshoot the bake's bounds union cannot account for. Clamping here means the editor cannot
-    /// author a clip that fails that rule.
-    /// </para>
-    /// </remarks>
+    /// <summary>A key's easing, drawn as a curve with draggable handles, sampled through <c>ClipSampler.Ease</c> so the shape matches playback.</summary>
     public sealed class EasingCurveEditorElement : VisualElement
     {
         public const string UssClassName = "clip-editor__easing-curve";
@@ -54,14 +30,9 @@ namespace DotsAnimationToolkit.Editor
 
         private int draggingHandleIndex = -1;
 
-        /// <summary>
-        /// Raised while a handle is dragged, with both handles' current values.
-        /// </summary>
-        /// <remarks>
-        /// The key the values belong to becomes <see cref="Interpolation.Bezier"/> by the act of
-        /// dragging — no other mode reads handles — so the listener writes that mode as well as the
-        /// numbers. The event does not carry it because the answer is never anything else.
-        /// </remarks>
+        // Raised while a handle is dragged, with both handles' current values. The key becomes
+        // Bezier by the act of dragging, so the listener writes that mode too; the event does not
+        // carry it because the answer is never anything else.
         public event Action<float2, float2> curveEdited;
 
         public EasingCurveEditorElement()
@@ -80,16 +51,8 @@ namespace DotsAnimationToolkit.Editor
             get { return interpolation; }
         }
 
-        /// <summary>
-        /// Sets the curve shown, without raising <see cref="curveEdited"/>.
-        /// </summary>
-        /// <remarks>
-        /// A fixed mode's handles come from its preset rather than from the key, because the key's
-        /// stored handles are unread in that mode and may hold a stale drag. An all-zero Bézier pair
-        /// is displayed as the linear handles, matching how <c>ClipSampler.EaseBezier</c> reads it;
-        /// drawing the literal zeros would show a curve pinned to the origin that does not describe
-        /// what the key actually does.
-        /// </remarks>
+        // Sets the curve shown, without raising curveEdited. A fixed mode's handles come from its
+        // preset, since the key's stored handles are unread in that mode and may hold a stale drag.
         public void SetCurveWithoutNotify(
             Interpolation newInterpolation, float2 newStartHandle, float2 newEndHandle)
         {
@@ -105,6 +68,8 @@ namespace DotsAnimationToolkit.Editor
                 newEndHandle = EasingPresets.LinearEndHandle;
             }
 
+            // Clamped to the unit square: x outside it makes the curve non-functional, and y outside
+            // it is overshoot the bake's bounds union cannot account for.
             startHandle = math.clamp(newStartHandle, new float2(0f, 0f), new float2(1f, 1f));
             endHandle = math.clamp(newEndHandle, new float2(0f, 0f), new float2(1f, 1f));
             MarkDirtyRepaint();
@@ -266,16 +231,9 @@ namespace DotsAnimationToolkit.Editor
                 painter, CurveToLocal(endHandle, rect), WithAlpha(EndHandleColor, handleAlpha));
         }
 
-        /// <summary>
-        /// Draws the eased weight across the segment, sampled through the runtime's own solve so
-        /// what is drawn is what will play.
-        /// </summary>
-        /// <remarks>
-        /// Step is drawn rather than sampled. <c>ClipSampler.Ease</c> returns 0 for it at every
-        /// time, including 1, because track sampling short-circuits Step before easing — plotting
-        /// that literally would draw a flat line with no jump, which is the one thing a hold does
-        /// not look like.
-        /// </remarks>
+        // Draws the eased weight across the segment, sampled through the runtime's own solve. Step
+        // is drawn rather than sampled: ClipSampler.Ease returns 0 for it everywhere, since track
+        // sampling short-circuits Step before easing.
         private void StrokeCurve(Painter2D painter, Rect rect)
         {
             painter.strokeColor = CurveColor;

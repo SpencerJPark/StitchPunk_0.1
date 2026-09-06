@@ -10,59 +10,15 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Drops the previewed rig as an active ragdoll (Phase D6, spec §8.4, §8.5): builds
-    /// <see cref="RagdollBodyParams"/>/<see cref="RagdollBodyState"/> from the rig exactly as
-    /// <c>ActorBaker</c> would, and steps them through the identical <see cref="RagdollSolver"/>
-    /// entry points the runtime's <c>RagdollSolveSystem</c> job calls.
+    /// Drops the previewed rig as an active ragdoll: builds <see cref="RagdollBodyParams"/>/
+    /// <see cref="RagdollBodyState"/> from the rig exactly as <c>ActorBaker</c> would, and steps
+    /// them through the identical <see cref="RagdollSolver"/> entry points the runtime's
+    /// <c>RagdollSolveSystem</c> job calls — no parallel solver, no parallel struct.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>No parallel solver, no parallel struct (spec §6.0).</strong> Every substep is one call
-    /// to <see cref="RagdollSolver.Step"/> against the same <see cref="RagdollBodyParams"/> and
-    /// <see cref="RagdollBodyState"/> arrays a baked <c>RagdollBody</c> buffer composes. A preview
-    /// that redeclared any of that arithmetic would drift the first time either side gained a field —
-    /// the exact failure <c>RagdollPreviewParityTests</c> exists to catch.
-    /// </para>
-    /// <para>
-    /// <strong>Body → node resolution goes through <see cref="ClipPreviewController.ResolveRagdollNode"/>,
-    /// once, here.</strong> D5 solved node → address (<c>ClipEditorWindow.BuildRagdollAddressFor</c>);
-    /// this is the reverse, and <see cref="PreviewRagdollBoxHandles"/> calls the very same controller
-    /// method rather than this class owning a second copy of it.
-    /// </para>
-    /// <para>
-    /// <strong>Parentage is derived from authored <em>paths</em>, not from a live Transform walk.</strong>
-    /// <c>RagdollBodyResolver</c> (D3) walks <c>Transform.parent</c> because the real actor prefab is
-    /// one hierarchy. The preview is not: a <see cref="RigNodeAddressKind.RigTarget"/> body's node is
-    /// a flat quad under <c>PreviewRigMirror</c>'s root, with no nesting that reflects the rig's real
-    /// structure, while a <see cref="RigNodeAddressKind.Bone"/> body's node <em>does</em> sit in a
-    /// real, nested tree — the skinned source instance. Rather than special-case each address kind's
-    /// notion of "ancestor" separately, every resolved body is given a path key — a rig target's
-    /// <c>RigTargetDefinition.sourceNodePath</c>, a <see cref="RigNodeAddressKind.HierarchyPath"/>
-    /// body's own <c>hierarchyPath</c>, or (for a bone) the name path walked live from the skinned
-    /// instance up to its root — and "nearest ragdolled ancestor" becomes an ordinary string-prefix
-    /// question over those keys. This is provably the same answer a live walk would give whenever the
-    /// keys really are paths in one tree (which is exactly what
-    /// <c>RigTargetDefinition.sourceNodePath</c>'s own doc comment says it is: "the path, from the
-    /// previewed prefab's root, of the node this target stands for"), and it is the only approach that
-    /// answers the same question for a flat quad and a live bone alike.
-    /// </para>
-    /// <para>
-    /// <strong>Known divergence from the baker: <c>restRelativeRotation</c>/<c>parentAnchorOffset</c>
-    /// come from whatever pose is on screen when the toggle switches on, not from the rig's authored
-    /// rest pose.</strong> <c>ActorBaker</c> always measures a joint's "zero" from the prefab's rest
-    /// pose, baked once, forever. Reproducing that here would need a second, dedicated rest-pose
-    /// sample of the skinned instance's bones (the rig-target case already has one —
-    /// <c>ClipPreviewController</c>'s <c>targetRestPoses</c> — but bones do not), which is more
-    /// machinery than this phase's preview loop justifies. The practical effect: a rig captured
-    /// mid-animation (an elbow bent past its authored limit, say) previews its limit as measured from
-    /// <em>that</em> bend rather than from rest, so a first-frame correction that would not fire in
-    /// the runtime can fire here. Documented rather than silently accepted — see the Phase D6 report
-    /// for the full reasoning.
-    /// </para>
-    /// </remarks>
     public sealed class RagdollPreviewSimulation
     {
-        /// <summary>Runtime's own default (<c>ConfigBootstrapSystem</c>) — mirrored here since the editor preview has no <c>RagdollConfig</c> singleton to read.</summary>
+        // Runtime's own default (ConfigBootstrapSystem), mirrored here since the editor preview has
+        // no RagdollConfig singleton to read.
         private const int MaxSubstepsPerFrame = 4;
 
         private const float ContactProbeRadius = 0.02f;
@@ -77,26 +33,10 @@ namespace DotsAnimationToolkit.Editor
         private NativeList<RagdollContact> contacts;
         private List<Transform> nodes = new List<Transform>();
 
-        /// <summary>
-        /// Each node's local TRS at the moment the drop started — the preview's
-        /// <c>RagdollRestPose</c> (spec §5.3), and the whole of "turning it off restores the pose".
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Captured, not re-derived.</strong> The first version of this class stored nothing
-        /// and assumed the caller's next <c>SamplePose</c> at the unchanged playhead time would put
-        /// everything back on its own. That is true only for nodes the current clip actually drives:
-        /// a bone with no bone track in this clip, or a part that has never been keyed, is never
-        /// re-posed by a resample and simply stays wherever the ragdoll dropped it. Since a ragdoll
-        /// is most useful on exactly the rigs where many nodes are unkeyed, the assumption failed in
-        /// the common case rather than an exotic one.
-        /// </para>
-        /// <para>
-        /// Local rather than world TRS, so restoring is a plain assignment that cannot be disturbed
-        /// by the order nodes are written in — a parent restored after its child would otherwise
-        /// drag the child back off its restored world pose.
-        /// </para>
-        /// </remarks>
+        // Each node's local TRS at the moment the drop started, captured rather than re-derived: a
+        // resample at the unchanged playhead only restores nodes the current clip actually drives,
+        // and a ragdoll is most useful on rigs where many nodes are unkeyed. Local rather than world
+        // TRS, so restore order cannot drag a child off its restored world pose.
         private readonly List<PreviewRestPose> restPoses = new List<PreviewRestPose>();
 
         /// <summary>One node's pre-drop local TRS.</summary>
@@ -131,12 +71,9 @@ namespace DotsAnimationToolkit.Editor
             get { return nodes.Count; }
         }
 
-        /// <summary>
-        /// The root body's node (buffer index 0), or null when nothing is built. Body 0 is always
-        /// <em>a</em> root after parent-before-child sorting, matching <c>SolveRagdollJob</c>'s own
-        /// "just use the first body" reading of the gravity frame's source node when a rig resolves
-        /// more than one disconnected root (spec §9's V-R6 case).
-        /// </summary>
+        /// <summary>The root body's node (buffer index 0), or null when nothing is built.</summary>
+        // Body 0 is always a root after parent-before-child sorting, matching SolveRagdollJob's own
+        // reading when a rig resolves more than one disconnected root.
         public Transform RootNode
         {
             get { return nodes.Count > 0 ? nodes[0] : null; }
@@ -144,13 +81,9 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Resolves the rig's ragdoll bodies against the current preview and captures their starting
-        /// state from whatever pose is on screen right now (spec §8.4's "capture the current preview
-        /// pose").
+        /// state from whatever pose is on screen right now.
         /// </summary>
-        /// <param name="refusalReason">
-        /// Why nothing was built, for the toolbar's status line (spec §8.4's "the toggle refuses to
-        /// engage, and the status line says why").
-        /// </param>
+        /// <param name="refusalReason">Why nothing was built, for the toolbar's status line.</param>
         public bool TryBuild(RigAsset rig, ClipPreviewController controller, out string refusalReason)
         {
             Dispose();
@@ -194,8 +127,7 @@ namespace DotsAnimationToolkit.Editor
                     localScale = body.node.localScale
                 });
 
-                // Capture, mirroring RagdollCaptureSystem exactly (§7.1, RagdollBodyParams' own
-                // remarks): the body's own centre of mass, not the node's origin.
+                // Capture, mirroring RagdollCaptureSystem: the body's own centre of mass, not the node's origin.
                 quaternion nodeWorldRotation = body.node.rotation;
                 float3 nodeWorldPosition = body.node.position;
                 bodyStates[index] = new RagdollBodyState
@@ -207,7 +139,7 @@ namespace DotsAnimationToolkit.Editor
                 };
             }
 
-            // §6.2: captured once here and never revisited — see RagdollState.planeOrigin's remarks.
+            // Captured once here and never revisited.
             planeOrigin = bodyStates[0].position - math.mul(bodyStates[0].orientation, bodyParams[0].boxCenter);
 
             substepAccumulator = 0f;
@@ -222,10 +154,8 @@ namespace DotsAnimationToolkit.Editor
         /// whatever whole substeps that buys onto the resolved nodes.
         /// </summary>
         /// <param name="frameRotation">
-        /// This step's gravity frame (spec §6.2) — identity for <see cref="RagdollSpace.Spatial3D"/>
-        /// or when the rig declares no billboard root. The caller resolves this, never this class:
-        /// see <c>ClipPreviewController.ApplyRagdollPreview</c> for why reading the billboard root's
-        /// already-written world rotation is the right source rather than a second resolve.
+        /// This step's gravity frame — identity for <see cref="RagdollSpace.Spatial3D"/> or when the
+        /// rig declares no billboard root. The caller resolves this, never this class.
         /// </param>
         public void Step(
             RigAsset rig, in quaternion frameRotation, List<RagdollPreviewPropDefinition> props,
@@ -250,8 +180,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (sleeping)
             {
-                // §9 G1's preview counterpart: a sleeping ragdoll still owns its nodes every tick
-                // (WriteToTransforms below never stops running); it simply stops integrating.
+                // A sleeping ragdoll still owns its nodes every tick (WriteToTransforms below never
+                // stops running); it simply stops integrating.
                 substepAccumulator -= stepsToRun * substepDeltaTime;
                 WriteToTransforms();
                 return;
@@ -317,15 +247,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>Releases the native arrays. Idempotent, and safe to call before <see cref="TryBuild"/> ever succeeds.</summary>
-        /// <summary>
-        /// Puts every node back where it stood when the drop started (spec §7.4's preview half).
-        /// </summary>
-        /// <remarks>
-        /// Safe to call when nothing was built, and safe to call twice — it clears the captured
-        /// poses as it applies them, so a second call restores nothing rather than re-applying a
-        /// stale pose over whatever the user has done since.
-        /// </remarks>
+        // Puts every node back where it stood when the drop started. Safe to call twice: it clears
+        // the captured poses as it applies them, so a second call restores nothing rather than
+        // re-applying a stale pose over whatever the user has done since.
         public void RestoreCapturedPose()
         {
             int restorableCount = nodes.Count < restPoses.Count ? nodes.Count : restPoses.Count;
@@ -344,6 +268,7 @@ namespace DotsAnimationToolkit.Editor
             restPoses.Clear();
         }
 
+        /// <summary>Releases the native arrays. Idempotent, and safe to call before <see cref="TryBuild"/> ever succeeds.</summary>
         public void Dispose()
         {
             if (bodyParams.IsCreated)
@@ -427,10 +352,9 @@ namespace DotsAnimationToolkit.Editor
             return resolvedBodies;
         }
 
-        /// <summary>
-        /// A body's path key: what its "nearest ragdolled ancestor" is measured against. See the
-        /// type remarks for why this is a string rather than a live Transform walk.
-        /// </summary>
+        // A body's path key: what its "nearest ragdolled ancestor" is measured against. A string
+        // rather than a live Transform walk, since a rig-target node (a flat quad) and a bone node
+        // (a real nested tree) have no common notion of "ancestor" to walk.
         private static string ComputePathKey(
             in RigNodeAddress address, RigAsset rig, Transform node, Transform skeletonRoot)
         {
@@ -568,14 +492,13 @@ namespace DotsAnimationToolkit.Editor
                 && nodePath[candidateAncestorPath.Length] == '/';
         }
 
-        /// <summary>
-        /// The child's orientation relative to its parent, and the joint anchor as an offset from
-        /// the parent's centre of mass in the parent's own axes — <c>RagdollBodyResolver.ComputeRestRelation</c>'s
-        /// formula exactly, using world transforms in place of an actor-relative local-matrix walk.
-        /// Provably equivalent here: both <c>PreviewRigMirror</c> and <c>PreviewSkeletonMirror</c>
-        /// plant their root at world origin with identity rotation (see their own remarks), so a
-        /// resolved node's world pose <em>is</em> its actor-space pose.
-        /// </summary>
+        // The child's orientation relative to its parent, and the joint anchor as an offset from the
+        // parent's centre of mass — RagdollBodyResolver.ComputeRestRelation's formula, using world
+        // transforms since both preview mirrors plant their root at world origin with identity rotation.
+        //
+        // Known divergence from the baker: this measures "rest" from whatever pose is on screen when
+        // the toggle switches on, not the rig's authored rest pose, so a rig captured mid-animation
+        // can trigger a first-frame joint correction the runtime would not.
         private static void ComputeRestRelation(
             Transform childNode, Transform parentNode, float3 parentBoxCenter,
             out quaternion restRelativeRotation, out float3 parentAnchorOffset)

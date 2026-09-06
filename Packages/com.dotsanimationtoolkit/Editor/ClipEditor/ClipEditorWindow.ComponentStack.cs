@@ -11,39 +11,6 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The inspector's component stack: what an object carries on this clip, added and removed the
-    /// way components are added to and removed from a GameObject.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The stack is a view of the asset, not a second copy of it.</strong> A component is
-    /// present exactly when the track it stands for exists (<see cref="ClipComponentModel"/>), so
-    /// there is no list of components to keep in step with the tracks and no migration for clips
-    /// authored before this existed — an old clip opens showing precisely what it animates.
-    /// </para>
-    /// <para>
-    /// <strong>Adding is a decision separate from keying.</strong> Add a Flipbook and the object has
-    /// an empty sprite track: nothing plays yet, but the channel is declared, and the fields to key
-    /// it are on screen. Before this, a track appeared the first time somebody happened to drag a
-    /// field, which meant the answer to "does this clip animate this part" was a thing you found out
-    /// by accident.
-    /// </para>
-    /// <para>
-    /// <strong>Transform is not one of the add-ons.</strong> Everything in the animator is
-    /// somewhere, so every object's stack opens with its transform whether or not it has been keyed
-    /// — a part's on a transform track, anything else's on a bone track — and it carries no remove
-    /// button, because there is no state in which an object has no transform. The Add Component
-    /// menu therefore offers Flipbook, Billboard and Socket, and those are the only things a person
-    /// decides to put on an object.
-    /// </para>
-    /// <para>
-    /// <strong>Easing is not in the stack.</strong> It belongs to a key, not to an object — every
-    /// key has one whether or not anyone chose it — so it is shown in the key block instead. Socket
-    /// and Billboard are per-object structure the rig owns, which is why they are badged: moving one
-    /// while looking at one clip moves it in all of them.
-    /// </para>
-    /// </remarks>
     public sealed partial class ClipEditorWindow
     {
         private const string ComponentBlockUssClassName = "clip-editor__component";
@@ -77,15 +44,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<ClipComponentPickerEntry> componentPickerEntries =
             new List<ClipComponentPickerEntry>();
 
-        /// <summary>
-        /// Kinds the author has folded away, remembered across rebuilds.
-        /// </summary>
-        /// <remarks>
-        /// By kind rather than by instance: the panel is rebuilt on every edit and every selection
-        /// change, so per-instance state would be forgotten the moment a track index shifted, and
-        /// "I do not want to look at flipbooks right now" is a statement about flipbooks rather than
-        /// about one track.
-        /// </remarks>
+        // Kinds the author has folded away, remembered across rebuilds. By kind rather than by
+        // instance: the panel rebuilds on every edit, so per-instance state would be forgotten the
+        // moment a track index shifted.
         private readonly HashSet<ClipComponentKind> collapsedComponentKinds =
             new HashSet<ClipComponentKind>();
 
@@ -98,9 +59,8 @@ namespace DotsAnimationToolkit.Editor
             get { return activeRig; }
         }
 
-        /// <summary>
-        /// The component stack for one selected object, headed by its name.
-        /// </summary>
+        // The component stack for one selected object, headed by its name. A view of the asset, not
+        // a second copy: a component is present exactly when the track it stands for exists.
         private void BuildComponentStack(HierarchyItem item, bool isActive)
         {
             ClipObjectRef objectRef = BuildObjectRef(item);
@@ -153,14 +113,8 @@ namespace DotsAnimationToolkit.Editor
             inspectorPane.Add(BuildAddComponentButton(objectRef));
         }
 
-        /// <summary>
-        /// Says what kind of thing the selected row is, on the heading's hover rather than under it.
-        /// </summary>
-        /// <remarks>
-        /// It answers a question that is asked once — "what am I looking at" — and then sits there
-        /// being re-read for the rest of the session, pushing the components it describes further
-        /// down a pane that is already short. Hovering asks for it; the stack keeps the room.
-        /// </remarks>
+        // Says what kind of thing the selected row is, on the heading's hover rather than under it —
+        // a question asked once, so hovering asks for it and the stack keeps the room.
         private void DescribeSelectedObject(Label heading, HierarchyItem item, ClipObjectRef objectRef)
         {
             if (heading == null)
@@ -196,10 +150,10 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Part tag (Phase E target-tags spec §4.2): the selection heading's tag button, writing
-        // RigTargetDefinition.tagId — "what is this part for", shared across every clip set that
-        // uses this rig. Not to be confused with BuildTagBindButton below, which switches one
-        // track's own binding between target id and tag and writes the clip instead of the rig.
+        // Part tag: the selection heading's tag button, writing RigTargetDefinition.tagId — "what
+        // is this part for", shared across every clip set that uses this rig. Not to be confused
+        // with BuildTagBindButton below, which switches one track's own binding between target id
+        // and tag and writes the clip instead of the rig.
         // -----------------------------------------------------------------------------------
 
         /// <summary>
@@ -236,7 +190,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>
         /// Opens the searchable tag picker anchored to a part's tag button in the selection
         /// heading — one popup style shared with <see cref="RigAssetEditor"/>'s Target Tags
-        /// section and <see cref="BuildTagBindButton"/> below (spec §4.2.1).
+        /// section and <see cref="BuildTagBindButton"/> below.
         /// </summary>
         private void OpenPartTagPicker(RigTargetDefinition target, Button anchor)
         {
@@ -266,21 +220,9 @@ namespace DotsAnimationToolkit.Editor
                 });
         }
 
-        /// <summary>
-        /// The object a stack belongs to, with its billboard root and its rig part resolved.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Both are resolved here rather than inside the model because both are addressed by
-        /// hierarchy path, and only the window knows the previewed hierarchy that path is read
-        /// against.
-        /// </para>
-        /// <para>
-        /// <strong>A previewed node carries a target id whenever some part claims its path.</strong>
-        /// That is what makes a plane in the prefab hierarchy something a flipbook can bind to: the
-        /// id is the binding, and until a part records which node it stands for, a node has none.
-        /// </para>
-        /// </remarks>
+        // The object a stack belongs to, with its billboard root and its rig part resolved. Resolved
+        // here rather than inside the model: both are addressed by hierarchy path, and only the
+        // window knows the previewed hierarchy that path is read against.
         private ClipObjectRef BuildObjectRef(HierarchyItem item)
         {
             uint billboardRootId = 0u;
@@ -371,10 +313,8 @@ namespace DotsAnimationToolkit.Editor
                 header.Add(badge);
             }
 
-            // Only Transform and Flipbook tracks can bind a tag (Phase E target-tags spec §4.3) —
-            // a bone track has no target row to look a tag up on (ClipAsset.boneTracks' own
-            // remarks), and the intrinsic Transform block exists on every object whether or not a
-            // track has been minted for it yet, so the button waits for one to exist.
+            // Only Transform and Flipbook tracks can bind a tag: a bone track has no target row to
+            // look a tag up on, and the intrinsic Transform block waits for a track to exist.
             if ((instance.kind == ClipComponentKind.Transform || instance.kind == ClipComponentKind.Flipbook)
                 && instance.HasTrack)
             {
@@ -413,8 +353,7 @@ namespace DotsAnimationToolkit.Editor
                 block.EnableInClassList(ComponentActiveUssClassName, isGizmoTarget);
             }
 
-            // Same marking, for the same reason, on the ragdoll body whose box handles are up in
-            // the viewport (spec §8.3).
+            // Same marking, for the same reason, on the ragdoll body whose box handles are up in the viewport.
             if (instance.kind == ClipComponentKind.Ragdoll)
             {
                 RagdollBodyDefinition ragdollBody = ResolveRagdollBody(instance);
@@ -439,9 +378,8 @@ namespace DotsAnimationToolkit.Editor
                 return name;
             }
 
-            // A ragdoll body has no keys at all (spec §3.3 is authored tuning, not animated data),
-            // so a "0 key(s)" suffix below would read as an unkeyed track rather than what it is —
-            // named rig structure, exactly the same shape Socket's own name suffix takes.
+            // A ragdoll body has no keys at all — it is authored tuning, not animated data — so a
+            // "0 key(s)" suffix below would read as an unkeyed track rather than named rig structure.
             if (instance.kind == ClipComponentKind.Ragdoll)
             {
                 RagdollBodyDefinition body = ResolveRagdollBody(instance);
@@ -546,21 +484,14 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Track tag binding (Phase E target-tags spec §4.3, E3): a Transform or Flipbook track's
-        // header button, opening the E1.5 picker to switch the track between binding by target id
-        // (the object it lives under, as always) and binding by a shared role.
+        // Track tag binding: a Transform or Flipbook track's header button, switching the track
+        // between binding by target id (the object it lives under, as always) and binding by a
+        // shared role.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Builds the header button showing whether a Transform or Flipbook track binds by target id
-        /// or by tag, and opening <see cref="TargetTagPicker"/> to change it.
-        /// </summary>
-        /// <remarks>
-        /// The track keeps living under the object it was added to either way — <see cref="targetId"/>
-        /// is never cleared when a tag is chosen (see <see cref="TransformTrack.tagId"/>'s remarks) —
-        /// so this button only changes which id the bake actually resolves against, never where the
-        /// track appears in this tree.
-        /// </remarks>
+        // Builds the header button showing whether a Transform or Flipbook track binds by target id
+        // or by tag, opening TargetTagPicker to change it. The track keeps living under the object
+        // it was added to either way — this only changes which id the bake resolves against.
         private Button BuildTagBindButton(ClipComponentInstance instance)
         {
             uint currentTagId = GetTrackTagId(instance);
@@ -572,8 +503,8 @@ namespace DotsAnimationToolkit.Editor
                 ? "This track predates tags and has none — a row's keys are stored against its "
                   + "tag. Click to assign one."
                 : "Bound by tag, so this track also plays on any other rig that tags a target the "
-                  + "same way (spec T2: skipped, not failed, on a rig with no such target). Click "
-                  + "to move the keys to another tag.";
+                  + "same way (skipped, not failed, on a rig with no such target). Click to move "
+                  + "the keys to another tag.";
             return tagButton;
         }
 
@@ -596,8 +527,8 @@ namespace DotsAnimationToolkit.Editor
         {
             if (tagId == 0u)
             {
-                // Legacy only (A56 D5): creation now always assigns a tag, so a tagless track is
-                // an old asset asking to be fixed, and the button reads as that action.
+                // Legacy only: creation now always assigns a tag, so a tagless track is an old
+                // asset asking to be fixed, and the button reads as that action.
                 return "Assign tag…";
             }
             TargetTagRegistry tagRegistry = ResolveTargetTagRegistry();
@@ -616,7 +547,7 @@ namespace DotsAnimationToolkit.Editor
                 anchor,
                 tagRegistry,
                 tagRegistry,
-                // No "(none)" row (A56 D5): a keyed track has nothing legal to clear to.
+                // No "(none)" row: a keyed track has nothing legal to clear to.
                 VocabularyPickerConfig.ForTrackTagRebind(tagRegistry),
                 chosenTagId => ApplyTrackTagBinding(instance, chosenTagId),
                 () =>
@@ -628,11 +559,8 @@ namespace DotsAnimationToolkit.Editor
                 });
         }
 
-        /// <summary>
-        /// One retag core for both surfaces (A56 D6): the inspector's tag button and the timeline
-        /// row's tag half route through <see cref="RetagTrack"/>, merge behaviour included, so the
-        /// two cannot disagree about what picking an in-use tag does.
-        /// </summary>
+        // One retag core for both surfaces: the inspector's tag button and the timeline row's tag
+        // half route through RetagTrack, merge behaviour included, so the two cannot disagree.
         private void ApplyTrackTagBinding(ClipComponentInstance instance, uint chosenTagId)
         {
             if (instance.kind == ClipComponentKind.Transform)
@@ -677,16 +605,9 @@ namespace DotsAnimationToolkit.Editor
             return rig.ragdollBodies[instance.index];
         }
 
-        /// <summary>
-        /// Sizes a freshly minted ragdoll body's box from its node's renderer, when it has one.
-        /// </summary>
-        /// <remarks>
-        /// Left to the window rather than <see cref="ClipComponentModel"/> because only the preview
-        /// knows the node's geometry — the model is pure over the assets and has no scene to measure
-        /// against (spec §8.1). A rig-target row with no previewed node, and a previewed node with no
-        /// renderer of its own, both keep <see cref="RagdollBodyDefinition"/>'s own unit-box field
-        /// initializer.
-        /// </remarks>
+        // Sizes a freshly minted ragdoll body's box from its node's renderer, when it has one. Left
+        // to the window rather than ClipComponentModel, since only the preview knows the node's
+        // geometry — the model is pure over the assets and has no scene to measure against.
         private void SizeRagdollBoxFromRenderer(RigAsset rig, ClipObjectRef objectRef, int bodyIndex)
         {
             if (rig.ragdollBodies == null || bodyIndex < 0 || bodyIndex >= rig.ragdollBodies.Count
@@ -718,21 +639,8 @@ namespace DotsAnimationToolkit.Editor
         // Adding and removing.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// The Add Component button, and the picker of what this object could carry.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The transform kinds are absent: they are on every object already, so there is nothing to
-        /// add. What is left is the three add-ons, and all three apply to every object — a node the
-        /// rig declares no part for gets one minted when it takes a flipbook.
-        /// </para>
-        /// <para>
-        /// Kinds that still cannot be added are listed dimmed with the reason on their hover card
-        /// rather than omitted: a menu that silently leaves out the thing you came looking for reads
-        /// as a bug, and the reason is usually actionable.
-        /// </para>
-        /// </remarks>
+        // The Add Component button, and the picker of what this object could carry. Kinds that
+        // cannot be added are listed dimmed with the reason on their hover card rather than omitted.
         private VisualElement BuildAddComponentButton(ClipObjectRef objectRef)
         {
             Button addButton = new Button();
@@ -769,14 +677,9 @@ namespace DotsAnimationToolkit.Editor
                 pickedKind => AddComponent(objectRef, pickedKind));
         }
 
-        /// <summary>
-        /// Creates the track or socket a component stands for, on the right undo stack.
-        /// </summary>
-        /// <remarks>
-        /// A clip-scoped component records undo on the clip and a rig-scoped one on the rig, which
-        /// is not a formality: putting a socket on the clip's undo stack would make an undo in one
-        /// clip silently move an attachment in every other clip of the set.
-        /// </remarks>
+        // Creates the track or socket a component stands for, on the right undo stack: a
+        // clip-scoped component records undo on the clip, a rig-scoped one on the rig — putting a
+        // socket on the clip's stack would make an undo in one clip move an attachment in every other.
         private void AddComponent(ClipObjectRef objectRef, ClipComponentKind kind)
         {
             RigAsset rig = ActiveRig;
@@ -791,8 +694,7 @@ namespace DotsAnimationToolkit.Editor
                     selectedClip, rig, objectRef, kind, DescribeNewComponentName(objectRef, kind));
 
                 // The model has no viewport to measure against, so a freshly minted ragdoll body
-                // sizes its box here — from the node's own renderer where it has one, and left at
-                // the definition's unit-box default otherwise (spec §8.1).
+                // sizes its box here, from the node's renderer where it has one.
                 if (kind == ClipComponentKind.Ragdoll && added.HasTrack)
                 {
                     SizeRagdollBoxFromRenderer(rig, objectRef, added.index);
@@ -831,8 +733,8 @@ namespace DotsAnimationToolkit.Editor
             RecordClipEdit(operationName);
             ClipComponentModel.Add(selectedClip, rig, objectRef, kind, string.Empty);
 
-            // A56 D4: a track kind minted on an untagged part tags the part before the panel ever
-            // shows the row, so no keyed row can exist without the tag that names it.
+            // A track kind minted on an untagged part tags the part before the panel ever shows the
+            // row, so no keyed row can exist without the tag that names it.
             if (kind == ClipComponentKind.Transform || kind == ClipComponentKind.Flipbook)
             {
                 EnsureClipTrackTagsAssigned(operationName);
@@ -856,14 +758,8 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// The label a newly added rig-scoped component carries, built from its object's name.
-        /// </summary>
-        /// <remarks>
-        /// A billboard root is named after the node outright, because it <em>is</em> that node
-        /// facing the viewer. A socket takes the node's name plus "Socket", because a node can hang
-        /// several off itself and they have to be told apart.
-        /// </remarks>
+        // The label a newly added rig-scoped component carries, built from its object's name. A
+        // socket takes the node's name plus "Socket", since several can hang off one node.
         private string DescribeNewComponentName(ClipObjectRef objectRef, ClipComponentKind kind)
         {
             string sourceName = objectRef.kind == ClipObjectKind.RigTarget
@@ -876,15 +772,9 @@ namespace DotsAnimationToolkit.Editor
             return string.IsNullOrEmpty(sourceName) ? "New Socket" : sourceName + " Socket";
         }
 
-        /// <summary>
-        /// Removes a component, asking first when that would throw away authored work.
-        /// </summary>
-        /// <remarks>
-        /// A track with no keys goes without a prompt — there is nothing in it to lose, and being
-        /// asked about it would train the author to dismiss the dialog that matters. A track with
-        /// keys, and every socket, asks: the keys are work, and a socket is rig structure something
-        /// in a scene may already be attached to.
-        /// </remarks>
+        // Removes a component, asking first when that would throw away authored work. A track with
+        // no keys goes without a prompt, since training the author to dismiss dialogs would defeat
+        // the ones that matter.
         private void ConfirmRemoveComponent(ClipObjectRef objectRef, ClipComponentInstance instance)
         {
             string kindName = ClipComponentModel.DisplayName(instance.kind);
@@ -958,15 +848,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>
-        /// Removes a billboard root, and the keys of every clip track that addressed it.
-        /// </summary>
-        /// <remarks>
-        /// The one component whose removal writes both assets, so both are recorded: the root is rig
-        /// structure and the keys are this clip's. A track left bound to a root the rig no longer
-        /// declares fails validation rule V24 and animates nothing, so it goes with it — which the
-        /// prompt says out loud, because the keys are only visible in this component.
-        /// </remarks>
+        // Removes a billboard root, and the keys of every clip track that addressed it. The one
+        // component whose removal writes both assets: the root is rig structure and the keys are
+        // this clip's, and a track left bound to a root the rig no longer declares animates nothing.
         private void ConfirmRemoveBillboard(
             ClipObjectRef objectRef, ClipComponentInstance instance)
         {
@@ -1010,15 +894,8 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>Removes a ragdoll body from the rig, asking first.</summary>
-        /// <remarks>
-        /// No key warning to fold in — unlike a billboard root, a ragdoll body carries no clip-side
-        /// data at all (spec §3.3 is authored tuning, not animated keys), so there is nothing this
-        /// clip stands to lose. What the prompt still has to say is that the body is rig structure,
-        /// seen by every clip that previews this rig, and that a body whose implied parent was this
-        /// one becomes its own root the moment it is gone (D3's baker walks the hierarchy fresh on
-        /// every bake, so nothing here has to renumber the rest of the chain by hand).
-        /// </remarks>
+        // Removes a ragdoll body from the rig, asking first. No key warning to fold in: unlike a
+        // billboard root, a ragdoll body carries no clip-side data at all, so this clip loses nothing.
         private void ConfirmRemoveRagdoll(ClipComponentInstance instance)
         {
             RigAsset rig = ActiveRig;
@@ -1067,14 +944,8 @@ namespace DotsAnimationToolkit.Editor
                 : socket.displayName;
         }
 
-        /// <summary>
-        /// Points the viewport gizmo at one socket, or at none.
-        /// </summary>
-        /// <remarks>
-        /// Sockets have no row of their own in the hierarchy any more — they are components of the
-        /// bone or part they follow — so this is what "which socket am I moving" now means. The
-        /// marker and the gizmo both read it.
-        /// </remarks>
+        // Points the viewport gizmo at one socket, or at none. Sockets have no row of their own in
+        // the hierarchy, so this is what "which socket am I moving" means.
         private void FocusSocket(uint socketId)
         {
             selectedSocketId = socketId;
@@ -1085,14 +956,9 @@ namespace DotsAnimationToolkit.Editor
             RefreshGizmo();
         }
 
-        /// <summary>
-        /// The hierarchy row owning a key's track, or null when the object has no row.
-        /// </summary>
-        /// <remarks>
-        /// A bone is matched by name and a part by id, which is the same asymmetry every other
-        /// binding in the package carries: a bone lives in an imported hierarchy this package did
-        /// not assign an id to.
-        /// </remarks>
+        // The hierarchy row owning a key's track, or null when the object has no row. A bone is
+        // matched by name and a part by id, since a bone lives in an imported hierarchy this
+        // package never assigned an id to.
         private HierarchyItem FindHierarchyItemForKey(KeyAddress address)
         {
             if (selectedClip == null)
@@ -1177,23 +1043,9 @@ namespace DotsAnimationToolkit.Editor
         // The rig's sockets, listed where nothing is selected.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Every socket on the rig, as a directory into the objects that carry them.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// Sockets are edited on their source, which means a socket whose source resolves to nothing
-        /// has no stack to appear in — and an unresolved socket is exactly the one somebody needs to
-        /// find, because at run time it pins its attachment to the actor's origin. This list is
-        /// where it stays reachable: resolvable ones offer a jump to their source, and broken ones
-        /// carry the binding fields and a delete, right here.
-        /// </para>
-        /// <para>
-        /// Shown with nothing selected rather than beside a selection, because it is about the rig
-        /// as a whole. It is the answer to "what attaches to this character", which is a question
-        /// about the character, not about the part in front of you.
-        /// </para>
-        /// </remarks>
+        // Every socket on the rig, as a directory into the objects that carry them. A socket whose
+        // source resolves to nothing has no stack to appear in otherwise, so this list is where an
+        // unresolved one (which pins its attachment to the actor's origin at run time) stays reachable.
         private void AddSocketDirectory()
         {
             RigAsset rig = ActiveRig;
@@ -1288,26 +1140,9 @@ namespace DotsAnimationToolkit.Editor
         // Billboard component body.
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// The billboard channels at the playhead, editable in place.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The component is the root; the track is optional.</strong> A node with this
-        /// component faces the viewer in every clip whether or not anything animates it, so the
-        /// fields open at the resting values and the first edit creates the track — the same
-        /// bargain the flipbook body strikes with its first key.
-        /// </para>
-        /// <para>
-        /// Editing keys at the playhead rather than holding the value pending, because there is no
-        /// gizmo for a billboard angle and so nothing to show an unkeyed edit against.
-        /// </para>
-        /// <para>
-        /// <strong>Billboard tracks have no timeline lane yet.</strong> The keys are real and the
-        /// bake reads them; what is missing is a row to see and drag them on, so this block says how
-        /// many there are rather than pretending the dopesheet shows them.
-        /// </para>
-        /// </remarks>
+        // The billboard channels at the playhead, editable in place. The component is the root and
+        // the track optional: the fields open at resting values and the first edit creates the
+        // track. Billboard tracks have no timeline lane yet, so this block states the key count instead.
         private void AddBillboardFields(VisualElement parent, ClipObjectRef objectRef)
         {
             if (selectedClip == null)
@@ -1424,7 +1259,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Ragdoll component body (Phase D5, spec §8.2).
+        // Ragdoll component body.
         // -------------------------------------------------------------------------------------
 
         /// <summary>Labels for the 8 self-collision groups a ragdoll body can belong to or admit.</summary>
@@ -1434,25 +1269,10 @@ namespace DotsAnimationToolkit.Editor
             "Group 4", "Group 5", "Group 6", "Group 7"
         };
 
-        /// <summary>
-        /// A ragdoll body's fields: the rig-wide space it falls in, its box, its physical tuning, the
-        /// joint limit for whichever space is active, and its self-collision masks.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>None of this is animatable.</strong> Unlike Billboard, a ragdoll body has no key
-        /// data at all (spec §3.3) — every field here is authored tuning that holds for every clip,
-        /// so there is no playhead to read against and no "on key / between keys" distinction to
-        /// show. That is also why every edit goes through <see cref="ApplyRagdollEdit"/> rather than
-        /// a clip-recording path: there is no clip half to this component, only the rig's.
-        /// </para>
-        /// <para>
-        /// <strong><see cref="RagdollRigSettings.space"/> is shown here but does not belong to this
-        /// body.</strong> It is badged separately from the component's own "rig-wide" header badge
-        /// because that header badge says this body's fields are rig structure; the space field says
-        /// something stronger — that changing it changes every other body on the rig too (spec §3.2).
-        /// </para>
-        /// </remarks>
+        // A ragdoll body's fields: the rig-wide space it falls in, its box, its physical tuning, the
+        // joint limit for whichever space is active, and its self-collision masks. None of it is
+        // animatable — every field is authored tuning that holds for every clip — so every edit
+        // goes through ApplyRagdollEdit rather than a clip-recording path.
         private void AddRagdollFields(VisualElement parent, RagdollBodyDefinition ragdollBody)
         {
             RigAsset rig = ActiveRig;
@@ -1468,8 +1288,8 @@ namespace DotsAnimationToolkit.Editor
             EnumField spaceField = new EnumField("Space", rig.ragdollSettings.space);
             spaceField.tooltip =
                 "Planar2D falls within the billboard's own plane; Spatial3D falls freely in three "
-                + "dimensions. One setting for the whole rig — every body obeys it together (spec "
-                + "§3.2), which is why this changes it here rather than on this body alone.";
+                + "dimensions. One setting for the whole rig — every body obeys it together, which "
+                + "is why this changes it here rather than on this body alone.";
             spaceField.style.flexGrow = 1f;
             spaceField.RegisterValueChangedCallback(changeEvent =>
             {
@@ -1490,10 +1310,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 text = "Move in View",
                 tooltip =
-                    "Puts this body's box handles up in the viewport (spec §8.3) — live whether or "
-                    + "not Rig Edit is on, since placing a box is a rig edit but not a hierarchy "
-                    + "edit. A centre handle moves it, six face handles resize it, and a rotation "
-                    + "ring turns it."
+                    "Puts this body's box handles up in the viewport — live whether or not Rig "
+                    + "Edit is on, since placing a box is a rig edit but not a hierarchy edit. A "
+                    + "centre handle moves it, six face handles resize it, and a rotation ring turns it."
             });
 
             parent.Add(MakeHeading("Box"));
@@ -1509,8 +1328,7 @@ namespace DotsAnimationToolkit.Editor
             parent.Add(boxCenterField);
 
             Vector3Field boxSizeField = new Vector3Field("Size");
-            boxSizeField.tooltip = "Full extents, local to the addressed node. All three must be "
-                + "greater than 0 (rule V-R4).";
+            boxSizeField.tooltip = "Full extents, local to the addressed node. All three must be greater than 0.";
             boxSizeField.SetValueWithoutNotify(ToVector3(ragdollBody.boxSize));
             boxSizeField.RegisterValueChangedCallback(changeEvent =>
             {
@@ -1533,9 +1351,9 @@ namespace DotsAnimationToolkit.Editor
             parent.Add(MakeHeading("Physical"));
 
             FloatField massField = new FloatField("Mass");
-            massField.tooltip = "Must be greater than 0 (rule V-R7) — the inertia tensor is derived "
-                + "from this and the box size at bake, and a zero or negative mass has no closed "
-                + "form to derive it from.";
+            massField.tooltip = "Must be greater than 0 — the inertia tensor is derived from this "
+                + "and the box size at bake, and a zero or negative mass has no closed form to "
+                + "derive it from.";
             massField.SetValueWithoutNotify(ragdollBody.mass);
             massField.RegisterValueChangedCallback(changeEvent =>
             {
@@ -1625,15 +1443,9 @@ namespace DotsAnimationToolkit.Editor
             parent.Add(collidesWithWorldField);
         }
 
-        /// <summary>
-        /// The joint limit pair for whichever space is active — hinge range in Planar2D, swing/twist
-        /// in Spatial3D.
-        /// </summary>
-        /// <remarks>
-        /// Both pairs are always stored on <see cref="RagdollBodyDefinition"/> regardless of which
-        /// one this shows (spec §3.3): switching the rig's space to look and switching back must not
-        /// destroy tuning authored for the space not currently displayed.
-        /// </remarks>
+        // The joint limit pair for whichever space is active — hinge range in Planar2D, swing/twist
+        // in Spatial3D. Both pairs are always stored regardless of which one this shows, so
+        // switching the rig's space to look and back must not destroy the other's tuning.
         private void AddRagdollLimitFields(
             VisualElement parent, RigAsset rig, RagdollBodyDefinition ragdollBody)
         {
@@ -1647,7 +1459,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 FloatField limitMinField = new FloatField("Hinge Min");
                 limitMinField.tooltip = "Signed degrees, measured from this body's rest relative "
-                    + "orientation. Must not exceed Hinge Max, both within [-180, 180] (rule V-R5).";
+                    + "orientation. Must not exceed Hinge Max, both within [-180, 180].";
                 limitMinField.SetValueWithoutNotify(ragdollBody.limitMinDegrees);
                 limitMinField.RegisterValueChangedCallback(changeEvent =>
                 {
@@ -1657,8 +1469,7 @@ namespace DotsAnimationToolkit.Editor
                 parent.Add(limitMinField);
 
                 FloatField limitMaxField = new FloatField("Hinge Max");
-                limitMaxField.tooltip = "Signed degrees. Must not be less than Hinge Min, both "
-                    + "within [-180, 180] (rule V-R5).";
+                limitMaxField.tooltip = "Signed degrees. Must not be less than Hinge Min, both within [-180, 180].";
                 limitMaxField.SetValueWithoutNotify(ragdollBody.limitMaxDegrees);
                 limitMaxField.RegisterValueChangedCallback(changeEvent =>
                 {
@@ -1700,39 +1511,10 @@ namespace DotsAnimationToolkit.Editor
             return new float3(value.x, value.y, value.z);
         }
 
-        /// <summary>
-        /// Writes one ragdoll field edit through a single undo record on the rig — generalising
-        /// <see cref="ApplyBillboardEdit"/>'s shape past the three fields a billboard channel has to
-        /// the dozen a ragdoll body carries.
-        /// </summary>
-        /// <remarks>
-        /// A closure over the one field that changed, rather than every field passed positionally as
-        /// <see cref="ApplyBillboardEdit"/> does: billboard's three values fit comfortably as
-        /// parameters, and a ragdoll body's do not. What both share, and what actually matters, is
-        /// that every field in the component funnels through one call site that opens exactly one
-        /// undo — a run of drags on a single body coalesces the way a socket's own drag already does
-        /// (<see cref="RecordSocketEdit"/>), rather than each keystroke opening its own.
-        /// </remarks>
-        /// <summary>
-        /// Applies one ragdoll-body field edit under a single undo.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>This deliberately does not go through <c>CommitSocketEdit</c>, and that is what
-        /// makes dragging a number field work.</strong> Dragging a <c>FloatField</c>'s label emits a
-        /// change event on every mouse move. <c>CommitSocketEdit</c> calls <c>RebuildHierarchy</c>,
-        /// so routing these edits through it tore down and rebuilt the hierarchy tree on each delta,
-        /// and the rebuild took the drag's pointer capture with it — the drag died after roughly one
-        /// pixel, which makes small adjustments impossible and is exactly what a drag handle is for.
-        /// </para>
-        /// <para>
-        /// A socket edit genuinely needs that rebuild: its hierarchy row label carries the binding
-        /// and the unresolved mark, so the row is stale the moment either changes. A ragdoll body's
-        /// box, mass, damping and limits appear in no row label, so nothing in the tree can go stale
-        /// and there is nothing to rebuild. Marking the rig dirty and the preview dirty is the whole
-        /// of what this edit owes the rest of the window.
-        /// </para>
-        /// </remarks>
+        // Applies one ragdoll-body field edit under a single undo. Deliberately does not go through
+        // CommitSocketEdit, which calls RebuildHierarchy: rebuilding the tree on every drag delta
+        // took the drag's pointer capture with it, killing the drag after roughly one pixel. No
+        // ragdoll field appears in a row label, so nothing here needs that rebuild.
         private void ApplyRagdollEdit(System.Action mutate)
         {
             RigAsset rig = ActiveRig;

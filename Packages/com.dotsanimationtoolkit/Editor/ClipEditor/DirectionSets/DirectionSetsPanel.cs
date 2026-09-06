@@ -13,44 +13,15 @@ namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// The 2D Direction Sets authoring pane: a clip queue over a direction set's five east-side
-    /// slots, and one viewport whose facing is driven by a slider through the runtime's own resolver.
+    /// slots, and one fixed front-on viewport whose facing is driven by a slider through the same
+    /// <see cref="FacingResolver"/> path the runtime uses.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>One viewer, not one per direction.</strong> The expensive step is building the preview
-    /// registry, so this holds a single <see cref="ClipPreviewController"/> over a synthetic clip set
-    /// containing <em>every</em> clip the open direction set names. Turning the slider is then a
-    /// different clip id into <c>SamplePose</c> — no rebuild, no hitch mid-turn, and the playhead
-    /// carries across the swap the way a runtime facing change does.
-    /// </para>
-    /// <para>
-    /// <strong>The slider walks the runtime path, it does not imitate it.</strong> Angle to a
-    /// facing-space vector, <see cref="FacingResolver.FromMovement"/> at the actor's direction count,
-    /// <see cref="FacingResolver.Snap"/> into the set's own derived coverage, then
-    /// <see cref="FacingResolver.ToAuthoredSide"/> for the east-side slot and the mirror flag. The
-    /// mirror renders as a horizontal flip of the whole frame, which is mathematically what
-    /// <c>PartFacing.mirrorX</c> does per part at run time — so there is no second mirror pipeline to
-    /// drift.
-    /// </para>
-    /// <para>
-    /// <strong>The camera is fixed front-on.</strong> Direction comes from the slider, never from
-    /// orbiting: the game's camera does not orbit either, and a preview you can spin is a preview
-    /// that can show you a pose the player will never see.
-    /// </para>
-    /// </remarks>
     public sealed class DirectionSetsPanel : VisualElement
     {
         private const string NoContextChoice = "— none —";
 
-        /// <summary>
-        /// The host's unit context provider, or null when the package is running alone.
-        /// </summary>
-        /// <remarks>
-        /// Static because a host registers once from an <c>[InitializeOnLoad]</c> static constructor
-        /// and the panel is built much later, on the first time the pane is opened. Read afresh each
-        /// time the dropdown is built rather than captured, so a provider registered after a panel
-        /// exists still shows up.
-        /// </remarks>
+        // The host's unit context provider, or null when the package is running alone. Static
+        // because a host registers once from a static constructor, well before the panel is built.
         private static IDirectionSetContextProvider contextProvider;
 
         /// <summary>
@@ -72,26 +43,9 @@ namespace DotsAnimationToolkit.Editor
         private bool hasContextDirections;
         private AnimationDirections contextDirections = AnimationDirections.Six;
 
-        /// <summary>
-        /// The <em>window's</em> preview, not one of this panel's own.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Sharing is what makes the sweep free.</strong> The expensive step is building the
-        /// registry, and the clips this panel queues are members of the open clip set by
-        /// construction (owner directive 2026-08-29) — so they are already in the window's registry
-        /// and a facing change is a different <c>clipId</c> into <c>SamplePose</c>. This panel used
-        /// to own a second controller with a second <c>PreviewRenderUtility</c>, a second
-        /// <c>Persistent</c> blob and a second instantiated rig, kept in step through a synthetic
-        /// clip set it rebuilt whenever the queue changed. All of that was the window's registry with
-        /// extra steps.
-        /// </para>
-        /// <para>
-        /// Safe only because the tabs are exclusive: one controller cannot serve two viewports in one
-        /// frame, and exactly one of them is on screen. Nothing here disposes it — the window owns
-        /// its lifetime.
-        /// </para>
-        /// </remarks>
+        // The window's preview, not one of this panel's own: the clips this panel queues are
+        // already in the window's registry, so a facing change is just a different clipId into
+        // SamplePose. Safe only because the tabs are exclusive; nothing here disposes it.
         private ClipPreviewController previewController;
 
         /// <summary>The window's clip set and rig, pushed in by the host. Never picked here.</summary>
@@ -172,11 +126,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildQueue();
         }
 
+        // The panel no longer owns either, so it asks rather than assigns: the host writes its own
+        // toolbar fields, and a unit pick runs the same load path a hand pick does.
         /// <summary>Raised when a unit context asks for a different clip set and rig.</summary>
-        /// <remarks>
-        /// The panel no longer owns either, so it asks rather than assigns: the host writes its own
-        /// toolbar fields, and a unit pick then runs the same load path a hand pick does.
-        /// </remarks>
         public event Action<ClipSetAsset, RigAsset> SelectionRequested;
 
         // -----------------------------------------------------------------------------------------
@@ -217,15 +169,8 @@ namespace DotsAnimationToolkit.Editor
             return row;
         }
 
-        /// <summary>
-        /// The read-only line saying what this pane is previewing against.
-        /// </summary>
-        /// <remarks>
-        /// A line rather than two pickers, because the clip set and the rig are the window's and
-        /// this pane only derives from them (owner directive 2026-08-29). Showing them anyway — and
-        /// saying where to change them — beats a pane that silently depends on a selection it never
-        /// mentions.
-        /// </remarks>
+        // The read-only line saying what this pane is previewing against. A line rather than two
+        // pickers, since the clip set and rig are the window's and this pane only derives from them.
         private VisualElement BuildSourceRow()
         {
             sourceLabel = new Label();
@@ -401,24 +346,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildQueue();
         }
 
-        /// <summary>
-        /// Starts or stops the per-frame tick with the pane's visibility, and borrows the shared
-        /// preview's camera and billboard state for as long as it has it.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Borrowed, and given back.</strong> The camera must be head-on here — direction
-        /// comes from the slider, not from orbiting — but the controller is the Clip Editor's too,
-        /// and silently discarding the angle an author had set up there would read as the window
-        /// losing its place. <c>FrameRig</c> is no help: it sets focus and distance and does not
-        /// touch the angles.
-        /// </para>
-        /// <para>
-        /// Billboarding is forced on for the same reason it was on when this panel owned its own
-        /// controller — an unbillboarded facing preview is not what the game shows — and the ragdoll
-        /// is forced off, because a rig that has been dropped cannot demonstrate a facing at all.
-        /// </para>
-        /// </remarks>
+        // Starts or stops the per-frame tick with the pane's visibility, and borrows the shared
+        // preview's camera and billboard state for as long as it has it, restoring both on the way
+        // out — the controller is the Clip Editor's too, and its orbit angle should survive the visit.
         public void SetTicking(bool ticking)
         {
             if (ticking == isTicking)
@@ -557,15 +487,8 @@ namespace DotsAnimationToolkit.Editor
             Selection.activeObject = clip;
         }
 
-        /// <summary>
-        /// Adds a row for the next slot in promotion order that has neither a clip nor a row yet.
-        /// </summary>
-        /// <remarks>
-        /// It adds a <em>row</em>, not a clip: the required slots for the current target are already
-        /// on screen as empty placeholders, so what this is for is reaching a slot beyond them — the
-        /// East profile on a Six target, say. With all five showing there is nothing left to add and
-        /// the button says so by being disabled.
-        /// </remarks>
+        // Adds a row for the next slot in promotion order that has neither a clip nor a row yet — a
+        // row, not a clip, for reaching a slot beyond the current target's required ones.
         private void AddNextUnfilledSlot()
         {
             for (int slotIndex = 0; slotIndex < DirectionSetClipQueueView.SlotOrder.Length; slotIndex++)
@@ -677,24 +600,9 @@ namespace DotsAnimationToolkit.Editor
         // Preview
         // -----------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Marks any queued clip the window's registry does not hold.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The question narrowed when the preview became shared.</strong> This used to run
-        /// every queued clip through <c>ClipValidation.ValidateBind</c> against a rig of its own, to
-        /// keep one clip authored for another rig out of a registry it would have failed to build.
-        /// The window's own validation badge already asks that question of the open set, and the
-        /// clips here are members of that set — so the one thing a row can still be wrong about is
-        /// not being in it.
-        /// </para>
-        /// <para>
-        /// Answered by asking the registry rather than by re-deriving membership from the set's
-        /// list: <c>SamplePose</c> returning false is the same answer the viewer acts on, so a row
-        /// cannot be marked healthy while the viewport shows nothing for it.
-        /// </para>
-        /// </remarks>
+        // Marks any queued clip the window's registry does not hold. Answered by asking the
+        // registry rather than re-deriving membership from the set's list, so a row cannot be
+        // marked healthy while the viewport shows nothing for it.
         private void RefreshClipWarnings()
         {
             clipWarnings.Clear();

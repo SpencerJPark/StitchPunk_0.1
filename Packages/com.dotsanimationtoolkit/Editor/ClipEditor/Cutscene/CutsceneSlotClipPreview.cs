@@ -11,19 +11,9 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>
     /// One cutscene slot's in-editor clip registry: the same <c>ClipRegistryBlob</c> the slot's
     /// (rig, clip sets) bind bakes for a real actor, built here so the Scene-view preview can sample
-    /// clip blocks through <see cref="ClipSampler"/> (amendment A58 §3.1).
+    /// clip blocks through <see cref="ClipSampler"/>. Rebuilt on a bind change, never on a scrub —
+    /// building is the expensive step. The blob is <c>Persistent</c> and preview-scoped.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Rebuilt on a bind change, never on a scrub</strong> — the Direction Sets pane's own
-    /// guard is the model. Building is the expensive step; a scrub that rebuilt would hitch on every
-    /// frame of a drag.
-    /// </para>
-    /// <para>
-    /// The blob is <c>Persistent</c> and preview-scoped (decision A58-D2): entering preview builds,
-    /// exiting disposes, nothing survives between preview sessions.
-    /// </para>
-    /// </remarks>
     internal sealed class CutsceneSlotClipPreview : IDisposable
     {
         private BlobAssetReference<ClipRegistryBlob> registry;
@@ -131,7 +121,7 @@ namespace DotsAnimationToolkit.Editor
             ClipSampler.SamplePose(ref clip, targetIndex, normalizedTime, in rest, out pose);
         }
 
-        /// <summary>Alt-view frames per variant for a target, which facing steps through (A58-T4).</summary>
+        /// <summary>Alt-view frames per variant for a target, which facing steps through.</summary>
         public int GetFramesPerVariant(int targetIndex)
         {
             ref ClipRegistryBlob registryBlob = ref registry.Value;
@@ -149,18 +139,9 @@ namespace DotsAnimationToolkit.Editor
             registry = default(BlobAssetReference<ClipRegistryBlob>);
         }
 
-        /// <summary>
-        /// Whether the bind is still the one the registry was built from — the same sets, holding the
-        /// same clips.
-        /// </summary>
-        /// <remarks>
-        /// The clips inside each set are compared, not just the set references: dragging a clip into
-        /// a set from its inspector while the cutscene tab is open leaves the set reference identical
-        /// and the registry one clip short, so the new block would preview nothing with no error
-        /// anywhere. Key edits <em>inside</em> a clip are not compared and do not need to be — they
-        /// happen on the Clip Editor tab, and switching tabs exits the preview and drops the
-        /// registries anyway.
-        /// </remarks>
+        // Whether the bind is still the one the registry was built from — the same sets, holding the
+        // same clips. The clips inside each set are compared, not just the set references: dragging
+        // a clip into a set from its inspector leaves the set reference identical but the registry one clip short.
         private bool SameBind(List<ClipSetAsset> clipSets)
         {
             int setCount = clipSets != null ? clipSets.Count : 0;

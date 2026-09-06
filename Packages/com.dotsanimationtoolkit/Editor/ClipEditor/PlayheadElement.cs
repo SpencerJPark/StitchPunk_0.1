@@ -6,14 +6,9 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The current-time line drawn over the ruler and lanes (architecture section 7.2).
+    /// The current-time line drawn over the ruler and lanes. An absolutely positioned overlay
+    /// spanning the whole lane stack, so the line is continuous across every track.
     /// </summary>
-    /// <remarks>
-    /// An absolutely positioned overlay spanning the whole lane stack, so the line is continuous
-    /// across every track instead of being redrawn per lane and stepping between them. Pointer
-    /// events pass straight through — the playhead must never steal a click meant for a key
-    /// underneath it.
-    /// </remarks>
     public sealed class PlayheadElement : VisualElement
     {
         private static readonly Color PlayheadColor = new Color(0.95f, 0.36f, 0.30f);
@@ -58,17 +53,9 @@ namespace DotsAnimationToolkit.Editor
         public float viewPan;
 
 
-        /// <summary>
-        /// The timeline width the window wants used, in pixels. Zero means "measure yourself".
-        /// </summary>
-        /// <remarks>
-        /// <strong>Pushed in for the same reason zoom and pan are.</strong> The ruler and playhead
-        /// sit in the lane stack while the lanes sit in a column inside it, so each element
-        /// measuring its own <c>contentRect</c> gave three widths that agreed only once layout had
-        /// settled. Any difference between them is multiplied by the zoom, so a few pixels of
-        /// disagreement at 1x became a visible gap between the cursor and the key at 20x. One width
-        /// for the whole timeline makes that gap unrepresentable.
-        /// </remarks>
+        /// <summary>The timeline width the window wants used, in pixels. Zero means "measure yourself".</summary>
+        // Pushed in rather than measured locally: per-element contentRect widths disagreed until layout
+        // settled, and any disagreement is multiplied by zoom into a visible gap at high zoom.
         public float viewLaneWidth;
 
         /// <summary>The width to build geometry from: the pushed one, or our own before layout.</summary>

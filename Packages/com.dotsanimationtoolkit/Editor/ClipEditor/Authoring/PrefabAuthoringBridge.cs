@@ -8,48 +8,23 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The route from the Clip Editor into Unity's own prefab-authoring mode.
+    /// The route from the Clip Editor into Unity's own prefab-authoring mode. Structural editing is
+    /// handed over rather than reimplemented; objects are addressed by hierarchy path, not by
+    /// reference, since the preview and prefab mode hold different instances in different scenes.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Structural editing is not reimplemented here, it is handed over.</strong> Parenting,
-    /// transform authoring, undo and serialization are all things prefab mode already does
-    /// correctly, and a second implementation inside this window would be a second set of bugs in
-    /// the same problem. This class's whole job is to make prefab mode one click away and to hand
-    /// it enough context to open on the right object.
-    /// </para>
-    /// <para>
-    /// <strong>Objects are addressed by hierarchy path, not by reference.</strong> The Clip Editor's
-    /// preview holds an <em>instance</em> of the prefab in a preview scene; prefab mode opens a
-    /// different instance in a different scene. There is no reference that spans the two, so a
-    /// transform is named by its path from the root — the one thing both copies agree on. That path
-    /// is also what survives the round trip well enough to say "this is the object you were looking
-    /// at", and what fails informatively when the user has renamed or moved it.
-    /// </para>
-    /// </remarks>
     public static class PrefabAuthoringBridge
     {
         /// <summary>Separates path segments. Matches Unity's own convention for transform paths.</summary>
         public const char PathSeparator = '/';
 
-        /// <summary>
-        /// Whether a prefab asset can be opened for <paramref name="prefab"/>.
-        /// </summary>
-        /// <remarks>
-        /// A scene object dragged into the rig field is not a prefab and has no asset path, which is
-        /// worth answering before the button is drawn rather than after it is pressed.
-        /// </remarks>
+        /// <summary>Whether a prefab asset can be opened for <paramref name="prefab"/>.</summary>
         public static bool CanOpen(GameObject prefab)
         {
             return !string.IsNullOrEmpty(ResolveAssetPath(prefab));
         }
 
-        /// <summary>The asset path of the prefab <paramref name="prefab"/> belongs to, or empty.</summary>
-        /// <remarks>
-        /// Handles both a prefab asset assigned straight from the Project window and an instance of
-        /// one, because the rig field accepts either and the user should not have to know which they
-        /// gave it.
-        /// </remarks>
+        // The asset path of the prefab `prefab` belongs to, or empty. Handles both a prefab asset
+        // and an instance of one, since the rig field accepts either.
         public static string ResolveAssetPath(GameObject prefab)
         {
             if (prefab == null)
@@ -129,14 +104,8 @@ namespace DotsAnimationToolkit.Editor
             Selection.activeObject = asset;
         }
 
-        /// <summary>
-        /// Selects the matching object in whatever is currently open — a prefab stage or the scene.
-        /// </summary>
-        /// <remarks>
-        /// Deliberately does not open anything. This is the "I already have the prefab open, put the
-        /// cursor on this bone" action; opening a stage as a side effect of a select would make the
-        /// two menu entries do the same thing.
-        /// </remarks>
+        // Selects the matching object in whatever is currently open — a prefab stage or the scene.
+        // Deliberately does not open anything, or opening as a side effect would make two menu entries do the same thing.
         /// <returns>False when nothing matching is open, so the caller can say so.</returns>
         public static bool SelectInOpenStageOrScene(GameObject prefab, string hierarchyPath)
         {
@@ -223,14 +192,8 @@ namespace DotsAnimationToolkit.Editor
             return walker == root ? path.ToString() : string.Empty;
         }
 
-        /// <summary>
-        /// The transform at <paramref name="hierarchyPath"/> below <paramref name="root"/>, or null.
-        /// </summary>
-        /// <remarks>
-        /// Walks segment by segment rather than using <c>Transform.Find</c>, so a name containing a
-        /// separator cannot make the search silently skip a level, and so an unmatched segment stops
-        /// the walk instead of returning a near-miss further down.
-        /// </remarks>
+        // The transform at hierarchyPath below root, or null. Walks segment by segment rather than
+        // using Transform.Find, so a name containing a separator cannot skip a level.
         public static Transform ResolveByPath(Transform root, string hierarchyPath)
         {
             if (root == null)
@@ -265,11 +228,8 @@ namespace DotsAnimationToolkit.Editor
             return walker;
         }
 
-        /// <summary>The first descendant of <paramref name="root"/> with this name, or null.</summary>
-        /// <remarks>
-        /// The fallback for a bone track, whose binding is a bare name rather than a path — it is
-        /// the same lookup the bake performs, so a name that resolves here is one that will bake.
-        /// </remarks>
+        // The first descendant of root with this name, or null — the fallback for a bone track,
+        // whose binding is a bare name rather than a path, using the same lookup the bake performs.
         public static Transform FindByName(Transform root, string nodeName)
         {
             if (root == null || string.IsNullOrEmpty(nodeName))

@@ -11,11 +11,7 @@ namespace DotsAnimationToolkit.Editor
     /// Makes double-clicking a <see cref="DirectionSetAsset"/> open the Clip Editor with the 2D
     /// Direction Sets pane up and that set loaded.
     /// </summary>
-    /// <remarks>
-    /// The pane has no menu entry of its own. One entry path — the Clip Editor's toolbar toggle, or
-    /// the asset itself — is one thing to document and one place a set can be open, rather than two
-    /// surfaces that can disagree about which set that is.
-    /// </remarks>
+    // The pane has no menu entry of its own — this and the Clip Editor's toolbar toggle are the only two entry paths.
     internal static class DirectionSetAssetOpener
     {
         [OnOpenAsset]

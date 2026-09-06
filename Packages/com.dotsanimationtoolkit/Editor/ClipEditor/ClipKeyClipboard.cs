@@ -23,48 +23,17 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// Copy/paste buffer for timeline keys (architecture section 7.1, parity item "copy/paste").
+    /// Copy/paste buffer for timeline keys. Holds objects and their components, not track indices,
+    /// so paste can retarget onto a different object; a destination missing a component gets one
+    /// (declaring an unclaimed node a part, same as Add Component); poses convert between the two
+    /// transform kinds via <see cref="ClipKeyConversion"/>; and times are stored relative to the
+    /// earliest copied key, so paste lands the group at the playhead with its rhythm intact.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>The buffer holds objects and their components, not track indices.</strong> It used to
-    /// hold the index of the track each key came from and paste them straight back into the track at
-    /// that index, which made copy/paste a way to duplicate keys in place and nothing else — paste
-    /// onto a different object was not a thing the buffer could express, and pasting into a clip
-    /// with a different track order landed the keys on whatever part happened to be sitting at that
-    /// index. What is copied now is "the second flipbook of this object" and "this object's
-    /// transform", and paste resolves those against whatever object is selected.
-    /// </para>
-    /// <para>
-    /// <strong>A destination that lacks a component gets one.</strong> The components are what the
-    /// keys need in order to exist, so requiring the author to add them first would be asking them
-    /// to reconstruct, by hand, information the buffer is already carrying. Adding a Flipbook this
-    /// way declares an unclaimed node a part exactly as the Add Component menu does, which is why a
-    /// paste can write the rig — <see cref="ClipKeyPasteResult.touchedRig"/> says when it did, so
-    /// the caller records the right undo.
-    /// </para>
-    /// <para>
-    /// <strong>Poses convert between the two transform kinds.</strong> A part is keyed on a
-    /// transform track and a bone by name, so copying a part's motion onto a bone has to cross that
-    /// seam; <see cref="ClipKeyConversion"/> does, and the alternative — refusing the paste — would
-    /// be the data model declining a request that makes perfect sense to the person making it.
-    /// </para>
-    /// <para>
-    /// <strong>Times are stored relative to the earliest copied key</strong>, so paste lands the
-    /// group at the playhead with its internal rhythm intact. Absolute times would make paste a
-    /// no-op whenever the source and destination are the same clip, which is the common case.
-    /// </para>
-    /// </remarks>
     public static class ClipKeyClipboard
     {
-        /// <summary>
-        /// Which object a copied track was bound to, in the terms the asset binds by.
-        /// </summary>
-        /// <remarks>
-        /// A part carries an id and a node carries a name — the same asymmetry every binding in the
-        /// package has. Held so that a paste with nothing selected can put the keys back where they
-        /// came from, and so that a copy spanning several objects keeps them apart.
-        /// </remarks>
+        // Which object a copied track was bound to, in the terms the asset binds by: a part carries
+        // an id, a node carries a name. Held so a paste with nothing selected can put the keys back
+        // where they came from.
         private struct CopiedOwner : IEquatable<CopiedOwner>
         {
             public uint targetId;
@@ -77,14 +46,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>One component's worth of copied keys, and the settings to recreate it with.</summary>
-        /// <remarks>
-        /// The settings travel because an auto-added track has to mean what the source meant. A
-        /// sprite key's number is only interpretable beside its track's mode and base index — paste
-        /// a relative key onto a track based at 0 when it was authored against 32 and it addresses
-        /// a different character's artwork. They are applied to a track this paste created and never
-        /// to one that was already there, which would silently retune animation somebody authored.
-        /// </remarks>
+        // One component's worth of copied keys, and the settings to recreate it with — the settings
+        // travel because a sprite key's number is only interpretable beside its track's mode and
+        // base index, and are applied only to a track this paste created, never an existing one.
         private sealed class CopiedTrack
         {
             public int objectIndex;
@@ -123,11 +87,8 @@ namespace DotsAnimationToolkit.Editor
             get { return copiedTracks.Count > 0 || eventMarkers.Count > 0; }
         }
 
-        /// <summary>How many distinct objects the copied keys came from.</summary>
-        /// <remarks>
-        /// Paste reads this to decide how to spread the buffer over the selection: one source object
-        /// goes onto every selected object, and several are matched up in order.
-        /// </remarks>
+        // How many distinct objects the copied keys came from. Paste reads this to decide how to
+        // spread the buffer over the selection: one source goes onto every selected object, several are matched in order.
         public static int ObjectCount
         {
             get { return copiedOwners.Count; }
@@ -182,29 +143,11 @@ namespace DotsAnimationToolkit.Editor
             Rebase(earliestTime);
         }
 
-        /// <summary>
-        /// Pastes the buffer onto <paramref name="destinations"/>, anchored at
-        /// <paramref name="atTime"/>.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>An empty destination list means "back where it came from".</strong> That is what
-        /// makes duplicate-at-the-playhead work with nothing selected, and it is the honest reading
-        /// of a paste with no target: the buffer already knows which objects it was taken from.
-        /// </para>
-        /// <para>
-        /// <strong>One copied object goes onto all of them; several are matched in order.</strong>
-        /// Spraying one part's motion across a row of selected parts is a thing people want, and
-        /// pairing two copied objects with two selected ones is the only reading of that case that
-        /// preserves what was copied. A mismatch beyond those two shapes pastes as far as the
-        /// shorter list goes and reports the remainder as dropped rather than guessing.
-        /// </para>
-        /// <para>
-        /// The caller owns the undo group and the dirty flags — on the rig as well as the clip when
-        /// <see cref="ClipKeyPasteResult.touchedRig"/> comes back true. Pasted keys are appended and
-        /// the caller re-sorts, matching how a drag defers sorting to the end of the gesture.
-        /// </para>
-        /// </remarks>
+        // Pastes the buffer onto destinations, anchored at atTime. An empty destination list means
+        // "back where it came from" (duplicate-at-playhead with nothing selected). One copied object
+        // broadcasts onto every destination; several are matched in order, and a mismatch beyond
+        // those two shapes pastes as far as the shorter list goes and reports the rest dropped. The
+        // caller owns the undo group, the dirty flags, and re-sorting the appended keys.
         public static ClipKeyPasteResult Paste(
             ClipAsset clip, RigAsset rig, IReadOnlyList<ClipObjectRef> destinations, float atTime)
         {
@@ -547,15 +490,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The clip-list index of the destination's component, adding it when it has none.
-        /// </summary>
-        /// <remarks>
-        /// A flipbook is matched by ordinal, so pasting "its second flipbook" onto an object with
-        /// one adds a second rather than piling both sets of keys onto the first. Adding one can
-        /// declare an unclaimed node a part, which is why the destination reference is taken by
-        /// <c>ref</c> — every lookup after that has to know the object now has an id.
-        /// </remarks>
+        // The clip-list index of the destination's component, adding it when it has none. Adding
+        // one can declare an unclaimed node a part, which is why destination is taken by ref — every
+        // lookup after that has to know the object now has an id.
         /// <returns>The index, or −1 when the component could not be made.</returns>
         private static int EnsureComponent(
             ClipAsset clip, RigAsset rig, ref ClipObjectRef destination, ClipComponentKind kind,
@@ -605,14 +542,8 @@ namespace DotsAnimationToolkit.Editor
             return -1;
         }
 
-        /// <summary>
-        /// Gives a freshly created track the settings its source had.
-        /// </summary>
-        /// <remarks>
-        /// Only ever called on a track this paste just made. Applying them to an existing track
-        /// would retune animation somebody else authored — a sprite track's mode and base index
-        /// change what every key already on it means.
-        /// </remarks>
+        // Gives a freshly created track the settings its source had. Only ever called on a track
+        // this paste just made — applying them to an existing track would retune animation somebody else authored.
         private static void ApplySourceSettings(
             ClipAsset clip, ClipComponentKind kind, int trackIndex, CopiedTrack copied)
         {
@@ -658,16 +589,9 @@ namespace DotsAnimationToolkit.Editor
                 : destination.boneName;
         }
 
-        /// <summary>
-        /// The object a copied track came from, as something paste can bind to.
-        /// </summary>
-        /// <remarks>
-        /// Deliberately thin: it has an id or a name and no hierarchy path, because the buffer never
-        /// held one. That is enough to find a component that still exists — which is the only case
-        /// this is used for, a paste back onto the source — and not enough to declare a new part,
-        /// so a component deleted since the copy reports the keys dropped rather than reviving it
-        /// somewhere the window cannot see.
-        /// </remarks>
+        // The object a copied track came from, as something paste can bind to. Deliberately thin
+        // (an id or a name, no hierarchy path): enough to find an existing component for a paste
+        // back onto the source, not enough to declare a new part.
         private static ClipObjectRef OwnerAsObjectRef(CopiedOwner owner)
         {
             if (owner.targetId != 0u)

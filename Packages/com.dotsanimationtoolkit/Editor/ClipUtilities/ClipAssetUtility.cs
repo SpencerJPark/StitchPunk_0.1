@@ -7,31 +7,10 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Creates, renames, removes and deletes the assets a <see cref="ClipSetAsset"/> is made of.
+    /// Creates, renames, removes and deletes the assets a <see cref="ClipSetAsset"/> is made of —
+    /// the one lifecycle path both the clip set inspector and the Clip Editor's Clips pane use, so
+    /// a clip made from either is indistinguishable on disk.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>One lifecycle path, several callers.</strong> The clip set's inspector and the clip
-    /// editor's Clips pane both offer "new clip", and a clip created from one has to be
-    /// indistinguishable from a clip created from the other — same folder, same id
-    /// minting, same undo entry. Two implementations of that would agree on the day they were
-    /// written and drift afterwards, and the symptom would be clips that fail validation depending
-    /// on which button made them.
-    /// </para>
-    /// <para>
-    /// <strong>The new clip names no rig, because no clip does.</strong> Motion and skeleton are
-    /// independent assets; a clip lines up with whichever rig it is played on, by tag.
-    /// </para>
-    /// <para>
-    /// <strong>The asset write is not undoable, and deliberately is not made so.</strong> Ctrl+Z
-    /// does not delete a file from disk — <c>MirrorClipUtility.CreateMirroredCopy</c> makes the same
-    /// call. What is undoable, and what this wraps in one named group, is the append to
-    /// <see cref="ClipSetAsset.clips"/>: driven through <see cref="SerializedProperty"/> and
-    /// <see cref="SerializedObject.ApplyModifiedProperties"/>, which already records one undo entry
-    /// per apply. The group name is what makes it read as "Create Clip In Set" in the Undo History
-    /// rather than as a generic property change.
-    /// </para>
-    /// </remarks>
     public static class ClipAssetUtility
     {
         private const string LogPrefix = "[DOTS Animation Toolkit] ";
@@ -83,6 +62,8 @@ namespace DotsAnimationToolkit.Editor
             newClip.EnsureStableIds();
             newClip.name = ExtractAssetName(uniqueAssetPath);
 
+            // The file write itself is not undoable — Ctrl+Z cannot delete a file from disk. Only
+            // the append below, through SerializedProperty, is wrapped in an undo group.
             AssetDatabase.CreateAsset(newClip, uniqueAssetPath);
             AssetDatabase.SaveAssets();
 
@@ -117,18 +98,6 @@ namespace DotsAnimationToolkit.Editor
         /// Creates an empty <see cref="ClipSetAsset"/> at <paramref name="assetPath"/>.
         /// </summary>
         /// <returns>The new set, or null when the path is unusable.</returns>
-        /// <remarks>
-        /// <para>
-        /// The path is chosen by the caller rather than derived, because a clip set has no anchor to
-        /// sit beside the way a clip sits beside its set — it is the root of the graph, so there is
-        /// nothing to infer a home from and guessing one would scatter sets across a project.
-        /// </para>
-        /// <para>
-        /// Nothing about a rig is recorded, because a set has nothing about a rig to record. It is
-        /// paired with one where an <c>ActorAuthoring</c> states both, and previewed against one in
-        /// whichever window happens to be open.
-        /// </para>
-        /// </remarks>
         public static ClipSetAsset CreateClipSet(string assetPath)
         {
             if (string.IsNullOrEmpty(assetPath))
@@ -147,18 +116,7 @@ namespace DotsAnimationToolkit.Editor
             return newClipSet;
         }
 
-        /// <summary>
-        /// Un-registers a clip from a set, leaving the asset on disk. One undo step.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="SerializedProperty.DeleteArrayElementAtIndex"/> on an array of
-        /// <see cref="Object"/> references only <em>nulls</em> a non-null element on its first call;
-        /// a second call at the same index removes the now-empty slot. Skipping that second call
-        /// leaves a null entry behind instead of shortening the list, which is silently wrong — the
-        /// set would report one more clip than it shows. <c>ClipSetAssetEditor.RemoveClipAt</c>
-        /// documented this quirk first; centralising it here is what stops the next caller
-        /// rediscovering it the hard way.
-        /// </remarks>
+        /// <summary>Un-registers a clip from a set, leaving the asset on disk. One undo step.</summary>
         public static bool RemoveClipFromSet(ClipSetAsset clipSet, int clipIndex)
         {
             return RemoveClipEntry(clipSet, clipIndex, true);
@@ -188,6 +146,8 @@ namespace DotsAnimationToolkit.Editor
                 Undo.SetCurrentGroupName(RemoveUndoActionName);
             }
 
+            // DeleteArrayElementAtIndex on a non-null object reference only nulls it on the first
+            // call; a second call at the same index actually removes the now-empty slot.
             bool wasNonNullReference =
                 clipsProperty.GetArrayElementAtIndex(clipIndex).objectReferenceValue != null;
             clipsProperty.DeleteArrayElementAtIndex(clipIndex);
@@ -211,29 +171,7 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Un-registers a clip and sends its asset to the OS trash.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>Trash, not <see cref="AssetDatabase.DeleteAsset"/>.</strong> Undo does not bring a
-        /// deleted file back, so the only recovery for a mis-click is the one the operating system
-        /// provides — and it only provides it if the file went to the trash. The cost is nothing; the
-        /// difference on the day it matters is the whole clip.
-        /// </para>
-        /// <para>
-        /// The set is updated <em>before</em> the file goes, so the set never holds a reference to an
-        /// asset that no longer exists. Doing it the other way round leaves a missing-reference entry
-        /// in the list if the trash call fails.
-        /// </para>
-        /// <para>
-        /// <strong>The list edit is deliberately not undoable on this path</strong>, unlike
-        /// <see cref="RemoveClipFromSet"/>. Undo cannot bring the file back, so an undoable removal
-        /// would restore an entry pointing at an asset that is now in the trash — a missing
-        /// reference sitting in the set, which no validation rule reports. A delete that cannot be
-        /// half-undone into a broken state is worth more than one that can be half-undone at all.
-        /// </para>
-        /// </remarks>
+        /// <summary>Un-registers a clip and sends its asset to the OS trash.</summary>
         public static bool DeleteClipFromSet(ClipSetAsset clipSet, int clipIndex, ClipAsset clip)
         {
             if (clip == null)
@@ -242,6 +180,8 @@ namespace DotsAnimationToolkit.Editor
             }
 
             string assetPath = AssetDatabase.GetAssetPath(clip);
+            // Not undoable, unlike RemoveClipFromSet: undo cannot un-trash the file, so an undone
+            // removal would leave the set pointing at an asset that no longer exists.
             RemoveClipEntry(clipSet, clipIndex, false);
 
             if (string.IsNullOrEmpty(assetPath))
@@ -266,11 +206,6 @@ namespace DotsAnimationToolkit.Editor
         /// Renames a clip asset on disk, keeping the file and the object name in step.
         /// </summary>
         /// <returns>True when the rename happened; false when it was refused or unnecessary.</returns>
-        /// <remarks>
-        /// A clip's asset name is not cosmetic — <c>ClipSetAssetEditor</c>'s id-constant generator
-        /// turns it into a C# identifier, so "NewClip 3" becomes a constant nobody wants to read.
-        /// Offering the rename wherever clips are created is what stops a set filling up with them.
-        /// </remarks>
         public static bool RenameClip(ClipAsset clip, string newName)
         {
             if (clip == null || string.IsNullOrWhiteSpace(newName) || clip.name == newName)

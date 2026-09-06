@@ -9,7 +9,6 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>
     /// The seconds-tick strip above a cutscene's lanes, and the scrub surface for its playhead.
     /// </summary>
-    /// <remarks>See <see cref="CutsceneTimelineGeometry"/>'s remarks for why this is a fresh, seconds-based sibling of <see cref="TimeRulerElement"/> rather than a reuse of it (decision G-D2).</remarks>
     public sealed class CutsceneTimelineRulerElement : VisualElement
     {
         private static readonly Color RulerBackground = new Color(0.15f, 0.15f, 0.16f);

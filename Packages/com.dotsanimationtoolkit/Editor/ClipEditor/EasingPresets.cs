@@ -6,14 +6,9 @@ using Unity.Mathematics;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// One named starting shape for a key's easing curve.
+    /// One named starting shape for a key's easing curve. Carries handles even for a fixed mode
+    /// that ignores them, since a preset without them would jump to an unrelated shape on first drag.
     /// </summary>
-    /// <remarks>
-    /// A preset carries handles even when its <see cref="interpolation"/> is one of the fixed modes
-    /// that ignores them. The handles are what the curve widget draws its grab dots on and what the
-    /// key inherits the moment the author drags one, so a preset without them would jump to an
-    /// unrelated shape on the first drag.
-    /// </remarks>
     public readonly struct EasingPreset
     {
         public readonly string displayName;
@@ -32,25 +27,10 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// The easing shapes the clip inspector offers, and the matching that decides which one a key is
-    /// already on.
+    /// The easing shapes the clip inspector offers, and the matching that decides which one a key
+    /// is already on. A preset is a starting point, not a mode — picking one writes the cheapest
+    /// representation of that shape, and dragging a handle turns it into a Bézier seeded from it.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>A preset is a starting point, not a mode.</strong> Picking one writes the cheapest
-    /// representation of that shape — a fixed <see cref="Interpolation"/> where one exists, a Bézier
-    /// where it does not — and dragging a handle afterwards turns whatever was picked into
-    /// <see cref="Interpolation.Bezier"/> seeded from that shape. That is why the fixed modes carry
-    /// handle values here: they are the cubic that matches the curve the sampler draws, so the
-    /// switch to Bézier is invisible rather than a jump.
-    /// </para>
-    /// <para>
-    /// The ease-in and ease-out handles are exact. A quadratic Bézier reproduces the sampler's
-    /// <c>t²</c> and <c>1 − (1 − t)²</c> outright, and degree-elevating it to a cubic gives thirds:
-    /// (⅓, 0) / (⅔, ⅓) and its mirror. The ease-in-out handles are a fit rather than an identity,
-    /// because the sampler's piecewise quadratic is two curves and a single cubic is one.
-    /// </para>
-    /// </remarks>
     public static class EasingPresets
     {
         /// <summary>The handles that describe a straight line — the cubic form of no easing.</summary>
@@ -64,6 +44,9 @@ namespace DotsAnimationToolkit.Editor
 
         private const float MatchTolerance = 0.001f;
 
+        // Ease-in/out handles are exact: a quadratic Bézier reproduces the sampler's t² and
+        // 1-(1-t)² outright, degree-elevated to cubic thirds. Ease-in-out is a fit, not an
+        // identity, since the sampler's piecewise quadratic there is two curves to one cubic.
         private static readonly EasingPreset[] presets =
         {
             new EasingPreset(
@@ -134,15 +117,9 @@ namespace DotsAnimationToolkit.Editor
             return displayNames.IndexOf(displayName);
         }
 
-        /// <summary>
-        /// The dropdown index a key sits on: the preset matching its mode and handles, or
-        /// <see cref="CustomIndex"/> when its Bézier handles are shaped by hand.
-        /// </summary>
-        /// <remarks>
-        /// Handles are only compared for Bézier keys. A fixed mode's stored handles are never read
-        /// by the sampler, so a key left holding an old drag's handles is still exactly that mode —
-        /// reporting it as custom would show a shape it does not play.
-        /// </remarks>
+        // The dropdown index a key sits on: the preset matching its mode and handles, or
+        // CustomIndex when its Bézier handles are shaped by hand. Handles are only compared for
+        // Bézier keys — a fixed mode's stored handles are never read by the sampler.
         public static int IndexOf(Interpolation interpolation, float2 startHandle, float2 endHandle)
         {
             // An uninitialised handle pair is what the sampler reads as linear, so that is the

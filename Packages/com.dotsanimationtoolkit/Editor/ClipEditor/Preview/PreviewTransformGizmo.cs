@@ -6,21 +6,11 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The move / rotate / scale handles drawn on the selected part in the clip viewport.
+    /// The move / rotate / scale handles drawn on the selected part in the clip viewport, from one
+    /// dynamic line mesh rebuilt whenever the pivot or mode changes. Drawn with exactly the pivot
+    /// and handle length <see cref="PreviewGizmoMath.PickHandle"/> tests, so a handle is grabbable
+    /// precisely where it appears.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// One dynamic line mesh, rebuilt whenever the pivot or the mode changes, for the same reason
-    /// the bone handles are: the geometry follows a pose that moves as the clip scrubs, and a
-    /// GameObject per handle would be a scene full of objects to keep in step.
-    /// </para>
-    /// <para>
-    /// <strong>What is drawn is exactly what <see cref="PreviewGizmoMath.PickHandle"/> tests.</strong>
-    /// Both take the same pivot and the same handle length, so a handle is grabbable precisely where
-    /// it appears. Letting the drawing and the picking size themselves independently is how a gizmo
-    /// ends up with an invisible dead zone.
-    /// </para>
-    /// </remarks>
     public sealed class PreviewTransformGizmo
     {
         private const int RotateRingSegments = 48;

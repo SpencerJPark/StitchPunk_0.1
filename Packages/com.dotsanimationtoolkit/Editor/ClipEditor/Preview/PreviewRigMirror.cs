@@ -7,28 +7,11 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The GameObject stand-in the clip preview poses (architecture section 7.3, step 2).
+    /// The GameObject stand-in the clip preview poses: one untextured quad per rig target, posed
+    /// every preview tick from the same <c>TargetPose</c> the runtime produces. A GameObject mirror
+    /// rather than an editor ECS world, since Entities Graphics outside the default world is
+    /// unsupported territory. Shows motion, not art — previewing real artwork is the actor-prefab route.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// One quad per rig target, posed every preview tick from the same <c>TargetPose</c> the runtime
-    /// produces. Section 7.3 chose a GameObject mirror over an editor ECS world deliberately:
-    /// Entities Graphics outside the default world is unsupported territory, and baking in edit mode
-    /// is exactly the dependency the preview exists to avoid.
-    /// </para>
-    /// <para>
-    /// <strong>This shows motion, not art.</strong> The auto-rig is untextured quads, so what it
-    /// renders is the pose — timing, arcs, layer composition. Sprite slice values are still written
-    /// into a <see cref="MaterialPropertyBlock"/> so that a caller which supplies a real material
-    /// gets the right frame for free, but with the default material they are inert. Previewing the
-    /// actual artwork is the actor-prefab route, which mirrors the authored prefab instead of
-    /// building quads.
-    /// </para>
-    /// <para>
-    /// Every object carries <see cref="HideFlags.HideAndDontSave"/>. Without it the mirror leaks
-    /// into the user's open scene and, worse, gets saved into it.
-    /// </para>
-    /// </remarks>
     public sealed class PreviewRigMirror
     {
         private static readonly int ImageIndexPropertyId = Shader.PropertyToID("_ImageIndex");
@@ -52,14 +35,9 @@ namespace DotsAnimationToolkit.Editor
             get { return partTransforms.Count; }
         }
 
-        /// <summary>
-        /// The rig target a mirrored quad stands for, so a click in the viewport can name a part.
-        /// </summary>
-        /// <remarks>
-        /// Searched linearly rather than through a reverse dictionary: a rig has tens of targets,
-        /// not thousands, and this runs once per click. A second map would be a second thing to keep
-        /// in step with <c>targetIdToMirrorIndex</c> for no measurable gain.
-        /// </remarks>
+        // The rig target a mirrored quad stands for, so a click in the viewport can name a part.
+        // Searched linearly rather than through a reverse dictionary: a rig has tens of targets,
+        // not thousands, and this runs once per click.
         public bool TryGetTargetId(Transform partTransform, out uint targetId)
         {
             foreach (KeyValuePair<uint, int> pair in targetIdToMirrorIndex)
@@ -152,15 +130,9 @@ namespace DotsAnimationToolkit.Editor
 
         }
 
-        /// <summary>
-        /// Poses the part bound to <paramref name="targetId"/>. Unknown ids are ignored.
-        /// </summary>
-        /// <remarks>
-        /// <paramref name="pose"/> carries a z-rotation in <em>radians</em> (the runtime's unit),
-        /// while <see cref="Transform.localRotation"/> is built from degrees — the conversion here
-        /// is the same one <c>TransformApplySystem</c> performs, and dropping it is how a preview
-        /// silently runs at 57× the authored rotation.
-        /// </remarks>
+        // Poses the part bound to targetId. Unknown ids are ignored. pose carries rotation in
+        // radians (the runtime's unit); dropping the degrees conversion below runs the preview at
+        // 57x the authored rotation.
         public void ApplyPose(uint targetId, in TargetPose pose)
         {
             int mirrorIndex;

@@ -9,24 +9,9 @@ namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// Draws every cutscene mark in the Scene view as a tolerance disc, and lets one be clicked and
-    /// dragged along its own ground plane (amendment A64 §3.4).
+    /// dragged along its own ground plane. Line meshes and a ray, not <c>Handles</c> — a mark is a
+    /// spot on the ground, so height stays wherever it was authored during a drag.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Line meshes and a ray, not <c>Handles</c>.</strong> A64 §3.4 asked for
-    /// <c>Handles.DrawWireDisc</c> and <c>Handles.PositionHandle</c>; <c>Conformance_E</c> bans
-    /// every <c>Handles.</c> call in this package's Editor sources, so the disc is the same line
-    /// mesh <see cref="PreviewSceneGizmos"/> already draws its grid with and the drag is a ray
-    /// against the mark's own Y plane. A mark is a spot on the ground, so a planar drag is the
-    /// motion an author wants anyway — height stays wherever it was authored instead of being one
-    /// stray axis pull away from a mark nobody can walk to.
-    /// </para>
-    /// <para>
-    /// The <c>duringSceneGui</c> subscription is the leak to watch: one that outlives the panel
-    /// keeps drawing against a disposed <see cref="SerializedObject"/> and survives domain reloads
-    /// badly, so <see cref="Disable"/> is called from the panel's hide path as well as its detach.
-    /// </para>
-    /// </remarks>
     internal sealed class CutsceneMarkSceneOverlay
     {
         /// <summary>Smallest clickable radius, so a 5 cm tolerance is still something a mouse can hit.</summary>
@@ -77,6 +62,8 @@ namespace DotsAnimationToolkit.Editor
             SceneView.RepaintAll();
         }
 
+        // Called from the panel's hide path as well as its detach: a duringSceneGui subscription
+        // that outlives the panel keeps drawing against a disposed SerializedObject.
         public void Disable()
         {
             if (!isEnabled)

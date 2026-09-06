@@ -6,49 +6,19 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Turns a skinned source mesh into the ordinary mesh a VAT shader renders
-    /// (architecture section 4.7; the mesh half of the section 6.2 shader contract).
+    /// Turns a skinned source mesh into the ordinary mesh a VAT shader renders, packing bone
+    /// influences into <c>UV1</c> since a plain <see cref="MeshRenderer"/> does not bind
+    /// <c>BLENDINDICES</c>/<c>BLENDWEIGHT</c> the way a <see cref="SkinnedMeshRenderer"/> does.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Bone influences move into <c>UV1</c>, and that is the whole reason this exists.</strong>
-    /// A plain <see cref="MeshRenderer"/> does not bind <c>BLENDINDICES</c>/<c>BLENDWEIGHT</c> —
-    /// those semantics are bound by the GPU skinning path for a <see cref="SkinnedMeshRenderer"/>.
-    /// Not needing a <see cref="SkinnedMeshRenderer"/> is the entire value of VAT, so the bone data
-    /// has to travel as ordinary per-vertex data, and <c>TEXCOORD1</c> is where
-    /// <c>ToolkitVatCrowdUnlit.shadergraph</c> reads it from.
-    /// </para>
-    /// <para>
-    /// <strong>This shipped in the package because leaving it out was a real hole.</strong> The
-    /// packing previously existed only in a demo script in the host project, so a bake through
-    /// <c>VatBakeWindow</c> produced textures and left
-    /// <c>VatTextureSetAsset.runtimeMesh</c> null — a field nothing in the package ever wrote. A
-    /// consumer had to discover the requirement from a document and hand-write the loop, and
-    /// forgetting it does not error: the mesh renders as a motionless clump, because every vertex
-    /// reads bone 0 at weight 0.
-    /// </para>
-    /// <para>
-    /// Two influences, not four, matching the crowd shader's budget (§12 R3).
-    /// <c>ToolkitVat.hlsl</c>'s <c>VatBoneSkin</c> handles up to four and skips any with
-    /// non-positive weight, so a host that genuinely needs four can pass its own pair of
-    /// <c>float4</c>s instead — this helper covers the shipped reference path.
-    /// </para>
-    /// </remarks>
     public static class VatMeshPreparer
     {
         /// <summary>
         /// Builds a render-ready copy of <paramref name="sourceRenderer"/>'s mesh with bone
         /// influences packed into <c>UV1</c> as <c>(index0, index1, weight0, weight1)</c>.
         /// </summary>
-        /// <param name="sourceRenderer">The skinned renderer the VAT bake sampled.</param>
         /// <param name="runtimeMesh">The prepared mesh, or null on failure.</param>
         /// <param name="failureMessage">Why preparation failed; empty on success.</param>
         /// <returns>False when there was nothing usable to prepare.</returns>
-        /// <remarks>
-        /// Returns a failure rather than throwing, matching <c>VatTextureBaker.Bake</c> — a baker
-        /// that throws cannot be driven from a batch script over a content library, which is
-        /// exactly when a mesh with no bone weights turns up.
-        /// </remarks>
         public static bool TryCreateRuntimeMesh(
             SkinnedMeshRenderer sourceRenderer,
             out Mesh runtimeMesh,
@@ -79,6 +49,8 @@ namespace DotsAnimationToolkit.Editor
             runtimeMesh = Object.Instantiate(sourceMesh);
             runtimeMesh.name = sourceMesh.name + "_VatRuntime";
 
+            // Two influences, not four — matches the crowd shader's budget. ToolkitVat.hlsl's
+            // VatBoneSkin handles up to four, so a host needing four packs its own UVs instead.
             List<Vector4> packedBoneData = new List<Vector4>(sourceWeights.Length);
             for (int vertexIndex = 0; vertexIndex < sourceWeights.Length; vertexIndex++)
             {

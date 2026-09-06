@@ -6,9 +6,6 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// One clip to bake into a VAT texture.
-    /// </summary>
     public struct VatBakeClip
     {
         /// <summary>The stable id of the <c>ClipAsset</c> this animation corresponds to.</summary>
@@ -16,25 +13,19 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Stable id of the rig target this bake is scoped to, or 0 for the clip's untargeted range
-        /// baked from <c>ClipAsset.vatSource</c> (C10). A non-zero value bakes an additional frame
-        /// block for the same <see cref="clipId"/>, occupying its own row range in the same texture —
-        /// see <see cref="VatBakeResult.clipRanges"/>.
+        /// baked from <c>ClipAsset.vatSource</c>. A non-zero value bakes an additional frame block
+        /// for the same <see cref="clipId"/>, occupying its own row range in the same texture.
         /// </summary>
         public uint targetId;
 
         /// <summary>The animation to sample, or null when the clip is authored-only.</summary>
         public AnimationClip animationClip;
 
-        /// <summary>
-        /// Authored bone tracks applied on top of <see cref="animationClip"/> (amendment A42), or
-        /// null. A bake clip may carry an imported clip, authored tracks, or both.
-        /// </summary>
+        /// <summary>Authored bone tracks applied on top of <see cref="animationClip"/>, or null.</summary>
         public List<BoneTrack> boneTracks;
 
         /// <summary>
-        /// Clip length in seconds, used when <see cref="animationClip"/> is null. An authored-only
-        /// clip has no imported asset to take a length from, so the <c>ClipAsset</c>'s own duration
-        /// is the only source of truth for how many frames to bake.
+        /// Clip length in seconds, used when <see cref="animationClip"/> is null.
         /// </summary>
         public float durationSeconds;
 
@@ -42,14 +33,6 @@ namespace DotsAnimationToolkit.Editor
         /// Poses baked per second of this clip's time, or 0 to fall back to
         /// <see cref="VatBakeInput.samplesPerSecond"/>.
         /// </summary>
-        /// <remarks>
-        /// <strong>This is the clip's frame rate, and it decides how tall its block of the texture
-        /// is.</strong> A clip is <c>duration * rate</c> rows, so the rate an animator sets on the
-        /// <c>ClipAsset</c> is the rate the animation is stored and played back at — twelve frames a
-        /// second bakes twelve rows a second and reads as twelve frames a second. It used to be one
-        /// number for the whole bake, which meant a set could not hold a snappy 12fps clip beside a
-        /// smooth 60fps one without baking twice.
-        /// </remarks>
         public float samplesPerSecond;
 
         /// <summary>
@@ -59,10 +42,6 @@ namespace DotsAnimationToolkit.Editor
         public bool loopSafe;
     }
 
-    /// <summary>
-    /// Everything <see cref="VatTextureBaker"/> needs. A plain struct so the baker is callable
-    /// headlessly — from a window, a test, or a build script — rather than only from UI.
-    /// </summary>
     public struct VatBakeInput
     {
         /// <summary>The skinned renderer to sample. Its root drives the animation.</summary>
@@ -83,23 +62,15 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Bake to RGBAFloat instead of RGBAHalf. Doubles the memory and removes the precision
-        /// cliff §12 R2 describes for rigs much larger than a couple of metres.
+        /// cliff for rigs much larger than a couple of metres.
         /// </summary>
         public bool useFullPrecision;
 
-        /// <summary>
-        /// Bone sockets to capture alongside the textures, or null for none.
-        /// </summary>
-        /// <remarks>
-        /// Sampled in a second pass over each clip rather than woven into the texture pass. The
-        /// duplicated sampling costs bake time nobody waits on, and buys complete isolation: a
-        /// socket that fails to resolve cannot corrupt a texture, and the texture path is unchanged
-        /// whether sockets are requested or not.
-        /// </remarks>
+        // Sampled in a second pass over each clip rather than woven into the texture pass, so a
+        // socket that fails to resolve cannot corrupt a texture.
         public List<VatBakeSocket> sockets;
     }
 
-    /// <summary>One bone socket to capture during a bake.</summary>
     public struct VatBakeSocket
     {
         /// <summary>Stable id of the socket row on the rig.</summary>
@@ -114,14 +85,8 @@ namespace DotsAnimationToolkit.Editor
         public string boneName;
     }
 
-    /// <summary>
-    /// What the bake produced, or why it produced nothing.
-    /// </summary>
-    /// <remarks>
-    /// Failures are reported through <see cref="failed"/> and <see cref="message"/> rather than
-    /// thrown (§8 M2: "never throws past the API"). A baker that throws cannot be driven from a
-    /// batch script over a content library, which is exactly when a zero-bone mesh turns up.
-    /// </remarks>
+    // Failures are reported through failed/message rather than thrown, so a bake can be driven
+    // from a batch script over a content library without a zero-bone mesh aborting the run.
     public struct VatBakeResult
     {
         public bool failed;
@@ -147,10 +112,9 @@ namespace DotsAnimationToolkit.Editor
         public List<string> unresolvedSocketBones;
 
         /// <summary>
-        /// Authored bone-track names that matched nothing in the source hierarchy (amendment A42).
-        /// Non-fatal for the same reason as <see cref="unresolvedSocketBones"/> — the textures are
-        /// valid — but every listed bone stayed at rest, which presents as an animation that simply
-        /// does not play rather than as an error.
+        /// Authored bone-track names that matched nothing in the source hierarchy. Non-fatal for
+        /// the same reason as <see cref="unresolvedSocketBones"/>, but every listed bone stayed at
+        /// rest, which presents as an animation that simply does not play rather than as an error.
         /// </summary>
         public List<string> unresolvedBoneTrackNames;
 
@@ -159,36 +123,19 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// Bakes skinned animation into textures the GPU can play back without a skeleton
-    /// (architecture section 4.7).
+    /// Bakes skinned animation into textures the GPU can play back without a skeleton. Frame
+    /// <c>f</c> occupies <c>rowsPerFrame</c> rows from <c>f * rowsPerFrame</c>; element <c>e</c>
+    /// sits at column <c>e % width</c>, row offset <c>e / width</c> — the layout <c>ToolkitVat.hlsl</c> expects.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Bone flavour writes object-space skinning matrices</strong> — the same
-    /// <c>boneToWorld × bindpose</c> product a CPU skinner would use, expressed relative to the
-    /// renderer's root so the result is independent of where the rig sat in the scene when it was
-    /// baked. Keeping magnitudes small is also what makes half precision viable (§12 R2).
-    /// </para>
-    /// <para>
-    /// <strong>The layout is the contract with <c>ToolkitVat.hlsl</c>.</strong> Frame <c>f</c>
-    /// occupies <c>rowsPerFrame</c> consecutive rows from <c>f * rowsPerFrame</c>; element
-    /// <c>e</c> sits at column <c>e % width</c> on row offset <c>e / width</c>. Changing either
-    /// side without the other produces a mesh that renders as noise, so the two are documented
-    /// against each other rather than independently.
-    /// </para>
-    /// </remarks>
     public static class VatTextureBaker
     {
-        /// <summary>Bone flavour writes a 3x4 matrix, one row per texture row.</summary>
+        // Bone flavour writes a 3x4 matrix, one row per texture row.
         private const int BoneRowsPerFrame = 3;
 
-        /// <summary>Vertex flavour writes one position per element.</summary>
+        // Vertex flavour writes one position per element.
         private const int VertexRowsPerFrame = 1;
 
-        /// <summary>
-        /// Texture width. Powers of two keep addressing exact in the shader's fmod/floor and stay
-        /// friendly to every platform's texture rules.
-        /// </summary>
+        // Power of two: keeps addressing exact in the shader's fmod/floor.
         private const int MaxTextureWidth = 1024;
 
         public static bool Bake(VatBakeInput input, out VatBakeResult result)
@@ -296,14 +243,6 @@ namespace DotsAnimationToolkit.Editor
 
         // -------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Rejects inputs that cannot produce a texture, with a message naming what to fix.
-        /// </summary>
-        /// <remarks>
-        /// The zero-bone case is called out by §11.3 because it is the one a content pipeline hits
-        /// by accident: a mesh exported without skinning looks identical in the project window and
-        /// fails only here.
-        /// </remarks>
         private static bool Validate(VatBakeInput input, ref VatBakeResult result)
         {
             if (input.skinnedMeshRenderer == null)
@@ -335,22 +274,6 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Poses the hierarchy for one sample, from whichever sources this clip carries.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// The imported clip poses first, authored tracks second, so authored keys override
-        /// imported motion on the bones they name (amendment A42). That order makes an authored
-        /// track the more specific statement of intent, which is the case this feature exists for:
-        /// an imported walk cycle with a hand-authored arm on top. The reverse would let the import
-        /// silently erase deliberate hand-authoring.
-        /// </para>
-        /// <para>
-        /// A clip with no imported source poses purely from authored tracks — <c>AnimationMode</c>
-        /// is skipped entirely rather than called with null, which logs and poses nothing.
-        /// </para>
-        /// </remarks>
         private static void PoseHierarchy(
             VatBakeClip bakeClip,
             Transform rootTransform,
@@ -358,6 +281,8 @@ namespace DotsAnimationToolkit.Editor
             float timeSeconds,
             float clipLengthSeconds)
         {
+            // Imported clip poses first, authored tracks second, so authored keys override
+            // imported motion on the bones they name — never the reverse.
             if (bakeClip.animationClip != null)
             {
                 UnityEditor.AnimationMode.BeginSampling();
@@ -384,16 +309,8 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>
-        /// Finds each requested socket's bone in the source hierarchy, by name.
-        /// </summary>
-        /// <remarks>
-        /// Resolved once for the whole bake rather than per clip: the hierarchy does not change
-        /// between clips, and a per-clip search would repeat a full-tree walk hundreds of times.
-        /// Unresolved names produce a null slot and a reported name — never a substitute bone,
-        /// because a socket silently bound to the wrong bone is far worse than one that is
-        /// obviously missing.
-        /// </remarks>
+        // Resolved once for the whole bake, not per clip — the hierarchy does not change between
+        // clips. Unresolved names produce a null slot and a reported name, never a substitute bone.
         private static List<Transform> ResolveSocketBones(
             List<VatBakeSocket> sockets,
             Transform rootTransform,
@@ -430,22 +347,8 @@ namespace DotsAnimationToolkit.Editor
             return resolvedBones;
         }
 
-        /// <summary>
-        /// Captures every resolved socket's root-relative transform across one clip.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// A second pass over the same clip, at the same rate and the same sample times as
-        /// <see cref="SampleClip"/> — including the loop-safe duplicate — so sample <c>n</c> of a
-        /// socket track and frame <c>n</c> of the texture describe the same instant. The two loops
-        /// must agree on timing; sharing the arithmetic rather than the loop is what keeps the
-        /// socket path from being able to break the texture path.
-        /// </para>
-        /// <para>
-        /// Must be called inside an active <c>AnimationMode</c> — it poses the hierarchy exactly as
-        /// the texture pass does.
-        /// </para>
-        /// </remarks>
+        // Must run inside an active AnimationMode, and its sample times must match SampleClip's
+        // exactly — sample n of a socket track and frame n of the texture must describe the same instant.
         private static void SampleSocketsForClip(
             VatBakeClip bakeClip,
             VatBakeInput input,
@@ -493,9 +396,8 @@ namespace DotsAnimationToolkit.Editor
                 AppendSocketSamples(tracksForThisClip, socketBones, worldToRoot);
             }
 
-            // The duplicated final frame mirrors the texture's loop-safe row (§4.7), so an
-            // attachment interpolating toward the last sample lands on the loop start rather than
-            // whipping back through the whole clip.
+            // Mirrors the texture's loop-safe row, so an attachment interpolating toward the last
+            // sample lands on the loop start rather than whipping back through the whole clip.
             if (bakeClip.loopSafe)
             {
                 PoseHierarchy(bakeClip, rootTransform, bonePoser, 0f, clipLengthSeconds);
@@ -584,7 +486,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             // The duplicated frame is what lets the shader lerp floor→floor+1 at the last frame
-            // without reading the next clip's first row (§4.7).
+            // without reading the next clip's first row.
             if (bakeClip.loopSafe)
             {
                 if (isBoneFlavor)
@@ -664,15 +566,8 @@ namespace DotsAnimationToolkit.Editor
             return texture;
         }
 
-        /// <summary>
-        /// The rate one clip bakes at: its own, or the input's when it does not carry one.
-        /// </summary>
-        /// <remarks>
-        /// Every site that needs the rate goes through here — the row count, the socket sample
-        /// count, the fps written into the range, and the hash. Sampling at one rate and labelling
-        /// the range with another is a clip that plays at the wrong speed for the rest of its life,
-        /// and nothing about the texture would look wrong.
-        /// </remarks>
+        // Every site that needs the rate — row count, socket samples, the range's fps, the hash —
+        // goes through here, so sampling and labelling can never disagree on speed.
         private static float ResolveSampleRate(VatBakeClip bakeClip, VatBakeInput input)
         {
             return bakeClip.samplesPerSecond > 0f ? bakeClip.samplesPerSecond : input.samplesPerSecond;
@@ -694,7 +589,7 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Folds every input that affects the output into one value, so a stale texture set is
-        /// detectable (validation rule V08) without re-baking to compare.
+        /// detectable without re-baking to compare.
         /// </summary>
         private static ulong ComputeSourceHash(VatBakeInput input, int elementCount, int totalFrames)
         {

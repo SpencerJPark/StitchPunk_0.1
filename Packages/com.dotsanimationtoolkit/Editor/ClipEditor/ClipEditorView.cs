@@ -8,14 +8,6 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The timeline's view transform: zoom, pan, and the ways a user changes them.
-    /// </summary>
-    /// <remarks>
-    /// <strong>The window owns the view and pushes it into every element.</strong> Nothing derives
-    /// its own — a lane that zoomed its painting but not its hit-testing is the exact drift
-    /// <c>TimelineGeometry</c> was written to make unrepresentable.
-    /// </remarks>
     public sealed partial class ClipEditorWindow
     {
         private const string ZoomPrefKey = "DotsAnimationToolkit.ClipEditor.Zoom";
@@ -171,15 +163,7 @@ namespace DotsAnimationToolkit.Editor
             ApplyTimelineView();
         }
 
-        /// <summary>
-        /// Points the slider's ends at the current zoom bounds, and pulls the view inside them.
-        /// </summary>
-        /// <remarks>
-        /// The zoomed-in end moves with the clip: it is a frame count, and both fields that decide
-        /// the frame count sit in the bar beside this slider. Leaving the ends where they were meant
-        /// a slider whose right-hand stop no longer matched what the view would accept, so the last
-        /// stretch of travel did nothing.
-        /// </remarks>
+        /// <summary>Points the slider's ends at the current zoom bounds, and pulls the view inside them.</summary>
         private void RefreshZoomRange()
         {
             float ceiling = MaximumViewZoom;
@@ -190,6 +174,8 @@ namespace DotsAnimationToolkit.Editor
                 isSyncingZoomSlider = true;
                 try
                 {
+                    // The zoomed-in end moves with the clip's frame count, so the slider's right-hand
+                    // stop always matches what the view will actually accept.
                     zoomSlider.lowValue = TimelineGeometry.MinimumZoom;
                     zoomSlider.highValue = ceiling;
                     zoomSlider.SetValueWithoutNotify(clampedZoom);
@@ -209,22 +195,15 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Zooms while holding <paramref name="anchorTime"/> where it is on screen.
-        /// </summary>
-        /// <remarks>
-        /// The playhead is the anchor for every zoom the user asks for by name — the slider and
-        /// Ctrl+scroll. It is the thing they positioned deliberately, and it is what they mean by
-        /// "here". When the anchor is off screen it is brought to the middle instead of held off
-        /// screen, so zooming in is always a way of getting a closer look at the playhead rather
-        /// than a way of losing it.
-        /// </remarks>
+        /// <summary>Zooms while holding <paramref name="anchorTime"/> where it is on screen.</summary>
         private void SetZoomAtTime(float newZoom, float anchorTime)
         {
             float laneWidth = LaneWidth;
             TimelineGeometry before = TimelineGeometry.Create(laneWidth, viewZoom, viewPan);
 
             float anchorX = before.TimeToX(anchorTime);
+            // Off screen anchors move to the middle instead: zooming in is always a closer look at
+            // the playhead, never a way of losing it.
             if (anchorX < before.leftPadding || anchorX > laneWidth - before.rightPadding)
             {
                 anchorX = before.leftPadding + before.TrackPixelWidth * 0.5f;
@@ -253,19 +232,13 @@ namespace DotsAnimationToolkit.Editor
             ApplyTimelineView();
         }
 
-        /// <summary>
-        /// The one width every part of the timeline converts against.
-        /// </summary>
-        /// <remarks>
-        /// Measured on the lane stack rather than the lane column, because the stack is the common
-        /// ancestor: the ruler and playhead are its direct children and the lane column stretches to
-        /// it. Taking the column meant the ruler and the lanes could be built from different widths
-        /// while layout settled, and the drag maths from a third.
-        /// </remarks>
+        /// <summary>The one width every part of the timeline converts against.</summary>
         private float LaneWidth
         {
             get
             {
+                // Measured on the lane stack, the common ancestor of ruler and playhead — taking the
+                // lane column instead let the ruler and lanes build from different widths.
                 if (laneStack != null && laneStack.contentRect.width > 1f)
                 {
                     return laneStack.contentRect.width;
@@ -278,7 +251,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>Pushes the view into every element that paints or hit-tests against it.</summary>
+        // The window owns the view and pushes it into every element below; nothing derives its own,
+        // since a lane that zoomed its painting but not its hit-testing would drift from the rest.
         private void ApplyTimelineView()
         {
             EditorPrefs.SetFloat(ZoomPrefKey, viewZoom);
@@ -332,23 +306,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Resizes the ghost rows to whatever the timeline has left under its last track.
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The space is measured against the scroll view's viewport, never against the lane
-        /// stack.</strong> The stack is as tall as its own contents, so sizing the strip from it
-        /// would be asking a question whose answer the strip is part of: every pass would add the
-        /// rows it had just measured room for, and the timeline would grow a scrollbar and keep
-        /// growing. The viewport is fixed by the pane, so the sum settles on the first pass.
-        /// </para>
-        /// <para>
-        /// Nothing happens before the first layout — the viewport has no height to divide up yet,
-        /// and the geometry callbacks registered in <c>BindTimelineView</c> bring us back here the
-        /// moment it does.
-        /// </para>
-        /// </remarks>
+        /// <summary>Resizes the ghost rows to whatever the timeline has left under its last track.</summary>
         private void SyncGhostLanes()
         {
             if (ghostLanes == null || timelineScroll == null)
@@ -356,6 +314,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // Measured against the viewport, never the lane stack — the stack is as tall as its own
+            // contents, so sizing from it would make each pass grow forever.
             VisualElement viewport = timelineScroll.contentViewport;
             float viewportHeight = viewport != null ? viewport.contentRect.height : 0f;
 
@@ -374,14 +334,7 @@ namespace DotsAnimationToolkit.Editor
                 (timelineRowCount & 1) == 1);
         }
 
-        /// <summary>
-        /// An element's laid-out height, treating "has never been laid out" as no height at all.
-        /// </summary>
-        /// <remarks>
-        /// An element that has not been through a layout pass resolves to NaN, and one NaN in the
-        /// subtraction above poisons the whole result. Zero is the honest answer for something that
-        /// is not on screen yet, and the geometry callbacks bring us back once it is.
-        /// </remarks>
+        /// <summary>An element's laid-out height, treating "has never been laid out" as no height at all.</summary>
         private static float ResolvedHeightOrZero(VisualElement element)
         {
             if (element == null)
@@ -449,21 +402,9 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>
-        /// Rebuilds the horizontal scroller range from the current zoom and the keys on screen.
+        /// Rebuilds the horizontal scroller range from the current zoom and the keys on screen, so
+        /// the thumb always reflects the current zoom and can reach any out-of-range key.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// <strong>The range has to be recomputed on every view change, which is why it lives
-        /// here.</strong> A scrollbar whose extent was set once describes the timeline at one zoom
-        /// only: zoom in and the thumb still spans the whole bar, so most of the clip becomes
-        /// unreachable by scrolling.
-        /// </para>
-        /// <para>
-        /// The extent covers the clip, every key including the out-of-range ones, and wherever the
-        /// view currently is — so scrolling can always reach a key that was dragged past either end,
-        /// and the thumb never jumps because the view sat outside its own scrollbar.
-        /// </para>
-        /// </remarks>
         private void SyncHorizontalScroller()
         {
             if (horizontalScroller == null)
@@ -602,14 +543,9 @@ namespace DotsAnimationToolkit.Editor
             FrameRange(earliest, latest);
         }
 
-        /// <summary>
-        /// The authored time of one selected key, or false when the address no longer resolves.
-        /// </summary>
-        /// <remarks>
-        /// Addresses are positions, not references, so one can outlive the key it pointed at — a
-        /// delete or an undo renumbers the list. Every index is bounds-checked rather than trusted,
-        /// because a stale address here would throw during a repaint.
-        /// </remarks>
+        /// <summary>The authored time of one selected key, or false when the address no longer resolves.</summary>
+        // Every index is bounds-checked rather than trusted: an address can outlive the key it
+        // pointed at (a delete or undo renumbers the list), and a stale one here would throw during repaint.
         private bool TryGetSelectedKeyTime(KeyAddress address, out float normalizedTime)
         {
             normalizedTime = 0f;

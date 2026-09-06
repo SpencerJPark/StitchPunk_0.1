@@ -6,27 +6,10 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Clickable joint markers for every bone of the previewed rig, drawn as one line mesh.
+    /// Clickable joint markers for every bone of the previewed rig, drawn as one line mesh — an
+    /// octahedron at each joint plus a line to its parent, since a bone has no geometry of its own
+    /// to click. One mesh for the whole skeleton rather than a GameObject per joint.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>A bone has no geometry of its own.</strong> It is a transform that moves vertices;
-    /// nothing about it is under the cursor to hit. These handles are what give it a clickable
-    /// extent — an octahedron at the joint plus a line to its parent, so a skeleton reads as a
-    /// skeleton and every joint is a target whether or not a mesh is drawn over it.
-    /// </para>
-    /// <para>
-    /// <strong>The drawn radius and the pickable radius are the same number</strong>, passed to
-    /// <see cref="UpdateGeometry"/> and to the picker from one place. Letting them drift is how a
-    /// viewport ends up with click targets that are not where the markers are, which reads as the
-    /// picking being broken rather than as two constants disagreeing.
-    /// </para>
-    /// <para>
-    /// One mesh for the whole skeleton rather than a GameObject per joint: a 200-bone rig would
-    /// otherwise put 200 renderers in the preview scene, and the handles have to be rewritten every
-    /// frame anyway because the bones move as the clip scrubs.
-    /// </para>
-    /// </remarks>
     public sealed class PreviewBoneHandles
     {
         /// <summary>An octahedron is twelve edges, and each edge is written as its own pair.</summary>
@@ -40,7 +23,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly List<Transform> boneTransforms = new List<Transform>();
 
-        /// <summary>Each bone's parent <em>within the bone set</em>, or null when it has none.</summary>
+        /// <summary>Each bone's parent within the bone set, or null when it has none.</summary>
         private readonly List<Transform> boneParents = new List<Transform>();
 
         private readonly List<Vector3> vertexBuffer = new List<Vector3>();
@@ -67,15 +50,9 @@ namespace DotsAnimationToolkit.Editor
             get { return boneTransforms.Count > 0; }
         }
 
-        /// <summary>
-        /// Collects the bones of <paramref name="skeletonRoot"/> and builds their marker mesh.
-        /// </summary>
-        /// <remarks>
-        /// Bones come from <see cref="SkinnedMeshRenderer.bones"/> rather than from a walk of the
-        /// hierarchy, because that array <em>is</em> the definition of which transforms skin the
-        /// mesh. A hierarchy walk would offer handles on every empty, prop and mesh node too, which
-        /// buries the joints among things that are not bones.
-        /// </remarks>
+        // Collects the bones of skeletonRoot and builds their marker mesh. Bones come from
+        // SkinnedMeshRenderer.bones rather than a hierarchy walk, which would offer handles on
+        // every empty, prop and mesh node too.
         public void Rebuild(GameObject skeletonRoot)
         {
             Dispose();
@@ -128,15 +105,10 @@ namespace DotsAnimationToolkit.Editor
             BuildHandlesObject();
         }
 
-        /// <summary>
-        /// Rewrites the marker positions for the current pose.
-        /// </summary>
-        /// <remarks>
-        /// Vertices only. The index and colour buffers are built once in <see cref="Rebuild"/> and
-        /// never change, because every bone always writes exactly
-        /// <see cref="VerticesPerBone"/> entries — a bone with no parent in the set writes its link
-        /// as a zero-length segment rather than being skipped, which is what keeps the count fixed.
-        /// </remarks>
+        // Rewrites the marker positions for the current pose. Vertices only — index and colour
+        // buffers are built once in Rebuild, since every bone always writes exactly
+        // VerticesPerBone entries (a parentless bone writes a zero-length link instead of skipping).
+        // The drawn radius here must match the picker's, or click targets drift from the markers.
         public void UpdateGeometry(float handleRadius)
         {
             if (handlesMesh == null || boneTransforms.Count == 0)

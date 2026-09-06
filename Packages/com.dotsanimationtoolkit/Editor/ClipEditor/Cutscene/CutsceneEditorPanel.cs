@@ -13,31 +13,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The Cutscene Editor tab's content (Phase G, G2): a slot/lane timeline plus an inspector for
-    /// whatever is selected. Unity's own Scene view is the viewport (spec §3) — this panel is
-    /// timeline and inspector only, exactly as the spec's cover-pane shape for every other tab
-    /// already establishes.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>v1 scope cuts, recorded rather than hidden.</strong> The header column scrolls
-    /// horizontally together with the lanes rather than staying frozen (a real Clip-Editor-style
-    /// frozen header needs synchronized dual scroll regions this pass did not build); only one item
-    /// drags at a time, no box-select and no multi-key drag; a moment lane's "add" always inserts a
-    /// bare default and leaves filling it in to the inspector. All three are candidates for a later
-    /// visual pass, not correctness gaps — every add/move/resize/delete this spec calls for works.
-    /// </para>
-    /// <para>
-    /// <strong>Everything routes through <see cref="serializedObject"/>.</strong> Every mutation is a
-    /// <see cref="SerializedProperty"/> write plus <see cref="SerializedObject.ApplyModifiedProperties"/>,
-    /// the same "buys Undo, dirtying and prefab-override handling for free" reasoning
-    /// <c>RigAssetEditor</c> documents. The one exception is <see cref="CutsceneAsset.EnsureStableIds"/>,
-    /// which mints a fresh slot's id by writing the object directly — SerializedProperty has no
-    /// notion of "mint a fresh id", so it runs immediately after every structural change, before the
-    /// object is re-read back into <see cref="serializedObject"/>.
-    /// </para>
-    /// </remarks>
+    /// <summary>The Cutscene Editor tab's content: a slot/lane timeline plus an inspector for whatever is selected. Unity's own Scene view is the viewport.</summary>
     public sealed class CutsceneEditorPanel : VisualElement
     {
         private enum SelectedLaneKind
@@ -61,6 +37,9 @@ namespace DotsAnimationToolkit.Editor
         private const float TrailingSeconds = 5f;
 
         private CutsceneAsset cutscene;
+        // Every mutation is a SerializedProperty write plus ApplyModifiedProperties, buying Undo and
+        // dirtying for free. The one exception is EnsureStableIds, which writes the object directly
+        // and must run before the object is re-read back into this.
         private SerializedObject serializedObject;
 
         private ObjectField cutsceneField;
@@ -82,7 +61,7 @@ namespace DotsAnimationToolkit.Editor
         private Button viewportActionButton;
         private Toggle shotModeToggle;
 
-        /// <summary>Viewport locked to the camera lane (Shot) vs. the free orbit rig. Shot by default: scrubbing should show the framed movie (A59 §3.3).</summary>
+        /// <summary>Viewport locked to the camera lane (Shot) vs. the free orbit rig. Shot by default, so scrubbing shows the framed movie.</summary>
         private bool viewportShotMode = true;
 
         /// <summary>Set while this panel is the one driving <see cref="Selection"/>, so the sync back does not fight it.</summary>
@@ -102,11 +81,8 @@ namespace DotsAnimationToolkit.Editor
         private float playbackSpeed = 1f;
         private float prePlayPlayheadSeconds;
 
-        /// <summary>
-        /// The hold the transport is waiting on, valid only while <see cref="isGatingOnHold"/>.
-        /// Held by value rather than by index because a derived hold (amendment A65 3.1) has no row
-        /// in <see cref="CutsceneAsset.holdMarkers"/> to index into.
-        /// </summary>
+        // The hold the transport is waiting on, valid only while isGatingOnHold. Held by value
+        // rather than by index, since a derived hold has no row in CutsceneAsset.holdMarkers to index into.
         private EffectiveHold gatingHold;
         private bool isGatingOnHold;
 
@@ -136,7 +112,7 @@ namespace DotsAnimationToolkit.Editor
             Add(BuildToolbar());
             Add(BuildTransportRow());
 
-            // A59 §3.1: the tab is a whole tool — cast | viewport | inspector over the timeline.
+            // The tab is a whole tool — cast | viewport | inspector over the timeline.
             VisualElement timelineArea = new VisualElement();
             timelineArea.style.flexDirection = FlexDirection.Column;
             timelineArea.style.minHeight = 120f;
@@ -184,7 +160,7 @@ namespace DotsAnimationToolkit.Editor
             Add(verticalSplit);
 
             // Clicking the character in the Hierarchy or the Scene view lights its cast row and its
-            // timeline group — the other half of "selection syncs both ways" (A58 §3.3).
+            // timeline group — the other half of "selection syncs both ways".
             Selection.selectionChanged += OnUnitySelectionChanged;
             RegisterCallback<DetachFromPanelEvent>(_ => Selection.selectionChanged -= OnUnitySelectionChanged);
 
@@ -200,7 +176,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Loading and the scene remember/open flow (spec §3).
+        // Loading and the scene remember/open flow.
         // -----------------------------------------------------------------------------------
 
         private const string SessionCutsceneKey = "DotsAnimationToolkit.CutsceneEditor.OpenCutsceneGuid";
@@ -356,7 +332,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 text = " Key",
                 tooltip = "Keys the selected slot's (or part track's) current live transform at the "
-                    + "playhead — move it with Unity's own gizmo first (spec §3)."
+                    + "playhead — move it with Unity's own gizmo first."
             };
             keyButton.style.marginLeft = 16f;
             keyButton.style.flexDirection = FlexDirection.Row;
@@ -370,8 +346,8 @@ namespace DotsAnimationToolkit.Editor
             keyButton.Insert(0, keyIcon);
             toolbar.Add(keyButton);
 
-            // Off by default since A59: the in-tab viewport's Shot mode shows the framed movie, so
-            // yanking the author's Scene view camera around on every scrub became opt-in.
+            // Off by default: the in-tab viewport's Shot mode shows the framed movie, so yanking the
+            // author's Scene view camera around on every scrub is opt-in.
             previewShotToggle = new Toggle { text = "Drive Scene View", value = false };
             previewShotToggle.style.marginLeft = 16f;
             previewShotToggle.tooltip =
@@ -390,7 +366,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Editor play transport (A58 §3.2). A rehearsal of runtime pacing, holds included.
+        // Editor play transport. A rehearsal of runtime pacing, holds included.
         // -----------------------------------------------------------------------------------
 
         private static Button MakeTransportButton(Action onClick, string iconName, string tooltip, out Image icon)
@@ -556,16 +532,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Turns the transport's status line into a banner while the clock is stopped on a hold.</summary>
         private const string HoldingStatusUssClassName = "cutscene-editor__transport-status--holding";
 
-        /// <summary>
-        /// One transport frame: advance the elastic clock, stop dead on a hold, and re-pose.
-        /// </summary>
-        /// <remarks>
-        /// <strong>A hold freezes the cutscene clock, not the actors.</strong> At run time
-        /// <c>PlaybackTimeSystem</c> keeps advancing every layer while
-        /// <c>CutsceneTimelineSystem</c> sits paused, so a looping walk keeps cycling and the camera
-        /// holds its shot (spec §2). <see cref="CutscenePreviewController.HoldClipPhaseSeconds"/>
-        /// is the editor's copy of that: seconds the clips advanced while the timeline did not.
-        /// </remarks>
+        // One transport frame: advance the elastic clock, stop dead on a hold, and re-pose. A hold
+        // freezes the cutscene clock, not the actors — matching the runtime, where every layer keeps
+        // advancing while the timeline sits paused, so a looping walk keeps cycling.
         private void Tick()
         {
             double now = EditorApplication.timeSinceStartup;
@@ -617,12 +586,8 @@ namespace DotsAnimationToolkit.Editor
             SetPlayhead(advancedTime);
         }
 
-        /// <summary>
-        /// One point where the transport stops: an authored hold marker, or the hold a holding
-        /// event derives (amendment A65 3.1). The bake merges the two the same way, so the
-        /// transport has to rehearse both or Continue would rehearse a release the runtime never
-        /// waits for.
-        /// </summary>
+        // One point where the transport stops: an authored hold marker, or the hold a holding event
+        // derives. The bake merges the two the same way, so the transport has to rehearse both.
         private struct EffectiveHold
         {
             public float time;
@@ -760,13 +725,9 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        /// <summary>
-        /// Moves the playhead and re-poses, without rebuilding the timeline.
-        /// </summary>
-        /// <remarks>
-        /// The playhead element repaints itself from its own <c>TimeSeconds</c>; rebuilding every
-        /// lane each frame is what would make a 30s vignette churn the editor (A58 §6).
-        /// </remarks>
+        // Moves the playhead and re-poses, without rebuilding the timeline. The playhead element
+        // repaints itself from its own TimeSeconds; rebuilding every lane each frame would churn the
+        // editor on a long vignette.
         private void SetPlayhead(float timeSeconds)
         {
             playheadSeconds = Mathf.Max(0f, timeSeconds);
@@ -803,11 +764,9 @@ namespace DotsAnimationToolkit.Editor
             transportStatusLabel.text = isPlaying ? "Playing" : string.Empty;
         }
 
-        /// <summary>
-        /// Keys the current live pose of whatever is selected — a slot's root, or a part track — at
-        /// the playhead (spec §3). Requires the preview to be active (the remembered scene open and
-        /// the slot bound), the same gate <see cref="BuildSceneBindingRow"/> already shows a note for.
-        /// </summary>
+        // Keys the current live pose of whatever is selected — a slot's root, or a part track — at
+        // the playhead. Requires the preview to be active (the remembered scene open and the slot
+        // bound), the same gate BuildSceneBindingRow already shows a note for.
         private void KeySelection()
         {
             if (cutscene == null || !previewController.IsActive || selectedSlotIndex < 0
@@ -861,7 +820,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // The in-tab scene viewport (amendment A59).
+        // The in-tab scene viewport.
         // -----------------------------------------------------------------------------------
 
         private VisualElement BuildViewportArea()
@@ -948,7 +907,7 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Renders the open scene into the tab. Shot mode samples the camera lane at the playhead;
-        /// Free (or a cutscene with no camera keys yet) renders the orbit rig (A59 §3.3).
+        /// Free (or a cutscene with no camera keys yet) renders the orbit rig.
         /// </summary>
         private void RenderViewport()
         {
@@ -979,10 +938,8 @@ namespace DotsAnimationToolkit.Editor
             viewportElement.RenderFree();
         }
 
-        /// <summary>
-        /// The viewport hosts its own state instead of a toolbar warning nobody reads (A59 §3.1):
-        /// no cutscene, no remembered scene, or the wrong scene open all land here.
-        /// </summary>
+        // The viewport hosts its own state instead of a toolbar warning nobody reads: no cutscene,
+        // no remembered scene, or the wrong scene open all land here.
         private void RefreshViewportOverlay()
         {
             if (viewportOverlay == null)
@@ -1189,11 +1146,7 @@ namespace DotsAnimationToolkit.Editor
             ApplyPreviewAtPlayhead();
         }
 
-        /// <summary>
-        /// Enters preview the moment the remembered scene is the open one, and exits it the moment
-        /// it is not — spec §3's "wrong scene open" warning already covers timing edits staying live;
-        /// this is the posing half of that same rule (G-D1).
-        /// </summary>
+        /// <summary>Enters preview the moment the remembered scene is the open one, and exits it the moment it is not.</summary>
         private void SyncPreviewActivation()
         {
             if (cutscene == null)
@@ -1207,8 +1160,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (shouldBeActive && !previewController.IsActive)
             {
-                // The in-tab viewport is the primary surface now (A59); a Scene view is only
-                // required when the author opted into driving its camera.
+                // The in-tab viewport is the primary surface; a Scene view is only required when
+                // the author opted into driving its camera.
                 if (previewShotToggle != null && previewShotToggle.value)
                 {
                     EnsureSceneViewIsOpen();
@@ -1227,11 +1180,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Makes sure there is a Scene view to preview into (A58 §3.4). The docked
-        /// Hierarchy + Scene view + Cutscene window arrangement is the intended workflow, and a
-        /// preview posing objects nobody can see is the shape of the defect A58 exists to fix.
-        /// </summary>
+        /// <summary>Makes sure there is a Scene view to preview into.</summary>
         private static void EnsureSceneViewIsOpen()
         {
             if (SceneView.lastActiveSceneView != null)
@@ -1373,18 +1322,12 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Cast panel: staging the scene from the tool (A58 §3.3).
+        // Cast panel: staging the scene from the tool.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Instantiates a slot's actor prefab at the Scene view pivot and binds it, as one Undo step.
-        /// </summary>
-        /// <remarks>
-        /// <strong>A real scene edit, deliberately outside the preview's capture/restore
-        /// (decision A58-D3).</strong> The preview poses objects and un-poses them on exit;
-        /// placement creates one that is meant to survive a save. Preview is exited first so the
-        /// new object is captured at its authored rest pose on re-entry rather than mid-scrub.
-        /// </remarks>
+        // Instantiates a slot's actor prefab at the Scene view pivot and binds it, as one Undo step.
+        // A real scene edit, deliberately outside the preview's capture/restore: preview is exited
+        // first so the new object is captured at its authored rest pose on re-entry, not mid-scrub.
         private void PlaceSlotFromPrefab(int slotIndex)
         {
             if (cutscene == null || slotIndex < 0 || slotIndex >= cutscene.slots.Count)
@@ -1517,9 +1460,9 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
-        // Sync to Stage (amendment A61-T3): writes the cast panel's resolved bindings into this
-        // scene's CutsceneStageAuthoring component, ready for CutsceneStageBaker to bake at the next
-        // subscene reopen or Play. A61-D2: explicit only, never triggered by a Bind/Place click.
+        // Sync to Stage: writes the cast panel's resolved bindings into this scene's
+        // CutsceneStageAuthoring component, ready for CutsceneStageBaker to bake at the next
+        // subscene reopen or Play. Explicit only, never triggered by a Bind/Place click.
         // -----------------------------------------------------------------------------------
 
         private void SyncCutsceneToStage()
@@ -1550,7 +1493,7 @@ namespace DotsAnimationToolkit.Editor
             CutsceneStageAuthoring stageAuthoring = FindStageAuthoringForCutscene(cutscene);
             if (stageAuthoring == null && firstBoundObject == null)
             {
-                // Nothing bound and no stage to update — Stage stays "none" (spec §3.3).
+                // Nothing bound and no stage to update — Stage stays "none".
                 RefreshCastPanel();
                 return;
             }
@@ -1621,7 +1564,7 @@ namespace DotsAnimationToolkit.Editor
             return resolved;
         }
 
-        /// <summary>"Stage: none" / "Stage: synced" / "Stage: out of date" (spec §3.3) — recomputed every <see cref="RefreshCastPanel"/>.</summary>
+        /// <summary>"Stage: none" / "Stage: synced" / "Stage: out of date" — recomputed every <see cref="RefreshCastPanel"/>.</summary>
         private string ComputeStageStatusText(string currentSceneGuid)
         {
             if (cutscene == null)
@@ -1677,11 +1620,9 @@ namespace DotsAnimationToolkit.Editor
             return null;
         }
 
-        /// <summary>
-        /// Selects whatever GameObject the current timeline selection corresponds to (spec §3), so
-        /// Unity's own Move/Rotate/Scale gizmo is already on it — no custom gizmo drawing needed
-        /// since preview poses the real scene object, never a mirror.
-        /// </summary>
+        // Selects whatever GameObject the current timeline selection corresponds to, so Unity's own
+        // Move/Rotate/Scale gizmo is already on it — no custom gizmo drawing needed since preview
+        // poses the real scene object, never a mirror.
         private void SyncSceneSelectionToTimelineSelection()
         {
             if (!previewController.IsActive || selectedSlotIndex < 0 || selectedSlotIndex >= cutscene.slots.Count)
@@ -2151,11 +2092,8 @@ namespace DotsAnimationToolkit.Editor
                 isSelected: isSelectedLane && selectedItemIndex < 0));
         }
 
-        /// <summary>
-        /// The attach lane (amendment A63 §3.4). Built here rather than through
-        /// <see cref="BuildMomentRow"/> because its markers are not all one kind: an Attach and a
-        /// Detach get different shapes, which needs the per-marker class overload.
-        /// </summary>
+        // The attach lane. Built here rather than through BuildMomentRow, since its markers are not
+        // all one kind: an Attach and a Detach get different shapes.
         private void BuildAttachRow(
             VisualElement content, CutsceneSlot slot, SerializedProperty attachMarkersProperty,
             int slotIndex, float contentWidth, string accentClass)
@@ -2264,12 +2202,9 @@ namespace DotsAnimationToolkit.Editor
                 isGroup: true, accentClass: "events"));
         }
 
-        /// <summary>
-        /// The Holds lane: every authored marker, then one read-only ghost per holding event
-        /// (amendment A65 3.1). The ghosts are not selectable - the thing to edit is the event,
-        /// which is one row up - but they have to be visible, or the timeline would show a clock
-        /// that stops somewhere nothing is drawn.
-        /// </summary>
+        // The Holds lane: every authored marker, then one read-only ghost per holding event. The
+        // ghosts are not selectable — the thing to edit is the event, one row up — but they have to
+        // be visible, or the timeline would show a clock stopping somewhere nothing is drawn.
         private void BuildHoldRows(VisualElement content, float contentWidth)
         {
             SerializedProperty holdsProperty = serializedObject.FindProperty("holdMarkers");
@@ -2315,12 +2250,11 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnPlayheadScrubbed(float time)
         {
-            // No rebuild: the playhead element repaints itself from TimeSeconds, and rebuilding
-            // every lane per pointer-move is exactly the churn A58 §6 warned about.
+            // No rebuild: the playhead element repaints itself from TimeSeconds.
             SetPlayhead(time);
         }
 
-        /// <summary>Poses every bound actor/prop, renders the in-tab viewport, and — only if <see cref="previewShotToggle"/> opts in — also drives the Scene view camera (G4, now opt-in per A59).</summary>
+        /// <summary>Poses every bound actor/prop, renders the in-tab viewport, and — only if <see cref="previewShotToggle"/> opts in — also drives the Scene view camera.</summary>
         private void ApplyPreviewAtPlayhead()
         {
             previewController.ApplyPose(cutscene, playheadSeconds);
@@ -2536,10 +2470,10 @@ namespace DotsAnimationToolkit.Editor
             CommitStructuralChange();
         }
 
-        /// <summary>Close enough to a spot that a walk cycle stopping there reads as "arrived" (§3.1).</summary>
+        /// <summary>Close enough to a spot that a walk cycle stopping there reads as "arrived".</summary>
         private const float DefaultMarkToleranceMeters = 0.5f;
 
-        /// <summary>How long the editor rehearses the walk. Not a runtime speed — arrival at run time is a distance test (A64-D1).</summary>
+        /// <summary>How long the editor rehearses the walk. Not a runtime speed — arrival at run time is a distance test.</summary>
         private const float DefaultMarkPreviewTravelSeconds = 2f;
 
         /// <summary>The GameObject this slot is bound to in the currently open scene, or null.</summary>
@@ -2746,17 +2680,9 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private bool isRebuildingInspector;
 
-        /// <summary>
-        /// Whether a change event is Unity's binding echoing the value it just bound, rather than a
-        /// human picking something.
-        /// </summary>
-        /// <remarks>
-        /// <c>SerializedDefaultEnumBinding</c> sends a <c>ChangeEvent&lt;string&gt;</c> from
-        /// <c>OnFieldAttached</c> carrying the value it just bound, so a callback that rebuilds the
-        /// inspector from one rebuilds, re-binds and is called again — the inspector flickers at
-        /// frame rate and every field becomes a fresh instance every frame. Measured at 600 rebuilds
-        /// over a few idle seconds before this guard existed.
-        /// </remarks>
+        // Whether a change event is Unity's binding echoing the value it just bound, rather than a
+        // human picking something. Without this guard, a rebuild-on-change callback rebuilds,
+        // re-binds and gets called again — an infinite loop of flicker at frame rate.
         private bool ShouldIgnoreBindingEcho<TValue>(ChangeEvent<TValue> changeEvent)
         {
             return isRebuildingInspector
@@ -2875,7 +2801,7 @@ namespace DotsAnimationToolkit.Editor
             });
             inspectorScroll.Add(kindField);
 
-            // Props get one too: a door places exactly the way a character does (A58 §3.3).
+            // Props get one too: a door places exactly the way a character does.
             PropertyField actorPrefabField =
                 new PropertyField(slotProperty.FindPropertyRelative("actorPrefab"), "Actor Prefab");
             actorPrefabField.Bind(serializedObject);
@@ -2899,7 +2825,6 @@ namespace DotsAnimationToolkit.Editor
                 inspectorScroll.Add(directionSetField);
 
                 // Why a clip block is showing nothing, said where the bind that caused it is edited.
-                // Silence here is what made the missing preview read as a broken tool (A58 §1).
                 string clipPreviewStatus = previewController.GetClipPreviewStatus(slot.SlotId);
                 if (!string.IsNullOrEmpty(clipPreviewStatus))
                 {
@@ -3389,8 +3314,8 @@ namespace DotsAnimationToolkit.Editor
             AddBoundField(eventProperty, "time", "Time (s)");
             AddBoundField(eventProperty, "eventKey", "Event Key");
 
-            // The payload's own container, so a host provider can own it whole (amendment A65
-            // 3.1): "sequence id 7" is a number here and a named line in the game that authored it.
+            // The payload's own container, so a host provider can own it whole: "sequence id 7" is
+            // a number here and a named line in the game that authored it.
             VisualElement payloadContainer = new VisualElement();
             inspectorScroll.Add(payloadContainer);
             if (!CutsceneEventInspectorProviders.TryBuild(

@@ -9,43 +9,18 @@ namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// A live instance of the rigged prefab, posed from authored <see cref="BoneTrack"/>s so bone
-    /// rows scrub in the clip editor (amendment A42, phase B4).
+    /// rows scrub in the clip editor. Sampling goes through <see cref="BoneTrackPoser"/>, the same
+    /// sampler the bake and runtime use. Optional throughout: a cutout clip set with no skinned
+    /// source never instantiates anything.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>This is what closes the loop the toolkit exists for:</strong> one timeline, scrubbed
-    /// once, showing every technique at the same instant. Without it, bone tracks are authorable and
-    /// bakeable but only visible <em>after</em> a bake — which puts a minutes-long round trip in the
-    /// middle of what should be a keyframing loop, and is exactly the friction that makes people
-    /// animate in two applications instead of one.
-    /// </para>
-    /// <para>
-    /// <strong>The sampling is <see cref="BoneTrackPoser"/>'s, deliberately.</strong> The preview,
-    /// the bake and the runtime must agree about what a curve means. Sharing the sampler makes them
-    /// agree by construction; a second implementation here would drift, and the symptom would be a
-    /// preview that teaches timing the bake does not reproduce.
-    /// </para>
-    /// <para>
-    /// Optional throughout. A cutout clip set assigns no skinned source and this never instantiates
-    /// anything, so the flipbook workflow pays nothing for a feature it does not use.
-    /// </para>
-    /// </remarks>
     public sealed class PreviewSkeletonMirror
     {
         private readonly Dictionary<string, Transform> bonesByName = new Dictionary<string, Transform>();
         private readonly List<string> unresolvedBoneNames = new List<string>();
 
-        /// <summary>
-        /// Every transform of the instance in depth-first order, and the reverse lookup.
-        /// </summary>
-        /// <remarks>
-        /// This index is the identity the whole selection story runs on. The hierarchy tree, the
-        /// viewport picker and the selection marker all name a transform by its position in this
-        /// list rather than by its name, because names repeat — a rig with two bones called
-        /// <c>Hand</c> would otherwise have a tree row that selects the wrong one, and a marker that
-        /// draws on the wrong joint. Bone <em>tracks</em> still bind by name; that is a separate
-        /// contract with the bake, and not something selection gets to change.
-        /// </remarks>
+        // Every transform of the instance in depth-first order, and the reverse lookup. This index
+        // is the identity the whole selection story runs on, since names repeat (two bones both
+        // called "Hand"). Bone tracks still bind by name — a separate contract with the bake.
         private readonly List<Transform> transformsByIndex = new List<Transform>();
         private readonly Dictionary<Transform, int> indexByTransform = new Dictionary<Transform, int>();
 
@@ -69,14 +44,8 @@ namespace DotsAnimationToolkit.Editor
             get { return unresolvedBoneNames; }
         }
 
-        /// <summary>
-        /// Instantiates <paramref name="skinnedSourcePrefab"/> into the preview and indexes its bones.
-        /// </summary>
-        /// <remarks>
-        /// The name→<see cref="Transform"/> map is built once here rather than per tick. A full
-        /// <c>GetComponentsInChildren</c> walk per bone at 30 Hz is the obvious way to make the
-        /// editor crawl on a rig with any real bone count.
-        /// </remarks>
+        // Instantiates skinnedSourcePrefab into the preview and indexes its bones. The name→
+        // Transform map is built once here rather than per tick, to avoid a full hierarchy walk at 30 Hz.
         public void Rebuild(GameObject skinnedSourcePrefab)
         {
             Dispose();
@@ -115,14 +84,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Walks the instance depth-first, numbering every transform.
-        /// </summary>
-        /// <remarks>
-        /// Child order is <see cref="Transform.GetChild"/> order, which is the order the hierarchy
-        /// tree displays. The tree does not repeat this walk to derive its own ids — it asks for the
-        /// index of each transform as it builds — so there is no parallel ordering to keep in step.
-        /// </remarks>
+        // Walks the instance depth-first, numbering every transform, in Transform.GetChild order —
+        // the same order the hierarchy tree displays.
         private void IndexHierarchy(Transform node)
         {
             indexByTransform[node] = transformsByIndex.Count;
@@ -154,14 +117,8 @@ namespace DotsAnimationToolkit.Editor
             return transformsByIndex[index];
         }
 
-        /// <summary>
-        /// The index of the first transform with this name, or -1.
-        /// </summary>
-        /// <remarks>
-        /// "First" is the honest answer to an ambiguous question: a bone track names a bone, and if
-        /// two transforms share that name the bake resolves it the same way. Selecting the same one
-        /// the bake would use beats selecting a different one.
-        /// </remarks>
+        // The index of the first transform with this name, or -1 — matching how the bake resolves a
+        // bone track when two transforms share a name.
         public int FindIndexByName(string boneName)
         {
             Transform bone;

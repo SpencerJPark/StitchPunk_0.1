@@ -7,28 +7,10 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Draws every socket where it will actually be, and rides whatever the user pinned to it.
+    /// Draws every socket where it will actually be, and rides whatever the user pinned to it. Both
+    /// rig-target and bone sockets are previewed, composed exactly as <c>SocketResolveSystem</c>
+    /// does: the followed transform's local pose, then the socket's own offset rotated into it.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Both socket modes are previewed, which was not previously true.</strong> Rig-target
-    /// sockets followed their part; bone sockets drew nothing, on the stated grounds that the bone
-    /// they follow "exists only inside a VAT texture". That reasoning expired when the preview began
-    /// instantiating the rigged prefab and posing its skeleton (amendment A42, phase B4) — the bone
-    /// is right there, posed, every frame. A socket the author cannot see is one they tune by
-    /// entering play mode and guessing, which is the workflow this window exists to remove.
-    /// </para>
-    /// <para>
-    /// <strong>Composition matches <c>SocketResolveSystem</c> exactly</strong>: the followed
-    /// transform's local pose, then the socket's own offset rotated into it. Composing differently
-    /// here — reading a world matrix, say — would give a marker that agrees with the runtime in the
-    /// common case and drifts in the rotated one, which is worse than not drawing it.
-    /// </para>
-    /// <para>
-    /// Attachments are instantiated as children of the marker, so they inherit its pose for free and
-    /// there is no second placement path to keep in agreement with the first.
-    /// </para>
-    /// </remarks>
     public sealed class PreviewSocketMarkers
     {
         /// <summary>Edge length of a socket marker cube, in world units.</summary>
@@ -58,12 +40,9 @@ namespace DotsAnimationToolkit.Editor
             return index >= 0 ? markers[index] : null;
         }
 
-        /// <summary>The socket a picked transform stands for, or false when it is not a marker.</summary>
-        /// <remarks>
-        /// Walks up from the picked transform, because a click usually lands on a child of an
-        /// <em>attachment</em> — the blade of the sword, not the socket cube. Treating that as a
-        /// miss would make every attached socket unselectable the moment it had geometry.
-        /// </remarks>
+        // The socket a picked transform stands for, or false when it is not a marker. Walks up from
+        // the picked transform, since a click usually lands on a child of an attachment (the blade
+        // of the sword), not the socket cube.
         public bool TryGetSocketId(Transform picked, out uint socketId)
         {
             socketId = 0u;
@@ -81,12 +60,8 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>Rebuilds a marker per socket the rig declares.</summary>
-        /// <remarks>
-        /// Every socket gets one now, regardless of mode. A bone socket whose name resolves to
-        /// nothing still gets a marker; it simply sits at the actor origin, which is exactly where
-        /// the bake will put the attachment and therefore what the author needs to see.
-        /// </remarks>
+        // Rebuilds a marker per socket the rig declares, regardless of mode — a bone socket whose
+        // name resolves to nothing still gets a marker, sitting at the actor origin as the bake will place it.
         public void Rebuild(RigAsset rig, Material markerMaterial)
         {
             Dispose();
@@ -144,15 +119,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildAttachments();
         }
 
-        /// <summary>
-        /// Instantiates each socket's preview attachment, replacing whatever was there.
-        /// </summary>
-        /// <remarks>
-        /// The instance is parented to the marker with <c>worldPositionStays: false</c> so it adopts
-        /// the socket's pose exactly. Its own transform is then zeroed rather than trusted: a prefab
-        /// authored ten metres from its own origin would otherwise hang that far off the hand, and
-        /// the attachment's job here is to show where the socket is, not where the prefab was saved.
-        /// </remarks>
+        // Instantiates each socket's preview attachment, replacing whatever was there. Parented
+        // with worldPositionStays: false, then its local transform is zeroed rather than trusted —
+        // a prefab authored ten metres from its own origin would otherwise hang that far off the hand.
         public void RebuildAttachments()
         {
             for (int index = 0; index < sockets.Count; index++)
@@ -208,16 +177,10 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// Places every marker on the pose its socket resolves to this frame.
-        /// </summary>
+        // Places every marker on the pose its socket resolves to this frame. Call after the whole
+        // rig has been posed, never between parts, or a marker shows the previous frame's pose.
         /// <param name="rigMirror">Source of part transforms, for rig-target sockets.</param>
         /// <param name="skeletonMirror">Source of bone transforms, for bone sockets.</param>
-        /// <remarks>
-        /// Call after the whole rig has been posed for the frame, never between parts. A marker
-        /// placed before the thing it follows shows the previous frame's pose, which reads as the
-        /// attachment lagging the hand rather than as an ordering mistake here.
-        /// </remarks>
         public void UpdateMarkers(PreviewRigMirror rigMirror, PreviewSkeletonMirror skeletonMirror)
         {
             for (int index = 0; index < sockets.Count; index++)
@@ -271,11 +234,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Whether a socket's binding resolves to something in the preview right now.</summary>
-        /// <remarks>
-        /// The window reports this rather than leaving the author to wonder why a marker is sitting
-        /// on the origin — an unresolved bone name is the failure that otherwise surfaces as a
-        /// weapon pinned to the actor's feet at run time.
-        /// </remarks>
         public bool IsResolved(
             SocketDefinition socket,
             PreviewRigMirror rigMirror,

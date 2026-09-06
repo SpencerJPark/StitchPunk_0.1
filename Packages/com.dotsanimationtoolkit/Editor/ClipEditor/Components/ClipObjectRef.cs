@@ -16,50 +16,22 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>
-    /// The object a component stack belongs to.
+    /// The object a component stack belongs to. <see cref="kind"/> says where the row came from;
+    /// <see cref="targetId"/> says what the object is — a claimed node carries both, so part-bound
+    /// components apply to it like any other part.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong><see cref="kind"/> says where the row came from; <see cref="targetId"/> says what the
-    /// object is.</strong> The two used to be the same question — a rig target had an id and a node
-    /// had a name, and never both — which meant a plane in the prefab hierarchy could carry a bone
-    /// track and nothing else, because a sprite track has only an id to bind by. A node that a rig
-    /// target claims (<c>RigTargetDefinition.sourceNodePath</c>) now carries that id here as well as
-    /// its name, so the part-bound components apply to it like any other part.
-    /// </para>
-    /// <para>
-    /// <see cref="nodePath"/> is resolved by the caller, not looked up here: it is read against the
-    /// previewed hierarchy, and only the window has one. Passing it in keeps this struct — and the
-    /// model that reads it — free of the preview scene.
-    /// </para>
-    /// </remarks>
     public readonly struct ClipObjectRef : IEquatable<ClipObjectRef>
     {
         public readonly ClipObjectKind kind;
 
-        /// <summary>
-        /// The rig target this object is, or 0 when the rig declares none for it.
-        /// </summary>
-        /// <remarks>
-        /// Set for a rig-target row always, and for a previewed node whenever some target claims
-        /// that node's path. Zero is the sentinel the rig reserves, so it doubles as "not a part
-        /// yet" without a second flag.
-        /// </remarks>
+        /// <summary>The rig target this object is, or 0 when the rig declares none for it.</summary>
         public readonly uint targetId;
 
         /// <summary>Set for a previewed node; empty for a rig-target row.</summary>
         public readonly string boneName;
 
-        /// <summary>
-        /// The node's path from the previewed prefab root, or empty when there is no hierarchy to
-        /// read one against.
-        /// </summary>
-        /// <remarks>
-        /// This is what a newly minted rig target records as its source, and what a billboard root
-        /// on a node is addressed by. An empty path is an address, not a missing one: it names the
-        /// prefab root, which is an ordinary thing to billboard — the whole actor turning to face
-        /// the viewer.
-        /// </remarks>
+        // The node's path from the previewed prefab root, or empty when there is no hierarchy to
+        // read one against. An empty path is an address, not a missing one — it names the prefab root.
         public readonly string nodePath;
 
         /// <summary>
@@ -67,31 +39,16 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public readonly uint billboardRootId;
 
-        /// <summary>
-        /// How the rig would address this object as a billboard root, if it were made one.
-        /// </summary>
-        /// <remarks>
-        /// Carried whether or not the object is a root yet, because that is what adding the
-        /// Billboard component writes.
-        /// </remarks>
+        // How the rig would address this object as a billboard root, if it were made one. Carried
+        // whether or not the object is a root yet, since that is what adding Billboard writes.
         public readonly RigNodeAddress billboardAddress;
 
-        /// <summary>
-        /// The stable id of the ragdoll body welded to this object, or 0 when none is (Phase D5).
-        /// </summary>
+        /// <summary>The stable id of the ragdoll body welded to this object, or 0 when none is.</summary>
         public readonly uint ragdollBodyId;
 
-        /// <summary>
-        /// How the rig would address this object as a ragdoll body, if one were added to it.
-        /// </summary>
-        /// <remarks>
-        /// Unlike <see cref="billboardAddress"/> this can be a <see cref="RigNodeAddressKind.Bone"/>
-        /// address — billboarding rejects that kind at validation (rule V-R8; a bone has no billboard
-        /// frame of its own to turn), but a ragdoll body welds cleanly to a skinned bone, and a bone's
-        /// path below the prefab root is not the stable handle on it that a bare transform's path is
-        /// (spec §2). Carried whether or not the object has a body yet, because that is what adding
-        /// the Ragdoll component writes.
-        /// </remarks>
+        // How the rig would address this object as a ragdoll body, if one were added. Unlike
+        // billboardAddress this can be a Bone address: a ragdoll body welds cleanly to a skinned
+        // bone, whose path below the prefab root is not a stable handle the way a transform's is.
         public readonly RigNodeAddress ragdollAddress;
 
         private ClipObjectRef(
@@ -125,21 +82,12 @@ namespace DotsAnimationToolkit.Editor
                 address, ragdollBodyId, address);
         }
 
-        /// <summary>
-        /// A node of the previewed prefab.
-        /// </summary>
-        /// <param name="targetId">
-        /// The rig target claiming this node, or 0 when none does. A node with one is a part: its
-        /// transform is keyed on a transform track and it can carry a flipbook. A node without one
-        /// is keyed on a bone track, and minting a target is what adding a part-bound component to
-        /// it does.
-        /// </param>
+        /// <summary>A node of the previewed prefab.</summary>
+        /// <param name="targetId">The rig target claiming this node, or 0 when none does.</param>
         /// <param name="isSkinnedBone">
         /// Whether this node is an imported skinned-mesh bone rather than an authored guiding
-        /// transform (Phase D5). Decides only <see cref="ragdollAddress"/>'s kind — billboarding
-        /// always addresses a node by path regardless (rule V-R8 forbids a bone address on a root),
-        /// so <see cref="billboardAddress"/> is unaffected. Defaults false for every caller that
-        /// predates the ragdoll work and never had a bone kind to tell apart.
+        /// transform. Decides only <see cref="ragdollAddress"/>'s kind; <see cref="billboardAddress"/>
+        /// always addresses a node by path regardless.
         /// </param>
         public static ClipObjectRef Bone(
             string boneName, uint targetId, uint billboardRootId, string hierarchyPath,
@@ -158,9 +106,8 @@ namespace DotsAnimationToolkit.Editor
             };
 
             // A ragdoll body takes the same path address as billboarding, unless the node is a
-            // skinned bone — a bone's path below the prefab root moves whenever an artist reparents
-            // inside the armature, where a bare transform's does not, so a bone is addressed by name
-            // instead (spec §2, the same reasoning SocketDefinition.boneName already established).
+            // skinned bone: a bone's path below the prefab root moves whenever an artist reparents
+            // inside the armature, so a bone is addressed by name instead.
             RigNodeAddress ragdollAddress = isSkinnedBone
                 ? new RigNodeAddress { kind = RigNodeAddressKind.Bone, boneName = resolvedBoneName }
                 : new RigNodeAddress
@@ -174,15 +121,8 @@ namespace DotsAnimationToolkit.Editor
                 billboardRootId, billboardAddress, ragdollBodyId, ragdollAddress);
         }
 
-        /// <summary>
-        /// The same object, now carrying the part the rig has just declared for it.
-        /// </summary>
-        /// <remarks>
-        /// Promoting a node writes the rig, and every reference built before that call still says
-        /// the node is not a part. Rebuilding the whole reference from the hierarchy is what the
-        /// window does between edits; this is for the callers that promote several things in one
-        /// pass — a paste, chiefly — and cannot afford a hierarchy rebuild between each one.
-        /// </remarks>
+        // The same object, now carrying the part the rig has just declared for it — for callers
+        // that promote several things in one pass and cannot afford a hierarchy rebuild between each.
         public ClipObjectRef WithRigTarget(uint newTargetId)
         {
             return new ClipObjectRef(

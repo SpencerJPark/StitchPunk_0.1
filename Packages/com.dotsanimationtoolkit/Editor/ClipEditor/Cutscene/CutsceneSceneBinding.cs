@@ -9,10 +9,9 @@ using UnityEngine.SceneManagement;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Editor-only helpers for a cutscene's remembered scene and its per-scene slot→GameObject
-    /// bindings (Phase G spec §3, §5). Everything here is <c>UnityEditor</c> API by nature — the
-    /// asset itself stores only strings, exactly so this can live outside <c>Authoring/</c>
-    /// (Conformance_C) while the editor is the only thing that ever parses them.
+    /// Editor-only helpers for a cutscene's remembered scene and its per-scene slot to GameObject
+    /// bindings. The asset itself stores only strings; the editor is the only thing that parses
+    /// them, since <c>UnityEditor</c> API cannot live in <c>Authoring/</c>.
     /// </summary>
     internal static class CutsceneSceneBinding
     {
@@ -33,10 +32,7 @@ namespace DotsAnimationToolkit.Editor
             return EditorSceneManager.GetActiveScene().path;
         }
 
-        /// <summary>
-        /// Prompts to save any modified scenes, then opens <paramref name="scenePath"/>. Mirrors the
-        /// "prompting to save" clause of spec §3.
-        /// </summary>
+        /// <summary>Prompts to save any modified scenes, then opens <paramref name="scenePath"/>.</summary>
         public static bool TryOpenScene(string scenePath)
         {
             if (string.IsNullOrEmpty(scenePath))
@@ -59,10 +55,8 @@ namespace DotsAnimationToolkit.Editor
             }
             for (int bindingIndex = 0; bindingIndex < cutscene.sceneBindings.Count; bindingIndex++)
             {
-                // Fully qualified: this file's own static class now shares the name
-                // DotsAnimationToolkit.Authoring.CutsceneSceneBinding, the data type below, uses
-                // (Amendment A69 rename) — the unqualified name would otherwise resolve to this file's
-                // own type instead.
+                // Fully qualified: this file's own static class shares its name with the data type
+                // here, so the unqualified name would otherwise resolve to this file's own type.
                 DotsAnimationToolkit.Authoring.CutsceneSceneBinding binding = cutscene.sceneBindings[bindingIndex];
                 if (binding == null || binding.sceneGuid != sceneGuid || binding.slotBindings == null)
                 {

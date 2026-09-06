@@ -10,36 +10,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// The New Rig creation flow (Phase D11): pick a prefab, choose which of its renderer-bearing
-    /// nodes become rig targets, and mint a <see cref="RigAsset"/> from the result.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>An element hosted in a cover pane, following <c>VatBakePanel</c>'s shape.</strong>
-    /// <see cref="ClipEditorWindow.ShowNewRigTab"/> shows and hides it the same way
-    /// <c>ShowVatBakeTab</c> shows and hides that panel — an absolutely positioned pane over the
-    /// dock, never a <c>display:none</c> swap, for the reason <c>.clip-editor__cover-pane</c>'s
-    /// USS comment gives: a hidden <c>TwoPaneSplitView</c> is laid out at zero by zero and comes
-    /// back collapsed with no handle to drag it open again.
-    /// </para>
-    /// <para>
-    /// <strong>Decoupled from the window it lives in, like <c>VatBakePanel</c> is.</strong> This
-    /// class never touches the window's rig itself; it only reports what it built and whether the
-    /// caller asked to have it loaded. <see cref="ClipEditorWindow.OnNewRigCreated"/> does that,
-    /// through the same field the toolbar's own Rig picker uses — so there is one place that decides
-    /// what loading a rig means, whichever the pick came from.
-    /// </para>
-    /// <para>
-    /// <strong>Tags are assigned here too (Phase E target-tags spec §8), reusing an existing tag
-    /// wherever a scanned part's role already has one.</strong> Every ticked candidate still gets a
-    /// freshly minted, unique stable id — a tag never replaces that identity, spec §2 — but each
-    /// row also carries an optional tag button opening the same <see cref="VocabularyPicker"/>
-    /// every other tag surface in this package uses, so a rig created through this flow can already
-    /// share clips with an existing rig the moment it exists, rather than needing a second pass
-    /// through the rig inspector afterward.
-    /// </para>
-    /// </remarks>
+    /// <summary>The New Rig creation flow: pick a prefab, choose which of its renderer-bearing nodes become rig targets, tag them, and mint a <see cref="RigAsset"/>.</summary>
     public sealed class NewRigPanel : VisualElement
     {
         /// <summary>One renderer-bearing node found while scanning the source prefab.</summary>
@@ -63,6 +34,8 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Raised after a successful Create, so the host can untick its New Rig toggle.</summary>
         public event Action Closed;
 
+        // This panel never touches the window's rig itself; it only reports what it built and
+        // whether the caller asked to have it loaded — the window decides what loading means.
         /// <summary>
         /// Raised after a rig is created and saved. The second argument is whether the panel's own
         /// "load this rig into the editor" toggle was checked at the time.
@@ -131,11 +104,8 @@ namespace DotsAnimationToolkit.Editor
             root.Add(resultLabel);
         }
 
-        /// <summary>
-        /// Opens the searchable tag picker for one candidate row — the same
-        /// <see cref="VocabularyPicker"/> every other tag surface in this package uses (spec
-        /// §4.2.1), so reusing an existing tag here works exactly as it does on the rig hierarchy.
-        /// </summary>
+        // Opens the searchable tag picker for one candidate row — the same VocabularyPicker every
+        // other tag surface in this package uses, so reusing an existing tag works the same way here.
         private void OpenRowTagPicker(CandidateRow row, Button anchor)
         {
             TargetTagRegistry tagRegistry = VocabularyRegistryProvider.TargetTags;
@@ -188,15 +158,9 @@ namespace DotsAnimationToolkit.Editor
             return heading;
         }
 
-        /// <summary>
-        /// Walks the assigned prefab's hierarchy for renderer-bearing nodes and offers each as a
-        /// candidate target.
-        /// </summary>
-        /// <remarks>
-        /// <c>Renderer</c> rather than a specific subtype, so a cutout part's <c>MeshRenderer</c>
-        /// and a VAT source's <c>SkinnedMeshRenderer</c> are found the same way — this package draws
-        /// every part kind through one of those two, never a <c>SpriteRenderer</c>.
-        /// </remarks>
+        // Walks the assigned prefab's hierarchy for renderer-bearing nodes and offers each as a
+        // candidate target. Renderer rather than a specific subtype, so a cutout part's
+        // MeshRenderer and a VAT source's SkinnedMeshRenderer are found the same way.
         private void RescanHierarchy()
         {
             candidateContainer.Clear();

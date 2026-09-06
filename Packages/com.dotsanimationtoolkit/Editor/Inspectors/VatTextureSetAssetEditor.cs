@@ -11,38 +11,14 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The custom inspector for <see cref="VatTextureSetAsset"/> (architecture section 7.1):
-    /// read-only bake statistics, per-clip frame ranges, socket track counts, and the one escape
-    /// hatch back to the tool that produced the asset — the VAT Bake window.
+    /// Read-only inspector for <see cref="VatTextureSetAsset"/>: bake statistics, per-clip frame
+    /// ranges, and socket track counts, plus a shortcut back to the VAT Bake window.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <strong>Nothing here binds through <see cref="SerializedObject"/>.</strong> Every field on
-    /// this asset is written by <c>VatTextureBaker</c> and is documented on the type itself as
-    /// read-only by hand (see <see cref="VatTextureSetAsset"/>'s own doc comment). A bound, disabled
-    /// <see cref="PropertyField"/> still renders as a field — a box with a border a user expects to
-    /// be able to click into — which is exactly the impression a generated-output asset must not
-    /// give. Reading <see cref="UnityEditor.Editor.target"/>'s values straight into
-    /// <see cref="Label"/> text leaves nothing on screen shaped like an editable control, which is a
-    /// stronger guarantee than a disabled one and costs nothing here because nothing needs Undo,
-    /// dirtying, or prefab-override handling — the whole point of binding through
-    /// <see cref="SerializedProperty"/> in the first place.
-    /// </para>
-    /// <para>
-    /// UI Toolkit only, per section 7 and enforced by
-    /// <c>PackagingConformanceTests.Conformance_E_NoImguiApis_InEditorSources</c>: this type
-    /// overrides <see cref="UnityEditor.Editor.CreateInspectorGUI"/> and never the immediate-mode
-    /// entry point.
-    /// </para>
-    /// </remarks>
     [CustomEditor(typeof(VatTextureSetAsset))]
     public sealed class VatTextureSetAssetEditor : UnityEditor.Editor
     {
-        /// <summary>
-        /// Bytes per texel for a format the baker never emits. A guess rather than a lie: better to
-        /// flag the estimate as approximate than to silently pick one of the two real formats and
-        /// risk reporting a number that looks exact but is not.
-        /// </summary>
+        // Fallback bytes/texel for a format the baker never emits — an approximate estimate beats
+        // silently guessing one of the two real formats and reporting a number that looks exact.
         private const int FallbackBytesPerTexel = 4;
 
         private const float TableRowHeight = 20f;
@@ -51,6 +27,8 @@ namespace DotsAnimationToolkit.Editor
         /// <inheritdoc />
         public override VisualElement CreateInspectorGUI()
         {
+            // Values render as Label text, never a bound PropertyField — a disabled field still
+            // looks clickable, which is the wrong impression for a baker-only generated asset.
             VatTextureSetAsset textureSet = target as VatTextureSetAsset;
 
             VisualElement root = new VisualElement();
@@ -97,9 +75,6 @@ namespace DotsAnimationToolkit.Editor
             return heading;
         }
 
-        /// <summary>
-        /// Leads the inspector with why every value below is unclickable.
-        /// </summary>
         private static HelpBox BuildGeneratedAssetNotice()
         {
             return new HelpBox(
@@ -261,9 +236,7 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Target reads "(untargeted)" for a clip-wide range baked from <c>ClipAsset.vatSource</c>
-        /// (<see cref="VatClipRange.targetId"/> <c>== 0</c>) and the raw hex id otherwise (C10) — the
-        /// untargeted case is common enough on a set with no multi-source tracks that spelling it out
-        /// reads better than a bare zero would.
+        /// (<see cref="VatClipRange.targetId"/> <c>== 0</c>) and the raw hex id otherwise.
         /// </summary>
         private static void BindClipRangeRow(VisualElement rowElement, VatClipRange clipRange)
         {
@@ -391,22 +364,6 @@ namespace DotsAnimationToolkit.Editor
         // Staleness.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Shows the stored hash and explains, honestly, why this inspector cannot say whether it is
-        /// current.
-        /// </summary>
-        /// <remarks>
-        /// <strong>Why there is no "stale" indicator here.</strong>
-        /// <c>VatTextureBaker.ComputeSourceHash</c> folds in the flavor, sample rate, element count,
-        /// total frame count, full-precision flag, and per clip the clip id, loop-safe flag, and the
-        /// source <c>AnimationClip</c>'s length and name — none of which <see cref="VatTextureSetAsset"/>
-        /// retains after the bake completes. The asset keeps the textures, the ranges, and the hash
-        /// itself, but not the <c>SkinnedMeshRenderer</c> or the <c>AnimationClip</c> references the
-        /// hash was computed from, so there is nothing here to recompute the hash against. A badge
-        /// that always read "up to date" — or that guessed from unrelated signals like the asset's
-        /// import timestamp — would be wrong exactly when it matters most, and a false "up to date"
-        /// is worse than admitting the check cannot be done from this window.
-        /// </remarks>
         private static VisualElement BuildStalenessSection(VatTextureSetAsset textureSet)
         {
             VisualElement container = new VisualElement();
@@ -415,12 +372,12 @@ namespace DotsAnimationToolkit.Editor
             hashLabel.selection.isSelectable = true;
             container.Add(hashLabel);
 
+            // No "stale" badge: recomputing the hash needs the source SkinnedMeshRenderer and
+            // AnimationClips, and this asset does not retain those references after baking.
             HelpBox notice = new HelpBox(
                 "Staleness cannot be checked from this inspector — recomputing the hash needs the "
                 + "original skinned mesh and animation clips, which this asset does not retain after "
-                + "the bake (validation rule V08 detects staleness only by comparing against a fresh "
-                + "bake's hash). Rebake through the button below whenever the source rig or clips "
-                + "change.",
+                + "the bake. Rebake through the button below whenever the source rig or clips change.",
                 HelpBoxMessageType.Info);
             container.Add(notice);
 

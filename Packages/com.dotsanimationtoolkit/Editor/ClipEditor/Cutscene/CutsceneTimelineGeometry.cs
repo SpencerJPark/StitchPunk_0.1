@@ -6,15 +6,9 @@ namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
     /// The one place that converts between cutscene time (raw seconds) and timeline pixels.
+    /// Deliberately not <see cref="TimelineGeometry"/>: that type converts normalized time against
+    /// a fixed clip duration, but a cutscene's length is elastic, so every lane here uses raw seconds.
     /// </summary>
-    /// <remarks>
-    /// <strong>Deliberately not <see cref="TimelineGeometry"/> (decision G-D2).</strong> That type
-    /// converts <em>normalized</em> time against a fixed clip duration; a cutscene's length is
-    /// elastic (Phase G spec §2 — hold points pause the clock rather than bounding it), so there is
-    /// no duration to normalize against and every lane here is addressed in raw seconds instead. Pan
-    /// is left to a <c>ScrollView</c> around the lane stack rather than reimplemented here — the
-    /// clip editor's own pan field exists only because it has no native scroll container to lean on.
-    /// </remarks>
     public struct CutsceneTimelineGeometry
     {
         /// <summary>Left inset before time 0, in pixels — room for a marker centred exactly on t=0 to still be grabbable.</summary>

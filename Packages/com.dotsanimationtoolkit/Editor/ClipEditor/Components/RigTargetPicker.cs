@@ -7,9 +7,8 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The searchable rig-part picker a timeline row's part half opens (amendment A56 D3): pick
-    /// which part of the open rig wears the row's tag. Selection only, like every picker here —
-    /// the parts listed are exactly the rig's targets, and the pick moves a tag, never types one.
+    /// The searchable rig-part picker a timeline row's part half opens: pick which part of the
+    /// open rig wears the row's tag. Selection only — the pick moves a tag, never types one.
     /// </summary>
     public sealed class RigTargetPicker : PickerOverlay
     {
@@ -51,9 +50,6 @@ namespace DotsAnimationToolkit.Editor
             RefreshRows();
         }
 
-        /// <summary>Opens the picker over <paramref name="host"/>, hung under <paramref name="anchor"/>.</summary>
-        /// <param name="movingTagId">The tag the pick will move; its current wearer lists as already bound.</param>
-        /// <param name="onPick">Invoked with the chosen part's stable id after the picker closes.</param>
         public static RigTargetPicker Open(
             VisualElement host, VisualElement anchor, RigAsset rig,
             TargetTagRegistry tagRegistry, uint movingTagId, Action<uint> onPick)
@@ -102,10 +98,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>
-        /// The hover card's body: what the part wears today, and what picking it displaces — a
-        /// tag move is a rig-wide edit, so the consequence is stated before the click, not after.
-        /// </summary>
+        // A tag move is a rig-wide edit, so the consequence is stated before the click, not after.
         private string DescribeConsequence(RigTargetDefinition target)
         {
             if (target.tagId == 0u)
