@@ -31,3 +31,41 @@ script run before and after with both results pasted into §6, all four full sui
 with discovered totals matching the baseline you recorded at T1, HANDOFF §2 carrying the new
 rule and §4 carrying one paragraph on what landed. Then stop at the ⏸ owner checkpoint and tell
 the owner which three files to open side by side with the previous commit.
+
+---
+
+## Amendment to this prompt — G2 landed after it was written (2026-09-06)
+
+The spec's T2 sizes the rename as "nine game files". **G2 shipped that same day and the game-side
+consumer set is now larger.** These are the files under `Assets/_Scripts/` that name a toolkit
+cutscene type or API and will move with the rename — the compile gate over the game assemblies is
+what proves you got them all, so treat this as a checklist, not a boundary:
+
+```
+Components/Cutscene/CutsceneComponents.cs
+Data/SOs/NarrativeEventSO.cs
+Editor/CutsceneContext/CutsceneDialogueEventInspectorProvider.cs      (new, G2)
+Systems/AnimationSystemGroup/AnimationAssignmentSystemGroup/UnitFacingSystem.cs
+Systems/CutsceneSystemGroup/CutsceneStartSystem.cs
+Systems/CutsceneSystemGroup/CutscenePlayerControlSystem.cs
+Systems/CutsceneSystemGroup/CutsceneMoveToMarkSystem.cs               (new, G2)
+Systems/CutsceneSystemGroup/CutsceneDialogueCueSystem.cs              (new, G2)
+Systems/CutsceneSystemGroup/CutsceneDetachSystem.cs                   (new, G2)
+Tests/FacingSpaceTests.cs
+Tests/PlayMode/CutsceneMoveToMarkTests.cs                             (new, G2)
+Tests/PlayMode/CutsceneDetachTests.cs                                 (new, G2)
+```
+
+`CutsceneDialogueCueTests.cs` calls `CutscenePlaybackApi.TryGetCurrentHoldId` indirectly through the
+system only, so it compiles either way — but it asserts on the hold id string `"Dialogue"`, which
+this amendment must not change.
+
+Two of A69's own targets are now load-bearing for the game, so rename them deliberately rather than
+mechanically: `CutscenePlaybackApi.TryGetCurrentHoldId` is how the host learns which hold the clock
+is waiting on, and `ICutsceneEventInspectorProvider` / `CutsceneEventInspectorProviders.Register` is
+a public editor seam a host implements — a rename there is a breaking change for host code, which is
+exactly what 0.15.0 is for, but say so in the CHANGELOG.
+
+Baselines to hold, measured at the end of G2 on 2026-09-06: toolkit EditMode **718 discovered /
+717 passed** (the one pre-existing `Conformance_A` asmdef-drift failure, unrelated), toolkit PlayMode
+**261/261**, `StitchPunk.Tests` **59/59**, `StitchPunk.Tests.PlayMode` **7/7**.

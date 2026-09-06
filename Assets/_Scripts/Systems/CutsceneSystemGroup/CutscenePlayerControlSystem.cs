@@ -29,9 +29,9 @@ public partial struct CutscenePlayerControlSystem : ISystem
 
         if (SystemAPI.IsComponentEnabled<ActiveCutscene>(narrativeEntity))
         {
-            // The rendezvous exception deliberately wins over a blockPlayerInput narrative event
-            // too: an author who gave the player a mark asked for them to walk to it by hand, and
-            // the lock comes straight back the moment the mark resolves.
+            // The rendezvous exception wins over a blockPlayerInput narrative event too — owner's
+            // call, 2026-09-06: an author who gave the player a mark asked for them to walk to it
+            // by hand. The lock comes straight back the moment the mark resolves.
             bool playerOwesTheHoldAMark = IsHoldWaitingOnThePlayersOwnMark(ref state, narrativeEntity);
             SystemAPI.SetComponentEnabled<CutsceneActiveTag>(narrativeEntity, !playerOwesTheHoldAMark);
             return;

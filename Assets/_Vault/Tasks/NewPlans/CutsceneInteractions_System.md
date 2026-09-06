@@ -64,6 +64,11 @@ Main thread or Burst with a lookup: for every entity with `CutsceneDetachSignal`
 - **DECIDED — dialogue payload:** `intParam` = sequence id, `floatParam` = speaker slot index. Hidden behind the provider UI; documented in `Contracts.md`.
 - **DECIDED — detach physics:** items reuse `ThrownItemRequest`; units are placed, not launched (a launched unit is a ragdoll/death path — out of scope, revisit if a cutscene ever needs it).
 - **DECIDED — facing:** the game maps angle → `UnitFacing`; the toolkit never writes `PartFacing` (toolkit A65-D2).
+- **DECIDED (owner, 2026-09-06) — the rendezvous exception overrides `blockPlayerInput`.** While the
+  clock is paused on a hold the `Player` still owes a mark to, `CutsceneActiveTag` goes off even if a
+  narrative event asked for input to be blocked. Deferring to that event instead would make the
+  exception dead code on the primary path, since a cutscene started by `PlayCutsceneAction` always
+  has `ActiveNarrativeEvent` enabled. Asked and confirmed at the checkpoint — do not re-litigate.
 
 ## 5. Build phases
 
@@ -100,7 +105,8 @@ exactly that.
    deferring to the existing "only disable when no narrative event is active" guard. Deferring would
    have made the exception dead code on the primary path — a cutscene started by `PlayCutsceneAction`
    always has `ActiveNarrativeEvent` enabled — and an author who gave the player a mark has asked for
-   them to walk to it. The lock returns the frame the mark resolves.
+   them to walk to it. The lock returns the frame the mark resolves. **Put to the owner at the
+   checkpoint and confirmed 2026-09-06: keep the override.** Promoted to a §4 decision.
 
 `ClearResolvedMarkJob` also takes `Movement` as `[WithPresent]`, not enabled-only: a unit that dies
 mid-walk has `Movement` disabled by `DeathSystem`, and an enabled-only query would strand
