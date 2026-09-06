@@ -10,6 +10,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene editor polish: selection, clipboard, Auto Key, curves (A66)
+
+- **Multi-select.** `CutsceneItemAddress` (slot, lane kind, part track, item) replaces the single
+  four-field selection with a set plus a primary item. Ctrl toggles, Shift adds, a plain click on
+  something already selected keeps the set. Selection resolves on pointer *down*, because a drag
+  has to know what it is moving before it starts.
+- **Multi-drag and multi-delete.** Dragging a selected item moves every selected item by the same
+  delta, across lanes and slots, in one commit. The group travels rigidly — dragged past zero it
+  stops with its earliest item on zero rather than collapsing its spacing
+  (`CutsceneSelectionMath.ShiftTimes`).
+- **Box select.** A band over the lane stack picks up everything it crosses; Shift bands additively.
+- **Clipboard.** `CutsceneKeyClipboard` — Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+D. Times are relative to
+  the earliest copied item, so a paste lands the beat at the playhead intact. Slot-scoped lanes
+  paste into the selected slot; a part-track key finds its destination track by tag and creates it
+  when the target slot has none. The buffer survives switching cutscenes, not a domain reload.
+- **Auto Key.** A toolbar toggle beside **Key**. `CutscenePreviewController` records the exact pose
+  it last applied to each transform it poses, and Auto Key compares against *that* rather than the
+  sampled value — which is why scrubbing, which writes poses every frame, never keys anything. One
+  key per gesture, written on pointer release. Off while the transport plays; off by default,
+  persisted for the editor session.
+- **Curve editor.** Transform and camera key inspectors host the Clip Editor's
+  `EasingCurveEditorElement`. Dragging a handle makes the key a custom Bézier and writes both
+  handles; presets draw their shape read-only.
+
+### Fixed (A66)
+
+- Bound inspector fields rebuilt the timeline *directly* from their own change event, so dragging a
+  number in the cutscene inspector (Time, Start, Duration…) released the pointer capture and ended
+  the drag after about a pixel. They go through the deferred `RequestTimelineRebuild` now.
+
 ### Changed — breaking (A69)
 
 One suffix per static-class role across the public API, and the doc-comment volume cut from 25%

@@ -126,6 +126,47 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A66 — Cutscene Editor Polish I: selection, clipboard, Auto Key, curves. T1–T6 built and gated
+2026-09-06; stopped at its ⏸ owner checkpoint.** The three things the owner named as must-haves
+before "finished" are in. `CutsceneItemAddress` turned the single four-field selection into a set
+with a primary item, so items select with Ctrl/Shift, band-select across lanes and slots, drag as a
+rigid group (past zero it stops with its earliest item on zero rather than collapsing its spacing —
+`CutsceneSelectionMath.ShiftTimes`, the one piece of pure math worth a fixture), and delete
+together. `CutsceneKeyClipboard` gives Ctrl+C/X/V/D with times relative to the earliest copied item;
+slot-scoped lanes paste into the *selected* slot, and a part-track key finds its destination by tag
+and creates the track when the target slot has none. Auto Key writes one key per gizmo gesture on
+pointer release. The Clip Editor's `EasingCurveEditorElement` now fronts both the transform and
+camera key inspectors. Suites: toolkit EditMode **724/723** (the same standing `Conformance_A`
+asmdef drift, untouched), PlayMode **261/261**, `StitchPunk.Tests` **59/59**,
+`StitchPunk.Tests.PlayMode` **7/7** — three fixtures added on A69's 721/720, nothing dropped. Each
+new fixture was watched failing with its own fix reverted.
+
+**The load-bearing idea in Auto Key, and the trap it exists to avoid.**
+`CutscenePreviewController` records the exact local pose it last applied to every transform it
+poses, at the end of `ApplyPose`, read back off the live transforms rather than from the values just
+written. Auto Key compares against *that record* and never against the sampled value. A scrub poses
+and immediately re-records the same pose, so it reads as zero drift and cannot key — measured, eight
+scrub steps produced zero keys. Anything comparing against the sampled pose instead would key on
+every scrub frame and feed itself. Auto Key is also inert while the transport plays, because
+`hotControl` is non-zero for unrelated editor UI and a playing frame cannot be told from a drag.
+
+**Two things this cost, both worth keeping.** (1) The cutscene panel had **no deferred-rebuild
+pair** — `RequestInspectorRebuild`/`RequestTimelineRebuild` are private to `ClipEditorWindow`, and
+the spec named them as if the panel had them. It has them now, flushed from a new always-on
+`OnEditorTick` (the panel's existing `Tick` is the *transport* tick, subscribed only while playing —
+so the spec's "run detection from `Tick`" could only ever have run Auto Key when it must not).
+(2) That closure exposed a live bug: `AddBoundField` rebuilt the timeline **directly** from its own
+change event, on every bound field, so dragging Time or Start in the cutscene inspector released the
+pointer capture and ended the drag after about a pixel. Fixed with T5. Full drift list — twelve
+items, including `Object.GetInstanceID()` now being a **compile error** in Unity 6.5 in favour of
+`GetEntityId()` — is in the spec's §7.
+
+**What is owed: the owner's eyes.** Every gesture was driven by calling the methods a pointer would
+call, not by a pointer, so what is verified is the logic, not the feel. Nobody has watched a band
+drawn on screen, a multi-drag follow the mouse, or a curve handle move under the cursor. A63's,
+A64's, A65's, G1's and G2's checkpoints are still waiting too. Next on the critical path is **A67**
+(viewport click-select, in-viewport gizmo, frozen header column).
+
 **G2 — Cutscene Interactions. Phases 1-5 built and gated 2026-09-06; stopped at its ⏸ owner
 checkpoint.** Game-side, not a package amendment. The four host contracts the toolkit raises during
 playback now have consumers: `CutsceneMoveToMarkSystem` walks the cast to their marks through

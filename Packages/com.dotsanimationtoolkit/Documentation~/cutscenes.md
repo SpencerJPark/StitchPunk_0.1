@@ -125,6 +125,47 @@ to release that id. What keeps running under it is the point: the cutscene
 clock freezes, the actors' own clips do not, so looping clips keep cycling and
 the camera holds its shot. Turn on **Skip Holds** for a quick full run.
 
+### Editing the timeline
+
+**Selecting.** A click selects one item. Ctrl (Cmd) toggles one in or out of the
+selection; Shift adds. Clicking something already selected keeps the whole
+selection, so a drag started on one of several moves all of them. Dragging on
+empty lane space draws a band and selects everything it crosses, across lanes
+and across slots; hold Shift while banding to add to what is already selected.
+The inspector edits the last item you clicked and says how many others are
+along for the ride.
+
+**Moving.** Dragging any selected item moves every selected item by the same
+amount, in one undo step. The group travels rigidly: drag it past the start of
+the timeline and it stops with the earliest item on zero rather than piling the
+rest up there. Resizing a clip block by its edge is still one block at a time.
+**Delete** (or Backspace) removes everything selected.
+
+**Copy and paste.** Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+D. Times are held relative to
+the earliest item copied, so a paste lands the whole beat at the playhead with
+its rhythm intact. Slot-scoped lanes paste into the **selected slot** — that is
+how you copy a beat from one actor onto another — and back onto their own slot
+when nothing is selected. The camera, event and hold lanes ignore the slot. A
+part-track key finds its destination track by tag rather than by position and
+creates that track if the target slot has none, so a paste survives tracks
+authored in a different order. Ctrl+D duplicates in place and leaves the copies
+selected, ready to drag off. The buffer survives switching cutscenes, but not a
+domain reload.
+
+**Auto Key.** The toolbar toggle beside **Key**. With it on and the preview
+active, moving a bound object or one of its parts with Unity's own gizmo writes
+a key at the playhead the moment you let go — one key per gesture, not one per
+frame. It knows a gizmo drag from the preview's own writes by comparing against
+the exact pose the preview last applied, so scrubbing never keys anything. It
+is off while the transport plays, and off by default; the setting lasts for the
+editor session.
+
+**Curves.** A selected transform or camera key shows its easing under the
+Interpolation field. On a preset the curve is drawn for reference and does not
+take a drag; drag a handle and the key becomes a custom Bézier with those
+handles. It is the same widget, and the same `ClipSampler.Ease`, that clip keys
+use, so the shape matches playback.
+
 ## Baking
 
 `CutsceneBlobBuilder.Build(cutsceneAsset, out blob, warnings)` produces a
@@ -450,8 +491,6 @@ onto a new host *is* the release of the old one.
   tool and this package's Editor sources may not use `Handles`.
 - A mark disc drags on its own ground plane only. Height is authored in the
   inspector, never pulled by a gizmo axis.
-- No box-select or multi-key drag in the timeline; one item at a time.
-- No Auto Key — move with the gizmo, then press Key.
 - The header column scrolls horizontally with the lanes rather than staying
   frozen.
 - The preview's facing mirror does not step alt-view frames. That is
