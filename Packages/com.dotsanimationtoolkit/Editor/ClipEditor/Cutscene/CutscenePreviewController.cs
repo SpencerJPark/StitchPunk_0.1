@@ -363,8 +363,11 @@ namespace DotsAnimationToolkit.Editor
                 float3 scale;
                 // An attached slot's root lane is ignored exactly as it is at run time (§3.1) — the
                 // host owns the transform, and the placement pass below writes it.
+                // The merged lane, not the authored one (decision A64-D2): a mark IS a root key, and
+                // rehearsing the walk here is the whole reason the merge is shared with the builder.
                 if (!resolvedAttachments[slotIndex].isAttached
-                    && CutsceneKeySampler.TrySampleTransform(slot.transformKeys, timeSeconds, out position, out eulerDegrees, out scale))
+                    && CutsceneKeySampler.TrySampleTransform(
+                        CutsceneMarkMerge.BuildEffectiveRootKeys(slot), timeSeconds, out position, out eulerDegrees, out scale))
                 {
                     boundObject.transform.localPosition = new Vector3(position.x, position.y, position.z);
                     boundObject.transform.localRotation = Quaternion.Euler(eulerDegrees.x, eulerDegrees.y, eulerDegrees.z);
@@ -753,7 +756,7 @@ namespace DotsAnimationToolkit.Editor
 
             float angleDegrees;
             CutsceneKeySampler.TryResolveFacingAngle(
-                slot.facingKeys, slot.transformKeys, timeSeconds, out angleDegrees);
+                slot.facingKeys, CutsceneMarkMerge.BuildEffectiveRootKeys(slot), timeSeconds, out angleDegrees);
 
             float angleRadians = Mathf.Deg2Rad * angleDegrees;
             float2 facingVector = new float2(Mathf.Cos(angleRadians), Mathf.Sin(angleRadians));

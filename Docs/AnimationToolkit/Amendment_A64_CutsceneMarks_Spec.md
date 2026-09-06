@@ -92,7 +92,7 @@ public struct CutsceneMoveToMark : IComponentData, IEnableableComponent
 
 - [x] **T1 — Data, blob, builder merge (§3.1–3.2).** Test (EditMode, `CutsceneBlobBuilderTests.cs`): `Mark_IsMergedIntoTheRootLaneAtArrivalTime` — one mark at 1 s, travel 2 s, position (5,0,0), no other keys → segment 0 has a root key at 3 s at (5,0,0); with a rendezvous hold at 2 s the builder emits the mid-walk warning.
 - [x] **T2 — Runtime issue, arrival, timeout, release (§3.3).** Tests (PlayMode, new `CutsceneMarkTests.cs`): `MarkTime_EnablesMoveToMarkOnTheBoundEntity`; `RendezvousHold_AutoReleasesWhenEveryMarkIsReached` (advance to the hold, move the entity within tolerance by writing `LocalTransform`, advance, assert `segmentIndex == 1`); `MarkTimeout_TeleportsAndReleases` (timeout 0.5 s, never move the entity, advance past it, assert position == mark and the hold released).
-- [ ] **T3 — Editor lane + inspector + Set From Object.** **[parallel-safe with T4]** Live proof via `execute_code`.
+- [x] **T3 — Editor lane + inspector + Set From Object.** **[parallel-safe with T4]** Live proof via `execute_code`.
 - [ ] **T4 — Scene-view handles + transport auto-continue.** **[parallel-safe with T3]** Live proof: register, open the scene view, `SceneView.RepaintAll`, confirm no exception in the console; move a mark via the handle in the owner checkpoint.
 - [ ] **T5 — Docs.** `cutscenes.md` "Marks and rendezvous holds" (author flow + the host contract for `CutsceneMoveToMark`), CHANGELOG, HANDOFF §4.
 - [ ] **⏸ Owner checkpoint.** Two actor slots, marks beside a crate, rendezvous hold, then a clip block after it. Scrub in the editor: both walk (slide) to their discs and the hold releases at arrival. Drag a disc in the Scene view; the inspector position follows.

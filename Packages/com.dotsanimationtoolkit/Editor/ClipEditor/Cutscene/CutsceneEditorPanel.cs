@@ -49,6 +49,7 @@ namespace DotsAnimationToolkit.Editor
             PartTrackHeader,
             PartTrackKey,
             AttachMarker,
+            MarkKey,
             CameraKey,
             Event,
             Hold
@@ -1636,6 +1637,7 @@ namespace DotsAnimationToolkit.Editor
                         }
                     }
                     latest = Mathf.Max(latest, LatestTime(slot.attachMarkers));
+                    latest = Mathf.Max(latest, LatestArrivalTime(slot.markKeys));
                 }
             }
             latest = Mathf.Max(latest, LatestTime(cutscene.cameraLane?.keys));
@@ -1684,6 +1686,20 @@ namespace DotsAnimationToolkit.Editor
                 for (int i = 0; i < markers.Count; i++)
                 {
                     latest = Mathf.Max(latest, markers[i].time);
+                }
+            }
+            return latest;
+        }
+
+        /// <summary>A mark's own time is when its order is issued; the timeline has to reach the rehearsed arrival too, or the walk runs off the end of the ruler.</summary>
+        private static float LatestArrivalTime(List<CutsceneMarkKey> marks)
+        {
+            float latest = 0f;
+            if (marks != null)
+            {
+                for (int i = 0; i < marks.Count; i++)
+                {
+                    latest = Mathf.Max(latest, CutsceneMarkMerge.ArrivalTime(marks[i]));
                 }
             }
             return latest;
@@ -1809,6 +1825,13 @@ namespace DotsAnimationToolkit.Editor
             SerializedProperty attachMarkersProperty = slotProperty.FindPropertyRelative("attachMarkers");
             BuildAttachRow(content, slot, attachMarkersProperty, slotIndex, contentWidth, accent);
 
+            SerializedProperty markKeysProperty = slotProperty.FindPropertyRelative("markKeys");
+            BuildMomentRow(
+                content, "Marks", slot.markKeys, markKeysProperty,
+                slotIndex, SelectedLaneKind.MarkKey, -1, contentWidth,
+                new Color(0.45f, 0.65f, 0.95f), time => InsertMarkKeyDefault(slotIndex, markKeysProperty, time),
+                accentClass: accent);
+
             if (isActor)
             {
                 SerializedProperty facingKeysProperty = slotProperty.FindPropertyRelative("facingKeys");
@@ -1887,6 +1910,37 @@ namespace DotsAnimationToolkit.Editor
 
         private void BuildMomentRow(
             VisualElement content, string label, List<CutsceneFacingKey> keys, SerializedProperty keysProperty,
+            int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, float contentWidth, Color color,
+            Action<float> onAddAtTime, string accentClass = null, bool isGroup = false,
+            bool indentLabel = true)
+        {
+            List<float> times = new List<float>(keys.Count);
+            for (int i = 0; i < keys.Count; i++)
+            {
+                times.Add(keys[i].time);
+            }
+
+            CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
+            {
+                pixelsPerSecond = pixelsPerSecond,
+                markerColor = color,
+                style = { width = contentWidth, height = LaneRowHeight }
+            };
+            bool isSelectedLane = selectedSlotIndex == slotIndex && selectedLaneKind == laneKind;
+            lane.SetTimes(times, isSelectedLane ? selectedItemIndex : -1);
+            lane.MomentSelected += index => SelectItem(slotIndex, laneKind, partTrackIndex, index);
+            lane.MomentMoveCommitted += (index, time) => CommitMomentTime(keysProperty, index, time);
+            lane.EmptySpaceDoubleClicked += onAddAtTime;
+            lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
+
+            content.Add(CreateRow(
+                label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
+                isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
+                isSelected: isSelectedLane && selectedItemIndex < 0));
+        }
+
+        private void BuildMomentRow(
+            VisualElement content, string label, List<CutsceneMarkKey> keys, SerializedProperty keysProperty,
             int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, float contentWidth, Color color,
             Action<float> onAddAtTime, string accentClass = null, bool isGroup = false,
             bool indentLabel = true)
@@ -2241,6 +2295,58 @@ namespace DotsAnimationToolkit.Editor
             return 0u;
         }
 
+        /// <summary>
+        /// A fresh mark at the playhead, standing where the slot's bound object currently stands —
+        /// a mark at the world origin is invisible in a scene built anywhere else, and every author
+        /// would immediately drag it back to the actor anyway.
+        /// </summary>
+        private void InsertMarkKeyDefault(int slotIndex, SerializedProperty listProperty, float time)
+        {
+            Vector3 position = Vector3.zero;
+            float facingDegrees = 0f;
+            GameObject boundObject = FindBoundObject(slotIndex);
+            if (boundObject != null)
+            {
+                position = boundObject.transform.position;
+                facingDegrees = boundObject.transform.rotation.eulerAngles.y;
+            }
+
+            int index = listProperty.arraySize;
+            listProperty.InsertArrayElementAtIndex(index);
+            SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("time").floatValue = time;
+            ZeroFloat3(element.FindPropertyRelative("position"), position.x, position.y, position.z);
+            element.FindPropertyRelative("facingDegrees").floatValue = facingDegrees;
+            element.FindPropertyRelative("toleranceMeters").floatValue = DefaultMarkToleranceMeters;
+            element.FindPropertyRelative("timeoutSeconds").floatValue = 0f;
+            element.FindPropertyRelative("previewTravelSeconds").floatValue = DefaultMarkPreviewTravelSeconds;
+            SortByTime(listProperty);
+            CommitStructuralChange();
+        }
+
+        /// <summary>Close enough to a spot that a walk cycle stopping there reads as "arrived" (§3.1).</summary>
+        private const float DefaultMarkToleranceMeters = 0.5f;
+
+        /// <summary>How long the editor rehearses the walk. Not a runtime speed — arrival at run time is a distance test (A64-D1).</summary>
+        private const float DefaultMarkPreviewTravelSeconds = 2f;
+
+        /// <summary>The GameObject this slot is bound to in the currently open scene, or null.</summary>
+        private GameObject FindBoundObject(int slotIndex)
+        {
+            if (cutscene == null || slotIndex < 0 || slotIndex >= cutscene.slots.Count)
+            {
+                return null;
+            }
+            string currentSceneGuid = CutsceneSceneBindingUtility.CurrentSceneGuid();
+            if (string.IsNullOrEmpty(cutscene.sceneGuid) || currentSceneGuid != cutscene.sceneGuid)
+            {
+                return null;
+            }
+            CutsceneSlotBindingEntry entry = CutsceneSceneBindingUtility.FindBinding(
+                cutscene, currentSceneGuid, cutscene.slots[slotIndex].SlotId);
+            return entry != null ? CutsceneSceneBindingUtility.ResolveGameObject(entry.globalObjectId) : null;
+        }
+
         private void InsertHoldDefault(SerializedProperty listProperty, float time)
         {
             int index = listProperty.arraySize;
@@ -2509,6 +2615,9 @@ namespace DotsAnimationToolkit.Editor
                     return;
                 case SelectedLaneKind.AttachMarker:
                     BuildAttachMarkerInspector(selectedSlotIndex, selectedItemIndex);
+                    return;
+                case SelectedLaneKind.MarkKey:
+                    BuildMarkKeyInspector(selectedSlotIndex, selectedItemIndex);
                     return;
                 case SelectedLaneKind.CameraKey:
                     BuildCameraKeyInspector(selectedItemIndex);
@@ -2803,6 +2912,65 @@ namespace DotsAnimationToolkit.Editor
                 AddBoundField(markerProperty, "localEulerDegrees", "Rotation");
             }
             AddBoundField(markerProperty, "hideWhileAttached", "Hide While Attached");
+        }
+
+        private void BuildMarkKeyInspector(int slotIndex, int markIndex)
+        {
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+            if (markIndex < 0 || markIndex >= slot.markKeys.Count)
+            {
+                return;
+            }
+            SerializedProperty markProperty = serializedObject.FindProperty("slots")
+                .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("markKeys")
+                .GetArrayElementAtIndex(markIndex);
+
+            inspectorScroll.Add(BuildHeading("Mark"));
+            AddBoundField(markProperty, "time", "Time (s)");
+            AddBoundField(markProperty, "position", "Position (world)");
+            AddBoundField(markProperty, "facingDegrees", "Facing (0-360)");
+            AddBoundField(markProperty, "toleranceMeters", "Tolerance (m)");
+            AddBoundField(markProperty, "timeoutSeconds", "Timeout (s, 0 = wait)");
+            AddBoundField(markProperty, "previewTravelSeconds", "Preview Travel (s)");
+
+            GameObject boundObject = FindBoundObject(slotIndex);
+            Button setFromObjectButton = new Button(() => SetMarkFromBoundObject(slotIndex, markIndex))
+            {
+                text = "Set From Object",
+                tooltip = boundObject != null
+                    ? "Moves this mark to where '" + boundObject.name + "' currently stands."
+                    : "Bind this slot to a scene object first."
+            };
+            setFromObjectButton.SetEnabled(boundObject != null);
+            setFromObjectButton.style.marginTop = 6f;
+            inspectorScroll.Add(setFromObjectButton);
+
+            inspectorScroll.Add(BuildInspectorNote(
+                "The toolkit orders the move and judges arrival by distance; the host walks the " +
+                "entity there. Timeout 0 waits forever."));
+        }
+
+        /// <summary>
+        /// Drops the mark where the bound object currently stands. Arrival is judged on XZ, but the
+        /// authored Y is what the merged root key carries, so the object's own Y comes along.
+        /// </summary>
+        private void SetMarkFromBoundObject(int slotIndex, int markIndex)
+        {
+            GameObject boundObject = FindBoundObject(slotIndex);
+            if (boundObject == null)
+            {
+                return;
+            }
+            SerializedProperty markProperty = serializedObject.FindProperty("slots")
+                .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("markKeys")
+                .GetArrayElementAtIndex(markIndex);
+
+            Vector3 position = boundObject.transform.position;
+            ZeroFloat3(markProperty.FindPropertyRelative("position"), position.x, position.y, position.z);
+            markProperty.FindPropertyRelative("facingDegrees").floatValue =
+                boundObject.transform.rotation.eulerAngles.y;
+            serializedObject.ApplyModifiedProperties();
+            RebuildAll();
         }
 
         private void BuildHostSlotDropdown(

@@ -1,0 +1,150 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa76dfa59491ed241b6458959d0c55e3, type: 3}
+  m_Name: A64CheckpointCutscene
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.CutsceneAsset
+  stableId: 3189679878730233411
+  sceneGuid: 31b1d336afaa73e48a70f3f766fe1f37
+  scenePath: Assets/Scenes/CutsceneA64Checkpoint.unity
+  slots:
+  - name: Walker A
+    slotId: 1341175473
+    kind: 0
+    rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+    clipSets:
+    - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks:
+    - clipId: 17929205651740358465
+      start: 0
+      duration: 1.2
+      loop: 1
+    - clipId: 17929205651740358465
+      start: 2
+      duration: 2
+      loop: 1
+    transformKeys:
+    - time: 0
+      position:
+        x: -3
+        y: 0
+        z: -3
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    facingKeys: []
+    partTracks: []
+    attachMarkers: []
+    markKeys:
+    - time: 0
+      position:
+        x: 0.5
+        y: 0
+        z: 1.2
+      facingDegrees: 180
+      toleranceMeters: 0.5
+      timeoutSeconds: 0
+      previewTravelSeconds: 1.8
+  - name: Walker B
+    slotId: 3743006673
+    kind: 0
+    rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+    clipSets:
+    - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks:
+    - clipId: 17929205651740358465
+      start: 0
+      duration: 1.2
+      loop: 1
+    - clipId: 17929205651740358465
+      start: 2
+      duration: 2
+      loop: 1
+    transformKeys:
+    - time: 0
+      position:
+        x: 3
+        y: 0
+        z: -3
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    facingKeys: []
+    partTracks: []
+    attachMarkers: []
+    markKeys:
+    - time: 0
+      position:
+        x: 2.5
+        y: 0
+        z: 1.2
+      facingDegrees: 180
+      toleranceMeters: 0.5
+      timeoutSeconds: 0
+      previewTravelSeconds: 1.2
+  - name: Crate
+    slotId: 2714238973
+    kind: 1
+    rig: {fileID: 0}
+    clipSets: []
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks: []
+    transformKeys: []
+    facingKeys: []
+    partTracks: []
+    attachMarkers: []
+    markKeys: []
+  cameraLane:
+    keys: []
+    cutMarkers: []
+  events: []
+  holdMarkers:
+  - time: 2
+    holdId: Rendezvous
+    autoReleaseWhenMarksReached: 1
+  sceneBindings:
+  - sceneGuid: 31b1d336afaa73e48a70f3f766fe1f37
+    slotBindings:
+    - slotId: 1341175473
+      globalObjectId: GlobalObjectId_V1-2-31b1d336afaa73e48a70f3f766fe1f37-9101195342176660511-115358643
+    - slotId: 3743006673
+      globalObjectId: GlobalObjectId_V1-2-31b1d336afaa73e48a70f3f766fe1f37-1772755437-0
+    - slotId: 2714238973
+      globalObjectId: GlobalObjectId_V1-2-31b1d336afaa73e48a70f3f766fe1f37-688934971-0
