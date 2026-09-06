@@ -2465,13 +2465,6 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>The name of the field a lane's items carry their timeline position in.</summary>
-        private static string TimeFieldNameFor(SelectedLaneKind laneKind)
-        {
-            return laneKind == SelectedLaneKind.ClipBlock ? "start" : "time";
-        }
-
-        /// <summary>The serialized list one lane's items live in, or false when the address no longer resolves.</summary>
         private bool TryGetLaneListProperty(CutsceneItemAddress laneAddress, out SerializedProperty listProperty)
         {
             listProperty = null;
@@ -2479,58 +2472,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 return false;
             }
-
-            switch (laneAddress.laneKind)
-            {
-                case SelectedLaneKind.CameraKey:
-                    listProperty = serializedObject.FindProperty("cameraLane").FindPropertyRelative("keys");
-                    return true;
-                case SelectedLaneKind.Event:
-                    listProperty = serializedObject.FindProperty("events");
-                    return true;
-                case SelectedLaneKind.Hold:
-                    listProperty = serializedObject.FindProperty("holdMarkers");
-                    return true;
-            }
-
-            SerializedProperty slotsProperty = serializedObject.FindProperty("slots");
-            if (laneAddress.slotIndex < 0 || laneAddress.slotIndex >= slotsProperty.arraySize)
-            {
-                return false;
-            }
-            SerializedProperty slotProperty = slotsProperty.GetArrayElementAtIndex(laneAddress.slotIndex);
-
-            switch (laneAddress.laneKind)
-            {
-                case SelectedLaneKind.ClipBlock:
-                    listProperty = slotProperty.FindPropertyRelative("clipBlocks");
-                    return true;
-                case SelectedLaneKind.RootTransformKey:
-                    listProperty = slotProperty.FindPropertyRelative("transformKeys");
-                    return true;
-                case SelectedLaneKind.FacingKey:
-                    listProperty = slotProperty.FindPropertyRelative("facingKeys");
-                    return true;
-                case SelectedLaneKind.AttachMarker:
-                    listProperty = slotProperty.FindPropertyRelative("attachMarkers");
-                    return true;
-                case SelectedLaneKind.MarkKey:
-                    listProperty = slotProperty.FindPropertyRelative("markKeys");
-                    return true;
-                case SelectedLaneKind.PartTrackKey:
-                {
-                    SerializedProperty partTracksProperty = slotProperty.FindPropertyRelative("partTracks");
-                    if (laneAddress.partTrackIndex < 0
-                        || laneAddress.partTrackIndex >= partTracksProperty.arraySize)
-                    {
-                        return false;
-                    }
-                    listProperty = partTracksProperty
-                        .GetArrayElementAtIndex(laneAddress.partTrackIndex).FindPropertyRelative("keys");
-                    return true;
-                }
-            }
-            return false;
+            return CutsceneLaneEditing.TryGetLaneListProperty(
+                serializedObject, laneAddress.laneKind, laneAddress.slotIndex, laneAddress.partTrackIndex,
+                out listProperty);
         }
 
         /// <summary>The selection grouped by lane, each lane's item indices ascending.</summary>
@@ -2587,7 +2531,8 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-                string timeFieldName = TimeFieldNameFor(grouped[laneIndex].Key.laneKind);
+                string timeFieldName =
+                    CutsceneLaneEditing.TimeFieldNameFor(grouped[laneIndex].Key.laneKind);
                 List<int> indices = grouped[laneIndex].Value;
                 for (int cursor = 0; cursor < indices.Count; cursor++)
                 {
@@ -2621,7 +2566,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-                string timeFieldName = TimeFieldNameFor(laneAddress.laneKind);
+                string timeFieldName = CutsceneLaneEditing.TimeFieldNameFor(laneAddress.laneKind);
 
                 times.Clear();
                 for (int itemIndex = 0; itemIndex < listProperty.arraySize; itemIndex++)
@@ -2637,7 +2582,7 @@ namespace DotsAnimationToolkit.Editor
                         .FindPropertyRelative(timeFieldName).floatValue = times[itemIndex];
                 }
 
-                SortByTimeTrackingSelection(listProperty, timeFieldName, indices);
+                CutsceneLaneEditing.SortByTime(listProperty, timeFieldName, indices);
                 for (int cursor = 0; cursor < indices.Count; cursor++)
                 {
                     selectedItems.Add(new CutsceneItemAddress(
@@ -2685,47 +2630,6 @@ namespace DotsAnimationToolkit.Editor
             CommitStructuralChange();
         }
 
-        // The same insertion sort SortByTime runs, carrying a selected flag alongside each element so
-        // the caller learns where its items landed. Matching by time afterwards would be wrong the
-        // moment two items share one.
-        private static void SortByTimeTrackingSelection(
-            SerializedProperty listProperty, string timeFieldName, List<int> selectedIndices)
-        {
-            int count = listProperty.arraySize;
-            bool[] isSelected = new bool[count];
-            for (int cursor = 0; cursor < selectedIndices.Count; cursor++)
-            {
-                if (selectedIndices[cursor] >= 0 && selectedIndices[cursor] < count)
-                {
-                    isSelected[selectedIndices[cursor]] = true;
-                }
-            }
-
-            for (int upper = 1; upper < count; upper++)
-            {
-                int cursor = upper;
-                while (cursor > 0 &&
-                    listProperty.GetArrayElementAtIndex(cursor - 1).FindPropertyRelative(timeFieldName).floatValue >
-                    listProperty.GetArrayElementAtIndex(cursor).FindPropertyRelative(timeFieldName).floatValue)
-                {
-                    listProperty.MoveArrayElement(cursor, cursor - 1);
-                    bool swapped = isSelected[cursor - 1];
-                    isSelected[cursor - 1] = isSelected[cursor];
-                    isSelected[cursor] = swapped;
-                    cursor--;
-                }
-            }
-
-            selectedIndices.Clear();
-            for (int itemIndex = 0; itemIndex < count; itemIndex++)
-            {
-                if (isSelected[itemIndex])
-                {
-                    selectedIndices.Add(itemIndex);
-                }
-            }
-        }
-
         // The panel is focusable so it can hear shortcuts, which means every text field inside it
         // routes its keystrokes through here first — Ctrl+C in a Hold Id field must stay a text copy.
         private static bool IsEditableTarget(IEventHandler target)
@@ -2765,7 +2669,124 @@ namespace DotsAnimationToolkit.Editor
                 }
                 DeleteSelectedItems();
                 keyEvent.StopPropagation();
+                return;
             }
+
+            if (!keyEvent.ctrlKey && !keyEvent.commandKey)
+            {
+                return;
+            }
+
+            switch (keyEvent.keyCode)
+            {
+                case KeyCode.C:
+                    CopySelectionToClipboard();
+                    keyEvent.StopPropagation();
+                    return;
+                case KeyCode.X:
+                    if (CopySelectionToClipboard() > 0)
+                    {
+                        DeleteSelectedItems();
+                    }
+                    keyEvent.StopPropagation();
+                    return;
+                case KeyCode.V:
+                    PasteClipboardAt(playheadSeconds);
+                    keyEvent.StopPropagation();
+                    return;
+                case KeyCode.D:
+                    DuplicateSelection();
+                    keyEvent.StopPropagation();
+                    return;
+            }
+        }
+
+        private int CopySelectionToClipboard()
+        {
+            int copiedCount = CutsceneKeyClipboard.Copy(cutscene, selectedItems);
+            ReportTransportAction(copiedCount, "Copied");
+            return copiedCount;
+        }
+
+        // Pasting into the selected slot rather than the source one is what makes "copy a beat from
+        // one actor onto another" a two-key gesture; with no slot selected the items go back where
+        // they came from.
+        private void PasteClipboardAt(float atSeconds)
+        {
+            if (!CutsceneKeyClipboard.HasContent || cutscene == null)
+            {
+                return;
+            }
+            List<CutsceneItemAddress> pastedAddresses = new List<CutsceneItemAddress>();
+            int pastedCount = CutsceneKeyClipboard.Paste(
+                cutscene, serializedObject, atSeconds, selectedSlotIndex, pastedAddresses);
+            if (pastedCount == 0)
+            {
+                ReportTransportAction(0, "Pasted");
+                return;
+            }
+
+            SelectExactly(pastedAddresses);
+            CommitStructuralChange();
+            ReportTransportAction(pastedCount, "Pasted");
+        }
+
+        // Duplicate is copy plus paste at the items' own time, so the copies land on top of the
+        // originals and are the ones left selected — drag them off from there.
+        private void DuplicateSelection()
+        {
+            if (selectedItems.Count == 0)
+            {
+                return;
+            }
+            float earliestSelectedTime = EarliestSelectedTime();
+            if (CutsceneKeyClipboard.Copy(cutscene, selectedItems) == 0)
+            {
+                return;
+            }
+            PasteClipboardAt(earliestSelectedTime);
+        }
+
+        private float EarliestSelectedTime()
+        {
+            float earliest = float.MaxValue;
+            foreach (CutsceneItemAddress address in selectedItems)
+            {
+                SerializedProperty listProperty;
+                if (!TryGetLaneListProperty(address.LaneOnly(), out listProperty)
+                    || address.itemIndex < 0 || address.itemIndex >= listProperty.arraySize)
+                {
+                    continue;
+                }
+                float itemTime = listProperty.GetArrayElementAtIndex(address.itemIndex)
+                    .FindPropertyRelative(CutsceneLaneEditing.TimeFieldNameFor(address.laneKind)).floatValue;
+                earliest = itemTime < earliest ? itemTime : earliest;
+            }
+            return earliest == float.MaxValue ? playheadSeconds : earliest;
+        }
+
+        private void SelectExactly(List<CutsceneItemAddress> addresses)
+        {
+            selectedItems.Clear();
+            primaryItem = null;
+            for (int cursor = 0; cursor < addresses.Count; cursor++)
+            {
+                selectedItems.Add(addresses[cursor]);
+                primaryItem = addresses[cursor];
+            }
+            UnpackPrimarySelection();
+        }
+
+        private void ReportTransportAction(int itemCount, string verb)
+        {
+            if (transportStatusLabel == null)
+            {
+                return;
+            }
+            transportStatusLabel.EnableInClassList(HoldingStatusUssClassName, false);
+            transportStatusLabel.text = itemCount == 0
+                ? verb + " nothing"
+                : verb + " " + itemCount.ToString() + (itemCount == 1 ? " item" : " items");
         }
 
         // -----------------------------------------------------------------------------------

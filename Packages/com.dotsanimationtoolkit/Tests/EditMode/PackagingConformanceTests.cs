@@ -391,7 +391,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // as the others here, not one of the eight role suffixes (drift, A69 §6).
         private static readonly HashSet<string> PlainNounStaticClasses = new HashSet<string>
         {
-            "EasingPresets", "ClipKeyClipboard", "RestPoseCapture", "AnimEventMaskKeys", "ConstantsGenerator",
+            "EasingPresets", "ClipKeyClipboard", "CutsceneKeyClipboard", "RestPoseCapture",
+            "AnimEventMaskKeys", "ConstantsGenerator",
             "CutsceneBlockTiming", "CutsceneFacingVariants", "AuthoringPathHash", "AuthoringPathText",
             "CutsceneDerivedHolds", "CutsceneDirectionVariants", "CutsceneKeySampler", "CutsceneMarkMerge",
             "CutsceneAssetOpener", "DirectionSetAssetOpener", "TimelineRangeShading", "VocabularySettingsProvider",
