@@ -1,6 +1,6 @@
 # Amendment A65 — Holding Events, Runtime Facing, Block Playback Controls
 
-> **Status:** ✅ spec, not built. Written 2026-09-04.
+> **Status:** ✅ **T1–T5 built and gated 2026-09-06**, stopped at the ⏸ owner checkpoint. Written 2026-09-04.
 > **Roadmap:** `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` — read its §4 protocol first.
 > **Depends on:** A64 (schema 4). **Parallel-safe with:** nothing package-side; G1 game work may run beside it.
 > **Session budget:** one Sonnet session. Three independent features; commit each.
@@ -78,7 +78,7 @@ Editor: block inspector gains Speed and Start Offset fields.
 - [x] **T2 — Event inspector provider seam.** No fixture. Live proof: register a dummy provider from `execute_code`, select an event with its key, the container holds the provider's field.
 - [x] **T3 — Runtime facing + variants (§3.2).** Tests (PlayMode, new `CutsceneFacingTests.cs`): `RootTravel_WritesCutsceneFacingAngle` (root x: 0→10 over 2 s → angle ≈ east per this package's convention — read `FacingResolver` to get the exact degrees); `FacingChange_ReissuesTheDirectionVariantWithTimeCarried` (hand-built blob with variants, root travelling east then west; assert a second Play with the west/mirror variant id and a `SetTime` after it).
 - [x] **T4 — Block speed/offset (§3.3).** Test (PlayMode): `BlockSpeedAndOffset_ReachThePlayCommand` (speed 0.5, offset 0.25 → Play speed 0.5, SetTime 0.25). Extend `CutsceneBlockTimingTests` for the new `ClipTimeInBlock` arithmetic.
-- [ ] **T5 — Docs.** `cutscenes.md`: "Events that hold", "Facing at runtime" (delete the Known-gaps line), "Block speed and offset". CHANGELOG, HANDOFF §4.
+- [x] **T5 — Docs.** `cutscenes.md`: "Events that hold", "Facing at runtime" (delete the Known-gaps line), "Block speed and offset". CHANGELOG, HANDOFF §4.
 - [ ] **⏸ Owner checkpoint.** Editor: a walk block on a slot with a direction set, root keys east then west, an event marked *hold* at 3 s. Play in the transport: the actor mirrors at the turn, the transport stops at 3 s naming the event, Continue resumes.
 
 ## 6. Risks and traps
@@ -88,3 +88,73 @@ Editor: block inspector gains Speed and Start Offset fields.
 - `FindName` on the registry is editor-time only (Authoring reads `ProjectSettings/`); the runtime never resolves names — the baked `FixedString64Bytes` is the contract.
 
 ## 7. Build log
+
+**Built 2026-09-06.** T1–T5 in order, one commit each, every new fixture watched failing with its
+fix reverted. Blob schema is **5**, stamped in T3 (the first task that changed the layout), not T4.
+
+**A65-D4 — facing while a mark is outstanding.** §3.2 resolves facing by finite-differencing the
+root lane, but A64 *suspends* that lane while a slot is walking to a mark (the host owns the
+transform), so the lane says where the rehearsal would have put the actor rather than where it is
+going — stale exactly when the actor is walking and most needs to face right. Decided: while the
+order is outstanding, facing derives from the vector from the entity to the mark. It is what the
+actor is actually doing, it costs no new state (the position and the order are already read a few
+lines away), and an explicit facing override key still wins over both branches.
+
+**Defect found: the derived facing angle was in the wrong convention.** `TryResolveFacingAngle`
+returned `atan2(delta.x, delta.z)` — a compass bearing measured from +Z, the `LocalTransform`
+Y-euler convention — while every consumer (`DirectionSetsPanel`, `CutscenePreviewController`) turns
+that angle back into a vector with `(cos, sin)`, i.e. measured from +X. The two are a reflection
+about 45°, so an actor walking **east** resolved as facing **north**, and with a Two-coverage set an
+east→west turn produced no mirror at all — the exact failure §1.2 exists to fix, and it would have
+made this amendment's own checkpoint look broken. Both twins now measure from +X toward +Z;
+`CutsceneFacing.angleDegrees` documents that model against the Y-euler one it is not. Authored
+facing keys and mark facings were unaffected: a mark's `facingDegrees` really is a world Y rotation
+(`PlaceAtMark` feeds it to `quaternion.RotateY`) and is left alone.
+
+**§3.2's "move" was an add, and parity is stronger than the spec asked for.**
+`CutsceneKeySampler.TryResolveFacingAngle` stays (the preview calls it, with A64's merged root
+lane); `CutsceneBlobSampler` gained the blob twin. Rather than copy the resolve *chain* into the
+runtime, the chain itself moved into `Runtime/Sampling/CutsceneFacingVariants.Resolve`, which the
+preview controller now calls too — the variant *table* is built by `Authoring/Build/
+CutsceneDirectionVariants` for the bake and the preview alike, the `CutsceneMarkMerge` shape. Two
+twin signatures were also reconciled: the authoring `TryResolveFacingAngle` used to return
+`true` only for an override key, which read as "resolved" at the runtime twin's call sites; it now
+means "resolved by either path", and the panel's override readout asks the new
+`TryResolveFacingOverride` instead.
+
+**`CutsceneDirectionVariantsBlob` carries `targetDirections` as well as `effectiveDirections`.** The
+chain the spec names quantizes at the actor's own turn granularity *before* folding onto the set's
+coverage, so reproducing it needs both counts; the struct in §3.2 lists only the second.
+
+**The bake cannot call `VocabularyRegistryProvider.AnimEventKeys.FindName` (§3.1).** That type is in
+the Editor assembly and `Authoring/` may not name `UnityEditor` — Conformance_C scans raw file text.
+The registry reaches the builder through `CutsceneDerivedHolds.EventNameRegistrySource`, a lazy
+accessor the Editor assembly publishes from an `[InitializeOnLoadMethod]`, the same host-seam shape
+as `DirectionSetsPanel.SetContextProvider`. Unresolved keys still fall back to `event:XXXXXXXX` with
+a warning.
+
+**T3's variant fixture turns east→north, not east→west.** Every direction set is mirror-closed, so a
+west-side facing is served by the *same* clip with `mirrorX` — an east→west turn changes the mirror
+flag, never the clip id, and cannot assert a second `Play`. The test turns onto a facing the set
+serves with a different row instead, which is what a re-pick actually is.
+
+**`CutsceneFacingVariants.SelectVariantClipId` is not `[BurstCompile]`.** The blob it reads carries a
+`bool`, which is not blittable across a Burst entry point (BC1063), and both callers are managed.
+`Resolve` and `AngleDegreesFromTravel` take primitives and stay compiled.
+
+**`SeamBlendWeight` no longer routes through `ClipTimeInBlock` (T4).** A crossfade window is timeline
+geometry; scaling it by a block's speed would stretch the fade past the overlap it was derived from.
+The elapsed-seconds half is now `ElapsedInBlock`, and `ClipTimeInBlock` is offset + elapsed × speed.
+A baked `speed` of 0 means "a bake older than schema 5", never a frozen clip: the authored field is
+`[Min(0.01f)]`, and `EffectiveBlockSpeed` reads 0 as 1 so pre-A65 blobs and this suite's hand-built
+ones keep playing.
+
+**T1's PlayMode fixture bakes its blob**, against this suite's hand-build convention, and says so in
+its own remark: the feature *is* the pairing of a bake-time boundary with the runtime's existing
+hold mechanics, and a hand-built blob would assert that pairing by writing it out itself. The
+EditMode fixture isolates the bake half.
+
+**Editor flicker check (T1).** The event inspector's `holdUntilReleased` toggle routes through
+`CutsceneEditorPanel.ShouldIgnoreBindingEcho`. Sampled the inspector's child `GetHashCode()`s from
+two `execute_code` calls seconds apart: identical instances, so the panel is stable rather than
+rebuilding every frame.

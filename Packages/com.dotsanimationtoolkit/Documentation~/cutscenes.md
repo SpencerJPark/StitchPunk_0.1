@@ -222,6 +222,48 @@ These are three different things, easy to conflate:
   issued afterward — slowing a cutscene down slows what plays in it down too,
   not just how fast the clock ticks.
 
+### Facing at run time
+
+A cutscene says which way an actor is facing, not just where it stands.
+
+- Every frame a bound **Actor** slot has an answer, the player writes
+  `CutsceneFacing.angleDegrees` on the bound entity and enables the component;
+  it is disabled when the cutscene ends or is skipped. The angle is measured
+  from +X toward +Z — 0 is east, 90 is north — the same model the Direction Sets
+  pane's slider uses, and **not** a `LocalTransform` Y euler, which measures
+  from +Z.
+- The answer is the last facing override key at or before the playhead, else the
+  direction the root lane is travelling, else nothing at all: a slot with no
+  facing keys and no root motion leaves whatever facing was already in effect
+  alone rather than snapping east. While a slot is walking to a mark its root
+  lane is suspended (the host owns the transform), so the angle comes from the
+  direction of the mark it was sent to.
+- **The toolkit never writes `PartFacing`.** Your game already has a facing
+  system that writes it on every part, and two writers would fight. Map
+  `CutsceneFacing` onto that system — it is one component read, and it is the
+  whole contract.
+- If the slot has a **direction set** and the playing block's clip is one of the
+  set's five east-side slots, the player re-picks the variant as the actor
+  turns: `Play` with no blend, followed by `SetTime` carrying the phase over, so
+  a walk cycle continues on the same foot instead of restarting. A block naming
+  a clip the set has never heard of — a wave, a stumble — is never substituted.
+  The mirror half of a west-side facing is yours to apply, from
+  `CutsceneFacing`; the editor preview mirrors on its own.
+
+### Block speed and start offset
+
+A clip block carries two more fields in its inspector:
+
+- **Speed** multiplies the cutscene's own speed for that block's clip, so "the
+  same swing, half as fast" is one field rather than a second clip. A host
+  slowing the whole cutscene multiplies it further rather than resetting it.
+- **Start Offset (s)** starts the clip that many seconds in — "play the second
+  half of the swing". It reaches the actor as a `SetTime` right after the
+  `Play`, because a `Play` always starts a clip at 0.
+
+A block's speed scales the clip, never the timeline: the crossfade window two
+overlapping blocks imply is still measured in timeline seconds.
+
 ### What recasting does and does not carry over
 
 A slot's rig can be reassigned and the Scene-view preview (above) resolves
@@ -229,6 +271,48 @@ tag-addressed part tracks against whatever rig is currently assigned, live.
 The **baked runtime player does not**: a part track's tag is resolved to a
 dense target index once, at bake time, against the rig the slot had *then*.
 Recasting a slot onto a different rig for the runtime path needs a rebake.
+
+## Events that hold
+
+An event marked **Hold Until Released** is a *cue*: it fires and the clock stops
+in the same frame, and it starts again when the host releases a hold named after
+the event itself. That is one marker instead of an event plus a hold marker whose
+id you have to keep matching by hand.
+
+- The hold's id is the event's own name in the project event vocabulary
+  (`Dialogue`, `Footstep`, …), or `event:XXXXXXXX` when no vocabulary names the
+  key — the bake warns when it has to fall back, because the host has to release
+  that exact string.
+- The cue fires *before* the pause, not after it: the event is baked into the
+  segment that ends at its time. A host that never saw the cue could not release
+  the hold it starts.
+- Read the id back with
+  `CutscenePlaybackApi.TryGetCurrentHoldId(entityManager, cutscene, out FixedString64Bytes holdId)`,
+  which answers only while the clock is actually paused on a hold.
+- Two holding events at one instant share a hold and both fire. A holding event
+  on top of an authored hold marker keeps the authored id, with a warning that
+  says which id survived.
+- In the Cutscene Editor a holding event's marker wears the hold lane's colour,
+  and the Holds row draws a dimmed, read-only ghost where it stops the clock —
+  edit the event, not the ghost. The transport stops there and names the id, and
+  **Continue** rehearses exactly the release a host would send.
+
+An event payload that means something to your game rather than to the toolkit —
+a dialogue sequence id in an `intParam` — can have its own inspector. Implement
+`ICutsceneEventInspectorProvider` in your editor assembly and register it from an
+`[InitializeOnLoadMethod]`:
+
+```csharp
+[InitializeOnLoadMethod]
+private static void RegisterCutsceneEventInspectors()
+{
+    CutsceneEventInspectorProviders.Register(new DialogueEventInspector());
+}
+```
+
+Return `true` from `TryBuildInspector` for the keys you own, after filling the
+container with fields bound to the marker's `intParam`/`floatParam`; return
+`false` and the default number fields stay.
 
 ## Marks and rendezvous holds
 
@@ -365,10 +449,6 @@ onto a new host *is* the release of the old one.
 - No Auto Key — move with the gizmo, then press Key.
 - The header column scrolls horizontally with the lanes rather than staying
   frozen.
-- Facing is applied in the **editor preview** (variant pick and mirror) but
-  has no runtime-side application: nothing in this package drives facing
-  outside host movement code for a runtime system to hook into, so a baked
-  cutscene leaves `PartFacing` to the host.
 - The preview's facing mirror does not step alt-view frames. That is
   `PartFacing.viewOffset`, which the toolkit bakes as 0 and a host owns — there
   is no package-side rule saying which frame a given direction shows, so the

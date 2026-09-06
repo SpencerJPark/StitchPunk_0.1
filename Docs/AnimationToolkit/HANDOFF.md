@@ -112,6 +112,32 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A65 — Cutscene Cues, Runtime Facing, Block Playback Controls. T1-T5 built and gated 2026-09-06;
+stopped at its ⏸ owner checkpoint.** Three independent features, each committed on its own.
+*Holding events*: `CutsceneEventMarker.holdUntilReleased` bakes a boundary whose hold id is the
+event's registry name, and the event buckets into the segment that **ends** there so the cue fires
+on the frame the clock stops — a host that never saw the cue could not release the hold it starts.
+The name reaches `Authoring/` through `CutsceneDerivedHolds.EventNameRegistrySource`, a seam the
+Editor fills at load, because `VocabularyRegistryProvider` is editor-only and `Authoring/` may not
+name `UnityEditor` (Conformance_C). *Runtime facing*: `CutsceneFacing` carries an angle for the host
+to map onto its own facing model (A65-D2 — the toolkit still never writes `PartFacing`), and a block
+whose clip belongs to the slot's direction set re-picks the variant on a turn with `Play`(blend 0) +
+`SetTime`. *Block speed/offset*: both reach the Play command; schema **5**.
+
+Two corrections the work turned up, both in the spec's §7 log. The derived facing angle was
+`atan2(x, z)` — measured from +Z like a Y euler — while every consumer read it as `(cos, sin)` from
++X, so an actor walking east resolved as *north* and an east/west turn never mirrored; both twins
+now measure from +X toward +Z and the chain is one shared `CutsceneFacingVariants.Resolve`. And a
+slot walking to a mark has its root lane suspended (A64), so its facing derives from the vector to
+the mark while the order is outstanding (A65-D4). EditMode `CutsceneBlobBuilderTests` 5/5 and
+`CutsceneBlockTimingTests` 4/4, PlayMode `CutsceneFacingTests` 2/2 and `CutsceneTimelineSystemTests`
+10/10; every new fixture was watched failing with its fix reverted.
+
+**What is owed:** the owner's eyes on `Assets/Scenes/CutsceneA65Checkpoint.unity` — and A63's, A64's
+and G1's checkpoints are still waiting too. Next spec on the critical path is **G2** (game-side
+consumers: marks → `MovementAPI`, the dialogue cue ↔ `ActiveDialogue`, `CutsceneFacing` →
+`UnitFacing`).
+
 **A64 — Cutscene Marks and Rendezvous Holds. T1–T5 built and gated 2026-09-05; stopped at its ⏸
 owner checkpoint.** A cutscene can now send its cast to a spot and wait for them. `CutsceneMarkKey`
 on every slot bakes to `CutsceneMarkKeyBlob` (schema **4**) alongside

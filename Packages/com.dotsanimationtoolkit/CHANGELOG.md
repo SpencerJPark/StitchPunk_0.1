@@ -10,6 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene cues, runtime facing, per-block speed (A65)
+
+- **Holding events.** `CutsceneEventMarker.holdUntilReleased` bakes a segment
+  boundary whose hold id is the event's own registry name, and buckets the event
+  into the segment that *ends* there so the cue fires on the frame the clock
+  stops. `CutscenePlaybackApi.TryGetCurrentHoldId` reads that id back. An
+  authored hold at the same instant wins, with a warning naming the survivor.
+- **`ICutsceneEventInspectorProvider`**, a host seam for event payload editors:
+  a dialogue sequence id can be picked by name instead of typed as an `intParam`.
+- **`CutsceneFacing`**, written on every bound Actor slot the cutscene has a
+  facing for and disabled when it ends: an angle measured from +X toward +Z, for
+  the host to map onto its own facing model. The toolkit still never writes
+  `PartFacing` — a host that already owns facing would be fighting it. A block
+  whose clip belongs to the slot's direction set bakes that set's five east-side
+  clips and re-picks the variant on a turn with `Play` (no blend) + `SetTime`
+  carrying the phase.
+- **Per-block `speed` and `clipStartOffsetSeconds`**, multiplied into the Play
+  command and issued as a following `SetTime`. `CutsceneBlob.schemaVersion` is
+  now **5**.
+
+### Fixed
+
+- A cutscene facing derived from root travel was measured from +Z (the
+  `LocalTransform` Y-euler convention) while every consumer read it as
+  `(cos, sin)` from +X, so an actor walking east resolved as facing north and an
+  east/west turn never mirrored. Both the authoring and runtime samplers now
+  measure from +X toward +Z, and the resolve chain itself is one shared
+  `CutsceneFacingVariants.Resolve` the editor preview and the player both call.
+
 ### Added — Cutscene marks and rendezvous holds (A64)
 
 Actors can be sent to a spot and the cutscene can wait for them: everyone hops
