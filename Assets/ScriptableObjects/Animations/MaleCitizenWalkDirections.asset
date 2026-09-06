@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 45db5cf0d7b5ec548a7bf4301c095723, type: 3}
+  m_Name: MaleCitizenWalkDirections
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.DirectionSetAsset
+  southEast: {fileID: 11400000, guid: bc3726a3fd33bcb4abbbdbec3a11209c, type: 2}
+  northEast: {fileID: 0}
+  south: {fileID: 0}
+  north: {fileID: 0}
+  east: {fileID: 0}
+  targetDirections: 1

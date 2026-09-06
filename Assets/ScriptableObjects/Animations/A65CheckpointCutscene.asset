@@ -1,0 +1,114 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa76dfa59491ed241b6458959d0c55e3, type: 3}
+  m_Name: A65CheckpointCutscene
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.CutsceneAsset
+  stableId: 1260832445185823998
+  sceneGuid: 42920028083f67c4e94151f1fdcd6764
+  scenePath: Assets/Scenes/CutsceneA65Checkpoint.unity
+  slots:
+  - name: Walker
+    slotId: 1341175473
+    kind: 0
+    rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+    clipSets:
+    - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
+    directionSet: {fileID: 11400000, guid: a7462fd29a66e5c40acb1d902cc6b86b, type: 2}
+    actorPrefab: {fileID: 0}
+    clipBlocks:
+    - clipId: 17929205651740358465
+      start: 0
+      duration: 6
+      loop: 1
+      speed: 1
+      clipStartOffsetSeconds: 0
+    transformKeys:
+    - time: 0
+      position:
+        x: -3
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 3
+      position:
+        x: 3
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 6
+      position:
+        x: -3
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    facingKeys: []
+    partTracks: []
+    attachMarkers: []
+    markKeys: []
+  cameraLane:
+    keys: []
+    cutMarkers: []
+  events:
+  - time: 3
+    eventKey: 19
+    intParam: 0
+    floatParam: 0
+    fireOnSkip: 1
+    holdUntilReleased: 1
+  holdMarkers: []
+  sceneBindings:
+  - sceneGuid: 42920028083f67c4e94151f1fdcd6764
+    slotBindings:
+    - slotId: 1341175473
+      globalObjectId: GlobalObjectId_V1-2-42920028083f67c4e94151f1fdcd6764-9101195342176660511-115358643

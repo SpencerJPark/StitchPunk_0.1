@@ -23,6 +23,12 @@
                 "eventKey": 18,
                 "defaultWindowFrames": 0,
                 "description": "The frame damage should land. AttackRequestSystem enqueues the DamageBus event on this (Action layer); hitTime is the timeout fallback when a clip has no Attack event."
+            },
+            {
+                "name": "Dialogue",
+                "eventKey": 19,
+                "defaultWindowFrames": 0,
+                "description": ""
             }
         ],
         "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/AnimEvents.cs"
