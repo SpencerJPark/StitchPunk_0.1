@@ -33,5 +33,39 @@ namespace StitchPunk.Tests
             float2 facingSpace = UnitFacingJob.WorldToFacingSpace(float3.zero);
             Assert.AreEqual(float2.zero, facingSpace);
         }
+
+        // The toolkit measures a cutscene facing FROM +X TOWARD +Z, so it lands in facing space with
+        // no reflection. A LocalTransform Y euler measures from +Z instead, and swapping the two
+        // silently turns an actor walking east into one facing north (toolkit A65's own bug).
+        [Test]
+        public void CutsceneAngle_IsMeasuredFromEastTowardNorth()
+        {
+            float2 east = UnitFacingJob.CutsceneAngleToFacingSpace(0f);
+            Assert.AreEqual(1f, east.x, 1e-5f);
+            Assert.AreEqual(0f, east.y, 1e-5f);
+
+            float2 north = UnitFacingJob.CutsceneAngleToFacingSpace(90f);
+            Assert.AreEqual(0f, north.x, 1e-5f);
+            Assert.AreEqual(1f, north.y, 1e-5f);
+        }
+
+        [Test]
+        public void CutsceneFacing_OverridesMovementDerivedFacing()
+        {
+            float3 walkingEast = new float3(10f, 0f, 0f);
+            float2 aimingSouth = new float2(0f, -1f);
+
+            float2 underACutscene = UnitFacingJob.ResolveMovementXY(
+                true, 90f, true, in aimingSouth, walkingEast);
+            Assert.AreEqual(0f, underACutscene.x, 1e-5f);
+            Assert.AreEqual(1f, underACutscene.y, 1e-5f,
+                "A cutscene's own facing wins over both the aim override and the movement delta.");
+
+            float2 withoutACutscene = UnitFacingJob.ResolveMovementXY(
+                false, 90f, false, in aimingSouth, walkingEast);
+            Assert.AreEqual(walkingEast.x, withoutACutscene.x, 1e-5f);
+            Assert.AreEqual(walkingEast.z, withoutACutscene.y, 1e-5f,
+                "Without one, the movement delta still decides.");
+        }
     }
 }

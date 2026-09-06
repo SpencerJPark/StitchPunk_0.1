@@ -69,7 +69,7 @@ Main thread or Burst with a lookup: for every entity with `CutsceneDetachSignal`
 
 - [x] **Phase 1 — marks (§3.1, 3.2) + `CutsceneMarkIssued` baking.** Test (PlayMode): `MoveToMark_IssuesAPathRequestForUnitsButNotThePlayer` (two entities, one with `Player`; enable marks; update; assert `PathRequest` enabled only on the unit with the mark's position) and `MarkResolved_HaltsPathing`.
 - [x] **Phase 2 — dialogue cue (§3.3, 3.6) + registry entry.** Test (PlayMode): `DialogueCue_StartsActiveDialogue_AndReleasesTheHoldWhenItEnds` (hand-built request entity with an `AnimEventOutput` Dialogue event and a playback state paused on hold `"Dialogue"`; update; assert `ActiveDialogue` enabled; disable it; update; assert `CutsceneHoldRelease` enabled with the id).
-- [ ] **Phase 3 — facing (§3.4).** Test (PlayMode, extend the existing facing fixture if one exists — grep `UnitFacingSystem` in `Tests/`): `CutsceneFacing_OverridesMovementDerivedFacing`.
+- [x] **Phase 3 — facing (§3.4).** Test (PlayMode, extend the existing facing fixture if one exists — grep `UnitFacingSystem` in `Tests/`): `CutsceneFacing_OverridesMovementDerivedFacing`.
 - [ ] **Phase 4 — detach (§3.5).** Test (PlayMode): `DetachSignal_BecomesAThrownItemRequestOnItems`.
 - [ ] **Phase 5 — full suites once**, `Contracts.md` rows, `Systems_AI.md`/`Systems_Animation.md` one line each.
 - [ ] **⏸ Owner checkpoint.** In `DOTSTestScene`: a cutscene with marks for the player and one minion beside a crate, a rendezvous hold, then a Dialogue holding event, then a clip. Press F9: the minion pathfinds to its disc; you walk to yours; the moment both arrive the hold releases and WASD stops working; dialogue opens; closing it continues the cutscene; the minion faces the way its root keys carry it.
@@ -125,3 +125,22 @@ the container parented into a live `EditorWindow.rootVisualElement`, every write
 
 Slot labels in the speaker dropdown are made unique (`name (slot N)` on a collision) because the
 chosen label, not `DropdownField.index`, is what resolves back to the stored index.
+
+### Phase 3 — facing (2026-09-06)
+
+`UnitFacingJob` no longer excludes cutscene actors — `[WithDisabled(typeof(CutsceneActor))]` became
+`[WithPresent]` plus an `EnabledRefRO<CutsceneActor>` check, so a bound actor with an enabled
+`CutsceneFacing` takes the cutscene's angle and one without keeps the facing it had. The precedence
+(cutscene, then attack aim, then movement delta) is named in one public static,
+`UnitFacingJob.ResolveMovementXY`, the same way `WorldToFacingSpace` was already public for
+`FacingSpaceTests` — which is what let the branch be pinned without hand-building a `UnitLibraryBlob`.
+
+The two new EditMode cases live in the existing `FacingSpaceTests` and pin the convention trap
+directly: `CutsceneAngleToFacingSpace` is `(cos, sin)` from +X toward +Z, so 0 is east and 90 north.
+Reverting it to the `LocalTransform` Y-euler convention `(sin, cos)` fails both cases, which is the
+reflection about 45 degrees that cost the toolkit an amendment.
+
+**Not covered by a fixture, deliberately:** that the branch fires inside a real `UnitFacingSystem`
+update. Doing so needs baked `UnitDataLibrary`/`PartLibrary` blob singletons, and the fixture would
+mostly assert `FacingResolver`'s own quantization, which the toolkit's suite already pins. The
+observable — a minion turning as its root keys carry it — is a checkpoint item for the owner's eyes.

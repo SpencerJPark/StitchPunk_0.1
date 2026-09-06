@@ -32,6 +32,7 @@ public partial struct UnitFacingSystem : ISystem
             unitLibrary = unitLibrary,
             partLibrary = partLibrary,
             combatTargetLookup = SystemAPI.GetComponentLookup<CombatTarget>(true),
+            cutsceneFacingLookup = SystemAPI.GetComponentLookup<CutsceneFacing>(true),
             transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true),
             partFacingLookup = SystemAPI.GetComponentLookup<PartFacing>(),
         }.ScheduleParallel();
@@ -39,14 +40,16 @@ public partial struct UnitFacingSystem : ISystem
 }
 
 [BurstCompile]
-// G2 replaces this skip with the CutsceneFacing bridge — for now a cutscene actor's facing is
-// left exactly as it was the frame the cutscene started.
-[WithDisabled(typeof(CutsceneActor))]
+// Cutscene actors are in the query, not excluded from it (G2 §3.4): while a cutscene puppets an
+// actor its Movement.targetPosition is stale, so the facing either comes from the cutscene's own
+// CutsceneFacing or is left exactly as it was when the cutscene started.
+[WithPresent(typeof(CutsceneActor))]
 public partial struct UnitFacingJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> unitLibrary;
     [ReadOnly] public BlobAssetReference<PartLibraryBlob> partLibrary;
     [ReadOnly] public ComponentLookup<CombatTarget> combatTargetLookup;
+    [ReadOnly] public ComponentLookup<CutsceneFacing> cutsceneFacingLookup;
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
 
     // Every unit's body parts are its own — no two units ever write the same part entity, so this
@@ -56,24 +59,38 @@ public partial struct UnitFacingJob : IJobEntity
     public void Execute(
         Entity unitEntity,
         ref UnitFacing unitFacing,
+        EnabledRefRO<CutsceneActor> cutsceneActorEnabled,
         in UnitData unitData,
         in Movement movement,
         in UnitAction unitAction,
         in LocalTransform localTransform,
         in DynamicBuffer<BodyPart> bodyParts)
     {
+        bool hasCutsceneFacing = cutsceneFacingLookup.HasComponent(unitEntity)
+            && cutsceneFacingLookup.IsComponentEnabled(unitEntity);
+
+        // A cutscene actor the cutscene has no facing answer for keeps the one it had: deriving it
+        // from Movement.targetPosition would read a target nothing is walking toward any more.
+        if (cutsceneActorEnabled.ValueRO && !hasCutsceneFacing)
+            return;
+
         int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
         if (unitIndex < 0)
             return;
 
         ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
 
-        bool hasAimOverride = TryGetAimDirection(unitEntity, ref unitBlob, unitAction.current,
-            localTransform.Position, out float2 aimDirectionXY);
+        float2 aimDirectionXY = float2.zero;
+        bool hasAimOverride = !hasCutsceneFacing
+            && TryGetAimDirection(unitEntity, ref unitBlob, unitAction.current,
+                localTransform.Position, out aimDirectionXY);
 
-        float2 movementXY = hasAimOverride
-            ? aimDirectionXY
-            : WorldToFacingSpace(movement.targetPosition - localTransform.Position);
+        float2 movementXY = ResolveMovementXY(
+            hasCutsceneFacing,
+            hasCutsceneFacing ? cutsceneFacingLookup[unitEntity].angleDegrees : 0f,
+            hasAimOverride,
+            in aimDirectionXY,
+            movement.targetPosition - localTransform.Position);
 
         Direction desiredFacing = FacingResolver.FromMovement(
             in movementXY, unitBlob.animationDirections, unitFacing.current);
@@ -101,6 +118,31 @@ public partial struct UnitFacingJob : IJobEntity
 
             partFacingLookup[partEntity] = new PartFacing { viewOffset = viewOffset, mirrorX = mirrorX };
         }
+    }
+
+    // The precedence a facing is decided by: a cutscene's own answer, then an attack's aim, then
+    // where the unit is walking. Public (not private) so FacingSpaceTests can pin it directly.
+    public static float2 ResolveMovementXY(
+        bool hasCutsceneFacing,
+        float cutsceneAngleDegrees,
+        bool hasAimOverride,
+        in float2 aimDirectionXY,
+        float3 movementDelta)
+    {
+        if (hasCutsceneFacing)
+            return CutsceneAngleToFacingSpace(cutsceneAngleDegrees);
+
+        return hasAimOverride ? aimDirectionXY : WorldToFacingSpace(movementDelta);
+    }
+
+    // CutsceneFacing.angleDegrees is measured FROM +X TOWARD +Z — 0 east, 90 north — which is the
+    // same space FacingResolver reads, so (cos, sin) lands in it directly. It is NOT a LocalTransform
+    // Y euler, which measures from +Z: the two are a reflection about 45 degrees, and mixing them
+    // turns an actor walking east into one facing north (toolkit A65's own bug, Gotchas.md).
+    public static float2 CutsceneAngleToFacingSpace(float angleDegrees)
+    {
+        float angleRadians = math.radians(angleDegrees);
+        return new float2(math.cos(angleRadians), math.sin(angleRadians));
     }
 
     // World-fixed velocity.xz mapped straight onto facing space (+x east, +y away from camera),
