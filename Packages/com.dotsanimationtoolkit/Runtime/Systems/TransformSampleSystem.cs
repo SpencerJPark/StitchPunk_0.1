@@ -85,6 +85,7 @@ namespace DotsAnimationToolkit
                 animLodLookup = SystemAPI.GetComponentLookup<AnimLod>(true),
                 restPoseLookup = SystemAPI.GetComponentLookup<TargetRestPose>(true),
                 partFacingLookup = SystemAPI.GetComponentLookup<PartFacing>(true),
+                mirrorFromAncestorLookup = SystemAPI.GetComponentLookup<PartMirrorFromAncestor>(true),
                 targetPoseLookup = SystemAPI.GetComponentLookup<TargetPose>()
             };
             state.Dependency = sampleJob.ScheduleParallel(state.Dependency);
@@ -131,6 +132,9 @@ namespace DotsAnimationToolkit
         /// face somewhere — excluding every ordinary part, silently.
         /// </summary>
         [ReadOnly] public ComponentLookup<PartFacing> partFacingLookup;
+
+        /// <summary>Baked, and read here only to decide whether this part mirrors itself or inherits one.</summary>
+        [ReadOnly] public ComponentLookup<PartMirrorFromAncestor> mirrorFromAncestorLookup;
 
         /// <summary>Written on part entities, never on the actor being iterated — see the type-level remarks.</summary>
         [NativeDisableParallelForRestriction] public ComponentLookup<TargetPose> targetPoseLookup;
@@ -238,7 +242,12 @@ namespace DotsAnimationToolkit
                     //
                     // All are negations rather than assignments, so a part authored already
                     // offset, rotated or flipped composes with facing instead of being overridden.
-                    if (partFacing.mirrorX)
+                    //
+                    // A part under a mirror point is skipped: scale composes down the hierarchy, so
+                    // the ancestor's negated x already reflects this part and negating again would
+                    // cancel it back to unmirrored (PartMirrorFromAncestor). The rule the owner set
+                    // is that a mirror point flips its whole subtree, animations included.
+                    if (partFacing.mirrorX && !mirrorFromAncestorLookup.HasComponent(partRef.part))
                     {
                         sampledPose.localPosition.x = -sampledPose.localPosition.x;
                         sampledPose.rotation.y = -sampledPose.rotation.y;

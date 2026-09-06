@@ -173,9 +173,18 @@ findings, both outside the code A65 wrote and both now fixed:
    Fixed by opting in the top-most part of each chain only — `Pelvis`, `UpperLeftLeg`,
    `UpperRightLeg` — whose subtrees then inherit the reflection exactly once. Verified: at t=1 every
    part reads world scale.x +1, at t=4 every part reads −1 and every world x offset negates, face
-   included. **Open question for the owner (§8):** whether the sampler should enforce "mirror once
-   per chain" itself rather than trusting the flag to be set only on chain roots. That is a change to
-   shipped runtime behaviour, so it is not made here.
+   included.
+
+   **Owner rule, same day:** *a mirror point placed on a parent flips that parent and all its
+   children, animations included.* The code now enforces it rather than trusting the content:
+   `RigTargetBaker` tags a facing part with a facing ancestor `PartMirrorFromAncestor` (decided once,
+   where the hierarchy is known), and `TransformSampleSystem` and the preview both skip that part's
+   own mirror. `PartFacing` is still added to it, because `viewOffset` — alt-view frames — is a
+   separate job a nested part still does for itself, and the suppression is a tag rather than a field
+   on `PartFacing` because hosts overwrite that component wholesale every frame. Proven by ticking
+   all 16 targets again: 16/16 mirrored walking west, 0/16 walking east, no cancellation anywhere.
+   PlayMode fixture `MirroringAPartUnderAMirrorPoint_LeavesItToTheAncestor`, watched failing with the
+   gate reverted.
 
    Both failure modes are now named at bake time and in the slot inspector by one shared check,
    `CutsceneDirectionVariants.DescribeFacingRigProblem`.

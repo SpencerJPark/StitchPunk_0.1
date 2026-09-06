@@ -453,7 +453,7 @@ text of every file outside `Editor/` and `Tests/` for `UnityEditor` — a doc co
 a seam exists ("`Authoring/` may not name `UnityEditor`") fails the same test it is describing.
 Found 2026-09-06 building A65's hold-name seam. Say "the editor assembly" in prose there.
 
-### A mirrored part inside a mirrored parent cancels — facing only works on a FLAT rig
+### A mirror point flips its whole subtree; a second one inside it is ignored (fixed 2026-09-06)
 `TransformSampleSystem` (and the cutscene preview's twin) mirrors a part by negating its local
 `scale.x`, `localPosition.x` and its y/z rotations. On a **nested** rig that multiplies down the
 chain: with `facesDirection` ticked on every target, `MaleCitizen` measured Pelvis −1, Torso +1,
@@ -461,12 +461,15 @@ Neck −1, **BaseHead +1** — the head and its whole face never flipped and the
 second level. It reads as "the images flipped but the animation didn't". `MaleCitizen` and the
 `MaleUnitVisual`-based units have 13 of 16 parts nested under another part.
 
-**Tick `facesDirection` on the top-most part of each chain only** — for `NewRig` that is `Pelvis`,
-`UpperLeftLeg`, `UpperRightLeg` — and the subtree inherits the reflection exactly once (a part's
-non-uniform scale rides `PostTransformMatrix`, which composes into children's `LocalToWorld`).
-And note the flag is per *rig* while correctness depends on the *prefab* hierarchy, so a flat actor
-and a nested one sharing a rig cannot both be right. `CutsceneDirectionVariants.DescribeFacingRigProblem`
-now names both this and the "nothing opted in" case, at bake time and in the slot inspector.
+**The owner's rule (2026-09-06): `facesDirection` marks a mirror point, and a mirror point flips
+itself and everything under it, animations included.** `RigTargetBaker` now tags a facing part that
+has a facing ancestor with `PartMirrorFromAncestor`, and `TransformSampleSystem` (plus the cutscene
+preview) skip that part's own mirror — so ticking the flag on a descendant is redundant, not
+destructive. A part's non-uniform scale rides `PostTransformMatrix`, which composes into children's
+`LocalToWorld`, which is why one negation at the top reflects the whole chain. `PartFacing` is still
+added to nested parts: `viewOffset` (alt-view frames) is a separate job. `NewRig` ships with three
+mirror points — `Pelvis`, `UpperLeftLeg`, `UpperRightLeg`. Ticking *nothing* is still the failure
+that silently turns nothing; the bake warns about it and the slot inspector says so.
 
 ### `facesDirection` is the opt-in that makes facing do anything at all, and it defaults to false
 A rig whose targets all leave it false resolves facings, picks direction-set variants and turns

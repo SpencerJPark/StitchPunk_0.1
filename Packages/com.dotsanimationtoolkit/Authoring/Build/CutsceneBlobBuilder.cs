@@ -989,7 +989,10 @@ namespace DotsAnimationToolkit.Authoring
         private static void WarnOnFacingWithNothingToMirror(CutsceneSlot slot, List<string> warnings)
         {
             string problem = CutsceneDirectionVariants.DescribeFacingRigProblem(slot);
-            if (problem != null)
+            // Only the case that turns nothing is worth a bake warning; a redundant flag on a nested
+            // part is ignored at bake and reported in the slot inspector instead, where an author
+            // can act on it without a warning per bake.
+            if (problem != null && problem.StartsWith("no target", System.StringComparison.Ordinal))
             {
                 warnings.Add("Cutscene slot '" + slot.name + "': " + problem);
             }

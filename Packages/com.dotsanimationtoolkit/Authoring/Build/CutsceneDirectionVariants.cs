@@ -47,14 +47,13 @@ namespace DotsAnimationToolkit.Authoring
         /// is wrong when it cannot. Null means nothing is wrong.
         /// </summary>
         /// <remarks>
-        /// Two ways facing goes silently inert, both of which cost an owner checkpoint on
-        /// 2026-09-06. <strong>Nothing opted in:</strong> <c>facesDirection</c> is what bakes
-        /// <c>PartFacing</c> and what gates the editor's own mirror, so a rig where no target sets
-        /// it resolves a facing, picks a variant, and turns nothing. <strong>A part opted in under
-        /// another:</strong> the mirror negates a part's local x scale, so a mirrored part inside a
-        /// mirrored parent multiplies to +1 and cancels — on a nested rig that flips every second
-        /// level, which reads as a character whose head does not turn with its body. Opt in the
-        /// top-most part of each chain and its subtree inherits the reflection exactly once.
+        /// <strong>Nothing opted in</strong> is the failure that turns nothing: <c>facesDirection</c>
+        /// is what bakes <c>PartFacing</c> and what gates the mirror, so a rig where no target sets
+        /// it resolves a facing, picks a variant, and moves nothing — it cost an owner checkpoint on
+        /// 2026-09-06. <strong>A flag under another flag</strong> is merely redundant: a mirror point
+        /// reflects its whole subtree, and <c>PartMirrorFromAncestor</c> makes the inner flag be
+        /// ignored rather than cancel the outer one. Reported so an author can tidy it, not because
+        /// it breaks anything.
         /// </remarks>
         internal static string DescribeFacingRigProblem(CutsceneSlot slot)
         {
@@ -65,6 +64,7 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             int facingTargetCount = 0;
+            string redundantFlagNote = null;
             for (int targetIndex = 0; targetIndex < slot.rig.targets.Count; targetIndex++)
             {
                 RigTargetDefinition target = slot.rig.targets[targetIndex];
@@ -74,13 +74,16 @@ namespace DotsAnimationToolkit.Authoring
                 }
                 facingTargetCount++;
 
-                RigTargetDefinition mirroredAncestor = FindMirroredAncestor(slot.rig, target);
-                if (mirroredAncestor != null)
+                if (redundantFlagNote == null)
                 {
-                    return "'" + DescribeTarget(target) + "' has Faces Direction set inside '"
-                        + DescribeTarget(mirroredAncestor) + "', which also has it. A mirrored part "
-                        + "inside a mirrored parent cancels back to unmirrored, so only every second "
-                        + "level of the rig flips. Set it on the top-most part of each chain only.";
+                    RigTargetDefinition mirroredAncestor = FindMirroredAncestor(slot.rig, target);
+                    if (mirroredAncestor != null)
+                    {
+                        redundantFlagNote = "'" + DescribeTarget(target) + "' has Faces Direction set "
+                            + "inside '" + DescribeTarget(mirroredAncestor) + "', which is already a "
+                            + "mirror point and reflects it. The flag on '" + DescribeTarget(target)
+                            + "' is ignored — set it on the top-most part of each chain only.";
+                    }
                 }
             }
 
@@ -90,7 +93,7 @@ namespace DotsAnimationToolkit.Authoring
                     + "facing resolves and the variant is picked but no part mirrors - nothing will "
                     + "visibly turn, in the preview or at run time.";
             }
-            return null;
+            return redundantFlagNote;
         }
 
         /// <summary>

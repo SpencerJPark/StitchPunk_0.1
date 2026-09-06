@@ -138,9 +138,13 @@ content, not A65's code: `NewRig.asset` had `facesDirection` false on all 16 tar
 was never baked and the editor's mirror was gated off — the facing resolved and nothing moved.
 Opting *every* part in was still wrong, because the rig is nested and a mirrored part inside a
 mirrored parent cancels (measured: Pelvis −1, Torso +1, Neck −1, BaseHead +1 — the head never
-flipped). It is now set on the three chain roots only. **§8 question for the owner:** whether the
-sampler should enforce "mirror once per chain" itself instead of trusting the flag; that is a
-shipped-runtime change and was not made unilaterally. The transport's hold banner also moved beside
+flipped). **The owner's rule, given the same day:** placing a mirror point on a parent flips that parent and
+all of its children, animations included. That is now what the code does — `RigTargetBaker` tags a
+facing part that sits under another facing part with `PartMirrorFromAncestor`, and both
+`TransformSampleSystem` and the cutscene preview skip its own mirror, so the inner flag is ignored
+instead of cancelling the outer one. Proven both ways: with all 16 targets ticked the actor used to
+half-flip and now mirrors 16/16 walking west and 0/16 walking east. `NewRig` ships with the three
+chain roots ticked (`Pelvis`, `UpperLeftLeg`, `UpperRightLeg`), which is that rule written out. The transport's hold banner also moved beside
 Continue and turns bold yellow — it was legible only in principle at the far right of the row.
 
 **What is owed:** the owner's eyes on `Assets/Scenes/CutsceneA65Checkpoint.unity` — and A63's, A64's
@@ -729,13 +733,6 @@ Work top to bottom. Commit each task separately (stage paths explicitly; never `
   error — when the clip plays, or baked into every VAT frame. `ClipPreviewController.IsSkinnedBone(int)`
   is public and makes the guard cheap. Recommendation on file: guard it. The owner asked for
   hierarchy dragging, so excluding bones is their call.
-- **Should the facing mirror enforce "once per chain"?** `TransformSampleSystem` negates each opted-in
-  part's local `scale.x`, which is correct for a flat rig and cancels on a nested one (§7). A65 fixed
-  the content and added a warning; the alternative is for the sampler to skip a part whose ancestor
-  also mirrors, which would make the flag safe to tick anywhere but changes shipped playback for any
-  project already relying on the current behaviour. Recommendation on file: do it, in its own
-  amendment, with a PlayMode fixture on a two-deep rig.
-
 - **Q1 — the Spatial3D twist axis.** `twistLimitDegrees` has no defined axis; D2 provisionally used
   the child's rest-local +Y. Owner said "ignore for now"; it blocks D8 only.
 
@@ -758,12 +755,11 @@ it agrees with your code. That habit sank three earlier gates.
 - Restart the Editor to rotate `Logs/Editor.log` if it has grown huge.
 - `Docs/AnimationToolkit/shader-contract.md` and `Documentation~/shader-contract.md` are near-identical
   mirrors that differ only in host-specific paths. They will drift; neither is marked authoritative.
-- **The per-part facing mirror is only correct on a flat rig.** Negating each part's local `scale.x`
-  multiplies down a nested chain and cancels at every second level, so `facesDirection` must be set
-  on the top-most part of each chain and nowhere else. The flag lives on the *rig* while correctness
-  depends on the *prefab* hierarchy, so one rig shared by a flat actor and a nested one cannot be
-  right for both. A65 added a warning naming it at bake and in the slot inspector; making the
-  sampler mirror once per chain is an owner decision (§6).
+- `facesDirection` is a **mirror point**, and a mirror point flips its whole subtree (owner rule
+  2026-09-06). A part under one is tagged `PartMirrorFromAncestor` at bake and skips its own mirror,
+  so ticking the flag on a descendant as well is redundant rather than cancelling. The slot
+  inspector says so when it finds one. Ticking *nothing* is still the failure that turns nothing,
+  and the bake warns about that.
 
 ## 8. Not yet judged by eye
 

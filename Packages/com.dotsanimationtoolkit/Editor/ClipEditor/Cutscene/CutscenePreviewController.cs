@@ -818,10 +818,21 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            Dictionary<uint, PartBinding> slotParts;
+            partsBySlot.TryGetValue(slot.SlotId, out slotParts);
+
             for (int targetIndex = 0; targetIndex < slot.rig.targets.Count; targetIndex++)
             {
                 RigTargetDefinition target = slot.rig.targets[targetIndex];
                 if (target == null || !target.facesDirection)
+                {
+                    continue;
+                }
+                // A mirror point reflects its whole subtree, so a facing part under another facing
+                // part inherits that reflection and must not negate again — the same rule
+                // PartMirrorFromAncestor bakes for playback, applied here from the live hierarchy so
+                // the two cannot disagree.
+                if (HasFacingAncestorPart(slot, slotParts, target))
                 {
                     continue;
                 }
@@ -836,6 +847,42 @@ namespace DotsAnimationToolkit.Editor
                 pose.scale.x = -pose.scale.x;
                 composedPoses[target.stableId] = pose;
             }
+        }
+
+        /// <summary>
+        /// Whether a part above <paramref name="target"/> in the bound object's hierarchy is itself
+        /// a mirror point. Read from the live transforms, which is what the bake reads too.
+        /// </summary>
+        private static bool HasFacingAncestorPart(
+            CutsceneSlot slot, Dictionary<uint, PartBinding> slotParts, RigTargetDefinition target)
+        {
+            PartBinding binding;
+            if (slotParts == null || !slotParts.TryGetValue(target.stableId, out binding)
+                || binding.partTransform == null)
+            {
+                return false;
+            }
+
+            Transform ancestor = binding.partTransform.parent;
+            while (ancestor != null)
+            {
+                for (int targetIndex = 0; targetIndex < slot.rig.targets.Count; targetIndex++)
+                {
+                    RigTargetDefinition candidate = slot.rig.targets[targetIndex];
+                    if (candidate == null || candidate == target || !candidate.facesDirection)
+                    {
+                        continue;
+                    }
+                    PartBinding candidateBinding;
+                    if (slotParts.TryGetValue(candidate.stableId, out candidateBinding)
+                        && candidateBinding.partTransform == ancestor)
+                    {
+                        return true;
+                    }
+                }
+                ancestor = ancestor.parent;
+            }
+            return false;
         }
 
         /// <summary>

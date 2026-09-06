@@ -131,6 +131,14 @@ namespace DotsAnimationToolkit.Authoring
                     viewOffset = 0,
                     mirrorX = authoring.startMirrored
                 });
+
+                // A mirror point flips its whole subtree, so a facing part under another facing part
+                // must not flip a second time and cancel it (owner rule 2026-09-06). Decided here,
+                // where the hierarchy is known, so the sampler pays one lookup rather than a walk.
+                if (HasFacingAncestorPart(authoring, effectiveRig))
+                {
+                    AddComponent<PartMirrorFromAncestor>(partEntity);
+                }
             }
 
             AddBillboardMember(authoring, actorAuthoring, effectiveRig, partEntity);
@@ -141,6 +149,35 @@ namespace DotsAnimationToolkit.Authoring
             {
                 ValidateVatMaterial(authoring, actorAuthoring);
             }
+        }
+
+        /// <summary>
+        /// Whether a part above this one in the prefab is itself a mirror point, and so already
+        /// reflects this one.
+        /// </summary>
+        /// <remarks>
+        /// Walked through the baker's own <c>GetParent</c>/<c>GetComponent</c> rather than
+        /// <c>GetComponentInParent</c> so every node visited is registered as a baking dependency:
+        /// re-parenting a part, or ticking Faces Direction on an ancestor, has to re-bake this one.
+        /// </remarks>
+        private bool HasFacingAncestorPart(RigTargetAuthoring authoring, RigAsset effectiveRig)
+        {
+            GameObject ancestor = GetParent(authoring.gameObject);
+            while (ancestor != null)
+            {
+                RigTargetAuthoring ancestorPart = GetComponent<RigTargetAuthoring>(ancestor);
+                if (ancestorPart != null)
+                {
+                    RigTargetDefinition ancestorTarget =
+                        FindTargetDefinition(effectiveRig, ancestorPart.targetStableId);
+                    if (ancestorTarget != null && ancestorTarget.facesDirection)
+                    {
+                        return true;
+                    }
+                }
+                ancestor = GetParent(ancestor);
+            }
+            return false;
         }
 
         /// <summary>

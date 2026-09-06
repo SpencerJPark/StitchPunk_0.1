@@ -249,6 +249,11 @@ A cutscene says which way an actor is facing, not just where it stands.
   a clip the set has never heard of — a wave, a stumble — is never substituted.
   The mirror half of a west-side facing is yours to apply, from
   `CutsceneFacing`; the editor preview mirrors on its own.
+- **A mirror needs a mirror point.** Only a rig target with **Faces Direction** ticked mirrors, and
+  ticking it flips that part *and everything under it*, animations included — so on a nested rig you
+  tick the top of each chain, not every part. A part under a mirror point ignores its own flag
+  rather than cancelling the one above it. A rig where nothing is ticked resolves facings and turns
+  nothing at all; the bake warns, and the slot inspector says so on the facing line.
 
 ### Block speed and start offset
 

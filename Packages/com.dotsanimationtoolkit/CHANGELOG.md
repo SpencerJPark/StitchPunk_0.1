@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A mirror point now flips its whole subtree, and a nested one is ignored rather than cancelling
+  it.** The facing mirror negates a part's local `scale.x`, and scale composes down a transform
+  hierarchy, so a mirrored part inside a mirrored parent multiplied back to +1: on a nested rig only
+  every second level flipped, which looked like a character whose head would not turn with its body.
+  `RigTargetBaker` tags a facing part that has a facing ancestor with the new
+  `PartMirrorFromAncestor`, and `TransformSampleSystem` and the Cutscene Editor's preview both leave
+  that part's mirror to the ancestor. `PartFacing.viewOffset` is unaffected — alt views are a
+  separate job a nested part still does for itself.
 - A cutscene facing derived from root travel was measured from +Z (the
   `LocalTransform` Y-euler convention) while every consumer read it as
   `(cos, sin)` from +X, so an actor walking east resolved as facing north and an

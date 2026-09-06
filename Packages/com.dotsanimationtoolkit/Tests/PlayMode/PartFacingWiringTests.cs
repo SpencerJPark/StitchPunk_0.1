@@ -254,6 +254,47 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// <strong>A mirror point flips its whole subtree, so a part under one must not flip
+        /// again</strong> (owner rule 2026-09-06). Catches the shape that reached the owner's screen:
+        /// scale composes down the hierarchy, so a mirrored part inside a mirrored parent multiplies
+        /// back to +1 and only every second level of a nested rig ends up flipped — measured on
+        /// <c>MaleCitizen</c> as Pelvis −1, Torso +1, Neck −1, BaseHead +1, a character whose head
+        /// did not turn with its body.
+        /// </summary>
+        [Test]
+        public void MirroringAPartUnderAMirrorPoint_LeavesItToTheAncestor()
+        {
+            registry = PlaybackTestActor.BuildRegistry(
+                new[]
+                {
+                    new PlaybackTestActor.ClipSpec { clipId = IdleClipId, duration = 1f }
+                },
+                targetCount: 1,
+                framesPerVariant: EarFramesPerVariant);
+            actor = PlaybackTestActor.CreateActor(testWorld, registry);
+
+            Entity nestedPart = PlaybackTestActor.AddPart(
+                testWorld, actor, EarTargetIndex,
+                restPosition: new Unity.Mathematics.float3(-0.9f, 0.05f, 0.25f),
+                restRotationZ: 0.4f,
+                restSliceIndex: RoundFrontRestSlice,
+                asFlipbookPlane: true);
+            testWorld.EntityManager.AddComponentData(
+                nestedPart, new PartFacing { viewOffset = 0, mirrorX = true });
+            // What the baker adds when a facing part sits under another facing part.
+            testWorld.EntityManager.AddComponent<PartMirrorFromAncestor>(nestedPart);
+
+            RunSample();
+
+            TargetPose pose = testWorld.EntityManager.GetComponentData<TargetPose>(nestedPart);
+            Assert.AreEqual(-0.9f, pose.localPosition.x, 1e-4f,
+                "The ancestor's reflection already moves this part; negating here would move it back.");
+            Assert.AreEqual(0.4f, pose.rotation.z, 1e-4f, "Same for the handedness of its rotation.");
+            Assert.Greater(pose.scale.x, 0f,
+                "And for its art: two negated scales down one chain multiply back to unmirrored.");
+        }
+
+        /// <summary>
         /// Catches: assigning −1 rather than negating. A part authored already-flipped (a left ear
         /// built by mirroring the right one) composes with facing instead of being overridden by it,
         /// so mirroring a flipped part unflips it.

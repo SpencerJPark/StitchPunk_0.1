@@ -94,6 +94,31 @@ namespace DotsAnimationToolkit
     }
 
     /// <summary>
+    /// Marks a part whose mirror is already being applied by a part above it (amendment A65
+    /// follow-up, owner rule 2026-09-06): <em>a mirror point flips itself and everything under it,
+    /// animations included</em>. Baked, never written at run time.
+    /// </summary>
+    /// <remarks>
+    /// A mirror is a negated <c>scale.x</c>, and scale composes down a transform hierarchy — so a
+    /// mirrored part inside a mirrored parent multiplies back to +1 and cancels. On a nested rig
+    /// that flips every second level: the measured shape on <c>MaleCitizen</c> was Pelvis −1,
+    /// Torso +1, Neck −1, BaseHead +1, a character whose head did not turn with its body.
+    /// <c>RigTargetBaker</c> therefore adds this tag to any part with a <c>facesDirection</c>
+    /// ancestor, and <c>TransformSampleSystem</c> skips the negation for it — the flag on the
+    /// descendant is redundant rather than harmful, so it is ignored rather than obeyed.
+    /// <para>
+    /// A tag rather than a field on <see cref="PartFacing"/> on purpose: hosts write that component
+    /// wholesale every frame (<c>PartFacing.mirrorX</c> is runtime state), and a baked field sitting
+    /// beside a host-written one is a field that gets clobbered. <see cref="PartFacing"/> is still
+    /// added to these parts, because <see cref="PartFacing.viewOffset"/> — alt-view frames — is a
+    /// separate job that a nested part still does for itself.
+    /// </para>
+    /// </remarks>
+    public struct PartMirrorFromAncestor : IComponentData
+    {
+    }
+
+    /// <summary>
     /// The part's authored rest pose, captured from the authoring transform at bake
     /// (architecture section 5.2). Composition starts from this pose every sample; host
     /// design/skin systems change the base look by writing <see cref="restSliceIndex"/>
