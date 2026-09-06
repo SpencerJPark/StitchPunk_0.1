@@ -369,6 +369,208 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 string.Join(", ", violations));
         }
 
+        // Folders scanned by the code-style conformance checks (f), (g) and (h) — Amendment A69.
+        private static readonly string[] StyleScanFolders = new string[]
+        {
+            "Runtime", "Runtime.Physics", "Authoring", "Editor"
+        };
+
+        private static readonly string[] StaticClassAllowedSuffixes = new string[]
+        {
+            "Api", "Builder", "Sampler", "Resolver", "Math", "Validation", "Utility", "Editing"
+        };
+
+        private static readonly string[] StaticClassBannedSuffixes = new string[]
+        {
+            "Util", "Utils", "Helper", "Helpers", "Query", "Manager", "Common", "Misc", "Ext", "Extensions"
+        };
+
+        // "AnimEventMask" in the spec's own allowlist names the IComponentData struct, not the
+        // static class in the same file — the static class is "AnimEventMaskKeys" (drift, A69 §6).
+        // "RagdollSolver" was not in the spec's table at all; it is a plain-noun static class same
+        // as the others here, not one of the eight role suffixes (drift, A69 §6).
+        private static readonly HashSet<string> PlainNounStaticClasses = new HashSet<string>
+        {
+            "EasingPresets", "ClipKeyClipboard", "RestPoseCapture", "AnimEventMaskKeys", "ConstantsGenerator",
+            "CutsceneBlockTiming", "CutsceneFacingVariants", "AuthoringPathHash", "AuthoringPathText",
+            "CutsceneDerivedHolds", "CutsceneDirectionVariants", "CutsceneKeySampler", "CutsceneMarkMerge",
+            "CutsceneAssetOpener", "DirectionSetAssetOpener", "TimelineRangeShading", "VocabularySettingsProvider",
+            "RagdollPreviewSceneryProvider", "VocabularyRegistryProvider", "CutsceneEventInspectorProviders",
+            "BindingReconciler", "ClipEditorDocking", "PrefabAuthoringBridge", "RigStructureEditor",
+            "ClipComponentModel", "GizmoDragRouting", "EventLaneAddressing", "PreviewLineMaterial",
+            "PreviewScenePicker", "RagdollPreviewProbe", "VatMeshPreparer", "VatTentacleRigBuilder",
+            "VatTextureBaker", "ClipKeyConversion", "CutsceneSceneBinding", "RagdollSolver"
+        };
+
+        // (f) No doc-comment essays or spec citations survive in shipped sources (Amendment A69, section 2.3).
+        [Test]
+        public void Conformance_F_NoDocEssaysOrSpecCitations_InSources()
+        {
+            string[] bannedLiterals = new string[] { "<remarks>", "<para>", "<strong>", "<em>", "<list ", "architecture section", "§" };
+            Regex[] bannedPatterns = new Regex[]
+            {
+                new Regex("amendment A[0-9]"),
+                new Regex("\\bPhase [A-G]\\b"),
+                new Regex("\\brule V[0-9]{2}\\b")
+            };
+
+            List<string> violations = new List<string>();
+            int totalHitCount = 0;
+            List<string> scannedFiles = EnumerateFolderFiles(StyleScanFolders, "*.cs");
+            foreach (string scannedFile in scannedFiles)
+            {
+                string relativePath = ToPackageRelativePath(scannedFile).Replace('\\', '/');
+                string[] lines = File.ReadAllLines(scannedFile, System.Text.Encoding.UTF8);
+                for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+                {
+                    string line = lines[lineIndex];
+                    bool hit = false;
+                    foreach (string bannedLiteral in bannedLiterals)
+                    {
+                        if (line.Contains(bannedLiteral))
+                        {
+                            hit = true;
+                            break;
+                        }
+                    }
+                    if (!hit)
+                    {
+                        foreach (Regex bannedPattern in bannedPatterns)
+                        {
+                            if (bannedPattern.IsMatch(line))
+                            {
+                                hit = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hit)
+                    {
+                        totalHitCount++;
+                        if (violations.Count < 50)
+                        {
+                            violations.Add(relativePath + ":" + (lineIndex + 1));
+                        }
+                    }
+                }
+            }
+            Assert.IsEmpty(
+                violations,
+                "Doc-comment essays and spec citations must not appear in shipped sources (" + totalHitCount +
+                " total hit(s), first " + violations.Count + " shown): " + string.Join(", ", violations));
+        }
+
+        // (g) Every static class in Runtime/Runtime.Physics/Authoring/Editor uses one suffix per role
+        // (Amendment A69, section 2.1).
+        [Test]
+        public void Conformance_G_StaticClassSuffixVocabulary()
+        {
+            Regex staticClassPattern = new Regex("\\b(?:public|internal)\\s+static\\s+(?:partial\\s+)?class\\s+(\\w+)");
+            List<string> violations = new List<string>();
+            List<string> scannedFiles = EnumerateFolderFiles(StyleScanFolders, "*.cs");
+            foreach (string scannedFile in scannedFiles)
+            {
+                string relativePath = ToPackageRelativePath(scannedFile).Replace('\\', '/');
+                string[] lines = File.ReadAllLines(scannedFile, System.Text.Encoding.UTF8);
+                for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+                {
+                    Match match = staticClassPattern.Match(lines[lineIndex]);
+                    if (!match.Success)
+                    {
+                        continue;
+                    }
+                    string className = match.Groups[1].Value;
+                    string location = relativePath + ":" + (lineIndex + 1) + " (" + className + ")";
+
+                    bool hasBannedSuffix = false;
+                    foreach (string bannedSuffix in StaticClassBannedSuffixes)
+                    {
+                        if (className.EndsWith(bannedSuffix, System.StringComparison.Ordinal))
+                        {
+                            hasBannedSuffix = true;
+                            break;
+                        }
+                    }
+                    if (hasBannedSuffix)
+                    {
+                        violations.Add(location + " uses a banned suffix");
+                        continue;
+                    }
+
+                    if (className.EndsWith("Utility", System.StringComparison.Ordinal))
+                    {
+                        if (!relativePath.Contains("Editor/ClipUtilities/"))
+                        {
+                            violations.Add(location + " uses Utility outside Editor/ClipUtilities/");
+                        }
+                        continue;
+                    }
+
+                    bool hasAllowedSuffix = false;
+                    foreach (string allowedSuffix in StaticClassAllowedSuffixes)
+                    {
+                        if (allowedSuffix == "Utility")
+                        {
+                            continue;
+                        }
+                        if (className.EndsWith(allowedSuffix, System.StringComparison.Ordinal))
+                        {
+                            hasAllowedSuffix = true;
+                            break;
+                        }
+                    }
+                    if (hasAllowedSuffix || PlainNounStaticClasses.Contains(className))
+                    {
+                        continue;
+                    }
+                    violations.Add(location + " does not use a recognised role suffix or allowlisted plain noun");
+                }
+            }
+            Assert.IsEmpty(
+                violations,
+                "Static classes must use one suffix per role (Api/Builder/Sampler/Resolver/Math/Validation/" +
+                "Utility/Editing) or appear in the plain-noun allowlist: " + string.Join(", ", violations));
+        }
+
+        // (h) Every public static class in Runtime/Api/ ends in Api (Amendment A69, section 2.1).
+        [Test]
+        public void Conformance_H_ApiFolderClassesEndInApi()
+        {
+            Regex staticClassPattern = new Regex("\\bpublic\\s+static\\s+(?:partial\\s+)?class\\s+(\\w+)");
+            List<string> violations = new List<string>();
+            string apiFolderPath = Path.Combine(PackageRootPath, "Runtime", "Api");
+            string[] apiSourceFiles;
+            if (Directory.Exists(apiFolderPath))
+            {
+                apiSourceFiles = Directory.GetFiles(apiFolderPath, "*.cs", SearchOption.AllDirectories);
+            }
+            else
+            {
+                apiSourceFiles = new string[0];
+            }
+            foreach (string apiSourceFile in apiSourceFiles)
+            {
+                string relativePath = ToPackageRelativePath(apiSourceFile).Replace('\\', '/');
+                string[] lines = File.ReadAllLines(apiSourceFile, System.Text.Encoding.UTF8);
+                for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+                {
+                    Match match = staticClassPattern.Match(lines[lineIndex]);
+                    if (!match.Success)
+                    {
+                        continue;
+                    }
+                    string className = match.Groups[1].Value;
+                    if (!className.EndsWith("Api", System.StringComparison.Ordinal))
+                    {
+                        violations.Add(relativePath + ":" + (lineIndex + 1) + " (" + className + ")");
+                    }
+                }
+            }
+            Assert.IsEmpty(
+                violations,
+                "Every public static class in Runtime/Api/ must end in Api: " + string.Join(", ", violations));
+        }
+
         // ---------------------------------------------------------------------------------
         // Supplementary structural checks against the section 1.1 identity table.
         // ---------------------------------------------------------------------------------
@@ -479,6 +681,21 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 {
                     matchingFiles.Add(foundFile);
                 }
+            }
+            return matchingFiles;
+        }
+
+        private static List<string> EnumerateFolderFiles(string[] folderNames, string searchPattern)
+        {
+            List<string> matchingFiles = new List<string>();
+            foreach (string folderName in folderNames)
+            {
+                string folderPath = Path.Combine(PackageRootPath, folderName);
+                if (!Directory.Exists(folderPath))
+                {
+                    continue;
+                }
+                matchingFiles.AddRange(Directory.GetFiles(folderPath, searchPattern, SearchOption.AllDirectories));
             }
             return matchingFiles;
         }

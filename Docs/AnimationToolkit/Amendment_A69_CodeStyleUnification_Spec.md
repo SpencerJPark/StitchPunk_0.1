@@ -223,3 +223,20 @@ Open `Runtime/Api/PlaybackApi.cs`, `Runtime/Blobs/ClipRegistryBlob.cs`, and `Run
 ## 6. Log (append as you go)
 
 - 2026-09-06 — specced. Baseline: EditMode / PlayMode discovered counts to be recorded at T1.
+- 2026-09-06 — T1 drift: the spec's §4 T1 `PlainNounStaticClasses` allowlist names `AnimEventMask`,
+  but that identifier is the `IComponentData` struct in `Runtime/Components/AnimEventMask.cs`; the
+  static class in the same file is `AnimEventMaskKeys`. The conformance test's allowlist uses the
+  actual class name. Also: `Runtime/Sampling/RagdollSolver.cs` was not in §2.1's renames table, its
+  "not renamed" list, or the T1 allowlist — it is pure static functions over plain structs (no ECS
+  types in its signatures), same shape as `ClipSampler`/`BillboardMath`, but its own header comment
+  already calls it a plain-noun class, not a `Math` role class, so it was added to the allowlist
+  rather than renamed. Conformance_F/G/H confirmed red before this fix and after it (same failure
+  causes: the nine §2.1 renames plus the volume of surviving doc essays/citations), never green.
+- 2026-09-06 — T1 baseline, recorded before any rename or comment edit: toolkit EditMode 721
+  discovered / 717 passing (1 pre-existing `Conformance_A_AsmdefReferenceLists_MatchSection13Exactly`
+  drift — `DotsAnimationToolkit.Editor.asmdef` carries an extra `Unity.RenderPipelines.Universal.Runtime`
+  reference not in the test's table, unrelated to A69 — plus the 3 new `Conformance_F`/`G`/`H`
+  failures, intentionally red); toolkit PlayMode 261/261; `StitchPunk.Tests` 59/59;
+  `StitchPunk.Tests.PlayMode` 7/7. `Conformance_F` reports 3,501 total hits (50 shown, capped).
+  `Conformance_G` fails on the nine §2.1 renames only, after the T1 allowlist fix above.
+  `Conformance_H` fails on the four of five `Runtime/Api/` classes §2.1 already predicted.
