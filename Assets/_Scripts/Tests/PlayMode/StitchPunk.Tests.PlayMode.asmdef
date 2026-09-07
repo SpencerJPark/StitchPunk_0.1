@@ -18,6 +18,7 @@
         "StitchPunk.Generated",
         "DotsMovementToolkit.Runtime",
         "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

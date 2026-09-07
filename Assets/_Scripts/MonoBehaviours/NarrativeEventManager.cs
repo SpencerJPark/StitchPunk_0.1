@@ -57,13 +57,58 @@ public class NarrativeEventManager : MonoBehaviour
     private void Start()
     {
         BuildEventRegistry();
-        ResolveEcsReferences();
+    }
+
+    // Resolved lazily from Update, never once from Start: in a SubScene project the baked entities
+    // stream in a frame or more after Start runs, so a one-shot resolve there finds an empty world
+    // and never retries. Same shape as DialogueUIManager.TryResolveEcsReferences, found there first —
+    // silent on the ordinary "not streamed in yet" path; ReportUnresolvedEntitiesOnce below is the
+    // only thing allowed to log, and only after a real grace period.
+    private bool TryResolveEcsReferences()
+    {
+        World world = World.DefaultGameObjectInjectionWorld;
+        if (world == null || !world.IsCreated) return false;
+
+        _entityManager = world.EntityManager;
+
+        EntityQuery narrativeQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<NarrativeEventTag>());
+        EntityQuery dialogueQuery = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<DialogueManagerTag>());
+        if (narrativeQuery.IsEmpty || dialogueQuery.IsEmpty) return false;
+
+        _narrativeEntity = narrativeQuery.GetSingletonEntity();
+        _dialogueManagerEntity = dialogueQuery.GetSingletonEntity();
+
         BuildEntityRegistry();
+        return true;
+    }
+
+    private const float UnresolvedGraceSeconds = 5f;
+    private float _unresolvedSeconds;
+    private bool _hasReportedUnresolvedEntities;
+
+    // A scene that genuinely has no NarrativeEventAuthoring/DialogueManagerAuthoring looks exactly
+    // like one whose SubScene has not streamed in yet, so the complaint waits until it cannot be the
+    // second — and is said once rather than every frame. Mirrors DialogueUIManager's own guard.
+    private void ReportUnresolvedEntitiesOnce()
+    {
+        if (_hasReportedUnresolvedEntities) return;
+
+        _unresolvedSeconds += Time.unscaledDeltaTime;
+        if (_unresolvedSeconds < UnresolvedGraceSeconds) return;
+
+        _hasReportedUnresolvedEntities = true;
+        Debug.LogError(
+            "NarrativeEventManager: still no NarrativeEventTag / DialogueManagerTag entity after "
+            + UnresolvedGraceSeconds + "s. Narrative events will not run in this scene.");
     }
 
     private void Update()
     {
-        if (_narrativeEntity == Entity.Null) return;
+        if (_narrativeEntity == Entity.Null && !TryResolveEcsReferences())
+        {
+            ReportUnresolvedEntitiesOnce();
+            return;
+        }
         if (!_entityManager.IsComponentEnabled<OnNarrativeEvent>(_narrativeEntity)) return;
 
         // Read and immediately consume the signal so it fires exactly once.
@@ -95,20 +140,6 @@ public class NarrativeEventManager : MonoBehaviour
         }
     }
 
-    private void ResolveEcsReferences()
-    {
-        World world = World.DefaultGameObjectInjectionWorld;
-        if (world == null)
-        {
-            Debug.LogError("NarrativeEventManager: No default DOTS world found.");
-            return;
-        }
-
-        _entityManager = world.EntityManager;
-        _narrativeEntity       = GetRequiredSingleton<NarrativeEventTag>("NarrativeEventAuthoring");
-        _dialogueManagerEntity = GetRequiredSingleton<DialogueManagerTag>("DialogueManagerAuthoring");
-    }
-
     private void BuildEntityRegistry()
     {
         _entityRegistry = new Dictionary<int, Entity>();
@@ -126,22 +157,6 @@ public class NarrativeEventManager : MonoBehaviour
         }
         entities.Dispose();
         entityIdQuery.Dispose();
-    }
-
-    private Entity GetRequiredSingleton<T>(string authoringName) where T : unmanaged, IComponentData
-    {
-        EntityQuery query = _entityManager.CreateEntityQuery(ComponentType.ReadOnly<T>());
-        if (query.IsEmpty)
-        {
-            Debug.LogError($"NarrativeEventManager: No entity with {typeof(T).Name} found. " +
-                           $"Add a {authoringName} component to the scene.");
-            query.Dispose();
-            return Entity.Null;
-        }
-
-        Entity result = query.GetSingletonEntity();
-        query.Dispose();
-        return result;
     }
 
     // ------------------------------------------------------------------

@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed12abbf37cce924999d9770f7ab47d3, type: 3}
+  m_Name: NarrativeEvent_RendezvousTest
+  m_EditorClassIdentifier: StitchPunk.Data::NarrativeEventSO
+  eventId: 1
+  blockPlayerInput: 0
+  groups:
+  - groupName: Play Rendezvous And Depart
+    actions:
+    - rid: 8430509975573889102
+  references:
+    version: 2
+    RefIds:
+    - rid: 8430509975573889102
+      type: {class: PlayCutsceneAction, ns: , asm: StitchPunk.Data}
+      data:
+        targetEntityId: -1
+        cutscene: {fileID: 11400000, guid: 8b6cbc2f64727b64c9e4ab5cdb530498, type: 2}
+        layer: 2
+        speed: 1
+        waitForCompletion: 1
+        overrides: []

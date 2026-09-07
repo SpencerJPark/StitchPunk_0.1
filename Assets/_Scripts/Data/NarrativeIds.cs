@@ -17,9 +17,12 @@ public static class NarrativeIds
     {
         public const int None = -1;
 
+        /// <summary>G3 acceptance cutscene ("Rendezvous and Depart"), fired from CutsceneDebugTrigger.</summary>
+        public const int RendezvousTest = 1;
+
         // Add one constant per NarrativeEventSO asset you create. Example:
-        // public const int HeadmasterDeath = 1;
-        // public const int LabDoorOpens    = 2;
+        // public const int HeadmasterDeath = 2;
+        // public const int LabDoorOpens    = 3;
     }
 
     /// <summary>

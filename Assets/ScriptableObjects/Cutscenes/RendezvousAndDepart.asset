@@ -1,0 +1,353 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa76dfa59491ed241b6458959d0c55e3, type: 3}
+  m_Name: RendezvousAndDepart
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.CutsceneAsset
+  stableId: 6160415604502939356
+  sceneGuid: 0b34cb0768f070741990d8d5a5dfa9e2
+  scenePath: Assets/Scenes/SubScenes/DOTSTestScene.unity
+  slots:
+  - name: Player
+    slotId: 1954679622
+    kind: 1
+    rig: {fileID: 0}
+    clipSets: []
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks: []
+    transformKeys: []
+    facingKeys: []
+    partTracks: []
+    attachMarkers:
+    - time: 0.2
+      kind: 0
+      hostSlotId: 957824830
+      socketId: 0
+      localOffset:
+        x: 0
+        y: 0.6
+        z: -0.8
+      localEulerDegrees:
+        x: 0
+        y: 0
+        z: 0
+      hideWhileAttached: 0
+      detachImpulse:
+        x: 0
+        y: 0
+        z: 0
+    - time: 6.6
+      kind: 1
+      hostSlotId: 957824830
+      socketId: 0
+      localOffset:
+        x: 0
+        y: 0
+        z: 0
+      localEulerDegrees:
+        x: 0
+        y: 0
+        z: 0
+      hideWhileAttached: 0
+      detachImpulse:
+        x: 0
+        y: 0
+        z: 0
+    markKeys:
+    - time: 0
+      position:
+        x: 1.2
+        y: 0
+        z: -1.5
+      facingDegrees: 130
+      toleranceMeters: 0.9
+      timeoutSeconds: 20
+      previewTravelSeconds: 2
+  - name: MinionA
+    slotId: 2974429593
+    kind: 0
+    rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+    clipSets:
+    - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks:
+    - clipId: 17929205651740358465
+      start: 0
+      duration: 21
+      loop: 1
+      speed: 1
+      clipStartOffsetSeconds: 0
+    transformKeys: []
+    facingKeys: []
+    partTracks: []
+    attachMarkers:
+    - time: 0.2
+      kind: 0
+      hostSlotId: 957824830
+      socketId: 0
+      localOffset:
+        x: -1
+        y: 0.5
+        z: -0.3
+      localEulerDegrees:
+        x: 0
+        y: 0
+        z: 0
+      hideWhileAttached: 1
+      detachImpulse:
+        x: 0
+        y: 0
+        z: 0
+    - time: 6.6
+      kind: 1
+      hostSlotId: 957824830
+      socketId: 0
+      localOffset:
+        x: 0
+        y: 0
+        z: 0
+      localEulerDegrees:
+        x: 0
+        y: 0
+        z: 0
+      hideWhileAttached: 0
+      detachImpulse:
+        x: 0
+        y: 0
+        z: 0
+    markKeys:
+    - time: 0
+      position:
+        x: -1.2
+        y: 0
+        z: -1
+      facingDegrees: 60
+      toleranceMeters: 0.9
+      timeoutSeconds: 20
+      previewTravelSeconds: 2
+  - name: MinionB
+    slotId: 3350995685
+    kind: 0
+    rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+    clipSets:
+    - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks:
+    - clipId: 17929205651740358465
+      start: 0
+      duration: 21
+      loop: 1
+      speed: 1
+      clipStartOffsetSeconds: 0
+    transformKeys: []
+    facingKeys: []
+    partTracks: []
+    attachMarkers:
+    - time: 0.2
+      kind: 0
+      hostSlotId: 957824830
+      socketId: 0
+      localOffset:
+        x: 1
+        y: 0.5
+        z: -0.3
+      localEulerDegrees:
+        x: 0
+        y: 0
+        z: 0
+      hideWhileAttached: 1
+      detachImpulse:
+        x: 0
+        y: 0
+        z: 0
+    - time: 6.6
+      kind: 1
+      hostSlotId: 957824830
+      socketId: 0
+      localOffset:
+        x: 0
+        y: 0
+        z: 0
+      localEulerDegrees:
+        x: 0
+        y: 0
+        z: 0
+      hideWhileAttached: 0
+      detachImpulse:
+        x: 0
+        y: 0
+        z: 0
+    markKeys:
+    - time: 0
+      position:
+        x: 1.2
+        y: 0
+        z: -1
+      facingDegrees: 120
+      toleranceMeters: 0.9
+      timeoutSeconds: 20
+      previewTravelSeconds: 2
+  - name: Cart
+    slotId: 957824830
+    kind: 1
+    rig: {fileID: 0}
+    clipSets: []
+    directionSet: {fileID: 0}
+    actorPrefab: {fileID: 0}
+    clipBlocks: []
+    transformKeys:
+    - time: 0.6
+      position:
+        x: 0
+        y: 0.5
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 6.6
+      position:
+        x: 0
+        y: 0.5
+        z: 12
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    facingKeys: []
+    partTracks: []
+    attachMarkers: []
+    markKeys: []
+  cameraLane:
+    keys:
+    - time: 0
+      position:
+        x: 0
+        y: 6
+        z: -8
+      rotation:
+        x: 25
+        y: 0
+        z: 0
+      fieldOfView: 60
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 0.6
+      position:
+        x: 0
+        y: 5
+        z: -6
+      rotation:
+        x: 25
+        y: 0
+        z: 0
+      fieldOfView: 60
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 4.6
+      position:
+        x: 4
+        y: 4
+        z: 6
+      rotation:
+        x: 15
+        y: -40
+        z: 0
+      fieldOfView: 60
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - time: 6.6
+      position:
+        x: 4
+        y: 4
+        z: 14
+      rotation:
+        x: 15
+        y: -40
+        z: 0
+      fieldOfView: 60
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    cutMarkers:
+    - time: 4.6
+  events:
+  - time: 0.5
+    eventKey: 19
+    intParam: 1
+    floatParam: 1
+    fireOnSkip: 0
+    holdUntilReleased: 1
+  - time: 1.6
+    eventKey: 1
+    intParam: 0
+    floatParam: 0
+    fireOnSkip: 1
+    holdUntilReleased: 0
+  holdMarkers:
+  - time: 0.1
+    holdId: Rendezvous
+    autoReleaseWhenMarksReached: 1
+  sceneBindings:
+  - sceneGuid: 0b34cb0768f070741990d8d5a5dfa9e2
+    slotBindings:
+    - slotId: 1954679622
+      globalObjectId: GlobalObjectId_V1-2-0b34cb0768f070741990d8d5a5dfa9e2-6406896981973988313-1794040442
+    - slotId: 2974429593
+      globalObjectId: GlobalObjectId_V1-2-0b34cb0768f070741990d8d5a5dfa9e2-9101195342176660511-1360139141
+    - slotId: 3350995685
+      globalObjectId: GlobalObjectId_V1-2-0b34cb0768f070741990d8d5a5dfa9e2-9101195342176660511-2025827604
+    - slotId: 957824830
+      globalObjectId: GlobalObjectId_V1-2-0b34cb0768f070741990d8d5a5dfa9e2-1436113495747078251-2110455100
