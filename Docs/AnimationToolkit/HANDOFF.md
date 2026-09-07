@@ -115,8 +115,10 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-Empty. **A68 (docs/release) was the last item in the cutscene roadmap
-(`Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md`) and closed it.**
+Empty apart from one open checkpoint. **A68 (docs/release), the last item in the cutscene roadmap
+(`Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md`), built T1-T5 and gated fully green 2026-09-07;
+stopped at its ⏸ owner checkpoint** — read `cutscene-api.md` top to bottom with the acceptance
+cutscene running beside it; anything the doc does not explain is a spec §7 entry, not a silent fix.
 
 **Cutscenes: shipped in 0.15.0 — see `Documentation~/cutscenes.md`; open items in
 `Cutscene_Roadmap.md` §7 if any.**

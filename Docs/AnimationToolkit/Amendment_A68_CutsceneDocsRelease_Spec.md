@@ -1,6 +1,6 @@
 # Amendment A68 — Cutscene Docs, API Reference, Sample, Release
 
-> **Status:** ✅ spec, not built. Written 2026-09-04.
+> **Status:** T1-T5 and full suites built and gated green 2026-09-07; stopped at its ⏸ owner checkpoint. Written 2026-09-04.
 > **Roadmap:** `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` — read its §4 protocol first.
 > **Depends on:** everything (A61–A67, G1–G3). Last in the queue.
 > **Session budget:** one Sonnet session. Documentation, one compile-checked sample, a version bump. No runtime changes — if you find a bug here, log it in §7 and stop; do not fix it inside a docs amendment.
