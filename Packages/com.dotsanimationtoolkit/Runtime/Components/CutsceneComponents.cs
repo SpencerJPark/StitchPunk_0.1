@@ -111,6 +111,8 @@ namespace DotsAnimationToolkit
         public float activeBlockSpeed; // active block's authored speed; a later host SetSpeed multiplies it rather than replacing it; 1 while nothing plays
 
         public bool hasOutstandingMark; // ordered to a mark not yet reached; while set this slot's root lane is ignored. Survives a hold.
+
+        public bool hasEverDetached; // true once this slot has finished at least one ride. The flat root lane's only real content is the pre-ride pickup key (CutsceneMarkMerge), so once a ride ends it is permanently ignored rather than resumed — resuming it would snap the rider back to where it was picked up.
     }
 
     /// <summary>

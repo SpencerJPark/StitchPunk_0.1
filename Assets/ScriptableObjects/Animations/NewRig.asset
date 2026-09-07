@@ -217,7 +217,25 @@ MonoBehaviour:
     localPosition: {x: 0, y: 0, z: 0}
     localEulerAngles: {x: 0, y: 0, z: 0}
     previewAttachment: {fileID: 0}
-  billboardRoots: []
+  billboardRoots:
+  - displayName: MaleUnitVisual
+    stableId: 3546645462
+    address:
+      kind: 1
+      targetId: 0
+      hierarchyPath: Visual/MaleUnitVisual
+      boneName: 
+    mode: 4
+    constraintAxis:
+      x: 0
+      y: 1
+      z: 0
+    angleOffsetDegrees: 0
+    snapEnabled: 0
+    snapSteps: 8
+    snapOffsetDegrees: 0
+    clampEnabled: 0
+    clampArcDegrees: 180
   ragdollBodies: []
   ragdollSettings:
     space: 0

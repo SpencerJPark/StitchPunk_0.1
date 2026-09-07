@@ -1488,6 +1488,7 @@ Transform:
   - {fileID: 330585546}
   - {fileID: 843893102}
   - {fileID: 1298202565}
+  - {fileID: 1536734297}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &948460073
@@ -1756,6 +1757,7 @@ GameObject:
   - component: {fileID: 1306219582}
   - component: {fileID: 1306219583}
   - component: {fileID: 1306219584}
+  - component: {fileID: 1306219585}
   m_Layer: 0
   m_Name: CutsceneDebug
   m_TagString: Untagged
@@ -1791,8 +1793,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::CutsceneDebugTrigger
   narrativeEventId: 1
-  key: 4
-  skipKey: 10
+  key: 22
+  skipKey: 24
+  dumpActorStateKey: 6
   autoWalkPlayerToMark: 1
 --- !u!114 &1306219583
 MonoBehaviour:
@@ -1820,6 +1823,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f19363e82690f34393abcc890495499, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::CutsceneMarkDebugVisualizer
+--- !u!114 &1306219585
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1306219580}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f34444f6532799840be87f35bb8dc42e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::CutsceneCameraBridge
 --- !u!4 &1378997545 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8213933009921552898, guid: af00876333d15584da2cd4c777ae644b, type: 3}
@@ -1852,6 +1867,23 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4885964276552238319, guid: 3f2fd013933a40b4db2ab2df37b5e23b, type: 3}
   m_PrefabInstance: {fileID: 1675325792199162786}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1498997198 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1463725844359835705, guid: 83c0f09124c31cf42821f4a3ae16ed77, type: 3}
+  m_PrefabInstance: {fileID: 8214470334346484115}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1498997200
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1498997198}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8810fbfe39df694d976301c8e55c5e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::AnimationToolkitCameraBridge
 --- !u!1001 &1521804940
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1933,6 +1965,81 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 03861dfc8d00abd459062d3c6f074f07, type: 3}
+--- !u!1 &1536734296
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1536734297}
+  - component: {fileID: 1536734298}
+  m_Layer: 0
+  m_Name: CutsceneCinemachine
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1536734297
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1536734296}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -3.64442, y: 5.7146363, z: -14.327595}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 947815299}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1536734298
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1536734296}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9dfa5b682dcd46bda6128250e975f58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineCamera
+  Priority:
+    Enabled: 0
+    m_Value: 0
+  OutputChannel: 1
+  StandbyUpdate: 2
+  m_StreamingVersion: 20241001
+  m_LegacyPriority: 0
+  Target:
+    TrackingTarget: {fileID: 0}
+    LookAtTarget: {fileID: 0}
+    CustomLookAtTarget: 0
+  Lens:
+    FieldOfView: 40
+    OrthographicSize: 10
+    NearClipPlane: 0.1
+    FarClipPlane: 5000
+    Dutch: 0
+    ModeOverride: 0
+    PhysicalProperties:
+      GateFit: 2
+      SensorSize: {x: 21.946, y: 16.002}
+      LensShift: {x: 0, y: 0}
+      FocusDistance: 10
+      Iso: 200
+      ShutterSpeed: 0.005
+      Aperture: 16
+      BladeCount: 5
+      Curvature: {x: 2, y: 11}
+      BarrelClipping: 0.25
+      Anamorphism: 0
+  BlendHint: 0
 --- !u!224 &1558628099 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 846241076848026433, guid: 3b8ce4ae8bd53dc4ea03c69e66d7786b, type: 3}
@@ -3933,6 +4040,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 505783092}
     - target: {fileID: 9128364925104021981, guid: 83c0f09124c31cf42821f4a3ae16ed77, type: 3}
+      propertyPath: cutsceneCam
+      value: 
+      objectReference: {fileID: 1536734298}
+    - target: {fileID: 9128364925104021981, guid: 83c0f09124c31cf42821f4a3ae16ed77, type: 3}
       propertyPath: playerZoomCam
       value: 
       objectReference: {fileID: 1378997549}
@@ -3943,7 +4054,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1463725844359835705, guid: 83c0f09124c31cf42821f4a3ae16ed77, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1498997200}
   m_SourcePrefab: {fileID: 100100000, guid: 83c0f09124c31cf42821f4a3ae16ed77, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

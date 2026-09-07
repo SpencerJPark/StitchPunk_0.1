@@ -884,6 +884,7 @@ namespace DotsAnimationToolkit
             slotState.attachedHostSlotIndex = -1;
             slotState.attachedSocketId = 0u;
             slotState.isHiddenByAttachment = false;
+            slotState.hasEverDetached = true;
         }
 
         private static void ApplyPendingAttachOps(
@@ -1284,6 +1285,16 @@ namespace DotsAnimationToolkit
                 // the transform, and the merged arrival key must not drag it along the rehearsed
                 // path while the real walk is still happening.
                 if (slotStates[slotIndex].hasOutstandingMark)
+                {
+                    continue;
+                }
+
+                // A slot that has ever finished a ride never gets its root lane back. The flat
+                // lane's only real content is the single pre-ride pickup key CutsceneMarkMerge folds
+                // in (nothing is ever authored for "while riding" or "after being dropped off", since
+                // that motion belongs to the host) — resampling it post-detach would snap the rider
+                // back to where it was picked up, on top of whatever ApplyDetach correctly placed it at.
+                if (slotStates[slotIndex].hasEverDetached)
                 {
                     continue;
                 }

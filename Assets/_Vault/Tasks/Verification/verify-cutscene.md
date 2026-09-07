@@ -151,8 +151,66 @@ capture with real actors — write the measured ms here once done: **_____ ms**.
 
 ---
 
+## Session update (2026-09-07, second pass) — three real bugs found and fixed, checklist not yet re-walked clean
+
+The owner ran the checklist against the H/backslash/semicolon build above and found four things
+wrong. Three were real, confirmed via `execute_code` live driving (not just read from source), and
+are fixed. The fourth needs a clean checklist walk to confirm.
+
+- **No camera follow — fixed.** `CutsceneCameraBridge` (the only reader of the toolkit's
+  `CutsceneCameraPose` singleton) existed only in the old `CutsceneG1Checkpoint.unity`, never added
+  to `TestArea.unity`. `CameraManager.cutsceneCam` was also never wired to an actual vcam in either
+  scene (the field was added to `CameraManager.cs` after the prefab was last saved). Added a new
+  `CutsceneCinemachine` vcam under `View/` (no Follow/RotationComposer — the bridge owns its
+  transform directly) wired to `cutsceneCam`, and added `CutsceneCameraBridge` onto
+  `Managers/CutsceneDebug` next to `CutsceneDebugTrigger`, in `TestArea.unity`.
+- **Riders reappear at the pickup mark instead of the cart's stop — fixed, took two tries.**
+  Root cause in `CutsceneTimelineSystem` (`com.dotsanimationtoolkit`): a rider's own root-key lane
+  (`CutsceneMarkMerge`) only ever holds one merged key, sitting at the pre-ride pickup mark — nothing
+  is ever authored for "while riding" or "after being dropped off," since that motion belongs to the
+  host. `ApplyPose`'s skip-check (`attachedHostSlotIndex >= 0`) only protects a slot *while* attached;
+  the first fix attempt only suppressed resampling for the exact detach frame, but every frame *after*
+  detach still resampled that same stale key and re-corrupted the position. Real fix: a persistent
+  `hasEverDetached` flag on `CutsceneSlotRuntimeState`, set once in `ApplyMarkerToSlotState` on Detach,
+  checked in `ApplyPose` — once a slot has ever finished a ride, its root lane is retired for the rest
+  of the cutscene. Verified live: player and both minions land within ~1-2 units of the cart's actual
+  stop, not the pickup marks.
+- **10-20s delay before control returns — fixed, was real, not a camera-confusion illusion.**
+  `RendezvousAndDepart.asset`'s MinionA/MinionB walk-cycle clip block was authored with
+  `duration = 21` (should be ~6.6, matching the actual ride). Segment length is driven by the
+  *longest* thing authored in it (`CutsceneBlobBuilder.ComputeContentEndSeconds`), so this dragged the
+  whole final segment out to 20.5s regardless of when the cart visually stops. Fixed the two clip
+  blocks to `duration = 6.6`; final segment is now 6.1s. This also explains why the position fix
+  looked broken on the first retest: with ~14 seconds of needless extra segment time, normal AI
+  wander had already carried the minions far from the drop-off point before anyone looked.
+- **Billboarding never on — fixed, but this is a standing project-wide gap, not a cutscene bug.**
+  `AnimationToolkitCameraData` (the singleton `BillboardResolveSystem` requires to run at all) was
+  never written anywhere in the project — confirmed live, zero entities carried it, in or out of the
+  cutscene. This exact gap was flagged in `Assets/_Vault/Tasks/Verification/verify-billboarding.md`
+  on 2026-08-17 (`ToolkitCameraSync` did it for the deleted demo scenes; "the real game will need its
+  own writer when the toolkit is eventually adopted") and never closed when MaleCitizen was migrated
+  onto the toolkit's rig. Added `AnimationToolkitCameraBridge.cs`
+  (`Assets/_Scripts/MonoBehaviours/Managers/`), writing `position`/`forward` from `Camera.main` every
+  `LateUpdate` — `Camera.main` already reflects whichever Cinemachine vcam is blended in, so one
+  writer covers every camera. Wired onto `CameraManager` in `TestArea.unity`. Verified live:
+  `resolvedRotation` on both minions' `MaleUnitVisual` billboard root is now a real, non-identity,
+  camera-tracking value. Incidentally, `NewRig.asset`'s `MaleUnitVisual` billboard root entry
+  (stableId 3546645462, ScreenAligned) was sitting dirty-but-unsaved in the Editor before this
+  session — a blanket `AssetDatabase.SaveAssets()` call made while fixing the clip-duration bug
+  flushed it to disk as a side effect. Not something this session authored, but it is real, wanted
+  data (it's exactly what the billboard bridge fix needed to have something to rotate), not a
+  regression.
+
+**Not yet done: a clean, full checklist walk-through with all four fixes in place.** Every fix above
+was verified individually and live (via `execute_code`, not the owner's own play-test), but nobody
+has walked all 10 checklist steps end-to-end since. That's the next concrete step — see the handoff
+prompt below.
+
 ## Next work
 
-1. Whatever this checklist turns up — each failure goes to the spec that owns it (see the roadmap's
-   `Cutscene_Roadmap.md` §3 table).
+1. **Walk the full 10-step checklist above, clean, with all four fixes in place.** Should take ~10-15s
+   of cutscene runtime now instead of ~30s (delay fix). Log any NEW failure against the spec that owns
+   it (roadmap's `Cutscene_Roadmap.md` §3 table) — everything above is fixed, not guessed at, but this
+   session verified pieces individually via `execute_code`, never the whole thing back-to-back through
+   the real `H` key with a human watching.
 2. **A68** — docs/release amendment, next on the critical path once this checklist passes.
