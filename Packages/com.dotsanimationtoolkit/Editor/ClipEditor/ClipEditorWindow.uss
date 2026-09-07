@@ -1470,9 +1470,12 @@
     margin-left: 8px;
 }
 
+/* A cast row is one line at rest — dot, name, kind chip, then Place/Bind/Select/Frame. The bind
+   field below it is opened by the Bind button and is display:none until then, so a panel narrow
+   enough to sit beside the viewport still lists the whole cast without scrolling. */
 .cutscene-editor__cast-row {
-    margin-bottom: 4px;
-    padding: 3px 4px;
+    margin-bottom: 2px;
+    padding: 1px 2px 1px 4px;
     border-radius: 3px;
     border-left-width: 3px;
     border-left-color: rgba(0, 0, 0, 0);
@@ -1481,4 +1484,95 @@
 .cutscene-editor__cast-row--selected {
     background-color: rgba(61, 96, 133, 0.5);
     border-left-color: rgb(88, 148, 216);
+}
+
+.cutscene-editor__cast-line {
+    flex-direction: row;
+    align-items: center;
+    min-height: 20px;
+}
+
+/* The clickable half. It takes the slack so the buttons stay pinned right, and it clips rather
+   than pushing them off the edge when the panel is narrow. */
+.cutscene-editor__cast-identity {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+}
+
+.cutscene-editor__cast-dot {
+    width: 14px;
+    flex-shrink: 0;
+    font-size: 11px;
+    -unity-text-align: middle-center;
+}
+
+.cutscene-editor__cast-dot--bound   { color: rgb(115, 217, 115); }
+.cutscene-editor__cast-dot--broken  { color: rgb(242, 140, 77); }
+.cutscene-editor__cast-dot--unbound { color: rgb(153, 153, 166); }
+
+.cutscene-editor__cast-name {
+    font-size: 11px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    color: rgb(215, 215, 215);
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Actor or Prop, in the same accent the row's group header wears in the timeline. */
+.cutscene-editor__cast-chip {
+    font-size: 9px;
+    -unity-text-align: middle-center;
+    flex-shrink: 0;
+    margin-left: 4px;
+    padding: 0 4px;
+    border-width: 1px;
+    border-radius: 2px;
+    opacity: 0.85;
+}
+
+.cutscene-editor__cast-chip--actor {
+    color: rgb(88, 148, 216);
+    border-color: rgba(88, 148, 216, 0.55);
+}
+
+.cutscene-editor__cast-chip--prop {
+    color: rgb(120, 190, 120);
+    border-color: rgba(120, 190, 120, 0.55);
+}
+
+.cutscene-editor__cast-button {
+    width: 20px;
+    height: 18px;
+    min-width: 20px;
+    flex-shrink: 0;
+    padding: 0;
+    margin: 0 0 0 1px;
+    justify-content: center;
+    align-items: center;
+}
+
+/* The width cap is dropped only when the icon failed to resolve and the button fell back to its
+   word — a squeezed cast row beats a row of blank buttons. */
+.cutscene-editor__cast-button--text {
+    width: auto;
+    min-width: 0;
+    padding: 0 4px;
+    font-size: 9px;
+}
+
+.cutscene-editor__cast-icon {
+    width: 14px;
+    height: 14px;
+}
+
+.cutscene-editor__cast-bind-field {
+    margin-top: 1px;
+    margin-bottom: 2px;
+    padding-left: 14px;
 }

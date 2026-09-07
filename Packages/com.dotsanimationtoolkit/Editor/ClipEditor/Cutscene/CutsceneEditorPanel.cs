@@ -180,11 +180,9 @@ namespace DotsAnimationToolkit.Editor
             centerColumn.Add(BuildViewportArea());
 
             inspectorScroll = new ScrollView(ScrollViewMode.Vertical);
+            inspectorScroll.AddToClassList("clip-editor__inspector");
             inspectorScroll.style.width = 300f;
             inspectorScroll.style.flexShrink = 0f;
-            inspectorScroll.style.paddingLeft = 6f;
-            inspectorScroll.style.paddingRight = 6f;
-            inspectorScroll.style.paddingTop = 6f;
             centerColumn.Add(inspectorScroll);
 
             TwoPaneSplitView castSplit = new TwoPaneSplitView(0, 220f, TwoPaneSplitViewOrientation.Horizontal);
@@ -4389,9 +4387,7 @@ namespace DotsAnimationToolkit.Editor
         private static Label BuildHeading(string text)
         {
             Label heading = new Label(text);
-            heading.style.unityFontStyleAndWeight = FontStyle.Bold;
-            heading.style.marginTop = 4f;
-            heading.style.marginBottom = 4f;
+            heading.AddToClassList("clip-editor__heading");
             return heading;
         }
     }

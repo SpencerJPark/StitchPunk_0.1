@@ -49,7 +49,7 @@ Free camera: right-drag look, WASD/QE fly with Shift boost, scroll dolly, **F** 
 - [x] **T1 — Click-select (§3.1).** Live proof: two bound objects, simulate a pointer-down at the projected pixel of each (project via `utilityCamera.WorldToScreenPoint`), assert the matching slot header lights.
 - [x] **T2 — In-viewport gizmo + Key (§3.2).** Live proof: select a slot, gizmo appears at the object; drive a drag through the routing math by reflection, assert the transform moved, press Key, assert the key.
 - [x] **T3 — Frozen header column (§3.3).** **[parallel-safe with T4]** Live proof: scroll the lanes horizontally, headers stay; scroll vertically, both move; capture before/after per A60 §1.
-- [ ] **T4 — Cast compaction + inspector styling (§3.4).** **[parallel-safe with T3]** Capture before/after.
+- [x] **T4 — Cast compaction + inspector styling (§3.4).** **[parallel-safe with T3]** Capture before/after.
 - [ ] **T5 — Navigation parity + zoom-to-playhead (§3.5).**
 - [ ] **T6 — Docs.** `cutscenes.md` viewport/navigation subsection; remove the "header column scrolls" Known-gaps line. CHANGELOG, HANDOFF §4 (the A59/A60 backlog closes here — say so).
 - [ ] **⏸ Owner checkpoint.** Without opening the Scene view: place two actors from the cast panel, click one in the viewport, move it with W, press Key, scrub, box-select in the timeline while the headers stay put.

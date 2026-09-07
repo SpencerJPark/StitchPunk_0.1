@@ -20,9 +20,18 @@ namespace DotsAnimationToolkit.Editor
             Broken
         }
 
+        private const string PlaceIconName = "d_Toolbar Plus";
+        private const string BindIconName = "d_Linked";
+        private const string SelectIconName = "d_UnityEditor.SceneHierarchyWindow";
+        private const string FrameIconName = "d_ViewToolZoom";
+
         private readonly VisualElement rowsContainer = new VisualElement();
         private readonly Label stageStatusLabel = new Label();
         private readonly Button syncToStageButton;
+
+        // Slot indices whose bind field the author opened. Survives Rebuild so a rebuild triggered
+        // from elsewhere does not close the field out from under a drag-and-drop.
+        private readonly HashSet<int> slotIndicesShowingBindField = new HashSet<int>();
 
         /// <summary>Raised with the slot index whose prefab should be instantiated and bound.</summary>
         public event Action<int> PlaceRequested;
@@ -89,10 +98,14 @@ namespace DotsAnimationToolkit.Editor
 
             if (cutscene == null || cutscene.slots == null || cutscene.slots.Count == 0)
             {
+                slotIndicesShowingBindField.Clear();
                 rowsContainer.Add(new Label("No slots yet — add an Actor or Prop slot.")
                 { style = { whiteSpace = WhiteSpace.Normal } });
                 return;
             }
+
+            int slotCount = cutscene.slots.Count;
+            slotIndicesShowingBindField.RemoveWhere(openSlotIndex => openSlotIndex >= slotCount);
 
             bool sceneMatches = !string.IsNullOrEmpty(cutscene.sceneGuid)
                 && currentSceneGuid == cutscene.sceneGuid;
@@ -103,7 +116,7 @@ namespace DotsAnimationToolkit.Editor
                 { style = { whiteSpace = WhiteSpace.Normal, marginBottom = 6f } });
             }
 
-            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
             {
                 CutsceneSlot slot = cutscene.slots[slotIndex];
                 if (slot == null)
@@ -128,31 +141,42 @@ namespace DotsAnimationToolkit.Editor
             GameObject boundObject;
             BindingState state = ResolveBindingState(cutscene, currentSceneGuid, slot, out boundObject);
 
-            VisualElement titleRow = new VisualElement();
-            titleRow.style.flexDirection = FlexDirection.Row;
-            titleRow.style.alignItems = Align.Center;
-            // Registered on the title row only, not the whole row: the row also hosts the Bind
-            // ObjectField and the Place/Select/Frame buttons, and a pointer-down anywhere in them
-            // bubbles up just the same. Selecting on every such click tore the whole cast panel down
-            // mid-interaction (SelectSlotHeader -> RefreshCastPanel -> Rebuild), which destroyed the
-            // ObjectField before a drag-and-drop or picker assignment could commit, and repeatedly
-            // rebuilt the slot inspector's fields under an in-progress interaction there too.
-            titleRow.RegisterCallback<PointerDownEvent>(_ => SlotSelected?.Invoke(capturedIndex));
+            VisualElement line = new VisualElement();
+            line.AddToClassList("cutscene-editor__cast-line");
+
+            VisualElement identity = new VisualElement();
+            identity.AddToClassList("cutscene-editor__cast-identity");
+            // Registered on the identity half only, not the whole line: a pointer-down on the
+            // buttons bubbles up just the same, and selecting on every such click tore the whole
+            // cast panel down mid-interaction (SelectSlotHeader -> RefreshCastPanel -> Rebuild),
+            // destroying the bind field before a drag-and-drop could commit.
+            identity.RegisterCallback<PointerDownEvent>(_ => SlotSelected?.Invoke(capturedIndex));
 
             Label stateDot = new Label(StateGlyph(state));
-            stateDot.style.color = StateColor(state);
-            stateDot.style.width = 16f;
-            stateDot.tooltip = StateTooltip(state);
-            titleRow.Add(stateDot);
+            stateDot.AddToClassList("cutscene-editor__cast-dot");
+            stateDot.AddToClassList(StateDotModifierClass(state));
+            stateDot.tooltip = StateTooltip(state, boundObject);
+            identity.Add(stateDot);
 
             Label nameLabel = new Label(slot.name);
-            nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            titleRow.Add(nameLabel);
+            nameLabel.AddToClassList("cutscene-editor__cast-name");
+            nameLabel.tooltip = slot.name;
+            identity.Add(nameLabel);
 
-            Label kindLabel = new Label("  (" + slot.kind + ")");
-            kindLabel.style.color = new Color(0.68f, 0.68f, 0.72f);
-            titleRow.Add(kindLabel);
-            row.Add(titleRow);
+            Label kindChip = new Label(slot.kind.ToString());
+            kindChip.AddToClassList("cutscene-editor__cast-chip");
+            kindChip.AddToClassList(slot.kind == CutsceneSlotKind.Prop
+                ? "cutscene-editor__cast-chip--prop"
+                : "cutscene-editor__cast-chip--actor");
+            identity.Add(kindChip);
+
+            line.Add(identity);
+
+            VisualElement bindFieldRow = new VisualElement();
+            bindFieldRow.AddToClassList("cutscene-editor__cast-bind-field");
+            bindFieldRow.style.display = slotIndicesShowingBindField.Contains(slotIndex)
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
 
             ObjectField bindField = new ObjectField
             {
@@ -163,33 +187,105 @@ namespace DotsAnimationToolkit.Editor
             bindField.SetEnabled(sceneMatches);
             bindField.RegisterValueChangedCallback(
                 changeEvent => BindRequested?.Invoke(capturedIndex, changeEvent.newValue as GameObject));
-            row.Add(bindField);
+            bindFieldRow.Add(bindField);
 
-            VisualElement actionRow = new VisualElement();
-            actionRow.style.flexDirection = FlexDirection.Row;
-            actionRow.style.marginTop = 2f;
-
-            Button placeButton = new Button(() => PlaceRequested?.Invoke(capturedIndex)) { text = "Place" };
-            placeButton.tooltip = slot.actorPrefab == null
-                ? "Assign an Actor Prefab on the slot first — Place instantiates it into the scene "
-                    + "and binds it."
-                : "Instantiates '" + slot.actorPrefab.name + "' at the Scene view pivot and binds it "
-                    + "to this slot.";
+            Button placeButton = BuildIconButton(
+                () => PlaceRequested?.Invoke(capturedIndex), PlaceIconName, "Place",
+                slot.actorPrefab == null
+                    ? "Place: assign an Actor Prefab on the slot first — Place instantiates it into "
+                        + "the scene and binds it."
+                    : "Place: instantiates '" + slot.actorPrefab.name + "' at the Scene view pivot "
+                        + "and binds it to this slot.");
             // Placing over a live binding is how a slot silently ends up with two actors in the
             // scene and only one of them animating.
             placeButton.SetEnabled(sceneMatches && slot.actorPrefab != null && boundObject == null);
-            actionRow.Add(placeButton);
+            line.Add(placeButton);
 
-            Button selectButton = new Button(() => SlotSelected?.Invoke(capturedIndex)) { text = "Select" };
+            Button bindButton = BuildIconButton(
+                () => ToggleBindField(capturedIndex, bindFieldRow), BindIconName, "Bind",
+                "Bind: opens this slot's object field — drag a scene object in to bind it, or clear "
+                + "the field to unbind.");
+            bindButton.SetEnabled(sceneMatches);
+            line.Add(bindButton);
+
+            Button selectButton = BuildIconButton(
+                () => SlotSelected?.Invoke(capturedIndex), SelectIconName, "Select",
+                "Select: selects this slot's bound object, in the timeline and in the hierarchy.");
             selectButton.SetEnabled(boundObject != null);
-            actionRow.Add(selectButton);
+            line.Add(selectButton);
 
-            Button frameButton = new Button(() => FrameRequested?.Invoke(capturedIndex)) { text = "Frame" };
+            Button frameButton = BuildIconButton(
+                () => FrameRequested?.Invoke(capturedIndex), FrameIconName, "Frame",
+                "Frame: points the Scene view camera at this slot's bound object.");
             frameButton.SetEnabled(boundObject != null);
-            actionRow.Add(frameButton);
+            line.Add(frameButton);
 
-            row.Add(actionRow);
+            row.Add(line);
+            row.Add(bindFieldRow);
             return row;
+        }
+
+        // Shows or hides one row's bind field in place. Never rebuilds the panel: a rebuild here
+        // would destroy the field the author just asked for.
+        private void ToggleBindField(int slotIndex, VisualElement bindFieldRow)
+        {
+            bool shouldShow = !slotIndicesShowingBindField.Contains(slotIndex);
+            if (shouldShow)
+            {
+                slotIndicesShowingBindField.Add(slotIndex);
+            }
+            else
+            {
+                slotIndicesShowingBindField.Remove(slotIndex);
+            }
+            bindFieldRow.style.display = shouldShow ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        private static Button BuildIconButton(
+            Action onClick, string iconName, string fallbackText, string tooltip)
+        {
+            Button button = new Button(onClick) { tooltip = tooltip };
+            button.AddToClassList("cutscene-editor__cast-button");
+
+            Texture iconTexture = LoadEditorIconTexture(iconName);
+            if (iconTexture == null)
+            {
+                // A built-in icon name that stops resolving must cost the author the picture, never
+                // the button.
+                button.text = fallbackText;
+                button.AddToClassList("cutscene-editor__cast-button--text");
+                return button;
+            }
+
+            Image icon = new Image { image = iconTexture, pickingMode = PickingMode.Ignore };
+            icon.AddToClassList("cutscene-editor__cast-icon");
+            button.Add(icon);
+            return button;
+        }
+
+        private static Texture LoadEditorIconTexture(string iconName)
+        {
+            Texture darkSkinTexture = LoadEditorIconTextureByExactName(iconName);
+            if (darkSkinTexture != null || !iconName.StartsWith("d_", StringComparison.Ordinal))
+            {
+                return darkSkinTexture;
+            }
+            // Not every built-in icon ships a dark-skin variant, and asking for one that does not
+            // exist yields nothing rather than the light original.
+            return LoadEditorIconTextureByExactName(iconName.Substring(2));
+        }
+
+        private static Texture LoadEditorIconTextureByExactName(string iconName)
+        {
+            try
+            {
+                GUIContent iconContent = EditorGUIUtility.IconContent(iconName);
+                return iconContent != null ? iconContent.image : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         private static BindingState ResolveBindingState(
@@ -219,25 +315,28 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private static Color StateColor(BindingState state)
+        private static string StateDotModifierClass(BindingState state)
         {
             switch (state)
             {
                 case BindingState.Bound:
-                    return new Color(0.45f, 0.85f, 0.45f);
+                    return "cutscene-editor__cast-dot--bound";
                 case BindingState.Broken:
-                    return new Color(0.95f, 0.55f, 0.3f);
+                    return "cutscene-editor__cast-dot--broken";
                 default:
-                    return new Color(0.6f, 0.6f, 0.65f);
+                    return "cutscene-editor__cast-dot--unbound";
             }
         }
 
-        private static string StateTooltip(BindingState state)
+        private static string StateTooltip(BindingState state, GameObject boundObject)
         {
             switch (state)
             {
                 case BindingState.Bound:
-                    return "Bound to a live object in this scene.";
+                    // The row no longer shows the object field, so the dot is where the bound
+                    // object's name lives.
+                    return "Bound to '" + (boundObject != null ? boundObject.name : string.Empty)
+                        + "' in this scene.";
                 case BindingState.Broken:
                     return "Bound to an object this scene no longer has — re-bind or place again.";
                 default:
