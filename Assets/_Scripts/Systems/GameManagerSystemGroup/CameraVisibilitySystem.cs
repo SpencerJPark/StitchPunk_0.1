@@ -76,7 +76,15 @@ public partial struct AnimVisibleMirrorJob : IJobEntity
 // Iterates rig roots (BodyPart buffer + CameraVisible). IgnoreComponentEnabledState so disabled
 // (off-screen) roots are still iterated and can be re-enabled. Root → parts is a unique pairing
 // (each part belongs to exactly one root), so parallel part writes are safe.
+//
+// CameraVisible is deliberately NOT an Execute parameter (no EnabledRefRW/RO<CameraVisible>): any
+// direct query-level access to a type also touched through a writable ComponentLookup<T> of the
+// SAME type throws "two containers may not be the same (aliasing)" at schedule time, RO or RW —
+// measured live, both ways, first surfacing 2026-09-07 once real BodyPart buffers existed to drive
+// this job for the first time. [WithAll] is presence-only filtering, no handle of its own; the
+// root's own bit is read/written through partVisibleLookup exactly like a part's.
 [BurstCompile]
+[WithAll(typeof(CameraVisible))]
 [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
 public partial struct CameraVisibilityJob : IJobEntity
 {
@@ -88,20 +96,20 @@ public partial struct CameraVisibilityJob : IJobEntity
     public float disableRadiusSq;
 
     public void Execute(
+        Entity rootEntity,
         in LocalTransform rootTransform,
-        in DynamicBuffer<BodyPart> bodyParts,
-        EnabledRefRW<CameraVisible> cameraVisibleEnabled)
+        in DynamicBuffer<BodyPart> bodyParts)
     {
         float2 offsetFromCamera = rootTransform.Position.xz - viewCenter.xz;
         float distanceSq = math.lengthsq(offsetFromCamera);
 
-        bool currentlyVisible = cameraVisibleEnabled.ValueRO;
+        bool currentlyVisible = partVisibleLookup.IsComponentEnabled(rootEntity);
         bool shouldBeVisible = currentlyVisible
             ? distanceSq <= disableRadiusSq
             : distanceSq <= enableRadiusSq;
 
         if (shouldBeVisible != currentlyVisible)
-            cameraVisibleEnabled.ValueRW = shouldBeVisible;
+            partVisibleLookup.SetComponentEnabled(rootEntity, shouldBeVisible);
 
         // Propagate to parts when the root transitioned, or when parts drifted out of sync — on the
         // spawn frame the BodyPart buffer still holds the PREFAB's part entities (refs are not

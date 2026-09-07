@@ -12,7 +12,8 @@
         "GUID:f6d3133ab89495c40a933922769e2c5c",
         "GUID:6df075a5896f0b74686d0aa5033bab69",
         "DotsMovementToolkit.Runtime",
-        "DotsAnimationToolkit.Runtime"
+        "DotsAnimationToolkit.Runtime",
+        "DotsAnimationToolkit.Authoring"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

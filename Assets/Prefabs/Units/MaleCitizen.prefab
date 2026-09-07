@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 4261450646190607030}
   - component: {fileID: 5175437925113875879}
   - component: {fileID: 63097504958467350}
-  - component: {fileID: 4448640947294592250}
   m_Layer: 0
   m_Name: Mustache
   m_TagString: Untagged
@@ -104,19 +103,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &4448640947294592250
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 611135734285851967}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &931086575458771125
 GameObject:
   m_ObjectHideFlags: 0
@@ -129,8 +115,8 @@ GameObject:
   - component: {fileID: 5156774406423417871}
   - component: {fileID: 4516035438850849657}
   - component: {fileID: 6082555596445708689}
-  - component: {fileID: 5555932285046531508}
   - component: {fileID: 1883516529480559465}
+  - component: {fileID: 6587752046333778463}
   m_Layer: 0
   m_Name: LeftFoot
   m_TagString: Untagged
@@ -222,19 +208,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &5555932285046531508
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 931086575458771125}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &1883516529480559465
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -255,6 +228,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &6587752046333778463
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 931086575458771125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 14
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &1021099851410571827
 GameObject:
   m_ObjectHideFlags: 0
@@ -357,8 +348,8 @@ GameObject:
   - component: {fileID: 6416168289099633930}
   - component: {fileID: 7786159717769186268}
   - component: {fileID: 7967261035080145879}
-  - component: {fileID: 598591333089182757}
   - component: {fileID: 5445654233600478701}
+  - component: {fileID: 8594330896188761969}
   m_Layer: 0
   m_Name: LeftHand
   m_TagString: Untagged
@@ -450,19 +441,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &598591333089182757
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1132879814373537819}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &5445654233600478701
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -483,6 +461,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &8594330896188761969
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1132879814373537819}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 5
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &1177653470753664924
 GameObject:
   m_ObjectHideFlags: 0
@@ -495,7 +491,6 @@ GameObject:
   - component: {fileID: 2201935942377582224}
   - component: {fileID: 5163746673630238130}
   - component: {fileID: 5810930460387026324}
-  - component: {fileID: 5208267745964666936}
   m_Layer: 0
   m_Name: Ear
   m_TagString: Untagged
@@ -587,19 +582,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &5208267745964666936
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177653470753664924}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &1605978085274449659
 GameObject:
   m_ObjectHideFlags: 0
@@ -612,8 +594,8 @@ GameObject:
   - component: {fileID: 3348299733697452101}
   - component: {fileID: 4206190778515886575}
   - component: {fileID: 3399102213948935319}
-  - component: {fileID: 2738671108027014714}
   - component: {fileID: 1837921646393425809}
+  - component: {fileID: 8986303755552717210}
   m_Layer: 0
   m_Name: RightUpperArm
   m_TagString: Untagged
@@ -706,19 +688,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &2738671108027014714
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1605978085274449659}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &1837921646393425809
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -739,6 +708,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &8986303755552717210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1605978085274449659}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 2
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &1712510412753938001
 GameObject:
   m_ObjectHideFlags: 0
@@ -751,7 +738,6 @@ GameObject:
   - component: {fileID: 231289823337345863}
   - component: {fileID: 2916640012416705559}
   - component: {fileID: 2824240786071226789}
-  - component: {fileID: 7464042042193868524}
   m_Layer: 0
   m_Name: Belt
   m_TagString: Untagged
@@ -843,19 +829,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &7464042042193868524
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1712510412753938001}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &1818198835163919025
 GameObject:
   m_ObjectHideFlags: 0
@@ -868,8 +841,8 @@ GameObject:
   - component: {fileID: 3919324108685814789}
   - component: {fileID: 8803525904725242249}
   - component: {fileID: 583263892950030168}
-  - component: {fileID: 2491290938818564386}
   - component: {fileID: 6017719668168628576}
+  - component: {fileID: 7459435105393305989}
   m_Layer: 0
   m_Name: RightLowerArm
   m_TagString: Untagged
@@ -962,19 +935,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &2491290938818564386
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1818198835163919025}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &6017719668168628576
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -995,6 +955,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &7459435105393305989
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1818198835163919025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 4
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &1829652459452292244
 GameObject:
   m_ObjectHideFlags: 0
@@ -1007,8 +985,8 @@ GameObject:
   - component: {fileID: 6974303368082961671}
   - component: {fileID: 1816768235529586214}
   - component: {fileID: 3559399326514361256}
-  - component: {fileID: 5108188630842897074}
   - component: {fileID: 4528846196415363747}
+  - component: {fileID: 3526783155424833461}
   m_Layer: 0
   m_Name: RightHand
   m_TagString: Untagged
@@ -1100,19 +1078,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &5108188630842897074
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1829652459452292244}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &4528846196415363747
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1133,6 +1098,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &3526783155424833461
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1829652459452292244}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 6
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &2198680534970862452
 GameObject:
   m_ObjectHideFlags: 0
@@ -1145,8 +1128,8 @@ GameObject:
   - component: {fileID: 3079883684015936876}
   - component: {fileID: 1856190966470207451}
   - component: {fileID: 7794204233358258453}
-  - component: {fileID: 1641957111775463579}
   - component: {fileID: 3957429094184113960}
+  - component: {fileID: 2642257495904657465}
   m_Layer: 0
   m_Name: Pelvis
   m_TagString: Untagged
@@ -1241,19 +1224,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &1641957111775463579
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2198680534970862452}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &3957429094184113960
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1274,6 +1244,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &2642257495904657465
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2198680534970862452}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 9
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &2699631245674403349
 GameObject:
   m_ObjectHideFlags: 0
@@ -1286,7 +1274,6 @@ GameObject:
   - component: {fileID: 7899516820478467182}
   - component: {fileID: 5012654106216557220}
   - component: {fileID: 4524878769288114675}
-  - component: {fileID: 4368196499140498301}
   m_Layer: 0
   m_Name: Nose
   m_TagString: Untagged
@@ -1378,19 +1365,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &4368196499140498301
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2699631245674403349}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &2793443842951905063
 GameObject:
   m_ObjectHideFlags: 0
@@ -1403,8 +1377,8 @@ GameObject:
   - component: {fileID: 6748020857324329699}
   - component: {fileID: 6405952512691644956}
   - component: {fileID: 5406727304966279137}
-  - component: {fileID: 4921848997313952197}
   - component: {fileID: 7545580771120369067}
+  - component: {fileID: 3685970544731547235}
   m_Layer: 0
   m_Name: LeftLowerLeg
   m_TagString: Untagged
@@ -1497,19 +1471,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &4921848997313952197
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2793443842951905063}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &7545580771120369067
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1530,6 +1491,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &3685970544731547235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2793443842951905063}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 12
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &2820428712034707050
 GameObject:
   m_ObjectHideFlags: 0
@@ -1542,7 +1521,6 @@ GameObject:
   - component: {fileID: 4848918442618370263}
   - component: {fileID: 4569925800184956281}
   - component: {fileID: 3363818895075473111}
-  - component: {fileID: 3119643433358150806}
   m_Layer: 0
   m_Name: LeftEyeBrow
   m_TagString: Untagged
@@ -1634,19 +1612,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &3119643433358150806
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2820428712034707050}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &3106109558775310792
 GameObject:
   m_ObjectHideFlags: 0
@@ -1659,8 +1624,8 @@ GameObject:
   - component: {fileID: 4817649849799666617}
   - component: {fileID: 762824711905173657}
   - component: {fileID: 5556634892679736172}
-  - component: {fileID: 3986905548465459307}
   - component: {fileID: 7881108225031753542}
+  - component: {fileID: 6071242371518365695}
   m_Layer: 0
   m_Name: RightLowerLeg
   m_TagString: Untagged
@@ -1753,19 +1718,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &3986905548465459307
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3106109558775310792}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &7881108225031753542
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1786,6 +1738,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &6071242371518365695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3106109558775310792}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 13
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &3111530226436820541
 GameObject:
   m_ObjectHideFlags: 0
@@ -1879,8 +1849,8 @@ GameObject:
   - component: {fileID: 1005093892371165138}
   - component: {fileID: 5423423446734517798}
   - component: {fileID: 6227331681561670214}
-  - component: {fileID: 7200275109390196469}
   - component: {fileID: 7252195820066308145}
+  - component: {fileID: 7903093984603604494}
   m_Layer: 0
   m_Name: RightFoot
   m_TagString: Untagged
@@ -1972,19 +1942,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &7200275109390196469
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3271744655631085733}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &7252195820066308145
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2005,6 +1962,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &7903093984603604494
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3271744655631085733}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 15
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &3420010238202682184
 GameObject:
   m_ObjectHideFlags: 0
@@ -2017,7 +1992,6 @@ GameObject:
   - component: {fileID: 4657629229771715868}
   - component: {fileID: 9157990371037349709}
   - component: {fileID: 7964888395680943672}
-  - component: {fileID: 2560933336343884891}
   m_Layer: 0
   m_Name: Hair
   m_TagString: Untagged
@@ -2109,19 +2083,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &2560933336343884891
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3420010238202682184}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &4011237959605794965
 GameObject:
   m_ObjectHideFlags: 0
@@ -2134,7 +2095,6 @@ GameObject:
   - component: {fileID: 8574881643788967433}
   - component: {fileID: 2384183966582874024}
   - component: {fileID: 8831627797750634901}
-  - component: {fileID: 7541784874031821376}
   m_Layer: 0
   m_Name: Facedetails
   m_TagString: Untagged
@@ -2226,19 +2186,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &7541784874031821376
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4011237959605794965}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &4077449098754414061
 GameObject:
   m_ObjectHideFlags: 0
@@ -2251,7 +2198,6 @@ GameObject:
   - component: {fileID: 2828485768132142313}
   - component: {fileID: 1587711402862318565}
   - component: {fileID: 5177583447018485395}
-  - component: {fileID: 6705330533423006649}
   m_Layer: 0
   m_Name: RightJacketInside
   m_TagString: Untagged
@@ -2343,19 +2289,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &6705330533423006649
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4077449098754414061}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &4301437577614999533
 GameObject:
   m_ObjectHideFlags: 0
@@ -2368,8 +2301,8 @@ GameObject:
   - component: {fileID: 499896834598508514}
   - component: {fileID: 202962692276087138}
   - component: {fileID: 5058858478413726630}
-  - component: {fileID: 7571871285302227157}
   - component: {fileID: 6425880914984772252}
+  - component: {fileID: 2347624038805851972}
   m_Layer: 0
   m_Name: Neck
   m_TagString: Untagged
@@ -2462,19 +2395,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &7571871285302227157
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4301437577614999533}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &6425880914984772252
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2495,6 +2415,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &2347624038805851972
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4301437577614999533}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 33
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &4857314316255899760
 GameObject:
   m_ObjectHideFlags: 0
@@ -2507,8 +2445,8 @@ GameObject:
   - component: {fileID: 9033666496822829498}
   - component: {fileID: 5234412572318912481}
   - component: {fileID: 9083753584520476326}
-  - component: {fileID: 2028534286734617247}
   - component: {fileID: 4008329290422328974}
+  - component: {fileID: 4809356811955889865}
   m_Layer: 0
   m_Name: LeftUpperLeg
   m_TagString: Untagged
@@ -2601,19 +2539,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &2028534286734617247
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4857314316255899760}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &4008329290422328974
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2634,6 +2559,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &4809356811955889865
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4857314316255899760}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 10
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &5645857117973728562
 GameObject:
   m_ObjectHideFlags: 0
@@ -2646,8 +2589,8 @@ GameObject:
   - component: {fileID: 8537144972028665150}
   - component: {fileID: 7139360833813867376}
   - component: {fileID: 2310129143537385773}
-  - component: {fileID: 6985841751422160073}
   - component: {fileID: 2386628484122887468}
+  - component: {fileID: 6071785509963287564}
   m_Layer: 0
   m_Name: RightUpperLeg
   m_TagString: Untagged
@@ -2740,19 +2683,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &6985841751422160073
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5645857117973728562}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &2386628484122887468
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2773,6 +2703,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &6071785509963287564
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5645857117973728562}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 11
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &5913586954817689161
 GameObject:
   m_ObjectHideFlags: 0
@@ -2785,8 +2733,8 @@ GameObject:
   - component: {fileID: 6241616737768231262}
   - component: {fileID: 126026408025993355}
   - component: {fileID: 7318317102742747123}
-  - component: {fileID: 8808155360905445084}
   - component: {fileID: 2243544443885553354}
+  - component: {fileID: 8156166136511961925}
   m_Layer: 0
   m_Name: LeftLowerArm
   m_TagString: Untagged
@@ -2879,19 +2827,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &8808155360905445084
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5913586954817689161}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &2243544443885553354
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2912,6 +2847,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &8156166136511961925
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5913586954817689161}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 3
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &5945333620248794271
 GameObject:
   m_ObjectHideFlags: 0
@@ -2924,8 +2877,8 @@ GameObject:
   - component: {fileID: 4163711325321952233}
   - component: {fileID: 5900370102229058765}
   - component: {fileID: 8739283867169983255}
-  - component: {fileID: 5197900853732956951}
   - component: {fileID: 3478116201059024259}
+  - component: {fileID: 4646063836192430915}
   m_Layer: 0
   m_Name: Torso
   m_TagString: Untagged
@@ -3022,19 +2975,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &5197900853732956951
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5945333620248794271}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &3478116201059024259
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3055,6 +2995,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &4646063836192430915
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5945333620248794271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 27
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &6070736960350805383
 GameObject:
   m_ObjectHideFlags: 0
@@ -3067,7 +3025,6 @@ GameObject:
   - component: {fileID: 3554660273808192615}
   - component: {fileID: 5145098103161940246}
   - component: {fileID: 6213530395434057585}
-  - component: {fileID: 7641991561402056799}
   m_Layer: 0
   m_Name: Mouth
   m_TagString: Untagged
@@ -3159,19 +3116,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &7641991561402056799
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6070736960350805383}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &6116213830098624810
 GameObject:
   m_ObjectHideFlags: 0
@@ -3184,7 +3128,6 @@ GameObject:
   - component: {fileID: 4304315558939140894}
   - component: {fileID: 5332035692144084044}
   - component: {fileID: 6775675747306071832}
-  - component: {fileID: 3802994706926526942}
   m_Layer: 0
   m_Name: LeftJacket
   m_TagString: Untagged
@@ -3276,19 +3219,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &3802994706926526942
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6116213830098624810}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &6616035439334814931
 GameObject:
   m_ObjectHideFlags: 0
@@ -3301,7 +3231,6 @@ GameObject:
   - component: {fileID: 9218544816456953449}
   - component: {fileID: 7991542555854027070}
   - component: {fileID: 1911570909748185274}
-  - component: {fileID: 5112038560601026316}
   m_Layer: 0
   m_Name: Buldge
   m_TagString: Untagged
@@ -3393,19 +3322,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &5112038560601026316
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6616035439334814931}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &6702309609326996383
 GameObject:
   m_ObjectHideFlags: 0
@@ -3508,7 +3424,6 @@ GameObject:
   - component: {fileID: 4153973667784636293}
   - component: {fileID: 3832837739164726808}
   - component: {fileID: 3689582091142436885}
-  - component: {fileID: 9038951308732393097}
   m_Layer: 0
   m_Name: RightJacket
   m_TagString: Untagged
@@ -3601,19 +3516,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &9038951308732393097
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6946358484204244637}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &7078668552627854934
 GameObject:
   m_ObjectHideFlags: 0
@@ -3626,7 +3528,6 @@ GameObject:
   - component: {fileID: 7354033897527970404}
   - component: {fileID: 7357262620558547293}
   - component: {fileID: 4520703909183852283}
-  - component: {fileID: 7929161375620800940}
   m_Layer: 0
   m_Name: RightEyeBrow
   m_TagString: Untagged
@@ -3718,19 +3619,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &7929161375620800940
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7078668552627854934}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &7375585534706214761
 GameObject:
   m_ObjectHideFlags: 0
@@ -3743,8 +3631,8 @@ GameObject:
   - component: {fileID: 8077755233539933651}
   - component: {fileID: 5293948782683976615}
   - component: {fileID: 1449747340643508457}
-  - component: {fileID: 9075180598144084148}
   - component: {fileID: 2856350741585092193}
+  - component: {fileID: 6753283065845340803}
   m_Layer: 0
   m_Name: BaseHead
   m_TagString: Untagged
@@ -3846,19 +3734,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &9075180598144084148
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7375585534706214761}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &2856350741585092193
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3879,6 +3754,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &6753283065845340803
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7375585534706214761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 16
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &7573434779292915580
 GameObject:
   m_ObjectHideFlags: 0
@@ -3891,7 +3784,6 @@ GameObject:
   - component: {fileID: 5396691998585599184}
   - component: {fileID: 7253674353491580082}
   - component: {fileID: 8373475014266034841}
-  - component: {fileID: 7055489984579977635}
   m_Layer: 0
   m_Name: Eyes
   m_TagString: Untagged
@@ -3983,19 +3875,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &7055489984579977635
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7573434779292915580}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &8346345280746603786
 GameObject:
   m_ObjectHideFlags: 0
@@ -4008,8 +3887,8 @@ GameObject:
   - component: {fileID: 4334375850653764036}
   - component: {fileID: 8099044404527368633}
   - component: {fileID: 2465231886132978536}
-  - component: {fileID: 4191877602286084064}
   - component: {fileID: 2396106282583073903}
+  - component: {fileID: 983650402635893297}
   m_Layer: 0
   m_Name: LeftUpperArm
   m_TagString: Untagged
@@ -4102,19 +3981,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &4191877602286084064
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8346345280746603786}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!114 &2396106282583073903
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4135,6 +4001,24 @@ MonoBehaviour:
   startMirrored: 0
   vatDrivingLayerIndex: 0
   expectedMaterial: {fileID: 0}
+--- !u!114 &983650402635893297
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8346345280746603786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c55135a9418c834ca2a34cc72db84cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::BodyPartAuthoring
+  target: 1
+  characterRoot: {fileID: 9101195342176660511}
+  unitPartDef: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  useLayerChannels: 0
+  isItemSocket: 0
 --- !u!1 &8499683922572236858
 GameObject:
   m_ObjectHideFlags: 0
@@ -4237,7 +4121,6 @@ GameObject:
   - component: {fileID: 6774471848436202942}
   - component: {fileID: 6370737526959721987}
   - component: {fileID: 2397162576616285140}
-  - component: {fileID: 8049256351165399830}
   m_Layer: 0
   m_Name: Faceware
   m_TagString: Untagged
@@ -4329,19 +4212,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 680ee465e2f4c5040bb00de70c672a00, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::InteractionVisualAuthoring
---- !u!114 &8049256351165399830
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9082205655030906697}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}
 --- !u!1 &9101195342176660511
 GameObject:
   m_ObjectHideFlags: 0
@@ -4365,6 +4235,7 @@ GameObject:
   - component: {fileID: 81547783365101107}
   - component: {fileID: 5385637352373302489}
   - component: {fileID: 8157836579268367819}
+  - component: {fileID: 4970892448338541378}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -4606,6 +4477,20 @@ MonoBehaviour:
   addDistanceLod: 0
   billboardMode: 0
   frozenYawDegrees: 0
+--- !u!114 &4970892448338541378
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9101195342176660511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68ff46bcad323a1459cf577ce9552f3f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::CharacterRigAuthoring
+  reloadDesign: 0
+  randomTags: []
 --- !u!1 &9122829769299922516
 GameObject:
   m_ObjectHideFlags: 0
@@ -4647,7 +4532,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1081169466429454957}
-  - component: {fileID: 839270692250789620}
   m_Layer: 0
   m_Name: MaleUnitVisual
   m_TagString: Untagged
@@ -4673,16 +4557,3 @@ Transform:
   - {fileID: 1740319646291573547}
   m_Father: {fileID: 332314884621582417}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &839270692250789620
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9171255052455601309}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f493e760369d47b19380a146a7337cdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.Authoring::BaseParentAuthoring
-  parentEntity: {fileID: 9101195342176660511}

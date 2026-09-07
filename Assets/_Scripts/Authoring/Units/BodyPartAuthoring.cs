@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using DotsAnimationToolkit;
+using DotsAnimationToolkit.Authoring;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -88,7 +90,12 @@ public class BodyPartAuthoring : MonoBehaviour
             {
                 // Facing (DirectionFacing_System.md §4): opt-in in the toolkit, so the game bakes it
                 // wherever turning should apply — every quad part. Written only by UnitFacingSystem.
-                AddComponent(entity, new PartFacing { viewOffset = 0, mirrorX = false });
+                // Skipped where RigTargetBaker already added it (Faces Direction ticked on this part's
+                // rig target) — adding it twice is a duplicate-component bake error, not a merge.
+                if (!FacesDirectionAlreadyBaked(authoring))
+                {
+                    AddComponent(entity, new PartFacing { viewOffset = 0, mirrorX = false });
+                }
 
                 // Per-instance tint (drives _BaseColor, Hybrid Per Instance). Set per-part in the
                 // authoring inspector; white leaves the authored sprite unchanged. A future global
@@ -110,6 +117,30 @@ public class BodyPartAuthoring : MonoBehaviour
                 AddComponent(entity, new BodyPartSecondaryTint { Value = new float4(1f, 1f, 1f, layerAlpha) });
                 AddComponent(entity, new BodyPartTertiaryTint { Value = new float4(1f, 1f, 1f, layerAlpha) });
             }
+        }
+
+        // Mirrors RigTargetBaker's own rig/target resolution (rig target's own rig, else the actor's)
+        // so the two bakers agree on which target definition a part means without sharing code across
+        // the package boundary.
+        private bool FacesDirectionAlreadyBaked(BodyPartAuthoring authoring)
+        {
+            RigTargetAuthoring rigTarget = GetComponent<RigTargetAuthoring>();
+            if (rigTarget == null) return false;
+
+            ActorAuthoring actorAuthoring = GetComponentInParent<ActorAuthoring>();
+            RigAsset partRig = DependsOn(rigTarget.rig);
+            RigAsset actorRig = actorAuthoring != null ? DependsOn(actorAuthoring.rig) : null;
+            RigAsset effectiveRig = partRig != null ? partRig : actorRig;
+            if (effectiveRig == null) return false;
+
+            List<RigTargetDefinition> targets = effectiveRig.targets;
+            for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = targets[targetIndex];
+                if (target != null && target.Id.Value == rigTarget.targetStableId)
+                    return target.facesDirection;
+            }
+            return false;
         }
     }
 }
