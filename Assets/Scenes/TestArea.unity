@@ -1791,7 +1791,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::CutsceneDebugTrigger
   narrativeEventId: 1
-  key: 102
+  key: 104
   skipKey: 103
   autoWalkPlayerToMark: 1
 --- !u!114 &1306219583
