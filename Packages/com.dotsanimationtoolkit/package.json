@@ -38,6 +38,11 @@
       "displayName": "Composite Actor",
       "description": "Generates an actor using two techniques at once - cutout limbs on transform tracks and a flipbook face on sprite tracks - from one clip on one timeline, with a socket and an event marker. Includes a generated Texture2DArray, so it ships no binary fixtures.",
       "path": "Samples~/CompositeActor"
+    },
+    {
+      "displayName": "Cutscene",
+      "description": "A minimal MonoBehaviour host for a staged cutscene: finds it by key, starts it, drives the camera singleton onto Camera.main, walks bound slots to their marks with a labelled pathfinding stand-in, releases a named hold, and cleans up on completion.",
+      "path": "Samples~/Cutscene"
     }
   ]
 }
