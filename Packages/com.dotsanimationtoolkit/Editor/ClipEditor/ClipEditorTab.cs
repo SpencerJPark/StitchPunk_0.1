@@ -15,11 +15,8 @@ namespace DotsAnimationToolkit.Editor
 
         VatBake = 2,
 
-        /// <summary>
-        /// 2D facing coverage today. Owner intent (2026-09-07): this absorbs layer authoring
-        /// later and becomes "Actor Editor" in full, not just in the tab label.
-        /// </summary>
-        DirectionSets = 3,
+        /// <summary>Layer/animation authoring over a composited multi-layer preview.</summary>
+        ActorEditor = 3,
 
         CutsceneEditor = 4
     }

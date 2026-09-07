@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The clip queue: one row per east-side slot the open direction set fills.</summary>
+    /// <summary>The clip queue: one row per east-side slot a <see cref="DirectionSlots"/> fills.</summary>
     public sealed class DirectionSetClipQueueView : VisualElement
     {
         /// <summary>Promotion order — which slot a set fills next as its coverage climbs.</summary>
@@ -25,7 +25,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly ScrollView rowScroll;
 
-        /// <summary>Raised when a row writes a clip into a slot. The panel owns the undo record.</summary>
+        /// <summary>Raised when a row writes a clip into a slot. The host owns the undo record.</summary>
         public event Action<Direction, ClipAsset> SlotAssigned;
 
         /// <summary>Raised when a row is re-slotted: the clip moves, and the old slot is cleared.</summary>
@@ -46,18 +46,18 @@ namespace DotsAnimationToolkit.Editor
             Add(rowScroll);
         }
 
-        /// <summary>Rebuilds every row from the set as it currently stands.</summary>
-        /// <param name="directionSet">The open set, or null for an empty queue.</param>
+        /// <summary>Rebuilds every row from <paramref name="slots"/> as it currently stands.</summary>
+        /// <param name="slots">The slots to queue, or null for an empty queue.</param>
         public void Rebuild(
-            DirectionSetAsset directionSet,
+            DirectionSlots slots,
             IReadOnlyList<Direction> visibleSlots,
             IReadOnlyDictionary<ClipAsset, string> clipWarnings)
         {
             rowScroll.Clear();
 
-            if (directionSet == null)
+            if (slots == null)
             {
-                Label emptyLabel = new Label("Assign a Direction Set above, or press New Set.");
+                Label emptyLabel = new Label("No direction slots assigned.");
                 emptyLabel.style.whiteSpace = WhiteSpace.Normal;
                 emptyLabel.style.marginTop = 4f;
                 rowScroll.Add(emptyLabel);
@@ -66,16 +66,16 @@ namespace DotsAnimationToolkit.Editor
 
             for (int slotIndex = 0; slotIndex < visibleSlots.Count; slotIndex++)
             {
-                rowScroll.Add(BuildRow(directionSet, visibleSlots[slotIndex], clipWarnings));
+                rowScroll.Add(BuildRow(slots, visibleSlots[slotIndex], clipWarnings));
             }
         }
 
         private VisualElement BuildRow(
-            DirectionSetAsset directionSet,
+            DirectionSlots slots,
             Direction slot,
             IReadOnlyDictionary<ClipAsset, string> clipWarnings)
         {
-            ClipAsset slotClip = directionSet.slots.GetSlot(slot);
+            ClipAsset slotClip = slots.GetSlot(slot);
 
             VisualElement row = new VisualElement();
             row.style.marginBottom = 4f;
@@ -112,7 +112,7 @@ namespace DotsAnimationToolkit.Editor
             });
             topLine.Add(slotDropdown);
 
-            Button openButton = new Button(() => OpenClipRequested?.Invoke(directionSet.slots.GetSlot(slot)))
+            Button openButton = new Button(() => OpenClipRequested?.Invoke(slots.GetSlot(slot)))
             {
                 text = "Open"
             };

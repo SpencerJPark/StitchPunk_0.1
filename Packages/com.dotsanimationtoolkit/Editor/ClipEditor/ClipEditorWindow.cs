@@ -237,9 +237,9 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement newRigPane;
         private NewRigPanel newRigPanel;
 
-        /// <summary>The 2D Direction Sets pane, and the panel built into it the first time it is opened.</summary>
-        private VisualElement directionSetsPane;
-        private DirectionSetsPanel directionSetsPanel;
+        /// <summary>The Actor Editor pane, and the panel built into it the first time it is opened.</summary>
+        private VisualElement actorEditorPane;
+        private ActorEditorPanel actorEditorPanel;
 
         /// <summary>
         /// Which view is showing. One field, not a bool per pane: exactly one is true, and four
@@ -485,15 +485,17 @@ namespace DotsAnimationToolkit.Editor
             window.minSize = new Vector2(820f, 460f);
         }
 
-        /// <summary>Brings the Clip Editor forward on its Direction Sets tab, with <paramref name="directionSet"/> loaded.</summary>
-        public static void FocusDirectionSetsTab(DirectionSetAsset directionSet)
+        /// <summary>Brings the Clip Editor forward on its Actor Editor tab, with <paramref name="profile"/> loaded.</summary>
+        public static void FocusWithActorEditorTab(ActorProfileAsset profile)
         {
             // After FocusTab, not before: the pane's panel is built on first switch to it, so
             // addressing it earlier would target a panel that does not exist yet this session.
-            ClipEditorWindow window = FocusTab(ClipEditorTab.DirectionSets);
-            if (window != null && window.directionSetsPanel != null && directionSet != null)
+            ClipEditorWindow window = FocusTab(ClipEditorTab.ActorEditor);
+            if (window != null && window.actorEditorPanel != null && profile != null)
             {
-                window.directionSetsPanel.LoadDirectionSet(directionSet);
+                // Raises ProfileChanged, which OnActorEditorProfileChanged answers by pointing the
+                // toolbar Rig field at profile.rig — one writer, not two.
+                window.actorEditorPanel.Profile = profile;
             }
         }
 
@@ -767,10 +769,10 @@ namespace DotsAnimationToolkit.Editor
             // it would go on calling Render on a disposed controller every editor tick, from a
             // window that has already closed. Dropped rather than disposed afterwards, because it
             // renders through the window's controller and owns no native resource itself.
-            if (directionSetsPanel != null)
+            if (actorEditorPanel != null)
             {
-                directionSetsPanel.SetTicking(false);
-                directionSetsPanel = null;
+                actorEditorPanel.SetTicking(false);
+                actorEditorPanel = null;
             }
 
             // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
@@ -963,7 +965,7 @@ namespace DotsAnimationToolkit.Editor
                     "d_Avatar Icon", "Ragdoll");
             }
 
-            directionSetsPane = rootVisualElement.Q<VisualElement>("direction-sets-pane");
+            actorEditorPane = rootVisualElement.Q<VisualElement>("actor-editor-pane");
             vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");
             newRigPane = rootVisualElement.Q<VisualElement>("new-rig-pane");
             cutscenePane = rootVisualElement.Q<VisualElement>("cutscene-pane");
@@ -1567,10 +1569,9 @@ namespace DotsAnimationToolkit.Editor
                 "Bake the open clip set's VAT textures. Nothing is torn down when you leave, so a "
                 + "bake, a look at the result and another bake is three clicks rather than three "
                 + "windows.");
-            BindTab(ClipEditorTab.DirectionSets, "tab-direction-sets",
-                "Queue a clip per east-side facing, then sweep the direction slider to watch the "
-                + "character turn through the coverage those slots add up to. Slated to absorb "
-                + "layer authoring and become Actor Editor in full.");
+            BindTab(ClipEditorTab.ActorEditor, "tab-actor-editor",
+                "Author an actor profile: layers, the animations on them, each animation's "
+                + "direction coverage — and watch them mix in the viewport.");
             BindTab(ClipEditorTab.CutsceneEditor, "tab-cutscene-editor",
                 "Stage a multi-actor cutscene: clip blocks and keys on a timeline, scene-view "
                 + "posing, a camera lane, and an event/hold lane.");
@@ -1626,7 +1627,7 @@ namespace DotsAnimationToolkit.Editor
             isApplyingTab = false;
 
             ShowNewRigTab(activeTab == ClipEditorTab.NewRig);
-            Show2DDirectionSetsTab(activeTab == ClipEditorTab.DirectionSets);
+            ShowActorEditorTab(activeTab == ClipEditorTab.ActorEditor);
             ShowVatBakeTab(activeTab == ClipEditorTab.VatBake);
             ShowCutsceneTab(activeTab == ClipEditorTab.CutsceneEditor);
 
@@ -1710,30 +1711,30 @@ namespace DotsAnimationToolkit.Editor
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
-        /// <summary>Shows or hides the 2D Direction Sets pane over the editor.</summary>
-        private void Show2DDirectionSetsTab(bool isShown)
+        /// <summary>Shows or hides the Actor Editor pane over the editor.</summary>
+        private void ShowActorEditorTab(bool isShown)
         {
-            if (directionSetsPane == null)
+            if (actorEditorPane == null)
             {
                 return;
             }
 
             if (isShown)
             {
-                if (directionSetsPanel == null)
+                if (actorEditorPanel == null)
                 {
-                    directionSetsPanel = new DirectionSetsPanel();
-                    directionSetsPanel.SelectionRequested += OnDirectionSetsSelectionRequested;
-                    directionSetsPane.Add(directionSetsPanel);
+                    actorEditorPanel = new ActorEditorPanel();
+                    actorEditorPanel.ProfileChanged += OnActorEditorProfileChanged;
+                    actorEditorPane.Add(actorEditorPanel);
                 }
 
-                directionSetsPanel.SetSource(previewController, clipSet, activeRig);
+                actorEditorPanel.SetSource(previewController, activeRig);
             }
 
-            directionSetsPane.EnableInClassList(HiddenUssClassName, !isShown);
-            if (directionSetsPanel != null)
+            actorEditorPane.EnableInClassList(HiddenUssClassName, !isShown);
+            if (actorEditorPanel != null)
             {
-                directionSetsPanel.SetTicking(isShown);
+                actorEditorPanel.SetTicking(isShown);
             }
         }
 
@@ -1747,24 +1748,20 @@ namespace DotsAnimationToolkit.Editor
             {
                 vatBakePanel.SetSource(clipSet, activeRig);
             }
-            if (directionSetsPanel != null)
+            if (actorEditorPanel != null)
             {
-                directionSetsPanel.SetSource(previewController, clipSet, activeRig);
+                actorEditorPanel.SetSource(previewController, activeRig);
             }
         }
 
-        /// <summary>Answers the direction sets pane asking for a different clip set and rig.</summary>
-        private void OnDirectionSetsSelectionRequested(ClipSetAsset requestedClipSet, RigAsset requestedRig)
+        // Picking a profile sets the window's Rig, never its Clip Set — the rig is shared by every
+        // tab, the clip set is the Clip Editor tab's own edit target.
+        /// <summary>Answers the Actor Editor panel picking a different profile: points the toolbar Rig field at it.</summary>
+        private void OnActorEditorProfileChanged(ActorProfileAsset pickedProfile)
         {
-            // Through the toolbar fields, not the clipSet/activeRig backing fields, so this runs
-            // the same OnClipSetChanged/OnSkinnedSourceChanged path a manual pick would.
-            if (requestedRig != null && skinnedSourceField != null)
+            if (pickedProfile != null && pickedProfile.rig != null && skinnedSourceField != null)
             {
-                skinnedSourceField.value = requestedRig;
-            }
-            if (requestedClipSet != null && clipSetField != null)
-            {
-                clipSetField.value = requestedClipSet;
+                skinnedSourceField.value = pickedProfile.rig;
             }
         }
 
