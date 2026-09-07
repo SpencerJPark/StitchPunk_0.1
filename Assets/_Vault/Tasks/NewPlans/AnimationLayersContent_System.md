@@ -1,6 +1,10 @@
 # Animation Layers Content — Design Spec (AL)
 
-> **Status:** ✅ spec written 2026-09-07, nothing built. Delegated decisions in §6.
+> **Status:** ⛔ **SUPERSEDED the same day (2026-09-07)** by the Actor Editor roadmap
+> ([`ActorEditor_Roadmap.md`](ActorEditor_Roadmap.md)): layers now live on an actor profile asset,
+> the game plays animations by name, and direction is resolved in the package. **Do not run this
+> spec.** Its clip recipes (T4–T7) survive verbatim as `ActorProfileCutover_System.md` P5–P6; its
+> §2 inventory is still the best description of the stale unit-SO state. Kept for that reference.
 > **Executor:** one fresh Claude Sonnet session with no prior context. `Cutscene_Roadmap.md` §4 is
 > the execution protocol (read it first; substitute `AL-Tn:` for the commit prefix). Subagents may
 > take only tasks marked **[parallel-safe]** and never touch `mcp__UnityMCP__*`.

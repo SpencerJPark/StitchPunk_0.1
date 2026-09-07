@@ -115,7 +115,19 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-Empty apart from one open checkpoint. **A68 (docs/release), the last item in the cutscene roadmap
+**Next: the Actor Editor roadmap (specs written 2026-09-07, nothing built).** Index:
+`Assets/_Vault/Tasks/NewPlans/ActorEditor_Roadmap.md` — owner product calls in its §2 (layers on an
+actor profile asset, play by name, Base/Override bookends, ragdoll as an animation flag). Order:
+**A70** `Amendment_A70_ActorProfile_Spec.md` (profile asset + `AnimationNameRegistry` + blob +
+`PlayAnimation`/`StopAnimation` + `ActorFacing` + ragdoll triggers + `CutsceneApi.TopLayer`;
+`RigAsset.layers` and `ActorAuthoring.rig/clipSets/startingLayers` removed — the game goes red until
+G5) → **A71** `Amendment_A71_ActorEditor_Spec.md` (the Actor Editor tab: layer/animation tree,
+composited multi-layer preview, direction slider, triggers, ragdoll mix; ⏸ owner checkpoint) →
+**G5** `ActorProfileCutover_System.md` (game). The owner's in-progress tab rename (`ClipEditorTab.cs`,
+window, uxml/uss — uncommitted in the working tree on 2026-09-07) is the starting point for A71-T1.
+`RagdollTuning_System.md` (RG, game-side bodies + launch fixes) is independent and may run first.
+
+Otherwise empty apart from one open checkpoint. **A68 (docs/release), the last item in the cutscene roadmap
 (`Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md`), built T1-T5 and gated fully green 2026-09-07;
 stopped at its ⏸ owner checkpoint** — read `cutscene-api.md` top to bottom with the acceptance
 cutscene running beside it; anything the doc does not explain is a spec §7 entry, not a silent fix.
