@@ -47,7 +47,7 @@ Across the cutscene files touched by A61–A67: doc comments to one or two lines
 - [x] **T3 — Sample + compile check (§3.3).** Gate on the temporary copy; delete it; `git status` clean.
 - [x] **T4 — Release + memory note (§3.4).**
 - [x] **T5 — XML doc pass (§3.5).** Compile gate; `PackagingConformanceTests` (the doc-text scanners) green.
-- [ ] **Full suites once.** Counts must not drop.
+- [x] **Full suites once.** Counts must not drop. Toolkit EditMode 724/724 discovered (1 failure: the pre-existing, documented `Conformance_A` asmdef drift, unrelated to A68); toolkit PlayMode 261/261; `StitchPunk.Tests` 59/59; `StitchPunk.Tests.PlayMode` 10/10 (baseline was 8+/8+). No drops.
 - [ ] **⏸ Owner checkpoint.** Read `cutscene-api.md` top to bottom with the acceptance cutscene running beside it. Anything the doc does not explain is a §7 entry.
 
 ## 5. Risks and traps
