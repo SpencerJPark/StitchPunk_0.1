@@ -59,9 +59,8 @@ Add one target per part. Targets carry **stable ids**, minted once and never
 derived from the name — which is precisely why renaming a part or reparenting it
 never re-points a track.
 
-Also declare your **layers** here. Layer index *is* priority: higher layers
-composite over lower ones, so reordering them is a content edit, not a rename. A
-typical set is `Base` for locomotion and `Override` for an upper-body action.
+(Layers — `Base`/`Override` and anything between — are declared on the actor
+profile, not here; see step 4 and [`actor-profiles.md`](actor-profiles.md).)
 
 ### 3. Author clips
 
@@ -77,9 +76,12 @@ decide how the clip crossfades.
 
 ### 4. Set up the actor
 
-Add `ActorAuthoring` to the prefab root, assign the **Rig**, and add the clip set
-to **Clip Sets** — an actor may carry several. Add `RigTargetAuthoring` to each
-part, pointing at its rig target.
+Create an `ActorProfileAsset`, assign the **Rig**, and add the clip set to
+**Clip Sets** — a profile may carry several. Add an animation entry on its
+`Base` layer naming the clip. Add `ActorAuthoring` to the prefab root and set
+its **Profile** to this asset. Add `RigTargetAuthoring` to each part,
+pointing at its rig target. See [`actor-profiles.md`](actor-profiles.md) for
+layers, named animations, and per-animation direction.
 
 **Put the prefab in a SubScene.** Baking is what turns authoring assets into
 entities; a prefab in a plain scene will not animate.
@@ -137,6 +139,11 @@ What the package ships to support that is the `MirrorPair` table on the rig
 (authored per rig — mirrors are never inferred from names) and the **Mirror Clip**
 utility that uses it, so a left-facing clip is generated from its right-facing
 twin rather than authored twice.
+
+A profile-driven animation entry does this for you: name up to five east-side
+clips on a `DirectionSlots` and the package resolves the facing, mirrors the
+west side for free, and re-picks the clip in place as facing changes. See
+[`actor-profiles.md`](actor-profiles.md).
 
 ---
 

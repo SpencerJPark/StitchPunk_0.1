@@ -62,9 +62,9 @@ the bake resolves against — never where the track appears in the Clip Editor's
    halves are pickers: the tag half moves the row's keys to another tag (merging into that tag's
    existing row if one exists), the part half moves the tag onto another part of the open rig —
    a rig edit every clip set sharing the rig sees.
-4. **Add the set to an actor.** An `Actor` component names a **Rig** and a list of **Clip Sets**. The
-   same `ClipSetAsset` can appear on any number of actors on any number of rigs, with nothing extra
-   to configure.
+4. **Add the set to a profile.** An `ActorProfileAsset` names a **Rig** and a list of **Clip Sets**
+   (`ActorAuthoring` in turn names the profile). The same `ClipSetAsset` can appear on any number of
+   profiles on any number of rigs, with nothing extra to configure.
 
 Selection only, never typing: a tag's name is typed in exactly one place — the picker's inline
 **Create tag "…"** row, or the registry's own list via the **Edit…** button beside the picker's
@@ -83,7 +83,7 @@ The sets an actor names are merged into one registry:
   only happen when two independently authored sets meet on one actor.
 - **List order does not matter.** The set list is sorted by set id before anything reads it, so
   dragging the same two sets in the other order produces the same blob and the same dedup key.
-- A **starting layer** may name any clip in the union.
+- A profile layer's **starting animation** may name any clip in the union.
 
 ## What "shareable" actually promises
 
@@ -142,9 +142,10 @@ time. Event names get the same treatment via **Generate Event Name Constants**; 
 - **Runtime set switching.** The registry is one immutable blob per (rig, set-list) bind. Changing an
   actor's loadout while it is alive is not supported today; author the loadout you want as a prefab
   variant.
-- **Layer conventions.** A shared face clip playing on "layer 1" needs every rig to agree what layer
-  1 means, and a `RigAsset`'s layer identity is still its list position. Tagging layers the way
-  targets are tagged is an obvious follow-on and is out of scope today.
+- **Layer conventions.** A shared clip is played by name now (`PlaybackApi.PlayAnimation`), which
+  sidesteps layer identity entirely — the profile resolves the layer. A shared clip driven by a raw
+  `Play(layerIndex, ...)` still needs every profile that plays it to agree what that index means,
+  since a profile's layer identity is its own list position.
 - **Per-character variation.** A shared clip has no per-character offset without additive layers.
   `TrackBlendOp.Additive` exists; whether a shared clip composes correctly over a character-specific
   base underneath it is untested.

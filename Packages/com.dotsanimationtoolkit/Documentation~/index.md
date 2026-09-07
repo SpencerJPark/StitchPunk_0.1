@@ -13,7 +13,7 @@ end-to-end first-run walkthrough. This page is the map.
 ## Concept model
 
 ```
-RigAsset ──defines──> Targets (stable-id'd named slots) + Layers (ordered priority slots)
+RigAsset ──defines──> Targets (stable-id'd named slots)
    ▲                        ▲
    │ scoped to              │ tracks bind to targets by TargetId
 ClipAsset ──contains──> TransformTracks / SpriteTracks / EventMarkers / (optional) VatSource
@@ -21,25 +21,31 @@ ClipAsset ──contains──> TransformTracks / SpriteTracks / EventMarkers / 
    │ registered in
 ClipSetAsset ──references──> RigAsset + N ClipAssets + (optional) VatTextureSetAsset
    ▲                                                        ▲
-   │ bound by                                               │ produced by the VAT bake window from
+   │ named by                                               │ produced by the VAT bake window from
+ActorProfileAsset ──defines──> Layers (ordered) + named, per-direction Animations
+   ▲
+   │ named by
 ActorAuthoring (prefab root) ── children ──> RigTargetAuthoring parts (quads / VAT meshes / flipbook quads)
 ```
 
 - **`RigAsset`** — the skeleton of *slots*, not bones: named, stable-id'd
-  **targets** (the parts an actor can animate) and ordered **layers**
-  (compositing priority — index *is* meaning, so reordering layers is a
-  content edit, not a rename). Also carries the left/right mirror-pair table
-  the Mirror Clip utility uses.
+  **targets** (the parts an actor can animate). Also carries the left/right
+  mirror-pair table the Mirror Clip utility uses.
 - **`ClipAsset`** — one authored animation against a specific rig: duration,
   loop mode, blend-in/out defaults, transform tracks, sprite tracks, event
   markers, and (optionally) a source `AnimationClip` to bake into VAT.
 - **`ClipSetAsset`** — the registry: one rig, the clips authored against it,
   and (if any clip has a VAT source) the baked `VatTextureSetAsset`. This is
-  what an actor references and what the bake turns into one
+  what a profile references and what the bake turns into one
   `BlobAssetReference<ClipRegistryBlob>`.
+- **`ActorProfileAsset`** — what an actor *has*: the rig and clip sets its
+  registry is built from, how many directions it turns through, and ordered
+  **layers** (compositing priority — index *is* meaning, so reordering layers
+  is a content edit, not a rename) of named, playable animations. See
+  [`actor-profiles.md`](actor-profiles.md).
 - **`ActorAuthoring`** (on a prefab root) — bakes to the runtime actor entity:
-  the shared registry blob, one `PlaybackLayer` per rig layer, the command and
-  event buffers, and the actor-space rest bounds.
+  the shared registry and profile blobs, one `PlaybackLayer` per profile
+  layer, the command and event buffers, and the actor-space rest bounds.
 - **`RigTargetAuthoring`** (on each animatable child) — binds that child to
   one of the rig's targets by stable id and bakes its rest pose and technique
   components.
@@ -78,10 +84,11 @@ beneath it inherits that root unless it declares one of its own. See
 |---|---|---|
 | Clip Editor | Window ▸ DOTS Animation Toolkit ▸ Clip Editor | Timeline authoring for a `ClipSetAsset`'s clips. A dock of three zones — clips and rig hierarchy on the left, viewport in the middle, inspector on the right — over a timeline. Every boundary drags, and each position is remembered. The viewport renders from the moment the window opens, with or without a selection, and objects and bones can be clicked in it directly. Clip sets are created from the toolbar; clips are created, renamed and deleted from the Clips pane. Transform values are live for the current selection and update as you scrub; W/E/R gizmos and the numeric fields write through one path; keys are box-selectable on per-channel rows with editable easing, including Bézier tangent handles. |
 | VAT Bake | Window ▸ DOTS Animation Toolkit ▸ VAT Bake, or the **VAT Bake** toggle in the Clip Editor's toolbar | Wizard over the VAT texture baker: pick a source prefab and a clip set, choose bone or vertex flavour, bake to a `VatTextureSetAsset`. The same panel either way — the toggle covers the Clip Editor with it and uncovers it again, so authoring a clip and baking it is one window. |
-| `RigAsset` inspector | Select a `RigAsset` | Target and layer lists, mirror-pair table. |
+| `RigAsset` inspector | Select a `RigAsset` | Target list, mirror-pair table. |
 | `ClipSetAsset` inspector | Select a `ClipSetAsset` | Clip roster with a per-clip validation status column. |
 | `VatTextureSetAsset` inspector | Select a generated `VatTextureSetAsset` | Read-only bake stats (format, memory, per-clip frame ranges). |
-| `ActorAuthoring` inspector | Select a GameObject with `ActorAuthoring` | Starting-layer editor. |
+| `ActorProfileAsset` inspector | Select an `ActorProfileAsset` | Layer/animation editor, validation badge (P1-P7). See [`actor-profiles.md`](actor-profiles.md). |
+| `ActorAuthoring` inspector | Select a GameObject with `ActorAuthoring` | Profile field and presentation settings. |
 
 The clip inspector and clip-set inspector share the same `ClipValidation` rule
 set the bake enforces, so a problem you see in the editor is the same one that
@@ -137,6 +144,9 @@ Then the guide for the kind of character you are building:
   transform tracks and flipbook indices. No skeleton, no bake.
 - [`rigged-characters.md`](rigged-characters.md) — imported skeletons baked to
   VAT, and when bone tracks are worth authoring here instead of in Blender.
+- [`actor-profiles.md`](actor-profiles.md) — what an actor has: layers, named
+  animations, per-animation direction, starting animations, the `ActorFacing`
+  contract, `PlayAnimation`/`StopAnimation`, and ragdoll triggers.
 
 And the two references both of them lean on:
 

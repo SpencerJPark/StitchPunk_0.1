@@ -174,6 +174,15 @@ Global tuning lives on the `RagdollConfig` singleton — `worldGravity`, the sle
 `maxSubstepsPerFrame`, and `fallbackGroundHeight`. It is created with defaults if you never author
 one.
 
+### Triggering from an animation
+
+An actor profile's animation entry can start or stop the ragdoll for you, instead of a game system
+flipping `RagdollActor` by hand: set `ragdollTrigger` to `Start` or `Stop`, either at play
+(`ragdollAtEventKey = 0`) or at a named event marker on the clip. `ActorRagdollTriggerSystem`
+honours it only where `RagdollActor` is already present — a profile can name a trigger on a rig
+with no ragdoll bodies without erroring, since that's an authoring mismatch the Actor Editor's
+validation badge reports, not a runtime failure. See [`actor-profiles.md`](actor-profiles.md).
+
 ### Sleeping
 
 Once every body is quiet for `sleepDelaySeconds`, the ragdoll sleeps and the dynamics stop. It keeps

@@ -111,7 +111,7 @@ Watch the Console: unresolved socket bone names are reported here as warnings.
 
 ### 6. Set up the actor
 
-Add `ActorAuthoring` to a prefab, assign the clip set, and add a child per target with `RigTargetAuthoring`. Assign the baked runtime mesh and a material using `ToolkitVatCrowdUnlit` (or your own shader — see [`shader-contract.md`](shader-contract.md)).
+Create an `ActorProfileAsset`, assign the **Rig** and the clip set. Add `ActorAuthoring` to a prefab and set its **Profile** to this asset, then add a child per target with `RigTargetAuthoring`. Assign the baked runtime mesh and a material using `ToolkitVatCrowdUnlit` (or your own shader — see [`shader-contract.md`](shader-contract.md)). See [`actor-profiles.md`](actor-profiles.md) for layers and named animations.
 
 **Put the prefab in a SubScene.** Baking is what turns authoring assets into entities; a prefab in a plain scene will not animate.
 

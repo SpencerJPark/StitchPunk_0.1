@@ -15,7 +15,7 @@ resolved (see the project `README.md`).
 > **In a hurry?** Import the **Quick Start Actor** sample from the Package
 > Manager, then run **Window ▸ DOTS Animation Toolkit ▸ Samples ▸ Build Quick
 > Start Actor**. It generates the whole graph below — rig, clip set, an animated
-> clip, and a bake-ready prefab — in one click, so you can look at a working
+> clip, an actor profile, and a bake-ready prefab — in one click, so you can look at a working
 > setup before building one. Read this page afterwards to understand what it
 > made and why. The sample generates rather than shipping `.asset` files, so it
 > mints fresh stable ids and cannot collide with assets you already have.
@@ -23,16 +23,15 @@ resolved (see the project `README.md`).
 ## 1. Create a rig
 
 A `RigAsset` is the skeleton of *slots* your clips will animate — not bones,
-but named targets and ordered layers.
+but named targets.
 
 1. **Assets ▸ Create ▸ DOTS Animation Toolkit ▸ Rig Asset.** Name it, e.g.
    `DemoRig`.
 2. In the Inspector, add one entry to **Targets** — give it a display name
    (e.g. `Body`) and leave `Kind` at `Quad`. Each target gets a stable id
    automatically; you never edit it by hand.
-3. Add one entry to **Layers** — give it a display name (e.g. `Base`) and
-   check `Default Active` so the layer starts playing on spawn. A rig needs at
-   least one layer and allows at most eight.
+
+(Layers live on the actor profile, not the rig — see step 5.)
 
 ## 2. Create a clip
 
@@ -88,32 +87,46 @@ window state — it decides what you are previewing against, and writes nothing.
 `VatTextureSetAsset` produced by **Window ▸ DOTS Animation Toolkit ▸ VAT
 Bake**.)
 
-## 5. Set up an actor prefab
+## 5. Create an actor profile
+
+An `ActorProfileAsset` is what an actor *has*: its rig, its clip sets, and its
+named, layered animations. See [`actor-profiles.md`](actor-profiles.md) for
+the full model (layers, per-animation direction, ragdoll triggers); this
+walkthrough only needs the smallest slice of it.
+
+1. **Assets ▸ Create ▸ DOTS Animation Toolkit ▸ Actor Profile.** Name it, e.g.
+   `DemoProfile`. It comes with two fixed layers, `Base` and `Override`.
+2. Set **Rig** to `DemoRig` and add `DemoClipSet` to **Clip Sets**. A profile
+   may name several sets; their clips are merged into one registry.
+3. On the **Base** layer, add one animation entry. Pick an animation name from
+   the picker — type `Bob` and choose **Create animation "Bob"** if this is
+   the first one in the project — and set its **Clip** to `DemoBob`.
+4. Set the **Base** layer's **Starting Animation** to `Bob` and check
+   **Default Active** so it plays on spawn.
+
+## 6. Set up an actor prefab
 
 1. Create an empty GameObject in the scene (or a prefab), e.g. `DemoActor`.
-2. Add the **DOTS Animation Toolkit ▸ Actor** component (`ActorAuthoring`).
-   Set **Rig** to `DemoRig` and add `DemoClipSet` to **Clip Sets**. An actor may
-   name several sets; their clips are merged into one registry.
-3. Under **Starting Layers**, add one entry: `Layer Index = 0`, `Clip =
-   DemoBob`, `Speed = 1`.
-4. Add a child GameObject positioned/scaled as your quad (e.g. with a
+2. Add the **DOTS Animation Toolkit ▸ Actor** component (`ActorAuthoring`) and
+   set **Profile** to `DemoProfile`.
+3. Add a child GameObject positioned/scaled as your quad (e.g. with a
    `MeshRenderer`/`MeshFilter` showing a quad, or your own render setup — the
    toolkit doesn't ship a quad prefab). Add the **DOTS Animation Toolkit ▸
    Rig Target** component (`RigTargetAuthoring`) to it. Leave **Rig** empty
-   (it inherits the actor's rig) and set **Target Stable Id** to the `Body`
+   (it inherits the profile's rig) and set **Target Stable Id** to the `Body`
    target's id, visible in `DemoRig`'s inspector.
-5. If this is a scene GameObject rather than a prefab, make sure it's inside
+4. If this is a scene GameObject rather than a prefab, make sure it's inside
    a subscene so it bakes to an entity — this package participates in
    Entities' normal baking pipeline, not a custom one.
 
-## 6. Enter Play mode
+## 7. Enter Play mode
 
 Enter Play mode. The actor should bake to an entity carrying the runtime
-archetype, and — because `Default Active` was checked on the rig's `Base`
-layer and `DemoBob` was seeded as its starting clip — it should already be
-looping `DemoBob` with no code required.
+archetype, and — because `Default Active` was checked and `Bob` was set as
+the Base layer's starting animation — it should already be looping `DemoBob`
+with no code required.
 
-## 7. Send an `AnimationCommand`
+## 8. Send an `AnimationCommand`
 
 To drive playback from your own code instead of (or in addition to) the
 seeded starting layer, use `PlaybackApi` — never write
@@ -163,11 +176,18 @@ A few things worth knowing before you write this for real:
 - If you need to stop the whole toolkit for a world (e.g. on scene unload),
   call `ToolkitWorldApi.SetEnabled(world, false)` rather than disabling
   actors one at a time.
+- `PlaybackApi.Play`/`Queue`/`Stop` address a raw `layerIndex` and `ClipId`, as
+  above. Once an animation has a name in the profile, prefer
+  `PlaybackApi.PlayAnimation(ref commands, commandPendingEnabled,
+  AnimNames.Bob)` instead — it resolves the entry's own layer and facing for
+  you. See [`actor-profiles.md`](actor-profiles.md).
 
 ## Where to go next
 
 - [`index.md`](index.md) — the concept model and a map of every window and
   inspector, including the VAT and flipbook paths this walkthrough skipped.
+- [`actor-profiles.md`](actor-profiles.md) — layers, named animations,
+  per-animation direction, and ragdoll triggers, in full.
 - [`shader-contract.md`](shader-contract.md) — required reading before
   writing or modifying any shader that consumes this package's per-instance
   properties.

@@ -22,6 +22,7 @@ here:
 | Answers | "it just happened" | "it is happening *now*" |
 | Lives for | One frame | As long as you authored |
 | Carries payload | Yes — `intParam`, `floatParam` | No — just the key |
+| Names the animation | `animationKey` — the emitting layer's `PlaybackLayer.animationKey`, 0 for a raw clip `Play` | — |
 | Use for | Sounds, spawning a projectile, VFX one-shots, camera shake | Damage/hit frames, invulnerability, parry windows, "is committed" |
 
 The rule of thumb: **if the reacting system runs on the frame the thing happens,
@@ -191,7 +192,8 @@ private void Execute(
             continue;
         }
         // animEvent.intParam / .floatParam carry the payload;
-        // .layerIndex and .clip say where it came from.
+        // .layerIndex and .clip say where it came from;
+        // .animationKey names the profile entry that was playing (0 = raw Play).
     }
 }
 ```

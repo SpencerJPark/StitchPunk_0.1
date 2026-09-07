@@ -5,7 +5,7 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.15.0).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.16.0).
 **§4 The queue is currently empty** — the cutscene roadmap that occupied it for several sessions
 closed with A68. Work whatever the owner raises next through the gate in §3.
 
@@ -31,6 +31,12 @@ from git if a decision ever needs tracing. What remains in `Docs\AnimationToolki
 is a compile-checked host sample. The roadmap that built this (`Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md`,
 amendments G0 through A69) is closed; §4 is empty. `CHANGELOG.md`'s `## [0.15.0]` section is the
 one-paragraph-per-item summary of everything that shipped.
+
+**0.16.0 shipped the actor profile (Amendment A70, T1-T10 all landed and gated)** — layers moved off
+the rig onto `ActorProfileAsset`, animations are played by name (`PlaybackApi.PlayAnimation`), a
+directional entry resolves per-facing, and ragdoll can be triggered from an animation; see
+`Documentation~/actor-profiles.md`. Next: **Amendment A71**, the Actor Editor tab
+(`Docs/AnimationToolkit/Amendment_A71_ActorEditor_Spec.md`).
 
 Two things carried forward from the pre-cutscene era, still true: **every existing `ActorAuthoring`
 still needs its `clipSet` re-pointed by hand** where Phase F's migration-free field removal (2026-08-29)
@@ -115,7 +121,7 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-**Next: the Actor Editor roadmap (specs written 2026-09-07, nothing built).** Index:
+**Next: the Actor Editor roadmap (specs written 2026-09-07; A70 built and gated, A71 in progress).** Index:
 `Assets/_Vault/Tasks/NewPlans/ActorEditor_Roadmap.md` — owner product calls in its §2 (layers on an
 actor profile asset, play by name, Base/Override bookends, ragdoll as an animation flag). Order:
 **A70** `Amendment_A70_ActorProfile_Spec.md` (profile asset + `AnimationNameRegistry` + blob +
@@ -203,6 +209,9 @@ it agrees with your code. That habit sank three earlier gates.
   so ticking the flag on a descendant as well is redundant rather than cancelling. The slot
   inspector says so when it finds one. Ticking *nothing* is still the failure that turns nothing,
   and the bake warns about that.
+- `ActorProfileBuilder` skips P2 (animation-name registry membership) at bake — building a blob has
+  no access to the editor-only vocabulary provider that check needs. The Actor Editor's validation
+  badge (A71) is where a profile's P2 violations actually get reported.
 
 ## 8. Not yet judged by eye
 

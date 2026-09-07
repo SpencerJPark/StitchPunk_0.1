@@ -253,25 +253,25 @@ Editor badge (A71) and at bake (`ActorBaker` refuses on any error, same as today
 After each: compile gate → the task's fixtures → tick → commit `A70-Tn: <what>`. Full suites once
 at T10. **[parallel-safe]** tasks may go to a subagent that never touches MCP.
 
-- [ ] **T1 — `DirectionSlots` extraction.** New class; `DirectionSetAsset` becomes `{ slots }`;
+- [x] **T1 — `DirectionSlots` extraction.** New class; `DirectionSetAsset` becomes `{ slots }`;
   `DirectionSetCoverageTests` re-targeted at `DirectionSlots`; cutscene readers of
   `directionSet.GetSlot` → `directionSet.slots.GetSlot` (`CutsceneBlobBuilder`, `CutsceneTimelineSystem`,
   the Cutscene editor panel, `DirectionSetsPanel`/`DirectionSetClipQueueView`). *Gate:*
   `DirectionSetCoverageTests`, `CutsceneTimelineSystemTests`.
-- [ ] **T2 — `AnimationNameRegistry` + provider + settings page + `AnimNames` generation.**
+- [x] **T2 — `AnimationNameRegistry` + provider + settings page + `AnimNames` generation.**
   [parallel-safe with T3] Mirror `TargetTagRegistry` end to end. *Fixture:*
   `VocabularyRegistryPersistenceTests` gains the third registry's round trip;
   `TargetTagRegistryTests`' duplicate-guard test duplicated for names (one test).
-- [ ] **T3 — `ActorProfileAsset`, `ActorLayerDefinition`, `ActorAnimationDefinition`, bookends,
+- [x] **T3 — `ActorProfileAsset`, `ActorLayerDefinition`, `ActorAnimationDefinition`, bookends,
   `ActorProfileValidation` P1–P7.** [parallel-safe with T2] *Fixtures:*
   `ActorProfileValidationTests` — one test per rule that fails for its own reason only (the
   `RagdollValidationTests` pattern); `DiskRoundTripTests` gains a saved-and-reloaded profile
   (HANDOFF §9 lesson 4 — a profile with a `NaN` `blendIn` must survive serialization).
-- [ ] **T4 — Blob + builder + `ActorProfileApi.TryResolve`.** Port `DirectionSetBlob.ResolveSlot`
+- [x] **T4 — Blob + builder + `ActorProfileApi.TryResolve`.** Port `DirectionSetBlob.ResolveSlot`
   and `DirectionSetBlobFoldTests` (the game's) into the package as `DirectionSlotsBlob` +
   `ActorProfileFoldTests`. *Fixtures:* those, plus `ActorProfileBuilderTests` (sorted keys,
   binary-search resolve, determinism of the hash).
-- [ ] **T5 — Layers move.** Delete `RigAsset.layers`/`LayerDefinition`/`MaxLayerCount`, the rig
+- [x] **T5 — Layers move.** Delete `RigAsset.layers`/`LayerDefinition`/`MaxLayerCount`, the rig
   inspector field, the `ClipValidation` layer rule, `ClipRegistryBlob.layerCount` (+ hash term,
   schema bump, golden hash). `ActorAuthoring` → `profile`; `ActorBaker` sizes and seeds layers from
   the profile, adds `ActorProfile` + `ActorFacing` + `ActorRagdollRequest`; `RigTargetBaker`
@@ -279,22 +279,22 @@ at T10. **[parallel-safe]** tasks may go to a subagent that never touches MCP.
   `DataContractTests`, both samples. *Gate:* every fixture in §2 item 7 compiles and stays green;
   `ActorBakingAcceptanceTests` gains "a profile with three layers bakes a three-element
   `PlaybackLayer` buffer seeded from `startingAnimationKey`".
-- [ ] **T6 — Commands.** `CommandKind.PlayAnimation/StopAnimation`, `AnimationCommand.animationKey`,
+- [x] **T6 — Commands.** `CommandKind.PlayAnimation/StopAnimation`, `AnimationCommand.animationKey`,
   `PlaybackLayer.animationKey`, `PlaybackApi.PlayAnimation/StopAnimation/IsAnimationPlaying`,
   `CommandApplySystem` resolve path. *Fixtures:* `CommandApplySystemTests` — PlayAnimation on a
   directional entry at facing `NorthWest` lands the `northEast` slot's clip on the entry's layer
   with the layer's `animationKey` set; `StopAnimation` for a key not on its layer leaves the layer
   playing (fails if implemented as a plain layer stop); `PlaybackApiTests` — `IsAnimationPlaying`
   true only while Active.
-- [ ] **T7 — `ActorFacingRepickSystem`.** *Fixture:* `ActorFacingRepickTests` — flip `facing`
+- [x] **T7 — `ActorFacingRepickSystem`.** *Fixture:* `ActorFacingRepickTests` — flip `facing`
   from `SouthEast` to `NorthEast` on a Four-coverage entry: the layer's clip swaps and `time` is
   preserved; on a Two-coverage entry nothing swaps. `SystemGroupStructureTests` gains the edge.
-- [ ] **T8 — `ActorRagdollTriggerSystem` + `AnimEventOutput.animationKey`.** *Fixture:*
+- [x] **T8 — `ActorRagdollTriggerSystem` + `AnimEventOutput.animationKey`.** *Fixture:*
   `ActorRagdollTriggerTests` — an entry with `Start` at play enables `RagdollActor` the same frame;
   an entry with `Start` at event key K enables it only on the frame K is emitted; `Stop` disables;
   an actor without `RagdollActor` is untouched and logs nothing. `EventEmissionSystemTests` gains
   the `animationKey` copy.
-- [ ] **T9 — `CutsceneApi.TopLayer`.** *Fixture:* `CutsceneTimelineSystemTests` — a request at
+- [x] **T9 — `CutsceneApi.TopLayer`.** *Fixture:* `CutsceneTimelineSystemTests` — a request at
   `TopLayer` drives `PlaybackLayer[Length-1]` on an actor with three layers.
 - [ ] **T10 — Docs, CHANGELOG, version, full suites.** New `Documentation~/actor-profiles.md`
   (what a profile is, bookends, direction per animation, `PlayAnimation`, ragdoll triggers,
@@ -313,5 +313,31 @@ None inside A70 — nothing here is visible. A71 carries the checkpoint.
 
 ## 7. Build log
 
-- *(drift, decisions taken, the registry golden hash before/after, the list of game fixtures left
-  red for G5.)*
+- **T1** (`ef73e2b2`) — `DirectionSlots` extracted verbatim as speced; `DirectionSetAsset` reduced
+  to `{ slots }`. No drift.
+- **T2** (`7a482e8b`) — `AnimationNameRegistry` mirrors `TargetTagRegistry` end to end (provider,
+  `PersistVocabulary` branch, third settings page, `AnimNames` generation). No drift.
+- **T3** (`b6793413`) — `ActorProfileAsset`/`ActorLayerDefinition`/`ActorAnimationDefinition` with
+  `EnsureBookends()` and P1-P7 in `ActorProfileValidation`. No drift from §3.1/§3.8.
+- **T4** (`652a3460`) — `ActorProfileBlob`, `ActorProfileBuilder` (skips P2 at build, exactly as
+  §3.8 directs — no editor vocabulary access from Authoring), `ActorProfileApi.TryResolve`; the
+  game's direction fold ported as `DirectionSlotsBlob.ResolveSlot`. No drift.
+- **T5** (`d8d55bf0`) — `ActorAuthoring` reduced to `profile` plus the presentation fields
+  (`sampleOverride`, `addDistanceLod`, `billboardMode`, `frozenYawDegrees`), matching decision
+  A70-D4; `ActorBaker` sizes/seeds `PlaybackLayer` from the profile and adds `ActorProfile`/
+  `ActorFacing`/`ActorRagdollRequest`. No drift.
+- **T6** (`aa9493ca`) — `PlayAnimation`/`StopAnimation` commands, `PlaybackLayer.animationKey`;
+  `CommandApplySystem.ApplyPlayAnimation` also writes the at-play `ActorRagdollRequest`, which is
+  where §3.5 already placed that responsibility. No drift.
+- **T7** (`90d314dd`) — `ActorFacingRepickSystem` swaps a directional entry's clip in place on
+  facing change, no-ops when the resolved clip is unchanged (covers the Two-coverage-on-Six case).
+  No drift from §3.4.
+- **T8** (`db038c86`) — `ActorRagdollTriggerSystem` honours at-play and at-event triggers, only
+  where `RagdollActor` is present; `AnimEventOutput.animationKey` added. No drift from §3.5.
+- **T9** (`df44fa38`) — `CutsceneApi.TopLayer = byte.MaxValue`, resolved per bound actor to its last
+  `PlaybackLayer`. Landed before T4 in commit order; no functional drift, sequencing only.
+- **T10** (this task) — docs/CHANGELOG/version only, run under an explicit "never call
+  `mcp__UnityMCP__*`, never run tests" constraint. Consequently: the registry golden-hash
+  before/after and the list of game fixtures left red for G5 are **not verified in this pass** —
+  `ClipRegistryDeterminismTests`' golden hash and the game-side `StitchPunk.Tests`/`.PlayMode`
+  suites need an Editor-driven compile + test run before that part of this line item can be closed.

@@ -8,7 +8,64 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.16.0] — actor profiles: layers, named animations, per-animation direction, ragdoll triggers (A70)
+
+### Breaking — rig layers move to the actor profile
+
+- `RigAsset.layers` / `LayerDefinition` / `RigAsset.MaxLayerCount` are gone. A new
+  `ActorProfileAsset` (a new authoring asset) owns ordered playback layers
+  instead, with `layers[0]` fixed to `Base` and `layers[^1]` fixed to `Override`
+  (`EnsureBookends()`), and `MaxLayerCount = 8` moved onto it.
+- `ActorAuthoring.rig` / `.clipSets` / `.startingLayers` (`StartingLayerState`) are gone, replaced
+  by one `ActorAuthoring.profile` field naming an `ActorProfileAsset`. `RigTargetAuthoring.rig ==
+  null` now inherits `profile.rig`.
+- `DirectionSetAsset`'s five clip fields and its coverage methods moved onto a new
+  `DirectionSlots` class, referenced as `DirectionSetAsset.slots` — `directionSet.southEast` is now
+  `directionSet.slots.southEast`, and likewise for `GetSlot`/`SetSlot`/`TryGetEffectiveDirections`.
+- `ClipRegistryBlob.layerCount` and its hash term are removed (registry schema bumps; the golden
+  content hash in `ClipRegistryDeterminismTests` changes with it) — a registry is per (rig, clip
+  sets) now, and layer count is per profile.
+- `CutsceneApi.CreatePlayRequest`'s default `layerIndex` is now `CutsceneApi.TopLayer` instead of
+  `0`, resolved per bound actor to that actor's own last playback layer.
+- No migration path (directive): a project's rigs and actors need their layers, clip sets, and
+  starting animations re-authored by hand onto an `ActorProfileAsset`. The game side of this
+  cutover is tracked separately (G5) and is expected to fail until it lands — see `HANDOFF.md` §7.
+
+### Added — Actor Profiles: layers, named animations, per-animation direction, ragdoll triggers (A70)
+
+`Documentation~/actor-profiles.md` is the full reference; summary of what shipped:
+
+- **`ActorProfileAsset`** (T3): rig, clip sets, `turnDirections`, and the fixed-bookend layer list
+  above, each layer holding named `ActorAnimationDefinition` entries (clip or per-direction
+  `DirectionSlots`, loop/speed/blend, an optional ragdoll trigger). `ActorProfileValidation` P1-P7
+  judges layer shape, name identity, fill-pattern legality, and clip/ragdoll/starting-animation
+  warnings.
+- **`DirectionSlots` extraction** (T1): the five east-side clip slots and their fold/mirror logic
+  moved out of `DirectionSetAsset` into a standalone, reusable class.
+- **`AnimationNameRegistry`** (T2): a third `IVocabularyRegistry`, shaped like `TargetTagRegistry`,
+  with its own settings page (**Project Settings ▸ DOTS Animation Toolkit ▸ Animation Names**) and
+  generated `AnimNames` constants — an animation is always played by name, never by raw id.
+  Game code plays by name.
+- **`ActorProfileBlob` + `ActorProfileBuilder` + `ActorProfileApi.TryResolve`** (T4): the profile
+  bakes to a blob sorted by animation key for binary-search resolve; the game's own
+  `DirectionSetBlob.ResolveSlot` fold moved into the package as `DirectionSlotsBlob.ResolveSlot`.
+- **`ActorBaker` seeds layers from the profile** (T5): `PlaybackLayer` buffer sized from
+  `profile.layers.Count`, each layer optionally seeded by `startingAnimationKey` through the same
+  resolve path `PlayAnimation` uses at runtime; adds `ActorProfile`, `ActorFacing`, and a disabled
+  `ActorRagdollRequest` to every actor.
+- **`PlaybackApi.PlayAnimation` / `StopAnimation` / `IsAnimationPlaying`** (T6): new
+  `CommandKind.PlayAnimation`/`StopAnimation`, `AnimationCommand.animationKey`, and
+  `PlaybackLayer.animationKey` (0 = a raw `Play`). `CommandApplySystem` resolves a named entry
+  against `ActorFacing` and routes it to whichever layer the entry lives on; `StopAnimation` is a
+  no-op unless that layer is still playing the named key.
+- **`ActorFacingRepickSystem`** (T7): when host-written `ActorFacing.facing` changes, swaps a
+  directional entry's clip in place (same time, no crossfade) on every layer currently playing it,
+  and writes `appliedFacing`. `PartFacing` is untouched.
+- **`ActorRagdollTriggerSystem` + `AnimEventOutput.animationKey`** (T8): honours a profile entry's
+  `ragdollTrigger` at play or at a named event marker, only where `RagdollActor` is present; never
+  adds `RagdollActor` to a rig that lacks it.
+- **`CutsceneApi.TopLayer`** (T9): resolves per bound actor to that actor's own last playback
+  layer, so a cutscene always targets the actor's top layer regardless of its profile's layer count.
 
 ### Changed — breaking (A69)
 
