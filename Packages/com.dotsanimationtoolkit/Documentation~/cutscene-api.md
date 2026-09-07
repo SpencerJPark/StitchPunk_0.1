@@ -149,7 +149,7 @@ reaches `LocalTransform`/`PostTransformMatrix`).
 
 ## Authoring surface
 
-### `CutsceneAsset` — `Authoring/Assets/CutsceneAsset.cs`
+### `CutsceneAsset` — `Authoring/Assets/` (`CutsceneAsset.cs`)
 
 `ScriptableObject`, `IStableIdMintReporter`. A multi-actor timeline authored on one flat,
 unnormalized timeline in raw seconds — hold points are markers on it, not a break in it; splitting
