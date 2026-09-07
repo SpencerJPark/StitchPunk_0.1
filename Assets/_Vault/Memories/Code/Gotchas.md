@@ -672,3 +672,42 @@ So the revert-and-restore cycle can leave a Burst entry keyed to a hash it has a
 poisoned — the same family as the standing BC0101/BC1055 hash errors above. **If restored code still
 behaves like the reverted version, do not go hunting in your own logic: change the expression's shape
 to force a fresh hash, or restart the Editor.** Recompiling alone does not clear it.
+
+### `AssetDatabase.SaveAssets()` flushes every dirty asset in the project, not just the one you touched
+
+Called it via `execute_code` after editing one field on `RendezvousAndDepart.asset` (a cutscene
+duration fix). It also silently persisted an unrelated, already-dirty-in-memory change on
+`NewRig.asset` (a billboard root entry someone had set up in the Editor but never explicitly saved) —
+correct, wanted data in this case, not a corruption, but it could just as easily have been someone
+else's in-progress edit. **Before calling `SaveAssets()` from `execute_code`, `git status` first** so
+an incidental flush doesn't surprise you in the diff; if something unexpected shows up, read the diff
+before assuming it's yours to commit.
+
+### A same-frame skip-check that only reacts to *this frame's* state can be one frame too late
+
+`CutsceneTimelineSystem.ApplyPose` skipped root-lane sampling while a slot's `attachedHostSlotIndex`
+was live, which correctly suppressed it during a ride — but the flag flips back to `-1` the instant
+`ProcessAttachMarkers` queues the Detach op, one frame *before* the deferred structural change
+(`ApplyPendingAttachOps`) actually removes `Parent`. A same-frame-only fix (skip sampling only when a
+Detach was queued *this specific frame*) stops the immediate double-transform corruption but not the
+frame after, and the one after that — the slot has no further legitimate root-lane data post-ride, so
+every subsequent frame kept re-snapping it back to the stale pre-ride key. **When "attached" or
+similar is a boolean that flips at the same moment a deferred structural op is queued, a consumer
+gating on that boolean needs a *permanent, monotonic* flag ("has this ever ended"), not a check of the
+current instant** — the current-instant check is exactly one frame stale relative to when the real
+state changes. Cost two attempts here; verify a detach/release-style fix by watching several frames
+after the transition, not just the one where it fires.
+
+### `AnimationToolkitCameraData` has no writer anywhere in the project — billboarding silently never runs
+
+Confirmed live (`execute_code`, zero entities carrying the singleton, in Play mode, cutscene or not):
+`BillboardResolveSystem` requires this singleton to run at all (`RequireForUpdate`), and nothing in
+`Assets/_Scripts/` ever wrote it. Flagged as a known gap in `verify-billboarding.md` back on
+2026-08-17 (the sample writer `ToolkitCameraSync` was deleted with the demo scenes it served) and
+never closed when `MaleCitizen` was migrated onto the toolkit's rig — so every `BillboardRootElement`
+on every actor has sat at its baked default (`resolvedRotation = identity`) the whole time, silently,
+with `AnimVisible`/`CameraVisible` both green and no console warning. Fixed by
+`AnimationToolkitCameraBridge` (`MonoBehaviours/Managers/`), writing from `Camera.main` every
+`LateUpdate`. **A toolkit system whose `OnCreate` does `RequireForUpdate<SomeHostWrittenSingleton>()`
+can look completely inert — no error, no warning, just nothing happening — check whether that
+singleton actually exists at runtime before debugging anything downstream of it.**
