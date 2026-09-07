@@ -19,13 +19,15 @@ public class CutsceneDebugTrigger : MonoBehaviour
 {
     [Tooltip("NarrativeIds.Events constant to fire — the enclosing NarrativeEventSO's PlayCutsceneAction owns the actual cutscene.")]
     [SerializeField] private int narrativeEventId = NarrativeIds.Events.RendezvousTest;
-    // NOT F9: Unity's Editor reserves bare F9 for Profiling/Profiler/RecordToggle and intercepts it
-    // before the running game's Input System ever sees it — confirmed against every one of the
-    // 1121 shortcuts ShortcutManager.instance.GetAvailableShortcutIds() registers project-wide.
-    // F11/F12 are unbound bare (only Ctrl+F11/Ctrl+F12/Ctrl+Shift+F12 are taken); F10 bare is also
-    // free (only Ctrl+F10 is taken), which is why it was already safe as the skip key.
-    [SerializeField] private Key key = Key.F11;
-    [SerializeField] private Key skipKey = Key.F10;
+    // NOT any function key. F9 is Unity's own reserved Editor shortcut (Profiling/Profiler/
+    // RecordToggle — confirmed against all 1121 shortcuts ShortcutManager.instance registers
+    // project-wide) and never reaches the running game at all. F11, tried next, reached Unity fine
+    // but as Key.Home, not Key.F11 — a laptop keyboard sharing the F-row with Home/End/PgUp/PgDn
+    // (no Fn-lock), confirmed live via a diagnostic that logged every key Unity's Input System
+    // actually saw. Backquote/Backslash are dedicated physical keys on every keyboard, with no
+    // Editor shortcut and no secondary Fn function to collide with.
+    [SerializeField] private Key key = Key.Backquote;
+    [SerializeField] private Key skipKey = Key.Backslash;
 
     [Tooltip("Debug convenience only: the instant the toolkit issues the player a mark, teleport them onto it instead of requiring a manual walk. The toolkit itself never auto-paths the Player (G2 §4) — this is purely for solo testing.")]
     [SerializeField] private bool autoWalkPlayerToMark = true;
