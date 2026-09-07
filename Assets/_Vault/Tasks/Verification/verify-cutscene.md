@@ -20,20 +20,33 @@ lives on `Managers/CutsceneDebug` in TestArea.
 
 ## Setup — read before you press Play
 
-- **The trigger key is backtick ( ` ), not F9.** The spec originally named F9; it does nothing at all
-  when pressed because Unity's own Editor reserves bare F9 as the built-in shortcut for
+- **The trigger key is `H`, not F9.** The spec originally named F9; it does nothing at all when
+  pressed because Unity's own Editor reserves bare F9 as the built-in shortcut for
   `Profiling/Profiler/RecordToggle` (confirmed against all 1121 shortcuts `ShortcutManager.instance`
   registers project-wide) and consumes the keypress before the running game's Input System ever sees
   it. F11 was tried next and also failed — a live diagnostic (logging every key Unity's Input System
   actually saw) proved the physical F11 key was registering as `Key.Home`, a laptop keyboard sharing
-  the F-row with Home/End/PgUp/PgDn without Fn-lock. Settled on **backtick ( \` )**, a dedicated key on
-  every keyboard with no Editor shortcut and no secondary Fn function. The skip key is **backslash
-  ( \\ )** for the same reason (F10, though never actually reserved, was dropped along with the rest
-  of the F-row on principle).
-- **Backtick fires the narrative event, not a raw signal.** `CutsceneDebugTrigger` fires
+  the F-row with Home/End/PgUp/PgDn without Fn-lock. Backtick/backslash were tried after that and
+  worked as keys, but a real bug (next bullet) made the trigger look broken again regardless of which
+  key fired it. Settled on **`H`** to fire, **backslash ( \\ )** to skip, **semicolon ( ; )** to dump
+  actor state (see below) — plain keys, no Editor shortcut, no Fn sharing.
+- **A real bug, not another key problem: the press handler could fire every frame instead of once,
+  permanently locking player input.** A stray scoping issue put the narrative-event fire outside its
+  `wasPressedThisFrame` guard, so once triggered it kept re-firing on every subsequent `Update` —
+  each frame's fresh `ExecuteEventAsync` set `CutsceneActiveTag` again right after the previous
+  call's `finally` had cleared it, so WASD went dead for good once the cutscene ended. Fixed, plus a
+  re-entry guard: `FireNarrativeEvent` now no-ops while `ActiveNarrativeEvent` or an unconsumed
+  `OnNarrativeEvent` is still set, so a second press can never stack a second run.
+- **`H` fires the narrative event, not a raw signal.** `CutsceneDebugTrigger` fires
   `NarrativeIds.Events.RendezvousTest` through `NarrativeEventManager`, which runs
   `NarrativeEvent_RendezvousTest`'s `PlayCutsceneAction` — the whole narrative path is exercised, not
   just the toolkit's own playback.
+- **Semicolon ( ; ) dumps live actor state to the console** — for the narrative singleton and every
+  entity currently carrying `CutsceneActor` (enabled or not): every gate that can stop a unit moving
+  (`CutsceneActor`, `Movement`, `Dead`, pathing/agent/StateMachine state, marks), plus health/killedBy/
+  faction/position. Built to answer "why is this NPC still frozen after the cutscene ended" without
+  guessing — read it in the order the field comment on `DescribeActor` in `CutsceneDebugTrigger.cs`
+  lays out.
 - **The player auto-walks onto their mark by default.** `CutsceneDebugTrigger.autoWalkPlayerToMark`
   (on by default) teleports the player onto their mark the instant it's issued — the toolkit itself
   never auto-paths the Player (G2 §4), so this is purely a solo-testing convenience. Turn it off on
@@ -47,8 +60,8 @@ lives on `Managers/CutsceneDebug` in TestArea.
 
 ## Checklist
 
-1. [ ] Open `DOTSTestScene`, enter Play, press backtick ( ` ) (not F9 — see Setup). Console: no errors,
-       one line from the narrative manager.
+1. [ ] Open `DOTSTestScene`, enter Play, press `H` (not F9 — see Setup). Console: no errors, one line
+       from the narrative manager.
 2. [ ] MinionA and MinionB pathfind to their discs (walk cycle plays, faces the travel direction). The
        player can still walk. Nothing else moves; both minions' `UtilityActions` are empty in the
        Entities window.
@@ -61,9 +74,9 @@ lives on `Managers/CutsceneDebug` in TestArea.
 7. [ ] At the destination everyone reappears on the ground beside the cart; the cutscene ends; the
        camera blends back to the gameplay camera; the minions resume wandering from where they stand;
        the player controls again.
-8. [ ] Press backtick ( ` ) again mid-run and press the skip key (backslash, \ ): the world ends in the
-       same state as step 7 — same positions, everyone visible, dialogue never opened but the SFX
-       event fired.
+8. [ ] Press `H` again mid-run and press the skip key (backslash, \ ): the world ends in the same
+       state as step 7 — same positions, everyone visible, dialogue never opened but the SFX event
+       fired.
 9. [ ] Save during the cutscene (debug save menu): refused with a warning; save after: works.
 10. [ ] Profiler: `CutsceneTimelineSystem` under 0.2 ms with four slots.
 
@@ -103,17 +116,20 @@ first thing to check.
 
 ## Debug tooling bugs found and fixed while chasing "the trigger key does nothing"
 
-Two real, unrelated bugs turned up debugging the trigger before the key itself was identified as the
-problem — both in the *new* debug tooling this session added, not the cutscene systems themselves:
+Three real, unrelated bugs turned up debugging the trigger before it actually worked — all in the
+*new* debug tooling this session added, not the cutscene systems themselves. (Two parallel sessions
+worked this independently — a Sonnet 5 session through the key-collision chain, an Opus 5 session
+through to the actual input-lockup bug; both are recorded here rather than only one.)
 
 - **`CutsceneMarkDebugVisualizer.Update()` created a fresh `EntityQuery` every frame and never
   disposed it** — 60 leaked queries a second for as long as Play mode ran. `CutsceneDebugTrigger` had
   the same flaw on its three queries, just gated per-keypress instead of per-frame. Both now build
   their queries once (cached, rebuilt only if the `World` itself changes) and dispose them in
-  `OnDestroy`. Confirmed not the actual cause of the key problem (a diagnostic proved the keypress
-  itself wasn't reaching `Key.F11` at all), but a real leak regardless, and the owner's instinct to
-  suspect "the downstream stuff" was the right instinct even though the bug it turned up wasn't the
-  one blocking F11 specifically.
+  `OnDestroy`. A real leak, but not what was blocking the key.
+- **F9 was a Unity Editor shortcut and F11 collided with this laptop's Home key** (both above).
+- **The actual blocker: a scoping bug let a fire re-trigger the narrative event every frame instead
+  of once**, permanently locking player input once it happened (Setup, above). This is the one that
+  mattered — everything before it was real, but none of it was *the* bug.
 
 ## Known, pre-existing, not this spec's
 
