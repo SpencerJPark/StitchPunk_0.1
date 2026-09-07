@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEditor;
@@ -17,7 +18,7 @@ namespace DotsAnimationToolkit.Editor
     /// <see cref="Render"/> never depends on selection: it draws whatever the scene holds, at
     /// minimum the reference grid, whether or not a clip is selected.
     /// </summary>
-    public sealed class ClipPreviewController : IDisposable
+    public sealed class ClipPreviewController : IDisposable, IActorPosePresenter
     {
         /// <summary>Used only when there is no geometry to frame, so nothing tells us how far back to be.</summary>
         private const float DefaultOrbitDistance = 6f;
@@ -124,7 +125,11 @@ namespace DotsAnimationToolkit.Editor
         // The one manually-owned blob in the toolkit, and only in the editor: built Persistent
         // because it must outlive the call that made it, so Dispose is not optional.
         private BlobAssetReference<ClipRegistryBlob> registry;
-        private ClipSetAsset boundClipSet;
+
+        // The one open set in the Clip Editor, or a profile's whole bind in the Actor Editor.
+        // ClipRegistryBuilder.Build dedupes and canonically sorts this itself, so callers never
+        // have to pre-sort it.
+        private IReadOnlyList<ClipSetAsset> boundClipSets;
 
         // The rig the bound set is being previewed on. Supplied by the window rather than read off
         // the set, since a set names no rig.
@@ -235,6 +240,8 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Whether a registry is currently built and sampleable.</summary>
+        BlobAssetReference<ClipRegistryBlob> IActorPosePresenter.Registry => registry;
+
         public bool HasRegistry
         {
             get { return registry.IsCreated; }
@@ -264,7 +271,14 @@ namespace DotsAnimationToolkit.Editor
         // invalid clip is useless precisely while the clip is being fixed.
         public void SetClipSet(ClipSetAsset clipSet)
         {
-            boundClipSet = clipSet;
+            SetClipSets(clipSet != null ? new ClipSetAsset[] { clipSet } : null);
+        }
+
+        // Same as SetClipSet, but for a profile's whole bind (every layer's clip set at once)
+        // rather than the Clip Editor's one open set.
+        public void SetClipSets(IReadOnlyList<ClipSetAsset> clipSets)
+        {
+            boundClipSets = clipSets;
             Refresh();
         }
 
@@ -340,18 +354,12 @@ namespace DotsAnimationToolkit.Editor
         // own line, which would squeeze the 3D preview out of a status label meant for one sentence
         // — ValidationBadgeElement is the surface for the full list. Anything else thrown reports in
         // full, since an unexpected build failure has no other surface here.
-        private void RebuildRegistry(ClipSetAsset clipSet)
+        private void RebuildRegistry(IReadOnlyList<ClipSetAsset> clipSets)
         {
             try
             {
                 Unity.Entities.Hash128 contentHash;
-                // The preview binds the one set the window has open to the rig the window is
-                // showing — the same shape an actor's bind has, with a list of one.
-                ClipRegistryBuilder.Build(
-                    boundRig,
-                    new ClipSetAsset[] { clipSet },
-                    out registry,
-                    out contentHash);
+                ClipRegistryBuilder.Build(boundRig, clipSets, out registry, out contentHash);
             }
             catch (ArgumentNullException)
             {
@@ -867,16 +875,24 @@ namespace DotsAnimationToolkit.Editor
         // they never reach the blob, so posing the skeleton needs the ClipAsset itself.
         private List<BoneTrack> FindClipById(ulong clipId)
         {
-            if (boundClipSet == null || boundClipSet.clips == null)
+            if (boundClipSets == null)
             {
                 return null;
             }
-            for (int clipIndex = 0; clipIndex < boundClipSet.clips.Count; clipIndex++)
+            for (int setIndex = 0; setIndex < boundClipSets.Count; setIndex++)
             {
-                ClipAsset candidate = boundClipSet.clips[clipIndex];
-                if (candidate != null && candidate.Id.Value == clipId)
+                ClipSetAsset clipSet = boundClipSets[setIndex];
+                if (clipSet == null || clipSet.clips == null)
                 {
-                    return candidate.boneTracks;
+                    continue;
+                }
+                for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
+                {
+                    ClipAsset candidate = clipSet.clips[clipIndex];
+                    if (candidate != null && candidate.Id.Value == clipId)
+                    {
+                        return candidate.boneTracks;
+                    }
                 }
             }
             return null;
@@ -903,7 +919,7 @@ namespace DotsAnimationToolkit.Editor
                 statusMessage = "Rig '" + boundRig.name + "' declares no targets.";
                 return;
             }
-            if (boundClipSet == null)
+            if (boundClipSets == null || boundClipSets.Count == 0)
             {
                 // A rig with no set is a legitimate half-state, and a useful one: the hierarchy and
                 // the rest pose are the rig's, so the viewport still shows the character standing
@@ -912,7 +928,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            RebuildRegistry(boundClipSet);
+            RebuildRegistry(boundClipSets);
         }
 
         private void DisposeMirrors()
@@ -988,6 +1004,132 @@ namespace DotsAnimationToolkit.Editor
                     + string.Join(", ", skeletonMirror.UnresolvedBoneNames);
             }
             return true;
+        }
+
+        /// <summary>
+        /// Poses the mirror from every active playback layer composited together, the Actor
+        /// Editor's entry point in place of <see cref="SamplePose"/>'s single clip.
+        /// </summary>
+        /// <returns>False when no registry is built.</returns>
+        public bool SampleCompositedPose(in NativeArray<PlaybackLayer> layers, bool mirrorX)
+        {
+            RestoreBillboardedNodes();
+
+            if (!registry.IsCreated)
+            {
+                return false;
+            }
+
+            ref ClipRegistryBlob registryBlob = ref registry.Value;
+            RebuildRestPosesIfNeeded();
+
+            hasSampledClip = true;
+            // A composited pose has no single clip for BuildPreviewSettings' keyed billboard
+            // lookup to key against; 0 is never a real clip id, so that lookup is a harmless
+            // no-op here rather than reusing a stale id left by an earlier SamplePose call.
+            lastSampledClipId = 0UL;
+            lastSampledNormalizedTime = 0f;
+
+            for (int targetIndex = 0; targetIndex < registryBlob.sortedTargetIds.Length; targetIndex++)
+            {
+                uint targetId = registryBlob.sortedTargetIds[targetIndex];
+                TargetRestPose rest = ResolveRestPose(targetId);
+
+                TargetPose pose;
+                ClipSampler.CompositeLayers(
+                    ref registryBlob, in layers, targetIndex, in rest, false, out pose);
+
+                if (mirrorX && IsMirroredIndependently(targetId))
+                {
+                    // The same four negations TransformSampleSystem applies for a mirrored
+                    // PartFacing part: reflection about the actor's vertical axis, not a uniform
+                    // scale-by-minus-one of the whole part.
+                    pose.localPosition.x = -pose.localPosition.x;
+                    pose.rotation.y = -pose.rotation.y;
+                    pose.rotation.z = -pose.rotation.z;
+                    pose.scale.x = -pose.scale.x;
+                }
+
+                rigMirror.ApplyPose(targetId, in pose);
+            }
+
+            // After the whole pose, never inside the loop — same reason SamplePose orders it last.
+            socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
+
+            // Bone tracks are authored against one clip; a composited pose has no single clip id
+            // to hand FindClipById, so the skeleton mirror is left at whatever it last showed.
+            return true;
+        }
+
+        // Whether a facesDirection target mirrors on its own — true only when it opts into
+        // facing and no ancestor target already opts in, since that ancestor's negation already
+        // reflects it. The mirror's quads are flat siblings with no parent-child transforms
+        // (PreviewRigMirror.Rebuild), so ancestry is read from sourceNodePath prefixes instead —
+        // the same source CutsceneDirectionVariants reads for the cutscene preview's own mirror.
+        private RigAsset facingMirrorCacheRig;
+        private readonly Dictionary<uint, bool> facingMirrorEligibility = new Dictionary<uint, bool>();
+
+        private bool IsMirroredIndependently(uint targetId)
+        {
+            if (facingMirrorCacheRig != mirrorRig)
+            {
+                facingMirrorEligibility.Clear();
+                facingMirrorCacheRig = mirrorRig;
+            }
+
+            bool eligible;
+            if (facingMirrorEligibility.TryGetValue(targetId, out eligible))
+            {
+                return eligible;
+            }
+
+            eligible = false;
+            RigTargetDefinition target = FindTargetById(mirrorRig, targetId);
+            if (target != null && target.facesDirection && !HasFacingAncestor(mirrorRig, target))
+            {
+                eligible = true;
+            }
+            facingMirrorEligibility[targetId] = eligible;
+            return eligible;
+        }
+
+        private static RigTargetDefinition FindTargetById(RigAsset rig, uint targetId)
+        {
+            if (rig == null || rig.targets == null)
+            {
+                return null;
+            }
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition candidate = rig.targets[targetIndex];
+                if (candidate != null && candidate.Id.Value == targetId)
+                {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        private static bool HasFacingAncestor(RigAsset rig, RigTargetDefinition target)
+        {
+            if (string.IsNullOrEmpty(target.sourceNodePath))
+            {
+                return false;
+            }
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition candidate = rig.targets[targetIndex];
+                if (candidate == null || candidate == target || !candidate.facesDirection
+                    || string.IsNullOrEmpty(candidate.sourceNodePath))
+                {
+                    continue;
+                }
+                if (target.sourceNodePath.StartsWith(candidate.sourceNodePath + "/", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         // Poses one target from a value that is not in the registry yet — what makes an unkeyed
