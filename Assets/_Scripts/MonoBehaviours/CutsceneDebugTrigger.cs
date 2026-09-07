@@ -199,6 +199,20 @@ public class CutsceneDebugTrigger : MonoBehaviour
         AppendFlag(line, entityManager, actorEntity, "markIssued");
         AppendFlag(line, entityManager, actorEntity, "cutsceneFacing");
 
+        // DamageEventSystem stamps Health.kill* on the lethal event, so a corpse still names what
+        // killed it long after the fact — the difference between "the cutscene did this" and
+        // "ordinary combat did this to a unit the cutscene happened to bind".
+        if (entityManager.HasComponent<Health>(actorEntity))
+        {
+            Health health = entityManager.GetComponentData<Health>(actorEntity);
+            line.Append(" hp=").Append(health.healthAmount).Append('/').Append(health.healthAmountMax);
+            if (entityManager.HasComponent<Dead>(actorEntity) && entityManager.IsComponentEnabled<Dead>(actorEntity))
+                line.Append(" killedBy=").Append(health.killDamageSource);
+        }
+
+        if (entityManager.HasComponent<Faction>(actorEntity))
+            line.Append(" faction=").Append(entityManager.GetComponentData<Faction>(actorEntity).factionType);
+
         if (entityManager.HasComponent<Parent>(actorEntity))
             line.Append(" PARENTED=").Append(entityManager.GetComponentData<Parent>(actorEntity).Value.ToString());
 
