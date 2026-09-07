@@ -394,6 +394,30 @@ objects, and such objects survive domain reloads); and the open cutscene rides `
 (`RestoreSessionCutscene`) because the panel dies with every reload — remove that and the tab
 comes back empty, reading as a dead tool.
 
+## Cutscenes — traps only (shipped 0.15.0)
+
+Full reference lives in the package, not here:
+[`cutscenes.md`](../../../Packages/com.dotsanimationtoolkit/Documentation~/cutscenes.md) (concept
+model, authoring, playback) and
+[`cutscene-api.md`](../../../Packages/com.dotsanimationtoolkit/Documentation~/cutscene-api.md)
+(member reference). File list: `find Packages/com.dotsanimationtoolkit -iname "*cutscene*"`.
+
+- **A stage must live in the bound objects' own scene.** `CutsceneStageBaker`'s `Baker.GetEntity`
+  only resolves GameObjects baked in the same subscene as the `CutsceneStageAuthoring`; a binding
+  naming a GameObject outside it resolves to `Entity.Null` and the host must supply that binding at
+  play time instead.
+- **A hold is not a pause.** `CutsceneControl.paused` freezes the clock *and* every bound actor's
+  clip layer; a hold freezes only the clock — looping clips keep cycling under it by owner decision,
+  and outstanding marks keep resolving arrival while held.
+- **An outstanding mark suspends its slot's root lane**, exactly like an attached slot: whatever is
+  walking the entity there owns the transform, and the merged rehearsal key would otherwise drag it
+  along the authored path while the real walk is still happening.
+- **An attached slot's root lane is ignored entirely, and permanently once it has ever detached** —
+  `hasEverDetached` retires it for the rest of the cutscene, because the flat lane's only real content
+  is the pre-ride pickup key; resampling it post-detach snaps the rider back to where it was picked up.
+- **A skip replays every attach marker it jumped over**, in order, so a skipped run and a watched one
+  leave the identical world — including any detach signal a host was waiting on.
+
 ## Do not spawn subagents against this package
 
 Three processes driving one live Unity Editor already caused MCP lock

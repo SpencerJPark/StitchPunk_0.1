@@ -10,57 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added — Cutscene viewport picking, in-tab gizmo, frozen headers (A67)
-
-Closes the A59/A60 editor backlog: the in-tab viewport is a workspace rather than a monitor.
-
-- **Click-select in the viewport.** A press that does not travel picks the nearest bound cast
-  member by renderer bounds and selects its slot; empty space clears. A modifier keeps the
-  timeline's item selection while moving the slot. The shot is no longer broken on pointer-down,
-  only once a drag actually travels, so selecting something leaves the framed view alone.
-- **A transform gizmo in the tab.** W/E/R switch move/rotate/scale through one writer. It reuses
-  the Clip Editor's `PreviewTransformGizmo` mesh and `PreviewGizmoMath` picking and drag maths, and
-  is drawn with `Graphics.DrawMesh` naming the tab's own camera — so it is not a scene object,
-  never appears in the Scene view, and cannot leak across a domain reload. It writes the same
-  transforms the Scene-view gizmo writes, so Key and Auto Key are unchanged.
-- **Frozen header column.** The timeline is two synced scroll views; the header column no longer
-  scrolls away sideways. Both columns carry one entry per row at a shared explicit height.
-- **Compact cast rows.** One line per slot: state dot, name, kind chip, and Place / Bind / Select /
-  Frame as icon buttons. The inspector adopts the Clip Editor's own heading and padding rules.
-- **Navigation parity.** Right-drag look, WASD/QE fly with Shift boost while the right button is
-  held, Shift+F to frame the whole cast. In the timeline: Ctrl+wheel zooms about the cursor, Home
-  fits the cutscene, Alt+P centres the playhead.
-
-### Added — Cutscene editor polish: selection, clipboard, Auto Key, curves (A66)
-
-- **Multi-select.** `CutsceneItemAddress` (slot, lane kind, part track, item) replaces the single
-  four-field selection with a set plus a primary item. Ctrl toggles, Shift adds, a plain click on
-  something already selected keeps the set. Selection resolves on pointer *down*, because a drag
-  has to know what it is moving before it starts.
-- **Multi-drag and multi-delete.** Dragging a selected item moves every selected item by the same
-  delta, across lanes and slots, in one commit. The group travels rigidly — dragged past zero it
-  stops with its earliest item on zero rather than collapsing its spacing
-  (`CutsceneSelectionMath.ShiftTimes`).
-- **Box select.** A band over the lane stack picks up everything it crosses; Shift bands additively.
-- **Clipboard.** `CutsceneKeyClipboard` — Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+D. Times are relative to
-  the earliest copied item, so a paste lands the beat at the playhead intact. Slot-scoped lanes
-  paste into the selected slot; a part-track key finds its destination track by tag and creates it
-  when the target slot has none. The buffer survives switching cutscenes, not a domain reload.
-- **Auto Key.** A toolbar toggle beside **Key**. `CutscenePreviewController` records the exact pose
-  it last applied to each transform it poses, and Auto Key compares against *that* rather than the
-  sampled value — which is why scrubbing, which writes poses every frame, never keys anything. One
-  key per gesture, written on pointer release. Off while the transport plays; off by default,
-  persisted for the editor session.
-- **Curve editor.** Transform and camera key inspectors host the Clip Editor's
-  `EasingCurveEditorElement`. Dragging a handle makes the key a custom Bézier and writes both
-  handles; presets draw their shape read-only.
-
-### Fixed (A66)
-
-- Bound inspector fields rebuilt the timeline *directly* from their own change event, so dragging a
-  number in the cutscene inspector (Time, Start, Duration…) released the pointer capture and ended
-  the drag after about a pixel. They go through the deferred `RequestTimelineRebuild` now.
-
 ### Changed — breaking (A69)
 
 One suffix per static-class role across the public API, and the doc-comment volume cut from 25%
@@ -81,141 +30,6 @@ section/amendment/Phase citation removed from shipped sources). Renames, old →
 
 Also: `PlaybackQuery.FinishedThisFrame` → `PlaybackApi.HasFinishedThisFrame` (a `bool`-returning
 method with no `out` parameter reads as a predicate, not a `Try…`).
-
-### Added — Cutscene cues, runtime facing, per-block speed (A65)
-
-- **Holding events.** `CutsceneEventMarker.holdUntilReleased` bakes a segment
-  boundary whose hold id is the event's own registry name, and buckets the event
-  into the segment that *ends* there so the cue fires on the frame the clock
-  stops. `CutsceneApi.TryGetCurrentHoldId` reads that id back. An
-  authored hold at the same instant wins, with a warning naming the survivor.
-- **`ICutsceneEventInspectorProvider`**, a host seam for event payload editors:
-  a dialogue sequence id can be picked by name instead of typed as an `intParam`.
-- **`CutsceneFacing`**, written on every bound Actor slot the cutscene has a
-  facing for and disabled when it ends: an angle measured from +X toward +Z, for
-  the host to map onto its own facing model. The toolkit still never writes
-  `PartFacing` — a host that already owns facing would be fighting it. A block
-  whose clip belongs to the slot's direction set bakes that set's five east-side
-  clips and re-picks the variant on a turn with `Play` (no blend) + `SetTime`
-  carrying the phase.
-- **Per-block `speed` and `clipStartOffsetSeconds`**, multiplied into the Play
-  command and issued as a following `SetTime`. `CutsceneBlob.schemaVersion` is
-  now **5**.
-
-### Fixed
-
-- **A mirror point now flips its whole subtree, and a nested one is ignored rather than cancelling
-  it.** The facing mirror negates a part's local `scale.x`, and scale composes down a transform
-  hierarchy, so a mirrored part inside a mirrored parent multiplied back to +1: on a nested rig only
-  every second level flipped, which looked like a character whose head would not turn with its body.
-  `RigTargetBaker` tags a facing part that has a facing ancestor with the new
-  `PartMirrorFromAncestor`, and `TransformSampleSystem` and the Cutscene Editor's preview both leave
-  that part's mirror to the ancestor. `PartFacing.viewOffset` is unaffected — alt views are a
-  separate job a nested part still does for itself.
-- A cutscene facing derived from root travel was measured from +Z (the
-  `LocalTransform` Y-euler convention) while every consumer read it as
-  `(cos, sin)` from +X, so an actor walking east resolved as facing north and an
-  east/west turn never mirrored. Both the authoring and runtime samplers now
-  measure from +X toward +Z, and the resolve chain itself is one shared
-  `CutsceneFacingVariants.Resolve` the editor preview and the player both call.
-
-### Added — Cutscene marks and rendezvous holds (A64)
-
-Actors can be sent to a spot and the cutscene can wait for them: everyone hops
-in the car, and it does not leave without them.
-
-- `CutsceneMarkKey` on every `CutsceneSlot` — a time, a world position, an
-  arrival facing, a tolerance, a timeout and an editor rehearsal duration —
-  baked into `CutsceneMarkKeyBlob` per segment.
-  `CutsceneHoldMarker.autoReleaseWhenMarksReached` bakes onto the segment it
-  ends as `CutsceneSegmentBlob.autoReleaseWhenMarksReached`.
-  `CutsceneBlob.schemaVersion` is now **4**.
-- Every mark also merges into its slot's flat root lane as a Linear key at
-  `time + previewTravelSeconds`, before bucketing and before the hold-boundary
-  pass. The editor preview walks that same merged lane, so preview and playback
-  cannot disagree, and the segment after a rendezvous hold starts at the
-  arrival pose rather than snapping. The bake warns when a rehearsed walk
-  straddles the hold that waits for it.
-- `CutsceneMoveToMark`, enabled on the bound entity at the mark's time. The
-  toolkit never walks the entity — the host does — but it judges arrival by XZ
-  distance and disables the component itself, and places the entity on the mark
-  if a timeout expires. Timeouts are real seconds and do not tick while the
-  cutscene is paused. A slot with an outstanding mark has its root lane
-  suspended exactly as an attached slot does.
-- A hold whose segment carries the rendezvous flag resumes on its own once
-  nothing is outstanding; a host's `CutsceneHoldRelease` still overrides it.
-  A skip resolves outstanding orders by placement, silently.
-- Cutscene Editor: a **Marks** lane on every slot, an inspector for all six
-  fields with a **Set From Object** button, Scene-view discs that can be
-  clicked and dragged along their own ground plane, and a transport that plays
-  through a rendezvous hold once every rehearsed walk has arrived.
-
-### Added — Cutscene attach lane (A63)
-
-Cutscenes could move things independently and nothing else. Actors and props can now touch: carry
-and throw, board a cart, hand a prop from one actor to another.
-
-- `CutsceneAttachMarker` on every `CutsceneSlot`, Actor and Prop alike, with `CutsceneAttachKind`
-  (`Attach` / `Detach`), a host slot id, a socket id (0 = the host's root), an offset, a
-  hide-while-attached flag and a detach impulse. Baked into `CutsceneAttachMarkerBlob` per segment,
-  with the host slot id resolved to a dense slot index at bake time. `CutsceneBlob.schemaVersion`
-  is now **3**.
-- `CutsceneTimelineSystem` applies them: socket attach through the existing `SocketAttachment`,
-  root attach through `Parent`, and both mechanisms cleared before either is added, so a hand-over
-  is one operation and no entity is ever transformed twice. An attached slot's root lane is
-  suppressed — the host owns the transform. A skip replays every remaining marker, so a skipped run
-  and a watched one leave the same world.
-- `CutsceneDetachSignal` (`IComponentData, IEnableableComponent`): enabled on the detached entity
-  for one frame, carrying `worldImpulse` (the authored impulse rotated out of host space) and
-  `previousHost`. The toolkit applies no physics of its own.
-- `hideWhileAttached` adds `Unity.Rendering.DisableRendering` to the rider and every rendering
-  member of its linked group, and removes it on detach — never the toolkit's own visibility flag,
-  which a host's culling mirror would fight.
-- Cutscene Editor: an **Attach** row on every slot with a distinct glyph per kind, an inspector with
-  host and socket dropdowns of *names*, and a Scene-view preview that composes the attachment the
-  same way `SocketResolveSystem` does — including hiding and un-hiding renderers against a snapshot
-  taken before preview writes anything.
-
-### Added — Cutscene stages (A61)
-
-The Cutscene Editor bound slots to scene GameObjects and the runtime player bound slots to
-entities, but nothing connected the two — a host had to rebuild every binding by hand in code, and
-no baked entity carried a cutscene's blob into a subscene at all.
-
-- `CutsceneStageAuthoring` + `CutsceneStageBaker` (`Authoring/Baking/`): bakes a `CutsceneAsset` and
-  its scene-bound cast into one `CutsceneStage` entity, blob and `CutsceneStageBinding` buffer
-  included. An unassigned cutscene, or a binding naming a slot id the asset does not declare, bakes
-  to nothing (the latter with one warning) rather than to something broken.
-- `CutsceneApi.CreatePlayRequestFromStage` and `.TryFindStage`: the read side a host uses to
-  find a staged cutscene by its stable id and start it with every staged slot already bound — a
-  host may still add or overwrite `CutsceneActorBinding` entries afterward for spawned actors.
-- Cast panel gains a **Stage** status label and a **Sync to Stage** button: writes every currently
-  bound slot into the scene's `CutsceneStageAuthoring` component (creating one the first time) as
-  one Undo step. Explicit only — Bind and Place never write the stage on their own, so rehearsing a
-  cast never dirties the scene.
-
-### Fixed — cutscene runtime (A62)
-
-Review found the runtime player and the editor preview quietly disagreeing on six points, none of
-them caught by the existing suite because it never built a two-segment (multi-hold) cutscene.
-
-- Motion into a hold used to be lost — a key authored at a hold's exact time landed in the next
-  segment, so the runtime sat at its last key for the whole segment then snapped on release, while
-  the editor's flat-list preview already interpolated correctly. `CutsceneBlobBuilder` now bakes
-  synthetic boundary keys into both segments at every hold, for every keyed lane.
-- A slot with no root keys was teleported to the world origin every frame, in both the runtime
-  player and the editor's Scene-view preview — both now leave an unkeyed lane's transform alone.
-- A crossfade spanning a hold was always a hard cut, because the blend was derived from "the
-  previous block in this segment" rather than the block's true predecessor on the flat lane — the
-  blend duration is now baked at bake time and survives the hold.
-- `CutsceneControl.speed` and `.paused` scaled only the cutscene clock; every bound actor's clip
-  layer kept playing at normal speed underneath. Both now reach every actor's layer every frame.
-- A clip block authored at a segment's own time 0 was issued one frame late after a hold released,
-  because the release handler returned before clip blocks were processed for that frame; it is now
-  issued on the release frame itself.
-- `CutsceneCameraPose` had no way to say "this cutscene has no camera lane this segment" or "this
-  cutscene just ended" apart from a stale pose sitting in the singleton forever; it now carries
-  `isDriven`, cleared every frame and set only while a running cutscene is actually writing a pose.
 
 ### Changed — Edit Prefab moved to the Rig Hierarchy header and became **Prefab**
 
@@ -459,6 +273,42 @@ rig currently open. A track's channels or flipbook mode moved into the row toolt
 - **Focus mode now resolves a tag-bound track through its tag**, via the same
   `ClipComponentModel.FindTargetByTag` the component stack and keying already share, instead of
   reading the track's stale `targetId`. Selecting a part whose tag a track binds no longer hides it.
+
+## [0.15.0] — cutscene correctness, marks, attach, holds, editor polish, docs (A61–A68)
+
+### Added
+
+- `CutsceneStageAuthoring`/`CutsceneStageBaker` bind a `CutsceneAsset`'s scene cast to entities in
+  one baked `CutsceneStage` + `CutsceneStageBinding` buffer; `CutsceneApi.TryFindStage`/
+  `CreatePlayRequestFromStage` are the host's read side (A61).
+- An attach lane: `CutsceneAttachMarker`/`CutsceneDetachSignal`, socket or root attach with both
+  mechanisms cleared before either applies, a host-space detach impulse, and hide-while-attached
+  rendering via `DisableRendering` (A63).
+- Marks and rendezvous holds: `CutsceneMoveToMark` orders a host's own movement toward a position
+  and judges arrival itself; a hold auto-releases once every ordered slot has arrived, and a mark
+  also merges into its slot's root lane so editor rehearsal and runtime playback agree (A64).
+- Holding events (`CutsceneEventMarker.holdUntilReleased`, `CutsceneApi.TryGetCurrentHoldId`),
+  `ICutsceneEventInspectorProvider` for host-authored event payload editors, `CutsceneFacing` (a
+  host-mapped facing angle plus per-clip direction-set variants), and per-block `speed`/
+  `clipStartOffsetSeconds` (A65).
+- Cutscene Editor polish: multi-select/multi-drag/box-select via `CutsceneItemAddress`, a clipboard
+  (`CutsceneKeyClipboard`), Auto Key, a shared curve editor for transform/camera keys (A66); viewport
+  click-select, an in-tab transform gizmo, a frozen timeline header column, and navigation parity
+  with the Clip Editor (A67).
+- `Documentation~/cutscenes.md` rewritten for the shipped feature, a new
+  `Documentation~/cutscene-api.md` member reference, and a `Samples~/Cutscene` host sample (A68).
+
+### Fixed
+
+- Six runtime/editor-preview disagreements surfaced by a two-segment (multi-hold) cutscene: motion
+  into a hold being lost, an unkeyed root lane teleporting to the world origin, a crossfade losing
+  its blend across a hold, `CutsceneControl.speed`/`.paused` not reaching bound actors' clip layers,
+  a block authored at a hold's release firing one frame late, and `CutsceneCameraPose` unable to say
+  "not driven this frame" (A62).
+- A mirror point now flips its whole tagged subtree instead of a nested one cancelling it, and
+  root-travel facing is measured from +X toward +Z to match every consumer instead of from +Z (A65).
+- Bound inspector fields rebuilding the timeline directly from their own change event, which ended a
+  drag on a cutscene inspector number field after about a pixel (A66).
 
 ## [0.13.0] — rig-centric binding (Phase F)
 
