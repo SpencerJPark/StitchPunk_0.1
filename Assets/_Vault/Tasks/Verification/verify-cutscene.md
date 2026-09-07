@@ -20,15 +20,22 @@ lives on `Managers/CutsceneDebug` in TestArea.
 
 ## Setup — read before you press Play
 
-- **F9 now fires the narrative event, not a raw signal.** `CutsceneDebugTrigger` fires
+- **The trigger key is F11, not F9.** The spec originally named F9; it does nothing at all when
+  pressed — no console output, nothing — because Unity's own Editor reserves bare F9 as the built-in
+  shortcut for `Profiling/Profiler/RecordToggle` (confirmed against all 1121 shortcuts
+  `ShortcutManager.instance` registers project-wide) and consumes the keypress before the running
+  game's Input System ever sees it. Moved to **F11** (confirmed unbound). **F10** still requests a
+  skip on whichever cutscene is currently playing — bare F10 was never actually reserved.
+- **F11 fires the narrative event, not a raw signal.** `CutsceneDebugTrigger` fires
   `NarrativeIds.Events.RendezvousTest` through `NarrativeEventManager`, which runs
   `NarrativeEvent_RendezvousTest`'s `PlayCutsceneAction` — the whole narrative path is exercised, not
-  just the toolkit's own playback. **F10** requests a skip on whichever cutscene is currently playing.
-- **The player must be walked to their mark by hand.** `CutsceneMoveToMarkSystem` deliberately never
-  paths the Player (G2 §4) — WASD control is handed back the instant the cutscene starts and taken
-  again only once the rendezvous hold is genuinely waiting on everyone. If you never move, the
-  Rendezvous hold will still release after its 20s timeout (teleporting stragglers), but step 2 below
-  is watching for a real walk, not a teleport.
+  just the toolkit's own playback.
+- **The player auto-walks onto their mark by default.** `CutsceneDebugTrigger.autoWalkPlayerToMark`
+  (on by default) teleports the player onto their mark the instant it's issued — the toolkit itself
+  never auto-paths the Player (G2 §4), so this is purely a solo-testing convenience. Turn it off on
+  the component if you specifically want to watch/perform the manual walk for step 2/3 below. A
+  `CutsceneMarkDebugVisualizer` on the same GameObject draws a translucent disc over every currently
+  outstanding mark (any slot) so you can see where to stand either way.
 - **Re-bake if you haven't reopened this subscene today.** Reopen `DOTSTestScene` or re-enter Play
   mode so `CutsceneStageAuthoring` rebakes against the current asset.
 
@@ -36,8 +43,8 @@ lives on `Managers/CutsceneDebug` in TestArea.
 
 ## Checklist
 
-1. [ ] Open `DOTSTestScene`, enter Play, press F9. Console: no errors, one line from the narrative
-       manager.
+1. [ ] Open `DOTSTestScene`, enter Play, press F11 (not F9 — see Setup). Console: no errors, one line
+       from the narrative manager.
 2. [ ] MinionA and MinionB pathfind to their discs (walk cycle plays, faces the travel direction). The
        player can still walk. Nothing else moves; both minions' `UtilityActions` are empty in the
        Entities window.
@@ -50,7 +57,7 @@ lives on `Managers/CutsceneDebug` in TestArea.
 7. [ ] At the destination everyone reappears on the ground beside the cart; the cutscene ends; the
        camera blends back to the gameplay camera; the minions resume wandering from where they stand;
        the player controls again.
-8. [ ] Press F9 again mid-run and press the skip key (F10): the world ends in the same state as step
+8. [ ] Press F11 again mid-run and press the skip key (F10): the world ends in the same state as step
        7 — same positions, everyone visible, dialogue never opened but the SFX event fired.
 9. [ ] Save during the cutscene (debug save menu): refused with a warning; save after: works.
 10. [ ] Profiler: `CutsceneTimelineSystem` under 0.2 ms with four slots.
@@ -59,7 +66,7 @@ lives on `Managers/CutsceneDebug` in TestArea.
 
 ## Already machine-verified — don't re-derive these, just watch for them
 
-Driven live via `execute_code` firing the same `OnNarrativeEvent` signal F9 writes (not simulated —
+Driven live via `execute_code` firing the same `OnNarrativeEvent` signal F11 writes (not simulated —
 the real narrative → toolkit → game pipeline, watched through several minutes of real elapsed time):
 
 - The narrative event resolves `NarrativeEvent_RendezvousTest` and starts the cutscene
