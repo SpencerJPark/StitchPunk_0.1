@@ -37,7 +37,12 @@ namespace DotsAnimationToolkit.Editor
         private float pixelsPerSecond = 40f;
         private float playheadSeconds;
 
-        private ScrollView timelineScrollView;
+        // Two scroll views, not one: the header column scrolls vertically with the lanes and never
+        // horizontally with them, which is the whole point of freezing it.
+        private ScrollView timelineHeaderScroll;
+        private ScrollView timelineLaneScroll;
+        private VisualElement timelineHeaderContent;
+        private bool isSyncingTimelineScroll;
         private ScrollView inspectorScroll;
         private CutsceneTimelinePlayheadElement playheadElement;
         private CutsceneCastPanel castPanel;
@@ -160,9 +165,7 @@ namespace DotsAnimationToolkit.Editor
 
             timelineArea.Add(BuildAddSlotRow());
 
-            timelineScrollView = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
-            timelineScrollView.style.flexGrow = 1f;
-            timelineArea.Add(timelineScrollView);
+            timelineArea.Add(BuildTimelineColumns());
 
             castPanel = new CutsceneCastPanel();
             castPanel.PlaceRequested += PlaceSlotFromPrefab;
@@ -311,6 +314,50 @@ namespace DotsAnimationToolkit.Editor
 
             LoadCutscene(newCutscene);
             EditorGUIUtility.PingObject(newCutscene);
+        }
+
+        // The frozen header column. Both columns hold one entry per row at the same explicit
+        // height, so nothing can drift them apart, and their vertical offsets are mirrored.
+        private VisualElement BuildTimelineColumns()
+        {
+            VisualElement columns = new VisualElement();
+            columns.style.flexDirection = FlexDirection.Row;
+            columns.style.flexGrow = 1f;
+
+            timelineHeaderScroll = new ScrollView(ScrollViewMode.Vertical);
+            timelineHeaderScroll.style.width = HeaderColumnWidth;
+            timelineHeaderScroll.style.flexShrink = 0f;
+            timelineHeaderScroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+            timelineHeaderScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            columns.Add(timelineHeaderScroll);
+
+            timelineLaneScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
+            timelineLaneScroll.style.flexGrow = 1f;
+            columns.Add(timelineLaneScroll);
+
+            // Guarded with a flag rather than by unsubscribing: each assignment raises the other
+            // scroller's own callback, and unsubscribing mid-notification loses later events.
+            timelineLaneScroll.verticalScroller.valueChanged += scrollValue =>
+            {
+                if (isSyncingTimelineScroll)
+                {
+                    return;
+                }
+                isSyncingTimelineScroll = true;
+                timelineHeaderScroll.verticalScroller.value = scrollValue;
+                isSyncingTimelineScroll = false;
+            };
+            timelineHeaderScroll.verticalScroller.valueChanged += scrollValue =>
+            {
+                if (isSyncingTimelineScroll)
+                {
+                    return;
+                }
+                isSyncingTimelineScroll = true;
+                timelineLaneScroll.verticalScroller.value = scrollValue;
+                isSyncingTimelineScroll = false;
+            };
+            return columns;
         }
 
         private void OnSceneSaving(UnityEngine.SceneManagement.Scene scene, string path)
@@ -1800,10 +1847,12 @@ namespace DotsAnimationToolkit.Editor
 
         private void RebuildTimeline()
         {
-            Vector2 preservedScroll = timelineScrollView.scrollOffset;
-            timelineScrollView.Clear();
+            Vector2 preservedScroll = timelineLaneScroll.scrollOffset;
+            timelineLaneScroll.Clear();
+            timelineHeaderScroll.Clear();
             registeredLanes.Clear();
             timelineContent = null;
+            timelineHeaderContent = null;
             boxSelectElement = null;
 
             if (cutscene == null || serializedObject == null)
@@ -1817,7 +1866,7 @@ namespace DotsAnimationToolkit.Editor
                 emptyHint.style.marginTop = 24f;
                 emptyHint.style.color = new Color(0.62f, 0.62f, 0.66f);
                 emptyHint.style.alignSelf = Align.Center;
-                timelineScrollView.Add(emptyHint);
+                timelineLaneScroll.Add(emptyHint);
                 return;
             }
 
@@ -1830,11 +1879,16 @@ namespace DotsAnimationToolkit.Editor
             // A short cutscene must still fill the pane: a 240px ruler floating in a grey void was
             // the single worst thing about the first build (A60). Lanes always reach at least the
             // visible edge; NaN-guarded because the first rebuild runs before any layout pass.
-            float visibleWidth = timelineScrollView.contentViewport.resolvedStyle.width;
+            // The lane column's own viewport is already header-free, so nothing is subtracted here.
+            float visibleWidth = timelineLaneScroll.contentViewport.resolvedStyle.width;
             if (!float.IsNaN(visibleWidth) && visibleWidth > 0f)
             {
-                contentWidth = Mathf.Max(contentWidth, visibleWidth - HeaderColumnWidth);
+                contentWidth = Mathf.Max(contentWidth, visibleWidth);
             }
+
+            VisualElement headerContent = new VisualElement();
+            headerContent.style.flexDirection = FlexDirection.Column;
+            timelineHeaderContent = headerContent;
 
             VisualElement content = new VisualElement();
             content.style.flexDirection = FlexDirection.Column;
@@ -1850,7 +1904,7 @@ namespace DotsAnimationToolkit.Editor
             ruler.style.width = contentWidth;
             ruler.style.height = RulerHeight;
             ruler.Scrubbed += OnPlayheadScrubbed;
-            content.Add(CreateRow(null, ruler, null));
+            AddTimelineRow(content, null, ruler, null, RulerHeight);
             RefreshTimeReadout();
 
             SerializedProperty slotsProperty = serializedObject.FindProperty("slots");
@@ -1869,7 +1923,7 @@ namespace DotsAnimationToolkit.Editor
                 TimeSeconds = playheadSeconds
             };
             playheadElement.style.position = Position.Absolute;
-            playheadElement.style.left = HeaderColumnWidth;
+            playheadElement.style.left = 0f;
             playheadElement.style.top = 0f;
             playheadElement.style.bottom = 0f;
             playheadElement.style.width = contentWidth;
@@ -1885,8 +1939,9 @@ namespace DotsAnimationToolkit.Editor
             boxSelectElement.style.bottom = 0f;
             content.Add(boxSelectElement);
 
-            timelineScrollView.Add(content);
-            timelineScrollView.scrollOffset = preservedScroll;
+            timelineHeaderScroll.Add(headerContent);
+            timelineLaneScroll.Add(content);
+            timelineLaneScroll.scrollOffset = preservedScroll;
         }
 
         private float ComputeContentEndSeconds()
@@ -2012,24 +2067,26 @@ namespace DotsAnimationToolkit.Editor
             return latest;
         }
 
-        private VisualElement CreateRow(
-            string headerLabel, VisualElement laneElement, Action onHeaderClick,
-            bool isGroup = false, string accentClass = null, bool indentLabel = false,
-            bool isSelected = false)
+        // One row across two columns. Both halves carry the same explicit height, so a wrapping
+        // label or a themed border can never leave the header column out of step with its lanes.
+        /// <summary>Adds a row's header cell and its lane, and returns the header cell so a caller can hang a menu on it.</summary>
+        private VisualElement AddTimelineRow(
+            VisualElement laneContent, string headerLabel, VisualElement laneElement,
+            Action onHeaderClick, float rowHeight, bool isGroup = false, string accentClass = null,
+            bool indentLabel = false, bool isSelected = false)
         {
-            VisualElement row = new VisualElement();
-            row.AddToClassList("cutscene-editor__row");
-            row.EnableInClassList("cutscene-editor__row--group", isGroup);
-            row.EnableInClassList("cutscene-editor__row--selected", isSelected);
-
             VisualElement headerCell = new VisualElement();
+            headerCell.AddToClassList("cutscene-editor__row");
             headerCell.AddToClassList("cutscene-editor__track-header");
+            headerCell.EnableInClassList("cutscene-editor__row--group", isGroup);
+            headerCell.EnableInClassList("cutscene-editor__row--selected", isSelected);
             headerCell.EnableInClassList("cutscene-editor__track-header--group", isGroup);
             if (!string.IsNullOrEmpty(accentClass))
             {
                 headerCell.AddToClassList("cutscene-editor__track-header--" + accentClass);
             }
             headerCell.style.width = HeaderColumnWidth;
+            headerCell.style.height = rowHeight;
             if (!string.IsNullOrEmpty(headerLabel))
             {
                 Label label = new Label(headerLabel);
@@ -2043,9 +2100,35 @@ namespace DotsAnimationToolkit.Editor
             {
                 headerCell.RegisterCallback<PointerDownEvent>(_ => onHeaderClick());
             }
-            row.Add(headerCell);
-            row.Add(laneElement);
-            return row;
+            timelineHeaderContent.Add(headerCell);
+
+            VisualElement laneRow = new VisualElement();
+            laneRow.AddToClassList("cutscene-editor__row");
+            laneRow.EnableInClassList("cutscene-editor__row--group", isGroup);
+            laneRow.EnableInClassList("cutscene-editor__row--selected", isSelected);
+            laneRow.style.height = rowHeight;
+            laneRow.Add(laneElement);
+            laneContent.Add(laneRow);
+            return headerCell;
+        }
+
+        /// <summary>A header-column entry with no lane of its own, plus the matching blank in the lane column.</summary>
+        private void AddHeaderOnlyRow(VisualElement laneContent, VisualElement headerElement, float rowHeight)
+        {
+            // Wrapped rather than sized directly: a bare element's own margins are laid out outside
+            // its height and would push this column taller than the lane column, row by row.
+            VisualElement headerRow = new VisualElement();
+            headerRow.AddToClassList("cutscene-editor__row");
+            headerRow.style.height = rowHeight;
+            headerRow.style.flexShrink = 0f;
+            headerRow.style.overflow = Overflow.Hidden;
+            headerRow.Add(headerElement);
+            timelineHeaderContent.Add(headerRow);
+
+            VisualElement laneSpacer = new VisualElement();
+            laneSpacer.style.height = rowHeight;
+            laneSpacer.style.flexShrink = 0f;
+            laneContent.Add(laneSpacer);
         }
 
         // -----------------------------------------------------------------------------------
@@ -2058,15 +2141,14 @@ namespace DotsAnimationToolkit.Editor
             bool isActor = slot.kind == CutsceneSlotKind.Actor;
             string accent = isActor ? "actor" : "prop";
 
-            VisualElement headerRow = CreateRow(
-                slot.name,
+            VisualElement slotHeaderCell = AddTimelineRow(
+                content, slot.name,
                 new VisualElement { style = { width = contentWidth, height = LaneRowHeight } },
-                () => SelectSlotHeader(slotIndex),
+                () => SelectSlotHeader(slotIndex), LaneRowHeight,
                 isGroup: true, accentClass: accent,
                 isSelected: slotIndex == selectedSlotIndex && selectedLaneKind == SelectedLaneKind.None);
-            headerRow.AddManipulator(new ContextualMenuManipulator(menuEvent =>
+            slotHeaderCell.AddManipulator(new ContextualMenuManipulator(menuEvent =>
                 menuEvent.menu.AppendAction("Remove Slot", _ => RemoveSlot(slotIndex))));
-            content.Add(headerRow);
 
             if (isActor)
             {
@@ -2091,9 +2173,9 @@ namespace DotsAnimationToolkit.Editor
                     CommitClipBlockChange(clipBlocksProperty, index, start, duration);
                 clipLane.EmptySpaceDoubleClicked += time => AddClipBlock(slotIndex, clipBlocksProperty, time);
                 clipLane.BlockDeleteRequested += index => DeleteArrayElement(clipBlocksProperty, index);
-                content.Add(CreateRow(
-                    "Clip", clipLane, () => SelectSlotHeader(slotIndex),
-                    accentClass: accent, indentLabel: true));
+                AddTimelineRow(
+                    content, "Clip", clipLane, () => SelectSlotHeader(slotIndex), LaneRowHeight,
+                    accentClass: accent, indentLabel: true);
             }
 
             SerializedProperty transformKeysProperty = slotProperty.FindPropertyRelative("transformKeys");
@@ -2132,13 +2214,12 @@ namespace DotsAnimationToolkit.Editor
                     string tagName = VocabularyRegistryProvider.TargetTags.FindName(track.tagId);
                     SerializedProperty trackProperty = partTracksProperty.GetArrayElementAtIndex(capturedTrackIndex);
                     SerializedProperty keysProperty = trackProperty.FindPropertyRelative("keys");
-                    BuildMomentRow(
+                    VisualElement partHeaderCell = BuildMomentRow(
                         content, tagName ?? "0x" + track.tagId.ToString("X8"), track.keys, keysProperty,
                         slotIndex, SelectedLaneKind.PartTrackKey, capturedTrackIndex, contentWidth,
                         new Color(0.75f, 0.55f, 0.85f), time => InsertTransformKeyDefault(keysProperty, time),
                         accentClass: accent);
-                    VisualElement partRow = content[content.childCount - 1];
-                    partRow.AddManipulator(new ContextualMenuManipulator(menuEvent =>
+                    partHeaderCell.AddManipulator(new ContextualMenuManipulator(menuEvent =>
                         menuEvent.menu.AppendAction(
                             "Remove Part Track", _ => DeleteArrayElement(partTracksProperty, capturedTrackIndex))));
                 }
@@ -2151,13 +2232,13 @@ namespace DotsAnimationToolkit.Editor
                 addPartTrackButton.style.marginLeft = 8f;
                 addPartTrackButton.style.width = HeaderColumnWidth - 16f;
                 addPartTrackButton.style.marginTop = 2f;
-                addPartTrackButton.style.marginBottom = 4f;
+                addPartTrackButton.style.marginBottom = 2f;
                 addPartTrackButton.style.fontSize = 10f;
-                content.Add(addPartTrackButton);
+                AddHeaderOnlyRow(content, addPartTrackButton, LaneRowHeight);
             }
         }
 
-        private void BuildMomentRow(
+        private VisualElement BuildMomentRow(
             VisualElement content, string label, List<CutsceneTransformKey> keys, SerializedProperty keysProperty,
             int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, float contentWidth, Color color,
             Action<float> onAddAtTime, string accentClass = null, bool isGroup = false,
@@ -2184,13 +2265,13 @@ namespace DotsAnimationToolkit.Editor
             lane.EmptySpaceDoubleClicked += onAddAtTime;
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
 
-            content.Add(CreateRow(
-                label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
-                isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
-                isSelected: isSelectedLane && selectedItemIndex < 0));
+            return AddTimelineRow(
+                content, label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
+                LaneRowHeight, isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
+                isSelected: isSelectedLane && selectedItemIndex < 0);
         }
 
-        private void BuildMomentRow(
+        private VisualElement BuildMomentRow(
             VisualElement content, string label, List<CutsceneFacingKey> keys, SerializedProperty keysProperty,
             int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, float contentWidth, Color color,
             Action<float> onAddAtTime, string accentClass = null, bool isGroup = false,
@@ -2216,13 +2297,13 @@ namespace DotsAnimationToolkit.Editor
             lane.EmptySpaceDoubleClicked += onAddAtTime;
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
 
-            content.Add(CreateRow(
-                label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
-                isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
-                isSelected: isSelectedLane && selectedItemIndex < 0));
+            return AddTimelineRow(
+                content, label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
+                LaneRowHeight, isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
+                isSelected: isSelectedLane && selectedItemIndex < 0);
         }
 
-        private void BuildMomentRow(
+        private VisualElement BuildMomentRow(
             VisualElement content, string label, List<CutsceneMarkKey> keys, SerializedProperty keysProperty,
             int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, float contentWidth, Color color,
             Action<float> onAddAtTime, string accentClass = null, bool isGroup = false,
@@ -2248,10 +2329,10 @@ namespace DotsAnimationToolkit.Editor
             lane.EmptySpaceDoubleClicked += onAddAtTime;
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
 
-            content.Add(CreateRow(
-                label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
-                isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
-                isSelected: isSelectedLane && selectedItemIndex < 0));
+            return AddTimelineRow(
+                content, label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
+                LaneRowHeight, isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
+                isSelected: isSelectedLane && selectedItemIndex < 0);
         }
 
         // The attach lane. Built here rather than through BuildMomentRow, since its markers are not
@@ -2285,10 +2366,10 @@ namespace DotsAnimationToolkit.Editor
             lane.EmptySpaceDoubleClicked += time => InsertAttachMarkerDefault(slotIndex, attachMarkersProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(attachMarkersProperty, index);
 
-            content.Add(CreateRow(
-                "Attach", lane, () => SelectItem(slotIndex, SelectedLaneKind.AttachMarker, -1, -1),
-                accentClass: accentClass, indentLabel: true,
-                isSelected: isSelectedLane && selectedItemIndex < 0));
+            AddTimelineRow(
+                content, "Attach", lane, () => SelectItem(slotIndex, SelectedLaneKind.AttachMarker, -1, -1),
+                LaneRowHeight, accentClass: accentClass, indentLabel: true,
+                isSelected: isSelectedLane && selectedItemIndex < 0);
         }
 
         private void BuildCameraRows(VisualElement content, float contentWidth)
@@ -2315,9 +2396,9 @@ namespace DotsAnimationToolkit.Editor
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(keysProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertCameraKeyDefault(keysProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
-            content.Add(CreateRow(
-                "Camera", lane, () => SelectItem(-1, SelectedLaneKind.CameraKey, -1, -1),
-                isGroup: true, accentClass: "camera"));
+            AddTimelineRow(
+                content, "Camera", lane, () => SelectItem(-1, SelectedLaneKind.CameraKey, -1, -1),
+                LaneRowHeight, isGroup: true, accentClass: "camera");
 
             SerializedProperty cutMarkersProperty = cameraLaneProperty.FindPropertyRelative("cutMarkers");
             List<float> cutTimes = new List<float>(cutscene.cameraLane.cutMarkers.Count);
@@ -2335,7 +2416,8 @@ namespace DotsAnimationToolkit.Editor
             cutLane.MomentMoveCommitted += (index, time) => CommitMomentTime(cutMarkersProperty, index, time);
             cutLane.EmptySpaceDoubleClicked += time => InsertCutMarkerDefault(cutMarkersProperty, time);
             cutLane.MomentDeleteRequested += index => DeleteArrayElement(cutMarkersProperty, index);
-            content.Add(CreateRow("Cuts", cutLane, null, accentClass: "camera", indentLabel: true));
+            AddTimelineRow(content, "Cuts", cutLane, null, LaneRowHeight,
+                accentClass: "camera", indentLabel: true);
         }
 
         private void BuildEventRows(VisualElement content, float contentWidth)
@@ -2365,9 +2447,9 @@ namespace DotsAnimationToolkit.Editor
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(eventsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertEventDefault(eventsProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(eventsProperty, index);
-            content.Add(CreateRow(
-                "Events", lane, () => SelectItem(-1, SelectedLaneKind.Event, -1, -1),
-                isGroup: true, accentClass: "events"));
+            AddTimelineRow(
+                content, "Events", lane, () => SelectItem(-1, SelectedLaneKind.Event, -1, -1),
+                LaneRowHeight, isGroup: true, accentClass: "events");
         }
 
         // The Holds lane: every authored marker, then one read-only ghost per holding event. The
@@ -2413,9 +2495,9 @@ namespace DotsAnimationToolkit.Editor
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(holdsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertHoldDefault(holdsProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(holdsProperty, index);
-            content.Add(CreateRow(
-                "Holds", lane, () => SelectItem(-1, SelectedLaneKind.Hold, -1, -1),
-                isGroup: true, accentClass: "holds"));
+            AddTimelineRow(
+                content, "Holds", lane, () => SelectItem(-1, SelectedLaneKind.Hold, -1, -1),
+                LaneRowHeight, isGroup: true, accentClass: "holds");
         }
 
         private void OnPlayheadScrubbed(float time)
