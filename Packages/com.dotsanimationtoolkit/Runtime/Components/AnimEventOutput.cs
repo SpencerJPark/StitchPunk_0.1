@@ -20,6 +20,8 @@ namespace DotsAnimationToolkit
         public int intParam;
 
         public float floatParam;
+
+        public uint animationKey; // the emitting layer's PlaybackLayer.animationKey; 0 for a raw clip
     }
 
     /// <summary>

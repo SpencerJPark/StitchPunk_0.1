@@ -80,7 +80,8 @@ namespace DotsAnimationToolkit
                         layerIndex = (byte)layerIndex,
                         clip = layer.clip,
                         intParam = 0,
-                        floatParam = 0f
+                        floatParam = 0f,
+                        animationKey = layer.animationKey
                     });
                     emittedCount++;
                 }
@@ -141,7 +142,8 @@ namespace DotsAnimationToolkit
                     layerIndex = layerIndex,
                     clip = layer.clip,
                     intParam = marker.intParam,
-                    floatParam = marker.floatParam
+                    floatParam = marker.floatParam,
+                    animationKey = layer.animationKey
                 });
             }
 

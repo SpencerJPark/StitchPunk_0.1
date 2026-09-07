@@ -446,7 +446,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Field("layerIndex", typeof(byte)),
                 Field("clip", typeof(ClipId)),
                 Field("intParam", typeof(int)),
-                Field("floatParam", typeof(float))
+                Field("floatParam", typeof(float)),
+                Field("animationKey", typeof(uint))
             });
 
             // The one enableable component in the package that carries data rather than being a

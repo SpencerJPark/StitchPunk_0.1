@@ -115,6 +115,33 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// Catches: hardcoding 0 instead of copying <c>PlaybackLayer.animationKey</c>. A game
+        /// listening for a named animation's own markers cannot tell them apart from a raw clip's
+        /// without this field.
+        /// </summary>
+        [Test]
+        public void AnEmittedMarker_CarriesTheLayersAnimationKey()
+        {
+            const uint PlayedAnimationKey = 7;
+
+            PlaybackLayer layer = PlaybackTestActor.NewLayer();
+            layer.clip = new ClipId(WalkClipId);
+            layer.clipIndex = WalkClipIndex;
+            layer.timeAtFrameStart = 0.4f;
+            layer.time = 0.6f;
+            layer.speed = 1f;
+            layer.loop = LoopMode.Loop;
+            layer.flags = PlaybackFlags.Active;
+            layer.animationKey = PlayedAnimationKey;
+            PlaybackTestActor.SetLayer(testWorld, actor, 0, layer);
+
+            RunEmission();
+
+            Assert.AreEqual(1, Events().Length);
+            Assert.AreEqual(PlayedAnimationKey, Events()[0].animationKey);
+        }
+
+        /// <summary>
         /// Catches: emitting every marker in the clip regardless of the window. A system that
         /// ignores the window fires every footstep on every frame, which reads as "events work"
         /// until something counts them.

@@ -179,6 +179,51 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// Catches: dropping either ordering edge on <c>ActorFacingRepickSystem</c>. It must see the
+        /// frame's freshly-applied <c>PlayAnimation</c> commands before it re-picks against them, and
+        /// it must land its clip swap before <c>PlaybackTimeSystem</c> advances time this same frame
+        /// — reversed, a repicked clip would play its first frame with time already moved on.
+        /// </summary>
+        [Test]
+        public void ActorRagdollTrigger_RunsAfterEventEmission_InTheLogicGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(ActorRagdollTriggerSystem));
+            Assert.AreEqual(typeof(AnimationToolkitLogicSystemGroup), updateInGroup.GroupType);
+            Assert.IsFalse(updateInGroup.OrderFirst, "Only CommandApplySystem opens the logic group.");
+
+            object[] afterAttributes =
+                typeof(ActorRagdollTriggerSystem).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+
+            Assert.AreEqual(1, afterAttributes.Length, "Expected exactly one UpdateAfter on ActorRagdollTriggerSystem.");
+            Assert.AreEqual(
+                typeof(EventEmissionSystem),
+                ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+        }
+
+        [Test]
+        public void FacingRepick_RunsAfterCommandApply_AndBeforePlaybackTime_InTheLogicGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(ActorFacingRepickSystem));
+            Assert.AreEqual(typeof(AnimationToolkitLogicSystemGroup), updateInGroup.GroupType);
+            Assert.IsFalse(updateInGroup.OrderFirst, "Only CommandApplySystem opens the logic group.");
+
+            object[] afterAttributes =
+                typeof(ActorFacingRepickSystem).GetCustomAttributes(typeof(UpdateAfterAttribute), false);
+            object[] beforeAttributes =
+                typeof(ActorFacingRepickSystem).GetCustomAttributes(typeof(UpdateBeforeAttribute), false);
+
+            Assert.AreEqual(1, afterAttributes.Length, "Expected exactly one UpdateAfter on ActorFacingRepickSystem.");
+            Assert.AreEqual(
+                typeof(CommandApplySystem),
+                ((UpdateAfterAttribute)afterAttributes[0]).SystemType);
+
+            Assert.AreEqual(1, beforeAttributes.Length, "Expected exactly one UpdateBefore on ActorFacingRepickSystem.");
+            Assert.AreEqual(
+                typeof(PlaybackTimeSystem),
+                ((UpdateBeforeAttribute)beforeAttributes[0]).SystemType);
+        }
+
+        /// <summary>
         /// Catches: moving <c>EventWindowSystem</c> out of the logic group, or dropping its
         /// <c>UpdateAfter</c> edge on event emission. Placed in the presentation group it would be
         /// gated on visibility, so an actor swinging behind the camera would hold no damage window;
