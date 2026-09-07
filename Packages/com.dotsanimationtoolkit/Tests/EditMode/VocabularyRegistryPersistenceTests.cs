@@ -22,6 +22,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
     public sealed class VocabularyRegistryPersistenceTests
     {
         private const string TargetTagFilePath = "ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset";
+        private const string AnimationNameFilePath = "ProjectSettings/DotsAnimationToolkitAnimationNameRegistry.asset";
 
         [Test]
         public void AddEntry_ThroughTheRegistryEditor_SurvivesReReadingTheSettingsFileFromDisk()
@@ -69,6 +70,60 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 if (!fileExistedBefore && registry.entries.Count == 0 && File.Exists(TargetTagFilePath))
                 {
                     File.Delete(TargetTagFilePath);
+                }
+                Object.DestroyImmediate(registryEditor);
+            }
+        }
+
+        // Mirrors the target-tag test above for the third vocabulary, AnimationNameRegistry —
+        // added by A70-T2, its CreateVocabularyEntry has the same in-memory-only mint that requires
+        // an explicit persist from the editor-side caller.
+        [Test]
+        public void AddEntry_ThroughTheAnimationNameRegistryEditor_SurvivesReReadingTheSettingsFileFromDisk()
+        {
+            bool fileExistedBefore = File.Exists(AnimationNameFilePath);
+            AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
+            UnityEditor.Editor registryEditor = UnityEditor.Editor.CreateEditor(registry);
+            uint mintedId = 0u;
+
+            try
+            {
+                MethodInfo addEntryMethod = typeof(AnimationNameRegistryEditor).GetMethod(
+                    "AddEntry", BindingFlags.NonPublic | BindingFlags.Instance);
+                addEntryMethod.Invoke(registryEditor, null);
+
+                Assert.Greater(registry.entries.Count, 0, "AddEntry must append a row.");
+                AnimationNameEntry mintedEntry = registry.entries[registry.entries.Count - 1];
+                Assert.AreEqual("NewAnimation", mintedEntry.name);
+                mintedId = mintedEntry.animationKey;
+
+                Assert.IsTrue(
+                    File.Exists(AnimationNameFilePath),
+                    "AddEntry must persist to ProjectSettings/, not merely mutate the in-memory row.");
+
+                AnimationNameRegistry freshFromDisk = ScriptableObject.CreateInstance<AnimationNameRegistry>();
+                try
+                {
+                    EditorJsonUtility.FromJsonOverwrite(File.ReadAllText(AnimationNameFilePath), freshFromDisk);
+
+                    Assert.AreEqual(
+                        "NewAnimation",
+                        freshFromDisk.FindName(mintedId),
+                        "A fresh instance loaded from disk — simulating what the next domain reload " +
+                            "would read — must already carry the row AddEntry just created.");
+                }
+                finally
+                {
+                    Object.DestroyImmediate(freshFromDisk);
+                }
+            }
+            finally
+            {
+                registry.entries.RemoveAll(entry => entry.animationKey == mintedId);
+                VocabularyRegistryProvider.PersistVocabulary(registry);
+                if (!fileExistedBefore && registry.entries.Count == 0 && File.Exists(AnimationNameFilePath))
+                {
+                    File.Delete(AnimationNameFilePath);
                 }
                 Object.DestroyImmediate(registryEditor);
             }

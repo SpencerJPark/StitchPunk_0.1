@@ -144,6 +144,30 @@ namespace DotsAnimationToolkit.Editor
                         + " — no description written for this event yet.";
                 });
         }
+
+        /// <summary>
+        /// The animation-name flavour of this config. No "(none)" row: a profile layer entry always
+        /// names some animation, so there is nothing to clear a binding to.
+        /// </summary>
+        public static VocabularyPickerConfig ForAnimationNames(AnimationNameRegistry registry)
+        {
+            return new VocabularyPickerConfig(
+                null,
+                null,
+                "animation",
+                "Edit…",
+                "Edit animation names…",
+                "Rename, add or remove the project's animation names.",
+                "Animation Names",
+                "No animation name registry is available yet.",
+                animationKey =>
+                {
+                    // Never the raw number where a name exists. The hex form is the one permitted
+                    // exception: a dangling id after its animation name was deleted has no name left to show.
+                    string resolvedName = registry != null ? registry.FindName(animationKey) : null;
+                    return resolvedName ?? "(unresolved 0x" + animationKey.ToString("X8") + ")";
+                });
+        }
     }
 
     /// <summary>

@@ -9,9 +9,8 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Owns the project-wide instances of the two authoring vocabularies — target tags and event
-    /// names — and the only code that writes either to disk. Deliberately in the Editor assembly,
-    /// not on the registry types themselves, which must stay free of any <c>UnityEditor</c> dependency.
+    /// Owns the project-wide instances of the authoring vocabularies — target tags, event names,
+    /// animation names — and the only code that writes any of them to disk.
     /// </summary>
     public static class VocabularyRegistryProvider
     {
@@ -21,8 +20,12 @@ namespace DotsAnimationToolkit.Editor
         private const string AnimEventKeyFilePath =
             "ProjectSettings/DotsAnimationToolkitAnimEventKeyRegistry.asset";
 
+        private const string AnimationNameFilePath =
+            "ProjectSettings/DotsAnimationToolkitAnimationNameRegistry.asset";
+
         private static TargetTagRegistry projectTargetTags;
         private static AnimEventKeyRegistry projectAnimEventKeys;
+        private static AnimationNameRegistry projectAnimationNames;
 
         /// <summary>
         /// The one project-wide target-tag vocabulary. Never null, never assigned by hand.
@@ -49,6 +52,19 @@ namespace DotsAnimationToolkit.Editor
                     projectAnimEventKeys = LoadOrCreate<AnimEventKeyRegistry>(AnimEventKeyFilePath);
                 }
                 return projectAnimEventKeys;
+            }
+        }
+
+        /// <summary>The one project-wide animation-name vocabulary. Never null, never assigned by hand.</summary>
+        public static AnimationNameRegistry AnimationNames
+        {
+            get
+            {
+                if (projectAnimationNames == null)
+                {
+                    projectAnimationNames = LoadOrCreate<AnimationNameRegistry>(AnimationNameFilePath);
+                }
+                return projectAnimationNames;
             }
         }
 
@@ -82,7 +98,18 @@ namespace DotsAnimationToolkit.Editor
             RegistryChanged?.Invoke();
         }
 
-        // A distinct name rather than a third Persist(ScriptableObject) overload — a typed caller
+        // No-op for a registry that is not the project instance — see the other overload.
+        public static void Persist(AnimationNameRegistry registry)
+        {
+            if (registry == null || registry != projectAnimationNames)
+            {
+                return;
+            }
+            WriteJson(registry, AnimationNameFilePath);
+            RegistryChanged?.Invoke();
+        }
+
+        // A distinct name rather than a fourth Persist(ScriptableObject) overload — a typed caller
         // would otherwise silently bind to this one under normal overload resolution.
         public static void PersistVocabulary(ScriptableObject registry)
         {
@@ -93,6 +120,10 @@ namespace DotsAnimationToolkit.Editor
             else if (registry is AnimEventKeyRegistry animEventKeyRegistry)
             {
                 Persist(animEventKeyRegistry);
+            }
+            else if (registry is AnimationNameRegistry animationNameRegistry)
+            {
+                Persist(animationNameRegistry);
             }
         }
 
