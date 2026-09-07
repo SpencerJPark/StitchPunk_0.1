@@ -159,6 +159,10 @@ And the two references both of them lean on:
   keyframes on one lane per actor, a camera lane, hold points, non-destructive
   Scene-view preview and keying, baking to a `CutsceneBlob`, and the
   `CutsceneApi` that plays one at runtime.
+- [`cutscene-api.md`](cutscene-api.md) — member-by-member reference for the
+  cutscene runtime and authoring surface: every component, blob struct,
+  sampling function, system, and authoring type, plus the host integration
+  checklist and the confirmed frame-order diagram.
 - [`shader-contract.md`](shader-contract.md) — the full CPU↔GPU per-instance
   property contract, one section per HLSL include, and a troubleshooting
   table for the most common integration mistakes.
