@@ -638,3 +638,37 @@ while either bit is set. Found 2026-09-07.
 the player's `targetPosition`; and `MovementAPI.HaltPathing`'s `PathfindingMode.Stop` is self-clearing
 (`PathRequestSystem` disables `PathRequest` the same frame it handles Stop), so the halt
 `CutsceneStartSystem` applies to a bound actor cannot outlive the cutscene.
+
+### A cutscene actor was gated off its AI but left fully damageable, so hostiles killed bound NPCs mid-scene (fixed 2026-09-07)
+
+`CutsceneActor` is a one-way gate: it suppresses awareness, `WinnerSelection` and
+`MinionActionSelection`, so a puppeted unit can neither flee nor fight back. Nothing made it a bad
+target or an invalid victim, so during the G3 acceptance run a wandering zombie simply killed both
+bound actors while the cutscene played. The cutscene then completed and released two corpses —
+and the symptom that surfaces hours later is **"the NPC can't walk any more"**, because `DeathSystem`
+disables `Movement` and `UnitMoverJob` takes `ref Movement` (enabled-only), so a corpse is skipped by
+the mover entirely. Nothing in the cutscene teardown looks wrong, because nothing in it is wrong.
+
+Fixed in two places: `DamageEventSystem` drops any event whose target has `CutsceneActor` enabled
+(the chokepoint every producer funnels through — attacks, thrown items, hazards, AOE), and
+`EnemyAwarenessSystem`'s candidate loop plus `PlayerAttackSystem`'s target filter skip such a target
+so nobody stands there swinging at an invulnerable actor on camera.
+
+**When a unit "can't move" and no gate looks stuck, check `Dead` before the gates** — press `;` in
+Play mode (`CutsceneDebugTrigger`) for the one-line-per-actor dump of every flag that can stop a unit,
+including `hp`/`killedBy`. A staged on-camera death now has to be an authored narrative action that
+runs after the release, not damage during the scene.
+
+### Reverting a `[BurstCompile]` file to its exact original text can re-serve stale Burst code
+
+Proving a new test can fail means reverting the fix, watching it go red, and putting the fix back.
+On `DamageEventSystem` the put-back — byte-identical to the text that had just passed — kept failing
+across four runs and three domain reloads, including a forced full refresh that visibly advanced
+`last_domain_reload_after_unix_ms`. The C# source was verified correct against `git diff` each time.
+Rewriting the same condition in a different shape (hoisting it into a named `bool` instead of an
+inline `&&`) fixed it on the next run, 10/10.
+
+So the revert-and-restore cycle can leave a Burst entry keyed to a hash it has already seen and
+poisoned — the same family as the standing BC0101/BC1055 hash errors above. **If restored code still
+behaves like the reverted version, do not go hunting in your own logic: change the expression's shape
+to force a fresh hash, or restart the Editor.** Recompiling alone does not clear it.

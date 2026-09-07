@@ -23,6 +23,7 @@ public partial struct DamageEventSystem : ISystem
     private ComponentLookup<Health>       healthLookup;
     private BufferLookup<ThreatEntry>     threatLookup;
     private ComponentLookup<Dead>         deadLookup;
+    private ComponentLookup<CutsceneActor> cutsceneActorLookup;
     private ComponentLookup<Faction>      factionLookup;
     private BufferLookup<AttackFaction>   attackFactionLookup;
 
@@ -35,6 +36,7 @@ public partial struct DamageEventSystem : ISystem
         healthLookup        = state.GetComponentLookup<Health>(false);
         threatLookup        = state.GetBufferLookup<ThreatEntry>(false);
         deadLookup          = state.GetComponentLookup<Dead>(false);
+        cutsceneActorLookup = state.GetComponentLookup<CutsceneActor>(true);
         factionLookup       = state.GetComponentLookup<Faction>(true);
         attackFactionLookup = state.GetBufferLookup<AttackFaction>(true);
     }
@@ -52,6 +54,7 @@ public partial struct DamageEventSystem : ISystem
         healthLookup.Update(ref state);
         threatLookup.Update(ref state);
         deadLookup.Update(ref state);
+        cutsceneActorLookup.Update(ref state);
         factionLookup.Update(ref state);
         attackFactionLookup.Update(ref state);
 
@@ -76,6 +79,18 @@ public partial struct DamageEventSystem : ISystem
 
             // Already-dead victim (e.g. killed by an earlier event this frame) — avoid double-kill.
             if (deadLookup.HasComponent(target) && deadLookup.IsComponentEnabled(target))
+                continue;
+
+            // A cutscene actor cannot be hurt while it is being puppeted. The cutscene is what took
+            // its brain away (CutsceneActor gates every awareness system, WinnerSelection and
+            // MinionActionSelection), so it can neither flee nor fight back — leaving it damageable
+            // makes a bound NPC a free kill for any hostile that wanders past mid-scene, and a unit
+            // that dies here is still a corpse when the cutscene hands it back. Killing a character
+            // on camera has to be authored, not incidental: it belongs in a narrative action that
+            // runs after the release, not in whoever happened to be nearby.
+            bool targetIsPuppetedCutsceneActor = cutsceneActorLookup.HasComponent(target)
+                && cutsceneActorLookup.IsComponentEnabled(target);
+            if (targetIsPuppetedCutsceneActor)
                 continue;
 
             appliedCount++;

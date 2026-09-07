@@ -21,6 +21,7 @@ public partial struct EnemyAwarenessSystem : ISystem
 {
     private ComponentLookup<LocalTransform>  transformLookup;
     private ComponentLookup<Dead>            deadLookup;
+    private ComponentLookup<CutsceneActor>   cutsceneActorLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -33,6 +34,7 @@ public partial struct EnemyAwarenessSystem : ISystem
 
         transformLookup    = state.GetComponentLookup<LocalTransform>(true);
         deadLookup         = state.GetComponentLookup<Dead>(true);
+        cutsceneActorLookup = state.GetComponentLookup<CutsceneActor>(true);
     }
 
     [BurstCompile]
@@ -40,6 +42,7 @@ public partial struct EnemyAwarenessSystem : ISystem
     {
         transformLookup.Update(ref state);
         deadLookup.Update(ref state);
+        cutsceneActorLookup.Update(ref state);
 
         FactionRegistry registry = SystemAPI.GetSingleton<FactionRegistry>();
 
@@ -63,6 +66,7 @@ public partial struct EnemyAwarenessSystem : ISystem
         {
             transformLookup    = transformLookup,
             deadLookup         = deadLookup,
+            cutsceneActorLookup = cutsceneActorLookup,
             factionEntities    = registry.entities,
             attackLibrary      = attackLibrary,
             unitLibrary        = unitLibrary,
@@ -82,6 +86,7 @@ public partial struct CombatAwarenessJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
     [ReadOnly] public ComponentLookup<Dead>                    deadLookup;
+    [ReadOnly] public ComponentLookup<CutsceneActor>           cutsceneActorLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob>    attackLibrary;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
@@ -120,6 +125,12 @@ public partial struct CombatAwarenessJob : IJobEntity
                     continue;
 
                 if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate))
+                    continue;
+
+                // DamageEventSystem makes a puppeted actor immune, so committing to one would leave
+                // this unit swinging at an invulnerable target forever — and on camera at that.
+                // Skipping it here is what makes the immunity invisible instead of a stalemate.
+                if (cutsceneActorLookup.HasComponent(candidate) && cutsceneActorLookup.IsComponentEnabled(candidate))
                     continue;
 
                 if (!transformLookup.TryGetComponent(candidate, out LocalTransform candidateTransform))

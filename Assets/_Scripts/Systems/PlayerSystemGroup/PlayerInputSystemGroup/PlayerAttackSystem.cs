@@ -83,6 +83,11 @@ public partial struct PlayerAttackSystem : ISystem
             // Present-and-not-dead: Dead present but disabled = alive.
             if (!SystemAPI.HasComponent<Dead>(targetEntity)) continue;
             if (SystemAPI.IsComponentEnabled<Dead>(targetEntity)) continue;
+            // The CutsceneActiveTag return above already covers the ordinary case; this catches the
+            // rendezvous hold, the one window where the player has input back while a cutscene is
+            // still running and its actors are immune (DamageEventSystem).
+            if (SystemAPI.HasComponent<CutsceneActor>(targetEntity)
+                && SystemAPI.IsComponentEnabled<CutsceneActor>(targetEntity)) continue;
             if (!SystemAPI.HasComponent<LocalTransform>(targetEntity)) continue;
 
             LocalTransform playerTransform = SystemAPI.GetComponent<LocalTransform>(selfEntity);
