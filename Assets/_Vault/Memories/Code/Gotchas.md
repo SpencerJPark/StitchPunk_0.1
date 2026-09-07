@@ -561,8 +561,10 @@ misleading message behind it. Found 2026-09-06 wiring dialogue into `DOTSTestSce
 time: `DialogueUIManager` had never displayed a line in any scene in this project. It now resolves
 lazily from `Update` until it succeeds, and defers the complaint 5 s so "the scene really has no
 `DialogueManagerAuthoring`" is distinguishable from "the subscene has not loaded yet".
-**`NarrativeEventManager.ResolveEcsReferences` still has the `Start()` shape** and is the next thing
-to hit this.
+**Confirmed 2026-09-07:** `NarrativeEventManager` had the exact `Start()` shape predicted above, and
+had never been placed in any scene project-wide (`FindObjectsByType` returned zero) so it had never
+actually hit the bug yet. Fixed proactively using `DialogueUIManager.TryResolveEcsReferences`'s own
+pattern verbatim before wiring it into `TestArea.unity` for G3.
 
 ## The cutscene layer must exist on the rig, or every clip block is silently dropped
 
@@ -572,12 +574,46 @@ slides along its root lane — which is exactly what "the minions slide instead 
 G1 checkpoint. Check `PlaybackLayer` buffer length on a bound actor before blaming the clip or the
 block. The G2 checkpoint's trigger is set to `Base`.
 
-## The game's facing pipeline and the toolkit's actor pipeline are on different prefabs
+## The game's facing pipeline and the toolkit's actor pipeline were on different prefabs — fixed 2026-09-07, watch for the two traps this exposed
 
-`UnitFacing` and the `BodyPart` buffer come from `CharacterRigAuthoring`; the toolkit's rig comes
-from `ActorAuthoring`. As of 2026-09-06 **no prefab in this project has `CharacterRigAuthoring`** (all
-42 scanned) and only `MaleCitizen.prefab` has an `ActorAuthoring`. Measured in a live world:
-`unitFacingEntities=0`, `bodyPartBuffers=0`, `partFacingEntities=6`. So `UnitFacingSystem` matches
-nothing at all, and anything that ends in "→ `UnitFacing` → `PartFacing`" — including G2's
-`CutsceneFacing` branch — is code-complete with no content to run on. Check the entity counts before
-concluding a facing feature is broken.
+`UnitFacing` and the `BodyPart` buffer come from `CharacterRigAuthoring`; the toolkit's rig comes from
+`ActorAuthoring`. As of 2026-09-06 **no prefab in this project had `CharacterRigAuthoring`** (all 42
+scanned) and only `MaleCitizen.prefab` had an `ActorAuthoring`. Measured in a live world:
+`unitFacingEntities=0`, `bodyPartBuffers=0`, `partFacingEntities=6`. **Now fixed** — `MaleCitizen` has
+both — but the fix was not a bare component-add, and the two things it took are worth knowing before
+touching this again:
+
+1. **`BodyPartAuthoring` and `RigTargetBaker` both bake `PartFacing`, and collide.** The toolkit's
+   `RigTargetBaker` already adds `PartFacing` on any target with `facesDirection` ticked (the mirror
+   roots — all of which render). `BodyPartAuthoring.Baker` used to add `PartFacing` unconditionally on
+   every rendering part, so stacking both authorings on the same GameObject threw a duplicate-component
+   baking exception. Fixed with a guard in `BodyPartAuthoring.Baker`
+   (`FacesDirectionAlreadyBaked`) that skips the add only where `RigTargetBaker` already covers it —
+   `DirectionFacing_System.md` §4 wants `PartFacing` on every quad, so the guard is narrow, not a
+   blanket skip.
+2. **A legacy `BaseParentAuthoring` was still live on the same parts, also baking `BaseParent`.**
+   `BodyPartAuthoring`'s own header comment says it replaces `BaseParentAuthoring`, but nobody had ever
+   actually removed it from `MaleCitizen` — it baked a second, redundant `BaseParent` and would have
+   collided with `BodyPartAuthoring`'s own add the same way. Stripped from all 32 parts; it was dead
+   weight even before this (no system reads a bare `BaseParent` without a paired `BodyPartInfo`, which
+   only the toolkit's own rig-target parts ever had).
+
+**Before assuming a facing gap is "just missing content," check for both authorings already on the
+GameObject and grep for `BaseParentAuthoring`/other legacy predecessor scripts your target class's own
+header comment names as superseded** — a "replaces X" comment is not proof X was removed.
+
+### A direct `EnabledRefRW/RO<T>` query parameter collides with a writable `ComponentLookup<T>` of the same T, in either direction
+
+Fixing the above gave `CameraVisibilitySystem.CameraVisibilityJob` real `BodyPart` buffers to iterate
+for the first time in this project's history, and it threw immediately:
+`InvalidOperationException: ... two containers may not be the same (aliasing)`, naming the job's own
+`__CameraVisible_RW_ComponentTypeHandle` (RW) — then, after switching the query parameter to
+`EnabledRefRO`, the **same** exception against the `_RO_` handle. Not the documented `in T` +
+`EnabledRefRW<T>` trap above — this job iterates the ROOT's own `CameraVisible` while ALSO holding a
+writable `ComponentLookup<CameraVisible>` to propagate to the PARTS, and the query-level handle
+(RW or RO, either one) shares a slot with the lookup's own registration. **Fix: don't take the type as
+an Execute parameter at all when a writable lookup of the same type is also a job field.** Use
+`[WithAll(typeof(T))]` for presence-only filtering (no handle of its own) and read/write the current
+entity's own value through the SAME lookup, e.g. `partVisibleLookup.IsComponentEnabled(rootEntity)` /
+`.SetComponentEnabled(rootEntity, ...)`, exactly like every other entity the lookup touches. Found
+2026-09-07, G3.

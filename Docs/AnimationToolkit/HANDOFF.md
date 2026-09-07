@@ -126,6 +126,56 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**G3 — Cutscene Acceptance ("Rendezvous and Depart"). Phases 1–3 built and gated 2026-09-07; stopped
+at its ⏸ owner checkpoint.** Game-side, not a package amendment. First real content pass through the
+whole cutscene stack at once — every prior spec's checkpoint is still individually unwatched, but this
+is the first end-to-end proof that marks, the rendezvous hold, attach, a dialogue holding event, a
+camera cut and detach all compose on one real cutscene. `RendezvousAndDepart.asset`
+(`Assets/ScriptableObjects/Cutscenes/`) stages Player (Prop — `PlayerUnit` has no toolkit rig at all)
+and two `MaleCitizen` actors against a new scaled-cube `CutsceneCart.prefab`
+(`Assets/Prefabs/Vehicles/`); `NarrativeEvent_RendezvousTest` wraps it in one `PlayCutsceneAction`;
+`CutsceneDebugTrigger` now fires that narrative event on F9 (not a raw signal) and requests a skip on
+F10. Full detail — content decisions, what was reused vs. authored fresh — is in the spec's own §6 at
+`Assets/_Vault/Tasks/Verification/CutsceneAcceptance_System.md`; the owner's checklist is
+`Tasks/Verification/verify-cutscene.md`.
+
+**Closed a blocker the roadmap only guessed the size of.** §6 of `Cutscene_Roadmap.md` framed the
+missing `UnitFacing`/`BodyPart` content as possibly "a component-add on `MaleCitizen` plus a rebake."
+Measured live first: it was not. `BodyPartAuthoring` stacked onto `MaleCitizen`'s rig-target parts
+collided twice over — `RigTargetBaker` already bakes `PartFacing` on the 3 `facesDirection` parts (all
+three render, so both bakers would hit the same entity), and a legacy `BaseParentAuthoring` (predates
+the toolkit, superseded by `BodyPartAuthoring` per that class's own header comment but never actually
+removed) was still live on all 32 `MaleCitizen` parts, doubly baking `BaseParent`. Both fixed
+(`BodyPartAuthoring.Baker` now guards its `PartFacing` add against the toolkit's own opt-in;
+`BaseParentAuthoring` stripped from the prefab). That in turn exposed a genuinely latent, unrelated
+bug: `CameraVisibilitySystem.CameraVisibilityJob` threw an aliasing exception the instant it had real
+`BodyPart` buffers to iterate for the first time in this project's history — a direct
+`EnabledRefRW`/`RO<CameraVisible>` query parameter colliding with the job's own writable
+`ComponentLookup<CameraVisible>` used to propagate to parts. Fixed by routing the root's own read/write
+through the lookup too, same as the parts, dropping the direct query handle entirely. All three
+measured live (`unitFacingEntities` 0→2, `bodyPartBuffers` 0→2, `partFacingEntities` 6→32, zero
+exceptions across multiple Play frames) — detail and the exact fix pattern in `Gotchas.md`.
+
+**`NarrativeEventManager` had never been placed in any scene, project-wide.** The whole narrative-event
+pipeline's ECS half (`NarrativeEventAuthoring`) worked; the hybrid `MonoBehaviour` that actually reads
+it had simply never been instantiated anywhere (`FindObjectsByType` returned zero). Fixed proactively
+before it could bite — this HANDOFF's own G2 entry had already named the exact failure mode
+(`DialogueUIManager`'s `Start()`-resolves-too-early bug, "`NarrativeEventManager` has the same shape
+and will hit it next") — using `DialogueUIManager.TryResolveEcsReferences`'s own lazy-retry pattern
+verbatim.
+
+**One minor, non-blocking finding, not chased to ground:** in one run, one of the two minions'
+post-attach position read ~50 microns off its authored offset (the other minion and the player landed
+exactly on theirs, byte for byte). Invisible at any normal viewing distance, and the value was stable
+across repeated reads rather than still drifting — plausibly a one-frame ordering interaction between
+the game's own `CutsceneMoveToMarkSystem` and the toolkit's attach application landing in the same
+frame for that one slot. Exact numbers and the leading theory are in `verify-cutscene.md`.
+
+**Owed:** the ⏸ checkpoint itself, and the owner's own Profiler capture for the spec's ~2 ms
+`CutsceneTimelineSystem` figure — the automated perf test (`CutsceneAcceptancePerfTests`, new) asserts
+a generous 25x-of-target bound to catch a regression, not to stand in for a real measurement. Next on
+the critical path is **A68** (docs/release) once this checklist passes.
+
 **A67 — Cutscene Editor Polish II: viewport picking, in-tab gizmo, frozen headers. T1–T6 built and
 gated 2026-09-06; stopped at its ⏸ owner checkpoint.** The A59/A60 editor backlog closes here: the
 in-tab viewport is a workspace rather than a monitor. Clicking an actor in it selects that slot
