@@ -166,6 +166,31 @@ take a drag; drag a handle and the key becomes a custom Bézier with those
 handles. It is the same widget, and the same `ClipSampler.Ease`, that clip keys
 use, so the shape matches playback.
 
+### The viewport as a workspace
+
+The tab's viewport is not a monitor. **Click an actor in it** to select that
+slot; click empty space to clear. Hold Ctrl (Cmd) or Shift while clicking to
+move the slot without disturbing whatever the timeline has selected, so picking
+an actor does not throw away a beat under construction. Picking is bounds-based
+over the bound cast only, so scenery that is not in the cast is never in the way.
+
+**A transform gizmo stands on the selection.** W, E and R switch it between
+move, rotate and scale, the same keys the Scene view uses. Dragging a handle
+writes the same transform Unity's own gizmo writes, so **Key** and **Auto Key**
+behave identically whether you moved the actor in here or out in the Scene
+view. The gizmo is drawn for this viewport alone — it never appears in the
+Scene view, and it is not an object in your scene.
+
+**Navigation** matches the Scene view's division of labour: left-drag orbits,
+middle-drag pans, right-drag looks around, and the wheel dollies. Hold the
+right button and fly with WASD and Q/E, with Shift for a boost. **F** frames
+the selected slot; **Shift+F** frames the whole cast.
+
+**The timeline navigates too.** Ctrl+wheel zooms about the cursor, so the time
+you are pointing at stays under the pointer. **Home** fits the whole cutscene
+to the window, and **Alt+P** brings the playhead to the middle without moving
+it. The header column stays put while the lanes scroll sideways.
+
 ## Baking
 
 `CutsceneBlobBuilder.Build(cutsceneAsset, out blob, warnings)` produces a
@@ -491,8 +516,6 @@ onto a new host *is* the release of the old one.
   tool and this package's Editor sources may not use `Handles`.
 - A mark disc drags on its own ground plane only. Height is authored in the
   inspector, never pulled by a gizmo axis.
-- The header column scrolls horizontally with the lanes rather than staying
-  frozen.
 - The preview's facing mirror does not step alt-view frames. That is
   `PartFacing.viewOffset`, which the toolkit bakes as 0 and a host owns — there
   is no package-side rule saying which frame a given direction shows, so the

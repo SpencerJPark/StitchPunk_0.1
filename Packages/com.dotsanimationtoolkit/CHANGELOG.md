@@ -10,6 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Cutscene viewport picking, in-tab gizmo, frozen headers (A67)
+
+Closes the A59/A60 editor backlog: the in-tab viewport is a workspace rather than a monitor.
+
+- **Click-select in the viewport.** A press that does not travel picks the nearest bound cast
+  member by renderer bounds and selects its slot; empty space clears. A modifier keeps the
+  timeline's item selection while moving the slot. The shot is no longer broken on pointer-down,
+  only once a drag actually travels, so selecting something leaves the framed view alone.
+- **A transform gizmo in the tab.** W/E/R switch move/rotate/scale through one writer. It reuses
+  the Clip Editor's `PreviewTransformGizmo` mesh and `PreviewGizmoMath` picking and drag maths, and
+  is drawn with `Graphics.DrawMesh` naming the tab's own camera — so it is not a scene object,
+  never appears in the Scene view, and cannot leak across a domain reload. It writes the same
+  transforms the Scene-view gizmo writes, so Key and Auto Key are unchanged.
+- **Frozen header column.** The timeline is two synced scroll views; the header column no longer
+  scrolls away sideways. Both columns carry one entry per row at a shared explicit height.
+- **Compact cast rows.** One line per slot: state dot, name, kind chip, and Place / Bind / Select /
+  Frame as icon buttons. The inspector adopts the Clip Editor's own heading and padding rules.
+- **Navigation parity.** Right-drag look, WASD/QE fly with Shift boost while the right button is
+  held, Shift+F to frame the whole cast. In the timeline: Ctrl+wheel zooms about the cursor, Home
+  fits the cutscene, Alt+P centres the playhead.
+
 ### Added — Cutscene editor polish: selection, clipboard, Auto Key, curves (A66)
 
 - **Multi-select.** `CutsceneItemAddress` (slot, lane kind, part track, item) replaces the single

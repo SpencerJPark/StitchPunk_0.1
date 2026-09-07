@@ -1,6 +1,6 @@
 # Amendment A67 — Cutscene Editor Polish II: Viewport Picking, In-Viewport Gizmo, Frozen Headers
 
-> **Status:** ✅ spec, not built. Written 2026-09-04. Closes the A59/A60 backlog (A60 §4 items 2–6).
+> **Status:** ✅ T1–T6 built and gated 2026-09-06; stopped at the ⏸ owner checkpoint. Written 2026-09-04. Closes the A59/A60 backlog (A60 §4 items 2–6).
 > **Roadmap:** `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` — read its §4 protocol first.
 > **Depends on:** A66 (selection set, Auto Key). **Parallel-safe with:** nothing package-side.
 > **Session budget:** one Sonnet session. Editor assembly only; no fixtures (UI wiring), every task proved live and by the owner's eyes.
@@ -51,7 +51,7 @@ Free camera: right-drag look, WASD/QE fly with Shift boost, scroll dolly, **F** 
 - [x] **T3 — Frozen header column (§3.3).** **[parallel-safe with T4]** Live proof: scroll the lanes horizontally, headers stay; scroll vertically, both move; capture before/after per A60 §1.
 - [x] **T4 — Cast compaction + inspector styling (§3.4).** **[parallel-safe with T3]** Capture before/after.
 - [x] **T5 — Navigation parity + zoom-to-playhead (§3.5).**
-- [ ] **T6 — Docs.** `cutscenes.md` viewport/navigation subsection; remove the "header column scrolls" Known-gaps line. CHANGELOG, HANDOFF §4 (the A59/A60 backlog closes here — say so).
+- [x] **T6 — Docs.** `cutscenes.md` viewport/navigation subsection; remove the "header column scrolls" Known-gaps line. CHANGELOG, HANDOFF §4 (the A59/A60 backlog closes here — say so).
 - [ ] **⏸ Owner checkpoint.** Without opening the Scene view: place two actors from the cast panel, click one in the viewport, move it with W, press Key, scrub, box-select in the timeline while the headers stay put.
 
 ## 6. Risks and traps
@@ -61,3 +61,70 @@ Free camera: right-drag look, WASD/QE fly with Shift boost, scroll dolly, **F** 
 - Two scroll views syncing each other re-enter; guard with a bool, not with unsubscribing.
 
 ## 7. Build log
+
+Built 2026-09-06 immediately after A66, in the same session, T1–T6, each task committed alone.
+Suites at the end, unchanged from A66's baseline: toolkit EditMode **724 discovered / 723 passed**
+(the standing `Conformance_A` asmdef drift, untouched), toolkit PlayMode **261/261**,
+`StitchPunk.Tests` **59/59**, `StitchPunk.Tests.PlayMode` **7/7**. No fixtures were added — the
+spec's own budget says this is UI wiring.
+
+### The one design the spec got wrong, and how it was found
+
+§3.2 sketched the in-tab gizmo as a `HideFlags.HideAndDontSave` GameObject in the open scene,
+hidden from the Scene view through `SceneVisibilityManager`. **That does not work, measured before
+any of it was written:** `SceneVisibilityManager.instance.Hide` on a `HideAndDontSave` object does
+not take at all — `IsHidden` stays `false`, because the object belongs to no scene — and a plain
+`Camera.Render` draws it regardless. The gizmo would have appeared in the owner's Scene view stacked
+on Unity's own.
+
+The replacement was probed the same way before being adopted: `Graphics.DrawMesh` naming the tab's
+utility camera renders correctly through URP's `SubmitRenderRequest` (84 pixels of a test mesh, in a
+64×64 readback). So the gizmo is drawn **for that camera alone** and is not a scene object. That
+settles three of the spec's own worries at once: nothing to exclude from §3.1's picking, nothing for
+§6's leak trap to catch, and nothing in the Scene view. `PreviewTransformGizmo` still builds the
+mesh — reused whole, its object simply kept inactive and renamed off `ClipPreviewGizmo`, because the
+Clip Editor keeps a live object under that name and a name-based sweep could not tell them apart.
+
+### Drift from the spec, and what was done instead
+
+1. **§3.1's "Ctrl-click toggles a slot into A66's set" has nothing to toggle into.** A66's set holds
+   *items*; a slot header is not one, and nothing consumes a multi-slot selection. Implemented as the
+   useful reading: a modifier-click moves the slot and **keeps** the timeline's items selected.
+2. **§3.1 says to convert to RT pixels and call `utilityCamera.ScreenPointToRay`.** The utility
+   camera is disabled and its transform and projection mean nothing between renders, so the ray is
+   built from the pose last *rendered*, using the same construction `PreviewScenePicker.BuildRay`
+   uses, inlined so it needs no `Transform` to read from. The spec's own sketch of a hidden proxy
+   object would have been another instance of §6's leak hazard.
+3. **`GizmoDragRouting` is not used.** It routes between sockets, ragdoll bodies and rig-edit mode,
+   none of which a cutscene has; the cutscene's routing is that the gizmo writes the transform and
+   Key/Auto Key do the rest. `PreviewGizmoMath` *is* reused whole.
+4. **The fly keys had to be gated behind the right mouse button.** §3.5 asks for WASD/QE fly and
+   §3.2 asks for W/E/R gizmo modes; both land on the same keys. Unity's own answer is that fly only
+   runs while the right button is held, and that is what was implemented — without it the fly keys
+   swallow W/E/R and the gizmo modes are unreachable.
+5. **T6's "remove the header column Known-gaps line"** was one line and is gone. The mark-label gap
+   above it stays: it is about `Handles.Label`, which `Conformance_E` still bans.
+6. **`AddHeaderOnlyRow` wraps its element.** A bare element's margins are laid out outside its
+   height, so the Add Part Track button pushed the header column past the lane column, 4px per slot.
+
+### What was machine-verified, and what was not
+
+Machine-verified live through `execute_code` against a real open Cutscene Editor tab, numbers in the
+commit messages: viewport picking at each actor's projected pixel and on empty sky, both modifier
+branches; the gizmo building, claiming a handle press, moving the actor along one axis, declining an
+empty-space press, and feeding both Key and Auto Key; header/lane row alignment at 0.0000px across
+33 rows with vertical scroll mirroring and horizontal scroll not; the cast panel's row and button
+counts, icon resolution, enable rules and hidden bind fields; the inspector's resolved heading and
+padding matching the Clip Editor's; and the timeline's Home, Alt+P and Ctrl+wheel arithmetic.
+
+**Not machine-verifiable from a background Editor, and owed to the owner's eyes and hands:**
+
+- **Every screen capture the spec asks for.** §6 says captures lie under occlusion and need an
+  unobstructed window; a background session has neither focus nor an unobstructed window. No
+  before/after was taken for T3 or T4, and none is claimed.
+- **Real pointer gestures.** Everything above was driven by calling the methods a pointer calls. The
+  click-versus-drag tolerance, the right-drag look, the fly keys and whether a handle is grabbable
+  where it *looks* grabbable all need a real pointer.
+- **Anything inside `SceneView.duringSceneGui`** — an unfocused Editor never repaints its Scene view,
+  so such a handler is never called. Nothing in A67 depends on one, but the mark overlay from A64
+  still does.

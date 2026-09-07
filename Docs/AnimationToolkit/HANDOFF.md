@@ -126,6 +126,43 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A67 — Cutscene Editor Polish II: viewport picking, in-tab gizmo, frozen headers. T1–T6 built and
+gated 2026-09-06; stopped at its ⏸ owner checkpoint.** The A59/A60 editor backlog closes here: the
+in-tab viewport is a workspace rather than a monitor. Clicking an actor in it selects that slot
+(bounds-based over the bound cast, nearest hit, empty space clears; a modifier keeps the timeline's
+item selection). A transform gizmo stands on the selection with W/E/R modes and writes the same
+transforms the Scene-view gizmo writes, so Key and Auto Key needed no in-tab special case beyond
+seeing the gesture end. The timeline is two synced scroll views, so the header column no longer
+scrolls away sideways. Cast rows are one line of dot, name, chip and four icon buttons; the
+inspector adopts the Clip Editor's own heading and padding rules. Navigation reaches parity —
+right-drag look, WASD/QE fly, Shift+F for the whole cast, Ctrl+wheel zoom about the cursor, Home,
+Alt+P. Suites unchanged from A66: toolkit EditMode **724/723** (the standing `Conformance_A` drift),
+PlayMode **261/261**, `StitchPunk.Tests` **59/59**, `StitchPunk.Tests.PlayMode` **7/7**. No fixtures
+— the spec's budget says this is UI wiring.
+
+**The lesson worth keeping: probe the platform before designing on it.** A67 §3.2 specified the
+gizmo as a `HideAndDontSave` scene object hidden from the Scene view via `SceneVisibilityManager`.
+Measured first: that call does not take on such an object at all (`IsHidden` stays false — it is in
+no scene), and a plain camera render draws it anyway, so the gizmo would have sat in the Scene view
+on top of Unity's own. The replacement was probed the same way before being adopted —
+`Graphics.DrawMesh` naming the tab's camera renders correctly through URP's `SubmitRenderRequest`.
+The gizmo is therefore **not a scene object at all**, which also removes the leak the spec's own §6
+warns about and the picking exclusion §3.2 asks for. Two other traps this cost: the fly keys must be
+gated behind the right mouse button or they swallow W/E/R before the gizmo modes see them (Unity's
+own answer, arrived at the same way); and a header-column entry with no lane must be **wrapped**,
+because a bare element's margins lay out outside its height — the Add Part Track button pushed the
+two columns 4px apart per slot, measured at 26 of 33 rows misaligned before the fix.
+
+**What is owed: the owner's eyes and hands — and in this amendment that line falls in the middle of
+the work.** Everything above was driven by calling the methods a pointer calls, so the logic is
+measured and the *feel* is not: the click-versus-drag tolerance, the right-drag look, the fly keys,
+and whether a gizmo handle is grabbable where it looks grabbable all need a real pointer. **No
+before/after capture was taken for T3 or T4** — §6 says captures lie under occlusion and need an
+unobstructed, focused window, which a background session does not have. A63's, A64's, A65's, G1's,
+G2's and A66's checkpoints are all still waiting too. Next on the critical path is **G3** (the
+"Rendezvous and Depart" acceptance cutscene), which the roadmap notes still wants the
+`CharacterRigAuthoring` facing content G2 found missing.
+
 **A66 — Cutscene Editor Polish I: selection, clipboard, Auto Key, curves. T1–T6 built and gated
 2026-09-06; stopped at its ⏸ owner checkpoint.** The three things the owner named as must-haves
 before "finished" are in. `CutsceneItemAddress` turned the single four-field selection into a set
