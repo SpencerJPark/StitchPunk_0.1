@@ -19,14 +19,17 @@ public class CutsceneMarkDebugVisualizer : MonoBehaviour
     private Material discMaterial;
     private readonly List<Entity> staleEntities = new List<Entity>();
 
+    private World cachedWorld;
+    private EntityQuery markQuery;
+
     private void Update()
     {
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null || !world.IsCreated)
             return;
 
+        EnsureQuery(world);
         EntityManager entityManager = world.EntityManager;
-        EntityQuery markQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<CutsceneMoveToMark>());
         Unity.Collections.NativeArray<Entity> markedEntities =
             markQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
 
@@ -69,6 +72,20 @@ public class CutsceneMarkDebugVisualizer : MonoBehaviour
         }
     }
 
+    // Created exactly once and reused — CreateEntityQuery allocates unmanaged query-matching state
+    // that only Dispose() reclaims, so rebuilding it every frame (this ran at 60 Hz) leaks. Only
+    // rebuilt if the World itself changed (domain reload / re-entering Play mode).
+    private void EnsureQuery(World world)
+    {
+        if (cachedWorld == world) return;
+
+        if (cachedWorld != null && cachedWorld.IsCreated && markQuery != default)
+            markQuery.Dispose();
+
+        cachedWorld = world;
+        markQuery = world.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<CutsceneMoveToMark>());
+    }
+
     private GameObject CreateDisc()
     {
         GameObject disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -98,5 +115,8 @@ public class CutsceneMarkDebugVisualizer : MonoBehaviour
             if (pair.Value != null) Destroy(pair.Value);
         }
         discsByEntity.Clear();
+
+        if (cachedWorld != null && cachedWorld.IsCreated && markQuery != default)
+            markQuery.Dispose();
     }
 }

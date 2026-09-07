@@ -30,6 +30,11 @@ public class CutsceneDebugTrigger : MonoBehaviour
     [Tooltip("Debug convenience only: the instant the toolkit issues the player a mark, teleport them onto it instead of requiring a manual walk. The toolkit itself never auto-paths the Player (G2 §4) — this is purely for solo testing.")]
     [SerializeField] private bool autoWalkPlayerToMark = true;
 
+    private World cachedWorld;
+    private EntityQuery narrativeQuery;
+    private EntityQuery cutscenePlayQuery;
+    private EntityQuery playerQuery;
+
     private Entity playerEntity = Entity.Null;
     private bool hasAutoWalkedCurrentMark;
 
@@ -42,6 +47,7 @@ public class CutsceneDebugTrigger : MonoBehaviour
         if (world == null || !world.IsCreated)
             return;
 
+        EnsureQueries(world);
         EntityManager entityManager = world.EntityManager;
 
         if (Keyboard.current[key].wasPressedThisFrame)
@@ -54,6 +60,35 @@ public class CutsceneDebugTrigger : MonoBehaviour
             TryAutoWalkPlayerToMark(entityManager);
     }
 
+    // Every EntityQuery this component uses is created exactly once and reused — CreateEntityQuery
+    // allocates unmanaged query-matching state that is never reclaimed unless the query is disposed,
+    // so building a fresh one every frame (or every keypress) leaks. Rebuilt only if the World itself
+    // changed (a domain reload / re-entering Play mode swaps it out from under a surviving instance).
+    private void EnsureQueries(World world)
+    {
+        if (cachedWorld == world) return;
+
+        DisposeQueries();
+        cachedWorld = world;
+        EntityManager entityManager = world.EntityManager;
+        narrativeQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<NarrativeEventTag>());
+        cutscenePlayQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<CutscenePlay>());
+        playerQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Player>());
+    }
+
+    private void DisposeQueries()
+    {
+        if (cachedWorld == null || !cachedWorld.IsCreated) return;
+        if (narrativeQuery != default) narrativeQuery.Dispose();
+        if (cutscenePlayQuery != default) cutscenePlayQuery.Dispose();
+        if (playerQuery != default) playerQuery.Dispose();
+    }
+
+    private void OnDestroy()
+    {
+        DisposeQueries();
+    }
+
     // Teleports rather than paths: CutsceneMoveToMarkSystem's own arrival check is a pure XZ-distance
     // test each frame (A64), so it reads a teleport as "arrived" exactly like a real walk — no need
     // to replicate PathRequest plumbing for a debug convenience. Fires once per issued mark, tracked
@@ -62,7 +97,6 @@ public class CutsceneDebugTrigger : MonoBehaviour
     {
         if (playerEntity == Entity.Null || !entityManager.Exists(playerEntity))
         {
-            EntityQuery playerQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Player>());
             if (playerQuery.IsEmpty) return;
             playerEntity = playerQuery.GetSingletonEntity();
         }
@@ -90,7 +124,6 @@ public class CutsceneDebugTrigger : MonoBehaviour
 
     private void FireNarrativeEvent(EntityManager entityManager)
     {
-        EntityQuery narrativeQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<NarrativeEventTag>());
         if (narrativeQuery.IsEmpty)
         {
             Debug.LogWarning("CutsceneDebugTrigger: no NarrativeEventTag entity yet — scene still streaming in?");
@@ -100,14 +133,15 @@ public class CutsceneDebugTrigger : MonoBehaviour
         Entity narrativeEntity = narrativeQuery.GetSingletonEntity();
         entityManager.SetComponentData(narrativeEntity, new OnNarrativeEvent { eventId = narrativeEventId });
         entityManager.SetComponentEnabled<OnNarrativeEvent>(narrativeEntity, true);
+        Debug.Log("CutsceneDebugTrigger: fired narrative event " + narrativeEventId + " on " + narrativeEntity);
     }
 
     // One cutscene plays at a time in this checkpoint; ToEntityArray rather than GetSingletonEntity
     // so an unexpected second CutscenePlay skips the first found instead of throwing.
     private void RequestSkipOfActiveCutscene(EntityManager entityManager)
     {
-        EntityQuery playQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<CutscenePlay>());
-        Unity.Collections.NativeArray<Entity> playEntities = playQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
+        Unity.Collections.NativeArray<Entity> playEntities =
+            cutscenePlayQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
         if (playEntities.Length > 0)
             CutsceneApi.RequestSkip(entityManager, playEntities[0]);
         playEntities.Dispose();
