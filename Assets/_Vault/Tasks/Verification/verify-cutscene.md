@@ -20,13 +20,17 @@ lives on `Managers/CutsceneDebug` in TestArea.
 
 ## Setup — read before you press Play
 
-- **The trigger key is F11, not F9.** The spec originally named F9; it does nothing at all when
-  pressed — no console output, nothing — because Unity's own Editor reserves bare F9 as the built-in
-  shortcut for `Profiling/Profiler/RecordToggle` (confirmed against all 1121 shortcuts
-  `ShortcutManager.instance` registers project-wide) and consumes the keypress before the running
-  game's Input System ever sees it. Moved to **F11** (confirmed unbound). **F10** still requests a
-  skip on whichever cutscene is currently playing — bare F10 was never actually reserved.
-- **F11 fires the narrative event, not a raw signal.** `CutsceneDebugTrigger` fires
+- **The trigger key is backtick ( ` ), not F9.** The spec originally named F9; it does nothing at all
+  when pressed because Unity's own Editor reserves bare F9 as the built-in shortcut for
+  `Profiling/Profiler/RecordToggle` (confirmed against all 1121 shortcuts `ShortcutManager.instance`
+  registers project-wide) and consumes the keypress before the running game's Input System ever sees
+  it. F11 was tried next and also failed — a live diagnostic (logging every key Unity's Input System
+  actually saw) proved the physical F11 key was registering as `Key.Home`, a laptop keyboard sharing
+  the F-row with Home/End/PgUp/PgDn without Fn-lock. Settled on **backtick ( \` )**, a dedicated key on
+  every keyboard with no Editor shortcut and no secondary Fn function. The skip key is **backslash
+  ( \\ )** for the same reason (F10, though never actually reserved, was dropped along with the rest
+  of the F-row on principle).
+- **Backtick fires the narrative event, not a raw signal.** `CutsceneDebugTrigger` fires
   `NarrativeIds.Events.RendezvousTest` through `NarrativeEventManager`, which runs
   `NarrativeEvent_RendezvousTest`'s `PlayCutsceneAction` — the whole narrative path is exercised, not
   just the toolkit's own playback.
@@ -43,8 +47,8 @@ lives on `Managers/CutsceneDebug` in TestArea.
 
 ## Checklist
 
-1. [ ] Open `DOTSTestScene`, enter Play, press F11 (not F9 — see Setup). Console: no errors, one line
-       from the narrative manager.
+1. [ ] Open `DOTSTestScene`, enter Play, press backtick ( ` ) (not F9 — see Setup). Console: no errors,
+       one line from the narrative manager.
 2. [ ] MinionA and MinionB pathfind to their discs (walk cycle plays, faces the travel direction). The
        player can still walk. Nothing else moves; both minions' `UtilityActions` are empty in the
        Entities window.
@@ -57,8 +61,9 @@ lives on `Managers/CutsceneDebug` in TestArea.
 7. [ ] At the destination everyone reappears on the ground beside the cart; the cutscene ends; the
        camera blends back to the gameplay camera; the minions resume wandering from where they stand;
        the player controls again.
-8. [ ] Press F11 again mid-run and press the skip key (F10): the world ends in the same state as step
-       7 — same positions, everyone visible, dialogue never opened but the SFX event fired.
+8. [ ] Press backtick ( ` ) again mid-run and press the skip key (backslash, \ ): the world ends in the
+       same state as step 7 — same positions, everyone visible, dialogue never opened but the SFX
+       event fired.
 9. [ ] Save during the cutscene (debug save menu): refused with a warning; save after: works.
 10. [ ] Profiler: `CutsceneTimelineSystem` under 0.2 ms with four slots.
 
@@ -66,7 +71,7 @@ lives on `Managers/CutsceneDebug` in TestArea.
 
 ## Already machine-verified — don't re-derive these, just watch for them
 
-Driven live via `execute_code` firing the same `OnNarrativeEvent` signal F11 writes (not simulated —
+Driven live via `execute_code` firing the same `OnNarrativeEvent` signal the trigger key writes (not simulated —
 the real narrative → toolkit → game pipeline, watched through several minutes of real elapsed time):
 
 - The narrative event resolves `NarrativeEvent_RendezvousTest` and starts the cutscene
@@ -95,6 +100,20 @@ rather than attach failing outright. At the observed magnitude (~50 microns) thi
 screen and did not reproduce as a step-4/7 failure in the same run; flagged here rather than chased
 further. If the owner ever sees a rider standing at their mark instead of on the cart, this is the
 first thing to check.
+
+## Debug tooling bugs found and fixed while chasing "the trigger key does nothing"
+
+Two real, unrelated bugs turned up debugging the trigger before the key itself was identified as the
+problem — both in the *new* debug tooling this session added, not the cutscene systems themselves:
+
+- **`CutsceneMarkDebugVisualizer.Update()` created a fresh `EntityQuery` every frame and never
+  disposed it** — 60 leaked queries a second for as long as Play mode ran. `CutsceneDebugTrigger` had
+  the same flaw on its three queries, just gated per-keypress instead of per-frame. Both now build
+  their queries once (cached, rebuilt only if the `World` itself changes) and dispose them in
+  `OnDestroy`. Confirmed not the actual cause of the key problem (a diagnostic proved the keypress
+  itself wasn't reaching `Key.F11` at all), but a real leak regardless, and the owner's instinct to
+  suspect "the downstream stuff" was the right instinct even though the bug it turned up wasn't the
+  one blocking F11 specifically.
 
 ## Known, pre-existing, not this spec's
 
