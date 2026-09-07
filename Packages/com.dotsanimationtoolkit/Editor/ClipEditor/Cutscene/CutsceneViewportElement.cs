@@ -23,6 +23,10 @@ namespace DotsAnimationToolkit.Editor
         private const float ZoomStepFactor = 1.1f;
         private const float MinimumOrbitDistance = 0.05f;
 
+        /// <summary>Metres per key press for the fly keys, before the Shift boost.</summary>
+        private const float FlyMetresPerPress = 0.35f;
+        private const float FlyBoostFactor = 4f;
+
         /// <summary>Pointer travel, in pixels, before a press stops being a click and becomes navigation.</summary>
         private const float ClickTravelTolerancePixels = 3f;
 
@@ -100,6 +104,7 @@ namespace DotsAnimationToolkit.Editor
             RegisterCallback<PointerUpEvent>(OnPointerUp);
             RegisterCallback<PointerCaptureOutEvent>(_ => EndDrag());
             RegisterCallback<WheelEvent>(OnWheel);
+            RegisterCallback<KeyDownEvent>(OnFlyKeyDown);
             RegisterCallback<DetachFromPanelEvent>(_ => ReleaseViewportResources());
             RegisterCallback<AttachToPanelEvent>(_ => DestroyLeakedCameras());
         }
@@ -291,7 +296,8 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnPointerDown(PointerDownEvent pointerEvent)
         {
-            if (pointerEvent.button != 0 && pointerEvent.button != 2)
+            // Left orbits (or picks), middle pans, right looks — the Scene view's own division.
+            if (pointerEvent.button != 0 && pointerEvent.button != 1 && pointerEvent.button != 2)
             {
                 return;
             }
@@ -350,6 +356,17 @@ namespace DotsAnimationToolkit.Editor
                 orbitPitchDegrees = Mathf.Clamp(
                     orbitPitchDegrees + delta.y * OrbitDegreesPerPixel, -PitchLimitDegrees, PitchLimitDegrees);
             }
+            else if (activeDragButton == 1)
+            {
+                // Looking turns the camera in place, so the focus is carried around to keep the eye
+                // where it is; orbiting turns around the focus and leaves it alone.
+                Vector3 eyePosition = CurrentEyePosition();
+                orbitYawDegrees += delta.x * OrbitDegreesPerPixel;
+                orbitPitchDegrees = Mathf.Clamp(
+                    orbitPitchDegrees - delta.y * OrbitDegreesPerPixel, -PitchLimitDegrees, PitchLimitDegrees);
+                orbitFocus = eyePosition
+                    + Quaternion.Euler(orbitPitchDegrees, orbitYawDegrees, 0f) * Vector3.forward * orbitDistance;
+            }
             else
             {
                 // Pan rate ties world units to pixels at the focus plane, so the scene tracks the
@@ -394,6 +411,51 @@ namespace DotsAnimationToolkit.Editor
             activeDragButton = -1;
             pressTravelledPastClick = false;
             pressClaimedByOverlay = false;
+        }
+
+        /// <summary>Where the eye sits for the current orbit rig.</summary>
+        private Vector3 CurrentEyePosition()
+        {
+            Quaternion rotation = Quaternion.Euler(orbitPitchDegrees, orbitYawDegrees, 0f);
+            return orbitFocus - rotation * Vector3.forward * orbitDistance;
+        }
+
+        // WASD/QE fly the focus, which the eye follows at a fixed distance. Repeat comes from the
+        // OS key repeat rather than a tick, so holding a key keeps moving without a per-frame hook.
+        private void OnFlyKeyDown(KeyDownEvent keyEvent)
+        {
+            // Only while the right button is held, exactly as the Scene view does it. Otherwise
+            // these keys would swallow W/E/R before the gizmo modes ever saw them.
+            if (activeDragButton != 1)
+            {
+                return;
+            }
+
+            Vector3 flyDirection = Vector3.zero;
+            switch (keyEvent.keyCode)
+            {
+                case KeyCode.W: flyDirection = Vector3.forward; break;
+                case KeyCode.S: flyDirection = Vector3.back; break;
+                case KeyCode.A: flyDirection = Vector3.left; break;
+                case KeyCode.D: flyDirection = Vector3.right; break;
+                case KeyCode.E: flyDirection = Vector3.up; break;
+                case KeyCode.Q: flyDirection = Vector3.down; break;
+                default: return;
+            }
+            if (keyEvent.ctrlKey || keyEvent.commandKey)
+            {
+                return;
+            }
+
+            if (IsShowingShotPose)
+            {
+                AdoptRenderedPoseAsFreeRig();
+                NavigationBrokeShot?.Invoke();
+            }
+            float stepMetres = FlyMetresPerPress * (keyEvent.shiftKey ? FlyBoostFactor : 1f);
+            orbitFocus += Quaternion.Euler(orbitPitchDegrees, orbitYawDegrees, 0f) * flyDirection * stepMetres;
+            NavigationChangedCamera?.Invoke();
+            keyEvent.StopPropagation();
         }
 
         private void OnWheel(WheelEvent wheelEvent)

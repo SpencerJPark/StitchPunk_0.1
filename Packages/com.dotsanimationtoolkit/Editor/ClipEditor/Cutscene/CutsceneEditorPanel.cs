@@ -331,6 +331,7 @@ namespace DotsAnimationToolkit.Editor
 
             timelineLaneScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             timelineLaneScroll.style.flexGrow = 1f;
+            timelineLaneScroll.RegisterCallback<WheelEvent>(OnTimelineWheel, TrickleDown.TrickleDown);
             columns.Add(timelineLaneScroll);
 
             // Guarded with a flag rather than by unsubscribing: each assignment raises the other
@@ -941,11 +942,14 @@ namespace DotsAnimationToolkit.Editor
             viewportElement.RegisterCallback<GeometryChangedEvent>(_ => RenderViewport());
             viewportElement.RegisterCallback<KeyDownEvent>(keyEvent =>
             {
-                if (keyEvent.keyCode == KeyCode.F)
+                if (keyEvent.keyCode != KeyCode.F)
                 {
-                    FrameViewportOnCast();
-                    keyEvent.StopPropagation();
+                    return;
                 }
+                // Shift+F ignores the selection and frames everyone, for finding a cast member who
+                // has wandered off the shot.
+                FrameViewportOnCast(keyEvent.shiftKey);
+                keyEvent.StopPropagation();
             });
             container.Add(viewportElement);
 
@@ -1165,6 +1169,11 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Frames the selected slot's bound object if there is one, else the whole bound cast.</summary>
         private void FrameViewportOnCast()
         {
+            FrameViewportOnCast(false);
+        }
+
+        private void FrameViewportOnCast(bool framesWholeCast)
+        {
             if (viewportElement == null || cutscene == null || cutscene.slots == null)
             {
                 return;
@@ -1172,7 +1181,7 @@ namespace DotsAnimationToolkit.Editor
 
             bool hasBounds = false;
             Bounds framingBounds = new Bounds();
-            if (selectedSlotIndex >= 0 && selectedSlotIndex < cutscene.slots.Count)
+            if (!framesWholeCast && selectedSlotIndex >= 0 && selectedSlotIndex < cutscene.slots.Count)
             {
                 GameObject selectedObject = previewController.GetBoundObject(cutscene.slots[selectedSlotIndex].SlotId);
                 if (selectedObject != null)
@@ -2868,6 +2877,17 @@ namespace DotsAnimationToolkit.Editor
                     case KeyCode.R:
                         SetViewportGizmoMode(GizmoMode.Scale);
                         keyEvent.StopPropagation();
+                        return;
+                    case KeyCode.Home:
+                        FrameWholeTimeline();
+                        keyEvent.StopPropagation();
+                        return;
+                    case KeyCode.P:
+                        if (keyEvent.altKey)
+                        {
+                            CentreTimelineOnPlayhead();
+                            keyEvent.StopPropagation();
+                        }
                         return;
                 }
                 return;
