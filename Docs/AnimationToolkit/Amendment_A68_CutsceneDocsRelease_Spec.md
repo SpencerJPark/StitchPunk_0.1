@@ -42,11 +42,11 @@ Across the cutscene files touched by A61–A67: doc comments to one or two lines
 
 ## 4. Tasks
 
-- [ ] **T1 — `cutscenes.md` rewrite (§3.1).** **[parallel-safe with T2]**
-- [ ] **T2 — `cutscene-api.md` (§3.2).** **[parallel-safe with T1]** Every entry names its file; spot-check ten members against the code by opening them.
-- [ ] **T3 — Sample + compile check (§3.3).** Gate on the temporary copy; delete it; `git status` clean.
-- [ ] **T4 — Release + memory note (§3.4).**
-- [ ] **T5 — XML doc pass (§3.5).** Compile gate; `PackagingConformanceTests` (the doc-text scanners) green.
+- [x] **T1 — `cutscenes.md` rewrite (§3.1).** **[parallel-safe with T2]**
+- [x] **T2 — `cutscene-api.md` (§3.2).** **[parallel-safe with T1]** Every entry names its file; spot-check ten members against the code by opening them.
+- [x] **T3 — Sample + compile check (§3.3).** Gate on the temporary copy; delete it; `git status` clean.
+- [x] **T4 — Release + memory note (§3.4).**
+- [x] **T5 — XML doc pass (§3.5).** Compile gate; `PackagingConformanceTests` (the doc-text scanners) green.
 - [ ] **Full suites once.** Counts must not drop.
 - [ ] **⏸ Owner checkpoint.** Read `cutscene-api.md` top to bottom with the acceptance cutscene running beside it. Anything the doc does not explain is a §7 entry.
 
@@ -57,3 +57,8 @@ Across the cutscene files touched by A61–A67: doc comments to one or two lines
 - A sample that references `Camera.main` compiles without `Unity.Entities.Graphics`; do not add package references the sample's asmdef does not need.
 
 ## 6. Build log
+
+- **Drift, spec vs. reality (found before T1, grounding pass):** §3.2 names `Runtime/Api/CutscenePlaybackApi.cs` — that file no longer exists. Amendment A69 (already landed, per HANDOFF §1/§4) renamed it to `Runtime/Api/CutsceneApi.cs` (`CutscenePlaybackApi` → `CutsceneApi`, table in `CHANGELOG.md`'s `[Unreleased]` "Changed — breaking (A69)" entry). Following the code per protocol §4.2: T2 documents `CutsceneApi.cs`, not a file named `CutscenePlaybackApi.cs`.
+- **Drift, spec vs. reality (§3.4 release), corrected:** `package.json` is **already at `0.15.0`** (A69 bumped it — "Landed as 0.15.0" per its own HANDOFF §4 entry), but `CHANGELOG.md` was never folded to match: everything from Phase G / A58–A60 (pre-roadmap cutscene work) through A61–A67 (the roadmap) through A69 (unrelated static-class renames) all still sat under one `## [Unreleased]`. §3.4 asks specifically for the **A61–A67** entries — not A58–A60, not A69. Followed literally: extracted only the A61, A62, A63, A64, A65 (+ its untitled Fixed section), A66 (+ its Fixed(A66)), A67 entries into a new `## [0.15.0]` section (Added/Changed/Fixed, one sentence per item) placed above `## [0.13.0]`; left A69's "Changed — breaking" table and the Phase G/A58–A60 cutscene entries exactly where they were, still under `## [Unreleased]`. `package.json`'s version needed no change (already `0.15.0`). Net effect: `[Unreleased]` still contains real content (A69 + pre-roadmap cutscene work) after this amendment — that's expected, not a leftover mistake; a future release note should fold those separately. Flagging per protocol §4.8 rather than silently deciding scope — owner should confirm A58–A60/Phase G being left out of 0.15.0's cutscene note (despite being cutscene work) is the right call, since the roadmap itself only counts A61 onward as "the roadmap."
+- **T5 already satisfied by prior work, verified not assumed:** Amendment A69 (landed 2026-09-06, after this spec's 2026-09-04 write date) already ran a package-wide doc-comment diet — `grep -n "<remarks>|<para>|<strong>|<em>|Amendment|Phase [A-Z]|§" **/*Cutscene*.cs` across the whole package matches **zero** hits in any `Runtime/`, `Authoring/`, or `Editor/` cutscene file; every match is in `Tests/` fixtures documenting *why* a regression test exists (an amendment/decision id), which is exactly the kind of remark T5 says to keep and which Conformance_F/C do not scan (Tests are not shipped). Nothing left to edit in shipped cutscene sources. `PackagingConformanceTests` confirmation deferred to the end-of-spec full-suite run — the Editor was in Play Mode when checked (the owner appeared to be running the verify-cutscene.md checklist), so no test job was started to avoid interrupting it.
+- **Two doc-content drifts found by T1 (`cutscenes.md` rewrite), not blocking, recorded rather than silently fixed:** (1) `CutsceneHoldMarker.autoReleaseWhenMarksReached` defaults `true` and drives real bake/runtime behavior, but `CutsceneEditorPanel.BuildHoldInspector` exposes only **Time** and **Hold Id** in the Cutscene Editor tab — no in-tab toggle for it; the field is only reachable through the asset's default Unity inspector. (2) A cutscene's Events lane has no name/create picker on **Event Key** (a raw `PropertyField` on the `uint`), unlike a clip's own Events lane which uses a searchable `VocabularyPicker`. Both are documented as-is in `cutscenes.md`'s Known Limitations rather than treated as bugs to fix — T5/A68's budget is docs only, no runtime changes.
