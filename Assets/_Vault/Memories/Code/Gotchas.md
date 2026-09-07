@@ -617,3 +617,24 @@ an Execute parameter at all when a writable lookup of the same type is also a jo
 entity's own value through the SAME lookup, e.g. `partVisibleLookup.IsComponentEnabled(rootEntity)` /
 `.SetComponentEnabled(rootEntity, ...)`, exactly like every other entity the lookup touches. Found
 2026-09-07, G3.
+
+### Two overlapping narrative events share one `CutsceneActiveTag`, and the first to finish unlocks input for both — then the second re-locks it forever
+
+`NarrativeEventManager.ExecuteEventAsync` sets `CutsceneActiveTag` on entry (when `blockPlayerInput`)
+and clears it in its `finally`. The tag is a single enabled-bit on the singleton, not a refcount, so
+two events in flight are two writers to one flag. Repeat-firing the same event every frame — which is
+exactly what `CutsceneDebugTrigger` did after a missing pair of braces put `FireNarrativeEvent` outside
+its `if (wasPressedThisFrame)` — starts a new locker every frame, so the flag is re-set true after
+every release and `PlayerMoveSystem` clamps `Movement.targetPosition` to the player's own position
+forever. The symptom reads as "the cutscene ended but WASD is dead", nowhere near the trigger.
+
+Two things to check when player input never comes back after a cutscene: whether the event is being
+fired more than once (`OnNarrativeEvent` re-enabled while `ActiveNarrativeEvent` is still on), and
+only then the cutscene teardown itself. `CutsceneDebugTrigger.FireNarrativeEvent` now drops a press
+while either bit is set. Found 2026-09-07.
+
+**Not** a cause of this, checked and cleared while hunting it: `ClearResolvedMarkJob` needs
+`CutsceneMarkIssued`, which only `UnitBakingUtil` bakes and the player never gets, so it cannot pin
+the player's `targetPosition`; and `MovementAPI.HaltPathing`'s `PathfindingMode.Stop` is self-clearing
+(`PathRequestSystem` disables `PathRequest` the same frame it handles Stop), so the halt
+`CutsceneStartSystem` applies to a bound actor cannot outlive the cutscene.

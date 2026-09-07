@@ -26,7 +26,7 @@ public class CutsceneDebugTrigger : MonoBehaviour
     // (no Fn-lock), confirmed live via a diagnostic that logged every key Unity's Input System
     // actually saw. Backquote/Backslash are dedicated physical keys on every keyboard, with no
     // Editor shortcut and no secondary Fn function to collide with.
-    [SerializeField] private Key key = Key.Backquote;
+    [SerializeField] private Key key = Key.H;
     [SerializeField] private Key skipKey = Key.Backslash;
 
     [Tooltip("Debug convenience only: the instant the toolkit issues the player a mark, teleport them onto it instead of requiring a manual walk. The toolkit itself never auto-paths the Player (G2 §4) — this is purely for solo testing.")]
@@ -133,6 +133,18 @@ public class CutsceneDebugTrigger : MonoBehaviour
         }
 
         Entity narrativeEntity = narrativeQuery.GetSingletonEntity();
+
+        // A re-fire while the last one is still running stacks a second ExecuteEventAsync on the
+        // first. Both share the one CutsceneActiveTag: the second re-locks player input after the
+        // first's finally released it, and nothing releases it again — input is dead for good. Drop
+        // the press instead. OnNarrativeEvent covers the frame between signal and pickup.
+        if (entityManager.IsComponentEnabled<ActiveNarrativeEvent>(narrativeEntity)
+            || entityManager.IsComponentEnabled<OnNarrativeEvent>(narrativeEntity))
+        {
+            Debug.Log("CutsceneDebugTrigger: narrative event already running — press ignored.");
+            return;
+        }
+
         entityManager.SetComponentData(narrativeEntity, new OnNarrativeEvent { eventId = narrativeEventId });
         entityManager.SetComponentEnabled<OnNarrativeEvent>(narrativeEntity, true);
         Debug.Log("CutsceneDebugTrigger: fired narrative event " + narrativeEventId + " on " + narrativeEntity);
