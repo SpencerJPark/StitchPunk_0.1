@@ -196,7 +196,28 @@ namespace DotsAnimationToolkit.Authoring
         /// is bound to. A VAT texture cannot retarget. A <c>sourceRigKey</c> of 0 (baked before the
         /// field existed) passes.
         /// </summary>
-        V40 = 40
+        V40 = 40,
+
+        /// <summary>Error: an <see cref="ActorProfileAsset"/> does not have between 2 and <see cref="ActorProfileAsset.MaxLayerCount"/> layers, or its first/last layer is not the Base/Override bookend.</summary>
+        P1 = 41,
+
+        /// <summary>Error: an <see cref="ActorAnimationDefinition"/>'s <c>animationKey</c> is 0, or names no entry in the animation name registry.</summary>
+        P2 = 42,
+
+        /// <summary>Error: two entries of one <see cref="ActorProfileAsset"/> share the same non-zero <c>animationKey</c> — a name must resolve to exactly one entry.</summary>
+        P3 = 43,
+
+        /// <summary>Error: a non-directional <see cref="ActorAnimationDefinition"/> names no clip, or a directional one's <see cref="DirectionSlots"/> fill pattern is not one of the five valid coverage shapes.</summary>
+        P4 = 44,
+
+        /// <summary>Warning: an entry names a clip that is not in any of the profile's <c>clipSets</c>; it would resolve to nothing at play.</summary>
+        P5 = 45,
+
+        /// <summary>Warning: an entry sets a <see cref="RagdollTrigger"/> other than <see cref="RagdollTrigger.None"/> but the profile's rig declares no ragdoll bodies.</summary>
+        P6 = 46,
+
+        /// <summary>Warning: a layer's <c>startingAnimationKey</c> names an entry on a different layer, or the layer is <c>defaultActive</c> with no starter.</summary>
+        P7 = 47
     }
 
     /// <summary>Which caller is validating. Only changes the severity of the VAT-staleness check: a stale VAT bake blocks authoring but not entity baking.</summary>

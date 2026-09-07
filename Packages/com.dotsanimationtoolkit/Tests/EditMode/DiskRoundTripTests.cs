@@ -454,6 +454,78 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         // -----------------------------------------------------------------------------------
+        // Fixture 6 — an ActorProfileAsset's layers, a directional entry, and a NaN blendIn.
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Catches the profile-asset shape of the same class of bug fixture 1 caught for
+        /// <c>vatSource</c>: a <see cref="float.NaN"/> sentinel or a directional fill pattern
+        /// silently changing shape across Unity's serializer.
+        /// </summary>
+        [Test]
+        public void ActorProfileWithTwoUserLayersAndADirectionalNaNBlendEntry_SurvivesARealSaveAndReload()
+        {
+            RigAsset rig = ScriptableObject.CreateInstance<RigAsset>();
+            rig.name = "Rig";
+            rig.stableId = 0xEEEE000000000001UL;
+            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
+
+            ClipAsset southEastClip = ScriptableObject.CreateInstance<ClipAsset>();
+            southEastClip.name = "WalkSouthEast";
+            southEastClip.stableId = 0xFFFF000000000001UL;
+            southEastClip.duration = 1f;
+
+            ClipSetAsset clipSet = ScriptableObject.CreateInstance<ClipSetAsset>();
+            clipSet.name = "Set";
+            clipSet.stableId = 0xFFFF000000000002UL;
+            clipSet.clips.Add(southEastClip);
+
+            ActorProfileAsset profile = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            profile.name = "Profile";
+            profile.rig = rig;
+            profile.clipSets.Add(clipSet);
+
+            // OnEnable already seeded [Base, Override]; insert two user layers between them.
+            ActorAnimationDefinition walkAnimation = new ActorAnimationDefinition
+            {
+                animationKey = 1u,
+                hasDirections = true,
+                blendIn = float.NaN
+            };
+            walkAnimation.directionSlots.southEast = southEastClip;
+            ActorLayerDefinition locomotionLayer = new ActorLayerDefinition { displayName = "Locomotion" };
+            locomotionLayer.animations.Add(walkAnimation);
+            profile.layers.Insert(1, locomotionLayer);
+            profile.layers.Insert(2, new ActorLayerDefinition { displayName = "FaceOverlay" });
+
+            SaveAsset(rig);
+            SaveAsset(southEastClip);
+            SaveAsset(clipSet);
+            string profilePath = SaveAsset(profile);
+
+            CommitAndForceReload(rig, southEastClip, clipSet, profile);
+
+            ActorProfileAsset reloadedProfile = AssetDatabase.LoadAssetAtPath<ActorProfileAsset>(profilePath);
+            Assert.IsNotNull(reloadedProfile);
+
+            Assert.AreEqual(4, reloadedProfile.layers.Count, "Two user layers between the fixed bookends must survive.");
+            Assert.AreEqual(ActorProfileAsset.BaseLayerName, reloadedProfile.layers[0].displayName);
+            Assert.AreEqual("Locomotion", reloadedProfile.layers[1].displayName);
+            Assert.AreEqual("FaceOverlay", reloadedProfile.layers[2].displayName);
+            Assert.AreEqual(ActorProfileAsset.OverrideLayerName, reloadedProfile.layers[3].displayName);
+
+            Assert.AreEqual(1, reloadedProfile.layers[1].animations.Count);
+            ActorAnimationDefinition reloadedAnimation = reloadedProfile.layers[1].animations[0];
+            Assert.IsTrue(reloadedAnimation.hasDirections, "hasDirections must survive the round trip.");
+            Assert.IsTrue(
+                float.IsNaN(reloadedAnimation.blendIn),
+                "A NaN blendIn ('use the clip's default') must not be coerced to 0 by serialization.");
+            // The in-memory clip was destroyed by the forced reload; compare against the saved name.
+            Assert.IsNotNull(reloadedAnimation.directionSlots.southEast);
+            Assert.AreEqual("WalkSouthEast", reloadedAnimation.directionSlots.southEast.name);
+        }
+
+        // -----------------------------------------------------------------------------------
         // Helpers.
         // -----------------------------------------------------------------------------------
 

@@ -243,4 +243,17 @@ namespace DotsAnimationToolkit
         /// <summary>Inclusive lower bound for user-authored event keys.</summary>
         FirstUserKey = 16
     }
+
+    /// <summary>Whether an animation starts or stops an actor's ragdoll when it plays.</summary>
+    public enum RagdollTrigger : byte
+    {
+        /// <summary>Playing this animation does nothing to ragdoll state.</summary>
+        None = 0,
+
+        /// <summary>Enables the actor's ragdoll.</summary>
+        Start = 1,
+
+        /// <summary>Disables the actor's ragdoll.</summary>
+        Stop = 2
+    }
 }
