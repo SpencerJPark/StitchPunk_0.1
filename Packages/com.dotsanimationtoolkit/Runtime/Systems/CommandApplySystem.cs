@@ -115,14 +115,20 @@ namespace DotsAnimationToolkit
                 switch (command.kind)
                 {
                     case CommandKind.Play:
-                        ApplyPlay(
-                            ref layer,
-                            ref registry,
-                            command,
-                            ref animEvents,
-                            animEventsPendingEnabled,
-                            boundsDirtyEnabled);
+                    {
+                        bool played = PlaybackCommandMath.ApplyPlay(
+                            ref layer, ref registry, command.clip, command.speed, command.loop,
+                            command.blendDuration, out bool playBoundsDirty);
+                        if (!played)
+                        {
+                            EmitResolveFailure(ref animEvents, animEventsPendingEnabled, command.layerIndex, command.clip);
+                        }
+                        else if (playBoundsDirty)
+                        {
+                            boundsDirtyEnabled.ValueRW = true;
+                        }
                         break;
+                    }
                     case CommandKind.Queue:
                         ApplyQueue(
                             ref layer,
@@ -132,8 +138,14 @@ namespace DotsAnimationToolkit
                             animEventsPendingEnabled);
                         break;
                     case CommandKind.Stop:
-                        ApplyStop(ref layer, ref registry, command, boundsDirtyEnabled);
+                    {
+                        PlaybackCommandMath.ApplyStop(ref layer, ref registry, command.blendDuration, out bool stopBoundsDirty);
+                        if (stopBoundsDirty)
+                        {
+                            boundsDirtyEnabled.ValueRW = true;
+                        }
                         break;
+                    }
                     case CommandKind.SetSpeed:
                         layer.speed = command.speed;
                         break;
@@ -176,89 +188,6 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Starts a clip on the layer, demoting whatever was playing into the crossfade source. The
-        /// queue slot is left alone — Play addresses only the current slot; Stop is what clears the queue.
-        /// </summary>
-        private static void ApplyPlay(
-            ref PlaybackLayer layer,
-            ref ClipRegistryBlob registry,
-            in AnimationCommand command,
-            ref DynamicBuffer<AnimEventOutput> animEvents,
-            EnabledRefRW<AnimEventsPending> animEventsPendingEnabled,
-            EnabledRefRW<BoundsDirty> boundsDirtyEnabled)
-        {
-            if (!ClipRegistryApi.TryResolveClip(ref registry, command.clip, out int incomingClipIndex))
-            {
-                EmitResolveFailure(ref animEvents, animEventsPendingEnabled, command.layerIndex, command.clip);
-                return;
-            }
-
-            ref ClipBlob incomingClip = ref registry.clips[incomingClipIndex];
-
-            // NaN means "no opinion", which resolves to the clip's authored blend-in. 0 is a
-            // different, reachable answer — a hard cut — so the two must never collapse together.
-            float blendDuration = math.isnan(command.blendDuration)
-                ? math.max(incomingClip.defaultBlendIn, 0f)
-                : math.max(command.blendDuration, 0f);
-
-            int outgoingClipIndex = layer.clipIndex;
-            bool isLayerActive = (layer.flags & PlaybackFlags.Active) != 0;
-            bool hasOutgoingClip = isLayerActive && outgoingClipIndex >= 0;
-
-            if (blendDuration > 0f)
-            {
-                if (hasOutgoingClip)
-                {
-                    layer.previousClip = layer.clip;
-                    layer.previousClipIndex = outgoingClipIndex;
-                    layer.previousTime = layer.time;
-                    layer.previousSpeed = layer.speed;
-                    layer.previousLoop = layer.loop; // must run before layer.loop is overwritten below, or a crossfading Once clip wraps instead of holding
-                }
-                else if (!isLayerActive || layer.previousClipIndex < 0)
-                {
-                    // Nothing to fade from on this layer, so fade in from the pose the layers below
-                    // composited. ClipSampler.CompositeLayers reads an empty previous slot as "lerp
-                    // from the incoming pose", which is exactly a layer easing in over the ones beneath it.
-                    ClearPreviousSlot(ref layer);
-                }
-
-                // A layer stopped with a fade keeps its outgoing clip in the previous slot, so a
-                // Play arriving mid-fade crossfades out of it rather than dropping it — the branch
-                // above deliberately leaves that case alone.
-                layer.blendElapsed = 0f;
-                layer.blendDuration = blendDuration;
-                layer.flags |= PlaybackFlags.Blending;
-            }
-            else
-            {
-                ClearBlendSource(ref layer);
-            }
-
-            layer.clip = command.clip;
-            layer.clipIndex = incomingClipIndex;
-            layer.speed = command.speed;
-            layer.loop = command.loop;
-
-            // Zeroed unconditionally: ApplyPlayAnimation re-stamps its own key right after calling
-            // this for a PlayAnimation command, so a raw Play always ends up with 0 either way.
-            layer.animationKey = 0u;
-
-            // Reverse playback starts at the end, or the first advance would immediately clamp a
-            // Once clip and report it finished before a single frame of it was shown.
-            layer.time = command.speed < 0f ? incomingClip.duration : 0f;
-            layer.timeAtFrameStart = layer.time;
-
-            layer.flags |= PlaybackFlags.Active;
-            layer.flags &= ~(PlaybackFlags.Finished | PlaybackFlags.FinishedThisFrame);
-
-            if (outgoingClipIndex != incomingClipIndex)
-            {
-                boundsDirtyEnabled.ValueRW = true;
-            }
-        }
-
-        /// <summary>
         /// Stores a clip in the layer's one-deep queue slot, to be promoted when the current clip
         /// finishes. Resolved eagerly, even though only the promotion needs the index, so a NaN
         /// blend resolves against the incoming clip's own default and a bad clip id is reported at
@@ -286,101 +215,6 @@ namespace DotsAnimationToolkit
                 ? math.max(queuedClip.defaultBlendIn, 0f)
                 : math.max(command.blendDuration, 0f);
             layer.flags |= PlaybackFlags.HasQueued;
-        }
-
-        /// <summary>Stops the layer, either at once or by fading the current clip out to nothing.</summary>
-        private static void ApplyStop(
-            ref PlaybackLayer layer,
-            ref ClipRegistryBlob registry,
-            in AnimationCommand command,
-            EnabledRefRW<BoundsDirty> boundsDirtyEnabled)
-        {
-            int outgoingClipIndex = layer.clipIndex;
-            bool hasOutgoingClip = (layer.flags & PlaybackFlags.Active) != 0 && outgoingClipIndex >= 0;
-
-            float fadeDuration;
-            if (math.isnan(command.blendDuration))
-            {
-                fadeDuration = hasOutgoingClip
-                    ? math.max(registry.clips[outgoingClipIndex].defaultBlendOut, 0f)
-                    : 0f;
-            }
-            else
-            {
-                fadeDuration = math.max(command.blendDuration, 0f);
-            }
-
-            // A stop cancels what was going to happen next, in both branches. Leaving a queued clip
-            // behind would arm the layer to restart on its own the next time anything finished.
-            ClearQueue(ref layer);
-
-            if (hasOutgoingClip && fadeDuration > 0f)
-            {
-                layer.previousClip = layer.clip;
-                layer.previousClipIndex = outgoingClipIndex;
-                layer.previousTime = layer.time;
-                layer.previousSpeed = layer.speed;
-                layer.previousLoop = layer.loop;
-                layer.blendElapsed = 0f;
-                layer.blendDuration = fadeDuration;
-
-                // Still Active: the layer has no current clip but is fading one out, and
-                // PlaybackTimeSystem deactivates it when the fade completes.
-                layer.flags |= PlaybackFlags.Active | PlaybackFlags.Blending;
-                layer.flags &= ~(PlaybackFlags.Finished | PlaybackFlags.FinishedThisFrame);
-
-                layer.clip = default;
-                layer.clipIndex = -1;
-                layer.time = 0f;
-                layer.timeAtFrameStart = 0f;
-                layer.speed = 0f;
-                layer.loop = LoopMode.UseClipDefault;
-            }
-            else
-            {
-                ClearBlendSource(ref layer);
-                layer.clip = default;
-                layer.clipIndex = -1;
-                layer.time = 0f;
-                layer.timeAtFrameStart = 0f;
-                layer.speed = 0f;
-                layer.loop = LoopMode.UseClipDefault;
-                layer.flags = PlaybackFlags.None;
-                layer.animationKey = 0u; // the layer deactivates on the spot, so the key clears with it
-            }
-
-            if (outgoingClipIndex != layer.clipIndex)
-            {
-                boundsDirtyEnabled.ValueRW = true;
-            }
-        }
-
-        private static void ClearBlendSource(ref PlaybackLayer layer)
-        {
-            ClearPreviousSlot(ref layer);
-            layer.blendElapsed = 0f;
-            layer.blendDuration = 0f;
-            layer.flags &= ~PlaybackFlags.Blending;
-        }
-
-        // An empty previous slot with a running blend is the "fade in from the layers below" state;
-        // this clears the slot without touching the blend itself.
-        private static void ClearPreviousSlot(ref PlaybackLayer layer)
-        {
-            layer.previousClip = default;
-            layer.previousClipIndex = -1;
-            layer.previousTime = 0f;
-            layer.previousSpeed = 0f;
-            layer.previousLoop = LoopMode.UseClipDefault;
-        }
-
-        private static void ClearQueue(ref PlaybackLayer layer)
-        {
-            layer.queuedClip = default;
-            layer.queuedSpeed = 0f;
-            layer.queuedLoop = LoopMode.UseClipDefault;
-            layer.queuedBlend = 0f;
-            layer.flags &= ~PlaybackFlags.HasQueued;
         }
 
         /// <summary>
@@ -422,19 +256,25 @@ namespace DotsAnimationToolkit
             }
 
             ref ActorAnimationBlob entry = ref profileBlob.animations[animationIndex];
-            AnimationCommand effectivePlay = new AnimationCommand
-            {
-                kind = CommandKind.Play,
-                layerIndex = layerIndex,
-                clip = resolvedClip,
-                speed = math.isnan(command.speed) ? entry.speed : command.speed,
-                loop = command.loop == LoopMode.UseClipDefault ? entry.loop : command.loop,
-                blendDuration = math.isnan(command.blendDuration) ? entry.blendIn : command.blendDuration,
-                time = 0f
-            };
+            float effectiveSpeed = math.isnan(command.speed) ? entry.speed : command.speed;
+            LoopMode effectiveLoop = command.loop == LoopMode.UseClipDefault ? entry.loop : command.loop;
+            float effectiveBlendDuration = math.isnan(command.blendDuration) ? entry.blendIn : command.blendDuration;
 
             ref PlaybackLayer targetLayer = ref layers.ElementAt(layerIndex);
-            ApplyPlay(ref targetLayer, ref registry, effectivePlay, ref animEvents, animEventsPendingEnabled, boundsDirtyEnabled);
+            bool played = PlaybackCommandMath.ApplyPlay(
+                ref targetLayer, ref registry, resolvedClip, effectiveSpeed, effectiveLoop,
+                effectiveBlendDuration, out bool playBoundsDirty);
+            if (!played)
+            {
+                EmitResolveFailure(ref animEvents, animEventsPendingEnabled, layerIndex, resolvedClip);
+            }
+            else if (playBoundsDirty)
+            {
+                boundsDirtyEnabled.ValueRW = true;
+            }
+
+            // Stamped unconditionally, even on the resolve failure reported above — pre-existing
+            // behaviour, preserved rather than changed here.
             targetLayer.animationKey = command.animationKey;
 
             if (entry.ragdollTrigger != RagdollTrigger.None
@@ -474,17 +314,11 @@ namespace DotsAnimationToolkit
                 return;
             }
 
-            AnimationCommand effectiveStop = new AnimationCommand
+            PlaybackCommandMath.ApplyStop(ref targetLayer, ref registry, command.blendDuration, out bool boundsDirty);
+            if (boundsDirty)
             {
-                kind = CommandKind.Stop,
-                layerIndex = entry.layerIndex,
-                clip = default,
-                speed = 0f,
-                loop = LoopMode.UseClipDefault,
-                blendDuration = command.blendDuration,
-                time = 0f
-            };
-            ApplyStop(ref targetLayer, ref registry, effectiveStop, boundsDirtyEnabled);
+                boundsDirtyEnabled.ValueRW = true;
+            }
         }
 
         /// <summary>Reports a Play/Queue/PlayAnimation whose clip or key does not resolve, leaving the layer untouched.</summary>
