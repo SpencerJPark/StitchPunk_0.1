@@ -3,21 +3,24 @@
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Which of the Clip Editor's four views is showing. Values are display order — the tab bar
-    /// is built by walking them, and nothing persists these numbers beyond one session.
+    /// Which of the Clip Editor's views is showing. Values are display order — the tab bar is
+    /// bound in this order, and nothing persists these numbers beyond one session.
     /// </summary>
     public enum ClipEditorTab
     {
+        NewRig = 0,
+
         /// <summary>The dock — clip list, hierarchy, viewport, inspector and timeline.</summary>
-        ClipEditor = 0,
+        ClipEditor = 1,
 
-        /// <summary>A placeholder — the pane says so and holds nothing yet.</summary>
-        CutsceneEditor = 1,
+        VatBake = 2,
 
-        NewRig = 2,
-
+        /// <summary>
+        /// 2D facing coverage today. Owner intent (2026-09-07): this absorbs layer authoring
+        /// later and becomes "Actor Editor" in full, not just in the tab label.
+        /// </summary>
         DirectionSets = 3,
 
-        VatBake = 4
+        CutsceneEditor = 4
     }
 }

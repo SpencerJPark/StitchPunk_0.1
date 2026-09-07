@@ -90,7 +90,11 @@
     border-bottom-width: 2px;
     border-left-width: 1px;
     border-right-width: 1px;
-    border-color: rgb(32, 32, 32);
+    border-left-color: rgb(32, 32, 32);
+    border-right-color: rgb(32, 32, 32);
+    /* Reserved, not drawn: the 2px stays so the active tab's underline never shifts the row's
+       height, but an inactive tab has nothing to show for it. See .clip-editor__tab--active. */
+    border-bottom-color: rgba(0, 0, 0, 0);
 }
 
 /*
@@ -1185,19 +1189,19 @@
 }
 
 /*
- * A row of the overlay — today the viewport tools, and whatever else earns a place over the scene.
- * Right-aligned and growing right-to-left, so adding a control pushes the run leftward over the
- * scene rather than moving every control the user already knows the position of.
+ * The viewport tool rail — the gizmo modes, camera reset and the two preview toggles, run down
+ * the scene's left edge instead of across its top. align-self overrides the overlay's own
+ * align-items: flex-end (the findings panel's corner), so this is the one child that sits at the
+ * opposite side.
  *
  * Opaque, not translucent. These are controls to be read and hit, not a readout laid over the
  * picture — and a translucent run would show the rig through its own borders, where the -1px
- * overlap trick in .clip-editor__bar-action doubles them.
+ * overlap trick in .clip-editor__overlay-tool-button doubles them.
  */
-.clip-editor__overlay-row {
-    flex-direction: row;
+.clip-editor__overlay-column {
+    flex-direction: column;
     align-items: center;
-    align-self: flex-end;
-    margin-bottom: 4px;
+    align-self: flex-start;
     padding-left: 2px;
     padding-right: 2px;
     padding-top: 2px;
@@ -1210,11 +1214,50 @@
     border-color: rgb(32, 32, 32);
 }
 
-/* Starts a new run inside a row. The -1px overlap in .clip-editor__bar-action makes a run read as
-   one segmented strip, which is right for the three gizmo modes and right for the two preview
-   toggles — but wrong across the join, where it would say those five controls are one group. */
+/* Starts a new run inside the column. Was a left margin when the rail ran left to right; the
+   rail reads top to bottom now, so the break does too. */
 .clip-editor__overlay-run-break {
-    margin-left: 8px;
+    margin-top: 8px;
+}
+
+/*
+ * One control in the rail: square and icon-sized rather than word-sized, so six controls fit a
+ * strip narrow enough to sit beside the rig instead of over its face. Bordered top and bottom
+ * with a -1px top overlap — .clip-editor__bar-action's shared-edge trick turned 90 degrees, so a
+ * vertical run reads as one seamless strip the same way the horizontal bars do.
+ */
+.clip-editor__overlay-tool-button {
+    width: 28px;
+    height: 28px;
+    margin-top: -1px;
+    margin-bottom: 0;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: rgb(32, 32, 32);
+    align-items: center;
+    justify-content: center;
+}
+
+/* Drawn at the icon's own 16px so it stays crisp rather than scaled to the button — the same
+   reasoning as the transport bar's loop icon. picking-mode is Ignore in the UXML so the icon
+   never swallows the click meant for the button underneath it. */
+.clip-editor__overlay-tool-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* A ToolbarToggle (unlike ToolbarButton) always builds a checkbox-input placeholder ahead of
+   its content — invisible, but still a flex sibling, so justify-content: center on the button
+   centred the {placeholder, icon} pair instead of the icon alone and every toggle's icon sat
+   right of true centre. Collapsing the placeholder here is what centres the five toggles to
+   match Reset Camera, the one plain Button in the rail that never had this sibling. */
+.clip-editor__overlay-tool-button .unity-toggle__input {
+    display: none;
 }
 
 /*

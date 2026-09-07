@@ -8,11 +8,11 @@
             <ui:Label text="Rig" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
             <ui:VisualElement name="tab-strip" class="clip-editor__tab-strip">
-                <uie:ToolbarToggle name="tab-clip-editor" text="Clip Editor" value="true" class="clip-editor__tab"/>
-                <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscene Editor" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-new-rig" text="New Rig" class="clip-editor__tab"/>
-                <uie:ToolbarToggle name="tab-direction-sets" text="2D Direction Sets" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-clip-editor" text="Clip Editor" value="true" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-vat-bake" text="VAT Bake" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-direction-sets" text="Actor Editor" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscene Editor" class="clip-editor__tab"/>
             </ui:VisualElement>
             <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot"/>
         </uie:Toolbar>
@@ -49,13 +49,25 @@
                             <ui:VisualElement name="viewport-frame" class="clip-editor__viewport-frame">
                                 <ui:Image name="viewport-image" class="clip-editor__viewport"/>
                                 <ui:VisualElement name="viewport-overlay" picking-mode="Ignore" class="clip-editor__viewport-overlay">
-                                    <ui:VisualElement name="overlay-tool-row" class="clip-editor__overlay-row">
-                                        <uie:ToolbarToggle name="gizmo-move-toggle" text="Move" value="true" class="clip-editor__bar-action"/>
-                                        <uie:ToolbarToggle name="gizmo-rotate-toggle" text="Rotate" class="clip-editor__bar-action"/>
-                                        <uie:ToolbarToggle name="gizmo-scale-toggle" text="Scale" class="clip-editor__bar-action"/>
-                                        <uie:ToolbarButton name="reset-camera-button" text="Reset Camera" class="clip-editor__bar-action clip-editor__overlay-run-break"/>
-                                        <uie:ToolbarToggle name="billboard-preview-toggle" text="Billboard" value="true" class="clip-editor__bar-action clip-editor__overlay-run-break"/>
-                                        <uie:ToolbarToggle name="ragdoll-preview-toggle" text="Ragdoll" class="clip-editor__bar-action"/>
+                                    <ui:VisualElement name="overlay-tool-row" class="clip-editor__overlay-column">
+                                        <uie:ToolbarToggle name="gizmo-move-toggle" value="true" class="clip-editor__overlay-tool-button">
+                                            <ui:Image name="gizmo-move-icon" picking-mode="Ignore" class="clip-editor__overlay-tool-icon"/>
+                                        </uie:ToolbarToggle>
+                                        <uie:ToolbarToggle name="gizmo-rotate-toggle" class="clip-editor__overlay-tool-button">
+                                            <ui:Image name="gizmo-rotate-icon" picking-mode="Ignore" class="clip-editor__overlay-tool-icon"/>
+                                        </uie:ToolbarToggle>
+                                        <uie:ToolbarToggle name="gizmo-scale-toggle" class="clip-editor__overlay-tool-button">
+                                            <ui:Image name="gizmo-scale-icon" picking-mode="Ignore" class="clip-editor__overlay-tool-icon"/>
+                                        </uie:ToolbarToggle>
+                                        <uie:ToolbarButton name="reset-camera-button" class="clip-editor__overlay-tool-button clip-editor__overlay-run-break">
+                                            <ui:Image name="reset-camera-icon" picking-mode="Ignore" class="clip-editor__overlay-tool-icon"/>
+                                        </uie:ToolbarButton>
+                                        <uie:ToolbarToggle name="billboard-preview-toggle" value="true" class="clip-editor__overlay-tool-button clip-editor__overlay-run-break">
+                                            <ui:Image name="billboard-preview-icon" picking-mode="Ignore" class="clip-editor__overlay-tool-icon"/>
+                                        </uie:ToolbarToggle>
+                                        <uie:ToolbarToggle name="ragdoll-preview-toggle" class="clip-editor__overlay-tool-button">
+                                            <ui:Image name="ragdoll-preview-icon" picking-mode="Ignore" class="clip-editor__overlay-tool-icon"/>
+                                        </uie:ToolbarToggle>
                                     </ui:VisualElement>
                                 </ui:VisualElement>
                             </ui:VisualElement>

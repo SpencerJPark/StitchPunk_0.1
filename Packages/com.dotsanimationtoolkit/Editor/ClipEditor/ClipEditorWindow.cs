@@ -943,6 +943,9 @@ namespace DotsAnimationToolkit.Editor
                     }
                     Repaint();
                 });
+                SetOverlayToolIcon(
+                    billboardPreviewToggle, billboardPreviewToggle.Q<Image>("billboard-preview-icon"),
+                    "d_BillboardRenderer Icon", "Billboard");
             }
 
             // Drives the toolkit's own preview simulation (RagdollPreviewSimulation), never a host
@@ -955,6 +958,9 @@ namespace DotsAnimationToolkit.Editor
                     + "and self-collision — to see whether a pose still reads on impact. Turning it "
                     + "off restores the pose exactly.";
                 ragdollPreviewToggle.RegisterValueChangedCallback(OnRagdollPreviewToggleChanged);
+                SetOverlayToolIcon(
+                    ragdollPreviewToggle, ragdollPreviewToggle.Q<Image>("ragdoll-preview-icon"),
+                    "d_Avatar Icon", "Ragdoll");
             }
 
             directionSetsPane = rootVisualElement.Q<VisualElement>("direction-sets-pane");
@@ -965,11 +971,14 @@ namespace DotsAnimationToolkit.Editor
             // Before BindTabs, which hides the whole stack on any tab but Clip Editor.
             viewportOverlay = rootVisualElement.Q<VisualElement>("viewport-overlay");
 
-            BindGizmoModeToggle(GizmoMode.Move, "gizmo-move-toggle",
+            BindGizmoModeToggle(GizmoMode.Move, "gizmo-move-toggle", "gizmo-move-icon",
+                "d_MoveTool", "Move",
                 "Move the selected part, bone or socket. Same as pressing W in the viewport.");
-            BindGizmoModeToggle(GizmoMode.Rotate, "gizmo-rotate-toggle",
+            BindGizmoModeToggle(GizmoMode.Rotate, "gizmo-rotate-toggle", "gizmo-rotate-icon",
+                "d_RotateTool", "Rotate",
                 "Rotate the selection. Same as pressing E in the viewport.");
-            BindGizmoModeToggle(GizmoMode.Scale, "gizmo-scale-toggle",
+            BindGizmoModeToggle(GizmoMode.Scale, "gizmo-scale-toggle", "gizmo-scale-icon",
+                "d_ScaleTool", "Scale",
                 "Scale the selection. Same as pressing R in the viewport.");
             SetGizmoMode(gizmoMode);
 
@@ -987,6 +996,11 @@ namespace DotsAnimationToolkit.Editor
                     + "around, right-drag + W/A/S/D and Q/E to fly (Shift for faster), "
                     + "Alt + right-drag or the wheel to zoom, F to frame the selection.";
                 resetCameraButton.clicked += ResetViewportCamera;
+                // A viewfinder frame, not a physical camera body: this centres and fits the rig,
+                // it does not represent a camera object in the scene.
+                SetOverlayToolIcon(
+                    resetCameraButton, resetCameraButton.Q<Image>("reset-camera-icon"),
+                    "d_FrameCapture", "Reset Camera");
             }
 
             BindTabs();
@@ -1543,22 +1557,23 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Binds the four tab toggles as a radio group.</summary>
         private void BindTabs()
         {
-            BindTab(ClipEditorTab.ClipEditor, "tab-clip-editor",
-                "The clip list, rig hierarchy, viewport, inspector and timeline. What the window "
-                + "opens on, and what the other three tabs are drawn over.");
-            BindTab(ClipEditorTab.CutsceneEditor, "tab-cutscene-editor",
-                "Stage a multi-actor cutscene: clip blocks and keys on a timeline, scene-view "
-                + "posing, a camera lane, and an event/hold lane.");
             BindTab(ClipEditorTab.NewRig, "tab-new-rig",
                 "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
                 + "targets, and optionally point this clip set at the result.");
-            BindTab(ClipEditorTab.DirectionSets, "tab-direction-sets",
-                "Queue a clip per east-side facing, then sweep the direction slider to watch the "
-                + "character turn through the coverage those slots add up to.");
+            BindTab(ClipEditorTab.ClipEditor, "tab-clip-editor",
+                "The clip list, rig hierarchy, viewport, inspector and timeline. What the window "
+                + "opens on, and what every other tab is drawn over.");
             BindTab(ClipEditorTab.VatBake, "tab-vat-bake",
                 "Bake the open clip set's VAT textures. Nothing is torn down when you leave, so a "
                 + "bake, a look at the result and another bake is three clicks rather than three "
                 + "windows.");
+            BindTab(ClipEditorTab.DirectionSets, "tab-direction-sets",
+                "Queue a clip per east-side facing, then sweep the direction slider to watch the "
+                + "character turn through the coverage those slots add up to. Slated to absorb "
+                + "layer authoring and become Actor Editor in full.");
+            BindTab(ClipEditorTab.CutsceneEditor, "tab-cutscene-editor",
+                "Stage a multi-actor cutscene: clip blocks and keys on a timeline, scene-view "
+                + "posing, a camera lane, and an event/hold lane.");
 
             ApplyActiveTab();
         }
@@ -2655,7 +2670,9 @@ namespace DotsAnimationToolkit.Editor
             RefreshGizmo();
         }
 
-        private void BindGizmoModeToggle(GizmoMode mode, string elementName, string tooltip)
+        private void BindGizmoModeToggle(
+            GizmoMode mode, string elementName, string iconElementName, string iconName,
+            string fallbackText, string tooltip)
         {
             ToolbarToggle toggle = rootVisualElement.Q<ToolbarToggle>(elementName);
             gizmoModeToggles[(int)mode] = toggle;
@@ -2675,6 +2692,53 @@ namespace DotsAnimationToolkit.Editor
                 // to have no gizmo mode at all.
                 SetGizmoMode(mode);
             });
+            SetOverlayToolIcon(toggle, toggle.Q<Image>(iconElementName), iconName, fallbackText);
+        }
+
+        // The viewport tool rail is icon-first: a built-in editor icon reads at a glance where the
+        // word it replaces would not fit the rail's width. A name that stops resolving (an editor
+        // version dropping it) must cost the button its picture, never the button itself, so every
+        // caller falls back to the same word the control used to show as text.
+        private static void SetOverlayToolIcon(Button control, Image icon, string iconName, string fallbackText)
+        {
+            Texture iconTexture = ResolveOverlayToolIconTexture(iconName);
+            if (iconTexture != null && icon != null)
+            {
+                icon.image = iconTexture;
+                return;
+            }
+            if (icon != null)
+            {
+                icon.RemoveFromHierarchy();
+            }
+            if (control != null)
+            {
+                control.text = fallbackText;
+            }
+        }
+
+        private static void SetOverlayToolIcon(Toggle control, Image icon, string iconName, string fallbackText)
+        {
+            Texture iconTexture = ResolveOverlayToolIconTexture(iconName);
+            if (iconTexture != null && icon != null)
+            {
+                icon.image = iconTexture;
+                return;
+            }
+            if (icon != null)
+            {
+                icon.RemoveFromHierarchy();
+            }
+            if (control != null)
+            {
+                control.text = fallbackText;
+            }
+        }
+
+        private static Texture ResolveOverlayToolIconTexture(string iconName)
+        {
+            GUIContent iconContent = EditorGUIUtility.IconContent(iconName);
+            return iconContent != null ? iconContent.image : null;
         }
 
         // Pivot comes from the authored value, not the mirrored quad: the quad follows the built
