@@ -202,7 +202,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                     typeof(AnimEventMask),
                     typeof(RigPartRef), typeof(RigBindingUninitialized), typeof(AnimVisible),
                     typeof(BoundsDirty), typeof(ActorRestBounds), typeof(SampleSettings),
-                    typeof(VatTextureBinding), typeof(AnimSampleState)
+                    typeof(VatTextureBinding), typeof(AnimSampleState),
+                    typeof(ActorProfile), typeof(ActorFacing), typeof(ActorRagdollRequest)
                 });
         }
 
@@ -609,7 +610,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Assert.AreEqual(
                 ActorBakeFixture.LayerCount,
                 layers.Length,
-                "The buffer must have one entry per rig layer, seeded or not.");
+                "The buffer must have one entry per profile layer, seeded or not.");
             Assert.AreEqual(
                 ActorBakeFixture.WalkClipStableId,
                 layers[0].clip.Value,
@@ -628,13 +629,49 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 "An unseeded layer must stay empty rather than inherit its neighbour.");
         }
 
+        /// <summary>A70: a profile's layer count, not the rig's, sizes the baked <c>PlaybackLayer</c> buffer.</summary>
+        [Test]
+        public void BakingAnActor_WithAThreeLayerProfile_BakesAThreeElementPlaybackLayerBuffer_SeededFromStartingAnimationKey()
+        {
+            RigAsset rig = fixtureAssets.CreateRig("Rig");
+            ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000601UL);
+            GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
+            ActorAuthoring actorAuthoring = actorGameObject.GetComponent<ActorAuthoring>();
+            actorAuthoring.profile.layers.Insert(1, new ActorLayerDefinition { displayName = "Locomotion" });
+
+            fixtureAssets.SeedStartingLayer(
+                actorGameObject,
+                1,
+                ActorBakeFixture.FindClip(clipSet, ActorBakeFixture.WalkClipStableId),
+                1f,
+                LoopMode.UseClipDefault);
+
+            bakingWorld.Bake(actorGameObject);
+            Entity actorEntity = bakingWorld.GetPrimaryEntity(actorGameObject);
+            DynamicBuffer<PlaybackLayer> layers =
+                bakingWorld.EntityManager.GetBuffer<PlaybackLayer>(actorEntity);
+
+            Assert.AreEqual(
+                3,
+                layers.Length,
+                "Base, the inserted Locomotion layer, and Override: three profile layers, three buffer entries.");
+            Assert.AreEqual(
+                ActorBakeFixture.WalkClipStableId,
+                layers[1].clip.Value,
+                "The middle layer's startingAnimationKey must resolve to its own clip.");
+            Assert.AreNotEqual(
+                0,
+                (int)(layers[1].flags & PlaybackFlags.Active),
+                "A layer seeded via startingAnimationKey starts active.");
+        }
+
         /// <summary>
-        /// <strong>Amendment A40.</strong> A seeded layer starts active even when the rig does not
-        /// mark that layer <c>defaultActive</c>.
+        /// <strong>Amendment A40.</strong> A seeded layer starts active even when the profile does
+        /// not mark that layer <c>defaultActive</c>.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Catches: gating the <c>Active</c> flag on <c>LayerDefinition.defaultActive</c>. An actor
+        /// Catches: gating the <c>Active</c> flag on <c>ActorLayerDefinition.defaultActive</c>. An actor
         /// could then name a starting clip for a layer and have it silently never play — the layer
         /// holds a correctly resolved <c>clipIndex</c>, <c>CompositeLayers</c> skips it for want of
         /// the flag, and every part returns its rest pose. Nothing errors and nothing warns.
@@ -653,12 +690,13 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             RigAsset rig = fixtureAssets.CreateRig("Rig");
             ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000507UL);
             GameObject actorGameObject = fixtureAssets.CreateStandardActor("Actor", rig, clipSet, false);
+            ActorAuthoring actorAuthoring = actorGameObject.GetComponent<ActorAuthoring>();
 
             Assert.IsFalse(
-                rig.layers[1].defaultActive,
+                actorAuthoring.profile.layers[1].defaultActive,
                 "Guard: layer 1 must NOT be default-active, or this fixture proves nothing.");
 
-            ActorBakeFixture.SeedStartingLayer(
+            fixtureAssets.SeedStartingLayer(
                 actorGameObject,
                 1,
                 ActorBakeFixture.FindClip(clipSet, ActorBakeFixture.WalkClipStableId),
@@ -1256,7 +1294,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             // Only the unrelated default-active-layer notice — no material warning. That absence
             // is the false-positive guard; without it a validator warning on every part passes.
-            AssertToolkitWarnings(1, "seeds no starting clip");
+            AssertToolkitWarnings(1, "seeds no starting animation");
             Assert.IsEmpty(bakingWorld.ToolkitErrors, "A correct VAT part produces no errors.");
 
             Assert.IsTrue(
@@ -1318,7 +1356,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             // The real assertion: no material warning. Without it this test asserted nothing about
             // logging at all, and warning on a null material would have passed.
-            AssertToolkitWarnings(1, "seeds no starting clip");
+            AssertToolkitWarnings(1, "seeds no starting animation");
 
             Assert.IsTrue(
                 bakingWorld.EntityManager.HasComponent<VatDriven>(

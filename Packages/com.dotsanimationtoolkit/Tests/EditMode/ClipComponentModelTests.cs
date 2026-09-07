@@ -43,7 +43,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void SetUp()
         {
             assets = new AuthoringTestAssets();
-            rig = assets.CreateRig("Rig", 1uL, 1, new uint[] { HeadTargetId, HandTargetId });
+            rig = assets.CreateRig("Rig", 1uL, new uint[] { HeadTargetId, HandTargetId });
             clip = assets.CreateClip("Clip", 2uL, 1f);
             instances = new List<ClipComponentInstance>();
         }

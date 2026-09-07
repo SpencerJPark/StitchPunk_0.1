@@ -129,7 +129,9 @@ public class BodyPartAuthoring : MonoBehaviour
 
             ActorAuthoring actorAuthoring = GetComponentInParent<ActorAuthoring>();
             RigAsset partRig = DependsOn(rigTarget.rig);
-            RigAsset actorRig = actorAuthoring != null ? DependsOn(actorAuthoring.rig) : null;
+            RigAsset actorRig = actorAuthoring != null && actorAuthoring.profile != null
+                ? DependsOn(actorAuthoring.profile.rig)
+                : null;
             RigAsset effectiveRig = partRig != null ? partRig : actorRig;
             if (effectiveRig == null) return false;
 

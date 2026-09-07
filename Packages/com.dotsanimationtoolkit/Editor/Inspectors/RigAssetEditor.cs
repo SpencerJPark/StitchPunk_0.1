@@ -26,7 +26,6 @@ namespace DotsAnimationToolkit.Editor
         private const string UnnamedTargetChoiceLabel = "(unnamed target)";
 
         private SerializedProperty targetsProperty;
-        private SerializedProperty layersProperty;
         private SerializedProperty mirrorPairsProperty;
         private SerializedProperty socketsProperty;
         private SerializedProperty billboardRootsProperty;
@@ -72,7 +71,6 @@ namespace DotsAnimationToolkit.Editor
         public override VisualElement CreateInspectorGUI()
         {
             targetsProperty = serializedObject.FindProperty("targets");
-            layersProperty = serializedObject.FindProperty("layers");
             mirrorPairsProperty = serializedObject.FindProperty("mirrorPairs");
             socketsProperty = serializedObject.FindProperty("sockets");
             billboardRootsProperty = serializedObject.FindProperty("billboardRoots");
@@ -92,10 +90,6 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorRoot.Add(BuildTargetTagSection());
 
-            if (layersProperty != null)
-            {
-                inspectorRoot.Add(new PropertyField(layersProperty, "Layers"));
-            }
             if (mirrorPairsProperty != null)
             {
                 inspectorRoot.Add(new PropertyField(mirrorPairsProperty, "Mirror Pairs"));

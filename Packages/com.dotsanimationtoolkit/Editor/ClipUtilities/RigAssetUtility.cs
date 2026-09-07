@@ -33,10 +33,6 @@ namespace DotsAnimationToolkit.Editor
                 newRig.targets.AddRange(targets);
             }
 
-            // RigAsset.layers starts empty, and a rig needs at least one to be valid — one layer,
-            // active by default, so a fresh rig plays without the author knowing layers exist yet.
-            newRig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
-
             // Must run after targets is populated — called on an empty list it mints nothing, and
             // a rig saved with every target id still 0 fails validation the moment a clip references it.
             newRig.EnsureStableIds();

@@ -40,7 +40,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountReferencingClipSets_ReturnsZero_ForANullClip()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 
@@ -51,7 +51,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountReferencingClipSets_ReturnsZero_ForANullSetList()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
 
             Assert.AreEqual(0, SharedClipBindingUtility.CountReferencingClipSets(clip, null));
@@ -60,7 +60,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountReferencingClipSets_CountsEachDistinctSetOnce_EvenIfTheClipRepeatsInsideIt()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip, clip);
 
@@ -73,7 +73,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountReferencingClipSets_SumsAcrossDistinctSets()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             ClipSetAsset firstSet = assets.CreateSet("SetA", rig, 2UL, clip);
             ClipSetAsset secondSet = assets.CreateSet("SetB", rig, 3UL, clip);
@@ -88,7 +88,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateSharedClipBinding_ReportsNothing_WhenTheClipIsInAtMostOneSet()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(clip, 1u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
@@ -102,7 +102,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateSharedClipBinding_ReportsNothing_WhenEverySharedTrackIsTagBound()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Blink", 1UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
@@ -119,7 +119,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateSharedClipBinding_ReportsV37_ForATargetIdBoundTrack_SharedAcrossSets()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Walk", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(clip, 1u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             ClipSetAsset firstSet = assets.CreateSet("SetA", rig, 2UL, clip);
@@ -137,7 +137,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateSharedClipBinding_ReportsOneFindingPerOffendingTrack()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u, 2u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u, 2u });
             ClipAsset clip = assets.CreateClip("Walk", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(clip, 1u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             AuthoringTestAssets.AddSpriteTrack(clip, 2u, SpriteFrameMode.Slice);
@@ -155,7 +155,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // targetId == 0 and tagId == 0 together mean "nothing authored yet" (e.g. a freshly
             // added track), not "binds by target id" - T4 must not flag a track that names nothing.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Walk", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
             ClipSetAsset firstSet = assets.CreateSet("SetA", rig, 2UL, clip);
@@ -170,7 +170,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateSharedClipBinding_ReportsNothing_ForANullClip()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 

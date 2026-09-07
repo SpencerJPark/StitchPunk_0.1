@@ -44,7 +44,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void Build_OrdersClipsByAscendingClipId_AndResolvesEveryOneOfThem()
         {
             ulong[] authoredClipIds = new ulong[] { 0x50UL, 0x02UL, 0x100UL, 0x09UL };
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset[] clips = new ClipAsset[authoredClipIds.Length];
             for (int clipIndex = 0; clipIndex < authoredClipIds.Length; clipIndex++)
             {
@@ -87,7 +87,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_AssignsDenseTargetIndicesByAscendingTargetId()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 9u, 2u, 5u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 9u, 2u, 5u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 9u);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 
@@ -113,7 +113,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_SortsTracksByDenseTargetIndex_AndKeepsBothTracksThatShareATarget()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u, 3u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u, 3u });
             ClipAsset clip = assets.CreateClip("Walk", 0x10UL, 1f);
             AddSingleKeyTrack(clip, 7u, AnimatedChannels.PositionXY);
             AddSingleKeyTrack(clip, 3u, AnimatedChannels.Rotation);
@@ -146,7 +146,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_SortsEventsByTime_WithAuthoringOrderBreakingTies()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 7u);
             AuthoringTestAssets.AddEvent(clip, 0.9f, 20u, 0, 0f);
             AuthoringTestAssets.AddEvent(clip, 0.1f, 21u, 0, 0f);
@@ -171,7 +171,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_ConvertsKeyRotationFromAuthoredDegreesToBakedRadians()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = assets.CreateClip("Walk", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation);
@@ -195,7 +195,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_ClampsBlendDefaultsToTheClipDuration()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 7u);
             clip.duration = 0.75f;
             clip.defaultBlendIn = 3f;
@@ -212,7 +212,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_ResolvesTheUseClipDefaultSentinelToOnce()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset sentinelClip = CreateKeyedClip("Sentinel", 0x10UL, 7u);
             sentinelClip.defaultLoop = LoopMode.UseClipDefault;
             ClipAsset pingPongClip = CreateKeyedClip("PingPong", 0x20UL, 7u);
@@ -235,7 +235,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_StampsTheRegistryHeaderFromTheBindAndTheRig()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 5, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 7u);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 0xDEADBEEFUL, clip);
 
@@ -248,7 +248,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 registry.setKey,
                 "setKey holds the bind key: the rig's stable id folded with every bound set's.");
             Assert.AreEqual(0UL, registry.vatSetKey, "A set with no VAT textures must carry a zero VAT key.");
-            Assert.AreEqual((byte)5, registry.layerCount, "The layer count must come from the rig.");
             Assert.AreEqual(1, registry.vatInfo.rowsPerFrame, "Rows per frame must stay usable when there is no VAT set.");
         }
 
@@ -259,7 +258,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_WritesMinusOneFrameStart_ForAClipWithNoVatRange()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 7u);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 
@@ -273,7 +272,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_MirrorsTheVatSetKeyAddressingParametersAndFrameRange()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 7u);
             clip.vatSource = new VatClipSource();
             VatTextureSetAsset vatTextureSet = assets.CreateVatTextureSet("VatSet", 0xFEEDUL);
@@ -318,7 +317,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_UnionsScaledKeyExtentsWithTheRestPoseOfUntrackedTargets()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u, 3u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u, 3u });
             ClipAsset clip = assets.CreateClip("Walk", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.PositionXY | AnimatedChannels.Scale);
@@ -353,7 +352,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_ClampsNegativeAuthoredTargetExtentsToZero()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             rig.targets[0].boundsExtents = new float3(-1f, 0.5f, 0.25f);
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 7u);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
@@ -369,7 +368,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_ProducesAZeroBox_WhenTheRigDeclaresNoTargets()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[0]);
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[0]);
             ClipAsset clip = assets.CreateClip("Empty", 0x10UL, 1f);
             AuthoringTestAssets.AddEvent(clip, 0f, 16u, 0, 0f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
@@ -387,7 +386,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_CopiesTheAssetNameIntoTheClipDebugName()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = CreateKeyedClip("WalkForwardFast", 0x10UL, 7u);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 
@@ -402,7 +401,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void Build_TruncatesAnOverlongAssetNameInsteadOfThrowing()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = CreateKeyedClip(new string('N', 200), 0x10UL, 7u);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 
@@ -433,7 +432,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // Every other VAT fixture is bone-flavored, so the vertex branch of BuildVatInfo was
             // never executed — the flavor that feeds the vertex-position VAT path.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 7u);
             clip.vatSource = new VatClipSource();
             VatTextureSetAsset vatTextureSet = assets.CreateVatTextureSet("VatSet", 0xFEEDUL);
@@ -467,7 +466,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void Build_SortsSpriteTracksByDenseTargetIndex_KeepingAuthoringOrderOnTies()
         {
             // Transform track ordering is asserted above; the sprite path had no direct assertion.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u, 3u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u, 3u });
             ClipAsset clip = assets.CreateClip("Walk", 0x10UL, 1f);
             SpriteTrack highTargetTrack = AuthoringTestAssets.AddSpriteTrack(
                 clip, 7u, SpriteFrameMode.Slice);
@@ -503,7 +502,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // The degenerate shape a new ClipSetAsset has before any clip is added. It must bake
             // rather than throw, and must still resolve cleanly as "nothing here".
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL);
 
             registryScope.Build(clipSet);
@@ -528,7 +527,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void Build_ResolvesATagBoundTrack_ToTheDenseIndexOfTheTargetCarryingTheTag()
         {
             const uint TagId = 0xAAAAu;
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 9u, 2u, 5u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 9u, 2u, 5u });
             rig.targets[2].tagId = TagId; // stableId 5u, dense index 1 once sorted (2, 5, 9).
             ClipAsset clip = assets.CreateClip("Blink", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
@@ -555,7 +554,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             const uint SharedTagId = 0xBEEFu;
 
             // Rig A: three targets, the tag on the one with stableId 1 -> dense index 0 of (1, 4, 8).
-            RigAsset rigA = assets.CreateRig("RigA", 1UL, 1, new uint[] { 8u, 1u, 4u });
+            RigAsset rigA = assets.CreateRig("RigA", 1UL, new uint[] { 8u, 1u, 4u });
             rigA.targets[1].tagId = SharedTagId; // stableId 1u.
             ClipAsset clipA = assets.CreateClip("BlinkA", 0x10UL, 1f);
             TransformTrack trackA = AuthoringTestAssets.AddTransformTrack(
@@ -566,7 +565,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipSetAsset clipSetA = assets.CreateSet("SetA", rigA, 2UL, clipA);
 
             // Rig B: two targets, the tag on the one with stableId 30 -> dense index 1 of (5, 30).
-            RigAsset rigB = assets.CreateRig("RigB", 3UL, 1, new uint[] { 5u, 30u });
+            RigAsset rigB = assets.CreateRig("RigB", 3UL, new uint[] { 5u, 30u });
             rigB.targets[1].tagId = SharedTagId; // stableId 30u.
             ClipAsset clipB = assets.CreateClip("BlinkB", 0x20UL, 1f);
             TransformTrack trackB = AuthoringTestAssets.AddTransformTrack(
@@ -622,9 +621,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // Two rigs that agree on the role and on nothing else: differently named targets, a
             // different number of them, and different stable ids, so a dense index that matched by
             // luck rather than by tag would have to match twice by luck.
-            RigAsset humanRig = assets.CreateRig("Human", 1UL, 1, new uint[] { 8u, 1u, 4u });
+            RigAsset humanRig = assets.CreateRig("Human", 1UL, new uint[] { 8u, 1u, 4u });
             humanRig.targets[1].tagId = SharedTagId;   // stableId 1u -> dense index 0 of (1, 4, 8).
-            RigAsset gremlinRig = assets.CreateRig("Gremlin", 3UL, 1, new uint[] { 5u, 30u });
+            RigAsset gremlinRig = assets.CreateRig("Gremlin", 3UL, new uint[] { 5u, 30u });
             gremlinRig.targets[1].tagId = SharedTagId; // stableId 30u -> dense index 1 of (5, 30).
 
             ClipSetAsset humanSet = assets.CreateSet("HumanSet", humanRig, 2UL, sharedClip);
@@ -669,7 +668,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // Phase F §5: the canonical clip list is the union across sets, sorted by clip id, so
             // list order and which set a clip came from are both erased.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset runClip = CreateKeyedClip("Run", 0x30UL, 7u);
             ClipAsset idleClip = CreateKeyedClip("Idle", 0x10UL, 7u);
             ClipAsset walkClip = CreateKeyedClip("Walk", 0x20UL, 7u);
@@ -691,7 +690,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // The bind key is an XOR fold and the set list is sorted before anything reads it, so
             // dragging the same two sets into an actor in the other order must dedup onto one blob
             // rather than baking a second copy.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset walkClip = CreateKeyedClip("Walk", 0x10UL, 7u);
             ClipAsset idleClip = CreateKeyedClip("Idle", 0x20UL, 7u);
             ClipSetAsset walkSet = assets.CreateSet("Walks", rig, 2UL, walkClip);
@@ -723,7 +722,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // Rule T6, the id-bound mirror of T2: the set is played on a rig that declares only
             // some of what its clips name, and the tracks that do not resolve never reach the blob.
-            RigAsset partialRig = assets.CreateRig("Partial", 3UL, 1, new uint[] { 9u });
+            RigAsset partialRig = assets.CreateRig("Partial", 3UL, new uint[] { 9u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 7u);
             ClipSetAsset clipSet = assets.CreateSet("Set", partialRig, 2UL, clip);
 
@@ -741,7 +740,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void Build_SkipsATagBoundTrack_AndLogsAWarning_WhenNoTargetInTheRigCarriesTheTag()
         {
             const uint UnclaimedTagId = 0xC0FFEEu;
-            RigAsset rig = assets.CreateRig("Barrel", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Barrel", 1UL, new uint[] { 7u });
             ClipAsset clip = assets.CreateClip("Reactions", 0x10UL, 1f);
             TransformTrack unresolved = AuthoringTestAssets.AddTransformTrack(
                 clip, 0u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
@@ -775,7 +774,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // Regression: every clip authored before this field existed deserializes tagId as 0, so
             // the target-id path (E4's other branch of TryResolveTrackBinding) must behave exactly
             // as it did before tags existed.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 9u, 2u, 5u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 9u, 2u, 5u });
             ClipAsset clip = CreateKeyedClip("Walk", 0x10UL, 5u);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 2UL, clip);
 

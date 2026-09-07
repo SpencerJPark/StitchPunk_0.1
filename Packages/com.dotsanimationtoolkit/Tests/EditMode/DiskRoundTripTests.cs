@@ -91,7 +91,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigAsset rig = ScriptableObject.CreateInstance<RigAsset>();
             rig.name = "Rig";
             rig.stableId = 0x1111000000000001UL;
-            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
             rig.targets.Add(new RigTargetDefinition
             {
                 displayName = "Body",
@@ -190,7 +189,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigAsset rig = ScriptableObject.CreateInstance<RigAsset>();
             rig.name = "Rig";
             rig.stableId = RigStableId;
-            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
             rig.targets.Add(new RigTargetDefinition { displayName = "Head", stableId = FirstTargetId, kind = TargetKind.Quad });
             rig.targets.Add(new RigTargetDefinition { displayName = "Body", stableId = SecondTargetId, kind = TargetKind.Quad });
 
@@ -249,7 +247,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigAsset rig = ScriptableObject.CreateInstance<RigAsset>();
             rig.name = "Rig";
             rig.stableId = 0x5555000000000001UL;
-            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
             rig.targets.Add(new RigTargetDefinition { displayName = "Body", stableId = 0x0BBB0001u, kind = TargetKind.Quad });
 
             AnimationClip sourceAnimationClip = new AnimationClip();
@@ -329,7 +326,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigAsset rig = ScriptableObject.CreateInstance<RigAsset>();
             rig.name = "Rig";
             rig.stableId = 0x9999000000000001UL;
-            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
             rig.targets.Add(new RigTargetDefinition
             {
                 displayName = "Body",
@@ -400,7 +396,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigAsset rig = ScriptableObject.CreateInstance<RigAsset>();
             rig.name = "Rig";
             rig.stableId = 0xCCCC000000000001UL;
-            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
             rig.targets.Add(new RigTargetDefinition { displayName = "Arm", stableId = TransformTargetId, kind = TargetKind.Quad });
             rig.targets.Add(new RigTargetDefinition { displayName = "Face", stableId = SpriteTargetId, kind = TargetKind.Quad });
 
@@ -468,7 +463,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigAsset rig = ScriptableObject.CreateInstance<RigAsset>();
             rig.name = "Rig";
             rig.stableId = 0xEEEE000000000001UL;
-            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
 
             ClipAsset southEastClip = ScriptableObject.CreateInstance<ClipAsset>();
             southEastClip.name = "WalkSouthEast";

@@ -60,7 +60,8 @@ namespace DotsAnimationToolkit.Samples
             RigAsset rig = CreateRig(outputFolder);
             ClipAsset clip = CreateStrideClip(outputFolder, rig);
             ClipSetAsset clipSet = CreateClipSet(outputFolder, rig, clip);
-            GameObject actorPrefab = CreateActorPrefab(outputFolder, rig, clipSet, flipbookMaterial);
+            ActorProfileAsset profile = CreateProfile(outputFolder, rig, clipSet);
+            GameObject actorPrefab = CreateActorPrefab(outputFolder, rig, profile, flipbookMaterial);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -204,11 +205,6 @@ namespace DotsAnimationToolkit.Samples
                 MakeTarget("Face", TargetKind.FlipbookPlane)
             };
 
-            rig.layers = new List<LayerDefinition>
-            {
-                new LayerDefinition { displayName = "Base", defaultActive = true }
-            };
-
             // Mint the target ids before anything reads them. The asset's own lifecycle hooks all
             // fired while `targets` was still empty — CreateInstance runs Awake and OnEnable on a
             // bare object, and CreateAsset fires neither — so without this every target keeps the
@@ -344,17 +340,31 @@ namespace DotsAnimationToolkit.Samples
             return clipSet;
         }
 
+        private static ActorProfileAsset CreateProfile(string outputFolder, RigAsset rig, ClipSetAsset clipSet)
+        {
+            ActorProfileAsset profile = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            profile.rig = rig;
+            profile.clipSets = new List<ClipSetAsset> { clipSet };
+
+            // OnEnable already seeded the fixed [Base, Override] bookends — the minimum any profile
+            // carries, and enough for this sample, which plays by sending a raw AnimationCommand
+            // rather than a named startingAnimationKey.
+            profile.EnsureStableIds();
+
+            AssetDatabase.CreateAsset(profile, outputFolder + "/CompositeProfile.asset");
+            return profile;
+        }
+
         // -----------------------------------------------------------------------------------
         // The prefab.
         // -----------------------------------------------------------------------------------
 
         private static GameObject CreateActorPrefab(
-            string outputFolder, RigAsset rig, ClipSetAsset clipSet, Material flipbookMaterial)
+            string outputFolder, RigAsset rig, ActorProfileAsset profile, Material flipbookMaterial)
         {
             GameObject actorObject = new GameObject("CompositeActor");
             ActorAuthoring actorAuthoring = actorObject.AddComponent<ActorAuthoring>();
-            actorAuthoring.rig = rig;
-            actorAuthoring.clipSets = new List<ClipSetAsset> { clipSet };
+            actorAuthoring.profile = profile;
 
             Vector3[] partPositions =
             {

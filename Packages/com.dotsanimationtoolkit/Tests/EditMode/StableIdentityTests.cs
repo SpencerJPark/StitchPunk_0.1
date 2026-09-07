@@ -141,7 +141,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void RenamingAssetsAndTargets_LeavesEveryStableIdUnchanged()
         {
-            RigAsset rig = assets.CreateRig("Rig", 0x1111UL, 2, new uint[] { 7u, 3u });
+            RigAsset rig = assets.CreateRig("Rig", 0x1111UL, new uint[] { 7u, 3u });
             ClipAsset clip = assets.CreateClip("Walk", 0x2222UL, 1f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 0x3333UL, clip);
 
@@ -161,7 +161,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ReorderingTargetAndClipLists_LeavesEveryStableIdUnchanged()
         {
-            RigAsset rig = assets.CreateRig("Rig", 0x1111UL, 2, new uint[] { 7u, 3u, 9u });
+            RigAsset rig = assets.CreateRig("Rig", 0x1111UL, new uint[] { 7u, 3u, 9u });
             ClipAsset walkClip = assets.CreateClip("Walk", 0x2222UL, 1f);
             ClipAsset runClip = assets.CreateClip("Run", 0x4444UL, 2f);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, 0x3333UL, walkClip, runClip);
@@ -202,7 +202,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // 0x8000000000000001 is long.MaxValue + 2, and 0xFFFFFFFF is uint.MaxValue: the two
             // boundary values a signed round trip corrupts.
-            RigAsset rig = assets.CreateRig("Rig", 0x8000000000000001UL, 1, new uint[] { 0xFFFFFFFFu, 1u });
+            RigAsset rig = assets.CreateRig("Rig", 0x8000000000000001UL, new uint[] { 0xFFFFFFFFu, 1u });
 
             string serializedRig = EditorJsonUtility.ToJson(rig);
             RigAsset revivedRig = assets.Create<RigAsset>("RevivedRig");
@@ -231,7 +231,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void AfterRenamingAndReordering_TheRebuiltRegistryStillResolvesEveryOriginalId()
         {
-            RigAsset rig = assets.CreateRig("Rig", 0x1111UL, 2, new uint[] { 7u, 3u });
+            RigAsset rig = assets.CreateRig("Rig", 0x1111UL, new uint[] { 7u, 3u });
             ClipAsset walkClip = assets.CreateClip("Walk", 0x2222UL, 1f);
             ClipAsset runClip = assets.CreateClip("Run", 0x4444UL, 2f);
             AuthoringTestAssets.AddTransformTrack(walkClip, 7u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
@@ -336,7 +336,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // The load case: a stored id is already present, so nothing is minted and nothing
             // needs saving. A false report here would dirty every asset on every load.
-            RigAsset storedRig = assets.CreateRig("StoredRig", 0xABCDEFUL, 1, new uint[] { 4u });
+            RigAsset storedRig = assets.CreateRig("StoredRig", 0xABCDEFUL, new uint[] { 4u });
             storedRig.MarkStableIdPersisted();
 
             storedRig.EnsureStableIds();

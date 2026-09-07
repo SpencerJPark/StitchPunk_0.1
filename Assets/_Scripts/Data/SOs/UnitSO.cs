@@ -97,11 +97,15 @@ public class UnitSO : ScriptableObject
         if (actor == null)
             return $"'{name}' declares a rig/clip set but its prefab '{prefab.name}' has no ActorAuthoring.";
 
-        if (rig != null && actor.rig != rig)
+        // Shim until G5 re-keys this SO onto the actor profile: the prefab's rig and clip sets now
+        // come from ActorAuthoring.profile.
+        RigAsset actorRig = actor.profile != null ? actor.profile.rig : null;
+        List<ClipSetAsset> actorClipSets = actor.profile != null ? actor.profile.clipSets : null;
+        if (rig != null && actorRig != rig)
             return $"'{name}' declares rig '{rig.name}' but its prefab animates on " +
-                   $"'{(actor.rig != null ? actor.rig.name : "<none>")}'.";
+                   $"'{(actorRig != null ? actorRig.name : "<none>")}'.";
 
-        if (clipSet != null && (actor.clipSets == null || !actor.clipSets.Contains(clipSet)))
+        if (clipSet != null && (actorClipSets == null || !actorClipSets.Contains(clipSet)))
             return $"'{name}' declares clip set '{clipSet.name}' but its prefab's ActorAuthoring " +
                    "does not list it.";
 

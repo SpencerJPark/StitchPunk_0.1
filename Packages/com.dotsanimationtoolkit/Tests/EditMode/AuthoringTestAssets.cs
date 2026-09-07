@@ -25,20 +25,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private readonly Dictionary<ClipSetAsset, RigAsset> bindRigBySet =
             new Dictionary<ClipSetAsset, RigAsset>();
 
-        /// <summary>Creates a rig with <paramref name="layerCount"/> layers and one target row per supplied id.</summary>
-        internal RigAsset CreateRig(string assetName, ulong rigStableId, int layerCount, uint[] targetIds)
+        /// <summary>Creates a rig with one target row per supplied id. Rigs no longer carry layers — that lives on <see cref="ActorProfileAsset"/> now.</summary>
+        internal RigAsset CreateRig(string assetName, ulong rigStableId, uint[] targetIds)
         {
             RigAsset rig = Create<RigAsset>(assetName);
             rig.stableId = rigStableId;
-            rig.layers.Clear();
-            for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
-            {
-                rig.layers.Add(new LayerDefinition
-                {
-                    displayName = "Layer" + layerIndex,
-                    defaultActive = layerIndex == 0
-                });
-            }
             rig.targets.Clear();
             for (int targetIndex = 0; targetIndex < targetIds.Length; targetIndex++)
             {
@@ -51,6 +42,33 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 });
             }
             return rig;
+        }
+
+        /// <summary>Creates a profile naming <paramref name="rig"/> and <paramref name="set"/>, with <paramref name="layerCount"/> layers (bookends included), all default-active.</summary>
+        internal ActorProfileAsset CreateProfile(RigAsset rig, ClipSetAsset set, int layerCount)
+        {
+            ActorProfileAsset profile = Create<ActorProfileAsset>("Profile");
+            profile.rig = rig;
+            profile.clipSets.Clear();
+            if (set != null)
+            {
+                profile.clipSets.Add(set);
+            }
+            profile.layers.Clear();
+            for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
+            {
+                string displayName = layerIndex == 0
+                    ? ActorProfileAsset.BaseLayerName
+                    : layerIndex == layerCount - 1
+                        ? ActorProfileAsset.OverrideLayerName
+                        : "Layer" + layerIndex;
+                profile.layers.Add(new ActorLayerDefinition
+                {
+                    displayName = displayName,
+                    defaultActive = true
+                });
+            }
+            return profile;
         }
 
         /// <summary>Creates a clip with an explicit stable id. A clip names no rig.</summary>

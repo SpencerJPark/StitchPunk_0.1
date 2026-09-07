@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         private RigAsset CreateValidRig()
         {
-            return assets.CreateRig("Rig", RigKey, 1, new uint[0]);
+            return assets.CreateRig("Rig", RigKey, new uint[0]);
         }
 
         private ClipAsset CreateIdleClip()

@@ -47,7 +47,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         private RigAsset CreateValidRig()
         {
-            return assets.CreateRig("Rig", RigKey, 2, new uint[] { FirstTargetId, SecondTargetId });
+            return assets.CreateRig("Rig", RigKey, new uint[] { FirstTargetId, SecondTargetId });
         }
 
         private ClipAsset CreateValidClip(string assetName, ulong clipId)
@@ -175,7 +175,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void V05_FiresWhenTwoTargetRowsInOneRigShareATargetId()
         {
-            RigAsset rig = assets.CreateRig("Rig", RigKey, 2, new uint[] { FirstTargetId, FirstTargetId });
+            RigAsset rig = assets.CreateRig("Rig", RigKey, new uint[] { FirstTargetId, FirstTargetId });
             ClipAsset clip = CreateValidClip("Walk", WalkClipId);
             ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
 
@@ -196,7 +196,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // The scenario Phase F exists for: a set played on a rig whose target list only partly
             // overlaps what its clips name. The track skips; it does not fail the bind.
             RigAsset partialRig = assets.CreateRig(
-                "PartialRig", RigKey + 1UL, 2, new uint[] { SecondTargetId });
+                "PartialRig", RigKey + 1UL, new uint[] { SecondTargetId });
             ClipAsset clip = CreateValidClip("Walk", WalkClipId);
             ClipSetAsset clipSet = assets.CreateSet("Set", partialRig, SetKey, clip);
 
@@ -212,7 +212,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // An error here would ban the cross-rig bind outright, so the whole point is that
             // HasErrors stays false and the bake proceeds with the track dropped.
             RigAsset partialRig = assets.CreateRig(
-                "PartialRig", RigKey + 1UL, 2, new uint[] { SecondTargetId });
+                "PartialRig", RigKey + 1UL, new uint[] { SecondTargetId });
             ClipAsset clip = CreateValidClip("Walk", WalkClipId);
             ClipSetAsset clipSet = assets.CreateSet("Set", partialRig, SetKey, clip);
 
@@ -734,28 +734,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void V13_FiresWhenTheRigDeclaresNoLayers()
-        {
-            RigAsset rig;
-            ClipAsset clip;
-            ClipSetAsset clipSet = CreateValidSet(out rig, out clip);
-            rig.layers.Clear();
-
-            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V13, ValidationSeverity.Error);
-        }
-
-        [Test]
-        public void V13_FiresWhenTheRigDeclaresMoreThanEightLayers()
-        {
-            RigAsset rig = assets.CreateRig(
-                "Rig", RigKey, RigAsset.MaxLayerCount + 1, new uint[] { FirstTargetId, SecondTargetId });
-            ClipAsset clip = CreateValidClip("Walk", WalkClipId);
-            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, clip);
-
-            AssertOnlyCode(assets.ValidateBindOf(clipSet), ValidationCode.V13, ValidationSeverity.Error);
-        }
-
-        [Test]
         public void AnUnboundSet_ReportsNothingThatNeedsARigToAnswer()
         {
             // A set with no rig is the ordinary state of a set — that independence is the point —
@@ -899,7 +877,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateRig_ReportsNothing_ForAWellFormedRig()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { FirstTargetId, SecondTargetId });
 
             AssertNoFindings(ClipValidation.ValidateRig(rig), "A well-formed rig has no findings.");
         }
@@ -907,7 +885,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateRig_ReportsV05_ForDuplicateTargetIds()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, FirstTargetId });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { FirstTargetId, FirstTargetId });
 
             AssertOnlyCode(ClipValidation.ValidateRig(rig), ValidationCode.V05, ValidationSeverity.Error);
         }
@@ -920,7 +898,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void ValidateRig_ReportsV34_WhenTwoTargetsShareANonZeroTagId()
         {
             // Distinct target stableIds, so only the tag collision (V34) can fire - not V05.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { FirstTargetId, SecondTargetId });
             rig.targets[0].tagId = 999u;
             rig.targets[1].tagId = 999u;
 
@@ -930,7 +908,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateRig_ReportsNothing_WhenTwoTargetsHaveDistinctNonZeroTagIds()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { FirstTargetId, SecondTargetId });
             rig.targets[0].tagId = 111u;
             rig.targets[1].tagId = 222u;
 
@@ -946,7 +924,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // are expected to stay untagged, and treating that as a collision would fire V34 on
             // almost every rig in a project. tagId is left at its 0 default on every row here.
             RigAsset rig = assets.CreateRig(
-                "Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId, FirstTargetId + SecondTargetId + 1u });
+                "Rig", 1UL, new uint[] { FirstTargetId, SecondTargetId, FirstTargetId + SecondTargetId + 1u });
 
             List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
 
@@ -957,7 +935,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void ValidateRig_ReportsV34_ForEachOfThreeTargetsSharingATag_NotJustTheFirstPair()
         {
             RigAsset rig = assets.CreateRig(
-                "Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId, FirstTargetId + SecondTargetId + 1u });
+                "Rig", 1UL, new uint[] { FirstTargetId, SecondTargetId, FirstTargetId + SecondTargetId + 1u });
             rig.targets[0].tagId = 999u;
             rig.targets[1].tagId = 999u;
             rig.targets[2].tagId = 999u;
@@ -980,7 +958,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ValidateRig_ReportsV34_ForNames_IdentifyingBothOffendingTargets()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { FirstTargetId, SecondTargetId });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { FirstTargetId, SecondTargetId });
             rig.targets[0].displayName = "LeftEye";
             rig.targets[1].displayName = "RightEye";
             rig.targets[0].tagId = 999u;
@@ -994,24 +972,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void ValidateRig_ReportsV13ForRig_ReportsV34ForRig_TogetherWithoutInterference()
+        public void ValidateRig_ReportsNothing_ForANullRig()
         {
-            // A rig broken two ways at once (no layers, and a tag collision) must report both
-            // findings independently - neither rule may swallow the other's evidence.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 0, new uint[] { FirstTargetId, SecondTargetId });
-            rig.targets[0].tagId = 999u;
-            rig.targets[1].tagId = 999u;
-
-            List<ValidationMessage> messages = ClipValidation.ValidateRig(rig);
-
-            AssertContainsCode(messages, ValidationCode.V13, ValidationSeverity.Error);
-            AssertContainsCode(messages, ValidationCode.V34, ValidationSeverity.Error);
-        }
-
-        [Test]
-        public void ValidateRig_ReportsV13_ForANullRig_BecauseASetWithoutARigHasNoLayers()
-        {
-            AssertOnlyCode(ClipValidation.ValidateRig(null), ValidationCode.V13, ValidationSeverity.Error);
+            Assert.IsEmpty(ClipValidation.ValidateRig(null), "A null rig has nothing of its own to judge.");
         }
 
         // -----------------------------------------------------------------------------------

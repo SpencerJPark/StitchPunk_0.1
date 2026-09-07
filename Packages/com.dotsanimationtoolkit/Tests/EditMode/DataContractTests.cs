@@ -168,7 +168,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Field("schemaVersion", typeof(int)),
                 Field("setKey", typeof(ulong)),
                 Field("vatSetKey", typeof(ulong)),
-                Field("layerCount", typeof(byte)),
                 Field("sortedClipIds", typeof(BlobArray<ulong>)),
                 Field("clips", typeof(BlobArray<ClipBlob>)),
                 Field("sortedTargetIds", typeof(BlobArray<uint>)),
@@ -385,6 +384,22 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AssertFieldsMatch(typeof(ActorProfile), new FieldContract[]
             {
                 Field("Value", typeof(BlobAssetReference<ActorProfileBlob>))
+            });
+
+            // A70: host-written facing plus the toolkit's last re-pick, and the disabled-by-default
+            // ragdoll request a Play/PlayAnimation command or an at-event trigger fills in.
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(ActorFacing)));
+            AssertFieldsMatch(typeof(ActorFacing), new FieldContract[]
+            {
+                Field("facing", typeof(Direction)),
+                Field("appliedFacing", typeof(Direction))
+            });
+
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(ActorRagdollRequest)));
+            Assert.IsTrue(typeof(IEnableableComponent).IsAssignableFrom(typeof(ActorRagdollRequest)));
+            AssertFieldsMatch(typeof(ActorRagdollRequest), new FieldContract[]
+            {
+                Field("trigger", typeof(RagdollTrigger))
             });
 
             Assert.IsTrue(typeof(IBufferElementData).IsAssignableFrom(typeof(PlaybackLayer)));

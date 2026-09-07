@@ -35,8 +35,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             rig = ScriptableObject.CreateInstance<RigAsset>();
             rig.name = "Rig";
             createdObjects.Add(rig);
-            rig.layers.Clear();
-            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
             rig.targets.Clear();
             rig.targets.Add(new RigTargetDefinition { displayName = "Torso", stableId = TorsoTargetId });
             rig.targets.Add(new RigTargetDefinition { displayName = "Hand", stableId = HandTargetId });

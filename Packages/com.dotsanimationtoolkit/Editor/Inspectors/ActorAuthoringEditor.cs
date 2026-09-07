@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System.Collections.Generic;
-using DotsAnimationToolkit;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -10,44 +9,27 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>
-    /// Custom inspector for <see cref="ActorAuthoring"/>: a starting-layer editor that replaces the
-    /// raw layer-index integer with a "index: displayName" dropdown built from the actor's own
-    /// rig, plus the escape hatch to the Clip Editor.
-    /// </summary>
+    /// <summary>Custom inspector for <see cref="ActorAuthoring"/>: a profile field with a derived rig/layer summary, plus the escape hatch to the Clip Editor.</summary>
     [CustomEditor(typeof(ActorAuthoring))]
     public sealed class ActorAuthoringEditor : UnityEditor.Editor
     {
-        private const string NoClipChoiceLabel = "(none)";
-
-        private SerializedProperty rigProperty;
-        private SerializedProperty clipSetsProperty;
-        private SerializedProperty startingLayersProperty;
+        private SerializedProperty profileProperty;
         private SerializedProperty sampleOverrideProperty;
         private SerializedProperty addDistanceLodProperty;
         private SerializedProperty billboardModeProperty;
         private SerializedProperty frozenYawDegreesProperty;
 
         private VisualElement rigInfoSection;
-        private VisualElement startingLayerRowContainer;
         private PropertyField frozenYawField;
 
-        private readonly List<StartingLayerRowElements> startingLayerRows = new List<StartingLayerRowElements>();
-
-        // Rebuild triggers, same reasoning as RigAssetEditor: only tear down and rebuild the dynamic
-        // sections when their shape changed (a different rig or set list, or a row added/removed),
-        // never on every keystroke inside an unrelated field.
-        private RigAsset builtRig;
-        private readonly List<ClipSetAsset> builtClipSets = new List<ClipSetAsset>();
-        private readonly List<ClipAsset> builtClipUnion = new List<ClipAsset>();
-        private int builtStartingLayerCount;
+        // Rebuild trigger: only tear down and rebuild the rig-info section when the profile
+        // reference itself changed, never on every keystroke inside an unrelated field.
+        private ActorProfileAsset builtProfile;
 
         /// <inheritdoc />
         public override VisualElement CreateInspectorGUI()
         {
-            rigProperty = serializedObject.FindProperty("rig");
-            clipSetsProperty = serializedObject.FindProperty("clipSets");
-            startingLayersProperty = serializedObject.FindProperty("startingLayers");
+            profileProperty = serializedObject.FindProperty("profile");
             sampleOverrideProperty = serializedObject.FindProperty("sampleOverride");
             addDistanceLodProperty = serializedObject.FindProperty("addDistanceLod");
             billboardModeProperty = serializedObject.FindProperty("billboardMode");
@@ -56,33 +38,17 @@ namespace DotsAnimationToolkit.Editor
             VisualElement inspectorRoot = new VisualElement();
             inspectorRoot.style.paddingTop = 4f;
 
-            inspectorRoot.Add(BuildSectionHeading("Rig & Clip Sets"));
-            if (rigProperty != null)
+            inspectorRoot.Add(BuildSectionHeading("Profile"));
+            if (profileProperty != null)
             {
-                PropertyField rigField = new PropertyField(rigProperty, "Rig");
-                rigField.tooltip =
-                    "The rig this actor animates. Every clip set bound below resolves its tracks " +
-                    "against this rig; a track it has no target for is skipped with a warning.";
-                inspectorRoot.Add(rigField);
-            }
-            if (clipSetsProperty != null)
-            {
-                PropertyField clipSetsField = new PropertyField(clipSetsProperty, "Clip Sets");
-                clipSetsField.tooltip =
-                    "The sets this actor plays from. Their clips are merged into one registry; " +
-                    "list order does not matter.";
-                inspectorRoot.Add(clipSetsField);
+                PropertyField profileField = new PropertyField(profileProperty, "Profile");
+                profileField.tooltip =
+                    "The profile that names this actor's rig, clip sets and layers.";
+                inspectorRoot.Add(profileField);
             }
 
             rigInfoSection = new VisualElement();
             inspectorRoot.Add(rigInfoSection);
-
-            inspectorRoot.Add(BuildSectionHeading("Starting Layers"));
-            startingLayerRowContainer = new VisualElement();
-            inspectorRoot.Add(startingLayerRowContainer);
-            Button addStartingLayerButton = new Button(AddStartingLayer) { text = "Add Starting Layer" };
-            addStartingLayerButton.style.marginTop = 6f;
-            inspectorRoot.Add(addStartingLayerButton);
 
             inspectorRoot.Add(BuildSectionHeading("Sampling & LOD"));
             inspectorRoot.Add(BuildSampleRateField());
@@ -112,11 +78,9 @@ namespace DotsAnimationToolkit.Editor
             inspectorRoot.Add(openClipEditorButton);
 
             RebuildRigInfo();
-            RebuildStartingLayerRows();
 
-            // One tracked callback for the whole asset, not one per field: a starting layer row's
-            // warnings depend on both the rig and the bound sets, so there is no field whose
-            // change is guaranteed to be local (same reasoning as RigAssetEditor).
+            // One tracked callback for the whole asset: the rig-info section depends only on which
+            // profile is assigned, so a targeted per-field callback would buy nothing here.
             inspectorRoot.TrackSerializedObjectValue(serializedObject, OnSerializedObjectChanged);
 
             inspectorRoot.Bind(serializedObject);
@@ -181,21 +145,23 @@ namespace DotsAnimationToolkit.Editor
         private void RebuildRigInfo()
         {
             rigInfoSection.Clear();
-            CaptureBind();
+            builtProfile = profileProperty != null ? profileProperty.objectReferenceValue as ActorProfileAsset : null;
 
-            if (builtClipSets.Count == 0)
+            if (builtProfile == null)
             {
                 rigInfoSection.Add(new HelpBox(
-                    "No clip sets assigned. This actor bakes to nothing until at least one is set — "
+                    "No profile assigned. This actor bakes to nothing until one is set — "
                     + "ActorBaker logs an error naming this GameObject.",
                     HelpBoxMessageType.Warning));
+                return;
             }
 
-            RigAsset rig = builtRig;
+            RigAsset rig = builtProfile.rig;
             if (rig == null)
             {
                 rigInfoSection.Add(new HelpBox(
-                    "No rig assigned. Assign a Rig Asset before this actor can bake.",
+                    "Profile '" + builtProfile.name + "' has no rig assigned. Assign one before "
+                    + "this actor can bake.",
                     HelpBoxMessageType.Warning));
                 return;
             }
@@ -205,22 +171,22 @@ namespace DotsAnimationToolkit.Editor
             rigInfoSection.Add(rigLabel);
 
             Label layerListNote = new Label(
-                "Layer identity is list position, not a name — index 0 composites first, a higher "
-                + "index composites later and wins (RigAsset layer contract).");
+                "Layer identity is list position, not a name — index 0 is Base, the last is "
+                + "Override, and a higher index composites later and wins.");
             layerListNote.style.whiteSpace = WhiteSpace.Normal;
             layerListNote.style.opacity = 0.7f;
             layerListNote.style.marginBottom = 4f;
             rigInfoSection.Add(layerListNote);
 
-            List<LayerDefinition> layers = rig.layers;
+            List<ActorLayerDefinition> layers = builtProfile.layers;
             if (layers == null || layers.Count == 0)
             {
-                rigInfoSection.Add(new Label("This rig defines no layers."));
+                rigInfoSection.Add(new Label("This profile defines no layers."));
                 return;
             }
             for (int layerIndex = 0; layerIndex < layers.Count; layerIndex++)
             {
-                LayerDefinition layerDefinition = layers[layerIndex];
+                ActorLayerDefinition layerDefinition = layers[layerIndex];
                 string displayName = layerDefinition != null && !string.IsNullOrEmpty(layerDefinition.displayName)
                     ? layerDefinition.displayName
                     : "(unnamed)";
@@ -231,508 +197,14 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        // Re-reads the bind off the serialized object: the rig, the sets in list order, and the
-        // union of their clips that a starting layer may name.
-        private void CaptureBind()
-        {
-            builtRig = rigProperty != null ? rigProperty.objectReferenceValue as RigAsset : null;
-
-            builtClipSets.Clear();
-            builtClipUnion.Clear();
-            if (clipSetsProperty == null)
-            {
-                return;
-            }
-
-            HashSet<ClipAsset> seenClips = new HashSet<ClipAsset>();
-            for (int setIndex = 0; setIndex < clipSetsProperty.arraySize; setIndex++)
-            {
-                ClipSetAsset clipSet = clipSetsProperty
-                    .GetArrayElementAtIndex(setIndex).objectReferenceValue as ClipSetAsset;
-                if (clipSet == null || builtClipSets.Contains(clipSet))
-                {
-                    continue;
-                }
-                builtClipSets.Add(clipSet);
-                if (clipSet.clips == null)
-                {
-                    continue;
-                }
-                for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
-                {
-                    ClipAsset clip = clipSet.clips[clipIndex];
-                    if (clip != null && seenClips.Add(clip))
-                    {
-                        builtClipUnion.Add(clip);
-                    }
-                }
-            }
-        }
-
-        /// <summary>True when the rig or the deduplicated set list differs from what was captured.</summary>
-        private bool HasBindChanged()
-        {
-            RigAsset currentRig = rigProperty != null ? rigProperty.objectReferenceValue as RigAsset : null;
-            if (currentRig != builtRig)
-            {
-                return true;
-            }
-            if (clipSetsProperty == null)
-            {
-                return builtClipSets.Count != 0;
-            }
-
-            int matchedCount = 0;
-            for (int setIndex = 0; setIndex < clipSetsProperty.arraySize; setIndex++)
-            {
-                ClipSetAsset clipSet = clipSetsProperty
-                    .GetArrayElementAtIndex(setIndex).objectReferenceValue as ClipSetAsset;
-                if (clipSet == null)
-                {
-                    continue;
-                }
-                if (matchedCount < builtClipSets.Count && builtClipSets[matchedCount] == clipSet)
-                {
-                    matchedCount++;
-                    continue;
-                }
-                // A repeat of a set already captured is not a change; anything else is.
-                if (!builtClipSets.Contains(clipSet))
-                {
-                    return true;
-                }
-            }
-            return matchedCount != builtClipSets.Count;
-        }
-
-        // -----------------------------------------------------------------------------------
-        // Starting layer rows.
-        // -----------------------------------------------------------------------------------
-
-        // A full rebuild, not an incremental diff: every row caches SerializedProperty handles into
-        // the array, and an insert or delete re-points every handle after the edit site.
-        private void RebuildStartingLayerRows()
-        {
-            startingLayerRows.Clear();
-            startingLayerRowContainer.Clear();
-
-            if (startingLayersProperty == null)
-            {
-                builtStartingLayerCount = 0;
-                return;
-            }
-
-            builtStartingLayerCount = startingLayersProperty.arraySize;
-
-            if (builtStartingLayerCount == 0)
-            {
-                Label emptyNote = new Label("No starting layers seeded. Every layer starts on no clip.");
-                emptyNote.style.whiteSpace = WhiteSpace.Normal;
-                emptyNote.style.opacity = 0.7f;
-                startingLayerRowContainer.Add(emptyNote);
-                return;
-            }
-
-            for (int entryIndex = 0; entryIndex < builtStartingLayerCount; entryIndex++)
-            {
-                StartingLayerRowElements row = BuildStartingLayerRow(entryIndex);
-                startingLayerRows.Add(row);
-                startingLayerRowContainer.Add(row.container);
-            }
-
-            // The rows were created after the root was bound (on every rebuild after the first), so
-            // they carry no bindings yet without this call.
-            startingLayerRowContainer.Bind(serializedObject);
-            RefreshAllStartingLayerRows();
-        }
-
-        private StartingLayerRowElements BuildStartingLayerRow(int entryIndex)
-        {
-            SerializedProperty entryProperty = startingLayersProperty.GetArrayElementAtIndex(entryIndex);
-
-            StartingLayerRowElements row = new StartingLayerRowElements();
-            row.entryIndex = entryIndex;
-            row.owningEditor = this;
-            row.layerIndexProperty = entryProperty.FindPropertyRelative("layerIndex");
-            row.clipProperty = entryProperty.FindPropertyRelative("clip");
-            row.speedProperty = entryProperty.FindPropertyRelative("speed");
-            row.loopProperty = entryProperty.FindPropertyRelative("loop");
-
-            row.container = new VisualElement();
-            row.container.style.marginTop = 6f;
-            row.container.style.paddingLeft = 6f;
-            row.container.style.paddingRight = 6f;
-            row.container.style.paddingTop = 4f;
-            row.container.style.paddingBottom = 6f;
-            row.container.style.borderLeftWidth = 2f;
-            row.container.style.borderLeftColor = new StyleColor(new Color(0.4f, 0.5f, 0.6f));
-
-            row.layerDropdown = new DropdownField("Layer");
-            row.layerDropdown.tooltip =
-                "Which playback layer this entry seeds, by list position — the rig's own layer "
-                + "index, not a name.";
-            row.layerDropdown.RegisterValueChangedCallback(
-                changeEvent => OnLayerChoiceChanged(row, changeEvent.newValue));
-            row.container.Add(row.layerDropdown);
-
-            row.layerIndexFallbackField = new PropertyField(row.layerIndexProperty, "Layer Index (raw)");
-            row.layerIndexFallbackField.tooltip =
-                "No rig is assigned yet, so layer names are unknown. Raw index only.";
-            row.container.Add(row.layerIndexFallbackField);
-
-            row.clipDropdown = new DropdownField("Clip");
-            row.clipDropdown.tooltip =
-                "The clip this layer starts on, offered from every clip set bound to this actor.";
-            row.clipDropdown.RegisterValueChangedCallback(
-                changeEvent => OnClipChoiceChanged(row, changeEvent.newValue));
-            row.container.Add(row.clipDropdown);
-
-            row.clipFallbackField = new PropertyField(row.clipProperty, "Clip");
-            row.container.Add(row.clipFallbackField);
-
-            row.container.Add(new PropertyField(row.speedProperty, "Speed"));
-            row.container.Add(new PropertyField(row.loopProperty, "Loop"));
-
-            row.warningBox = new HelpBox(string.Empty, HelpBoxMessageType.Warning);
-            row.warningBox.style.marginTop = 4f;
-            row.container.Add(row.warningBox);
-
-            int capturedIndex = entryIndex;
-            Button removeButton = new Button(() => RemoveStartingLayer(capturedIndex)) { text = "Remove" };
-            removeButton.style.marginTop = 4f;
-            row.container.Add(removeButton);
-
-            return row;
-        }
-
-        // -----------------------------------------------------------------------------------
-        // Add and remove.
-        // -----------------------------------------------------------------------------------
-
-        // Explicit, safe defaults, not InsertArrayElementAtIndex's "duplicate the previous element"
-        // behaviour — a duplicated clip reference would silently seed a new layer with someone
-        // else's clip, which reads as intentional and is not.
-        private void AddStartingLayer()
-        {
-            if (startingLayersProperty == null)
-            {
-                return;
-            }
-
-            serializedObject.Update();
-
-            int newEntryIndex = startingLayersProperty.arraySize;
-            startingLayersProperty.InsertArrayElementAtIndex(newEntryIndex);
-            SerializedProperty newEntry = startingLayersProperty.GetArrayElementAtIndex(newEntryIndex);
-
-            newEntry.FindPropertyRelative("layerIndex").intValue = 0;
-            newEntry.FindPropertyRelative("clip").objectReferenceValue = null;
-            newEntry.FindPropertyRelative("speed").floatValue = 1f;
-            newEntry.FindPropertyRelative("loop").enumValueIndex = (int)LoopMode.UseClipDefault;
-
-            serializedObject.ApplyModifiedProperties();
-            RebuildStartingLayerRows();
-        }
-
-        private void RemoveStartingLayer(int entryIndex)
-        {
-            if (startingLayersProperty == null
-                || entryIndex < 0
-                || entryIndex >= startingLayersProperty.arraySize)
-            {
-                return;
-            }
-
-            serializedObject.Update();
-            startingLayersProperty.DeleteArrayElementAtIndex(entryIndex);
-            serializedObject.ApplyModifiedProperties();
-            RebuildStartingLayerRows();
-        }
-
-        // -----------------------------------------------------------------------------------
-        // Dropdown writes.
-        // -----------------------------------------------------------------------------------
-
-        private void OnLayerChoiceChanged(StartingLayerRowElements row, string chosenLabel)
-        {
-            if (row.isRefreshing || row.layerIndexProperty == null)
-            {
-                return;
-            }
-            int chosenIndex = row.layerChoiceLabels.IndexOf(chosenLabel);
-            if (chosenIndex < 0 || chosenIndex >= row.layerChoiceIndices.Count)
-            {
-                return;
-            }
-
-            serializedObject.Update();
-            row.layerIndexProperty.intValue = row.layerChoiceIndices[chosenIndex];
-            serializedObject.ApplyModifiedProperties();
-            RefreshAllStartingLayerRows();
-        }
-
-        private void OnClipChoiceChanged(StartingLayerRowElements row, string chosenLabel)
-        {
-            if (row.isRefreshing || row.clipProperty == null)
-            {
-                return;
-            }
-            int chosenIndex = row.clipChoiceLabels.IndexOf(chosenLabel);
-            if (chosenIndex < 0 || chosenIndex >= row.clipChoices.Count)
-            {
-                return;
-            }
-
-            serializedObject.Update();
-            row.clipProperty.objectReferenceValue = row.clipChoices[chosenIndex];
-            serializedObject.ApplyModifiedProperties();
-            RefreshAllStartingLayerRows();
-        }
-
-        // -----------------------------------------------------------------------------------
-        // Refresh.
-        // -----------------------------------------------------------------------------------
-
         private void OnSerializedObjectChanged(SerializedObject changedSerializedObject)
         {
-            if (startingLayersProperty == null)
-            {
-                return;
-            }
-
-            bool bindChanged = HasBindChanged();
-            bool startingLayerCountChanged = startingLayersProperty.arraySize != builtStartingLayerCount;
-
-            if (bindChanged)
+            ActorProfileAsset currentProfile =
+                profileProperty != null ? profileProperty.objectReferenceValue as ActorProfileAsset : null;
+            if (currentProfile != builtProfile)
             {
                 RebuildRigInfo();
             }
-            if (bindChanged || startingLayerCountChanged)
-            {
-                RebuildStartingLayerRows();
-                return;
-            }
-            RefreshAllStartingLayerRows();
-        }
-
-        private void RefreshAllStartingLayerRows()
-        {
-            // Re-read the bind first: the clip dropdown is built from the union of the bound sets'
-            // clips, and a clip added to one of those sets from another window changes what this
-            // inspector should offer without changing anything on the actor itself.
-            CaptureBind();
-            for (int rowIndex = 0; rowIndex < startingLayerRows.Count; rowIndex++)
-            {
-                RefreshStartingLayerRow(startingLayerRows[rowIndex]);
-            }
-        }
-
-        /// <summary>
-        /// Re-derives one row's dropdown-vs-fallback visibility, dropdown contents, and warnings.
-        /// </summary>
-        private void RefreshStartingLayerRow(StartingLayerRowElements row)
-        {
-            if (row == null)
-            {
-                return;
-            }
-
-            row.isRefreshing = true;
-            try
-            {
-                RigAsset rig = builtRig;
-                List<LayerDefinition> rigLayers = rig != null ? rig.layers : null;
-                bool hasKnownLayers = rigLayers != null && rigLayers.Count > 0;
-
-                row.layerDropdown.style.display = hasKnownLayers ? DisplayStyle.Flex : DisplayStyle.None;
-                row.layerIndexFallbackField.style.display = hasKnownLayers ? DisplayStyle.None : DisplayStyle.Flex;
-                if (hasKnownLayers)
-                {
-                    RefreshLayerDropdown(row, rigLayers);
-                }
-
-                bool hasClipChoices = builtClipUnion.Count > 0;
-                row.clipDropdown.style.display = hasClipChoices ? DisplayStyle.Flex : DisplayStyle.None;
-                row.clipFallbackField.style.display = hasClipChoices ? DisplayStyle.None : DisplayStyle.Flex;
-                if (hasClipChoices)
-                {
-                    RefreshClipDropdown(row);
-                }
-
-                RefreshStartingLayerWarnings(row, rig);
-            }
-            finally
-            {
-                row.isRefreshing = false;
-            }
-        }
-
-        private static void RefreshLayerDropdown(StartingLayerRowElements row, List<LayerDefinition> rigLayers)
-        {
-            row.layerChoiceLabels.Clear();
-            row.layerChoiceIndices.Clear();
-
-            for (int layerIndex = 0; layerIndex < rigLayers.Count; layerIndex++)
-            {
-                LayerDefinition layerDefinition = rigLayers[layerIndex];
-                string displayName = layerDefinition != null && !string.IsNullOrEmpty(layerDefinition.displayName)
-                    ? layerDefinition.displayName
-                    : "(unnamed)";
-                row.layerChoiceLabels.Add(layerIndex.ToString() + ": " + displayName);
-                row.layerChoiceIndices.Add(layerIndex);
-            }
-
-            int storedLayerIndex = row.layerIndexProperty != null ? row.layerIndexProperty.intValue : 0;
-            int selectedChoice = row.layerChoiceIndices.IndexOf(storedLayerIndex);
-            if (selectedChoice < 0)
-            {
-                // The stored index names no layer on this rig. Shown as its own entry rather than
-                // silently snapped to layer 0, which would destroy the evidence of the mismatch on
-                // the next save (same reasoning as RigAssetEditor's "(missing target ...)" entry).
-                row.layerChoiceLabels.Add("(missing layer " + storedLayerIndex.ToString() + ")");
-                row.layerChoiceIndices.Add(storedLayerIndex);
-                selectedChoice = row.layerChoiceLabels.Count - 1;
-            }
-
-            row.layerDropdown.choices = row.layerChoiceLabels;
-            row.layerDropdown.SetValueWithoutNotify(row.layerChoiceLabels[selectedChoice]);
-        }
-
-        private static void RefreshClipDropdown(StartingLayerRowElements row)
-        {
-            row.clipChoiceLabels.Clear();
-            row.clipChoices.Clear();
-
-            row.clipChoiceLabels.Add(NoClipChoiceLabel);
-            row.clipChoices.Add(null);
-
-            List<ClipAsset> clips = row.BoundClips;
-            for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
-            {
-                ClipAsset clip = clips[clipIndex];
-                if (clip == null)
-                {
-                    continue;
-                }
-                row.clipChoiceLabels.Add(clip.name);
-                row.clipChoices.Add(clip);
-            }
-
-            ClipAsset storedClip = row.clipProperty != null ? row.clipProperty.objectReferenceValue as ClipAsset : null;
-            int selectedChoice = row.clipChoices.IndexOf(storedClip);
-            if (selectedChoice < 0)
-            {
-                if (storedClip != null)
-                {
-                    row.clipChoiceLabels.Add("(not in any bound set) " + storedClip.name);
-                    row.clipChoices.Add(storedClip);
-                    selectedChoice = row.clipChoiceLabels.Count - 1;
-                }
-                else
-                {
-                    selectedChoice = 0;
-                }
-            }
-
-            row.clipDropdown.choices = row.clipChoiceLabels;
-            row.clipDropdown.SetValueWithoutNotify(row.clipChoiceLabels[selectedChoice]);
-        }
-
-        // Both conditions mirror exactly what ActorBaker.SeedStartingLayers checks and logs: an
-        // out-of-range layer index or an unresolved clip makes the baker ignore the entry.
-        private static void RefreshStartingLayerWarnings(StartingLayerRowElements row, RigAsset rig)
-        {
-            List<string> messages = new List<string>();
-
-            int layerIndex = row.layerIndexProperty != null ? row.layerIndexProperty.intValue : 0;
-            if (layerIndex < 0)
-            {
-                messages.Add("Layer index cannot be negative. ActorBaker ignores this entry.");
-            }
-            else if (rig != null && rig.layers != null && layerIndex >= rig.layers.Count)
-            {
-                messages.Add(
-                    "Layer index " + layerIndex.ToString() + " is out of range — '" + rig.name
-                    + "' defines only " + rig.layers.Count.ToString()
-                    + " layer(s). ActorBaker ignores this entry and logs an error naming this actor.");
-            }
-
-            ClipAsset assignedClip = row.clipProperty != null ? row.clipProperty.objectReferenceValue as ClipAsset : null;
-            if (assignedClip != null)
-            {
-                if (!row.BoundClips.Contains(assignedClip))
-                {
-                    messages.Add(
-                        "Clip '" + assignedClip.name + "' is not a member of " + row.BoundClipSetsLabel
-                        + ". ActorBaker ignores this entry and logs an error naming this actor.");
-                }
-            }
-
-            if (messages.Count == 0)
-            {
-                row.warningBox.style.display = DisplayStyle.None;
-                return;
-            }
-            row.warningBox.style.display = DisplayStyle.Flex;
-            row.warningBox.text = string.Join("\n\n", messages.ToArray());
-        }
-
-        // The visual elements and serialized handles of one starting-layer row. Handles are only
-        // valid while the array's shape is unchanged, which is why RebuildStartingLayerRows
-        // discards every row whenever an element is inserted or deleted.
-        private sealed class StartingLayerRowElements
-        {
-            public int entryIndex;
-
-            public SerializedProperty layerIndexProperty;
-            public SerializedProperty clipProperty;
-            public SerializedProperty speedProperty;
-            public SerializedProperty loopProperty;
-
-            public VisualElement container;
-            public DropdownField layerDropdown;
-            public PropertyField layerIndexFallbackField;
-            public DropdownField clipDropdown;
-            public PropertyField clipFallbackField;
-            public HelpBox warningBox;
-
-            public readonly List<string> layerChoiceLabels = new List<string>();
-            public readonly List<int> layerChoiceIndices = new List<int>();
-            public readonly List<string> clipChoiceLabels = new List<string>();
-            public readonly List<ClipAsset> clipChoices = new List<ClipAsset>();
-
-            // The owning editor instance, so a row can read the current bind's clips without
-            // each row keeping its own stale copy.
-            public ActorAuthoringEditor owningEditor;
-
-            // Set while the row is being written to from code, so a dropdown's change callback can
-            // tell a user's click apart from the editor's own refresh and not write back a value it
-            // just read.
-            public bool isRefreshing;
-
-            public List<ClipAsset> BoundClips
-            {
-                get { return owningEditor != null ? owningEditor.builtClipUnion : EmptyClipList; }
-            }
-
-            public string BoundClipSetsLabel
-            {
-                get
-                {
-                    if (owningEditor == null || owningEditor.builtClipSets.Count == 0)
-                    {
-                        return "any clip set (none assigned)";
-                    }
-                    string[] setNames = new string[owningEditor.builtClipSets.Count];
-                    for (int setIndex = 0; setIndex < setNames.Length; setIndex++)
-                    {
-                        setNames[setIndex] = "'" + owningEditor.builtClipSets[setIndex].name + "'";
-                    }
-                    return "clip set " + string.Join(", ", setNames);
-                }
-            }
-
-            private static readonly List<ClipAsset> EmptyClipList = new List<ClipAsset>();
         }
     }
 }

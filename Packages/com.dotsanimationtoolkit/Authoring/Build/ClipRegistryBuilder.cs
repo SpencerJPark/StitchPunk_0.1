@@ -34,7 +34,9 @@ namespace DotsAnimationToolkit.Authoring
         // 8: ClipBlob gains a billboardTracks array (appended, not reshaped).
         // 9: setKey now holds a bind key (rig folded with every bound set), not one set's id alone;
         //    the hash stream's clip order is the union across sets. Same struct layout, different meaning.
-        public const int SchemaVersion = 9;
+        // 10: layerCount removed — a registry is per (rig, sets); the layer count now belongs to
+        //     ActorProfileBlob, since one registry can serve profiles with different layer counts.
+        public const int SchemaVersion = 10;
 
         // A store hit and a store miss both end with every actor referencing the same blob — the
         // only difference is the work done — so if the probe ever stopped matching Build's key,
@@ -365,7 +367,6 @@ namespace DotsAnimationToolkit.Authoring
                 registryRoot.schemaVersion = SchemaVersion;
                 registryRoot.setKey = ComposeBindKey(rig, canonicalClipSets);
                 registryRoot.vatSetKey = vatTextures == null ? 0UL : vatTextures.setKey;
-                registryRoot.layerCount = (byte)rig.layers.Count;
                 registryRoot.vatInfo = BuildVatInfo(vatTextures);
 
                 BlobBuilderArray<uint> sortedTargetIdArray =
@@ -1030,7 +1031,6 @@ namespace DotsAnimationToolkit.Authoring
             hashState.Update(registryRoot.schemaVersion);
             hashState.Update(registryRoot.setKey);
             hashState.Update(registryRoot.vatSetKey);
-            hashState.Update(registryRoot.layerCount);
 
             hashState.Update(registryRoot.sortedTargetIds.Length);
             for (int denseTargetIndex = 0;

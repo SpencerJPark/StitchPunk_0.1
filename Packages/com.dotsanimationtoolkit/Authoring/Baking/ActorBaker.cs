@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Text;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -10,12 +11,12 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// Bakes an <see cref="ActorAuthoring"/> into the actor-root archetype: the shared registry
-    /// blob, the seeded playback layers, the command and event channels, the
+    /// Bakes an <see cref="ActorAuthoring"/> into the actor-root archetype: the shared registry and
+    /// profile blobs, the seeded playback layers, the command and event channels, the
     /// binding/visibility/bounds enableables, and the actor-space <see cref="ActorRestBounds"/>.
     /// </summary>
-    // The registry blob is built here, not in a baking system: it is a pure function of
-    // ScriptableObject data with no cross-entity input, so DependsOn plus
+    // The registry and profile blobs are built here, not in a baking system: both are pure
+    // functions of ScriptableObject data with no cross-entity input, so DependsOn plus
     // AddBlobAssetWithCustomHash buy incremental-rebake correctness and store dedup for free.
     // Cross-entity work stays out of this baker on purpose — a baker may only write components on
     // the entity it is baking, so the parts' dense indices, the RigPartRef buffer and each part's
@@ -27,16 +28,27 @@ namespace DotsAnimationToolkit.Authoring
         /// <inheritdoc />
         public override void Bake(ActorAuthoring authoring)
         {
-            RigAsset rig = DependsOn(authoring.rig);
-            List<ClipSetAsset> clipSets = DependsOnClipSets(authoring);
+            ActorProfileAsset profile = DependsOn(authoring.profile);
+            if (profile == null)
+            {
+                Debug.LogError(
+                    MessagePrefix + "Actor '" + authoring.name +
+                    "' has no profile assigned, so it cannot be baked. Assign an Actor Profile Asset.",
+                    authoring);
+                MarkBakeFailed();
+                return;
+            }
+
+            RigAsset rig = DependsOn(profile.rig);
+            List<ClipSetAsset> clipSets = DependsOnClipSets(profile);
             VatTextureSetAsset vatTextures = DependsOnClipSetContents(clipSets);
-            DependsOnStartingClips(authoring);
+            DependsOnProfileAnimationClips(profile);
 
             if (rig == null)
             {
                 Debug.LogError(
-                    MessagePrefix + "Actor '" + authoring.name +
-                    "' has no rig assigned, so it cannot be baked. Assign a Rig Asset.",
+                    MessagePrefix + "Actor '" + authoring.name + "' profile '" + profile.name +
+                    "' has no rig assigned, so it cannot be baked. Assign a Rig Asset to the profile.",
                     authoring);
                 MarkBakeFailed();
                 return;
@@ -45,9 +57,9 @@ namespace DotsAnimationToolkit.Authoring
             if (clipSets.Count == 0)
             {
                 Debug.LogError(
-                    MessagePrefix + "Actor '" + authoring.name +
+                    MessagePrefix + "Actor '" + authoring.name + "' profile '" + profile.name +
                     "' has no clip sets assigned, so it cannot be baked. Assign at least one Clip " +
-                    "Set Asset.",
+                    "Set Asset to the profile.",
                     authoring);
                 MarkBakeFailed();
                 return;
@@ -60,11 +72,19 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
+            if (!TryAcquireProfileBlob(
+                    authoring, profile, out BlobAssetReference<ActorProfileBlob> profileBlob))
+            {
+                MarkBakeFailed();
+                return;
+            }
+
             Entity actorEntity = GetEntity(TransformUsageFlags.Dynamic);
 
             AddComponent(actorEntity, new ClipRegistry { Value = registry });
+            AddComponent(actorEntity, new ActorProfile { Value = profileBlob });
             AddSocketRegistry(actorEntity, rig, vatTextures);
-            AddPlaybackLayers(actorEntity, authoring, rig, clipSets, registry);
+            AddPlaybackLayers(actorEntity, authoring, profile, registry, profileBlob);
             AddBuffer<AnimationCommand>(actorEntity);
             AddComponent<AnimationCommandPending>(actorEntity);
             SetComponentEnabled<AnimationCommandPending>(actorEntity, false);
@@ -104,6 +124,19 @@ namespace DotsAnimationToolkit.Authoring
             {
                 AddComponent(actorEntity, new AnimLod { level = 0 });
             }
+
+            // facing is host-written and never derived here; appliedFacing starts equal to it so
+            // ActorFacingRepickSystem has nothing to reconcile on the first frame.
+            AddComponent(actorEntity, new ActorFacing
+            {
+                facing = Direction.SouthEast,
+                appliedFacing = Direction.SouthEast
+            });
+
+            // Baked disabled: only a Play/PlayAnimation command or an at-event trigger ever sets one,
+            // and RagdollActor (opt-in, rig content) may not even be present to honour it.
+            AddComponent<ActorRagdollRequest>(actorEntity);
+            SetComponentEnabled<ActorRagdollRequest>(actorEntity, false);
 
             AddBillboardRoots(actorEntity, authoring, rig);
             AddRagdollBodies(actorEntity, authoring, rig);
@@ -437,12 +470,12 @@ namespace DotsAnimationToolkit.Authoring
         // -----------------------------------------------------------------------------------
 
         /// <summary>
-        /// Registers a dependency on every set the actor names and returns them in canonical bind
+        /// Registers a dependency on every set the profile names and returns them in canonical bind
         /// order, nulls and repeats dropped — the same list the builder will see.
         /// </summary>
-        private List<ClipSetAsset> DependsOnClipSets(ActorAuthoring authoring)
+        private List<ClipSetAsset> DependsOnClipSets(ActorProfileAsset profile)
         {
-            List<ClipSetAsset> authoredClipSets = authoring.clipSets;
+            List<ClipSetAsset> authoredClipSets = profile.clipSets;
             if (authoredClipSets != null)
             {
                 for (int setIndex = 0; setIndex < authoredClipSets.Count; setIndex++)
@@ -482,21 +515,51 @@ namespace DotsAnimationToolkit.Authoring
             return bindVatTextures;
         }
 
-        private void DependsOnStartingClips(ActorAuthoring authoring)
+        /// <summary>Registers a dependency on every clip an animation entry names directly, since those references live outside the bound clip sets' own lists.</summary>
+        private void DependsOnProfileAnimationClips(ActorProfileAsset profile)
         {
-            List<StartingLayerState> startingLayers = authoring.startingLayers;
-            if (startingLayers == null)
+            List<ActorLayerDefinition> layers = profile.layers;
+            if (layers == null)
             {
                 return;
             }
-            for (int entryIndex = 0; entryIndex < startingLayers.Count; entryIndex++)
+            for (int layerIndex = 0; layerIndex < layers.Count; layerIndex++)
             {
-                StartingLayerState startingLayer = startingLayers[entryIndex];
-                if (startingLayer != null)
+                ActorLayerDefinition layer = layers[layerIndex];
+                if (layer == null || layer.animations == null)
                 {
-                    DependsOn(startingLayer.clip);
+                    continue;
+                }
+                for (int animationIndex = 0; animationIndex < layer.animations.Count; animationIndex++)
+                {
+                    ActorAnimationDefinition animation = layer.animations[animationIndex];
+                    if (animation == null)
+                    {
+                        continue;
+                    }
+                    if (animation.hasDirections)
+                    {
+                        DependsOnDirectionSlotClips(animation.directionSlots);
+                    }
+                    else
+                    {
+                        DependsOn(animation.clip);
+                    }
                 }
             }
+        }
+
+        private void DependsOnDirectionSlotClips(DirectionSlots directionSlots)
+        {
+            if (directionSlots == null)
+            {
+                return;
+            }
+            DependsOn(directionSlots.southEast);
+            DependsOn(directionSlots.northEast);
+            DependsOn(directionSlots.south);
+            DependsOn(directionSlots.north);
+            DependsOn(directionSlots.east);
         }
 
         private void DependsOnVatTextures(VatTextureSetAsset vatTextures)
@@ -604,6 +667,66 @@ namespace DotsAnimationToolkit.Authoring
             return messageBuilder.ToString();
         }
 
+        // -----------------------------------------------------------------------------------
+        // Profile blob: mirrors TryAcquireRegistry's probe / build / register pattern.
+        // -----------------------------------------------------------------------------------
+
+        private bool TryAcquireProfileBlob(
+            ActorAuthoring authoring,
+            ActorProfileAsset profile,
+            out BlobAssetReference<ActorProfileBlob> profileBlob)
+        {
+            ulong contentHash64 = ActorProfileBuilder.ComputeContentHash(profile);
+            Unity.Entities.Hash128 contentHash = new Unity.Entities.Hash128(
+                (uint)contentHash64,
+                (uint)(contentHash64 >> 32),
+                (uint)ActorProfileBuilder.SchemaVersion,
+                (uint)profile.StableId ^ (uint)(profile.StableId >> 32));
+
+            if (contentHash64 != 0UL && TryGetBlobAssetReference(contentHash, out profileBlob))
+            {
+                return true;
+            }
+
+            try
+            {
+                profileBlob = ActorProfileBuilder.Build(profile, Allocator.Persistent);
+            }
+            catch (ClipValidationException validationException)
+            {
+                Debug.LogError(DescribeProfileValidationFailure(profile, validationException), authoring);
+                profileBlob = default;
+                return false;
+            }
+
+            // Ownership of the freshly built blob passes to the store here, and stays there.
+            AddBlobAssetWithCustomHash(ref profileBlob, contentHash);
+            return true;
+        }
+
+        private static string DescribeProfileValidationFailure(
+            ActorProfileAsset profile,
+            ClipValidationException validationException)
+        {
+            StringBuilder messageBuilder = new StringBuilder();
+            messageBuilder.Append(MessagePrefix);
+            messageBuilder.Append("Profile '");
+            messageBuilder.Append(profile.name);
+            messageBuilder.Append("' cannot be baked because it has validation errors:");
+            IReadOnlyList<ValidationMessage> validationMessages = validationException.Messages;
+            for (int messageIndex = 0; messageIndex < validationMessages.Count; messageIndex++)
+            {
+                ValidationMessage validationMessage = validationMessages[messageIndex];
+                if (!validationMessage.IsError)
+                {
+                    continue;
+                }
+                messageBuilder.Append("\n  ");
+                messageBuilder.Append(validationMessage.ToString());
+            }
+            return messageBuilder.ToString();
+        }
+
         /// <summary>Renders a bind's sets as <c>clip sets 'Walks', 'Reactions'</c> for a message.</summary>
         private static string DescribeClipSets(List<ClipSetAsset> clipSets)
         {
@@ -633,11 +756,11 @@ namespace DotsAnimationToolkit.Authoring
         private void AddPlaybackLayers(
             Entity actorEntity,
             ActorAuthoring authoring,
-            RigAsset rig,
-            List<ClipSetAsset> clipSets,
-            BlobAssetReference<ClipRegistryBlob> registry)
+            ActorProfileAsset profile,
+            BlobAssetReference<ClipRegistryBlob> registry,
+            BlobAssetReference<ActorProfileBlob> profileBlob)
         {
-            int layerCount = registry.Value.layerCount;
+            int layerCount = profile.layers == null ? 0 : profile.layers.Count;
             DynamicBuffer<PlaybackLayer> playbackLayers = AddBuffer<PlaybackLayer>(actorEntity);
             playbackLayers.ResizeUninitialized(layerCount);
             for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
@@ -654,97 +777,110 @@ namespace DotsAnimationToolkit.Authoring
                 };
             }
 
-            SeedStartingLayers(authoring, rig, clipSets, registry, playbackLayers);
+            SeedStartingLayers(authoring, profile, registry, profileBlob, playbackLayers);
         }
 
+        // A layer's startingAnimationKey seeds whichever layer the named entry actually lives on
+        // (ActorProfileApi.TryResolve's own answer), not necessarily the layer that named the key —
+        // the same routing PlaybackApi.PlayAnimation uses at runtime. P7 warns at validation when
+        // the two disagree; this is where that disagreement actually plays out.
         private static void SeedStartingLayers(
             ActorAuthoring authoring,
-            RigAsset rig,
-            List<ClipSetAsset> clipSets,
+            ActorProfileAsset profile,
             BlobAssetReference<ClipRegistryBlob> registry,
+            BlobAssetReference<ActorProfileBlob> profileBlob,
             DynamicBuffer<PlaybackLayer> playbackLayers)
         {
-            List<StartingLayerState> startingLayers = authoring.startingLayers;
-            if (startingLayers == null)
+            List<ActorLayerDefinition> layers = profile.layers;
+            if (layers == null)
             {
                 return;
             }
 
-            for (int entryIndex = 0; entryIndex < startingLayers.Count; entryIndex++)
+            for (int layerIndex = 0; layerIndex < layers.Count; layerIndex++)
             {
-                StartingLayerState startingLayer = startingLayers[entryIndex];
-                if (startingLayer == null)
+                ActorLayerDefinition layer = layers[layerIndex];
+                if (layer == null || layer.startingAnimationKey == 0u)
                 {
                     continue;
                 }
-                if (startingLayer.layerIndex < 0 || startingLayer.layerIndex >= playbackLayers.Length)
+
+                if (!ActorProfileApi.TryResolve(
+                        ref profileBlob.Value,
+                        layer.startingAnimationKey,
+                        Direction.SouthEast,
+                        out byte resolvedLayerIndex,
+                        out ClipId resolvedClip,
+                        out int animationIndex))
                 {
                     Debug.LogError(
-                        MessagePrefix + "Actor '" + authoring.name + "' seeds layer " +
-                        startingLayer.layerIndex.ToString() + ", but its rig defines only " +
-                        playbackLayers.Length.ToString() + " layers. The entry is ignored.",
-                        authoring);
-                    continue;
-                }
-                if (startingLayer.clip == null)
-                {
-                    continue;
-                }
-                if (!ClipRegistryApi.TryResolveClip(
-                        ref registry.Value,
-                        startingLayer.clip.Id,
-                        out int clipIndex))
-                {
-                    Debug.LogError(
-                        MessagePrefix + "Actor '" + authoring.name + "' seeds layer " +
-                        startingLayer.layerIndex.ToString() + " with clip '" +
-                        startingLayer.clip.name + "', which is not a member of " +
-                        DescribeClipSets(clipSets) + ". The entry is ignored.",
+                        MessagePrefix + "Actor '" + authoring.name + "' profile '" + profile.name +
+                        "' layer " + layerIndex.ToString() + " names starting animation id " +
+                        layer.startingAnimationKey.ToString() +
+                        ", which does not resolve. The entry is ignored.",
                         authoring);
                     continue;
                 }
 
-                PlaybackLayer playbackLayer = playbackLayers[startingLayer.layerIndex];
-                playbackLayer.clip = startingLayer.clip.Id;
+                if (resolvedLayerIndex >= playbackLayers.Length)
+                {
+                    continue;
+                }
+
+                if (!ClipRegistryApi.TryResolveClip(ref registry.Value, resolvedClip, out int clipIndex))
+                {
+                    Debug.LogError(
+                        MessagePrefix + "Actor '" + authoring.name + "' profile '" + profile.name +
+                        "' layer " + layerIndex.ToString() + " names starting animation id " +
+                        layer.startingAnimationKey.ToString() +
+                        ", whose clip is not a member of this actor's clip sets. The entry is ignored.",
+                        authoring);
+                    continue;
+                }
+
+                ref ActorAnimationBlob animationBlob = ref profileBlob.Value.animations[animationIndex];
+
+                PlaybackLayer playbackLayer = playbackLayers[resolvedLayerIndex];
+                playbackLayer.clip = resolvedClip;
                 playbackLayer.clipIndex = clipIndex;
                 playbackLayer.time = 0f;
-                playbackLayer.speed = startingLayer.speed;
-                playbackLayer.loop = startingLayer.loop;
-                // An explicitly seeded clip activates its layer, whatever the rig's defaultActive
-                // says — otherwise an actor could name a clip for a layer and have it silently
-                // never play. defaultActive keeps its meaning for layers with no seeded clip.
+                playbackLayer.speed = animationBlob.speed;
+                playbackLayer.loop = animationBlob.loop;
+                // An explicitly seeded clip activates its layer, whatever the profile's defaultActive
+                // says — otherwise an actor could name a starting animation and have it silently
+                // never play. defaultActive keeps its meaning for layers with no seeded animation.
                 playbackLayer.flags |= PlaybackFlags.Active;
-                playbackLayers[startingLayer.layerIndex] = playbackLayer;
+                playbackLayers[resolvedLayerIndex] = playbackLayer;
             }
 
-            WarnAboutActiveLayersWithoutAClip(authoring, rig, playbackLayers);
+            WarnAboutActiveLayersWithoutAClip(authoring, profile, playbackLayers);
         }
 
-        private static bool IsLayerActiveByDefault(RigAsset rig, int layerIndex)
+        private static bool IsLayerActiveByDefault(ActorProfileAsset profile, int layerIndex)
         {
-            if (rig.layers == null || layerIndex >= rig.layers.Count)
+            if (profile.layers == null || layerIndex >= profile.layers.Count)
             {
                 return false;
             }
-            LayerDefinition layerDefinition = rig.layers[layerIndex];
+            ActorLayerDefinition layerDefinition = profile.layers[layerIndex];
             return layerDefinition != null && layerDefinition.defaultActive;
         }
 
         private static void WarnAboutActiveLayersWithoutAClip(
             ActorAuthoring authoring,
-            RigAsset rig,
+            ActorProfileAsset profile,
             DynamicBuffer<PlaybackLayer> playbackLayers)
         {
             for (int layerIndex = 0; layerIndex < playbackLayers.Length; layerIndex++)
             {
-                if (playbackLayers[layerIndex].clipIndex >= 0 || !IsLayerActiveByDefault(rig, layerIndex))
+                if (playbackLayers[layerIndex].clipIndex >= 0 || !IsLayerActiveByDefault(profile, layerIndex))
                 {
                     continue;
                 }
                 Debug.LogWarning(
-                    MessagePrefix + "Rig '" + rig.name + "' marks layer " + layerIndex.ToString() +
+                    MessagePrefix + "Profile '" + profile.name + "' marks layer " + layerIndex.ToString() +
                     " as active by default, but actor '" + authoring.name +
-                    "' seeds no starting clip for it, so the layer starts stopped.",
+                    "' seeds no starting animation for it, so the layer starts stopped.",
                     authoring);
             }
         }

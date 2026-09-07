@@ -55,7 +55,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             // Every target created by AuthoringTestAssets.CreateRig defaults tagId to 0 ("untagged").
             // Asking to count bindings for id 0 must never report those as bindings to anything.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u, 2u, 3u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u, 2u, 3u });
 
             Assert.AreEqual(0, TargetTagBindingUtility.CountRigTargetBindings(0u, new List<RigAsset> { rig }));
         }
@@ -63,7 +63,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountRigTargetBindings_ReturnsZero_WhenNoTargetInTheRigUsesTheTag()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u, 2u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u, 2u });
             rig.targets[0].tagId = OtherTagId;
             rig.targets[1].tagId = OtherTagId;
 
@@ -73,7 +73,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountRigTargetBindings_CountsOnlyTheTaggedTargets_NotTheUntaggedOnes()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u, 2u, 3u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u, 2u, 3u });
             rig.targets[0].tagId = TagId;
             rig.targets[1].tagId = TagId;
             // targets[2].tagId is left at its default 0 ("untagged") - must not be counted.
@@ -84,12 +84,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountRigTargetBindings_SumsAcrossMultipleRigs()
         {
-            RigAsset firstRig = assets.CreateRig("RigA", 1UL, 1, new uint[] { 1u });
+            RigAsset firstRig = assets.CreateRig("RigA", 1UL, new uint[] { 1u });
             firstRig.targets[0].tagId = TagId;
-            RigAsset secondRig = assets.CreateRig("RigB", 2UL, 1, new uint[] { 1u, 2u });
+            RigAsset secondRig = assets.CreateRig("RigB", 2UL, new uint[] { 1u, 2u });
             secondRig.targets[0].tagId = TagId;
             secondRig.targets[1].tagId = OtherTagId;
-            RigAsset thirdRig = assets.CreateRig("RigC", 3UL, 1, new uint[] { 1u });
+            RigAsset thirdRig = assets.CreateRig("RigC", 3UL, new uint[] { 1u });
             thirdRig.targets[0].tagId = TagId;
 
             int bindingCount = TargetTagBindingUtility.CountRigTargetBindings(
@@ -101,7 +101,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountRigTargetBindings_IgnoresANullEntryInTheRigList()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             rig.targets[0].tagId = TagId;
 
             int bindingCount = TargetTagBindingUtility.CountRigTargetBindings(
@@ -133,7 +133,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // Every track AuthoringTestAssets.AddTransformTrack/AddSpriteTrack creates defaults
             // tagId to 0 ("bind by target id instead"). Asking to count bindings for id 0 must
             // never report those as tag bindings.
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(clip, 1u, TrackBlendOp.Override, AnimatedChannels.PositionXY);
 
@@ -143,7 +143,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountTrackBindings_ReturnsZero_WhenNoTrackUsesTheTag()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(clip, 1u, TrackBlendOp.Override, AnimatedChannels.PositionXY)
                 .tagId = OtherTagId;
@@ -154,7 +154,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountTrackBindings_CountsTransformAndSpriteTracksTogether()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u, 2u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u, 2u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(clip, 1u, TrackBlendOp.Override, AnimatedChannels.PositionXY)
                 .tagId = TagId;
@@ -168,7 +168,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountTrackBindings_SumsAcrossMultipleClips()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset firstClip = assets.CreateClip("ClipA", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(firstClip, 1u, TrackBlendOp.Override, AnimatedChannels.PositionXY)
                 .tagId = TagId;
@@ -184,7 +184,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CountTrackBindings_IgnoresANullEntryInTheClipList()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 1u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 1u });
             ClipAsset clip = assets.CreateClip("Clip", 1UL, 1f);
             AuthoringTestAssets.AddTransformTrack(clip, 1u, TrackBlendOp.Override, AnimatedChannels.PositionXY)
                 .tagId = TagId;

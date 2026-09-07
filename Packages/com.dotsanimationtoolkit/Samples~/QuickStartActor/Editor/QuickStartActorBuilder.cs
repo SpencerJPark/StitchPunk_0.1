@@ -42,7 +42,8 @@ namespace DotsAnimationToolkit.Samples
             RigAsset rig = CreateRig(outputFolder);
             ClipAsset clip = CreateWaveClip(outputFolder, rig);
             ClipSetAsset clipSet = CreateClipSet(outputFolder, rig, clip);
-            GameObject actorPrefab = CreateActorPrefab(outputFolder, rig, clipSet);
+            ActorProfileAsset profile = CreateProfile(outputFolder, rig, clipSet);
+            GameObject actorPrefab = CreateActorPrefab(outputFolder, rig, profile);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -87,13 +88,6 @@ namespace DotsAnimationToolkit.Samples
                 MakeTarget("Body"),
                 MakeTarget("ArmLeft"),
                 MakeTarget("ArmRight")
-            };
-
-            // One layer. Layer identity is list position — index is priority, and a higher index
-            // composites later — so a single layer keeps the sample free of ordering questions.
-            rig.layers = new List<LayerDefinition>
-            {
-                new LayerDefinition { displayName = "Base", defaultActive = true }
             };
 
             // Mint the target ids before anything reads them. The asset's own lifecycle hooks all
@@ -180,12 +174,26 @@ namespace DotsAnimationToolkit.Samples
             return clipSet;
         }
 
-        private static GameObject CreateActorPrefab(string outputFolder, RigAsset rig, ClipSetAsset clipSet)
+        private static ActorProfileAsset CreateProfile(string outputFolder, RigAsset rig, ClipSetAsset clipSet)
+        {
+            ActorProfileAsset profile = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            profile.rig = rig;
+            profile.clipSets = new List<ClipSetAsset> { clipSet };
+
+            // OnEnable already seeded the fixed [Base, Override] bookends — the minimum any profile
+            // carries, and enough for this sample, which plays by sending a raw AnimationCommand
+            // rather than a named startingAnimationKey.
+            profile.EnsureStableIds();
+
+            AssetDatabase.CreateAsset(profile, outputFolder + "/QuickStartProfile.asset");
+            return profile;
+        }
+
+        private static GameObject CreateActorPrefab(string outputFolder, RigAsset rig, ActorProfileAsset profile)
         {
             GameObject actorObject = new GameObject("QuickStartActor");
             ActorAuthoring actorAuthoring = actorObject.AddComponent<ActorAuthoring>();
-            actorAuthoring.rig = rig;
-            actorAuthoring.clipSets = new List<ClipSetAsset> { clipSet };
+            actorAuthoring.profile = profile;
 
             for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
             {

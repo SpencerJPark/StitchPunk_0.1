@@ -116,8 +116,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(
             ClipSpec[] clipSpecs,
             uint[] targetIds,
-            ulong setKey = 1,
-            byte layerCount = 4)
+            ulong setKey = 1)
         {
             ClipSpec[] canonicalClipSpecs = new ClipSpec[clipSpecs.Length];
             Array.Copy(clipSpecs, canonicalClipSpecs, clipSpecs.Length);
@@ -130,7 +129,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 registryRoot.schemaVersion = 2;
                 registryRoot.setKey = setKey;
                 registryRoot.vatSetKey = 0;
-                registryRoot.layerCount = layerCount;
 
                 BlobBuilderArray<ClipBlob> clipArray =
                     builder.Allocate(ref registryRoot.clips, canonicalClipSpecs.Length);

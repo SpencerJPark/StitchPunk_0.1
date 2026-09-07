@@ -95,28 +95,42 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
         private readonly List<Object> createdObjects = new List<Object>();
 
+        // Unique only within one profile (rule P3); a fresh counter per fixture instance is plenty,
+        // since every test starts a new ActorBakeFixture in [SetUp].
+        private uint nextAnimationKey = 1u;
+
         // -----------------------------------------------------------------------------------
         // Authoring assets.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// The three-target, two-layer rig every fixture actor animates. Layer 0 is active by
-        /// default and layer 1 is not, so the seeded <c>PlaybackLayer</c> flags are distinguishable.
-        /// </summary>
+        /// <summary>The three-target rig every fixture actor animates.</summary>
         internal RigAsset CreateRig(string assetName)
         {
             RigAsset rig = Create<RigAsset>(assetName);
             rig.stableId = 0x5000000000000001UL;
-
-            rig.layers.Clear();
-            rig.layers.Add(new LayerDefinition { displayName = "Base", defaultActive = true });
-            rig.layers.Add(new LayerDefinition { displayName = "Upper", defaultActive = false });
 
             rig.targets.Clear();
             rig.targets.Add(CreateTarget("Head", HeadTargetId, TargetKind.Quad, HeadBoundsExtents));
             rig.targets.Add(CreateTarget("Torso", TorsoTargetId, TargetKind.Quad, TorsoBoundsExtents));
             rig.targets.Add(CreateTarget("LeftArm", LeftArmTargetId, TargetKind.Quad, LeftArmBoundsExtents));
             return rig;
+        }
+
+        /// <summary>
+        /// The two-layer profile every fixture actor animates: Base is active by default and
+        /// Override is not, so the seeded <c>PlaybackLayer</c> flags are distinguishable.
+        /// </summary>
+        internal ActorProfileAsset CreateProfile(RigAsset rig, ClipSetAsset clipSet)
+        {
+            ActorProfileAsset profile = Create<ActorProfileAsset>("Profile");
+            profile.stableId = 0x5000000000000101UL;
+            profile.rig = rig;
+            profile.clipSets.Clear();
+            profile.clipSets.Add(clipSet);
+            // OnEnable already seeded [Base, Override]; only Base starts active by default.
+            profile.layers[0].defaultActive = true;
+            profile.layers[profile.layers.Count - 1].defaultActive = false;
+            return profile;
         }
 
         /// <summary>The two-clip set the fixture actors reference, listed out of id order on purpose.</summary>
@@ -237,8 +251,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             GameObject actorGameObject = new GameObject(name);
             createdObjects.Add(actorGameObject);
             ActorAuthoring actorAuthoring = actorGameObject.AddComponent<ActorAuthoring>();
-            actorAuthoring.rig = rig;
-            actorAuthoring.clipSets = new List<ClipSetAsset> { clipSet };
+            actorAuthoring.profile = CreateProfile(rig, clipSet);
             actorAuthoring.addDistanceLod = addDistanceLod;
             return actorGameObject;
         }
@@ -301,8 +314,13 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             return partGameObject;
         }
 
-        /// <summary>Adds one entry to an actor's starting-layer list.</summary>
-        internal static void SeedStartingLayer(
+        /// <summary>
+        /// Wraps <paramref name="clip"/> in a fresh, non-directional animation entry on the actor's
+        /// profile at <paramref name="layerIndex"/>, and points that layer's
+        /// <c>startingAnimationKey</c> at it — the profile-era replacement for a raw
+        /// <c>StartingLayerState</c>.
+        /// </summary>
+        internal void SeedStartingLayer(
             GameObject actorGameObject,
             int layerIndex,
             ClipAsset clip,
@@ -310,13 +328,17 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             LoopMode loop)
         {
             ActorAuthoring actorAuthoring = actorGameObject.GetComponent<ActorAuthoring>();
-            actorAuthoring.startingLayers.Add(new StartingLayerState
+            ActorProfileAsset profile = actorAuthoring.profile;
+            uint animationKey = nextAnimationKey++;
+            profile.layers[layerIndex].animations.Add(new ActorAnimationDefinition
             {
-                layerIndex = layerIndex,
+                animationKey = animationKey,
+                hasDirections = false,
                 clip = clip,
                 speed = speed,
                 loop = loop
             });
+            profile.layers[layerIndex].startingAnimationKey = animationKey;
         }
 
         /// <summary>

@@ -178,7 +178,6 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         /// <remarks>The returned reference is caller-owned; the fixture must dispose it.</remarks>
         internal static BlobAssetReference<ClipRegistryBlob> BuildRegistry(
             ClipSpec[] clipSpecs,
-            byte layerCount = 4,
             int targetCount = 0,
             int framesPerVariant = 1)
         {
@@ -193,7 +192,6 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 registryRoot.schemaVersion = 2;
                 registryRoot.setKey = 1;
                 registryRoot.vatSetKey = 0;
-                registryRoot.layerCount = layerCount;
 
                 BlobBuilderArray<ClipBlob> clipArray = builder.Allocate(ref registryRoot.clips, canonicalSpecs.Length);
                 BlobBuilderArray<ulong> sortedClipIdArray =

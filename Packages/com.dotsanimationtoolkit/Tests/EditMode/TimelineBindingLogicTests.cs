@@ -27,7 +27,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void SetUp()
         {
             assets = new AuthoringTestAssets();
-            rig = assets.CreateRig("Rig", 1uL, 1, new uint[] { FirstTargetId, SecondTargetId });
+            rig = assets.CreateRig("Rig", 1uL, new uint[] { FirstTargetId, SecondTargetId });
             registry = ScriptableObject.CreateInstance<TargetTagRegistry>();
         }
 

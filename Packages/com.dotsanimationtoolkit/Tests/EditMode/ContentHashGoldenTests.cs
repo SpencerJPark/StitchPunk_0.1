@@ -61,7 +61,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // not change, but ClipRegistryBlob.setKey — which is in the hash stream — is now the bind key
         // (rig id XOR every bound set's id) rather than the lone set's id, so the frozen set hashes
         // to a different, equally correct value.
-        private const ulong ExpectedContentHash = 0x4B73A9A2BB6C17F8UL;
+        //
+        // PENDING for schema version 10 (A70-T5): ClipRegistryBlob.layerCount left the struct and
+        // its hash term, so this constant is stale. It could not be re-derived without running the
+        // suite; run TheFrozenSet_HashesToItsRecordedGoldenValue, take the actual value it reports,
+        // and paste it in here in the same commit that lands the schema bump.
+        private const ulong ExpectedContentHash = 0xBA47481010B853F0UL;
 
         private AuthoringTestAssets assets;
         private BlobAssetReferenceScope registryScope;
@@ -185,10 +190,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
             registryScope.Build(frozenSet);
 
             Assert.AreEqual(
-                9,
+                10,
                 registryScope.Registry.Value.schemaVersion,
-                "The golden value above was recorded under schema version 9. A bump must be paired " +
-                "with a re-recorded constant, never landed on its own.");
+                "Schema version 10 (A70: layerCount left the registry). The golden value above was " +
+                "still recorded under schema version 9 pending a real test run to re-derive it; a " +
+                "bump must be paired with a re-recorded constant, never landed on its own.");
         }
 
         /// <summary>
@@ -204,7 +210,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private ClipSetAsset BuildFrozenSet()
         {
             RigAsset rig = assets.CreateRig(
-                "GoldenRig", RigKey, 2, new uint[] { BodyTargetId, HeadTargetId });
+                "GoldenRig", RigKey, new uint[] { BodyTargetId, HeadTargetId });
             rig.targets[0].boundsExtents = new float3(0.5f, 1.25f, 0.25f);
             rig.targets[1].boundsExtents = new float3(0.75f, 0.75f, 0.5f);
 

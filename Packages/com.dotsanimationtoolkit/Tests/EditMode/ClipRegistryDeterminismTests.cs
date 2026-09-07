@@ -410,7 +410,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private ClipSetAsset CreateRichSet(string setName, ulong setKey)
         {
             RigAsset rig = assets.CreateRig(
-                "Rig", RigKey, 3, new uint[] { HeadTargetId, BodyTargetId, TailTargetId });
+                "Rig", RigKey, new uint[] { HeadTargetId, BodyTargetId, TailTargetId });
             rig.targets[0].boundsExtents = new float3(0.25f, 0.5f, 0.125f);
             rig.targets[1].boundsExtents = new float3(1f, 1f, 1f);
             rig.targets[2].boundsExtents = new float3(0.75f, 0.25f, 0.5f);

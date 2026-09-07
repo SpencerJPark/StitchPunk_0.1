@@ -126,10 +126,13 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             // Stand in for the playback systems this fixture does not run: the layer has been
             // playing for a while, and that phase is what the swap has to carry over.
+            // The request was created with the default layer, CutsceneApi.TopLayer, which resolves
+            // to the actor's last playback layer — so that is the layer whose phase must carry.
             DynamicBuffer<PlaybackLayer> layers = testWorld.EntityManager.GetBuffer<PlaybackLayer>(actorEntity);
-            PlaybackLayer layer = layers[0];
+            int drivenLayerIndex = layers.Length - 1;
+            PlaybackLayer layer = layers[drivenLayerIndex];
             layer.time = CarriedClipTime;
-            layers[0] = layer;
+            layers[drivenLayerIndex] = layer;
 
             Advance(2.1f);
 

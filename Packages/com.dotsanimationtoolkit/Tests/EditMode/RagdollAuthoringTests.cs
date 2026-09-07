@@ -47,7 +47,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         private RigAsset CreateValidRig()
         {
-            return assets.CreateRig("Rig", RigKey, 2, new uint[] { TorsoTargetId, HandTargetId });
+            return assets.CreateRig("Rig", RigKey, new uint[] { TorsoTargetId, HandTargetId });
         }
 
         private static RagdollBodyDefinition AddTargetBody(

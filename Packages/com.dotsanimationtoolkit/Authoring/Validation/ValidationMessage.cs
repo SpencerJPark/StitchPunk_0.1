@@ -60,7 +60,7 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>Warning: a blend default is longer than the clip's duration. Clamped at bake.</summary>
         V12 = 12,
 
-        /// <summary>Error: the rig defines no layers, or more than <see cref="RigAsset.MaxLayerCount"/>.</summary>
+        /// <summary>Retired: never emitted. Layer count now belongs to the actor profile, not the rig; kept unused rather than reused.</summary>
         V13 = 13,
 
         /// <summary>

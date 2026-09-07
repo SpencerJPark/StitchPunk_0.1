@@ -8,29 +8,20 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Authoring
 {
     /// <summary>
-    /// The authoring definition of an animatable thing: its named, stable-id'd <see cref="targets"/>,
-    /// its ordered <see cref="layers"/>, and the mirror table the Mirror Clip utility consumes. One
-    /// rig serves many clips and many actors.
+    /// The authoring definition of an animatable thing: its named, stable-id'd <see cref="targets"/>
+    /// and the mirror table the Mirror Clip utility consumes. One rig serves many clips, many
+    /// actor profiles, and many actors.
     /// </summary>
-    // Targets carry stable ids because their meaning is independent of order; layers deliberately do
-    // not, since a layer's meaning IS its compositing priority (index = priority, higher composites
-    // later), so reordering layers is a semantic edit, not a rename.
     [CreateAssetMenu(
         fileName = "NewRig",
         menuName = "DOTS Animation Toolkit/Rig Asset",
         order = 0)]
     public sealed class RigAsset : ScriptableObject, IStableIdMintReporter
     {
-        /// <summary>The maximum number of playback layers a rig may define.</summary>
-        public const int MaxLayerCount = 8;
-
         [SerializeField] internal ulong stableId;
 
         [Tooltip("Animatable slots of this rig. Bound to by stable id, never by name or list position.")]
         public List<RigTargetDefinition> targets = new List<RigTargetDefinition>();
-
-        [Tooltip("Playback layers, lowest priority first. At most MaxLayerCount entries, at least one.")]
-        public List<LayerDefinition> layers = new List<LayerDefinition>();
 
         [Tooltip("Left/right target pairs the Mirror Clip utility swaps. Editor data only; never reaches the baked blob.")]
         public MirrorPair[] mirrorPairs = Array.Empty<MirrorPair>();
@@ -248,17 +239,6 @@ namespace DotsAnimationToolkit.Authoring
         // through a picker offering nothing but the registry's existing tags.
         /// <summary>The role this target plays, or 0 for untagged — legal and ordinary, not a to-do. Unique within the owning rig when non-zero.</summary>
         [HideInInspector] public uint tagId;
-    }
-
-    /// <summary>One playback layer slot on a rig. The layer's identity is its list position: index = priority, higher composites later and wins.</summary>
-    [Serializable]
-    public sealed class LayerDefinition
-    {
-        /// <summary>Cosmetic label only — layer identity is the list position, never this name.</summary>
-        public string displayName = string.Empty;
-
-        /// <summary>Whether the baked actor starts with this layer active.</summary>
-        public bool defaultActive;
     }
 
     // A socket either follows a RigTarget — a part whose transform the sampler already computes

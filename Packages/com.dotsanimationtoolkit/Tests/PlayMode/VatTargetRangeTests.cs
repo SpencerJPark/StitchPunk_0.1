@@ -114,7 +114,6 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 registryRoot.schemaVersion = 4;
                 registryRoot.setKey = 1;
                 registryRoot.vatSetKey = 1;
-                registryRoot.layerCount = 4;
 
                 BlobBuilderArray<ClipBlob> clipArray = builder.Allocate(ref registryRoot.clips, canonicalSpecs.Length);
                 BlobBuilderArray<ulong> sortedClipIdArray =

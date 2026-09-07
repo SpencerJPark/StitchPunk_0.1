@@ -34,7 +34,8 @@ namespace DotsAnimationToolkit.Authoring
             }
 
             RigAsset partRig = DependsOn(authoring.rig);
-            RigAsset actorRig = DependsOn(actorAuthoring.rig);
+            ActorProfileAsset actorProfile = DependsOn(actorAuthoring.profile);
+            RigAsset actorRig = DependsOn(actorProfile != null ? actorProfile.rig : null);
             RigAsset effectiveRig = ResolveEffectiveRig(authoring, partRig, actorRig);
             if (effectiveRig == null)
             {
@@ -285,7 +286,7 @@ namespace DotsAnimationToolkit.Authoring
                     AddComponent(partEntity, new VatBlendProperty { Value = 0f });
                     AddComponent(partEntity, new VatDriven
                     {
-                        layerIndex = (byte)math.clamp(authoring.vatDrivingLayerIndex, 0, RigAsset.MaxLayerCount - 1)
+                        layerIndex = (byte)math.clamp(authoring.vatDrivingLayerIndex, 0, ActorProfileAsset.MaxLayerCount - 1)
                     });
                     break;
 
@@ -304,7 +305,7 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>The one VAT texture set the owning actor's bind addresses (a second is a V39 error, so the first one found is the answer).</summary>
         private VatTextureSetAsset ResolveBindVatTextures(ActorAuthoring actorAuthoring)
         {
-            List<ClipSetAsset> clipSets = actorAuthoring.clipSets;
+            List<ClipSetAsset> clipSets = actorAuthoring.profile != null ? actorAuthoring.profile.clipSets : null;
             if (clipSets == null)
             {
                 return null;

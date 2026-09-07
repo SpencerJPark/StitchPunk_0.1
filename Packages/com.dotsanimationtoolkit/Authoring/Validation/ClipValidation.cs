@@ -13,7 +13,7 @@ namespace DotsAnimationToolkit.Authoring
     /// </summary>
     public static class ClipValidation
     {
-        /// <summary>Validates a rig: layer count, target/tag id uniqueness, billboard roots, ragdoll bodies.</summary>
+        /// <summary>Validates a rig: target/tag id uniqueness, billboard roots, ragdoll bodies.</summary>
         /// <returns>
         /// Findings in discovery order — the order the asset reads top to bottom, not sorted by
         /// rule number. Empty when the rig is fully valid.
@@ -305,24 +305,7 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (rig == null)
             {
-                messages.Add(new ValidationMessage(
-                    ValidationSeverity.Error,
-                    ValidationCode.V13,
-                    null,
-                    "No rig is assigned, so no playback layers are defined; a rig must declare " +
-                    "between 1 and " + RigAsset.MaxLayerCount + " layers."));
                 return;
-            }
-
-            int layerCount = rig.layers == null ? 0 : rig.layers.Count;
-            if (layerCount == 0 || layerCount > RigAsset.MaxLayerCount)
-            {
-                messages.Add(new ValidationMessage(
-                    ValidationSeverity.Error,
-                    ValidationCode.V13,
-                    rig,
-                    "Rig '" + rig.name + "' declares " + layerCount + " layers; it must declare " +
-                    "between 1 and " + RigAsset.MaxLayerCount + "."));
             }
 
             // Guarded rather than returned on: a rig with no target list still has billboard roots

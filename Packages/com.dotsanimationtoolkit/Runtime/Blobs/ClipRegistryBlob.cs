@@ -17,8 +17,6 @@ namespace DotsAnimationToolkit
 
         public ulong vatSetKey; // 0 = the set has no VAT clips
 
-        public byte layerCount; // 1-8
-
         public BlobArray<ulong> sortedClipIds; // ascending order; binary-search key array
 
         public BlobArray<ClipBlob> clips; // id-sorted; index cached by PlaybackLayer.clipIndex/previousClipIndex

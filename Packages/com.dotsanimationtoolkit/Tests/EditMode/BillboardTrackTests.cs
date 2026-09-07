@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         private RigAsset CreateRigWithRoots()
         {
-            RigAsset rig = assets.CreateRig("Rig", RigKey, 2, new uint[] { TargetId });
+            RigAsset rig = assets.CreateRig("Rig", RigKey, new uint[] { TargetId });
             rig.billboardRoots.Add(new BillboardRootDefinition
             {
                 displayName = "Torso",

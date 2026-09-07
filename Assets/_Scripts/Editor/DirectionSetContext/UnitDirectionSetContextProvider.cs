@@ -37,7 +37,7 @@ public sealed class UnitDirectionSetContextProvider : IDirectionSetContextProvid
             }
 
             ActorAuthoring actor = ResolveActor(unit);
-            RigAsset unitRig = actor != null ? actor.rig : null;
+            RigAsset unitRig = actor != null && actor.profile != null ? actor.profile.rig : null;
             ClipSetAsset unitClipSet = ResolveClipSet(actor, unit.name);
             if (unitRig == null)
             {
@@ -109,21 +109,22 @@ public sealed class UnitDirectionSetContextProvider : IDirectionSetContextProvid
     // that shows one, so the choice is stated out loud rather than made silently.
     private static ClipSetAsset ResolveClipSet(ActorAuthoring actor, string unitName)
     {
-        if (actor == null || actor.clipSets == null)
+        List<ClipSetAsset> actorClipSets = actor != null && actor.profile != null ? actor.profile.clipSets : null;
+        if (actorClipSets == null)
         {
             return null;
         }
 
         ClipSetAsset firstClipSet = null;
         int assignedCount = 0;
-        for (int setIndex = 0; setIndex < actor.clipSets.Count; setIndex++)
+        for (int setIndex = 0; setIndex < actorClipSets.Count; setIndex++)
         {
-            if (actor.clipSets[setIndex] == null)
+            if (actorClipSets[setIndex] == null)
                 continue;
 
             assignedCount++;
             if (firstClipSet == null)
-                firstClipSet = actor.clipSets[setIndex];
+                firstClipSet = actorClipSets[setIndex];
         }
 
         if (assignedCount > 1)

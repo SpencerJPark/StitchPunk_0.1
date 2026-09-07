@@ -39,7 +39,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void AllThreeRotationAxes_SurviveTheBake_AndConvertToRadians()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = assets.CreateClip("Roll", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation);
@@ -68,7 +68,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ScaleZ_SurvivesTheBake()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = assets.CreateClip("Squash", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Scale);
@@ -89,7 +89,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void SamplingInterpolatesEveryRotationAxisIndependently()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = assets.CreateClip("Tumble", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation | AnimatedChannels.Scale);
@@ -132,7 +132,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void CompositionOffsetsEveryRotationAxisFromRest()
         {
-            RigAsset rig = assets.CreateRig("Rig", 1UL, 1, new uint[] { 7u });
+            RigAsset rig = assets.CreateRig("Rig", 1UL, new uint[] { 7u });
             ClipAsset clip = assets.CreateClip("Lean", 0x10UL, 1f);
             TransformTrack track = AuthoringTestAssets.AddTransformTrack(
                 clip, 7u, TrackBlendOp.Override, AnimatedChannels.Rotation);

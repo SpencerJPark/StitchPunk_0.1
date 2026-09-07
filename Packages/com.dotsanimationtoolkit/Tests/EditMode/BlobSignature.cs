@@ -23,7 +23,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             signature.Append("schemaVersion=").Append(registry.schemaVersion).Append('\n');
             signature.Append("setKey=").Append(registry.setKey.ToString("X16")).Append('\n');
             signature.Append("vatSetKey=").Append(registry.vatSetKey.ToString("X16")).Append('\n');
-            signature.Append("layerCount=").Append(registry.layerCount).Append('\n');
 
             signature.Append("sortedClipIds=[");
             for (int sortedPosition = 0; sortedPosition < registry.sortedClipIds.Length; sortedPosition++)
