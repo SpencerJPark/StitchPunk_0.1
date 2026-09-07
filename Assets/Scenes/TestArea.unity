@@ -1755,6 +1755,7 @@ GameObject:
   - component: {fileID: 1306219581}
   - component: {fileID: 1306219582}
   - component: {fileID: 1306219583}
+  - component: {fileID: 1306219584}
   m_Layer: 0
   m_Name: CutsceneDebug
   m_TagString: Untagged
@@ -1792,6 +1793,7 @@ MonoBehaviour:
   narrativeEventId: 1
   key: 102
   skipKey: 103
+  autoWalkPlayerToMark: 1
 --- !u!114 &1306219583
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1806,6 +1808,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::NarrativeEventManager
   eventAssets:
   - {fileID: 11400000, guid: 8de8ca95448b13b45b37e03bb46daf24, type: 2}
+--- !u!114 &1306219584
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1306219580}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f19363e82690f34393abcc890495499, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::CutsceneMarkDebugVisualizer
 --- !u!4 &1378997545 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8213933009921552898, guid: af00876333d15584da2cd4c777ae644b, type: 3}
@@ -3187,31 +3201,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -9.528479
+      value: -0.00000071525574
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 49.695385
+      value: 26.28247
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -79.65567
+      value: -28.721838
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.9684316
+      value: 0.934715
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.24927942
+      value: 0.35539827
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 1.4798185e-10
+      value: 0.000000027335227
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -3.850244e-11
+      value: -0.000000010393428
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
