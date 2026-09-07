@@ -189,6 +189,37 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// A request left at the default layerIndex (<see cref="CutsceneApi.TopLayer"/>) must drive
+        /// a three-layer actor's last layer, not the raw sentinel value or layer 0, and must leave
+        /// the actor's other layers untouched.
+        /// </summary>
+        [Test]
+        public void TopLayerRequest_DrivesTheBoundActorsLastPlaybackLayerOnly()
+        {
+            Entity actorEntity = PlaybackTestActor.CreateActor(testWorld, registry, layerCount: 3);
+            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTestCutsceneBlob();
+            cutsceneBlobs.Add(cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
+            {
+                slotId = SlotId,
+                actorEntity = actorEntity
+            });
+
+            Advance(0.1f);
+            SystemHandle commandApplySystem = testWorld.GetOrCreateSystem<CommandApplySystem>();
+            commandApplySystem.Update(testWorld.Unmanaged);
+            testWorld.EntityManager.CompleteAllTrackedJobs();
+
+            DynamicBuffer<PlaybackLayer> layers = testWorld.EntityManager.GetBuffer<PlaybackLayer>(actorEntity);
+            Assert.AreEqual(WalkClipId, layers[2].clip.Value, "TopLayer must resolve to the actor's last layer (index 2 of 3)");
+            Assert.AreEqual(-1, layers[0].clipIndex, "layer 0 must be untouched by a TopLayer request");
+            Assert.AreEqual(-1, layers[1].clipIndex, "layer 1 must be untouched by a TopLayer request");
+        }
+
+        /// <summary>
         /// Covers amendment A62 defect 5: a hold's release used to return before
         /// <c>ProcessClipBlocks</c> ran, so a block authored at the new segment's own time 0 was
         /// issued one frame late instead of on the release frame itself.

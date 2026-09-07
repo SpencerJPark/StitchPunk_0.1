@@ -197,6 +197,14 @@ namespace DotsAnimationToolkit
         // Binding resolution.
         // -----------------------------------------------------------------------------------
 
+        /// <summary><see cref="CutsceneApi.TopLayer"/> resolves to the actor's own last layer; a literal index passes through unchanged.</summary>
+        private static byte ResolveLayerIndex(byte requestedLayerIndex, int actorPlaybackLayerCount)
+        {
+            return requestedLayerIndex == CutsceneApi.TopLayer
+                ? (byte)math.max(0, actorPlaybackLayerCount - 1)
+                : requestedLayerIndex;
+        }
+
         private static bool TryResolveBinding(
             DynamicBuffer<CutsceneActorBinding> bindings, uint slotId, out Entity boundEntity)
         {
@@ -238,6 +246,9 @@ namespace DotsAnimationToolkit
                 ref CutsceneSlotSegmentBlob slotSegment = ref segment.slotTracks[slotIndex];
                 CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
                 DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
+                byte resolvedLayerIndex = entityManager.HasBuffer<PlaybackLayer>(actorEntity)
+                    ? ResolveLayerIndex(layerIndex, entityManager.GetBuffer<PlaybackLayer>(actorEntity).Length)
+                    : layerIndex;
                 bool issuedAny = false;
 
                 while (slotState.nextClipBlockIndex < slotSegment.clipBlocks.Length &&
@@ -263,7 +274,7 @@ namespace DotsAnimationToolkit
                     commands.Add(new AnimationCommand
                     {
                         kind = CommandKind.Play,
-                        layerIndex = layerIndex,
+                        layerIndex = resolvedLayerIndex,
                         clip = new ClipId(clipId),
                         // The layer's currently-applied speed times the block's own, never a flat 1
                         // — a block issued while the host has slowed or paused playback must not
@@ -283,7 +294,7 @@ namespace DotsAnimationToolkit
                         commands.Add(new AnimationCommand
                         {
                             kind = CommandKind.SetTime,
-                            layerIndex = layerIndex,
+                            layerIndex = resolvedLayerIndex,
                             clip = default,
                             speed = 0f,
                             loop = LoopMode.UseClipDefault,
@@ -484,13 +495,14 @@ namespace DotsAnimationToolkit
             }
 
             DynamicBuffer<PlaybackLayer> layers = entityManager.GetBuffer<PlaybackLayer>(actorEntity);
-            float carriedTime = layerIndex < layers.Length ? layers[layerIndex].time : 0f;
+            byte resolvedLayerIndex = ResolveLayerIndex(layerIndex, layers.Length);
+            float carriedTime = resolvedLayerIndex < layers.Length ? layers[resolvedLayerIndex].time : 0f;
 
             DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
             commands.Add(new AnimationCommand
             {
                 kind = CommandKind.Play,
-                layerIndex = layerIndex,
+                layerIndex = resolvedLayerIndex,
                 clip = new ClipId(variantClipId),
                 speed = layerSpeed * CutsceneBlockTiming.EffectiveBlockSpeed(activeBlock.speed),
                 loop = activeBlock.loop ? LoopMode.Loop : LoopMode.Once,
@@ -500,7 +512,7 @@ namespace DotsAnimationToolkit
             commands.Add(new AnimationCommand
             {
                 kind = CommandKind.SetTime,
-                layerIndex = layerIndex,
+                layerIndex = resolvedLayerIndex,
                 clip = default,
                 speed = 0f,
                 loop = LoopMode.UseClipDefault,
@@ -562,11 +574,15 @@ namespace DotsAnimationToolkit
                     continue;
                 }
 
+                byte resolvedLayerIndex = entityManager.HasBuffer<PlaybackLayer>(actorEntity)
+                    ? ResolveLayerIndex(layerIndex, entityManager.GetBuffer<PlaybackLayer>(actorEntity).Length)
+                    : layerIndex;
+
                 DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
                 commands.Add(new AnimationCommand
                 {
                     kind = CommandKind.Stop,
-                    layerIndex = layerIndex,
+                    layerIndex = resolvedLayerIndex,
                     clip = default,
                     speed = 0f,
                     loop = LoopMode.UseClipDefault,
@@ -600,11 +616,15 @@ namespace DotsAnimationToolkit
                     continue;
                 }
 
+                byte resolvedLayerIndex = entityManager.HasBuffer<PlaybackLayer>(actorEntity)
+                    ? ResolveLayerIndex(layerIndex, entityManager.GetBuffer<PlaybackLayer>(actorEntity).Length)
+                    : layerIndex;
+
                 DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
                 commands.Add(new AnimationCommand
                 {
                     kind = CommandKind.SetSpeed,
-                    layerIndex = layerIndex,
+                    layerIndex = resolvedLayerIndex,
                     clip = default,
                     // The block's own speed multiplies the cutscene's: a host halving playback must
                     // halve a half-speed block to a quarter, not reset it.

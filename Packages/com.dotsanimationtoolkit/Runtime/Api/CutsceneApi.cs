@@ -12,6 +12,9 @@ namespace DotsAnimationToolkit
     /// </summary>
     public static class CutsceneApi
     {
+        /// <summary>Resolved by <c>CutsceneTimelineSystem</c>, per bound actor, to that actor's last playback layer.</summary>
+        public const byte TopLayer = byte.MaxValue;
+
         /// <summary>
         /// Creates a cutscene play request: <see cref="CutscenePlay"/>, a fresh
         /// <see cref="CutsceneControl"/>, zeroed <see cref="CutscenePlaybackState"/>, an empty
@@ -19,11 +22,12 @@ namespace DotsAnimationToolkit
         /// <see cref="CutsceneSlotRuntimeState"/> bookkeeping pre-sized to the blob's slot count.
         /// </summary>
         /// <param name="blob">The baked cutscene. The player never disposes it.</param>
+        /// <param name="layerIndex"><see cref="TopLayer"/> (default) resolves per actor to its last layer; a literal index is used as-is.</param>
         /// <returns>The new request entity. The host must still fill <see cref="CutsceneActorBinding"/> before the player can do anything with an Actor/Prop slot.</returns>
         public static Entity CreatePlayRequest(
             EntityManager entityManager,
             BlobAssetReference<CutsceneBlob> blob,
-            byte layerIndex = 0,
+            byte layerIndex = TopLayer,
             float speed = 1f)
         {
             Entity requestEntity = entityManager.CreateEntity();
@@ -136,7 +140,7 @@ namespace DotsAnimationToolkit
         public static Entity CreatePlayRequestFromStage(
             EntityManager entityManager,
             Entity stageEntity,
-            byte layerIndex = 0,
+            byte layerIndex = TopLayer,
             float speed = 1f)
         {
             CutsceneStage stage = entityManager.GetComponentData<CutsceneStage>(stageEntity);
