@@ -268,6 +268,42 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void ActorProfileBlobs_MatchTheSketch()
+        {
+            AssertFieldsMatch(typeof(ActorProfileBlob), new FieldContract[]
+            {
+                Field("schemaVersion", typeof(int)),
+                Field("turnDirections", typeof(AnimationDirections)),
+                Field("layerCount", typeof(byte)),
+                Field("animations", typeof(BlobArray<ActorAnimationBlob>))
+            });
+
+            AssertFieldsMatch(typeof(ActorAnimationBlob), new FieldContract[]
+            {
+                Field("animationKey", typeof(uint)),
+                Field("layerIndex", typeof(byte)),
+                Field("hasDirections", typeof(bool)),
+                Field("clip", typeof(ClipId)),
+                Field("slots", typeof(DirectionSlotsBlob)),
+                Field("loop", typeof(LoopMode)),
+                Field("speed", typeof(float)),
+                Field("blendIn", typeof(float)),
+                Field("ragdollTrigger", typeof(RagdollTrigger)),
+                Field("ragdollAtEventKey", typeof(uint))
+            });
+
+            AssertFieldsMatch(typeof(DirectionSlotsBlob), new FieldContract[]
+            {
+                Field("southEast", typeof(ClipId)),
+                Field("northEast", typeof(ClipId)),
+                Field("south", typeof(ClipId)),
+                Field("north", typeof(ClipId)),
+                Field("east", typeof(ClipId)),
+                Field("effectiveDirections", typeof(AnimationDirections))
+            });
+        }
+
+        [Test]
         public void VatTextureInfoBlobAndBounds_MatchTheSection42Sketches()
         {
             AssertFieldsMatch(typeof(VatTextureInfoBlob), new FieldContract[]
@@ -343,6 +379,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AssertFieldsMatch(typeof(ClipRegistry), new FieldContract[]
             {
                 Field("Value", typeof(BlobAssetReference<ClipRegistryBlob>))
+            });
+
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(ActorProfile)));
+            AssertFieldsMatch(typeof(ActorProfile), new FieldContract[]
+            {
+                Field("Value", typeof(BlobAssetReference<ActorProfileBlob>))
             });
 
             Assert.IsTrue(typeof(IBufferElementData).IsAssignableFrom(typeof(PlaybackLayer)));
