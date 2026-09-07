@@ -75,7 +75,7 @@ namespace DotsAnimationToolkit.Editor
             Direction slot,
             IReadOnlyDictionary<ClipAsset, string> clipWarnings)
         {
-            ClipAsset slotClip = directionSet.GetSlot(slot);
+            ClipAsset slotClip = directionSet.slots.GetSlot(slot);
 
             VisualElement row = new VisualElement();
             row.style.marginBottom = 4f;
@@ -112,7 +112,7 @@ namespace DotsAnimationToolkit.Editor
             });
             topLine.Add(slotDropdown);
 
-            Button openButton = new Button(() => OpenClipRequested?.Invoke(directionSet.GetSlot(slot)))
+            Button openButton = new Button(() => OpenClipRequested?.Invoke(directionSet.slots.GetSlot(slot)))
             {
                 text = "Open"
             };

@@ -29,7 +29,7 @@ namespace DotsAnimationToolkit.Authoring
             }
             for (int slotIndex = 0; slotIndex < EastSideSlotOrder.Length; slotIndex++)
             {
-                ClipAsset slotClip = directionSet.GetSlot(EastSideSlotOrder[slotIndex]);
+                ClipAsset slotClip = directionSet.slots.GetSlot(EastSideSlotOrder[slotIndex]);
                 if (slotClip != null && slotClip.Id.Value == clipId)
                 {
                     return true;
@@ -135,10 +135,10 @@ namespace DotsAnimationToolkit.Authoring
 
             DirectionSetAsset directionSet = slot.directionSet;
             AnimationDirections effectiveDirections;
-            directionSet.TryGetEffectiveDirections(out effectiveDirections);
+            directionSet.slots.TryGetEffectiveDirections(out effectiveDirections);
 
             variants.hasVariants = true;
-            variants.targetDirections = directionSet.targetDirections;
+            variants.targetDirections = directionSet.slots.targetDirections;
             variants.effectiveDirections = effectiveDirections;
             variants.south = SlotClipId(directionSet, Direction.South);
             variants.southEast = SlotClipId(directionSet, Direction.SouthEast);
@@ -150,7 +150,7 @@ namespace DotsAnimationToolkit.Authoring
 
         private static ulong SlotClipId(DirectionSetAsset directionSet, Direction eastSideFacing)
         {
-            ClipAsset slotClip = directionSet.GetSlot(eastSideFacing);
+            ClipAsset slotClip = directionSet.slots.GetSlot(eastSideFacing);
             return slotClip != null ? slotClip.Id.Value : 0UL;
         }
     }

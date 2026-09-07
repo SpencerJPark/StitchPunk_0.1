@@ -322,7 +322,7 @@ namespace DotsAnimationToolkit.Editor
             // looked at: the dropdown describes this set's authoring intent, not the session's.
             if (directionSet != null)
             {
-                targetDirections = directionSet.targetDirections;
+                targetDirections = directionSet.slots.targetDirections;
                 if (directionsDropdown != null)
                 {
                     directionsDropdown.index = IndexOfDirections(targetDirections);
@@ -410,10 +410,10 @@ namespace DotsAnimationToolkit.Editor
         private void SetTargetDirections(AnimationDirections directions)
         {
             targetDirections = directions;
-            if (directionSet != null && directionSet.targetDirections != directions)
+            if (directionSet != null && directionSet.slots.targetDirections != directions)
             {
                 Undo.RecordObject(directionSet, "Set Target Directions");
-                directionSet.targetDirections = directions;
+                directionSet.slots.targetDirections = directions;
                 EditorUtility.SetDirty(directionSet);
             }
             RebuildQueue();
@@ -421,12 +421,12 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnSlotAssigned(Direction slot, ClipAsset clip)
         {
-            if (directionSet == null || directionSet.GetSlot(slot) == clip)
+            if (directionSet == null || directionSet.slots.GetSlot(slot) == clip)
             {
                 return;
             }
             Undo.RecordObject(directionSet, "Assign Direction Slot");
-            directionSet.SetSlot(slot, clip);
+            directionSet.slots.SetSlot(slot, clip);
             EditorUtility.SetDirty(directionSet);
             RebuildQueue();
         }
@@ -438,12 +438,12 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            ClipAsset movedClip = directionSet.GetSlot(fromSlot);
-            ClipAsset displacedClip = directionSet.GetSlot(toSlot);
+            ClipAsset movedClip = directionSet.slots.GetSlot(fromSlot);
+            ClipAsset displacedClip = directionSet.slots.GetSlot(toSlot);
 
             Undo.RecordObject(directionSet, "Move Direction Slot");
-            directionSet.SetSlot(fromSlot, null);
-            directionSet.SetSlot(toSlot, movedClip);
+            directionSet.slots.SetSlot(fromSlot, null);
+            directionSet.slots.SetSlot(toSlot, movedClip);
             EditorUtility.SetDirty(directionSet);
 
             // Last write wins, and says so. Silently dropping the clip that was already there is the
@@ -470,7 +470,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             Undo.RecordObject(directionSet, "Clear Direction Slot");
-            directionSet.SetSlot(slot, null);
+            directionSet.slots.SetSlot(slot, null);
             EditorUtility.SetDirty(directionSet);
             extraVisibleSlots.Remove(slot);
             RebuildQueue();
@@ -532,12 +532,12 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            Direction[] requiredSlots = DirectionSetAsset.GetRequiredSlots(targetDirections);
+            Direction[] requiredSlots = DirectionSlots.GetRequiredSlots(targetDirections);
             for (int slotIndex = 0; slotIndex < DirectionSetClipQueueView.SlotOrder.Length; slotIndex++)
             {
                 Direction slot = DirectionSetClipQueueView.SlotOrder[slotIndex];
                 bool isRequired = Array.IndexOf(requiredSlots, slot) >= 0;
-                if (isRequired || directionSet.GetSlot(slot) != null || extraVisibleSlots.Contains(slot))
+                if (isRequired || directionSet.slots.GetSlot(slot) != null || extraVisibleSlots.Contains(slot))
                 {
                     visibleSlots.Add(slot);
                 }
@@ -558,7 +558,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            bool isValidFill = directionSet.TryGetEffectiveDirections(
+            bool isValidFill = directionSet.slots.TryGetEffectiveDirections(
                 out AnimationDirections effectiveDirections);
 
             if (!isValidFill)
@@ -575,10 +575,10 @@ namespace DotsAnimationToolkit.Editor
             }
 
             List<string> missingNames = new List<string>();
-            Direction[] requiredSlots = DirectionSetAsset.GetRequiredSlots(targetDirections);
+            Direction[] requiredSlots = DirectionSlots.GetRequiredSlots(targetDirections);
             for (int slotIndex = 0; slotIndex < requiredSlots.Length; slotIndex++)
             {
-                if (directionSet.GetSlot(requiredSlots[slotIndex]) == null)
+                if (directionSet.slots.GetSlot(requiredSlots[slotIndex]) == null)
                 {
                     missingNames.Add(DirectionSetClipQueueView.ShortName(requiredSlots[slotIndex]));
                 }
@@ -634,7 +634,7 @@ namespace DotsAnimationToolkit.Editor
             }
             for (int slotIndex = 0; slotIndex < DirectionSetClipQueueView.SlotOrder.Length; slotIndex++)
             {
-                ClipAsset slotClip = directionSet.GetSlot(DirectionSetClipQueueView.SlotOrder[slotIndex]);
+                ClipAsset slotClip = directionSet.slots.GetSlot(DirectionSetClipQueueView.SlotOrder[slotIndex]);
                 if (slotClip != null && !queuedClips.Contains(slotClip))
                 {
                     queuedClips.Add(slotClip);
@@ -752,7 +752,7 @@ namespace DotsAnimationToolkit.Editor
             AnimationDirections coverage = AnimationDirections.One;
             if (directionSet != null)
             {
-                directionSet.TryGetEffectiveDirections(out coverage);
+                directionSet.slots.TryGetEffectiveDirections(out coverage);
             }
 
             foldedFacing = FacingResolver.Snap(memberFacing, coverage);
@@ -778,7 +778,7 @@ namespace DotsAnimationToolkit.Editor
                 AnimationDirections coverage = AnimationDirections.One;
                 if (directionSet != null)
                 {
-                    directionSet.TryGetEffectiveDirections(out coverage);
+                    directionSet.slots.TryGetEffectiveDirections(out coverage);
                 }
                 readout += " → " + foldedFacing + " (set covers " + coverage + ")";
             }
@@ -822,7 +822,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 if (directionSet != null)
                 {
-                    targetDirections = directionSet.targetDirections;
+                    targetDirections = directionSet.slots.targetDirections;
                     if (directionsDropdown != null)
                     {
                         directionsDropdown.SetValueWithoutNotify(
@@ -838,7 +838,7 @@ namespace DotsAnimationToolkit.Editor
             bool mirrorX;
             ResolveCurrentFacing(out memberFacing, out foldedFacing, out clipFacing, out mirrorX);
 
-            ClipAsset facingClip = directionSet != null ? directionSet.GetSlot(clipFacing) : null;
+            ClipAsset facingClip = directionSet != null ? directionSet.slots.GetSlot(clipFacing) : null;
 
             if (isPlaying && facingClip != null)
             {
@@ -912,13 +912,13 @@ namespace DotsAnimationToolkit.Editor
             {
                 return false;
             }
-            if (directionSet.targetDirections != observedTarget)
+            if (directionSet.slots.targetDirections != observedTarget)
             {
                 return true;
             }
             for (int slotIndex = 0; slotIndex < DirectionSetClipQueueView.SlotOrder.Length; slotIndex++)
             {
-                if (directionSet.GetSlot(DirectionSetClipQueueView.SlotOrder[slotIndex])
+                if (directionSet.slots.GetSlot(DirectionSetClipQueueView.SlotOrder[slotIndex])
                     != observedSlots[slotIndex])
                 {
                     return true;
@@ -932,10 +932,10 @@ namespace DotsAnimationToolkit.Editor
             for (int slotIndex = 0; slotIndex < DirectionSetClipQueueView.SlotOrder.Length; slotIndex++)
             {
                 observedSlots[slotIndex] = directionSet != null
-                    ? directionSet.GetSlot(DirectionSetClipQueueView.SlotOrder[slotIndex])
+                    ? directionSet.slots.GetSlot(DirectionSetClipQueueView.SlotOrder[slotIndex])
                     : null;
             }
-            observedTarget = directionSet != null ? directionSet.targetDirections : targetDirections;
+            observedTarget = directionSet != null ? directionSet.slots.targetDirections : targetDirections;
         }
 
         // -----------------------------------------------------------------------------------------
@@ -958,7 +958,7 @@ namespace DotsAnimationToolkit.Editor
             // is what a character that has to read while walking toward and away from the camera
             // needs. Anything less is a deliberate narrowing, so it should be chosen rather than
             // inherited.
-            createdSet.targetDirections = AnimationDirections.Six;
+            createdSet.slots.targetDirections = AnimationDirections.Six;
 
             AssetDatabase.CreateAsset(createdSet, savePath);
             AssetDatabase.SaveAssets();

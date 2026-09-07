@@ -877,12 +877,12 @@ namespace DotsAnimationToolkit.Editor
                 slot.facingKeys, CutsceneMarkMerge.BuildEffectiveRootKeys(slot), timeSeconds, out angleDegrees);
 
             AnimationDirections coverage;
-            slot.directionSet.TryGetEffectiveDirections(out coverage);
+            slot.directionSet.slots.TryGetEffectiveDirections(out coverage);
 
             Direction clipFacing;
             bool mirrorX;
             CutsceneFacingVariants.Resolve(
-                angleDegrees, slot.directionSet.targetDirections, coverage, out clipFacing, out mirrorX);
+                angleDegrees, slot.directionSet.slots.targetDirections, coverage, out clipFacing, out mirrorX);
 
             facing.isResolved = true;
             facing.clipFacing = clipFacing;
@@ -901,7 +901,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return authoredClipId;
             }
-            ClipAsset variantClip = slot.directionSet.GetSlot(facing.clipFacing);
+            ClipAsset variantClip = slot.directionSet.slots.GetSlot(facing.clipFacing);
             return variantClip != null ? variantClip.Id.Value : authoredClipId;
         }
 

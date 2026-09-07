@@ -7,7 +7,7 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
-    /// <see cref="DirectionSetAsset.TryGetEffectiveDirections"/> derives the mirror-closed
+    /// <see cref="DirectionSlots.TryGetEffectiveDirections"/> derives the mirror-closed
     /// <see cref="AnimationDirections"/> a set covers from which of its five east-side slots are
     /// filled. Every consumer — a host's bake warning, the 2D Direction Sets panel's coverage
     /// readout, the slider's quantize — reads coverage through that one method, so this is the one
@@ -16,20 +16,19 @@ namespace DotsAnimationToolkit.Tests.EditMode
     [TestFixture]
     public sealed class DirectionSetCoverageTests
     {
-        private DirectionSetAsset directionSet;
+        private DirectionSlots directionSet;
         private ClipAsset dummyClip;
 
         [SetUp]
         public void SetUp()
         {
-            directionSet = ScriptableObject.CreateInstance<DirectionSetAsset>();
+            directionSet = new DirectionSlots();
             dummyClip = ScriptableObject.CreateInstance<ClipAsset>();
         }
 
         [TearDown]
         public void TearDown()
         {
-            Object.DestroyImmediate(directionSet);
             Object.DestroyImmediate(dummyClip);
         }
 
@@ -134,7 +133,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         /// <summary>
-        /// <see cref="DirectionSetAsset.GetRequiredSlots"/> is the inverse of the derivation, and the
+        /// <see cref="DirectionSlots.GetRequiredSlots"/> is the inverse of the derivation, and the
         /// panel scaffolds its queue from it — so filling exactly what it names for a coverage must
         /// derive back to that same coverage, or the panel would show a set as finished that the bake
         /// still warns about.
@@ -150,23 +149,16 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             foreach (AnimationDirections coverage in coverages)
             {
-                DirectionSetAsset probe = ScriptableObject.CreateInstance<DirectionSetAsset>();
-                try
+                DirectionSlots probe = new DirectionSlots();
+                foreach (Direction slot in DirectionSlots.GetRequiredSlots(coverage))
                 {
-                    foreach (Direction slot in DirectionSetAsset.GetRequiredSlots(coverage))
-                    {
-                        probe.SetSlot(slot, dummyClip);
-                    }
-
-                    bool isValid = probe.TryGetEffectiveDirections(out AnimationDirections derived);
-
-                    Assert.IsTrue(isValid, coverage + "'s required slots must be a valid fill pattern.");
-                    Assert.AreEqual(coverage, derived);
+                    probe.SetSlot(slot, dummyClip);
                 }
-                finally
-                {
-                    Object.DestroyImmediate(probe);
-                }
+
+                bool isValid = probe.TryGetEffectiveDirections(out AnimationDirections derived);
+
+                Assert.IsTrue(isValid, coverage + "'s required slots must be a valid fill pattern.");
+                Assert.AreEqual(coverage, derived);
             }
         }
     }
