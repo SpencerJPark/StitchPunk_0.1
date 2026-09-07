@@ -25,6 +25,8 @@ namespace DotsAnimationToolkit
         public float blendDuration; // Play/Queue: crossfade-in; Stop: fade-out; NaN = clip's default
 
         public float time; // SetTime target, seconds
+
+        public uint animationKey; // PlayAnimation/StopAnimation
     }
 
     /// <summary>

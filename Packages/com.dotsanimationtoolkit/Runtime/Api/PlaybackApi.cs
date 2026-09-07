@@ -129,6 +129,76 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
+        /// Requests a named entry from the actor's <see cref="ActorProfile"/>, resolved against
+        /// <see cref="ActorFacing"/> at apply time. <see cref="CommandApplySystem"/> routes it to
+        /// whichever layer the entry actually lives on.
+        /// </summary>
+        /// <param name="speed">NaN uses the entry's authored speed.</param>
+        /// <param name="loop">UseClipDefault uses the entry's authored loop mode.</param>
+        /// <param name="blendDuration">NaN uses the entry's authored blend-in.</param>
+        public static void PlayAnimation(
+            ref DynamicBuffer<AnimationCommand> commands,
+            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            uint animationKey,
+            float speed = float.NaN,
+            LoopMode loop = LoopMode.UseClipDefault,
+            float blendDuration = float.NaN)
+        {
+            commands.Add(new AnimationCommand
+            {
+                kind = CommandKind.PlayAnimation,
+                layerIndex = 0,
+                clip = default,
+                speed = speed,
+                loop = loop,
+                blendDuration = blendDuration,
+                time = 0f,
+                animationKey = animationKey
+            });
+            commandPendingEnabled.ValueRW = true;
+        }
+
+        /// <summary>
+        /// Stops whichever layer is currently playing <paramref name="animationKey"/>; a no-op if
+        /// that key is not the active one on its entry's layer.
+        /// </summary>
+        /// <param name="blendDuration">NaN uses the entry's authored blend-out.</param>
+        public static void StopAnimation(
+            ref DynamicBuffer<AnimationCommand> commands,
+            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            uint animationKey,
+            float blendDuration = float.NaN)
+        {
+            commands.Add(new AnimationCommand
+            {
+                kind = CommandKind.StopAnimation,
+                layerIndex = 0,
+                clip = default,
+                speed = 0f,
+                loop = LoopMode.UseClipDefault,
+                blendDuration = blendDuration,
+                time = 0f,
+                animationKey = animationKey
+            });
+            commandPendingEnabled.ValueRW = true;
+        }
+
+        /// <summary>True when any layer's active clip was started by <see cref="PlayAnimation"/> with this key.</summary>
+        [BurstCompile]
+        public static bool IsAnimationPlaying(in DynamicBuffer<PlaybackLayer> layers, uint animationKey)
+        {
+            for (int layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+            {
+                PlaybackLayer layer = layers[layerIndex];
+                if (layer.animationKey == animationKey && (layer.flags & PlaybackFlags.Active) != 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// True when <paramref name="layerIndex"/> is active and playing <paramref name="clip"/>; a
         /// completed <see cref="LoopMode.Once"/> clip or one fading out of a crossfade is not "playing".
         /// </summary>

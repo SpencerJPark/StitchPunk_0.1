@@ -422,7 +422,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Field("queuedSpeed", typeof(float)),
                 Field("queuedLoop", typeof(LoopMode)),
                 Field("queuedBlend", typeof(float)),
-                Field("flags", typeof(PlaybackFlags))
+                Field("flags", typeof(PlaybackFlags)),
+                Field("animationKey", typeof(uint))
             });
 
             Assert.IsTrue(typeof(IBufferElementData).IsAssignableFrom(typeof(AnimationCommand)));
@@ -434,7 +435,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Field("speed", typeof(float)),
                 Field("loop", typeof(LoopMode)),
                 Field("blendDuration", typeof(float)),
-                Field("time", typeof(float))
+                Field("time", typeof(float)),
+                Field("animationKey", typeof(uint))
             });
 
             Assert.IsTrue(typeof(IBufferElementData).IsAssignableFrom(typeof(AnimEventOutput)));

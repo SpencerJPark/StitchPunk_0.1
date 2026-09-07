@@ -1,11 +1,13 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System;
+using DotsAnimationToolkit.Authoring;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace DotsAnimationToolkit.Tests.PlayMode
 {
@@ -370,7 +372,47 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             entityManager.AddComponentData(actorEntity, new LocalToWorld { Value = float4x4.identity });
             entityManager.AddComponentData(actorEntity, new AnimSampleState { sampledClipSignature = 0 });
 
+            // A70: every baked actor carries these three now, so CommandApplySystem's query requires
+            // them. The profile is left uncreated here — PlayAnimation/StopAnimation are untested by
+            // the fixtures that use the plain CreateActor, so nothing ever dereferences it.
+            entityManager.AddComponentData(actorEntity, new ActorFacing
+            {
+                facing = Direction.SouthEast,
+                appliedFacing = Direction.SouthEast
+            });
+            entityManager.AddComponentData(actorEntity, new ActorProfile { Value = default });
+            entityManager.AddComponent<ActorRagdollRequest>(actorEntity);
+            entityManager.SetComponentEnabled<ActorRagdollRequest>(actorEntity, false);
+
             return actorEntity;
+        }
+
+        /// <summary>
+        /// Builds an actor like <see cref="CreateActor"/>, but with a real <see cref="ActorProfile"/>
+        /// blob built from <paramref name="profileAsset"/> via <see cref="ActorProfileBuilder"/> — for
+        /// tests exercising <c>PlayAnimation</c>/<c>StopAnimation</c> against named entries.
+        /// </summary>
+        /// <param name="profileBlob">Caller-owned; the test must dispose it.</param>
+        internal static Entity CreateActorWithProfile(
+            World world,
+            BlobAssetReference<ClipRegistryBlob> registry,
+            ActorProfileAsset profileAsset,
+            out BlobAssetReference<ActorProfileBlob> profileBlob,
+            int layerCount = 2)
+        {
+            Entity actorEntity = CreateActor(world, registry, layerCount);
+            profileBlob = ActorProfileBuilder.Build(profileAsset, Allocator.Persistent);
+            world.EntityManager.SetComponentData(actorEntity, new ActorProfile { Value = profileBlob });
+            return actorEntity;
+        }
+
+        /// <summary>Creates a bare <see cref="ClipAsset"/> naming only a stable id — enough for a profile entry to reference and a hand-built registry to resolve, with no tracks to sample.</summary>
+        internal static ClipAsset CreateClipAsset(string assetName, ulong clipStableId)
+        {
+            ClipAsset clip = ScriptableObject.CreateInstance<ClipAsset>();
+            clip.name = assetName;
+            clip.stableId = clipStableId;
+            return clip;
         }
 
         /// <summary>
@@ -564,6 +606,42 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 loop = LoopMode.UseClipDefault,
                 blendDuration = blendDuration,
                 time = 0f
+            };
+        }
+
+        /// <summary>Builds a PlayAnimation command element.</summary>
+        internal static AnimationCommand PlayAnimationCommand(
+            uint animationKey,
+            float speed = float.NaN,
+            LoopMode loop = LoopMode.UseClipDefault,
+            float blendDuration = float.NaN)
+        {
+            return new AnimationCommand
+            {
+                kind = CommandKind.PlayAnimation,
+                layerIndex = 0,
+                clip = default,
+                speed = speed,
+                loop = loop,
+                blendDuration = blendDuration,
+                time = 0f,
+                animationKey = animationKey
+            };
+        }
+
+        /// <summary>Builds a StopAnimation command element.</summary>
+        internal static AnimationCommand StopAnimationCommand(uint animationKey, float blendDuration = float.NaN)
+        {
+            return new AnimationCommand
+            {
+                kind = CommandKind.StopAnimation,
+                layerIndex = 0,
+                clip = default,
+                speed = 0f,
+                loop = LoopMode.UseClipDefault,
+                blendDuration = blendDuration,
+                time = 0f,
+                animationKey = animationKey
             };
         }
     }

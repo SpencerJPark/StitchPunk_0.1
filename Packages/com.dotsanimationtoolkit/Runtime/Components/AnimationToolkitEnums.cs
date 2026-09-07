@@ -140,7 +140,13 @@ namespace DotsAnimationToolkit
         SetSpeed = 3,
 
         /// <summary>Jump the layer's playback time.</summary>
-        SetTime = 4
+        SetTime = 4,
+
+        /// <summary>Play a named entry from the actor's <c>ActorProfile</c>, resolved by key and facing.</summary>
+        PlayAnimation = 5,
+
+        /// <summary>Stop a named entry from the actor's <c>ActorProfile</c>, only if it is still the layer's active key.</summary>
+        StopAnimation = 6
     }
 
     /// <summary>Per-layer playback state flags.</summary>

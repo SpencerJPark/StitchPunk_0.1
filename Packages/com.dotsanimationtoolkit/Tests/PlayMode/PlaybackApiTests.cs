@@ -124,6 +124,37 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         }
 
         // -------------------------------------------------------------------------------------
+        // IsAnimationPlaying (A70)
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Catches: matching on <c>animationKey</c> alone without the Active check — a layer keeps
+        /// its last key after it stops, so that alone would report a finished animation as still playing.
+        /// </summary>
+        [Test]
+        public void IsAnimationPlaying_IsTrueOnlyWhileTheLayerIsActive()
+        {
+            const uint AnimationKey = 7;
+
+            PlaybackLayer layer = PlaybackTestActor.NewLayer();
+            layer.clip = new ClipId(WalkClipId);
+            layer.clipIndex = WalkClipIndex;
+            layer.animationKey = AnimationKey;
+            layer.flags = PlaybackFlags.Active;
+            PlaybackTestActor.SetLayer(testWorld, actor, 0, layer);
+
+            Assert.IsTrue(PlaybackApi.IsAnimationPlaying(Layers(), AnimationKey));
+            Assert.IsFalse(PlaybackApi.IsAnimationPlaying(Layers(), AnimationKey + 1));
+
+            layer.flags = PlaybackFlags.None;
+            PlaybackTestActor.SetLayer(testWorld, actor, 0, layer);
+
+            Assert.IsFalse(
+                PlaybackApi.IsAnimationPlaying(Layers(), AnimationKey),
+                "A stopped layer keeps its last animationKey; only Active means 'still playing'.");
+        }
+
+        // -------------------------------------------------------------------------------------
         // NormalizedTime (amendment A26)
         // -------------------------------------------------------------------------------------
 

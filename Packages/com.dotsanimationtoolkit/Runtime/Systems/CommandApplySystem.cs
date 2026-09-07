@@ -22,7 +22,7 @@ namespace DotsAnimationToolkit
             // Two independent reasons to run — stale events or pending commands — so a single
             // RequireForUpdate (AND semantics) would skip both jobs whenever either side was empty.
             EntityQuery pendingCommandQuery = SystemAPI.QueryBuilder()
-                .WithAll<AnimationCommandPending, AnimationCommand, PlaybackLayer, ClipRegistry>()
+                .WithAll<AnimationCommandPending, AnimationCommand, PlaybackLayer, ClipRegistry, ActorProfile, ActorFacing>()
                 .Build();
             EntityQuery staleEventQuery = SystemAPI.QueryBuilder()
                 .WithAll<AnimEventsPending, AnimEventOutput>()
@@ -41,7 +41,10 @@ namespace DotsAnimationToolkit
             ClearStaleAnimEventsJob clearJob = new ClearStaleAnimEventsJob();
             state.Dependency = clearJob.ScheduleParallel(state.Dependency);
 
-            ApplyAnimationCommandsJob applyJob = new ApplyAnimationCommandsJob();
+            ApplyAnimationCommandsJob applyJob = new ApplyAnimationCommandsJob
+            {
+                ragdollRequestLookup = SystemAPI.GetComponentLookup<ActorRagdollRequest>()
+            };
             state.Dependency = applyJob.ScheduleParallel(state.Dependency);
         }
     }
@@ -63,15 +66,23 @@ namespace DotsAnimationToolkit
     // which would silently restrict this job to actors whose bounds/events already happened to be
     // dirty/pending — no error, just commands that quietly never apply.
     [BurstCompile]
-    [WithAll(typeof(AnimationCommandPending))]
+    [WithAll(typeof(AnimationCommandPending), typeof(ActorProfile), typeof(ActorFacing))]
     [WithPresent(typeof(BoundsDirty), typeof(AnimEventsPending))]
     internal partial struct ApplyAnimationCommandsJob : IJobEntity
     {
+        // Every actor bakes ActorRagdollRequest disabled (opt-in RagdollActor may not even be
+        // present), so PlayAnimation writes it through a lookup on its own entity rather than an
+        // Execute parameter, keeping the write local to the one command kind that needs it.
+        [NativeDisableParallelForRestriction] public ComponentLookup<ActorRagdollRequest> ragdollRequestLookup;
+
         private void Execute(
+            Entity actorEntity,
             ref DynamicBuffer<PlaybackLayer> layers,
             ref DynamicBuffer<AnimationCommand> commands,
             ref DynamicBuffer<AnimEventOutput> animEvents,
             in ClipRegistry clipRegistry,
+            in ActorProfile actorProfile,
+            in ActorFacing actorFacing,
             EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
             EnabledRefRW<AnimEventsPending> animEventsPendingEnabled,
             EnabledRefRW<BoundsDirty> boundsDirtyEnabled)
@@ -82,12 +93,19 @@ namespace DotsAnimationToolkit
             BlobAssetReference<ClipRegistryBlob> registryReference = clipRegistry.Value;
             ref ClipRegistryBlob registry = ref registryReference.Value;
 
+            // Same defensive-copy reasoning as the registry above. Not every actor's profile has
+            // baked content yet (a hand-built or profile-less test actor may carry an uncreated
+            // reference), so PlayAnimation/StopAnimation guard on IsCreated before dereferencing.
+            BlobAssetReference<ActorProfileBlob> profileReference = actorProfile.Value;
+
             for (int commandIndex = 0; commandIndex < commands.Length; commandIndex++)
             {
                 AnimationCommand command = commands[commandIndex];
 
                 // A layer index that no longer exists is a routine consequence of swapping a rig for
                 // one with fewer layers, not a corrupt asset. The command is dropped, no event fires.
+                // PlayAnimation/StopAnimation resolve their own layer from the profile instead, so
+                // this bound only guards the raw, layer-addressed command kinds below.
                 if (command.layerIndex >= layers.Length)
                 {
                     continue;
@@ -122,6 +140,34 @@ namespace DotsAnimationToolkit
                     case CommandKind.SetTime:
                         layer.time = command.time;
                         break;
+                    case CommandKind.PlayAnimation:
+                        if (profileReference.IsCreated)
+                        {
+                            ApplyPlayAnimation(
+                                actorEntity,
+                                ref layers,
+                                ref registry,
+                                ref profileReference.Value,
+                                actorFacing.facing,
+                                command,
+                                ref animEvents,
+                                animEventsPendingEnabled,
+                                boundsDirtyEnabled,
+                                ref ragdollRequestLookup);
+                        }
+                        else
+                        {
+                            EmitResolveFailure(
+                                ref animEvents, animEventsPendingEnabled, 0, new ClipId(command.animationKey));
+                        }
+                        break;
+                    case CommandKind.StopAnimation:
+                        if (profileReference.IsCreated)
+                        {
+                            ApplyStopAnimation(
+                                ref layers, ref registry, ref profileReference.Value, command, boundsDirtyEnabled);
+                        }
+                        break;
                 }
             }
 
@@ -143,7 +189,7 @@ namespace DotsAnimationToolkit
         {
             if (!ClipRegistryApi.TryResolveClip(ref registry, command.clip, out int incomingClipIndex))
             {
-                EmitResolveFailure(ref animEvents, animEventsPendingEnabled, command);
+                EmitResolveFailure(ref animEvents, animEventsPendingEnabled, command.layerIndex, command.clip);
                 return;
             }
 
@@ -194,6 +240,10 @@ namespace DotsAnimationToolkit
             layer.speed = command.speed;
             layer.loop = command.loop;
 
+            // Zeroed unconditionally: ApplyPlayAnimation re-stamps its own key right after calling
+            // this for a PlayAnimation command, so a raw Play always ends up with 0 either way.
+            layer.animationKey = 0u;
+
             // Reverse playback starts at the end, or the first advance would immediately clamp a
             // Once clip and report it finished before a single frame of it was shown.
             layer.time = command.speed < 0f ? incomingClip.duration : 0f;
@@ -223,7 +273,7 @@ namespace DotsAnimationToolkit
         {
             if (!ClipRegistryApi.TryResolveClip(ref registry, command.clip, out int queuedClipIndex))
             {
-                EmitResolveFailure(ref animEvents, animEventsPendingEnabled, command);
+                EmitResolveFailure(ref animEvents, animEventsPendingEnabled, command.layerIndex, command.clip);
                 return;
             }
 
@@ -296,6 +346,7 @@ namespace DotsAnimationToolkit
                 layer.speed = 0f;
                 layer.loop = LoopMode.UseClipDefault;
                 layer.flags = PlaybackFlags.None;
+                layer.animationKey = 0u; // the layer deactivates on the spot, so the key clears with it
             }
 
             if (outgoingClipIndex != layer.clipIndex)
@@ -332,17 +383,122 @@ namespace DotsAnimationToolkit
             layer.flags &= ~PlaybackFlags.HasQueued;
         }
 
-        /// <summary>Reports a Play/Queue whose clip id is not a member of this actor's registry, leaving the layer untouched.</summary>
+        /// <summary>
+        /// Resolves a named entry from the actor's profile against its current facing and starts it
+        /// on the entry's own layer, ignoring <see cref="AnimationCommand.layerIndex"/>. An unresolved
+        /// key is reported and every layer is left untouched.
+        /// </summary>
+        private static void ApplyPlayAnimation(
+            Entity actorEntity,
+            ref DynamicBuffer<PlaybackLayer> layers,
+            ref ClipRegistryBlob registry,
+            ref ActorProfileBlob profileBlob,
+            Direction facing,
+            in AnimationCommand command,
+            ref DynamicBuffer<AnimEventOutput> animEvents,
+            EnabledRefRW<AnimEventsPending> animEventsPendingEnabled,
+            EnabledRefRW<BoundsDirty> boundsDirtyEnabled,
+            ref ComponentLookup<ActorRagdollRequest> ragdollRequestLookup)
+        {
+            if (!ActorProfileApi.TryResolve(
+                    ref profileBlob,
+                    command.animationKey,
+                    facing,
+                    out byte layerIndex,
+                    out ClipId resolvedClip,
+                    out int animationIndex))
+            {
+                // The unresolved key is carried in the event's clip field so it renders as hex
+                // (ClipId.ToString uses X16) wherever the event is later inspected.
+                EmitResolveFailure(ref animEvents, animEventsPendingEnabled, 0, new ClipId(command.animationKey));
+                return;
+            }
+
+            // A stale profile/layer-count mismatch, same routine-drop treatment as an out-of-range
+            // raw layerIndex above.
+            if (layerIndex >= layers.Length)
+            {
+                return;
+            }
+
+            ref ActorAnimationBlob entry = ref profileBlob.animations[animationIndex];
+            AnimationCommand effectivePlay = new AnimationCommand
+            {
+                kind = CommandKind.Play,
+                layerIndex = layerIndex,
+                clip = resolvedClip,
+                speed = math.isnan(command.speed) ? entry.speed : command.speed,
+                loop = command.loop == LoopMode.UseClipDefault ? entry.loop : command.loop,
+                blendDuration = math.isnan(command.blendDuration) ? entry.blendIn : command.blendDuration,
+                time = 0f
+            };
+
+            ref PlaybackLayer targetLayer = ref layers.ElementAt(layerIndex);
+            ApplyPlay(ref targetLayer, ref registry, effectivePlay, ref animEvents, animEventsPendingEnabled, boundsDirtyEnabled);
+            targetLayer.animationKey = command.animationKey;
+
+            if (entry.ragdollTrigger != RagdollTrigger.None
+                && entry.ragdollAtEventKey == 0u
+                && ragdollRequestLookup.HasComponent(actorEntity))
+            {
+                ragdollRequestLookup[actorEntity] = new ActorRagdollRequest { trigger = entry.ragdollTrigger };
+                ragdollRequestLookup.SetComponentEnabled(actorEntity, true);
+            }
+        }
+
+        /// <summary>
+        /// Stops the entry's layer only if that layer is still playing this exact key — a Stop for an
+        /// animation that already moved on, or never started, is a no-op rather than a plain layer stop.
+        /// </summary>
+        private static void ApplyStopAnimation(
+            ref DynamicBuffer<PlaybackLayer> layers,
+            ref ClipRegistryBlob registry,
+            ref ActorProfileBlob profileBlob,
+            in AnimationCommand command,
+            EnabledRefRW<BoundsDirty> boundsDirtyEnabled)
+        {
+            if (!ActorProfileApi.TryFindAnimation(ref profileBlob, command.animationKey, out int animationIndex))
+            {
+                return;
+            }
+
+            ref ActorAnimationBlob entry = ref profileBlob.animations[animationIndex];
+            if (entry.layerIndex >= layers.Length)
+            {
+                return;
+            }
+
+            ref PlaybackLayer targetLayer = ref layers.ElementAt(entry.layerIndex);
+            if (targetLayer.animationKey != command.animationKey)
+            {
+                return;
+            }
+
+            AnimationCommand effectiveStop = new AnimationCommand
+            {
+                kind = CommandKind.Stop,
+                layerIndex = entry.layerIndex,
+                clip = default,
+                speed = 0f,
+                loop = LoopMode.UseClipDefault,
+                blendDuration = command.blendDuration,
+                time = 0f
+            };
+            ApplyStop(ref targetLayer, ref registry, effectiveStop, boundsDirtyEnabled);
+        }
+
+        /// <summary>Reports a Play/Queue/PlayAnimation whose clip or key does not resolve, leaving the layer untouched.</summary>
         private static void EmitResolveFailure(
             ref DynamicBuffer<AnimEventOutput> animEvents,
             EnabledRefRW<AnimEventsPending> animEventsPendingEnabled,
-            in AnimationCommand command)
+            byte layerIndex,
+            ClipId clip)
         {
             animEvents.Add(new AnimEventOutput
             {
                 eventKey = (uint)ReservedEventKeys.ClipResolveFailed,
-                layerIndex = command.layerIndex,
-                clip = command.clip,
+                layerIndex = layerIndex,
+                clip = clip,
                 intParam = 0,
                 floatParam = 0f
             });

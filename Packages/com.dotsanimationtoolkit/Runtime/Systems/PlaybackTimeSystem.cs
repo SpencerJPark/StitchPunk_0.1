@@ -129,6 +129,7 @@ namespace DotsAnimationToolkit
                 layer.timeAtFrameStart = 0f;
                 layer.speed = 0f;
                 layer.loop = LoopMode.UseClipDefault;
+                layer.animationKey = 0u; // the Stop fade just finished deactivating the layer
             }
         }
 
@@ -173,6 +174,7 @@ namespace DotsAnimationToolkit
             }
 
             layer.flags &= ~PlaybackFlags.Active;
+            layer.animationKey = 0u;
             boundsDirtyEnabled.ValueRW = true;
         }
 
@@ -192,6 +194,7 @@ namespace DotsAnimationToolkit
             if (!ClipRegistryApi.TryResolveClip(ref registry, layer.queuedClip, out int promotedClipIndex))
             {
                 layer.flags &= ~(PlaybackFlags.Active | PlaybackFlags.HasQueued);
+                layer.animationKey = 0u;
                 boundsDirtyEnabled.ValueRW = true;
                 return;
             }
@@ -216,6 +219,7 @@ namespace DotsAnimationToolkit
             layer.clipIndex = promotedClipIndex;
             layer.speed = layer.queuedSpeed;
             layer.loop = layer.queuedLoop;
+            layer.animationKey = 0u; // queueing has no named-entry counterpart yet; a promoted clip is always raw
             layer.time = layer.queuedSpeed < 0f ? promotedClip.duration : 0f;
             layer.timeAtFrameStart = layer.time; // re-snapshotted so the promoted clip's event window starts at its own start, not where the finished clip left off
 

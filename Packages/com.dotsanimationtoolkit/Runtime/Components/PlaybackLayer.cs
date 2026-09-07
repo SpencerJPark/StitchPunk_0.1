@@ -47,5 +47,7 @@ namespace DotsAnimationToolkit
         public float queuedBlend;
 
         public PlaybackFlags flags;
+
+        public uint animationKey; // 0 = driven by a raw clip Play
     }
 }

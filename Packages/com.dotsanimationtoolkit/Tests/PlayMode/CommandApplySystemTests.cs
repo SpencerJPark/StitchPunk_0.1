@@ -1,7 +1,10 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System.Collections.Generic;
+using DotsAnimationToolkit.Authoring;
 using NUnit.Framework;
 using Unity.Entities;
+using UnityEngine;
 
 namespace DotsAnimationToolkit.Tests.PlayMode
 {
@@ -28,6 +31,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         private World testWorld;
         private BlobAssetReference<ClipRegistryBlob> registry;
         private Entity actor;
+
+        // A70's PlayAnimation/StopAnimation fixtures build their own registry, profile blob and
+        // ScriptableObjects per test; tracked here so a failed assertion still cleans them up.
+        private readonly List<BlobAssetReference<ClipRegistryBlob>> extraRegistries =
+            new List<BlobAssetReference<ClipRegistryBlob>>();
+        private readonly List<BlobAssetReference<ActorProfileBlob>> profileBlobs =
+            new List<BlobAssetReference<ActorProfileBlob>>();
+        private readonly List<Object> createdAssets = new List<Object>();
 
         [SetUp]
         public void SetUp()
@@ -68,6 +79,33 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             {
                 registry.Dispose();
             }
+
+            for (int registryIndex = 0; registryIndex < extraRegistries.Count; registryIndex++)
+            {
+                if (extraRegistries[registryIndex].IsCreated)
+                {
+                    extraRegistries[registryIndex].Dispose();
+                }
+            }
+            extraRegistries.Clear();
+
+            for (int profileIndex = 0; profileIndex < profileBlobs.Count; profileIndex++)
+            {
+                if (profileBlobs[profileIndex].IsCreated)
+                {
+                    profileBlobs[profileIndex].Dispose();
+                }
+            }
+            profileBlobs.Clear();
+
+            for (int assetIndex = 0; assetIndex < createdAssets.Count; assetIndex++)
+            {
+                if (createdAssets[assetIndex] != null)
+                {
+                    Object.DestroyImmediate(createdAssets[assetIndex]);
+                }
+            }
+            createdAssets.Clear();
         }
 
         // -------------------------------------------------------------------------------------
@@ -593,6 +631,171 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
             Assert.IsFalse(entityManager.IsComponentEnabled<AnimEventsPending>(actor));
             Assert.AreEqual(0, entityManager.GetBuffer<AnimEventOutput>(actor).Length);
+        }
+
+        // -------------------------------------------------------------------------------------
+        // PlayAnimation / StopAnimation (A70)
+        // -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Catches: resolving a directional entry against the profile's own <c>turnDirections</c>
+        /// without also folding through the entry's own coverage, or landing it on the wrong layer.
+        /// </summary>
+        [Test]
+        public void PlayAnimation_OnADirectionalEntry_LandsTheFoldedSlotOnTheEntrysLayer()
+        {
+            const ulong ClipAId = 300;
+            const ulong ClipBId = 400;
+            const uint AnimationKey = 1;
+
+            BlobAssetReference<ClipRegistryBlob> directionalRegistry = PlaybackTestActor.BuildRegistry(new[]
+            {
+                new PlaybackTestActor.ClipSpec { clipId = ClipAId, duration = 1f, defaultLoop = LoopMode.Loop },
+                new PlaybackTestActor.ClipSpec { clipId = ClipBId, duration = 1f, defaultLoop = LoopMode.Loop }
+            });
+            extraRegistries.Add(directionalRegistry);
+
+            ClipAsset clipA = PlaybackTestActor.CreateClipAsset("ClipA", ClipAId);
+            ClipAsset clipB = PlaybackTestActor.CreateClipAsset("ClipB", ClipBId);
+            createdAssets.Add(clipA);
+            createdAssets.Add(clipB);
+
+            ActorProfileAsset profileAsset = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            createdAssets.Add(profileAsset);
+            // profileAsset.layers is [Base, Override]; the entry lives on Override (index 1).
+            profileAsset.layers[1].animations.Add(new ActorAnimationDefinition
+            {
+                animationKey = AnimationKey,
+                hasDirections = true,
+                directionSlots = new DirectionSlots { southEast = clipA, northEast = clipB }
+            });
+
+            Entity directionalActor = PlaybackTestActor.CreateActorWithProfile(
+                testWorld, directionalRegistry, profileAsset, out BlobAssetReference<ActorProfileBlob> profileBlob);
+            profileBlobs.Add(profileBlob);
+            testWorld.EntityManager.SetComponentData(directionalActor, new ActorFacing
+            {
+                facing = Direction.NorthWest,
+                appliedFacing = Direction.NorthWest
+            });
+
+            PlaybackTestActor.EnqueueCommand(
+                testWorld, directionalActor, PlaybackTestActor.PlayAnimationCommand(AnimationKey));
+            RunCommandApply();
+
+            PlaybackLayer overrideLayer = PlaybackTestActor.GetLayer(testWorld, directionalActor, 1);
+            Assert.AreEqual(ClipBId, overrideLayer.clip.Value, "NorthWest must fold to the northEast slot.");
+            Assert.AreEqual(AnimationKey, overrideLayer.animationKey);
+            Assert.AreEqual(
+                -1,
+                PlaybackTestActor.GetLayer(testWorld, directionalActor, 0).clipIndex,
+                "Base must stay untouched.");
+        }
+
+        /// <summary>
+        /// Catches: implementing StopAnimation as a plain layer stop instead of a key check. If K2
+        /// merely stopped layer 1 outright, K1 would stop too even though it was never named.
+        /// </summary>
+        [Test]
+        public void StopAnimation_ForAKeyNotOnItsLayer_LeavesTheLayerPlaying()
+        {
+            const ulong ClipAId = 300;
+            const ulong ClipBId = 400;
+            const uint FirstAnimationKey = 1;
+            const uint SecondAnimationKey = 2;
+
+            BlobAssetReference<ClipRegistryBlob> stopRegistry = PlaybackTestActor.BuildRegistry(new[]
+            {
+                new PlaybackTestActor.ClipSpec { clipId = ClipAId, duration = 1f, defaultLoop = LoopMode.Loop },
+                new PlaybackTestActor.ClipSpec { clipId = ClipBId, duration = 1f, defaultLoop = LoopMode.Loop }
+            });
+            extraRegistries.Add(stopRegistry);
+
+            ClipAsset clipA = PlaybackTestActor.CreateClipAsset("ClipA", ClipAId);
+            ClipAsset clipB = PlaybackTestActor.CreateClipAsset("ClipB", ClipBId);
+            createdAssets.Add(clipA);
+            createdAssets.Add(clipB);
+
+            ActorProfileAsset profileAsset = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            createdAssets.Add(profileAsset);
+            profileAsset.layers[1].animations.Add(new ActorAnimationDefinition
+            {
+                animationKey = FirstAnimationKey,
+                hasDirections = false,
+                clip = clipA
+            });
+            profileAsset.layers[1].animations.Add(new ActorAnimationDefinition
+            {
+                animationKey = SecondAnimationKey,
+                hasDirections = false,
+                clip = clipB
+            });
+
+            Entity stopActor = PlaybackTestActor.CreateActorWithProfile(
+                testWorld, stopRegistry, profileAsset, out BlobAssetReference<ActorProfileBlob> profileBlob);
+            profileBlobs.Add(profileBlob);
+
+            PlaybackTestActor.EnqueueCommand(
+                testWorld, stopActor, PlaybackTestActor.PlayAnimationCommand(FirstAnimationKey));
+            RunCommandApply();
+            Assert.AreEqual(
+                FirstAnimationKey,
+                PlaybackTestActor.GetLayer(testWorld, stopActor, 1).animationKey,
+                "Guard: the first entry must actually be playing before the unrelated Stop arrives.");
+
+            PlaybackTestActor.EnqueueCommand(
+                testWorld, stopActor, PlaybackTestActor.StopAnimationCommand(SecondAnimationKey));
+            RunCommandApply();
+
+            PlaybackLayer overrideLayer = PlaybackTestActor.GetLayer(testWorld, stopActor, 1);
+            Assert.IsTrue(
+                (overrideLayer.flags & PlaybackFlags.Active) != 0,
+                "Stopping a key that is not the layer's active one must not touch the layer.");
+            Assert.AreEqual(FirstAnimationKey, overrideLayer.animationKey);
+            Assert.AreEqual(ClipAId, overrideLayer.clip.Value);
+        }
+
+        /// <summary>Catches: gating the at-play ragdoll trigger behind a raw Play instead of PlayAnimation, or forgetting to enable the request.</summary>
+        [Test]
+        public void PlayAnimation_WithAnAtPlayRagdollStart_EnablesTheRagdollRequest()
+        {
+            const ulong ClipAId = 300;
+            const uint AnimationKey = 1;
+
+            BlobAssetReference<ClipRegistryBlob> ragdollRegistry = PlaybackTestActor.BuildRegistry(new[]
+            {
+                new PlaybackTestActor.ClipSpec { clipId = ClipAId, duration = 1f, defaultLoop = LoopMode.Loop }
+            });
+            extraRegistries.Add(ragdollRegistry);
+
+            ClipAsset clipA = PlaybackTestActor.CreateClipAsset("ClipA", ClipAId);
+            createdAssets.Add(clipA);
+
+            ActorProfileAsset profileAsset = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            createdAssets.Add(profileAsset);
+            profileAsset.layers[1].animations.Add(new ActorAnimationDefinition
+            {
+                animationKey = AnimationKey,
+                hasDirections = false,
+                clip = clipA,
+                ragdollTrigger = RagdollTrigger.Start,
+                ragdollAtEventKey = 0u
+            });
+
+            Entity ragdollActor = PlaybackTestActor.CreateActorWithProfile(
+                testWorld, ragdollRegistry, profileAsset, out BlobAssetReference<ActorProfileBlob> profileBlob);
+            profileBlobs.Add(profileBlob);
+
+            PlaybackTestActor.EnqueueCommand(
+                testWorld, ragdollActor, PlaybackTestActor.PlayAnimationCommand(AnimationKey));
+            RunCommandApply();
+
+            Assert.IsTrue(
+                testWorld.EntityManager.IsComponentEnabled<ActorRagdollRequest>(ragdollActor),
+                "An at-play trigger (ragdollAtEventKey == 0) must enable the request the same frame.");
+            Assert.AreEqual(
+                RagdollTrigger.Start,
+                testWorld.EntityManager.GetComponentData<ActorRagdollRequest>(ragdollActor).trigger);
         }
 
         /// <summary>
