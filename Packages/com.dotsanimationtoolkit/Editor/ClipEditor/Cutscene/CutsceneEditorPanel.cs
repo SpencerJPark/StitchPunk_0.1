@@ -134,14 +134,21 @@ namespace DotsAnimationToolkit.Editor
 
             // Runs whether or not the transport is playing: it is what flushes a rebuild deferred
             // out of a live drag, so nothing may gate it on isPlaying.
-            RegisterCallback<AttachToPanelEvent>(_ => EditorApplication.update += OnEditorTick);
+            RegisterCallback<AttachToPanelEvent>(_ =>
+            {
+                DestroyLeakedViewportGizmos();
+                EditorApplication.update += OnEditorTick;
+            });
             RegisterCallback<DetachFromPanelEvent>(_ =>
             {
                 EditorApplication.update -= OnEditorTick;
                 EditorSceneManager.sceneSaving -= OnSceneSaving;
+                AssemblyReloadEvents.beforeAssemblyReload -= DisposeViewportGizmo;
                 StopPlayback();
                 previewController.ExitPreview();
+                DisposeViewportGizmo();
             });
+            AssemblyReloadEvents.beforeAssemblyReload += DisposeViewportGizmo;
 
             Add(BuildToolbar());
             Add(BuildTransportRow());
@@ -273,6 +280,7 @@ namespace DotsAnimationToolkit.Editor
             StopPlayback();
             previewController.ExitPreview();
             markSceneOverlay.Disable();
+            DisposeViewportGizmo();
         }
 
         /// <summary>
@@ -881,6 +889,10 @@ namespace DotsAnimationToolkit.Editor
             viewportElement.NavigationBrokeShot += OnViewportNavigationBrokeShot;
             viewportElement.NavigationChangedCamera += RenderViewport;
             viewportElement.Clicked += OnViewportClicked;
+            viewportElement.tryClaimPress = TryBeginViewportGizmoDrag;
+            viewportElement.ClaimedPressDragged += ContinueViewportGizmoDrag;
+            viewportElement.ClaimedPressReleased += EndViewportGizmoDrag;
+            viewportElement.AboutToRender += DrawViewportGizmoForCamera;
             viewportElement.RegisterCallback<GeometryChangedEvent>(_ => RenderViewport());
             viewportElement.RegisterCallback<KeyDownEvent>(keyEvent =>
             {
@@ -1043,6 +1055,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
+
+            RefreshViewportGizmo();
 
             bool hasCameraKeys = cutscene != null && cutscene.cameraLane?.keys != null
                 && cutscene.cameraLane.keys.Count > 0;
@@ -2761,6 +2775,21 @@ namespace DotsAnimationToolkit.Editor
 
             if (!keyEvent.ctrlKey && !keyEvent.commandKey)
             {
+                switch (keyEvent.keyCode)
+                {
+                    case KeyCode.W:
+                        SetViewportGizmoMode(GizmoMode.Move);
+                        keyEvent.StopPropagation();
+                        return;
+                    case KeyCode.E:
+                        SetViewportGizmoMode(GizmoMode.Rotate);
+                        keyEvent.StopPropagation();
+                        return;
+                    case KeyCode.R:
+                        SetViewportGizmoMode(GizmoMode.Scale);
+                        keyEvent.StopPropagation();
+                        return;
+                }
                 return;
             }
 

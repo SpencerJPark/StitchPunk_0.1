@@ -41,9 +41,11 @@ namespace DotsAnimationToolkit.Editor
             return autoKeyToggle;
         }
 
+        // The in-tab gizmo drags without ever taking hotControl, so its own flag counts as a held
+        // pointer here; without it an in-tab move would key on every frame of the drag.
         private void AutoKeyTick()
         {
-            RunAutoKeyDetectionStep(GUIUtility.hotControl != 0);
+            RunAutoKeyDetectionStep(GUIUtility.hotControl != 0 || isViewportGizmoDragging);
         }
 
         // One step of gizmo-edit detection, with the pointer state passed in rather than read, so a

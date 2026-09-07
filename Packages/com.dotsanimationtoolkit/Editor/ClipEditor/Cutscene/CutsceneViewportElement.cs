@@ -44,6 +44,7 @@ namespace DotsAnimationToolkit.Editor
         private Vector2 pressLocalPosition;
         private bool pressTravelledPastClick;
         private bool pressWasAdditive;
+        private bool pressClaimedByOverlay;
 
         /// <summary>The last pose actually rendered — what a Frame, a broken shot, or a pick ray resumes from.</summary>
         private Vector3 renderedCameraPosition;
@@ -58,6 +59,28 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>Raised on a press that never travelled far enough to navigate, with the point in this element's own space and whether a modifier was held.</summary>
         public event Action<Vector2, bool> Clicked;
+
+        // A gizmo has to answer before navigation does, and it has to answer on the press itself,
+        // so this is a claim rather than an event: returning true takes the whole gesture.
+        /// <summary>Offered every left press before navigation; return true to take the gesture.</summary>
+        public Func<Vector2, bool> tryClaimPress;
+
+        /// <summary>Pointer moves during a claimed gesture, in this element's own space.</summary>
+        public event Action<Vector2> ClaimedPressDragged;
+
+        /// <summary>The end of a claimed gesture.</summary>
+        public event Action ClaimedPressReleased;
+
+        // Anything drawn for this viewport alone is queued here, immediately before the render it
+        // belongs to: a Graphics.DrawMesh submission lasts one frame and names one camera.
+        /// <summary>Raised inside a render, once the camera exists, so per-camera draws can be queued.</summary>
+        public event Action<Camera> AboutToRender;
+
+        /// <summary>Where the camera stood for the last render — what a gizmo scales its handles against.</summary>
+        public Vector3 RenderedCameraPosition
+        {
+            get { return renderedCameraPosition; }
+        }
 
         /// <summary>True while the panel is feeding shot poses in; gates the gesture-breaks-shot event.</summary>
         public bool IsShowingShotPose { get; set; }
@@ -112,6 +135,7 @@ namespace DotsAnimationToolkit.Editor
 
             utilityCamera.transform.SetPositionAndRotation(position, rotation);
             utilityCamera.fieldOfView = Mathf.Clamp(fieldOfView, 1f, 179f);
+            AboutToRender?.Invoke(utilityCamera);
 
             UniversalRenderPipeline.SingleCameraRequest renderRequest =
                 new UniversalRenderPipeline.SingleCameraRequest { destination = renderTarget };
@@ -272,6 +296,9 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            pressClaimedByOverlay = pointerEvent.button == 0
+                && tryClaimPress != null && tryClaimPress(pointerEvent.localPosition);
+
             // The shot is not broken here any more: a click that selects something must leave the
             // framed view alone, so navigation only claims the gesture once it actually travels.
             this.CapturePointer(pointerEvent.pointerId);
@@ -293,6 +320,12 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
+            if (pressClaimedByOverlay)
+            {
+                ClaimedPressDragged?.Invoke(moveEvent.localPosition);
+                return;
+            }
+
             if (!pressTravelledPastClick)
             {
                 if (((Vector2)moveEvent.position - pressPointerPosition).sqrMagnitude
@@ -336,6 +369,14 @@ namespace DotsAnimationToolkit.Editor
             {
                 this.ReleasePointer(upEvent.pointerId);
             }
+            if (pressClaimedByOverlay)
+            {
+                pressClaimedByOverlay = false;
+                EndDrag();
+                ClaimedPressReleased?.Invoke();
+                return;
+            }
+
             bool wasClick = capturedPointerId == upEvent.pointerId
                 && activeDragButton == 0 && !pressTravelledPastClick;
             bool wasAdditive = pressWasAdditive;
@@ -352,6 +393,7 @@ namespace DotsAnimationToolkit.Editor
             capturedPointerId = -1;
             activeDragButton = -1;
             pressTravelledPastClick = false;
+            pressClaimedByOverlay = false;
         }
 
         private void OnWheel(WheelEvent wheelEvent)
