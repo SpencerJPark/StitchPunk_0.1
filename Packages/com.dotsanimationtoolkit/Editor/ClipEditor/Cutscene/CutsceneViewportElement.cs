@@ -23,6 +23,9 @@ namespace DotsAnimationToolkit.Editor
         private const float ZoomStepFactor = 1.1f;
         private const float MinimumOrbitDistance = 0.05f;
 
+        /// <summary>Pointer travel, in pixels, before a press stops being a click and becomes navigation.</summary>
+        private const float ClickTravelTolerancePixels = 3f;
+
         private readonly Image sceneImage;
 
         private Camera utilityCamera;
@@ -37,16 +40,24 @@ namespace DotsAnimationToolkit.Editor
         private int capturedPointerId = -1;
         private int activeDragButton = -1;
         private Vector2 lastPointerPosition;
+        private Vector2 pressPointerPosition;
+        private Vector2 pressLocalPosition;
+        private bool pressTravelledPastClick;
+        private bool pressWasAdditive;
 
-        /// <summary>The last pose actually rendered — what a Frame or a broken shot resumes from.</summary>
+        /// <summary>The last pose actually rendered — what a Frame, a broken shot, or a pick ray resumes from.</summary>
         private Vector3 renderedCameraPosition;
         private Quaternion renderedCameraRotation = Quaternion.identity;
+        private float renderedFieldOfView = 60f;
 
         /// <summary>Raised when a drag starts while a shot pose is on screen; the panel switches the mode toggle to Free.</summary>
         public event Action NavigationBrokeShot;
 
         /// <summary>Raised after any user navigation, so the panel re-renders without waiting for a playhead move.</summary>
         public event Action NavigationChangedCamera;
+
+        /// <summary>Raised on a press that never travelled far enough to navigate, with the point in this element's own space and whether a modifier was held.</summary>
+        public event Action<Vector2, bool> Clicked;
 
         /// <summary>True while the panel is feeding shot poses in; gates the gesture-breaks-shot event.</summary>
         public bool IsShowingShotPose { get; set; }
@@ -97,6 +108,7 @@ namespace DotsAnimationToolkit.Editor
 
             renderedCameraPosition = position;
             renderedCameraRotation = rotation;
+            renderedFieldOfView = Mathf.Clamp(fieldOfView, 1f, 179f);
 
             utilityCamera.transform.SetPositionAndRotation(position, rotation);
             utilityCamera.fieldOfView = Mathf.Clamp(fieldOfView, 1f, 179f);
@@ -116,6 +128,35 @@ namespace DotsAnimationToolkit.Editor
                 utilityCamera.targetTexture = null;
             }
             sceneImage.MarkDirtyRepaint();
+        }
+
+        // Built from the pose last rendered rather than from the camera component: the utility
+        // camera is disabled and its projection means nothing between renders.
+        /// <summary>A world ray through a point in this element's own space, or false before anything has been rendered.</summary>
+        public bool TryBuildPickRay(Vector2 localPosition, out Ray pickRay)
+        {
+            pickRay = default(Ray);
+            Rect rect = contentRect;
+            if (rect.width < 1f || rect.height < 1f)
+            {
+                return false;
+            }
+
+            // UI Toolkit measures y down from the top; a viewport point measures it up from the bottom.
+            Vector2 viewportPoint = new Vector2(
+                localPosition.x / rect.width, 1f - localPosition.y / rect.height);
+
+            // The same construction PreviewScenePicker.BuildRay uses, done here from the rendered
+            // pose rather than from a Transform: the utility camera is disabled and its own
+            // transform and projection mean nothing between renders.
+            float tangentOfHalfFieldOfView = Mathf.Tan(renderedFieldOfView * 0.5f * Mathf.Deg2Rad);
+            float aspect = rect.width / rect.height;
+            Vector3 directionInCameraSpace = new Vector3(
+                (viewportPoint.x * 2f - 1f) * tangentOfHalfFieldOfView * aspect,
+                (viewportPoint.y * 2f - 1f) * tangentOfHalfFieldOfView,
+                1f);
+            pickRay = new Ray(renderedCameraPosition, renderedCameraRotation * directionInCameraSpace);
+            return true;
         }
 
         /// <summary>Points the free rig at <paramref name="bounds"/> and re-renders (the F / Frame action).</summary>
@@ -230,15 +271,18 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            if (IsShowingShotPose)
-            {
-                AdoptRenderedPoseAsFreeRig();
-                NavigationBrokeShot?.Invoke();
-            }
+
+            // The shot is not broken here any more: a click that selects something must leave the
+            // framed view alone, so navigation only claims the gesture once it actually travels.
             this.CapturePointer(pointerEvent.pointerId);
             capturedPointerId = pointerEvent.pointerId;
             activeDragButton = pointerEvent.button;
             lastPointerPosition = pointerEvent.position;
+            pressPointerPosition = pointerEvent.position;
+            pressLocalPosition = pointerEvent.localPosition;
+            pressTravelledPastClick = false;
+            pressWasAdditive =
+                pointerEvent.ctrlKey || pointerEvent.commandKey || pointerEvent.shiftKey;
             Focus();
             pointerEvent.StopPropagation();
         }
@@ -249,6 +293,21 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
+            if (!pressTravelledPastClick)
+            {
+                if (((Vector2)moveEvent.position - pressPointerPosition).sqrMagnitude
+                    < ClickTravelTolerancePixels * ClickTravelTolerancePixels)
+                {
+                    return;
+                }
+                pressTravelledPastClick = true;
+                if (IsShowingShotPose)
+                {
+                    AdoptRenderedPoseAsFreeRig();
+                    NavigationBrokeShot?.Invoke();
+                }
+            }
+
             Vector2 delta = (Vector2)moveEvent.position - lastPointerPosition;
             lastPointerPosition = moveEvent.position;
 
@@ -277,13 +336,22 @@ namespace DotsAnimationToolkit.Editor
             {
                 this.ReleasePointer(upEvent.pointerId);
             }
+            bool wasClick = capturedPointerId == upEvent.pointerId
+                && activeDragButton == 0 && !pressTravelledPastClick;
+            bool wasAdditive = pressWasAdditive;
+            Vector2 clickedLocalPosition = pressLocalPosition;
             EndDrag();
+            if (wasClick)
+            {
+                Clicked?.Invoke(clickedLocalPosition, wasAdditive);
+            }
         }
 
         private void EndDrag()
         {
             capturedPointerId = -1;
             activeDragButton = -1;
+            pressTravelledPastClick = false;
         }
 
         private void OnWheel(WheelEvent wheelEvent)

@@ -880,6 +880,7 @@ namespace DotsAnimationToolkit.Editor
             viewportElement.style.flexGrow = 1f;
             viewportElement.NavigationBrokeShot += OnViewportNavigationBrokeShot;
             viewportElement.NavigationChangedCamera += RenderViewport;
+            viewportElement.Clicked += OnViewportClicked;
             viewportElement.RegisterCallback<GeometryChangedEvent>(_ => RenderViewport());
             viewportElement.RegisterCallback<KeyDownEvent>(keyEvent =>
             {
@@ -940,6 +941,87 @@ namespace DotsAnimationToolkit.Editor
             container.Add(viewportOverlay);
 
             return container;
+        }
+
+        // Bounds-based over the bound cast only, never Physics.Raycast: cutscene parts carry no
+        // colliders, and the cast is a handful of objects rather than a whole scene.
+        private void OnViewportClicked(Vector2 localPosition, bool keepsExistingSelection)
+        {
+            if (cutscene == null || cutscene.slots == null || viewportElement == null)
+            {
+                return;
+            }
+            Ray pickRay;
+            if (!viewportElement.TryBuildPickRay(localPosition, out pickRay))
+            {
+                return;
+            }
+
+            int nearestSlotIndex = -1;
+            float nearestDistance = float.MaxValue;
+            List<PreviewPickHit> hits = new List<PreviewPickHit>();
+            for (int slotIndex = 0; slotIndex < cutscene.slots.Count; slotIndex++)
+            {
+                CutsceneSlot slot = cutscene.slots[slotIndex];
+                GameObject boundObject = slot == null
+                    ? null
+                    : previewController.GetBoundObject(slot.SlotId);
+                if (boundObject == null)
+                {
+                    continue;
+                }
+                PreviewScenePicker.CollectHits(boundObject.transform, null, 0f, pickRay, hits);
+                for (int hitIndex = 0; hitIndex < hits.Count; hitIndex++)
+                {
+                    if (hits[hitIndex].distance < nearestDistance)
+                    {
+                        nearestDistance = hits[hitIndex].distance;
+                        nearestSlotIndex = slotIndex;
+                    }
+                }
+            }
+
+            if (nearestSlotIndex < 0)
+            {
+                if (!keepsExistingSelection)
+                {
+                    ClearSelection();
+                }
+                return;
+            }
+
+            // A modifier keeps whatever items are selected in the timeline and only moves the slot,
+            // so picking an actor in the viewport does not throw away a beat under construction.
+            if (keepsExistingSelection)
+            {
+                SelectSlotHeaderKeepingItems(nearestSlotIndex);
+                return;
+            }
+            SelectSlotHeader(nearestSlotIndex);
+        }
+
+        /// <summary>Drops every selection this panel holds, including the slot.</summary>
+        private void ClearSelection()
+        {
+            selectedItems.Clear();
+            primaryItem = null;
+            selectedSlotIndex = -1;
+            selectedLaneKind = SelectedLaneKind.None;
+            selectedPartTrackIndex = -1;
+            selectedItemIndex = -1;
+            markSceneOverlay.SetSelection(-1, -1);
+            RequestTimelineRebuild();
+            RequestInspectorRebuild();
+            RefreshCastPanel();
+        }
+
+        private void SelectSlotHeaderKeepingItems(int slotIndex)
+        {
+            selectedSlotIndex = slotIndex;
+            SyncSceneSelectionToTimelineSelection();
+            RequestTimelineRebuild();
+            RequestInspectorRebuild();
+            RefreshCastPanel();
         }
 
         private void OnViewportNavigationBrokeShot()

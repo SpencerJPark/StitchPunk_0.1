@@ -46,7 +46,7 @@ Free camera: right-drag look, WASD/QE fly with Shift boost, scroll dolly, **F** 
 
 ## 5. Tasks
 
-- [ ] **T1 — Click-select (§3.1).** Live proof: two bound objects, simulate a pointer-down at the projected pixel of each (project via `utilityCamera.WorldToScreenPoint`), assert the matching slot header lights.
+- [x] **T1 — Click-select (§3.1).** Live proof: two bound objects, simulate a pointer-down at the projected pixel of each (project via `utilityCamera.WorldToScreenPoint`), assert the matching slot header lights.
 - [ ] **T2 — In-viewport gizmo + Key (§3.2).** Live proof: select a slot, gizmo appears at the object; drive a drag through the routing math by reflection, assert the transform moved, press Key, assert the key.
 - [ ] **T3 — Frozen header column (§3.3).** **[parallel-safe with T4]** Live proof: scroll the lanes horizontally, headers stay; scroll vertically, both move; capture before/after per A60 §1.
 - [ ] **T4 — Cast compaction + inspector styling (§3.4).** **[parallel-safe with T3]** Capture before/after.
