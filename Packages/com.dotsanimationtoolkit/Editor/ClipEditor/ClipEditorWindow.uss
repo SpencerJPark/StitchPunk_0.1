@@ -145,6 +145,20 @@
     padding-right: 4px;
 }
 
+/* Icon beside a word, for the few actions whose word is the affordance (Add Event opens a
+   picker). The icon is lifted out of flow so the button's own text keeps its centring. */
+.toolkit-icon-button--with-text {
+    padding-left: 22px;
+}
+
+.toolkit-icon-button--with-text > .toolkit-icon-button__icon {
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    translate: 0 -50%;
+    opacity: 0.85;
+}
+
 /* Drawn at its own 16px so it stays crisp rather than being scaled to the button, and dimmed
    until its button is lit so the state reads from the glyph as well as the tint. Picking is
    off: a child that swallows the pointer would make the middle of the button dead to clicks. */
@@ -1508,7 +1522,7 @@
 }
 
 .cutscene-editor__clip-block--selected {
-    border-color: rgb(255, 210, 90);
+    border-color: var(--toolkit-color-selected);
     border-width: 2px;
     background-color: rgb(80, 132, 184);
 }
@@ -1536,7 +1550,7 @@
 
 .cutscene-editor__moment-marker--selected {
     border-width: 2px;
-    border-color: rgb(255, 210, 90);
+    border-color: var(--toolkit-color-selected);
 }
 
 /* The attach lane carries two kinds of moment, so shape carries the difference: an Attach is the
@@ -1570,15 +1584,12 @@
    field below it is opened by the Bind button and is display:none until then, so a panel narrow
    enough to sit beside the viewport still lists the whole cast without scrolling. */
 .cutscene-editor__cast-row {
-    margin-bottom: 2px;
     padding: 1px 2px 1px 4px;
-    border-radius: 3px;
     border-left-width: 3px;
     border-left-color: rgba(0, 0, 0, 0);
 }
 
 .cutscene-editor__cast-row--selected {
-    background-color: rgba(61, 96, 133, 0.5);
     border-left-color: rgb(88, 148, 216);
 }
 
@@ -1676,6 +1687,18 @@
 /* Actor Editor (A71) — the layers column's live indicators. Row chrome now comes from the shared
    toolkit-box family; everything else in the tab still styles itself inline, matching the shell's
    own convention. */
+/* The preview's ground while nothing has rendered yet -- the same near-black the Clip Editor's
+   viewport clears to, so the two tabs' pictures sit on one colour. */
+/* The cast pane's stage readout: quieter than the title beside it, so the pane header reads
+   title, then state, then actions. */
+.cutscene-editor__cast-status {
+    color: rgb(173, 173, 184);
+}
+
+.actor-editor__viewport-image {
+    background-color: rgb(31, 31, 33);
+}
+
 .actor-editor__live-dot {
     width: 12px;
     -unity-text-align: middle-center;
@@ -1686,6 +1709,3 @@
     color: rgb(90, 220, 120);
 }
 
-.actor-editor__add-layer-button {
-    margin-top: 4px;
-}

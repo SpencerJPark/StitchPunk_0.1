@@ -17,7 +17,7 @@ namespace DotsAnimationToolkit.Editor
     /// mutation — a key drag collapses into one Ctrl+Z — and the viewport renders independently of
     /// selection, from the moment the window opens.
     /// </summary>
-    public sealed partial class ClipEditorWindow : EditorWindow
+    public sealed partial class ClipEditorWindow : EditorWindow, ITransportTarget
     {
         private const float PlaybackHertz = 30f;
 
@@ -127,6 +127,9 @@ namespace DotsAnimationToolkit.Editor
         private Label hierarchyEmptyLabel;
         private ToolbarToggle snapToggle;
         private ToolbarToggle autoKeyToggle;
+
+        // Lit on a bar action while it is armed to write keys.
+        private const string RecordingBarActionUssClassName = "toolkit-bar-action--recording";
 
         // The held transform edit: a value the user has changed but not written to a key. Kept per
         // selection and dropped when the playhead or the selection moves, because it describes
@@ -463,6 +466,8 @@ namespace DotsAnimationToolkit.Editor
         private bool isPlaying;
         private double lastTickTime;
         private float playheadTime;
+        // Where Stop returns the playhead: the position it held before playback last started.
+        private float prePlayPlayheadTime;
 
         // Drag state. The undo group is captured on pointer-down so every move inside the gesture
         // collapses into it on release.
@@ -1026,8 +1031,10 @@ namespace DotsAnimationToolkit.Editor
                 autoKeyToggle.tooltip =
                     "On: editing a transform value writes it into a key at the playhead. "
                     + "Off: the change is held and shown as modified until you press Key.";
+                autoKeyToggle.EnableInClassList(RecordingBarActionUssClassName, autoKeyToggle.value);
                 autoKeyToggle.RegisterValueChangedCallback(changeEvent =>
                 {
+                    autoKeyToggle.EnableInClassList(RecordingBarActionUssClassName, changeEvent.newValue);
                     // Turning auto-key on adopts whatever is currently held, rather than discarding
                     // it — the user has just said they want their edits kept.
                     if (changeEvent.newValue && hasPendingTransformEdit)
@@ -1608,6 +1615,23 @@ namespace DotsAnimationToolkit.Editor
         {
             activeTab = tab;
             ApplyActiveTab();
+        }
+
+        // Resolved per keystroke rather than cached: the panels are rebuilt on tab switches and after
+        // a domain reload, and a stale reference would drive a panel that is no longer in the tree.
+        private ITransportTarget ResolveActiveTransportTarget()
+        {
+            switch (activeTab)
+            {
+                case ClipEditorTab.ClipEditor:
+                    return this;
+                case ClipEditorTab.CutsceneEditor:
+                    return cutscenePanel as ITransportTarget;
+                case ClipEditorTab.ActorEditor:
+                    return actorEditorPanel as ITransportTarget;
+                default:
+                    return null;
+            }
         }
 
         private void ApplyActiveTab()
@@ -4444,9 +4468,13 @@ namespace DotsAnimationToolkit.Editor
 
         private void SetPlaying(bool playing)
         {
+            if (playing && !isPlaying)
+            {
+                prePlayPlayheadTime = playheadTime;
+            }
             isPlaying = playing;
             lastTickTime = EditorApplication.timeSinceStartup;
-            RefreshPlayButtonState();
+            RefreshTransportCoreState();
         }
 
         private void OnEditorTick()
@@ -4821,7 +4849,8 @@ namespace DotsAnimationToolkit.Editor
                     }
                     AddTrackRow(
                         DescribeEventName(eventLaneKeys[laneIndex], eventRegistry),
-                        null, null, TimelineTrackKind.Event, laneIndex, times, false, ref rowIndex);
+                        null, null, TimelineTrackKind.Event, laneIndex, times, false, ref rowIndex,
+                        laneAccent: ToolkitPalette.ColorForEventKey(eventLaneKeys[laneIndex]));
                 }
             }
 
@@ -4852,7 +4881,8 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Adds a track's row and, when it is expanded, one row per animated channel.</summary>
         private void AddTrackRow(
             string headerText, string partText, string detailText, TimelineTrackKind trackKind,
-            int trackIndex, List<float> times, bool hasBindingControls, ref int rowIndex)
+            int trackIndex, List<float> times, bool hasBindingControls, ref int rowIndex,
+            Color? laneAccent = null)
         {
             long trackKey = MakeTrackKey(trackKind, trackIndex);
             string[] channelNames = GetChannelNames(trackKind);
@@ -4976,6 +5006,13 @@ namespace DotsAnimationToolkit.Editor
             trackHeaderColumn.Add(headerRow);
 
             TrackLaneElement lane = AddLane(trackKind, trackIndex, times, rowIndex, false);
+            if (laneAccent.HasValue)
+            {
+                // The accent is data-driven per lane, so it is set here rather than through a USS class.
+                lane.eventColor = laneAccent.Value;
+                headerLabel.style.borderLeftWidth = 3f;
+                headerLabel.style.borderLeftColor = laneAccent.Value;
+            }
             BindTrackHeaderWrap(headerRow, partGroup, lane);
             rowIndex++;
 
@@ -5650,28 +5687,27 @@ namespace DotsAnimationToolkit.Editor
             }
 
             bool commandModifier = keyEvent.ctrlKey || keyEvent.commandKey;
-            float frameStep = 1f / Mathf.Max(1, TransportFrameCount);
 
             switch (keyEvent.keyCode)
             {
                 case KeyCode.Space:
-                    SetPlaying(!isPlaying);
+                    ((ITransportTarget)this).TogglePlay();
                     break;
                 case KeyCode.Delete:
                 case KeyCode.Backspace:
                     DeleteSelectedKeys();
                     break;
                 case KeyCode.Home:
-                    SetPlayheadTime(0f);
+                    ((ITransportTarget)this).JumpToStart();
                     break;
                 case KeyCode.End:
-                    SetPlayheadTime(1f);
+                    ((ITransportTarget)this).JumpToEnd();
                     break;
                 case KeyCode.LeftArrow:
-                    SetPlayheadTime(playheadTime - frameStep);
+                    ((ITransportTarget)this).Step(keyEvent.shiftKey ? -Mathf.Max(1, LargeStepFrames) : -1);
                     break;
                 case KeyCode.RightArrow:
-                    SetPlayheadTime(playheadTime + frameStep);
+                    ((ITransportTarget)this).Step(keyEvent.shiftKey ? Mathf.Max(1, LargeStepFrames) : 1);
                     break;
                 case KeyCode.C:
                     if (!commandModifier)

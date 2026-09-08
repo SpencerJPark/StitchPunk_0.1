@@ -17,8 +17,6 @@ namespace DotsAnimationToolkit.Editor
         private static readonly Color KeyFill = new Color(0.78f, 0.78f, 0.80f);
         private static readonly Color KeySelectedFill = new Color(0.30f, 0.62f, 0.95f);
         private static readonly Color KeyOutline = new Color(0.08f, 0.08f, 0.09f);
-        private static readonly Color EventKeyFill = new Color(0.92f, 0.72f, 0.32f);
-        private static readonly Color EventWindowFill = new Color(0.92f, 0.72f, 0.32f, 0.30f);
 
         // Half the event marker's drawn width, in pixels. Narrower than EventMarkerHalfHeight on
         // purpose: a pin reads as a pin because it is taller than it is wide.
@@ -67,6 +65,9 @@ namespace DotsAnimationToolkit.Editor
         // Whether this row is one channel of an expanded track rather than the track itself. Drawn
         // smaller and dimmer, since a channel row shows the same keys as its track, not a separate set.
         public bool isChannelRow;
+
+        // Set by the window per lane, from the event key, so one name is one colour in every timeline.
+        public Color eventColor = ToolkitPalette.EventColors[0];
 
         /// <summary>The times this lane currently draws, for box selection to test against.</summary>
         public IReadOnlyList<float> KeyTimes
@@ -284,10 +285,12 @@ namespace DotsAnimationToolkit.Editor
                 bool selected = isKeySelected != null
                     && isKeySelected(new KeyAddress(trackKind, trackIndex, keyIndex));
 
-                Color fill = trackKind == TimelineTrackKind.Event ? EventKeyFill : KeyFill;
-                painter.fillColor = selected ? KeySelectedFill : fill;
-                painter.strokeColor = KeyOutline;
-                painter.lineWidth = 1f;
+                Color fill = trackKind == TimelineTrackKind.Event ? eventColor : KeyFill;
+                // An event key's fill is the event's identity, so selection shows as a stroke rather than swapping the fill.
+                bool isEventSelectedKey = selected && trackKind == TimelineTrackKind.Event;
+                painter.fillColor = selected && !isEventSelectedKey ? KeySelectedFill : fill;
+                painter.strokeColor = isEventSelectedKey ? ToolkitPalette.Selected : KeyOutline;
+                painter.lineWidth = isEventSelectedKey ? 2f : 1f;
 
                 float x = geometry.TimeToX(keyTimes[keyIndex]);
 
@@ -352,7 +355,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            painter.fillColor = EventWindowFill;
+            painter.fillColor = new Color(eventColor.r, eventColor.g, eventColor.b, 0.30f);
 
             int barCount = Mathf.Min(keyWindows.Count, keyTimes.Count);
             for (int keyIndex = 0; keyIndex < barCount; keyIndex++)

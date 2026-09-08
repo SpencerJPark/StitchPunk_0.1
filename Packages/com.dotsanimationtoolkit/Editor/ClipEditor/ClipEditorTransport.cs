@@ -13,10 +13,6 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Default for the shift-modified step, in frames.</summary>
         private const int DefaultLargeStepFrames = 10;
 
-        /// <summary>Marks a caption that doubles as its field's drag handle.</summary>
-        private const string DraggableTransportLabelUssClassName =
-            "toolkit-transport__caption--draggable";
-
         /// <summary>
         /// A key closer than this to a frame boundary counts as on-grid. In normalized units it is
         /// well below one frame at any sane rate, and it exists because a key authored at exactly a
@@ -24,17 +20,12 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private const float FrameSnapEpsilon = 1e-4f;
 
-        private Button playButton;
-        private Button jumpStartButton;
-        private Button stepBackButton;
-        private Button stepForwardButton;
-        private Button jumpEndButton;
+        private TransportCoreElement transportCore;
         private IntegerField currentFrameField;
         private FloatField currentSecondsField;
         private FloatField clipLengthField;
         private IntegerField frameRateField;
         private Label frameCountLabel;
-        private Button loopButton;
         private FloatField playbackSpeedField;
         private Button quantizeKeysButton;
         private Button addEventButton;
@@ -53,7 +44,8 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Whether preview playback wraps at the end. Held here rather than read off the control,
-        /// because the control is now a plain button and has no value of its own to read.
+        /// because the transport core exposes it through <see cref="ITransportTarget"/> rather than
+        /// owning a value of its own.
         /// </summary>
         private bool isLoopEnabled = true;
 
@@ -95,72 +87,16 @@ namespace DotsAnimationToolkit.Editor
         // Binding.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Makes a transport caption the drag handle for the field beside it, via a real
-        /// <see cref="FieldMouseDragger{T}"/> so sensitivity and modifiers match Unity's own fields.
-        /// </summary>
-        private static void MakeCaptionDragHandle<TValue>(
-            VisualElement caption, TextValueField<TValue> field)
-        {
-            if (caption == null || field == null)
-            {
-                return;
-            }
-
-            new FieldMouseDragger<TValue>(field).SetDragZone(caption);
-            caption.AddToClassList(DraggableTransportLabelUssClassName);
-
-            if (!field.isDelayed)
-            {
-                return;
-            }
-            // Lifted for the drag so the value moves live, then restored — typing still needs it delayed.
-            caption.RegisterCallback<PointerDownEvent>(downEvent => field.isDelayed = false);
-
-            // PointerCaptureOut rather than PointerUp: the dragger captures the caption, and a
-            // capture lost any other way still has to put the field back, or typing quietly loses
-            // its guard for the rest of the session.
-            caption.RegisterCallback<PointerCaptureOutEvent>(
-                captureOutEvent => field.isDelayed = true);
-        }
-
         private void BindTransportBar()
         {
-            playButton = rootVisualElement.Q<Button>("play-toggle");
-            if (playButton != null)
+            VisualElement transportCoreSlot = rootVisualElement.Q<VisualElement>("transport-core-slot");
+            if (transportCoreSlot != null)
             {
-                playButton.clicked += () => SetPlaying(!isPlaying);
-                playButton.tooltip = "Play or pause. Shortcut: Space.";
-            }
-
-            jumpStartButton = rootVisualElement.Q<Button>("jump-start-button");
-            if (jumpStartButton != null)
-            {
-                jumpStartButton.clicked += () => SetPlayheadTime(0f);
-                jumpStartButton.tooltip = "Jump to the first frame. Shortcut: Home.";
-            }
-
-            jumpEndButton = rootVisualElement.Q<Button>("jump-end-button");
-            if (jumpEndButton != null)
-            {
-                jumpEndButton.clicked += () => SetPlayheadTime(1f);
-                jumpEndButton.tooltip = "Jump to the last frame. Shortcut: End.";
-            }
-
-            stepBackButton = rootVisualElement.Q<Button>("step-back-button");
-            if (stepBackButton != null)
-            {
-                stepBackButton.clicked += () => StepFrames(-1);
-                stepBackButton.tooltip = "Step back one frame. Shortcut: Left arrow (Shift for "
-                    + LargeStepFrames + ").";
-            }
-
-            stepForwardButton = rootVisualElement.Q<Button>("step-forward-button");
-            if (stepForwardButton != null)
-            {
-                stepForwardButton.clicked += () => StepFrames(1);
-                stepForwardButton.tooltip = "Step forward one frame. Shortcut: Right arrow (Shift "
-                    + "for " + LargeStepFrames + ").";
+                transportCore = new TransportCoreElement { largeStepFrames = Mathf.Max(1, LargeStepFrames) };
+                // Cleared first: CreateGUI re-runs after a domain reload and the slot must not stack cores.
+                transportCoreSlot.Clear();
+                transportCoreSlot.Add(transportCore);
+                transportCore.Bind(this);
             }
 
             currentFrameField = rootVisualElement.Q<IntegerField>("current-frame-field");
@@ -177,7 +113,7 @@ namespace DotsAnimationToolkit.Editor
                     }
                     SetPlayheadTime(FrameToNormalized(changeEvent.newValue));
                 });
-                MakeCaptionDragHandle(
+                CaptionDragHandle.Attach(
                     rootVisualElement.Q<Label>("frame-caption"), currentFrameField);
             }
 
@@ -194,7 +130,7 @@ namespace DotsAnimationToolkit.Editor
                     }
                     SetPlayheadTime(changeEvent.newValue / TransportDuration);
                 });
-                MakeCaptionDragHandle(
+                CaptionDragHandle.Attach(
                     rootVisualElement.Q<Label>("seconds-caption"), currentSecondsField);
             }
 
@@ -220,7 +156,7 @@ namespace DotsAnimationToolkit.Editor
                     CommitClipEdit();
                     OnClipTimingChanged();
                 });
-                MakeCaptionDragHandle(
+                CaptionDragHandle.Attach(
                     rootVisualElement.Q<Label>("length-caption"), clipLengthField);
             }
 
@@ -247,7 +183,7 @@ namespace DotsAnimationToolkit.Editor
                     CommitClipEdit();
                     OnClipTimingChanged();
                 });
-                MakeCaptionDragHandle(
+                CaptionDragHandle.Attach(
                     rootVisualElement.Q<Label>("frame-rate-caption"), frameRateField);
             }
 
@@ -258,32 +194,8 @@ namespace DotsAnimationToolkit.Editor
                     + "with the two fields beside it.";
             }
 
-            loopButton = rootVisualElement.Q<Button>("loop-button");
-            if (loopButton != null)
-            {
-                // Falls back to text if this icon ever leaves the editor's icon set.
-                GUIContent loopIconContent = EditorGUIUtility.IconContent("preAudioLoopOff");
-                Texture2D loopIcon = loopIconContent != null ? loopIconContent.image as Texture2D : null;
-                Image loopIconImage = loopButton.Q<Image>("loop-icon");
-                if (loopIcon != null && loopIconImage != null)
-                {
-                    loopIconImage.image = loopIcon;
-                }
-                else
-                {
-                    if (loopIconImage != null)
-                    {
-                        loopIconImage.RemoveFromHierarchy();
-                    }
-                    loopButton.text = "Loop";
-                }
-
-                loopButton.clicked += () => SetLooping(!isLoopEnabled);
-                loopButton.tooltip = "Wrap at the end during preview playback. Preview only — the "
-                    + "clip's own loop mode is authored on the asset.";
-            }
             isLoopEnabled = EditorPrefs.GetBool(LoopPrefKey, true);
-            RefreshLoopButtonState();
+            RefreshTransportCoreState();
 
             playbackSpeedField = rootVisualElement.Q<FloatField>("playback-speed-field");
             if (playbackSpeedField != null)
@@ -295,7 +207,7 @@ namespace DotsAnimationToolkit.Editor
 
                 // No value-changed callback: the tick reads this field directly, so there is nothing
                 // for a drag to notify. It still needs the handle, being a number like the rest.
-                MakeCaptionDragHandle(
+                CaptionDragHandle.Attach(
                     rootVisualElement.Q<Label>("speed-caption"), playbackSpeedField);
             }
 
@@ -317,6 +229,10 @@ namespace DotsAnimationToolkit.Editor
             {
                 // Kept as a field rather than captured locally: the event picker needs it as its anchor.
                 addEventButton.clicked += OpenAddEventPicker;
+                ToolkitIcons.SetButtonIcon(addEventButton, ToolkitIcons.AddEvent, "Add Event");
+                // The word stays: the picker it opens is the affordance, the icon only says which family.
+                addEventButton.text = "Add Event";
+                addEventButton.AddToClassList("toolkit-icon-button--with-text");
             }
 
             RegisterTransportShortcuts();
@@ -408,35 +324,17 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private void RefreshPlayButtonState()
-        {
-            if (playButton == null)
-            {
-                return;
-            }
-            playButton.text = isPlaying ? "Pause" : "Play";
-            playButton.EnableInClassList("toolkit-icon-button--playing", isPlaying);
-        }
-
         /// <summary>Turns preview looping on or off and remembers the choice.</summary>
         private void SetLooping(bool looping)
         {
             isLoopEnabled = looping;
             EditorPrefs.SetBool(LoopPrefKey, looping);
-            RefreshLoopButtonState();
+            RefreshTransportCoreState();
         }
 
-        /// <summary>
-        /// A button has no checked state of its own, so the lit class is the only thing telling the
-        /// author whether playback will wrap.
-        /// </summary>
-        private void RefreshLoopButtonState()
+        private void RefreshTransportCoreState()
         {
-            if (loopButton == null)
-            {
-                return;
-            }
-            loopButton.EnableInClassList("toolkit-icon-button--lit", isLoopEnabled);
+            transportCore?.RefreshState();
         }
 
         // Re-rules the timeline after a length or rate edit. The playhead holds its normalized
@@ -587,6 +485,28 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -----------------------------------------------------------------------------------
+        // ITransportTarget.
+        // -----------------------------------------------------------------------------------
+
+        // Explicit so the window's own surface stays free of transport verbs; the core and the key
+        // router are the only callers.
+        bool ITransportTarget.IsPlaying { get { return isPlaying; } }
+        bool ITransportTarget.IsLooping { get { return isLoopEnabled; } set { SetLooping(value); } }
+        TransportCapabilities ITransportTarget.Capabilities
+        {
+            get
+            {
+                return TransportCapabilities.StepBack | TransportCapabilities.StepForward
+                    | TransportCapabilities.Stop | TransportCapabilities.JumpToEnd | TransportCapabilities.Loop;
+            }
+        }
+        void ITransportTarget.TogglePlay() { SetPlaying(!isPlaying); }
+        void ITransportTarget.Stop() { SetPlaying(false); SetPlayheadTime(prePlayPlayheadTime); }
+        void ITransportTarget.JumpToStart() { SetPlayheadTime(0f); }
+        void ITransportTarget.JumpToEnd() { SetPlayheadTime(1f); }
+        void ITransportTarget.Step(int frameDelta) { StepFrames(frameDelta); }
+
+        // -----------------------------------------------------------------------------------
         // Keyboard.
         // -----------------------------------------------------------------------------------
 
@@ -614,7 +534,8 @@ namespace DotsAnimationToolkit.Editor
             if (isRedoKey || (commandKey && keyEvent.keyCode == KeyCode.Z))
             {
                 // The gesture gets first refusal: mid-grab Ctrl+Z means "get me out of this", not a real undo.
-                if (!HandleTransformKeyDown(keyEvent))
+                // Only the Clip Editor tab runs a transform gesture; undo/redo itself still runs on every tab.
+                if (!(activeTab == ClipEditorTab.ClipEditor && HandleTransformKeyDown(keyEvent)))
                 {
                     if (isRedoKey)
                     {
@@ -634,37 +555,80 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            // First refusal: while a grab or scale is running, every key belongs to it.
-            if (HandleTransformKeyDown(keyEvent))
+            // First refusal: while a grab or scale is running, every key belongs to it. Only the
+            // Clip Editor tab runs a transform gesture at all.
+            if (activeTab == ClipEditorTab.ClipEditor && HandleTransformKeyDown(keyEvent))
             {
                 keyEvent.StopPropagation();
                 return;
             }
 
+            ITransportTarget activeTransportTarget = ResolveActiveTransportTarget();
+            bool isClipEditorTab = activeTab == ClipEditorTab.ClipEditor;
             int largeStep = Mathf.Max(1, LargeStepFrames);
             bool handled = true;
             switch (keyEvent.keyCode)
             {
                 case KeyCode.Space:
-                    SetPlaying(!isPlaying);
+                    if (activeTransportTarget == null)
+                    {
+                        handled = false;
+                    }
+                    else
+                    {
+                        activeTransportTarget.TogglePlay();
+                    }
                     break;
                 case KeyCode.LeftArrow:
-                    StepFrames(keyEvent.shiftKey ? -largeStep : -1);
+                    if (activeTransportTarget == null)
+                    {
+                        handled = false;
+                    }
+                    else
+                    {
+                        activeTransportTarget.Step(keyEvent.shiftKey ? -largeStep : -1);
+                    }
                     break;
                 case KeyCode.RightArrow:
-                    StepFrames(keyEvent.shiftKey ? largeStep : 1);
+                    if (activeTransportTarget == null)
+                    {
+                        handled = false;
+                    }
+                    else
+                    {
+                        activeTransportTarget.Step(keyEvent.shiftKey ? largeStep : 1);
+                    }
                     break;
                 case KeyCode.Home:
-                    SetPlayheadTime(0f);
+                    if (activeTransportTarget == null)
+                    {
+                        handled = false;
+                    }
+                    else
+                    {
+                        activeTransportTarget.JumpToStart();
+                    }
                     break;
                 case KeyCode.End:
-                    SetPlayheadTime(1f);
+                    if (activeTransportTarget == null)
+                    {
+                        handled = false;
+                    }
+                    else
+                    {
+                        activeTransportTarget.JumpToEnd();
+                    }
                     break;
                 // Framing does NOT take Home. The transport spec already gave Home to
                 // jump-to-start, and a key that means two things depending on which pane you
                 // imagine yourself in is worse than a second key. F is what Unity users already
                 // press to frame a selection; numpad period is what Blender users press.
                 case KeyCode.F:
+                    if (!isClipEditorTab)
+                    {
+                        handled = false;
+                        break;
+                    }
                     // Shift widens the frame from the selection to the whole clip. A took select-all
                     // instead, which is the meaning every animator already has for it.
                     if (keyEvent.shiftKey)
@@ -677,9 +641,19 @@ namespace DotsAnimationToolkit.Editor
                     }
                     break;
                 case KeyCode.KeypadPeriod:
+                    if (!isClipEditorTab)
+                    {
+                        handled = false;
+                        break;
+                    }
                     FrameSelection();
                     break;
                 case KeyCode.A:
+                    if (!isClipEditorTab)
+                    {
+                        handled = false;
+                        break;
+                    }
                     if (keyEvent.altKey)
                     {
                         DeselectAllKeys();
@@ -693,6 +667,11 @@ namespace DotsAnimationToolkit.Editor
                 // Also handled window-wide: pasting onto a different object means selecting it
                 // first, which puts focus in the hierarchy where the lane stack's handler never runs.
                 case KeyCode.C:
+                    if (!isClipEditorTab)
+                    {
+                        handled = false;
+                        break;
+                    }
                     if (commandKey && selectedClip != null)
                     {
                         CopySelectedKeys();
@@ -703,6 +682,11 @@ namespace DotsAnimationToolkit.Editor
                     }
                     break;
                 case KeyCode.V:
+                    if (!isClipEditorTab)
+                    {
+                        handled = false;
+                        break;
+                    }
                     if (commandKey && selectedClip != null)
                     {
                         PasteKeysAtPlayhead();
@@ -713,6 +697,11 @@ namespace DotsAnimationToolkit.Editor
                     }
                     break;
                 case KeyCode.D:
+                    if (!isClipEditorTab)
+                    {
+                        handled = false;
+                        break;
+                    }
                     if (commandKey && selectedClip != null)
                     {
                         CopySelectedKeys();
