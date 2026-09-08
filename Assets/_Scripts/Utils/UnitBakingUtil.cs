@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -59,6 +60,10 @@ public static class UnitBakingUtil
 
         baker.AddComponent<CutsceneActor>(entity);
         baker.SetComponentEnabled<CutsceneActor>(entity, false);
+
+        // RagdollLaunchInitSystem only writes a launch where this exists; pooled units need it baked, not added on death.
+        baker.AddComponent<RagdollLaunch>(entity);
+        baker.SetComponentEnabled<RagdollLaunch>(entity, false);
 
         baker.AddComponent<CutsceneMarkIssued>(entity);
         baker.SetComponentEnabled<CutsceneMarkIssued>(entity, false);

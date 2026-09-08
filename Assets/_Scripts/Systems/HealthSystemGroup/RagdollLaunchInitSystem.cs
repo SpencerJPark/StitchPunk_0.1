@@ -8,33 +8,29 @@ using Unity.Transforms;
 /// DamageEventSystem on the lethal DamageEvent) to build the RagdollLaunch impulse, then enables
 /// RagdollActor to start the drop — the toolkit's own solver takes it from there (Planar2D falls in
 /// whatever frame BillboardResolveSystem resolved this frame; see Documentation~/ragdoll.md).
-/// Replaces Ragdoll2DInitSystem's bespoke pendulum-flail: there is no per-joint landing-zone concept
-/// to seed any more — hinge ranges are authored once on the rig, not rolled per kill.
+/// worldTorque is about the actor's own forward (the Planar2D plane normal), and worldImpulse is
+/// scaled by the root body's mass so the SOs' launchForceX/Y read as velocities, not raw impulses.
 /// </summary>
-/// <remarks>
-/// worldPoint approximates the hit location as the unit's own position — this game tracks no precise
-/// hit-location, only the kill source's position (used for launch direction). worldTorque approximates
-/// the legacy "spin" (an in-plane tumble) as a torque about world up. Both are reasonable starting
-/// points, not verified against the real solver — tune visually once a rig with authored ragdoll
-/// bodies exists to play-test against.
-/// </remarks>
 [UpdateInGroup(typeof(HealthSystemGroup))]
 [UpdateAfter(typeof(DeathSystem))]
 public partial struct RagdollLaunchInitSystem : ISystem
 {
     private ComponentLookup<RagdollActor> ragdollActorLookup;
     private ComponentLookup<RagdollLaunch> ragdollLaunchLookup;
+    private BufferLookup<RagdollBody> ragdollBodyLookup;
 
     public void OnCreate(ref SystemState state)
     {
         ragdollActorLookup  = state.GetComponentLookup<RagdollActor>(false);
         ragdollLaunchLookup = state.GetComponentLookup<RagdollLaunch>(false);
+        ragdollBodyLookup   = state.GetBufferLookup<RagdollBody>(true);
     }
 
     public void OnUpdate(ref SystemState state)
     {
         ragdollActorLookup.Update(ref state);
         ragdollLaunchLookup.Update(ref state);
+        ragdollBodyLookup.Update(ref state);
 
         foreach ((RefRO<Health> health, RefRO<LocalTransform> transform, Entity entity) in
             SystemAPI.Query<RefRO<Health>, RefRO<LocalTransform>>()
@@ -57,10 +53,25 @@ public partial struct RagdollLaunchInitSystem : ISystem
                 : new float2(1f, 0f);
 
             float ragdollForce = math.max(0.1f, health.ValueRO.killRagdollForce);
-            float3 worldImpulse = new float3(
+            float3 launchVelocity = new float3(
                 horizontalDirection.x * health.ValueRO.killLaunchForceX,
                 health.ValueRO.killLaunchForceY,
                 horizontalDirection.y * health.ValueRO.killLaunchForceX) * ragdollForce;
+
+            // launchForceX/Y are authored as velocities; impulse = velocity / invMass so the root
+            // body actually reaches that speed (RagdollSolver.ApplyLaunchImpulse: velocity += impulse * invMass).
+            float3 worldImpulse = launchVelocity;
+            if (ragdollBodyLookup.HasBuffer(entity))
+            {
+                DynamicBuffer<RagdollBody> ragdollBodies = ragdollBodyLookup[entity];
+                if (ragdollBodies.Length > 0 && ragdollBodies[0].parameters.invMass > 0f)
+                {
+                    worldImpulse = launchVelocity / ragdollBodies[0].parameters.invMass;
+                }
+            }
+
+            float3 worldTorque = math.mul(transform.ValueRO.Rotation, math.forward())
+                * health.ValueRO.killSpin * ragdollForce;
 
             if (ragdollLaunchLookup.HasComponent(entity))
             {
@@ -68,7 +79,7 @@ public partial struct RagdollLaunchInitSystem : ISystem
                 {
                     worldImpulse = worldImpulse,
                     worldPoint   = unitPosition,
-                    worldTorque  = new float3(0f, health.ValueRO.killSpin, 0f) * ragdollForce,
+                    worldTorque  = worldTorque,
                 };
                 ragdollLaunchLookup.SetComponentEnabled(entity, true);
             }
