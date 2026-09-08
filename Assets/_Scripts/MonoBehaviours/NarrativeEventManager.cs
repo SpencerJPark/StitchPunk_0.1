@@ -301,9 +301,9 @@ public class NarrativeEventManager : MonoBehaviour
     {
         if (!TryGetEntity(action.targetEntityId, out Entity entity)) return;
 
-        if (action.animationClip == null)
+        if (action.animationKey == 0)
         {
-            Debug.LogWarning("NarrativeEventManager: PlayAnimationAction has no animationClip assigned.");
+            Debug.LogWarning("NarrativeEventManager: PlayAnimationAction has no animationKey assigned.");
             return;
         }
 
@@ -314,21 +314,24 @@ public class NarrativeEventManager : MonoBehaviour
             return;
         }
 
-        byte layerIndex = (byte)action.layer;
+        // PlaybackApi.PlayAnimation itself needs an EnabledRefRW from a ComponentLookup, which is
+        // internal to EntityManager outside a job/system — so this builds the same command shape
+        // (CommandKind.PlayAnimation, keyed) by hand, same as before the cutover.
         _entityManager.GetBuffer<AnimationCommand>(entity).Add(new AnimationCommand
         {
-            kind          = CommandKind.Play,
-            layerIndex    = layerIndex,
-            clip          = action.animationClip.Id,
+            kind          = CommandKind.PlayAnimation,
+            layerIndex    = 0,
+            clip          = default,
             speed         = 1f,
             loop          = action.looping ? LoopMode.Loop : LoopMode.Once,
             blendDuration = float.NaN,
+            animationKey  = action.animationKey,
         });
         _entityManager.SetComponentEnabled<AnimationCommandPending>(entity, true);
 
         if (action.waitForCompletion)
         {
-            await UniTask.WaitUntil(() => IsLayerInactive(entity, layerIndex),
+            await UniTask.WaitUntil(() => !IsAnimationPlaying(entity, action.animationKey),
                 cancellationToken: ct);
         }
         else if (action.duration > 0f)
@@ -338,14 +341,13 @@ public class NarrativeEventManager : MonoBehaviour
         }
     }
 
-    private bool IsLayerInactive(Entity entity, byte layerIndex)
+    private bool IsAnimationPlaying(Entity entity, uint animationKey)
     {
-        if (!_entityManager.Exists(entity)) return true;
-        if (!_entityManager.HasBuffer<PlaybackLayer>(entity)) return true;
+        if (!_entityManager.Exists(entity)) return false;
+        if (!_entityManager.HasBuffer<PlaybackLayer>(entity)) return false;
 
         DynamicBuffer<PlaybackLayer> layers = _entityManager.GetBuffer<PlaybackLayer>(entity);
-        if (layerIndex >= layers.Length) return true;
-        return (layers[layerIndex].flags & PlaybackFlags.Active) == 0;
+        return PlaybackApi.IsAnimationPlaying(layers, animationKey);
     }
 
     private void ExecuteEnableComponent(EnableComponentAction action)
@@ -407,7 +409,7 @@ public class NarrativeEventManager : MonoBehaviour
         _entityManager.AddComponentData(signalEntity, new CutsceneRequest
         {
             cutsceneKey = action.cutscene.StableId,
-            layerIndex  = (byte)action.layer,
+            layerIndex  = CutsceneApi.TopLayer,
             speed       = action.speed,
         });
 

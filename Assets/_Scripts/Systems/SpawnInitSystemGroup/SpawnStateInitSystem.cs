@@ -150,7 +150,10 @@ public partial struct SpawnStateInitSystem : ISystem
             if (_animationCommandPendingLookup.HasComponent(entity) && _animationCommandLookup.HasBuffer(entity))
             {
                 DynamicBuffer<AnimationCommand> resetCommands = _animationCommandLookup[entity];
-                for (byte layerIndex = 0; layerIndex <= (byte)AnimationToolkitLayer.Mouth; layerIndex++)
+                // Six-layer convention (Base/Action/Override/Face/Eyes/Mouth = indices 0-5); the
+                // AnimationToolkitLayer enum that used to name this is gone (ActorProfileCutover P4),
+                // but raw layer indices stay legal for this kind of hard reset (spec §5 P4).
+                for (byte layerIndex = 0; layerIndex <= 5; layerIndex++)
                 {
                     PlaybackApi.Stop(
                         ref resetCommands,

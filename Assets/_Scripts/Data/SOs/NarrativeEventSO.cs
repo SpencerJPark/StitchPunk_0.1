@@ -98,11 +98,9 @@ public class MoveNPCAction : NarrativeActionBase
 [Serializable]
 public class PlayAnimationAction : NarrativeActionBase
 {
-    [Tooltip("Which clip to play.")]
-    public ClipAsset animationClip;
-
-    [Tooltip("Which playback layer to set. Use Override to take full control during cutscenes.")]
-    public AnimationToolkitLayer layer;
+    [Tooltip("Which animation to play, picked by name (drawn as a popup in NarrativeEventSOEditor). " +
+             "The toolkit resolves which layer it lives on from the actor's profile.")]
+    public uint animationKey;
 
     [Tooltip("When true, the group waits until the animation clip finishes playing before advancing. " +
              "Works only for non-looping clips — the AnimationTimeSystem sets the layer inactive on completion. " +
@@ -179,9 +177,6 @@ public class PlayCutsceneAction : NarrativeActionBase
 {
     [Tooltip("The cutscene to play.")]
     public CutsceneAsset cutscene;
-
-    [Tooltip("Which playback layer clip blocks target on every bound actor.")]
-    public AnimationToolkitLayer layer = AnimationToolkitLayer.Override;
 
     [Tooltip("Initial playback speed; 1 is normal.")]
     public float speed = 1f;

@@ -32,6 +32,7 @@ public partial struct BehaviorExecutionSystem : ISystem
     private ComponentLookup<SocialInvite>       _socialInviteLookup;
     private BufferLookup<AnimEventOutput>       _animEventOutputLookup;
     private ComponentLookup<AnimEventsPending>  _animEventsPendingLookup;
+    private BufferLookup<PlaybackLayer>         _playbackLayerLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -57,6 +58,7 @@ public partial struct BehaviorExecutionSystem : ISystem
         _socialInviteLookup      = state.GetComponentLookup<SocialInvite>(true);
         _animEventOutputLookup   = state.GetBufferLookup<AnimEventOutput>(true);
         _animEventsPendingLookup = state.GetComponentLookup<AnimEventsPending>(true);
+        _playbackLayerLookup     = state.GetBufferLookup<PlaybackLayer>(true);
     }
 
     [BurstCompile]
@@ -79,6 +81,7 @@ public partial struct BehaviorExecutionSystem : ISystem
         _socialInviteLookup.Update(ref state);
         _animEventOutputLookup.Update(ref state);
         _animEventsPendingLookup.Update(ref state);
+        _playbackLayerLookup.Update(ref state);
 
         BehaviorLibrary      behaviorLib  = SystemAPI.GetSingleton<BehaviorLibrary>();
         SpatialHashRegistry  registry     = SystemAPI.GetSingleton<SpatialHashRegistry>();
@@ -113,6 +116,7 @@ public partial struct BehaviorExecutionSystem : ISystem
             socialInviteLookup       = _socialInviteLookup,
             animEventOutputLookup    = _animEventOutputLookup,
             animEventsPendingLookup  = _animEventsPendingLookup,
+            playbackLayerLookup      = _playbackLayerLookup,
             waypointCells            = registry.waypointCells,
             deltaTime                = deltaTime,
             ecb                      = ecb,
@@ -141,6 +145,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
     [ReadOnly] public ComponentLookup<SocialInvite>                  socialInviteLookup;
     [ReadOnly] public BufferLookup<AnimEventOutput>                  animEventOutputLookup;
     [ReadOnly] public ComponentLookup<AnimEventsPending>             animEventsPendingLookup;
+    [ReadOnly] public BufferLookup<PlaybackLayer>                    playbackLayerLookup;
 
     // Read-only lookup aliases the StateMachine this job writes by ref. Safe: qualifier checks only
     // read OTHER units' StateMachine (the target's), and each unit writes only its own.
@@ -321,7 +326,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 break;
 
             case BehaviorCommandType.StopAnimation:
-                AnimationCommands.RunStopAnimation(animationCommandPendingLookup, animationCommandLookup, unit);
+                AnimationCommands.RunStopAnimation(animationCommandPendingLookup, animationCommandLookup, playbackLayerLookup, unit);
                 break;
 
             case BehaviorCommandType.ReleaseInteraction:

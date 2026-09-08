@@ -112,8 +112,8 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
             QualifierIntParam   = authored.QualifierIntParam,
             QualifierFloatParam = authored.QualifierFloatParam,
             Looping             = authored.Looping,
-            AnimationClip       = authored.AnimationClip != null ? authored.AnimationClip.Id : default,
-            LayerIndex          = (byte)authored.LayerIndex,
+            AnimationKey        = authored.AnimationKey,
+            LayerIndex          = authored.LayerIndex,
         };
 
         if (authored.type == BehaviorCommandType.LoopUntil

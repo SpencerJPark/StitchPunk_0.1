@@ -13,17 +13,20 @@ public partial struct AttackRequestSystem : ISystem
     private ComponentLookup<Dead>          deadLookup;
     private BufferLookup<AnimEventOutput>      animEventOutputLookup;
     private ComponentLookup<AnimEventsPending> animEventsPendingLookup;
+    private ComponentLookup<UnitData>          unitDataLookup;
 
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<AttackLibrary>();
         state.RequireForUpdate<DamageBus>();
+        state.RequireForUpdate<UnitDataLibrary>();
 
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
         deadLookup      = state.GetComponentLookup<Dead>(true);
         animEventOutputLookup   = state.GetBufferLookup<AnimEventOutput>(true);
         animEventsPendingLookup = state.GetComponentLookup<AnimEventsPending>(true);
+        unitDataLookup          = state.GetComponentLookup<UnitData>(true);
     }
 
     public void OnUpdate(ref SystemState state)
@@ -32,9 +35,12 @@ public partial struct AttackRequestSystem : ISystem
         deadLookup.Update(ref state);
         animEventOutputLookup.Update(ref state);
         animEventsPendingLookup.Update(ref state);
+        unitDataLookup.Update(ref state);
 
         BlobAssetReference<AttackLibraryBlob> attackLibrary =
             SystemAPI.GetSingleton<AttackLibrary>().library;
+        BlobAssetReference<UnitLibraryBlob> unitLibrary =
+            SystemAPI.GetSingleton<UnitDataLibrary>().library;
 
         // Recycled DamageBus queue (v2) — each attacker Enqueues its own DamageEvent value; no entity
         // create/destroy. NativeQueue.ParallelWriter is safe from ScheduleParallel.
@@ -55,6 +61,7 @@ public partial struct AttackRequestSystem : ISystem
             transformLookup = transformLookup,
             deadLookup      = deadLookup,
             attackLibrary   = attackLibrary,
+            unitLibrary     = unitLibrary,
             deltaTime       = SystemAPI.Time.DeltaTime,
             damageWriter    = damageWriter,
             logEcb          = logEcb,
@@ -62,6 +69,7 @@ public partial struct AttackRequestSystem : ISystem
             timestamp       = SystemAPI.Time.ElapsedTime,
             animEventOutputLookup   = animEventOutputLookup,
             animEventsPendingLookup = animEventsPendingLookup,
+            unitDataLookup          = unitDataLookup,
         }.ScheduleParallel(state.Dependency);
 
         // Manual dependency wiring — a NativeQueue through a singleton bypasses ECS auto-tracking,
@@ -84,7 +92,9 @@ public partial struct AttackRequestJob : IJobEntity
     [ReadOnly] public ComponentLookup<Dead>           deadLookup;
     [ReadOnly] public BufferLookup<AnimEventOutput>      animEventOutputLookup;
     [ReadOnly] public ComponentLookup<AnimEventsPending> animEventsPendingLookup;
+    [ReadOnly] public ComponentLookup<UnitData>          unitDataLookup;
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob> attackLibrary;
+    [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
     public float                                    deltaTime;
     public NativeQueue<DamageEvent>.ParallelWriter  damageWriter;
     public EntityCommandBuffer.ParallelWriter       logEcb;
@@ -115,8 +125,23 @@ public partial struct AttackRequestJob : IJobEntity
         // comfortably above the authored event's time so the event — not the timeout — decides.
         attackRequest.elapsed += deltaTime;
 
+        // Match by the animation key that's actually playing rather than a fixed layer index (D3,
+        // ActorProfileCutover_System.md §6) — an attack authored on any layer still lands damage.
+        uint attackAnimationKey = 0;
+        if (unitDataLookup.TryGetComponent(attackerEntity, out UnitData attackerUnitData))
+        {
+            int unitIndex = unitLibrary.Value.FindByUnitType(attackerUnitData.unitType);
+            if (unitIndex >= 0)
+            {
+                ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
+                ActionType actionType = AIUtils.GetActionByAttack(ref unitBlob, attackRequest.damageSource);
+                attackAnimationKey = AIUtils.GetAnimationKeyByAction(ref unitBlob, actionType);
+            }
+        }
+
         bool attackEventFired = false;
-        if (animEventsPendingLookup.HasComponent(attackerEntity)
+        if (attackAnimationKey != 0
+            && animEventsPendingLookup.HasComponent(attackerEntity)
             && animEventsPendingLookup.IsComponentEnabled(attackerEntity)
             && animEventOutputLookup.HasBuffer(attackerEntity))
         {
@@ -124,7 +149,7 @@ public partial struct AttackRequestJob : IJobEntity
             for (int eventIndex = 0; eventIndex < attackerEvents.Length; eventIndex++)
             {
                 if (attackerEvents[eventIndex].eventKey == AnimEvents.Attack
-                    && attackerEvents[eventIndex].layerIndex == (byte)AnimationToolkitLayer.Action)
+                    && attackerEvents[eventIndex].animationKey == attackAnimationKey)
                 {
                     attackEventFired = true;
                     break;

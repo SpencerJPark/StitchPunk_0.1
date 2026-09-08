@@ -35,6 +35,8 @@ public partial struct UnitFacingSystem : ISystem
             cutsceneFacingLookup = SystemAPI.GetComponentLookup<CutsceneFacing>(true),
             transformLookup = SystemAPI.GetComponentLookup<LocalTransform>(true),
             partFacingLookup = SystemAPI.GetComponentLookup<PartFacing>(),
+            actorFacingLookup = SystemAPI.GetComponentLookup<ActorFacing>(),
+            actorProfileLookup = SystemAPI.GetComponentLookup<ActorProfile>(true),
         }.ScheduleParallel();
     }
 }
@@ -55,6 +57,13 @@ public partial struct UnitFacingJob : IJobEntity
     // Every unit's body parts are its own — no two units ever write the same part entity, so this
     // is safe across parallel workers despite the lookup spanning the whole world.
     [NativeDisableParallelForRestriction] public ComponentLookup<PartFacing> partFacingLookup;
+
+    // Each unit only ever writes its own root entity's ActorFacing, never another unit's.
+    [NativeDisableParallelForRestriction] public ComponentLookup<ActorFacing> actorFacingLookup;
+
+    // Turn granularity now lives on the actor's baked profile, not UnitDataBlob (ActorProfileCutover
+    // P1/P5) — a unit with no baked profile yet falls back to the finest (Six) granularity.
+    [ReadOnly] public ComponentLookup<ActorProfile> actorProfileLookup;
 
     public void Execute(
         Entity unitEntity,
@@ -80,6 +89,14 @@ public partial struct UnitFacingJob : IJobEntity
 
         ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
 
+        AnimationDirections turnDirections = AnimationDirections.Six;
+        if (actorProfileLookup.HasComponent(unitEntity))
+        {
+            BlobAssetReference<ActorProfileBlob> profileBlob = actorProfileLookup[unitEntity].Value;
+            if (profileBlob.IsCreated)
+                turnDirections = profileBlob.Value.turnDirections;
+        }
+
         float2 aimDirectionXY = float2.zero;
         bool hasAimOverride = !hasCutsceneFacing
             && TryGetAimDirection(unitEntity, ref unitBlob, unitAction.current,
@@ -93,15 +110,22 @@ public partial struct UnitFacingJob : IJobEntity
             movement.targetPosition - localTransform.Position);
 
         Direction desiredFacing = FacingResolver.FromMovement(
-            in movementXY, unitBlob.animationDirections, unitFacing.current);
+            in movementXY, turnDirections, unitFacing.current);
 
         if (desiredFacing == unitFacing.current)
             return;
 
         unitFacing.current = desiredFacing;
 
+        if (actorFacingLookup.HasComponent(unitEntity))
+        {
+            ActorFacing actorFacing = actorFacingLookup[unitEntity];
+            actorFacing.facing = desiredFacing;
+            actorFacingLookup[unitEntity] = actorFacing;
+        }
+
         FacingResolver.ResolveClipFacing(
-            desiredFacing, unitBlob.animationDirections, out Direction clipFacing, out bool mirrorX);
+            desiredFacing, turnDirections, out Direction clipFacing, out bool mirrorX);
 
         for (int partIndex = 0; partIndex < bodyParts.Length; partIndex++)
         {

@@ -1,4 +1,3 @@
-using DotsAnimationToolkit;
 using Unity.Entities;
 
 // Runtime form of one BehaviorSO. Lives in the BehaviorLibrary blob, indexed by (int)behaviorType.
@@ -31,11 +30,11 @@ public struct BehaviorCommand
     public float         QualifierFloatParam; // MotivationSatisfied: motivation threshold
     public bool          Looping;             // PlayAnimation: AnimationCommand loop mode (true = Loop, false = Once)
 
-    // PlayAnimation only: the clip to play on the Action layer. Default (id 0) = invalid/none.
-    public ClipId AnimationClip;
+    // PlayAnimation only: the animation name's key (ActorProfileCutover P4) — 0 = invalid/none.
+    public uint AnimationKey;
 
-    // WaitForAnimEvent / WaitForClipFinished: the playback layer to watch (AnimationToolkitLayer,
-    // 0 = Base, 1 = Action, ...).
+    // WaitForAnimEvent / WaitForClipFinished: the playback layer to watch (raw index, six-layer
+    // convention: 0 = Base, 1 = Action, ...; AnimationToolkitLayer is gone, ActorProfileCutover P4).
     public byte LayerIndex;
 }
 

@@ -32,6 +32,9 @@ public partial struct UnitAnimationAssignmentSystem : ISystem
 
 [BurstCompile]
 [WithPresent(typeof(Movement))] // must still assign the Death animation after Movement is disabled
+// Without this the EnabledRefRW parameter below enrols the flag as enabled-only, and a unit with
+// no command pending (every idle unit) silently never matches.
+[WithPresent(typeof(AnimationCommandPending))]
 public partial struct UnitAnimationAssignmentJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> library;
@@ -42,9 +45,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         in DynamicBuffer<PlaybackLayer>       playbackLayers,
         in UnitData         unitData,
         in Movement         movement,
-        in UnitAction       unitAction,
-        in LocomotionStance locomotionStance,
-        in UnitFacing       unitFacing)
+        in LocomotionStance locomotionStance)
     {
         int unitIndex = (int)unitData.unitType;
         if (unitIndex < 0 || unitIndex >= library.Value.units.Length)
@@ -52,86 +53,11 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
 
         ref UnitDataBlob unitBlob = ref library.Value.units[unitIndex];
 
-        // Per-set snap + east-side pick (DirectionFacing_System.md §5): a set with fewer authored
-        // directions than the actor turns through folds onto whatever it actually has — a
-        // Two-coverage walk on a Six-turning actor just mirrors left/right, no special case needed.
-        // The mirror half of this (mirrorX) is served through PartFacing, not the clip pick.
-        FacingResolver.ResolveClipFacing(
-            unitFacing.current, unitBlob.animationDirections, out Direction clipFacing, out bool _);
-
-        // Base layer always reflects locomotion/stance
-        ClipId baseClip = GetBaseAnimation(ref unitBlob, locomotionStance.stance, movement.isMoving, clipFacing);
-        if (baseClip.IsValid
-            && !PlaybackApi.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Base, baseClip))
+        AIUtils.GetLocomotionKeys(ref unitBlob, locomotionStance.stance, out uint idleKey, out uint walkKey);
+        uint key = movement.isMoving ? walkKey : idleKey;
+        if (key != 0 && !PlaybackApi.IsAnimationPlaying(playbackLayers, key))
         {
-            PlaybackApi.Play(ref commands, commandPendingEnabled,
-                (byte)AnimationToolkitLayer.Base, baseClip, loop: LoopMode.Loop);
+            PlaybackApi.PlayAnimation(ref commands, commandPendingEnabled, key);
         }
-
-        // Action layer: a non-looping clip (e.g. attack) owns this layer until it finishes — the
-        // toolkit deactivates a LoopMode.Once layer on completion, so IsLayerActive answers false
-        // and control returns here.
-        if (!IsLayerActive(playbackLayers, (byte)AnimationToolkitLayer.Action))
-        {
-            if (IsIdleAction(unitAction.current))
-            {
-                // Nothing to stop — an inactive layer needs no Stop command.
-            }
-            else
-            {
-                ClipId actionClip = GetAnimationForAction(unitAction.current, ref unitBlob, movement.isMoving, clipFacing);
-                if (actionClip.IsValid
-                    && !PlaybackApi.IsPlaying(playbackLayers, (byte)AnimationToolkitLayer.Action, actionClip))
-                {
-                    PlaybackApi.Play(ref commands, commandPendingEnabled,
-                        (byte)AnimationToolkitLayer.Action, actionClip, loop: LoopMode.Once);
-                }
-            }
-        }
-    }
-
-    private static bool IsLayerActive(in DynamicBuffer<PlaybackLayer> layers, byte layerIndex)
-    {
-        if (layerIndex >= layers.Length)
-            return false;
-        return (layers[layerIndex].flags & PlaybackFlags.Active) != 0;
-    }
-
-    private static bool IsIdleAction(ActionType action)
-    {
-        return action == ActionType.Idle;
-    }
-
-    private static ClipId GetBaseAnimation(
-        ref UnitDataBlob unitBlob,
-        StanceType stance,
-        bool isMoving,
-        Direction clipFacing)
-    {
-        if (stance != StanceType.Normal)
-        {
-            ref BlobArray<StanceAnimationBlob> stances = ref unitBlob.stanceAnimations;
-            for (int i = 0; i < stances.Length; i++)
-            {
-                if (stances[i].stance == stance)
-                    return (isMoving ? stances[i].movingAnimation : stances[i].idleAnimation).ResolveSlot(clipFacing);
-            }
-        }
-        return (isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation).ResolveSlot(clipFacing);
-    }
-
-    private static ClipId GetAnimationForAction(
-        ActionType action,
-        ref UnitDataBlob unitBlob,
-        bool isMoving,
-        Direction clipFacing)
-    {
-        ref BlobArray<ActionAnimationMappingBlob> mappings = ref unitBlob.actionAnimations;
-        for (int i = 0; i < mappings.Length; i++)
-        {
-            if (mappings[i].action == action)
-                return mappings[i].animation.ResolveSlot(clipFacing);
-        }
-        return (isMoving ? unitBlob.movingAnimation : unitBlob.idleAnimation).ResolveSlot(clipFacing);
     }
 }

@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using DotsAnimationToolkit.Authoring;
+using DotsAnimationToolkit.Editor;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEditorInternal;
@@ -191,8 +194,7 @@ public class BehaviorSOEditor : Editor
                 break;
 
             case BehaviorCommandType.PlayAnimation:
-                EditorGUI.PropertyField(row, element.FindPropertyRelative("AnimationClip"),
-                    new GUIContent("Animation Clip"));
+                DrawAnimationNamePopup(row, element.FindPropertyRelative("AnimationKey"), "Animation");
                 AdvanceRow(ref y, ref row);
                 EditorGUI.PropertyField(row, floatProp, new GUIContent("Speed"));
                 AdvanceRow(ref y, ref row);
@@ -301,5 +303,41 @@ public class BehaviorSOEditor : Editor
         TEnum next    = (TEnum)EditorGUI.EnumPopup(rect, new GUIContent(label), current);
         if (!next.Equals(current))
             intProp.intValue = (int)(object)next;
+    }
+
+    // IMGUI popup over the project's animation-name vocabulary, writing the id — never a raw int
+    // field (ActorProfileCutover_System.md §5 P4).
+    private static void DrawAnimationNamePopup(Rect rect, SerializedProperty animationKeyProp, string label)
+    {
+        if (animationKeyProp == null)
+            return;
+
+        AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
+        int entryCount = registry != null ? ((DotsAnimationToolkit.Authoring.IVocabularyRegistry)registry).VocabularyEntryCount : 0;
+
+        List<string> names = new List<string> { "(none)" };
+        List<uint> ids = new List<uint> { 0u };
+        for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
+        {
+            uint entryId = ((DotsAnimationToolkit.Authoring.IVocabularyRegistry)registry).VocabularyEntryId(entryIndex);
+            string entryName = ((DotsAnimationToolkit.Authoring.IVocabularyRegistry)registry).VocabularyEntryName(entryIndex);
+            if (entryId == 0u || string.IsNullOrEmpty(entryName))
+                continue;
+            names.Add(entryName);
+            ids.Add(entryId);
+        }
+
+        uint currentKey = animationKeyProp.uintValue;
+        int selectedIndex = ids.IndexOf(currentKey);
+        if (selectedIndex < 0)
+        {
+            names.Add("(unresolved 0x" + currentKey.ToString("X8") + ")");
+            ids.Add(currentKey);
+            selectedIndex = names.Count - 1;
+        }
+
+        int newIndex = EditorGUI.Popup(rect, label, selectedIndex, names.ToArray());
+        if (newIndex != selectedIndex)
+            animationKeyProp.uintValue = ids[newIndex];
     }
 }

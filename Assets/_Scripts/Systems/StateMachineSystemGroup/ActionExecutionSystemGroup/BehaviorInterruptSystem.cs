@@ -19,6 +19,7 @@ public partial struct BehaviorInterruptSystem : ISystem
     private ComponentLookup<AttackRequest>    _attackRequestLookup;
     private ComponentLookup<AnimationCommandPending> _animationCommandPendingLookup;
     private BufferLookup<AnimationCommand>    _animationCommandLookup;
+    private BufferLookup<PlaybackLayer>       _playbackLayerLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -28,6 +29,7 @@ public partial struct BehaviorInterruptSystem : ISystem
         _attackRequestLookup    = state.GetComponentLookup<AttackRequest>(false);
         _animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
         _animationCommandLookup = state.GetBufferLookup<AnimationCommand>(false);
+        _playbackLayerLookup    = state.GetBufferLookup<PlaybackLayer>(true);
     }
 
     [BurstCompile]
@@ -36,6 +38,7 @@ public partial struct BehaviorInterruptSystem : ISystem
         _attackRequestLookup.Update(ref state);
         _animationCommandPendingLookup.Update(ref state);
         _animationCommandLookup.Update(ref state);
+        _playbackLayerLookup.Update(ref state);
 
         BehaviorLibrary behaviorLib = SystemAPI.GetSingleton<BehaviorLibrary>();
         EntityCommandBuffer.ParallelWriter ecb = SystemAPI
@@ -52,6 +55,7 @@ public partial struct BehaviorInterruptSystem : ISystem
             attackRequestLookup    = _attackRequestLookup,
             animationCommandPendingLookup = _animationCommandPendingLookup,
             animationCommandLookup = _animationCommandLookup,
+            playbackLayerLookup    = _playbackLayerLookup,
             ecb                    = ecb,
             timestamp              = SystemAPI.Time.ElapsedTime,
             loggingEnabled         = loggingEnabled,
@@ -74,6 +78,7 @@ public partial struct BehaviorInterruptJob : IJobEntity
     [NativeDisableParallelForRestriction] public ComponentLookup<AttackRequest>    attackRequestLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
     [NativeDisableParallelForRestriction] public BufferLookup<AnimationCommand>    animationCommandLookup;
+    [ReadOnly] public BufferLookup<PlaybackLayer> playbackLayerLookup;
 
     public EntityCommandBuffer.ParallelWriter ecb;
     public double timestamp;
@@ -191,7 +196,7 @@ public partial struct BehaviorInterruptJob : IJobEntity
                 break;
 
             case BehaviorCommandType.StopAnimation:
-                AnimationCommands.RunStopAnimation(animationCommandPendingLookup, animationCommandLookup, unit);
+                AnimationCommands.RunStopAnimation(animationCommandPendingLookup, animationCommandLookup, playbackLayerLookup, unit);
                 break;
 
             default:

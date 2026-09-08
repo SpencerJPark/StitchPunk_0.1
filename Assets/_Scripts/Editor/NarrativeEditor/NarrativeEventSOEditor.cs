@@ -1,5 +1,8 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
+using DotsAnimationToolkit.Authoring;
+using DotsAnimationToolkit.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -174,7 +177,7 @@ public class NarrativeEventSOEditor : Editor
                 return $"Move #{m.targetEntityId} → #{m.waypointEntityId}";
             case PlayAnimationAction p:
                 string wait = p.waitForCompletion ? " ⏳" : p.duration > 0f ? $" {p.duration}s" : "";
-                return $"{(p.animationClip != null ? p.animationClip.name : "(none)")} [{p.layer}]{wait}";
+                return $"{ResolveAnimationName(p.animationKey)}{wait}";
             case DialogueTriggerAction d:
                 return $"Dialogue: {d.sequence?.name ?? "(none)"}";
             case EnableComponentAction e:
@@ -206,8 +209,7 @@ public class NarrativeEventSOEditor : Editor
                 DrawFieldRelative(actionProp, "waypointEntityId");
                 break;
             case PlayAnimationAction _:
-                DrawFieldRelative(actionProp, "animationClip");
-                DrawFieldRelative(actionProp, "layer");
+                DrawAnimationNamePopup(actionProp.FindPropertyRelative("animationKey"), "Animation");
                 DrawFieldRelative(actionProp, "waitForCompletion");
                 DrawFieldRelative(actionProp, "duration");
                 DrawFieldRelative(actionProp, "looping");
@@ -233,6 +235,51 @@ public class NarrativeEventSOEditor : Editor
         SerializedProperty prop = parent.FindPropertyRelative(fieldName);
         if (prop != null)
             EditorGUILayout.PropertyField(prop, true);
+    }
+
+    // IMGUI popup over the project's animation-name vocabulary, writing the id — never a raw
+    // int field (ActorProfileCutover_System.md §5 P4). Mirrors BehaviorSOEditor's picker.
+    private static void DrawAnimationNamePopup(SerializedProperty animationKeyProp, string label)
+    {
+        if (animationKeyProp == null)
+            return;
+
+        AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
+        int entryCount = registry != null ? ((DotsAnimationToolkit.Authoring.IVocabularyRegistry)registry).VocabularyEntryCount : 0;
+
+        List<string> names = new List<string> { "(none)" };
+        List<uint> ids = new List<uint> { 0u };
+        for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
+        {
+            uint entryId = ((DotsAnimationToolkit.Authoring.IVocabularyRegistry)registry).VocabularyEntryId(entryIndex);
+            string entryName = ((DotsAnimationToolkit.Authoring.IVocabularyRegistry)registry).VocabularyEntryName(entryIndex);
+            if (entryId == 0u || string.IsNullOrEmpty(entryName))
+                continue;
+            names.Add(entryName);
+            ids.Add(entryId);
+        }
+
+        uint currentKey = animationKeyProp.uintValue;
+        int selectedIndex = ids.IndexOf(currentKey);
+        if (selectedIndex < 0)
+        {
+            names.Add("(unresolved 0x" + currentKey.ToString("X8") + ")");
+            ids.Add(currentKey);
+            selectedIndex = names.Count - 1;
+        }
+
+        int newIndex = EditorGUILayout.Popup(label, selectedIndex, names.ToArray());
+        if (newIndex != selectedIndex)
+            animationKeyProp.uintValue = ids[newIndex];
+    }
+
+    private static string ResolveAnimationName(uint animationKey)
+    {
+        if (animationKey == 0u)
+            return "(none)";
+        AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
+        string resolvedName = registry != null ? registry.FindName(animationKey) : null;
+        return resolvedName ?? "(unresolved 0x" + animationKey.ToString("X8") + ")";
     }
 }
 #endif

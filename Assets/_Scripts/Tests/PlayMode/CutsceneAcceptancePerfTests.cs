@@ -57,7 +57,7 @@ namespace StitchPunk.Tests.PlayMode
             CutsceneBlobBuilder.Build(cutscene, out cutsceneBlob, warnings);
 
             EntityManager entityManager = testWorld.EntityManager;
-            Entity requestEntity = CutsceneApi.CreatePlayRequest(entityManager, cutsceneBlob, layerIndex: 2, speed: 1f);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(entityManager, cutsceneBlob, layerIndex: CutsceneApi.TopLayer, speed: 1f);
 
             // Every bound entity created before the buffer is fetched: CreateEntity/AddComponent are
             // structural changes that invalidate an already-fetched DynamicBuffer handle.

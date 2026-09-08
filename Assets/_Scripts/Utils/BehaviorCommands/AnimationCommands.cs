@@ -16,15 +16,14 @@ public static class AnimationCommands
     {
         if (!context.animationCommandPendingLookup.HasComponent(unit)
             || !context.animationCommandLookup.HasBuffer(unit)
-            || !cmd.AnimationClip.IsValid)
+            || cmd.AnimationKey == 0)
             return;
 
         DynamicBuffer<AnimationCommand> playCommands = context.animationCommandLookup[unit];
-        PlaybackApi.Play(
+        PlaybackApi.PlayAnimation(
             ref playCommands,
             context.animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
-            (byte)AnimationToolkitLayer.Action,
-            cmd.AnimationClip,
+            cmd.AnimationKey,
             speed: cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
             loop: cmd.Looping ? LoopMode.Loop : LoopMode.Once);
     }
@@ -41,43 +40,50 @@ public static class AnimationCommands
             return;
 
         int unitIndex = context.unitLibrary.Value.FindByUnitType(brain.unitType);
-        Direction clipFacing = Direction.SouthEast;
-        if (context.unitFacingLookup.HasComponent(unit))
-        {
-            FacingResolver.ResolveClipFacing(
-                context.unitFacingLookup[unit].current,
-                unitIndex >= 0 ? context.unitLibrary.Value.units[unitIndex].animationDirections : AnimationDirections.One,
-                out clipFacing, out bool _);
-        }
-        ClipId actionAnimation = unitIndex >= 0
-            ? AIUtils.GetAnimationByAction(ref context.unitLibrary.Value.units[unitIndex], stateMachine.action, clipFacing)
-            : default;
+        if (unitIndex < 0) return;
 
-        if (!actionAnimation.IsValid) return;
+        // Played by name — the toolkit re-picks the directional clip against the actor's own
+        // ActorFacing (UnitFacingSystem writes it), so this no longer resolves a facing itself.
+        uint animationKey = AIUtils.GetAnimationKeyByAction(ref context.unitLibrary.Value.units[unitIndex], stateMachine.action);
+        if (animationKey == 0) return;
 
         DynamicBuffer<AnimationCommand> playCommands = context.animationCommandLookup[unit];
-        PlaybackApi.Play(
+        PlaybackApi.PlayAnimation(
             ref playCommands,
             context.animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
-            (byte)AnimationToolkitLayer.Action,
-            actionAnimation,
+            animationKey,
             speed: cmd.FloatParam > 0f ? cmd.FloatParam : 1f,
             loop: cmd.Looping ? LoopMode.Loop : LoopMode.Once);
     }
 
+    // No stored key names what to stop (a StopAnimation command carries no data). Chosen fallback
+    // (ActorProfileCutover_System.md §5 P4): stop every layer whose PlaybackLayer.animationKey != 0
+    // except layer 0 (Base never carries an action clip a behavior would need to interrupt) — a
+    // faithful "clear whatever action/override/etc. clip is live" without needing the started key.
     public static void RunStopAnimation(
         ComponentLookup<AnimationCommandPending> animationCommandPendingLookup,
         BufferLookup<AnimationCommand>           animationCommandLookup,
+        BufferLookup<PlaybackLayer>              playbackLayerLookup,
         Entity                                    unit)
     {
-        if (!animationCommandPendingLookup.HasComponent(unit) || !animationCommandLookup.HasBuffer(unit))
+        if (!animationCommandPendingLookup.HasComponent(unit)
+            || !animationCommandLookup.HasBuffer(unit)
+            || !playbackLayerLookup.HasBuffer(unit))
             return;
 
         DynamicBuffer<AnimationCommand> stopCommands = animationCommandLookup[unit];
-        PlaybackApi.Stop(
-            ref stopCommands,
-            animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
-            (byte)AnimationToolkitLayer.Action,
-            blendDuration: 0f);
+        DynamicBuffer<PlaybackLayer> layers = playbackLayerLookup[unit];
+        for (int layerIndex = 1; layerIndex < layers.Length; layerIndex++)
+        {
+            uint animationKey = layers[layerIndex].animationKey;
+            if (animationKey == 0)
+                continue;
+
+            PlaybackApi.StopAnimation(
+                ref stopCommands,
+                animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(unit),
+                animationKey,
+                blendDuration: 0f);
+        }
     }
 }

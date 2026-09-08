@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using DotsAnimationToolkit.Authoring;
 using UnityEngine;
 
 // Authoring mirror of BehaviorCommand (StateMachineComponents.cs). A plain serializable class is
@@ -30,11 +29,11 @@ public class BehaviorCommandAuthoring
     [Tooltip("PlayAnimation: loop the clip until stopped (StopAnimation or interrupt cleanup)")]
     public bool Looping;
 
-    [Tooltip("PlayAnimation: the clip to play on the Action layer.")]
-    public ClipAsset AnimationClip;
+    [Tooltip("PlayAnimation: the animation to play, picked by name (drawn as a popup in BehaviorSOEditor).")]
+    public uint AnimationKey;
 
     [Tooltip("WaitForAnimEvent / WaitForClipFinished: the playback layer to watch (0 = Base, 1 = Action).")]
-    public AnimationToolkitLayer LayerIndex;
+    public byte LayerIndex;
 }
 
 // A reusable executed sequence ("verb") — e.g. MeleeSwing, Wander. Bound to a UtilityActionSO and

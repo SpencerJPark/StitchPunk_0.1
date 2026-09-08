@@ -117,27 +117,18 @@ public partial struct PlayerAttackSystem : ISystem
             attackRequest.ValueRW.elapsed      = 0f;
             SystemAPI.SetComponentEnabled<AttackRequest>(selfEntity, true);
 
-            // Swing animation on the Action layer — directional for free (DirectionFacing_System.md
-            // §5): resolve the actor's own last-resolved facing into an east-side clip pick.
-            Direction clipFacing = Direction.SouthEast;
-            if (SystemAPI.HasComponent<UnitFacing>(selfEntity))
-            {
-                UnitFacing unitFacing = SystemAPI.GetComponent<UnitFacing>(selfEntity);
-                FacingResolver.ResolveClipFacing(
-                    unitFacing.current, unitBlob.animationDirections, out clipFacing, out bool _);
-            }
-            ClipId animationClip = AIUtils.GetAnimationByAction(ref unitBlob, actionType, clipFacing);
-            if (animationClip.IsValid && SystemAPI.HasBuffer<AnimationCommand>(selfEntity)
+            // Swing animation, played by name — the toolkit re-picks the directional clip against
+            // the actor's own ActorFacing, so the game no longer resolves a facing here.
+            uint animationKey = AIUtils.GetAnimationKeyByAction(ref unitBlob, actionType);
+            if (animationKey != 0 && SystemAPI.HasBuffer<AnimationCommand>(selfEntity)
                 && animationCommandPendingLookup.HasComponent(selfEntity))
             {
                 DynamicBuffer<AnimationCommand> animationCommands =
                     SystemAPI.GetBuffer<AnimationCommand>(selfEntity);
-                PlaybackApi.Play(
+                PlaybackApi.PlayAnimation(
                     ref animationCommands,
                     animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(selfEntity),
-                    (byte)AnimationToolkitLayer.Action,
-                    animationClip,
-                    loop: LoopMode.Once);
+                    animationKey);
             }
 
             // Start cooldown — the authored value is game feel, not clip sync (the Hit event
