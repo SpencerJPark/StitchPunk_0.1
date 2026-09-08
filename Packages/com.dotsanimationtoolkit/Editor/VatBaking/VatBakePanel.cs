@@ -303,11 +303,25 @@ namespace DotsAnimationToolkit.Editor
 
         // ResolveOutputFolder needs an existing ClipSetAsset to derive a folder from, which this button is
         // explicitly for the case where none exists yet — so it picks its own default instead.
+        // A package must not hardcode a host project's folders (see outputFolderField's own
+        // tooltip) — so unlike the regular bake, which can fall back to the clip set's own folder,
+        // this refuses outright when there is nothing to derive a path from yet.
         private void CreateSampleTentacle()
         {
-            string outputFolder = string.IsNullOrEmpty(outputFolderField.value)
-                ? "Assets/VatSamples"
-                : outputFolderField.value.TrimEnd('/');
+            string outputFolder;
+            if (!string.IsNullOrEmpty(outputFolderField.value))
+            {
+                outputFolder = outputFolderField.value.TrimEnd('/');
+            }
+            else if (clipSetField.value is ClipSetAsset existingClipSet)
+            {
+                outputFolder = ResolveOutputFolder(existingClipSet);
+            }
+            else
+            {
+                ReportFailure("Type an Output Folder first, so the sample assets have somewhere to write to.");
+                return;
+            }
 
             bool created = VatSampleTentacleUtility.CreateSampleAssets(
                 outputFolder,
