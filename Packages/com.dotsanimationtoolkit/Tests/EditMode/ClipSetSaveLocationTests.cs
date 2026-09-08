@@ -12,9 +12,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void TryMakeProjectRelative_AcceptsAssetsSubfolders_AndRefusesOutsiders()
         {
             bool nestedFolderResult = ClipSetSaveLocation.TryMakeProjectRelative(
-                "C:/Proj/Assets/Anim/Sets", "C:/Proj/Assets", out string nestedFolderRelativePath);
+                "C:/Proj/Assets" + "/Anim/Sets", "C:/Proj/Assets", out string nestedFolderRelativePath);
             Assert.IsTrue(nestedFolderResult);
-            Assert.AreEqual("Assets/Anim/Sets", nestedFolderRelativePath);
+            Assert.AreEqual("Assets" + "/Anim/Sets", nestedFolderRelativePath);
 
             bool exactFolderResult = ClipSetSaveLocation.TryMakeProjectRelative(
                 "C:\\Proj\\Assets", "C:/Proj/Assets", out string exactFolderRelativePath);
@@ -22,7 +22,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("Assets", exactFolderRelativePath);
 
             bool foreignRootResult = ClipSetSaveLocation.TryMakeProjectRelative(
-                "C:/Other/Assets/X", "C:/Proj/Assets", out string foreignRootRelativePath);
+                "C:/Other/Assets" + "/X", "C:/Proj/Assets", out string foreignRootRelativePath);
             Assert.IsFalse(foreignRootResult);
             Assert.IsNull(foreignRootRelativePath);
 

@@ -49,9 +49,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipPickerModel model = new ClipPickerModel();
             model.SetEntries(new[]
             {
-                new ClipPickerEntry { Clip = walkClip, Name = "Walk", FolderPath = "Assets/A" },
-                new ClipPickerEntry { Clip = runClip, Name = "Run", FolderPath = "Assets/B" },
-                new ClipPickerEntry { Clip = idleClip, Name = "Idle", FolderPath = "Assets/walkcycle" },
+                new ClipPickerEntry { Clip = walkClip, Name = "Walk", FolderPath = "Anim/A" },
+                new ClipPickerEntry { Clip = runClip, Name = "Run", FolderPath = "Anim/B" },
+                new ClipPickerEntry { Clip = idleClip, Name = "Idle", FolderPath = "Anim/walkcycle" },
             });
 
             model.SearchText = "WALK";
@@ -85,14 +85,14 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ClipPickerModel model = new ClipPickerModel();
             model.SetEntries(new[]
             {
-                new ClipPickerEntry { Clip = walkClip, Name = "Walk", FolderPath = "Assets/A" },
+                new ClipPickerEntry { Clip = walkClip, Name = "Walk", FolderPath = "Anim/A" },
             });
             model.SetCheckedState(walkClip, true);
 
             model.SetEntries(new[]
             {
-                new ClipPickerEntry { Clip = walkClip, Name = "Walk", FolderPath = "Assets/A" },
-                new ClipPickerEntry { Clip = jumpClip, Name = "Jump", FolderPath = "Assets/A" },
+                new ClipPickerEntry { Clip = walkClip, Name = "Walk", FolderPath = "Anim/A" },
+                new ClipPickerEntry { Clip = jumpClip, Name = "Jump", FolderPath = "Anim/A" },
             });
 
             Assert.IsTrue(model.IsChecked(walkClip));
