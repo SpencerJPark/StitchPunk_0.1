@@ -87,7 +87,7 @@ beneath it inherits that root unless it declares one of its own. See
 | `RigAsset` inspector | Select a `RigAsset` | Target list, mirror-pair table. |
 | `ClipSetAsset` inspector | Select a `ClipSetAsset` | Clip roster with a per-clip validation status column. |
 | `VatTextureSetAsset` inspector | Select a generated `VatTextureSetAsset` | Read-only bake stats (format, memory, per-clip frame ranges). |
-| `ActorProfileAsset` inspector | Select an `ActorProfileAsset` | Layer/animation editor, validation badge (P1-P7). See [`actor-profiles.md`](actor-profiles.md). |
+| Actor Editor | Clip Editor's **Actor Editor** tab, or double-click an `ActorProfileAsset` | Layer/animation editor, composited multi-layer preview, direction slider, ragdoll mix, validation badge (P1-P7). See [`actor-profiles.md`](actor-profiles.md). |
 | `ActorAuthoring` inspector | Select a GameObject with `ActorAuthoring` | Profile field and presentation settings. |
 
 The clip inspector and clip-set inspector share the same `ClipValidation` rule

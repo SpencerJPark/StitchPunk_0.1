@@ -41,9 +41,11 @@ segment's `holdId` is always empty, since nothing pauses after the end.
 
 Open **Window ▸ DOTS Animation Toolkit ▸ Clip Editor** and switch to the **Cutscene Editor** tab
 (or double-click a `CutsceneAsset` — it opens there directly, via the same `[OnOpenAsset]` seam
-`DirectionSetAssetOpener` uses). **+ Actor Slot** / **+ Prop Slot**, in the row above the timeline,
+`ActorProfileAssetOpener` uses). **+ Actor Slot** / **+ Prop Slot**, in the row above the timeline,
 add a slot; a slot's header doubles as its selection target — click it to edit its name, kind,
-actor prefab, rig, clip sets and direction set in the inspector.
+actor prefab, rig, clip sets and direction set in the inspector. An Actor slot's **Fill from
+Profile** button picks an `ActorProfileAsset` and writes its rig and clip sets onto the slot in one
+step, so a staged actor stops drifting from the profile that drives it in-game.
 
 ### Clip lane (Actor slots only)
 

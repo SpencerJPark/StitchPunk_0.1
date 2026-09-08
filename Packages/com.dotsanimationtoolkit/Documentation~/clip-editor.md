@@ -150,6 +150,12 @@ It is a mode switch, not a window arrangement. The Clip Editor docks beside the 
 
 Sharing a tab group is what makes the switch free, and it is also why the Clip Editor's top bar is not on screen while you are in the stage. The Scene view carries a **Clip Editor** overlay for that: one button back to the timeline, one straight to the VAT bake tab, both leaving the prefab stage open behind them. Dismiss it from the Scene view's overlay menu if you would rather use the tab.
 
+The window also carries **New Rig**, **VAT Bake**, **Actor Editor** and **Cutscene Editor** tabs
+alongside the Clip Editor timeline. The Actor Editor is where a profile's layers, named
+animations, direction coverage and ragdoll triggers are authored and previewed live, composited
+across every layer rather than one clip at a time — see
+[`actor-profiles.md`](actor-profiles.md).
+
 ### Coming back
 
 Saving or closing the stage reloads the preview, rebuilds the tree, and puts the playhead and selection back where they were — selection by name, since the tree's ids are indices into a hierarchy your edit just changed.

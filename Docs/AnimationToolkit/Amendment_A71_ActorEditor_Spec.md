@@ -194,38 +194,38 @@ Small, and it is how a staged cutscene actor stops drifting from the profile tha
 
 After each: compile gate → the task's fixtures → tick → commit `A71-Tn:`. Full suites at T9.
 
-- [ ] **T1 — Rename and re-home.** `ClipEditorTab.ActorEditor`, UXML/USS names, `ShowActorEditorTab`,
+- [x] **T1 — Rename and re-home.** `ClipEditorTab.ActorEditor`, UXML/USS names, `ShowActorEditorTab`,
   `ActorEditorPanel` shell in a new folder with the header row and three empty columns,
   `DirectionSetClipQueueView` moved and re-targeted at `DirectionSlots`, the `DirectionSlots`
   property drawer for `DirectionSetAsset`, the old pane/context/opener deleted,
   `ActorProfileAssetOpener`. *Fixtures:* `ClipEditorLayoutTests` element lists; one test that the
   drawer binds to `slots`. *Gate:* the tab shows an empty panel with a profile field.
-- [ ] **T2 — `SetClipSets` + `SampleCompositedPose` on the controller.** [parallel-safe with T3]
+- [x] **T2 — `SetClipSets` + `SampleCompositedPose` on the controller.** [parallel-safe with T3]
   *Fixture:* `ClipPreviewCompositeTests` (EditMode, in-memory registry as `LayerCompositionTests`
   builds one) — two layers with `Override` tracks on the same target: the composited pose equals
   `ClipSampler.CompositeLayers`'s answer, and `mirrorX` negates `localPosition.x`.
-- [ ] **T3 — `ActorPreviewComposer` + `PlaybackTimeMath` extraction.** [parallel-safe with T2]
+- [x] **T3 — `ActorPreviewComposer` + `PlaybackTimeMath` extraction.** [parallel-safe with T2]
   *Fixtures:* `ActorPreviewComposerTests` — a `Once` layer deactivates when its clip ends; a
   facing flip re-picks a Four-coverage entry and keeps `time`; an at-event `Start` trigger fires
   once per crossing and not on the frame after; `ActorPreviewParityTests` — the composer and
   `PlaybackTimeSystem` (through `PlaybackTestActor`) agree on `time`/`flags` after N steps for a
   looping and a `Once` clip. Revert each fix and watch the test fail before keeping it.
-- [ ] **T4 — Layers column.** `TreeView`, bookend rules, + Layer / + Animation (through
+- [x] **T4 — Layers column.** `TreeView`, bookend rules, + Layer / + Animation (through
   `VocabularyPicker`), drag-reorder between the bookends, ● live indicators, ▶/■ wired to the
   composer, per-row time field. Polling refresh; no rebuild from a callback.
-- [ ] **T5 — Inspector column.** Profile / layer / animation blocks per §3.2, direction queue with
+- [x] **T5 — Inspector column.** Profile / layer / animation blocks per §3.2, direction queue with
   the coverage readout (the `TryGetEffectiveDirections` text the old pane showed), ragdoll trigger
   + at-event picker, validation badge composed from P1–P7 and `ValidateBind`.
-- [ ] **T6 — Header, transport, direction slider, Reset, status line.** Slider through
+- [x] **T6 — Header, transport, direction slider, Reset, status line.** Slider through
   `FacingResolver.ResolveClipFacing(angle→Direction, profile.turnDirections, …)` with the
   "137° → SouthEast, mirrored" readout; the toolbar ragdoll toggle hidden on this tab.
-- [ ] **T7 — Ragdoll mix.** `Start`/`Stop` entries drive `TryEnableRagdollPreview` /
+- [x] **T7 — Ragdoll mix.** `Start`/`Stop` entries drive `TryEnableRagdollPreview` /
   `DisableRagdollPreview` from the composer; layers keep advancing under the drop; the status line
   names the entry that started it; a rig without bodies refuses with the P6 text. *Gate:* on a
   scratch profile over a rig **with** bodies (RG's, or a two-body scratch rig built in the test),
   ▶ Death drops and a Face-layer sprite key keeps stepping on a non-body part; ▶ Resurrection
   restores the exact captured pose (float-equal, the `RagdollToggleTests` assertion) and then plays.
-- [ ] **T8 — Cast panel "Fill from profile".** One button, one write, no fixture.
+- [x] **T8 — Cast panel "Fill from profile".** One button, one write, no fixture.
 - [ ] **T9 — Docs, CHANGELOG, version, full suites.** `Documentation~/actor-profiles.md` gains
   the editor half (with the §3.2 sketch); `clip-editor.md` tab list; `cutscenes.md` cast-panel
   line; `index.md`. CHANGELOG `## [0.17.0]`; `package.json` + the version assertion. Full EditMode
@@ -248,5 +248,29 @@ them as A71 follow-ups rather than re-opening A70's data model.
 
 ## 7. Build log
 
-- *(drift, which mirror implementation was reused, the extracted step function's name, the game
-  fixtures left red for G5, checkpoint feedback.)*
+- **T1** (`d2d3d647`) — `ClipEditorTab.ActorEditor`, `tab-actor-editor`/`actor-editor-pane`,
+  `ShowActorEditorTab`, `ActorEditorPanel` shell, `ActorProfileAssetOpener`; direction-sets pane
+  and context seam removed. Built on the owner's uncommitted tab-reorder diff (`eee615b3`).
+- **T2** (`0738e96f`) — `ClipPreviewController.SetClipSets`/`SampleCompositedPose`; the west-facing
+  mirror negates the same four components `TransformSampleSystem` does (`localPosition.x`,
+  `rotation.y`, `rotation.z`, `scale.x`), not a uniform scale-by-minus-one.
+  `ClipPreviewController` already implements the new `IActorPosePresenter` seam the composer reads
+  through — one interface, not a spec deviation, added to keep the composer decoupled from the
+  editor-preview concrete type.
+- **T3** (`1e59b2cc`) — `PlaybackTimeMath`/`PlaybackCommandMath` extracted into
+  `Runtime/Sampling/`; `PlaybackTimeSystem`/`CommandApplySystem` call the same static functions the
+  composer does. **Deviation:** `ActorPreviewComposerTests`/`ActorPreviewParityTests` live in
+  `Tests/EditMode/`, not PlayMode, because the PlayMode asmdef may not reference the Editor
+  assembly the composer lives in.
+- **T4/T6/T7** (`56c0b9a6`) — layers column, header (badge/transport/direction slider/Reset),
+  ragdoll mix. **Deviation:** layer reorder is Up/Down buttons (`ActorEditorLayersColumn.MoveLayer`)
+  rather than drag — cheaper to make undo-safe and to keep off the drag-kill-rebuild trap than a
+  `TreeView` drag handler.
+- **T5** (`adc2a964`) — inspector column: profile/layer/animation blocks, direction queue with
+  coverage readout, ragdoll trigger + at-event picker, validation badge.
+- **T8** (`93099555`) — cutscene cast panel "Fill from Profile" button, one write of
+  `slot.rig`/`slot.clipSets` from an `ActorProfileAsset` picker.
+- Game fixtures left red for G5: unchanged from A70 — `UnitDirectionSetContextProvider.cs` (game)
+  still fails to compile, now because the seam it implements no longer exists at all rather than
+  because it targeted a removed field.
+- T10 owner checkpoint: not yet run.

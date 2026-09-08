@@ -8,6 +8,45 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] — Actor Editor: layers, animations, direction and ragdoll, mixed live (A71)
+
+### Added
+
+- **Actor Editor tab** (Clip Editor, alongside New Rig · Clip Editor · VAT Bake · Cutscene Editor),
+  replacing the 2D Direction Sets pane: a layers column (bookended `Base`/`Override`, `+ Layer`,
+  Up/Down reorder, a starter picker, `+ Animation` through the name picker, ▶/■ triggers, live
+  dots, per-row scrub), an inspector column (profile/layer/animation blocks, a direction-dimension
+  toggle with the slot queue and coverage readout, loop/speed/blend-in, a ragdoll trigger with an
+  at-event picker), and a composited preview (every layer, mirrored west facings) with a header
+  (profile field, validation badge, Reset, transport, direction slider). Double-clicking an
+  `ActorProfileAsset` opens the tab with it loaded.
+- **`ActorPreviewComposer`** (`Editor/ClipEditor/ActorEditor/`) — advances every active layer,
+  detects marker crossings for at-event ragdoll triggers, re-picks directional layers on a facing
+  change, and drives the ragdoll preview from the profile's own `Start`/`Stop` entries.
+- **`ClipPreviewController.SetClipSets`** (many clip sets, replacing the single-set `SetClipSet`
+  path) and **`SampleCompositedPose`** — poses the preview from a composited multi-layer buffer
+  instead of one clip, with the same west-facing mirror `TransformSampleSystem` applies at runtime.
+- **`PlaybackTimeMath`/`PlaybackCommandMath`** (`Runtime/Sampling/`) — the layer-advance and
+  play/stop-command logic extracted out of `PlaybackTimeSystem`/`CommandApplySystem` so the editor
+  preview and the runtime share one implementation; parity between them is a pinned test.
+- **`DirectionSetAsset` inspector** — a plain property drawer over its `DirectionSlots`, reusing
+  the direction-queue view the Actor Editor also uses.
+- **Cutscene cast panel "Fill from Profile"** — one button per Actor slot writes an
+  `ActorProfileAsset`'s rig and clip sets onto the slot.
+
+### Removed
+
+- The 2D Direction Sets pane (`DirectionSetsPanel`), its "Unit Context" seam
+  (`IDirectionSetContextProvider`, `DirectionSetContextEntry`,
+  `DirectionSetsPanel.SetContextProvider`), and `DirectionSetAssetOpener` — the profile *is* the
+  context now. The host's `UnitDirectionSetContextProvider` no longer compiles until G5, on top of
+  A70's existing red.
+
+### Changed
+
+- `ClipEditorTab.DirectionSets` → `ClipEditorTab.ActorEditor`; UXML element names
+  `tab-direction-sets`/`direction-sets-pane` → `tab-actor-editor`/`actor-editor-pane`.
+
 ## [0.16.0] — actor profiles: layers, named animations, per-animation direction, ragdoll triggers (A70)
 
 ### Breaking — rig layers move to the actor profile

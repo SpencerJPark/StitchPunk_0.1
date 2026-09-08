@@ -198,6 +198,41 @@ P2 (registry membership) is judged at bake and in the Actor Editor badge, not by
 `ActorProfileBuilder` itself — building a blob has no access to the editor-only vocabulary
 provider that the registry check needs.
 
+## Authoring in the Actor Editor
+
+Double-click an `ActorProfileAsset` (or open the Clip Editor and pick the **Actor Editor** tab,
+alongside New Rig · Clip Editor · VAT Bake · Cutscene Editor) to author and test one live. Unlike
+the Clip Editor, which previews one clip, this tab previews the whole profile: every layer
+composited, triggered the way the game triggers them, turning through the profile's directions,
+dropping and restoring ragdoll on the entries that say so.
+
+**Header.** A profile field, a validation badge (P1–P7 plus clip/rig binding), **Reset** (every
+layer back to its starter or inactive, ragdoll off, direction to south-east), a Play/Pause
+transport, and a direction slider with a readout in the form "137° → SouthEast, mirrored".
+
+**Layers column.** `Base` and `Override` are fixed bookends — no delete, no reorder — with
+**+ Layer** inserting between them; other layers move with Up/Down buttons. Each layer row picks a
+starter animation and shows a live dot while the composer has it active. **+ Animation** on a
+layer opens the animation-name picker (typing a new name mints it in the registry). Each animation
+row carries ▶/■ to trigger `PlayAnimation`/`StopAnimation` on the live composer, a live dot while
+playing, and its own per-row scrub field.
+
+**Inspector column.** Blocks for whichever of profile / layer / animation is selected. An
+animation block has a direction-dimension toggle that swaps a plain clip field for the slot queue
+(south-east through east) with the same derived coverage readout as the coverage rules above, plus
+loop/speed/blend-in (each with a "use clip default" option) and, for a ragdoll trigger, a
+Start/Stop choice and an at-event picker from the Event Names registry.
+
+**Preview.** Every layer is advanced by the runtime's own step function (`PlaybackTimeMath`,
+shared with `PlaybackTimeSystem`, so the preview and the game can never drift out of step), then
+composited into one pose; west-side facings are the mirrored east slot, exactly as in the game.
+
+**Ragdoll mix.** An entry's `Start` trigger drops the previewed body into the ragdoll solver while
+every other layer keeps animating — a death-face sprite layer keeps stepping on a non-body part
+while the body lies limp, the mix the ragdoll-triggers section above describes. `Stop` restores the
+captured pose exactly, then the entry plays. A rig with no ragdoll bodies refuses and says so in
+the status line (the P6 case) rather than silently doing nothing.
+
 ## What changed from rig layers
 
 > **Breaking.** If you have an existing project on an earlier version of this package:
