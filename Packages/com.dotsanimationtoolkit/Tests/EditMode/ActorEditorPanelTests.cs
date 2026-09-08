@@ -133,5 +133,18 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("Action", profileAsset.layers[1].displayName,
                 "the illegal move must leave the non-bookend layer where it was.");
         }
+
+        [Test]
+        public void ViewportRail_OffersCameraAndPreviewTogglesButNoGizmoModes()
+        {
+            ActorEditorPanel panel = new ActorEditorPanel();
+
+            Assert.IsNotNull(panel.Q<VisualElement>("actor-reset-camera-button"), "actor-reset-camera-button must exist.");
+            Assert.IsNotNull(panel.Q<VisualElement>("actor-billboard-preview-toggle"), "actor-billboard-preview-toggle must exist.");
+            Assert.IsNotNull(panel.Q<VisualElement>("actor-ragdoll-preview-toggle"), "actor-ragdoll-preview-toggle must exist.");
+            Assert.IsNull(panel.Q<VisualElement>("gizmo-move-toggle"), "the Actor Editor must not offer a Move gizmo toggle.");
+            Assert.IsNull(panel.Q<VisualElement>("gizmo-rotate-toggle"), "the Actor Editor must not offer a Rotate gizmo toggle.");
+            Assert.IsNull(panel.Q<VisualElement>("gizmo-scale-toggle"), "the Actor Editor must not offer a Scale gizmo toggle.");
+        }
     }
 }

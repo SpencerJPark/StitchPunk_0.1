@@ -40,9 +40,11 @@ namespace DotsAnimationToolkit.Editor
         private ClipPreviewController previewController;
         private RigAsset windowRig;
 
-        private float restoreOrbitYaw;
-        private float restoreOrbitPitch;
-        private bool hasCapturedOrbit;
+        private readonly PreviewCameraNavigation cameraNavigation = new PreviewCameraNavigation();
+        private PreviewCameraPose restoredCameraPose;
+        private bool hasBorrowedCamera;
+        private ToolbarToggle billboardToggle;
+        private ToolbarToggle ragdollToggle;
         private bool restoreBillboardEnabled;
         private bool isTicking;
         private double lastTickTimeSinceStartup;
@@ -116,6 +118,7 @@ namespace DotsAnimationToolkit.Editor
             composer.Reset();
             previewController?.DisableRagdollPreview();
             ragdollRefusalReason = null;
+            SetRagdollToggleWithoutNotify(false);
             currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
             currentMemberFacing = Direction.SouthEast;
             composer.Facing = Direction.SouthEast;
@@ -186,6 +189,7 @@ namespace DotsAnimationToolkit.Editor
         {
             previewController = controller;
             windowRig = rig;
+            cameraNavigation.Rig = controller;
         }
 
         // Starts or stops the per-frame tick with the pane's visibility, and borrows the shared
@@ -216,6 +220,7 @@ namespace DotsAnimationToolkit.Editor
                 composer.RagdollStopRequested -= OnComposerRagdollStopRequested;
                 previewController?.DisableRagdollPreview();
                 ragdollRefusalReason = null;
+                SetRagdollToggleWithoutNotify(false);
                 ReturnPreviewCamera();
             }
         }
@@ -230,34 +235,40 @@ namespace DotsAnimationToolkit.Editor
 
         private void BorrowPreviewCamera()
         {
-            if (previewController == null || hasCapturedOrbit)
+            if (previewController == null || hasBorrowedCamera)
             {
                 return;
             }
 
-            restoreOrbitYaw = previewController.OrbitYaw;
-            restoreOrbitPitch = previewController.OrbitPitch;
+            restoredCameraPose = previewController.CapturePose();
             restoreBillboardEnabled = previewController.BillboardPreviewEnabled;
-            hasCapturedOrbit = true;
+            hasBorrowedCamera = true;
 
             previewController.OrbitYaw = 0f;
             previewController.OrbitPitch = 0f;
             previewController.BillboardPreviewEnabled = true;
             previewController.DisableRagdollPreview();
             previewController.FrameRig();
+
+            billboardToggle?.SetValueWithoutNotify(true);
+            SetRagdollToggleWithoutNotify(false);
         }
 
         private void ReturnPreviewCamera()
         {
-            if (previewController == null || !hasCapturedOrbit)
+            if (previewController == null || !hasBorrowedCamera)
             {
                 return;
             }
 
-            previewController.OrbitYaw = restoreOrbitYaw;
-            previewController.OrbitPitch = restoreOrbitPitch;
+            previewController.RestorePose(in restoredCameraPose);
             previewController.BillboardPreviewEnabled = restoreBillboardEnabled;
-            hasCapturedOrbit = false;
+            hasBorrowedCamera = false;
+        }
+
+        private void SetRagdollToggleWithoutNotify(bool ragdollOn)
+        {
+            ragdollToggle?.SetValueWithoutNotify(ragdollOn);
         }
 
         // -----------------------------------------------------------------------------------------
@@ -378,10 +389,73 @@ namespace DotsAnimationToolkit.Editor
             viewportStatusLabel.style.whiteSpace = WhiteSpace.Normal;
             viewportColumn.Add(viewportStatusLabel);
 
+            VisualElement viewportFrame = new VisualElement { name = "viewport-frame" };
+            viewportFrame.AddToClassList("clip-editor__viewport-frame");
+            viewportFrame.style.flexGrow = 1f;
+            viewportColumn.Add(viewportFrame);
+
             viewportImage = new Image();
             viewportImage.style.flexGrow = 1f;
             viewportImage.AddToClassList("actor-editor__viewport-image");
-            viewportColumn.Add(viewportImage);
+            viewportFrame.Add(viewportImage);
+
+            VisualElement viewportOverlay = new VisualElement { name = "viewport-overlay" };
+            viewportOverlay.AddToClassList("clip-editor__viewport-overlay");
+            viewportOverlay.pickingMode = PickingMode.Ignore;
+            viewportFrame.Add(viewportOverlay);
+
+            VisualElement overlayColumn = new VisualElement { name = "overlay-column" };
+            overlayColumn.AddToClassList("clip-editor__overlay-column");
+            viewportOverlay.Add(overlayColumn);
+
+            ToolbarButton resetCameraButton = new ToolbarButton(() => cameraNavigation.ResetView())
+            {
+                name = "actor-reset-camera-button"
+            };
+            resetCameraButton.AddToClassList("clip-editor__overlay-tool-button");
+            resetCameraButton.tooltip =
+                "Put the camera back where the window opened it: head-on, centred on this rig "
+                + "and backed off to fit it. Undoes any orbit, pan or flight. Same as "
+                + "double-clicking the viewport.\n\n"
+                + "Viewport camera: drag to orbit, middle-drag to pan, right-drag to look "
+                + "around, right-drag + W/A/S/D and Q/E to fly (Shift for faster), "
+                + "Alt + right-drag or the wheel to zoom, F to frame the selection.";
+            Image resetCameraIcon = new Image { pickingMode = PickingMode.Ignore };
+            resetCameraIcon.AddToClassList("clip-editor__overlay-tool-icon");
+            resetCameraButton.Insert(0, resetCameraIcon);
+            ToolkitIcons.SetButtonIcon(resetCameraButton, resetCameraIcon, "d_FrameCapture", "Reset Camera");
+            overlayColumn.Add(resetCameraButton);
+
+            billboardToggle = new ToolbarToggle { name = "actor-billboard-preview-toggle" };
+            billboardToggle.AddToClassList("clip-editor__overlay-tool-button");
+            billboardToggle.AddToClassList("clip-editor__overlay-run-break");
+            billboardToggle.tooltip = "Preview this actor's screen-aligned billboard parts, if it has any.";
+            Image billboardIcon = new Image { pickingMode = PickingMode.Ignore };
+            billboardIcon.AddToClassList("clip-editor__overlay-tool-icon");
+            billboardToggle.Add(billboardIcon);
+            ToolkitIcons.SetToggleIcon(billboardToggle, billboardIcon, "d_BillboardRenderer Icon", "Billboard");
+            billboardToggle.RegisterValueChangedCallback(changeEvent =>
+            {
+                if (previewController != null)
+                {
+                    previewController.BillboardPreviewEnabled = changeEvent.newValue;
+                }
+            });
+            overlayColumn.Add(billboardToggle);
+
+            ragdollToggle = new ToolbarToggle { name = "actor-ragdoll-preview-toggle" };
+            ragdollToggle.AddToClassList("clip-editor__overlay-tool-button");
+            ragdollToggle.tooltip =
+                "Drop the previewed rig as an active ragdoll to see whether a pose still reads on impact. "
+                + "Turning it off restores the pose exactly.";
+            Image ragdollIcon = new Image { pickingMode = PickingMode.Ignore };
+            ragdollIcon.AddToClassList("clip-editor__overlay-tool-icon");
+            ragdollToggle.Add(ragdollIcon);
+            ToolkitIcons.SetToggleIcon(ragdollToggle, ragdollIcon, "d_Avatar Icon", "Ragdoll");
+            ragdollToggle.RegisterValueChangedCallback(OnRagdollToggleChanged);
+            overlayColumn.Add(ragdollToggle);
+
+            cameraNavigation.AttachTo(viewportImage);
 
             viewportColumn.Add(BuildTransportRow());
 
@@ -502,6 +576,7 @@ namespace DotsAnimationToolkit.Editor
             if (previewController.TryEnableRagdollPreview(out string refusalReason))
             {
                 ragdollRefusalReason = null;
+                SetRagdollToggleWithoutNotify(true);
             }
             else
             {
@@ -513,6 +588,35 @@ namespace DotsAnimationToolkit.Editor
         {
             ragdollRefusalReason = null;
             previewController?.DisableRagdollPreview();
+            SetRagdollToggleWithoutNotify(false);
+        }
+
+        // A74-D5: a manual click does what the Clip Editor's own ragdoll toggle does. A refused enable
+        // snaps the toggle back off — ragdollRefusalReason already surfaces the reason in the status label.
+        private void OnRagdollToggleChanged(ChangeEvent<bool> changeEvent)
+        {
+            if (previewController == null)
+            {
+                return;
+            }
+
+            if (changeEvent.newValue)
+            {
+                if (previewController.TryEnableRagdollPreview(out string refusalReason))
+                {
+                    ragdollRefusalReason = null;
+                }
+                else
+                {
+                    ragdollRefusalReason = refusalReason;
+                    SetRagdollToggleWithoutNotify(false);
+                }
+            }
+            else
+            {
+                ragdollRefusalReason = null;
+                previewController.DisableRagdollPreview();
+            }
         }
 
         // -----------------------------------------------------------------------------------------

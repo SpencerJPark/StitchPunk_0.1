@@ -124,6 +124,57 @@ namespace DotsAnimationToolkit.Editor
             ApplyIcon(button, iconImage, iconName, fallbackText);
         }
 
+        // Mirrors ClipEditorWindow's private SetOverlayToolIcon(Button, Image, ...): the caller already
+        // built the icon Image with its own CSS class, so this only swaps the image or falls back to text —
+        // unlike the 3-arg SetButtonIcon above, it does not create or reclass the Image itself, and it
+        // resolves the icon name literally (no "d_" auto-prefixing) since callers pass the exact editor
+        // icon name they want, including the "d_" prefix when they need it.
+        public static void SetButtonIcon(Button button, Image icon, string iconName, string fallbackText)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            Texture iconTexture = ResolveExactIconTexture(iconName);
+            if (iconTexture != null && icon != null)
+            {
+                icon.image = iconTexture;
+                return;
+            }
+            if (icon != null)
+            {
+                icon.RemoveFromHierarchy();
+            }
+            button.text = fallbackText;
+        }
+
+        public static void SetToggleIcon(Toggle toggle, Image icon, string iconName, string fallbackText)
+        {
+            if (toggle == null)
+            {
+                return;
+            }
+
+            Texture iconTexture = ResolveExactIconTexture(iconName);
+            if (iconTexture != null && icon != null)
+            {
+                icon.image = iconTexture;
+                return;
+            }
+            if (icon != null)
+            {
+                icon.RemoveFromHierarchy();
+            }
+            toggle.text = fallbackText;
+        }
+
+        private static Texture ResolveExactIconTexture(string iconName)
+        {
+            GUIContent iconContent = EditorGUIUtility.IconContent(iconName);
+            return iconContent != null ? iconContent.image : null;
+        }
+
         private static void ApplyIcon(Button button, Image iconImage, string iconName, string fallbackText)
         {
             Texture2D iconTexture = Resolve(iconName);
