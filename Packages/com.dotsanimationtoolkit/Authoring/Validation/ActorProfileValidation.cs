@@ -177,7 +177,8 @@ namespace DotsAnimationToolkit.Authoring
         {
             if (!animation.hasDirections)
             {
-                if (animation.clip == null)
+                // A trigger-only entry (a ragdoll Start/Stop with nothing to play) legitimately names no clip.
+                if (animation.clip == null && animation.ragdollTrigger == RagdollTrigger.None)
                 {
                     messages.Add(new ValidationMessage(
                         ValidationSeverity.Error,

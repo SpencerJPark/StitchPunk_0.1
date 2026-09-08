@@ -175,6 +175,36 @@ namespace DotsAnimationToolkit.Tests.EditMode
         // P5: a named clip must be in one of the profile's own clip sets.
         // -----------------------------------------------------------------------------------
 
+
+        [Test]
+        public void P4_AllowsATriggerOnlyEntryThatNamesNoClip()
+        {
+            RigAsset rig = CreateValidRig();
+            ClipAsset idleClip = CreateIdleClip();
+            ClipSetAsset clipSet = assets.CreateSet("Set", rig, SetKey, idleClip);
+            ActorProfileAsset profile = CreateProfile(rig, clipSet);
+            profile.layers[0].animations.Add(CreateValidAnimation(IdleAnimationKey, idleClip));
+            ActorAnimationDefinition deathEntry = new ActorAnimationDefinition
+            {
+                animationKey = OtherAnimationKey,
+                hasDirections = false,
+                clip = null,
+                ragdollTrigger = RagdollTrigger.Start
+            };
+            profile.layers[0].animations.Add(deathEntry);
+
+            FakeAnimationNameRegistry animationNames = new FakeAnimationNameRegistry();
+            animationNames.Add(IdleAnimationKey, "Idle");
+            animationNames.Add(OtherAnimationKey, "Death");
+
+            List<ValidationMessage> messages = ActorProfileValidation.Validate(profile, animationNames);
+            for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
+            {
+                Assert.AreNotEqual(ValidationCode.P4, messages[messageIndex].code,
+                    "A ragdoll Start/Stop entry with no clip is a request, not a missing clip.");
+            }
+        }
+
         [Test]
         public void P5_FiresWhenTheNamedClipIsNotInAnyOfTheProfilesClipSets()
         {

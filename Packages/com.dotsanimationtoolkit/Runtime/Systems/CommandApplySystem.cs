@@ -256,6 +256,21 @@ namespace DotsAnimationToolkit
             }
 
             ref ActorAnimationBlob entry = ref profileBlob.animations[animationIndex];
+
+            // A trigger-only entry (no clip, a ragdoll Start/Stop) is a request, never a play: the
+            // layer is left exactly as it is and nothing is reported as unresolved.
+            if (!resolvedClip.IsValid)
+            {
+                if (entry.ragdollTrigger != RagdollTrigger.None
+                    && entry.ragdollAtEventKey == 0u
+                    && ragdollRequestLookup.HasComponent(actorEntity))
+                {
+                    ragdollRequestLookup[actorEntity] = new ActorRagdollRequest { trigger = entry.ragdollTrigger };
+                    ragdollRequestLookup.SetComponentEnabled(actorEntity, true);
+                }
+                return;
+            }
+
             float effectiveSpeed = math.isnan(command.speed) ? entry.speed : command.speed;
             LoopMode effectiveLoop = command.loop == LoopMode.UseClipDefault ? entry.loop : command.loop;
             float effectiveBlendDuration = math.isnan(command.blendDuration) ? entry.blendIn : command.blendDuration;

@@ -173,6 +173,16 @@ namespace DotsAnimationToolkit.Editor
             ref ClipRegistryBlob registry = ref registryReference.Value;
             ref ActorAnimationBlob entry = ref profileBlobValue.animations[animationIndex];
 
+            // A trigger-only entry (no clip) is a request, never a play — same rule as the runtime.
+            if (!resolvedClip.IsValid)
+            {
+                if (entry.ragdollTrigger != RagdollTrigger.None && entry.ragdollAtEventKey == 0u)
+                {
+                    RaiseRagdollTrigger(entry.ragdollTrigger, animationKey);
+                }
+                return true;
+            }
+
             PlaybackLayer targetLayer = layers[layerIndex];
             bool played = PlaybackCommandMath.ApplyPlay(
                 ref targetLayer, ref registry, resolvedClip, entry.speed, entry.loop, entry.blendIn, out bool _);
