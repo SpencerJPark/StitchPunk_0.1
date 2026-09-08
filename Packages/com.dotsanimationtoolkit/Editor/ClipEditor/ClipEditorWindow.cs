@@ -244,6 +244,10 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement newRigPane;
         private NewRigPanel newRigPanel;
 
+        /// <summary>The Clip Sets tab's cover pane, and the panel built into it the first time it is opened.</summary>
+        private VisualElement clipSetsPane;
+        private ClipSetsPanel clipSetsPanel;
+
         /// <summary>The Actor Editor pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement actorEditorPane;
         private ActorEditorPanel actorEditorPanel;
@@ -259,7 +263,7 @@ namespace DotsAnimationToolkit.Editor
         /// because every switch has to write the ones that did not change, and a lookup miss would
         /// leave one lit alongside the new one.
         /// </summary>
-        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[5];
+        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[6];
 
         /// <summary>The Cutscene Editor's cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement cutscenePane;
@@ -794,6 +798,11 @@ namespace DotsAnimationToolkit.Editor
                 newRigPanel.Dispose();
                 newRigPanel = null;
             }
+            if (clipSetsPanel != null)
+            {
+                clipSetsPanel.Dispose();
+                clipSetsPanel = null;
+            }
             if (vatBakePanel != null)
             {
                 vatBakePanel.Dispose();
@@ -933,13 +942,6 @@ namespace DotsAnimationToolkit.Editor
                 clipSetField.RegisterValueChangedCallback(OnClipSetChanged);
             }
 
-            ToolbarButton newClipSetButton = rootVisualElement.Q<ToolbarButton>("new-clip-set-button");
-            if (newClipSetButton != null)
-            {
-                newClipSetButton.clicked += CreateClipSet;
-                newClipSetButton.tooltip = "Create a new clip set asset and load it into this window.";
-            }
-
             // Snap and Auto Key are no longer in the top bar. They sit on the status row over the
             // key area with the scale pivot, because all three answer "what will my next edit here
             // do" — a different question from the clip set and rig identity this bar is for.
@@ -993,6 +995,7 @@ namespace DotsAnimationToolkit.Editor
             actorEditorPane = rootVisualElement.Q<VisualElement>("actor-editor-pane");
             vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");
             newRigPane = rootVisualElement.Q<VisualElement>("new-rig-pane");
+            clipSetsPane = rootVisualElement.Q<VisualElement>("clip-sets-pane");
             cutscenePane = rootVisualElement.Q<VisualElement>("cutscene-pane");
 
             // Before BindTabs, which hides the whole stack on any tab but Clip Editor.
@@ -1253,33 +1256,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Creates a clip set wherever the user chooses, and loads it into the window.</summary>
-        private void CreateClipSet()
-        {
-            string assetPath = EditorUtility.SaveFilePanelInProject(
-                "Create Clip Set",
-                "NewClipSet",
-                "asset",
-                "Choose where to save the new clip set.");
-            if (string.IsNullOrEmpty(assetPath))
-            {
-                return;
-            }
-
-            ClipSetAsset newClipSet = ClipAssetUtility.CreateClipSet(assetPath);
-            if (newClipSet == null)
-            {
-                return;
-            }
-
-            if (clipSetField != null)
-            {
-                // Through the toolbar field, not the clipSet backing field directly, so this
-                // follows the same change-notification path as picking a set by hand.
-                clipSetField.value = newClipSet;
-            }
-            EditorGUIUtility.PingObject(newClipSet);
-        }
-
         private void BindHierarchy()
         {
             hierarchyEmptyLabel = rootVisualElement.Q<Label>("hierarchy-empty-label");
@@ -1589,6 +1565,9 @@ namespace DotsAnimationToolkit.Editor
             BindTab(ClipEditorTab.NewRig, "tab-new-rig",
                 "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
                 + "targets, and optionally point this clip set at the result.");
+            BindTab(ClipEditorTab.ClipSets, "tab-clip-sets",
+                "Browse every clip set in the project, create one — name, folder, starting clips — or "
+                + "add and remove clips on an existing one.");
             BindTab(ClipEditorTab.ClipEditor, "tab-clip-editor",
                 "The clip list, rig hierarchy, viewport, inspector and timeline. What the window "
                 + "opens on, and what every other tab is drawn over.");
@@ -1673,6 +1652,7 @@ namespace DotsAnimationToolkit.Editor
             isApplyingTab = false;
 
             ShowNewRigTab(activeTab == ClipEditorTab.NewRig);
+            ShowClipSetsTab(activeTab == ClipEditorTab.ClipSets);
             ShowActorEditorTab(activeTab == ClipEditorTab.ActorEditor);
             ShowVatBakeTab(activeTab == ClipEditorTab.VatBake);
             ShowCutsceneTab(activeTab == ClipEditorTab.CutsceneEditor);
@@ -1766,6 +1746,32 @@ namespace DotsAnimationToolkit.Editor
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
+        /// <summary>Shows or hides the Clip Sets browse/create/edit flow over the editor.</summary>
+        private void ShowClipSetsTab(bool isShown)
+        {
+            if (clipSetsPane == null)
+            {
+                return;
+            }
+
+            if (isShown && clipSetsPanel == null)
+            {
+                clipSetsPanel = new ClipSetsPanel();
+                clipSetsPanel.Closed += CloseClipSetsTab;
+                clipSetsPanel.ClipSetCreated += OnClipSetCreatedByPanel;
+                clipSetsPanel.OpenInEditorRequested += OnClipSetOpenRequested;
+                clipSetsPanel.SetClipsChanged += OnPanelChangedSetClips;
+                clipSetsPane.Add(clipSetsPanel);
+            }
+
+            if (isShown)
+            {
+                clipSetsPanel.SetSource(clipSet);
+            }
+
+            clipSetsPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
         /// <summary>Shows or hides the Actor Editor pane over the editor.</summary>
         private void ShowActorEditorTab(bool isShown)
         {
@@ -1807,6 +1813,10 @@ namespace DotsAnimationToolkit.Editor
             {
                 actorEditorPanel.SetSource(previewController, activeRig);
             }
+            if (clipSetsPanel != null)
+            {
+                clipSetsPanel.SetSource(clipSet);
+            }
         }
 
         // Picking a profile sets the window's Rig, never its Clip Set — the rig is shared by every
@@ -1832,6 +1842,49 @@ namespace DotsAnimationToolkit.Editor
             if (loadIntoEditor && skinnedSourceField != null)
             {
                 skinnedSourceField.value = createdRig;
+            }
+        }
+
+        /// <summary>Closes the Clip Sets flow at the panel's own request, once a create-with-Load landed.</summary>
+        private void CloseClipSetsTab()
+        {
+            SetActiveTab(ClipEditorTab.ClipEditor);
+        }
+
+        /// <summary>Loads a freshly created clip set into this window, when the Clip Sets panel's own Load toggle asked for it.</summary>
+        private void OnClipSetCreatedByPanel(ClipSetAsset createdSet, bool loadIntoEditor)
+        {
+            if (loadIntoEditor && clipSetField != null)
+            {
+                // Through the toolbar field, not the clipSet backing field directly, so this
+                // follows the same change-notification path as picking a set by hand.
+                clipSetField.value = createdSet;
+            }
+        }
+
+        /// <summary>Answers the Clip Sets panel's "Open in Clip Editor" button: loads the set and switches tabs.</summary>
+        private void OnClipSetOpenRequested(ClipSetAsset requestedSet)
+        {
+            if (clipSetField != null)
+            {
+                clipSetField.value = requestedSet;
+            }
+            SetActiveTab(ClipEditorTab.ClipEditor);
+        }
+
+        /// <summary>Answers the Clip Sets panel adding or removing a clip on the currently open set.</summary>
+        private void OnPanelChangedSetClips(ClipSetAsset changedSet)
+        {
+            if (changedSet == null || changedSet != clipSet)
+            {
+                return;
+            }
+            RefreshClipList();
+            RefreshClipActionButtons();
+            MarkPreviewDirty();
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(activeRig, clipSet);
             }
         }
 
