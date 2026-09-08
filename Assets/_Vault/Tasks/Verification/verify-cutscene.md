@@ -201,16 +201,20 @@ are fixed. The fourth needs a clean checklist walk to confirm.
   data (it's exactly what the billboard bridge fix needed to have something to rotate), not a
   regression.
 
-**Not yet done: a clean, full checklist walk-through with all four fixes in place.** Every fix above
-was verified individually and live (via `execute_code`, not the owner's own play-test), but nobody
-has walked all 10 checklist steps end-to-end since. That's the next concrete step — see the handoff
-prompt below.
+## Session update (2026-09-07, third pass) — owner walked the checklist, steps 1-8 clean
+
+The owner played the acceptance cutscene end to end with all four fixes above in place. Steps 1
+through 8 (trigger, minion pathfind, player mark, cart boarding, dialogue hold, drive/camera/SFX,
+arrival and cleanup, skip parity) passed clean — no new failures, nothing logged against any spec's
+§7.
+
+**Still open: step 9 (save-during-cutscene refused, save-after works) and step 10 (Profiler reading
+for `CutsceneTimelineSystem`, target under 0.2 ms).** Neither has been walked yet.
 
 ## Next work
 
-1. **Walk the full 10-step checklist above, clean, with all four fixes in place.** Should take ~10-15s
-   of cutscene runtime now instead of ~30s (delay fix). Log any NEW failure against the spec that owns
-   it (roadmap's `Cutscene_Roadmap.md` §3 table) — everything above is fixed, not guessed at, but this
-   session verified pieces individually via `execute_code`, never the whole thing back-to-back through
-   the real `H` key with a human watching.
-2. **A68** — docs/release amendment, next on the critical path once this checklist passes.
+1. **Walk steps 9 and 10.** Save mid-cutscene should be refused with a warning; save after completion
+   should work normally. Profiler capture of `CutsceneTimelineSystem` during the acceptance cutscene,
+   logged here once done.
+2. **A68** — docs/release amendment. Blocked on 1 above per this spec's own gate; confirm with the
+   owner before starting if steps 9/10 remain unwalked.

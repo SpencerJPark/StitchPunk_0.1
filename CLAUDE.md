@@ -18,6 +18,13 @@ Editor-driven; there is no CLI build for the game.
 - **Play-test:** user-driven. Main scene `Assets/Scenes/Game.unity`; DOTS sandbox `Assets/Scenes/SubScenes/DOTSTestScene.unity`. Anything on-screen needs the user to look or share a screenshot.
 - **Tests:** EditMode fixtures in `Assets/_Scripts/Tests/`; PlayMode fixtures (need a `World`/`EntityManager`) in `Assets/_Scripts/Tests/PlayMode/` (`StitchPunk.Tests.PlayMode.asmdef`, added 2026-08-29 — mirrors `com.dotsanimationtoolkit`'s own PlayMode assembly: manual `World` + `GetOrCreateSystem<T>().Update(...)`, no scene/GameObjects needed). Run via `mcp__UnityMCP__run_tests` (poll `mcp__UnityMCP__get_test_job`). No headless CLI. Test only what actually needs testing — real logic, real invariants, real regressions. No coverage-chasing, no fixtures for trivial accessors or for Unity's own behaviour. If you cannot revert the fix and watch the test fail, delete the test.
 
+## Subagent Delegation
+
+- **Size each task to finish well under 150k tokens, ideally under 100k** — hallucination risk climbs past that range. One or two files per agent, read named line ranges, never re-read a file already in context.
+- **Sonnet or Haiku only** — never spawn an Opus subagent for delegated work.
+- **Subagents report back short summaries** (a few bullet points, not raw tool output) for the orchestrator to act on directly.
+- **If a subagent's output needs checking, verify with a second small agent** rather than re-deriving the work yourself in the orchestrator's own context.
+
 ## Architecture
 
 `Assets/_Scripts/` splits into `StitchPunk.*` assemblies by folder: `Components/` (data only, no logic), `Authoring/` (MonoBehaviour + nested `Baker`, no game logic), `Data/` (SOs + blob structs), `Systems/` (all gameplay), `MonoBehaviours/` (hybrid bridge), plus `UI/ Core/ Utils/ Editor/ Tests/`. `Core/Unused/` is legacy parking — never reference it.

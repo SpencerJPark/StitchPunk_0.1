@@ -112,7 +112,12 @@
       "Bash(git restore *)",
       "Bash(cp /c/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/Shaders/Graphs/2DTextureArrayShader.shadergraph /c/Users/spenc/AppData/Local/Temp/claude/C--Users-spenc-Documents-GitHub-Stitch-Punk/90b732d6-f62f-4e78-8c05-b7a26d228c4f/scratchpad/2DTextureArrayShader.shadergraph.bak)",
       "Bash(cp /c/Users/spenc/Documents/GitHub/Stitch_Punk/Assets/Shaders/Graphs/2DShader.shadergraph /c/Users/spenc/AppData/Local/Temp/claude/C--Users-spenc-Documents-GitHub-Stitch-Punk/90b732d6-f62f-4e78-8c05-b7a26d228c4f/scratchpad/2DShader.shadergraph.bak)",
-      "Read(//c/Users/spenc/AppData/Local/Temp/claude/C--Users-spenc-Documents-GitHub-Stitch-Punk/90b732d6-f62f-4e78-8c05-b7a26d228c4f/scratchpad/**)"
+      "Read(//c/Users/spenc/AppData/Local/Temp/claude/C--Users-spenc-Documents-GitHub-Stitch-Punk/90b732d6-f62f-4e78-8c05-b7a26d228c4f/scratchpad/**)",
+      "mcp__UnityMCP__read_console",
+      "mcp__UnityMCP__run_tests",
+      "mcp__UnityMCP__get_test_job",
+      "mcp__UnityMCP__refresh_unity",
+      "mcp__UnityMCP__execute_code"
     ]
   }
 }
