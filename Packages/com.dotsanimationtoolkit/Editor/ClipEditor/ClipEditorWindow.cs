@@ -32,6 +32,10 @@ namespace DotsAnimationToolkit.Editor
         private const string LayoutAssetPath =
             "Packages/com.dotsanimationtoolkit/Editor/ClipEditor/ClipEditorWindow.uxml";
 
+        /// <summary>Shared stylesheet path other package windows load to get the `--toolkit-color-*` tokens and shared chrome classes.</summary>
+        public const string StyleSheetPath =
+            "Packages/com.dotsanimationtoolkit/Editor/ClipEditor/ClipEditorWindow.uss";
+
         /// <summary>
         /// Prefix for the persisted split positions. Keyed by window rather than by project on
         /// purpose: a dock layout is a habit of the person, and following them between projects is
@@ -1630,6 +1634,8 @@ namespace DotsAnimationToolkit.Editor
                     return cutscenePanel as ITransportTarget;
                 case ClipEditorTab.ActorEditor:
                     return actorEditorPanel as ITransportTarget;
+                case ClipEditorTab.VatBake:
+                    return vatBakePanel != null ? vatBakePanel.TransportTarget : null;
                 default:
                     return null;
             }

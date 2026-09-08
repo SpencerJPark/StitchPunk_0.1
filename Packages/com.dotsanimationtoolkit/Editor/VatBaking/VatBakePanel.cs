@@ -26,17 +26,29 @@ namespace DotsAnimationToolkit.Editor
         private Label summaryLabel;
         private Label sourceBoundHint;
         private ScrollView logView;
+        private VatPreviewElement preview;
+        private ObjectField previewSetField;
+
+        /// <summary>The preview's own transport, so a host window can route Space/Home/End/arrow keys to it.</summary>
+        public ITransportTarget TransportTarget
+        {
+            get { return preview; }
+        }
 
         public VatBakePanel()
         {
-            // Styled inline, not via a stylesheet: this element is added to whatever host asks for
-            // it, and a host's sheet has no reason to know this panel's internal row names.
-            VisualElement root = this;
-            root.style.flexGrow = 1f;
-            root.style.paddingLeft = 10f;
-            root.style.paddingRight = 10f;
-            root.style.paddingTop = 8f;
+            style.flexGrow = 1f;
+            style.flexDirection = FlexDirection.Row;
 
+            VisualElement formColumn = new VisualElement { name = "vat-bake-form-column" };
+            formColumn.style.width = 420f;
+            formColumn.style.flexShrink = 0f;
+            formColumn.style.paddingLeft = 10f;
+            formColumn.style.paddingRight = 10f;
+            formColumn.style.paddingTop = 8f;
+            Add(formColumn);
+
+            VisualElement root = formColumn;
             root.Add(BuildHeading("Source"));
 
             clipSetField = new ObjectField("Clip Set")
@@ -76,6 +88,16 @@ namespace DotsAnimationToolkit.Editor
             };
             root.Add(skinnedRendererField);
 
+            // The project ships no VAT content, so this is often the only way to see the preview working
+            // inside a minute — writes a small procedural rig/clip/set and fills the three fields above.
+            Button createSampleTentacleButton = ToolkitIcons.MakeIconTextButton(
+                CreateSampleTentacle,
+                "d_Toolbar Plus",
+                "Generate a small procedural tentacle rig and clip, so there is something to bake and preview immediately.",
+                "Sample Tentacle");
+            createSampleTentacleButton.name = "vat-create-sample-tentacle-button";
+            root.Add(createSampleTentacleButton);
+
             root.Add(BuildHeading("Settings"));
 
             flavorField = new EnumField("Flavor", VatFlavor.BoneMatrix)
@@ -98,6 +120,8 @@ namespace DotsAnimationToolkit.Editor
                 + "precision quantisation becomes visible as stepping.";
             root.Add(fullPrecisionField);
 
+            root.Add(BuildHeading("Output"));
+
             // Left empty on purpose: a package must not hardcode a host's project folders, since
             // that would be wrong in every project organised differently.
             outputFolderField = new TextField("Output Folder")
@@ -106,6 +130,16 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "Leave empty to write beside the clip set."
             };
             root.Add(outputFolderField);
+
+            previewSetField = new ObjectField("Preview Set")
+            {
+                objectType = typeof(VatTextureSetAsset),
+                allowSceneObjects = false,
+                tooltip = "The baked set shown in the preview on the right. Filled automatically after a bake, or pick one by hand."
+            };
+            previewSetField.name = "vat-preview-set-field";
+            previewSetField.RegisterValueChangedCallback(OnPreviewSetFieldChanged);
+            root.Add(previewSetField);
 
             root.Add(BuildHeading("Bake"));
 
@@ -124,6 +158,22 @@ namespace DotsAnimationToolkit.Editor
             logView.style.flexGrow = 1f;
             logView.style.marginTop = 4f;
             root.Add(logView);
+
+            VisualElement previewPane = new VisualElement { name = "vat-bake-preview-pane" };
+            previewPane.style.flexGrow = 1f;
+            previewPane.style.minWidth = 320f;
+            Add(previewPane);
+
+            VisualElement previewHeader = new VisualElement();
+            previewHeader.AddToClassList("toolkit-pane-header");
+            Label previewTitle = new Label("Preview");
+            previewTitle.AddToClassList("toolkit-pane-title");
+            previewHeader.Add(previewTitle);
+            previewPane.Add(previewHeader);
+
+            preview = new VatPreviewElement();
+            preview.style.flexGrow = 1f;
+            previewPane.Add(preview);
         }
 
         /// <summary>
@@ -236,6 +286,46 @@ namespace DotsAnimationToolkit.Editor
 
             string setPath = SaveResult(clipSet, rig, bakeResult, bakeInput.flavor, renderer);
             ReportSuccess(bakeResult, bakeClips, setPath);
+
+            VatTextureSetAsset bakedSet = AssetDatabase.LoadAssetAtPath<VatTextureSetAsset>(setPath);
+            previewSetField.SetValueWithoutNotify(bakedSet);
+            preview.Show(bakedSet, clipSet, renderer, bakeClips);
+        }
+
+        private void OnPreviewSetFieldChanged(ChangeEvent<Object> changeEvent)
+        {
+            preview.Show(
+                changeEvent.newValue as VatTextureSetAsset,
+                clipSetField.value as ClipSetAsset,
+                skinnedRendererField.value as SkinnedMeshRenderer,
+                null);
+        }
+
+        // ResolveOutputFolder needs an existing ClipSetAsset to derive a folder from, which this button is
+        // explicitly for the case where none exists yet — so it picks its own default instead.
+        private void CreateSampleTentacle()
+        {
+            string outputFolder = string.IsNullOrEmpty(outputFolderField.value)
+                ? "Assets/VatSamples"
+                : outputFolderField.value.TrimEnd('/');
+
+            bool created = VatSampleTentacleUtility.CreateSampleAssets(
+                outputFolder,
+                out ClipSetAsset sampleClipSet,
+                out RigAsset sampleRig,
+                out SkinnedMeshRenderer sampleRenderer,
+                out string failureMessage);
+
+            if (!created)
+            {
+                ReportFailure(failureMessage);
+                return;
+            }
+
+            clipSetField.SetValueWithoutNotify(sampleClipSet);
+            rigField.SetValueWithoutNotify(sampleRig);
+            skinnedRendererField.SetValueWithoutNotify(sampleRenderer);
+            Debug.Log("Sample tentacle written to " + outputFolder + ".");
         }
 
         // Ids come from the ClipAsset and its tracks, never minted here — a texture set whose
