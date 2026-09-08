@@ -52,13 +52,29 @@ cutscene content beyond re-pointing what exists; the RG ragdoll checkpoints.
 
 After each: compile gate → the task's fixtures → tick → commit `G6-Pn: <what>`.
 
-- [ ] **P1 — Compile again.** Delete `CutsceneRequest.layerIndex`; `NarrativeEventManager`,
+- [x] **P1 — Compile again.** Delete `CutsceneRequest.layerIndex`; `NarrativeEventManager`,
   `CutsceneDebugTrigger`, `CutsceneStartSystem` and the three tests drop the argument
   (`CreatePlayRequestFromStage(entityManager, stageEntity, request.speed)`). Remove the
   `directionSet` write and every `MaleCitizenWalkDirections` reference from
   `MaleCitizenContentAuthoring.cs`; delete that `.asset` if it still exists and nothing else
   references it (grep `.asset` files for its guid first). *Gate:* both game assemblies compile;
   `StitchPunk.Tests` / `.PlayMode` discovered counts unchanged from the G5 close.
+  **Done 2026-09-08:** the argument-dropping (`NarrativeEventManager`, `CutsceneDebugTrigger`
+  [never constructed the field directly — routes through `NarrativeEventManager`],
+  `CutsceneStartSystem`, the three PlayMode tests) was already committed by A73's own closing
+  session (`9095bf91`) as an unplanned compile prerequisite — verified by grep, not redone. This
+  session's actual work: deleted `CutsceneRequest.layerIndex` (`CutsceneComponents.cs`, now
+  `{ cutsceneKey; speed; }` only); deleted the `WalkDirectionSetPath`/`OldWalkDirectionSetPath`
+  consts and the whole direction-set-authoring block (old lines ~443–470, including the
+  `cutsceneAsset.slots[0].directionSet` write and the now-orphaned `CutscenePath` const) from
+  `MaleCitizenContentAuthoring.cs`; deleted `MaleCitizenWalkDirectionSet.asset` via
+  `AssetDatabase.DeleteAsset` (its only other referrer was `A65CheckpointCutscene.asset`'s own
+  `directionSet` field, unread by the builder per A73's T1 deviation note and about to be
+  re-pointed by P4 anyway — confirmed via guid grep before deleting;
+  `MaleCitizenWalkDirections.asset`, the *old* path, no longer existed — an earlier run of this
+  same authoring script had already deleted it). *Gate:* clean compile
+  (`refresh_unity` → `read_console` zero errors); `StitchPunk.Tests` 57/57, `.PlayMode` 15/15 —
+  both counts match the A73 baseline exactly.
 
 - [ ] **P2 — Gate assignment on `CutsceneActor`.** `UnitAnimationAssignmentJob` adds
   `[WithPresent(typeof(CutsceneActor))]` and an `EnabledRefRO<CutsceneActor> cutsceneActorEnabled`

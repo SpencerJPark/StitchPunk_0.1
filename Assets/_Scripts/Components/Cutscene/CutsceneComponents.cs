@@ -15,9 +15,6 @@ public struct CutsceneRequest : IComponentData
     /// <summary>The <c>CutsceneAsset.StableId</c> of the stage to play — how <c>CutsceneApi.TryFindStage</c> finds it.</summary>
     public ulong cutsceneKey;
 
-    /// <summary>Which playback layer clip blocks target on every bound actor.</summary>
-    public byte layerIndex;
-
     /// <summary>Initial playback speed; 1 is normal.</summary>
     public float speed;
 }

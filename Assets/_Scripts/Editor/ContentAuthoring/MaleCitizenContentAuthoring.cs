@@ -18,9 +18,6 @@ namespace StitchPunk.Editor.ContentAuthoring
         private const string ClipSetPath = "Assets/ScriptableObjects/Animations/NewClipSet.asset";
         private const string PrefabPath = "Assets/Prefabs/Units/MaleCitizen.prefab";
         private const string ProfilePath = "Assets/ScriptableObjects/Animations/MaleCitizen.profile.asset";
-        private const string WalkDirectionSetPath = "Assets/ScriptableObjects/Animations/MaleCitizenWalkDirectionSet.asset";
-        private const string OldWalkDirectionSetPath = "Assets/ScriptableObjects/Animations/MaleCitizenWalkDirections.asset";
-        private const string CutscenePath = "Assets/ScriptableObjects/Animations/A65CheckpointCutscene.asset";
         private const string MaleCitizenUnitPath = "Assets/ScriptableObjects/Units/MaleCitizen.asset";
         private const string RotterUnitPath = "Assets/ScriptableObjects/Units/Rotter.asset";
 
@@ -439,35 +436,6 @@ namespace StitchPunk.Editor.ContentAuthoring
 
             SetUnitActorProfile(MaleCitizenUnitPath, profile);
             SetUnitActorProfile(RotterUnitPath, profile);
-
-            DirectionSetAsset walkDirectionSet = AssetDatabase.LoadAssetAtPath<DirectionSetAsset>(WalkDirectionSetPath);
-            if (walkDirectionSet == null)
-            {
-                walkDirectionSet = ScriptableObject.CreateInstance<DirectionSetAsset>();
-                walkDirectionSet.slots.southEast = walkClip;
-                walkDirectionSet.slots.targetDirections = AnimationDirections.Two;
-                AssetDatabase.CreateAsset(walkDirectionSet, WalkDirectionSetPath);
-            }
-            else
-            {
-                walkDirectionSet.slots.southEast = walkClip;
-                walkDirectionSet.slots.targetDirections = AnimationDirections.Two;
-                EditorUtility.SetDirty(walkDirectionSet);
-            }
-            AssetDatabase.SaveAssets();
-
-            CutsceneAsset cutsceneAsset = AssetDatabase.LoadAssetAtPath<CutsceneAsset>(CutscenePath);
-            if (cutsceneAsset != null && cutsceneAsset.slots.Count > 0)
-            {
-                cutsceneAsset.slots[0].directionSet = walkDirectionSet;
-                EditorUtility.SetDirty(cutsceneAsset);
-                AssetDatabase.SaveAssets();
-            }
-
-            if (AssetDatabase.LoadAssetAtPath<DirectionSetAsset>(OldWalkDirectionSetPath) != null)
-            {
-                AssetDatabase.DeleteAsset(OldWalkDirectionSetPath);
-            }
 
             List<ValidationMessage> validationMessages = ActorProfileValidation.Validate(profile, animationNameRegistry);
             return "AuthorProfileAndWireUnits: profile has " + profile.layers.Count + " layer(s); validation message count = " +
