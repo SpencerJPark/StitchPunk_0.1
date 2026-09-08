@@ -8,6 +8,60 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] — profile-driven cutscenes: layers, auto locomotion, keyed-or-auto facing, marks that wait (A73)
+
+### Breaking
+
+- `CutsceneSlot.rig`/`.clipSets`/`.directionSet` are gone, replaced by `CutsceneSlot.profile:
+  ActorProfileAsset` (`ResolvedRig`/`ResolvedClipSets` are the accessors every reader goes through).
+  A cutscene keeps no copy of an actor's rig or clip sets any more — assign the same profile the
+  actor plays in-game.
+- `CutsceneClipBlock.clipId` is renamed `animationKey` and now names an `AnimationNameRegistry`
+  entry, not a raw clip id; the entry's layer is derived from the bound actor's profile at play
+  time, never authored on the block. `CutsceneClipBlock.loop` is now a `LoopMode` (was `bool`);
+  `UseClipDefault` defers to the profile entry's own loop.
+- `CutscenePlay.layerIndex` and `CutsceneApi.TopLayer` are removed, not deprecated. Both
+  `CutsceneApi.CreatePlayRequest`/`CreatePlayRequestFromStage` drop their `layerIndex` parameter — a
+  block now plays on whichever layer its own name resolves to.
+- `CutsceneDirectionVariantsBlob`/`CutsceneClipBlockBlob.directionVariants` and the per-block
+  direction-variant re-pick are gone; turning is the bound actor's profile's job now
+  (`ActorFacingRepickSystem`), the same re-pick every other `PlayAnimation` already goes through.
+  `CutsceneFacingVariants.Resolve`/`.SelectVariantClipId` are deleted (`AngleDegreesFromTravel`
+  folded into `CutsceneBlobSampler`).
+- Blob schema bumped to 6. No migration path — a pre-existing cutscene's slots need a `profile`
+  assigned and their blocks re-authored by name; there is no automatic conversion from raw clip ids.
+
+### Added
+
+- **Layer rows.** One row per profile layer (`Base`…`Override`) replaces the single clip lane; a
+  block plays by name on its entry's own layer, and two blocks on different layers never blend into
+  each other. A row header's **+**/**■** icons add a block or a layer-stop key at the playhead; a
+  stop key hands the row back to auto locomotion. Blocks whose key the profile lacks collect on a
+  trailing **Unresolved** row instead of silently vanishing.
+- **Auto locomotion.** `CutsceneLocomotion` (Enabled, Standing/Moving animation names, speed
+  threshold) on every Actor slot: the Moving entry plays while the bound entity is actually
+  displaced, the Standing entry once it stops, unless a block already claims that layer — authored
+  always beats auto, and only an explicit stop key hands a layer back.
+- **Keyed-or-auto facing.** `CutsceneFacingKey.mode` (`Fixed`/`Auto`, default `Auto`): facing derives
+  from the mark being walked to or root travel unless a `Fixed` key pins it, and an `Auto` key hands
+  control back. A resolved mark's arrival facing latches until the actor moves again or a `Fixed` key
+  takes over — "auto while walking to the mark, keyed when they get there" is one beat. The resolved
+  angle is now also written straight into `ActorFacing.facing` (folded onto the profile's own
+  `turnDirections`), not only `CutsceneFacing` — a host with no facing system of its own still gets a
+  turning actor.
+- **Marks that wait.** `CutsceneMarkKey.waitUntilReached` derives a rendezvous hold at the mark's own
+  issue time with no `CutsceneHoldMarker` to author by hand; the Marks row's new **+** button is the
+  one-click "walk here and wait" default (position from the bound object, else the root lane sampled
+  at the playhead, else the origin). The Mark inspector gained **Set From Scene View Pivot** and is
+  re-ordered around the new field.
+- `ActorProfileAsset.MaxLayerCount`-sized `CutsceneApi.LayersPerSlot`, a new internal
+  `CutsceneSlotLayerState` buffer tracking each (slot, layer)'s active block, and
+  `Runtime/Sampling/CutsceneLocomotionMath.cs` (`IsMoving`), shared by the runtime and the preview.
+- Editor preview (`CutscenePreviewController.ComposeLayers`) reconstructs a `PlaybackLayer` array
+  per scrub from the same per-row block-or-stop resolution the runtime uses
+  (`Authoring/Build/CutsceneLayerStateResolver.cs`) and composites through the runtime's own
+  `ClipSampler.CompositeLayers` — no second animation pipeline in the preview either.
+
 ## [0.18.0] — editor visual unification: one transport, one palette, boxed lists (A72)
 
 ### Added

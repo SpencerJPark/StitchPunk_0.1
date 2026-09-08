@@ -12,8 +12,9 @@ pipeline, just a system that issues the same `AnimationCommand`s a game would is
 ```
 CutsceneAsset ──stages──> CutsceneSlot (named, recastable role: "Bertha", "Minion A")
    │                          │
-   │ remembers                ├─ Actor: RigAsset + ClipSetAssets + clip blocks + root/facing/part-track/attach/mark lanes
-   │ one scene                └─ Prop: no rig, no clip lane — just root/attach/mark lanes
+   │ remembers                ├─ Actor: ActorProfileAsset + one layer row per profile layer + locomotion
+   │ one scene                │         + root/facing/part-track/attach/mark lanes
+                              └─ Prop: no profile, no layer rows — just root/attach/mark lanes
    │
    ├──> CutsceneCameraLane (keys + hard-cut markers)
    ├──> events (same event-key vocabulary clips use, plus a hold-until-released flag)
@@ -42,33 +43,59 @@ segment's `holdId` is always empty, since nothing pauses after the end.
 Open **Window ▸ DOTS Animation Toolkit ▸ Clip Editor** and switch to the **Cutscene Editor** tab
 (or double-click a `CutsceneAsset` — it opens there directly, via the same `[OnOpenAsset]` seam
 `ActorProfileAssetOpener` uses). **+ Actor** / **+ Prop**, in the **Cast** pane's header, add a
-slot; a slot's header doubles as its selection target — click it to edit its name, kind,
-actor prefab, rig, clip sets and direction set in the inspector. An Actor slot's **Fill from
-Profile** button picks an `ActorProfileAsset` and writes its rig and clip sets onto the slot in one
-step, so a staged actor stops drifting from the profile that drives it in-game.
+slot; a slot's header doubles as its selection target — click it to edit its name, kind, actor
+prefab and — for an Actor slot — its **Profile** in the inspector. The profile is the one source of
+what this actor can play: its rig, its clip sets, its named animations, which layer each one lives
+on, and how many directions it turns in. A cutscene keeps no copy of any of that itself, so a staged
+actor can never drift from the profile that drives it in-game.
 
-### Clip lane (Actor slots only)
+### Layer rows (Actor slots only)
 
-Double-click empty space on a slot's clip lane to add a `CutsceneClipBlock`; drag its body to move
-it, its edges to resize it (a resize never carries the rest of the selection — only a move does).
-**Overlap with the block before it on the same lane is the crossfade window; blocks that merely
-touch are a hard cut** — `CutsceneBlockTiming.SeamBlendDuration` derives this from where you drop
-the block, never a separate field. A block's clip plays *from its start until the next block on the
-lane starts* — its own `duration` field only feeds that crossfade math; a `Once` clip that runs out
-before the next block simply holds its last pose.
+One row per layer the actor's profile declares — `Base`, any user layers, `Override` — plus a
+trailing **Unresolved** row that only appears when a block names a key the profile no longer has.
+Double-click empty space on a layer's row to open the animation picker, filtered to that layer's own
+named entries; pick one to drop a block there. A block plays *by name*, not by raw clip id — its
+`Animation` field is the profile entry's own registry name, and which layer it lands on is derived
+from the profile, never authored on the block itself.
 
-Two more fields live in the block inspector, both **Speed** and **Start Offset (s)**:
+Drag a block's body to move it, its edges to resize it (a resize never carries the rest of the
+selection — only a move does). **Overlap with the block before it on the same row is the crossfade
+window; blocks that merely touch are a hard cut** — `CutsceneBlockTiming.SeamBlendDuration` derives
+this from where you drop the block, never a separate field, and two blocks on *different* rows never
+blend into each other regardless of how they overlap in time. A block's clip plays *from its start
+until the next block on the same row starts* — its own `duration` field only feeds the crossfade
+math; a `Once` clip that runs out before the next block simply holds its last pose.
+
+Two more fields live in the block inspector, **Speed** and **Start Offset (s)**:
 
 - **Speed** multiplies the cutscene's own running speed for that block's clip — "the same swing,
-  half as fast" is one field, not a second clip. `CutsceneBlockTiming.EffectiveBlockSpeed` treats 0
-  as "unset" (a bake from before this field existed) and substitutes 1, never a frozen clip — that's
-  `CutsceneControl.paused`'s job.
+  half as fast" is one field, not a second clip.
 - **Start Offset (s)** starts the clip that many seconds in, for "play the second half of the
   swing." It reaches the actor as a `SetTime` command issued immediately after the block's `Play`,
   because `Play` always starts a clip at 0.
 
 A block's own speed scales the clip, never the timeline — a crossfade window two overlapping blocks
 imply is still measured in timeline seconds regardless of either block's speed.
+
+Each row's header carries two icon buttons: **+** opens the same filtered picker as a double-click,
+at the playhead; **■** drops a stop key there instead, ending whatever block is playing on that row
+and handing the row back to auto locomotion (below). **A block claims its row from the moment it
+starts, for the rest of the cutscene — only an explicit stop key hands it back.** A one-off "sit
+down" animation does not snap back to standing on its own just because its own duration ran out; the
+stop key is how you say "done with this row now."
+
+### Auto locomotion
+
+A slot's **Locomotion** box (in the slot inspector, under **Profile**) names a **Standing** and a
+**Moving** animation from the profile — commonly `Idle` and `Walk` — and the **Defaults From
+Profile** button fills both automatically when the profile has entries named exactly that. While the
+actor is actually displaced (root motion, a host-walked mark, a hand-walked player, a carried rider
+— anything that moves the bound entity), the Moving entry plays and the facing follows the movement
+(see Facing lane below); the moment it stops, the Standing entry takes over. **Authored beats auto:**
+a block already claiming that layer's row is left alone — auto locomotion only fills a row nothing
+has claimed, or one a stop key just handed back. A locomotion with **Moving** left at none is inert
+by design (a Prop, or an actor that never walks in this cutscene needs nothing here) and the
+inspector's validation notes say so.
 
 ### Root / transform lane
 
@@ -83,21 +110,33 @@ owns it, and a root key authored underneath would fight it every frame.
 
 ### Facing lane (Actor slots only)
 
-Empty by default — facing derives from root travel direction. Add a `CutsceneFacingKey` to pin a
-facing (a continuous 0–360° angle, measured from +X toward +Z, **not** the `LocalTransform` Y-euler
-convention which measures from +Z) for a moment, e.g. "face the camera during this line." Give the
-slot a **Direction Set** and a block naming one of that set's five east-side clips gets re-picked as
-the actor turns — `Play` with no blend, then `SetTime` carrying the phase over, so a walk cycle
-continues on the same foot instead of restarting. A block naming a clip the set has never heard of
-is left exactly as authored, whatever the facing resolves to.
+Facing is **auto unless keyed**. With no key active, the facing is derived — while walking to an
+outstanding mark, the direction of the mark; otherwise the direction of root travel — and a stop
+handled by the arrival latch below. Add a `CutsceneFacingKey` to pin an explicit facing (a continuous
+0–360° angle, measured from +X toward +Z, **not** the `LocalTransform` Y-euler convention which
+measures from +Z) for a moment, e.g. "face the camera during this line": double-click the row for a
+**Fixed** key. Shift+double-click for an **Auto** key instead — it draws hollow and hands control
+back to derivation from its own time, the "auto while walking to the mark, keyed when they get
+there" beat.
+
+**Arrival latch.** When a mark resolves by arrival (or by timeout), its own Arrival Facing latches:
+the actor holds that facing while standing, and the latch releases the moment it moves again or a
+Fixed key takes over — so an actor that walks to a spot and stops turns to face the way the mark said
+and stays that way, with no facing key required at all.
+
+The turn itself is the profile's job, not the cutscene's: a resolved angle folds onto the bound
+actor's own `ActorProfileAsset.turnDirections` and is written straight into `ActorFacing.facing`
+(besides `CutsceneFacing`, unchanged, still the host's mirror/view-offset input) — the actor's own
+re-pick system does the rest, the same way it already does for any other `PlayAnimation`. There is no
+longer a per-block direction-variant table to keep in sync with a rig's turn granularity.
 
 **A mirror needs a mirror point.** Only a rig target with **Faces Direction** ticked mirrors, and
 ticking it flips that part *and everything beneath it* — animations included — so on a nested rig
 you tick the top of each chain, not every part underneath. A part under an already-ticked ancestor
 ignores its own flag rather than cancelling the ancestor's; the slot inspector's "Facing at
 playhead" line and the bake both call this out when it applies. A rig with nothing ticked at all
-resolves the facing and picks the variant clip but turns nothing visibly — the bake warns, and the
-slot inspector says so on its own facing line, since both failures are otherwise silent.
+resolves the facing and re-picks the playing animation but turns nothing visibly — the bake warns,
+and the slot inspector says so on its own facing line, since both failures are otherwise silent.
 
 ### Part tracks (Actor slots only)
 
@@ -140,12 +179,26 @@ needs an *empty* root lane, so its scene transform is its only home.
 ### Marks lane (every slot)
 
 A mark is a spot a slot has to reach; marks live on their own lane on Actor and Prop slots alike — a
-self-driving cart is a Prop with marks of its own. Double-click the lane at the moment the order
-should go out (usually t = 0, so everyone starts walking as the cutscene opens); drag the disc in
-the Scene view, or press **Set From Object** to drop it where the slot's bound object currently
-stands. Fields: **Tolerance (m)** (how close counts as arrived, XZ only — Y is never tested), and
-**Timeout (s, 0 = wait)** (0 waits forever; anything else places a mover there by teleport, with one
-warning, so a stuck NPC cannot softlock the scene).
+self-driving cart is a Prop with marks of its own. The Marks row header's **+** button is the
+one-click "walk here and wait" default: it drops a mark at the playhead, positioned where the slot's
+bound object currently stands, else where its root lane samples at the playhead, else the origin,
+already ticked **Wait Until Reached**, tolerance 0.5 m, preview travel 2 s. Double-clicking empty
+lane space instead adds a plain mark with none of those defaults, for a mark that only matters as a
+waypoint. Either way, drag the disc in the Scene view, press **Set From Object** to drop it where the
+slot's bound object currently stands, or **Set From Scene View Pivot** to drop it at the Scene view's
+current pivot (disabled without an open Scene view). Fields: **Wait Until Reached** (below),
+**Arrival Facing** (the facing the actor holds once it gets there — see the arrival latch above),
+**Tolerance (m)** (how close counts as arrived, XZ only — Y is never tested), and **Timeout (s, 0 =
+wait)** (0 waits forever; anything else places a mover there by teleport, with one warning, so a
+stuck NPC cannot softlock the scene).
+
+**Wait Until Reached** derives a rendezvous hold at the mark's own issue time — the clock stops the
+instant the order goes out and releases once every mark issued at that same instant is reached, the
+same mechanism an authored hold's own **Auto Release When Marks Reached** flag drives (below), with
+no hold to author by hand. Its ghost draws on the Holds row exactly like a holding event's, naming
+`mark:<slot name>@<time>`; the transport gates on it in rehearsal and passes straight through once
+the mark's own rehearsed arrival is already at or before the hold's time — "arrival IS timeline time"
+in rehearsal, matching what the runtime's own live arrival detection resolves to in play.
 
 The toolkit does not walk anything there — at the mark's time it enables `CutsceneMoveToMark` on the
 bound entity and watches its `LocalTransform`, disabling the component the instant the entity is
@@ -210,6 +263,28 @@ data model — every freshly-authored hold is a rendezvous unless untoggled — 
 Editor's own Hold inspector currently exposes only **Time (s)** and **Hold Id**; toggle
 **Auto Release When Marks Reached** off from the `CutsceneAsset`'s default Unity inspector (expand
 the Hold Markers list there) rather than from the tab.
+
+## Recipes
+
+Three common beats, each built from the pieces above.
+
+1. **Walk an actor to a spot and wait for it.** Give the slot a **Profile**, then press the Marks
+   row's **+** at the moment the walk should start — the one-click default already has **Wait Until
+   Reached** on. Move the disc (drag it, **Set From Object**, or **Set From Scene View Pivot**) to
+   where the actor should end up. Play: the transport holds at `mark:<slot>@<time>` while the actor's
+   Moving animation plays under auto locomotion (no block needed — that's what the Locomotion box is
+   for), and releases the moment the rehearsed walk arrives.
+2. **Turn to face the camera on arrival.** After the mark above resolves, the actor already holds its
+   **Arrival Facing** via the latch — set that field to the angle that faces your camera and nothing
+   else is needed. To face a *specific* direction independent of any mark, add a **Fixed** facing key
+   at the moment you want the turn; Shift+double-click a later point on the Facing row to hand facing
+   back to auto (walking) whenever the actor should move again under its own derived facing.
+3. **Play a one-off on the Override layer while walking.** With auto locomotion already playing
+   Walk on `Base`, double-click empty space on the **Override** row and pick a one-shot animation
+   (a wave, a gesture) — it plays alongside the walk without touching the legs, since it lives on its
+   own layer. Press **■** on Override once it finishes if you authored it `Loop`; a `Once` clip holds
+   its last pose until you do. The Base row's own walk is untouched throughout, since a block only
+   ever claims the row it is on.
 
 ## Stage baking and scene binding
 
@@ -344,10 +419,10 @@ if (entityManager.GetComponentData<CutscenePlaybackState>(activeCutsceneRequest)
 `CutsceneStage.cutsceneKey` against the source asset's `StableId` — cache the result rather than
 calling it every frame if a host keeps many stages around. For actors that do not exist until
 runtime and have no scene object for any stage to bind — spawned units, procedurally placed props —
-skip the stage lookup and call `CutsceneApi.CreatePlayRequest(entityManager, blob, layerIndex)`
-directly with a blob built or cached ahead of time (a `CutsceneStage.blob` read off an already-baked
-stage works fine here too), then fill every `CutsceneActorBinding` entry by hand: explicit casting,
-no discovery magic.
+skip the stage lookup and call `CutsceneApi.CreatePlayRequest(entityManager, blob, speed)` directly
+with a blob built or cached ahead of time (a `CutsceneStage.blob` read off an already-baked stage
+works fine here too), then fill every `CutsceneActorBinding` entry by hand: explicit casting, no
+discovery magic.
 
 Beyond starting it, a host steers a running cutscene with direct field writes rather than more API
 surface:
@@ -408,10 +483,16 @@ all.
 
 Written every frame a bound Actor slot's facing has an answer, and disabled when the cutscene ends
 or is skipped. Carries one field, `angleDegrees`, measured from +X toward +Z (0 = east, 90 = north)
-— the Direction Sets/`FacingResolver.FromMovement` convention, **not** a `LocalTransform` Y-euler,
-which measures from +Z. The toolkit never writes `PartFacing` itself — a host's own facing system
-already writes that on every part, and two writers would fight — so mapping `CutsceneFacing` onto
-whatever drives `PartFacing` in your project is the entire integration: one component read.
+— the `FacingResolver.FromMovement` convention, **not** a `LocalTransform` Y-euler, which measures
+from +Z. The toolkit never writes `PartFacing` itself — a host's own facing system already writes
+that on every part, and two writers would fight — so mapping `CutsceneFacing` onto whatever drives
+`PartFacing` in your project is the entire integration: one component read.
+
+The same resolved angle is also folded onto the bound actor's own `ActorProfileAsset.turnDirections`
+and written directly into `ActorFacing.facing` — a host whose own facing system already maps
+`CutsceneFacing` onto a coarser convention writes the same value here and nothing fights; a host with
+no facing system of its own still gets a turning actor, since the toolkit's write is enough on its
+own to drive the profile's own re-pick.
 
 ### `AnimEventOutput` (on the cutscene request entity)
 

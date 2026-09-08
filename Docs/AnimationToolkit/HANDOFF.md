@@ -5,9 +5,8 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.17.0).
-**§4 The queue is currently empty** — the cutscene roadmap that occupied it for several sessions
-closed with A68. Work whatever the owner raises next through the gate in §3.
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.19.0).
+**§4** carries Amendment A73 (built, one ⏸ owner checkpoint open) and A74 (queued, not started).
 
 ## 1. Read first, in this order
 
@@ -25,18 +24,16 @@ Read `Docs\AnimationToolkit\Phase_D_Ragdoll_Spec.md` §9 only if you touch ragdo
 The Phase A/B/C review docs were deleted in the 2026-08-29 cleanup — closed history, recoverable
 from git if a decision ever needs tracing. What remains in `Docs\AnimationToolkit\` is live.
 
-**Current state (2026-09-07):** cutscenes are a shipped feature (v0.15.0) — see
-`Documentation~/cutscenes.md` for the concept model and authoring workflow and
+**Current state (2026-09-08):** cutscenes are a shipped feature, now on v0.19.0 (Amendment A73,
+profile-driven) — see `Documentation~/cutscenes.md` for the concept model and authoring workflow and
 `Documentation~/cutscene-api.md` for the full runtime/authoring member reference. `Samples~/Cutscene`
-is a compile-checked host sample. The roadmap that built this (`Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md`,
-amendments G0 through A69) is closed; §4 is empty. `CHANGELOG.md`'s `## [0.15.0]` section is the
-one-paragraph-per-item summary of everything that shipped.
+is a compile-checked host sample. `CHANGELOG.md`'s `## [0.19.0]` section is the one-paragraph-per-item
+summary of everything A73 shipped; see §4 for A73's own status and its open owner checkpoint.
 
 **0.16.0 shipped the actor profile (Amendment A70, T1-T10 all landed and gated)** — layers moved off
 the rig onto `ActorProfileAsset`, animations are played by name (`PlaybackApi.PlayAnimation`), a
 directional entry resolves per-facing, and ragdoll can be triggered from an animation; see
-`Documentation~/actor-profiles.md`. Next: **Amendment A71**, the Actor Editor tab
-(`Docs/AnimationToolkit/Amendment_A71_ActorEditor_Spec.md`).
+`Documentation~/actor-profiles.md`, now with a "cutscenes play your profile" paragraph added by A73.
 
 Two things carried forward from the pre-cutscene era, still true: **every existing `ActorAuthoring`
 still needs its `clipSet` re-pointed by hand** where Phase F's migration-free field removal (2026-08-29)
@@ -133,24 +130,30 @@ gesture state machine leaves `ClipEditorWindow.CameraNavigation.cs` for a shared
 `PreviewCameraNavigation` over an `IPreviewCameraRig`. Independent of A73; takes the next unused
 minor. Eleven tasks in four subagent waves, one ⏸ owner checkpoint at the end. Nothing built.
 
-**In progress (2026-09-08): Amendment A73 — Profile-Driven Cutscenes.** Session 1 (T1–T3) is built:
-the slot now carries `profile`/`locomotion`/`layerStops`, blocks play by animation name (schema 6),
-`CutsceneTimelineSystem` resolves each block's layer against the bound actor's own `ActorProfile`,
-issues auto locomotion (moving/standing entry from real displacement, authored blocks win their
-layer until a stop key), and writes both `CutsceneFacing` and `ActorFacing` through a Fixed/Auto
-facing chain with a mark-arrival latch. The package compiles green and the touched EditMode bake
-suites (21 tests) are gated and passing. **PlayMode could not be machine-verified this session** —
-Unity refuses to enter Play Mode while any project assembly has a compile error, and the game side
-is deliberately red from T1 onward (per the session prompt); `CutsceneTimelineSystemTests`,
-`CutsceneFacingTests`, `CutsceneMarkTests`, `CutsceneAttachTests`, `CutsceneStageBakingTests`,
-`SystemGroupStructureTests` and the new `CutsceneLocomotionTests` are written and believed correct
-but unrun — see the spec's §7 build log for the exact game-side files blocking it and why a trial
-fix was reverted rather than kept. Session 2 (T4–T8, editor + preview + marks UX + docs) has not
-started; run the package's PlayMode suite in full before trusting T1–T3 closed. Then game plan
-**G6** (`Assets/_Vault/Tasks/NewPlans/CutsceneProfileCutover_System.md`) re-points the game's seven
-cutscene assets by script and gates `UnitAnimationAssignmentJob` on `CutsceneActor`. Spec
-`Docs/AnimationToolkit/Amendment_A73_ProfileDrivenCutscenes_Spec.md`, session prompt
-`Amendment_A73_ProfileDrivenCutscenes_Prompt.md`.
+**Built (2026-09-08): Amendment A73 — Profile-Driven Cutscenes — 0.19.0.** T1–T8 all landed and
+gated across two sessions. The slot now carries `profile`/`locomotion`/`layerStops` in place of
+`rig`/`clipSets`/`directionSet`; blocks play by animation name against the bound actor's own
+`ActorProfile` (schema 6); one Editor row per profile layer replaces the single clip lane, with
+**+**/**■** header buttons and an Unresolved row for a block whose key the profile lacks; auto
+locomotion plays the Moving/Standing entry from real displacement unless a block already claims that
+layer; facing is auto unless keyed (`CutsceneFacingKey.mode`), with an arrival latch, and writes
+`ActorFacing.facing` besides `CutsceneFacing`; `CutsceneMarkKey.waitUntilReached` derives a
+rendezvous hold with a one-click Marks-row **+** button and a Set From Scene View Pivot button; the
+Editor preview reconstructs a `PlaybackLayer` array per scrub through the runtime's own
+`ClipSampler.CompositeLayers`. Session 1 (T1–T3) shipped with PlayMode unverified (the game side was
+deliberately red); the T4–T8 continuation session first unblocked and fully verified T1–T3 (finding
+and fixing three real bugs the first completed full-suite run surfaced — see the spec's §7 build
+log), then built T4–T6 (two parallel subagents for T4/T5, one for T6 — each caught a bug of its own
+at the compile gate, also in §7) and found T7 needed no code changes at all (the sample host and the
+three named tests were already correct; logged as drift, not invented work). Gated:
+`DotsAnimationToolkit.Tests.EditMode` 767/767 (only the pre-existing, unrelated `Conformance_A`
+asmdef drift) and `.PlayMode` 283/283, both green. **One ⏸ owner checkpoint is open** — spec §5's
+final task names exactly what to open, press and look at (`NewCutscene.asset` with `MaleCitizen.profile`
+in `DOTSTestScene.unity`); nothing is queued behind it. Game plan **G6**
+(`Assets/_Vault/Tasks/NewPlans/CutsceneProfileCutover_System.md`) re-points the game's seven
+cutscene assets by script and gates `UnitAnimationAssignmentJob` on `CutsceneActor`, and must follow
+in its own session. Spec `Docs/AnimationToolkit/Amendment_A73_ProfileDrivenCutscenes_Spec.md`,
+session prompt `Amendment_A73_ProfileDrivenCutscenes_Prompt.md`.
 
 **The Actor Editor roadmap is built (2026-09-07): A70 (0.16.0), A71 (0.17.0) and the game cutover G5
 are in, gated green (EditMode 823 / PlayMode 291; the one standing `Conformance_A` asmdef drift

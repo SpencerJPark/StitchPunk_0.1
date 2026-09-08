@@ -417,6 +417,17 @@ model, authoring, playback) and
   is the pre-ride pickup key; resampling it post-detach snaps the rider back to where it was picked up.
 - **A skip replays every attach marker it jumped over**, in order, so a skipped run and a watched one
   leave the identical world — including any detach signal a host was waiting on.
+- **Authored beats auto, until a stop key (A73).** A clip block claims its profile layer from the
+  moment it starts, for the rest of the cutscene; auto locomotion only ever fills a layer nothing has
+  claimed, or one a stop key just handed back. A block's own duration running out does **not** hand
+  the layer back — a `Once` "sit down" does not snap to standing on its own just because its clip
+  ended; only the explicit **■** stop key does that.
+- **The cutscene writes `ActorFacing`, not just `CutsceneFacing` (A73).** Besides the host-mirror
+  input `CutsceneFacing`, a running cutscene folds its resolved angle onto the bound actor's own
+  `ActorProfileAsset.turnDirections` and writes `ActorFacing.facing` directly — `ActorFacingRepickSystem`
+  does the actual turn from there, the same re-pick any other `PlayAnimation` goes through. This
+  amends A70-D6's "host-written and never derived" rule for exactly this one case; a host whose own
+  facing writer also maps `CutsceneFacing` writes the identical value and nothing fights.
 
 ## Shared editor chrome — ToolkitPalette / ToolkitIcons / TransportCoreElement (A72, 0.18.0)
 
@@ -446,8 +457,14 @@ puts the word in a `Label` child instead, and that is the only way to build icon
 icon for (▲ ▼). And an unattached `VisualElement` drops `SendEvent` (no panel, no dispatcher), so a
 fixture that wants a click calls the bound action instead.
 
-## Do not spawn subagents against this package
+## Do not spawn subagents against this package — unless they never touch the Editor (A73)
 
 Three processes driving one live Unity Editor already caused MCP lock
 contention that grew `Logs/Editor.log` to 2.2 GB and broke test runs (per
-HANDOFF.md). Work sequentially, one editor-connected agent at a time.
+HANDOFF.md). The root cause was multiple processes calling `mcp__UnityMCP__*`, not multiple
+processes existing — Amendment A73's T4/T5 (parallel) and T6 built cleanly with three Sonnet
+subagents each editing a disjoint set of `.cs` files and explicitly forbidden from calling any
+`mcp__UnityMCP__*` tool; only the one orchestrating session ever compiled, ran tests or committed,
+exactly `Cutscene_Roadmap.md` §4's `[parallel-safe]` rule. Default is still sequential, one
+editor-connected agent at a time — the exception only holds when a subagent's brief is scoped to
+files another agent isn't touching and it has no MCP access at all.

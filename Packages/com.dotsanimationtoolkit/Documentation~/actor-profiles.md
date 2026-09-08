@@ -161,6 +161,12 @@ bool isWalking = PlaybackApi.IsAnimationPlaying(playbackLayers, AnimNames.Walk);
 An unresolved key (renamed away, deleted from the registry, or never baked) is reported through the
 same resolve-failure event a bad raw `Play` clip id uses — no layer is touched.
 
+**Cutscenes play your profile.** A Cutscene Editor Actor slot names an `ActorProfileAsset` directly
+— the same asset, not a copy of its rig/clip sets — so a cutscene's layer rows, its block-by-name
+blocks, and its auto locomotion (Standing/Moving entries) all resolve against the bound actor's own
+profile at play time, through this same `PlaybackApi`/`ActorProfileApi` surface, not a second
+animation pipeline. See `cutscenes.md`'s Layer rows and Auto locomotion sections.
+
 ## Ragdoll triggers
 
 An entry can start or stop the actor's ragdoll:

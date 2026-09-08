@@ -1,11 +1,13 @@
 # Amendment A73 — Profile-Driven Cutscenes: layers, auto locomotion, keyed-or-auto facing, marks that wait
 
-**Status:** 🟡 T1–T3 fully verified 2026-09-08 (game-side unblocked, three real T1-T3 bugs the
-first full-suite run surfaced are fixed — see §7's fixup entry): `DotsAnimationToolkit.Tests.EditMode`
-764/764 (only the pre-existing `Conformance_A` drift remains) and `.PlayMode` 283/283, both green.
-Session 2 (T4–T8) starting now. Package version after this lands: **0.19.0** (breaking:
+**Status:** 🟢 T1–T8 all built and gated 2026-09-08. Package version **0.19.0** (breaking:
 `CutsceneSlot.rig/clipSets/directionSet` → `profile`, `CutsceneClipBlock.clipId` → `animationKey`,
-`CutscenePlay.layerIndex` and `CutsceneApi.TopLayer` removed, blob schema 6).
+`CutscenePlay.layerIndex` and `CutsceneApi.TopLayer` removed, blob schema 6). Docs, `CHANGELOG.md`,
+`HANDOFF.md` and the vault's `AnimationToolkit.md` are all updated. `DotsAnimationToolkit.Tests.EditMode`
+767/767 (only the pre-existing, unrelated `Conformance_A` asmdef drift) and `.PlayMode` 283/283, both
+green; `StitchPunk.Tests` 57/57 and `StitchPunk.Tests.PlayMode` 15/15 also green. **One ⏸ owner
+checkpoint is open** (§5's final task) — nothing is queued behind it in this spec. Game plan **G6**
+(`Assets/_Vault/Tasks/NewPlans/CutsceneProfileCutover_System.md`) follows in its own session.
 **Scope:** `Packages/com.dotsanimationtoolkit/` — `Authoring/`, `Runtime/`, `Editor/ClipEditor/Cutscene/`,
 `Tests/`, `Samples~/Cutscene`, `Documentation~/`. **No game code** — that is G6
 (`Assets/_Vault/Tasks/NewPlans/CutsceneProfileCutover_System.md`), which must follow in its own session.
@@ -458,7 +460,7 @@ touches MCP.
   the layer argument and gives its slots a profile (compile-checked through a temp assembly);
   `CutsceneStageBakingTests`, `CutsceneAttachTests`, `CutsceneMarkTests` re-pointed at profile-bearing
   fixtures.
-- [ ] **T8 — Docs, CHANGELOG, version, full suites.** `cutscenes.md`: rewrite the cast paragraph
+- [x] **T8 — Docs, CHANGELOG, version, full suites.** `cutscenes.md`: rewrite the cast paragraph
   ("an Actor slot is a profile"), replace "Clip lane" with "Layer rows" (blocks by name, stop keys,
   authored-beats-auto), add "Auto locomotion", rewrite "Facing lane" (Fixed/Auto, arrival latch,
   `ActorFacing` written), rewrite "Marks lane" around the **+** button and Wait Until Reached, and add
@@ -716,3 +718,33 @@ touches MCP.
   mechanics at the blob level) and never touch `ActorProfile`/clip-block playback, so there is no
   profile-bearing fixture for them to be re-pointed at. All three already run green as part of the
   `.PlayMode` 283/283 figure verified under T4/T5/T6 above — no separate run needed.
+
+- **T8 (same session) — docs, CHANGELOG, version, full suites.** `cutscenes.md`: cast paragraph
+  rewritten around the profile, "Clip lane" replaced with "Layer rows" plus a new "Auto locomotion"
+  section, "Facing lane" rewritten around Fixed/Auto and the arrival latch, "Marks lane" rewritten
+  around the header **+** and Wait Until Reached, a new "Recipes" section with the three walkthroughs
+  the task named, and every stale mention found while grepping (the concept-model diagram, the
+  mirror paragraph's "picks the variant clip" wording, the `CreatePlayRequest(…, layerIndex)` sample
+  call, `CutsceneFacing`'s "Direction Sets" phrase) fixed rather than left half-updated.
+  `cutscene-api.md` needed a wider pass than its own task line named — it is a member-by-member
+  reference sourced from the code "as it stands today," and A73 changed enough load-bearing members
+  (schema 5→6, `CutscenePlay`/`CutsceneApi` signatures, `CutsceneClipBlockBlob`, `CutsceneSlot`,
+  `CutsceneClipBlock`, `CutsceneFacingKey`, `CutsceneMarkKey`, the `CutsceneTimelineSystem` prose)
+  that fixing only the three items the task line called out would have left the doc actively wrong
+  in a dozen adjacent spots; did the full pass instead. `actor-profiles.md` gained the one paragraph
+  named. `CHANGELOG.md` gained `## [0.19.0]` with a **Breaking** block; `package.json` and
+  `PackagingConformanceTests.Supplementary_PackageManifest_MatchesSection11Identity`'s pinned version
+  string were bumped together. `HANDOFF.md` §1's current-state paragraph and §4's A73 entry rewritten
+  from "in progress, session 2 not started" to built/gated with the owner checkpoint named; the
+  vault's `AnimationToolkit.md` gained the two named traps plus a reconciliation note on its existing
+  "do not spawn subagents against this package" trap (T4/T5/T6 already proved the exception:
+  file-disjoint subagents with zero MCP access are fine, only the orchestrator touching the Editor
+  is the actual rule the 2.2 GB log incident was about).
+
+  **Full suites, discovered counts checked:** `DotsAnimationToolkit.Tests.EditMode` 767/767 (only the
+  pre-existing, not-ours `Conformance_A` asmdef drift — A72's own note, still not this amendment's to
+  fix) and `.PlayMode` 283/283, both green — no drop from A72's 760/277 baseline (net +7/+6 across
+  T1–T3's and T4–T6's new fixtures, nothing deleted unaccounted for). Also ran the game-side
+  `StitchPunk.Tests` (57/57) and `StitchPunk.Tests.PlayMode` (15/15), both green — better than this
+  spec's own Part 1 note expected (it anticipated some standing A70-era failures there; none were
+  present in these two assemblies at this point in the repo's history).
