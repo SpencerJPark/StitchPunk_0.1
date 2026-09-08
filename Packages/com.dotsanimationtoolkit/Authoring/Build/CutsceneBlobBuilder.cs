@@ -177,7 +177,8 @@ namespace DotsAnimationToolkit.Authoring
 
             float naturalEnd = ComputeContentEndSeconds(cutscene, effectiveRootKeysBySlot);
             float lastBoundaryTime = boundaries[boundaries.Count - 1].time;
-            if (naturalEnd > lastBoundaryTime + BoundaryEpsilon || boundaries.Count == 1)
+            bool lastBoundaryIsAHold = boundaries[boundaries.Count - 1].holdId != null;
+            if (naturalEnd > lastBoundaryTime + BoundaryEpsilon || boundaries.Count == 1 || lastBoundaryIsAHold)
             {
                 boundaries.Add(new SegmentBoundary { time = Mathf.Max(naturalEnd, lastBoundaryTime), holdId = null });
             }
@@ -310,6 +311,13 @@ namespace DotsAnimationToolkit.Authoring
                         for (int i = 0; i < slot.attachMarkers.Count; i++)
                         {
                             latest = Mathf.Max(latest, slot.attachMarkers[i].time);
+                        }
+                    }
+                    if (slot.markKeys != null)
+                    {
+                        for (int i = 0; i < slot.markKeys.Count; i++)
+                        {
+                            latest = Mathf.Max(latest, slot.markKeys[i].time);
                         }
                     }
                 }

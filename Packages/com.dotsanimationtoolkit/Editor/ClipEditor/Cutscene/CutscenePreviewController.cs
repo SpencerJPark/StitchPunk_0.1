@@ -743,17 +743,17 @@ namespace DotsAnimationToolkit.Editor
         /// Samples whichever clip block the slot's lane is playing, cross-fading the one before it
         /// while their overlap lasts, into <see cref="composedPoses"/>.
         /// </summary>
-        // A73: CutsceneClipBlock now names an animation key (resolved against the slot's profile,
-        // by layer) rather than a raw clip id, and this composer still samples the old
+        // CutsceneClipBlock now names an animation key (resolved against the slot's profile, by
+        // layer) rather than a raw clip id, and this composer still samples the old
         // rig/clipSets-bound registry directly. Rebuilding it onto a per-layer PlaybackLayer
-        // reconstruction is A73-T5's job (spec §3.5, ComposeLayers) — until then the clip lane
-        // preview is a no-op rather than sampling the wrong clip id under the new schema; root
-        // motion, facing and camera preview are unaffected.
+        // reconstruction is pending; until then the clip lane preview is a no-op rather than
+        // sampling the wrong clip id under the new schema; root motion, facing and camera preview
+        // are unaffected.
         private void ComposeClipLane(
             CutsceneSlot slot, Dictionary<uint, PartBinding> parts, float timeSeconds, in SlotFacing facing)
         {
             return;
-#pragma warning disable CS0162 // unreachable pending A73-T5's ComposeLayers rewrite
+#pragma warning disable CS0162 // unreachable pending the ComposeLayers rewrite
             if (slot.clipBlocks == null || slot.clipBlocks.Count == 0)
             {
                 return;

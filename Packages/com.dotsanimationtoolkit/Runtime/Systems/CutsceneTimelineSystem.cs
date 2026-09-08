@@ -1373,7 +1373,7 @@ namespace DotsAnimationToolkit
         /// therefore placed. <paramref name="isPaused"/> freezes the timeout clock only - a paused
         /// cutscene must not tick one down - while arrival still resolves, because whatever is
         /// moving the entity may not be paused with it. Either resolution latches the mark's arrival
-        /// facing (§3.3) so a standing actor holds it until it moves again or a Fixed key takes over.
+        /// facing so a standing actor holds it until it moves again or a Fixed key takes over.
         /// </summary>
         private static void ResolveOutstandingMarks(
             EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
@@ -1412,6 +1412,11 @@ namespace DotsAnimationToolkit
                     slotState.hasOutstandingMark = false;
                     slotState.hasLatchedFacing = true;
                     slotState.latchedFacingDegrees = math.degrees(order.facingRadians);
+                    // Re-baseline against the arrival position itself: the walk that closed the
+                    // remaining distance this frame must not read as "moved since the latch" and
+                    // immediately cancel the latch it just set.
+                    slotState.lastPosition = currentPosition;
+                    slotState.hasLastPosition = true;
                     slotStates[slotIndex] = slotState;
                     continue;
                 }
@@ -1429,6 +1434,8 @@ namespace DotsAnimationToolkit
                     slotState.hasOutstandingMark = false;
                     slotState.hasLatchedFacing = true;
                     slotState.latchedFacingDegrees = math.degrees(order.facingRadians);
+                    slotState.lastPosition = order.position;
+                    slotState.hasLastPosition = true;
                     slotStates[slotIndex] = slotState;
                     UnityEngine.Debug.LogWarning(
                         "[DOTS Animation Toolkit] Cutscene slot " + slotIndex + " did not reach its mark within "

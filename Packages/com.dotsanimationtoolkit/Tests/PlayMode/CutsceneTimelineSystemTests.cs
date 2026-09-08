@@ -232,6 +232,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             Entity actorEntity = CreateBoundActor(out Entity requestEntity);
 
+            // ApplyLayerSpeedToAllActorSlots runs before ProcessClipBlocks each update, so the block's
+            // layer must already be active — one prior update — before a speed change can reach it.
+            Advance(0.01f);
+
             CutsceneControl control = testWorld.EntityManager.GetComponentData<CutsceneControl>(requestEntity);
             control.speed = 0.5f;
             testWorld.EntityManager.SetComponentData(requestEntity, control);
@@ -512,6 +516,11 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         public void Skip_MarksComplete_AndStopsTheActorLayer()
         {
             Entity actorEntity = CreateBoundActor(out Entity requestEntity);
+
+            // StopActorLayers only stops a layer with an active authored block, so the block must
+            // already be playing — one prior update — before a skip can prove it was released.
+            Advance(0.01f);
+
             CutsceneApi.RequestSkip(testWorld.EntityManager, requestEntity);
             Advance(0.1f);
 

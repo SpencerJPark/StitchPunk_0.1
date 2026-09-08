@@ -4054,10 +4054,9 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorScroll.Add(BuildHeading("Clip Block"));
 
-            // A73: a block now names an animation key from the slot's profile, not a raw clip from
-            // its clip sets. The picker-driven field (VocabularyPicker, filtered to the block's row)
-            // is A73-T4's job (spec §3.4); a raw key field keeps the inspector compiling and usable
-            // in the interim.
+            // A block now names an animation key from the slot's profile rather than a raw clip from
+            // its clip sets; a raw key field keeps the inspector compiling and usable until the
+            // picker-driven field lands.
             AddBoundField(blockProperty, "animationKey", "Animation Key");
 
             AddBoundField(blockProperty, "start", "Start (s)");
