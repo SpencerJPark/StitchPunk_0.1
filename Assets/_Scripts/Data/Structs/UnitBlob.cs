@@ -26,34 +26,35 @@ public struct UnitDataBlob
     // Spawn and maximum health. Stamped onto every unit by UnitHealthInitSystem at spawn, which is
     // what makes this — not the prefab's HealthAuthoring numbers — the live value.
     public int maxHealth;
-    public AnimationDirections animationDirections;
     public BlobArray<NeedType> motivation;
     public int randomMotivationAmount;
     public BlobArray<NeedType> randomMotivations;
     public BlobArray<FactionType> attackFactions;
     public BlobArray<FactionType> socialFactions;
     public BlobArray<AttackActionMappingBlob> attacks;
-    public BlobArray<ActionAnimationMappingBlob> actionAnimations;
-    public BlobArray<StanceAnimationBlob> stanceAnimations;
-    public DirectionSetBlob idleAnimation;
-    public DirectionSetBlob movingAnimation;
+    // Animation-name-convention bindings (G5 D1): the animation key equals the enum name resolved
+    // through the toolkit's AnimationNameRegistry at bake time. 0 = unresolved.
+    public uint idleAnimationKey;
+    public uint walkAnimationKey;
+    public BlobArray<ActionAnimationKeyBlob> actionAnimationKeys;
+    public BlobArray<StanceAnimationKeysBlob> stanceAnimationKeys;
 }
 
-public struct ActionAnimationMappingBlob
+public struct ActionAnimationKeyBlob
 {
     public ActionType action;
-    public DirectionSetBlob animation;
+    public uint animationKey;
+}
+
+public struct StanceAnimationKeysBlob
+{
+    public StanceType stance;
+    public uint idleAnimationKey;
+    public uint walkAnimationKey;
 }
 
 public struct AttackActionMappingBlob
 {
     public ActionType   action;
     public DamageSource attack;
-}
-
-public struct StanceAnimationBlob
-{
-    public StanceType stance;
-    public DirectionSetBlob idleAnimation;
-    public DirectionSetBlob movingAnimation;
 }

@@ -116,19 +116,51 @@ public static class AIUtils
         return ActionType.Idle;
     }
 
-    // Directional for free (DirectionFacing_System.md §5): callers resolve clipFacing once via
-    // FacingResolver.ResolveClipFacing(unitFacing.current, unitBlob.animationDirections, ...) and
-    // pass it through; ResolveSlot then folds it a second time into what this particular set
-    // actually authored, mirroring UnitAnimationAssignmentJob.GetAnimationForAction.
-    public static ClipId GetAnimationByAction(ref UnitDataBlob unitBlob, ActionType actionType, Direction clipFacing)
+    // Animation-name-convention binding (G5 D1): the key was resolved at bake time from the enum
+    // name through the toolkit's AnimationNameRegistry. 0 = unresolved/none.
+    public static uint GetAnimationKeyByAction(ref UnitDataBlob unitBlob, ActionType actionType)
     {
-        ref BlobArray<ActionAnimationMappingBlob> mappings = ref unitBlob.actionAnimations;
-        for (int i = 0; i < mappings.Length; i++)
+        ref BlobArray<ActionAnimationKeyBlob> keys = ref unitBlob.actionAnimationKeys;
+        for (int i = 0; i < keys.Length; i++)
         {
-            if (mappings[i].action == actionType)
-                return mappings[i].animation.ResolveSlot(clipFacing);
+            if (keys[i].action == actionType)
+                return keys[i].animationKey;
         }
-        return default;
+        return 0;
+    }
+
+    // Falls back to the Normal stance pair when the requested stance's names did not resolve at
+    // bake time (both keys 0), then to the bare Idle/Walk keys if even Normal is unresolved, so
+    // callers never have to null-check a locomotion animation.
+    public static void GetLocomotionKeys(ref UnitDataBlob unitBlob, StanceType stance, out uint idleKey, out uint walkKey)
+    {
+        ref BlobArray<StanceAnimationKeysBlob> stanceKeys = ref unitBlob.stanceAnimationKeys;
+        int normalIndex = -1;
+        for (int i = 0; i < stanceKeys.Length; i++)
+        {
+            if (stanceKeys[i].stance == StanceType.Normal)
+                normalIndex = i;
+
+            if (stanceKeys[i].stance == stance)
+            {
+                idleKey = stanceKeys[i].idleAnimationKey;
+                walkKey = stanceKeys[i].walkAnimationKey;
+                if (idleKey != 0 || walkKey != 0)
+                    return;
+                break;
+            }
+        }
+
+        if (normalIndex >= 0 &&
+            (stanceKeys[normalIndex].idleAnimationKey != 0 || stanceKeys[normalIndex].walkAnimationKey != 0))
+        {
+            idleKey = stanceKeys[normalIndex].idleAnimationKey;
+            walkKey = stanceKeys[normalIndex].walkAnimationKey;
+            return;
+        }
+
+        idleKey = unitBlob.idleAnimationKey;
+        walkKey = unitBlob.walkAnimationKey;
     }
 
     public static void SetMotivationValue(

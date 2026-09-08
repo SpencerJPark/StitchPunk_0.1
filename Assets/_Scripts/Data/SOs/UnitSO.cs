@@ -36,21 +36,8 @@ public class UnitSO : ScriptableObject
     [SearchableEnum] public FactionType[] socialFactions;
     
     [Header("Animations")]
-    [Tooltip("How many directions this unit's locomotion/action art turns through. A citizen and a " +
-             "boss can share a rig and differ here — it's a property of the content, not the rig.")]
-    public AnimationDirections animationDirections = AnimationDirections.Six;
-    public ActionAnimationMapping[] actionAnimations;
-    public StanceAnimationMapping[] stanceAnimations;
-    public DirectionSetAsset idleAnimation;
-    public DirectionSetAsset movingAnimation;
-
-    [Tooltip("The rig this unit's clips are authored against. Validate-only: the prefab's " +
-             "ActorAuthoring stays the runtime source of truth, and a disagreement warns rather " +
-             "than overriding it.")]
-    public RigAsset rig;
-
-    [Tooltip("The clip set this unit's animations come from. Validate-only, like the rig above.")]
-    public ClipSetAsset clipSet;
+    [Tooltip("Validate-only: the prefab's ActorAuthoring.profile is the runtime truth.")]
+    public ActorProfileAsset actorProfile;
 
     [Header("Combat")]
     [Tooltip("Spawn and maximum health. Baked into UnitLibrary and stamped onto every unit at " +
@@ -72,62 +59,42 @@ public class UnitSO : ScriptableObject
     // public float progressMax;
     // public Sprite sprite;
 
-    public DirectionSetAsset GetAnimation(ActionType actionType, bool isMoving)
-    {
-        for (int i = 0; i < actionAnimations.Length; i++)
-        {
-            if (actionAnimations[i].action == actionType)
-            {
-                return actionAnimations[i].animation;
-            }
-        }
-        return isMoving ? movingAnimation : idleAnimation;
-    }
-
-    // Whether this unit's declared rig/clip set disagree with what its prefab's ActorAuthoring
+    // Whether this unit's declared actor profile disagrees with what its prefab's ActorAuthoring
     // actually carries. Shared by OnValidate and UnitLibraryBakingSystem so the inspector and the
     // bake describe the same disagreement in the same words. Null when there is nothing to say —
     // an unset field is "not declared", not "declared wrong".
-    public string DescribeRigMismatch()
+    public string DescribeProfileMismatch()
     {
-        if (prefab == null || (rig == null && clipSet == null))
+        if (prefab == null || actorProfile == null)
             return null;
 
         ActorAuthoring actor = prefab.GetComponentInChildren<ActorAuthoring>(true);
         if (actor == null)
-            return $"'{name}' declares a rig/clip set but its prefab '{prefab.name}' has no ActorAuthoring.";
+            return $"'{name}' declares an actor profile but its prefab '{prefab.name}' has no ActorAuthoring.";
 
-        // Shim until G5 re-keys this SO onto the actor profile: the prefab's rig and clip sets now
-        // come from ActorAuthoring.profile.
-        RigAsset actorRig = actor.profile != null ? actor.profile.rig : null;
-        List<ClipSetAsset> actorClipSets = actor.profile != null ? actor.profile.clipSets : null;
-        if (rig != null && actorRig != rig)
-            return $"'{name}' declares rig '{rig.name}' but its prefab animates on " +
-                   $"'{(actorRig != null ? actorRig.name : "<none>")}'.";
-
-        if (clipSet != null && (actorClipSets == null || !actorClipSets.Contains(clipSet)))
-            return $"'{name}' declares clip set '{clipSet.name}' but its prefab's ActorAuthoring " +
-                   "does not list it.";
+        if (actor.profile != actorProfile)
+            return $"'{name}' declares actor profile '{actorProfile.name}' but its prefab " +
+                   $"'{prefab.name}' animates on '{(actor.profile != null ? actor.profile.name : "<none>")}'.";
 
         return null;
     }
 
     // Reported once per domain load per asset, not on every keystroke: OnValidate fires on each
     // inspector edit, and a mismatch that has not changed is not news.
-    [NonSerialized] private bool hasReportedRigMismatch;
+    [NonSerialized] private bool hasReportedProfileMismatch;
 
     private void OnValidate()
     {
-        string mismatch = DescribeRigMismatch();
+        string mismatch = DescribeProfileMismatch();
         if (mismatch == null)
         {
-            hasReportedRigMismatch = false;
+            hasReportedProfileMismatch = false;
             return;
         }
-        if (hasReportedRigMismatch)
+        if (hasReportedProfileMismatch)
             return;
 
-        hasReportedRigMismatch = true;
+        hasReportedProfileMismatch = true;
         Debug.LogWarning($"[UnitSO] {mismatch}", this);
     }
 }
@@ -141,24 +108,9 @@ public struct MotivationDecayConfig
 }
 
 [Serializable]
-public struct ActionAnimationMapping
-{
-    [SearchableEnum] public ActionType action;
-    public DirectionSetAsset animation;
-}
-
-[Serializable]
 public struct AttackActionMapping
 {
     [SearchableEnum] public ActionType action;
     [SearchableEnum] public DamageSource attack;
-}
-
-[Serializable]
-public struct StanceAnimationMapping
-{
-    public StanceType stance;
-    public DirectionSetAsset idleAnimation;
-    public DirectionSetAsset movingAnimation;
 }
 
