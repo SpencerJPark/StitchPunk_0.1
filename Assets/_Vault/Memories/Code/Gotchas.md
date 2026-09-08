@@ -229,6 +229,14 @@ actual body-vs-body collision once self-collision groups are authored on the rig
 unverified (no rig exists yet). If corpses visibly clip into each other in play-test, that's the first
 place to look, not a regression to chase in the command seam.
 
+### An animation name that isn't in the registry bakes to key 0 and the unit silently never plays it
+`UnitLibraryBakingSystem.ResolveAnimationKey` returns `0` for any `AnimationNameConvention` string
+that doesn't match an entry in the project's `AnimationNameRegistry`. Every call site (`PlaybackApi`
+wrappers, `AIUtils.GetLocomotionKeys`/`GetAnimationKeyByAction`) treats key `0` as "nothing to play"
+and no-ops — there is no exception, no red console line at runtime. Read the consolidated
+`[UnitLibraryBaking] '<unit>' has N unresolved animation name(s)` warning logged once per unit at
+bake time; that is the only place this ever surfaces.
+
 ---
 
 ## DOTS `[MaterialProperty]` colours skip sRGB→linear — convert with `.linear`
@@ -566,13 +574,13 @@ had never been placed in any scene project-wide (`FindObjectsByType` returned ze
 actually hit the bug yet. Fixed proactively using `DialogueUIManager.TryResolveEcsReferences`'s own
 pattern verbatim before wiring it into `TestArea.unity` for G3.
 
-## The cutscene layer must exist on the rig, or every clip block is silently dropped
+## The cutscene layer must exist on the rig — closed 2026-09-07
 
-`CutsceneDebugTrigger`'s default layer is `Override` (index 2) and `NewRig` declares **one** layer.
-A cutscene fired on a layer the bound actor does not have plays no clip at all and the actor just
-slides along its root lane — which is exactly what "the minions slide instead of walking" was in the
-G1 checkpoint. Check `PlaybackLayer` buffer length on a bound actor before blaming the clip or the
-block. The G2 checkpoint's trigger is set to `Base`.
+Every `ActorProfileAsset` now guarantees a top layer (`layers[^1]`, always named `Override`,
+`EnsureBookends()` refuses to let it be removed), and `NarrativeEventManager` requests
+`CutsceneRequest.layerIndex = CutsceneApi.TopLayer` instead of a hardcoded index. The old failure
+mode — a cutscene firing on a layer the bound actor didn't have, silently dropping every clip block —
+can no longer happen; nothing calls out a fixed layer number any more.
 
 ## The game's facing pipeline and the toolkit's actor pipeline were on different prefabs — fixed 2026-09-07, watch for the two traps this exposed
 

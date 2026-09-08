@@ -8,12 +8,14 @@ related: "[[Systems]], [[Components]], [[Data]]"
 Animation is driven by the `com.dotsanimationtoolkit` package now — there is no game-owned keyframe
 pipeline any more. This note covers the **game↔toolkit seam**: what the game still owns, what it
 hands to the package, and where the two meet in the frame. Full toolkit behavior lives in the
-package's own `Documentation~/` (start at `Packages/com.dotsanimationtoolkit/Documentation~/index.md`);
-this note only covers the game-side call sites and conventions.
+package's own `Documentation~/` (start at `Packages/com.dotsanimationtoolkit/Documentation~/index.md`,
+and `Documentation~/actor-profiles.md` for the profile model this note builds on).
 
 See `Assets/_Vault/Tasks/NewPlans/AnimationToolkitMigration_System.md` for the migration history and
-the decisions this seam is built on (locked 2026-08-29). Rig/clip/ragdoll-body **authoring** is a
-separate, ongoing task — nothing here assumes real assets exist yet.
+`Assets/_Vault/Tasks/NewPlans/ActorProfileCutover_System.md` (G5) for the cutover onto
+`ActorProfileAsset` (locked 2026-09-07) — everything below is G5's outcome. Content lives in
+`MaleCitizen.profile.asset`, authored by
+`Assets/_Scripts/Editor/ContentAuthoring/MaleCitizenContentAuthoring.cs`.
 
 ---
 
@@ -21,61 +23,50 @@ separate, ongoing task — nothing here assumes real assets exist yet.
 
 - **`AnimationSystemGroup`** (`SystemGroups.cs`): two systems in `AnimationAssignmentSystemGroup`,
   `UnitFacingSystem` then `UnitAnimationAssignmentSystem` (`[UpdateBefore]` edge, in that order —
-  facing must resolve before clip selection reads it). Assignment decides which `ClipId` each layer
-  should play from the `UnitLibraryBlob` and issues `PlaybackApi.Play` only on change —
-  never every frame, since commands are requests, not state. Ordered
-  `[UpdateBefore(typeof(AnimationToolkitSystemGroup))]` so commands issued this frame apply this frame.
-- **Facing** (`DirectionFacing_System.md`, built 2026-08-29): `UnitFacing : IComponentData { Direction
-  current; }` on unit roots, written only by `UnitFacingSystem` — world-fixed `velocity.xz` (via
-  `Movement.targetPosition - LocalTransform.Position`) quantized through the toolkit's
-  `FacingResolver.FromMovement`, with an aim override (to-target direction) while `unitAction.current`
-  is an attack and `CombatTarget` is enabled. On change it pushes `PartFacing { viewOffset, mirrorX }`
-  onto every `BodyPart` that carries one, view offset read from `PartLibraryBlob.PartDef.GetViewOffset`.
-  `DirectionSetAsset` (**toolkit-side** since 2026-08-29, `DotsAnimationToolkit.Authoring`) replaces
-  bare `ClipAsset` on every clip-mapping field that should turn (`UnitSO.idleAnimation`/`movingAnimation`,
-  `StanceAnimationMapping`, `ActionAnimationMapping`) — five east-side slots, effective
-  `AnimationDirections` **derived** from which are filled (`TryGetEffectiveDirections`, shared by the
-  bake-time warning and the panel's live readout — never re-derive this elsewhere).
-  **The clip pick folds twice, and both folds matter.** `FacingResolver.ResolveClipFacing(unitFacing.current,
-  blob.animationDirections, ...)` quantizes at the ACTOR's turn granularity, then
-  `DirectionSetBlob.ResolveSlot` folds that again into what THIS set actually authored. Calling the
-  raw `GetSlot` instead returns an empty `ClipId` for any facing the set never drew — which reads on
-  screen as the unit freezing whenever it faces that way, not as a missing clip. (That second fold was
-  missing until 2026-08-29 even though `effectiveDirections` was already being baked for it; pinned by
-  `DirectionSetBlobFoldTests`.) `AIUtils.GetAnimationByAction` and `UnitAnimationAssignmentJob`'s two
-  resolvers all go through it — `PlayerAttackSystem` and the `PlayActionAnimation` behavior command get
-  directionality "for free" this way, no extra decision logic. The game's own `Direction`/
-  `AnimationDirections` enums and `DirectionUtils` are **deleted** — everything uses the toolkit's
-  `DotsAnimationToolkit.Direction`/`AnimationDirections` now. Authoring tool: the Clip Editor's
-  **2D Direction Sets** toggle pane (`Packages/com.dotsanimationtoolkit/Editor/ClipEditor/DirectionSets/`),
-  fed the game's units through `UnitDirectionSetContextProvider` (see [[Editor]]). Phase 5 (real
-  Six-direction art) is still owner-pending — see the spec's status header.
-- **Cutscene facing (G2)** — `UnitFacingJob` includes cutscene actors rather than excluding them:
-  an enabled `CutsceneFacing` supplies the facing vector, and an actor the cutscene has no answer for
-  keeps the facing it had. The angle is measured **from +X toward +Z** (0 east, 90 north), so
-  `(cos, sin)` lands in facing space directly — it is *not* a `LocalTransform` Y euler, and the two
-  are a reflection about 45° (`UnitFacingJob.CutsceneAngleToFacingSpace`, pinned by `FacingSpaceTests`).
-- **The command seam** — every write site issues `PlaybackApi.Play`/`Stop` against
+  facing must resolve before clip selection reads it). `UnitAnimationAssignmentSystem` is thin now:
+  it resolves `idleKey`/`walkKey` from `UnitLibraryBlob` via `AIUtils.GetLocomotionKeys` and issues
+  `PlaybackApi.PlayAnimation(idle|walk key)` only when `!PlaybackApi.IsAnimationPlaying(playbackLayers,
+  key)` — commands are requests, not state, so re-issuing every frame would restart the clip's
+  crossfade for no reason. Ordered `[UpdateBefore(typeof(AnimationToolkitSystemGroup))]` so commands
+  issued this frame apply this frame.
+- **Name-convention binding at bake** (`AnimationNameConvention`, G5 D1) — the animation name equals
+  the enum name: `Idle`/`Walk` (bare consts), `ForStanceIdle`/`ForStanceWalk` produce
+  `<Stance>Idle`/`<Stance>Walk`, `ForAction` returns the `ActionType`'s own name. `UnitLibraryBakingSystem`
+  resolves every one of these strings through the project's `AnimationNameRegistry` into a `uint` key;
+  anything that doesn't resolve bakes key `0` and is collected into **one consolidated warning per
+  unit** (`unresolvedAnimationNames`), not one warning per missing name.
+- **Behaviour commands and the player swing play by action key** — `AnimationCommands.cs`'s
+  `PlayActionAnimation` resolves `AIUtils.GetAnimationKeyByAction(ref unitBlob, stateMachine.action)`
+  and calls `PlaybackApi.PlayAnimation` with that key; key `0` is a silent no-op by design (nothing to
+  play). `PlayerAttackSystem`'s swing and `BehaviorExecutionSystem`/`BehaviorInterruptSystem`'s
+  `PlayAnimation`/`StopAnimation` behavior commands go through the same `PlaybackApi` wrappers.
+- **`AttackRequestSystem`** (`CombatExecutionSystemGroup`) matches `AnimEventOutput.animationKey`
+  against this attack's own resolved key, not just the `AnimEvents.Attack` event id, before treating
+  a hit-confirm event as this attack's; `attackBlob.hitTime` is still the fallback/timeout when the
+  event never arrives.
+- **`UnitFacingSystem`** writes `ActorFacing.facing` (in addition to the game's own `UnitFacing`)
+  whenever the resolved direction changes, and reads turn granularity from the actor's baked
+  `ActorProfile`/`ActorProfileBlob.turnDirections` instead of `UnitDataBlob` — a unit with no baked
+  profile yet falls back to the finest (`Six`) granularity. `PartFacing { viewOffset, mirrorX }` is
+  still pushed game-side onto every `BodyPart` that carries one, view offset read from
+  `PartLibraryBlob.PartDef.GetViewOffset` — this stays host-owned because the toolkit has no notion of
+  the game's sprite-part rig.
+- **Cutscene facing (G2)**, unchanged by G5 — `UnitFacingJob` includes cutscene actors rather than
+  excluding them: an enabled `CutsceneFacing` supplies the facing vector, and an actor the cutscene
+  has no answer for keeps the facing it had. The angle is measured **from +X toward +Z** (0 east, 90
+  north), so `(cos, sin)` lands in facing space directly — it is *not* a `LocalTransform` Y euler, and
+  the two are a reflection about 45° (`UnitFacingJob.CutsceneAngleToFacingSpace`, pinned by
+  `FacingSpaceTests`).
+- **Cutscenes request `CutsceneApi.TopLayer`** — `NarrativeEventManager`'s `PlayCutsceneAction` writes
+  `CutsceneRequest.layerIndex = CutsceneApi.TopLayer` instead of a hardcoded layer index, so a
+  cutscene always lands on whatever layer a profile's bookend `Override` actually is.
+- **The command seam** — every write site issues `PlaybackApi.PlayAnimation`/`StopAnimation` against
   `DynamicBuffer<AnimationCommand>` + `EnabledRefRW<AnimationCommandPending>`, never touches
-  `PlaybackLayer` directly: `BehaviorExecutionSystem`/`BehaviorInterruptSystem` (`PlayAnimation`/
-  `PlayActionAnimation`/`StopAnimation` behavior commands), `PlayerAttackSystem` (swing clip),
-  `NarrativeEventManager` (managed, via `EntityManager.GetBuffer<AnimationCommand>` +
+  `PlaybackLayer` directly: `BehaviorExecutionSystem`/`BehaviorInterruptSystem`, `PlayerAttackSystem`
+  (swing clip), `NarrativeEventManager` (managed, via `EntityManager.GetBuffer<AnimationCommand>` +
   `SetComponentEnabled<AnimationCommandPending>` directly — no lookup available outside a system).
-- **The read seam** — `PlaybackApi.IsPlaying`/`PlaybackLayer.flags & PlaybackFlags.Active` answer
-  "what's actually playing", read against the toolkit's own `PlaybackLayer` buffer. Never track a
-  shadow copy of playback state game-side.
-- **`AnimationToolkitLayer`** (`Data/Enums/AnimationToolkitLayer.cs`): the six-layer convention every
-  rig in this game declares, in this order — `Base(0) / Action(1) / Override(2) / Face(3) / Eyes(4) /
-  Mouth(5)`. Cast to `byte` at the `PlaybackApi`/`PlaybackApi` call site. The toolkit does
-  **not** enforce that layer 3 means "Face" on every rig — it's a project convention every rig must
-  follow by hand so a tag-bound `FaceExpressions` clip set's starting-layer references mean the same
-  thing across rigs (see the migration spec §4).
-- **Clip vocabulary** — `UnitSO.idleAnimation`/`movingAnimation`/`actionAnimations`/
-  `stanceAnimations`, `BehaviorCommandAuthoring.AnimationClip`, `NarrativeEventSO`'s
-  `PlayAnimationAction.animationClip` are all direct `ClipAsset` object references (toolkit
-  `Authoring` assembly). Bakers (`UnitLibraryBakingSystem`, `BehaviorLibraryBakingSystem`) write
-  `clipAsset.Id` (a `ClipId`) into the blob; a null `ClipAsset` bakes to `default` (`ClipId.IsValid ==
-  false`), which every call site checks before issuing a command.
+- **The read seam** — `PlaybackApi.IsAnimationPlaying` against the toolkit's own `PlaybackLayer`
+  buffer answers "what's actually playing". Never track a shadow copy of playback state game-side.
 - **Design → `TargetRestPose.restSliceIndex`** — `DesignApplyUtil.ApplyDesign` writes the toolkit's
   per-part rest slice instead of a legacy pose/image-index pair; sprite tracks authored in
   `RelativeToRest` slice space retarget to whatever variant a character rolled automatically.
@@ -89,13 +80,28 @@ separate, ongoing task — nothing here assumes real assets exist yet.
   `AnimLodDistanceSystem` is not used — two visibility authorities would just risk disagreeing.
 - **Billboard** — the toolkit's `BillboardResolveSystem`, Y-axis upright mode, authored per-actor on
   `ActorAuthoring.billboardMode`. No game code.
-- **Ragdoll** — `RagdollLaunchInitSystem`/`RagdollReviveSystem` (`HealthSystemGroup`) build a toolkit
-  `RagdollLaunch` impulse from `Health.kill*` and enable `RagdollActor` on death; disabling
-  `RagdollActor` on revive is the toolkit's own job (it restores the pose captured on enable exactly).
+- **Ragdoll** — every unit bakes a (disabled) `RagdollLaunch` via `UnitBakingUtil` regardless of
+  whether its profile uses one, so pooled units don't need it added on death. `RagdollLaunchInitSystem`
+  (`HealthSystemGroup`, after `DeathSystem`) reads `Health.kill*` (captured by `DamageEventSystem` on
+  the lethal `DamageEvent`) to build the `worldImpulse`/`worldTorque`, writes it into `RagdollLaunch`,
+  enables it, and enables `RagdollActor` to start the drop — the toolkit's own solver takes it from
+  there. This sits alongside, not instead of, the profile's own per-entry `ragdollTrigger`
+  (`None`/`Start`/`Stop`, `Documentation~/actor-profiles.md` §"Ragdoll triggers"): a death animation
+  entry can also fire `Start` on play or on a named event, honoured only where the rig has ragdoll
+  bodies (`RagdollActor` present) — `RagdollReviveSystem` disabling `RagdollActor` on revive is the
+  toolkit's own job (it restores the pose captured on enable exactly).
   `CorpseCellSystem` (`GameManagerSystemGroup`) rebuilds its spatial hash from `RagdollActor` +
-  `RagdollState.flags & RagdollStateFlags.Sleeping` — position registry only; the legacy artificial
-  corpse-stacking landing-height hack was dropped (the toolkit's ragdoll is real Unity Physics box
-  colliders — verify actual body-vs-body stacking in play-test before reintroducing anything like it).
+  `RagdollState.flags & RagdollStateFlags.Sleeping` — position registry only; verify actual
+  body-vs-body stacking in play-test before reintroducing any artificial landing-height hack.
+
+## What left
+
+`AnimationToolkitLayer`, `DirectionSetBlob`, `DirectionSetBakeUtil`, the unit SO's direct clip fields
+(`idleAnimation`/`movingAnimation`/`actionAnimations`/`stanceAnimations`), and
+`UnitAnimationAssignmentJob`'s old per-`AnimationToolkitLayer` Action branch are all gone
+(`ActorProfileCutover` P1–P4) — a profile's `layers`/entries replace all of it. Comments referencing
+their removal remain in `BehaviorBlobs.cs` and `SpawnStateInitSystem.cs` for anyone tracing history;
+there is nothing left to call.
 
 ## Where the toolkit's own pipeline lives
 
@@ -111,10 +117,3 @@ presentation, then sockets). See the package's `Runtime/Systems/AnimationToolkit
 `AnimationSystemGroup` runs before `SpawnSystemGroup`, so a spawned entity's toolkit part bindings
 (`RigPartRef`) are only reliable from frame 2 onward — the toolkit's own `RigBindingSystem` handles
 this the same way `BodyPartInitSystem` handles `BodyPart` (see [[Gotchas]]).
-
-## What's still pending
-
-Rig targets, layers, and ragdoll bodies are not yet authored on any real rig (owner's task, in
-progress separately). Every system above compiles and is wired correctly but is currently a no-op —
-nothing has the toolkit's `ActorAuthoring`/`RigTargetAuthoring` components yet. Do not treat "compiles
-clean" as "verified in play" for anything in this note until a real rig exists.
