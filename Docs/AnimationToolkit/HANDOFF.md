@@ -121,31 +121,21 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-**Next: the Actor Editor roadmap.** Index:
-`Assets/_Vault/Tasks/NewPlans/ActorEditor_Roadmap.md` — owner product calls in its §2 (layers on an
-actor profile asset, play by name, Base/Override bookends, ragdoll as an animation flag). Order:
-**A70** `Amendment_A70_ActorProfile_Spec.md` (profile asset + `AnimationNameRegistry` + blob +
-`PlayAnimation`/`StopAnimation` + `ActorFacing` + ragdoll triggers + `CutsceneApi.TopLayer`;
-`RigAsset.layers` and `ActorAuthoring.rig/clipSets/startingLayers` removed — the game goes red until
-G5) → **A71** `Amendment_A71_ActorEditor_Spec.md` (the Actor Editor tab: layer/animation tree,
-composited multi-layer preview, direction slider, triggers, ragdoll mix) → **G5**
-`ActorProfileCutover_System.md` (game). **A70 and A71 built and gated; ⏸ A71-T10 owner checkpoint
-open; G5 next.** `RagdollTuning_System.md` (RG, game-side bodies + launch fixes) is independent and
-may run first.
+**The Actor Editor roadmap is built (2026-09-07): A70 (0.16.0), A71 (0.17.0) and the game cutover G5
+are in, gated green (EditMode 823 / PlayMode 291; the one standing `Conformance_A` asmdef drift
+remains). Three ⏸ owner checkpoints are open and nothing is queued behind them:**
 
-Otherwise empty apart from one open checkpoint. **A68 (docs/release), the last item in the cutscene roadmap
-(`Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md`), built T1-T5 and gated fully green 2026-09-07;
-stopped at its ⏸ owner checkpoint** — read `cutscene-api.md` top to bottom with the acceptance
-cutscene running beside it; anything the doc does not explain is a spec §7 entry, not a silent fix.
+- **A71-T10** — open `Assets/ScriptableObjects/Animations/MaleCitizen.profile.asset` (double-click)
+  and walk the spec's §5 T10 list; the layout is the owner's to change.
+- **G5-P10** — `TestArea.unity`, Play: idle sway, blink, walk, a rotter's punch via
+  `DebugZombifyMenu`, a death with the death face + ragdoll, a resurrection; F9 cutscenes still play
+  (on the top layer now).
+- **RG-T4/T7/T10** (`Assets/_Vault/Tasks/NewPlans/RagdollTuning_System.md`) — judge the eleven
+  bodies' hinge limits in the Clip Editor's Ragdoll preview, then the in-game drop and launch feel.
+  One toolkit question from the machine sample: a settled ragdoll never flags `Sleeping`.
 
-**Cutscenes: shipped in 0.15.0 — see `Documentation~/cutscenes.md`; open items in
-`Cutscene_Roadmap.md` §7 if any.**
-
-The roadmap's full amendment-by-amendment history (G0 through A69: stage baking, runtime
-correctness, attach lane, marks/rendezvous holds, holding events/facing/block speed, editor polish,
-code style unification, docs/release) is closed history now — recoverable from git (this file's own
-history up to the A68 commit, or `CHANGELOG.md`'s `## [0.15.0]` section) rather than carried here.
-Nothing is queued next; pick up whatever the owner raises.
+Index: `Assets/_Vault/Tasks/NewPlans/ActorEditor_Roadmap.md`. Both content recipes live in
+`Assets/_Scripts/Editor/ContentAuthoring/` and are re-runnable.
 
 ## 5. Standing owner directives — binding, do not lose
 

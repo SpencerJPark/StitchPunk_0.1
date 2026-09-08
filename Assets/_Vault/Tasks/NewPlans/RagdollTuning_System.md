@@ -1,6 +1,6 @@
 # Ragdoll Bodies + Death Tuning — Design Spec (RG)
 
-> **Status:** ✅ spec written 2026-09-07, nothing built. Delegated decisions in §6.
+> **Status:** 🔨 T0–T3 built 2026-09-07 (eleven bodies authored on `NewRig.asset`, `RagdollLaunch` baked on every unit, torque/mass fixes with a fixture); T5 machine-sampled — see §7. **⏸ T4 (preview limits), T7 (launch feel) and T10 are the owner's.** Delegated decisions in §6.
 > **Executor:** one fresh Claude Sonnet session with no prior context. `Cutscene_Roadmap.md` §4 is
 > the execution protocol (read it first; substitute `RG-Tn:` for the commit prefix). Subagents may
 > take only tasks marked **[parallel-safe]** and never touch `mcp__UnityMCP__*`.
@@ -119,20 +119,20 @@ from. A `Slash` kill visibly throws the body away from the attacker.
 Work in order. After each: save → compile gate → run only the fixtures the task names → tick the
 box → commit that task alone (`RG-Tn: <what>`, stage paths explicitly, never `git add -A`).
 
-- [ ] **T0 — Re-verify §2 in the live world.** Play `TestArea.unity`; from `execute_code` count
+- [x] **T0 — Re-verify §2 in the live world.** Play `TestArea.unity`; from `execute_code` count
   entities with `RagdollActor` (expect 0) and with `RagdollLaunch` (expect 0), read
   `PhysicsWorldSingleton.PhysicsWorld.NumBodies` (expect > 0 — the ground), and record the ground's
   top surface world Y (box-cast down from a unit, or read the collider bounds). Confirm
   `DebugZombifyMenu` is in the scene. Record in §7. *Gate: the numbers.*
 
-- [ ] **T1 — Bake `RagdollLaunch` onto every unit.** In `UnitBakingUtil` (the shared unit baker, next
+- [x] **T1 — Bake `RagdollLaunch` onto every unit.** In `UnitBakingUtil` (the shared unit baker, next
   to the `CutsceneActor` add): `baker.AddComponent<RagdollLaunch>(entity);
   baker.SetComponentEnabled<RagdollLaunch>(entity, false);`. `ragdoll.md` says "not baked — add
   immediately before enabling"; that is advice for hosts without a pooled-unit archetype, and
   `SpawnStateInitSystem` already assumes the component is present to disable it. No fixture — baker
   wiring; *Gate:* Play → every `Unit` entity has `RagdollLaunch`, disabled.
 
-- [ ] **T2 — Author the eleven bodies on `NewRig.asset`.** Prefer the Clip Editor: open the rig on
+- [x] **T2 — Author the eleven bodies on `NewRig.asset`.** Prefer the Clip Editor: open the rig on
   `MaleCitizen`, select each §3 node, **Add Component → Ragdoll** (the window sizes the box from the
   node's renderer), then adjust in the component block. Fallback: `execute_code` building
   `RagdollBodyDefinition`s with `address.kind = RigTarget`, `address.targetId` from §3,
@@ -157,7 +157,7 @@ box → commit that task alone (`RG-Tn: <what>`, stage paths explicitly, never `
   length 11 whose element 0 is the Pelvis with `parentBodyIndex == −1` and whose lower-arm entries
   parent to their upper arm; `read_console` has no "matches no node under actor" error.
 
-- [ ] **T3 — Make the launch reach the ragdoll the way the SOs describe.** In
+- [x] **T3 — Make the launch reach the ragdoll the way the SOs describe.** In
   `RagdollLaunchInitSystem`: (a) torque about the actor's plane normal, not world up —
   `math.mul(transform.ValueRO.Rotation, math.forward())` (the root's +Z under Y-upright
   billboarding is the plane normal up to sign; the sign is a `killSpin` sign judged in T7); (b)
@@ -273,3 +273,18 @@ box → commit that task alone (`RG-Tn: <what>`, stage paths explicitly, never `
 - *(fill per task: T0 counts and ground height; T2 box centres/sizes as authored; T4's per-joint
   limit table with the sign finding; T5's sample table; T7's launch values and how each looked;
   T10 owner verdicts per joint.)*
+- **(T0–T3, 2026-09-07)** Bodies authored by `Assets/_Scripts/Editor/ContentAuthoring/NewRigRagdollAuthoring.cs`
+  (`AuthorBodies()` / `Verify()` — re-runnable): 11 bodies, boxes from each part's mesh bounds with z
+  clamped to 0.05, the §5 T2 masses and limits, self-collision off. `ClipValidation.ValidateRig` clean.
+  `UnitBakingUtil` bakes `RagdollLaunch` disabled; `RagdollLaunchInitSystem` spins about the actor's
+  forward and divides the launch velocity by the root body's `invMass` (`RagdollLaunchInitSystemTests`, 2 tests).
+- **(T5, 2026-09-07, machine sample in `TestArea`)** A `MaleCitizen` killed by setting `Health.kill*`
+  (launch 6/5, force 1) and enabling `Dead`: `RagdollActor` enabled the same frame, `RagdollLaunch`
+  consumed, all 11 bodies at rest ~140 s later with linear speeds < 0.01, pelvis resting at y ≈ 0.20
+  over the ground top at −0.03, torso centre at −0.10 (slightly through the floor — a box-size or
+  probe-radius tune for T4). **Finding: `RagdollState.flags` never gains `Sleeping` and `sleepTimer`
+  stays 0.00 although every body is below the linear threshold** — so `CorpseCellSystem`'s registry
+  stays empty. Suspect the angular threshold or a contact re-waking the actor each step; it is a
+  toolkit question to raise at T10, not a game bug. Base layer went back to Idle under the ragdoll as
+  designed. Revive (T6) not exercised by machine: `ReviveRequestSystem` only revives a corpse whose
+  `becomesUnitType` prefab exists and the death/revive animation seam landed after this sample.

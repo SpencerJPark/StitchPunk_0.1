@@ -1,6 +1,6 @@
 # Actor Profile Cutover — Design Spec (G5)
 
-> **Status:** ✅ spec written 2026-09-07, nothing built. Depends on toolkit **A70** and **A71**
+> **Status:** 🔨 P1–P9 built and gated 2026-09-07 (EditMode 823 / PlayMode 291, one known `Conformance_A` drift). **⏸ P10 owner checkpoint open.** Depends on toolkit **A70** and **A71**
 > (`ActorEditor_Roadmap.md` §3). Absorbs the content tasks of the superseded
 > [`AnimationLayersContent_System.md`](AnimationLayersContent_System.md).
 > **Executor:** one fresh Claude Sonnet session; `Cutscene_Roadmap.md` §4 protocol, commit prefix
@@ -90,7 +90,7 @@ play on the top layer. All four suites green with no dropped counts.
 
 After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <what>`.
 
-- [ ] **P1 — Compile again.** Re-point everything A70 broke, mechanically, no behaviour change yet:
+- [x] **P1 — Compile again.** Re-point everything A70 broke, mechanically, no behaviour change yet:
   `UnitSO` drops the seven animation fields and gains `ActorProfileAsset actorProfile`
   (`DescribeRigMismatch` → `DescribeProfileMismatch`, comparing against the prefab's
   `ActorAuthoring.profile`); `UnitBlob` drops its five animation fields; `UnitLibraryBakingSystem`
@@ -100,7 +100,7 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
   both game assemblies compile; `StitchPunk.Tests` discovered count equals the pre-A70 count
   minus the deleted fixture's tests.
 
-- [ ] **P2 — Name-convention binding at bake.** `UnitLibraryBakingSystem` resolves, through
+- [x] **P2 — Name-convention binding at bake.** `UnitLibraryBakingSystem` resolves, through
   `VocabularyRegistryProvider.AnimationNames` (editor/baking assembly), `"Idle"`, `"Walk"`, every
   `StanceType` as `"<Stance>Idle"`/`"<Stance>Walk"`, and every `ActionType` by its enum name, into
   a new `UnitBlob.animationKeys` table (`BlobArray<ActionAnimationKey { ActionType action; uint key }>`
@@ -110,7 +110,7 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
   `ResolveConventionName(ActionType)` — `MeleeContinuous → "MeleeContinuous"`, `Death → "Death"`,
   and the stance composition — it exists so the convention has one home; keep it to two tests.
 
-- [ ] **P3 — Assignment issues named commands.** `UnitAnimationAssignmentJob`: Base branch becomes
+- [x] **P3 — Assignment issues named commands.** `UnitAnimationAssignmentJob`: Base branch becomes
   `key = isMoving ? walkKey : idleKey` (stance-aware as today) and `if (!PlaybackApi.IsAnimationPlaying(layers, key)) PlaybackApi.PlayAnimation(...)`.
   **Delete the Action branch entirely** — action animations are behaviour-command driven
   (`MeleeContinuousBehaviour`'s `PlayActionAnimation`) and `UnitAction.current` only ever says
@@ -119,7 +119,7 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
   unit whose Base layer is inactive gets exactly one `PlayAnimation` command with `idleKey`; a
   unit already playing it gets none (fails on a job that re-issues every frame).
 
-- [ ] **P4 — Every other write site.** `AnimationCommands.RunPlayActionAnimation` →
+- [x] **P4 — Every other write site.** `AnimationCommands.RunPlayActionAnimation` →
   `PlayAnimation(AIUtils.GetAnimationByAction(...))`; `RunPlayAnimation`'s `cmd.AnimationClip`
   becomes an animation key on `BehaviorCommandAuthoring` (picked through the toolkit's
   `VocabularyPicker` in the behaviour inspector — extend the existing custom inspector, or a
@@ -136,7 +136,7 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
   `CutsceneSystemTests`, `CutsceneDialogueCueTests` green; grep proves zero `AnimationToolkitLayer`
   references remain.
 
-- [ ] **P5 — Facing.** `UnitFacingJob` writes `ActorFacing.facing = unitFacing.current` on the
+- [x] **P5 — Facing.** `UnitFacingJob` writes `ActorFacing.facing = unitFacing.current` on the
   root (lookup, `HasComponent`-guarded) in the same pass that pushes `PartFacing`. No fixture
   beyond `FacingSpaceTests` — the write is one line and the toolkit's `ActorFacingRepickTests`
   cover the consequence. *Gate:* Play → a turning unit's `ActorFacing.facing` follows
@@ -145,7 +145,7 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
   exactly as AL-T4 specified (tags `Eyes`, `Mouth`, `LeftEyebrow`, `RightEyebrow`, extents about
   the pivot, `EnsureStableIds()` after, regenerate `TargetTags.cs`).
 
-- [ ] **P6 — Clips.** [parallel-safe, three subagents, one each] Author against `NewRig` into
+- [x] **P6 — Clips.** [parallel-safe, three subagents, one each] Author against `NewRig` into
   `NewClipSet` exactly as AL-T5 (`Idle.asset`), AL-T6 (`Attack.asset` with the `AnimEvents.Attack`
   marker at 0.35 and arms+torso tracks only) and AL-T7 (`Blink.asset`, Absolute sprite keys with the
   `-1` sentinel, eyebrow bob) describe — copy those task texts verbatim into the subagent prompts.
@@ -155,7 +155,7 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
   `ClipValidation.ValidateClip` clean on all four; each one's sampled pose changes between two
   frames (Idle, Attack) or its sprite slice differs from rest (Blink, DeathFace).
 
-- [ ] **P7 — The profile, the registry names, the SOs.** Mint `Idle`, `Walk`, `MeleeContinuous`,
+- [x] **P7 — The profile, the registry names, the SOs.** Mint `Idle`, `Walk`, `MeleeContinuous`,
   `Death`, `Resurrection`, `DeathFace`, `Blink` in the Animation Names registry (Project Settings page or the
   picker's Create row; regenerate `Assets/Generated/DotsAnimationToolkit/AnimNames.cs`). Create
   `Assets/ScriptableObjects/Animations/MaleCitizen.profile.asset` per §3 — through the Actor Editor
@@ -171,14 +171,14 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
   holds Walk or Idle by `Movement.isMoving`, `[4]` holds Blink; `read_console` has no P-rule error
   and no unresolved-name bake warning for these two units.
 
-- [ ] **P8 — Prove the punch and the death.** As AL-T9: `DebugZombifyMenu` converts a citizen,
+- [x] **P8 — Prove the punch and the death.** As AL-T9: `DebugZombifyMenu` converts a citizen,
   it punches a neighbour: `IsAnimationPlaying(attackKey)` true during the swing, `AnimEventOutput`
   carries `Attack` with the attack's `animationKey`, victim health drops, no fallback warning. On
   the victim: DeathFace playing on layer 2 (Face) after death; with RG landed, `RagdollActor`
   enabled; `ReviveRequest` → Resurrection entry → `RagdollActor` disabled and Base resumes Idle. Then the
   four full suites, counts not dropped.
 
-- [ ] **P9 — Docs truth pass.** `Systems_Animation.md` rewritten around the profile (what the
+- [x] **P9 — Docs truth pass.** `Systems_Animation.md` rewritten around the profile (what the
   game still owns: `ActorFacing` write, name-convention binding, the two `PlaybackApi` call
   shapes); `Contracts.md` rows; `Gotchas.md`: remove the "cutscene layer must exist on the rig"
   trap, add "an animation name that is not in the registry bakes to key 0 and the unit silently
@@ -217,3 +217,24 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
 
 - *(per task: the pre-/post-A70 test counts, the registry names as minted, DeathFace slice
   indices, anything the Actor Editor could not do that `execute_code` had to.)*
+- **(P1–P4, 2026-09-07)** Built by three Sonnet agents; drift: `RunStopAnimation` has no stored key at
+  either call site, so it stops every non-Base layer whose `animationKey != 0`; `BehaviorSOEditor` /
+  `NarrativeEventSOEditor` pick the name through an IMGUI popup over the registry (game inspectors are
+  IMGUI already). **A pre-existing bug surfaced by the new fixture:** `UnitAnimationAssignmentJob`
+  took `EnabledRefRW<AnimationCommandPending>` without `[WithPresent]`, so no idle unit ever matched
+  — every unit's Base layer was only ever driven by the starting seed. Fixed.
+- **(P5–P7, 2026-09-07)** Content authored by `Assets/_Scripts/Editor/ContentAuthoring/MaleCitizenContentAuthoring.cs`
+  (one method per step, each idempotent): 4 face targets (rig now 20 targets, 20 tags), `Idle`,
+  `MeleeContinuous`, `Blink`, `DeathFace`, `MaleCitizen.profile.asset` (6 layers), `MaleCitizen.asset`
+  and `Rotter.asset` re-keyed, `MaleCitizenWalkDirectionSet.asset` for the A65 cutscene slot. Blink
+  slices are the legacy Human sequence (11, 9, 7, 1) — pick by eye at P10. A70 gained a rule change on
+  the way: a trigger-only entry (Death/Resurrection with no clip) is a request, not a P4 error.
+- **(P8, machine, 2026-09-07)** Play in `TestArea`: both actors bake clean (6 layers, 20 parts, 11
+  bodies, `RagdollLaunch`, `ActorFacing`), Base switches Idle↔Walk with `Movement.isMoving`, the Eyes
+  layer cycles Blink (slice 9 at the expected phase), a killed citizen ragdolls. Two gaps closed after
+  the sample: the baker now stamps `animationKey` on a seeded layer, and `UnitFacingSystem` syncs
+  `ActorFacing` against the actor's own value (it was SouthEast while `UnitFacing` said South).
+  **Nothing issued `Death`/`Resurrection`/`DeathFace` — there is no Death behaviour asset.** Follow-up
+  built the same day: `DeathSystem` plays the `Death` key and the `<Action>Face` key (`DeathFace`),
+  `ReviveRequestSystem` plays `Resurrection` and stops the face clip; `faceAnimationKeys` bind by the
+  `<Action>Face` convention. The punch itself (a rotter converted with `DebugZombifyMenu`) is P10's.
