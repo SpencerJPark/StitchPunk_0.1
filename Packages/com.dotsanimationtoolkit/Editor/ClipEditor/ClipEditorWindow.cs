@@ -767,11 +767,13 @@ namespace DotsAnimationToolkit.Editor
             // Before the controller it borrows is disposed, and that order is the whole point. The
             // panel's tick is an EditorApplication.update subscription of its own; left registered
             // it would go on calling Render on a disposed controller every editor tick, from a
-            // window that has already closed. Dropped rather than disposed afterwards, because it
-            // renders through the window's controller and owns no native resource itself.
+            // window that has already closed. Disposed rather than merely dropped (A71): the panel
+            // now owns an ActorPreviewComposer, which holds a Persistent-allocator blob and layer
+            // array of its own, on top of rendering through the window's controller.
             if (actorEditorPanel != null)
             {
                 actorEditorPanel.SetTicking(false);
+                actorEditorPanel.Dispose();
                 actorEditorPanel = null;
             }
 
@@ -1639,6 +1641,15 @@ namespace DotsAnimationToolkit.Editor
             {
                 viewportOverlay.EnableInClassList(
                     HiddenUssClassName, activeTab != ClipEditorTab.ClipEditor);
+            }
+
+            // The Actor Editor drives the same ragdoll preview from its own animation triggers
+            // (A71-D4); the toolbar toggle is hidden rather than left to fight over one ragdoll
+            // state with whatever the last-clicked control said.
+            if (ragdollPreviewToggle != null)
+            {
+                ragdollPreviewToggle.EnableInClassList(
+                    HiddenUssClassName, activeTab == ClipEditorTab.ActorEditor);
             }
         }
 

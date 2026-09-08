@@ -124,6 +124,36 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
+            ApplyMessages(messages);
+        }
+
+        /// <summary>
+        /// Repaints the badge from an already-computed message list, for a caller whose validation
+        /// spans more than one rule table (the Actor Editor combines <c>ActorProfileValidation</c>
+        /// and <c>ClipValidation.ValidateBind</c>) rather than one clip set.
+        /// </summary>
+        /// <param name="emptyLabel">Shown instead of "Valid" when <paramref name="messages"/> is empty — e.g. "No profile".</param>
+        public void RefreshFromMessages(List<ValidationMessage> messages, string emptyLabel = null)
+        {
+            List<ValidationMessage> effectiveMessages = messages ?? new List<ValidationMessage>();
+            if (effectiveMessages.Count == 0 && !string.IsNullOrEmpty(emptyLabel))
+            {
+                currentMessages.Clear();
+                HasErrors = false;
+                summaryButton.text = emptyLabel;
+                summaryButton.style.color = CleanColor;
+                messagePanelTitle.text = "Validation";
+                RebuildMessageList();
+                return;
+            }
+            ApplyMessages(effectiveMessages);
+        }
+
+        private void ApplyMessages(List<ValidationMessage> messages)
+        {
+            currentMessages.Clear();
+            HasErrors = false;
+
             int errorCount = 0;
             int warningCount = 0;
             for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)

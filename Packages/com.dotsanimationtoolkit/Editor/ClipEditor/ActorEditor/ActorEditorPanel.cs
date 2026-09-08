@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -10,10 +12,10 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The Actor Editor tab: a profile picker over three columns — layers, the composited
-    /// viewport, and an inspector. Layer authoring and the composited pose land in later tasks.
+    /// The Actor Editor tab: a profile over three columns — layers, the composited viewport and an
+    /// inspector — with a header that resets, plays/pauses and turns the actor through its directions.
     /// </summary>
-    public sealed class ActorEditorPanel : VisualElement
+    public sealed class ActorEditorPanel : VisualElement, IDisposable
     {
         private const string LayersColumnUssClassName = "actor-editor__layers-column";
         private const string ViewportColumnUssClassName = "actor-editor__viewport-column";
@@ -21,10 +23,15 @@ namespace DotsAnimationToolkit.Editor
 
         private const float SideColumnWidth = 340f;
 
+        // 315 degrees is due south-east under FacingResolver.FromMovement's convention (0 = east,
+        // positive y = north) — the direction every fresh preview and every Reset settles on.
+        private const float SouthEastSliderAngleDegrees = 315f;
+
         /// <summary>Raised when the header's Profile field picks a different asset.</summary>
         public event Action<ActorProfileAsset> ProfileChanged;
 
         private ActorProfileAsset profile;
+        private readonly ActorPreviewComposer composer;
 
         // The window's preview, not one owned here: the clips a profile plays will already be in
         // the window's registry, so a facing or layer change is just a different sample into it.
@@ -37,18 +44,33 @@ namespace DotsAnimationToolkit.Editor
         private bool hasCapturedOrbit;
         private bool restoreBillboardEnabled;
         private bool isTicking;
+        private double lastTickTimeSinceStartup;
+
+        private bool isComposerProfileStale;
+        private bool isPlaying;
+        private float currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
+        private Direction currentMemberFacing = Direction.SouthEast;
+        private string ragdollRefusalReason;
+        private ActorEditorSelection currentSelection = ActorEditorSelection.None;
 
         private ObjectField profileField;
-        private Label validationBadgeLabel;
-        private Label transportPlaceholderLabel;
+        private ValidationBadgeElement validationBadge;
+        private Button resetButton;
+        private Button playPauseButton;
+        private Slider directionSlider;
+        private Label directionReadoutLabel;
         private VisualElement layersColumn;
         private VisualElement viewportColumn;
         private VisualElement inspectorColumn;
         private Image viewportImage;
         private Label viewportStatusLabel;
+        private ActorEditorLayersColumn layersColumnView;
+        private ActorEditorInspectorColumn inspectorColumnView;
 
         public ActorEditorPanel()
         {
+            composer = new ActorPreviewComposer();
+
             // Inline styles rather than a stylesheet, matching DirectionSetsPanel/VatBakePanel:
             // this element carries no sheet of its own.
             style.flexGrow = 1f;
@@ -76,6 +98,18 @@ namespace DotsAnimationToolkit.Editor
                 {
                     profileField.SetValueWithoutNotify(profile);
                 }
+
+                // The composer's blob is rebuilt on the next tick rather than here: SetProfile needs
+                // the window's preview controller, and a profile can be assigned before SetSource
+                // ever runs (a freshly built panel, or a double-click opener racing tab creation).
+                isComposerProfileStale = true;
+                currentSelection = ActorEditorSelection.None;
+                ragdollRefusalReason = null;
+
+                layersColumnView?.Bind(profile, composer);
+                inspectorColumnView?.Bind(profile, composer);
+                RefreshValidationBadge();
+
                 ProfileChanged?.Invoke(profile);
             }
         }
@@ -96,7 +130,9 @@ namespace DotsAnimationToolkit.Editor
 
         // Starts or stops the per-frame tick with the pane's visibility, and borrows the shared
         // preview's camera and billboard state for as long as it has it, restoring both on the way
-        // out, the same contract DirectionSetsPanel used for its own tab.
+        // out, the same contract DirectionSetsPanel used for its own tab. The ragdoll trigger
+        // subscription follows the same lifetime: a hidden tab must not go on dropping or restoring
+        // a ragdoll nobody can see.
         public void SetTicking(bool ticking)
         {
             if (ticking == isTicking)
@@ -108,13 +144,28 @@ namespace DotsAnimationToolkit.Editor
             if (ticking)
             {
                 BorrowPreviewCamera();
+                composer.RagdollStartRequested += OnComposerRagdollStartRequested;
+                composer.RagdollStopRequested += OnComposerRagdollStopRequested;
+                lastTickTimeSinceStartup = EditorApplication.timeSinceStartup;
                 EditorApplication.update += Tick;
             }
             else
             {
                 EditorApplication.update -= Tick;
+                composer.RagdollStartRequested -= OnComposerRagdollStartRequested;
+                composer.RagdollStopRequested -= OnComposerRagdollStopRequested;
+                previewController?.DisableRagdollPreview();
+                ragdollRefusalReason = null;
                 ReturnPreviewCamera();
             }
+        }
+
+        /// <summary>Disposes the composer's native blob and layer array. Called by the window on teardown, before the preview controller it samples into.</summary>
+        public void Dispose()
+        {
+            composer.RagdollStartRequested -= OnComposerRagdollStartRequested;
+            composer.RagdollStopRequested -= OnComposerRagdollStopRequested;
+            composer.Dispose();
         }
 
         private void BorrowPreviewCamera()
@@ -167,17 +218,50 @@ namespace DotsAnimationToolkit.Editor
                 changeEvent => Profile = changeEvent.newValue as ActorProfileAsset);
             header.Add(profileField);
 
-            // Filled in later with the profile's validation status.
-            validationBadgeLabel = new Label(string.Empty) { name = "actor-editor-validation-badge" };
-            validationBadgeLabel.style.marginLeft = 6f;
-            header.Add(validationBadgeLabel);
+            validationBadge = new ValidationBadgeElement { name = "actor-editor-validation-badge" };
+            validationBadge.style.marginLeft = 6f;
+            header.Add(validationBadge);
 
-            // Filled in later with Reset, the transport and the direction slider.
-            transportPlaceholderLabel = new Label(string.Empty) { name = "actor-editor-transport-row" };
-            transportPlaceholderLabel.style.marginLeft = 6f;
-            header.Add(transportPlaceholderLabel);
+            header.Add(BuildTransportRow());
 
             return header;
+        }
+
+        private VisualElement BuildTransportRow()
+        {
+            VisualElement transportRow = new VisualElement { name = "actor-editor-transport-row" };
+            transportRow.style.flexDirection = FlexDirection.Row;
+            transportRow.style.alignItems = Align.Center;
+            transportRow.style.marginLeft = 6f;
+
+            resetButton = new Button(OnResetButtonClicked) { text = "Reset" };
+            transportRow.Add(resetButton);
+
+            playPauseButton = new Button(OnPlayPauseButtonClicked) { text = "Play" };
+            playPauseButton.style.marginLeft = 4f;
+            transportRow.Add(playPauseButton);
+
+            Label directionCaption = new Label("Direction");
+            directionCaption.style.marginLeft = 10f;
+            transportRow.Add(directionCaption);
+
+            directionSlider = new Slider(0f, 360f) { value = currentFacingAngleDegrees };
+            directionSlider.style.width = 120f;
+            directionSlider.style.marginLeft = 4f;
+            directionSlider.tooltip =
+                "Turn the actor. 0 degrees is due east; the readout says which authored clip that "
+                + "resolves to and whether it is mirrored.";
+            directionSlider.RegisterValueChangedCallback(OnDirectionSliderChanged);
+            transportRow.Add(directionSlider);
+
+            directionReadoutLabel = new Label();
+            directionReadoutLabel.style.marginLeft = 6f;
+            directionReadoutLabel.style.whiteSpace = WhiteSpace.Normal;
+            transportRow.Add(directionReadoutLabel);
+
+            RefreshDirectionReadoutLabel();
+
+            return transportRow;
         }
 
         private VisualElement BuildBody()
@@ -186,12 +270,17 @@ namespace DotsAnimationToolkit.Editor
             body.style.flexDirection = FlexDirection.Row;
             body.style.flexGrow = 1f;
 
-            // Filled in later with the layer/animation tree.
             layersColumn = new VisualElement { name = "layers-column" };
             layersColumn.AddToClassList(LayersColumnUssClassName);
             layersColumn.style.width = SideColumnWidth;
             layersColumn.style.marginRight = 8f;
             body.Add(layersColumn);
+
+            layersColumnView = new ActorEditorLayersColumn();
+            layersColumnView.style.flexGrow = 1f;
+            layersColumnView.SelectionChanged += OnTreeSelectionChanged;
+            layersColumnView.ProfileEdited += OnAnyColumnProfileEdited;
+            layersColumn.Add(layersColumnView);
 
             viewportColumn = new VisualElement { name = "viewport-column" };
             viewportColumn.AddToClassList(ViewportColumnUssClassName);
@@ -207,22 +296,153 @@ namespace DotsAnimationToolkit.Editor
             viewportImage.style.backgroundColor = new Color(0.12f, 0.12f, 0.13f);
             viewportColumn.Add(viewportImage);
 
-            // Filled in later with the profile/layer/animation inspector blocks.
+            // The expanded findings list floats over the viewport, the same corner the Clip Editor
+            // tab uses for its own badge.
+            validationBadge.AttachMessagePanel(viewportColumn);
+
             inspectorColumn = new VisualElement { name = "inspector-column" };
             inspectorColumn.AddToClassList(InspectorColumnUssClassName);
             inspectorColumn.style.width = SideColumnWidth;
             inspectorColumn.style.marginLeft = 8f;
             body.Add(inspectorColumn);
 
+            inspectorColumnView = new ActorEditorInspectorColumn();
+            inspectorColumnView.style.flexGrow = 1f;
+            inspectorColumnView.ProfileEdited += OnAnyColumnProfileEdited;
+            inspectorColumn.Add(inspectorColumnView);
+
+            // Shows the "no profile" state immediately rather than an empty column until the first
+            // profile is picked.
+            layersColumnView.Bind(profile, composer);
+            inspectorColumnView.Bind(profile, composer);
+
             return body;
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Header actions
+        // -----------------------------------------------------------------------------------------
+
+        private void OnTreeSelectionChanged(ActorEditorSelection selection)
+        {
+            currentSelection = selection;
+            inspectorColumnView?.SetSelection(currentSelection);
+        }
+
+        // Either column's own edit can change what the composer needs to sample (a new layer, a
+        // re-pointed clip, a changed direction fill) so both funnel into the one staleness flag
+        // rather than each guessing whether its own edit mattered to the blob.
+        private void OnAnyColumnProfileEdited()
+        {
+            isComposerProfileStale = true;
+            RefreshValidationBadge();
+        }
+
+        private void OnResetButtonClicked()
+        {
+            composer.Reset();
+            previewController?.DisableRagdollPreview();
+            ragdollRefusalReason = null;
+            currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
+            currentMemberFacing = Direction.SouthEast;
+            composer.Facing = Direction.SouthEast;
+            directionSlider?.SetValueWithoutNotify(currentFacingAngleDegrees);
+            RefreshDirectionReadoutLabel();
+        }
+
+        private void OnPlayPauseButtonClicked()
+        {
+            isPlaying = !isPlaying;
+            if (playPauseButton != null)
+            {
+                playPauseButton.text = isPlaying ? "Pause" : "Play";
+            }
+        }
+
+        private void OnDirectionSliderChanged(ChangeEvent<float> changeEvent)
+        {
+            currentFacingAngleDegrees = changeEvent.newValue;
+            ApplyFacingFromSliderAngle();
+        }
+
+        private void ApplyFacingFromSliderAngle()
+        {
+            float angleRadians = Mathf.Deg2Rad * currentFacingAngleDegrees;
+            float2 facingVector = new float2(Mathf.Cos(angleRadians), Mathf.Sin(angleRadians));
+            AnimationDirections quantizeDirections = profile != null ? profile.turnDirections : AnimationDirections.Six;
+
+            currentMemberFacing = FacingResolver.FromMovement(in facingVector, quantizeDirections, currentMemberFacing);
+            composer.Facing = currentMemberFacing;
+            RefreshDirectionReadoutLabel();
+        }
+
+        private void RefreshDirectionReadoutLabel()
+        {
+            if (directionReadoutLabel == null)
+            {
+                return;
+            }
+
+            FacingResolver.ToAuthoredSide(currentMemberFacing, out Direction clipFacing, out bool mirrorX);
+            string readout = Mathf.RoundToInt(currentFacingAngleDegrees) + "° → " + clipFacing;
+            if (mirrorX)
+            {
+                readout += ", mirrored";
+            }
+            directionReadoutLabel.text = readout;
+        }
+
+        private void RefreshValidationBadge()
+        {
+            if (validationBadge == null)
+            {
+                return;
+            }
+
+            if (profile == null)
+            {
+                validationBadge.RefreshFromMessages(new List<ValidationMessage>(), "No profile");
+                return;
+            }
+
+            List<ValidationMessage> messages =
+                ActorProfileValidation.Validate(profile, VocabularyRegistryProvider.AnimationNames);
+            messages.AddRange(ClipValidation.ValidateBind(profile.rig, profile.clipSets));
+            validationBadge.RefreshFromMessages(messages);
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Ragdoll mix (A71-T7) — the composer decides when an animation's ragdoll trigger fires;
+        // this panel is the only thing allowed to act on the window's actual ragdoll preview.
+        // -----------------------------------------------------------------------------------------
+
+        private void OnComposerRagdollStartRequested(uint animationKey)
+        {
+            if (previewController == null)
+            {
+                return;
+            }
+
+            if (previewController.TryEnableRagdollPreview(out string refusalReason))
+            {
+                ragdollRefusalReason = null;
+            }
+            else
+            {
+                ragdollRefusalReason = refusalReason;
+            }
+        }
+
+        private void OnComposerRagdollStopRequested(uint animationKey)
+        {
+            ragdollRefusalReason = null;
+            previewController?.DisableRagdollPreview();
         }
 
         // -----------------------------------------------------------------------------------------
         // Tick
         // -----------------------------------------------------------------------------------------
 
-        // Renders whatever the controller currently holds — the rest pose with no clip sampled, or
-        // its last sampled pose. The composited pose from the profile's layers lands later.
         private void Tick()
         {
             if (previewController == null)
@@ -230,10 +450,49 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            double now = EditorApplication.timeSinceStartup;
+            float elapsedSeconds = lastTickTimeSinceStartup > 0d ? (float)(now - lastTickTimeSinceStartup) : 0f;
+            lastTickTimeSinceStartup = now;
+
+            if (isComposerProfileStale)
+            {
+                composer.SetProfile(profile, previewController);
+                isComposerProfileStale = false;
+                currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
+                currentMemberFacing = Direction.SouthEast;
+                directionSlider?.SetValueWithoutNotify(currentFacingAngleDegrees);
+                RefreshDirectionReadoutLabel();
+            }
+
+            if (composer.IsCreated)
+            {
+                // Advancing at zero elapsed still re-samples the composited pose, so a scrub made
+                // while paused (the layer row's time field) is visible immediately.
+                composer.Tick(isPlaying ? elapsedSeconds : 0f, previewController);
+            }
+
+            RefreshValidationBadge();
+            layersColumnView?.RefreshIfChanged();
+            inspectorColumnView?.RefreshIfChanged();
+
+            RenderViewport();
+        }
+
+        private void RenderViewport()
+        {
             string status = previewController.StatusMessage;
             if (windowRig == null)
             {
                 status = "No rig in the top bar — pick a profile to set it, or assign one directly.";
+            }
+
+            if (!string.IsNullOrEmpty(ragdollRefusalReason))
+            {
+                status = AppendStatus(status, "Ragdoll: " + ragdollRefusalReason);
+            }
+            else if (composer.RagdollOn)
+            {
+                status = AppendStatus(status, "Ragdoll: on (" + ResolveAnimationDisplayName(composer.RagdollStartedByKey) + ")");
             }
 
             if (viewportStatusLabel != null)
@@ -259,6 +518,21 @@ namespace DotsAnimationToolkit.Editor
                 viewportImage.image = renderedTexture;
                 viewportImage.MarkDirtyRepaint();
             }
+        }
+
+        private static string AppendStatus(string existingStatus, string addition)
+        {
+            return string.IsNullOrEmpty(existingStatus) ? addition : existingStatus + " · " + addition;
+        }
+
+        private static string ResolveAnimationDisplayName(uint animationKey)
+        {
+            if (animationKey == 0u)
+            {
+                return "unknown";
+            }
+            string resolvedName = VocabularyRegistryProvider.AnimationNames.FindName(animationKey);
+            return resolvedName ?? "0x" + animationKey.ToString("X8");
         }
     }
 }

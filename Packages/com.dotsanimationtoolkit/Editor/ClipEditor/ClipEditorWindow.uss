@@ -1619,3 +1619,36 @@
     margin-bottom: 2px;
     padding-left: 14px;
 }
+
+/* Actor Editor (A71) — the layers column's rows and live indicators. Everything else in the tab
+   still styles itself inline, matching the shell's own convention. */
+.actor-editor__layer-row {
+    padding: 2px 2px;
+    margin-top: 2px;
+}
+
+.actor-editor__layer-row--selected {
+    background-color: rgba(80, 140, 220, 0.35);
+}
+
+.actor-editor__animation-row {
+    padding: 1px 2px 1px 16px;
+}
+
+.actor-editor__animation-row--selected {
+    background-color: rgba(80, 140, 220, 0.22);
+}
+
+.actor-editor__live-dot {
+    width: 12px;
+    -unity-text-align: middle-center;
+    color: rgba(140, 140, 140, 0.55);
+}
+
+.actor-editor__live-dot--active {
+    color: rgb(90, 220, 120);
+}
+
+.actor-editor__add-layer-button {
+    margin-top: 4px;
+}
