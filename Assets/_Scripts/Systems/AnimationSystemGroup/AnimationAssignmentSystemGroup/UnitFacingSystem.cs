@@ -112,17 +112,22 @@ public partial struct UnitFacingJob : IJobEntity
         Direction desiredFacing = FacingResolver.FromMovement(
             in movementXY, turnDirections, unitFacing.current);
 
+        // Synced against the actor's own value, not against the change below: at bake ActorFacing
+        // starts at SouthEast while UnitFacing may already say something else.
+        if (actorFacingLookup.HasComponent(unitEntity))
+        {
+            ActorFacing actorFacing = actorFacingLookup[unitEntity];
+            if (actorFacing.facing != desiredFacing)
+            {
+                actorFacing.facing = desiredFacing;
+                actorFacingLookup[unitEntity] = actorFacing;
+            }
+        }
+
         if (desiredFacing == unitFacing.current)
             return;
 
         unitFacing.current = desiredFacing;
-
-        if (actorFacingLookup.HasComponent(unitEntity))
-        {
-            ActorFacing actorFacing = actorFacingLookup[unitEntity];
-            actorFacing.facing = desiredFacing;
-            actorFacingLookup[unitEntity] = actorFacing;
-        }
 
         FacingResolver.ResolveClipFacing(
             desiredFacing, turnDirections, out Direction clipFacing, out bool mirrorX);

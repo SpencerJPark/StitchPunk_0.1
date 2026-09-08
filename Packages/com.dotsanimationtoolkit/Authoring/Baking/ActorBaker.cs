@@ -846,6 +846,8 @@ namespace DotsAnimationToolkit.Authoring
                 playbackLayer.time = 0f;
                 playbackLayer.speed = animationBlob.speed;
                 playbackLayer.loop = animationBlob.loop;
+                // A seeded layer is playing a named animation, so IsAnimationPlaying answers for it.
+                playbackLayer.animationKey = layer.startingAnimationKey;
                 // An explicitly seeded clip activates its layer, whatever the profile's defaultActive
                 // says — otherwise an actor could name a starting animation and have it silently
                 // never play. defaultActive keeps its meaning for layers with no seeded animation.
