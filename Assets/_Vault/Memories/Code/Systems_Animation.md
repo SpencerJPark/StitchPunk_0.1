@@ -28,7 +28,10 @@ See `Assets/_Vault/Tasks/NewPlans/AnimationToolkitMigration_System.md` for the m
   `PlaybackApi.PlayAnimation(idle|walk key)` only when `!PlaybackApi.IsAnimationPlaying(playbackLayers,
   key)` — commands are requests, not state, so re-issuing every frame would restart the clip's
   crossfade for no reason. Ordered `[UpdateBefore(typeof(AnimationToolkitSystemGroup))]` so commands
-  issued this frame apply this frame.
+  issued this frame apply this frame. **Gated on `CutsceneActor`** (`[WithPresent]` +
+  `EnabledRefRO<CutsceneActor>`, G6-P2): the job returns immediately for a unit the flag is enabled
+  on, because a running cutscene's own auto locomotion (`CutsceneTimelineSystem`, A73 §3.3) is Base's
+  single writer for exactly that window — see [[Gotchas]].
 - **Name-convention binding at bake** (`AnimationNameConvention`, G5 D1) — the animation name equals
   the enum name: `Idle`/`Walk` (bare consts), `ForStanceIdle`/`ForStanceWalk` produce
   `<Stance>Idle`/`<Stance>Walk`, `ForAction` returns the `ActionType`'s own name. `UnitLibraryBakingSystem`
@@ -56,10 +59,15 @@ See `Assets/_Vault/Tasks/NewPlans/AnimationToolkitMigration_System.md` for the m
   has no answer for keeps the facing it had. The angle is measured **from +X toward +Z** (0 east, 90
   north), so `(cos, sin)` lands in facing space directly — it is *not* a `LocalTransform` Y euler, and
   the two are a reflection about 45° (`UnitFacingJob.CutsceneAngleToFacingSpace`, pinned by
-  `FacingSpaceTests`).
-- **Cutscenes request `CutsceneApi.TopLayer`** — `NarrativeEventManager`'s `PlayCutsceneAction` writes
-  `CutsceneRequest.layerIndex = CutsceneApi.TopLayer` instead of a hardcoded layer index, so a
-  cutscene always lands on whatever layer a profile's bookend `Override` actually is.
+  `FacingSpaceTests`). **Two writers of `ActorFacing` while a cutscene runs** (A73 + G6-P3): the
+  toolkit's own `CutsceneTimelineSystem` writes it too, through the identical
+  `FacingResolver.FromMovement` fold on the same angle — proven to always agree by
+  `FacingSpaceTests.CutsceneAngle_SnapsToTheSameDirection_AsTheToolkit`, so this is one fold read
+  twice, not two that could drift. See [[Contracts]].
+- **Cutscenes name a request, not a layer** — `CutsceneApi.TopLayer` and `CutsceneRequest.layerIndex`
+  are gone (A73 removed the former, G6-P1 the latter, once every clip block plays by profile-relative
+  animation name instead of a request-wide layer index; `NarrativeEventManager.ExecutePlayCutsceneAsync`
+  now writes only `cutsceneKey`/`speed`).
 - **The command seam** — every write site issues `PlaybackApi.PlayAnimation`/`StopAnimation` against
   `DynamicBuffer<AnimationCommand>` + `EnabledRefRW<AnimationCommandPending>`, never touches
   `PlaybackLayer` directly: `BehaviorExecutionSystem`/`BehaviorInterruptSystem`, `PlayerAttackSystem`

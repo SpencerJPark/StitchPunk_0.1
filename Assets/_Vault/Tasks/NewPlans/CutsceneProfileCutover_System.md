@@ -156,13 +156,34 @@ After each: compile gate → the task's fixtures → tick → commit `G6-Pn: <wh
   latched to the mark's arrival facing. If the minion arrives but keeps playing Walk, the threshold
   (0.05 m/s) is being crossed by settle jitter: raise the slot's threshold in the asset, not the
   default in the package.
+  **Reviewed 2026-09-08, left unticked — the live confirmation belongs to P7's pass, not a
+  separate one.** Code-level review: `CutsceneMoveToMarkSystem` (`IssueMarkPathRequestJob`) walks a
+  marked unit through the ordinary `MovementAPI.BeginPathRequest` pipeline — the same movement-toolkit
+  machinery every AI-driven walk already uses, untouched by G6. The toolkit's own auto locomotion
+  (`CutsceneLocomotionMath.IsMoving`, A73 §3.3) does **not** read `Movement.isMoving` at all — it
+  measures the bound entity's raw position delta directly, so a marked minion's Walk/Idle switch
+  never depends on the movement toolkit's own flag agreeing with anything; it only needs real
+  displacement to cross `movingSpeedThresholdMetersPerSecond` (0.05, P4's default). `MaleCitizen.asset`
+  authors `moveSpeed: 1` — 20× the threshold, so there is no content mismatch to fix here. What code
+  review cannot settle is the one failure mode the task itself names — settle-jitter at arrival
+  re-triggering Walk — which is a real-frame-timing question, not a logic question, and needs an
+  actual Play run to see. P7's own checklist watches exactly this ("Walk cycling ... turning ...
+  stand in Idle") in the same TestArea session the owner is about to run, so this task is left open
+  rather than ticked from a review that cannot see a frame render; if P7 surfaces jitter, the fix
+  named here (raise the slot's threshold) is already the documented answer, not new work.
 
-- [ ] **P6 — Vault + docs.** `Contracts.md`: `ActorFacing` row gains its second writer
+- [x] **P6 — Vault + docs.** `Contracts.md`: `ActorFacing` row gains its second writer
   ("`CutsceneTimelineSystem`, for bound Actor slots while a cutscene runs — same fold as
   `UnitFacingJob`, values agree by the P3 fixture"); `CutsceneRequest` row drops `layerIndex`;
   `Systems_Animation.md` (or the note that owns `UnitAnimationAssignmentSystem`) records the
   `CutsceneActor` gate; `Gotchas.md` gains "a cutscene's locomotion owns Base until
   `CutsceneEndSystem` clears `CutsceneActor`". `Tasks/Plans/README.md` status line.
+  **Done 2026-09-08:** all four landed as specced. `Contracts.md`'s `CutsceneRequest` row never
+  actually mentioned `layerIndex` in the first place (drift from the spec's assumption, noted rather
+  than invented) — added the field list with the deletion noted instead. While in
+  `Systems_Animation.md`, also fixed a stale paragraph the spec didn't name: "Cutscenes request
+  `CutsceneApi.TopLayer`" described a mechanism A73 removed entirely — replaced it rather than
+  leaving it actively wrong beside the new material.
 
 - [ ] **⏸ P7 — Owner checkpoint.** `TestArea.unity`, Play, F9: the two minions **walk** to their
   marks beside the cart — Walk cycling, facing the direction of travel, turning through the

@@ -719,3 +719,14 @@ with `AnimVisible`/`CameraVisible` both green and no console warning. Fixed by
 `LateUpdate`. **A toolkit system whose `OnCreate` does `RequireForUpdate<SomeHostWrittenSingleton>()`
 can look completely inert — no error, no warning, just nothing happening — check whether that
 singleton actually exists at runtime before debugging anything downstream of it.**
+
+### A cutscene's locomotion owns Base until `CutsceneEndSystem` clears `CutsceneActor`
+
+`UnitAnimationAssignmentJob` (G6-P2) returns immediately whenever `CutsceneActor` is enabled on the
+bound unit — the toolkit's own `CutsceneTimelineSystem` auto locomotion (A73 §3.3) is Base's only
+writer for that whole window, driven by the actor's real displacement, not by `Movement.isMoving`.
+Adding a *third* idle/walk writer anywhere for a unit mid-cutscene (a behavior command, a debug menu,
+anything that calls `PlaybackApi.PlayAnimation` on the locomotion layer) will fight it silently —
+there is no error, just a clip that keeps getting re-picked out from under whichever writer expected
+to own it. Gate any new Base-layer writer on the same flag, or wait for `CutsceneEndSystem` to clear
+it and hand the layer back.
