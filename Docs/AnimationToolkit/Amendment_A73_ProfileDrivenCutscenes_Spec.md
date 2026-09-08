@@ -1,12 +1,11 @@
 # Amendment A73 — Profile-Driven Cutscenes: layers, auto locomotion, keyed-or-auto facing, marks that wait
 
-**Status:** 🟡 session 1 (T1–T3) built 2026-09-08 — package compiles green, EditMode bake fixtures
-gated and passing; PlayMode fixtures written but **not machine-verified this session** (Unity
-refuses to enter Play Mode while any project assembly has a compile error, and the game side is
-deliberately left red — see §7). Session 2 (T4–T8) not started. Package version after
-this lands: **0.19.0** (breaking: `CutsceneSlot.rig/clipSets/directionSet` → `profile`,
-`CutsceneClipBlock.clipId` → `animationKey`, `CutscenePlay.layerIndex` and `CutsceneApi.TopLayer`
-removed, blob schema 6).
+**Status:** 🟡 T1–T3 fully verified 2026-09-08 (game-side unblocked, three real T1-T3 bugs the
+first full-suite run surfaced are fixed — see §7's fixup entry): `DotsAnimationToolkit.Tests.EditMode`
+764/764 (only the pre-existing `Conformance_A` drift remains) and `.PlayMode` 283/283, both green.
+Session 2 (T4–T8) starting now. Package version after this lands: **0.19.0** (breaking:
+`CutsceneSlot.rig/clipSets/directionSet` → `profile`, `CutsceneClipBlock.clipId` → `animationKey`,
+`CutscenePlay.layerIndex` and `CutsceneApi.TopLayer` removed, blob schema 6).
 **Scope:** `Packages/com.dotsanimationtoolkit/` — `Authoring/`, `Runtime/`, `Editor/ClipEditor/Cutscene/`,
 `Tests/`, `Samples~/Cutscene`, `Documentation~/`. **No game code** — that is G6
 (`Assets/_Vault/Tasks/NewPlans/CutsceneProfileCutover_System.md`), which must follow in its own session.
@@ -627,3 +626,54 @@ touches MCP.
   active). Recorded rather than retried further. Whoever runs the closing full-suite pass for this
   amendment should confirm the full EditMode count (baseline: EditMode 760, PlayMode 277, per A72's
   HANDOFF §4 paragraph) has not silently dropped, not just that named subsets pass.
+
+- **A73-fixup (2026-09-08, continuation session, Part 1 of the T4–T8 prompt)** — unblocked the
+  game side and finished verifying T1–T3. Two commits: `A73-fixup: drop the removed
+  CutscenePlay.layerIndex/CutsceneApi.TopLayer references so the game compiles` (the five files
+  named above, minimal mechanical edits — `CreatePlayRequestFromStage` drops its layerIndex
+  argument, `CutsceneRequest.layerIndex` is simply left unset rather than assigned from the
+  now-gone `CutsceneApi.TopLayer`) and `A73-fixup: fix bugs the first full DotsAnimationToolkit
+  suite run surfaced in T1-T3`. The full-suite instability this session's own log above
+  describes ("tests did not start within timeout") did **not** recur this continuation session —
+  both full suites ran to completion on the first attempt after the game-side fix, discovering
+  their full counts (EditMode 764, PlayMode 283) without contention or timeout. Whatever caused
+  it (plausibly the concurrent second session this log already suspected) was not present now.
+
+  **Three real bugs in already-committed T1–T3 code, found because this was the first time either
+  full suite actually ran to completion, not because anything regressed:**
+  1. `CutsceneBlobBuilder.ComputeContentEndSeconds` never scanned `slot.markKeys` — every sibling
+     track (`attachMarkers`, `facingKeys`, `partTracks`) was included, marks were not — so a
+     cutscene whose only content past its last other key was a mark computed a natural end short
+     of that mark's time. Compounding it: even with mark times included, a hold sitting exactly
+     at the computed natural end tied rather than exceeded it, so `ComputeSegmentBoundaries`
+     never appended the trailing boundary a hold needs to release into.
+     `MarkWaitUntilReached_DerivesARendezvousHoldAtTheMarkTime` (claimed green in this log's own
+     T1 entry above under the four-fixture EditMode run — that claim was accurate for the
+     fixtures it actually ran, not a false record; this defect only surfaces against the fixture
+     list the full suite runs) expected 2 segments and got 1. Fixed both gaps: `markKeys` joins
+     the natural-end scan, and a hold that is the last boundary always gets a trailing boundary
+     appended regardless of natural end.
+  2. `ResolveOutstandingMarks`'s arrival latch compared the arriving position against
+     `slotState.lastPosition`, which still held wherever the actor was one frame before arrival.
+     The displacement that closed the final distance onto the mark is exactly the thing
+     `TryResolveSlotFacingAngle`'s "moved since the latch" check watches for, so the latch
+     cancelled itself on the same frame it engaged — `MarkArrival_LatchesTheMarksFacing` resolved
+     `SouthEast` (the test actor's untouched default) instead of `North`. Fixed by re-baselining
+     `lastPosition`/`hasLastPosition` to the arrival (or timeout-placement) position at the exact
+     moment the latch is set, in both `ResolveOutstandingMarks` branches.
+  3. `SpeedChange_IssuesSetSpeedOnEveryBoundActorLayer` and `Skip_MarksComplete_AndStopsTheActorLayer`
+     each acted on layer 0 before any prior update had let `ProcessClipBlocks` mark it active —
+     `ApplyLayerSpeedToAllActorSlots`/`StopActorLayers` only touch a layer `CutsceneSlotLayerState`
+     already records as active, exactly the reason `LayerStop_StopsOnlyItsLayer` (written the same
+     session, in the same file) already double-`Advance`s. Fixed by adding the same missing first
+     `Advance()` to each — a test-authoring gap, not a runtime bug.
+
+  Also removed the `§`/`amendment A#` spec-citation text `Conformance_F` flagged in three T1–T3
+  doc comments (`CutsceneTimelineSystem.cs:1376`, `CutsceneEditorPanel.cs:4059`,
+  `CutscenePreviewController.cs:749`) — wording only, no behavior change; `Conformance_A`'s asmdef
+  drift is confirmed still present and still not this amendment's to fix (A72's own note).
+
+  **Verified:** `DotsAnimationToolkit.Tests.EditMode` 764/764 (`Conformance_A` the one standing,
+  pre-existing failure) and `DotsAnimationToolkit.Tests.PlayMode` 283/283, both fully green — the
+  first time either suite has completed for this amendment. T1–T3's checkboxes above are now
+  honestly verified, not just believed correct from review.
