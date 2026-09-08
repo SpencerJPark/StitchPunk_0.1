@@ -178,6 +178,13 @@ and nothing else.
 
 ## The viewport camera is an orbit rig with no position of its own (2026-08-29)
 
+**Update (A74, 2026-09-08):** the gesture state machine below left `ClipEditorWindow.CameraNavigation.cs`
+for a standalone `PreviewCameraNavigation` (`Editor/ClipEditor/Preview/`) driving any `IPreviewCameraRig`;
+`ClipPreviewController` implements that interface directly, a new `PreviewOrbitCameraRig` carries the
+same math for a viewport with no controller of its own, and all three viewports (Clip Editor, Actor
+Editor, VAT Bake) now share one implementation instead of three. The window keeps its old method names
+as thin forwarding calls — see that file's own header comment for why (picking still has to happen between the exclusive gestures and the plain left-drag orbit).
+
 `ClipPreviewController` stores **`orbitFocus` + yaw/pitch + `orbitDistance`**, and derives the camera
 position from them (`CameraOrbitPosition`). Everything the Scene view can do is expressed against that
 one rig, in `ClipEditorWindow.CameraNavigation.cs`:

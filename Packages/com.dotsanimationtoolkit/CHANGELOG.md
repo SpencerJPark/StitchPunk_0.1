@@ -8,6 +8,31 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] — A74 — preview viewports
+
+### Added
+
+- **The Actor Editor viewport has the Clip Editor's camera.** Left-drag orbit, middle-drag pan,
+  right-drag look with W/A/S/D + Q/E flying (Shift faster), Alt + right-drag dolly, wheel zoom, `F`
+  frames, double-click and a rail Reset Camera button return to head-on. The gesture state machine
+  moved out of the Clip Editor window into a standalone `PreviewCameraNavigation`, driving any
+  `IPreviewCameraRig`, so three viewports (Clip Editor, Actor Editor, VAT Bake) now share one
+  implementation instead of three.
+- **A matching icon rail on the Actor Editor viewport** — Reset Camera, Billboard, Ragdoll — reusing
+  the Clip Editor's own overlay classes. No gizmo modes: there is nothing to move, rotate or scale
+  in this tab. The Ragdoll toggle is now a manual override alongside the composer's own trigger, and
+  snaps back off with the reason shown when a preview refuses to ragdoll.
+- **A live preview in the VAT Bake panel.** The form moves to a fixed-width column; a new pane beside
+  it renders the baked `runtimeMesh` through the package's own VAT shader, driven by the texture set
+  just written, with its own camera rail, a transport, a clip picker and a frame readout — a wrong
+  bake is seen, not inferred from a log line. A translucent **source ghost** — the real skinned mesh,
+  posed independently on a preview-scene copy — overlays it so a drift between the bake and the
+  source shows as a double image. Space/Home/End/arrow keys work on both the standalone `VatBakeWindow`
+  and the Clip Editor's own VAT Bake tab.
+- **Create Sample Tentacle.** One button in the VAT Bake panel writes a small procedural tentacle
+  rig, clip, clip set and rig asset, so the preview above has something to bake and show inside a
+  minute on a project with no VAT content of its own.
+
 ## [0.19.0] — profile-driven cutscenes: layers, auto locomotion, keyed-or-auto facing, marks that wait (A73)
 
 ### Breaking

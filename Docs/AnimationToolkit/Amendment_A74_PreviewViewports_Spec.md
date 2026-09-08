@@ -1,6 +1,6 @@
 # Amendment A74 — Preview Viewports: Actor Editor camera and VAT Bake preview
 
-> **Status:** 📋 specced 2026-09-08, not built.
+> **Status:** ✅ T1–T10 built and gated 2026-09-08 (0.20.0). ⏸ T11 owner checkpoint open.
 > **Executor:** one orchestrating session (Editor-connected, runs the gate, commits) plus **small
 > Sonnet subagents that only edit files** — a subagent never touches `mcp__UnityMCP__*`. Every task
 > below is sized for one subagent well under ~100k tokens: named files, named line ranges, one or
@@ -546,4 +546,61 @@ End the session with this message, verbatim in spirit:
 
 ## 7. Build log
 
-_(the executing session appends here: drift found, fallbacks taken, counts, open questions)_
+**2026-09-08, orchestrating session.** T0 baseline: EditMode 767 discovered (1 pre-existing
+Conformance_A asmdef-drift failure, not this amendment's), PlayMode 283 passed. All four waves
+(T1/T2/T5/T6/T9 parallel; T3 solo; T4/T7 parallel; T8 solo) landed via Sonnet subagents with no
+Unity MCP access of their own, gated and committed by the orchestrator after each wave. Final:
+EditMode 777 (+10 new fixtures, same one pre-existing failure), PlayMode 283 (unchanged).
+
+Two real bugs T10's drive-and-capture pass caught that no fixture did (neither wave's subagent had
+compiler or Editor access to catch these themselves):
+- **Conformance_D** (packaging conformance, not a fixture named in any task): T8's
+  `CreateSampleTentacle` fallback hardcoded `"Assets/VatSamples"` when the Output Folder field was
+  empty — a host asset folder path baked into package source, which the file's own
+  `outputFolderField` tooltip already said not to do. Fixed to fall back to the assigned clip set's
+  folder, or refuse and ask for an Output Folder, matching the pattern the rest of the panel already
+  follows.
+- **Invisible rail controls**, found only by capturing `vat-bake.png` and eyeballing it (the vault's
+  "visual-first" lesson earning its keep again): `VatPreviewElement`'s Reset Camera/Ghost rail
+  collapsed to ~10×2px. My own T7 brief never told the subagent to add
+  `clip-editor__overlay-tool-button` to the button/toggle controls themselves — only their icon
+  children got a class — unlike the (correctly specified) Actor Editor rail from T4. Fixed and
+  re-captured to confirm.
+
+Smaller drift, all self-corrected by the subagents without escalation:
+- T1 flagged that the spec's literal "revert-to-fail: comment out `heldFlyKeys.Clear()`" doesn't
+  actually fail `StepFly_MovesOnlyWhileLooking...` (the `!IsFlying` guard alone already blocks the
+  second `Fly` call once `ActiveGesture` resets to `None`); it used the `ActiveGesture = Gesture.None`
+  line instead and reported the substitution.
+- T6 confirmed `VatFlavor.BoneMatrix`/`.VertexPosition` (Runtime/Components/AnimationToolkitEnums.cs)
+  matched the spec's assumed names exactly — no drift.
+- T7 caught that its own brief's `VatPreviewElement()` constructor snippet built `cameraRig` but
+  never wired `cameraNavigation.Rig = cameraRig;` before `AttachTo` — added it; T10 confirmed the
+  wiring live (`rigIsWired=True`) before trusting it.
+- T9 confirmed `ClipAsset`/`ClipSetAsset`/`RigAsset` all construct via plain
+  `ScriptableObject.CreateInstance<T>()` with no required fields beyond what the brief already set,
+  and that `VatBakeClip` lives in `VatTextureBaker.cs` as a public struct (T7's brief had described
+  it as if privately shaped by `VatBakePanel` — same fields, harmless mis-description, no `using`
+  needed since same namespace).
+
+T10 drove both hosts for real over `mcp__UnityMCP__execute_code` (reflection into private fields —
+no test-only hooks were added to production code for this): standalone `VatBakeWindow` baked a
+freshly-generated sample tentacle, the preview rendered (`imageIsSet=True`), the status line read
+correctly once the frame-count/clip-range-count mislabel above was fixed, `Step(5)` moved
+`GlobalFrame` 0→5, and `PreviewOrbitCameraRig.Pan` moved the captured pose's focus
+(`focusDelta=0.0828`, later `0.4239` after a second-window re-drive). The Actor Editor tab, focused
+via `ClipEditorWindow.FocusWithActorEditorTab` on `MaleCitizen.profile.asset`, showed all three rail
+elements present and `ClipPreviewController.Pan` moving the shared controller's focus. Two domain
+reloads (one from the Conformance_D fix, one from the rail-sizing fix) each discarded the driven
+window's in-memory panel state, requiring a full re-drive from the surviving on-disk assets/scene
+object rather than the original in-memory references — expected and unremarkable, noted here only
+because a future session redoing this kind of live-drive verification should expect the same.
+
+Captures: `Library/A74Captures/actor-editor.png`, `vat-bake.png` (not committed; `Library/` is
+generated and gitignored). `Assets/A74Scratch` and the scene tentacle were deleted after capture;
+`git status` showed only files this session touched plus the two pre-existing untouched items named
+in T0 (left alone as instructed).
+
+No open questions. A74-D6's vertex-fetch preview shader remains explicitly out of scope (§6), as
+does folding `ClipPreviewController`'s orbit maths onto `PreviewOrbitCameraRig` (A74-D2) — both
+still stand as recorded follow-ups, not gaps found during the build.

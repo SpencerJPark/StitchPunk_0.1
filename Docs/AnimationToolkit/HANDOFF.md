@@ -5,8 +5,9 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.19.0).
-**§4** carries Amendment A73 (built, one ⏸ owner checkpoint open) and A74 (queued, not started).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.20.0).
+**§4** carries Amendment A73 (built, one ⏸ owner checkpoint open) and A74 (built, one ⏸ owner
+checkpoint open).
 
 ## 1. Read first, in this order
 
@@ -118,17 +119,29 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-**Queued (2026-09-08): Amendment A74 — Preview Viewports.** Spec
-`Docs/AnimationToolkit/Amendment_A74_PreviewViewports_Spec.md`, session prompt
-`Amendment_A74_PreviewViewports_Prompt.md`, index
-`Assets/_Vault/Tasks/NewPlans/PreviewViewports_Roadmap.md`. The Actor Editor viewport gets the
-Clip Editor's camera (orbit, pan, look + fly, dolly, zoom, F, double-click reset) and its rail
-minus Move/Rotate/Scale; the VAT Bake panel gets a live viewport that plays the baked
-`runtimeMesh` through the shipped VAT graph with a transport, clip picker and a translucent
-source ghost, plus a Sample Tentacle button because the project has no VAT-bound content. The
-gesture state machine leaves `ClipEditorWindow.CameraNavigation.cs` for a shared
-`PreviewCameraNavigation` over an `IPreviewCameraRig`. Independent of A73; takes the next unused
-minor. Eleven tasks in four subagent waves, one ⏸ owner checkpoint at the end. Nothing built.
+**Built (2026-09-08): Amendment A74 — Preview Viewports — 0.20.0.** Spec
+`Docs/AnimationToolkit/Amendment_A74_PreviewViewports_Spec.md`. T1–T10 all landed and gated across
+four subagent waves plus the orchestrator's own T10 drive/capture pass; T11 (⏸ owner checkpoint) is
+open. The gesture state machine left `ClipEditorWindow.CameraNavigation.cs` for a shared
+`PreviewCameraNavigation` over an `IPreviewCameraRig`, with `ClipPreviewController` implementing
+that interface directly and the window reduced to a thin adapter keeping its old method names
+(`Grep`-confirmed zero stray references to the deleted `CameraGesture` enum/fields outside the new
+class). The Actor Editor viewport now carries the Clip Editor's camera (orbit, pan, look + fly,
+dolly, zoom, `F`, double-click reset) and a matching rail — Reset Camera, Billboard, Ragdoll, the
+last now a manual override beside the composer's own trigger — with no gizmo modes. The VAT Bake
+panel gained a second pane: `VatPreviewElement`, its own `PreviewRenderUtility` playing the baked
+`runtimeMesh` through the shipped VAT shader, a transport, a clip picker, a frame readout, and a
+translucent source ghost (a preview-scene copy, posed independently) so a drift between bake and
+source shows as a double image. `VatSampleTentacleUtility` writes a procedural sample rig/clip/set
+so the preview has something to show on a project with no VAT content, behind a **Create Sample
+Tentacle** button — driving it for real caught a Conformance_D violation (the button's own fallback
+folder hardcoded a host asset path) and, separately, a rail-sizing bug found only by capturing the
+window (`Reset Camera`/`Ghost` collapsed to ~10×2px — missing `clip-editor__overlay-tool-button` on
+the controls themselves, not just their icons); both fixed and re-verified before this note was
+written. Full suites re-measured clean at EditMode 777 (was 767, +10 new fixtures; the standing
+Conformance_A asmdef drift is still not this amendment's) / PlayMode 283 (unchanged). Captures at
+`Library/A74Captures/actor-editor.png` and `vat-bake.png` (not committed — Library is generated).
+Independent of A73, which had already shipped 0.19.0 when this landed, so this took 0.20.0.
 
 **Built (2026-09-08): Amendment A73 — Profile-Driven Cutscenes — 0.19.0.** T1–T8 all landed and
 gated across two sessions. The slot now carries `profile`/`locomotion`/`layerStops` in place of
