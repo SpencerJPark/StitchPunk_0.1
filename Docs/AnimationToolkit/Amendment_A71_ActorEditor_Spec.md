@@ -1,6 +1,6 @@
 # Amendment A71 — Actor Editor: layers, animations, direction and ragdoll, mixed live
 
-**Status:** ✅ spec written 2026-09-07, nothing built. Owner-requested; depends on **A70** (the
+**Status:** 🔨 T1–T9 built and gated 2026-09-07; ⏸ T10 owner checkpoint open (scratch profile `Assets/ScriptableObjects/Animations/ActorEditorScratch.profile.asset` — double-click it to open the tab). Owner-requested; depends on **A70** (the
 profile asset, blob, builder, `ActorProfileApi`, `ActorFacing`, ragdoll triggers). Package version
 after this lands: **0.17.0**.
 **Scope:** `Packages/com.dotsanimationtoolkit/Editor/` only, plus the one `ClipPreviewController`
@@ -274,3 +274,4 @@ them as A71 follow-ups rather than re-opening A70's data model.
   still fails to compile, now because the seam it implements no longer exists at all rather than
   because it targeted a removed field.
 - T10 owner checkpoint: not yet run.
+- **(T10, 2026-09-07) Scratch profile built and the tab opened headlessly.** `ActorEditorScratch.profile.asset` over `NewRig`/`NewClipSet`: Base ★Walk, Action { ScratchSwing: directional, `southEast = Walk`, Two, Once }, Face empty, Override. `ActorProfileValidation` returns 0 messages; `FocusWithActorEditorTab` built 4 layer rows, 2 animation rows, the inspector and the badge with no exception. **Owed: the owner's eyes** — the §5 T10 walk-through. The Animation Names registry (`ProjectSettings/DotsAnimationToolkitAnimationNameRegistry.asset`) now holds `Walk` and `ScratchSwing`; G5 adds the real names.
