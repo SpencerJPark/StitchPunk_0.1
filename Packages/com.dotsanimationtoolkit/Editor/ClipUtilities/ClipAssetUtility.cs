@@ -17,6 +17,7 @@ namespace DotsAnimationToolkit.Editor
         private const string NewClipAssetBaseName = "NewClip";
         private const string AssetExtension = ".asset";
         private const string UndoActionName = "Create Clip In Set";
+        private const string AddExistingUndoActionName = "Add Clip To Set";
         private const string RemoveUndoActionName = "Remove Clip From Set";
 
         /// <summary>
@@ -70,16 +71,16 @@ namespace DotsAnimationToolkit.Editor
             // The minted id is on disk now, so the "not yet persisted" report is discharged.
             newClip.MarkStableIdPersisted();
 
-            AppendClipToSet(clipSet, newClip);
+            AppendClipToSet(clipSet, newClip, UndoActionName);
             return newClip;
         }
 
         /// <summary>Appends a clip to a set's list as one undo step.</summary>
-        private static void AppendClipToSet(ClipSetAsset clipSet, ClipAsset clip)
+        private static void AppendClipToSet(ClipSetAsset clipSet, ClipAsset clip, string undoActionName)
         {
             Undo.IncrementCurrentGroup();
             int undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName(UndoActionName);
+            Undo.SetCurrentGroupName(undoActionName);
 
             SerializedObject serializedSet = new SerializedObject(clipSet);
             SerializedProperty clipsProperty = serializedSet.FindProperty("clips");
@@ -120,6 +121,46 @@ namespace DotsAnimationToolkit.Editor
         public static bool RemoveClipFromSet(ClipSetAsset clipSet, int clipIndex)
         {
             return RemoveClipEntry(clipSet, clipIndex, true);
+        }
+
+        /// <summary>
+        /// Appends an existing clip to a set as one undo step. False when either is null or the
+        /// clip is already in the set.
+        /// </summary>
+        public static bool AddExistingClipToSet(ClipSetAsset clipSet, ClipAsset clip)
+        {
+            if (clipSet == null || clip == null || clipSet.clips.Contains(clip))
+            {
+                return false;
+            }
+
+            AppendClipToSet(clipSet, clip, AddExistingUndoActionName);
+            return true;
+        }
+
+        /// <summary>Removes every entry of clip from the set as one undo step. False when nothing was removed.</summary>
+        public static bool RemoveClipFromSet(ClipSetAsset clipSet, ClipAsset clip)
+        {
+            if (clipSet == null || clip == null)
+            {
+                return false;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName(RemoveUndoActionName);
+
+            bool removedAnyEntry = false;
+            for (int clipIndex = clipSet.clips.Count - 1; clipIndex >= 0; clipIndex--)
+            {
+                if (clipSet.clips[clipIndex] == clip)
+                {
+                    removedAnyEntry |= RemoveClipEntry(clipSet, clipIndex, true);
+                }
+            }
+
+            Undo.CollapseUndoOperations(undoGroup);
+            return removedAnyEntry;
         }
 
         private static bool RemoveClipEntry(ClipSetAsset clipSet, int clipIndex, bool recordUndo)
