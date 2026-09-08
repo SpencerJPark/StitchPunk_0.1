@@ -91,3 +91,7 @@ Building1.blend
 # stray commit would put test junk in a customer's install.
 Packages/com.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*/
 Packages/com.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*.meta
+
+# Subagent context ledger written by .claude/hooks/subagent_ledger.py
+.claude/subagent-ledger.tsv
+.claude/hooks/__pycache__/

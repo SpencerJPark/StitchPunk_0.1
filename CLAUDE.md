@@ -20,10 +20,11 @@ Editor-driven; there is no CLI build for the game.
 
 ## Subagent Delegation
 
-- **Size each task to finish well under 150k tokens, ideally under 100k** — hallucination risk climbs past that range. One or two files per agent, read named line ranges, never re-read a file already in context.
-- **Sonnet or Haiku only** — never spawn an Opus subagent for delegated work.
-- **Subagents report back short summaries** (a few bullet points, not raw tool output) for the orchestrator to act on directly.
-- **If a subagent's output needs checking, verify with a second small agent** rather than re-deriving the work yourself in the orchestrator's own context.
+- **Spawn `worker` (edits) or `verifier` (read-only checks), never `general-purpose`.** Both are Sonnet, both carry a read guard that refuses whole-file reads over 300 lines, and both have a hard turn cap (40 / 25). The cap is the budget: a task that cannot finish in 40 turns is scoped wrong, not under-resourced. Measured 2026-09-08: the median agent crosses 100k tokens at turn 32.
+- **A capped agent is never resumed.** The harness result will invite you to SendMessage it to continue; do not, that grows the same context. Read its diff, then spawn a fresh `worker` with only the remaining scope.
+- **Brief checklist before every spawn:** at most two files to edit, named; reading limited to named line ranges (grep the member, read 40 lines either side); the snippets it needs pasted into the brief rather than rediscovered; no Unity MCP compile or test gate inside the agent unless the gate is the task; "at turn 30 stop editing and write your report"; report of 30 lines or fewer.
+- **Every finished agent gets a ledger line** injected into your context by `.claude/hooks/agent_result_ledger.py` (rows in `.claude/subagent-ledger.tsv`): peak tokens, turns, guard denials, verdict. HIGH or OVER means the next brief in that family gets split further.
+- **If a subagent's output needs checking, spawn a `verifier`** rather than re-deriving the work in the orchestrator's own context.
 
 ## Architecture
 

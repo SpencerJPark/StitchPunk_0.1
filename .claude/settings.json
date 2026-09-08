@@ -1,5 +1,28 @@
 {
   "enabledPlugins": {
     "skill-creator@claude-plugins-official": true
+  },
+  "hooks": {
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/subagent_ledger.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/agent_result_ledger.py"
+          }
+        ]
+      }
+    ]
   }
 }
