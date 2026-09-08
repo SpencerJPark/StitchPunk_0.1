@@ -64,6 +64,9 @@ namespace DotsAnimationToolkit.Editor
             overlayColumn.AddToClassList("clip-editor__overlay-column");
 
             ToolbarButton resetCameraButton = new ToolbarButton(() => cameraNavigation.ResetView());
+            resetCameraButton.name = "vat-reset-camera-button";
+            resetCameraButton.AddToClassList("clip-editor__overlay-tool-button");
+            resetCameraButton.tooltip = "Put the camera back head-on, framing the baked mesh.";
             Image resetCameraIcon = new Image();
             resetCameraIcon.AddToClassList("clip-editor__overlay-tool-icon");
             resetCameraIcon.pickingMode = PickingMode.Ignore;
@@ -71,6 +74,8 @@ namespace DotsAnimationToolkit.Editor
             overlayColumn.Add(resetCameraButton);
 
             ghostToggle = new ToolbarToggle();
+            ghostToggle.name = "vat-ghost-toggle";
+            ghostToggle.AddToClassList("clip-editor__overlay-tool-button");
             ghostToggle.value = false;
             Image ghostIcon = new Image();
             ghostIcon.AddToClassList("clip-editor__overlay-tool-icon");
@@ -161,7 +166,7 @@ namespace DotsAnimationToolkit.Editor
                 : null;
             bool created = VatPreviewMaterial.TryCreate(textureSet, mainTexture, out material, out string failureMessage);
             statusLabel.text = created
-                ? "bones " + textureSet.boneCount.ToString() + " · frames " + textureSet.clipRanges.Count.ToString()
+                ? "bones " + textureSet.boneCount.ToString() + " · frames " + textureSet.clipRanges[0].frameCount.ToString()
                     + " · " + textureSet.textureWidth.ToString() + "x" + textureSet.boneTexture.height.ToString()
                 : failureMessage;
         }
