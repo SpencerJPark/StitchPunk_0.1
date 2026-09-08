@@ -21,6 +21,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<string> variantClasses = new List<string>();
         private readonly List<bool> readOnlyFlags = new List<bool>();
         private readonly List<float> dragStartTimes = new List<float>();
+        // Null means every marker takes the lane colour.
+        private IReadOnlyList<Color> perMarkerColors;
         private int selectedIndex = -1;
         private int draggingIndex = -1;
         private float dragStartPointerX;
@@ -96,8 +98,10 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public void SetTimes(
             IReadOnlyList<float> newTimes, int newSelectedIndex,
-            IReadOnlyList<string> markerVariantClasses, IReadOnlyList<bool> markerReadOnlyFlags)
+            IReadOnlyList<string> markerVariantClasses, IReadOnlyList<bool> markerReadOnlyFlags,
+            IReadOnlyList<Color> markerColors = null)
         {
+            perMarkerColors = markerColors;
             times.Clear();
             if (newTimes != null)
             {
@@ -137,7 +141,9 @@ namespace DotsAnimationToolkit.Editor
                 marker.style.width = MarkerSize;
                 marker.style.height = MarkerSize;
                 marker.style.top = 2f;
-                marker.style.backgroundColor = markerColor;
+                marker.style.backgroundColor = perMarkerColors != null && capturedIndex < perMarkerColors.Count
+                    ? perMarkerColors[capturedIndex]
+                    : markerColor;
                 // Shape lives in USS, not in an inline style: an inline rotate would outrank the
                 // variant classes below, and a Detach marker must be able to stop being a diamond.
                 if (capturedIndex < variantClasses.Count && !string.IsNullOrEmpty(variantClasses[capturedIndex]))

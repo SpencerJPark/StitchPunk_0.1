@@ -14,7 +14,7 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>The Cutscene Editor tab's content: a slot/lane timeline plus an inspector for whatever is selected. Unity's own Scene view is the viewport.</summary>
-    public sealed partial class CutsceneEditorPanel : VisualElement
+    public sealed partial class CutsceneEditorPanel : VisualElement, ITransportTarget
     {
         private const float LaneRowHeight = 22f;
         private const float RulerHeight = 24f;
@@ -52,6 +52,7 @@ namespace DotsAnimationToolkit.Editor
         private Label viewportMessageLabel;
         private Button viewportActionButton;
         private Toggle shotModeToggle;
+        private ToolbarToggle[] gizmoModeToggles;
 
         /// <summary>Viewport locked to the camera lane (Shot) vs. the free orbit rig. Shot by default, so scrubbing shows the framed movie.</summary>
         private bool viewportShotMode = true;
@@ -59,14 +60,15 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Set while this panel is the one driving <see cref="Selection"/>, so the sync back does not fight it.</summary>
         private bool isDrivingUnitySelection;
 
-        private Button playToggleButton;
-        private Image playToggleIcon;
-        private Label timeReadoutLabel;
+        private TransportCoreElement transportCore;
+        private FloatField timeField;
+        private Label timeEndLabel;
         private Button continueButton;
         private Label transportStatusLabel;
+        private Label timelineStatusLabel;
         private FloatField speedField;
-        private Toggle loopPlaybackToggle;
-        private Toggle skipHoldsToggle;
+        private bool isLoopEnabled;
+        private ToolbarToggle skipHoldsToggle;
 
         private bool isPlaying;
         private double lastTickTime;
@@ -156,14 +158,14 @@ namespace DotsAnimationToolkit.Editor
             AssemblyReloadEvents.beforeAssemblyReload += DisposeViewportGizmo;
 
             Add(BuildToolbar());
-            Add(BuildTransportRow());
 
             // The tab is a whole tool — cast | viewport | inspector over the timeline.
             VisualElement timelineArea = new VisualElement();
             timelineArea.style.flexDirection = FlexDirection.Column;
             timelineArea.style.minHeight = 120f;
 
-            timelineArea.Add(BuildAddSlotRow());
+            timelineArea.Add(BuildTransportRow());
+            timelineArea.Add(BuildStatusRow());
 
             timelineArea.Add(BuildTimelineColumns());
 
@@ -173,17 +175,31 @@ namespace DotsAnimationToolkit.Editor
             castPanel.SlotSelected += SelectSlotHeader;
             castPanel.FrameRequested += FrameSlotInSceneView;
             castPanel.SyncToStageRequested += SyncCutsceneToStage;
+            castPanel.AddSlotRequested += AddSlot;
 
             VisualElement centerColumn = new VisualElement();
             centerColumn.style.flexGrow = 1f;
             centerColumn.style.flexDirection = FlexDirection.Row;
             centerColumn.Add(BuildViewportArea());
 
+            VisualElement inspectorPane = new VisualElement();
+            inspectorPane.AddToClassList("clip-editor__pane");
+            inspectorPane.style.width = 300f;
+            inspectorPane.style.flexShrink = 0f;
+
+            VisualElement inspectorHeader = new VisualElement();
+            inspectorHeader.AddToClassList("toolkit-pane-header");
+            Label inspectorTitle = new Label("Cutscene Inspector");
+            inspectorTitle.AddToClassList("toolkit-pane-title");
+            inspectorHeader.Add(inspectorTitle);
+            inspectorPane.Add(inspectorHeader);
+
             inspectorScroll = new ScrollView(ScrollViewMode.Vertical);
             inspectorScroll.AddToClassList("clip-editor__inspector");
-            inspectorScroll.style.width = 300f;
-            inspectorScroll.style.flexShrink = 0f;
-            centerColumn.Add(inspectorScroll);
+            inspectorScroll.style.flexGrow = 1f;
+            inspectorPane.Add(inspectorScroll);
+
+            centerColumn.Add(inspectorPane);
 
             TwoPaneSplitView castSplit = new TwoPaneSplitView(0, 220f, TwoPaneSplitViewOrientation.Horizontal);
             castSplit.style.flexGrow = 1f;
@@ -368,28 +384,30 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildToolbar()
         {
             VisualElement toolbar = new VisualElement();
+            toolbar.AddToClassList("clip-editor__toolbar");
             toolbar.style.flexDirection = FlexDirection.Row;
-            toolbar.style.paddingLeft = 6f;
-            toolbar.style.paddingRight = 6f;
-            toolbar.style.paddingTop = 4f;
-            toolbar.style.paddingBottom = 4f;
             toolbar.style.alignItems = Align.Center;
 
-            cutsceneField = new ObjectField("Cutscene")
+            Label cutsceneLabel = new Label("Cutscene");
+            cutsceneLabel.AddToClassList("clip-editor__toolbar-label");
+            toolbar.Add(cutsceneLabel);
+
+            cutsceneField = new ObjectField
             {
                 objectType = typeof(CutsceneAsset),
                 allowSceneObjects = false
             };
-            cutsceneField.style.width = 320f;
+            cutsceneField.AddToClassList("clip-editor__object-field");
             cutsceneField.RegisterValueChangedCallback(
                 changeEvent => LoadCutscene(changeEvent.newValue as CutsceneAsset));
             toolbar.Add(cutsceneField);
 
-            Button newCutsceneButton = new Button(CreateCutsceneAsset)
+            ToolbarButton newCutsceneButton = new ToolbarButton(CreateCutsceneAsset)
             {
                 text = "New",
                 tooltip = "Creates a new Cutscene asset wherever you choose, and loads it."
             };
+            newCutsceneButton.AddToClassList("clip-editor__bar-action");
             newCutsceneButton.style.marginLeft = 4f;
             toolbar.Add(newCutsceneButton);
 
@@ -403,48 +421,17 @@ namespace DotsAnimationToolkit.Editor
             sceneActionButton.style.display = DisplayStyle.None;
             toolbar.Add(sceneActionButton);
 
-            zoomSlider = new Slider(
-                "Zoom",
-                CutsceneTimelineGeometry.MinimumPixelsPerSecond,
-                CutsceneTimelineGeometry.MaximumPixelsPerSecond)
-            { value = pixelsPerSecond };
-            zoomSlider.style.width = 180f;
-            zoomSlider.style.marginLeft = 16f;
-            zoomSlider.labelElement.style.minWidth = 38f;
-            zoomSlider.RegisterValueChangedCallback(changeEvent =>
-            {
-                pixelsPerSecond = changeEvent.newValue;
-                RebuildTimeline();
-            });
-            toolbar.Add(zoomSlider);
+            return toolbar;
+        }
 
-            Button keyButton = new Button(KeySelection)
-            {
-                text = " Key",
-                tooltip = "Keys the selected slot's (or part track's) current live transform at the "
-                    + "playhead — move it with Unity's own gizmo first."
-            };
-            keyButton.style.marginLeft = 16f;
-            keyButton.style.flexDirection = FlexDirection.Row;
-            keyButton.style.alignItems = Align.Center;
-            Image keyIcon = new Image
-            {
-                image = EditorGUIUtility.IconContent("d_Animation.Record").image,
-                pickingMode = PickingMode.Ignore
-            };
-            keyIcon.AddToClassList("cutscene-editor__transport-icon");
-            keyButton.Insert(0, keyIcon);
-            toolbar.Add(keyButton);
-
-            toolbar.Add(BuildAutoKeyToggle());
-
+        private Toggle BuildDriveSceneViewToggle()
+        {
             // Off by default: the in-tab viewport's Shot mode shows the framed movie, so yanking the
             // author's Scene view camera around on every scrub is opt-in.
-            previewShotToggle = new Toggle { text = "Drive Scene View", value = false };
-            previewShotToggle.style.marginLeft = 16f;
-            previewShotToggle.tooltip =
+            previewShotToggle = MakeRailToggle(ToolkitIcons.Link,
                 "Also move the Scene view's own camera to the cutscene camera lane's pose while "
-                + "scrubbing. The tab's viewport shows the shot regardless.";
+                + "scrubbing. The tab's viewport shows the shot regardless.", "Drive");
+            previewShotToggle.value = false;
             previewShotToggle.RegisterValueChangedCallback(changeEvent =>
             {
                 if (changeEvent.newValue)
@@ -452,87 +439,148 @@ namespace DotsAnimationToolkit.Editor
                     previewController.ApplyCameraPose(cutscene, playheadSeconds);
                 }
             });
-            toolbar.Add(previewShotToggle);
+            return previewShotToggle;
+        }
 
-            return toolbar;
+        /// <summary>Builds a rail control: a square icon toggle for the viewport's left-edge overlay column.</summary>
+        private static ToolbarToggle MakeRailToggle(string iconName, string tooltip, string fallbackText)
+        {
+            ToolbarToggle toggle = new ToolbarToggle();
+            toggle.AddToClassList("clip-editor__overlay-tool-button");
+            toggle.tooltip = tooltip;
+            Texture2D iconTexture = ToolkitIcons.Resolve(iconName);
+            if (iconTexture != null)
+            {
+                Image icon = new Image { image = iconTexture, pickingMode = PickingMode.Ignore };
+                icon.AddToClassList("clip-editor__overlay-tool-icon");
+                toggle.Add(icon);
+            }
+            else
+            {
+                toggle.text = fallbackText;
+            }
+            return toggle;
         }
 
         // -----------------------------------------------------------------------------------
         // Editor play transport. A rehearsal of runtime pacing, holds included.
         // -----------------------------------------------------------------------------------
 
-        private static Button MakeTransportButton(Action onClick, string iconName, string tooltip, out Image icon)
-        {
-            Button button = new Button(onClick) { tooltip = tooltip };
-            button.AddToClassList("cutscene-editor__transport-button");
-            icon = new Image { image = EditorGUIUtility.IconContent(iconName).image };
-            icon.AddToClassList("cutscene-editor__transport-icon");
-            icon.pickingMode = PickingMode.Ignore;
-            button.Add(icon);
-            return button;
-        }
-
         private VisualElement BuildTransportRow()
         {
-            VisualElement row = new VisualElement();
-            row.AddToClassList("cutscene-editor__transport");
+            VisualElement row = new VisualElement { name = "cutscene-editor-transport" };
+            row.AddToClassList("toolkit-transport");
 
-            Image discardedIcon;
-            row.Add(MakeTransportButton(
-                () => SetPlayhead(0f), "d_Animation.FirstKey", "Go to start.", out discardedIcon));
+            transportCore = new TransportCoreElement();
+            row.Add(transportCore);
+            transportCore.Bind(this);
 
-            playToggleButton = MakeTransportButton(
-                TogglePlayback, "d_PlayButton", "Play / pause the cutscene in the viewport.",
-                out playToggleIcon);
-            row.Add(playToggleButton);
+            VisualElement timeGroup = new VisualElement();
+            timeGroup.AddToClassList("toolkit-transport__group");
+            Label timeCaption = new Label("Time");
+            timeCaption.AddToClassList("toolkit-transport__caption");
+            timeGroup.Add(timeCaption);
+            timeField = new FloatField { value = playheadSeconds, isDelayed = false };
+            timeField.AddToClassList("toolkit-transport__field");
+            timeField.RegisterValueChangedCallback(
+                changeEvent => SetPlayhead(Mathf.Max(0f, changeEvent.newValue)));
+            timeGroup.Add(timeField);
+            CaptionDragHandle.Attach(timeCaption, timeField);
+            timeEndLabel = new Label("/ 0.00 s");
+            timeEndLabel.AddToClassList("toolkit-transport__derived");
+            timeGroup.Add(timeEndLabel);
+            row.Add(timeGroup);
 
-            row.Add(MakeTransportButton(
-                StopPlayback, "d_StopButton",
-                "Stops and returns the playhead to where Play was pressed.", out discardedIcon));
+            VisualElement speedGroup = new VisualElement();
+            speedGroup.AddToClassList("toolkit-transport__group");
+            Label speedCaption = new Label("Speed");
+            speedCaption.AddToClassList("toolkit-transport__caption");
+            speedGroup.Add(speedCaption);
+            speedField = new FloatField { value = playbackSpeed };
+            speedField.AddToClassList("toolkit-transport__field");
+            speedField.RegisterValueChangedCallback(
+                changeEvent => playbackSpeed = Mathf.Max(0f, changeEvent.newValue));
+            speedGroup.Add(speedField);
+            CaptionDragHandle.Attach(speedCaption, speedField);
+            row.Add(speedGroup);
 
-            row.Add(MakeTransportButton(
-                () => SetPlayhead(ComputeContentEndSecondsSafe()), "d_Animation.LastKey",
-                "Go to end.", out discardedIcon));
+            VisualElement zoomGroup = new VisualElement();
+            zoomGroup.AddToClassList("toolkit-transport__group");
+            Label zoomCaption = new Label("Zoom");
+            zoomCaption.AddToClassList("toolkit-transport__caption");
+            zoomGroup.Add(zoomCaption);
+            zoomSlider = new Slider(
+                CutsceneTimelineGeometry.MinimumPixelsPerSecond,
+                CutsceneTimelineGeometry.MaximumPixelsPerSecond)
+            { value = pixelsPerSecond };
+            zoomSlider.style.width = 180f;
+            zoomSlider.RegisterValueChangedCallback(changeEvent =>
+            {
+                pixelsPerSecond = changeEvent.newValue;
+                RebuildTimeline();
+            });
+            zoomGroup.Add(zoomSlider);
+            Button frameAllButton = new Button(FrameWholeTimeline)
+            {
+                text = "All",
+                tooltip = "Frame the whole timeline. Shortcut: Shift+F."
+            };
+            zoomGroup.Add(frameAllButton);
+            Button framePlayheadButton = new Button(CentreTimelineOnPlayhead)
+            {
+                text = "Playhead",
+                tooltip = "Centre the timeline on the playhead. Shortcut: Alt+P."
+            };
+            zoomGroup.Add(framePlayheadButton);
+            row.Add(zoomGroup);
 
-            timeReadoutLabel = new Label("0.00 / 0.00 s");
-            timeReadoutLabel.AddToClassList("cutscene-editor__time-readout");
-            row.Add(timeReadoutLabel);
-
-            continueButton = new Button(ReleaseHold) { text = "Continue ▶" };
+            VisualElement statusGroup = new VisualElement();
+            statusGroup.AddToClassList("toolkit-transport__group");
+            continueButton = new Button(ReleaseHold) { text = "Continue" };
             continueButton.tooltip = "Releases the hold the transport is waiting on, the way a host "
                 + "releases it at run time.";
             continueButton.style.display = DisplayStyle.None;
-            continueButton.style.marginLeft = 8f;
-            row.Add(continueButton);
-
-            // Beside the button that acts on it, not at the far end of the row past Speed and two
-            // toggles: the owner watched a cutscene stop dead at a cue and saw nothing say so,
-            // because the sentence explaining the stop sat 350px away from the Continue it explains.
+            statusGroup.Add(continueButton);
             transportStatusLabel = new Label(string.Empty);
-            transportStatusLabel.AddToClassList("cutscene-editor__transport-status");
-            row.Add(transportStatusLabel);
-
-            speedField = new FloatField("Speed") { value = playbackSpeed };
-            speedField.style.width = 96f;
-            speedField.style.marginLeft = 12f;
-            speedField.labelElement.style.minWidth = 42f;
-            speedField.RegisterValueChangedCallback(
-                changeEvent => playbackSpeed = Mathf.Max(0f, changeEvent.newValue));
-            row.Add(speedField);
-
-            // text, not the label parameter: a labeled Toggle carries an inspector's ~150px label
-            // column, which is what scattered these controls across the row in the first build.
-            loopPlaybackToggle = new Toggle { text = "Loop", value = false };
-            loopPlaybackToggle.style.marginLeft = 8f;
-            loopPlaybackToggle.tooltip = "Restart from the top on reaching the end, for rehearsing a beat.";
-            row.Add(loopPlaybackToggle);
-
-            skipHoldsToggle = new Toggle { text = "Skip Holds", value = false };
-            skipHoldsToggle.style.marginLeft = 8f;
-            skipHoldsToggle.tooltip = "Run straight through hold markers instead of waiting for Continue.";
-            row.Add(skipHoldsToggle);
+            transportStatusLabel.AddToClassList("toolkit-transport__status");
+            statusGroup.Add(transportStatusLabel);
+            row.Add(statusGroup);
 
             return row;
+        }
+
+        private VisualElement BuildStatusRow()
+        {
+            VisualElement statusRow = new VisualElement { name = "cutscene-editor-status-row" };
+            statusRow.AddToClassList("toolkit-status-row");
+
+            timelineStatusLabel = new Label(string.Empty);
+            timelineStatusLabel.AddToClassList("toolkit-status");
+            statusRow.Add(timelineStatusLabel);
+
+            VisualElement statusActions = new VisualElement();
+            statusActions.AddToClassList("toolkit-status-actions");
+
+            Button keyButton = ToolkitIcons.MakeIconButton(
+                KeySelection, ToolkitIcons.Record,
+                "Keys the selected slot's (or part track's) current live transform at the playhead "
+                    + "— move it with Unity's own gizmo first.", "Key");
+            // The word stays: the icon says the family, the word says what is keyed.
+            keyButton.text = "Key";
+            keyButton.AddToClassList("toolkit-icon-button--with-text");
+            keyButton.AddToClassList("clip-editor__bar-action");
+            statusActions.Add(keyButton);
+
+            statusActions.Add(BuildAutoKeyToggle());
+
+            skipHoldsToggle = new ToolbarToggle { text = "Skip Holds" };
+            skipHoldsToggle.AddToClassList("clip-editor__bar-action");
+            skipHoldsToggle.AddToClassList("clip-editor__status-action");
+            skipHoldsToggle.tooltip = "Run straight through hold markers instead of waiting for Continue.";
+            statusActions.Add(skipHoldsToggle);
+
+            statusRow.Add(statusActions);
+            return statusRow;
         }
 
         private float ComputeContentEndSecondsSafe()
@@ -543,13 +591,13 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Cheap per-move text update; fixed-format so the row never re-lays-out.</summary>
         private void RefreshTimeReadout()
         {
-            if (timeReadoutLabel == null)
+            if (timeField == null)
             {
                 return;
             }
             float contentEnd = ComputeContentEndSecondsSafe();
-            timeReadoutLabel.text = playheadSeconds.ToString("0.00") + " / "
-                + contentEnd.ToString("0.00") + " s";
+            timeField.SetValueWithoutNotify(playheadSeconds);
+            timeEndLabel.text = "/ " + contentEnd.ToString("0.00") + " s";
         }
 
         private void TogglePlayback()
@@ -567,6 +615,44 @@ namespace DotsAnimationToolkit.Editor
             previewController.HoldClipPhaseSeconds = 0f;
             isGatingOnHold = false;
             SetPlaying(true);
+        }
+
+        // The cutscene has no frame rate of its own, so a transport step is a thirtieth of a second.
+        private const float StepSeconds = 1f / 30f;
+
+        public bool IsPlaying { get { return isPlaying; } }
+
+        public bool IsLooping
+        {
+            get { return isLoopEnabled; }
+            set
+            {
+                isLoopEnabled = value;
+                transportCore?.RefreshState();
+            }
+        }
+
+        public TransportCapabilities Capabilities
+        {
+            get
+            {
+                return TransportCapabilities.StepBack | TransportCapabilities.StepForward
+                    | TransportCapabilities.Stop | TransportCapabilities.JumpToEnd
+                    | TransportCapabilities.Loop;
+            }
+        }
+
+        public void TogglePlay() { TogglePlayback(); }
+
+        public void Stop() { StopPlayback(); }
+
+        public void JumpToStart() { SetPlayhead(0f); }
+
+        public void JumpToEnd() { SetPlayhead(ComputeContentEndSecondsSafe()); }
+
+        public void Step(int frameDelta)
+        {
+            SetPlayhead(playheadSeconds + frameDelta * StepSeconds);
         }
 
         private void StopPlayback()
@@ -598,11 +684,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 EditorApplication.update -= Tick;
             }
-            if (playToggleIcon != null)
-            {
-                playToggleIcon.image = EditorGUIUtility
-                    .IconContent(playing ? "d_PauseButton" : "d_PlayButton").image;
-            }
+            transportCore?.RefreshState();
             RefreshTransportStatus();
         }
 
@@ -622,7 +704,7 @@ namespace DotsAnimationToolkit.Editor
         private const float HoldReleaseEpsilon = 1e-3f;
 
         /// <summary>Turns the transport's status line into a banner while the clock is stopped on a hold.</summary>
-        private const string HoldingStatusUssClassName = "cutscene-editor__transport-status--holding";
+        private const string HoldingStatusUssClassName = "toolkit-transport__status--holding";
 
         // The panel's own heartbeat, separate from the transport's: it runs while the tab is open
         // whether or not anything is playing.
@@ -671,7 +753,7 @@ namespace DotsAnimationToolkit.Editor
             float contentEnd = ComputeContentEndSeconds();
             if (advancedTime >= contentEnd)
             {
-                if (loopPlaybackToggle != null && loopPlaybackToggle.value)
+                if (isLoopEnabled)
                 {
                     // A fresh play: the actors' clocks restart with the timeline's.
                     previewController.HoldClipPhaseSeconds = 0f;
@@ -901,24 +983,6 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private VisualElement BuildAddSlotRow()
-        {
-            VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.paddingLeft = 6f;
-            row.style.paddingTop = 2f;
-            row.style.paddingBottom = 2f;
-
-            Button addActorButton = new Button(() => AddSlot(CutsceneSlotKind.Actor)) { text = "+ Actor Slot" };
-            row.Add(addActorButton);
-
-            Button addPropButton = new Button(() => AddSlot(CutsceneSlotKind.Prop)) { text = "+ Prop Slot" };
-            addPropButton.style.marginLeft = 4f;
-            row.Add(addPropButton);
-
-            return row;
-        }
-
         // -----------------------------------------------------------------------------------
         // The in-tab scene viewport.
         // -----------------------------------------------------------------------------------
@@ -953,16 +1017,48 @@ namespace DotsAnimationToolkit.Editor
             });
             container.Add(viewportElement);
 
-            VisualElement controlStrip = new VisualElement();
-            controlStrip.AddToClassList("cutscene-editor__viewport-controls");
-            controlStrip.style.position = Position.Absolute;
-            controlStrip.style.top = 4f;
-            controlStrip.style.right = 4f;
-            controlStrip.style.flexDirection = FlexDirection.Row;
+            VisualElement rail = new VisualElement();
+            rail.AddToClassList("clip-editor__overlay-column");
+            rail.style.position = Position.Absolute;
+            rail.style.left = 4f;
+            rail.style.top = 4f;
 
-            shotModeToggle = new Toggle { text = "Shot", value = viewportShotMode };
-            shotModeToggle.tooltip = "Locked to the camera lane — the viewport shows the framed movie. "
-                + "Drag in the viewport (or turn this off) for a free orbit camera.";
+            gizmoModeToggles = new ToolbarToggle[3];
+            gizmoModeToggles[(int)GizmoMode.Move] = MakeRailToggle(ToolkitIcons.Move, "Move (W)", "Move");
+            gizmoModeToggles[(int)GizmoMode.Rotate] = MakeRailToggle(ToolkitIcons.Rotate, "Rotate (E)", "Rotate");
+            gizmoModeToggles[(int)GizmoMode.Scale] = MakeRailToggle(ToolkitIcons.Scale, "Scale (R)", "Scale");
+            for (int gizmoModeIndex = 0; gizmoModeIndex < gizmoModeToggles.Length; gizmoModeIndex++)
+            {
+                GizmoMode mode = (GizmoMode)gizmoModeIndex;
+                ToolbarToggle gizmoModeToggle = gizmoModeToggles[gizmoModeIndex];
+                gizmoModeToggle.RegisterValueChangedCallback(changeEvent =>
+                {
+                    if (changeEvent.newValue)
+                    {
+                        SetViewportGizmoMode(mode);
+                    }
+                });
+                rail.Add(gizmoModeToggle);
+            }
+            RefreshGizmoModeToggles();
+
+            VisualElement frameRunBreak = new VisualElement();
+            frameRunBreak.AddToClassList("clip-editor__overlay-run-break");
+            rail.Add(frameRunBreak);
+
+            Button frameButton = ToolkitIcons.MakeIconButton(FrameViewportOnCast, ToolkitIcons.Frame,
+                "Frames the bound cast (or the selected slot) in the viewport. Shortcut: F.", "Frame");
+            frameButton.AddToClassList("clip-editor__overlay-tool-button");
+            rail.Add(frameButton);
+
+            VisualElement shotRunBreak = new VisualElement();
+            shotRunBreak.AddToClassList("clip-editor__overlay-run-break");
+            rail.Add(shotRunBreak);
+
+            shotModeToggle = MakeRailToggle(ToolkitIcons.ShotCamera,
+                "Locked to the camera lane — the viewport shows the framed movie. "
+                + "Drag in the viewport (or turn this off) for a free orbit camera.", "Shot");
+            shotModeToggle.value = viewportShotMode;
             shotModeToggle.RegisterValueChangedCallback(changeEvent =>
             {
                 viewportShotMode = changeEvent.newValue;
@@ -972,13 +1068,10 @@ namespace DotsAnimationToolkit.Editor
                 }
                 RenderViewport();
             });
-            controlStrip.Add(shotModeToggle);
+            rail.Add(shotModeToggle);
 
-            Button frameButton = new Button(FrameViewportOnCast) { text = "Frame" };
-            frameButton.tooltip = "Frames the bound cast (or the selected slot) in the viewport. Shortcut: F.";
-            frameButton.style.marginLeft = 4f;
-            controlStrip.Add(frameButton);
-            container.Add(controlStrip);
+            rail.Add(BuildDriveSceneViewToggle());
+            container.Add(rail);
 
             viewportOverlay = new VisualElement();
             viewportOverlay.AddToClassList("cutscene-editor__viewport-overlay");
@@ -2230,7 +2323,7 @@ namespace DotsAnimationToolkit.Editor
             BuildMomentRow(
                 content, isActor ? "Root" : "Move", slot.transformKeys, transformKeysProperty,
                 slotIndex, SelectedLaneKind.RootTransformKey, -1, contentWidth,
-                new Color(0.65f, 0.85f, 0.55f), time => InsertTransformKeyDefault(transformKeysProperty, time),
+                ToolkitPalette.MarkerRoot, time => InsertTransformKeyDefault(transformKeysProperty, time),
                 accentClass: accent);
 
             SerializedProperty attachMarkersProperty = slotProperty.FindPropertyRelative("attachMarkers");
@@ -2240,7 +2333,7 @@ namespace DotsAnimationToolkit.Editor
             BuildMomentRow(
                 content, "Marks", slot.markKeys, markKeysProperty,
                 slotIndex, SelectedLaneKind.MarkKey, -1, contentWidth,
-                new Color(0.45f, 0.65f, 0.95f), time => InsertMarkKeyDefault(slotIndex, markKeysProperty, time),
+                ToolkitPalette.MarkerMark, time => InsertMarkKeyDefault(slotIndex, markKeysProperty, time),
                 accentClass: accent);
 
             if (isActor)
@@ -2249,7 +2342,7 @@ namespace DotsAnimationToolkit.Editor
                 BuildMomentRow(
                     content, "Facing", slot.facingKeys, facingKeysProperty,
                     slotIndex, SelectedLaneKind.FacingKey, -1, contentWidth,
-                    new Color(0.85f, 0.75f, 0.4f), time => InsertFacingKeyDefault(facingKeysProperty, time),
+                    ToolkitPalette.MarkerFacing, time => InsertFacingKeyDefault(facingKeysProperty, time),
                     accentClass: accent);
 
                 // One row per part track — the label IS the track header, keys live beside it.
@@ -2265,7 +2358,7 @@ namespace DotsAnimationToolkit.Editor
                     VisualElement partHeaderCell = BuildMomentRow(
                         content, tagName ?? "0x" + track.tagId.ToString("X8"), track.keys, keysProperty,
                         slotIndex, SelectedLaneKind.PartTrackKey, capturedTrackIndex, contentWidth,
-                        new Color(0.75f, 0.55f, 0.85f), time => InsertTransformKeyDefault(keysProperty, time),
+                        ToolkitPalette.MarkerPart, time => InsertTransformKeyDefault(keysProperty, time),
                         accentClass: accent);
                     partHeaderCell.AddManipulator(new ContextualMenuManipulator(menuEvent =>
                         menuEvent.menu.AppendAction(
@@ -2402,7 +2495,7 @@ namespace DotsAnimationToolkit.Editor
             CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
             {
                 pixelsPerSecond = pixelsPerSecond,
-                markerColor = new Color(0.45f, 0.8f, 0.8f),
+                markerColor = ToolkitPalette.MarkerAttach,
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelectedLane = selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.AttachMarker;
@@ -2433,7 +2526,7 @@ namespace DotsAnimationToolkit.Editor
             CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
             {
                 pixelsPerSecond = pixelsPerSecond,
-                markerColor = new Color(0.55f, 0.7f, 0.95f),
+                markerColor = ToolkitPalette.MarkerCamera,
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelected = selectedLaneKind == SelectedLaneKind.CameraKey;
@@ -2457,7 +2550,7 @@ namespace DotsAnimationToolkit.Editor
             CutsceneMomentLaneElement cutLane = new CutsceneMomentLaneElement
             {
                 pixelsPerSecond = pixelsPerSecond,
-                markerColor = new Color(0.95f, 0.45f, 0.45f),
+                markerColor = ToolkitPalette.MarkerCut,
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             cutLane.SetTimes(cutTimes, -1);
@@ -2473,23 +2566,25 @@ namespace DotsAnimationToolkit.Editor
             SerializedProperty eventsProperty = serializedObject.FindProperty("events");
             List<float> times = new List<float>(cutscene.events.Count);
             List<string> variantClasses = new List<string>(cutscene.events.Count);
+            List<Color> eventMarkerColors = new List<Color>(cutscene.events.Count);
             for (int i = 0; i < cutscene.events.Count; i++)
             {
                 times.Add(cutscene.events[i].time);
                 variantClasses.Add(cutscene.events[i].holdUntilReleased
                     ? "cutscene-editor__moment-marker--holding"
                     : null);
+                eventMarkerColors.Add(ToolkitPalette.ColorForEventKey(cutscene.events[i].eventKey));
             }
 
             CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
             {
                 pixelsPerSecond = pixelsPerSecond,
-                markerColor = new Color(0.9f, 0.6f, 0.3f),
+                markerColor = ToolkitPalette.LaneEvents,
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelected = selectedLaneKind == SelectedLaneKind.Event;
             RegisterMomentLane(lane, -1, SelectedLaneKind.Event, -1);
-            lane.SetTimes(times, isSelected ? selectedItemIndex : -1, variantClasses);
+            lane.SetTimes(times, isSelected ? selectedItemIndex : -1, variantClasses, null, eventMarkerColors);
             lane.MomentSelected += index => SelectItemFromLaneBackground(
                 index, -1, SelectedLaneKind.Event, -1);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(eventsProperty, index, time);
@@ -2532,7 +2627,7 @@ namespace DotsAnimationToolkit.Editor
             CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
             {
                 pixelsPerSecond = pixelsPerSecond,
-                markerColor = new Color(0.95f, 0.85f, 0.3f),
+                markerColor = ToolkitPalette.MarkerHold,
                 style = { width = contentWidth, height = LaneRowHeight }
             };
             bool isSelected = selectedLaneKind == SelectedLaneKind.Hold;
@@ -2920,7 +3015,22 @@ namespace DotsAnimationToolkit.Editor
                         keyEvent.StopPropagation();
                         return;
                     case KeyCode.Home:
-                        FrameWholeTimeline();
+                        JumpToStart();
+                        keyEvent.StopPropagation();
+                        return;
+                    case KeyCode.End:
+                        JumpToEnd();
+                        keyEvent.StopPropagation();
+                        return;
+                    case KeyCode.F:
+                        if (keyEvent.shiftKey)
+                        {
+                            FrameWholeTimeline();
+                        }
+                        else
+                        {
+                            FrameSelection();
+                        }
                         keyEvent.StopPropagation();
                         return;
                     case KeyCode.P:
@@ -3036,14 +3146,18 @@ namespace DotsAnimationToolkit.Editor
 
         private void ReportTransportAction(int itemCount, string verb)
         {
-            if (transportStatusLabel == null)
-            {
-                return;
-            }
-            transportStatusLabel.EnableInClassList(HoldingStatusUssClassName, false);
-            transportStatusLabel.text = itemCount == 0
+            string message = itemCount == 0
                 ? verb + " nothing"
                 : verb + " " + itemCount.ToString() + (itemCount == 1 ? " item" : " items");
+            if (transportStatusLabel != null)
+            {
+                transportStatusLabel.EnableInClassList(HoldingStatusUssClassName, false);
+                transportStatusLabel.text = message;
+            }
+            if (timelineStatusLabel != null)
+            {
+                timelineStatusLabel.text = message;
+            }
         }
 
         // -----------------------------------------------------------------------------------

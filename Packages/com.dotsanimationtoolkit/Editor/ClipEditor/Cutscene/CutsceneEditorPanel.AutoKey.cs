@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -12,7 +13,7 @@ namespace DotsAnimationToolkit.Editor
     {
         private const string SessionAutoKeyEnabledKey = "DotsAnimationToolkit.CutsceneEditor.AutoKeyEnabled";
 
-        private Toggle autoKeyToggle;
+        private ToolbarToggle autoKeyToggle;
         private bool isAutoKeyEnabled;
 
         // Reused every editor frame: the detection step runs whether or not anything moved.
@@ -27,16 +28,19 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildAutoKeyToggle()
         {
             isAutoKeyEnabled = SessionState.GetBool(SessionAutoKeyEnabledKey, false);
-            autoKeyToggle = new Toggle { text = "Auto Key", value = isAutoKeyEnabled };
-            autoKeyToggle.style.marginLeft = 8f;
+            autoKeyToggle = new ToolbarToggle { text = "Auto Key", value = isAutoKeyEnabled };
+            autoKeyToggle.AddToClassList("clip-editor__bar-action");
+            autoKeyToggle.AddToClassList("clip-editor__status-action");
             autoKeyToggle.tooltip =
                 "Keys whatever you move with Unity's own gizmo at the playhead, the moment you let "
                 + "the drag go. Needs the preview active, and does nothing while the transport plays.";
+            autoKeyToggle.EnableInClassList("toolkit-bar-action--recording", isAutoKeyEnabled);
             autoKeyToggle.RegisterValueChangedCallback(changeEvent =>
             {
                 isAutoKeyEnabled = changeEvent.newValue;
                 SessionState.SetBool(SessionAutoKeyEnabledKey, isAutoKeyEnabled);
                 pendingAutoKeyEdits.Clear();
+                autoKeyToggle.EnableInClassList("toolkit-bar-action--recording", isAutoKeyEnabled);
             });
             return autoKeyToggle;
         }

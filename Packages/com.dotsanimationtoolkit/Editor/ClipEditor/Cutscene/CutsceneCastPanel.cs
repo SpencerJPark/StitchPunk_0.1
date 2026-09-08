@@ -48,6 +48,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Raised when the author presses Sync to Stage.</summary>
         public event Action SyncToStageRequested;
 
+        /// <summary>Raised with the kind of slot to append.</summary>
+        public event Action<CutsceneSlotKind> AddSlotRequested;
+
         public CutsceneCastPanel()
         {
             style.minWidth = 200f;
@@ -56,25 +59,44 @@ namespace DotsAnimationToolkit.Editor
             style.paddingRight = 4f;
 
             VisualElement headerRow = new VisualElement();
-            headerRow.style.flexDirection = FlexDirection.Row;
-            headerRow.style.alignItems = Align.Center;
-            headerRow.style.marginBottom = 4f;
+            headerRow.AddToClassList("toolkit-pane-header");
 
             Label heading = new Label("Cast");
-            heading.style.unityFontStyleAndWeight = FontStyle.Bold;
+            heading.AddToClassList("toolkit-pane-title");
             headerRow.Add(heading);
 
-            stageStatusLabel.style.flexGrow = 1f;
             stageStatusLabel.style.marginLeft = 6f;
-            stageStatusLabel.style.color = new Color(0.68f, 0.68f, 0.72f);
+            stageStatusLabel.AddToClassList("cutscene-editor__cast-status");
             headerRow.Add(stageStatusLabel);
+
+            VisualElement actionsRow = new VisualElement();
+            actionsRow.AddToClassList("toolkit-pane-actions");
+
+            Button addActorButton = ToolkitIcons.MakeIconButton(
+                () => AddSlotRequested?.Invoke(CutsceneSlotKind.Actor), ToolkitIcons.Plus,
+                "Add an actor slot.", "+ Actor");
+            addActorButton.text = "Actor";
+            addActorButton.AddToClassList("toolkit-icon-button--with-text");
+            addActorButton.AddToClassList("toolkit-pane-action");
+            actionsRow.Add(addActorButton);
+
+            Button addPropButton = ToolkitIcons.MakeIconButton(
+                () => AddSlotRequested?.Invoke(CutsceneSlotKind.Prop), ToolkitIcons.Plus,
+                "Add a prop slot.", "+ Prop");
+            addPropButton.text = "Prop";
+            addPropButton.AddToClassList("toolkit-icon-button--with-text");
+            addPropButton.AddToClassList("toolkit-pane-action");
+            actionsRow.Add(addPropButton);
 
             syncToStageButton = new Button(() => SyncToStageRequested?.Invoke()) { text = "Sync to Stage" };
             syncToStageButton.tooltip =
                 "Writes every bound slot into this scene's CutsceneStageAuthoring component, baking "
                 + "one CutsceneStage entity that plays this cutscene at runtime. Explicit, never "
                 + "automatic — press it after the cast is the way you want it.";
-            headerRow.Add(syncToStageButton);
+            syncToStageButton.AddToClassList("toolkit-pane-action");
+            actionsRow.Add(syncToStageButton);
+
+            headerRow.Add(actionsRow);
 
             Add(headerRow);
 
@@ -136,13 +158,16 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement row = new VisualElement();
             row.AddToClassList("cutscene-editor__cast-row");
+            row.AddToClassList("toolkit-box");
             row.EnableInClassList("cutscene-editor__cast-row--selected", isSelected);
+            row.EnableInClassList("toolkit-box--selected", isSelected);
 
             GameObject boundObject;
             BindingState state = ResolveBindingState(cutscene, currentSceneGuid, slot, out boundObject);
 
             VisualElement line = new VisualElement();
             line.AddToClassList("cutscene-editor__cast-line");
+            line.AddToClassList("toolkit-box__header");
 
             VisualElement identity = new VisualElement();
             identity.AddToClassList("cutscene-editor__cast-identity");
@@ -160,6 +185,7 @@ namespace DotsAnimationToolkit.Editor
 
             Label nameLabel = new Label(slot.name);
             nameLabel.AddToClassList("cutscene-editor__cast-name");
+            nameLabel.AddToClassList("toolkit-box__title");
             nameLabel.tooltip = slot.name;
             identity.Add(nameLabel);
 
@@ -174,6 +200,7 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement bindFieldRow = new VisualElement();
             bindFieldRow.AddToClassList("cutscene-editor__cast-bind-field");
+            bindFieldRow.AddToClassList("toolkit-box__row");
             bindFieldRow.style.display = slotIndicesShowingBindField.Contains(slotIndex)
                 ? DisplayStyle.Flex
                 : DisplayStyle.None;

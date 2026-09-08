@@ -122,7 +122,21 @@ namespace DotsAnimationToolkit.Editor
         private void SetViewportGizmoMode(GizmoMode mode)
         {
             viewportGizmoMode = mode;
+            RefreshGizmoModeToggles();
             RenderViewport();
+        }
+
+        /// <summary>Lights the rail toggle matching <see cref="viewportGizmoMode"/> so W/E/R and rail clicks never disagree.</summary>
+        private void RefreshGizmoModeToggles()
+        {
+            if (gizmoModeToggles == null)
+            {
+                return;
+            }
+            for (int gizmoModeIndex = 0; gizmoModeIndex < gizmoModeToggles.Length; gizmoModeIndex++)
+            {
+                gizmoModeToggles[gizmoModeIndex]?.SetValueWithoutNotify(gizmoModeIndex == (int)viewportGizmoMode);
+            }
         }
 
         private bool TryBeginViewportGizmoDrag(Vector2 localPosition)

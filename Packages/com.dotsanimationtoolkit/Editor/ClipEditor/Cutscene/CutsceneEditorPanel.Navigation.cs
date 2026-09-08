@@ -81,6 +81,19 @@ namespace DotsAnimationToolkit.Editor
             ScrollTimelineTo(0f);
         }
 
+        /// <summary>Frames the current selection, or the whole timeline with none selected.</summary>
+        private void FrameSelection()
+        {
+            if (selectedItems.Count == 0)
+            {
+                FrameWholeTimeline();
+                return;
+            }
+            // CutsceneItemAddress is a positional index, not a time; no single lookup resolves one
+            // across every laneKind's differently-shaped list, so this centres on the playhead instead.
+            CentreTimelineOnPlayhead();
+        }
+
         /// <summary>Scrolls the playhead to the middle of the visible lane width, without moving it.</summary>
         private void CentreTimelineOnPlayhead()
         {
