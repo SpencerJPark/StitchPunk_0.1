@@ -121,6 +121,18 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Queued (2026-09-08): Amendment A74 — Preview Viewports.** Spec
+`Docs/AnimationToolkit/Amendment_A74_PreviewViewports_Spec.md`, session prompt
+`Amendment_A74_PreviewViewports_Prompt.md`, index
+`Assets/_Vault/Tasks/NewPlans/PreviewViewports_Roadmap.md`. The Actor Editor viewport gets the
+Clip Editor's camera (orbit, pan, look + fly, dolly, zoom, F, double-click reset) and its rail
+minus Move/Rotate/Scale; the VAT Bake panel gets a live viewport that plays the baked
+`runtimeMesh` through the shipped VAT graph with a transport, clip picker and a translucent
+source ghost, plus a Sample Tentacle button because the project has no VAT-bound content. The
+gesture state machine leaves `ClipEditorWindow.CameraNavigation.cs` for a shared
+`PreviewCameraNavigation` over an `IPreviewCameraRig`. Independent of A73; takes the next unused
+minor. Eleven tasks in four subagent waves, one ⏸ owner checkpoint at the end. Nothing built.
+
 **Queued (2026-09-08): Amendment A73 — Profile-Driven Cutscenes**, then the game plan **G6**.
 Spec `Docs/AnimationToolkit/Amendment_A73_ProfileDrivenCutscenes_Spec.md`, session prompt
 `Amendment_A73_ProfileDrivenCutscenes_Prompt.md`, game half
