@@ -208,12 +208,15 @@ namespace DotsAnimationToolkit.Editor
                 // the button is what separates the animated parts from the ones just listed.
                 tagButton.SetEnabled(preTicked);
 
+                VisualElement candidateBox = new VisualElement();
+                candidateBox.AddToClassList("toolkit-box");
+
                 VisualElement rowContainer = new VisualElement();
-                rowContainer.style.flexDirection = FlexDirection.Row;
-                rowContainer.style.alignItems = Align.Center;
+                rowContainer.AddToClassList("toolkit-box__header");
                 rowContainer.Add(rowToggle);
                 rowContainer.Add(tagButton);
-                candidateContainer.Add(rowContainer);
+                candidateBox.Add(rowContainer);
+                candidateContainer.Add(candidateBox);
 
                 CandidateRow row = new CandidateRow
                 {

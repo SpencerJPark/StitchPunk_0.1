@@ -12,10 +12,11 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// The Actor Editor tab: a profile over three columns — layers, the composited viewport and an
-    /// inspector — with a header that resets, plays/pauses and turns the actor through its directions.
+    /// The Actor Editor tab: a profile header over three columns — layers, the composited viewport and
+    /// an inspector — with a transport bar under the viewport that steps, stops and turns the actor
+    /// through its directions.
     /// </summary>
-    public sealed class ActorEditorPanel : VisualElement, IDisposable
+    public sealed class ActorEditorPanel : VisualElement, IDisposable, ITransportTarget
     {
         private const string LayersColumnUssClassName = "actor-editor__layers-column";
         private const string ViewportColumnUssClassName = "actor-editor__viewport-column";
@@ -55,8 +56,7 @@ namespace DotsAnimationToolkit.Editor
 
         private ObjectField profileField;
         private ValidationBadgeElement validationBadge;
-        private Button resetButton;
-        private Button playPauseButton;
+        private TransportCoreElement transportCore;
         private Slider directionSlider;
         private Label directionReadoutLabel;
         private VisualElement layersColumn;
@@ -81,6 +81,66 @@ namespace DotsAnimationToolkit.Editor
 
             Add(BuildHeaderRow());
             Add(BuildBody());
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // ITransportTarget
+        // -----------------------------------------------------------------------------------------
+
+        public bool IsPlaying { get { return isPlaying; } }
+
+        public bool IsLooping
+        {
+            get { return false; }
+            set { }
+        }
+
+        public TransportCapabilities Capabilities
+        {
+            get { return TransportCapabilities.StepForward | TransportCapabilities.Stop; }
+        }
+
+        public void TogglePlay()
+        {
+            SetPlaying(!isPlaying);
+        }
+
+        public void Stop()
+        {
+            SetPlaying(false);
+            JumpToStart();
+        }
+
+        public void JumpToStart()
+        {
+            composer.Reset();
+            previewController?.DisableRagdollPreview();
+            ragdollRefusalReason = null;
+            currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
+            currentMemberFacing = Direction.SouthEast;
+            composer.Facing = Direction.SouthEast;
+            directionSlider?.SetValueWithoutNotify(currentFacingAngleDegrees);
+            RefreshDirectionReadoutLabel();
+        }
+
+        // An actor has no end, its layers loop.
+        public void JumpToEnd()
+        {
+        }
+
+        public void Step(int frameDelta)
+        {
+            if (!isPlaying && composer.IsCreated && previewController != null)
+            {
+                composer.Tick(Mathf.Max(0, frameDelta) * (1f / 30f), previewController);
+                RenderViewport();
+            }
+        }
+
+        private void SetPlaying(bool playing)
+        {
+            isPlaying = playing;
+            transportCore?.RefreshState();
         }
 
         /// <summary>The profile this panel is authoring. Raises <see cref="ProfileChanged"/> whenever it actually changes, whether set here or picked through the header field.</summary>
@@ -222,42 +282,41 @@ namespace DotsAnimationToolkit.Editor
             validationBadge.style.marginLeft = 6f;
             header.Add(validationBadge);
 
-            header.Add(BuildTransportRow());
-
             return header;
         }
 
         private VisualElement BuildTransportRow()
         {
             VisualElement transportRow = new VisualElement { name = "actor-editor-transport-row" };
-            transportRow.style.flexDirection = FlexDirection.Row;
-            transportRow.style.alignItems = Align.Center;
-            transportRow.style.marginLeft = 6f;
+            transportRow.AddToClassList("toolkit-transport");
 
-            resetButton = new Button(OnResetButtonClicked) { text = "Reset" };
-            transportRow.Add(resetButton);
+            VisualElement coreGroup = new VisualElement();
+            coreGroup.AddToClassList("toolkit-transport__group");
+            transportCore = new TransportCoreElement();
+            transportCore.Bind(this);
+            coreGroup.Add(transportCore);
+            transportRow.Add(coreGroup);
 
-            playPauseButton = new Button(OnPlayPauseButtonClicked) { text = "Play" };
-            playPauseButton.style.marginLeft = 4f;
-            transportRow.Add(playPauseButton);
+            VisualElement directionGroup = new VisualElement();
+            directionGroup.AddToClassList("toolkit-transport__group");
 
             Label directionCaption = new Label("Direction");
-            directionCaption.style.marginLeft = 10f;
-            transportRow.Add(directionCaption);
+            directionCaption.AddToClassList("toolkit-transport__caption");
+            directionGroup.Add(directionCaption);
 
             directionSlider = new Slider(0f, 360f) { value = currentFacingAngleDegrees };
             directionSlider.style.width = 120f;
-            directionSlider.style.marginLeft = 4f;
             directionSlider.tooltip =
                 "Turn the actor. 0 degrees is due east; the readout says which authored clip that "
                 + "resolves to and whether it is mirrored.";
             directionSlider.RegisterValueChangedCallback(OnDirectionSliderChanged);
-            transportRow.Add(directionSlider);
+            directionGroup.Add(directionSlider);
 
             directionReadoutLabel = new Label();
-            directionReadoutLabel.style.marginLeft = 6f;
-            directionReadoutLabel.style.whiteSpace = WhiteSpace.Normal;
-            transportRow.Add(directionReadoutLabel);
+            directionReadoutLabel.AddToClassList("toolkit-transport__derived");
+            directionGroup.Add(directionReadoutLabel);
+
+            transportRow.Add(directionGroup);
 
             RefreshDirectionReadoutLabel();
 
@@ -276,6 +335,25 @@ namespace DotsAnimationToolkit.Editor
             layersColumn.style.marginRight = 8f;
             body.Add(layersColumn);
 
+            VisualElement layersHeader = new VisualElement();
+            layersHeader.AddToClassList("toolkit-pane-header");
+            Label layersTitle = new Label("Layers");
+            layersTitle.AddToClassList("toolkit-pane-title");
+            layersHeader.Add(layersTitle);
+
+            VisualElement layersActions = new VisualElement();
+            layersActions.AddToClassList("toolkit-pane-actions");
+            Button addLayerButton = ToolkitIcons.MakeIconButton(
+                () => layersColumnView?.AddLayer(), ToolkitIcons.Plus, "Add a layer above Override.", "+ Layer");
+            addLayerButton.text = "Layer";
+            addLayerButton.AddToClassList("toolkit-icon-button--with-text");
+            addLayerButton.AddToClassList("toolkit-pane-action");
+            addLayerButton.name = "actor-editor-add-layer-button";
+            layersActions.Add(addLayerButton);
+            layersHeader.Add(layersActions);
+
+            layersColumn.Add(layersHeader);
+
             layersColumnView = new ActorEditorLayersColumn();
             layersColumnView.style.flexGrow = 1f;
             layersColumnView.SelectionChanged += OnTreeSelectionChanged;
@@ -287,14 +365,23 @@ namespace DotsAnimationToolkit.Editor
             viewportColumn.style.flexGrow = 1f;
             body.Add(viewportColumn);
 
+            VisualElement viewportHeader = new VisualElement();
+            viewportHeader.AddToClassList("toolkit-pane-header");
+            Label viewportTitle = new Label("Preview");
+            viewportTitle.AddToClassList("toolkit-pane-title");
+            viewportHeader.Add(viewportTitle);
+            viewportColumn.Add(viewportHeader);
+
             viewportStatusLabel = new Label();
             viewportStatusLabel.style.whiteSpace = WhiteSpace.Normal;
             viewportColumn.Add(viewportStatusLabel);
 
             viewportImage = new Image();
             viewportImage.style.flexGrow = 1f;
-            viewportImage.style.backgroundColor = new Color(0.12f, 0.12f, 0.13f);
+            viewportImage.AddToClassList("actor-editor__viewport-image");
             viewportColumn.Add(viewportImage);
+
+            viewportColumn.Add(BuildTransportRow());
 
             // The expanded findings list floats over the viewport, the same corner the Clip Editor
             // tab uses for its own badge.
@@ -305,6 +392,13 @@ namespace DotsAnimationToolkit.Editor
             inspectorColumn.style.width = SideColumnWidth;
             inspectorColumn.style.marginLeft = 8f;
             body.Add(inspectorColumn);
+
+            VisualElement inspectorHeader = new VisualElement();
+            inspectorHeader.AddToClassList("toolkit-pane-header");
+            Label inspectorTitle = new Label("Actor Inspector");
+            inspectorTitle.AddToClassList("toolkit-pane-title");
+            inspectorHeader.Add(inspectorTitle);
+            inspectorColumn.Add(inspectorHeader);
 
             inspectorColumnView = new ActorEditorInspectorColumn();
             inspectorColumnView.style.flexGrow = 1f;
@@ -336,27 +430,6 @@ namespace DotsAnimationToolkit.Editor
         {
             isComposerProfileStale = true;
             RefreshValidationBadge();
-        }
-
-        private void OnResetButtonClicked()
-        {
-            composer.Reset();
-            previewController?.DisableRagdollPreview();
-            ragdollRefusalReason = null;
-            currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
-            currentMemberFacing = Direction.SouthEast;
-            composer.Facing = Direction.SouthEast;
-            directionSlider?.SetValueWithoutNotify(currentFacingAngleDegrees);
-            RefreshDirectionReadoutLabel();
-        }
-
-        private void OnPlayPauseButtonClicked()
-        {
-            isPlaying = !isPlaying;
-            if (playPauseButton != null)
-            {
-                playPauseButton.text = isPlaying ? "Pause" : "Play";
-            }
         }
 
         private void OnDirectionSliderChanged(ChangeEvent<float> changeEvent)

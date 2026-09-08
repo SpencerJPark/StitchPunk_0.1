@@ -78,18 +78,11 @@ namespace DotsAnimationToolkit.Editor
             ClipAsset slotClip = slots.GetSlot(slot);
 
             VisualElement row = new VisualElement();
-            row.style.marginBottom = 4f;
-            row.style.paddingLeft = 4f;
-            row.style.paddingRight = 4f;
-            row.style.paddingTop = 3f;
-            row.style.paddingBottom = 3f;
-            row.style.backgroundColor = slotClip != null
-                ? new Color(0.20f, 0.20f, 0.21f)
-                : new Color(0.16f, 0.16f, 0.17f);
+            row.AddToClassList("toolkit-box");
+            row.EnableInClassList("toolkit-box--active", slotClip != null);
 
             VisualElement topLine = new VisualElement();
-            topLine.style.flexDirection = FlexDirection.Row;
-            topLine.style.alignItems = Align.Center;
+            topLine.AddToClassList("toolkit-box__header");
             row.Add(topLine);
 
             ObjectField clipField = new ObjectField { objectType = typeof(ClipAsset), value = slotClip };
@@ -120,8 +113,8 @@ namespace DotsAnimationToolkit.Editor
             openButton.SetEnabled(slotClip != null);
             topLine.Add(openButton);
 
-            Button clearButton = new Button(() => SlotCleared?.Invoke(slot)) { text = "×" };
-            clearButton.tooltip = "Clear this slot.";
+            Button clearButton = ToolkitIcons.MakeIconButton(
+                () => SlotCleared?.Invoke(slot), ToolkitIcons.Trash, "Clear this slot.", "×");
             clearButton.SetEnabled(slotClip != null);
             topLine.Add(clearButton);
 

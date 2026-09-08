@@ -19,13 +19,22 @@ namespace DotsAnimationToolkit.Editor
     public sealed class ActorEditorLayersColumn : VisualElement
     {
         private const string RootUssClassName = "actor-editor__layers-column-root";
-        private const string LayerRowUssClassName = "actor-editor__layer-row";
-        private const string LayerRowSelectedUssClassName = "actor-editor__layer-row--selected";
-        private const string AnimationRowUssClassName = "actor-editor__animation-row";
-        private const string AnimationRowSelectedUssClassName = "actor-editor__animation-row--selected";
+        private const string LayerBoxUssClassName = "toolkit-box";
+        private const string LayerBoxSelectedUssClassName = "toolkit-box--selected";
+        private const string BoxHeaderUssClassName = "toolkit-box__header";
+        private const string BoxTitleUssClassName = "toolkit-box__title";
+        private const string BoxBodyUssClassName = "toolkit-box__body";
+        private const string BoxRowUssClassName = "toolkit-box__row";
+        private const string BoxRowSelectedUssClassName = "toolkit-box__row--selected";
+        private const string BoxFooterUssClassName = "toolkit-box__footer";
+        private const string EyeToggleUssClassName = "toolkit-eye-toggle";
+        private const string EyeToggleOffUssClassName = "toolkit-eye-toggle--off";
+        private const string TransportFieldUssClassName = "toolkit-transport__field";
         private const string LiveDotUssClassName = "actor-editor__live-dot";
         private const string LiveDotActiveUssClassName = "actor-editor__live-dot--active";
-        private const string AddLayerButtonUssClassName = "actor-editor__add-layer-button";
+        private const string LayerRowNamePrefix = "actor-editor-layer-row-";
+        private const string LayerEyeNamePrefix = "actor-editor-layer-eye-";
+        private const string AnimationRowNamePrefix = "actor-editor-animation-row-";
 
         private readonly ScrollView rowScroll;
 
@@ -143,10 +152,6 @@ namespace DotsAnimationToolkit.Editor
                 rowScroll.Add(BuildLayerBlock(layerIndex));
             }
 
-            Button addLayerButton = new Button(AddLayer) { text = "+ Layer" };
-            addLayerButton.AddToClassList(AddLayerButtonUssClassName);
-            addLayerButton.SetEnabled(profile.layers.Count < ActorProfileAsset.MaxLayerCount);
-            rowScroll.Add(addLayerButton);
         }
 
         private VisualElement BuildLayerBlock(int layerIndex)
@@ -155,13 +160,24 @@ namespace DotsAnimationToolkit.Editor
             bool isBookend = layerIndex == 0 || layerIndex == profile.layers.Count - 1;
 
             VisualElement block = new VisualElement();
+            block.AddToClassList(LayerBoxUssClassName);
 
-            VisualElement headerRow = new VisualElement { name = "actor-editor-layer-row-" + layerIndex };
-            headerRow.AddToClassList(LayerRowUssClassName);
-            headerRow.style.flexDirection = FlexDirection.Row;
-            headerRow.style.alignItems = Align.Center;
-            headerRow.RegisterCallback<PointerDownEvent>(pointerEvent => SelectLayer(layerIndex, headerRow));
+            VisualElement headerRow = new VisualElement { name = LayerRowNamePrefix + layerIndex };
+            headerRow.AddToClassList(BoxHeaderUssClassName);
+            headerRow.RegisterCallback<PointerDownEvent>(pointerEvent => SelectLayer(layerIndex, block));
             block.Add(headerRow);
+
+            bool defaultActive = layer != null && layer.defaultActive;
+            Button eyeButton = ToolkitIcons.MakeIconButton(
+                null,
+                defaultActive ? ToolkitIcons.EyeOpen : ToolkitIcons.EyeClosed,
+                "Start with this layer active. The preview re-seeds when you change it.",
+                defaultActive ? "on" : "off");
+            eyeButton.AddToClassList(EyeToggleUssClassName);
+            eyeButton.EnableInClassList(EyeToggleOffUssClassName, !defaultActive);
+            eyeButton.name = LayerEyeNamePrefix + layerIndex;
+            eyeButton.clicked += () => SetLayerDefaultActive(layerIndex, !profile.layers[layerIndex].defaultActive);
+            headerRow.Add(eyeButton);
 
             Label liveDot = new Label("●");
             liveDot.AddToClassList(LiveDotUssClassName);
@@ -170,14 +186,8 @@ namespace DotsAnimationToolkit.Editor
 
             Label nameLabel = new Label(layer != null && !string.IsNullOrEmpty(layer.displayName)
                 ? layer.displayName : "Layer " + layerIndex);
-            nameLabel.style.flexGrow = 1f;
+            nameLabel.AddToClassList(BoxTitleUssClassName);
             headerRow.Add(nameLabel);
-
-            Toggle defaultActiveToggle = new Toggle { value = layer != null && layer.defaultActive };
-            defaultActiveToggle.tooltip = "Whether the baked actor starts with this layer active.";
-            defaultActiveToggle.RegisterValueChangedCallback(changeEvent =>
-                SetLayerDefaultActive(layerIndex, changeEvent.newValue));
-            headerRow.Add(defaultActiveToggle);
 
             Button starterButton = new Button { text = ResolveAnimationDisplayName(layer != null ? layer.startingAnimationKey : 0u) };
             starterButton.tooltip = "The animation this layer starts on at bake.";
@@ -187,35 +197,44 @@ namespace DotsAnimationToolkit.Editor
 
             if (!isBookend)
             {
-                Button moveUpButton = new Button(() => MoveLayer(layerIndex, layerIndex - 1)) { text = "▲" };
-                moveUpButton.tooltip = "Move this layer toward Base. Reordering layers changes priority.";
-                moveUpButton.style.width = 18f;
+                Button moveUpButton = ToolkitIcons.MakeIconButton(
+                    () => MoveLayer(layerIndex, layerIndex - 1),
+                    null,
+                    "Move this layer toward Base. Reordering layers changes priority.",
+                    "▲");
                 headerRow.Add(moveUpButton);
 
-                Button moveDownButton = new Button(() => MoveLayer(layerIndex, layerIndex + 1)) { text = "▼" };
-                moveDownButton.tooltip = "Move this layer toward Override. Reordering layers changes priority.";
-                moveDownButton.style.width = 18f;
+                Button moveDownButton = ToolkitIcons.MakeIconButton(
+                    () => MoveLayer(layerIndex, layerIndex + 1),
+                    null,
+                    "Move this layer toward Override. Reordering layers changes priority.",
+                    "▼");
                 headerRow.Add(moveDownButton);
 
-                Button deleteButton = new Button(() => DeleteLayer(layerIndex)) { text = "×" };
-                deleteButton.tooltip = "Delete this layer and every animation on it.";
-                deleteButton.style.width = 18f;
+                Button deleteButton = ToolkitIcons.MakeIconButton(
+                    () => DeleteLayer(layerIndex),
+                    ToolkitIcons.Trash,
+                    "Delete this layer and every animation on it.",
+                    "×");
                 headerRow.Add(deleteButton);
             }
 
-            VisualElement animationsContainer = new VisualElement();
-            block.Add(animationsContainer);
+            VisualElement animationsBody = new VisualElement();
+            animationsBody.AddToClassList(BoxBodyUssClassName);
+            block.Add(animationsBody);
 
             int animationCount = layer != null && layer.animations != null ? layer.animations.Count : 0;
             for (int animationIndex = 0; animationIndex < animationCount; animationIndex++)
             {
-                animationsContainer.Add(BuildAnimationRow(layerIndex, animationIndex));
+                animationsBody.Add(BuildAnimationRow(layerIndex, animationIndex));
             }
 
-            Button addAnimationButton = new Button { text = "+ Animation" };
-            addAnimationButton.style.marginLeft = 16f;
+            VisualElement footer = new VisualElement();
+            footer.AddToClassList(BoxFooterUssClassName);
+            Button addAnimationButton = ToolkitIcons.MakeIconButton(null, ToolkitIcons.Plus, "Add an animation to this layer.", "+");
             addAnimationButton.clicked += () => OpenAddAnimationPicker(layerIndex, addAnimationButton);
-            animationsContainer.Add(addAnimationButton);
+            footer.Add(addAnimationButton);
+            block.Add(footer);
 
             return block;
         }
@@ -226,10 +245,8 @@ namespace DotsAnimationToolkit.Editor
             ActorAnimationDefinition animation = layer.animations[animationIndex];
             uint animationKey = animation != null ? animation.animationKey : 0u;
 
-            VisualElement row = new VisualElement();
-            row.AddToClassList(AnimationRowUssClassName);
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
+            VisualElement row = new VisualElement { name = AnimationRowNamePrefix + layerIndex + "-" + animationIndex };
+            row.AddToClassList(BoxRowUssClassName);
             row.RegisterCallback<PointerDownEvent>(pointerEvent => SelectAnimation(layerIndex, animationIndex, row));
 
             Label liveDot = new Label("●");
@@ -241,19 +258,19 @@ namespace DotsAnimationToolkit.Editor
             nameLabel.style.flexGrow = 1f;
             row.Add(nameLabel);
 
-            Button playButton = new Button(() => composer?.PlayAnimation(animationKey)) { text = "▶" };
-            playButton.style.width = 18f;
+            Button playButton = ToolkitIcons.MakeIconButton(
+                () => composer?.PlayAnimation(animationKey), ToolkitIcons.Play, "Play this animation on the preview.", "▶");
             row.Add(playButton);
 
-            Button stopButton = new Button(() => composer?.StopAnimation(animationKey)) { text = "■" };
-            stopButton.style.width = 18f;
+            Button stopButton = ToolkitIcons.MakeIconButton(
+                () => composer?.StopAnimation(animationKey), ToolkitIcons.Stop, "Stop this animation on the preview.", "■");
             row.Add(stopButton);
 
             FloatField scrubField = new FloatField
             {
                 value = composer != null ? composer.LayerTime(layerIndex) : 0f
             };
-            scrubField.style.width = 50f;
+            scrubField.AddToClassList(TransportFieldUssClassName);
             scrubField.tooltip = "This layer's playhead, seconds.";
             scrubField.RegisterValueChangedCallback(changeEvent => composer?.SetLayerTime(layerIndex, changeEvent.newValue));
             row.Add(scrubField);
@@ -308,7 +325,7 @@ namespace DotsAnimationToolkit.Editor
         {
             ApplySelection(
                 new ActorEditorSelection { kind = ActorEditorSelectionKind.Layer, layerIndex = layerIndex },
-                rowElement, LayerRowSelectedUssClassName);
+                rowElement, LayerBoxSelectedUssClassName);
         }
 
         private void SelectAnimation(int layerIndex, int animationIndex, VisualElement rowElement)
@@ -318,15 +335,15 @@ namespace DotsAnimationToolkit.Editor
                 {
                     kind = ActorEditorSelectionKind.Animation, layerIndex = layerIndex, animationIndex = animationIndex
                 },
-                rowElement, AnimationRowSelectedUssClassName);
+                rowElement, BoxRowSelectedUssClassName);
         }
 
         private void ApplySelection(ActorEditorSelection selection, VisualElement rowElement, string selectedUssClassName)
         {
             if (selectedRowElement != null)
             {
-                selectedRowElement.RemoveFromClassList(LayerRowSelectedUssClassName);
-                selectedRowElement.RemoveFromClassList(AnimationRowSelectedUssClassName);
+                selectedRowElement.RemoveFromClassList(LayerBoxSelectedUssClassName);
+                selectedRowElement.RemoveFromClassList(BoxRowSelectedUssClassName);
             }
             currentSelection = selection;
             selectedRowElement = rowElement;
@@ -359,6 +376,17 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             ApplyProfileEdit("Set Layer Default Active", () => profile.layers[layerIndex].defaultActive = defaultActive);
+        }
+
+        // Test seam: EditMode fixtures build this column outside a panel, so a dispatched ClickEvent
+        // never reaches the eye button's click handler. Exercises the exact same write path.
+        public void ToggleLayerDefaultActive(int layerIndex)
+        {
+            if (profile == null || profile.layers == null || layerIndex < 0 || layerIndex >= profile.layers.Count)
+            {
+                return;
+            }
+            SetLayerDefaultActive(layerIndex, !profile.layers[layerIndex].defaultActive);
         }
 
         /// <summary>Inserts a fresh layer directly above the fixed Override bookend. No-op past <see cref="ActorProfileAsset.MaxLayerCount"/>.</summary>

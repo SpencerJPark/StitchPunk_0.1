@@ -1,9 +1,11 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System.Collections.Generic;
+using System.Linq;
 using DotsAnimationToolkit.Authoring;
 using DotsAnimationToolkit.Editor;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -75,13 +77,33 @@ namespace DotsAnimationToolkit.Tests.EditMode
             ActorEditorLayersColumn layersColumn = new ActorEditorLayersColumn();
             layersColumn.Bind(profileAsset, null);
 
-            List<VisualElement> layerRows =
-                layersColumn.Query<VisualElement>(className: "actor-editor__layer-row").ToList();
-            List<VisualElement> animationRows =
-                layersColumn.Query<VisualElement>(className: "actor-editor__animation-row").ToList();
+            List<VisualElement> layerRows = layersColumn.Query<VisualElement>().ToList()
+                .Where(element => element.name != null && element.name.StartsWith("actor-editor-layer-row-")).ToList();
+            List<VisualElement> animationRows = layersColumn.Query<VisualElement>().ToList()
+                .Where(element => element.name != null && element.name.StartsWith("actor-editor-animation-row-")).ToList();
 
             Assert.AreEqual(3, layerRows.Count, "Base, Action and Override should each get one row.");
             Assert.AreEqual(2, animationRows.Count, "Both animations on the Action layer should get one row each.");
+        }
+
+        [Test]
+        public void LayerEye_TogglesDefaultActiveAndIsUndoable()
+        {
+            ActorEditorLayersColumn layersColumn = new ActorEditorLayersColumn();
+            layersColumn.Bind(profileAsset, null);
+
+            bool before = profileAsset.layers[0].defaultActive;
+
+            // ClickEvent dispatch is a no-op here: this fixture builds the column outside any panel,
+            // so SendEvent's elementPanel?.dispatcher?.Dispatch(...) never fires. Drive the same
+            // undoable write path through the column's public test seam instead.
+            layersColumn.ToggleLayerDefaultActive(0);
+
+            Assert.AreEqual(!before, profileAsset.layers[0].defaultActive);
+
+            Undo.PerformUndo();
+
+            Assert.AreEqual(before, profileAsset.layers[0].defaultActive);
         }
 
         [Test]
