@@ -193,6 +193,11 @@ namespace DotsAnimationToolkit
             return TryDeriveFacingFromRootTravel(ref rootKeys, time, out angleDegrees);
         }
 
+        /// <returns>
+        /// False when no key has fired yet, or when the key in effect is <c>isAuto</c> — an Auto key
+        /// releases the pin, so a caller falls through to the mark/root-travel chain exactly as it
+        /// would with no facing key authored at all.
+        /// </returns>
         [BurstCompile]
         public static bool TryResolveFacingOverride(
             ref BlobArray<CutsceneFacingKeyBlob> facingKeys, float time, out float angleDegrees)
@@ -206,7 +211,7 @@ namespace DotsAnimationToolkit
                     bestIndex = keyIndex;
                 }
             }
-            if (bestIndex < 0)
+            if (bestIndex < 0 || facingKeys[bestIndex].isAuto)
             {
                 angleDegrees = 0f;
                 return false;

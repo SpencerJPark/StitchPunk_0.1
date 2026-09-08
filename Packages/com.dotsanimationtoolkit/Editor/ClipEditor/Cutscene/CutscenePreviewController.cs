@@ -743,9 +743,17 @@ namespace DotsAnimationToolkit.Editor
         /// Samples whichever clip block the slot's lane is playing, cross-fading the one before it
         /// while their overlap lasts, into <see cref="composedPoses"/>.
         /// </summary>
+        // A73: CutsceneClipBlock now names an animation key (resolved against the slot's profile,
+        // by layer) rather than a raw clip id, and this composer still samples the old
+        // rig/clipSets-bound registry directly. Rebuilding it onto a per-layer PlaybackLayer
+        // reconstruction is A73-T5's job (spec §3.5, ComposeLayers) — until then the clip lane
+        // preview is a no-op rather than sampling the wrong clip id under the new schema; root
+        // motion, facing and camera preview are unaffected.
         private void ComposeClipLane(
             CutsceneSlot slot, Dictionary<uint, PartBinding> parts, float timeSeconds, in SlotFacing facing)
         {
+            return;
+#pragma warning disable CS0162 // unreachable pending A73-T5's ComposeLayers rewrite
             if (slot.clipBlocks == null || slot.clipBlocks.Count == 0)
             {
                 return;
@@ -768,7 +776,7 @@ namespace DotsAnimationToolkit.Editor
             CutsceneClipBlock activeBlock = slot.clipBlocks[activeBlockIndex];
             int activeClipIndex;
             if (!clipPreview.TryGetClipIndex(
-                    ResolveFacingVariantClipId(slot, in facing, activeBlock.clipId), out activeClipIndex))
+                    ResolveFacingVariantClipId(slot, in facing, activeBlock.animationKey), out activeClipIndex))
             {
                 return;
             }
@@ -777,7 +785,7 @@ namespace DotsAnimationToolkit.Editor
                     activeBlock.start, timeSeconds, activeBlock.speed, activeBlock.clipStartOffsetSeconds)
                 + HoldClipPhaseSeconds * CutsceneBlockTiming.EffectiveBlockSpeed(activeBlock.speed);
             float activePhase = CutsceneBlockTiming.LoopPhaseNormalized(
-                activeClipTime, clipPreview.GetClipDuration(activeClipIndex), activeBlock.loop);
+                activeClipTime, clipPreview.GetClipDuration(activeClipIndex), activeBlock.loop == LoopMode.Loop);
 
             int previousClipIndex = -1;
             float previousPhase = 0f;
@@ -790,7 +798,7 @@ namespace DotsAnimationToolkit.Editor
                 blendWeight = CutsceneBlockTiming.SeamBlendWeight(
                     activeBlock.start, blendDuration, timeSeconds);
                 if (blendWeight < 1f && clipPreview.TryGetClipIndex(
-                        ResolveFacingVariantClipId(slot, in facing, previousBlock.clipId), out previousClipIndex))
+                        ResolveFacingVariantClipId(slot, in facing, previousBlock.animationKey), out previousClipIndex))
                 {
                     // The outgoing clip keeps running on its own clock while the weight climbs —
                     // PlaybackTimeSystem.AdvanceBlend's behaviour, not a frozen last frame.
@@ -799,7 +807,7 @@ namespace DotsAnimationToolkit.Editor
                             previousBlock.clipStartOffsetSeconds)
                         + HoldClipPhaseSeconds * CutsceneBlockTiming.EffectiveBlockSpeed(previousBlock.speed);
                     previousPhase = CutsceneBlockTiming.LoopPhaseNormalized(
-                        previousClipTime, clipPreview.GetClipDuration(previousClipIndex), previousBlock.loop);
+                        previousClipTime, clipPreview.GetClipDuration(previousClipIndex), previousBlock.loop == LoopMode.Loop);
                 }
             }
 
@@ -827,6 +835,7 @@ namespace DotsAnimationToolkit.Editor
 
                 composedPoses[targetId] = pose;
             }
+#pragma warning restore CS0162
         }
 
         // The block a lane is playing at timeSeconds: the last one to have started. −1 before the

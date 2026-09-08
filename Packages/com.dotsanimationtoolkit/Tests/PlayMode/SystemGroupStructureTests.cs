@@ -224,6 +224,26 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         }
 
         /// <summary>
+        /// Amendment A73: catches dropping <c>CutsceneTimelineSystem</c>'s <c>UpdateBefore</c> edge
+        /// on <c>ActorFacingRepickSystem</c>. A facing the cutscene writes this frame must be
+        /// re-picked this frame, not the frame after.
+        /// </summary>
+        [Test]
+        public void CutsceneTimeline_RunsBeforeFacingRepick_InTheLogicGroup()
+        {
+            UpdateInGroupAttribute updateInGroup = GetSingleUpdateInGroup(typeof(CutsceneTimelineSystem));
+            Assert.AreEqual(typeof(AnimationToolkitLogicSystemGroup), updateInGroup.GroupType);
+
+            object[] beforeAttributes =
+                typeof(CutsceneTimelineSystem).GetCustomAttributes(typeof(UpdateBeforeAttribute), false);
+
+            Assert.AreEqual(1, beforeAttributes.Length, "Expected exactly one UpdateBefore on CutsceneTimelineSystem.");
+            Assert.AreEqual(
+                typeof(ActorFacingRepickSystem),
+                ((UpdateBeforeAttribute)beforeAttributes[0]).SystemType);
+        }
+
+        /// <summary>
         /// Catches: moving <c>EventWindowSystem</c> out of the logic group, or dropping its
         /// <c>UpdateAfter</c> edge on event emission. Placed in the presentation group it would be
         /// gated on visibility, so an actor swinging behind the camera would hold no damage window;

@@ -1,20 +1,23 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System.Collections.Generic;
+using DotsAnimationToolkit.Authoring;
 using NUnit.Framework;
 using Unity.Collections;
 using Unity.Core;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine;
 
 namespace DotsAnimationToolkit.Tests.PlayMode
 {
     /// <summary>
-    /// Covers runtime facing (amendment A65 §3.2): a cutscene that walks an actor along its root
-    /// lane must say which way that actor is facing, and must re-pick its direction set's variant
-    /// when the walk turns — the gap Phase G recorded and never closed, which is why an actor could
-    /// only face correctly in the editor preview.
+    /// Covers runtime facing: a cutscene that walks an actor along its root lane must say which way
+    /// that actor is facing (amendment A65 §3.2), and — amendment A73 §3.3 — must fold that angle
+    /// onto the bound actor's own <c>ActorProfile.turnDirections</c> and write
+    /// <see cref="ActorFacing"/>, honour a Fixed-or-Auto facing key, and latch a resolved mark's
+    /// arrival facing until the actor moves again.
     /// </summary>
     /// <remarks>
     /// Blobs are hand-built, matching this suite's convention: the bake has its own fixtures, and a
@@ -23,25 +26,22 @@ namespace DotsAnimationToolkit.Tests.PlayMode
     public sealed class CutsceneFacingTests
     {
         private const uint SlotId = 1;
-        private const ulong EastClipId = 700;
-        private const ulong NorthClipId = 701;
 
         private World testWorld;
         private BlobAssetReference<ClipRegistryBlob> registry;
         private double elapsedTime;
         private readonly List<BlobAssetReference<CutsceneBlob>> cutsceneBlobs =
             new List<BlobAssetReference<CutsceneBlob>>();
+        private readonly List<BlobAssetReference<ActorProfileBlob>> profileBlobs =
+            new List<BlobAssetReference<ActorProfileBlob>>();
+        private readonly List<Object> scriptableObjects = new List<Object>();
 
         [SetUp]
         public void SetUp()
         {
             testWorld = new World("CutsceneFacingTests");
             elapsedTime = 0d;
-            registry = PlaybackTestActor.BuildRegistry(new[]
-            {
-                new PlaybackTestActor.ClipSpec { clipId = EastClipId, duration = 2f, defaultLoop = LoopMode.Loop },
-                new PlaybackTestActor.ClipSpec { clipId = NorthClipId, duration = 2f, defaultLoop = LoopMode.Loop }
-            });
+            registry = PlaybackTestActor.BuildRegistry(new PlaybackTestActor.ClipSpec[0]);
         }
 
         [TearDown]
@@ -65,15 +65,46 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 }
             }
             cutsceneBlobs.Clear();
+
+            for (int i = 0; i < profileBlobs.Count; i++)
+            {
+                if (profileBlobs[i].IsCreated)
+                {
+                    profileBlobs[i].Dispose();
+                }
+            }
+            profileBlobs.Clear();
+
+            for (int i = 0; i < scriptableObjects.Count; i++)
+            {
+                if (scriptableObjects[i] != null)
+                {
+                    Object.DestroyImmediate(scriptableObjects[i]);
+                }
+            }
+            scriptableObjects.Clear();
+        }
+
+        private Entity CreateActorWithTurnDirections(AnimationDirections turnDirections)
+        {
+            ActorProfileAsset profileAsset = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            scriptableObjects.Add(profileAsset);
+            profileAsset.turnDirections = turnDirections;
+
+            BlobAssetReference<ActorProfileBlob> profileBlob;
+            Entity actorEntity = PlaybackTestActor.CreateActorWithProfile(
+                testWorld, registry, profileAsset, out profileBlob, layerCount: 2);
+            profileBlobs.Add(profileBlob);
+            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+            return actorEntity;
         }
 
         [Test]
         public void RootTravel_WritesCutsceneFacingAngle()
         {
-            Entity actorEntity = PlaybackTestActor.CreateActor(testWorld, registry, layerCount: 2);
-            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+            Entity actorEntity = CreateActorWithTurnDirections(AnimationDirections.Eight);
 
-            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTurningCutsceneBlob(withVariants: false);
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTurningCutsceneBlob();
             cutsceneBlobs.Add(cutsceneBlob);
             Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
@@ -100,15 +131,37 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 "and travelling along +z is facing north");
         }
 
+        /// <summary>Amendment A73-D2/§3.3: the resolved angle folds onto the bound actor's own profile turn granularity and is written into ActorFacing.</summary>
         [Test]
-        public void FacingChange_ReissuesTheDirectionVariantWithTimeCarried()
+        public void RootTravel_WritesActorFacing_SnappedAtTheProfilesTurnDirections()
         {
-            const float CarriedClipTime = 1.234f;
+            Entity actorEntity = CreateActorWithTurnDirections(AnimationDirections.Six);
 
-            Entity actorEntity = PlaybackTestActor.CreateActor(testWorld, registry, layerCount: 2);
-            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTurningCutsceneBlob();
+            cutsceneBlobs.Add(cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
+            {
+                slotId = SlotId,
+                actorEntity = actorEntity
+            });
 
-            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTurningCutsceneBlob(withVariants: true);
+            Advance(2.1f);
+
+            Assert.AreEqual(Direction.North,
+                testWorld.EntityManager.GetComponentData<ActorFacing>(actorEntity).facing,
+                "travelling along +z folds onto North on a Six-turning profile");
+            Assert.AreEqual(90f,
+                testWorld.EntityManager.GetComponentData<CutsceneFacing>(actorEntity).angleDegrees, 1e-3f);
+        }
+
+        /// <summary>Amendment A73 §3.3: a Fixed key pins the angle; an Auto key at a later time cancels it and facing derives again from root travel.</summary>
+        [Test]
+        public void AutoFacingKey_HandsFacingBackToTravel()
+        {
+            Entity actorEntity = CreateActorWithTurnDirections(AnimationDirections.Eight);
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildFixedThenAutoFacingBlob();
             cutsceneBlobs.Add(cutsceneBlob);
             Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
@@ -118,62 +171,45 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             });
 
             Advance(0.5f);
-            DynamicBuffer<AnimationCommand> commands =
-                testWorld.EntityManager.GetBuffer<AnimationCommand>(actorEntity);
-            Assert.AreEqual(1, CountPlays(commands, EastClipId),
-                "the block starts on the variant its facing already calls for, not on the authored side");
-            Assert.AreEqual(0, CountPlays(commands, NorthClipId));
+            Assert.AreEqual(180f,
+                testWorld.EntityManager.GetComponentData<CutsceneFacing>(actorEntity).angleDegrees, 1e-3f,
+                "the Fixed key at 0s pins west (180 degrees) until the Auto key");
 
-            // Stand in for the playback systems this fixture does not run: the layer has been
-            // playing for a while, and that phase is what the swap has to carry over.
-            // The request was created with the default layer, CutsceneApi.TopLayer, which resolves
-            // to the actor's last playback layer — so that is the layer whose phase must carry.
-            DynamicBuffer<PlaybackLayer> layers = testWorld.EntityManager.GetBuffer<PlaybackLayer>(actorEntity);
-            int drivenLayerIndex = layers.Length - 1;
-            PlaybackLayer layer = layers[drivenLayerIndex];
-            layer.time = CarriedClipTime;
-            layers[drivenLayerIndex] = layer;
-
-            Advance(2.1f);
-
-            commands = testWorld.EntityManager.GetBuffer<AnimationCommand>(actorEntity);
-            int northPlayIndex = -1;
-            for (int commandIndex = 0; commandIndex < commands.Length; commandIndex++)
-            {
-                if (commands[commandIndex].kind == CommandKind.Play
-                    && commands[commandIndex].clip.Value == NorthClipId)
-                {
-                    northPlayIndex = commandIndex;
-                }
-            }
-            Assert.GreaterOrEqual(northPlayIndex, 0,
-                "turning onto a facing the set serves with another clip must re-pick the variant");
-            Assert.AreEqual(0f, commands[northPlayIndex].blendDuration, 1e-4f,
-                "a variant swap is the same motion continuing, not a transition to blend");
-            Assert.Less(northPlayIndex + 1, commands.Length,
-                "the swap must be followed by the SetTime that carries the phase");
-            Assert.AreEqual(CommandKind.SetTime, commands[northPlayIndex + 1].kind);
-            Assert.AreEqual(CarriedClipTime, commands[northPlayIndex + 1].time, 1e-4f,
-                "without the carried time the walk cycle restarts on frame 0 every time the actor turns");
-
-            Advance(0.5f);
-            commands = testWorld.EntityManager.GetBuffer<AnimationCommand>(actorEntity);
-            Assert.AreEqual(1, CountPlays(commands, NorthClipId),
-                "the variant is re-picked on the turn, not re-issued every frame after it");
+            Advance(1f);
+            Assert.AreEqual(0f,
+                testWorld.EntityManager.GetComponentData<CutsceneFacing>(actorEntity).angleDegrees, 1e-3f,
+                "the Auto key at 1s hands facing back to root travel, which is heading east");
         }
 
-        private static int CountPlays(DynamicBuffer<AnimationCommand> commands, ulong clipId)
+        /// <summary>Amendment A73 §3.3: a resolved mark latches its arrival facing until the actor moves again.</summary>
+        [Test]
+        public void MarkArrival_LatchesTheMarksFacing()
         {
-            int count = 0;
-            for (int commandIndex = 0; commandIndex < commands.Length; commandIndex++)
+            Entity actorEntity = CreateActorWithTurnDirections(AnimationDirections.Six);
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildMarkCutsceneBlob();
+            cutsceneBlobs.Add(cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
-                if (commands[commandIndex].kind == CommandKind.Play
-                    && commands[commandIndex].clip.Value == clipId)
-                {
-                    count++;
-                }
-            }
-            return count;
+                slotId = SlotId,
+                actorEntity = actorEntity
+            });
+
+            Advance(0.1f);
+            Assert.IsTrue(testWorld.EntityManager.HasComponent<CutsceneMoveToMark>(actorEntity),
+                "sanity: the mark order reached the actor");
+
+            LocalTransform localTransform = testWorld.EntityManager.GetComponentData<LocalTransform>(actorEntity);
+            localTransform.Position = new float3(5f, 0f, 0f);
+            testWorld.EntityManager.SetComponentData(actorEntity, localTransform);
+
+            Advance(0.1f);
+            Advance(0.1f);
+
+            Assert.AreEqual(Direction.North,
+                testWorld.EntityManager.GetComponentData<ActorFacing>(actorEntity).facing,
+                "the mark's arrival facing (90 degrees) latches and folds onto North");
         }
 
         private void Advance(float deltaTime)
@@ -185,19 +221,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             testWorld.EntityManager.CompleteAllTrackedJobs();
         }
 
-        /// <summary>
-        /// One Actor slot walking east for 2 s and then north for 2 s, playing one looping block for
-        /// the whole run. With <paramref name="withVariants"/> the block's clip is a member of an
-        /// eight-direction set, so the turn calls for a different clip rather than the same one
-        /// mirrored.
-        /// </summary>
-        private static BlobAssetReference<CutsceneBlob> BuildTurningCutsceneBlob(bool withVariants)
+        /// <summary>One Actor slot walking east for 2 s and then north for 2 s. No clip blocks — these fixtures test facing only.</summary>
+        private static BlobAssetReference<CutsceneBlob> BuildTurningCutsceneBlob()
         {
             BlobBuilder builder = new BlobBuilder(Allocator.Temp);
             try
             {
                 ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
-                root.schemaVersion = 5;
+                root.schemaVersion = 6;
                 root.cutsceneKey = 1UL;
 
                 BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
@@ -211,29 +242,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 BlobBuilderArray<CutsceneSlotSegmentBlob> slotTracks = builder.Allocate(ref segment.slotTracks, 1);
                 ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
 
-                BlobBuilderArray<CutsceneClipBlockBlob> clipBlocks =
-                    builder.Allocate(ref slotSegment.clipBlocks, 1);
-                clipBlocks[0] = new CutsceneClipBlockBlob
-                {
-                    clipId = EastClipId,
-                    start = 0f,
-                    duration = 4f,
-                    loop = true,
-                    blendDuration = 0f,
-                    directionVariants = withVariants
-                        ? new CutsceneDirectionVariantsBlob
-                        {
-                            hasVariants = true,
-                            south = EastClipId,
-                            southEast = EastClipId,
-                            east = EastClipId,
-                            northEast = NorthClipId,
-                            north = NorthClipId,
-                            targetDirections = AnimationDirections.Eight,
-                            effectiveDirections = AnimationDirections.Eight
-                        }
-                        : default
-                };
+                builder.Allocate(ref slotSegment.clipBlocks, 0);
 
                 BlobBuilderArray<CutsceneTransformKeyBlob> transformKeys =
                     builder.Allocate(ref slotSegment.transformKeys, 3);
@@ -245,6 +254,106 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 builder.Allocate(ref slotSegment.partTracks, 0);
                 builder.Allocate(ref slotSegment.attachMarkers, 0);
                 builder.Allocate(ref slotSegment.markKeys, 0);
+                builder.Allocate(ref slotSegment.layerStops, 0);
+
+                builder.Allocate(ref segment.cameraKeys, 0);
+                builder.Allocate(ref segment.cameraCutTimes, 0);
+                builder.Allocate(ref segment.events, 0);
+
+                return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        /// <summary>One Actor slot: a Fixed facing key at 180 degrees at t=0, an Auto key at t=1s, root travelling east for 2s.</summary>
+        private static BlobAssetReference<CutsceneBlob> BuildFixedThenAutoFacingBlob()
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
+                root.schemaVersion = 6;
+                root.cutsceneKey = 1UL;
+
+                BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
+                slots[0] = new CutsceneSlotMetaBlob { slotId = SlotId, kind = CutsceneSlotKind.Actor };
+
+                BlobBuilderArray<CutsceneSegmentBlob> segments = builder.Allocate(ref root.segments, 1);
+                ref CutsceneSegmentBlob segment = ref segments[0];
+                segment.duration = 2f;
+                segment.holdId = default;
+
+                BlobBuilderArray<CutsceneSlotSegmentBlob> slotTracks = builder.Allocate(ref segment.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
+
+                builder.Allocate(ref slotSegment.clipBlocks, 0);
+
+                BlobBuilderArray<CutsceneTransformKeyBlob> transformKeys =
+                    builder.Allocate(ref slotSegment.transformKeys, 2);
+                transformKeys[0] = RootKey(0f, new float3(0f, 0f, 0f));
+                transformKeys[1] = RootKey(2f, new float3(10f, 0f, 0f));
+
+                BlobBuilderArray<CutsceneFacingKeyBlob> facingKeys = builder.Allocate(ref slotSegment.facingKeys, 2);
+                facingKeys[0] = new CutsceneFacingKeyBlob { time = 0f, angleRadians = math.radians(180f), isAuto = false };
+                facingKeys[1] = new CutsceneFacingKeyBlob { time = 1f, angleRadians = 0f, isAuto = true };
+
+                builder.Allocate(ref slotSegment.partTracks, 0);
+                builder.Allocate(ref slotSegment.attachMarkers, 0);
+                builder.Allocate(ref slotSegment.markKeys, 0);
+                builder.Allocate(ref slotSegment.layerStops, 0);
+
+                builder.Allocate(ref segment.cameraKeys, 0);
+                builder.Allocate(ref segment.cameraCutTimes, 0);
+                builder.Allocate(ref segment.events, 0);
+
+                return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        /// <summary>One Actor slot with one mark at t=0: position (5,0,0), arrival facing 90 degrees (north), tolerance 0.5.</summary>
+        private static BlobAssetReference<CutsceneBlob> BuildMarkCutsceneBlob()
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
+                root.schemaVersion = 6;
+                root.cutsceneKey = 1UL;
+
+                BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
+                slots[0] = new CutsceneSlotMetaBlob { slotId = SlotId, kind = CutsceneSlotKind.Actor };
+
+                BlobBuilderArray<CutsceneSegmentBlob> segments = builder.Allocate(ref root.segments, 1);
+                ref CutsceneSegmentBlob segment = ref segments[0];
+                segment.duration = 2f;
+                segment.holdId = default;
+
+                BlobBuilderArray<CutsceneSlotSegmentBlob> slotTracks = builder.Allocate(ref segment.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
+
+                builder.Allocate(ref slotSegment.clipBlocks, 0);
+                builder.Allocate(ref slotSegment.transformKeys, 0);
+                builder.Allocate(ref slotSegment.facingKeys, 0);
+                builder.Allocate(ref slotSegment.partTracks, 0);
+                builder.Allocate(ref slotSegment.attachMarkers, 0);
+
+                BlobBuilderArray<CutsceneMarkKeyBlob> markKeys = builder.Allocate(ref slotSegment.markKeys, 1);
+                markKeys[0] = new CutsceneMarkKeyBlob
+                {
+                    time = 0f,
+                    position = new float3(5f, 0f, 0f),
+                    facingRadians = math.radians(90f),
+                    toleranceMeters = 0.5f,
+                    timeoutSeconds = 0f
+                };
+                builder.Allocate(ref slotSegment.layerStops, 0);
 
                 builder.Allocate(ref segment.cameraKeys, 0);
                 builder.Allocate(ref segment.cameraCutTimes, 0);

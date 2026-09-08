@@ -2297,8 +2297,12 @@ namespace DotsAnimationToolkit.Editor
                 for (int i = 0; i < slot.clipBlocks.Count; i++)
                 {
                     CutsceneClipBlock block = slot.clipBlocks[i];
+                    // A73: blocks now name an animation key, not a raw clip id — the picker-driven
+                    // display (name, layer) is A73-T4's job; this raw-key label keeps the timeline
+                    // compiling and legible in the interim.
                     blockDisplays.Add(new CutsceneClipBlockDisplay(
-                        DescribeClip(slot, block.clipId), block.start, block.duration, block.loop));
+                        "0x" + block.animationKey.ToString("X8"), block.start, block.duration,
+                        block.loop == LoopMode.Loop));
                 }
 
                 CutsceneClipBlockLaneElement clipLane = new CutsceneClipBlockLaneElement
@@ -4050,28 +4054,11 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorScroll.Add(BuildHeading("Clip Block"));
 
-            List<ClipAsset> availableClips = BuildAvailableClips(slot);
-            List<string> labels = new List<string> { "(none)" };
-            int currentChoice = 0;
-            for (int i = 0; i < availableClips.Count; i++)
-            {
-                labels.Add(availableClips[i].name);
-                if (availableClips[i].stableId == slot.clipBlocks[blockIndex].clipId)
-                {
-                    currentChoice = i + 1;
-                }
-            }
-
-            DropdownField clipDropdown = new DropdownField("Clip", labels, currentChoice);
-            clipDropdown.RegisterValueChangedCallback(changeEvent =>
-            {
-                int chosenIndex = labels.IndexOf(changeEvent.newValue);
-                ulong clipId = chosenIndex > 0 ? availableClips[chosenIndex - 1].stableId : 0UL;
-                blockProperty.FindPropertyRelative("clipId").longValue = unchecked((long)clipId);
-                serializedObject.ApplyModifiedProperties();
-                RebuildTimeline();
-            });
-            inspectorScroll.Add(clipDropdown);
+            // A73: a block now names an animation key from the slot's profile, not a raw clip from
+            // its clip sets. The picker-driven field (VocabularyPicker, filtered to the block's row)
+            // is A73-T4's job (spec §3.4); a raw key field keeps the inspector compiling and usable
+            // in the interim.
+            AddBoundField(blockProperty, "animationKey", "Animation Key");
 
             AddBoundField(blockProperty, "start", "Start (s)");
             AddBoundField(blockProperty, "duration", "Duration (s)");

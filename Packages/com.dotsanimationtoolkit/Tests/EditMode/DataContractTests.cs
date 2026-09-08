@@ -674,5 +674,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 AssertFieldsMatch(enableableTagType, new FieldContract[0]);
             }
         }
+
+        /// <summary>Amendment A73: the cutscene runtime's per-slot layer bookkeeping is sized against the profile's own layer ceiling — a mismatch would silently drop or misalign layer state for a full-width profile.</summary>
+        [Test]
+        public void CutsceneApi_LayersPerSlot_MatchesActorProfileMaxLayerCount()
+        {
+            Assert.AreEqual(
+                DotsAnimationToolkit.Authoring.ActorProfileAsset.MaxLayerCount,
+                CutsceneApi.LayersPerSlot,
+                "CutsceneApi.LayersPerSlot must be sized against ActorProfileAsset.MaxLayerCount.");
+        }
     }
 }

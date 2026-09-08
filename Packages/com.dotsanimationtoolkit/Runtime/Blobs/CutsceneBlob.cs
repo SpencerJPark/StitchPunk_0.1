@@ -28,6 +28,20 @@ namespace DotsAnimationToolkit
         public uint slotId; // names a host's CutsceneActorBinding entry
 
         public CutsceneSlotKind kind; // rig-driven clip player vs bare transform target
+
+        public CutsceneLocomotionBlob locomotion; // default (all zero) means locomotion is off/inert; Prop slots always carry the default
+    }
+
+    /// <summary>Baked auto-locomotion for one Actor slot. <see cref="movingKey"/> zero means inert — the bake warns.</summary>
+    public struct CutsceneLocomotionBlob
+    {
+        public bool enabled;
+
+        public uint standingKey; // 0 = none; the moving entry's layer is stopped instead of switched
+
+        public uint movingKey; // 0 = inert
+
+        public float speedThreshold; // meters/second
     }
 
     /// <summary>
@@ -66,6 +80,18 @@ namespace DotsAnimationToolkit
         public BlobArray<CutsceneAttachMarkerBlob> attachMarkers;
 
         public BlobArray<CutsceneMarkKeyBlob> markKeys;
+
+        public BlobArray<CutsceneLayerStopBlob> layerStops; // bucketed like marks; empty for a Prop slot
+    }
+
+    /// <summary>One baked layer stop: hands a profile layer back to auto locomotion (or silence) from this time.</summary>
+    public struct CutsceneLayerStopBlob
+    {
+        public float time; // segment-relative seconds
+
+        public byte layerIndex; // resolved against the slot's profile at bake
+
+        public float blendOut; // NaN = the stopped entry's own clip default
     }
 
     /// <summary>One baked move-to mark, bucketed by the instant its order is issued.</summary>
@@ -102,48 +128,27 @@ namespace DotsAnimationToolkit
         public float3 detachImpulse; // detach only; host-space impulse handed on via CutsceneDetachSignal
     }
 
-    /// <summary>One baked clip block: overlap with the previous block on the slot's flat lane is the crossfade window; blocks that merely touch are a hard cut.</summary>
+    /// <summary>One baked clip block: overlap with the previous block on its row (blocks grouped by their entry's resolved layer) is the crossfade window; blocks that merely touch are a hard cut.</summary>
     public struct CutsceneClipBlockBlob
     {
-        public ulong clipId; // resolved against whichever ClipRegistryBlob the bound actor carries
+        public uint animationKey; // AnimationNameRegistry id; the entry's layer is derived from the bound actor's own ActorProfile at play time
 
         public float start; // segment-relative seconds
 
         public float duration;
 
-        public bool loop;
+        public LoopMode loop; // UseClipDefault = the profile entry's own loop, which may itself defer to the clip
 
-        // Crossfade window from the previous block on the slot's flat (pre-segment-split) lane,
-        // baked rather than derived at play time: a hold can split two overlapping blocks across
-        // segments, and the incoming one is still its segment's first block despite having a real
-        // predecessor to blend from. 0 for the slot's first block, or a touching/gapped predecessor.
+        // Crossfade window from the previous block on the slot's flat (pre-segment-split) row for
+        // the same resolved layer, baked rather than derived at play time: a hold can split two
+        // overlapping blocks across segments, and the incoming one is still its segment's first
+        // block despite having a real predecessor to blend from. NaN = no predecessor on this row
+        // (the profile entry's own blend-in); 0 = a touching/gapped predecessor.
         public float blendDuration;
 
         public float speed; // multiplied by the cutscene's own speed at Play; 0 = pre-schema-5 bake, see CutsceneBlockTiming.EffectiveBlockSpeed
 
         public float clipStartOffset; // seconds into the clip, issued as a SetTime after the Play
-
-        public CutsceneDirectionVariantsBlob directionVariants; // hasVariants false when the block's clip isn't in the slot's direction set
-    }
-
-    /// <summary>One clip block's turn table: the five east-side clips its direction set authors, plus the direction counts the resolve chain needs.</summary>
-    public struct CutsceneDirectionVariantsBlob
-    {
-        public bool hasVariants; // false when the block's clip isn't a member of the slot's direction set, or the slot has none
-
-        public ulong south; // clip id for that facing; 0 = the set leaves it empty
-
-        public ulong southEast; // see south
-
-        public ulong east; // see south
-
-        public ulong northEast; // see south
-
-        public ulong north; // see south
-
-        public AnimationDirections targetDirections; // the actor's own turn granularity, before the set's coverage folds it
-
-        public AnimationDirections effectiveDirections; // what the set's filled slots actually cover
     }
 
     /// <summary>One baked transform key. Rotation is stored in radians (authoring is degrees, matching <c>TransformKeyBlob</c>'s convention).</summary>
@@ -164,12 +169,14 @@ namespace DotsAnimationToolkit
         public float2 bezierEndHandle; // see bezierStartHandle
     }
 
-    /// <summary>One baked facing override key. The angle is stored in radians (authoring is degrees, 0-360).</summary>
+    /// <summary>One baked facing key. The angle is stored in radians (authoring is degrees, 0-360).</summary>
     public struct CutsceneFacingKeyBlob
     {
         public float time; // segment-relative seconds
 
-        public float angleRadians;
+        public float angleRadians; // meaningless when isAuto
+
+        public bool isAuto; // true releases the pin from this time; false (Fixed) pins angleRadians
     }
 
     /// <summary>One baked per-part override track, addressed by tag at authoring time.</summary>

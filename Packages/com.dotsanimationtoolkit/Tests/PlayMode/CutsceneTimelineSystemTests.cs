@@ -15,7 +15,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
     /// <summary>
     /// Covers <c>CutsceneTimelineSystem</c>'s central contract (Phase G §4, §6, HANDOFF's own
     /// framing): a skipped cutscene and a fully played-through one must leave the exact same world
-    /// state, not merely a close one.
+    /// state, not merely a close one. Amendment A73: blocks play by animation name against the bound
+    /// actor's own <c>ActorProfile</c>, resolved to a layer per entry.
     /// </summary>
     /// <remarks>
     /// The blob is built by hand with a raw <see cref="BlobBuilder"/> rather than through
@@ -29,11 +30,15 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         private const ulong WalkClipId = 500;
         private const uint SlotId = 1;
         private const uint FireOnSkipEventKey = 42;
+        private const uint WalkAnimationKey = 10;
+        private const uint WaveAnimationKey = 20;
 
         private World testWorld;
         private BlobAssetReference<ClipRegistryBlob> registry;
         private double elapsedTime;
         private readonly List<BlobAssetReference<CutsceneBlob>> cutsceneBlobs = new List<BlobAssetReference<CutsceneBlob>>();
+        private readonly List<BlobAssetReference<ActorProfileBlob>> profileBlobs = new List<BlobAssetReference<ActorProfileBlob>>();
+        private readonly List<Object> scriptableObjects = new List<Object>();
 
         [SetUp]
         public void SetUp()
@@ -68,6 +73,74 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 }
             }
             cutsceneBlobs.Clear();
+
+            for (int i = 0; i < profileBlobs.Count; i++)
+            {
+                if (profileBlobs[i].IsCreated)
+                {
+                    profileBlobs[i].Dispose();
+                }
+            }
+            profileBlobs.Clear();
+
+            for (int i = 0; i < scriptableObjects.Count; i++)
+            {
+                if (scriptableObjects[i] != null)
+                {
+                    Object.DestroyImmediate(scriptableObjects[i]);
+                }
+            }
+            scriptableObjects.Clear();
+        }
+
+        /// <summary>A profile with Walk on Base (layer 0) and, when <paramref name="includeActionLayer"/>, Wave on a user layer "Action" (layer 1).</summary>
+        private ActorProfileAsset BuildTestProfile(bool includeActionLayer)
+        {
+            ActorProfileAsset profile = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            scriptableObjects.Add(profile);
+            profile.rig = null;
+            profile.clipSets.Clear();
+
+            ClipAsset walkClip = PlaybackTestActor.CreateClipAsset("WalkClip", WalkClipId);
+            scriptableObjects.Add(walkClip);
+            profile.layers[0].animations.Add(new ActorAnimationDefinition
+            {
+                animationKey = WalkAnimationKey,
+                hasDirections = false,
+                clip = walkClip,
+                loop = LoopMode.UseClipDefault,
+                speed = 1f
+            });
+
+            if (includeActionLayer)
+            {
+                ClipAsset waveClip = PlaybackTestActor.CreateClipAsset("WaveClip", 900UL);
+                scriptableObjects.Add(waveClip);
+                ActorLayerDefinition actionLayer = new ActorLayerDefinition { displayName = "Action" };
+                actionLayer.animations.Add(new ActorAnimationDefinition
+                {
+                    animationKey = WaveAnimationKey,
+                    hasDirections = false,
+                    clip = waveClip,
+                    loop = LoopMode.UseClipDefault,
+                    speed = 1f
+                });
+                profile.layers.Insert(1, actionLayer);
+            }
+
+            return profile;
+        }
+
+        private Entity CreateProfiledActor(World world, bool includeActionLayer, out int layerCount)
+        {
+            ActorProfileAsset profileAsset = BuildTestProfile(includeActionLayer);
+            layerCount = profileAsset.layers.Count;
+            BlobAssetReference<ActorProfileBlob> profileBlob;
+            Entity actorEntity = PlaybackTestActor.CreateActorWithProfile(
+                world, registry, profileAsset, out profileBlob, layerCount);
+            profileBlobs.Add(profileBlob);
+            world.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+            return actorEntity;
         }
 
         [Test]
@@ -176,30 +249,44 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Assert.IsTrue(HasSetSpeed(commandsAfterPause, 0f), "pausing must freeze the actor's clip layer, not just the clock");
         }
 
-        private static bool HasSetSpeed(DynamicBuffer<AnimationCommand> commands, float expectedSpeed)
+        /// <summary>Amendment A73-T2: a profile with Walk on Base and Wave on Action, one block each at 0s, must land on each entry's own layer.</summary>
+        [Test]
+        public void Block_IssuesPlayAnimation_OnTheEntrysOwnLayer()
         {
-            for (int i = 0; i < commands.Length; i++)
+            int layerCount;
+            Entity actorEntity = CreateProfiledActor(testWorld, includeActionLayer: true, out layerCount);
+
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTwoBlockCutsceneBlob();
+            cutsceneBlobs.Add(cutsceneBlob);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
+            testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
-                if (commands[i].kind == CommandKind.SetSpeed && math.abs(commands[i].speed - expectedSpeed) < 1e-4f)
-                {
-                    return true;
-                }
-            }
-            return false;
+                slotId = SlotId,
+                actorEntity = actorEntity
+            });
+
+            Advance(0.1f);
+
+            DynamicBuffer<AnimationCommand> commands = testWorld.EntityManager.GetBuffer<AnimationCommand>(actorEntity);
+            Assert.AreEqual(2, CountKind(commands, CommandKind.PlayAnimation), "one PlayAnimation per block");
+
+            SystemHandle commandApplySystem = testWorld.GetOrCreateSystem<CommandApplySystem>();
+            commandApplySystem.Update(testWorld.Unmanaged);
+            testWorld.EntityManager.CompleteAllTrackedJobs();
+
+            DynamicBuffer<PlaybackLayer> layers = testWorld.EntityManager.GetBuffer<PlaybackLayer>(actorEntity);
+            Assert.AreEqual(WalkAnimationKey, layers[0].animationKey, "Walk landed on Base (layer 0)");
+            Assert.AreEqual(WaveAnimationKey, layers[1].animationKey, "Wave landed on Action (layer 1), its own entry's layer");
         }
 
-        /// <summary>
-        /// A request left at the default layerIndex (<see cref="CutsceneApi.TopLayer"/>) must drive
-        /// a three-layer actor's last layer, not the raw sentinel value or layer 0, and must leave
-        /// the actor's other layers untouched.
-        /// </summary>
+        /// <summary>Amendment A73-T2: a stop key on one layer must not disturb another layer's active block.</summary>
         [Test]
-        public void TopLayerRequest_DrivesTheBoundActorsLastPlaybackLayerOnly()
+        public void LayerStop_StopsOnlyItsLayer()
         {
-            Entity actorEntity = PlaybackTestActor.CreateActor(testWorld, registry, layerCount: 3);
-            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+            int layerCount;
+            Entity actorEntity = CreateProfiledActor(testWorld, includeActionLayer: true, out layerCount);
 
-            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTestCutsceneBlob();
+            BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildBlockAndLayerStopCutsceneBlob();
             cutsceneBlobs.Add(cutsceneBlob);
             Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
@@ -213,10 +300,38 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             commandApplySystem.Update(testWorld.Unmanaged);
             testWorld.EntityManager.CompleteAllTrackedJobs();
 
+            Advance(1f);
+            commandApplySystem.Update(testWorld.Unmanaged);
+            testWorld.EntityManager.CompleteAllTrackedJobs();
+
             DynamicBuffer<PlaybackLayer> layers = testWorld.EntityManager.GetBuffer<PlaybackLayer>(actorEntity);
-            Assert.AreEqual(WalkClipId, layers[2].clip.Value, "TopLayer must resolve to the actor's last layer (index 2 of 3)");
-            Assert.AreEqual(-1, layers[0].clipIndex, "layer 0 must be untouched by a TopLayer request");
-            Assert.AreEqual(-1, layers[1].clipIndex, "layer 1 must be untouched by a TopLayer request");
+            Assert.IsTrue((layers[0].flags & PlaybackFlags.Active) != 0, "Base must still be Active");
+            Assert.IsFalse((layers[1].flags & PlaybackFlags.Active) != 0, "Action must have been stopped");
+        }
+
+        private static bool HasSetSpeed(DynamicBuffer<AnimationCommand> commands, float expectedSpeed)
+        {
+            for (int i = 0; i < commands.Length; i++)
+            {
+                if (commands[i].kind == CommandKind.SetSpeed && math.abs(commands[i].speed - expectedSpeed) < 1e-4f)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static int CountKind(DynamicBuffer<AnimationCommand> commands, CommandKind kind)
+        {
+            int count = 0;
+            for (int i = 0; i < commands.Length; i++)
+            {
+                if (commands[i].kind == kind)
+                {
+                    count++;
+                }
+            }
+            return count;
         }
 
         /// <summary>
@@ -229,8 +344,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             const string HoldId = "H1";
 
-            Entity actorEntity = PlaybackTestActor.CreateActor(testWorld, registry, layerCount: 2);
-            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+            int layerCount;
+            Entity actorEntity = CreateProfiledActor(testWorld, includeActionLayer: false, out layerCount);
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTwoSegmentCutsceneBlob(HoldId);
             cutsceneBlobs.Add(cutsceneBlob);
@@ -254,7 +369,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             bool sawPlay = false;
             for (int i = 0; i < commands.Length; i++)
             {
-                if (commands[i].kind == CommandKind.Play && commands[i].clip.Value == WalkClipId)
+                if (commands[i].kind == CommandKind.PlayAnimation && commands[i].animationKey == WalkAnimationKey)
                 {
                     sawPlay = true;
                 }
@@ -360,13 +475,12 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         [Test]
         public void BlockSpeedAndOffset_ReachThePlayCommand()
         {
-            Entity actorEntity = PlaybackTestActor.CreateActor(testWorld, registry, layerCount: 2);
-            testWorld.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+            int layerCount;
+            Entity actorEntity = CreateProfiledActor(testWorld, includeActionLayer: false, out layerCount);
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildSpeedAndOffsetCutsceneBlob();
             cutsceneBlobs.Add(cutsceneBlob);
-            Entity requestEntity =
-                CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob, layerIndex: 0);
+            Entity requestEntity = CutsceneApi.CreatePlayRequest(testWorld.EntityManager, cutsceneBlob);
             testWorld.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,
@@ -380,14 +494,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             int playIndex = -1;
             for (int commandIndex = 0; commandIndex < commands.Length; commandIndex++)
             {
-                if (commands[commandIndex].kind == CommandKind.Play)
+                if (commands[commandIndex].kind == CommandKind.PlayAnimation)
                 {
                     playIndex = commandIndex;
                 }
             }
             Assert.GreaterOrEqual(playIndex, 0, "sanity: the block at time 0 is issued");
             Assert.AreEqual(0.5f, commands[playIndex].speed, 1e-4f,
-                "the block's own speed multiplies the cutscene's, which is 1 here");
+                "the block's own speed multiplies the cutscene's, which is 1 here, times the entry's own (1)");
             Assert.Less(playIndex + 1, commands.Length, "an offset block needs the SetTime after its Play");
             Assert.AreEqual(CommandKind.SetTime, commands[playIndex + 1].kind);
             Assert.AreEqual(0.25f, commands[playIndex + 1].time, 1e-4f,
@@ -414,7 +528,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                     sawStop = true;
                 }
             }
-            Assert.IsTrue(sawStop, "skip must release the actor's clip layer, per spec §6's end/skip contract");
+            Assert.IsTrue(sawStop, "skip must release every layer an authored block claimed, per spec §6's end/skip contract");
         }
 
         /// <summary>Amendment A61-T1: <c>CreatePlayRequestFromStage</c> must copy every <c>CutsceneStageBinding</c> into the request's <c>CutsceneActorBinding</c> buffer, in order.</summary>
@@ -503,15 +617,15 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             return CreateBoundActorIn(testWorld, out requestEntity);
         }
 
-        /// <summary>Builds one actor bound to a fresh cutscene play request in <paramref name="world"/>: one segment, one clip block, root motion from (0,0,0) to (10,0,0), and one fire-on-skip event at t=1.</summary>
+        /// <summary>Builds one profiled actor bound to a fresh cutscene play request in <paramref name="world"/>: one segment, one clip block naming Walk, root motion from (0,0,0) to (10,0,0), and one fire-on-skip event at t=1.</summary>
         private Entity CreateBoundActorIn(World world, out Entity requestEntity)
         {
-            Entity actorEntity = PlaybackTestActor.CreateActor(world, registry, layerCount: 2);
-            world.EntityManager.AddComponentData(actorEntity, LocalTransform.Identity);
+            int layerCount;
+            Entity actorEntity = CreateProfiledActor(world, includeActionLayer: false, out layerCount);
 
             BlobAssetReference<CutsceneBlob> cutsceneBlob = BuildTestCutsceneBlob();
             cutsceneBlobs.Add(cutsceneBlob);
-            requestEntity = CutsceneApi.CreatePlayRequest(world.EntityManager, cutsceneBlob, layerIndex: 0);
+            requestEntity = CutsceneApi.CreatePlayRequest(world.EntityManager, cutsceneBlob);
             world.EntityManager.GetBuffer<CutsceneActorBinding>(requestEntity).Add(new CutsceneActorBinding
             {
                 slotId = SlotId,
@@ -530,14 +644,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             testWorld.EntityManager.CompleteAllTrackedJobs();
         }
 
-        /// <summary>One Actor slot, one segment, one clip block at half speed starting 0.25s into its clip.</summary>
+        /// <summary>One Actor slot, one segment, one clip block naming Walk at half speed starting 0.25s into its clip.</summary>
         private static BlobAssetReference<CutsceneBlob> BuildSpeedAndOffsetCutsceneBlob()
         {
             BlobBuilder builder = new BlobBuilder(Allocator.Temp);
             try
             {
                 ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
-                root.schemaVersion = 5;
+                root.schemaVersion = 6;
                 root.cutsceneKey = 1UL;
 
                 BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
@@ -555,10 +669,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                     builder.Allocate(ref slotSegment.clipBlocks, 1);
                 clipBlocks[0] = new CutsceneClipBlockBlob
                 {
-                    clipId = WalkClipId,
+                    animationKey = WalkAnimationKey,
                     start = 0f,
                     duration = 2f,
-                    loop = false,
+                    loop = LoopMode.Once,
                     blendDuration = 0f,
                     speed = 0.5f,
                     clipStartOffset = 0.25f
@@ -569,6 +683,111 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 builder.Allocate(ref slotSegment.partTracks, 0);
                 builder.Allocate(ref slotSegment.attachMarkers, 0);
                 builder.Allocate(ref slotSegment.markKeys, 0);
+                builder.Allocate(ref slotSegment.layerStops, 0);
+
+                builder.Allocate(ref segment.cameraKeys, 0);
+                builder.Allocate(ref segment.cameraCutTimes, 0);
+                builder.Allocate(ref segment.events, 0);
+
+                return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        /// <summary>One Actor slot, one segment: Walk on Base at 0s, Wave on Action at 0s.</summary>
+        private static BlobAssetReference<CutsceneBlob> BuildTwoBlockCutsceneBlob()
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
+                root.schemaVersion = 6;
+                root.cutsceneKey = 1UL;
+
+                BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
+                slots[0] = new CutsceneSlotMetaBlob { slotId = SlotId, kind = CutsceneSlotKind.Actor };
+
+                BlobBuilderArray<CutsceneSegmentBlob> segments = builder.Allocate(ref root.segments, 1);
+                ref CutsceneSegmentBlob segment = ref segments[0];
+                segment.duration = 2f;
+                segment.holdId = default;
+
+                BlobBuilderArray<CutsceneSlotSegmentBlob> slotTracks = builder.Allocate(ref segment.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
+
+                BlobBuilderArray<CutsceneClipBlockBlob> clipBlocks =
+                    builder.Allocate(ref slotSegment.clipBlocks, 2);
+                clipBlocks[0] = new CutsceneClipBlockBlob
+                {
+                    animationKey = WalkAnimationKey, start = 0f, duration = 2f, loop = LoopMode.Loop, blendDuration = float.NaN, speed = 1f
+                };
+                clipBlocks[1] = new CutsceneClipBlockBlob
+                {
+                    animationKey = WaveAnimationKey, start = 0f, duration = 1f, loop = LoopMode.Once, blendDuration = float.NaN, speed = 1f
+                };
+
+                builder.Allocate(ref slotSegment.transformKeys, 0);
+                builder.Allocate(ref slotSegment.facingKeys, 0);
+                builder.Allocate(ref slotSegment.partTracks, 0);
+                builder.Allocate(ref slotSegment.attachMarkers, 0);
+                builder.Allocate(ref slotSegment.markKeys, 0);
+                builder.Allocate(ref slotSegment.layerStops, 0);
+
+                builder.Allocate(ref segment.cameraKeys, 0);
+                builder.Allocate(ref segment.cameraCutTimes, 0);
+                builder.Allocate(ref segment.events, 0);
+
+                return builder.CreateBlobAssetReference<CutsceneBlob>(Allocator.Persistent);
+            }
+            finally
+            {
+                builder.Dispose();
+            }
+        }
+
+        /// <summary>One Actor slot, one segment: Wave on Action (layer 1) at 0s, a stop on Action at 1s.</summary>
+        private static BlobAssetReference<CutsceneBlob> BuildBlockAndLayerStopCutsceneBlob()
+        {
+            BlobBuilder builder = new BlobBuilder(Allocator.Temp);
+            try
+            {
+                ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
+                root.schemaVersion = 6;
+                root.cutsceneKey = 1UL;
+
+                BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
+                slots[0] = new CutsceneSlotMetaBlob { slotId = SlotId, kind = CutsceneSlotKind.Actor };
+
+                BlobBuilderArray<CutsceneSegmentBlob> segments = builder.Allocate(ref root.segments, 1);
+                ref CutsceneSegmentBlob segment = ref segments[0];
+                segment.duration = 3f;
+                segment.holdId = default;
+
+                BlobBuilderArray<CutsceneSlotSegmentBlob> slotTracks = builder.Allocate(ref segment.slotTracks, 1);
+                ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
+
+                BlobBuilderArray<CutsceneClipBlockBlob> clipBlocks =
+                    builder.Allocate(ref slotSegment.clipBlocks, 2);
+                clipBlocks[0] = new CutsceneClipBlockBlob
+                {
+                    animationKey = WalkAnimationKey, start = 0f, duration = 3f, loop = LoopMode.Loop, blendDuration = float.NaN, speed = 1f
+                };
+                clipBlocks[1] = new CutsceneClipBlockBlob
+                {
+                    animationKey = WaveAnimationKey, start = 0f, duration = 3f, loop = LoopMode.Loop, blendDuration = float.NaN, speed = 1f
+                };
+
+                builder.Allocate(ref slotSegment.transformKeys, 0);
+                builder.Allocate(ref slotSegment.facingKeys, 0);
+                builder.Allocate(ref slotSegment.partTracks, 0);
+                builder.Allocate(ref slotSegment.attachMarkers, 0);
+                builder.Allocate(ref slotSegment.markKeys, 0);
+
+                BlobBuilderArray<CutsceneLayerStopBlob> layerStops = builder.Allocate(ref slotSegment.layerStops, 1);
+                layerStops[0] = new CutsceneLayerStopBlob { time = 1f, layerIndex = 1, blendOut = 0f };
 
                 builder.Allocate(ref segment.cameraKeys, 0);
                 builder.Allocate(ref segment.cameraCutTimes, 0);
@@ -677,8 +896,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
 
         /// <summary>
         /// Two segments, one Actor slot: segment 0 is empty and 1s long, ending on
-        /// <paramref name="holdId"/>; segment 1 has one clip block starting at its own time 0 — the
-        /// amendment A62 defect 5 shape (a block due the instant a hold releases).
+        /// <paramref name="holdId"/>; segment 1 has one clip block naming Walk starting at its own
+        /// time 0 — the amendment A62 defect 5 shape (a block due the instant a hold releases).
         /// </summary>
         private static BlobAssetReference<CutsceneBlob> BuildTwoSegmentCutsceneBlob(string holdId)
         {
@@ -686,7 +905,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             try
             {
                 ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
-                root.schemaVersion = 2;
+                root.schemaVersion = 6;
                 root.cutsceneKey = 1UL;
 
                 BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
@@ -715,7 +934,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 BlobBuilderArray<CutsceneSlotSegmentBlob> segment1SlotTracks = builder.Allocate(ref segment1.slotTracks, 1);
                 ref CutsceneSlotSegmentBlob segment1SlotSegment = ref segment1SlotTracks[0];
                 BlobBuilderArray<CutsceneClipBlockBlob> segment1ClipBlocks = builder.Allocate(ref segment1SlotSegment.clipBlocks, 1);
-                segment1ClipBlocks[0] = new CutsceneClipBlockBlob { clipId = WalkClipId, start = 0f, duration = 2f, loop = false, blendDuration = 0f };
+                segment1ClipBlocks[0] = new CutsceneClipBlockBlob
+                {
+                    animationKey = WalkAnimationKey, start = 0f, duration = 2f, loop = LoopMode.Once, blendDuration = float.NaN
+                };
                 builder.Allocate(ref segment1SlotSegment.transformKeys, 0);
                 builder.Allocate(ref segment1SlotSegment.facingKeys, 0);
                 builder.Allocate(ref segment1SlotSegment.partTracks, 0);
@@ -731,14 +953,14 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             }
         }
 
-        /// <summary>One segment, no holds: a clip block and root motion both spanning [0, 2], one event at t=1.</summary>
+        /// <summary>One segment, no holds: a clip block naming Walk and root motion both spanning [0, 2], one event at t=1.</summary>
         private static BlobAssetReference<CutsceneBlob> BuildTestCutsceneBlob()
         {
             BlobBuilder builder = new BlobBuilder(Allocator.Temp);
             try
             {
                 ref CutsceneBlob root = ref builder.ConstructRoot<CutsceneBlob>();
-                root.schemaVersion = 1;
+                root.schemaVersion = 6;
                 root.cutsceneKey = 1UL;
 
                 BlobBuilderArray<CutsceneSlotMetaBlob> slots = builder.Allocate(ref root.slots, 1);
@@ -753,7 +975,10 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 ref CutsceneSlotSegmentBlob slotSegment = ref slotTracks[0];
 
                 BlobBuilderArray<CutsceneClipBlockBlob> clipBlocks = builder.Allocate(ref slotSegment.clipBlocks, 1);
-                clipBlocks[0] = new CutsceneClipBlockBlob { clipId = WalkClipId, start = 0f, duration = 2f, loop = false };
+                clipBlocks[0] = new CutsceneClipBlockBlob
+                {
+                    animationKey = WalkAnimationKey, start = 0f, duration = 2f, loop = LoopMode.Once, blendDuration = float.NaN
+                };
 
                 BlobBuilderArray<CutsceneTransformKeyBlob> transformKeys =
                     builder.Allocate(ref slotSegment.transformKeys, 2);

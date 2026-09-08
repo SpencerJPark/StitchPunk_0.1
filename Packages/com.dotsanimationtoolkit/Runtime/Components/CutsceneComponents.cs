@@ -32,15 +32,13 @@ namespace DotsAnimationToolkit
     }
 
     /// <summary>
-    /// The identity half of a running cutscene request: which cutscene, and which playback layer
-    /// its clip blocks target on every bound actor. Immutable once created — the mutable half is
-    /// <see cref="CutsceneControl"/>.
+    /// The identity half of a running cutscene request: which cutscene. Immutable once created —
+    /// the mutable half is <see cref="CutsceneControl"/>. Blocks play by animation name against the
+    /// bound actor's own <c>ActorProfile</c>, so there is no single layer index to carry here.
     /// </summary>
     public struct CutscenePlay : IComponentData
     {
         public BlobAssetReference<CutsceneBlob> blob; // ownership stays with whoever built/cached it; the player never disposes it
-
-        public byte layerIndex; // PlaybackLayer index clip blocks play on, for every Actor slot
     }
 
     /// <summary>
@@ -102,17 +100,39 @@ namespace DotsAnimationToolkit
 
         public int nextMarkIndex; // cursor into the current segment's mark array
 
-        public ulong activeVariantClipId; // clip id currently playing after facing has had its say; what a re-pick compares against
-
-        public int activeBlockSegmentIndex; // segment of the block this slot is playing, or -1 for "nothing playing"; kept rather than derived because nextClipBlockIndex rebases at every hold
-
-        public int activeBlockIndex; // index into the active block's own segment array; meaningless while activeBlockSegmentIndex is -1
-
-        public float activeBlockSpeed; // active block's authored speed; a later host SetSpeed multiplies it rather than replacing it; 1 while nothing plays
+        public int nextLayerStopIndex; // cursor into the current segment's layer stop array
 
         public bool hasOutstandingMark; // ordered to a mark not yet reached; while set this slot's root lane is ignored. Survives a hold.
 
         public bool hasEverDetached; // true once this slot has finished at least one ride. The flat root lane's only real content is the pre-ride pickup key (CutsceneMarkMerge), so once a ride ends it is permanently ignored rather than resumed — resuming it would snap the rider back to where it was picked up.
+
+        public bool warnedMissingProfile; // one warning per slot per run when the bound actor carries no ActorProfile
+
+        public bool warnedUnresolvedAnimationKey; // one warning per slot per run for any block naming a key the actor's profile lacks
+
+        public bool hasLastPosition; // false on the slot's first frame, when there is nothing to difference against yet
+
+        public float3 lastPosition; // bound entity's position last frame, for auto locomotion's displacement measure
+
+        public uint lastLocomotionKey; // the auto-locomotion entry currently issued, so it is not re-issued every frame; 0 = none issued yet
+
+        public bool hasLatchedFacing; // true from a mark's arrival until the slot moves again or a Fixed key takes over
+
+        public float latchedFacingDegrees; // the arrival facing a resolved mark left behind
+    }
+
+    /// <summary>
+    /// Per-(slot, profile layer) bookkeeping for the block currently claiming that layer, parallel
+    /// to <c>slotIndex * LayersPerSlot + layerIndex</c>. Internal: a host never reads or writes this.
+    /// </summary>
+    [InternalBufferCapacity(8)]
+    internal struct CutsceneSlotLayerState : IBufferElementData
+    {
+        public int activeBlockSegmentIndex; // segment of the block claiming this layer, or -1 for "nothing playing"; kept rather than derived because nextClipBlockIndex rebases at every hold
+
+        public int activeBlockIndex; // index into the active block's own segment array; meaningless while activeBlockSegmentIndex is -1
+
+        public float activeBlockSpeed; // active block's authored speed; a later host SetSpeed multiplies it rather than replacing it; 1 while nothing plays
     }
 
     /// <summary>

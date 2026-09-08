@@ -12,30 +12,28 @@ namespace DotsAnimationToolkit
     /// </summary>
     public static class CutsceneApi
     {
-        /// <summary>Resolved by <c>CutsceneTimelineSystem</c>, per bound actor, to that actor's last playback layer.</summary>
-        public const byte TopLayer = byte.MaxValue;
+        /// <summary>Rows in the internal per-slot layer bookkeeping buffer; pinned equal to <c>ActorProfileAsset.MaxLayerCount</c> by <c>DataContractTests</c>.</summary>
+        public const int LayersPerSlot = 8;
 
         /// <summary>
         /// Creates a cutscene play request: <see cref="CutscenePlay"/>, a fresh
         /// <see cref="CutsceneControl"/>, zeroed <see cref="CutscenePlaybackState"/>, an empty
         /// <see cref="CutsceneActorBinding"/> buffer for the host to fill, and the internal
-        /// <see cref="CutsceneSlotRuntimeState"/> bookkeeping pre-sized to the blob's slot count.
+        /// <see cref="CutsceneSlotRuntimeState"/>/<see cref="CutsceneSlotLayerState"/> bookkeeping
+        /// pre-sized to the blob's slot count.
         /// </summary>
         /// <param name="blob">The baked cutscene. The player never disposes it.</param>
-        /// <param name="layerIndex"><see cref="TopLayer"/> (default) resolves per actor to its last layer; a literal index is used as-is.</param>
         /// <returns>The new request entity. The host must still fill <see cref="CutsceneActorBinding"/> before the player can do anything with an Actor/Prop slot.</returns>
         public static Entity CreatePlayRequest(
             EntityManager entityManager,
             BlobAssetReference<CutsceneBlob> blob,
-            byte layerIndex = TopLayer,
             float speed = 1f)
         {
             Entity requestEntity = entityManager.CreateEntity();
 
             entityManager.AddComponentData(requestEntity, new CutscenePlay
             {
-                blob = blob,
-                layerIndex = layerIndex
+                blob = blob
             });
             entityManager.AddComponentData(requestEntity, new CutsceneControl
             {
@@ -62,9 +60,10 @@ namespace DotsAnimationToolkit
             entityManager.AddComponent<AnimEventsPending>(requestEntity);
             entityManager.SetComponentEnabled<AnimEventsPending>(requestEntity, false);
 
+            int slotCount = blob.Value.slots.Length;
+
             DynamicBuffer<CutsceneSlotRuntimeState> slotStates =
                 entityManager.AddBuffer<CutsceneSlotRuntimeState>(requestEntity);
-            int slotCount = blob.Value.slots.Length;
             slotStates.ResizeUninitialized(slotCount);
             for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
             {
@@ -74,9 +73,20 @@ namespace DotsAnimationToolkit
                     nextAttachMarkerIndex = 0,
                     // −1, not 0: 0 is a real slot index, so a zeroed struct would read as "riding
                     // slot 0" and suppress the root lane of every slot before anything attached.
-                    attachedHostSlotIndex = -1,
-                    // Same reason: 0 is a real segment index, and "no block playing yet" has to be
-                    // distinguishable from "playing the first block of segment 0".
+                    attachedHostSlotIndex = -1
+                };
+            }
+
+            DynamicBuffer<CutsceneSlotLayerState> layerStates =
+                entityManager.AddBuffer<CutsceneSlotLayerState>(requestEntity);
+            layerStates.ResizeUninitialized(slotCount * LayersPerSlot);
+            for (int layerStateIndex = 0; layerStateIndex < layerStates.Length; layerStateIndex++)
+            {
+                layerStates[layerStateIndex] = new CutsceneSlotLayerState
+                {
+                    // Same reason as CutsceneSlotRuntimeState.attachedHostSlotIndex: 0 is a real
+                    // segment index, and "no block playing on this layer" must be distinguishable
+                    // from "playing the first block of segment 0".
                     activeBlockSegmentIndex = -1,
                     activeBlockSpeed = 1f
                 };
@@ -140,11 +150,10 @@ namespace DotsAnimationToolkit
         public static Entity CreatePlayRequestFromStage(
             EntityManager entityManager,
             Entity stageEntity,
-            byte layerIndex = TopLayer,
             float speed = 1f)
         {
             CutsceneStage stage = entityManager.GetComponentData<CutsceneStage>(stageEntity);
-            Entity requestEntity = CreatePlayRequest(entityManager, stage.blob, layerIndex, speed);
+            Entity requestEntity = CreatePlayRequest(entityManager, stage.blob, speed);
 
             DynamicBuffer<CutsceneStageBinding> stageBindings =
                 entityManager.GetBuffer<CutsceneStageBinding>(stageEntity);

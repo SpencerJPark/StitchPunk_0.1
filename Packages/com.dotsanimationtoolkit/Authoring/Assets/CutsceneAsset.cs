@@ -142,6 +142,27 @@ namespace DotsAnimationToolkit.Authoring
         [Tooltip("Optional set consulted when a facing has no override key active. Ignored for Prop slots.")]
         public DirectionSetAsset directionSet;
 
+        [Tooltip("What this slot's actor can play: rig, clip sets, layers, names and turn granularity. Ignored for Prop slots.")]
+        public ActorProfileAsset profile;
+
+        [Tooltip("Auto locomotion: which of the profile's entries play while this slot's actor is moving or standing. Ignored for Prop slots.")]
+        public CutsceneLocomotion locomotion = new CutsceneLocomotion();
+
+        [Tooltip("Times a profile layer is stopped, handing it back to auto locomotion. Ignored for Prop slots.")]
+        public List<CutsceneLayerStopKey> layerStops = new List<CutsceneLayerStopKey>();
+
+        /// <summary>The rig every clip block, part track and attach socket on this slot resolves against. Every reader of a slot's rig goes through this, never <see cref="profile"/> directly.</summary>
+        public RigAsset ResolvedRig
+        {
+            get { return profile != null ? profile.rig : null; }
+        }
+
+        /// <summary>The clip sets this slot's clip blocks may resolve against. Empty, never null, when the slot has no profile.</summary>
+        public IReadOnlyList<ClipSetAsset> ResolvedClipSets
+        {
+            get { return profile != null ? (IReadOnlyList<ClipSetAsset>)profile.clipSets : Array.Empty<ClipSetAsset>(); }
+        }
+
         // A plain asset reference, which Authoring/ may hold; placing it is editor work. Nothing at
         // run time reads this — a baked cutscene binds entities the host supplies, never a prefab.
         [Tooltip("Prefab the cast panel's Place in Scene stages this slot from. Optional; binding an already-placed GameObject by hand still works.")]
@@ -189,21 +210,21 @@ namespace DotsAnimationToolkit.Authoring
         }
     }
 
-    /// <summary>One clip block on a slot's clip lane: names a clip, when it plays, how long, and whether it loops.</summary>
+    /// <summary>One clip block on a slot's clip lane: names an animation by its profile key, when it plays, how long, and how it loops.</summary>
     [Serializable]
     public sealed class CutsceneClipBlock
     {
-        /// <summary>The clip's stable id, resolved at bake against the slot's (rig, clip sets) bind.</summary>
-        public ulong clipId;
+        /// <summary>Animation name registry id; the entry's layer is derived from the slot's profile at bake and at play time.</summary>
+        public uint animationKey;
 
         /// <summary>Block start, in raw timeline seconds.</summary>
         public float start;
 
-        /// <summary>Block length in seconds. Overlapping blocks cross-fade over the overlap; blocks that merely touch are a hard cut.</summary>
+        /// <summary>Block length in seconds. Overlapping blocks on the same profile layer cross-fade over the overlap; blocks that merely touch are a hard cut.</summary>
         [Min(0f)] public float duration;
 
-        /// <summary>Whether the clip loops for the block's duration rather than playing once.</summary>
-        public bool loop;
+        /// <summary>How the block loops. <c>UseClipDefault</c> defers to the profile entry's own loop, which may itself defer to the clip.</summary>
+        public LoopMode loop = LoopMode.UseClipDefault;
 
         // Floored well above 0: a stopped clip is CutsceneControl.paused, and 0 in the baked blob
         // means "an older bake, no opinion".
@@ -244,15 +265,49 @@ namespace DotsAnimationToolkit.Authoring
         public float2 bezierEndHandle;
     }
 
-    /// <summary>One facing override key: a direction angle, not a discrete <see cref="Direction"/> — the same continuous model the Direction Sets pane's 0-360 degree slider uses.</summary>
+    /// <summary>One facing key: <see cref="CutsceneFacingMode.Fixed"/> pins <see cref="angleDegrees"/> from this key's time; <see cref="CutsceneFacingMode.Auto"/> hands facing back to auto-derivation.</summary>
     [Serializable]
     public struct CutsceneFacingKey
     {
         /// <summary>Key time, in raw timeline seconds.</summary>
         public float time;
 
-        /// <summary>The facing angle, degrees, 0–360.</summary>
+        /// <summary>The facing angle, degrees, 0–360. Meaningless for an <see cref="CutsceneFacingMode.Auto"/> key.</summary>
         [Range(0f, 360f)] public float angleDegrees;
+
+        /// <summary>Whether this key pins <see cref="angleDegrees"/> or releases the pin. Default (0) is <see cref="CutsceneFacingMode.Fixed"/>, matching every key authored before this field existed.</summary>
+        public CutsceneFacingMode mode;
+    }
+
+    /// <summary>Auto locomotion for an Actor slot: while the bound actor is moving, the profile's moving entry plays and facing follows travel; standing, the standing entry plays.</summary>
+    [Serializable]
+    public sealed class CutsceneLocomotion
+    {
+        /// <summary>Master switch. Off leaves every layer to authored blocks and stop keys only.</summary>
+        public bool enabled = true;
+
+        /// <summary>Animation name registry id played when the slot's actor is not moving. 0 = none — the moving entry's layer is stopped instead of switched.</summary>
+        public uint standingAnimationKey;
+
+        /// <summary>Animation name registry id played while the slot's actor is moving. 0 = locomotion is inert; the bake warns.</summary>
+        public uint movingAnimationKey;
+
+        /// <summary>Displacement speed, meters/second, above which the slot's actor counts as moving.</summary>
+        public float movingSpeedThresholdMetersPerSecond = 0.05f;
+    }
+
+    /// <summary>One stop key on a profile layer row: hands the layer back to auto locomotion (or silence, with no locomotion) from this time.</summary>
+    [Serializable]
+    public struct CutsceneLayerStopKey
+    {
+        /// <summary>Key time, in raw timeline seconds.</summary>
+        public float time;
+
+        /// <summary>The profile layer's <c>displayName</c>, resolved to an index against the slot's profile at bake and at draw time — never an index, so a layer reorder keeps the key on the layer the author meant.</summary>
+        public string layerName;
+
+        /// <summary>Fade-out duration, seconds. <c>NaN</c> = the stopped entry's own clip default.</summary>
+        public float blendOutSeconds;
     }
 
     // Tag-addressed only, no target-id fallback: a slot recast to a different rig keeps its keys
@@ -397,6 +452,9 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>Editor-only rehearsal of how long the walk takes; also where the merged root key lands. Authored default 2.</summary>
         public float previewTravelSeconds;
+
+        /// <summary>When set, the bake derives a rendezvous hold at this mark's own <see cref="time"/> — the clock stops the instant the order goes out and resumes once every mark issued at that instant is reached.</summary>
+        public bool waitUntilReached;
     }
 
     /// <summary>One attach/detach moment on a slot's attach lane.</summary>

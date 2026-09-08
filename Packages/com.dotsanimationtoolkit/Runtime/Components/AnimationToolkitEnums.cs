@@ -231,6 +231,16 @@ namespace DotsAnimationToolkit
         Detach = 1
     }
 
+    /// <summary>Whether a cutscene facing key pins an explicit angle or hands facing back to auto-derivation.</summary>
+    public enum CutsceneFacingMode : byte
+    {
+        /// <summary>Pins <c>angleDegrees</c> from this key's time until the next key.</summary>
+        Fixed = 0,
+
+        /// <summary>Releases the pin: facing derives again (outstanding mark, then root travel) from this key's time.</summary>
+        Auto = 1
+    }
+
     /// <summary>
     /// Reserved event-key values. Keys 0-15 belong to the package: 0 is invalid, 1-2 are the
     /// shipped built-ins, 3-15 are reserved for future built-ins. User-authored keys start at <see cref="FirstUserKey"/>.

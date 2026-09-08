@@ -124,34 +124,5 @@ namespace DotsAnimationToolkit.Authoring
                 : (!string.IsNullOrEmpty(target.sourceNodePath) ? target.sourceNodePath : "0x" + target.tagId.ToString("X8"));
         }
 
-        /// <summary>Builds the turn table for one block's clip, or leaves it empty when the block is not a member.</summary>
-        internal static CutsceneDirectionVariantsBlob Build(CutsceneSlot slot, ulong clipId)
-        {
-            CutsceneDirectionVariantsBlob variants = default;
-            if (slot == null || !IsDirectionSetMember(slot.directionSet, clipId))
-            {
-                return variants;
-            }
-
-            DirectionSetAsset directionSet = slot.directionSet;
-            AnimationDirections effectiveDirections;
-            directionSet.slots.TryGetEffectiveDirections(out effectiveDirections);
-
-            variants.hasVariants = true;
-            variants.targetDirections = directionSet.slots.targetDirections;
-            variants.effectiveDirections = effectiveDirections;
-            variants.south = SlotClipId(directionSet, Direction.South);
-            variants.southEast = SlotClipId(directionSet, Direction.SouthEast);
-            variants.east = SlotClipId(directionSet, Direction.East);
-            variants.northEast = SlotClipId(directionSet, Direction.NorthEast);
-            variants.north = SlotClipId(directionSet, Direction.North);
-            return variants;
-        }
-
-        private static ulong SlotClipId(DirectionSetAsset directionSet, Direction eastSideFacing)
-        {
-            ClipAsset slotClip = directionSet.slots.GetSlot(eastSideFacing);
-            return slotClip != null ? slotClip.Id.Value : 0UL;
-        }
     }
 }

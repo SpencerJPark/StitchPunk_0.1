@@ -21,8 +21,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
     /// </summary>
     public sealed class CutsceneBlobBuilderTests
     {
+        private const uint AnimationKeyA = 1u;
+        private const uint AnimationKeyB = 2u;
+
         private CutsceneAsset cutscene;
         private Func<IVocabularyRegistry> previousEventNameRegistrySource;
+        private readonly List<UnityEngine.Object> createdScriptableObjects = new List<UnityEngine.Object>();
 
         [SetUp]
         public void SetUp()
@@ -38,6 +42,36 @@ namespace DotsAnimationToolkit.Tests.EditMode
             {
                 UnityEngine.Object.DestroyImmediate(cutscene);
             }
+            for (int i = 0; i < createdScriptableObjects.Count; i++)
+            {
+                if (createdScriptableObjects[i] != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(createdScriptableObjects[i]);
+                }
+            }
+            createdScriptableObjects.Clear();
+        }
+
+        /// <summary>A profile with two non-directional animations, both on Base (layer 0) — the fixture shape for same-layer seam tests.</summary>
+        private ActorProfileAsset BuildSingleLayerProfile(uint animationKeyA, uint animationKeyB)
+        {
+            ActorProfileAsset profile = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            createdScriptableObjects.Add(profile);
+            profile.layers[0].animations.Add(new ActorAnimationDefinition { animationKey = animationKeyA, hasDirections = false });
+            profile.layers[0].animations.Add(new ActorAnimationDefinition { animationKey = animationKeyB, hasDirections = false });
+            return profile;
+        }
+
+        /// <summary>A profile with one animation on Base and one on a user layer "Action" — the fixture shape for cross-layer tests.</summary>
+        private ActorProfileAsset BuildTwoLayerProfile(uint baseAnimationKey, uint actionAnimationKey)
+        {
+            ActorProfileAsset profile = ScriptableObject.CreateInstance<ActorProfileAsset>();
+            createdScriptableObjects.Add(profile);
+            profile.layers[0].animations.Add(new ActorAnimationDefinition { animationKey = baseAnimationKey, hasDirections = false });
+            ActorLayerDefinition actionLayer = new ActorLayerDefinition { displayName = "Action" };
+            actionLayer.animations.Add(new ActorAnimationDefinition { animationKey = actionAnimationKey, hasDirections = false });
+            profile.layers.Insert(1, actionLayer);
+            return profile;
         }
 
         [Test]
@@ -98,9 +132,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void SeamAcrossAHold_KeepsItsBlendDuration()
         {
             cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
-            CutsceneSlot actorSlot = new CutsceneSlot { name = "Actor", kind = CutsceneSlotKind.Actor };
-            actorSlot.clipBlocks.Add(new CutsceneClipBlock { clipId = 1UL, start = 0f, duration = 3f, loop = false });
-            actorSlot.clipBlocks.Add(new CutsceneClipBlock { clipId = 2UL, start = 2.5f, duration = 2.5f, loop = false });
+            ActorProfileAsset profile = BuildSingleLayerProfile(AnimationKeyA, AnimationKeyB);
+            CutsceneSlot actorSlot = new CutsceneSlot { name = "Actor", kind = CutsceneSlotKind.Actor, profile = profile };
+            actorSlot.clipBlocks.Add(new CutsceneClipBlock { animationKey = AnimationKeyA, start = 0f, duration = 3f, loop = LoopMode.Once });
+            actorSlot.clipBlocks.Add(new CutsceneClipBlock { animationKey = AnimationKeyB, start = 2.5f, duration = 2.5f, loop = LoopMode.Once });
             cutscene.slots.Add(actorSlot);
             cutscene.holdMarkers.Add(new CutsceneHoldMarker { time = 2.4f, holdId = "H" });
             cutscene.EnsureStableIds();
@@ -113,6 +148,137 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Assert.AreEqual(1, startingSlotSegment.clipBlocks.Length, "the second block is assigned wholly to segment 1 by its own start time");
                 Assert.AreEqual(0.5f, startingSlotSegment.clipBlocks[0].blendDuration, 1e-4f,
                     "the seam's overlap survives the hold even though the outgoing block is no longer in this segment");
+            }
+            finally
+            {
+                blob.Dispose();
+            }
+        }
+
+        /// <summary>Amendment A73-T1: blocks on different profile layers never seam, even when they overlap; two blocks on the same layer still do.</summary>
+        [Test]
+        public void Blocks_OnDifferentLayers_NeverBlendIntoEachOther()
+        {
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            ActorProfileAsset twoLayerProfile = BuildTwoLayerProfile(AnimationKeyA, AnimationKeyB);
+            CutsceneSlot differentLayerSlot = new CutsceneSlot { name = "Actor", kind = CutsceneSlotKind.Actor, profile = twoLayerProfile };
+            differentLayerSlot.clipBlocks.Add(new CutsceneClipBlock { animationKey = AnimationKeyA, start = 0f, duration = 2f, loop = LoopMode.Once });
+            differentLayerSlot.clipBlocks.Add(new CutsceneClipBlock { animationKey = AnimationKeyB, start = 1f, duration = 2f, loop = LoopMode.Once });
+            cutscene.slots.Add(differentLayerSlot);
+            cutscene.EnsureStableIds();
+
+            BlobAssetReference<CutsceneBlob> differentLayerBlob;
+            CutsceneBlobBuilder.Build(cutscene, out differentLayerBlob, null);
+            try
+            {
+                ref CutsceneSlotSegmentBlob slotSegment = ref differentLayerBlob.Value.segments[0].slotTracks[0];
+                Assert.AreEqual(2, slotSegment.clipBlocks.Length);
+                CutsceneClipBlockBlob firstBlock = FindByAnimationKey(ref slotSegment, AnimationKeyA);
+                CutsceneClipBlockBlob secondBlock = FindByAnimationKey(ref slotSegment, AnimationKeyB);
+                Assert.IsTrue(float.IsNaN(firstBlock.blendDuration), "the row's first block has no predecessor");
+                Assert.IsTrue(float.IsNaN(secondBlock.blendDuration),
+                    "the two blocks overlap by a second, but they are on different layers and never blend into each other");
+            }
+            finally
+            {
+                differentLayerBlob.Dispose();
+            }
+
+            UnityEngine.Object.DestroyImmediate(cutscene);
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            ActorProfileAsset singleLayerProfile = BuildSingleLayerProfile(AnimationKeyA, AnimationKeyB);
+            CutsceneSlot sameLayerSlot = new CutsceneSlot { name = "Actor", kind = CutsceneSlotKind.Actor, profile = singleLayerProfile };
+            sameLayerSlot.clipBlocks.Add(new CutsceneClipBlock { animationKey = AnimationKeyA, start = 0f, duration = 2f, loop = LoopMode.Once });
+            sameLayerSlot.clipBlocks.Add(new CutsceneClipBlock { animationKey = AnimationKeyB, start = 1f, duration = 2f, loop = LoopMode.Once });
+            cutscene.slots.Add(sameLayerSlot);
+            cutscene.EnsureStableIds();
+
+            BlobAssetReference<CutsceneBlob> sameLayerBlob;
+            CutsceneBlobBuilder.Build(cutscene, out sameLayerBlob, null);
+            try
+            {
+                ref CutsceneSlotSegmentBlob slotSegment = ref sameLayerBlob.Value.segments[0].slotTracks[0];
+                CutsceneClipBlockBlob secondBlock = FindByAnimationKey(ref slotSegment, AnimationKeyB);
+                Assert.AreEqual(1f, secondBlock.blendDuration, 1e-4f,
+                    "the same two blocks on one layer overlap by a second, which bakes as the seam");
+            }
+            finally
+            {
+                sameLayerBlob.Dispose();
+            }
+        }
+
+        private static CutsceneClipBlockBlob FindByAnimationKey(ref CutsceneSlotSegmentBlob slotSegment, uint animationKey)
+        {
+            for (int i = 0; i < slotSegment.clipBlocks.Length; i++)
+            {
+                if (slotSegment.clipBlocks[i].animationKey == animationKey)
+                {
+                    return slotSegment.clipBlocks[i];
+                }
+            }
+            Assert.Fail("No baked block names animation key " + animationKey + ".");
+            return default;
+        }
+
+        /// <summary>Amendment A73-T1: a wait-until-reached mark derives a rendezvous hold at its own issue time.</summary>
+        [Test]
+        public void MarkWaitUntilReached_DerivesARendezvousHoldAtTheMarkTime()
+        {
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            CutsceneSlot walkerSlot = new CutsceneSlot { name = "Walker", kind = CutsceneSlotKind.Actor };
+            walkerSlot.markKeys.Add(new CutsceneMarkKey
+            {
+                time = 1f,
+                position = new float3(5f, 0f, 0f),
+                toleranceMeters = 0.5f,
+                waitUntilReached = true
+            });
+            cutscene.slots.Add(walkerSlot);
+            cutscene.EnsureStableIds();
+
+            List<string> warnings = new List<string>();
+            BlobAssetReference<CutsceneBlob> blob;
+            CutsceneBlobBuilder.Build(cutscene, out blob, warnings);
+            try
+            {
+                Assert.AreEqual(2, blob.Value.segments.Length, "the derived hold splits the timeline");
+                Assert.AreEqual("mark:Walker@1", blob.Value.segments[0].holdId.ToString());
+                Assert.IsTrue(blob.Value.segments[0].autoReleaseWhenMarksReached);
+                for (int i = 0; i < warnings.Count; i++)
+                {
+                    StringAssert.DoesNotContain("walking through rendezvous hold", warnings[i],
+                        "a hold a mark derived itself must never trigger its own mid-walk warning");
+                }
+            }
+            finally
+            {
+                blob.Dispose();
+            }
+        }
+
+        /// <summary>Amendment A73-T1: a layer stop's name resolves to the profile's layer index; an unknown name warns and is dropped.</summary>
+        [Test]
+        public void LayerStop_ResolvesLayerNameToTheProfileIndex()
+        {
+            cutscene = ScriptableObject.CreateInstance<CutsceneAsset>();
+            ActorProfileAsset profile = BuildTwoLayerProfile(AnimationKeyA, AnimationKeyB);
+            CutsceneSlot actorSlot = new CutsceneSlot { name = "Actor", kind = CutsceneSlotKind.Actor, profile = profile };
+            actorSlot.layerStops.Add(new CutsceneLayerStopKey { time = 1f, layerName = "Action", blendOutSeconds = 0.2f });
+            actorSlot.layerStops.Add(new CutsceneLayerStopKey { time = 1f, layerName = "NoSuchLayer" });
+            cutscene.slots.Add(actorSlot);
+            cutscene.EnsureStableIds();
+
+            List<string> warnings = new List<string>();
+            BlobAssetReference<CutsceneBlob> blob;
+            CutsceneBlobBuilder.Build(cutscene, out blob, warnings);
+            try
+            {
+                ref CutsceneSlotSegmentBlob slotSegment = ref blob.Value.segments[0].slotTracks[0];
+                Assert.AreEqual(1, slotSegment.layerStops.Length, "the resolvable stop bakes; the unresolvable one is skipped");
+                Assert.AreEqual(1, slotSegment.layerStops[0].layerIndex, "'Action' is the profile's second layer (index 1)");
+                Assert.AreEqual(0.2f, slotSegment.layerStops[0].blendOut, 1e-4f);
+                Assert.AreEqual(1, warnings.Count, "exactly one warning, for the unknown layer name");
             }
             finally
             {

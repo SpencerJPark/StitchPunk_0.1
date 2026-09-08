@@ -21,7 +21,7 @@ namespace DotsAnimationToolkit.Authoring
     public static class CutsceneBlobBuilder
     {
         /// <summary>Blob layout version; bumped on any layout change and stamped at bake.</summary>
-        public const int SchemaVersion = 5;
+        public const int SchemaVersion = 6;
 
         private const float BoundaryEpsilon = 1e-5f;
 
@@ -185,30 +185,47 @@ namespace DotsAnimationToolkit.Authoring
             return boundaries;
         }
 
-        // Adds one boundary per holding event. A derived hold never auto-releases: marks resolve a
-        // rendezvous, a cue is resolved by whoever the cue started. Two holding events at one
-        // instant share a boundary and both fire; an authored hold at that instant keeps its own id.
+        // Adds one boundary per holding event and per wait-until-reached mark. An event-derived hold
+        // never auto-releases: a cue is resolved by whoever the cue started. A mark-derived hold
+        // always does - it is exactly a rendezvous, the same mechanism an authored hold's own
+        // autoReleaseWhenMarksReached flag drives. Several marks at one instant share one boundary
+        // silently (the intended "wait for everyone" shape); any other collision - with an authored
+        // hold, an event, or a mark against a non-mark - warns and keeps the first id.
         private static void AddDerivedHoldBoundaries(
             CutsceneAsset cutscene, List<SegmentBoundary> holdBoundaries, List<string> warnings)
         {
+            List<bool> isMarkDerivedByIndex = new List<bool>(holdBoundaries.Count);
+            for (int i = 0; i < holdBoundaries.Count; i++)
+            {
+                isMarkDerivedByIndex.Add(false);
+            }
+
             List<CutsceneDerivedHolds.DerivedHold> derivedHolds = CutsceneDerivedHolds.Collect(cutscene);
             for (int derivedIndex = 0; derivedIndex < derivedHolds.Count; derivedIndex++)
             {
                 CutsceneDerivedHolds.DerivedHold derivedHold = derivedHolds[derivedIndex];
+                bool isMark = CutsceneDerivedHolds.IsMarkDerived(in derivedHold);
                 float boundaryTime = Mathf.Max(0f, derivedHold.time);
 
                 int existingIndex = FindHoldBoundaryAt(holdBoundaries, boundaryTime);
                 if (existingIndex >= 0)
                 {
+                    bool existingIsMarkDerived = existingIndex < isMarkDerivedByIndex.Count
+                        && isMarkDerivedByIndex[existingIndex];
+                    if (isMark && existingIsMarkDerived)
+                    {
+                        continue;
+                    }
+                    string source = isMark ? "Cutscene mark '" + derivedHold.holdId + "'" : "Cutscene event " + derivedHold.eventIndex;
                     warnings.Add(
-                        "Cutscene event " + derivedHold.eventIndex + " holds at "
-                        + boundaryTime.ToString("0.###") + "s, where hold '" + holdBoundaries[existingIndex].holdId
-                        + "' already pauses the clock. One hold is baked and the first id wins - "
-                        + "release '" + holdBoundaries[existingIndex].holdId + "', not '" + derivedHold.holdId + "'.");
+                        source + " holds at " + boundaryTime.ToString("0.###") + "s, where hold '"
+                        + holdBoundaries[existingIndex].holdId + "' already pauses the clock. One hold is "
+                        + "baked and the first id wins - release '" + holdBoundaries[existingIndex].holdId
+                        + "', not '" + derivedHold.holdId + "'.");
                     continue;
                 }
 
-                if (!derivedHold.nameResolved)
+                if (!isMark && !derivedHold.nameResolved)
                 {
                     warnings.Add(
                         "Cutscene event " + derivedHold.eventIndex + " holds the clock but its key is not "
@@ -216,7 +233,13 @@ namespace DotsAnimationToolkit.Authoring
                         + "' - the host must release that exact id.");
                 }
 
-                holdBoundaries.Add(new SegmentBoundary { time = boundaryTime, holdId = derivedHold.holdId });
+                holdBoundaries.Add(new SegmentBoundary
+                {
+                    time = boundaryTime,
+                    holdId = derivedHold.holdId,
+                    autoReleaseWhenMarksReached = isMark
+                });
+                isMarkDerivedByIndex.Add(isMark);
             }
         }
 
@@ -406,12 +429,29 @@ namespace DotsAnimationToolkit.Authoring
             BlobBuilderArray<CutsceneSlotMetaBlob> slotArray = builder.Allocate(ref root.slots, slotCount);
             for (int i = 0; i < slotCount; i++)
             {
+                CutsceneSlot slot = cutscene.slots[i];
                 slotArray[i] = new CutsceneSlotMetaBlob
                 {
-                    slotId = cutscene.slots[i].SlotId,
-                    kind = cutscene.slots[i].kind
+                    slotId = slot.SlotId,
+                    kind = slot.kind,
+                    locomotion = BuildLocomotionBlob(slot)
                 };
             }
+        }
+
+        private static CutsceneLocomotionBlob BuildLocomotionBlob(CutsceneSlot slot)
+        {
+            if (slot.kind != CutsceneSlotKind.Actor || slot.locomotion == null)
+            {
+                return default;
+            }
+            return new CutsceneLocomotionBlob
+            {
+                enabled = slot.locomotion.enabled,
+                standingKey = slot.locomotion.standingAnimationKey,
+                movingKey = slot.locomotion.movingAnimationKey,
+                speedThreshold = slot.locomotion.movingSpeedThresholdMetersPerSecond
+            };
         }
 
         private static void FillSegments(
@@ -431,6 +471,7 @@ namespace DotsAnimationToolkit.Authoring
             List<PartTrackBucket>[,] partTracksBySlotSegment = new List<PartTrackBucket>[cutscene.slots?.Count ?? 0, segmentCount];
             List<CutsceneAttachMarkerBlob>[,] attachMarkersBySlotSegment = new List<CutsceneAttachMarkerBlob>[cutscene.slots?.Count ?? 0, segmentCount];
             List<CutsceneMarkKeyBlob>[,] markKeysBySlotSegment = new List<CutsceneMarkKeyBlob>[cutscene.slots?.Count ?? 0, segmentCount];
+            List<CutsceneLayerStopBlob>[,] layerStopsBySlotSegment = new List<CutsceneLayerStopBlob>[cutscene.slots?.Count ?? 0, segmentCount];
 
             for (int slotIndex = 0; slotIndex < (cutscene.slots?.Count ?? 0); slotIndex++)
             {
@@ -442,6 +483,7 @@ namespace DotsAnimationToolkit.Authoring
                     partTracksBySlotSegment[slotIndex, segmentIndex] = new List<PartTrackBucket>();
                     attachMarkersBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneAttachMarkerBlob>();
                     markKeysBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneMarkKeyBlob>();
+                    layerStopsBySlotSegment[slotIndex, segmentIndex] = new List<CutsceneLayerStopBlob>();
                 }
 
                 CutsceneSlot slot = cutscene.slots[slotIndex];
@@ -452,6 +494,7 @@ namespace DotsAnimationToolkit.Authoring
                 BucketPartTracks(slot, boundaries, warnings, partTracksBySlotSegment, slotIndex);
                 BucketAttachMarkers(cutscene, slot, boundaries, warnings, attachMarkersBySlotSegment, slotIndex);
                 BucketMarkKeys(slot.markKeys, boundaries, markKeysBySlotSegment, slotIndex);
+                BucketLayerStops(slot, boundaries, warnings, layerStopsBySlotSegment, slotIndex);
             }
 
             List<CutsceneCameraKeyBlob>[] cameraKeysBySegment = new List<CutsceneCameraKeyBlob>[segmentCount];
@@ -492,7 +535,8 @@ namespace DotsAnimationToolkit.Authoring
                         facingKeysBySlotSegment[slotIndex, segmentIndex],
                         partTracksBySlotSegment[slotIndex, segmentIndex],
                         attachMarkersBySlotSegment[slotIndex, segmentIndex],
-                        markKeysBySlotSegment[slotIndex, segmentIndex]);
+                        markKeysBySlotSegment[slotIndex, segmentIndex],
+                        layerStopsBySlotSegment[slotIndex, segmentIndex]);
                 }
 
                 BlobBuilderArray<CutsceneCameraKeyBlob> cameraKeyArray =
@@ -530,7 +574,8 @@ namespace DotsAnimationToolkit.Authoring
             ref BlobBuilder builder, ref CutsceneSlotSegmentBlob slotSegmentBlob,
             List<CutsceneClipBlockBlob> clipBlocks, List<CutsceneTransformKeyBlob> transformKeys,
             List<CutsceneFacingKeyBlob> facingKeys, List<PartTrackBucket> partTracks,
-            List<CutsceneAttachMarkerBlob> attachMarkers, List<CutsceneMarkKeyBlob> markKeys)
+            List<CutsceneAttachMarkerBlob> attachMarkers, List<CutsceneMarkKeyBlob> markKeys,
+            List<CutsceneLayerStopBlob> layerStops)
         {
             BlobBuilderArray<CutsceneClipBlockBlob> clipBlockArray =
                 builder.Allocate(ref slotSegmentBlob.clipBlocks, clipBlocks.Count);
@@ -581,6 +626,13 @@ namespace DotsAnimationToolkit.Authoring
             {
                 markKeyArray[i] = markKeys[i];
             }
+
+            BlobBuilderArray<CutsceneLayerStopBlob> layerStopArray =
+                builder.Allocate(ref slotSegmentBlob.layerStops, layerStops.Count);
+            for (int i = 0; i < layerStops.Count; i++)
+            {
+                layerStopArray[i] = layerStops[i];
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -588,6 +640,62 @@ namespace DotsAnimationToolkit.Authoring
         // class comment for why a block is never clipped across a segment boundary.
         // -----------------------------------------------------------------------------------
 
+        /// <summary>
+        /// The dense layer index <paramref name="animationKey"/> resolves to on
+        /// <paramref name="profile"/> — an in-memory scan of the authoring asset, not the baked
+        /// blob, since the profile itself has no bake step of its own at cutscene bake time.
+        /// </summary>
+        private static bool TryResolveAnimationLayerIndex(
+            ActorProfileAsset profile, uint animationKey, out int layerIndex)
+        {
+            layerIndex = 0;
+            if (profile == null || profile.layers == null || animationKey == 0u)
+            {
+                return false;
+            }
+            for (int i = 0; i < profile.layers.Count; i++)
+            {
+                ActorLayerDefinition layer = profile.layers[i];
+                if (layer == null || layer.animations == null)
+                {
+                    continue;
+                }
+                for (int j = 0; j < layer.animations.Count; j++)
+                {
+                    if (layer.animations[j] != null && layer.animations[j].animationKey == animationKey)
+                    {
+                        layerIndex = i;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The dense layer index a profile layer's <c>displayName</c> resolves to. Names, never indices, in the asset — a layer reorder keeps a stop key on the layer the author meant.</summary>
+        private static bool TryResolveLayerIndexByName(ActorProfileAsset profile, string layerName, out int layerIndex)
+        {
+            layerIndex = 0;
+            if (profile == null || profile.layers == null || string.IsNullOrEmpty(layerName))
+            {
+                return false;
+            }
+            for (int i = 0; i < profile.layers.Count; i++)
+            {
+                if (profile.layers[i] != null && profile.layers[i].displayName == layerName)
+                {
+                    layerIndex = i;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Groups blocks by their entry's resolved layer for the seam-blend pass — two blocks on
+        /// different layers never blend into each other — then emits them in global start-time
+        /// order, matching the runtime's single per-slot cursor.
+        /// </summary>
         private static void BucketClipBlocks(
             CutsceneSlot slot, List<SegmentBoundary> boundaries, List<string> warnings,
             List<CutsceneClipBlockBlob>[,] bucket, int slotIndex)
@@ -597,73 +705,123 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
-            // Sorted by start on the flat (pre-segment-split) lane, so each block's predecessor here
-            // is its true seam partner — never merely the previous entry in authoring order, and
-            // never reset at a segment boundary.
-            List<int> sortedIndices = new List<int>(slot.clipBlocks.Count);
-            for (int i = 0; i < slot.clipBlocks.Count; i++)
+            int blockCount = slot.clipBlocks.Count;
+            int[] resolvedLayerIndices = new int[blockCount];
+            for (int i = 0; i < blockCount; i++)
             {
-                sortedIndices.Add(i);
-            }
-            sortedIndices.Sort((left, right) => slot.clipBlocks[left].start.CompareTo(slot.clipBlocks[right].start));
-
-            CutsceneClipBlock previousBlock = null;
-            for (int sortedPosition = 0; sortedPosition < sortedIndices.Count; sortedPosition++)
-            {
-                int originalIndex = sortedIndices[sortedPosition];
-                CutsceneClipBlock block = slot.clipBlocks[originalIndex];
-                if (block.clipId != 0UL && !ClipExistsInSlot(slot, block.clipId))
+                CutsceneClipBlock block = slot.clipBlocks[i];
+                int layerIndex;
+                if (TryResolveAnimationLayerIndex(slot.profile, block.animationKey, out layerIndex))
+                {
+                    resolvedLayerIndices[i] = layerIndex;
+                }
+                else
                 {
                     warnings.Add(
-                        "Cutscene clip block " + originalIndex + " on slot '" + slot.name + "' names clip id 0x"
-                        + block.clipId.ToString("X16") + ", which is not in any of the slot's clip "
-                        + "sets. Baked anyway — the bound actor's own registry may still resolve it.");
+                        "Cutscene clip block " + i + " on slot '" + slot.name + "' names animation key 0x"
+                        + block.animationKey.ToString("X8") + ", which is not in the slot's profile. Baked "
+                        + "anyway with no seam blend — the bound actor's own profile gets the final say at play.");
+                    // A negative, per-block-unique bucket: an unresolved block never seams with
+                    // another block, resolved or not.
+                    resolvedLayerIndices[i] = -1 - i;
                 }
+            }
 
-                float blendDuration = previousBlock != null
-                    ? CutsceneBlockTiming.SeamBlendDuration(previousBlock.start, previousBlock.duration, block.start)
-                    : 0f;
+            float[] blendDurations = new float[blockCount];
+            Dictionary<int, List<int>> indicesByLayer = new Dictionary<int, List<int>>();
+            for (int i = 0; i < blockCount; i++)
+            {
+                int layerIndex = resolvedLayerIndices[i];
+                List<int> layerBlockIndices;
+                if (!indicesByLayer.TryGetValue(layerIndex, out layerBlockIndices))
+                {
+                    layerBlockIndices = new List<int>();
+                    indicesByLayer[layerIndex] = layerBlockIndices;
+                }
+                layerBlockIndices.Add(i);
+            }
+            foreach (KeyValuePair<int, List<int>> layerGroup in indicesByLayer)
+            {
+                List<int> sortedLayerIndices = layerGroup.Value;
+                sortedLayerIndices.Sort((left, right) => slot.clipBlocks[left].start.CompareTo(slot.clipBlocks[right].start));
+                for (int position = 0; position < sortedLayerIndices.Count; position++)
+                {
+                    int originalIndex = sortedLayerIndices[position];
+                    if (position == 0)
+                    {
+                        // No predecessor on this row: NaN defers to the profile entry's own blend-in
+                        // (then the clip's default) at play time.
+                        blendDurations[originalIndex] = float.NaN;
+                        continue;
+                    }
+                    CutsceneClipBlock block = slot.clipBlocks[originalIndex];
+                    CutsceneClipBlock previousBlock = slot.clipBlocks[sortedLayerIndices[position - 1]];
+                    blendDurations[originalIndex] =
+                        CutsceneBlockTiming.SeamBlendDuration(previousBlock.start, previousBlock.duration, block.start);
+                }
+            }
+
+            List<int> globalOrder = new List<int>(blockCount);
+            for (int i = 0; i < blockCount; i++)
+            {
+                globalOrder.Add(i);
+            }
+            globalOrder.Sort((left, right) => slot.clipBlocks[left].start.CompareTo(slot.clipBlocks[right].start));
+
+            for (int position = 0; position < globalOrder.Count; position++)
+            {
+                int originalIndex = globalOrder[position];
+                CutsceneClipBlock block = slot.clipBlocks[originalIndex];
 
                 float segmentStart;
                 int segmentIndex = AssignToSegment(boundaries, block.start, out segmentStart);
                 bucket[slotIndex, segmentIndex].Add(new CutsceneClipBlockBlob
                 {
-                    clipId = block.clipId,
+                    animationKey = block.animationKey,
                     start = block.start - segmentStart,
                     duration = block.duration,
                     loop = block.loop,
-                    blendDuration = blendDuration,
+                    blendDuration = blendDurations[originalIndex],
                     speed = CutsceneBlockTiming.EffectiveBlockSpeed(block.speed),
-                    clipStartOffset = Mathf.Max(0f, block.clipStartOffsetSeconds),
-                    directionVariants = CutsceneDirectionVariants.Build(slot, block.clipId)
+                    clipStartOffset = Mathf.Max(0f, block.clipStartOffsetSeconds)
                 });
-
-                previousBlock = block;
             }
         }
 
-        private static bool ClipExistsInSlot(CutsceneSlot slot, ulong clipId)
+        /// <summary>Buckets one slot's layer stops by their own instant, like a mark.</summary>
+        private static void BucketLayerStops(
+            CutsceneSlot slot, List<SegmentBoundary> boundaries, List<string> warnings,
+            List<CutsceneLayerStopBlob>[,] bucket, int slotIndex)
         {
-            if (slot.clipSets == null)
+            if (slot.layerStops == null || slot.kind != CutsceneSlotKind.Actor)
             {
-                return false;
+                return;
             }
-            for (int setIndex = 0; setIndex < slot.clipSets.Count; setIndex++)
+
+            List<CutsceneLayerStopKey> sortedStops = new List<CutsceneLayerStopKey>(slot.layerStops);
+            sortedStops.Sort((left, right) => left.time.CompareTo(right.time));
+
+            for (int i = 0; i < sortedStops.Count; i++)
             {
-                ClipSetAsset clipSet = slot.clipSets[setIndex];
-                if (clipSet == null || clipSet.clips == null)
+                CutsceneLayerStopKey stop = sortedStops[i];
+                int layerIndex;
+                if (!TryResolveLayerIndexByName(slot.profile, stop.layerName, out layerIndex))
                 {
+                    warnings.Add(
+                        "Cutscene layer stop " + i + " on slot '" + slot.name + "' names layer '"
+                        + stop.layerName + "', which the slot's profile does not declare. Skipped.");
                     continue;
                 }
-                for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
+
+                float segmentStart;
+                int segmentIndex = AssignToSegment(boundaries, stop.time, out segmentStart);
+                bucket[slotIndex, segmentIndex].Add(new CutsceneLayerStopBlob
                 {
-                    if (clipSet.clips[clipIndex] != null && clipSet.clips[clipIndex].stableId == clipId)
-                    {
-                        return true;
-                    }
-                }
+                    time = stop.time - segmentStart,
+                    layerIndex = (byte)layerIndex,
+                    blendOut = stop.blendOutSeconds
+                });
             }
-            return false;
         }
 
         private static void BucketTransformKeys(
@@ -697,7 +855,8 @@ namespace DotsAnimationToolkit.Authoring
                 bucket[slotIndex, segmentIndex].Add(new CutsceneFacingKeyBlob
                 {
                     time = keys[i].time - segmentStart,
-                    angleRadians = math.radians(keys[i].angleDegrees)
+                    angleRadians = math.radians(keys[i].angleDegrees),
+                    isAuto = keys[i].mode == CutsceneFacingMode.Auto
                 });
             }
         }
@@ -1159,10 +1318,19 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
+            if (flatKeys[bestIndex].mode == CutsceneFacingMode.Auto)
+            {
+                // The key in effect going into the hold released the pin rather than pinning a
+                // value — nothing to carry forward; the starting segment falls through to the mark/
+                // root-travel chain exactly as it would with no facing key authored at all.
+                return;
+            }
+
             startingSegmentKeys.Insert(0, new CutsceneFacingKeyBlob
             {
                 time = 0f,
-                angleRadians = math.radians(flatKeys[bestIndex].angleDegrees)
+                angleRadians = math.radians(flatKeys[bestIndex].angleDegrees),
+                isAuto = false
             });
         }
 

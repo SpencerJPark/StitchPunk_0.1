@@ -38,23 +38,6 @@ namespace DotsAnimationToolkit
             FacingResolver.ToAuthoredSide(foldedFacing, out clipFacing, out mirrorX);
         }
 
-        // Deliberately not a [BurstCompile] entry point: the blob it reads carries a bool, which is
-        // not blittable across one (BC1063), and both callers are managed anyway.
-        /// <summary>The set's clip for an east-side facing, or 0 where the set leaves that slot empty.</summary>
-        public static ulong SelectVariantClipId(
-            in CutsceneDirectionVariantsBlob variants, Direction clipFacing)
-        {
-            switch (clipFacing)
-            {
-                case Direction.South: return variants.south;
-                case Direction.SouthEast: return variants.southEast;
-                case Direction.East: return variants.east;
-                case Direction.NorthEast: return variants.northEast;
-                case Direction.North: return variants.north;
-                default: return 0UL;
-            }
-        }
-
         // atan2(z, x), not atan2(x, z): the vector's y component (read by FacingResolver.FromMovement)
         // is north (world +Z) and x is east. Measuring from +Z instead (the LocalTransform Y-euler
         // convention) reflects every derived facing about the 45-degree line.

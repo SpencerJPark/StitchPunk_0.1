@@ -133,19 +133,24 @@ gesture state machine leaves `ClipEditorWindow.CameraNavigation.cs` for a shared
 `PreviewCameraNavigation` over an `IPreviewCameraRig`. Independent of A73; takes the next unused
 minor. Eleven tasks in four subagent waves, one ⏸ owner checkpoint at the end. Nothing built.
 
-**Queued (2026-09-08): Amendment A73 — Profile-Driven Cutscenes**, then the game plan **G6**.
-Spec `Docs/AnimationToolkit/Amendment_A73_ProfileDrivenCutscenes_Spec.md`, session prompt
-`Amendment_A73_ProfileDrivenCutscenes_Prompt.md`, game half
-`Assets/_Vault/Tasks/NewPlans/CutsceneProfileCutover_System.md`. The owner found the Cutscene
-Editor still on raw clip ids, a per-slot direction set and one request-wide layer while A70/A71 put
-layers, names and direction on the profile. A73 makes a slot a profile: one timeline row per
-profile layer with blocks by animation name and ■ stop keys, auto locomotion (the profile's
-standing/moving entries from real displacement), facing that is auto unless a Fixed key pins it
-(an Auto key hands it back; a mark's arrival facing latches), the cutscene writing `ActorFacing`
-(A73-D2 amends A70-D6 for cutscene-driven actors), marks with a **+** button and *Wait Until
-Reached*. Breaking, 0.19.0, schema 6. Two Sonnet sessions (T1–T3 runtime, T4–T8 editor + docs), the
-owner checkpoint at the end of the second; G6 re-points the game's seven cutscene assets by script
-and gates `UnitAnimationAssignmentJob` on `CutsceneActor`. Nothing here has been built.
+**In progress (2026-09-08): Amendment A73 — Profile-Driven Cutscenes.** Session 1 (T1–T3) is built:
+the slot now carries `profile`/`locomotion`/`layerStops`, blocks play by animation name (schema 6),
+`CutsceneTimelineSystem` resolves each block's layer against the bound actor's own `ActorProfile`,
+issues auto locomotion (moving/standing entry from real displacement, authored blocks win their
+layer until a stop key), and writes both `CutsceneFacing` and `ActorFacing` through a Fixed/Auto
+facing chain with a mark-arrival latch. The package compiles green and the touched EditMode bake
+suites (21 tests) are gated and passing. **PlayMode could not be machine-verified this session** —
+Unity refuses to enter Play Mode while any project assembly has a compile error, and the game side
+is deliberately red from T1 onward (per the session prompt); `CutsceneTimelineSystemTests`,
+`CutsceneFacingTests`, `CutsceneMarkTests`, `CutsceneAttachTests`, `CutsceneStageBakingTests`,
+`SystemGroupStructureTests` and the new `CutsceneLocomotionTests` are written and believed correct
+but unrun — see the spec's §7 build log for the exact game-side files blocking it and why a trial
+fix was reverted rather than kept. Session 2 (T4–T8, editor + preview + marks UX + docs) has not
+started; run the package's PlayMode suite in full before trusting T1–T3 closed. Then game plan
+**G6** (`Assets/_Vault/Tasks/NewPlans/CutsceneProfileCutover_System.md`) re-points the game's seven
+cutscene assets by script and gates `UnitAnimationAssignmentJob` on `CutsceneActor`. Spec
+`Docs/AnimationToolkit/Amendment_A73_ProfileDrivenCutscenes_Spec.md`, session prompt
+`Amendment_A73_ProfileDrivenCutscenes_Prompt.md`.
 
 **The Actor Editor roadmap is built (2026-09-07): A70 (0.16.0), A71 (0.17.0) and the game cutover G5
 are in, gated green (EditMode 823 / PlayMode 291; the one standing `Conformance_A` asmdef drift

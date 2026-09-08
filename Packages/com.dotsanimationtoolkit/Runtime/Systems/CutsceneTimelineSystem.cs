@@ -10,13 +10,18 @@ namespace DotsAnimationToolkit
 {
     /// <summary>
     /// Runs in <see cref="AnimationToolkitLogicSystemGroup"/>: advances every running cutscene's
-    /// elastic clock, issues clip-block Play commands through the existing
-    /// <see cref="AnimationCommand"/> API, writes root/prop transforms and the camera singleton,
-    /// fires events, and handles hold-pause/release and skip. Part-track overrides are not applied
-    /// here — they need to land between <c>TransformSampleSystem</c> and <c>TransformApplySystem</c>
-    /// in the Presentation group; see <see cref="CutscenePartOverrideSystem"/>.
+    /// elastic clock, issues clip-block Play commands by animation name against each bound actor's
+    /// own <see cref="ActorProfile"/>, drives auto locomotion, writes facing (<see cref="CutsceneFacing"/>
+    /// and, for a bound Actor slot, <see cref="ActorFacing"/>), writes root/prop transforms and the
+    /// camera singleton, fires events, and handles hold-pause/release and skip. Part-track overrides
+    /// are not applied here — they need to land between <c>TransformSampleSystem</c> and
+    /// <c>TransformApplySystem</c> in the Presentation group; see <see cref="CutscenePartOverrideSystem"/>.
     /// </summary>
+    // A facing this system writes this frame must be re-picked this frame, before
+    // ActorFacingRepickSystem runs — the Play commands appended here still drain next frame, through
+    // CommandApplySystem's own OrderFirst latency, exactly as they always have.
     [UpdateInGroup(typeof(AnimationToolkitLogicSystemGroup))]
+    [UpdateBefore(typeof(ActorFacingRepickSystem))]
     public partial struct CutsceneTimelineSystem : ISystem
     {
         public void OnCreate(ref SystemState state)
@@ -84,10 +89,10 @@ namespace DotsAnimationToolkit
 
             CutscenePlay play = entityManager.GetComponentData<CutscenePlay>(requestEntity);
             ref CutsceneBlob blob = ref play.blob.Value;
-            byte layerIndex = play.layerIndex;
 
             DynamicBuffer<CutsceneActorBinding> bindings = entityManager.GetBuffer<CutsceneActorBinding>(requestEntity);
             DynamicBuffer<CutsceneSlotRuntimeState> slotStates = entityManager.GetBuffer<CutsceneSlotRuntimeState>(requestEntity);
+            DynamicBuffer<CutsceneSlotLayerState> layerStates = entityManager.GetBuffer<CutsceneSlotLayerState>(requestEntity);
             DynamicBuffer<AnimEventOutput> eventOutput = entityManager.GetBuffer<AnimEventOutput>(requestEntity);
 
             CutsceneControl control = entityManager.GetComponentData<CutsceneControl>(requestEntity);
@@ -98,15 +103,14 @@ namespace DotsAnimationToolkit
             float effectiveLayerSpeed = control.paused ? 0f : math.max(0f, control.speed);
             if (effectiveLayerSpeed != playbackState.appliedLayerSpeed)
             {
-                ApplyLayerSpeedToAllActorSlots(
-                    entityManager, ref blob, layerIndex, bindings, slotStates, effectiveLayerSpeed);
+                ApplyLayerSpeedToAllActorSlots(entityManager, ref blob, bindings, layerStates, effectiveLayerSpeed);
                 playbackState.appliedLayerSpeed = effectiveLayerSpeed;
             }
 
             if (control.skipRequested)
             {
                 PerformSkip(
-                    entityManager, ref blob, layerIndex, bindings, slotStates, ref playbackState,
+                    entityManager, ref blob, bindings, slotStates, layerStates, ref playbackState,
                     eventOutput, requestEntity, pendingAttachOps);
                 control.skipRequested = false;
                 entityManager.SetComponentData(requestEntity, control);
@@ -144,10 +148,12 @@ namespace DotsAnimationToolkit
                 {
                     // A held clock still faces somewhere, and a rendezvous hold is exactly when an
                     // actor is walking: facing must keep resolving while the timeline does not.
-                    ProcessFacing(
-                        entityManager, ref blob, layerIndex, effectiveLayerSpeed, bindings, slotStates,
-                        ref playbackState, pendingFacingOps);
+                    ProcessFacing(entityManager, ref blob, bindings, slotStates, ref playbackState, pendingFacingOps);
                     ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
+                    if (!control.paused)
+                    {
+                        ProcessLocomotion(entityManager, ref blob, deltaTime, bindings, slotStates, layerStates);
+                    }
                     ApplyCameraPose(entityManager, cameraPoseEntity, ref blob, ref playbackState);
                     entityManager.SetComponentData(requestEntity, playbackState);
                     return;
@@ -164,7 +170,8 @@ namespace DotsAnimationToolkit
             {
                 playbackState.timeInSegment += deltaTime * effectiveLayerSpeed;
 
-                ProcessClipBlocks(entityManager, ref blob, layerIndex, effectiveLayerSpeed, bindings, slotStates, ref playbackState);
+                ProcessClipBlocks(entityManager, ref blob, effectiveLayerSpeed, bindings, slotStates, layerStates, ref playbackState);
+                ProcessLayerStops(entityManager, ref blob, bindings, slotStates, layerStates, ref playbackState);
                 ProcessEvents(entityManager, ref blob, ref playbackState, eventOutput, requestEntity);
                 ProcessAttachMarkers(ref blob, bindings, slotStates, ref playbackState, pendingAttachOps);
                 ProcessMarks(ref blob, bindings, slotStates, ref playbackState, pendingMarkOps);
@@ -176,7 +183,7 @@ namespace DotsAnimationToolkit
                     bool isFinalSegment = playbackState.segmentIndex == blob.segments.Length - 1;
                     if (isFinalSegment)
                     {
-                        CompleteNaturally(entityManager, ref blob, layerIndex, bindings, slotStates, ref playbackState);
+                        CompleteNaturally(entityManager, ref blob, bindings, slotStates, layerStates, ref playbackState);
                     }
                     else
                     {
@@ -185,10 +192,12 @@ namespace DotsAnimationToolkit
                 }
             }
 
-            ProcessFacing(
-                entityManager, ref blob, layerIndex, effectiveLayerSpeed, bindings, slotStates,
-                ref playbackState, pendingFacingOps);
+            ProcessFacing(entityManager, ref blob, bindings, slotStates, ref playbackState, pendingFacingOps);
             ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
+            if (!control.paused)
+            {
+                ProcessLocomotion(entityManager, ref blob, deltaTime, bindings, slotStates, layerStates);
+            }
             ApplyCameraPose(entityManager, cameraPoseEntity, ref blob, ref playbackState);
             entityManager.SetComponentData(requestEntity, playbackState);
         }
@@ -196,14 +205,6 @@ namespace DotsAnimationToolkit
         // -----------------------------------------------------------------------------------
         // Binding resolution.
         // -----------------------------------------------------------------------------------
-
-        /// <summary><see cref="CutsceneApi.TopLayer"/> resolves to the actor's own last layer; a literal index passes through unchanged.</summary>
-        private static byte ResolveLayerIndex(byte requestedLayerIndex, int actorPlaybackLayerCount)
-        {
-            return requestedLayerIndex == CutsceneApi.TopLayer
-                ? (byte)math.max(0, actorPlaybackLayerCount - 1)
-                : requestedLayerIndex;
-        }
 
         private static bool TryResolveBinding(
             DynamicBuffer<CutsceneActorBinding> bindings, uint slotId, out Entity boundEntity)
@@ -221,13 +222,14 @@ namespace DotsAnimationToolkit
         }
 
         // -----------------------------------------------------------------------------------
-        // Clip blocks go through the existing AnimationCommand API — no second animation pipeline.
+        // Clip blocks play by name against the bound actor's own ActorProfile — no raw layer index,
+        // no second animation pipeline.
         // -----------------------------------------------------------------------------------
 
         private static void ProcessClipBlocks(
-            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, float layerSpeed,
+            EntityManager entityManager, ref CutsceneBlob blob, float layerSpeed,
             DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
-            ref CutscenePlaybackState playbackState)
+            DynamicBuffer<CutsceneSlotLayerState> layerStates, ref CutscenePlaybackState playbackState)
         {
             ref CutsceneSegmentBlob segment = ref blob.segments[playbackState.segmentIndex];
             for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
@@ -245,56 +247,87 @@ namespace DotsAnimationToolkit
 
                 ref CutsceneSlotSegmentBlob slotSegment = ref segment.slotTracks[slotIndex];
                 CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+
+                BlobAssetReference<ActorProfileBlob> profileReference = default;
+                bool hasProfile = entityManager.HasComponent<ActorProfile>(actorEntity);
+                if (hasProfile)
+                {
+                    profileReference = entityManager.GetComponentData<ActorProfile>(actorEntity).Value;
+                }
+
+                if (!hasProfile || !profileReference.IsCreated)
+                {
+                    bool dueThisFrame = slotState.nextClipBlockIndex < slotSegment.clipBlocks.Length
+                        && slotSegment.clipBlocks[slotState.nextClipBlockIndex].start <= playbackState.timeInSegment;
+                    if (dueThisFrame && !slotState.warnedMissingProfile)
+                    {
+                        UnityEngine.Debug.LogWarning(
+                            "[DOTS Animation Toolkit] Cutscene slot " + slotIndex + " is bound to an actor "
+                            + "with no ActorProfile; its clip blocks are skipped for the rest of this run.");
+                        slotState.warnedMissingProfile = true;
+                    }
+                    // Advance the cursor past every block due this frame anyway, so a profile-less
+                    // actor does not re-enter this branch every frame for the same stale block.
+                    while (slotState.nextClipBlockIndex < slotSegment.clipBlocks.Length &&
+                           slotSegment.clipBlocks[slotState.nextClipBlockIndex].start <= playbackState.timeInSegment)
+                    {
+                        slotState.nextClipBlockIndex++;
+                    }
+                    slotStates[slotIndex] = slotState;
+                    continue;
+                }
+
+                ref ActorProfileBlob profileBlob = ref profileReference.Value;
                 DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
-                byte resolvedLayerIndex = entityManager.HasBuffer<PlaybackLayer>(actorEntity)
-                    ? ResolveLayerIndex(layerIndex, entityManager.GetBuffer<PlaybackLayer>(actorEntity).Length)
-                    : layerIndex;
                 bool issuedAny = false;
 
                 while (slotState.nextClipBlockIndex < slotSegment.clipBlocks.Length &&
                        slotSegment.clipBlocks[slotState.nextClipBlockIndex].start <= playbackState.timeInSegment)
                 {
-                    CutsceneClipBlockBlob block = slotSegment.clipBlocks[slotState.nextClipBlockIndex];
+                    int blockIndex = slotState.nextClipBlockIndex;
+                    CutsceneClipBlockBlob block = slotSegment.clipBlocks[blockIndex];
+                    slotState.nextClipBlockIndex++;
 
-                    // The variant is picked here rather than left to the next frame's re-pick: a
-                    // block issued as its authored side and swapped one frame later is a visible pop
-                    // at the start of every turn.
-                    ulong clipId = ResolveVariantClipIdForSlot(
-                        entityManager, ref blob, ref segment, slotIndex, actorEntity, in slotState,
-                        playbackState.timeInSegment, in block.directionVariants, block.clipId);
-                    slotState.activeVariantClipId = clipId;
-                    slotState.activeBlockSegmentIndex = playbackState.segmentIndex;
-                    slotState.activeBlockIndex = slotState.nextClipBlockIndex;
-                    slotState.activeBlockSpeed = CutsceneBlockTiming.EffectiveBlockSpeed(block.speed);
+                    int animationIndex;
+                    if (!ActorProfileApi.TryFindAnimation(ref profileBlob, block.animationKey, out animationIndex))
+                    {
+                        if (!slotState.warnedUnresolvedAnimationKey)
+                        {
+                            UnityEngine.Debug.LogWarning(
+                                "[DOTS Animation Toolkit] Cutscene slot " + slotIndex + " block names animation "
+                                + "key 0x" + block.animationKey.ToString("X8") + ", which the bound actor's "
+                                + "profile does not declare. Skipped (further unresolved keys on this slot are "
+                                + "not reported again).");
+                            slotState.warnedUnresolvedAnimationKey = true;
+                        }
+                        continue;
+                    }
 
-                    // The crossfade window from this block's true predecessor on the slot's flat
-                    // lane — baked by CutsceneBlobBuilder, never derived here from "the previous
-                    // block in this segment", which would always read 0 for the first block after a
-                    // hold even when its real predecessor overlaps it.
+                    ref ActorAnimationBlob entry = ref profileBlob.animations[animationIndex];
+                    byte entryLayerIndex = entry.layerIndex;
+
                     commands.Add(new AnimationCommand
                     {
-                        kind = CommandKind.Play,
-                        layerIndex = resolvedLayerIndex,
-                        clip = new ClipId(clipId),
-                        // The layer's currently-applied speed times the block's own, never a flat 1
-                        // — a block issued while the host has slowed or paused playback must not
-                        // silently resume at normal speed, and "the second half of the swing,
-                        // slowed" is authored per block.
-                        speed = layerSpeed * slotState.activeBlockSpeed,
-                        loop = block.loop ? LoopMode.Loop : LoopMode.Once,
+                        kind = CommandKind.PlayAnimation,
+                        animationKey = block.animationKey,
+                        // The layer's currently-applied speed times the block's own times the
+                        // profile entry's own — a block issued while the host has slowed or paused
+                        // playback must not silently resume at normal speed.
+                        speed = layerSpeed * CutsceneBlockTiming.EffectiveBlockSpeed(block.speed) * entry.speed,
+                        loop = block.loop,
                         blendDuration = block.blendDuration,
                         time = 0f
                     });
 
                     // Play always starts a clip at 0 (or its end, in reverse) — CommandApplySystem
                     // ignores the command's own time — so an offset is a second command, drained
-                    // right after it in the same frame.
+                    // right after it in the same frame, addressed by the entry's own layer.
                     if (block.clipStartOffset > 0f)
                     {
                         commands.Add(new AnimationCommand
                         {
                             kind = CommandKind.SetTime,
-                            layerIndex = resolvedLayerIndex,
+                            layerIndex = entryLayerIndex,
                             clip = default,
                             speed = 0f,
                             loop = LoopMode.UseClipDefault,
@@ -303,7 +336,17 @@ namespace DotsAnimationToolkit
                         });
                     }
                     issuedAny = true;
-                    slotState.nextClipBlockIndex++;
+
+                    int layerStateIndex = slotIndex * CutsceneApi.LayersPerSlot + entryLayerIndex;
+                    if (layerStateIndex < layerStates.Length)
+                    {
+                        layerStates[layerStateIndex] = new CutsceneSlotLayerState
+                        {
+                            activeBlockSegmentIndex = playbackState.segmentIndex,
+                            activeBlockIndex = blockIndex,
+                            activeBlockSpeed = CutsceneBlockTiming.EffectiveBlockSpeed(block.speed)
+                        };
+                    }
                 }
 
                 if (issuedAny)
@@ -315,8 +358,193 @@ namespace DotsAnimationToolkit
         }
 
         // -----------------------------------------------------------------------------------
-        // Facing. The toolkit writes an angle and re-picks the direction set's variant clip; it
-        // never writes PartFacing — the host owns that.
+        // Layer stops: hand a profile layer back to auto locomotion (or silence, with no
+        // locomotion configured) from the stop's own time.
+        // -----------------------------------------------------------------------------------
+
+        private static void ProcessLayerStops(
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, DynamicBuffer<CutsceneSlotLayerState> layerStates,
+            ref CutscenePlaybackState playbackState)
+        {
+            ref CutsceneSegmentBlob segment = ref blob.segments[playbackState.segmentIndex];
+            for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
+            {
+                ref CutsceneSlotMetaBlob slotMeta = ref blob.slots[slotIndex];
+                if (slotMeta.kind != CutsceneSlotKind.Actor)
+                {
+                    continue;
+                }
+                ref CutsceneSlotSegmentBlob slotSegment = ref segment.slotTracks[slotIndex];
+                if (slotSegment.layerStops.Length == 0)
+                {
+                    continue;
+                }
+
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                Entity actorEntity;
+                bool hasBinding = TryResolveBinding(bindings, slotMeta.slotId, out actorEntity);
+                byte locomotionLayerIndex = 0;
+                bool hasLocomotion = hasBinding
+                    && TryResolveLocomotionLayerIndex(entityManager, in slotMeta, actorEntity, out locomotionLayerIndex);
+
+                while (slotState.nextLayerStopIndex < slotSegment.layerStops.Length &&
+                       slotSegment.layerStops[slotState.nextLayerStopIndex].time <= playbackState.timeInSegment)
+                {
+                    CutsceneLayerStopBlob stop = slotSegment.layerStops[slotState.nextLayerStopIndex];
+                    slotState.nextLayerStopIndex++;
+
+                    int layerStateIndex = slotIndex * CutsceneApi.LayersPerSlot + stop.layerIndex;
+                    if (layerStateIndex < layerStates.Length)
+                    {
+                        CutsceneSlotLayerState layerState = layerStates[layerStateIndex];
+                        layerState.activeBlockSegmentIndex = -1;
+                        layerStates[layerStateIndex] = layerState;
+                    }
+
+                    if (hasLocomotion && locomotionLayerIndex == stop.layerIndex)
+                    {
+                        slotState.lastLocomotionKey = 0u;
+                    }
+
+                    if (hasBinding && entityManager.HasComponent<AnimationCommand>(actorEntity))
+                    {
+                        DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
+                        commands.Add(new AnimationCommand
+                        {
+                            kind = CommandKind.Stop,
+                            layerIndex = stop.layerIndex,
+                            clip = default,
+                            speed = 0f,
+                            loop = LoopMode.UseClipDefault,
+                            blendDuration = stop.blendOut,
+                            time = 0f
+                        });
+                        entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
+                    }
+                }
+                slotStates[slotIndex] = slotState;
+            }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Auto locomotion: the profile's moving/standing entry from the bound actor's own real
+        // displacement. Authored blocks always win their layer; a stop key hands it back.
+        // -----------------------------------------------------------------------------------
+
+        /// <summary>The locomotion layer is the moving entry's own resolved layer — never a config value, since a profile can move an animation between layers.</summary>
+        private static bool TryResolveLocomotionLayerIndex(
+            EntityManager entityManager, in CutsceneSlotMetaBlob slotMeta, Entity actorEntity, out byte layerIndex)
+        {
+            layerIndex = 0;
+            if (!slotMeta.locomotion.enabled || slotMeta.locomotion.movingKey == 0u
+                || !entityManager.HasComponent<ActorProfile>(actorEntity))
+            {
+                return false;
+            }
+            BlobAssetReference<ActorProfileBlob> profileReference = entityManager.GetComponentData<ActorProfile>(actorEntity).Value;
+            if (!profileReference.IsCreated)
+            {
+                return false;
+            }
+            ref ActorProfileBlob profileBlob = ref profileReference.Value;
+            int movingAnimationIndex;
+            if (!ActorProfileApi.TryFindAnimation(ref profileBlob, slotMeta.locomotion.movingKey, out movingAnimationIndex))
+            {
+                return false;
+            }
+            layerIndex = profileBlob.animations[movingAnimationIndex].layerIndex;
+            return true;
+        }
+
+        private static void ProcessLocomotion(
+            EntityManager entityManager, ref CutsceneBlob blob, float deltaTime,
+            DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
+            DynamicBuffer<CutsceneSlotLayerState> layerStates)
+        {
+            int slotCount = math.min(blob.slots.Length, slotStates.Length);
+            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
+            {
+                ref CutsceneSlotMetaBlob slotMeta = ref blob.slots[slotIndex];
+                if (slotMeta.kind != CutsceneSlotKind.Actor)
+                {
+                    continue;
+                }
+
+                Entity actorEntity;
+                if (!TryResolveBinding(bindings, slotMeta.slotId, out actorEntity)
+                    || !entityManager.HasComponent<LocalTransform>(actorEntity))
+                {
+                    continue;
+                }
+
+                CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
+                float3 currentPosition = entityManager.GetComponentData<LocalTransform>(actorEntity).Position;
+                float3 displacement = currentPosition - slotState.lastPosition;
+                bool isMoving = slotState.hasLastPosition
+                    && CutsceneLocomotionMath.IsMoving(in displacement, deltaTime, slotMeta.locomotion.speedThreshold);
+                slotState.lastPosition = currentPosition;
+                slotState.hasLastPosition = true;
+
+                byte locomotionLayerIndex;
+                bool hasLocomotion = TryResolveLocomotionLayerIndex(entityManager, in slotMeta, actorEntity, out locomotionLayerIndex);
+                if (!hasLocomotion || !entityManager.HasComponent<AnimationCommand>(actorEntity)
+                    || !entityManager.HasBuffer<PlaybackLayer>(actorEntity))
+                {
+                    slotStates[slotIndex] = slotState;
+                    continue;
+                }
+
+                int layerStateIndex = slotIndex * CutsceneApi.LayersPerSlot + locomotionLayerIndex;
+                if (layerStateIndex < layerStates.Length && layerStates[layerStateIndex].activeBlockSegmentIndex >= 0)
+                {
+                    // Authored wins: a block claims its layer from its start, a stop key hands it back.
+                    slotStates[slotIndex] = slotState;
+                    continue;
+                }
+
+                uint desiredKey = isMoving ? slotMeta.locomotion.movingKey : slotMeta.locomotion.standingKey;
+                if (desiredKey != slotState.lastLocomotionKey)
+                {
+                    DynamicBuffer<PlaybackLayer> layers = entityManager.GetBuffer<PlaybackLayer>(actorEntity);
+                    bool alreadyPlaying = desiredKey != 0u && PlaybackApi.IsAnimationPlaying(layers, desiredKey);
+                    if (!alreadyPlaying)
+                    {
+                        DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
+                        if (desiredKey == 0u)
+                        {
+                            // A zero standing key stops the moving entry rather than switching to
+                            // another named entry.
+                            commands.Add(new AnimationCommand
+                            {
+                                kind = CommandKind.StopAnimation,
+                                animationKey = slotMeta.locomotion.movingKey,
+                                blendDuration = float.NaN
+                            });
+                        }
+                        else
+                        {
+                            commands.Add(new AnimationCommand
+                            {
+                                kind = CommandKind.PlayAnimation,
+                                animationKey = desiredKey,
+                                speed = float.NaN,
+                                loop = LoopMode.UseClipDefault,
+                                blendDuration = float.NaN
+                            });
+                        }
+                        entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
+                    }
+                    slotState.lastLocomotionKey = desiredKey;
+                }
+
+                slotStates[slotIndex] = slotState;
+            }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Facing. The toolkit writes CutsceneFacing (the host's mirror/view-offset input) and, for a
+        // bound Actor slot, ActorFacing — it never writes PartFacing; the host owns that.
         // -----------------------------------------------------------------------------------
 
         private struct PendingFacingOp
@@ -326,15 +554,14 @@ namespace DotsAnimationToolkit
         }
 
         /// <summary>
-        /// Writes every bound Actor slot's facing and re-picks its direction variant when the angle
-        /// has turned far enough to call for a different clip. Adding <see cref="CutsceneFacing"/>
-        /// is a structural change and is queued; setting its value and enabled bit is not, and stays
+        /// Writes every bound Actor slot's facing. Adding <see cref="CutsceneFacing"/> is a
+        /// structural change and is queued; setting its value and enabled bit is not, and stays
         /// inline so every frame after the first costs nothing but a write.
         /// </summary>
         private static void ProcessFacing(
-            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, float layerSpeed,
-            DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
-            ref CutscenePlaybackState playbackState, NativeList<PendingFacingOp> pendingFacingOps)
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, ref CutscenePlaybackState playbackState,
+            NativeList<PendingFacingOp> pendingFacingOps)
         {
             ref CutsceneSegmentBlob segment = ref blob.segments[playbackState.segmentIndex];
             int slotCount = math.min(blob.slots.Length, slotStates.Length);
@@ -353,11 +580,12 @@ namespace DotsAnimationToolkit
                 CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
                 float angleDegrees;
                 if (!TryResolveSlotFacingAngle(
-                        entityManager, ref segment, slotIndex, actorEntity, in slotState,
+                        entityManager, ref segment, slotIndex, actorEntity, ref slotState,
                         playbackState.timeInSegment, out angleDegrees))
                 {
                     // No override key and nothing moving: leave whatever facing is in effect alone
                     // rather than snapping the actor east.
+                    slotStates[slotIndex] = slotState;
                     continue;
                 }
 
@@ -376,9 +604,8 @@ namespace DotsAnimationToolkit
                     });
                 }
 
-                ReissueDirectionVariant(
-                    entityManager, ref blob, layerIndex, layerSpeed, slotIndex, actorEntity,
-                    angleDegrees, ref slotState);
+                WriteActorFacing(entityManager, actorEntity, angleDegrees);
+
                 slotStates[slotIndex] = slotState;
             }
         }
@@ -386,20 +613,25 @@ namespace DotsAnimationToolkit
         // The mark branch exists because an outstanding mark suspends a slot's root lane (the host
         // is walking the actor and owns the transform), so the lane says where the rehearsal would
         // have put it, not where the actor is going; facing off the vector to the mark is what the
-        // actor is actually doing.
+        // actor is actually doing. The latch sits between the mark branch and root travel: an
+        // arrival (or timeout) leaves the actor standing, and the mark branch above has nothing left
+        // to say once hasOutstandingMark clears, so without the latch a standing actor would snap to
+        // whatever root travel derives from its now-motionless lane.
         /// <summary>
-        /// The facing angle a slot is under at <paramref name="timeInSegment"/>: an override key
-        /// first, then — while the slot is walking to a mark — the direction of the mark it has been
-        /// sent to, and otherwise the direction its root lane is travelling.
+        /// The facing angle a slot is under at <paramref name="timeInSegment"/>: a Fixed key first
+        /// (an Auto key cancels the pin), then — while walking to a mark — the direction of the mark,
+        /// then a resolved mark's latched arrival facing until the slot moves again, and otherwise
+        /// the direction its root lane is travelling.
         /// </summary>
         private static bool TryResolveSlotFacingAngle(
             EntityManager entityManager, ref CutsceneSegmentBlob segment, int slotIndex, Entity boundEntity,
-            in CutsceneSlotRuntimeState slotState, float timeInSegment, out float angleDegrees)
+            ref CutsceneSlotRuntimeState slotState, float timeInSegment, out float angleDegrees)
         {
             ref CutsceneSlotSegmentBlob slotSegment = ref segment.slotTracks[slotIndex];
             if (CutsceneBlobSampler.TryResolveFacingOverride(
                     ref slotSegment.facingKeys, timeInSegment, out angleDegrees))
             {
+                slotState.hasLatchedFacing = false;
                 return true;
             }
 
@@ -411,116 +643,66 @@ namespace DotsAnimationToolkit
                 CutsceneMoveToMark order = entityManager.GetComponentData<CutsceneMoveToMark>(boundEntity);
                 float3 toMark = order.position - entityManager.GetComponentData<LocalTransform>(boundEntity).Position;
                 toMark.y = 0f;
-                if (math.lengthsq(toMark) < 1e-6f)
+                if (math.lengthsq(toMark) >= 1e-6f)
                 {
-                    return false;
+                    angleDegrees = CutsceneFacingVariants.AngleDegreesFromTravel(in toMark);
+                    return true;
                 }
-                angleDegrees = CutsceneFacingVariants.AngleDegreesFromTravel(in toMark);
-                return true;
+            }
+
+            if (slotState.hasLatchedFacing)
+            {
+                if (entityManager.HasComponent<LocalTransform>(boundEntity))
+                {
+                    float3 currentPosition = entityManager.GetComponentData<LocalTransform>(boundEntity).Position;
+                    bool movedSinceLastFrame = slotState.hasLastPosition
+                        && math.lengthsq(currentPosition - slotState.lastPosition) > 1e-6f;
+                    if (movedSinceLastFrame)
+                    {
+                        slotState.hasLatchedFacing = false;
+                    }
+                }
+                if (slotState.hasLatchedFacing)
+                {
+                    angleDegrees = slotState.latchedFacingDegrees;
+                    return true;
+                }
             }
 
             return CutsceneBlobSampler.TryDeriveFacingFromRootTravel(
                 ref slotSegment.transformKeys, timeInSegment, out angleDegrees);
         }
 
-        /// <summary>The clip a block plays once facing has had its say, or its authored clip when the block has no variants.</summary>
-        private static ulong ResolveVariantClipIdForSlot(
-            EntityManager entityManager, ref CutsceneBlob blob, ref CutsceneSegmentBlob segment, int slotIndex,
-            Entity boundEntity, in CutsceneSlotRuntimeState slotState, float timeInSegment,
-            in CutsceneDirectionVariantsBlob variants, ulong authoredClipId)
-        {
-            if (!variants.hasVariants)
-            {
-                return authoredClipId;
-            }
-
-            float angleDegrees;
-            if (!TryResolveSlotFacingAngle(
-                    entityManager, ref segment, slotIndex, boundEntity, in slotState, timeInSegment,
-                    out angleDegrees))
-            {
-                return authoredClipId;
-            }
-
-            Direction clipFacing;
-            bool mirrorX;
-            CutsceneFacingVariants.Resolve(
-                angleDegrees, variants.targetDirections, variants.effectiveDirections,
-                out clipFacing, out mirrorX);
-            ulong variantClipId = CutsceneFacingVariants.SelectVariantClipId(in variants, clipFacing);
-            return variantClipId != 0UL ? variantClipId : authoredClipId;
-        }
-
         /// <summary>
-        /// Swaps the clip a playing block is showing when the actor has turned onto a different
-        /// variant: <c>Play</c> with no blend, then <c>SetTime</c> carrying the phase over. The
-        /// layer's time is read before the commands are appended — <c>CommandApplySystem</c>
-        /// drains the buffer in order, so the <c>Play</c> that resets the clock has not run yet.
+        /// Folds a resolved angle onto the bound actor's own <c>ActorProfile.turnDirections</c> and
+        /// writes it into <see cref="ActorFacing.facing"/> — <see cref="ActorFacing.appliedFacing"/>
+        /// is never touched here, that is <c>ActorFacingRepickSystem</c>'s.
         /// </summary>
-        private static void ReissueDirectionVariant(
-            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, float layerSpeed,
-            int slotIndex, Entity actorEntity, float angleDegrees, ref CutsceneSlotRuntimeState slotState)
+        private static void WriteActorFacing(EntityManager entityManager, Entity actorEntity, float angleDegrees)
         {
-            if (slotState.activeBlockSegmentIndex < 0
-                || slotState.activeBlockSegmentIndex >= blob.segments.Length
-                || !entityManager.HasComponent<AnimationCommand>(actorEntity)
-                || !entityManager.HasBuffer<PlaybackLayer>(actorEntity))
+            if (!entityManager.HasComponent<ActorFacing>(actorEntity)
+                || !entityManager.HasComponent<ActorProfile>(actorEntity))
             {
                 return;
             }
-
-            ref CutsceneSlotSegmentBlob activeSlotSegment =
-                ref blob.segments[slotState.activeBlockSegmentIndex].slotTracks[slotIndex];
-            if (slotState.activeBlockIndex < 0 || slotState.activeBlockIndex >= activeSlotSegment.clipBlocks.Length)
+            BlobAssetReference<ActorProfileBlob> profileReference = entityManager.GetComponentData<ActorProfile>(actorEntity).Value;
+            if (!profileReference.IsCreated)
             {
                 return;
             }
+            AnimationDirections turnDirections = profileReference.Value.turnDirections;
 
-            ref CutsceneClipBlockBlob activeBlock = ref activeSlotSegment.clipBlocks[slotState.activeBlockIndex];
-            if (!activeBlock.directionVariants.hasVariants)
+            float angleRadians = math.radians(angleDegrees);
+            float2 facingVector = new float2(math.cos(angleRadians), math.sin(angleRadians));
+
+            ActorFacing actorFacing = entityManager.GetComponentData<ActorFacing>(actorEntity);
+            Direction resolvedFacing = FacingResolver.FromMovement(in facingVector, turnDirections, actorFacing.facing);
+            if (resolvedFacing == actorFacing.facing)
             {
                 return;
             }
-
-            Direction clipFacing;
-            bool mirrorX;
-            CutsceneFacingVariants.Resolve(
-                angleDegrees, activeBlock.directionVariants.targetDirections,
-                activeBlock.directionVariants.effectiveDirections, out clipFacing, out mirrorX);
-            ulong variantClipId =
-                CutsceneFacingVariants.SelectVariantClipId(in activeBlock.directionVariants, clipFacing);
-            if (variantClipId == 0UL || variantClipId == slotState.activeVariantClipId)
-            {
-                return;
-            }
-
-            DynamicBuffer<PlaybackLayer> layers = entityManager.GetBuffer<PlaybackLayer>(actorEntity);
-            byte resolvedLayerIndex = ResolveLayerIndex(layerIndex, layers.Length);
-            float carriedTime = resolvedLayerIndex < layers.Length ? layers[resolvedLayerIndex].time : 0f;
-
-            DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
-            commands.Add(new AnimationCommand
-            {
-                kind = CommandKind.Play,
-                layerIndex = resolvedLayerIndex,
-                clip = new ClipId(variantClipId),
-                speed = layerSpeed * CutsceneBlockTiming.EffectiveBlockSpeed(activeBlock.speed),
-                loop = activeBlock.loop ? LoopMode.Loop : LoopMode.Once,
-                blendDuration = 0f,
-                time = 0f
-            });
-            commands.Add(new AnimationCommand
-            {
-                kind = CommandKind.SetTime,
-                layerIndex = resolvedLayerIndex,
-                clip = default,
-                speed = 0f,
-                loop = LoopMode.UseClipDefault,
-                blendDuration = float.NaN,
-                time = carriedTime
-            });
-            entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
-            slotState.activeVariantClipId = variantClipId;
+            actorFacing.facing = resolvedFacing;
+            entityManager.SetComponentData(actorEntity, actorFacing);
         }
 
         private static void ApplyPendingFacingOps(
@@ -559,7 +741,8 @@ namespace DotsAnimationToolkit
         }
 
         private static void StopActorLayers(
-            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex, DynamicBuffer<CutsceneActorBinding> bindings)
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotLayerState> layerStates)
         {
             for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
             {
@@ -574,34 +757,50 @@ namespace DotsAnimationToolkit
                     continue;
                 }
 
-                byte resolvedLayerIndex = entityManager.HasBuffer<PlaybackLayer>(actorEntity)
-                    ? ResolveLayerIndex(layerIndex, entityManager.GetBuffer<PlaybackLayer>(actorEntity).Length)
-                    : layerIndex;
-
                 DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
-                commands.Add(new AnimationCommand
+                bool issuedAny = false;
+                for (int layerOffset = 0; layerOffset < CutsceneApi.LayersPerSlot; layerOffset++)
                 {
-                    kind = CommandKind.Stop,
-                    layerIndex = resolvedLayerIndex,
-                    clip = default,
-                    speed = 0f,
-                    loop = LoopMode.UseClipDefault,
-                    blendDuration = 0f,
-                    time = 0f
-                });
-                entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
+                    int layerStateIndex = slotIndex * CutsceneApi.LayersPerSlot + layerOffset;
+                    if (layerStateIndex >= layerStates.Length)
+                    {
+                        break;
+                    }
+                    if (layerStates[layerStateIndex].activeBlockSegmentIndex < 0)
+                    {
+                        // The locomotion layer, and any layer nothing ever claimed, is left playing
+                        // whatever it is playing — a host that assigns idle/walk itself finds the
+                        // right one already there.
+                        continue;
+                    }
+                    commands.Add(new AnimationCommand
+                    {
+                        kind = CommandKind.Stop,
+                        layerIndex = (byte)layerOffset,
+                        clip = default,
+                        speed = 0f,
+                        loop = LoopMode.UseClipDefault,
+                        blendDuration = float.NaN,
+                        time = 0f
+                    });
+                    issuedAny = true;
+                }
+
+                if (issuedAny)
+                {
+                    entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
+                }
             }
         }
 
         /// <summary>
-        /// Issues <c>SetSpeed</c> to every bound Actor slot's clip layer. Not gated on the layer
-        /// being active — a block issued later on a currently-idle layer must still inherit the
-        /// speed already in effect, not the command API's own speed-1 default.
+        /// Issues <c>SetSpeed</c> to every layer an authored block currently claims, re-deriving the
+        /// entry's own speed from the profile since <see cref="CutsceneSlotLayerState"/> keeps only
+        /// the block's own authored speed.
         /// </summary>
         private static void ApplyLayerSpeedToAllActorSlots(
-            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
-            DynamicBuffer<CutsceneActorBinding> bindings,
-            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, float layerSpeed)
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotLayerState> layerStates, float layerSpeed)
         {
             for (int slotIndex = 0; slotIndex < blob.slots.Length; slotIndex++)
             {
@@ -616,26 +815,67 @@ namespace DotsAnimationToolkit
                     continue;
                 }
 
-                byte resolvedLayerIndex = entityManager.HasBuffer<PlaybackLayer>(actorEntity)
-                    ? ResolveLayerIndex(layerIndex, entityManager.GetBuffer<PlaybackLayer>(actorEntity).Length)
-                    : layerIndex;
+                bool hasProfile = entityManager.HasComponent<ActorProfile>(actorEntity);
+                BlobAssetReference<ActorProfileBlob> profileReference = hasProfile
+                    ? entityManager.GetComponentData<ActorProfile>(actorEntity).Value : default;
+                if (!hasProfile || !profileReference.IsCreated)
+                {
+                    continue;
+                }
+                ref ActorProfileBlob profileBlob = ref profileReference.Value;
 
                 DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(actorEntity);
-                commands.Add(new AnimationCommand
+                bool issuedAny = false;
+                for (int layerOffset = 0; layerOffset < CutsceneApi.LayersPerSlot; layerOffset++)
                 {
-                    kind = CommandKind.SetSpeed,
-                    layerIndex = resolvedLayerIndex,
-                    clip = default,
-                    // The block's own speed multiplies the cutscene's: a host halving playback must
-                    // halve a half-speed block to a quarter, not reset it.
-                    speed = layerSpeed * (slotIndex < slotStates.Length
-                        ? CutsceneBlockTiming.EffectiveBlockSpeed(slotStates[slotIndex].activeBlockSpeed)
-                        : 1f),
-                    loop = LoopMode.UseClipDefault,
-                    blendDuration = float.NaN,
-                    time = 0f
-                });
-                entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
+                    int layerStateIndex = slotIndex * CutsceneApi.LayersPerSlot + layerOffset;
+                    if (layerStateIndex >= layerStates.Length)
+                    {
+                        break;
+                    }
+                    CutsceneSlotLayerState layerState = layerStates[layerStateIndex];
+                    if (layerState.activeBlockSegmentIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    float entrySpeed = 1f;
+                    if (layerState.activeBlockSegmentIndex < blob.segments.Length)
+                    {
+                        ref CutsceneSlotSegmentBlob activeSlotSegment =
+                            ref blob.segments[layerState.activeBlockSegmentIndex].slotTracks[slotIndex];
+                        if (layerState.activeBlockIndex >= 0
+                            && layerState.activeBlockIndex < activeSlotSegment.clipBlocks.Length)
+                        {
+                            uint activeAnimationKey = activeSlotSegment.clipBlocks[layerState.activeBlockIndex].animationKey;
+                            int animationIndex;
+                            if (ActorProfileApi.TryFindAnimation(ref profileBlob, activeAnimationKey, out animationIndex))
+                            {
+                                entrySpeed = profileBlob.animations[animationIndex].speed;
+                            }
+                        }
+                    }
+
+                    commands.Add(new AnimationCommand
+                    {
+                        kind = CommandKind.SetSpeed,
+                        layerIndex = (byte)layerOffset,
+                        clip = default,
+                        // The block's own speed multiplies the cutscene's, and the entry's own on
+                        // top: a host halving playback must not silently override a block or profile
+                        // entry authored to run slower.
+                        speed = layerSpeed * CutsceneBlockTiming.EffectiveBlockSpeed(layerState.activeBlockSpeed) * entrySpeed,
+                        loop = LoopMode.UseClipDefault,
+                        blendDuration = float.NaN,
+                        time = 0f
+                    });
+                    issuedAny = true;
+                }
+
+                if (issuedAny)
+                {
+                    entityManager.SetComponentEnabled<AnimationCommandPending>(actorEntity, true);
+                }
             }
         }
 
@@ -690,16 +930,17 @@ namespace DotsAnimationToolkit
                 slotState.nextClipBlockIndex = 0;
                 slotState.nextAttachMarkerIndex = 0;
                 slotState.nextMarkIndex = 0;
+                slotState.nextLayerStopIndex = 0;
                 slotStates[i] = slotState;
             }
         }
 
         private static void CompleteNaturally(
-            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
-            DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
+            EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
+            DynamicBuffer<CutsceneSlotRuntimeState> slotStates, DynamicBuffer<CutsceneSlotLayerState> layerStates,
             ref CutscenePlaybackState playbackState)
         {
-            StopActorLayers(entityManager, ref blob, layerIndex, bindings);
+            StopActorLayers(entityManager, ref blob, bindings, layerStates);
             ClearOutstandingMarks(entityManager, ref blob, bindings, slotStates);
             DisableActorFacing(entityManager, ref blob, bindings);
             playbackState.isComplete = true;
@@ -712,10 +953,10 @@ namespace DotsAnimationToolkit
         /// identical rather than merely close.
         /// </summary>
         private static void PerformSkip(
-            EntityManager entityManager, ref CutsceneBlob blob, byte layerIndex,
+            EntityManager entityManager, ref CutsceneBlob blob,
             DynamicBuffer<CutsceneActorBinding> bindings, DynamicBuffer<CutsceneSlotRuntimeState> slotStates,
-            ref CutscenePlaybackState playbackState, DynamicBuffer<AnimEventOutput> eventOutput,
-            Entity requestEntity, NativeList<PendingAttachOp> pendingAttachOps)
+            DynamicBuffer<CutsceneSlotLayerState> layerStates, ref CutscenePlaybackState playbackState,
+            DynamicBuffer<AnimEventOutput> eventOutput, Entity requestEntity, NativeList<PendingAttachOp> pendingAttachOps)
         {
             bool firedAny = false;
             for (int segmentIndex = playbackState.segmentIndex; segmentIndex < blob.segments.Length; segmentIndex++)
@@ -763,11 +1004,12 @@ namespace DotsAnimationToolkit
                 CutsceneSlotRuntimeState slotState = slotStates[slotIndex];
                 slotState.nextAttachMarkerIndex = finalSegment.slotTracks[slotIndex].attachMarkers.Length;
                 slotState.nextMarkIndex = finalSegment.slotTracks[slotIndex].markKeys.Length;
+                slotState.nextLayerStopIndex = finalSegment.slotTracks[slotIndex].layerStops.Length;
                 slotStates[slotIndex] = slotState;
             }
 
             ApplyPose(entityManager, ref blob, bindings, slotStates, ref playbackState);
-            CompleteNaturally(entityManager, ref blob, layerIndex, bindings, slotStates, ref playbackState);
+            CompleteNaturally(entityManager, ref blob, bindings, slotStates, layerStates, ref playbackState);
         }
 
         // -----------------------------------------------------------------------------------
@@ -1130,7 +1372,8 @@ namespace DotsAnimationToolkit
         /// Judges every outstanding order: arrived (XZ distance within tolerance), or timed out and
         /// therefore placed. <paramref name="isPaused"/> freezes the timeout clock only - a paused
         /// cutscene must not tick one down - while arrival still resolves, because whatever is
-        /// moving the entity may not be paused with it.
+        /// moving the entity may not be paused with it. Either resolution latches the mark's arrival
+        /// facing (§3.3) so a standing actor holds it until it moves again or a Fixed key takes over.
         /// </summary>
         private static void ResolveOutstandingMarks(
             EntityManager entityManager, ref CutsceneBlob blob, DynamicBuffer<CutsceneActorBinding> bindings,
@@ -1167,6 +1410,8 @@ namespace DotsAnimationToolkit
                 {
                     entityManager.SetComponentEnabled<CutsceneMoveToMark>(boundEntity, false);
                     slotState.hasOutstandingMark = false;
+                    slotState.hasLatchedFacing = true;
+                    slotState.latchedFacingDegrees = math.degrees(order.facingRadians);
                     slotStates[slotIndex] = slotState;
                     continue;
                 }
@@ -1182,6 +1427,8 @@ namespace DotsAnimationToolkit
                     PlaceAtMark(entityManager, boundEntity, order);
                     entityManager.SetComponentEnabled<CutsceneMoveToMark>(boundEntity, false);
                     slotState.hasOutstandingMark = false;
+                    slotState.hasLatchedFacing = true;
+                    slotState.latchedFacingDegrees = math.degrees(order.facingRadians);
                     slotStates[slotIndex] = slotState;
                     UnityEngine.Debug.LogWarning(
                         "[DOTS Animation Toolkit] Cutscene slot " + slotIndex + " did not reach its mark within "
