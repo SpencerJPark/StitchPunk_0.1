@@ -200,7 +200,11 @@ namespace DotsAnimationToolkit.Authoring
             return TryDeriveFacingFromRootTravel(rootKeys, timeSeconds, out angleDegrees);
         }
 
-        /// <summary>The last facing override key at or before <paramref name="timeSeconds"/>.</summary>
+        /// <summary>
+        /// The last facing override key at or before <paramref name="timeSeconds"/>. An
+        /// <see cref="CutsceneFacingMode.Auto"/> key in effect hands facing back to
+        /// auto-derivation, so this returns false exactly as if no key had fired yet.
+        /// </summary>
         public static bool TryResolveFacingOverride(
             List<CutsceneFacingKey> facingKeys, float timeSeconds, out float angleDegrees)
         {
@@ -219,12 +223,28 @@ namespace DotsAnimationToolkit.Authoring
                     bestIndex = i;
                 }
             }
-            if (bestIndex < 0)
+            if (bestIndex < 0 || facingKeys[bestIndex].mode == CutsceneFacingMode.Auto)
             {
                 return false;
             }
             angleDegrees = facingKeys[bestIndex].angleDegrees;
             return true;
+        }
+
+        /// <summary>
+        /// Facing when neither an override key nor root-lane travel has an opinion: the merged root
+        /// lane's own held rotation, which already carries a mark's arrival facing once the
+        /// rehearsed walk to it is done — <see cref="CutsceneMarkMerge.BuildEffectiveRootKeys"/>
+        /// bakes it there, so no separate latch needs tracking here.
+        /// </summary>
+        public static float DeriveFacingFromHeldRotation(List<CutsceneTransformKey> rootKeys, float timeSeconds)
+        {
+            float3 position;
+            float3 eulerDegrees;
+            float3 scale;
+            return TrySampleTransform(rootKeys, timeSeconds, out position, out eulerDegrees, out scale)
+                ? eulerDegrees.y
+                : 0f;
         }
 
         /// <summary>
@@ -262,7 +282,7 @@ namespace DotsAnimationToolkit.Authoring
                 return false;
             }
 
-            angleDegrees = CutsceneFacingVariants.AngleDegreesFromTravel(in travel);
+            angleDegrees = CutsceneBlobSampler.AngleDegreesFromTravel(in travel);
             return true;
         }
 

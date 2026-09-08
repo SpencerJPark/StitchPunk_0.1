@@ -725,7 +725,7 @@ namespace DotsAnimationToolkit.Editor
             // CutscenePartOverrideSystem then runs after that one). An override key is the last
             // word on the channels it owns, in the preview exactly as in play.
             SlotFacing facing = ResolveSlotFacing(slot, timeSeconds);
-            ComposeClipLane(slot, parts, timeSeconds, in facing);
+            ComposeLayers(slot, parts, timeSeconds, in facing.facingDirection);
             ComposeFacingMirror(slot, in facing);
             ComposePartTrackOverrides(slot, timeSeconds);
 
@@ -739,76 +739,55 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        // Reused every ComposeLayers call so a 30s vignette does not churn the editor with a fresh
+        // allocation per layer per frame.
+        private readonly List<CutsceneClipBlock> rowBlocksScratch = new List<CutsceneClipBlock>();
+        private readonly List<CutsceneLayerStopKey> rowStopsScratch = new List<CutsceneLayerStopKey>();
+
         /// <summary>
-        /// Samples whichever clip block the slot's lane is playing, cross-fading the one before it
-        /// while their overlap lasts, into <see cref="composedPoses"/>.
+        /// Reconstructs one <see cref="PlaybackLayer"/> per profile layer at <paramref name="timeSeconds"/>
+        /// — a block or a stop wins its row, and an untouched locomotion row falls back to the
+        /// standing/moving entry — then composites them into <see cref="composedPoses"/> through the
+        /// runtime's own <see cref="ClipSampler.CompositeLayers"/>. A reconstruction, not an advance:
+        /// a scrub jumps rather than replays, so a <see cref="LoopMode.Once"/> block's crossfade tail
+        /// and queue promotion are not rehearsed here, exactly as the clip lane never rehearsed them.
         /// </summary>
-        // CutsceneClipBlock now names an animation key (resolved against the slot's profile, by
-        // layer) rather than a raw clip id, and this composer still samples the old
-        // rig/clipSets-bound registry directly. Rebuilding it onto a per-layer PlaybackLayer
-        // reconstruction is pending; until then the clip lane preview is a no-op rather than
-        // sampling the wrong clip id under the new schema; root motion, facing and camera preview
-        // are unaffected.
-        private void ComposeClipLane(
-            CutsceneSlot slot, Dictionary<uint, PartBinding> parts, float timeSeconds, in SlotFacing facing)
+        private void ComposeLayers(
+            CutsceneSlot slot, Dictionary<uint, PartBinding> parts, float timeSeconds, in Direction facingDirection)
         {
-            return;
-#pragma warning disable CS0162 // unreachable pending the ComposeLayers rewrite
-            if (slot.clipBlocks == null || slot.clipBlocks.Count == 0)
-            {
-                return;
-            }
-
             CutsceneSlotClipPreview clipPreview = EnsureClipPreview(slot);
-            if (!clipPreview.HasRegistry)
+            if (!clipPreview.HasProfile)
             {
                 return;
             }
 
-            int activeBlockIndex = ResolveActiveBlockIndex(slot.clipBlocks, timeSeconds);
-            if (activeBlockIndex < 0)
-            {
-                // Nothing has started yet: parts stay at rest, exactly as an actor does before its
-                // first Play command reaches it.
-                return;
-            }
+            byte locomotionLayerIndex = 0;
+            bool hasLocomotionLayer = slot.locomotion != null && slot.locomotion.enabled
+                && slot.locomotion.movingAnimationKey != 0u
+                && clipPreview.TryFindAnimationLayer(slot.locomotion.movingAnimationKey, out locomotionLayerIndex);
 
-            CutsceneClipBlock activeBlock = slot.clipBlocks[activeBlockIndex];
-            int activeClipIndex;
-            if (!clipPreview.TryGetClipIndex(
-                    ResolveFacingVariantClipId(slot, in facing, activeBlock.animationKey), out activeClipIndex))
+            int layerCount = clipPreview.LayerCount;
+            for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
             {
-                return;
-            }
+                FilterBlocksAndStopsOnRow(slot, clipPreview, (byte)layerIndex);
 
-            float activeClipTime = CutsceneBlockTiming.ClipTimeInBlock(
-                    activeBlock.start, timeSeconds, activeBlock.speed, activeBlock.clipStartOffsetSeconds)
-                + HoldClipPhaseSeconds * CutsceneBlockTiming.EffectiveBlockSpeed(activeBlock.speed);
-            float activePhase = CutsceneBlockTiming.LoopPhaseNormalized(
-                activeClipTime, clipPreview.GetClipDuration(activeClipIndex), activeBlock.loop == LoopMode.Loop);
+                int blockIndex;
+                CutsceneLayerStateResolver.RowState rowState = CutsceneLayerStateResolver.ResolveAt(
+                    rowBlocksScratch, rowStopsScratch, timeSeconds, out blockIndex);
 
-            int previousClipIndex = -1;
-            float previousPhase = 0f;
-            float blendWeight = 1f;
-            if (activeBlockIndex > 0)
-            {
-                CutsceneClipBlock previousBlock = slot.clipBlocks[activeBlockIndex - 1];
-                float blendDuration = CutsceneBlockTiming.SeamBlendDuration(
-                    previousBlock.start, previousBlock.duration, activeBlock.start);
-                blendWeight = CutsceneBlockTiming.SeamBlendWeight(
-                    activeBlock.start, blendDuration, timeSeconds);
-                if (blendWeight < 1f && clipPreview.TryGetClipIndex(
-                        ResolveFacingVariantClipId(slot, in facing, previousBlock.animationKey), out previousClipIndex))
+                PlaybackLayer layer = default;
+                if (rowState == CutsceneLayerStateResolver.RowState.Block)
                 {
-                    // The outgoing clip keeps running on its own clock while the weight climbs —
-                    // PlaybackTimeSystem.AdvanceBlend's behaviour, not a frozen last frame.
-                    float previousClipTime = CutsceneBlockTiming.ClipTimeInBlock(
-                            previousBlock.start, timeSeconds, previousBlock.speed,
-                            previousBlock.clipStartOffsetSeconds)
-                        + HoldClipPhaseSeconds * CutsceneBlockTiming.EffectiveBlockSpeed(previousBlock.speed);
-                    previousPhase = CutsceneBlockTiming.LoopPhaseNormalized(
-                        previousClipTime, clipPreview.GetClipDuration(previousClipIndex), previousBlock.loop == LoopMode.Loop);
+                    BuildBlockLayer(clipPreview, rowBlocksScratch, blockIndex, timeSeconds, in facingDirection, out layer);
                 }
+                else if (rowState == CutsceneLayerStateResolver.RowState.None
+                    && hasLocomotionLayer && layerIndex == locomotionLayerIndex)
+                {
+                    BuildLocomotionLayer(slot, clipPreview, timeSeconds, in facingDirection, out layer);
+                }
+                // RowState.Stopped, or None on a non-locomotion row: layer stays default (inactive).
+
+                clipPreview.SetLayer(layerIndex, in layer);
             }
 
             int targetCount = clipPreview.TargetCount;
@@ -820,39 +799,180 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-
                 TargetPose pose;
-                clipPreview.SamplePose(
-                    activeClipIndex, targetIndex, activePhase, in partBinding.restPose, out pose);
-
-                if (previousClipIndex >= 0)
-                {
-                    TargetPose previousPose;
-                    clipPreview.SamplePose(
-                        previousClipIndex, targetIndex, previousPhase, in partBinding.restPose, out previousPose);
-                    ClipSampler.LerpPose(in previousPose, in pose, blendWeight, out pose);
-                }
-
+                clipPreview.CompositePose(targetIndex, in partBinding.restPose, out pose);
                 composedPoses[targetId] = pose;
             }
-#pragma warning restore CS0162
         }
 
-        // The block a lane is playing at timeSeconds: the last one to have started. −1 before the
-        // lane's first block. Scanned rather than tracked with the runtime player's forward-only
-        // cursor, since a scrub jumps backwards.
-        private static int ResolveActiveBlockIndex(List<CutsceneClipBlock> clipBlocks, float timeSeconds)
+        // Blocks/stops are filtered fresh per layer per call rather than grouped once, since a
+        // cutscene's block count is small and this keeps CutsceneLayerStateResolver's contract
+        // (already-filtered rows) the same for the preview and for its own test.
+        private void FilterBlocksAndStopsOnRow(CutsceneSlot slot, CutsceneSlotClipPreview clipPreview, byte layerIndex)
         {
-            int activeIndex = -1;
-            for (int blockIndex = 0; blockIndex < clipBlocks.Count; blockIndex++)
+            rowBlocksScratch.Clear();
+            if (slot.clipBlocks != null)
             {
-                CutsceneClipBlock block = clipBlocks[blockIndex];
-                if (block != null && block.start <= timeSeconds)
+                for (int index = 0; index < slot.clipBlocks.Count; index++)
                 {
-                    activeIndex = blockIndex;
+                    CutsceneClipBlock block = slot.clipBlocks[index];
+                    byte blockLayerIndex;
+                    if (block != null
+                        && clipPreview.TryFindAnimationLayer(block.animationKey, out blockLayerIndex)
+                        && blockLayerIndex == layerIndex)
+                    {
+                        rowBlocksScratch.Add(block);
+                    }
                 }
             }
-            return activeIndex;
+
+            rowStopsScratch.Clear();
+            if (slot.layerStops != null)
+            {
+                for (int index = 0; index < slot.layerStops.Count; index++)
+                {
+                    CutsceneLayerStopKey stop = slot.layerStops[index];
+                    byte stopLayerIndex;
+                    if (clipPreview.TryResolveLayerIndexByName(stop.layerName, out stopLayerIndex)
+                        && stopLayerIndex == layerIndex)
+                    {
+                        rowStopsScratch.Add(stop);
+                    }
+                }
+            }
+        }
+
+        // Builds the winning block's layer, then fills in the previous block on the same row when
+        // the seam window is still open — the runtime compositor crossfades from previous* itself,
+        // so this only has to describe both sides, not blend them.
+        private void BuildBlockLayer(
+            CutsceneSlotClipPreview clipPreview, List<CutsceneClipBlock> rowBlocks, int blockIndex,
+            float timeSeconds, in Direction facingDirection, out PlaybackLayer layer)
+        {
+            layer = default;
+            CutsceneClipBlock activeBlock = rowBlocks[blockIndex];
+
+            byte unusedLayerIndex;
+            ClipId clip;
+            LoopMode entryLoop;
+            float entrySpeed;
+            if (!clipPreview.TryResolveAnimation(
+                    activeBlock.animationKey, facingDirection, out unusedLayerIndex, out clip, out entryLoop, out entrySpeed))
+            {
+                return;
+            }
+
+            float blockSpeed = CutsceneBlockTiming.EffectiveBlockSpeed(activeBlock.speed);
+            float clipTimeSeconds = CutsceneBlockTiming.ClipTimeInBlock(
+                    activeBlock.start, timeSeconds, activeBlock.speed, activeBlock.clipStartOffsetSeconds)
+                + HoldClipPhaseSeconds * blockSpeed;
+
+            int clipIndex;
+            layer.clipIndex = clipPreview.TryGetClipIndex(clip.Value, out clipIndex) ? clipIndex : -1;
+            layer.clip = layer.clipIndex >= 0 ? clip : default;
+            layer.time = clipTimeSeconds;
+            layer.speed = entrySpeed * blockSpeed;
+            layer.loop = activeBlock.loop == LoopMode.UseClipDefault ? entryLoop : activeBlock.loop;
+            layer.flags = PlaybackFlags.Active;
+
+            if (blockIndex == 0)
+            {
+                return;
+            }
+
+            CutsceneClipBlock previousBlock = rowBlocks[blockIndex - 1];
+            float seamBlendDuration = CutsceneBlockTiming.SeamBlendDuration(
+                previousBlock.start, previousBlock.duration, activeBlock.start);
+            if (seamBlendDuration <= 0f
+                || CutsceneBlockTiming.SeamBlendWeight(activeBlock.start, seamBlendDuration, timeSeconds) >= 1f)
+            {
+                return;
+            }
+
+            byte unusedPreviousLayerIndex;
+            ClipId previousClip;
+            LoopMode previousEntryLoop;
+            float previousEntrySpeed;
+            if (!clipPreview.TryResolveAnimation(
+                    previousBlock.animationKey, facingDirection, out unusedPreviousLayerIndex,
+                    out previousClip, out previousEntryLoop, out previousEntrySpeed))
+            {
+                return;
+            }
+
+            float previousBlockSpeed = CutsceneBlockTiming.EffectiveBlockSpeed(previousBlock.speed);
+            int previousClipIndex;
+            layer.previousClipIndex = clipPreview.TryGetClipIndex(previousClip.Value, out previousClipIndex)
+                ? previousClipIndex
+                : -1;
+            layer.previousClip = layer.previousClipIndex >= 0 ? previousClip : default;
+            layer.previousTime = CutsceneBlockTiming.ClipTimeInBlock(
+                    previousBlock.start, timeSeconds, previousBlock.speed, previousBlock.clipStartOffsetSeconds)
+                + HoldClipPhaseSeconds * previousBlockSpeed;
+            layer.previousSpeed = previousEntrySpeed * previousBlockSpeed;
+            layer.previousLoop = previousBlock.loop == LoopMode.UseClipDefault ? previousEntryLoop : previousBlock.loop;
+            layer.blendElapsed = CutsceneBlockTiming.ElapsedInBlock(activeBlock.start, timeSeconds);
+            layer.blendDuration = seamBlendDuration;
+            layer.flags |= PlaybackFlags.Blending;
+        }
+
+        // The locomotion layer's fallback when nothing has claimed its row yet: the moving or
+        // standing entry, moving decided from the rehearsal root lane's own displacement — the same
+        // finite difference facing derives from, since the editor has only the lane to read.
+        private void BuildLocomotionLayer(
+            CutsceneSlot slot, CutsceneSlotClipPreview clipPreview, float timeSeconds,
+            in Direction facingDirection, out PlaybackLayer layer)
+        {
+            layer = default;
+            CutsceneLocomotion locomotion = slot.locomotion;
+
+            List<CutsceneTransformKey> effectiveRootKeys = CutsceneMarkMerge.BuildEffectiveRootKeys(slot);
+            bool isMoving = IsRehearsalLaneMoving(
+                effectiveRootKeys, timeSeconds, locomotion.movingSpeedThresholdMetersPerSecond);
+            uint animationKey = isMoving ? locomotion.movingAnimationKey : locomotion.standingAnimationKey;
+            if (animationKey == 0u)
+            {
+                // A moving lane with no standing entry just stops the layer rather than play nothing.
+                return;
+            }
+
+            byte unusedLayerIndex;
+            ClipId clip;
+            LoopMode entryLoop;
+            float entrySpeed;
+            if (!clipPreview.TryResolveAnimation(
+                    animationKey, facingDirection, out unusedLayerIndex, out clip, out entryLoop, out entrySpeed))
+            {
+                return;
+            }
+
+            int clipIndex;
+            layer.clipIndex = clipPreview.TryGetClipIndex(clip.Value, out clipIndex) ? clipIndex : -1;
+            layer.clip = layer.clipIndex >= 0 ? clip : default;
+            layer.time = timeSeconds * entrySpeed;
+            layer.speed = entrySpeed;
+            layer.loop = entryLoop;
+            layer.flags = PlaybackFlags.Active;
+        }
+
+        private static bool IsRehearsalLaneMoving(
+            List<CutsceneTransformKey> rootKeys, float timeSeconds, float movingSpeedThresholdMetersPerSecond)
+        {
+            const float LookBackSeconds = 1f / 60f;
+            float earlierTime = math.max(0f, timeSeconds - LookBackSeconds);
+            float laterTime = earlierTime + LookBackSeconds;
+
+            float3 earlierPosition;
+            float3 laterPosition;
+            float3 unusedRotation;
+            float3 unusedScale;
+            CutsceneKeySampler.TrySampleTransform(
+                rootKeys, earlierTime, out earlierPosition, out unusedRotation, out unusedScale);
+            CutsceneKeySampler.TrySampleTransform(
+                rootKeys, laterTime, out laterPosition, out unusedRotation, out unusedScale);
+
+            float3 displacement = laterPosition - earlierPosition;
+            return CutsceneLocomotionMath.IsMoving(in displacement, LookBackSeconds, movingSpeedThresholdMetersPerSecond);
         }
 
         // -----------------------------------------------------------------------------------
@@ -860,69 +980,46 @@ namespace DotsAnimationToolkit.Editor
         // merely displayed as a number.
         // -----------------------------------------------------------------------------------
 
-        /// <summary>Which authored-side clip a slot's facing calls for at the playhead, and whether it mirrors.</summary>
+        /// <summary>A slot's resolved facing: the snapped direction blocks resolve against, its authored-side sibling, and whether that sibling mirrors.</summary>
         private struct SlotFacing
         {
-            public bool isResolved;
+            public Direction facingDirection;
             public Direction clipFacing;
             public bool mirrorX;
         }
 
         /// <summary>
-        /// The slot's facing at <paramref name="timeSeconds"/>, resolved through the same
-        /// <see cref="CutsceneFacingVariants.Resolve"/> the runtime player calls. Unresolved without
-        /// a direction set — there is then nothing that says which art serves which angle.
+        /// The slot's facing at <paramref name="timeSeconds"/>: a Fixed key, else root-lane travel,
+        /// else the merged lane's own held rotation — which already carries a mark's arrival facing,
+        /// so no separate latch needs tracking here — folded onto the profile's <c>turnDirections</c>.
         /// </summary>
         private static SlotFacing ResolveSlotFacing(CutsceneSlot slot, float timeSeconds)
         {
-            SlotFacing facing = new SlotFacing();
-            if (slot.directionSet == null)
-            {
-                return facing;
-            }
-
+            List<CutsceneTransformKey> effectiveRootKeys = CutsceneMarkMerge.BuildEffectiveRootKeys(slot);
             float angleDegrees;
-            CutsceneKeySampler.TryResolveFacingAngle(
-                slot.facingKeys, CutsceneMarkMerge.BuildEffectiveRootKeys(slot), timeSeconds, out angleDegrees);
-
-            AnimationDirections coverage;
-            slot.directionSet.slots.TryGetEffectiveDirections(out coverage);
-
-            Direction clipFacing;
-            bool mirrorX;
-            CutsceneFacingVariants.Resolve(
-                angleDegrees, slot.directionSet.slots.targetDirections, coverage, out clipFacing, out mirrorX);
-
-            facing.isResolved = true;
-            facing.clipFacing = clipFacing;
-            facing.mirrorX = mirrorX;
-            return facing;
-        }
-
-        // The clip a block actually plays once facing has had its say: the direction set's sibling
-        // for the resolved side. Substituted only when the block already names a member of the set
-        // — a block naming a one-off clip the set has never heard of plays that clip exactly.
-        private static ulong ResolveFacingVariantClipId(
-            CutsceneSlot slot, in SlotFacing facing, ulong authoredClipId)
-        {
-            if (!facing.isResolved
-                || !CutsceneDirectionVariants.IsDirectionSetMember(slot.directionSet, authoredClipId))
+            if (!CutsceneKeySampler.TryResolveFacingAngle(
+                    slot.facingKeys, effectiveRootKeys, timeSeconds, out angleDegrees))
             {
-                return authoredClipId;
+                angleDegrees = CutsceneKeySampler.DeriveFacingFromHeldRotation(effectiveRootKeys, timeSeconds);
             }
-            ClipAsset variantClip = slot.directionSet.slots.GetSlot(facing.clipFacing);
-            return variantClip != null ? variantClip.Id.Value : authoredClipId;
+
+            AnimationDirections turnDirections =
+                slot.profile != null ? slot.profile.turnDirections : AnimationDirections.Six;
+            float angleRadians = math.radians(angleDegrees);
+            Direction facingDirection = FacingResolver.FromMovement(
+                new float2(math.cos(angleRadians), math.sin(angleRadians)), turnDirections, Direction.SouthEast);
+
+            SlotFacing facing = new SlotFacing();
+            facing.facingDirection = facingDirection;
+            FacingResolver.ToAuthoredSide(facingDirection, out facing.clipFacing, out facing.mirrorX);
+            return facing;
         }
 
         /// <summary>What the slot's facing resolves to at a time, for the slot inspector's readout.</summary>
         public static string DescribeResolvedFacing(CutsceneSlot slot, float timeSeconds)
         {
             SlotFacing facing = ResolveSlotFacing(slot, timeSeconds);
-            if (!facing.isResolved)
-            {
-                return "no direction set";
-            }
-            return "plays the " + facing.clipFacing + " variant" + (facing.mirrorX ? ", mirrored" : string.Empty);
+            return facing.clipFacing + (facing.mirrorX ? ", mirrored" : string.Empty);
         }
 
         /// <summary>
@@ -933,7 +1030,8 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private void ComposeFacingMirror(CutsceneSlot slot, in SlotFacing facing)
         {
-            if (!facing.isResolved || !facing.mirrorX || slot.rig == null || slot.rig.targets == null)
+            RigAsset rig = slot.ResolvedRig;
+            if (!facing.mirrorX || rig == null || rig.targets == null)
             {
                 return;
             }
@@ -941,9 +1039,9 @@ namespace DotsAnimationToolkit.Editor
             Dictionary<uint, PartBinding> slotParts;
             partsBySlot.TryGetValue(slot.SlotId, out slotParts);
 
-            for (int targetIndex = 0; targetIndex < slot.rig.targets.Count; targetIndex++)
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
             {
-                RigTargetDefinition target = slot.rig.targets[targetIndex];
+                RigTargetDefinition target = rig.targets[targetIndex];
                 if (target == null || !target.facesDirection)
                 {
                     continue;
@@ -952,7 +1050,7 @@ namespace DotsAnimationToolkit.Editor
                 // part inherits that reflection and must not negate again — the same rule
                 // PartMirrorFromAncestor bakes for playback, applied here from the live hierarchy so
                 // the two cannot disagree.
-                if (HasFacingAncestorPart(slot, slotParts, target))
+                if (HasFacingAncestorPart(rig, slotParts, target))
                 {
                     continue;
                 }
@@ -974,7 +1072,7 @@ namespace DotsAnimationToolkit.Editor
         /// a mirror point. Read from the live transforms, which is what the bake reads too.
         /// </summary>
         private static bool HasFacingAncestorPart(
-            CutsceneSlot slot, Dictionary<uint, PartBinding> slotParts, RigTargetDefinition target)
+            RigAsset rig, Dictionary<uint, PartBinding> slotParts, RigTargetDefinition target)
         {
             PartBinding binding;
             if (slotParts == null || !slotParts.TryGetValue(target.stableId, out binding)
@@ -986,9 +1084,9 @@ namespace DotsAnimationToolkit.Editor
             Transform ancestor = binding.partTransform.parent;
             while (ancestor != null)
             {
-                for (int targetIndex = 0; targetIndex < slot.rig.targets.Count; targetIndex++)
+                for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
                 {
-                    RigTargetDefinition candidate = slot.rig.targets[targetIndex];
+                    RigTargetDefinition candidate = rig.targets[targetIndex];
                     if (candidate == null || candidate == target || !candidate.facesDirection)
                     {
                         continue;
@@ -1102,7 +1200,7 @@ namespace DotsAnimationToolkit.Editor
                 clipPreview = new CutsceneSlotClipPreview();
                 clipPreviewsBySlot[slot.SlotId] = clipPreview;
             }
-            clipPreview.RebuildIfBindChanged(slot.rig, slot.clipSets);
+            clipPreview.RebuildIfBindChanged(slot.profile);
             return clipPreview;
         }
 

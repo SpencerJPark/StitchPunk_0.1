@@ -645,7 +645,7 @@ namespace DotsAnimationToolkit
                 toMark.y = 0f;
                 if (math.lengthsq(toMark) >= 1e-6f)
                 {
-                    angleDegrees = CutsceneFacingVariants.AngleDegreesFromTravel(in toMark);
+                    angleDegrees = CutsceneBlobSampler.AngleDegreesFromTravel(in toMark);
                     return true;
                 }
             }

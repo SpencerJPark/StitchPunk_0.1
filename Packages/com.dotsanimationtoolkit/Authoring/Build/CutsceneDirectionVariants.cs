@@ -9,35 +9,6 @@ namespace DotsAnimationToolkit.Authoring
     /// </summary>
     internal static class CutsceneDirectionVariants
     {
-        /// <summary>The five east-side slots a direction set authors, in the order the queue lists them.</summary>
-        internal static readonly Direction[] EastSideSlotOrder =
-        {
-            Direction.South, Direction.SouthEast, Direction.East, Direction.NorthEast, Direction.North
-        };
-
-        /// <summary>
-        /// Whether <paramref name="clipId"/> is one of the set's own five slots — the gate on
-        /// substitution. A block naming the set's walk is asking for "the walk" and re-picks as the
-        /// actor turns; a block naming a one-off clip the set has never heard of is asking for that
-        /// clip exactly.
-        /// </summary>
-        internal static bool IsDirectionSetMember(DirectionSetAsset directionSet, ulong clipId)
-        {
-            if (directionSet == null || clipId == 0UL)
-            {
-                return false;
-            }
-            for (int slotIndex = 0; slotIndex < EastSideSlotOrder.Length; slotIndex++)
-            {
-                ClipAsset slotClip = directionSet.slots.GetSlot(EastSideSlotOrder[slotIndex]);
-                if (slotClip != null && slotClip.Id.Value == clipId)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         /// <summary>
         /// Whether a slot's rig can actually show the facing the cutscene resolves for it, and what
         /// is wrong when it cannot. Null means nothing is wrong.

@@ -220,6 +220,17 @@ namespace DotsAnimationToolkit
             return true;
         }
 
+        // atan2(z, x), not atan2(x, z): the vector's y component (read by FacingResolver.FromMovement)
+        // is north (world +Z) and x is east. Measuring from +Z instead (the LocalTransform Y-euler
+        // convention) reflects every derived facing about the 45-degree line.
+        /// <summary>The facing angle a travel vector implies: 0 = east, 90 = north.</summary>
+        [BurstCompile]
+        public static float AngleDegreesFromTravel(in float3 travel)
+        {
+            float angleDegrees = math.degrees(math.atan2(travel.z, travel.x));
+            return angleDegrees < 0f ? angleDegrees + 360f : angleDegrees;
+        }
+
         /// <summary>The direction the root lane travels at <paramref name="time"/>, by finite difference against a hair earlier (forward-differenced at t == 0).</summary>
         [BurstCompile]
         public static bool TryDeriveFacingFromRootTravel(
@@ -253,7 +264,7 @@ namespace DotsAnimationToolkit
                 return false;
             }
 
-            angleDegrees = CutsceneFacingVariants.AngleDegreesFromTravel(in travel);
+            angleDegrees = AngleDegreesFromTravel(in travel);
             return true;
         }
 

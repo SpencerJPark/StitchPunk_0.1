@@ -393,7 +393,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             "EasingPresets", "ClipKeyClipboard", "CutsceneKeyClipboard", "RestPoseCapture",
             "AnimEventMaskKeys", "ConstantsGenerator",
-            "CutsceneBlockTiming", "CutsceneFacingVariants", "AuthoringPathHash", "AuthoringPathText",
+            "CutsceneBlockTiming", "AuthoringPathHash", "AuthoringPathText",
             "CutsceneDerivedHolds", "CutsceneDirectionVariants", "CutsceneKeySampler", "CutsceneMarkMerge",
             "CutsceneAssetOpener", "ActorProfileAssetOpener", "TimelineRangeShading", "VocabularySettingsProvider",
             "RagdollPreviewSceneryProvider", "VocabularyRegistryProvider", "CutsceneEventInspectorProviders",
