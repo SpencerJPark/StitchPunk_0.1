@@ -450,7 +450,7 @@ touches MCP.
   branches. *Fixture (EditMode, new `CutsceneLayerReconstructionTests`):* the pure "last block or stop
   at-or-before t per row" resolver (extract it as a static in `Authoring/Build/` so both the preview
   and a test reach it): block at 0, stop at 2, block at 3 → active at 1, inactive at 2.5, active at 4.
-- [ ] **T6 — Marks UX (§3.4 mark items).** Mark inspector re-order + Wait Until Reached + Set From
+- [x] **T6 — Marks UX (§3.4 mark items).** Mark inspector re-order + Wait Until Reached + Set From
   Scene View Pivot, Marks row **+**, derived-hold ghost and transport auto-continue. Live proof: add
   a mark with the header button, play the transport — it stops at the mark's time naming
   `mark:<slot>@<t>` and continues past the rehearsed arrival.

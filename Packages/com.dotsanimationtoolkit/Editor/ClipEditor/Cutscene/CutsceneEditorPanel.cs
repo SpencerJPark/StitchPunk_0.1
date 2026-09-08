@@ -815,11 +815,13 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
+                bool derivedFromMark = CutsceneDerivedHolds.IsMarkDerived(derivedHolds[derivedIndex]);
                 effectiveHolds.Add(new EffectiveHold
                 {
                     time = derivedHolds[derivedIndex].time,
                     holdId = derivedHolds[derivedIndex].holdId,
-                    isDerivedFromEvent = true
+                    autoReleaseWhenMarksReached = derivedFromMark,
+                    isDerivedFromEvent = !derivedFromMark
                 });
             }
 
@@ -2279,7 +2281,8 @@ namespace DotsAnimationToolkit.Editor
                 content, "Marks", slot.markKeys, markKeysProperty,
                 slotIndex, SelectedLaneKind.MarkKey, -1, contentWidth,
                 ToolkitPalette.MarkerMark, time => InsertMarkKeyDefault(slotIndex, markKeysProperty, time),
-                accentClass: accent);
+                accentClass: accent,
+                configureHeaderCell: headerCell => AddMarkRowHeaderButton(headerCell, slotIndex, markKeysProperty));
 
             if (isActor)
             {
@@ -2462,6 +2465,21 @@ namespace DotsAnimationToolkit.Editor
                 () => InsertLayerStopKeyDefault(slotIndex, layerStopsProperty, layerIndex),
                 ToolkitIcons.Stop, "Stop this layer at the playhead, handing it back to auto locomotion.", "■");
             headerCell.Add(addStopButton);
+        }
+
+        // Same header-icon pattern as the layer rows: one + button, the "walk here and wait" default.
+        private void AddMarkRowHeaderButton(VisualElement headerCell, int slotIndex, SerializedProperty markKeysProperty)
+        {
+            Label existingLabel = headerCell.Q<Label>(className: "cutscene-editor__track-header-label");
+            if (existingLabel != null)
+            {
+                existingLabel.style.flexGrow = 1f;
+            }
+
+            Button addMarkButton = ToolkitIcons.MakeIconButton(
+                () => InsertMarkKeyWaitHereDefault(slotIndex, markKeysProperty),
+                ToolkitIcons.Plus, "Add a mark at the playhead that waits until the actor reaches it.", "+");
+            headerCell.Add(addMarkButton);
         }
 
         // Blocks whose key the slot's profile does not carry land here instead — visible rather than
@@ -2760,7 +2778,7 @@ namespace DotsAnimationToolkit.Editor
             VisualElement content, string label, List<CutsceneMarkKey> keys, SerializedProperty keysProperty,
             int slotIndex, SelectedLaneKind laneKind, int partTrackIndex, float contentWidth, Color color,
             Action<float> onAddAtTime, string accentClass = null, bool isGroup = false,
-            bool indentLabel = true)
+            bool indentLabel = true, Action<VisualElement> configureHeaderCell = null)
         {
             List<float> times = new List<float>(keys.Count);
             for (int i = 0; i < keys.Count; i++)
@@ -2785,7 +2803,7 @@ namespace DotsAnimationToolkit.Editor
             return AddTimelineRow(
                 content, label, lane, () => SelectItem(slotIndex, laneKind, partTrackIndex, -1),
                 LaneRowHeight, isGroup: isGroup, accentClass: accentClass, indentLabel: indentLabel,
-                isSelected: isSelectedLane && selectedItemIndex < 0);
+                isSelected: isSelectedLane && selectedItemIndex < 0, configureHeaderCell: configureHeaderCell);
         }
 
         // The attach lane. Built here rather than through BuildMomentRow, since its markers are not
@@ -3860,6 +3878,46 @@ namespace DotsAnimationToolkit.Editor
             CommitStructuralChange();
         }
 
+        /// <summary>
+        /// The Marks row header's + button: a mark at the playhead standing where the bound object
+        /// is, else where the slot's root lane sits at that time, else the origin — set to wait,
+        /// since the header button's whole point is the one-click "walk here and wait" default.
+        /// </summary>
+        private void InsertMarkKeyWaitHereDefault(int slotIndex, SerializedProperty listProperty)
+        {
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+            Vector3 position = Vector3.zero;
+            GameObject boundObject = FindBoundObject(slotIndex);
+            if (boundObject != null)
+            {
+                position = boundObject.transform.position;
+            }
+            else
+            {
+                float3 sampledPosition;
+                float3 sampledEulerDegrees;
+                float3 sampledScale;
+                if (CutsceneKeySampler.TrySampleTransform(
+                    slot.transformKeys, playheadSeconds, out sampledPosition, out sampledEulerDegrees, out sampledScale))
+                {
+                    position = new Vector3(sampledPosition.x, sampledPosition.y, sampledPosition.z);
+                }
+            }
+
+            int index = listProperty.arraySize;
+            listProperty.InsertArrayElementAtIndex(index);
+            SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("time").floatValue = playheadSeconds;
+            ZeroFloat3(element.FindPropertyRelative("position"), position.x, position.y, position.z);
+            element.FindPropertyRelative("facingDegrees").floatValue = 0f;
+            element.FindPropertyRelative("waitUntilReached").boolValue = true;
+            element.FindPropertyRelative("toleranceMeters").floatValue = DefaultMarkToleranceMeters;
+            element.FindPropertyRelative("timeoutSeconds").floatValue = 0f;
+            element.FindPropertyRelative("previewTravelSeconds").floatValue = DefaultMarkPreviewTravelSeconds;
+            SortByTime(listProperty);
+            CommitStructuralChange();
+        }
+
         /// <summary>Close enough to a spot that a walk cycle stopping there reads as "arrived".</summary>
         private const float DefaultMarkToleranceMeters = 0.5f;
 
@@ -4716,10 +4774,6 @@ namespace DotsAnimationToolkit.Editor
             inspectorScroll.Add(BuildHeading("Mark"));
             AddBoundField(markProperty, "time", "Time (s)");
             AddBoundField(markProperty, "position", "Position (world)");
-            AddBoundField(markProperty, "facingDegrees", "Facing (0-360)");
-            AddBoundField(markProperty, "toleranceMeters", "Tolerance (m)");
-            AddBoundField(markProperty, "timeoutSeconds", "Timeout (s, 0 = wait)");
-            AddBoundField(markProperty, "previewTravelSeconds", "Preview Travel (s)");
 
             GameObject boundObject = FindBoundObject(slotIndex);
             Button setFromObjectButton = new Button(() => SetMarkFromBoundObject(slotIndex, markIndex))
@@ -4732,6 +4786,23 @@ namespace DotsAnimationToolkit.Editor
             setFromObjectButton.SetEnabled(boundObject != null);
             setFromObjectButton.style.marginTop = 6f;
             inspectorScroll.Add(setFromObjectButton);
+
+            SceneView activeSceneView = SceneView.lastActiveSceneView;
+            Button setFromPivotButton = new Button(() => SetMarkFromSceneViewPivot(slotIndex, markIndex))
+            {
+                text = "Set From Scene View Pivot",
+                tooltip = activeSceneView != null
+                    ? "Moves this mark to the Scene view's current pivot."
+                    : "Open a Scene view first."
+            };
+            setFromPivotButton.SetEnabled(activeSceneView != null);
+            inspectorScroll.Add(setFromPivotButton);
+
+            AddBoundField(markProperty, "waitUntilReached", "Wait Until Reached");
+            AddBoundField(markProperty, "facingDegrees", "Arrival Facing (0-360)");
+            AddBoundField(markProperty, "toleranceMeters", "Tolerance (m)");
+            AddBoundField(markProperty, "timeoutSeconds", "Timeout (s, 0 = wait)");
+            AddBoundField(markProperty, "previewTravelSeconds", "Preview Travel (s)");
 
             inspectorScroll.Add(BuildInspectorNote(
                 "The toolkit orders the move and judges arrival by distance; the host walks the " +
@@ -4757,6 +4828,24 @@ namespace DotsAnimationToolkit.Editor
             ZeroFloat3(markProperty.FindPropertyRelative("position"), position.x, position.y, position.z);
             markProperty.FindPropertyRelative("facingDegrees").floatValue =
                 boundObject.transform.rotation.eulerAngles.y;
+            serializedObject.ApplyModifiedProperties();
+            RebuildAll();
+        }
+
+        /// <summary>Drops the mark at the Scene view's current pivot. Facing is untouched — the pivot carries no rotation.</summary>
+        private void SetMarkFromSceneViewPivot(int slotIndex, int markIndex)
+        {
+            SceneView activeSceneView = SceneView.lastActiveSceneView;
+            if (activeSceneView == null)
+            {
+                return;
+            }
+            SerializedProperty markProperty = serializedObject.FindProperty("slots")
+                .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("markKeys")
+                .GetArrayElementAtIndex(markIndex);
+
+            Vector3 pivot = activeSceneView.pivot;
+            ZeroFloat3(markProperty.FindPropertyRelative("position"), pivot.x, pivot.y, pivot.z);
             serializedObject.ApplyModifiedProperties();
             RebuildAll();
         }
