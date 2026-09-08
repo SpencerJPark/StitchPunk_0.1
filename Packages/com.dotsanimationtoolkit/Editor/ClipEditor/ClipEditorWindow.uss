@@ -1614,6 +1614,13 @@
     border-color: rgba(0, 0, 0, 0.4);
 }
 
+/* An Auto facing key hands control back to derivation rather than pinning an angle, so it draws
+   hollow (fill supplied as transparent alongside this class) against a Fixed key's solid diamond. */
+.cutscene-editor__moment-marker--hollow-diamond {
+    rotate: 45deg;
+    border-width: 2px;
+}
+
 /* A cast row is one line at rest — dot, name, kind chip, then Place/Bind/Select/Frame. The bind
    field below it is opened by the Bind button and is display:none until then, so a panel narrow
    enough to sit beside the viewport still lists the whole cast without scrolling. */

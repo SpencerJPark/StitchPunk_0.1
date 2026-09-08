@@ -62,6 +62,9 @@ namespace DotsAnimationToolkit.Editor
                 case SelectedLaneKind.MarkKey:
                     listProperty = slotProperty.FindPropertyRelative("markKeys");
                     return true;
+                case SelectedLaneKind.LayerStopKey:
+                    listProperty = slotProperty.FindPropertyRelative("layerStops");
+                    return true;
                 case SelectedLaneKind.PartTrackKey:
                 {
                     SerializedProperty partTracksProperty = slotProperty.FindPropertyRelative("partTracks");

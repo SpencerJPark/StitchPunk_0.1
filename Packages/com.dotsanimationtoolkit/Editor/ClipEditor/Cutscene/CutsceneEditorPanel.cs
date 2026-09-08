@@ -1570,6 +1570,13 @@ namespace DotsAnimationToolkit.Editor
             newSlot.FindPropertyRelative("rig").objectReferenceValue = null;
             newSlot.FindPropertyRelative("clipSets").ClearArray();
             newSlot.FindPropertyRelative("directionSet").objectReferenceValue = null;
+            newSlot.FindPropertyRelative("profile").objectReferenceValue = null;
+            SerializedProperty newLocomotion = newSlot.FindPropertyRelative("locomotion");
+            newLocomotion.FindPropertyRelative("enabled").boolValue = true;
+            newLocomotion.FindPropertyRelative("standingAnimationKey").uintValue = 0u;
+            newLocomotion.FindPropertyRelative("movingAnimationKey").uintValue = 0u;
+            newLocomotion.FindPropertyRelative("movingSpeedThresholdMetersPerSecond").floatValue = 0.05f;
+            newSlot.FindPropertyRelative("layerStops").ClearArray();
             newSlot.FindPropertyRelative("actorPrefab").objectReferenceValue = null;
             newSlot.FindPropertyRelative("clipBlocks").ClearArray();
             newSlot.FindPropertyRelative("transformKeys").ClearArray();
@@ -1678,47 +1685,6 @@ namespace DotsAnimationToolkit.Editor
             serializedObject.Update();
             RebuildAll();
             ApplyPreviewAtPlayhead();
-        }
-
-        // The one write in this file that skips SerializedProperty: clipSets is a whole-list swap,
-        // and Undo.RecordObject + SetDirty is the same escape hatch EnsureStableIds already uses —
-        // serializedObject.Update() below resyncs every bound field afterward.
-        private void ShowFillFromProfileMenu(int slotIndex, VisualElement anchorElement)
-        {
-            string[] profileGuids = AssetDatabase.FindAssets("t:" + nameof(ActorProfileAsset));
-            GenericDropdownMenu profileMenu = new GenericDropdownMenu();
-            bool foundAnyProfile = false;
-            for (int guidIndex = 0; guidIndex < profileGuids.Length; guidIndex++)
-            {
-                string profilePath = AssetDatabase.GUIDToAssetPath(profileGuids[guidIndex]);
-                ActorProfileAsset profileAsset = AssetDatabase.LoadAssetAtPath<ActorProfileAsset>(profilePath);
-                if (profileAsset == null)
-                {
-                    continue;
-                }
-                foundAnyProfile = true;
-                profileMenu.AddItem(profileAsset.name, false, () => FillSlotFromProfile(slotIndex, profileAsset));
-            }
-            if (!foundAnyProfile)
-            {
-                profileMenu.AddItem("No Actor Profiles found", false, () => { });
-            }
-            profileMenu.DropDown(anchorElement.worldBound, anchorElement, DropdownMenuSizeMode.Auto);
-        }
-
-        private void FillSlotFromProfile(int slotIndex, ActorProfileAsset profile)
-        {
-            if (cutscene == null || slotIndex < 0 || slotIndex >= cutscene.slots.Count || profile == null)
-            {
-                return;
-            }
-            CutsceneSlot slot = cutscene.slots[slotIndex];
-            Undo.RecordObject(cutscene, "Fill Cutscene Slot From Profile");
-            slot.rig = profile.rig;
-            slot.clipSets = new List<ClipSetAsset>(profile.clipSets);
-            EditorUtility.SetDirty(cutscene);
-            serializedObject.Update();
-            RebuildAll();
         }
 
         private void FrameSlotInSceneView(int slotIndex)
@@ -1965,10 +1931,11 @@ namespace DotsAnimationToolkit.Editor
             GameObject target = previewController.GetBoundObject(slot.SlotId);
 
             if ((selectedLaneKind == SelectedLaneKind.PartTrackHeader || selectedLaneKind == SelectedLaneKind.PartTrackKey)
-                && selectedPartTrackIndex >= 0 && selectedPartTrackIndex < slot.partTracks.Count && slot.rig != null)
+                && selectedPartTrackIndex >= 0 && selectedPartTrackIndex < slot.partTracks.Count
+                && slot.ResolvedRig != null)
             {
                 Transform partTransform = previewController.GetBoundPartTransform(
-                    slot.SlotId, slot.rig, slot.partTracks[selectedPartTrackIndex].tagId);
+                    slot.SlotId, slot.ResolvedRig, slot.partTracks[selectedPartTrackIndex].tagId);
                 if (partTransform != null)
                 {
                     target = partTransform.gameObject;
@@ -2213,7 +2180,8 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement AddTimelineRow(
             VisualElement laneContent, string headerLabel, VisualElement laneElement,
             Action onHeaderClick, float rowHeight, bool isGroup = false, string accentClass = null,
-            bool indentLabel = false, bool isSelected = false)
+            bool indentLabel = false, bool isSelected = false,
+            Action<VisualElement> configureHeaderCell = null)
         {
             VisualElement headerCell = new VisualElement();
             headerCell.AddToClassList("cutscene-editor__row");
@@ -2240,6 +2208,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 headerCell.RegisterCallback<PointerDownEvent>(_ => onHeaderClick());
             }
+            configureHeaderCell?.Invoke(headerCell);
             timelineHeaderContent.Add(headerCell);
 
             VisualElement laneRow = new VisualElement();
@@ -2292,34 +2261,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (isActor)
             {
-                SerializedProperty clipBlocksProperty = slotProperty.FindPropertyRelative("clipBlocks");
-                List<CutsceneClipBlockDisplay> blockDisplays = new List<CutsceneClipBlockDisplay>(slot.clipBlocks.Count);
-                for (int i = 0; i < slot.clipBlocks.Count; i++)
-                {
-                    CutsceneClipBlock block = slot.clipBlocks[i];
-                    // A73: blocks now name an animation key, not a raw clip id — the picker-driven
-                    // display (name, layer) is A73-T4's job; this raw-key label keeps the timeline
-                    // compiling and legible in the interim.
-                    blockDisplays.Add(new CutsceneClipBlockDisplay(
-                        "0x" + block.animationKey.ToString("X8"), block.start, block.duration,
-                        block.loop == LoopMode.Loop));
-                }
-
-                CutsceneClipBlockLaneElement clipLane = new CutsceneClipBlockLaneElement
-                {
-                    pixelsPerSecond = pixelsPerSecond,
-                    style = { width = contentWidth, height = LaneRowHeight }
-                };
-                RegisterBlockLane(clipLane, slotIndex);
-                clipLane.SetBlocks(blockDisplays,
-                    selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.ClipBlock ? selectedItemIndex : -1);
-                clipLane.BlockChangeCommitted += (index, start, duration) =>
-                    CommitClipBlockChange(clipBlocksProperty, index, start, duration);
-                clipLane.EmptySpaceDoubleClicked += time => AddClipBlock(slotIndex, clipBlocksProperty, time);
-                clipLane.BlockDeleteRequested += index => DeleteArrayElement(clipBlocksProperty, index);
-                AddTimelineRow(
-                    content, "Clip", clipLane, () => SelectSlotHeader(slotIndex), LaneRowHeight,
-                    accentClass: accent, indentLabel: true);
+                BuildActorLayerRows(content, slotProperty, slot, slotIndex, contentWidth, accent);
             }
 
             SerializedProperty transformKeysProperty = slotProperty.FindPropertyRelative("transformKeys");
@@ -2345,7 +2287,7 @@ namespace DotsAnimationToolkit.Editor
                 BuildMomentRow(
                     content, "Facing", slot.facingKeys, facingKeysProperty,
                     slotIndex, SelectedLaneKind.FacingKey, -1, contentWidth,
-                    ToolkitPalette.MarkerFacing, time => InsertFacingKeyDefault(facingKeysProperty, time),
+                    ToolkitPalette.MarkerFacing, time => InsertFacingKeyDefault(slot, facingKeysProperty, time),
                     accentClass: accent);
 
                 // One row per part track — the label IS the track header, keys live beside it.
@@ -2380,6 +2322,365 @@ namespace DotsAnimationToolkit.Editor
                 addPartTrackButton.style.fontSize = 10f;
                 AddHeaderOnlyRow(content, addPartTrackButton, LaneRowHeight);
             }
+        }
+
+        // -----------------------------------------------------------------------------------
+        // Actor layer rows (A73): one row per profile layer, blocks and stop keys addressed by
+        // the profile's own layer index rather than a rig part — a Prop never reaches this.
+        // -----------------------------------------------------------------------------------
+
+        private const string UnresolvedLayerRowLabel = "Unresolved";
+
+        private void BuildActorLayerRows(
+            VisualElement content, SerializedProperty slotProperty, CutsceneSlot slot, int slotIndex,
+            float contentWidth, string accentClass)
+        {
+            if (slot.profile == null || slot.profile.layers == null)
+            {
+                Label placeholder = new Label("Assign a profile to play animations on this slot.")
+                { pickingMode = PickingMode.Ignore, style = { whiteSpace = WhiteSpace.Normal } };
+                VisualElement placeholderLane = new VisualElement { style = { width = contentWidth, height = LaneRowHeight } };
+                placeholderLane.Add(placeholder);
+                AddTimelineRow(
+                    content, "Layers", placeholderLane, () => SelectSlotHeader(slotIndex), LaneRowHeight,
+                    accentClass: accentClass, indentLabel: true);
+                return;
+            }
+
+            SerializedProperty clipBlocksProperty = slotProperty.FindPropertyRelative("clipBlocks");
+            SerializedProperty layerStopsProperty = slotProperty.FindPropertyRelative("layerStops");
+
+            for (int layerIndex = 0; layerIndex < slot.profile.layers.Count; layerIndex++)
+            {
+                BuildLayerRow(
+                    content, slot, slotIndex, layerIndex, clipBlocksProperty, layerStopsProperty,
+                    contentWidth, accentClass);
+            }
+
+            BuildUnresolvedBlockRow(content, slot, slotIndex, clipBlocksProperty, contentWidth);
+        }
+
+        private void BuildLayerRow(
+            VisualElement content, CutsceneSlot slot, int slotIndex, int layerIndex,
+            SerializedProperty clipBlocksProperty, SerializedProperty layerStopsProperty,
+            float contentWidth, string accentClass)
+        {
+            ActorLayerDefinition layer = slot.profile.layers[layerIndex];
+            string layerDisplayName = layer != null && !string.IsNullOrEmpty(layer.displayName)
+                ? layer.displayName : "Layer " + layerIndex;
+
+            List<CutsceneClipBlockDisplay> blockDisplays;
+            List<int> blockOriginalIndices;
+            CollectLayerBlockDisplays(slot, layerIndex, out blockDisplays, out blockOriginalIndices);
+
+            VisualElement rowWrapper = new VisualElement
+            { style = { width = contentWidth, height = LaneRowHeight } };
+
+            CutsceneClipBlockLaneElement clipLane = new CutsceneClipBlockLaneElement
+            {
+                pixelsPerSecond = pixelsPerSecond,
+                style =
+                {
+                    position = Position.Absolute, left = 0f, right = 0f, top = 0f, bottom = 0f,
+                    width = contentWidth, height = LaneRowHeight
+                }
+            };
+            RegisterBlockLane(clipLane, slotIndex, layerIndex);
+            bool isBlockLaneSelected =
+                selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.ClipBlock
+                && selectedPartTrackIndex == layerIndex;
+            clipLane.SetBlocks(
+                blockDisplays, isBlockLaneSelected ? selectedItemIndex : -1, blockOriginalIndices);
+            clipLane.BlockChangeCommitted += (index, start, duration) =>
+                CommitClipBlockChange(clipBlocksProperty, index, start, duration);
+            clipLane.BlockDeleteRequested += index => DeleteArrayElement(clipBlocksProperty, index);
+            clipLane.EmptySpaceDoubleClicked += time =>
+                OpenLayerAnimationPicker(slotIndex, layerIndex, clipBlocksProperty, time, clipLane);
+            rowWrapper.Add(clipLane);
+
+            List<float> stopTimes;
+            List<int> stopOriginalIndices;
+            CollectLayerStopTimes(slot, layerDisplayName, out stopTimes, out stopOriginalIndices);
+            List<string> stopVariantClasses = new List<string>(stopTimes.Count);
+            for (int index = 0; index < stopTimes.Count; index++)
+            {
+                stopVariantClasses.Add("cutscene-editor__moment-marker--detach");
+            }
+
+            CutsceneMomentLaneElement stopLane = new CutsceneMomentLaneElement
+            {
+                pixelsPerSecond = pixelsPerSecond,
+                markerColor = ToolkitPalette.MarkerPart,
+                // Ignored so a click on empty row space still reaches the block lane beneath it; the
+                // stop markers themselves keep normal picking regardless of their parent's mode.
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute, left = 0f, right = 0f, top = 0f, bottom = 0f,
+                    width = contentWidth, height = LaneRowHeight
+                }
+            };
+            RegisterMomentLane(stopLane, slotIndex, SelectedLaneKind.LayerStopKey, layerIndex);
+            bool isStopLaneSelected =
+                selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.LayerStopKey
+                && selectedPartTrackIndex == layerIndex;
+            stopLane.SetTimes(
+                stopTimes, isStopLaneSelected ? selectedItemIndex : -1, stopVariantClasses, null, null,
+                stopOriginalIndices);
+            stopLane.MomentSelected += index =>
+                SelectItemFromLaneBackground(index, slotIndex, SelectedLaneKind.LayerStopKey, layerIndex);
+            stopLane.MomentMoveCommitted += (index, time) => CommitMomentTime(layerStopsProperty, index, time);
+            stopLane.MomentDeleteRequested += index => DeleteArrayElement(layerStopsProperty, index);
+            rowWrapper.Add(stopLane);
+
+            bool isRowSelected = (isBlockLaneSelected || isStopLaneSelected) && selectedItemIndex < 0;
+            AddTimelineRow(
+                content, layerDisplayName, rowWrapper,
+                () => SelectItem(slotIndex, SelectedLaneKind.ClipBlock, layerIndex, -1), LaneRowHeight,
+                accentClass: accentClass, indentLabel: true, isSelected: isRowSelected,
+                configureHeaderCell: headerCell => AddLayerRowHeaderButtons(
+                    headerCell, slotIndex, layerIndex, clipBlocksProperty, layerStopsProperty));
+        }
+
+        private void AddLayerRowHeaderButtons(
+            VisualElement headerCell, int slotIndex, int layerIndex,
+            SerializedProperty clipBlocksProperty, SerializedProperty layerStopsProperty)
+        {
+            Label existingLabel = headerCell.Q<Label>(className: "cutscene-editor__track-header-label");
+            if (existingLabel != null)
+            {
+                existingLabel.style.flexGrow = 1f;
+            }
+
+            Button addBlockButton = ToolkitIcons.MakeIconButton(
+                null, ToolkitIcons.Plus, "Add an animation block on this layer at the playhead.", "+");
+            addBlockButton.clicked += () => OpenLayerAnimationPicker(
+                slotIndex, layerIndex, clipBlocksProperty, playheadSeconds, addBlockButton);
+            headerCell.Add(addBlockButton);
+
+            Button addStopButton = ToolkitIcons.MakeIconButton(
+                () => InsertLayerStopKeyDefault(slotIndex, layerStopsProperty, layerIndex),
+                ToolkitIcons.Stop, "Stop this layer at the playhead, handing it back to auto locomotion.", "■");
+            headerCell.Add(addStopButton);
+        }
+
+        // Blocks whose key the slot's profile does not carry land here instead — visible rather than
+        // silently vanishing off a layer row nothing can place them on.
+        private void BuildUnresolvedBlockRow(
+            VisualElement content, CutsceneSlot slot, int slotIndex,
+            SerializedProperty clipBlocksProperty, float contentWidth)
+        {
+            List<CutsceneClipBlockDisplay> blockDisplays = new List<CutsceneClipBlockDisplay>();
+            List<int> originalIndices = new List<int>();
+            for (int blockIndex = 0; blockIndex < slot.clipBlocks.Count; blockIndex++)
+            {
+                CutsceneClipBlock block = slot.clipBlocks[blockIndex];
+                int resolvedLayerIndex;
+                if (FindProfileAnimation(slot.profile, block.animationKey, out resolvedLayerIndex) != null)
+                {
+                    continue;
+                }
+                blockDisplays.Add(new CutsceneClipBlockDisplay(
+                    ResolveAnimationDisplayName(block.animationKey), block.start, block.duration,
+                    block.loop == LoopMode.Loop));
+                originalIndices.Add(blockIndex);
+            }
+
+            if (blockDisplays.Count == 0)
+            {
+                return;
+            }
+
+            CutsceneClipBlockLaneElement unresolvedLane = new CutsceneClipBlockLaneElement
+            {
+                pixelsPerSecond = pixelsPerSecond,
+                style = { width = contentWidth, height = LaneRowHeight }
+            };
+            RegisterBlockLane(unresolvedLane, slotIndex, -1);
+            bool isSelected = selectedSlotIndex == slotIndex && selectedLaneKind == SelectedLaneKind.ClipBlock
+                && selectedPartTrackIndex == -1;
+            unresolvedLane.SetBlocks(
+                blockDisplays, isSelected ? selectedItemIndex : -1, originalIndices);
+            unresolvedLane.BlockChangeCommitted += (index, start, duration) =>
+                CommitClipBlockChange(clipBlocksProperty, index, start, duration);
+            unresolvedLane.BlockDeleteRequested += index => DeleteArrayElement(clipBlocksProperty, index);
+
+            VisualElement headerCell = AddTimelineRow(
+                content, UnresolvedLayerRowLabel, unresolvedLane,
+                () => SelectItem(slotIndex, SelectedLaneKind.ClipBlock, -1, -1), LaneRowHeight,
+                indentLabel: true, isSelected: isSelected && selectedItemIndex < 0);
+            Label warningLabel = headerCell.Q<Label>(className: "cutscene-editor__track-header-label");
+            if (warningLabel != null)
+            {
+                warningLabel.style.color = ToolkitPalette.Warning;
+            }
+            headerCell.tooltip = "Blocks naming an animation key this slot's profile does not carry.";
+        }
+
+        private static void CollectLayerBlockDisplays(
+            CutsceneSlot slot, int layerIndex,
+            out List<CutsceneClipBlockDisplay> displays, out List<int> originalIndices)
+        {
+            displays = new List<CutsceneClipBlockDisplay>();
+            originalIndices = new List<int>();
+            for (int blockIndex = 0; blockIndex < slot.clipBlocks.Count; blockIndex++)
+            {
+                CutsceneClipBlock block = slot.clipBlocks[blockIndex];
+                int resolvedLayerIndex;
+                FindProfileAnimation(slot.profile, block.animationKey, out resolvedLayerIndex);
+                if (resolvedLayerIndex != layerIndex)
+                {
+                    continue;
+                }
+                displays.Add(new CutsceneClipBlockDisplay(
+                    ResolveAnimationDisplayName(block.animationKey), block.start, block.duration,
+                    block.loop == LoopMode.Loop));
+                originalIndices.Add(blockIndex);
+            }
+        }
+
+        private static void CollectLayerStopTimes(
+            CutsceneSlot slot, string layerDisplayName, out List<float> times, out List<int> originalIndices)
+        {
+            times = new List<float>();
+            originalIndices = new List<int>();
+            for (int stopIndex = 0; stopIndex < slot.layerStops.Count; stopIndex++)
+            {
+                if (slot.layerStops[stopIndex].layerName != layerDisplayName)
+                {
+                    continue;
+                }
+                times.Add(slot.layerStops[stopIndex].time);
+                originalIndices.Add(stopIndex);
+            }
+        }
+
+        /// <summary>The profile entry naming <paramref name="animationKey"/>, searched across every layer. <paramref name="layerIndex"/> is -1 when no layer carries it.</summary>
+        private static ActorAnimationDefinition FindProfileAnimation(
+            ActorProfileAsset profile, uint animationKey, out int layerIndex)
+        {
+            layerIndex = -1;
+            if (profile == null || profile.layers == null || animationKey == 0u)
+            {
+                return null;
+            }
+            for (int candidateLayerIndex = 0; candidateLayerIndex < profile.layers.Count; candidateLayerIndex++)
+            {
+                ActorLayerDefinition candidateLayer = profile.layers[candidateLayerIndex];
+                if (candidateLayer == null || candidateLayer.animations == null)
+                {
+                    continue;
+                }
+                for (int animationIndex = 0; animationIndex < candidateLayer.animations.Count; animationIndex++)
+                {
+                    ActorAnimationDefinition animation = candidateLayer.animations[animationIndex];
+                    if (animation != null && animation.animationKey == animationKey)
+                    {
+                        layerIndex = candidateLayerIndex;
+                        return animation;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static string ResolveAnimationDisplayName(uint animationKey)
+        {
+            if (animationKey == 0u)
+            {
+                return "(none)";
+            }
+            string resolvedName = VocabularyRegistryProvider.AnimationNames.FindName(animationKey);
+            return resolvedName ?? "(unresolved 0x" + animationKey.ToString("X8") + ")";
+        }
+
+        private static List<uint> CollectLayerAnimationKeys(ActorLayerDefinition layer)
+        {
+            List<uint> keys = new List<uint>();
+            if (layer != null && layer.animations != null)
+            {
+                for (int index = 0; index < layer.animations.Count; index++)
+                {
+                    ActorAnimationDefinition animation = layer.animations[index];
+                    if (animation != null && animation.animationKey != 0u)
+                    {
+                        keys.Add(animation.animationKey);
+                    }
+                }
+            }
+            return keys;
+        }
+
+        // Filtered to the layer's own entries with Create hidden (AnimationToolkit.md's vocabulary
+        // rule: a name minted here would be a key the bound profile does not carry).
+        private void OpenLayerAnimationPicker(
+            int slotIndex, int layerIndex, SerializedProperty clipBlocksProperty, float time, VisualElement anchor)
+        {
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+            if (slot.profile == null || slot.profile.layers == null
+                || layerIndex < 0 || layerIndex >= slot.profile.layers.Count)
+            {
+                return;
+            }
+            List<uint> allowedKeys = CollectLayerAnimationKeys(slot.profile.layers[layerIndex]);
+            AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
+            VocabularyPicker.Open(
+                this, anchor, registry, registry,
+                VocabularyPickerConfig.ForAnimationNames(registry, allowedKeys, allowCreate: false),
+                animationKey => AddClipBlockWithAnimationKey(slotIndex, clipBlocksProperty, time, animationKey),
+                () => RequestTimelineRebuild());
+        }
+
+        private void AddClipBlockWithAnimationKey(
+            int slotIndex, SerializedProperty listProperty, float time, uint animationKey)
+        {
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+
+            int index = listProperty.arraySize;
+            listProperty.InsertArrayElementAtIndex(index);
+            SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("animationKey").uintValue = animationKey;
+            element.FindPropertyRelative("start").floatValue = time;
+            element.FindPropertyRelative("duration").floatValue = ResolveDefaultBlockDuration(slot, animationKey);
+            element.FindPropertyRelative("loop").enumValueIndex = (int)LoopMode.UseClipDefault;
+            element.FindPropertyRelative("speed").floatValue = 1f;
+            element.FindPropertyRelative("clipStartOffsetSeconds").floatValue = 0f;
+
+            SortClipBlocksByStart(listProperty);
+            CommitStructuralChange();
+        }
+
+        private static float ResolveDefaultBlockDuration(CutsceneSlot slot, uint animationKey)
+        {
+            int layerIndex;
+            ActorAnimationDefinition animation = FindProfileAnimation(slot.profile, animationKey, out layerIndex);
+            if (animation != null && !animation.hasDirections && animation.clip != null)
+            {
+                return Mathf.Max(0.05f, animation.clip.duration);
+            }
+            return 1f;
+        }
+
+        private void InsertLayerStopKeyDefault(int slotIndex, SerializedProperty layerStopsProperty, int layerIndex)
+        {
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+            if (slot.profile == null || slot.profile.layers == null
+                || layerIndex < 0 || layerIndex >= slot.profile.layers.Count)
+            {
+                return;
+            }
+            ActorLayerDefinition layer = slot.profile.layers[layerIndex];
+            string layerDisplayName = layer != null && !string.IsNullOrEmpty(layer.displayName)
+                ? layer.displayName : "Layer " + layerIndex;
+
+            int index = layerStopsProperty.arraySize;
+            layerStopsProperty.InsertArrayElementAtIndex(index);
+            SerializedProperty element = layerStopsProperty.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("time").floatValue = playheadSeconds;
+            element.FindPropertyRelative("layerName").stringValue = layerDisplayName;
+            element.FindPropertyRelative("blendOutSeconds").floatValue = float.NaN;
+            SortByTime(layerStopsProperty);
+            CommitStructuralChange();
         }
 
         private VisualElement BuildMomentRow(
@@ -2422,9 +2723,16 @@ namespace DotsAnimationToolkit.Editor
             bool indentLabel = true)
         {
             List<float> times = new List<float>(keys.Count);
+            List<string> variantClasses = new List<string>(keys.Count);
+            List<Color> markerColors = new List<Color>(keys.Count);
             for (int i = 0; i < keys.Count; i++)
             {
                 times.Add(keys[i].time);
+                // An Auto key hands facing back to derivation, so it draws hollow (transparent fill,
+                // ring border) against a Fixed key's solid diamond — the same shape, an empty middle.
+                bool isAuto = keys[i].mode == CutsceneFacingMode.Auto;
+                variantClasses.Add(isAuto ? "cutscene-editor__moment-marker--hollow-diamond" : string.Empty);
+                markerColors.Add(isAuto ? new Color(0f, 0f, 0f, 0f) : color);
             }
 
             CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
@@ -2435,10 +2743,11 @@ namespace DotsAnimationToolkit.Editor
             };
             bool isSelectedLane = selectedSlotIndex == slotIndex && selectedLaneKind == laneKind;
             RegisterMomentLane(lane, slotIndex, laneKind, partTrackIndex);
-            lane.SetTimes(times, isSelectedLane ? selectedItemIndex : -1);
+            lane.SetTimes(times, isSelectedLane ? selectedItemIndex : -1, variantClasses, null, markerColors);
             lane.MomentSelected += index => SelectItemFromLaneBackground(index, slotIndex, laneKind, partTrackIndex);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(keysProperty, index, time);
             lane.EmptySpaceDoubleClicked += onAddAtTime;
+            lane.EmptySpaceShiftDoubleClicked += time => InsertAutoFacingKeyDefault(keysProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(keysProperty, index);
 
             return AddTimelineRow(
@@ -3322,13 +3631,13 @@ namespace DotsAnimationToolkit.Editor
             registeredLanes.Add(new RegisteredLane { laneAddress = laneAddress, momentLane = lane });
         }
 
-        private void RegisterBlockLane(CutsceneClipBlockLaneElement lane, int slotIndex)
+        private void RegisterBlockLane(CutsceneClipBlockLaneElement lane, int slotIndex, int partTrackIndex)
         {
             CutsceneItemAddress laneAddress =
-                new CutsceneItemAddress(slotIndex, SelectedLaneKind.ClipBlock, -1, -1);
+                new CutsceneItemAddress(slotIndex, SelectedLaneKind.ClipBlock, partTrackIndex, -1);
             lane.isItemSelected = itemIndex => IsItemSelected(laneAddress, itemIndex);
             lane.BlockPointerDown += (itemIndex, toggles, adds) => ApplyItemPointerDown(
-                new CutsceneItemAddress(slotIndex, SelectedLaneKind.ClipBlock, -1, itemIndex), toggles, adds);
+                new CutsceneItemAddress(slotIndex, SelectedLaneKind.ClipBlock, partTrackIndex, itemIndex), toggles, adds);
             lane.SelectionDragMoved += PreviewSelectionDrag;
             lane.SelectionDragCommitted += CommitSelectionDrag;
             lane.BackgroundPointerDown += pointerEvent => BeginBoxSelect(laneAddress, pointerEvent);
@@ -3415,13 +3724,32 @@ namespace DotsAnimationToolkit.Editor
             CommitStructuralChange();
         }
 
-        private void InsertFacingKeyDefault(SerializedProperty listProperty, float time)
+        /// <summary>Inserts a Fixed key pinned at the angle facing already derives at this time — double-click's gesture.</summary>
+        private void InsertFacingKeyDefault(CutsceneSlot slot, SerializedProperty listProperty, float time)
+        {
+            float derivedAngle;
+            CutsceneKeySampler.TryResolveFacingAngle(
+                slot.facingKeys, CutsceneMarkMerge.BuildEffectiveRootKeys(slot), time, out derivedAngle);
+
+            int index = listProperty.arraySize;
+            listProperty.InsertArrayElementAtIndex(index);
+            SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("time").floatValue = time;
+            element.FindPropertyRelative("angleDegrees").floatValue = derivedAngle;
+            element.FindPropertyRelative("mode").enumValueIndex = (int)CutsceneFacingMode.Fixed;
+            SortByTime(listProperty);
+            CommitStructuralChange();
+        }
+
+        /// <summary>Inserts an Auto key, handing facing back to derivation from this time — Shift+double-click's gesture.</summary>
+        private void InsertAutoFacingKeyDefault(SerializedProperty listProperty, float time)
         {
             int index = listProperty.arraySize;
             listProperty.InsertArrayElementAtIndex(index);
             SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
             element.FindPropertyRelative("time").floatValue = time;
             element.FindPropertyRelative("angleDegrees").floatValue = 0f;
+            element.FindPropertyRelative("mode").enumValueIndex = (int)CutsceneFacingMode.Auto;
             SortByTime(listProperty);
             CommitStructuralChange();
         }
@@ -3570,25 +3898,6 @@ namespace DotsAnimationToolkit.Editor
         // Clip blocks.
         // -----------------------------------------------------------------------------------
 
-        private void AddClipBlock(int slotIndex, SerializedProperty listProperty, float time)
-        {
-            CutsceneSlot slot = cutscene.slots[slotIndex];
-            ClipAsset firstClip = FindFirstClip(slot);
-
-            int index = listProperty.arraySize;
-            listProperty.InsertArrayElementAtIndex(index);
-            SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
-            element.FindPropertyRelative("clipId").longValue =
-                firstClip != null ? unchecked((long)firstClip.stableId) : 0L;
-            element.FindPropertyRelative("start").floatValue = time;
-            element.FindPropertyRelative("duration").floatValue =
-                firstClip != null ? Mathf.Max(0.05f, firstClip.duration) : 1f;
-            element.FindPropertyRelative("loop").boolValue = false;
-
-            SortClipBlocksByStart(listProperty);
-            CommitStructuralChange();
-        }
-
         private void CommitClipBlockChange(SerializedProperty listProperty, int index, float start, float duration)
         {
             SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
@@ -3612,92 +3921,6 @@ namespace DotsAnimationToolkit.Editor
                     j--;
                 }
             }
-        }
-
-        private static ClipAsset FindFirstClip(CutsceneSlot slot)
-        {
-            if (slot.clipSets == null)
-            {
-                return null;
-            }
-            for (int setIndex = 0; setIndex < slot.clipSets.Count; setIndex++)
-            {
-                ClipSetAsset clipSet = slot.clipSets[setIndex];
-                if (clipSet == null || clipSet.clips == null)
-                {
-                    continue;
-                }
-                for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
-                {
-                    if (clipSet.clips[clipIndex] != null)
-                    {
-                        return clipSet.clips[clipIndex];
-                    }
-                }
-            }
-            return null;
-        }
-
-        private static string DescribeClip(CutsceneSlot slot, ulong clipId)
-        {
-            if (clipId == 0UL)
-            {
-                return "(no clip)";
-            }
-            ClipAsset clip = FindClipById(slot, clipId);
-            return clip != null ? clip.name : "0x" + clipId.ToString("X16");
-        }
-
-        private static ClipAsset FindClipById(CutsceneSlot slot, ulong clipId)
-        {
-            if (slot.clipSets == null)
-            {
-                return null;
-            }
-            for (int setIndex = 0; setIndex < slot.clipSets.Count; setIndex++)
-            {
-                ClipSetAsset clipSet = slot.clipSets[setIndex];
-                if (clipSet == null || clipSet.clips == null)
-                {
-                    continue;
-                }
-                for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
-                {
-                    ClipAsset clip = clipSet.clips[clipIndex];
-                    if (clip != null && clip.stableId == clipId)
-                    {
-                        return clip;
-                    }
-                }
-            }
-            return null;
-        }
-
-        private static List<ClipAsset> BuildAvailableClips(CutsceneSlot slot)
-        {
-            List<ClipAsset> clips = new List<ClipAsset>();
-            if (slot.clipSets == null)
-            {
-                return clips;
-            }
-            HashSet<ulong> seen = new HashSet<ulong>();
-            for (int setIndex = 0; setIndex < slot.clipSets.Count; setIndex++)
-            {
-                ClipSetAsset clipSet = slot.clipSets[setIndex];
-                if (clipSet == null || clipSet.clips == null)
-                {
-                    continue;
-                }
-                for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
-                {
-                    ClipAsset clip = clipSet.clips[clipIndex];
-                    if (clip != null && seen.Add(clip.stableId))
-                    {
-                        clips.Add(clip);
-                    }
-                }
-            }
-            return clips;
         }
 
         private void OpenAddPartTrackPicker(int slotIndex)
@@ -3878,6 +4101,9 @@ namespace DotsAnimationToolkit.Editor
                 case SelectedLaneKind.MarkKey:
                     BuildMarkKeyInspector(selectedSlotIndex, selectedItemIndex);
                     return;
+                case SelectedLaneKind.LayerStopKey:
+                    BuildLayerStopKeyInspector(selectedSlotIndex, selectedItemIndex);
+                    return;
                 case SelectedLaneKind.CameraKey:
                     BuildCameraKeyInspector(selectedItemIndex);
                     return;
@@ -3931,34 +4157,25 @@ namespace DotsAnimationToolkit.Editor
 
             if (slot.kind == CutsceneSlotKind.Actor)
             {
-                PropertyField rigField = new PropertyField(slotProperty.FindPropertyRelative("rig"));
-                rigField.Bind(serializedObject);
-                rigField.RegisterCallback<ChangeEvent<UnityEngine.Object>>(_ => RebuildTimeline());
-                rigField.style.flexGrow = 1f;
-
-                Button fillFromProfileButton = new Button { text = "Fill from Profile" };
-                fillFromProfileButton.name = "cutscene-slot-fill-from-profile-button";
-                fillFromProfileButton.tooltip =
-                    "Copy this profile's rig and clip sets onto the slot so the staged actor matches "
-                    + "what drives it in-game.";
-                fillFromProfileButton.clicked += () =>
-                    ShowFillFromProfileMenu(slotIndex, fillFromProfileButton);
-
-                VisualElement rigRow = new VisualElement();
-                rigRow.style.flexDirection = FlexDirection.Row;
-                rigRow.style.alignItems = Align.Center;
-                rigRow.Add(rigField);
-                rigRow.Add(fillFromProfileButton);
-                inspectorScroll.Add(rigRow);
-
-                PropertyField clipSetsField = new PropertyField(slotProperty.FindPropertyRelative("clipSets"));
-                clipSetsField.Bind(serializedObject);
-                clipSetsField.RegisterCallback<SerializedPropertyChangeEvent>(_ => RebuildTimeline());
-                inspectorScroll.Add(clipSetsField);
-
-                PropertyField directionSetField = new PropertyField(slotProperty.FindPropertyRelative("directionSet"));
-                directionSetField.Bind(serializedObject);
-                inspectorScroll.Add(directionSetField);
+                PropertyField profileField =
+                    new PropertyField(slotProperty.FindPropertyRelative("profile"), "Profile");
+                profileField.Bind(serializedObject);
+                profileField.RegisterCallback<ChangeEvent<UnityEngine.Object>>(changeEvent =>
+                {
+                    if (ShouldIgnoreBindingEcho(changeEvent))
+                    {
+                        return;
+                    }
+                    // A fresh profile with no locomotion authored yet gets Idle/Walk for free, once.
+                    if (slot.locomotion != null && slot.locomotion.standingAnimationKey == 0u
+                        && slot.locomotion.movingAnimationKey == 0u)
+                    {
+                        ApplyLocomotionDefaultsFromProfile(slotProperty, slot);
+                        return;
+                    }
+                    RebuildAll();
+                });
+                inspectorScroll.Add(profileField);
 
                 // Why a clip block is showing nothing, said where the bind that caused it is edited.
                 string clipPreviewStatus = previewController.GetClipPreviewStatus(slot.SlotId);
@@ -3971,6 +4188,8 @@ namespace DotsAnimationToolkit.Editor
                     inspectorScroll.Add(clipStatusLabel);
                 }
 
+                BuildLocomotionBox(slotProperty, slot);
+
                 float facingAngle;
                 CutsceneKeySampler.TryResolveFacingAngle(
                     slot.facingKeys, CutsceneMarkMerge.BuildEffectiveRootKeys(slot),
@@ -3981,13 +4200,15 @@ namespace DotsAnimationToolkit.Editor
                 Label facingLabel = new Label(
                     "Facing at playhead: " + facingAngle.ToString("0.#") + "°"
                     + (isOverride ? " (override key)" : " (derived from root travel)")
-                    + (slot.directionSet == null
-                        ? " — assign a Direction Set to apply it in the preview."
-                        : " — " + CutscenePreviewController.DescribeResolvedFacing(slot, playheadSeconds))
+                    + (slot.profile == null
+                        ? " — assign a Profile to apply it in the preview."
+                        : " → " + CutscenePreviewController.DescribeResolvedFacing(slot, playheadSeconds))
                     + DescribeMissingFacingParts(slot));
                 facingLabel.style.marginTop = 4f;
                 facingLabel.style.whiteSpace = WhiteSpace.Normal;
                 inspectorScroll.Add(facingLabel);
+
+                BuildSlotValidationNotes(slot);
             }
 
             BuildSceneBindingRow(slotIndex);
@@ -4005,6 +4226,219 @@ namespace DotsAnimationToolkit.Editor
         {
             string problem = CutsceneDirectionVariants.DescribeFacingRigProblem(slot);
             return problem == null ? string.Empty : " ⚠ " + problem;
+        }
+
+        private void BuildLocomotionBox(SerializedProperty slotProperty, CutsceneSlot slot)
+        {
+            SerializedProperty locomotionProperty = slotProperty.FindPropertyRelative("locomotion");
+
+            VisualElement box = new VisualElement();
+            box.AddToClassList("toolkit-box");
+            box.style.marginTop = 6f;
+
+            VisualElement header = new VisualElement();
+            header.AddToClassList("toolkit-box__header");
+            Label title = new Label("Locomotion");
+            title.AddToClassList("toolkit-box__title");
+            header.Add(title);
+            box.Add(header);
+
+            VisualElement body = new VisualElement();
+            body.AddToClassList("toolkit-box__body");
+            box.Add(body);
+
+            AddBoundField(locomotionProperty, "enabled", "Enabled", body);
+            BuildLocomotionAnimationRow(
+                body, "Standing", slot.locomotion.standingAnimationKey,
+                animationKey =>
+                {
+                    locomotionProperty.FindPropertyRelative("standingAnimationKey").uintValue = animationKey;
+                    CommitStructuralChange();
+                });
+            BuildLocomotionAnimationRow(
+                body, "Moving", slot.locomotion.movingAnimationKey,
+                animationKey =>
+                {
+                    locomotionProperty.FindPropertyRelative("movingAnimationKey").uintValue = animationKey;
+                    CommitStructuralChange();
+                });
+            AddBoundField(locomotionProperty, "movingSpeedThresholdMetersPerSecond", "Threshold (m/s)", body);
+
+            Button defaultsButton = new Button(() => ApplyLocomotionDefaultsFromProfile(slotProperty, slot))
+            {
+                text = "Defaults From Profile",
+                tooltip = "Fills Standing/Moving from this profile's entries named exactly Idle / Walk."
+            };
+            defaultsButton.SetEnabled(slot.profile != null);
+            defaultsButton.style.marginTop = 4f;
+            body.Add(defaultsButton);
+
+            inspectorScroll.Add(box);
+        }
+
+        private void BuildLocomotionAnimationRow(
+            VisualElement body, string label, uint currentKey, Action<uint> onPicked)
+        {
+            VisualElement row = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center } };
+
+            Button pickButton = new Button { text = label + ": " + ResolveAnimationDisplayName(currentKey) };
+            pickButton.style.flexGrow = 1f;
+            pickButton.clicked += () =>
+            {
+                AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
+                VocabularyPicker.Open(
+                    this, pickButton, registry, registry,
+                    VocabularyPickerConfig.ForAnimationNames(registry),
+                    onPicked,
+                    () => RequestInspectorRebuild());
+            };
+            row.Add(pickButton);
+
+            Button clearButton = ToolkitIcons.MakeIconButton(
+                () => onPicked(0u), ToolkitIcons.Trash, "Clear this animation.", "×");
+            row.Add(clearButton);
+
+            body.Add(row);
+        }
+
+        private void ApplyLocomotionDefaultsFromProfile(SerializedProperty slotProperty, CutsceneSlot slot)
+        {
+            if (slot.profile == null)
+            {
+                return;
+            }
+            uint idleKey = FindProfileAnimationKeyByExactName(slot.profile, "Idle");
+            uint walkKey = FindProfileAnimationKeyByExactName(slot.profile, "Walk");
+            if (idleKey == 0u && walkKey == 0u)
+            {
+                RebuildAll();
+                return;
+            }
+
+            SerializedProperty locomotionProperty = slotProperty.FindPropertyRelative("locomotion");
+            if (idleKey != 0u)
+            {
+                locomotionProperty.FindPropertyRelative("standingAnimationKey").uintValue = idleKey;
+            }
+            if (walkKey != 0u)
+            {
+                locomotionProperty.FindPropertyRelative("movingAnimationKey").uintValue = walkKey;
+            }
+            CommitStructuralChange();
+        }
+
+        // Reads through the profile's own entries with FindName, rather than reverse-scanning the
+        // registry: "Idle"/"Walk" naming an entry is what this default means, not naming a key.
+        private static uint FindProfileAnimationKeyByExactName(ActorProfileAsset profile, string exactName)
+        {
+            if (profile == null || profile.layers == null)
+            {
+                return 0u;
+            }
+            AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
+            for (int layerIndex = 0; layerIndex < profile.layers.Count; layerIndex++)
+            {
+                ActorLayerDefinition layer = profile.layers[layerIndex];
+                if (layer == null || layer.animations == null)
+                {
+                    continue;
+                }
+                for (int animationIndex = 0; animationIndex < layer.animations.Count; animationIndex++)
+                {
+                    ActorAnimationDefinition animation = layer.animations[animationIndex];
+                    if (animation == null || animation.animationKey == 0u)
+                    {
+                        continue;
+                    }
+                    string resolvedName = registry != null ? registry.FindName(animation.animationKey) : null;
+                    if (string.Equals(resolvedName, exactName, StringComparison.Ordinal))
+                    {
+                        return animation.animationKey;
+                    }
+                }
+            }
+            return 0u;
+        }
+
+        // Bake-time warnings surfaced live, in the one place an author is already looking: a
+        // missing profile, an unresolved block key, dead locomotion, a standing/moving split
+        // across layers, and a stop key naming a layer the profile lacks.
+        private void BuildSlotValidationNotes(CutsceneSlot slot)
+        {
+            List<string> warnings = new List<string>();
+            if (slot.profile == null)
+            {
+                warnings.Add("No profile assigned — this slot can play nothing.");
+            }
+            else
+            {
+                for (int blockIndex = 0; blockIndex < slot.clipBlocks.Count; blockIndex++)
+                {
+                    CutsceneClipBlock block = slot.clipBlocks[blockIndex];
+                    int resolvedLayerIndex;
+                    if (FindProfileAnimation(slot.profile, block.animationKey, out resolvedLayerIndex) == null)
+                    {
+                        warnings.Add(
+                            "Block \"" + ResolveAnimationDisplayName(block.animationKey) + "\" at "
+                            + block.start.ToString("0.##") + "s names a key the profile lacks.");
+                    }
+                }
+
+                CutsceneLocomotion locomotion = slot.locomotion;
+                if (locomotion != null && locomotion.enabled && locomotion.movingAnimationKey == 0u)
+                {
+                    warnings.Add("Locomotion is enabled with no Moving animation — it will never play.");
+                }
+                else if (locomotion != null && locomotion.enabled
+                    && locomotion.standingAnimationKey != 0u && locomotion.movingAnimationKey != 0u)
+                {
+                    int standingLayerIndex;
+                    int movingLayerIndex;
+                    FindProfileAnimation(slot.profile, locomotion.standingAnimationKey, out standingLayerIndex);
+                    FindProfileAnimation(slot.profile, locomotion.movingAnimationKey, out movingLayerIndex);
+                    if (standingLayerIndex >= 0 && movingLayerIndex >= 0 && standingLayerIndex != movingLayerIndex)
+                    {
+                        warnings.Add("Standing and Moving are on different layers — they cannot hand off to each other.");
+                    }
+                }
+
+                for (int stopIndex = 0; stopIndex < slot.layerStops.Count; stopIndex++)
+                {
+                    CutsceneLayerStopKey stop = slot.layerStops[stopIndex];
+                    bool layerFound = false;
+                    for (int layerIndex = 0; layerIndex < slot.profile.layers.Count; layerIndex++)
+                    {
+                        if (slot.profile.layers[layerIndex] != null
+                            && slot.profile.layers[layerIndex].displayName == stop.layerName)
+                        {
+                            layerFound = true;
+                            break;
+                        }
+                    }
+                    if (!layerFound)
+                    {
+                        warnings.Add(
+                            "Stop key at " + stop.time.ToString("0.##") + "s names layer \""
+                            + stop.layerName + "\", which the profile lacks.");
+                    }
+                }
+            }
+
+            if (warnings.Count == 0)
+            {
+                return;
+            }
+
+            VisualElement warningBox = new VisualElement();
+            warningBox.style.marginTop = 6f;
+            for (int index = 0; index < warnings.Count; index++)
+            {
+                Label warningLabel = new Label("⚠ " + warnings[index]);
+                warningLabel.style.whiteSpace = WhiteSpace.Normal;
+                warningLabel.style.color = ToolkitPalette.Warning;
+                warningBox.Add(warningLabel);
+            }
+            inspectorScroll.Add(warningBox);
         }
 
         private void BuildSceneBindingRow(int slotIndex)
@@ -4051,19 +4485,64 @@ namespace DotsAnimationToolkit.Editor
             SerializedProperty blockProperty = serializedObject.FindProperty("slots")
                 .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("clipBlocks")
                 .GetArrayElementAtIndex(blockIndex);
+            CutsceneClipBlock block = slot.clipBlocks[blockIndex];
 
             inspectorScroll.Add(BuildHeading("Clip Block"));
 
-            // A block now names an animation key from the slot's profile rather than a raw clip from
-            // its clip sets; a raw key field keeps the inspector compiling and usable until the
-            // picker-driven field lands.
-            AddBoundField(blockProperty, "animationKey", "Animation Key");
+            Button animationButton = new Button { text = ResolveAnimationDisplayName(block.animationKey) };
+            animationButton.clicked += () =>
+            {
+                AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
+                VocabularyPicker.Open(
+                    this, animationButton, registry, registry,
+                    VocabularyPickerConfig.ForAnimationNames(registry),
+                    animationKey =>
+                    {
+                        blockProperty.FindPropertyRelative("animationKey").uintValue = animationKey;
+                        CommitStructuralChange();
+                    },
+                    () => RequestInspectorRebuild());
+            };
+            inspectorScroll.Add(animationButton);
+
+            int layerIndex;
+            FindProfileAnimation(slot.profile, block.animationKey, out layerIndex);
+            string layerName = layerIndex >= 0 && slot.profile != null && slot.profile.layers != null
+                && layerIndex < slot.profile.layers.Count
+                ? slot.profile.layers[layerIndex].displayName
+                : "(unresolved)";
+            TextField layerField = new TextField("Layer") { value = layerName, isReadOnly = true };
+            inspectorScroll.Add(layerField);
 
             AddBoundField(blockProperty, "start", "Start (s)");
             AddBoundField(blockProperty, "duration", "Duration (s)");
-            AddBoundField(blockProperty, "loop", "Loop");
+            AddLoopModeField(blockProperty);
             AddBoundField(blockProperty, "speed", "Speed");
             AddBoundField(blockProperty, "clipStartOffsetSeconds", "Start Offset (s)");
+        }
+
+        private static readonly string[] LoopModeDisplayNames = { "Profile's", "Once", "Loop", "PingPong" };
+
+        // A plain PropertyField would print "Use Clip Default" for LoopMode.UseClipDefault, which is
+        // correct on ActorAnimationDefinition.loop but wrong here — a block's default is the
+        // profile entry's loop, not the clip's own. Built by hand rather than an [InspectorName] on
+        // the shared enum, which would mislabel that other, more common reader.
+        private void AddLoopModeField(SerializedProperty blockProperty)
+        {
+            SerializedProperty loopProperty = blockProperty.FindPropertyRelative("loop");
+            DropdownField loopField = new DropdownField(
+                "Loop", new List<string>(LoopModeDisplayNames), loopProperty.enumValueIndex);
+            loopField.RegisterValueChangedCallback(changeEvent =>
+            {
+                if (ShouldIgnoreBindingEcho(changeEvent))
+                {
+                    return;
+                }
+                loopProperty.enumValueIndex = Array.IndexOf(LoopModeDisplayNames, changeEvent.newValue);
+                serializedObject.ApplyModifiedProperties();
+                RequestTimelineRebuild();
+            });
+            inspectorScroll.Add(loopField);
         }
 
         private void BuildTransformKeyInspector(string listPropertyPath, int keyIndex, int keyCount)
@@ -4097,7 +4576,43 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorScroll.Add(BuildHeading("Facing Override"));
             AddBoundField(keyProperty, "time", "Time (s)");
-            AddBoundField(keyProperty, "angleDegrees", "Angle (0-360)");
+
+            PropertyField modeField = AddBoundField(keyProperty, "mode", "Mode");
+            PropertyField angleField = AddBoundField(keyProperty, "angleDegrees", "Angle (0-360)");
+            angleField.style.display = slot.facingKeys[keyIndex].mode == CutsceneFacingMode.Auto
+                ? DisplayStyle.None : DisplayStyle.Flex;
+            // Auto has no angle to show; rebuilding (not just re-styling) also repaints the row's
+            // hollow-diamond marker, which is keyed off this same mode.
+            modeField.RegisterCallback<ChangeEvent<string>>(changeEvent =>
+            {
+                if (ShouldIgnoreBindingEcho(changeEvent))
+                {
+                    return;
+                }
+                RequestInspectorRebuild();
+                RequestTimelineRebuild();
+            });
+        }
+
+        private void BuildLayerStopKeyInspector(int slotIndex, int stopIndex)
+        {
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+            if (stopIndex < 0 || stopIndex >= slot.layerStops.Count)
+            {
+                return;
+            }
+            SerializedProperty stopProperty = serializedObject.FindProperty("slots")
+                .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("layerStops")
+                .GetArrayElementAtIndex(stopIndex);
+
+            inspectorScroll.Add(BuildHeading("Layer Stop"));
+            AddBoundField(stopProperty, "time", "Time (s)");
+
+            TextField layerField = new TextField("Layer")
+            { value = slot.layerStops[stopIndex].layerName, isReadOnly = true };
+            inspectorScroll.Add(layerField);
+
+            AddBoundField(stopProperty, "blendOutSeconds", "Blend Out (s, blank = clip default)");
         }
 
         private void BuildPartTrackHeaderInspector(int slotIndex, int trackIndex)
@@ -4296,8 +4811,8 @@ namespace DotsAnimationToolkit.Editor
         private void BuildSocketDropdown(
             CutsceneSlot hostSlot, SerializedProperty markerProperty, CutsceneAttachMarker marker)
         {
-            if (hostSlot == null || hostSlot.kind != CutsceneSlotKind.Actor || hostSlot.rig == null
-                || hostSlot.rig.sockets == null || hostSlot.rig.sockets.Count == 0)
+            if (hostSlot == null || hostSlot.kind != CutsceneSlotKind.Actor || hostSlot.ResolvedRig == null
+                || hostSlot.ResolvedRig.sockets == null || hostSlot.ResolvedRig.sockets.Count == 0)
             {
                 // A Prop host, or an Actor whose rig declares no sockets, can only be ridden at its
                 // root — offering an empty dropdown would suggest otherwise.
@@ -4307,9 +4822,9 @@ namespace DotsAnimationToolkit.Editor
             List<uint> socketIds = new List<uint> { 0u };
             List<string> socketLabels = new List<string> { "(root)" };
             int currentChoice = 0;
-            for (int socketIndex = 0; socketIndex < hostSlot.rig.sockets.Count; socketIndex++)
+            for (int socketIndex = 0; socketIndex < hostSlot.ResolvedRig.sockets.Count; socketIndex++)
             {
-                SocketDefinition socket = hostSlot.rig.sockets[socketIndex];
+                SocketDefinition socket = hostSlot.ResolvedRig.sockets[socketIndex];
                 if (socket == null || !socket.Id.IsValid)
                 {
                     continue;
@@ -4336,7 +4851,7 @@ namespace DotsAnimationToolkit.Editor
             });
             inspectorScroll.Add(socketDropdown);
 
-            SocketDefinition chosenSocket = FindSocketById(hostSlot.rig, marker.socketId);
+            SocketDefinition chosenSocket = FindSocketById(hostSlot.ResolvedRig, marker.socketId);
             if (chosenSocket != null && chosenSocket.mode == SocketAttachMode.Bone)
             {
                 inspectorScroll.Add(BuildInspectorNote(

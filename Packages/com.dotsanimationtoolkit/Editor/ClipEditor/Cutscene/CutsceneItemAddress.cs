@@ -15,6 +15,7 @@ namespace DotsAnimationToolkit.Editor
         PartTrackKey,
         AttachMarker,
         MarkKey,
+        LayerStopKey,
         CameraKey,
         Event,
         Hold

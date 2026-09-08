@@ -24,6 +24,11 @@ namespace DotsAnimationToolkit.Editor
         // Null means every marker takes the lane colour.
         private IReadOnlyList<Color> perMarkerColors;
         private int selectedIndex = -1;
+
+        // Set only when this lane shows a filtered subset (a layer row's own stop keys) — every
+        // index this lane raises outward is translated through it so the panel always deals in the
+        // slot's real list index, never this row's local position.
+        private List<int> indexMap;
         private int draggingIndex = -1;
         private float dragStartPointerX;
         private float dragStartTime;
@@ -66,6 +71,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Raised on an empty-space double-click, with the time under the cursor.</summary>
         public event Action<float> EmptySpaceDoubleClicked;
 
+        /// <summary>Raised on a Shift+double-click in empty space instead of <see cref="EmptySpaceDoubleClicked"/> — the Facing row's "insert Auto" gesture.</summary>
+        public event Action<float> EmptySpaceShiftDoubleClicked;
+
         /// <summary>Raised from a marker's "Delete" context menu entry.</summary>
         public event Action<int> MomentDeleteRequested;
 
@@ -99,9 +107,10 @@ namespace DotsAnimationToolkit.Editor
         public void SetTimes(
             IReadOnlyList<float> newTimes, int newSelectedIndex,
             IReadOnlyList<string> markerVariantClasses, IReadOnlyList<bool> markerReadOnlyFlags,
-            IReadOnlyList<Color> markerColors = null)
+            IReadOnlyList<Color> markerColors = null, IReadOnlyList<int> originalIndices = null)
         {
             perMarkerColors = markerColors;
+            indexMap = originalIndices != null ? new List<int>(originalIndices) : null;
             times.Clear();
             if (newTimes != null)
             {
@@ -171,16 +180,25 @@ namespace DotsAnimationToolkit.Editor
                     pointerEvent => OnMarkerPointerUp(pointerEvent, capturedIndex, marker));
                 marker.AddManipulator(new ContextualMenuManipulator(
                     menuEvent => menuEvent.menu.AppendAction(
-                        "Delete", _ => MomentDeleteRequested?.Invoke(capturedIndex))));
+                        "Delete", _ => MomentDeleteRequested?.Invoke(ResolveIndex(capturedIndex)))));
 
                 Add(marker);
                 markerElements.Add(marker);
             }
         }
 
+        private int ResolveIndex(int localIndex)
+        {
+            if (indexMap != null && localIndex >= 0 && localIndex < indexMap.Count)
+            {
+                return indexMap[localIndex];
+            }
+            return localIndex;
+        }
+
         private bool IsSelected(int index)
         {
-            return isItemSelected != null ? isItemSelected(index) : index == selectedIndex;
+            return isItemSelected != null ? isItemSelected(ResolveIndex(index)) : index == selectedIndex;
         }
 
         /// <summary>Repaints which markers look selected, without tearing the lane down mid-gesture.</summary>
@@ -228,7 +246,7 @@ namespace DotsAnimationToolkit.Editor
                 float markerX = geometry.TimeToX(times[index]);
                 if (markerX >= bandInLaneSpace.xMin && markerX <= bandInLaneSpace.xMax)
                 {
-                    collected.Add(index);
+                    collected.Add(ResolveIndex(index));
                 }
             }
         }
@@ -259,7 +277,7 @@ namespace DotsAnimationToolkit.Editor
             // Selection resolves on press, not on release: a drag has to know what it is moving
             // before it starts moving it, and the panel answers isItemSelected out of that set.
             MomentPointerDown?.Invoke(
-                index,
+                ResolveIndex(index),
                 pointerEvent.ctrlKey || pointerEvent.commandKey,
                 pointerEvent.shiftKey);
             pointerEvent.StopPropagation();
@@ -286,7 +304,7 @@ namespace DotsAnimationToolkit.Editor
             // is selected, which may reach further left than this one does.
             deltaSeconds = Mathf.Max(deltaSeconds, -dragStartTime);
             SelectionDragMoved?.Invoke(deltaSeconds);
-            MomentMoved?.Invoke(index, dragStartTime + deltaSeconds);
+            MomentMoved?.Invoke(ResolveIndex(index), dragStartTime + deltaSeconds);
         }
 
         private void OnMarkerPointerUp(PointerUpEvent upEvent, int index, VisualElement marker)
@@ -305,11 +323,11 @@ namespace DotsAnimationToolkit.Editor
                         / CutsceneTimelineGeometry.Create(pixelsPerSecond).pixelsPerSecond,
                     -dragStartTime);
                 SelectionDragCommitted?.Invoke(deltaSeconds);
-                MomentMoveCommitted?.Invoke(index, dragStartTime + deltaSeconds);
+                MomentMoveCommitted?.Invoke(ResolveIndex(index), dragStartTime + deltaSeconds);
             }
             else
             {
-                MomentSelected?.Invoke(index);
+                MomentSelected?.Invoke(ResolveIndex(index));
             }
         }
 
@@ -326,7 +344,14 @@ namespace DotsAnimationToolkit.Editor
             {
                 float time = CutsceneTimelineGeometry.Create(pixelsPerSecond)
                     .XToTime(pointerEvent.localPosition.x);
-                EmptySpaceDoubleClicked?.Invoke(time);
+                if (pointerEvent.shiftKey)
+                {
+                    EmptySpaceShiftDoubleClicked?.Invoke(time);
+                }
+                else
+                {
+                    EmptySpaceDoubleClicked?.Invoke(time);
+                }
                 return;
             }
 

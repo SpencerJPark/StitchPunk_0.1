@@ -50,6 +50,12 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public readonly Func<uint, string> DescribeEntryId;
 
+        /// <summary>When non-null, only these ids are listed — everything else in the registry is hidden. Null means no filter.</summary>
+        public readonly IReadOnlyList<uint> AllowedKeys;
+
+        /// <summary>Whether an unmatched filter offers a "Create …" row. False when the caller's vocabulary must stay closed (e.g. a layer-filtered animation picker).</summary>
+        public readonly bool AllowCreate;
+
         public VocabularyPickerConfig(
             string noneRowLabel,
             string noneRowDescription,
@@ -59,7 +65,9 @@ namespace DotsAnimationToolkit.Editor
             string editRowDescription,
             string quickEditWindowTitle,
             string quickEditMissingMessage,
-            Func<uint, string> describeEntryId)
+            Func<uint, string> describeEntryId,
+            IReadOnlyList<uint> allowedKeys = null,
+            bool allowCreate = true)
         {
             NoneRowLabel = noneRowLabel;
             NoneRowDescription = noneRowDescription;
@@ -70,6 +78,8 @@ namespace DotsAnimationToolkit.Editor
             QuickEditWindowTitle = quickEditWindowTitle;
             QuickEditMissingMessage = quickEditMissingMessage;
             DescribeEntryId = describeEntryId;
+            AllowedKeys = allowedKeys;
+            AllowCreate = allowCreate;
         }
 
         // The target-tag flavour of this config, in one place rather than at each call site — the
@@ -149,7 +159,10 @@ namespace DotsAnimationToolkit.Editor
         /// The animation-name flavour of this config. No "(none)" row: a profile layer entry always
         /// names some animation, so there is nothing to clear a binding to.
         /// </summary>
-        public static VocabularyPickerConfig ForAnimationNames(AnimationNameRegistry registry)
+        /// <param name="allowedKeys">Restricts the list to these ids only, e.g. one profile layer's entries. Null lists every animation name.</param>
+        /// <param name="allowCreate">False hides the "Create …" row — a cutscene layer row must never mint a key the bound profile does not carry.</param>
+        public static VocabularyPickerConfig ForAnimationNames(
+            AnimationNameRegistry registry, IReadOnlyList<uint> allowedKeys = null, bool allowCreate = true)
         {
             return new VocabularyPickerConfig(
                 null,
@@ -166,7 +179,9 @@ namespace DotsAnimationToolkit.Editor
                     // exception: a dangling id after its animation name was deleted has no name left to show.
                     string resolvedName = registry != null ? registry.FindName(animationKey) : null;
                     return resolvedName ?? "(unresolved 0x" + animationKey.ToString("X8") + ")";
-                });
+                },
+                allowedKeys,
+                allowCreate);
         }
     }
 
@@ -301,6 +316,10 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
+                if (config.AllowedKeys != null && !ContainsKey(config.AllowedKeys, entryId))
+                {
+                    continue;
+                }
                 if (!MatchesFilter(entryName, filterText))
                 {
                     continue;
@@ -316,10 +335,22 @@ namespace DotsAnimationToolkit.Editor
                     () => onPick?.Invoke(pickedId)));
             }
 
-            if (!anyEntryMatched && filterText.Length > 0)
+            if (!anyEntryMatched && filterText.Length > 0 && config.AllowCreate)
             {
                 rowsContainer.Add(BuildCreateRow(filterText));
             }
+        }
+
+        private static bool ContainsKey(IReadOnlyList<uint> keys, uint key)
+        {
+            for (int index = 0; index < keys.Count; index++)
+            {
+                if (keys[index] == key)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         // Builds the optional "Create…" row: still one typing surface, since the filter text becomes

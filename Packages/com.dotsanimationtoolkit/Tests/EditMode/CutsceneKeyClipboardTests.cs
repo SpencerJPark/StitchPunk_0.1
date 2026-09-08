@@ -91,5 +91,28 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(1, cutscene.slots[1].partTracks[0].keys.Count);
             Assert.AreEqual(4f, cutscene.slots[1].partTracks[0].keys[0].time, 1e-5f);
         }
+
+        [Test]
+        public void Paste_LayerStopKey_AnchorsAtThePlayheadAndKeepsTheLayerName()
+        {
+            cutscene.slots[0].layerStops.Add(
+                new CutsceneLayerStopKey { time = 1f, layerName = "Action", blendOutSeconds = 0.25f });
+
+            List<CutsceneItemAddress> copied = new List<CutsceneItemAddress>
+            {
+                new CutsceneItemAddress(0, SelectedLaneKind.LayerStopKey, -1, 0)
+            };
+            Assert.AreEqual(1, CutsceneKeyClipboard.Copy(cutscene, copied));
+
+            SerializedObject serializedCutscene = new SerializedObject(cutscene);
+            int pastedCount = CutsceneKeyClipboard.Paste(cutscene, serializedCutscene, 3f, 1, null);
+            serializedCutscene.ApplyModifiedProperties();
+
+            Assert.AreEqual(1, pastedCount);
+            Assert.AreEqual(1, cutscene.slots[1].layerStops.Count);
+            Assert.AreEqual(3f, cutscene.slots[1].layerStops[0].time, 1e-5f);
+            Assert.AreEqual("Action", cutscene.slots[1].layerStops[0].layerName, "The layer name travels with the copy.");
+            Assert.AreEqual(1, cutscene.slots[0].layerStops.Count, "The source lane is untouched.");
+        }
     }
 }

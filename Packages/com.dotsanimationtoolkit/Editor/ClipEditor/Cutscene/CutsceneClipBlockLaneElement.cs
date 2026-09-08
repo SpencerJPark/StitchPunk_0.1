@@ -45,6 +45,11 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<float> dragStartStarts = new List<float>();
         private int selectedIndex = -1;
 
+        // Set only when this lane shows a filtered subset (one profile layer's blocks, or the
+        // Unresolved row) — every index this lane raises outward is translated through it so the
+        // panel always deals in the slot's real clipBlocks index, never this row's local position.
+        private List<int> indexMap;
+
         private DragKind dragKind = DragKind.None;
         private int dragIndex = -1;
         private float dragStartPointerX;
@@ -88,13 +93,35 @@ namespace DotsAnimationToolkit.Editor
 
         public void SetBlocks(IReadOnlyList<CutsceneClipBlockDisplay> newBlocks, int newSelectedIndex)
         {
+            SetBlocks(newBlocks, newSelectedIndex, null);
+        }
+
+        /// <param name="originalIndices">
+        /// Maps this row's local block position back to its true index in the slot's flat
+        /// <c>clipBlocks</c> list, so a layer row fed a filtered subset still raises the block's real
+        /// index to every event. Null means the list handed in already uses real indices.
+        /// </param>
+        public void SetBlocks(
+            IReadOnlyList<CutsceneClipBlockDisplay> newBlocks, int newSelectedIndex,
+            IReadOnlyList<int> originalIndices)
+        {
             blocks.Clear();
             if (newBlocks != null)
             {
                 blocks.AddRange(newBlocks);
             }
+            indexMap = originalIndices != null ? new List<int>(originalIndices) : null;
             selectedIndex = newSelectedIndex;
             Rebuild();
+        }
+
+        private int ResolveIndex(int localIndex)
+        {
+            if (indexMap != null && localIndex >= 0 && localIndex < indexMap.Count)
+            {
+                return indexMap[localIndex];
+            }
+            return localIndex;
         }
 
         private void Rebuild()
@@ -151,7 +178,7 @@ namespace DotsAnimationToolkit.Editor
                     OnDragEnd(pointerEvent, capturedIndex, block));
                 block.AddManipulator(new ContextualMenuManipulator(
                     menuEvent => menuEvent.menu.AppendAction(
-                        "Delete", _ => BlockDeleteRequested?.Invoke(capturedIndex))));
+                        "Delete", _ => BlockDeleteRequested?.Invoke(ResolveIndex(capturedIndex)))));
 
                 Add(block);
                 blockElements.Add(block);
@@ -167,7 +194,7 @@ namespace DotsAnimationToolkit.Editor
 
         private bool IsSelected(int index)
         {
-            return isItemSelected != null ? isItemSelected(index) : index == selectedIndex;
+            return isItemSelected != null ? isItemSelected(ResolveIndex(index)) : index == selectedIndex;
         }
 
         /// <summary>Repaints which blocks look selected, without tearing the lane down mid-gesture.</summary>
@@ -214,7 +241,7 @@ namespace DotsAnimationToolkit.Editor
                 float blockRight = geometry.TimeToX(blocks[index].start + blocks[index].duration);
                 if (blockRight >= bandInLaneSpace.xMin && blockLeft <= bandInLaneSpace.xMax)
                 {
-                    collected.Add(index);
+                    collected.Add(ResolveIndex(index));
                 }
             }
         }
@@ -244,7 +271,7 @@ namespace DotsAnimationToolkit.Editor
             // Selection resolves on press, not on release: a drag has to know what it is moving
             // before it starts moving it, and the panel answers isItemSelected out of that set.
             BlockPointerDown?.Invoke(
-                index,
+                ResolveIndex(index),
                 pointerEvent.ctrlKey || pointerEvent.commandKey,
                 pointerEvent.shiftKey);
             pointerEvent.StopPropagation();
@@ -288,7 +315,7 @@ namespace DotsAnimationToolkit.Editor
 
             blocks[index] = new CutsceneClipBlockDisplay(blocks[index].label, newStart, newDuration, blocks[index].loop);
             PositionBlock(block, blocks[index]);
-            BlockChanged?.Invoke(index, newStart, newDuration);
+            BlockChanged?.Invoke(ResolveIndex(index), newStart, newDuration);
         }
 
         private void OnDragEnd(PointerUpEvent upEvent, int index, VisualElement block)
@@ -310,11 +337,11 @@ namespace DotsAnimationToolkit.Editor
                         Mathf.Max(blocks[index].start - dragStartStart, -dragStartStart));
                     return;
                 }
-                BlockChangeCommitted?.Invoke(index, blocks[index].start, blocks[index].duration);
+                BlockChangeCommitted?.Invoke(ResolveIndex(index), blocks[index].start, blocks[index].duration);
             }
             else if (endedKind == DragKind.Move)
             {
-                BlockSelected?.Invoke(index);
+                BlockSelected?.Invoke(ResolveIndex(index));
             }
         }
 
