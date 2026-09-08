@@ -614,3 +614,16 @@ touches MCP.
   `CutsceneDialogueCueTests.cs:88`, `CutsceneAcceptancePerfTests.cs:60` (all three:
   `CutsceneApi.TopLayer`). G6's own read-first list should confirm this set is still complete before
   starting — it may have grown if another session touched game cutscene code in the meantime.
+
+  **Full-suite EditMode also would not run.** After committing, `run_tests` against the whole
+  `DotsAnimationToolkit.Tests.EditMode` assembly/group (~760+ tests) failed to initialize on four
+  separate attempts (`init_timeout` up to 120000ms, one preceded by an idle `refresh_unity`), each
+  with the same "tests did not start within timeout" error - while the four targeted EditMode
+  groups this session actually touched (`CutsceneBlobBuilderTests`, `CutsceneKeyClipboardTests`,
+  `CutsceneBlockTimingTests`, `DataContractTests`, 21 tests by `test_names`) ran and passed cleanly
+  both before and after the commit. Cause not identified - plausibly discovery cost at that test
+  count, plausibly contention from another session sharing this Editor instance (this repo also
+  gained an unrelated `5c863bef` "A74 spec" commit mid-session, confirming a second session was
+  active). Recorded rather than retried further. Whoever runs the closing full-suite pass for this
+  amendment should confirm the full EditMode count (baseline: EditMode 760, PlayMode 277, per A72's
+  HANDOFF §4 paragraph) has not silently dropped, not just that named subsets pass.
