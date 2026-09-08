@@ -69,7 +69,7 @@ public partial struct CutsceneStartSystem : ISystem
             }
 
             Entity playRequestEntity = CutsceneApi.CreatePlayRequestFromStage(
-                entityManager, stageEntity, request.layerIndex, request.speed);
+                entityManager, stageEntity, request.speed);
 
             ApplyBindingOverrides(entityManager, signalEntity, playRequestEntity);
 

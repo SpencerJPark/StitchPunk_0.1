@@ -409,7 +409,6 @@ public class NarrativeEventManager : MonoBehaviour
         _entityManager.AddComponentData(signalEntity, new CutsceneRequest
         {
             cutsceneKey = action.cutscene.StableId,
-            layerIndex  = CutsceneApi.TopLayer,
             speed       = action.speed,
         });
 

@@ -78,7 +78,6 @@ namespace StitchPunk.Tests.PlayMode
             entityManager.AddComponentData(signalEntity, new CutsceneRequest
             {
                 cutsceneKey = TestCutsceneKey,
-                layerIndex  = CutsceneApi.TopLayer,
                 speed       = 1f,
             });
 

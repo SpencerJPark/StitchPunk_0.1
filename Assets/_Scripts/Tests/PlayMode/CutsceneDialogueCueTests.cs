@@ -85,7 +85,7 @@ namespace StitchPunk.Tests.PlayMode
             EntityManager entityManager, BlobAssetReference<CutsceneBlob> blob, Entity speakerEntity)
         {
             Entity playRequestEntity = entityManager.CreateEntity();
-            entityManager.AddComponentData(playRequestEntity, new CutscenePlay { blob = blob, layerIndex = CutsceneApi.TopLayer });
+            entityManager.AddComponentData(playRequestEntity, new CutscenePlay { blob = blob });
             entityManager.AddComponentData(playRequestEntity, new CutscenePlaybackState
             {
                 segmentIndex   = 0,
