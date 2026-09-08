@@ -10,14 +10,17 @@ namespace DotsAnimationToolkit.Editor
     {
         NewRig = 0,
 
-        /// <summary>The dock — clip list, hierarchy, viewport, inspector and timeline.</summary>
-        ClipEditor = 1,
+        /// <summary>Browse, create and edit clip sets — which clips each one registers.</summary>
+        ClipSets = 1,
 
-        VatBake = 2,
+        /// <summary>The dock — clip list, hierarchy, viewport, inspector and timeline.</summary>
+        ClipEditor = 2,
+
+        VatBake = 3,
 
         /// <summary>Layer/animation authoring over a composited multi-layer preview.</summary>
-        ActorEditor = 3,
+        ActorEditor = 4,
 
-        CutsceneEditor = 4
+        CutsceneEditor = 5
     }
 }

@@ -30,12 +30,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private static readonly string[] RequiredElementNames = new string[]
         {
             "clip-editor-root", "clip-editor-toolbar",
-            "clip-set-field", "new-clip-set-button",
+            "clip-set-field",
             "skinned-source-field", "validation-badge-slot",
             // The four tabs, in the top bar beside the clip set and rig they all read. Exactly one
             // is lit, and SetActiveTab is the only writer of that.
             "tab-strip",
-            "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-actor-editor",
+            "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
             "tab-vat-bake",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle",
@@ -79,6 +79,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // The New Rig flow's slot, covering the dock the same way the VAT bake tab does
             // (Phase D11). Nothing is built into it until the toggle is first switched on.
             "new-rig-pane",
+            // The Clip Sets tab's slot — same lazily-filled shape as New Rig and VAT Bake.
+            "clip-sets-pane",
             // The Actor Editor pane, and the Cutscene Editor's placeholder. Same lazily-filled
             // shape as the two above, so a rename here is a tab that lights and shows nothing.
             "actor-editor-pane", "cutscene-pane"
@@ -159,7 +161,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             string[] tabNames = new string[]
             {
-                "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-actor-editor",
+                "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
                 "tab-vat-bake"
             };
 
