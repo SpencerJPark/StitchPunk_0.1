@@ -137,6 +137,15 @@ remains). Three ⏸ owner checkpoints are open and nothing is queued behind them
 Index: `Assets/_Vault/Tasks/NewPlans/ActorEditor_Roadmap.md`. Both content recipes live in
 `Assets/_Scripts/Editor/ContentAuthoring/` and are re-runnable.
 
+**Queued (2026-09-07, spec only — build on the owner's prompt): Amendment A72, editor visual
+unification** (`Docs/AnimationToolkit/Amendment_A72_EditorVisualUnification_Spec.md`; index
+`Assets/_Vault/Tasks/NewPlans/EditorVisualUnification_Roadmap.md`). The Clip Editor's layout leads;
+the Cutscene and Actor tabs adopt its shape, one icon transport (`TransportCoreElement` /
+`ITransportTarget`) with Space/arrows/Home/End routed to the active tab, boxed lists with an eye
+toggle on actor layers, one palette with a colour per event name. Its §2 decisions are recorded
+owner/architecture calls. T0 and T12 are the orchestrator's (captures, gate); T1–T11 are sized for
+file-only subagents.
+
 ## 5. Standing owner directives — binding, do not lose
 
 - **Names, never numbers**, in downstream game code and in every editor surface. Game code uses
