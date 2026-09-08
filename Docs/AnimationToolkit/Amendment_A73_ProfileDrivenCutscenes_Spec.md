@@ -454,7 +454,7 @@ touches MCP.
   Scene View Pivot, Marks row **+**, derived-hold ghost and transport auto-continue. Live proof: add
   a mark with the header button, play the transport — it stops at the mark's time naming
   `mark:<slot>@<t>` and continues past the rehearsed arrival.
-- [ ] **T7 — Samples, tests sweep, sample host.** `Samples~/Cutscene/CutsceneSampleHost.cs` drops
+- [x] **T7 — Samples, tests sweep, sample host.** `Samples~/Cutscene/CutsceneSampleHost.cs` drops
   the layer argument and gives its slots a profile (compile-checked through a temp assembly);
   `CutsceneStageBakingTests`, `CutsceneAttachTests`, `CutsceneMarkTests` re-pointed at profile-bearing
   fixtures.
@@ -677,3 +677,42 @@ touches MCP.
   pre-existing failure) and `DotsAnimationToolkit.Tests.PlayMode` 283/283, both fully green — the
   first time either suite has completed for this amendment. T1–T3's checkboxes above are now
   honestly verified, not just believed correct from review.
+
+- **T4+T5 (same continuation session, 2026-09-08)** — built in parallel by two subagents on
+  disjoint files (T4: `CutsceneEditorPanel.cs`, `CutsceneClipBlockLaneElement.cs`,
+  `CutsceneMomentLaneElement.cs`, `CutsceneKeyClipboard`-adjacent files, `VocabularyPicker.cs`; T5:
+  `CutsceneSlotClipPreview.cs`, `CutscenePreviewController.cs`, plus the new
+  `CutsceneLayerStateResolver.cs`), landed as two separate `A73-T4`/`A73-T5` commits after one
+  shared compile gate. One `Conformance_F` citation and one test-assertion bug (T4's own
+  `Paste_LayerStopKey` fixture asserted the source lane emptied to 0 rather than staying at its
+  setup value of 1 — a copy is not a cut) were caught and fixed at the gate before committing.
+  Live-proved via `execute_code`: assigning `MaleCitizen.profile` (Base/Action/Eyes/Face/Mouth/
+  Override) built exactly those 6 layer rows, and a block naming the profile's first Base entry
+  landed as one "Idle" block on layer 0 with every other layer empty. Verified: EditMode 767/767
+  (only `Conformance_A`), PlayMode 283/283.
+
+- **T6 (same session)** — Marks UX. While grounding the "extend the lookup to derived ones"
+  instruction, found and fixed the actual bug it was describing: `BuildEffectiveHolds` fed every
+  derived hold (event- and mark-derived alike) through `isDerivedFromEvent = true` and never set
+  `autoReleaseWhenMarksReached`, so a `waitUntilReached` mark's own derived hold could never be
+  recognized as a rendezvous by `RendezvousIsSatisfiedAt` — now classified per-entry via
+  `CutsceneDerivedHolds.IsMarkDerived`. Verified directly via `execute_code` + reflection (this
+  rehearsal-only logic has no fixture by design): a hold whose mark hasn't rehearsed-arrived yet
+  reports unsatisfied (gates the transport); the same mark authored with zero preview travel
+  (already arrived by its own issue time) reports satisfied (passes straight through) — exactly
+  the "arrival IS timeline time" rule `RendezvousIsSatisfiedAt`'s own doc comment describes.
+  Verified: EditMode 767/767 (only `Conformance_A`), PlayMode 283/283.
+
+- **T7 (same session) — no code changes needed, logged as spec/reality drift rather than
+  invented work.** All three things this task named turned out already correct:
+  `Samples~/Cutscene/CutsceneSampleHost.cs` already calls `CreatePlayRequestFromStage(entityManager,
+  stageEntity)` with no `layerIndex` argument (git blame: unchanged since A68-T3 — it never
+  authored a slot or referenced `rig`/`clipSets`/`profile` at all, being pure runtime `CutsceneApi`
+  usage, so A73's authoring-side rename never touched it) and compiles clean through a temp
+  assembly (`execute_code` against 203 filtered Editor-loaded assembly references). Grepping
+  `CutsceneStageBakingTests.cs`, `CutsceneAttachTests.cs` and `CutsceneMarkTests.cs` for
+  `rig`/`clipSets`/`profile`/`RigAsset`/`ClipSetAsset`/`DirectionSetAsset` found zero hits in any
+  of the three — they build `CutsceneBlob` directly with `BlobBuilder` (attach/mark/staging
+  mechanics at the blob level) and never touch `ActorProfile`/clip-block playback, so there is no
+  profile-bearing fixture for them to be re-pointed at. All three already run green as part of the
+  `.PlayMode` 283/283 figure verified under T4/T5/T6 above — no separate run needed.
