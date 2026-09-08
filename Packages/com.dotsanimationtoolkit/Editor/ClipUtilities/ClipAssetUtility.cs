@@ -212,6 +212,30 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
+        /// <summary>Sends a clip set asset to the OS trash. The clips it referenced are left on disk.</summary>
+        public static bool DeleteClipSet(ClipSetAsset clipSet)
+        {
+            if (clipSet == null)
+            {
+                return false;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(clipSet);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            if (!AssetDatabase.MoveAssetToTrash(assetPath))
+            {
+                Debug.LogWarning(
+                    LogPrefix + "Could not move clip set '" + assetPath + "' to the trash.", clipSet);
+                return false;
+            }
+
+            return true;
+        }
+
         /// <summary>Un-registers a clip and sends its asset to the OS trash.</summary>
         public static bool DeleteClipFromSet(ClipSetAsset clipSet, int clipIndex, ClipAsset clip)
         {

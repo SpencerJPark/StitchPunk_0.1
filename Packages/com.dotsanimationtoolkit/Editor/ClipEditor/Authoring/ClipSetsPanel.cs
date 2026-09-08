@@ -24,8 +24,11 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly ClipSetSaveLocation saveLocation = new ClipSetSaveLocation();
         private readonly List<ClipSetAsset> catalogClipSets = new List<ClipSetAsset>();
+        private readonly List<ClipSetAsset> filteredClipSets = new List<ClipSetAsset>();
         private readonly List<ClipAsset> catalogClips = new List<ClipAsset>();
 
+        private string catalogSearchText = string.Empty;
+        private ToolbarSearchField catalogSearchField;
         private ListView clipSetsList;
         private Label catalogEmptyLabel;
 
@@ -96,14 +99,24 @@ namespace DotsAnimationToolkit.Editor
             header.Add(actions);
             catalogColumn.Add(header);
 
+            catalogSearchField = new ToolbarSearchField();
+            catalogSearchField.name = "clip-sets-search";
+            // catalogColumn is a column-flow container, so flexGrow would fight the list for
+            // vertical space; alignSelf is the cross-axis (width) stretch we actually want.
+            catalogSearchField.style.alignSelf = Align.Stretch;
+            catalogSearchField.style.marginTop = 4f;
+            catalogSearchField.RegisterValueChangedCallback(OnCatalogSearchTextChanged);
+            catalogColumn.Add(catalogSearchField);
+
             clipSetsList = new ListView();
             clipSetsList.name = "clip-sets-list";
-            clipSetsList.fixedItemHeight = 44f;
+            clipSetsList.fixedItemHeight = 52f;
             clipSetsList.selectionType = SelectionType.Single;
             clipSetsList.style.flexGrow = 1f;
+            clipSetsList.style.marginTop = 4f;
             clipSetsList.makeItem = MakeClipSetRow;
             clipSetsList.bindItem = BindClipSetRow;
-            clipSetsList.itemsSource = catalogClipSets;
+            clipSetsList.itemsSource = filteredClipSets;
             clipSetsList.selectionChanged += OnClipSetsListSelectionChanged;
             catalogColumn.Add(clipSetsList);
 
@@ -114,12 +127,12 @@ namespace DotsAnimationToolkit.Editor
             return catalogColumn;
         }
 
-        private static VisualElement MakeClipSetRow()
+        private VisualElement MakeClipSetRow()
         {
             VisualElement row = new VisualElement();
             row.AddToClassList("toolkit-box");
-            row.style.marginTop = 2f;
-            row.style.marginBottom = 2f;
+            row.style.marginTop = 6f;
+            row.style.marginBottom = 6f;
             row.style.marginLeft = 4f;
             row.style.marginRight = 4f;
 
@@ -139,17 +152,70 @@ namespace DotsAnimationToolkit.Editor
             infoLabel.AddToClassList("clip-editor__hint");
             row.Add(infoLabel);
 
+            // Closes over the row element itself (stable identity, never recreated) rather than
+            // any per-bind data — the callback reads row.userData live when the menu opens, so a
+            // recycled row always offers to delete whatever it is currently showing.
+            row.AddManipulator(new ContextualMenuManipulator(
+                populateEvent => PopulateClipSetRowContextMenu(populateEvent, row)));
+
             return row;
         }
 
-        private void BindClipSetRow(VisualElement element, int index)
+        private void PopulateClipSetRowContextMenu(ContextualMenuPopulateEvent populateEvent, VisualElement row)
         {
-            if (index < 0 || index >= catalogClipSets.Count)
+            ClipSetAsset targetSet = row.userData as ClipSetAsset;
+            if (targetSet == null)
             {
                 return;
             }
 
-            ClipSetAsset clipSet = catalogClipSets[index];
+            populateEvent.menu.AppendAction(
+                "Delete", deleteAction => RequestDeleteClipSet(targetSet), DropdownMenuAction.AlwaysEnabled);
+        }
+
+        private void RequestDeleteClipSet(ClipSetAsset targetSet)
+        {
+            if (targetSet == null)
+            {
+                return;
+            }
+
+            bool confirmed = EditorUtility.DisplayDialog(
+                "Delete Clip Set",
+                "Delete \"" + targetSet.name + "\"? Any actor profile referencing it will lose those "
+                    + "clips. The asset moves to the OS trash, not permanently deleted.",
+                "Delete",
+                "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
+
+            bool wasSelected = SelectedSet == targetSet;
+            if (!ClipAssetUtility.DeleteClipSet(targetSet))
+            {
+                ReportFailure("could not delete \"" + targetSet.name + "\".");
+                return;
+            }
+
+            if (wasSelected)
+            {
+                Mode = EditorMode.None;
+                SelectedSet = null;
+                RefreshEditorForMode();
+            }
+
+            RescanProject();
+        }
+
+        private void BindClipSetRow(VisualElement element, int index)
+        {
+            if (index < 0 || index >= filteredClipSets.Count)
+            {
+                return;
+            }
+
+            ClipSetAsset clipSet = filteredClipSets[index];
             element.userData = clipSet;
 
             Label titleLabel = element.Q<Label>("clip-set-row-title");
@@ -404,10 +470,6 @@ namespace DotsAnimationToolkit.Editor
                 catalogClips.AddRange(clips);
             }
 
-            clipSetsList.itemsSource = catalogClipSets;
-            clipSetsList.Rebuild();
-            RefreshCatalogEmptyState();
-
             if (SelectedSet != null && !catalogClipSets.Contains(SelectedSet))
             {
                 Mode = EditorMode.None;
@@ -415,14 +477,57 @@ namespace DotsAnimationToolkit.Editor
                 RefreshEditorForMode();
             }
 
+            ApplyCatalogFilter();
+
             picker.SetClips(catalogClips);
+        }
+
+        private void OnCatalogSearchTextChanged(ChangeEvent<string> changeEvent)
+        {
+            catalogSearchText = changeEvent.newValue ?? string.Empty;
+            ApplyCatalogFilter();
+        }
+
+        private void ApplyCatalogFilter()
+        {
+            filteredClipSets.Clear();
+            for (int index = 0; index < catalogClipSets.Count; index++)
+            {
+                ClipSetAsset clipSet = catalogClipSets[index];
+                if (clipSet == null)
+                {
+                    continue;
+                }
+                if (string.IsNullOrEmpty(catalogSearchText)
+                    || clipSet.name.IndexOf(catalogSearchText, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    filteredClipSets.Add(clipSet);
+                }
+            }
+
+            clipSetsList.Rebuild();
+            RefreshCatalogEmptyState();
+
+            if (SelectedSet != null)
+            {
+                clipSetsList.SetSelectionWithoutNotify(
+                    filteredClipSets.Contains(SelectedSet)
+                        ? new List<int> { filteredClipSets.IndexOf(SelectedSet) }
+                        : new List<int>());
+            }
         }
 
         private void RefreshCatalogEmptyState()
         {
-            bool isEmpty = catalogClipSets.Count == 0;
+            bool isEmpty = filteredClipSets.Count == 0;
             clipSetsList.style.display = isEmpty ? DisplayStyle.None : DisplayStyle.Flex;
             catalogEmptyLabel.style.display = isEmpty ? DisplayStyle.Flex : DisplayStyle.None;
+            if (isEmpty)
+            {
+                catalogEmptyLabel.text = catalogClipSets.Count == 0
+                    ? "No clip sets in this project yet. Press New."
+                    : "No clip sets match your search.";
+            }
         }
 
         public void SelectSet(ClipSetAsset clipSet)
@@ -430,7 +535,10 @@ namespace DotsAnimationToolkit.Editor
             Mode = EditorMode.Edit;
             SelectedSet = clipSet;
 
-            clipSetsList.SetSelectionWithoutNotify(clipSet != null ? new List<int> { catalogClipSets.IndexOf(clipSet) } : new List<int>());
+            clipSetsList.SetSelectionWithoutNotify(
+                clipSet != null && filteredClipSets.Contains(clipSet)
+                    ? new List<int> { filteredClipSets.IndexOf(clipSet) }
+                    : new List<int>());
             clipSetsList.Rebuild();
 
             List<ClipAsset> checkedClips = new List<ClipAsset>();
@@ -559,6 +667,7 @@ namespace DotsAnimationToolkit.Editor
             clipSetsList.selectionChanged -= OnClipSetsListSelectionChanged;
             clipSetsList.itemsSource = null;
             catalogClipSets.Clear();
+            filteredClipSets.Clear();
             catalogClips.Clear();
             SelectedSet = null;
         }

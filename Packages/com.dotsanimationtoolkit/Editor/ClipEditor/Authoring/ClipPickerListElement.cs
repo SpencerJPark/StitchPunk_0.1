@@ -26,33 +26,52 @@ namespace DotsAnimationToolkit.Editor
 
         public ClipPickerListElement()
         {
-            VisualElement header = new VisualElement();
-            header.AddToClassList("toolkit-pane-header");
+            // The whole element reads as one boxed component (A75 owner pass): the header block
+            // (title, Ticked only, search) carries toolkit-box__header's lighter fill, the list
+            // below sits on the plain toolkit-box fill, which is visibly darker.
+            AddToClassList("toolkit-box");
+
+            VisualElement headerBlock = new VisualElement();
+            headerBlock.AddToClassList("toolkit-box__header");
+            headerBlock.style.flexDirection = FlexDirection.Column;
+            headerBlock.style.alignItems = Align.Stretch;
+
+            VisualElement titleRow = new VisualElement();
+            titleRow.style.flexDirection = FlexDirection.Row;
+            titleRow.style.alignItems = Align.Center;
+            titleRow.style.justifyContent = Justify.SpaceBetween;
 
             Label title = new Label("Clips");
-            title.AddToClassList("toolkit-pane-title");
-            header.Add(title);
-
-            VisualElement actions = new VisualElement();
-            actions.AddToClassList("toolkit-pane-actions");
-
-            searchField = new ToolbarSearchField();
-            searchField.name = "clip-picker-search";
-            searchField.style.width = 180f;
-            searchField.RegisterValueChangedCallback(OnSearchTextChanged);
-            actions.Add(searchField);
+            title.AddToClassList("toolkit-box__title");
+            titleRow.Add(title);
 
             checkedOnlyToggle = new Toggle("Ticked only");
             checkedOnlyToggle.name = "clip-picker-checked-only";
             checkedOnlyToggle.RegisterValueChangedCallback(OnCheckedOnlyChanged);
-            actions.Add(checkedOnlyToggle);
+            titleRow.Add(checkedOnlyToggle);
 
-            header.Add(actions);
-            Add(header);
+            headerBlock.Add(titleRow);
+
+            // Its own full-width row rather than squeezed into the title row's right edge —
+            // a fixed-width search field beside a toggle read as skewed off to one side.
+            VisualElement searchRow = new VisualElement();
+            searchRow.style.flexDirection = FlexDirection.Row;
+            searchRow.style.marginTop = 4f;
+
+            searchField = new ToolbarSearchField();
+            searchField.name = "clip-picker-search";
+            searchField.style.flexGrow = 1f;
+            searchField.RegisterValueChangedCallback(OnSearchTextChanged);
+            searchRow.Add(searchField);
+
+            headerBlock.Add(searchRow);
+            Add(headerBlock);
 
             countLabel = new Label();
             countLabel.name = "clip-picker-count";
             countLabel.AddToClassList("clip-editor__hint");
+            countLabel.style.marginLeft = 6f;
+            countLabel.style.marginTop = 4f;
             Add(countLabel);
 
             clipListView = new ListView();
@@ -60,6 +79,7 @@ namespace DotsAnimationToolkit.Editor
             clipListView.fixedItemHeight = 22f;
             clipListView.selectionType = SelectionType.None;
             clipListView.style.flexGrow = 1f;
+            clipListView.style.marginTop = 2f;
             clipListView.makeItem = MakeClipPickerRow;
             clipListView.bindItem = BindClipPickerRow;
             clipListView.itemsSource = model.VisibleEntries as IList;
