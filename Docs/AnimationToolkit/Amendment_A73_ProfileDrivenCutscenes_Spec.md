@@ -440,12 +440,12 @@ touches MCP.
   `facingDegrees = 90`, move the entity within tolerance, no further movement → `ActorFacing.facing == North`
   on the next frame). `SystemGroupStructureTests` gains the edge. **Full suites; session 1 ends
   here** with HANDOFF §4 updated (no owner checkpoint — nothing is visible yet).
-- [ ] **T4 — Editor: layer rows, block/stop inspectors, slot inspector (§3.4 rows, block, slot,
+- [x] **T4 — Editor: layer rows, block/stop inspectors, slot inspector (§3.4 rows, block, slot,
   facing-key items).** `CutsceneEditorPanel` + `CutsceneClipBlockLaneElement` + `CutsceneKeyClipboard`
   + `VocabularyPickerConfig` filter/create options. No fixture beyond `CutsceneKeyClipboardTests`
   gaining the stop kind; live proof via `execute_code` that assigning a profile builds N layer rows
   and a block lands on its entry's row.
-- [ ] **T5 — Preview (§3.5).** [parallel-safe with T4] `CutsceneSlotClipPreview` profile blob +
+- [x] **T5 — Preview (§3.5).** [parallel-safe with T4] `CutsceneSlotClipPreview` profile blob +
   layer array, `ComposeLayers`, mirror from the profile fold, delete the direction-set preview
   branches. *Fixture (EditMode, new `CutsceneLayerReconstructionTests`):* the pure "last block or stop
   at-or-before t per row" resolver (extract it as a static in `Authoring/Build/` so both the preview
