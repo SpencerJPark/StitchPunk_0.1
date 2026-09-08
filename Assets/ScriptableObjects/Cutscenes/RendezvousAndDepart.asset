@@ -22,6 +22,13 @@ MonoBehaviour:
     rig: {fileID: 0}
     clipSets: []
     directionSet: {fileID: 0}
+    profile: {fileID: 0}
+    locomotion:
+      enabled: 0
+      standingAnimationKey: 0
+      movingAnimationKey: 0
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks: []
     transformKeys: []
@@ -72,6 +79,7 @@ MonoBehaviour:
       toleranceMeters: 0.9
       timeoutSeconds: 20
       previewTravelSeconds: 2
+      waitUntilReached: 0
   - name: MinionA
     slotId: 2974429593
     kind: 0
@@ -79,9 +87,16 @@ MonoBehaviour:
     clipSets:
     - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
     directionSet: {fileID: 0}
+    profile: {fileID: 11400000, guid: b68693475b98e0947817efc19bba73bb, type: 2}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 2343174561
+      movingAnimationKey: 2815978773
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks:
-    - clipId: 17929205651740358465
+    - animationKey: 2815978773
       start: 0
       duration: 6.6
       loop: 1
@@ -135,6 +150,7 @@ MonoBehaviour:
       toleranceMeters: 0.9
       timeoutSeconds: 20
       previewTravelSeconds: 2
+      waitUntilReached: 0
   - name: MinionB
     slotId: 3350995685
     kind: 0
@@ -142,9 +158,16 @@ MonoBehaviour:
     clipSets:
     - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
     directionSet: {fileID: 0}
+    profile: {fileID: 11400000, guid: b68693475b98e0947817efc19bba73bb, type: 2}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 2343174561
+      movingAnimationKey: 2815978773
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks:
-    - clipId: 17929205651740358465
+    - animationKey: 2815978773
       start: 0
       duration: 6.6
       loop: 1
@@ -198,12 +221,20 @@ MonoBehaviour:
       toleranceMeters: 0.9
       timeoutSeconds: 20
       previewTravelSeconds: 2
+      waitUntilReached: 0
   - name: Cart
     slotId: 957824830
     kind: 1
     rig: {fileID: 0}
     clipSets: []
     directionSet: {fileID: 0}
+    profile: {fileID: 0}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 0
+      movingAnimationKey: 0
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks: []
     transformKeys:

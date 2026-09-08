@@ -23,12 +23,21 @@ MonoBehaviour:
     clipSets:
     - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
     directionSet: {fileID: 0}
+    profile: {fileID: 11400000, guid: b68693475b98e0947817efc19bba73bb, type: 2}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 2343174561
+      movingAnimationKey: 2815978773
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks:
-    - clipId: 17929205651740358465
+    - animationKey: 2815978773
       start: 0
       duration: 5
       loop: 1
+      speed: 1
+      clipStartOffsetSeconds: 0
     transformKeys:
     - time: 0
       position:
@@ -53,12 +62,20 @@ MonoBehaviour:
     facingKeys: []
     partTracks: []
     attachMarkers: []
+    markKeys: []
   - name: Crate
     slotId: 2714238973
     kind: 1
     rig: {fileID: 0}
     clipSets: []
     directionSet: {fileID: 0}
+    profile: {fileID: 0}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 0
+      movingAnimationKey: 0
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks: []
     transformKeys: []
@@ -99,6 +116,7 @@ MonoBehaviour:
         x: 0
         y: 0
         z: 0
+    markKeys: []
   cameraLane:
     keys: []
     cutMarkers: []

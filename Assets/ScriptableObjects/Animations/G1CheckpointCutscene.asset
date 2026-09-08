@@ -23,12 +23,21 @@ MonoBehaviour:
     clipSets:
     - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
     directionSet: {fileID: 0}
+    profile: {fileID: 11400000, guid: b68693475b98e0947817efc19bba73bb, type: 2}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 2343174561
+      movingAnimationKey: 2815978773
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks:
-    - clipId: 17929205651740358465
+    - animationKey: 2815978773
       start: 0
       duration: 4
       loop: 1
+      speed: 1
+      clipStartOffsetSeconds: 0
     transformKeys:
     - time: 0
       position:
@@ -72,6 +81,8 @@ MonoBehaviour:
         y: 0
     facingKeys: []
     partTracks: []
+    attachMarkers: []
+    markKeys: []
   - name: Minion B
     slotId: 832162630
     kind: 0
@@ -79,12 +90,21 @@ MonoBehaviour:
     clipSets:
     - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
     directionSet: {fileID: 0}
+    profile: {fileID: 11400000, guid: b68693475b98e0947817efc19bba73bb, type: 2}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 2343174561
+      movingAnimationKey: 2815978773
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks:
-    - clipId: 17929205651740358465
+    - animationKey: 2815978773
       start: 0
       duration: 4
       loop: 1
+      speed: 1
+      clipStartOffsetSeconds: 0
     transformKeys:
     - time: 0
       position:
@@ -128,6 +148,8 @@ MonoBehaviour:
         y: 0
     facingKeys: []
     partTracks: []
+    attachMarkers: []
+    markKeys: []
   cameraLane:
     keys:
     - time: 0
@@ -206,5 +228,6 @@ MonoBehaviour:
     intParam: 0
     floatParam: 0
     fireOnSkip: 1
+    holdUntilReleased: 0
   holdMarkers: []
   sceneBindings: []

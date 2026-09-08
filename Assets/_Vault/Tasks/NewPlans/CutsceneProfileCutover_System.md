@@ -115,7 +115,7 @@ After each: compile gate → the task's fixtures → tick → commit `G6-Pn: <wh
   no cutscene involved, so the second condition for deletion is false, exactly as anticipated. *Gate:*
   clean compile; `StitchPunk.Tests` 65/65 (57 baseline + 8 new `TestCase` angles), all green.
 
-- [ ] **P4 — Re-author the seven cutscene assets by script.** [parallel-safe with P2/P3 — writes
+- [x] **P4 — Re-author the seven cutscene assets by script.** [parallel-safe with P2/P3 — writes
   assets only] New re-runnable `Assets/_Scripts/Editor/ContentAuthoring/CutsceneProfileReauthoring.cs`
   (menu `Stitch Punk/Content/Re-point Cutscenes at MaleCitizen Profile`): for each asset, every
   Actor slot gets `profile = MaleCitizen.profile`, locomotion defaulted (`Idle`/`Walk` keys through
@@ -126,6 +126,29 @@ After each: compile gate → the task's fixtures → tick → commit `G6-Pn: <wh
   hand (G2 §3.4). `EnsureStableIds()`, `SetDirty`, save. Run it; commit the assets. *Gate:* opening
   each asset in the Cutscene Editor shows layer rows and named blocks, no Unresolved row except
   where the log said so.
+  **Done 2026-09-08:** before writing the script, grepped every asset's raw YAML for the literal
+  `clipId:` line (still present on disk pre-migration, since Unity's deserializer already drops it
+  once a type-changed field is loaded into memory — confirmed A64CheckpointCutscene.asset had
+  already lost it to `animationKey: 0` from an earlier compile-gate touch this session). Every clip
+  block in every one of the seven assets carried the identical id `17929205651740358465`, which
+  belongs to `Walk.asset` (grepped its owning stableId) — there was only ever one clip authored
+  anywhere in this content, so the "mapping" is one entry, not a table. Wrote the script against
+  that finding rather than trying to read the dead field at runtime (impossible — the C# type no
+  longer has it).
+  `RendezvousAndDepart`'s and `G2CheckpointCutscene`'s `Player` slots are already authored as
+  **Prop**, not Actor (`kind: 1`) — consistent with "the player is not a toolkit actor," but meaning
+  the spec's literal "Player slot gets `locomotion.enabled = false`" line is a no-op today
+  (locomotion is documented "Ignored for Prop slots"). Applied it anyway, gated only on slot name +
+  asset path, so it costs nothing now and holds if the slot's kind ever changes.
+  `NewCutscene.asset` has zero Actor slots (`Prop 1`/`Prop 2` only) — correctly left untouched
+  (no dirty, no resave) rather than forced into the diff.
+  Ran the menu item, then re-ran it directly via `execute_code` to confirm idempotency (`slots
+  repointed=9, blocks resolved=0` the second time — the first run had already resolved every
+  block). *Gate:* clean compile; `StitchPunk.Tests` 65/65 unchanged; built
+  `CutsceneBlobBuilder.Build` for all seven assets via `execute_code` — zero animation-key/profile
+  warnings on any of them (the only warnings present, on `G2CheckpointCutscene`/`RendezvousAndDepart`,
+  are the pre-existing, unrelated "mark walks through a rendezvous hold mid-editor-rehearsal" notes
+  that the builder itself says "plays correctly" at runtime).
 
 - [ ] **P5 — `CutsceneMoveToMarkSystem` and locomotion agree.** The mark system paths NPCs through
   `MovementAPI` (isMoving true) while the cutscene measures displacement; no code change expected —

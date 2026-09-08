@@ -23,9 +23,16 @@ MonoBehaviour:
     clipSets:
     - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
     directionSet: {fileID: 11400000, guid: 621925d199476b943a63db7498d8ea7d, type: 2}
+    profile: {fileID: 11400000, guid: b68693475b98e0947817efc19bba73bb, type: 2}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 2343174561
+      movingAnimationKey: 2815978773
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks:
-    - clipId: 17929205651740358465
+    - animationKey: 2815978773
       start: 0
       duration: 6
       loop: 1
