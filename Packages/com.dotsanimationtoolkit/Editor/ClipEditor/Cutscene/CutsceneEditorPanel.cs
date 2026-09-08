@@ -1588,6 +1588,47 @@ namespace DotsAnimationToolkit.Editor
             ApplyPreviewAtPlayhead();
         }
 
+        // The one write in this file that skips SerializedProperty: clipSets is a whole-list swap,
+        // and Undo.RecordObject + SetDirty is the same escape hatch EnsureStableIds already uses —
+        // serializedObject.Update() below resyncs every bound field afterward.
+        private void ShowFillFromProfileMenu(int slotIndex, VisualElement anchorElement)
+        {
+            string[] profileGuids = AssetDatabase.FindAssets("t:" + nameof(ActorProfileAsset));
+            GenericDropdownMenu profileMenu = new GenericDropdownMenu();
+            bool foundAnyProfile = false;
+            for (int guidIndex = 0; guidIndex < profileGuids.Length; guidIndex++)
+            {
+                string profilePath = AssetDatabase.GUIDToAssetPath(profileGuids[guidIndex]);
+                ActorProfileAsset profileAsset = AssetDatabase.LoadAssetAtPath<ActorProfileAsset>(profilePath);
+                if (profileAsset == null)
+                {
+                    continue;
+                }
+                foundAnyProfile = true;
+                profileMenu.AddItem(profileAsset.name, false, () => FillSlotFromProfile(slotIndex, profileAsset));
+            }
+            if (!foundAnyProfile)
+            {
+                profileMenu.AddItem("No Actor Profiles found", false, () => { });
+            }
+            profileMenu.DropDown(anchorElement.worldBound, anchorElement, DropdownMenuSizeMode.Auto);
+        }
+
+        private void FillSlotFromProfile(int slotIndex, ActorProfileAsset profile)
+        {
+            if (cutscene == null || slotIndex < 0 || slotIndex >= cutscene.slots.Count || profile == null)
+            {
+                return;
+            }
+            CutsceneSlot slot = cutscene.slots[slotIndex];
+            Undo.RecordObject(cutscene, "Fill Cutscene Slot From Profile");
+            slot.rig = profile.rig;
+            slot.clipSets = new List<ClipSetAsset>(profile.clipSets);
+            EditorUtility.SetDirty(cutscene);
+            serializedObject.Update();
+            RebuildAll();
+        }
+
         private void FrameSlotInSceneView(int slotIndex)
         {
             SceneView sceneView = SceneView.lastActiveSceneView;
@@ -3776,7 +3817,22 @@ namespace DotsAnimationToolkit.Editor
                 PropertyField rigField = new PropertyField(slotProperty.FindPropertyRelative("rig"));
                 rigField.Bind(serializedObject);
                 rigField.RegisterCallback<ChangeEvent<UnityEngine.Object>>(_ => RebuildTimeline());
-                inspectorScroll.Add(rigField);
+                rigField.style.flexGrow = 1f;
+
+                Button fillFromProfileButton = new Button { text = "Fill from Profile" };
+                fillFromProfileButton.name = "cutscene-slot-fill-from-profile-button";
+                fillFromProfileButton.tooltip =
+                    "Copy this profile's rig and clip sets onto the slot so the staged actor matches "
+                    + "what drives it in-game.";
+                fillFromProfileButton.clicked += () =>
+                    ShowFillFromProfileMenu(slotIndex, fillFromProfileButton);
+
+                VisualElement rigRow = new VisualElement();
+                rigRow.style.flexDirection = FlexDirection.Row;
+                rigRow.style.alignItems = Align.Center;
+                rigRow.Add(rigField);
+                rigRow.Add(fillFromProfileButton);
+                inspectorScroll.Add(rigRow);
 
                 PropertyField clipSetsField = new PropertyField(slotProperty.FindPropertyRelative("clipSets"));
                 clipSetsField.Bind(serializedObject);
