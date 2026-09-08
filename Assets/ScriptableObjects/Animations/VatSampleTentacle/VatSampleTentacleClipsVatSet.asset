@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58d6484bda0c4755afd593d6ca9ba4af, type: 3}
+  m_Name: VatSampleTentacleClipsVatSet
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.VatTextureSetAsset
+  setKey: 18084617062834291815
+  flavor: 0
+  boneTexture: {fileID: 2800000, guid: 7f6f0d5fc5bc1d94d81913b0adc71c51, type: 2}
+  positionTexture: {fileID: 0}
+  normalTexture: {fileID: 0}
+  runtimeMesh: {fileID: 4300000, guid: 35597681943bfd04e82297cf169a1507, type: 2}
+  boneCount: 12
+  vertexCount: 0
+  textureWidth: 16
+  rowsPerFrame: 3
+  clipRanges:
+  - clipId: 7165524221463541543
+    targetId: 0
+    frameStart: 0
+    frameCount: 61
+    fps: 30
+    bounds:
+      m_Center: {x: 0, y: 0, z: 0}
+      m_Extent: {x: 0, y: 0, z: 0}
+  socketTracks: []
+  sourceHash: 874393310192075446
+  sourceRigKey: 5194796717994047437
+  schemaVersion: 0

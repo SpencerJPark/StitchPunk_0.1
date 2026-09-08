@@ -30,7 +30,10 @@ namespace DotsAnimationToolkit.Editor
         private DropdownField clipDropdown;
         private Label frameReadoutLabel;
         private TransportCoreElement transportCore;
-        private ToolbarToggle ghostToggle;
+        private Toggle ghostToggle;
+
+        private readonly PreviewSceneGizmos sceneGizmos = new PreviewSceneGizmos();
+        private bool sceneGizmosAdded;
 
         private bool isPlaying;
         private float stopReturnTime;
@@ -73,18 +76,9 @@ namespace DotsAnimationToolkit.Editor
             ToolkitIcons.SetButtonIcon(resetCameraButton, resetCameraIcon, "d_FrameCapture", "Reset Camera");
             overlayColumn.Add(resetCameraButton);
 
-            ghostToggle = new ToolbarToggle();
-            ghostToggle.name = "vat-ghost-toggle";
-            ghostToggle.AddToClassList("clip-editor__overlay-tool-button");
-            ghostToggle.value = false;
-            Image ghostIcon = new Image();
-            ghostIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            ghostIcon.pickingMode = PickingMode.Ignore;
-            ToolkitIcons.SetToggleIcon(ghostToggle, ghostIcon, "d_SkinnedMeshRenderer Icon", "Ghost");
-            ghostToggle.RegisterValueChangedCallback(changeEvent => SetGhostEnabled(changeEvent.newValue));
-            ghostToggle.SetEnabled(false);
-            overlayColumn.Add(ghostToggle);
-
+            // Ghost is new and easy to mistake for something else at a glance, so unlike Reset
+            // Camera it gets a persistent word label rather than relying on a hover tooltip — it
+            // lives in the transport row below, not this icon-only rail.
             viewportOverlay.Add(overlayColumn);
             viewportFrame.Add(viewportOverlay);
             Add(viewportFrame);
@@ -112,6 +106,22 @@ namespace DotsAnimationToolkit.Editor
             clipDropdown.RegisterValueChangedCallback(OnClipDropdownChanged);
             clipGroup.Add(clipDropdown);
             transportRow.Add(clipGroup);
+
+            VisualElement ghostGroup = new VisualElement();
+            ghostGroup.AddToClassList("toolkit-transport__group");
+            Label ghostCaption = new Label("Ghost");
+            ghostCaption.AddToClassList("toolkit-transport__caption");
+            ghostGroup.Add(ghostCaption);
+            ghostToggle = new Toggle();
+            ghostToggle.name = "vat-ghost-toggle";
+            ghostToggle.value = false;
+            ghostToggle.tooltip =
+                "Overlay a translucent copy of the source mesh, posed independently frame by frame, "
+                + "so a drift between the bake and the source shows as a double image.";
+            ghostToggle.RegisterValueChangedCallback(changeEvent => SetGhostEnabled(changeEvent.newValue));
+            ghostToggle.SetEnabled(false);
+            ghostGroup.Add(ghostToggle);
+            transportRow.Add(ghostGroup);
 
             frameReadoutLabel = new Label();
             frameReadoutLabel.AddToClassList("toolkit-transport__derived");
@@ -271,6 +281,18 @@ namespace DotsAnimationToolkit.Editor
             }
 
             EnsureRenderUtility();
+
+            // Added once and left in the scene: a viewport with nothing baked yet should still read
+            // as a working 3D view, the same reference floor/backdrop the Clip Editor and Actor
+            // Editor viewports always draw.
+            sceneGizmos.EnsureBuilt();
+            if (!sceneGizmosAdded && sceneGizmos.GridObject != null && sceneGizmos.SelectionObject != null)
+            {
+                renderUtility.AddSingleGO(sceneGizmos.GridObject);
+                renderUtility.AddSingleGO(sceneGizmos.SelectionObject);
+                sceneGizmosAdded = true;
+            }
+
             renderUtility.BeginPreview(viewportRect, GUIStyle.none);
             cameraRig.ApplyTo(renderUtility.camera);
 
@@ -370,6 +392,13 @@ namespace DotsAnimationToolkit.Editor
 
             ghostRoot = UnityEngine.Object.Instantiate(sourceRenderer.transform.root.gameObject);
             ghostRoot.hideFlags = HideFlags.HideAndDontSave;
+            // The baked runtimeMesh is drawn at Matrix4x4.identity — its vertices are already in the
+            // source renderer's own object space. The instantiated copy keeps the source's world
+            // transform from whatever scene it was cloned out of, which is a different space entirely
+            // (and usually a different scale); without resetting it here the ghost sits offset from,
+            // and out of scale with, the very mesh it's supposed to overlay.
+            ghostRoot.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            ghostRoot.transform.localScale = Vector3.one;
             renderUtility.AddSingleGO(ghostRoot);
 
             // The instantiated copy mirrors the source hierarchy exactly, so the same relative path finds
@@ -452,6 +481,7 @@ namespace DotsAnimationToolkit.Editor
             material?.Dispose();
             material = null;
             DisableGhost();
+            sceneGizmos.Dispose();
             if (renderUtility != null)
             {
                 renderUtility.Cleanup();

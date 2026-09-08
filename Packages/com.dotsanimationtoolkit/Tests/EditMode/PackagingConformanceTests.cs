@@ -588,9 +588,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.19.0 is Amendment A73,
-            // profile-driven cutscenes: layers, auto locomotion, keyed-or-auto facing, marks that wait.
-            Assert.AreEqual("0.19.0", manifest.version, "Version tracks the shipped feature set; 0.19.0 is profile-driven cutscenes.");
+            // -- not drift because someone edited the manifest. 0.20.0 is Amendment A74, preview
+            // viewports: shared camera navigation, the Actor Editor camera rail, and the VAT Bake
+            // preview viewport with its source ghost.
+            Assert.AreEqual("0.20.0", manifest.version, "Version tracks the shipped feature set; 0.20.0 is preview viewports.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

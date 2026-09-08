@@ -88,16 +88,6 @@ namespace DotsAnimationToolkit.Editor
             };
             root.Add(skinnedRendererField);
 
-            // The project ships no VAT content, so this is often the only way to see the preview working
-            // inside a minute — writes a small procedural rig/clip/set and fills the three fields above.
-            Button createSampleTentacleButton = ToolkitIcons.MakeIconTextButton(
-                CreateSampleTentacle,
-                "d_Toolbar Plus",
-                "Generate a small procedural tentacle rig and clip, so there is something to bake and preview immediately.",
-                "Sample Tentacle");
-            createSampleTentacleButton.name = "vat-create-sample-tentacle-button";
-            root.Add(createSampleTentacleButton);
-
             root.Add(BuildHeading("Settings"));
 
             flavorField = new EnumField("Flavor", VatFlavor.BoneMatrix)
@@ -299,47 +289,6 @@ namespace DotsAnimationToolkit.Editor
                 clipSetField.value as ClipSetAsset,
                 skinnedRendererField.value as SkinnedMeshRenderer,
                 null);
-        }
-
-        // ResolveOutputFolder needs an existing ClipSetAsset to derive a folder from, which this button is
-        // explicitly for the case where none exists yet — so it picks its own default instead.
-        // A package must not hardcode a host project's folders (see outputFolderField's own
-        // tooltip) — so unlike the regular bake, which can fall back to the clip set's own folder,
-        // this refuses outright when there is nothing to derive a path from yet.
-        private void CreateSampleTentacle()
-        {
-            string outputFolder;
-            if (!string.IsNullOrEmpty(outputFolderField.value))
-            {
-                outputFolder = outputFolderField.value.TrimEnd('/');
-            }
-            else if (clipSetField.value is ClipSetAsset existingClipSet)
-            {
-                outputFolder = ResolveOutputFolder(existingClipSet);
-            }
-            else
-            {
-                ReportFailure("Type an Output Folder first, so the sample assets have somewhere to write to.");
-                return;
-            }
-
-            bool created = VatSampleTentacleUtility.CreateSampleAssets(
-                outputFolder,
-                out ClipSetAsset sampleClipSet,
-                out RigAsset sampleRig,
-                out SkinnedMeshRenderer sampleRenderer,
-                out string failureMessage);
-
-            if (!created)
-            {
-                ReportFailure(failureMessage);
-                return;
-            }
-
-            clipSetField.SetValueWithoutNotify(sampleClipSet);
-            rigField.SetValueWithoutNotify(sampleRig);
-            skinnedRendererField.SetValueWithoutNotify(sampleRenderer);
-            Debug.Log("Sample tentacle written to " + outputFolder + ".");
         }
 
         // Ids come from the ClipAsset and its tracks, never minted here — a texture set whose
