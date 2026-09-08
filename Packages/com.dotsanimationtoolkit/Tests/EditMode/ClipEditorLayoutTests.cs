@@ -45,12 +45,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "gizmo-move-toggle", "gizmo-rotate-toggle", "gizmo-scale-toggle",
             "reset-camera-button",
             "billboard-preview-toggle", "ragdoll-preview-toggle",
-            // Transport bar: every control that answers "when", docked above the timeline.
-            "transport-bar", "play-toggle", "jump-start-button", "step-back-button",
-            "step-forward-button", "jump-end-button",
+            // Transport bar: every control that answers "when", docked above the timeline. The
+            // playback controls themselves live inside transport-core-slot (TransportCoreElement).
+            "transport-bar", "transport-core-slot",
             "current-frame-field", "current-seconds-field",
             "clip-length-field", "frame-rate-field", "frame-count-label",
-            "loop-button", "loop-icon", "playback-speed-field",
+            "playback-speed-field",
             // The captions are the drag handles for the five numbers beside them
             // (MakeCaptionDragHandle). A rename here presents as a number that simply stops
             // scrubbing, with the caption still reading correctly.

@@ -137,8 +137,20 @@ remains). Three ⏸ owner checkpoints are open and nothing is queued behind them
 Index: `Assets/_Vault/Tasks/NewPlans/ActorEditor_Roadmap.md`. Both content recipes live in
 `Assets/_Scripts/Editor/ContentAuthoring/` and are re-runnable.
 
-**Queued (2026-09-07, spec only — build on the owner's prompt): Amendment A72, editor visual
-unification** (`Docs/AnimationToolkit/Amendment_A72_EditorVisualUnification_Spec.md`; index
+**In progress (2026-09-07, owner prompted the build; paused at the T2 checkpoint on a usage cap):
+Amendment A72, editor visual unification.** Landed: T0 baseline captures in
+`Library/A72Captures/before-*.png` (capture recipe: scale `window.position` by
+`EditorGUIUtility.pixelsPerPoint` before calling `GrabPixels`, or you get the bottom-left corner),
+T1 (`Editor/ClipEditor/Shared/ToolkitPalette.cs`, `ToolkitIcons.cs`, `ToolkitPaletteTests`) and T2
+(USS `Shared` section + `--toolkit-color-*` tokens, UXML `transport-core-slot`, C# class renames).
+Between T2 and T4 the Clip Editor's transport buttons are absent from the UXML by design — the
+`Q<Button>` lookups are null-guarded, so the tab works without them; `CutsceneEditorPanel` and
+`ActorEditorLayersColumn` still add deleted `cutscene-editor__transport*` / `actor-editor__*-row`
+classes and are unstyled until T6/T10. **Next: T3.** The plain-noun allowlist in
+`PackagingConformanceTests` already carries `ToolkitPalette`, `ToolkitIcons`, `CaptionDragHandle`.
+Gate at the checkpoint: 0 compile errors; `ToolkitPaletteTests`, `ClipEditorLayoutTests`,
+`Conformance_F/G` pass; `Conformance_A` is the standing asmdef drift.
+(`Docs/AnimationToolkit/Amendment_A72_EditorVisualUnification_Spec.md`; index
 `Assets/_Vault/Tasks/NewPlans/EditorVisualUnification_Roadmap.md`). The Clip Editor's layout leads;
 the Cutscene and Actor tabs adopt its shape, one icon transport (`TransportCoreElement` /
 `ITransportTarget`) with Space/arrows/Home/End routed to the active tab, boxed lists with an eye

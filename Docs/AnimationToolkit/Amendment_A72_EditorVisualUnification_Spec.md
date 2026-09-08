@@ -1,7 +1,8 @@
 # Amendment A72 — Editor Visual Unification
 
-> **Status:** spec written 2026-09-07, nothing built. Owner asked for a plan first; execution waits
-> for the owner's prompt.
+> **Status:** spec written 2026-09-07; build started the same day on the owner's prompt. T0–T2
+> landed and gated (commit `A72-T1/T2`); paused before T3 on a usage cap. Resume at T3 — the
+> HANDOFF §4 entry records the checkpoint state and the two traps found so far.
 > **Executor:** one orchestrating session (Editor-connected, runs the gate) plus **small Sonnet or
 > Haiku subagents that only edit files** — a subagent never touches `mcp__UnityMCP__*`
 > (`AnimationToolkit.md` "Do not spawn subagents against this package" is about MCP contention,

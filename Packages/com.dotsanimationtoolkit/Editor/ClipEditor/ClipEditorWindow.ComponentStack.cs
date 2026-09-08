@@ -13,7 +13,7 @@ namespace DotsAnimationToolkit.Editor
 {
     public sealed partial class ClipEditorWindow
     {
-        private const string ComponentBlockUssClassName = "clip-editor__component";
+        private const string ComponentBlockUssClassName = "toolkit-box";
 
         /// <summary>
         /// The object's own Transform or BoneTransform, styled apart from the add-on components
@@ -23,11 +23,11 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private const string ComponentIntrinsicUssClassName = "clip-editor__component--intrinsic";
 
-        private const string ComponentHeaderUssClassName = "clip-editor__component-header";
-        private const string ComponentTitleUssClassName = "clip-editor__component-title";
+        private const string ComponentHeaderUssClassName = "toolkit-box__header";
+        private const string ComponentTitleUssClassName = "toolkit-box__title";
         private const string ComponentBadgeUssClassName = "clip-editor__component-badge";
-        private const string ComponentBodyUssClassName = "clip-editor__component-body";
-        private const string ComponentActiveUssClassName = "clip-editor__component--active";
+        private const string ComponentBodyUssClassName = "toolkit-box__body";
+        private const string ComponentActiveUssClassName = "toolkit-box--active";
         private const string ComponentRemoveUssClassName = "clip-editor__component-remove";
         private const string AddComponentUssClassName = "clip-editor__add-component";
 

@@ -39,10 +39,319 @@
     --clip-editor-lane-height: 22px;
     --clip-editor-lane-height-wrapped: 44px;
     --clip-editor-track-header-width: 170px;
+
+    /*
+     * Every colour a tab draws from is a token here, not a literal buried in a rule. State
+     * colours first (their meaning is fixed across every tab), then the cutscene lane strips,
+     * then its marker fills, then the eight-entry event palette. One place to retune a colour
+     * without hunting every selector that happens to use it.
+     */
+    --toolkit-color-accent: rgb(88, 148, 216);
+    --toolkit-color-selected: rgb(77, 158, 242);
+    --toolkit-color-selected-row: rgba(61, 96, 133, 0.5);
+    --toolkit-color-playing: rgb(70, 130, 90);
+    --toolkit-color-loop-on: rgb(150, 128, 52);
+    --toolkit-color-recording: rgb(190, 70, 60);
+    --toolkit-color-holding: rgb(242, 217, 77);
+    --toolkit-color-warning: rgb(235, 170, 60);
+    --toolkit-color-error: rgb(230, 90, 82);
+    --toolkit-color-clean: rgb(115, 200, 122);
+    --toolkit-color-rig-edit: rgb(226, 138, 44);
+    --toolkit-color-box-border: rgba(255, 255, 255, 0.08);
+    --toolkit-color-box-fill: rgba(255, 255, 255, 0.02);
+    --toolkit-color-box-header: rgba(255, 255, 255, 0.04);
+
+    --toolkit-color-lane-actor: rgb(88, 148, 216);
+    --toolkit-color-lane-prop: rgb(120, 190, 120);
+    --toolkit-color-lane-camera: rgb(90, 190, 190);
+    --toolkit-color-lane-events: rgb(230, 150, 70);
+    --toolkit-color-lane-holds: rgb(230, 200, 80);
+
+    --toolkit-color-marker-root: rgb(166, 217, 140);
+    --toolkit-color-marker-mark: rgb(115, 166, 242);
+    --toolkit-color-marker-facing: rgb(217, 191, 102);
+    --toolkit-color-marker-part: rgb(191, 140, 217);
+    --toolkit-color-marker-attach: rgb(115, 204, 204);
+    --toolkit-color-marker-camera: rgb(140, 179, 242);
+    --toolkit-color-marker-cut: rgb(242, 115, 115);
+    --toolkit-color-marker-hold: rgb(242, 217, 77);
+
+    --toolkit-color-event-amber: rgb(235, 170, 60);
+    --toolkit-color-event-coral: rgb(235, 110, 90);
+    --toolkit-color-event-magenta: rgb(215, 110, 190);
+    --toolkit-color-event-violet: rgb(150, 120, 230);
+    --toolkit-color-event-teal: rgb(70, 190, 180);
+    --toolkit-color-event-lime: rgb(160, 205, 80);
+    --toolkit-color-event-pink: rgb(240, 150, 170);
+    --toolkit-color-event-mint: rgb(120, 220, 170);
 }
 
 .clip-editor--hidden {
     display: none;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+/* Shared                                                                                        */
+/* ------------------------------------------------------------------------------------------- */
+
+/*
+ * Every tab that plays shares one transport shape, and every tab with an inspector-style list
+ * shares one boxed-row shape, so a control looks like itself whichever tab it is standing in.
+ * The rules below moved here from the Clip Editor's own sections -- renamed clip-editor__* to
+ * toolkit-*, colours swapped for the tokens above where they matched -- so nothing here changed
+ * shape or shade in the move itself.
+ */
+
+.toolkit-transport {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-evenly;
+    align-self: stretch;
+    width: 100%;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(0, 0, 0, 0.35);
+}
+
+.toolkit-transport__group {
+    flex-direction: row;
+    align-items: center;
+    margin-left: 4px;
+    margin-right: 4px;
+    padding-right: 6px;
+}
+
+/* Every playback control a tab's transport carries -- jump, step, play, loop -- is this one
+   shape, iconned rather than labelled, so a run of them reads as one control family across
+   tabs. */
+.toolkit-icon-button {
+    width: 28px;
+    height: 22px;
+    padding: 1px;
+    margin-left: 1px;
+    margin-right: 1px;
+    justify-content: center;
+    align-items: center;
+}
+
+/* On the text path -- an icon that failed to resolve fell back to its word -- the fixed width
+   has to give or the label clips; a squeezed control beats a row of blank buttons. */
+.toolkit-icon-button--text {
+    min-width: auto;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+/* Drawn at its own 16px so it stays crisp rather than being scaled to the button, and dimmed
+   until its button is lit so the state reads from the glyph as well as the tint. Picking is
+   off: a child that swallows the pointer would make the middle of the button dead to clicks. */
+.toolkit-icon-button__icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.55;
+}
+
+/* Tinted while playing, so the bar answers "is it running" without reading the label. */
+.toolkit-icon-button--playing {
+    background-color: var(--toolkit-color-playing);
+    color: rgb(240, 245, 240);
+    -unity-font-style: bold;
+}
+
+/* A mode rather than a momentary action -- loop and its kin show themselves lit rather than
+   pressed. */
+.toolkit-icon-button--lit {
+    background-color: var(--toolkit-color-loop-on);
+}
+
+.toolkit-icon-button--lit .toolkit-icon-button__icon {
+    opacity: 1;
+}
+
+/* A number in the bar is a caption plus the field it labels. */
+.toolkit-transport__caption {
+    -unity-text-align: middle-left;
+    margin-left: 4px;
+    margin-right: 2px;
+}
+
+/* A caption that is also its field's drag handle. The cursor is the only thing that says so,
+   and it is the same one Unity puts on an inspector field's own label. */
+.toolkit-transport__caption--draggable {
+    cursor: slide-arrow;
+}
+
+.toolkit-transport__field {
+    width: 58px;
+}
+
+/* Derived, not authored. Dimmed so it reads as a readout rather than something to type into. */
+.toolkit-transport__derived {
+    opacity: 0.7;
+    margin-left: 6px;
+}
+
+/* The cutscene transport's own status line, beside its Continue button -- shouts only when the
+   clock is actually stopped, since a hold nobody notices reads as a cutscene that froze. */
+.toolkit-transport__status {
+    margin-left: 10px;
+    -unity-text-align: middle-left;
+    color: rgb(178, 178, 178);
+}
+
+.toolkit-transport__status--holding {
+    color: var(--toolkit-color-holding);
+    -unity-font-style: bold;
+}
+
+.toolkit-pane-title {
+    -unity-font-style: bold;
+    padding-top: 4px;
+    padding-bottom: 2px;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+/* A title with an action button pushed to the right edge of the pane. */
+.toolkit-pane-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.toolkit-pane-actions {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.toolkit-pane-action {
+    margin-left: 2px;
+    margin-right: 2px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.toolkit-status-row {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.toolkit-status {
+    margin-left: 6px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+}
+
+/* The status grows long -- a clip name, then its counts, then the focus note -- so inside its
+   row it is allowed to shrink and trail off rather than shove the actions past the right edge. */
+.toolkit-status-row > .toolkit-status {
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.toolkit-status-actions {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+/* Auto Key while on, the Key button's icon -- an edit-armed state layered onto a bar-action
+   member rather than a new control family of its own. */
+.clip-editor__bar-action.toolkit-bar-action--recording {
+    background-color: var(--toolkit-color-recording);
+}
+
+/* The status row's toggles used to carry this as a per-control inline style; a class travels
+   with the row instead of being retyped at every call site. */
+.clip-editor__status-action {
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+}
+
+/* One boxed component in a stack -- the panel's question is "what does this object carry", and
+   a box is what makes a stack of them countable at a glance. Shared by every tab that lists
+   things this way: the Clip Editor's component stack, the cutscene cast, the actor's layers. */
+.toolkit-box {
+    margin-top: 6px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-box-border);
+    border-radius: 3px;
+    background-color: var(--toolkit-color-box-fill);
+}
+
+.toolkit-box--selected {
+    border-color: var(--toolkit-color-selected);
+}
+
+/* Marks the box a viewport gizmo or a live preview is on. With several on screen, nothing else
+   says which one a drag or a play would move. */
+.toolkit-box--active {
+    border-color: rgba(120, 200, 255, 0.55);
+}
+
+.toolkit-box__header {
+    flex-direction: row;
+    align-items: center;
+    padding-left: 4px;
+    padding-right: 2px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: var(--toolkit-color-box-header);
+}
+
+.toolkit-box__title {
+    flex-grow: 1;
+    -unity-font-style: bold;
+}
+
+.toolkit-box__body {
+    padding-left: 6px;
+    padding-right: 4px;
+}
+
+/* A row inside a box's body -- a layer, an animation, a cast member -- ruled off from its
+   neighbours rather than boxed again, so a stack of boxes never nests a box inside a box. */
+.toolkit-box__row {
+    flex-direction: row;
+    align-items: center;
+    border-top-width: 1px;
+    border-top-color: var(--toolkit-color-box-border);
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.toolkit-box__row--selected {
+    background-color: var(--toolkit-color-selected-row);
+}
+
+/* Right-aligned, for a box's own add button -- Add Component, Add Layer and the like. */
+.toolkit-box__footer {
+    flex-direction: row;
+    justify-content: flex-end;
+}
+
+/* A plain Button, state held by the caller rather than a Toggle -- a checkbox beside an eye
+   would be two controls for one fact. */
+.toolkit-eye-toggle {
+    width: 20px;
+    height: 18px;
+}
+
+.toolkit-eye-toggle--off .toolkit-icon-button__icon {
+    opacity: 0.45;
 }
 
 /* ------------------------------------------------------------------------------------------- */
@@ -220,36 +529,6 @@
     min-height: 48px;
 }
 
-.clip-editor__pane-title {
-    -unity-font-style: bold;
-    padding-top: 4px;
-    padding-bottom: 2px;
-    padding-left: 6px;
-    padding-right: 6px;
-}
-
-/* A title with an action button pushed to the right edge of the pane. */
-.clip-editor__pane-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-}
-
-.clip-editor__pane-actions {
-    flex-direction: row;
-    flex-shrink: 0;
-}
-
-.clip-editor__pane-action {
-    margin-left: 2px;
-    margin-right: 2px;
-    margin-top: 2px;
-    margin-bottom: 2px;
-    padding-left: 6px;
-    padding-right: 6px;
-}
-
 .clip-editor__hint {
     white-space: normal;
     margin-left: 6px;
@@ -305,81 +584,6 @@
 /* Transport bar                                                                                 */
 /* ------------------------------------------------------------------------------------------- */
 
-/* Docked directly above the timeline. flex-shrink 0 so it never collapses when the timeline pane
- * is dragged small — a transport you cannot read is worse than a shorter timeline.
- *
- * The bar spans the pane rather than hugging its contents in the middle. Centring the bar itself
- * left the groups in one dense clump with dead space either side, and a clump needs rules drawn
- * between the groups to be read at all. space-evenly keeps the set centred — the end gaps match the
- * ones between groups — while giving each group room of its own, which is what lets the rules go. */
-.clip-editor__transport {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-evenly;
-    align-self: stretch;
-    width: 100%;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-    padding-top: 2px;
-    padding-bottom: 2px;
-    border-bottom-width: 1px;
-    border-bottom-color: rgba(0, 0, 0, 0.35);
-}
-
-/* Groups read left to right: move the playhead, read it, define the grid, set playback. Separated
- * by space alone — the rules that used to sit between them read as broken table cells rather than
- * as grouping, and space-evenly on the bar above already spaces the groups further apart than the
- * controls inside them. The padding stays: the gap is the separator now, so removing it too would
- * be removing the grouping rather than the line. */
-.clip-editor__transport-group {
-    flex-direction: row;
-    align-items: center;
-    margin-left: 4px;
-    margin-right: 4px;
-    padding-right: 6px;
-}
-
-.clip-editor__transport-button {
-    min-width: 28px;
-    margin-left: 1px;
-    margin-right: 1px;
-    padding-left: 4px;
-    padding-right: 4px;
-}
-
-.clip-editor__transport-play {
-    min-width: 52px;
-}
-
-/* Tinted while playing, so the bar answers "is it running" without reading the label. */
-.clip-editor__transport-play--playing {
-    background-color: rgb(70, 130, 90);
-    color: rgb(240, 245, 240);
-    -unity-font-style: bold;
-}
-
-.clip-editor__transport-label {
-    -unity-text-align: middle-left;
-    margin-left: 4px;
-    margin-right: 2px;
-}
-
-.clip-editor__transport-field {
-    width: 58px;
-}
-
-/* A caption that is also its field's drag handle. The cursor is the only thing that says so, and
- * it is the same one Unity puts on an inspector field's own label. */
-.clip-editor__transport-label--draggable {
-    cursor: slide-arrow;
-}
-
-/* Derived, not authored. Dimmed so it reads as a readout rather than something to type into. */
-.clip-editor__transport-derived {
-    opacity: 0.7;
-    margin-left: 6px;
-}
-
 .clip-editor__h-scroller {
     flex-shrink: 0;
     margin-left: 6px;
@@ -398,37 +602,6 @@
 .clip-editor__transport-slider {
     width: 110px;
     margin-right: 4px;
-}
-
-/* Loop is a mode, not an action, so it carries the icon alone and shows its state by staying lit
-   rather than by a word next to a box. The icon rides a child element rather than the button's own
-   background, which the editor theme uses for the button's chrome. */
-.clip-editor__transport-loop {
-    width: 28px;
-    align-items: center;
-    justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
-}
-
-/* Drawn at the icon's own 16px so it stays crisp rather than being scaled to the button, and
-   dimmed while looping is off so the state reads from the glyph as well as the tint. Picking is
-   off: a child that swallows the pointer would make the middle of the button dead to clicks. */
-.clip-editor__transport-loop-icon {
-    width: 16px;
-    height: 16px;
-    opacity: 0.55;
-}
-
-/* Lit in a muted yellow rather than the play button's green: "playback is running" and "playback
-   will wrap" are different facts, and two controls in the same group wearing one colour would read
-   as one state. */
-.clip-editor__transport-loop--on {
-    background-color: rgb(150, 128, 52);
-}
-
-.clip-editor__transport-loop--on .clip-editor__transport-loop-icon {
-    opacity: 1;
 }
 
 /* Appears only when some key does not land on a frame of the current grid. */
@@ -637,25 +810,6 @@
 /* Flipbook tracks                                                                               */
 /* ------------------------------------------------------------------------------------------- */
 
-/* One animation component in the inspector's stack. Boxed rather than merely spaced, because the
-   panel's question is "what does this object carry", and a component is the unit that answers it —
-   the box is what makes a stack of them countable at a glance. */
-.clip-editor__component {
-    margin-top: 6px;
-    margin-bottom: 6px;
-    padding-bottom: 4px;
-    border-width: 1px;
-    border-color: rgba(255, 255, 255, 0.08);
-    border-radius: 3px;
-    background-color: rgba(255, 255, 255, 0.02);
-}
-
-/* Marks the component whose socket the viewport gizmo is on. With several sockets on one object,
-   nothing else on screen says which one a drag would move. */
-.clip-editor__component--active {
-    border-color: rgba(120, 200, 255, 0.55);
-}
-
 /* The object's own Transform or BoneTransform (Task C, D10): every part has one, so it does not
    get the boxed, bordered chrome that says "a component someone added". No border, no fill, no
    header background -- it reads as the object's own heading running straight into its fields,
@@ -668,29 +822,14 @@
     background-color: rgba(0, 0, 0, 0);
 }
 
-.clip-editor__component--intrinsic > .clip-editor__component-header {
+.clip-editor__component--intrinsic > .toolkit-box__header {
     padding-left: 0;
     background-color: rgba(0, 0, 0, 0);
 }
 
-.clip-editor__component--intrinsic > .clip-editor__component-header > .clip-editor__component-title {
+.clip-editor__component--intrinsic > .toolkit-box__header > .toolkit-box__title {
     -unity-font-style: normal;
     opacity: 0.8;
-}
-
-.clip-editor__component-header {
-    flex-direction: row;
-    align-items: center;
-    padding-left: 4px;
-    padding-right: 2px;
-    padding-top: 2px;
-    padding-bottom: 2px;
-    background-color: rgba(255, 255, 255, 0.04);
-}
-
-.clip-editor__component-title {
-    flex-grow: 1;
-    -unity-font-style: bold;
 }
 
 /* Says an edit here reaches every clip in the set, not just this one. */
@@ -711,11 +850,6 @@
     margin-right: 0;
     padding-left: 0;
     padding-right: 0;
-}
-
-.clip-editor__component-body {
-    padding-left: 6px;
-    padding-right: 4px;
 }
 
 .clip-editor__add-component {
@@ -866,51 +1000,18 @@
 /* Timeline                                                                                      */
 /* ------------------------------------------------------------------------------------------- */
 
-.clip-editor__status {
-    margin-left: 6px;
-    margin-top: 4px;
-    margin-bottom: 4px;
-    flex-shrink: 0;
-}
-
 /* The status line at the left, and at the right the controls that say what an edit in the key area
    will do: Snap, Auto Key, the scale pivot, and Quantize Keys when there is something to quantize.
    The status is a short sentence that never fills the width, and none of them is about time, so
    they read better at the head of the key area than in the transport bar among the playback
-   controls or in the top bar among the asset fields. */
-.clip-editor__status-row {
-    flex-direction: row;
-    align-items: center;
-    flex-shrink: 0;
-}
+   controls or in the top bar among the asset fields. The row, the status text and the right-aligned
+   run itself are the shared toolkit-status-row / toolkit-status / toolkit-status-actions trio.
 
-/* The status grows long — a clip name, then its counts, then the focus note — so inside this row it
-   is allowed to shrink and trail off rather than shove the controls past the right edge. */
-.clip-editor__status-row > .clip-editor__status {
-    flex-shrink: 1;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-/* Held against the right edge by the auto left margin, so they stay put whatever the status beside
-   them says. They belong together: each one answers "what will my next edit in the key area do",
-   which is a different question from the clip set and rig identity the top bar is for — and the
-   answer matters where the editing happens, not two rows up. Quantize Keys joined them from the
+   Quantize leads the actions run rather than trailing it, because it comes and goes: at the head of
+   a right-aligned group it grows leftwards into the status line's slack, and Snap, Auto Key and the
+   pivot hold their place instead of sliding under the pointer. Quantize Keys joined them from the
    transport bar for that reason: it is an edit to the keys, not a playback control, and it reports
-   a state of the keys by appearing at all.
-
-   Quantize leads the run rather than trailing it, because it comes and goes: at the head of a
-   right-aligned group it grows leftwards into the status line's slack, and Snap, Auto Key and the
-   pivot hold their place instead of sliding under the pointer.
-
-   flex-shrink 0 so the status line is what gives way when the pane narrows. */
-.clip-editor__status-actions {
-    flex-direction: row;
-    align-items: center;
-    flex-shrink: 0;
-    margin-left: auto;
-}
+   a state of the keys by appearing at all. */
 
 /* No margins: Snap and Auto Key are run members, and the shared rule owns the gap between them. */
 .clip-editor__status-toggle {
@@ -1465,54 +1566,6 @@
     border-color: rgba(0, 0, 0, 0.4);
 }
 
-.cutscene-editor__transport {
-    flex-direction: row;
-    align-items: center;
-    padding: 3px 6px;
-    background-color: rgb(50, 50, 50);
-    border-bottom-width: 1px;
-    border-bottom-color: rgb(32, 32, 32);
-}
-
-/* The transport's status line sits beside Continue, and shouts only when the clock is actually
-   stopped: a hold nobody notices reads as a cutscene that froze. */
-.cutscene-editor__transport-status {
-    margin-left: 10px;
-    -unity-text-align: middle-left;
-    color: rgb(178, 178, 178);
-}
-
-.cutscene-editor__transport-status--holding {
-    color: rgb(242, 217, 77);
-    -unity-font-style: bold;
-}
-
-.cutscene-editor__transport-button {
-    width: 28px;
-    height: 22px;
-    padding: 1px;
-    margin-left: 1px;
-    margin-right: 1px;
-    justify-content: center;
-    align-items: center;
-}
-
-.cutscene-editor__transport-icon {
-    width: 16px;
-    height: 16px;
-}
-
-.cutscene-editor__time-readout {
-    -unity-text-align: middle-center;
-    font-size: 11px;
-    -unity-font-style: bold;
-    color: rgb(215, 215, 215);
-    background-color: rgb(34, 34, 34);
-    border-radius: 3px;
-    padding: 2px 8px;
-    margin-left: 8px;
-}
-
 /* A cast row is one line at rest — dot, name, kind chip, then Place/Bind/Select/Frame. The bind
    field below it is opened by the Bind button and is display:none until then, so a panel narrow
    enough to sit beside the viewport still lists the whole cast without scrolling. */
@@ -1620,25 +1673,9 @@
     padding-left: 14px;
 }
 
-/* Actor Editor (A71) — the layers column's rows and live indicators. Everything else in the tab
-   still styles itself inline, matching the shell's own convention. */
-.actor-editor__layer-row {
-    padding: 2px 2px;
-    margin-top: 2px;
-}
-
-.actor-editor__layer-row--selected {
-    background-color: rgba(80, 140, 220, 0.35);
-}
-
-.actor-editor__animation-row {
-    padding: 1px 2px 1px 16px;
-}
-
-.actor-editor__animation-row--selected {
-    background-color: rgba(80, 140, 220, 0.22);
-}
-
+/* Actor Editor (A71) — the layers column's live indicators. Row chrome now comes from the shared
+   toolkit-box family; everything else in the tab still styles itself inline, matching the shell's
+   own convention. */
 .actor-editor__live-dot {
     width: 12px;
     -unity-text-align: middle-center;

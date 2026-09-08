@@ -400,7 +400,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "BindingReconciler", "ClipEditorDocking", "PrefabAuthoringBridge", "RigStructureEditor",
             "ClipComponentModel", "GizmoDragRouting", "EventLaneAddressing", "PreviewLineMaterial",
             "PreviewScenePicker", "RagdollPreviewProbe", "VatMeshPreparer", "VatTentacleRigBuilder",
-            "VatTextureBaker", "ClipKeyConversion", "CutsceneSceneBinding", "RagdollSolver", "StableIdMinting"
+            "VatTextureBaker", "ClipKeyConversion", "CutsceneSceneBinding", "RagdollSolver", "StableIdMinting",
+            "ToolkitPalette", "ToolkitIcons", "CaptionDragHandle"
         };
 
         // (f) No doc-comment essays or spec citations survive in shipped sources (Amendment A69, section 2.3).

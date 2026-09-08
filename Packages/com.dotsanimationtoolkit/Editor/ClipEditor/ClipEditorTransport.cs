@@ -15,7 +15,7 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>Marks a caption that doubles as its field's drag handle.</summary>
         private const string DraggableTransportLabelUssClassName =
-            "clip-editor__transport-label--draggable";
+            "toolkit-transport__caption--draggable";
 
         /// <summary>
         /// A key closer than this to a frame boundary counts as on-grid. In normalized units it is
@@ -415,7 +415,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             playButton.text = isPlaying ? "Pause" : "Play";
-            playButton.EnableInClassList("clip-editor__transport-play--playing", isPlaying);
+            playButton.EnableInClassList("toolkit-icon-button--playing", isPlaying);
         }
 
         /// <summary>Turns preview looping on or off and remembers the choice.</summary>
@@ -436,7 +436,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            loopButton.EnableInClassList("clip-editor__transport-loop--on", isLoopEnabled);
+            loopButton.EnableInClassList("toolkit-icon-button--lit", isLoopEnabled);
         }
 
         // Re-rules the timeline after a length or rate edit. The playhead holds its normalized
