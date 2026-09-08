@@ -481,12 +481,12 @@ namespace DotsAnimationToolkit.Editor
         // Opens the Clip Editor, docked beside the Scene view when it is being created. The dock
         // neighbour is a request, not a command: Unity honours it only when the window is created,
         // and an existing window keeps wherever the user put it.
-        [MenuItem("Window/DOTS Animation Toolkit/Clip Editor")]
+        [MenuItem("Window/DOTS Animation Toolkit/DOTS Animator")]
         public static void ShowWindow()
         {
             ClipEditorWindow window = GetWindow<ClipEditorWindow>(
-                "Clip Editor", ClipEditorDocking.PreferredDockNeighbours());
-            window.titleContent = new GUIContent("Clip Editor");
+                "DOTS Animator", ClipEditorDocking.PreferredDockNeighbours());
+            window.titleContent = new GUIContent("DOTS Animator");
             window.minSize = new Vector2(820f, 460f);
         }
 
@@ -749,6 +749,7 @@ namespace DotsAnimationToolkit.Editor
             PrefabStage.prefabStageClosing += OnPrefabStageClosing;
 
             previewController = new ClipPreviewController();
+            cameraNavigation.Rig = previewController;
 
             // Raised while this instance is still alive and before Unity serializes it, which is the
             // only moment the state below can still be read. See RememberSessionState.
@@ -2916,7 +2917,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            if (activeCameraGesture != CameraGesture.None)
+            if (cameraNavigation.ActiveGesture != PreviewCameraNavigation.Gesture.None)
             {
                 ContinueCameraGesture(moveEvent.deltaPosition);
                 return;
@@ -3302,7 +3303,7 @@ namespace DotsAnimationToolkit.Editor
         {
             previewImage.ReleasePointer(upEvent.pointerId);
 
-            if (activeCameraGesture != CameraGesture.None)
+            if (cameraNavigation.ActiveGesture != PreviewCameraNavigation.Gesture.None)
             {
                 EndCameraGesture();
                 return;
@@ -3438,12 +3439,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnPreviewWheel(WheelEvent wheelEvent)
         {
-            if (previewController == null)
-            {
-                return;
-            }
-            previewController.Zoom(wheelEvent.delta.y * 0.3f);
-            wheelEvent.StopPropagation();
+            cameraNavigation.HandleWheel(wheelEvent);
         }
 
         // Window state, written to no asset: no data model pairs a rig with a clip set, so this

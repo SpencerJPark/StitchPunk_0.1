@@ -18,7 +18,7 @@ namespace DotsAnimationToolkit.Editor
     /// <see cref="Render"/> never depends on selection: it draws whatever the scene holds, at
     /// minimum the reference grid, whether or not a clip is selected.
     /// </summary>
-    public sealed class ClipPreviewController : IDisposable, IActorPosePresenter
+    public sealed class ClipPreviewController : IDisposable, IActorPosePresenter, IPreviewCameraRig
     {
         /// <summary>Used only when there is no geometry to frame, so nothing tells us how far back to be.</summary>
         private const float DefaultOrbitDistance = 6f;
@@ -216,6 +216,30 @@ namespace DotsAnimationToolkit.Editor
         {
             get { return orbitPitch; }
             set { orbitPitch = value; }
+        }
+
+        /// <summary>Snapshots yaw, pitch, distance and focus — everything a caller needs to put the camera back exactly where it was.</summary>
+        public PreviewCameraPose CapturePose()
+        {
+            return new PreviewCameraPose
+            {
+                yawDegrees = orbitYaw,
+                pitchDegrees = orbitPitch,
+                distance = orbitDistance,
+                focus = orbitFocus
+            };
+        }
+
+        /// <summary>Restores a pose captured by <see cref="CapturePose"/>.</summary>
+        public void RestorePose(in PreviewCameraPose pose)
+        {
+            orbitYaw = pose.yawDegrees;
+            orbitPitch = pose.pitchDegrees;
+            orbitDistance = pose.distance;
+            orbitFocus = pose.focus;
+            // A borrow that happened mid-flight (a rig just changed) must not fire a stale reframe
+            // once the pose comes back — RestorePose is itself the authority on where the camera goes.
+            framePending = false;
         }
 
         /// <summary>The point the camera orbits and looks at — the middle of the rig, not the origin.</summary>
