@@ -117,6 +117,7 @@ public partial struct ReviveJob : IJobEntity
             ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[srcIdx];
             uint resurrectionAnimationKey = AIUtils.GetAnimationKeyByAction(ref unitBlob, ActionType.Resurrection);
             uint deathFaceAnimationKey    = AIUtils.GetFaceAnimationKeyByAction(ref unitBlob, ActionType.Death);
+            uint resurrectionFaceKey      = AIUtils.GetFaceAnimationKeyByAction(ref unitBlob, ActionType.Resurrection);
             DynamicBuffer<AnimationCommand> animationCommands = animationCommandLookup[entity];
 
             if (resurrectionAnimationKey != 0)
@@ -129,6 +130,12 @@ public partial struct ReviveJob : IJobEntity
                     ref animationCommands,
                     animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
                     deathFaceAnimationKey);
+            // The face a living unit wears again (by convention "ResurrectionFace", e.g. the blink).
+            if (resurrectionFaceKey != 0)
+                PlaybackApi.PlayAnimation(
+                    ref animationCommands,
+                    animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
+                    resurrectionFaceKey);
         }
 
         // Convert the brain to the zombie form — SwapBrainSystem (same frame, after this) rebuilds

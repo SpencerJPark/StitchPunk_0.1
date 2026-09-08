@@ -36,6 +36,10 @@
             {
                 "name": "Blink",
                 "animationKey": 477041898
+            },
+            {
+                "name": "ResurrectionFace",
+                "animationKey": 2531436239
             }
         ],
         "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/AnimNames.cs"

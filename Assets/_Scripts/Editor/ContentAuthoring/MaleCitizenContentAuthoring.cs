@@ -325,7 +325,7 @@ namespace StitchPunk.Editor.ContentAuthoring
         [MenuItem("Stitch Punk/Content Authoring/G5 P7 - Author Profile And Wire Units")]
         public static string AuthorProfileAndWireUnits()
         {
-            string[] animationNamesToMint = { "Idle", "Walk", "MeleeContinuous", "Death", "Resurrection", "DeathFace", "Blink" };
+            string[] animationNamesToMint = { "Idle", "Walk", "MeleeContinuous", "Death", "Resurrection", "DeathFace", "ResurrectionFace", "Blink" };
             Dictionary<string, uint> animationKeyByName = new Dictionary<string, uint>();
             AnimationNameRegistry animationNameRegistry = VocabularyRegistryProvider.AnimationNames;
             foreach (string animationName in animationNamesToMint)
@@ -388,11 +388,11 @@ namespace StitchPunk.Editor.ContentAuthoring
             resurrectionAnimation.ragdollTrigger = RagdollTrigger.Stop;
             resurrectionAnimation.ragdollAtEventKey = 0;
 
+            // Face stays an empty slot: the Eyes layer composites above it, so a death face put on
+            // Face would be overridden by the blink. DeathFace lives on Eyes and replaces Blink there;
+            // ResurrectionFace is Blink again, so a revived unit resumes blinking.
             ActorLayerDefinition faceLayer = FindOrCreateLayer(profile, "Face");
-            ActorAnimationDefinition deathFaceAnimation = FindOrCreateAnimation(faceLayer, animationKeyByName["DeathFace"]);
-            deathFaceAnimation.hasDirections = false;
-            deathFaceAnimation.clip = deathFaceClip;
-            deathFaceAnimation.loop = LoopMode.Loop;
+            faceLayer.animations.RemoveAll(animation => animation.animationKey == animationKeyByName["DeathFace"]);
 
             ActorLayerDefinition eyesLayer = FindOrCreateLayer(profile, "Eyes");
             eyesLayer.defaultActive = true;
@@ -401,6 +401,16 @@ namespace StitchPunk.Editor.ContentAuthoring
             blinkAnimation.clip = blinkClip;
             blinkAnimation.loop = LoopMode.Loop;
             eyesLayer.startingAnimationKey = blinkAnimation.animationKey;
+
+            ActorAnimationDefinition deathFaceAnimation = FindOrCreateAnimation(eyesLayer, animationKeyByName["DeathFace"]);
+            deathFaceAnimation.hasDirections = false;
+            deathFaceAnimation.clip = deathFaceClip;
+            deathFaceAnimation.loop = LoopMode.Loop;
+
+            ActorAnimationDefinition resurrectionFaceAnimation = FindOrCreateAnimation(eyesLayer, animationKeyByName["ResurrectionFace"]);
+            resurrectionFaceAnimation.hasDirections = false;
+            resurrectionFaceAnimation.clip = blinkClip;
+            resurrectionFaceAnimation.loop = LoopMode.Loop;
 
             FindOrCreateLayer(profile, "Mouth");
             profile.EnsureStableIds();

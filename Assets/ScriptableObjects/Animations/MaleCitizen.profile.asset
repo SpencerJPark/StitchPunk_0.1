@@ -104,7 +104,26 @@ MonoBehaviour:
   - displayName: Face
     defaultActive: 0
     startingAnimationKey: 0
+    animations: []
+  - displayName: Eyes
+    defaultActive: 1
+    startingAnimationKey: 477041898
     animations:
+    - animationKey: 477041898
+      hasDirections: 0
+      clip: {fileID: 11400000, guid: 96049bf34df72bb45affa7542dffc23b, type: 2}
+      directionSlots:
+        southEast: {fileID: 0}
+        northEast: {fileID: 0}
+        south: {fileID: 0}
+        north: {fileID: 0}
+        east: {fileID: 0}
+        targetDirections: 3
+      loop: 2
+      speed: 1
+      blendIn: NaN
+      ragdollTrigger: 0
+      ragdollAtEventKey: 0
     - animationKey: 3749251399
       hasDirections: 0
       clip: {fileID: 11400000, guid: da58561f7fbe5ea41ac82f6a5bb2a9f8, type: 2}
@@ -120,11 +139,7 @@ MonoBehaviour:
       blendIn: NaN
       ragdollTrigger: 0
       ragdollAtEventKey: 0
-  - displayName: Eyes
-    defaultActive: 1
-    startingAnimationKey: 477041898
-    animations:
-    - animationKey: 477041898
+    - animationKey: 2531436239
       hasDirections: 0
       clip: {fileID: 11400000, guid: 96049bf34df72bb45affa7542dffc23b, type: 2}
       directionSlots:

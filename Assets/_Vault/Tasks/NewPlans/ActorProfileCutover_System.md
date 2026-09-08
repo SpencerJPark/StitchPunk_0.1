@@ -238,3 +238,9 @@ After each: compile gate → the task's fixtures → tick → commit `G5-Pn: <wh
   built the same day: `DeathSystem` plays the `Death` key and the `<Action>Face` key (`DeathFace`),
   `ReviveRequestSystem` plays `Resurrection` and stops the face clip; `faceAnimationKeys` bind by the
   `<Action>Face` convention. The punch itself (a rotter converted with `DebugZombifyMenu`) is P10's.
+- **(P8, second sample, 2026-09-07)** With the death seam in: a killed citizen goes `action = Death`,
+  `DeathFace` plays, the ragdoll engages. The Eyes layer composites *above* Face, so a death face on
+  Face was overridden by the blink — `DeathFace` now lives on the **Eyes** layer (replacing Blink)
+  and a `ResurrectionFace` entry (the Blink clip) restarts the blink on revive; `ReviveRequestSystem`
+  plays `<Action>Face` for `Resurrection`. Face stays an empty slot. Two Editor restarts were needed
+  during this pass for the in-session Burst cache corruption (memory: `project_burst_jit_cache_corruption`).
