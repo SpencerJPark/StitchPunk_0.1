@@ -22,7 +22,7 @@ MonoBehaviour:
     rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
     clipSets:
     - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
-    directionSet: {fileID: 11400000, guid: a7462fd29a66e5c40acb1d902cc6b86b, type: 2}
+    directionSet: {fileID: 11400000, guid: 621925d199476b943a63db7498d8ea7d, type: 2}
     actorPrefab: {fileID: 0}
     clipBlocks:
     - clipId: 17929205651740358465

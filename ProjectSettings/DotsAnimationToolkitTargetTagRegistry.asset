@@ -68,6 +68,22 @@
             {
                 "name": "Head",
                 "stableId": 2879213531
+            },
+            {
+                "name": "Eyes",
+                "stableId": 1278794424
+            },
+            {
+                "name": "Mouth",
+                "stableId": 1172876258
+            },
+            {
+                "name": "LeftEyebrow",
+                "stableId": 2306479416
+            },
+            {
+                "name": "RightEyebrow",
+                "stableId": 118646659
             }
         ],
         "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/TargetTags.cs"

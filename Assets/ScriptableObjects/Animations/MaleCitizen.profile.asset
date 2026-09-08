@@ -1,0 +1,149 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ba6c96735e379c4791a6c25f1a39f5e, type: 3}
+  m_Name: MaleCitizen.profile
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ActorProfileAsset
+  stableId: 5711674238053986259
+  rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
+  clipSets:
+  - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
+  turnDirections: 3
+  layers:
+  - displayName: Base
+    defaultActive: 1
+    startingAnimationKey: 2343174561
+    animations:
+    - animationKey: 2343174561
+      hasDirections: 1
+      clip: {fileID: 0}
+      directionSlots:
+        southEast: {fileID: 11400000, guid: 541aa408b2391f44cac70c237533ab33, type: 2}
+        northEast: {fileID: 0}
+        south: {fileID: 0}
+        north: {fileID: 0}
+        east: {fileID: 0}
+        targetDirections: 1
+      loop: 2
+      speed: 1
+      blendIn: NaN
+      ragdollTrigger: 0
+      ragdollAtEventKey: 0
+    - animationKey: 2815978773
+      hasDirections: 1
+      clip: {fileID: 0}
+      directionSlots:
+        southEast: {fileID: 11400000, guid: bc3726a3fd33bcb4abbbdbec3a11209c, type: 2}
+        northEast: {fileID: 0}
+        south: {fileID: 0}
+        north: {fileID: 0}
+        east: {fileID: 0}
+        targetDirections: 1
+      loop: 2
+      speed: 1
+      blendIn: NaN
+      ragdollTrigger: 0
+      ragdollAtEventKey: 0
+  - displayName: Action
+    defaultActive: 0
+    startingAnimationKey: 0
+    animations:
+    - animationKey: 3053619170
+      hasDirections: 1
+      clip: {fileID: 0}
+      directionSlots:
+        southEast: {fileID: 11400000, guid: 03d7b3116af4a044e8bd9bc3b6f0735a, type: 2}
+        northEast: {fileID: 0}
+        south: {fileID: 0}
+        north: {fileID: 0}
+        east: {fileID: 0}
+        targetDirections: 1
+      loop: 1
+      speed: 1
+      blendIn: NaN
+      ragdollTrigger: 0
+      ragdollAtEventKey: 0
+    - animationKey: 74460257
+      hasDirections: 0
+      clip: {fileID: 0}
+      directionSlots:
+        southEast: {fileID: 0}
+        northEast: {fileID: 0}
+        south: {fileID: 0}
+        north: {fileID: 0}
+        east: {fileID: 0}
+        targetDirections: 3
+      loop: 0
+      speed: 1
+      blendIn: NaN
+      ragdollTrigger: 1
+      ragdollAtEventKey: 0
+    - animationKey: 3494030848
+      hasDirections: 0
+      clip: {fileID: 0}
+      directionSlots:
+        southEast: {fileID: 0}
+        northEast: {fileID: 0}
+        south: {fileID: 0}
+        north: {fileID: 0}
+        east: {fileID: 0}
+        targetDirections: 3
+      loop: 0
+      speed: 1
+      blendIn: NaN
+      ragdollTrigger: 2
+      ragdollAtEventKey: 0
+  - displayName: Face
+    defaultActive: 0
+    startingAnimationKey: 0
+    animations:
+    - animationKey: 3749251399
+      hasDirections: 0
+      clip: {fileID: 11400000, guid: da58561f7fbe5ea41ac82f6a5bb2a9f8, type: 2}
+      directionSlots:
+        southEast: {fileID: 0}
+        northEast: {fileID: 0}
+        south: {fileID: 0}
+        north: {fileID: 0}
+        east: {fileID: 0}
+        targetDirections: 3
+      loop: 2
+      speed: 1
+      blendIn: NaN
+      ragdollTrigger: 0
+      ragdollAtEventKey: 0
+  - displayName: Eyes
+    defaultActive: 1
+    startingAnimationKey: 477041898
+    animations:
+    - animationKey: 477041898
+      hasDirections: 0
+      clip: {fileID: 11400000, guid: 96049bf34df72bb45affa7542dffc23b, type: 2}
+      directionSlots:
+        southEast: {fileID: 0}
+        northEast: {fileID: 0}
+        south: {fileID: 0}
+        north: {fileID: 0}
+        east: {fileID: 0}
+        targetDirections: 3
+      loop: 2
+      speed: 1
+      blendIn: NaN
+      ragdollTrigger: 0
+      ragdollAtEventKey: 0
+  - displayName: Mouth
+    defaultActive: 0
+    startingAnimationKey: 0
+    animations: []
+  - displayName: Override
+    defaultActive: 0
+    startingAnimationKey: 0
+    animations: []

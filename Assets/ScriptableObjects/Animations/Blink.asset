@@ -1,0 +1,244 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
+  m_Name: Blink
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ClipAsset
+  stableId: 17529445929432004033
+  duration: 5
+  defaultLoop: 2
+  defaultBlendIn: 0
+  defaultBlendOut: 0
+  frameRate: 30
+  transformTracks:
+  - targetId: 0
+    tagId: 2306479416
+    blendOp: 0
+    channels: 1
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: -0.005
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      position:
+        x: 0
+        y: 0.01
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: -0.005
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - targetId: 0
+    tagId: 118646659
+    blendOp: 0
+    channels: 1
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: -0.005
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      position:
+        x: 0
+        y: 0.01
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: -0.005
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  spriteTracks:
+  - targetId: 0
+    tagId: 1278794424
+    mode: 0
+    sliceSpace: 0
+    baseIndex: 0
+    keys:
+    - normalizedTime: 0
+      sliceIndex: -1
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 0.02
+      sliceIndex: 11
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 0.04
+      sliceIndex: 9
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 0.06
+      sliceIndex: 7
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 0.08
+      sliceIndex: 1
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 0.94
+      sliceIndex: 7
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 0.96
+      sliceIndex: 9
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 0.98
+      sliceIndex: 11
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+    - normalizedTime: 1
+      sliceIndex: -1
+      indexMode: 0
+      atlasRect:
+        x: 0
+        y: 0
+        z: 0
+        w: 0
+  boneTracks: []
+  events: []
+  vatSource:
+    sourceClip: {fileID: 0}
+    sampleFps: 30
+    loopSafe: 0
+  vatTracks: []
+  billboardTracks: []

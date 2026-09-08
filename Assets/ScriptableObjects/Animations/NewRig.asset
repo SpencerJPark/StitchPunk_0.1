@@ -190,9 +190,50 @@ MonoBehaviour:
     framesPerVariant: 1
     facesDirection: 0
     tagId: 3949569509
-  layers:
-  - displayName: Base
-    defaultActive: 1
+  - displayName: Eyes
+    stableId: 1726350059
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/Neck/BaseHead/Eyes
+    kind: 0
+    boundsExtents:
+      x: 0.29864416
+      y: 0.23577173
+      z: 0.02
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 1278794424
+  - displayName: Mouth
+    stableId: 1771779122
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/Neck/BaseHead/Mouth
+    kind: 0
+    boundsExtents:
+      x: 0.20957485
+      y: 0.17289926
+      z: 0.02
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 1172876258
+  - displayName: LeftEyeBrow
+    stableId: 2608640407
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/Neck/BaseHead/LeftEyeBrow
+    kind: 0
+    boundsExtents:
+      x: 0.16687518
+      y: 0.10283441
+      z: 0.02
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 2306479416
+  - displayName: RightEyeBrow
+    stableId: 1997638363
+    sourceNodePath: Visual/MaleUnitVisual/Pelvis/Torso/Neck/BaseHead/RightEyeBrow
+    kind: 0
+    boundsExtents:
+      x: 0.13839081
+      y: 0.084107906
+      z: 0.02
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 118646659
   mirrorPairs:
   - leftTargetId: 1173584893
     rightTargetId: 1726161722
@@ -206,6 +247,8 @@ MonoBehaviour:
     rightTargetId: 2283231638
   - leftTargetId: 1753421473
     rightTargetId: 1203172312
+  - leftTargetId: 2608640407
+    rightTargetId: 1997638363
   sourcePrefab: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
   sockets:
   - displayName: RightHand
@@ -236,7 +279,348 @@ MonoBehaviour:
     snapOffsetDegrees: 0
     clampEnabled: 0
     clampArcDegrees: 180
-  ragdollBodies: []
+  ragdollBodies:
+  - displayName: Pelvis
+    stableId: 3523589907
+    address:
+      kind: 0
+      targetId: 1140299929
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: 0.009578966
+      y: 0.02039022
+      z: 0.000005294437
+    boxSize:
+      x: 0.5134584
+      y: 0.46630406
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 3
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: 0
+    limitMaxDegrees: 0
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: Torso
+    stableId: 3633188692
+    address:
+      kind: 0
+      targetId: 264798881
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: 0.011375107
+      y: 0.28193933
+      z: -0.000059560356
+    boxSize:
+      x: 0.51345843
+      y: 0.6863576
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 4
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -20
+    limitMaxDegrees: 20
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: BaseHead
+    stableId: 1513010992
+    address:
+      kind: 0
+      targetId: 3088210805
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: -0.06254015
+      y: 0.15195711
+      z: -0.000059591144
+    boxSize:
+      x: 0.50821906
+      y: 0.6287246
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 1.5
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -25
+    limitMaxDegrees: 25
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: LeftUpperArm
+    stableId: 3951115131
+    address:
+      kind: 0
+      targetId: 1173584893
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: 0.037366644
+      y: -0.17930567
+      z: -0.00002718066
+    boxSize:
+      x: 0.38236353
+      y: 0.6151053
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 1
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -120
+    limitMaxDegrees: 120
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: LeftLowerArm
+    stableId: 3259226886
+    address:
+      kind: 0
+      targetId: 1630943582
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: -0.028440248
+      y: -0.14337
+      z: -0.000059630584
+    boxSize:
+      x: 0.26660642
+      y: 0.47391164
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 0.7
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -5
+    limitMaxDegrees: 120
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: RightUpperArm
+    stableId: 3727465595
+    address:
+      kind: 0
+      targetId: 1726161722
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: 0.0074239373
+      y: -0.18121287
+      z: -0.000026642283
+    boxSize:
+      x: 0.28593856
+      y: 0.5742429
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 1
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -120
+    limitMaxDegrees: 120
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: RightLowerArm
+    stableId: 1818719238
+    address:
+      kind: 0
+      targetId: 2128489924
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: -0.085583024
+      y: -0.12003556
+      z: -0.0000584436
+    boxSize:
+      x: 0.42378002
+      y: 0.5097696
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 0.7
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -5
+    limitMaxDegrees: 120
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: LeftUpperLeg
+    stableId: 2574052628
+    address:
+      kind: 0
+      targetId: 3452626627
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: -0.0018954724
+      y: -0.18997489
+      z: -0.000013607655
+    boxSize:
+      x: 0.30499712
+      y: 0.5559819
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 1.5
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -70
+    limitMaxDegrees: 70
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: LeftLowerLeg
+    stableId: 3506895951
+    address:
+      kind: 0
+      targetId: 1711980931
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: -0.0039011315
+      y: -0.23835433
+      z: -0.00005964122
+    boxSize:
+      x: 0.36018366
+      y: 0.7045659
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 1
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -5
+    limitMaxDegrees: 110
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: RightUpperLeg
+    stableId: 3469092928
+    address:
+      kind: 0
+      targetId: 2973879041
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: -0.0015143454
+      y: -0.18997833
+      z: -0.000013607598
+    boxSize:
+      x: 0.30388358
+      y: 0.5553733
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 1.5
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -70
+    limitMaxDegrees: 70
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
+  - displayName: RightLowerLeg
+    stableId: 3765966273
+    address:
+      kind: 0
+      targetId: 2283231638
+      hierarchyPath: 
+      boneName: 
+    boxCenter:
+      x: -0.0034229383
+      y: -0.23836166
+      z: -0.00005964115
+    boxSize:
+      x: 0.3587879
+      y: 0.70387864
+      z: 0.05
+    boxEulerAngles:
+      x: 0
+      y: 0
+      z: 0
+    mass: 1
+    linearDamping: -1
+    angularDamping: -1
+    restitution: 0
+    friction: 0.5
+    limitMinDegrees: -5
+    limitMaxDegrees: 110
+    swingLimitDegrees: 45
+    twistLimitDegrees: 45
+    selfGroup: 0
+    selfCollidesWith: 0
+    collidesWithWorld: 1
   ragdollSettings:
     space: 0
     gravityScale: 1

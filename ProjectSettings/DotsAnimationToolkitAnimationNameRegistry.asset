@@ -12,8 +12,32 @@
             {
                 "name": "ScratchSwing",
                 "animationKey": 2254042747
+            },
+            {
+                "name": "Idle",
+                "animationKey": 2343174561
+            },
+            {
+                "name": "MeleeContinuous",
+                "animationKey": 3053619170
+            },
+            {
+                "name": "Death",
+                "animationKey": 74460257
+            },
+            {
+                "name": "Resurrection",
+                "animationKey": 3494030848
+            },
+            {
+                "name": "DeathFace",
+                "animationKey": 3749251399
+            },
+            {
+                "name": "Blink",
+                "animationKey": 477041898
             }
         ],
-        "generatedConstantsPath": ""
+        "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/AnimNames.cs"
     }
 }

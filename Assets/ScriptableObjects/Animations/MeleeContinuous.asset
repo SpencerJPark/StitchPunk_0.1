@@ -1,0 +1,480 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
+  m_Name: MeleeContinuous
+  m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ClipAsset
+  stableId: 317581377122978869
+  duration: 0.5
+  defaultLoop: 1
+  defaultBlendIn: 0.05
+  defaultBlendOut: 0.1
+  frameRate: 30
+  transformTracks:
+  - targetId: 0
+    tagId: 1776794818
+    blendOp: 0
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: -40
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.35
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 70
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - targetId: 0
+    tagId: 2248304700
+    blendOp: 0
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: -60
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.35
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 10
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - targetId: 0
+    tagId: 3817894984
+    blendOp: 0
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.35
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - targetId: 0
+    tagId: 2597715051
+    blendOp: 0
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: -8
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.35
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 10
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - targetId: 0
+    tagId: 2386436819
+    blendOp: 0
+    channels: 4
+    keys:
+    - normalizedTime: 0
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 0
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.35
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      position:
+        x: 0
+        y: 0
+        z: 0
+      rotation:
+        x: 0
+        y: 0
+        z: 0
+      rotationZ: 0
+      scale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 3
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  spriteTracks: []
+  boneTracks: []
+  events:
+  - normalizedTime: 0.35
+    eventKey: 18
+    intParam: 0
+    floatParam: 0
+    windowSeconds: 0
+  vatSource:
+    sourceClip: {fileID: 0}
+    sampleFps: 30
+    loopSafe: 0
+  vatTracks: []
+  billboardTracks: []
