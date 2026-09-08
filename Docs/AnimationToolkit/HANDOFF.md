@@ -121,6 +121,20 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Queued (2026-09-08): Amendment A73 — Profile-Driven Cutscenes**, then the game plan **G6**.
+Spec `Docs/AnimationToolkit/Amendment_A73_ProfileDrivenCutscenes_Spec.md`, session prompt
+`Amendment_A73_ProfileDrivenCutscenes_Prompt.md`, game half
+`Assets/_Vault/Tasks/NewPlans/CutsceneProfileCutover_System.md`. The owner found the Cutscene
+Editor still on raw clip ids, a per-slot direction set and one request-wide layer while A70/A71 put
+layers, names and direction on the profile. A73 makes a slot a profile: one timeline row per
+profile layer with blocks by animation name and ■ stop keys, auto locomotion (the profile's
+standing/moving entries from real displacement), facing that is auto unless a Fixed key pins it
+(an Auto key hands it back; a mark's arrival facing latches), the cutscene writing `ActorFacing`
+(A73-D2 amends A70-D6 for cutscene-driven actors), marks with a **+** button and *Wait Until
+Reached*. Breaking, 0.19.0, schema 6. Two Sonnet sessions (T1–T3 runtime, T4–T8 editor + docs), the
+owner checkpoint at the end of the second; G6 re-points the game's seven cutscene assets by script
+and gates `UnitAnimationAssignmentJob` on `CutsceneActor`. Nothing here has been built.
+
 **The Actor Editor roadmap is built (2026-09-07): A70 (0.16.0), A71 (0.17.0) and the game cutover G5
 are in, gated green (EditMode 823 / PlayMode 291; the one standing `Conformance_A` asmdef drift
 remains). Three ⏸ owner checkpoints are open and nothing is queued behind them:**

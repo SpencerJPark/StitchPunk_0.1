@@ -48,6 +48,13 @@ Toolkit amendments live in `Docs/AnimationToolkit/` (the package's own doc syste
 | A67 | ✅ **T1–T6 done 2026-09-06, awaiting the owner’s eyes.** [`Amendment_A67_CutsceneEditorPolish2_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A67_CutsceneEditorPolish2_Spec.md) | viewport click-select, in-viewport gizmo + Key, frozen header column, cast/inspector compaction, viewport navigation parity | A66 | — |
 | G3 | [`CutsceneAcceptance_System.md`](CutsceneAcceptance_System.md) | the "Rendezvous and Depart" cutscene authored with real assets, a debug trigger, the owner's verification checklist, perf check | everything above | — |
 | A68 | [`Amendment_A68_CutsceneDocsRelease_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A68_CutsceneDocsRelease_Spec.md) | `cutscenes.md` rewrite, new `cutscene-api.md` reference, `Samples~` cutscene sample compiled through a temp assembly, CHANGELOG, HANDOFF closure, version bump | G3 | — |
+| **A73** | ✅ **spec written 2026-09-08 (two sessions), nothing built.** [`Amendment_A73_ProfileDrivenCutscenes_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A73_ProfileDrivenCutscenes_Spec.md) · prompt [`Amendment_A73_ProfileDrivenCutscenes_Prompt.md`](../../../../Docs/AnimationToolkit/Amendment_A73_ProfileDrivenCutscenes_Prompt.md) | cutscene slots driven by `ActorProfileAsset`: blocks by animation name on one row per profile layer, ■ stop keys, auto locomotion (moving/standing entry from real displacement), facing Fixed-or-Auto with an arrival latch and an `ActorFacing` write, marks with **+** and *Wait Until Reached*; deletes the slot rig/clip-set/direction-set fields, `CutscenePlay.layerIndex`, `CutsceneApi.TopLayer` (0.19.0, schema 6) | A70, A71, A72 | — |
+| **G6** | ✅ **spec written 2026-09-08.** [`CutsceneProfileCutover_System.md`](CutsceneProfileCutover_System.md) | game cutover: `CutsceneRequest.layerIndex` gone, `UnitAnimationAssignmentJob` gated on `CutsceneActor`, facing-snap parity fixture, the seven cutscene assets re-pointed at `MaleCitizen.profile` by script, F9 acceptance shows minions walking | A73 | — |
+
+> **A73 + G6 added 2026-09-08.** The owner found the cutscene editor "uses the outdated direction
+> info" instead of the Actor Profile (A70/A71); the six specs above shipped before the profile
+> existed. A73 is the package half, G6 the game half; both run after the A72 visual pass. The owner
+> called this "getting us towards our finish line on this round of version 1 of the package".
 
 **Critical path:** ~~A61 → G1 → G0 → A63 → A64 → A65 → G2 → A66 → A67~~ → **G3 (next)** → A68. A62 runs beside A61. **The first thing the owner should see on screen is G1's checkpoint**: a two-slot cutscene playing from a debug key — built and machine-verified 2026-09-05 in its own `Assets/Scenes/CutsceneG1Checkpoint.unity`, awaiting the owner's eyes.
 
@@ -87,6 +94,7 @@ Toolkit runtime, namespace `DotsAnimationToolkit`:
 - `CutsceneAttachMarker` / `CutsceneAttachMarkerBlob`, `CutsceneAttachKind { Attach, Detach }`, `CutsceneDetachSignal : IComponentData, IEnableableComponent` (A63).
 - `CutsceneMarkKey` / `CutsceneMarkKeyBlob`, `CutsceneMoveToMark : IComponentData, IEnableableComponent`, `CutsceneHoldMarker.autoReleaseWhenMarksReached` (A64).
 - `CutsceneEventMarker.holdUntilReleased`, `ICutsceneEventInspectorProvider`, `CutsceneFacing : IComponentData, IEnableableComponent` (A65).
+- `CutsceneSlot.profile` (+ `ResolvedRig` / `ResolvedClipSets`), `CutsceneClipBlock.animationKey`, `CutsceneLayerStopKey { time, layerName, blendOutSeconds }`, `CutsceneLocomotion { enabled, standingAnimationKey, movingAnimationKey, movingSpeedThresholdMetersPerSecond }`, `CutsceneFacingMode { Fixed, Auto }`, `CutsceneMarkKey.waitUntilReached`, `CutsceneSlotLayerState` (internal), `CutsceneLocomotionMath.IsMoving` (A73). `CutscenePlay.layerIndex` and `CutsceneApi.TopLayer` no longer exist after A73.
 
 Game, global namespace under `Assets/_Scripts/`:
 
