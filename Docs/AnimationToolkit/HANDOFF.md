@@ -5,9 +5,9 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.21.0).
-**§4** carries Amendment A73 (built, one ⏸ owner checkpoint open) and A74 (built, one ⏸ owner
-checkpoint open).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.22.0).
+**§4** carries Amendment A73 (built, one ⏸ owner checkpoint open), A74 (built, one ⏸ owner
+checkpoint open) and A75 (built, one ⏸ owner checkpoint open).
 
 ## 1. Read first, in this order
 
@@ -118,6 +118,43 @@ shape of a suite that silently stopped compiling. Counts must not drop.
 displays" is not proof. Delete scratch assets and confirm `git status` afterwards.
 
 ## 4. The queue
+
+**Built (2026-09-08): Amendment A75 — Clip Sets tab — 0.22.0.** Spec
+`Docs/AnimationToolkit/Amendment_A75_ClipSets_Spec.md`. T1–T7 all landed and gated across four
+subagent waves (T1/T2/T3, then T4/T6a/T6c, then T5, then T6b) plus the orchestrator's own T7
+drive/capture pass; T8 (⏸ owner checkpoint) is open. `ClipAssetUtility` gained
+`AddExistingClipToSet`/`RemoveClipFromSet(ClipSetAsset, ClipAsset)`, both routed through the
+existing private undo-wrapped cores so a clip added or removed through the new tab is
+indistinguishable from one made by hand. `ClipPickerModel` (pure, no `UnityEditor`) backs a new
+`ClipPickerListElement` — a searchable, check-boxed `ListView` whose row toggle reads its live
+index from `userData` rather than a closure, so a recycled row can't write another row's clip.
+`ClipSetSaveLocation` wraps the `EditorPrefs`-remembered save folder, validated against
+`AssetDatabase.IsValidFolder` on every read with a project-relative-path boundary check (an
+`AssetsBackup` sibling folder must not pass as a subfolder of `Assets`). `ClipSetsPanel` mirrors
+`NewRigPanel`'s two-column shape — a 280px catalog of every `ClipSetAsset` in the project, and an
+editor column that switches between Create (name, folder picker, live "will create" path hint,
+starting ticks) and Edit (ticks apply immediately through the T1 utility, reported to the window
+via `SetClipsChanged` rather than the panel ever touching `clipSet` itself, matching the
+panel-reports/window-acts split A71/A74 already established). `ClipEditorTab` gained
+`ClipSets = 1`, shifting every tab after it up one; the toolbar's "New Set" button and the
+window's own `CreateClipSet()` are deleted, not hidden. Driven for real: created a probe set with
+one ticked clip, confirmed the write on a reloaded `ClipSetAsset` reference after
+`AssetDatabase.Refresh()`, unticked the same clip in Edit mode and confirmed the removal on
+another reload, and confirmed the `EditorPrefs` save-folder key updated — every named UI element
+(`clip-sets-catalog-column`, `clip-sets-list`, `clip-picker`, etc.) queried with a real non-zero
+`resolvedStyle`/`layout`. **The pixel capture step could not be completed**: `GrabPixels` returned
+a byte-identical stale frame across repeated `RepaintImmediately`/`RepaintAllViews` attempts, and
+`EditorApplication.isFocused` was `false` for the whole session — another application held OS
+focus, and Unity appears not to re-render a docked view's actual backbuffer while unfocused
+regardless of internal repaint requests. `InternalEditorUtility.ReadScreenPixel` was tried as a
+fallback and, exactly as this doc's "capture the window" trap warns, captured the other
+application instead. No screenshot exists to hand the owner; **the ⏸ checkpoint below is the
+owner's first real look**, not a confirmation of one already taken. Full suites re-gated clean
+after fixing a `Conformance_D` violation two subagent-authored test fixtures introduced (arbitrary
+`Assets/A`-style test data read as a host asset folder path — renamed or split via string
+concatenation, matching the pattern the conformance test uses on its own source): EditMode
+784/784 (784 = 777 + 6 new T1–T3 fixtures + 1 new T5 fixture; only the pre-existing
+`Conformance_A` asmdef drift), PlayMode 283/283 unchanged.
 
 **Built (2026-09-08): New Rig source preview — 0.21.0.** Owner request, built directly rather than
 specced: "if I select a game object for new rig, I would like to see what that prefab looks like

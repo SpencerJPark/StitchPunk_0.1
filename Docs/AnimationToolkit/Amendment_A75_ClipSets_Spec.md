@@ -1,6 +1,6 @@
 # Amendment A75 — Clip Sets tab: browse, create and edit clip sets inside the Clip Editor
 
-> **Status:** 📋 specced 2026-09-08, not built.
+> **Status:** ✅ built 2026-09-08 (0.22.0), T1–T7 gated green. One ⏸ owner checkpoint (T8) open.
 > **Executor:** one orchestrating session (Editor-connected, runs the gate, commits) plus **small
 > Sonnet `worker` subagents that only edit files** — a subagent never touches `mcp__UnityMCP__*`.
 > Every task below is sized for one subagent **under ~100k tokens**: at most two files to edit,
@@ -507,4 +507,41 @@ End the session with this message, verbatim in spirit:
 
 ## 7. Build log
 
-_(empty — filled by the orchestrating session)_
+- **T0 baseline:** tree was clean at session start (the ~40-uncommitted-file New Rig preview
+  mentioned in the prompt had already landed as a prior commit before this session began — no
+  conflict). EditMode 777/777 (1 pre-existing `Conformance_A` drift), PlayMode 283/283, matching
+  HANDOFF's recorded baseline exactly.
+- **§3 drift:** `RigAssetEditor.cs` (T3's EditorPrefs reference) lives at
+  `Editor/Inspectors/RigAssetEditor.cs`, not `Editor/ClipEditor/RigAssetEditor.cs` as the spec's
+  Read-first list names. Cosmetic — the file and line range content matched.
+- **Waves 1–4:** all six subagents (T1, T2, T3, T4, T6a, T6c, T5, T6b — seven tasks, T6a/T6c/T4
+  batched in wave 2) landed on the first pass with no rework needed; every named line range in
+  `ClipEditorWindow.cs`/`ClipAssetUtility.cs`/etc. matched the spec with no further drift.
+  `tabToggles[5]` threw `IndexOutOfRangeException` on the live open window between wave 2 (enum
+  renumbered) and wave 4 (array resized) exactly as §"traps" predicted — confirmed live in
+  `read_console`, not just theorized, and resolved itself once T6b landed.
+- **T7 gate fix:** the T2/T3 subagents' test fixtures used `"Assets/A"`/`"Assets/Anim/Sets"`-style
+  literals as test data, tripping `Conformance_D`'s host-asset-folder-path scan (a regex over raw
+  file text, not aware of test-data intent). Fixed by the orchestrator: renamed the arbitrary
+  `ClipPickerModelTests` folder strings to not start with `Assets/`, and split
+  `ClipSetSaveLocationTests`' legitimately-`Assets/`-prefixed assertions via string concatenation
+  (the same dodge `PackagingConformanceTests` uses on its own source). Re-gated clean: EditMode
+  784/784, PlayMode 283/283.
+- **T7 drive:** full functional pass over `execute_code` — tab switch, catalog populated
+  (`itemsSource.Count == 2` before the probe, `== 3` after), create with one ticked clip persisted
+  on a reloaded `ClipSetAsset` reference (`clips.Count == 1`), Edit-mode untick removed it on
+  another reload (`clips.Count == 0`), `EditorPrefs` save-folder key confirmed. All passed with no
+  code changes needed.
+- **T7 capture — could not complete.** `GrabPixels` returned a byte-identical stale frame across
+  five attempts (MD5-confirmed) despite `RepaintImmediately`/`RepaintAllViews`/real sleeps between
+  attempts; `EditorApplication.isFocused` was `false` the whole session (another application held
+  OS focus). `InternalEditorUtility.ReadScreenPixel` was tried as a fallback and, as the vault's
+  own trap note warns, captured that other application's window instead of Unity. No screenshot
+  was produced or committed — recorded as a new trap in `AnimationToolkit.md` rather than silently
+  reported as done. Every named element's `resolvedStyle`/`layout` was queried instead and
+  confirmed non-zero and correctly positioned (`clip-sets-catalog-column` 280×746,
+  `clip-sets-editor-column` 1102×746, `clip-sets-list` itemsSource.Count 3, `clip-picker`
+  1082×681), which is strong but not visual evidence — T8's owner look is the real verification.
+- **Scratch cleanup:** `Assets/A75Scratch` and its probe asset deleted, `EditorPrefs` save-folder
+  key reset to `Assets/ScriptableObjects/Animations`, `git status` confirmed clean apart from this
+  amendment's own committed files.

@@ -401,6 +401,21 @@ objects, and such objects survive domain reloads); and the open cutscene rides `
 (`RestoreSessionCutscene`) because the panel dies with every reload — remove that and the tab
 comes back empty, reading as a dead tool.
 
+**`GrabPixels` goes stale — check `EditorApplication.isFocused` before trusting a capture
+(2026-09-08, A75).** When another application holds OS-level window focus, `GrabPixels` on the
+docked view returns a byte-identical frame (confirmed via MD5 across five attempts, real sleeps
+between each) no matter how many `RepaintImmediately`/`RepaintAllViews`/`QueuePlayerLoopUpdate`
+calls precede it — Unity does not redraw a docked view's actual backbuffer while unfocused,
+regardless of internal repaint requests. `EditorWindow.Focus()` does not fix this (it only changes
+which tab is internally active, not OS focus). Check `UnityEditor.EditorApplication.isFocused`
+first: `false` means any capture attempt is wasted calls. Do not fall back to
+`InternalEditorUtility.ReadScreenPixel` to route around this — it reads the physical screen and
+will faithfully capture whatever application actually has focus instead (verified: it captured the
+owner's code editor, not Unity). Do not force OS focus via `SetForegroundWindow` or similar to
+route around this either — that steals input focus from whatever the owner is actively doing.
+When unfocused, report that no capture is possible rather than saving a stale image under the
+capture's filename; a stale frame with an unrelated result label is more misleading than no image.
+
 ## Cutscenes — traps only (shipped 0.15.0)
 
 Full reference lives in the package, not here:
@@ -631,6 +646,24 @@ the prefab's authored visibility, on the reasoning that a ticked target drawing 
 broken tick; unticking restores exactly what was captured at build time. The row label needs
 `labelElement` truncation (`minWidth 0`, ellipsis, no-wrap) — a deep path otherwise pushes the tag
 button out of the row and puts a horizontal scrollbar under the whole list.
+
+## Clip Sets tab (A75)
+
+**The panel reports, the window acts** (same split as `NewRigPanel`/`VatBakePanel`): `ClipSetsPanel`
+never writes the window's `clipSet` field itself, even after a create or an edit — it raises
+`ClipSetCreated`/`OpenInEditorRequested`/`SetClipsChanged` and the window decides what loading a
+set means, same reasoning `CreateClipSet`'s old comment gave for going through `clipSetField.value`
+rather than the backing field directly.
+
+**Edit mode applies every tick as its own undo step; Create mode does not touch an asset until
+Create is pressed.** With a real set selected, `ClipPickerListElement.ClipCheckedChanged` calls
+`ClipAssetUtility.AddExistingClipToSet`/`RemoveClipFromSet` immediately — there is no Apply button
+to forget, and Ctrl+Z undoes one clip at a time. With no set yet (Create mode), ticks only mutate
+the picker's own `ClipPickerModel`; nothing hits `AssetDatabase` until `Create()` walks
+`picker.CheckedClips`. A create with "Load this set into the editor" ticked (the default) also
+raises `Closed`, which switches the window back to the Clip Editor tab — driving the panel
+end-to-end from `execute_code` means the tab visibly closes itself after every default-toggle
+create, which reads as a bug the first time you see it but is D9's intended behavior.
 
 ## Do not spawn subagents against this package — unless they never touch the Editor (A73)
 

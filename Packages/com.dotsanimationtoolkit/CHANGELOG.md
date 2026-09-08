@@ -8,6 +8,20 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] — A75 — clip sets tab
+
+### Added
+
+- **Clip Sets is a tab**, in the strip beside New Rig — the toolbar's "New Set" button is gone.
+  A catalog column lists every clip set in the project; selecting one opens it for editing on the
+  right, and a **New** button starts a create flow instead.
+- **Editing a set applies each tick immediately.** A searchable, check-boxed list of every clip in
+  the project sits beside the open set; ticking adds the clip, unticking removes it, each as one
+  undo step, with a **Ticked only** filter to narrow the list to the set's own members.
+- **Creating a set** names it, resolves a live "Will create …" path as you type, and starts from
+  whatever clips you tick before pressing Create — the save folder is remembered across sessions
+  (`EditorPrefs`, validated against the project on read).
+
 ## [0.21.0] — New Rig source preview
 
 ### Added
