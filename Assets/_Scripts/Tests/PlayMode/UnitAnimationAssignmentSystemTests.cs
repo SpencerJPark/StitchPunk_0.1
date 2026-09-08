@@ -38,6 +38,8 @@ namespace StitchPunk.Tests.PlayMode
             entityManager.AddComponentData(unit, new AnimationCommandPending());
             entityManager.SetComponentEnabled<AnimationCommandPending>(unit, false);
             entityManager.AddBuffer<PlaybackLayer>(unit);
+            entityManager.AddComponentData(unit, new CutsceneActor());
+            entityManager.SetComponentEnabled<CutsceneActor>(unit, false);
         }
 
         [TearDown]
@@ -80,6 +82,21 @@ namespace StitchPunk.Tests.PlayMode
             DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(unit);
             Assert.AreEqual(0, commands.Length,
                 "A layer already playing the idle key must not be re-issued a Play every frame.");
+        }
+
+        [Test]
+        public void CutsceneActor_Enabled_IssuesNoCommand()
+        {
+            EntityManager entityManager = testWorld.EntityManager;
+            DynamicBuffer<PlaybackLayer> layers = entityManager.GetBuffer<PlaybackLayer>(unit);
+            layers.Add(new PlaybackLayer { flags = PlaybackFlags.None, animationKey = 0 });
+            entityManager.SetComponentEnabled<CutsceneActor>(unit, true);
+
+            RunAssignmentSystem();
+
+            DynamicBuffer<AnimationCommand> commands = entityManager.GetBuffer<AnimationCommand>(unit);
+            Assert.AreEqual(0, commands.Length,
+                "A unit puppeted by a cutscene must get zero commands from the game's own assignment job — the cutscene's own locomotion is Base's writer while CutsceneActor is enabled.");
         }
 
         private void RunAssignmentSystem()

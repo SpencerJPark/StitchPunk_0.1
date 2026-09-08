@@ -35,6 +35,7 @@ public partial struct UnitAnimationAssignmentSystem : ISystem
 // Without this the EnabledRefRW parameter below enrols the flag as enabled-only, and a unit with
 // no command pending (every idle unit) silently never matches.
 [WithPresent(typeof(AnimationCommandPending))]
+[WithPresent(typeof(CutsceneActor))]
 public partial struct UnitAnimationAssignmentJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> library;
@@ -42,11 +43,18 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
     public void Execute(
         ref DynamicBuffer<AnimationCommand>   commands,
         EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+        EnabledRefRO<CutsceneActor>           cutsceneActorEnabled,
         in DynamicBuffer<PlaybackLayer>       playbackLayers,
         in UnitData         unitData,
         in Movement         movement,
         in LocomotionStance locomotionStance)
     {
+        // A cutscene's own locomotion (CutsceneTimelineSystem's auto locomotion, A73 §3.3) is
+        // Base's single writer while it runs; CutsceneEndSystem disabling this flag hands Base
+        // back, and IsAnimationPlaying above means no pop on hand-back.
+        if (cutsceneActorEnabled.ValueRO)
+            return;
+
         int unitIndex = (int)unitData.unitType;
         if (unitIndex < 0 || unitIndex >= library.Value.units.Length)
             return;

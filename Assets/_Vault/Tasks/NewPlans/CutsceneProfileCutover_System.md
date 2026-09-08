@@ -76,13 +76,16 @@ After each: compile gate → the task's fixtures → tick → commit `G6-Pn: <wh
   (`refresh_unity` → `read_console` zero errors); `StitchPunk.Tests` 57/57, `.PlayMode` 15/15 —
   both counts match the A73 baseline exactly.
 
-- [ ] **P2 — Gate assignment on `CutsceneActor`.** `UnitAnimationAssignmentJob` adds
+- [x] **P2 — Gate assignment on `CutsceneActor`.** `UnitAnimationAssignmentJob` adds
   `[WithPresent(typeof(CutsceneActor))]` and an `EnabledRefRO<CutsceneActor> cutsceneActorEnabled`
   parameter; return early when enabled. The cutscene's own locomotion (A73 §3.3) is Base's single
   writer while it runs; `CutsceneEndSystem` disabling the flag hands Base back, and the job's
   existing `IsAnimationPlaying` check means no pop on hand-back. *Fixture (PlayMode,
   `UnitAnimationAssignmentSystemTests`):* `CutsceneActor_Enabled_IssuesNoCommand` — a standing unit
   with an inactive Base and `CutsceneActor` enabled gets zero commands (fails on the ungated job).
+  **Done 2026-09-08:** built exactly as specced. Fixture proven — reverted the early-return, watched
+  it fail (`Expected: 0 But was: 1`), restored it. *Gate:* clean compile;
+  `StitchPunk.Tests.PlayMode` 16/16 (15 baseline + 1 new), all green.
 
 - [ ] **P3 — Facing parity.** [parallel-safe with P2] The toolkit now snaps
   `CutsceneFacing.angleDegrees` with `FacingResolver.FromMovement((cos θ, sin θ), turnDirections, current)`;
