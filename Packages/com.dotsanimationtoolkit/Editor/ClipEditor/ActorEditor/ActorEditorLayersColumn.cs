@@ -35,6 +35,10 @@ namespace DotsAnimationToolkit.Editor
         private const string LayerRowNamePrefix = "actor-editor-layer-row-";
         private const string LayerEyeNamePrefix = "actor-editor-layer-eye-";
         private const string AnimationRowNamePrefix = "actor-editor-animation-row-";
+        private const string DraggableHeaderUssClassName = "toolkit-box__header--draggable";
+        private const string DraggingBoxUssClassName = "toolkit-box--dragging";
+        private const string DropIndicatorUssClassName = "actor-editor__drop-indicator";
+        private const float DragStartThresholdPixels = 4f;
 
         private readonly ScrollView rowScroll;
 
@@ -46,6 +50,18 @@ namespace DotsAnimationToolkit.Editor
 
         private ActorEditorSelection currentSelection = ActorEditorSelection.None;
         private VisualElement selectedRowElement;
+
+        // Layer drag-reorder state. Only one drag is ever live at a time.
+        private int dragFromLayerIndex = -1;
+        private int dragTargetLayerIndex = -1;
+        private int dragPointerId = -1;
+        private float dragPointerStartY;
+        private float dragLastPointerY;
+        private bool dragThresholdExceeded;
+        private VisualElement dragHeaderElement;
+        private VisualElement dragBlockElement;
+        private VisualElement dragInsertionIndicator;
+        private IVisualElementScheduledItem dragAutoScrollScheduledItem;
 
         private readonly Dictionary<int, Label> layerLiveDotsByLayerIndex = new Dictionary<int, Label>();
 
@@ -197,19 +213,13 @@ namespace DotsAnimationToolkit.Editor
 
             if (!isBookend)
             {
-                Button moveUpButton = ToolkitIcons.MakeIconButton(
-                    () => MoveLayer(layerIndex, layerIndex - 1),
-                    null,
-                    "Move this layer toward Base. Reordering layers changes priority.",
-                    "▲");
-                headerRow.Add(moveUpButton);
-
-                Button moveDownButton = ToolkitIcons.MakeIconButton(
-                    () => MoveLayer(layerIndex, layerIndex + 1),
-                    null,
-                    "Move this layer toward Override. Reordering layers changes priority.",
-                    "▼");
-                headerRow.Add(moveDownButton);
+                headerRow.AddToClassList(DraggableHeaderUssClassName);
+                headerRow.tooltip = "Drag to reorder. Reordering layers changes priority.";
+                headerRow.RegisterCallback<PointerDownEvent>(
+                    pointerEvent => BeginLayerDrag(pointerEvent, layerIndex, headerRow, block));
+                headerRow.RegisterCallback<PointerMoveEvent>(pointerEvent => ContinueLayerDrag(pointerEvent, layerIndex));
+                headerRow.RegisterCallback<PointerUpEvent>(pointerEvent => EndLayerDrag(pointerEvent, layerIndex));
+                headerRow.RegisterCallback<PointerCaptureOutEvent>(captureOutEvent => CancelLayerDrag(layerIndex));
 
                 Button deleteButton = ToolkitIcons.MakeIconButton(
                     () => DeleteLayer(layerIndex),
@@ -436,6 +446,201 @@ namespace DotsAnimationToolkit.Editor
                 profile.layers.RemoveAt(fromIndex);
                 profile.layers.Insert(toIndex, movedLayer);
             });
+        }
+
+        // -----------------------------------------------------------------------------------------
+        // Layer drag-reorder — grabbing a non-bookend header directly, no separate handle. A short
+        // movement threshold leaves a plain click free to still select the layer; past it, an
+        // indicator line tracks where the layer would land and the list auto-scrolls at the edges.
+        // -----------------------------------------------------------------------------------------
+
+        private void BeginLayerDrag(PointerDownEvent pointerEvent, int layerIndex, VisualElement headerRow, VisualElement block)
+        {
+            if (pointerEvent.button != 0 || IsInteractiveDescendant(pointerEvent.target as VisualElement))
+            {
+                return;
+            }
+
+            dragFromLayerIndex = layerIndex;
+            dragTargetLayerIndex = layerIndex;
+            dragPointerId = pointerEvent.pointerId;
+            dragPointerStartY = pointerEvent.position.y;
+            dragLastPointerY = pointerEvent.position.y;
+            dragThresholdExceeded = false;
+            dragHeaderElement = headerRow;
+            dragBlockElement = block;
+            headerRow.CapturePointer(dragPointerId);
+        }
+
+        private void ContinueLayerDrag(PointerMoveEvent pointerEvent, int layerIndex)
+        {
+            if (dragFromLayerIndex != layerIndex || pointerEvent.pointerId != dragPointerId)
+            {
+                return;
+            }
+
+            dragLastPointerY = pointerEvent.position.y;
+
+            if (!dragThresholdExceeded)
+            {
+                if (Mathf.Abs(dragLastPointerY - dragPointerStartY) < DragStartThresholdPixels)
+                {
+                    return;
+                }
+                dragThresholdExceeded = true;
+                dragBlockElement.AddToClassList(DraggingBoxUssClassName);
+                dragInsertionIndicator = new VisualElement { pickingMode = PickingMode.Ignore };
+                dragInsertionIndicator.AddToClassList(DropIndicatorUssClassName);
+                // Absolutely positioned and out of flow: repositioning it every move can never
+                // reflow a sibling block, which is what was flickering the whole list before.
+                dragInsertionIndicator.style.position = Position.Absolute;
+                dragInsertionIndicator.style.left = 0f;
+                dragInsertionIndicator.style.right = 0f;
+                rowScroll.contentContainer.Add(dragInsertionIndicator);
+                dragAutoScrollScheduledItem = rowScroll.schedule.Execute(TickDragAutoScroll).Every(16);
+            }
+
+            UpdateDragTarget();
+            pointerEvent.StopPropagation();
+        }
+
+        private void EndLayerDrag(PointerUpEvent pointerEvent, int layerIndex)
+        {
+            if (dragFromLayerIndex != layerIndex || pointerEvent.pointerId != dragPointerId)
+            {
+                return;
+            }
+
+            bool wasDragging = dragThresholdExceeded;
+            int fromIndex = dragFromLayerIndex;
+            int toIndex = dragTargetLayerIndex;
+
+            FinishLayerDrag(layerIndex);
+
+            if (wasDragging)
+            {
+                MoveLayer(fromIndex, toIndex);
+            }
+        }
+
+        private void CancelLayerDrag(int layerIndex)
+        {
+            if (dragFromLayerIndex != layerIndex)
+            {
+                return;
+            }
+            FinishLayerDrag(layerIndex);
+        }
+
+        private void FinishLayerDrag(int layerIndex)
+        {
+            if (dragHeaderElement != null && dragHeaderElement.HasPointerCapture(dragPointerId))
+            {
+                dragHeaderElement.ReleasePointer(dragPointerId);
+            }
+            dragBlockElement?.RemoveFromClassList(DraggingBoxUssClassName);
+            dragInsertionIndicator?.RemoveFromHierarchy();
+            dragAutoScrollScheduledItem?.Pause();
+
+            dragFromLayerIndex = -1;
+            dragTargetLayerIndex = -1;
+            dragPointerId = -1;
+            dragThresholdExceeded = false;
+            dragHeaderElement = null;
+            dragBlockElement = null;
+            dragInsertionIndicator = null;
+            dragAutoScrollScheduledItem = null;
+        }
+
+        // Driven by a scheduler, not pointer movement: the case that matters is the pointer held
+        // still against the top or bottom edge, which a movement-only trigger would not scroll for.
+        private void TickDragAutoScroll()
+        {
+            if (dragFromLayerIndex < 0)
+            {
+                return;
+            }
+
+            const float EdgeMarginPixels = 28f;
+            const float ScrollPixelsPerTick = 10f;
+
+            Rect viewportBounds = rowScroll.worldBound;
+            if (dragLastPointerY - viewportBounds.yMin < EdgeMarginPixels)
+            {
+                rowScroll.scrollOffset -= new Vector2(0f, ScrollPixelsPerTick);
+                UpdateDragTarget();
+            }
+            else if (viewportBounds.yMax - dragLastPointerY < EdgeMarginPixels)
+            {
+                rowScroll.scrollOffset += new Vector2(0f, ScrollPixelsPerTick);
+                UpdateDragTarget();
+            }
+        }
+
+        // toIndex lands in the post-removal index space MoveLayer expects: excluding the dragged
+        // block, count how many of the other real layers sit above the pointer.
+        private void UpdateDragTarget()
+        {
+            if (profile == null || profile.layers == null || dragFromLayerIndex < 0)
+            {
+                return;
+            }
+
+            List<VisualElement> blocks = new List<VisualElement>(rowScroll.contentContainer.childCount);
+            foreach (VisualElement child in rowScroll.contentContainer.Children())
+            {
+                // The indicator is a child of this same container (so its "top" lines up with the
+                // blocks' layout rects) but never a layer -- skip it rather than count it as one.
+                if (child != dragInsertionIndicator)
+                {
+                    blocks.Add(child);
+                }
+            }
+
+            List<int> otherOriginalIndices = new List<int>(blocks.Count);
+            for (int blockIndex = 0; blockIndex < blocks.Count; blockIndex++)
+            {
+                if (blockIndex != dragFromLayerIndex)
+                {
+                    otherOriginalIndices.Add(blockIndex);
+                }
+            }
+
+            if (otherOriginalIndices.Count < 2)
+            {
+                return;
+            }
+
+            int toIndex = otherOriginalIndices.Count - 1;
+            for (int filteredIndex = 1; filteredIndex < otherOriginalIndices.Count; filteredIndex++)
+            {
+                VisualElement candidateBlock = blocks[otherOriginalIndices[filteredIndex]];
+                if (dragLastPointerY < candidateBlock.worldBound.center.y)
+                {
+                    toIndex = filteredIndex;
+                    break;
+                }
+            }
+            toIndex = Mathf.Clamp(toIndex, 1, otherOriginalIndices.Count - 1);
+            dragTargetLayerIndex = toIndex;
+
+            // Straddles the boundary right above afterBlock -- a plain top edge without the half
+            // offset would visually cling to the block below it instead of sitting on the seam.
+            const float IndicatorThicknessPixels = 2f;
+            VisualElement afterBlock = blocks[otherOriginalIndices[toIndex]];
+            dragInsertionIndicator.style.top = afterBlock.layout.yMin - (IndicatorThicknessPixels * 0.5f);
+        }
+
+        private static bool IsInteractiveDescendant(VisualElement target)
+        {
+            for (VisualElement current = target; current != null; current = current.parent)
+            {
+                if (current is Button)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void SetLayerStarter(int layerIndex, uint animationKey)

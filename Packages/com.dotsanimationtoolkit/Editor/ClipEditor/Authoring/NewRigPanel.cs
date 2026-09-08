@@ -11,7 +11,7 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>The New Rig creation flow: pick a prefab, choose which of its renderer-bearing nodes become rig targets, tag them, and mint a <see cref="RigAsset"/>.</summary>
-    public sealed class NewRigPanel : VisualElement
+    public sealed class NewRigPanel : VisualElement, IDisposable
     {
         /// <summary>One renderer-bearing node found while scanning the source prefab.</summary>
         private sealed class CandidateRow
@@ -21,13 +21,18 @@ namespace DotsAnimationToolkit.Editor
             public uint TagId;
             public Toggle ToggleControl;
             public Button TagButton;
+            public VisualElement Box;
         }
+
+        private const string SelectedBoxUssClassName = "toolkit-box--selected";
 
         private ObjectField sourcePrefabField;
         private Label candidateSummaryLabel;
         private VisualElement candidateContainer;
         private Toggle assignToggle;
         private Label resultLabel;
+        private RigSourcePreviewElement preview;
+        private CandidateRow focusedRow;
 
         private readonly List<CandidateRow> candidateRows = new List<CandidateRow>();
 
@@ -47,11 +52,16 @@ namespace DotsAnimationToolkit.Editor
             // Written inline rather than through a stylesheet, matching VatBakePanel: this element
             // carries no stylesheet of its own, and a host's sheet has no reason to know the names
             // of rows built here.
-            VisualElement root = this;
-            root.style.flexGrow = 1f;
+            style.flexGrow = 1f;
+            style.flexDirection = FlexDirection.Row;
+
+            VisualElement root = new VisualElement { name = "new-rig-form-column" };
+            root.style.width = 420f;
+            root.style.flexShrink = 0f;
             root.style.paddingLeft = 10f;
             root.style.paddingRight = 10f;
             root.style.paddingTop = 8f;
+            Add(root);
 
             root.Add(BuildHeading("New Rig"));
 
@@ -102,6 +112,28 @@ namespace DotsAnimationToolkit.Editor
             resultLabel.style.marginTop = 8f;
             resultLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             root.Add(resultLabel);
+
+            VisualElement previewPane = new VisualElement { name = "new-rig-preview-pane" };
+            previewPane.style.flexGrow = 1f;
+            previewPane.style.minWidth = 320f;
+            Add(previewPane);
+
+            VisualElement previewHeader = new VisualElement();
+            previewHeader.AddToClassList("toolkit-pane-header");
+            Label previewTitle = new Label("Preview");
+            previewTitle.AddToClassList("toolkit-pane-title");
+            previewHeader.Add(previewTitle);
+            previewPane.Add(previewHeader);
+
+            preview = new RigSourcePreviewElement();
+            preview.style.flexGrow = 1f;
+            previewPane.Add(preview);
+        }
+
+        /// <summary>Releases the preview's render utility and its copy of the prefab.</summary>
+        public void Dispose()
+        {
+            preview?.Dispose();
         }
 
         // Opens the searchable tag picker for one candidate row — the same VocabularyPicker every
@@ -165,8 +197,12 @@ namespace DotsAnimationToolkit.Editor
         {
             candidateContainer.Clear();
             candidateRows.Clear();
+            focusedRow = null;
 
             GameObject prefab = sourcePrefabField.value as GameObject;
+            // Before the rows are built, so every SetNodeIncluded below lands on a copy that exists.
+            preview.ShowPrefab(prefab);
+
             if (prefab == null)
             {
                 candidateSummaryLabel.text =
@@ -197,8 +233,17 @@ namespace DotsAnimationToolkit.Editor
                 bool preTicked = renderer.enabled && rendererTransform.gameObject.activeSelf;
 
                 Toggle rowToggle = new Toggle(nodePath) { value = preTicked };
-                rowToggle.tooltip = renderer.GetType().Name + " on \"" + rendererTransform.name + "\".";
+                rowToggle.tooltip = nodePath + "\n" + renderer.GetType().Name + " on \"" + rendererTransform.name + "\".";
                 rowToggle.style.flexGrow = 1f;
+                rowToggle.style.flexShrink = 1f;
+                rowToggle.style.overflow = Overflow.Hidden;
+                // A deep node path is longer than the column is wide. Left to grow it pushes the tag
+                // button out of the row and puts a horizontal scrollbar under the whole list.
+                rowToggle.labelElement.style.minWidth = 0f;
+                rowToggle.labelElement.style.flexShrink = 1f;
+                rowToggle.labelElement.style.overflow = Overflow.Hidden;
+                rowToggle.labelElement.style.textOverflow = TextOverflow.Ellipsis;
+                rowToggle.labelElement.style.whiteSpace = WhiteSpace.NoWrap;
 
                 Button tagButton = new Button { text = "Tag: (none)" };
                 tagButton.style.flexShrink = 0f;
@@ -223,16 +268,45 @@ namespace DotsAnimationToolkit.Editor
                     DisplayName = rendererTransform.name,
                     SourceNodePath = nodePath,
                     ToggleControl = rowToggle,
-                    TagButton = tagButton
+                    TagButton = tagButton,
+                    Box = candidateBox
                 };
                 tagButton.clicked += () => OpenRowTagPicker(row, tagButton);
-                rowToggle.RegisterValueChangedCallback(
-                    changeEvent => tagButton.SetEnabled(changeEvent.newValue));
+                rowToggle.RegisterValueChangedCallback(changeEvent =>
+                {
+                    tagButton.SetEnabled(changeEvent.newValue);
+                    preview.SetNodeIncluded(row.SourceNodePath, changeEvent.newValue);
+                });
+                // TrickleDown, so clicking the toggle or the tag button still shows which node the
+                // row means rather than being swallowed by the control that was hit.
+                candidateBox.RegisterCallback<PointerDownEvent>(
+                    pointerEvent => FocusRow(row), TrickleDown.TrickleDown);
                 candidateRows.Add(row);
+                preview.SetNodeIncluded(nodePath, preTicked);
             }
 
             candidateSummaryLabel.text = candidateRows.Count.ToString()
-                + " renderer-bearing node(s) found in \"" + prefab.name + "\".";
+                + " renderer-bearing node(s) found in \"" + prefab.name + "\". Click a row to find it "
+                + "in the preview.";
+        }
+
+        private void FocusRow(CandidateRow row)
+        {
+            if (focusedRow != null && focusedRow.Box != null)
+            {
+                focusedRow.Box.RemoveFromClassList(SelectedBoxUssClassName);
+            }
+            focusedRow = row;
+            if (row == null)
+            {
+                preview.ClearFocus();
+                return;
+            }
+            if (row.Box != null)
+            {
+                row.Box.AddToClassList(SelectedBoxUssClassName);
+            }
+            preview.FocusNode(row.SourceNodePath);
         }
 
         private void Create()

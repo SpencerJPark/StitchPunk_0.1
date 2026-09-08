@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
   m_Name: VatSampleWave
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ClipAsset
-  stableId: 7165524221463541543
+  stableId: 15440441020337395321
   duration: 2
   defaultLoop: 1
   defaultBlendIn: 0
@@ -20,10 +20,2938 @@ MonoBehaviour:
   frameRate: 30
   transformTracks: []
   spriteTracks: []
-  boneTracks: []
+  boneTracks:
+  - boneName: Bone0
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0
+          w: 1
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.020516135
+          w: 0.99978954
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.03319204
+          w: 0.999449
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.033192035
+          w: 0.999449
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.020516133
+          w: 0.99978954
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.0000000030516305
+          w: 1
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.020516146
+          w: 0.99978954
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.033192035
+          w: 0.999449
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.033192035
+          w: 0.999449
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.020516139
+          w: 0.99978954
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.000000006103261
+          w: 1
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone1
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.021664511
+          w: 0.9997653
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.003243103
+          w: 0.99999475
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.026910419
+          w: 0.99963784
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.040293206
+          w: 0.9991879
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.038290404
+          w: 0.9992666
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.021664508
+          w: 0.9997653
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.003243109
+          w: 0.99999475
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.026910413
+          w: 0.99963784
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.04029321
+          w: 0.9991879
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.038290404
+          w: 0.9992666
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.021664511
+          w: 0.9997653
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone2
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.042761844
+          w: 0.9990853
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.021807177
+          w: 0.9997622
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.0074872654
+          w: 0.999972
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.03391716
+          w: 0.99942464
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.04738456
+          w: 0.99887675
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.042761844
+          w: 0.9990853
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.021807168
+          w: 0.9997622
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.0074872635
+          w: 0.999972
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.033917163
+          w: 0.99942464
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.04738456
+          w: 0.99887675
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.042761836
+          w: 0.9990853
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone3
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.054343767
+          w: 0.9985223
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.04650643
+          w: 0.998918
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.020904064
+          w: 0.9997815
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.012696924
+          w: 0.9999194
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.041438323
+          w: 0.99914104
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.054343767
+          w: 0.9985223
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.046506424
+          w: 0.998918
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.020904064
+          w: 0.9997815
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.012696933
+          w: 0.9999194
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.04143831
+          w: 0.99914104
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.054343767
+          w: 0.9985223
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone4
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.049368154
+          w: 0.99878067
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.061048515
+          w: 0.9981348
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.049431644
+          w: 0.9987775
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.018927054
+          w: 0.9998209
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.018824235
+          w: 0.9998228
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.049368158
+          w: 0.99878067
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.061048515
+          w: 0.9981348
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.049431644
+          w: 0.9987775
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.018927056
+          w: 0.9998209
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.018824223
+          w: 0.9998228
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.049368154
+          w: 0.99878067
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone5
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.02580944
+          w: 0.99966687
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.057594318
+          w: 0.9983401
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.067377776
+          w: 0.9977275
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.051453233
+          w: 0.9986754
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.015860347
+          w: 0.99987423
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.025809443
+          w: 0.99966687
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.05759432
+          w: 0.9983401
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.067377776
+          w: 0.9977275
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.05145323
+          w: 0.9986754
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.015860355
+          w: 0.99987423
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.025809452
+          w: 0.99966687
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone6
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.011700769
+          w: 0.9999315
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.03358133
+          w: 0.99943596
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.065998964
+          w: 0.99781966
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.07321303
+          w: 0.9973163
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.052496146
+          w: 0.9986211
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.011700753
+          w: 0.9999315
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.03358134
+          w: 0.99943596
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.06599896
+          w: 0.99781966
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.07321303
+          w: 0.9973163
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.05249615
+          w: 0.9986211
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.011700755
+          w: 0.9999315
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone7
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.05249529
+          w: 0.99862117
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.006457944
+          w: 0.99997914
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.04205778
+          w: 0.99911517
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.07446
+          w: 0.997224
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.07843957
+          w: 0.99691886
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.052495282
+          w: 0.99862117
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.00645792
+          w: 0.99997914
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.042057782
+          w: 0.99911517
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.07446
+          w: 0.997224
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.07843957
+          w: 0.99691886
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.052495282
+          w: 0.99862117
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone8
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.08294754
+          w: 0.9965539
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.051396195
+          w: 0.9986783
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.00015449169
+          w: 1
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.05114655
+          w: 0.99869114
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.082852386
+          w: 0.9965618
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.08294754
+          w: 0.9965539
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.051396172
+          w: 0.9986783
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.0001544906
+          w: 1
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.05114656
+          w: 0.99869114
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.08285238
+          w: 0.9965618
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.08294754
+          w: 0.9965539
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone9
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.09104936
+          w: 0.9958464
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.08663307
+          w: 0.99624026
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.04915573
+          w: 0.9987911
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.0071740295
+          w: 0.99997425
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.06074605
+          w: 0.99815327
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.09104936
+          w: 0.9958464
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.086633064
+          w: 0.9962403
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.049155734
+          w: 0.9987911
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.0071740393
+          w: 0.99997425
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.06074604
+          w: 0.99815327
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.09104936
+          w: 0.9958464
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone10
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.070746355
+          w: 0.99749434
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.09892384
+          w: 0.995095
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.08939932
+          w: 0.9959959
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.045742653
+          w: 0.9989533
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.0154792145
+          w: 0.9998802
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.07074635
+          w: 0.99749434
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.09892384
+          w: 0.995095
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.08939932
+          w: 0.9959959
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.04574265
+          w: 0.9989533
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.015479197
+          w: 0.9998802
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.07074636
+          w: 0.99749434
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+  - boneName: Bone11
+    keys:
+    - normalizedTime: 0
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.02470001
+          w: 0.9996949
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.08103031
+          w: 0.9967116
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.2
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.10634964
+          w: 0.9943288
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.3
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.09115741
+          w: 0.9958365
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.4
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.041138083
+          w: 0.9991535
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.5
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.024700018
+          w: 0.9996949
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.6
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.08103032
+          w: 0.9967116
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.7
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.10634964
+          w: 0.9943288
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.8
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.09115741
+          w: 0.9958365
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 0.9
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: -0.041138083
+          w: 0.9991535
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
+    - normalizedTime: 1
+      localPosition:
+        x: 0
+        y: 0.25
+        z: 0
+      localRotation:
+        value:
+          x: 0
+          y: 0
+          z: 0.024700034
+          w: 0.9996949
+      localScale:
+        x: 1
+        y: 1
+        z: 1
+      interpolation: 4
+      bezierStartHandle:
+        x: 0
+        y: 0
+      bezierEndHandle:
+        x: 0
+        y: 0
   events: []
   vatSource:
-    sourceClip: {fileID: 7400000, guid: 422293fa96063bb47a6f183bfaca3066, type: 2}
+    sourceClip: {fileID: 0}
     sampleFps: 30
     loopSafe: 1
   vatTracks: []

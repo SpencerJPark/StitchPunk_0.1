@@ -37,6 +37,13 @@ namespace DotsAnimationToolkit.Editor
             Time = 0f;
         }
 
+        public void ClearRange()
+        {
+            range = default(VatClipRange);
+            hasRange = false;
+            time = 0f;
+        }
+
         public bool Advance(float deltaSeconds)
         {
             if (!hasRange)

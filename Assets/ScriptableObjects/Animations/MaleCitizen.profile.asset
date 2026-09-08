@@ -16,7 +16,7 @@ MonoBehaviour:
   rig: {fileID: 11400000, guid: 12ae2d081f746104dbf52d4fa2fefa46, type: 2}
   clipSets:
   - {fileID: 11400000, guid: ba339bea3c7baad45a7bb881368bc5a7, type: 2}
-  turnDirections: 3
+  turnDirections: 1
   layers:
   - displayName: Base
     defaultActive: 1
@@ -26,7 +26,7 @@ MonoBehaviour:
       hasDirections: 1
       clip: {fileID: 0}
       directionSlots:
-        southEast: {fileID: 11400000, guid: 541aa408b2391f44cac70c237533ab33, type: 2}
+        southEast: {fileID: 11400000, guid: e914c46e7e70bd646a603ef82ec47877, type: 2}
         northEast: {fileID: 0}
         south: {fileID: 0}
         north: {fileID: 0}
@@ -41,7 +41,7 @@ MonoBehaviour:
       hasDirections: 1
       clip: {fileID: 0}
       directionSlots:
-        southEast: {fileID: 11400000, guid: bc3726a3fd33bcb4abbbdbec3a11209c, type: 2}
+        southEast: {fileID: 11400000, guid: 14ce4b186fcbc9f40b42c03751c82d16, type: 2}
         northEast: {fileID: 0}
         south: {fileID: 0}
         north: {fileID: 0}
@@ -53,14 +53,14 @@ MonoBehaviour:
       ragdollTrigger: 0
       ragdollAtEventKey: 0
   - displayName: Action
-    defaultActive: 0
+    defaultActive: 1
     startingAnimationKey: 0
     animations:
     - animationKey: 3053619170
       hasDirections: 1
       clip: {fileID: 0}
       directionSlots:
-        southEast: {fileID: 11400000, guid: 03d7b3116af4a044e8bd9bc3b6f0735a, type: 2}
+        southEast: {fileID: 11400000, guid: 99c2b3b6d116e4741b365f4f176b3f11, type: 2}
         northEast: {fileID: 0}
         south: {fileID: 0}
         north: {fileID: 0}
@@ -101,10 +101,6 @@ MonoBehaviour:
       blendIn: NaN
       ragdollTrigger: 2
       ragdollAtEventKey: 0
-  - displayName: Face
-    defaultActive: 0
-    startingAnimationKey: 0
-    animations: []
   - displayName: Eyes
     defaultActive: 1
     startingAnimationKey: 477041898
@@ -154,6 +150,10 @@ MonoBehaviour:
       blendIn: NaN
       ragdollTrigger: 0
       ragdollAtEventKey: 0
+  - displayName: Face
+    defaultActive: 0
+    startingAnimationKey: 0
+    animations: []
   - displayName: Mouth
     defaultActive: 0
     startingAnimationKey: 0

@@ -8,6 +8,29 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] — New Rig source preview
+
+### Added
+
+- **The New Rig tab shows the prefab you are cutting the rig from.** The form moves into a
+  fixed-width column on the left and a viewport fills the rest, rendering an inert copy of the
+  assigned prefab on the toolkit's shared preview camera — orbit, pan, look and fly, dolly, wheel
+  zoom, `F`, double-click reset, and a rail Reset Camera button.
+- **The target list and the picture are the same choice.** A ticked node renders as authored; an
+  unticked one greys back to a translucent shell, and a rail toggle drops it from the view entirely
+  so only what the rig will carry is left. Clicking a row boxes that node in the viewport and makes
+  `F` frame it, which is how a path like `Visual/MaleUnitVisual/Pelvis/Torso` becomes a part you can
+  point at.
+
+### Fixed
+
+- **The VAT bake preview is released when its host window closes.** Neither host disposed the panel,
+  so every close leaked a `PreviewRenderUtility` and a copy of the source hierarchy, and a tick
+  arriving after disposal could build a second one.
+- **A long node path no longer pushes the New Rig tag button out of its row**, and with it the
+  horizontal scrollbar under the whole target list. The path truncates and the full one is in the
+  row's tooltip.
+
 ## [0.20.0] — A74 — preview viewports
 
 ### Added
@@ -32,6 +55,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Create Sample Tentacle.** One button in the VAT Bake panel writes a small procedural tentacle
   rig, clip, clip set and rig asset, so the preview above has something to bake and show inside a
   minute on a project with no VAT content of its own.
+
+### Changed
+
+- **The VAT Bake preview shows the source before anything is baked.** Assigning a Skinned Mesh puts
+  the subject on screen at rest; baking and pressing play moves the *baked* mesh; the **Ghost** toggle
+  lays the still-at-rest source over it, so how far the bake moves reads against a pose that does not.
+  The ghost no longer animates in lockstep with playback.
+
+### Fixed
+
+- **The VAT Bake preview opens where every other viewport in the package does.** It used to frame
+  `VatClipRange.bounds`, which no bake has ever written, so a zero-sized box slammed the camera to
+  its minimum orbit distance at the origin — inside the mesh. The preview now frames the runtime
+  mesh that is actually drawn whenever the range's box is unmeasured, and `PreviewOrbitCameraRig`
+  carries the Clip Editor's own opening pose: aimed at chest height rather than at the floor, and
+  backed off far enough to hold what the lift pushed down the frame. Changing clip no longer
+  re-frames, so an orbit set up to compare two clips survives the switch.
+- **The preview pane draws its grid and backdrop before anything is baked.** Its per-frame tick used
+  to return early with no texture set loaded, leaving the viewport blank — a working 3D view read as
+  a broken pane.
+- **The transport row holds still while the frame counter counts.** The row is `space-evenly`, so a
+  readout that gained a digit re-spaced every control beside it; counting readouts now reserve a
+  fixed width.
+- **Bone-flavour VAT skinned wrongly through the shipped crowd shader.** `VatMeshPreparer` packed two
+  influences into `UV1` as `(index0, index1, weight0, weight1)`, but `ToolkitVatCrowdUnlit` wires
+  `UV1` into the VAT Bone Skin node's Bone Indices and `UV2` into its Bone Weights — so the shader
+  read two weights as bone indices and its weights from a channel the mesh did not have, rendering a
+  mesh that inflates with distance from the root. Indices now go to `UV1` and weights to `UV2`, four
+  influences each. **Re-bake any bone-flavour texture set made before this.**
+- **Baking left the source rig posed.** The bake sampled inside `AnimationMode`, and stopping
+  animation mode did not restore the rig — every bone stayed at the last sampled pose, a silent edit
+  to the user's scene. The baker now snapshots each transform's local position, rotation and scale
+  before it starts and reapplies them last, so a bake is a read of the scene and nothing more.
+- **The preview stranded a copy of the source rig on every domain reload.** The overlay copy is a
+  `HideAndDontSave` object, which survives a reload while the reference to it does not. Copies are
+  now tracked and unowned ones swept.
+- **The sample tentacle had no material** and rendered magenta as soon as the preview drew it. It now
+  ships with a URP Lit material, saved as an asset alongside its mesh so the prefab keeps both.
+- **Scrubbing a bone-only clip moved nothing.** The preview's whole pose step returned early unless a
+  baked clip registry existed, and the bone posing sat after that guard — so a skinned rig with no
+  cutout targets, which builds no registry at all, scrubbed a timeline full of keys while the rig
+  stood still. Bone tracks are authoring data that never enters the registry, and now pose without
+  one. The window's render loop gated the sample call on the same registry, so it had to be ungated
+  in two places before anything moved on screen. Socket markers moved after the bone pose as well,
+  where they had been reading a skeleton that had not been posed yet.
+- **The sample clip showed no keyframes in the Clip Editor.** Its motion lived in an imported
+  `AnimationClip` behind `vatSource`, which the timeline does not draw — only authored tracks appear
+  there. The wave is now authored as `boneTracks` (12 lanes, 11 keys), so it opens as real editable
+  keys and still bakes: authored bone tracks are a VAT source in their own right.
+- **A clip animated only from bone tracks never got its loop-safe frame.** The baker read `loopSafe`
+  only when an imported clip was also named, so a fully authored clip baked one frame short and the
+  shader had nothing to interpolate into across the loop point.
+- **The sample's rig had no source prefab**, so dropping it into the Clip Editor's Skinned Source
+  field produced an empty viewport and an empty Rig Hierarchy with no error — that field takes a rig,
+  and the editor previews `rig.sourcePrefab`. The sample generator now writes the prefab first and
+  mints the rig through `RigAssetUtility.CreateRig`, which points it at that prefab, and it leaves no
+  object behind in whatever scene happened to be open.
+- **The preview's Reset Camera button shows its icon.** The `Image` was built and styled but never
+  parented, so the button rendered empty — and because the icon texture resolved, the text fallback
+  never fired either. The **Ghost** toggle moves off the transport row and back into that rail, with
+  a drawn ghost glyph of its own, and stops reading as lit after the preview is reloaded.
 
 ## [0.19.0] — profile-driven cutscenes: layers, auto locomotion, keyed-or-auto facing, marks that wait (A73)
 

@@ -9,8 +9,8 @@ using DotsAnimationToolkit.Authoring;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Self-contained VAT-bake preview viewport: plays a baked texture set through the package's own
-    /// shader and, optionally, overlays a translucent "source ghost" so bake drift shows as a double image.
+    /// Self-contained VAT-bake preview viewport: shows the source mesh at rest until a set is baked,
+    /// then plays that set through the package's own shader, with the rest pose available as an overlay.
     /// </summary>
     public sealed class VatPreviewElement : VisualElement, ITransportTarget, IDisposable
     {
@@ -23,14 +23,13 @@ namespace DotsAnimationToolkit.Editor
         private VatTextureSetAsset textureSet;
         private ClipSetAsset clipSetForNames;
         private SkinnedMeshRenderer sourceRenderer;
-        private IReadOnlyList<VatBakeClip> bakeClips;
 
         private Image viewportImage;
         private Label statusLabel;
         private DropdownField clipDropdown;
         private Label frameReadoutLabel;
         private TransportCoreElement transportCore;
-        private Toggle ghostToggle;
+        private ToolbarToggle ghostToggle;
 
         private readonly PreviewSceneGizmos sceneGizmos = new PreviewSceneGizmos();
         private bool sceneGizmosAdded;
@@ -39,13 +38,27 @@ namespace DotsAnimationToolkit.Editor
         private float stopReturnTime;
         private float lastTickTimeSinceStartup;
 
-        private GameObject ghostRoot;
-        private SkinnedMeshRenderer ghostRenderer;
-        private readonly BoneTrackPoser ghostPoser = new BoneTrackPoser();
+        // One copy of the source hierarchy, held at the pose it was authored in and never animated.
+        // It is the subject shown before anything is baked, and the rest-pose reference the Ghost
+        // toggle lays over the playing bake afterwards - the same object either way, only its
+        // materials and visibility change.
+        private GameObject sourceCopyRoot;
+        private readonly List<Renderer> sourceCopyRenderers = new List<Renderer>();
+        private readonly List<Material[]> sourceCopyAuthoredMaterials = new List<Material[]>();
+        private Material ghostOverlayMaterial;
         private bool isGhostOn;
 
-        private ulong currentClipId;
-        private uint currentTargetId;
+        private VatTextureSetAsset lastFramedTextureSet;
+        private SkinnedMeshRenderer lastFramedSourceRenderer;
+
+        private const string SourceCopyObjectName = "VatPreviewSourceCopy";
+
+        // Every copy a live preview still owns. A domain reload clears this and the field below it
+        // while the HideAndDontSave copies themselves survive in the preview scene, so anything
+        // named SourceCopyObjectName that is missing from here is stranded and gets swept. Tracking
+        // ownership rather than sweeping by name alone is what lets the standalone window and the
+        // Clip Editor's VAT Bake tab both hold a copy without destroying each other's.
+        private static readonly HashSet<GameObject> OwnedSourceCopies = new HashSet<GameObject>();
 
         public VatPreviewElement()
         {
@@ -73,17 +86,34 @@ namespace DotsAnimationToolkit.Editor
             Image resetCameraIcon = new Image();
             resetCameraIcon.AddToClassList("clip-editor__overlay-tool-icon");
             resetCameraIcon.pickingMode = PickingMode.Ignore;
+            // The four-argument SetButtonIcon only swaps the image; parenting the icon is the
+            // caller's job, and skipping it leaves a button with neither glyph nor word.
+            resetCameraButton.Insert(0, resetCameraIcon);
             ToolkitIcons.SetButtonIcon(resetCameraButton, resetCameraIcon, "d_FrameCapture", "Reset Camera");
             overlayColumn.Add(resetCameraButton);
 
-            // Ghost is new and easy to mistake for something else at a glance, so unlike Reset
-            // Camera it gets a persistent word label rather than relying on a hover tooltip — it
-            // lives in the transport row below, not this icon-only rail.
+            ghostToggle = new ToolbarToggle();
+            ghostToggle.name = "vat-ghost-toggle";
+            ghostToggle.value = false;
+            ghostToggle.AddToClassList("clip-editor__overlay-tool-button");
+            ghostToggle.AddToClassList("clip-editor__overlay-run-break");
+            ghostToggle.tooltip =
+                "Lay the source mesh at rest over the playing bake, so how far the bake moves is "
+                + "visible against a pose that does not.";
+            Image ghostIcon = new Image();
+            ghostIcon.AddToClassList("clip-editor__overlay-tool-icon");
+            ghostIcon.pickingMode = PickingMode.Ignore;
+            ghostToggle.Add(ghostIcon);
+            ToolkitIcons.SetToggleIcon(ghostToggle, ghostIcon, ToolkitIcons.GhostGlyph, "Ghost");
+            ghostToggle.RegisterValueChangedCallback(changeEvent => SetGhostEnabled(changeEvent.newValue));
+            ghostToggle.SetEnabled(false);
+            overlayColumn.Add(ghostToggle);
+
             viewportOverlay.Add(overlayColumn);
             viewportFrame.Add(viewportOverlay);
             Add(viewportFrame);
 
-            statusLabel = new Label();
+            statusLabel = new Label("No VAT texture set to preview.");
             statusLabel.style.whiteSpace = WhiteSpace.Normal;
             Add(statusLabel);
 
@@ -107,24 +137,9 @@ namespace DotsAnimationToolkit.Editor
             clipGroup.Add(clipDropdown);
             transportRow.Add(clipGroup);
 
-            VisualElement ghostGroup = new VisualElement();
-            ghostGroup.AddToClassList("toolkit-transport__group");
-            Label ghostCaption = new Label("Ghost");
-            ghostCaption.AddToClassList("toolkit-transport__caption");
-            ghostGroup.Add(ghostCaption);
-            ghostToggle = new Toggle();
-            ghostToggle.name = "vat-ghost-toggle";
-            ghostToggle.value = false;
-            ghostToggle.tooltip =
-                "Overlay a translucent copy of the source mesh, posed independently frame by frame, "
-                + "so a drift between the bake and the source shows as a double image.";
-            ghostToggle.RegisterValueChangedCallback(changeEvent => SetGhostEnabled(changeEvent.newValue));
-            ghostToggle.SetEnabled(false);
-            ghostGroup.Add(ghostToggle);
-            transportRow.Add(ghostGroup);
-
             frameReadoutLabel = new Label();
             frameReadoutLabel.AddToClassList("toolkit-transport__derived");
+            frameReadoutLabel.AddToClassList("toolkit-transport__derived--counter");
             transportRow.Add(frameReadoutLabel);
 
             Add(transportRow);
@@ -136,28 +151,66 @@ namespace DotsAnimationToolkit.Editor
             RegisterCallback<DetachFromPanelEvent>(evt => EditorApplication.update -= Tick);
         }
 
-        public void Show(VatTextureSetAsset textureSet, ClipSetAsset clipSetForNames, SkinnedMeshRenderer sourceRenderer, IReadOnlyList<VatBakeClip> bakeClipsOrNull)
+        /// <summary>Re-points the preview at a source renderer, a baked set, or both; either may be null.</summary>
+        public void Show(VatTextureSetAsset textureSet, ClipSetAsset clipSetForNames, SkinnedMeshRenderer sourceRenderer)
         {
+            bool subjectChanged = textureSet != lastFramedTextureSet || sourceRenderer != lastFramedSourceRenderer;
+
             material?.Dispose();
             material = null;
             this.textureSet = textureSet;
             this.clipSetForNames = clipSetForNames;
             this.sourceRenderer = sourceRenderer;
-            bakeClips = bakeClipsOrNull;
+            lastFramedTextureSet = textureSet;
+            lastFramedSourceRenderer = sourceRenderer;
 
-            DisableGhost();
-            ghostToggle?.SetEnabled(sourceRenderer != null && bakeClips != null && bakeClips.Count > 0);
+            // Rebuilt every time rather than only when the renderer reference changes: the copy is a
+            // snapshot of the source's current pose, and re-posing the rig between bakes would
+            // otherwise leave a rest-pose reference that is no longer the rest pose.
+            RebuildSourceCopy();
+
+            // The overlay only means anything once there is a bake to lay it over - before that the
+            // same copy IS the subject, already on screen.
+            bool ghostIsAvailable = sourceRenderer != null && textureSet != null;
             if (ghostToggle != null)
             {
-                ghostToggle.tooltip = sourceRenderer != null
-                    ? "Overlay a translucent copy of the source, posed the same way, to spot drift from the bake."
-                    : "No source renderer for this preview session — pick a set through Bake, not the Preview Set field, to enable the ghost.";
+                ghostToggle.SetEnabled(ghostIsAvailable);
+                if (!ghostIsAvailable)
+                {
+                    ghostToggle.SetValueWithoutNotify(false);
+                    isGhostOn = false;
+                }
+                ghostToggle.tooltip = sourceRenderer == null
+                    ? "Assign a Skinned Mesh to overlay its rest pose on the bake."
+                    : "Lay the source mesh at rest over the playing bake, so how far the bake moves "
+                        + "is visible against a pose that does not.";
             }
+            RefreshSourceCopyAppearance();
 
             if (textureSet == null || textureSet.clipRanges == null || textureSet.clipRanges.Count == 0)
             {
-                statusLabel.text = "No VAT texture set to preview.";
+                // The clock has to be cleared too, not just the picture: Tick runs with no set
+                // loaded, so a leftover range would keep counting frames for a set that is gone.
+                isPlaying = false;
+                playback.ClearRange();
+                transportCore?.RefreshState();
                 clipDropdown.choices = new List<string>();
+                clipDropdown.SetValueWithoutNotify(string.Empty);
+
+                if (sourceRenderer != null && sourceRenderer.sharedMesh != null)
+                {
+                    statusLabel.text = "Source shown at rest — bake to play it back from the textures.";
+                    cameraRig.SetFrameTarget(sourceRenderer.sharedMesh.bounds);
+                }
+                else
+                {
+                    statusLabel.text = "No VAT texture set to preview.";
+                    cameraRig.ClearFrameTarget();
+                }
+                if (subjectChanged)
+                {
+                    cameraRig.ResetView();
+                }
                 return;
             }
 
@@ -170,6 +223,10 @@ namespace DotsAnimationToolkit.Editor
             clipDropdown.SetValueWithoutNotify(choices[0]);
 
             SelectRange(0);
+            if (subjectChanged)
+            {
+                cameraRig.ResetView();
+            }
 
             Texture mainTexture = sourceRenderer != null && sourceRenderer.sharedMaterial != null
                 ? sourceRenderer.sharedMaterial.mainTexture
@@ -206,11 +263,26 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             VatClipRange range = textureSet.clipRanges[rangeIndex];
-            currentClipId = range.clipId;
-            currentTargetId = range.targetId;
             playback.SetRange(range);
-            cameraRig.SetFrameTarget(range.bounds);
-            cameraRig.ResetView();
+            // Only the frame target moves here. Re-framing on every dropdown change would yank the
+            // camera back from wherever the user had just orbited to compare two clips.
+            cameraRig.SetFrameTarget(ResolveFrameBounds(range));
+        }
+
+        // No bake has ever written VatClipRange.bounds, so a zero-sized box means "not measured",
+        // not "empty" — framing it would put the camera a metre from the origin, inside the mesh.
+        // The runtime mesh is what actually gets drawn, at identity, so its bounds are the truth here.
+        private Bounds ResolveFrameBounds(VatClipRange range)
+        {
+            if (range.bounds.extents.sqrMagnitude > 0.0001f)
+            {
+                return range.bounds;
+            }
+            if (textureSet != null && textureSet.runtimeMesh != null)
+            {
+                return textureSet.runtimeMesh.bounds;
+            }
+            return new Bounds(Vector3.zero, Vector3.one);
         }
 
         private void OnClipDropdownChanged(ChangeEvent<string> changeEvent)
@@ -226,13 +298,10 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        // Runs whether or not a set is loaded: with nothing baked yet the viewport still has to draw
+        // its grid and backdrop, or the pane opens looking broken rather than empty.
         private void Tick()
         {
-            if (textureSet == null)
-            {
-                return;
-            }
-
             float deltaSeconds = lastTickTimeSinceStartup > 0f
                 ? (float)EditorApplication.timeSinceStartup - lastTickTimeSinceStartup
                 : 0f;
@@ -249,19 +318,19 @@ namespace DotsAnimationToolkit.Editor
             {
                 material.SetFrame(playback.GlobalFrame, playback.GlobalFrame, 0f);
             }
-            if (isGhostOn)
-            {
-                TickGhost();
-            }
-
             RenderViewport();
             RefreshFrameReadout();
         }
 
         private void RefreshFrameReadout()
         {
-            if (frameReadoutLabel == null || !playback.HasRange)
+            if (frameReadoutLabel == null)
             {
+                return;
+            }
+            if (!playback.HasRange)
+            {
+                frameReadoutLabel.text = string.Empty;
                 return;
             }
             frameReadoutLabel.text = "frame " + playback.LocalFrameIndex.ToString() + " · global "
@@ -372,115 +441,142 @@ namespace DotsAnimationToolkit.Editor
 
         private void SetGhostEnabled(bool enabled)
         {
-            if (enabled)
-            {
-                EnableGhost();
-            }
-            else
-            {
-                DisableGhost();
-            }
+            isGhostOn = enabled;
+            RefreshSourceCopyAppearance();
         }
 
-        private void EnableGhost()
+        // Rebuilt only when the source renderer itself changes; the copy is inert, so there is
+        // nothing to keep in step frame to frame.
+        private void RebuildSourceCopy()
         {
-            if (isGhostOn || sourceRenderer == null)
+            DestroySourceCopy();
+            SweepStrandedSourceCopies();
+            if (sourceRenderer == null)
             {
                 return;
             }
             EnsureRenderUtility();
 
-            ghostRoot = UnityEngine.Object.Instantiate(sourceRenderer.transform.root.gameObject);
-            ghostRoot.hideFlags = HideFlags.HideAndDontSave;
-            // The baked runtimeMesh is drawn at Matrix4x4.identity — its vertices are already in the
+            sourceCopyRoot = UnityEngine.Object.Instantiate(sourceRenderer.transform.root.gameObject);
+            sourceCopyRoot.name = SourceCopyObjectName;
+            sourceCopyRoot.hideFlags = HideFlags.HideAndDontSave;
+            OwnedSourceCopies.Add(sourceCopyRoot);
+            // The baked runtimeMesh is drawn at Matrix4x4.identity - its vertices are already in the
             // source renderer's own object space. The instantiated copy keeps the source's world
             // transform from whatever scene it was cloned out of, which is a different space entirely
-            // (and usually a different scale); without resetting it here the ghost sits offset from,
-            // and out of scale with, the very mesh it's supposed to overlay.
-            ghostRoot.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-            ghostRoot.transform.localScale = Vector3.one;
-            renderUtility.AddSingleGO(ghostRoot);
+            // (and usually a different scale); without resetting it here the copy sits offset from,
+            // and out of scale with, the very mesh it is supposed to overlay.
+            sourceCopyRoot.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            sourceCopyRoot.transform.localScale = Vector3.one;
+            renderUtility.AddSingleGO(sourceCopyRoot);
 
-            // The instantiated copy mirrors the source hierarchy exactly, so the same relative path finds
-            // the equivalent renderer on the copy.
-            string relativePath = AnimationUtility.CalculateTransformPath(sourceRenderer.transform, sourceRenderer.transform.root);
-            Transform ghostRendererTransform = string.IsNullOrEmpty(relativePath)
-                ? ghostRoot.transform
-                : ghostRoot.transform.Find(relativePath);
-            ghostRenderer = ghostRendererTransform != null ? ghostRendererTransform.GetComponent<SkinnedMeshRenderer>() : null;
-
-            if (ghostRenderer != null)
+            Renderer[] copiedRenderers = sourceCopyRoot.GetComponentsInChildren<Renderer>(true);
+            for (int rendererIndex = 0; rendererIndex < copiedRenderers.Length; rendererIndex++)
             {
-                Material ghostMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-                ghostMaterial.hideFlags = HideFlags.HideAndDontSave;
-                Color ghostColor = ToolkitPalette.Accent;
-                ghostColor.a = 0.35f;
-                ghostMaterial.SetColor("_BaseColor", ghostColor);
-                ghostMaterial.SetFloat("_Surface", 1f); // transparent
-                ghostMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                Material[] ghostMaterials = new Material[ghostRenderer.sharedMaterials.Length];
-                for (int materialIndex = 0; materialIndex < ghostMaterials.Length; materialIndex++)
-                {
-                    ghostMaterials[materialIndex] = ghostMaterial;
-                }
-                ghostRenderer.sharedMaterials = ghostMaterials;
-                ghostPoser.Bind(ghostRoot.transform);
+                sourceCopyRenderers.Add(copiedRenderers[rendererIndex]);
+                sourceCopyAuthoredMaterials.Add(copiedRenderers[rendererIndex].sharedMaterials);
             }
 
-            isGhostOn = true;
+            RefreshSourceCopyAppearance();
         }
 
-        private void DisableGhost()
+        // Three states, and the texture set is what separates them: with nothing baked the copy is
+        // the subject itself, shown as authored; once a bake exists it is only the Ghost overlay.
+        private void RefreshSourceCopyAppearance()
         {
-            if (ghostRoot != null)
-            {
-                UnityEngine.Object.DestroyImmediate(ghostRoot);
-                ghostRoot = null;
-                ghostRenderer = null;
-            }
-            isGhostOn = false;
-        }
-
-        private void TickGhost()
-        {
-            if (ghostRoot == null || bakeClips == null || !playback.HasRange)
+            if (sourceCopyRoot == null)
             {
                 return;
             }
 
-            VatBakeClip matchedClip = default(VatBakeClip);
-            bool foundMatch = false;
-            // Match against whichever range is currently selected — clipId/targetId identify it uniquely.
-            for (int clipIndex = 0; clipIndex < bakeClips.Count; clipIndex++)
-            {
-                VatBakeClip candidate = bakeClips[clipIndex];
-                if (candidate.clipId == currentClipId && candidate.targetId == currentTargetId)
-                {
-                    matchedClip = candidate;
-                    foundMatch = true;
-                    break;
-                }
-            }
-            if (!foundMatch)
+            bool nothingBakedYet = textureSet == null;
+            bool shouldBeVisible = nothingBakedYet || isGhostOn;
+            sourceCopyRoot.SetActive(shouldBeVisible);
+            if (!shouldBeVisible)
             {
                 return;
             }
 
-            if (matchedClip.animationClip != null)
+            for (int rendererIndex = 0; rendererIndex < sourceCopyRenderers.Count; rendererIndex++)
             {
-                matchedClip.animationClip.SampleAnimation(ghostRoot, playback.Time);
+                Renderer copiedRenderer = sourceCopyRenderers[rendererIndex];
+                if (copiedRenderer == null)
+                {
+                    continue;
+                }
+                if (nothingBakedYet)
+                {
+                    copiedRenderer.sharedMaterials = sourceCopyAuthoredMaterials[rendererIndex];
+                    continue;
+                }
+                Material[] overlayMaterials = new Material[copiedRenderer.sharedMaterials.Length];
+                for (int slotIndex = 0; slotIndex < overlayMaterials.Length; slotIndex++)
+                {
+                    overlayMaterials[slotIndex] = EnsureGhostOverlayMaterial();
+                }
+                copiedRenderer.sharedMaterials = overlayMaterials;
             }
-            else if (matchedClip.boneTracks != null && matchedClip.boneTracks.Count > 0 && playback.Duration > 0f)
+        }
+
+        private Material EnsureGhostOverlayMaterial()
+        {
+            if (ghostOverlayMaterial != null)
             {
-                ghostPoser.ApplyTracks(matchedClip.boneTracks, playback.Time / playback.Duration);
+                return ghostOverlayMaterial;
+            }
+            ghostOverlayMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            ghostOverlayMaterial.hideFlags = HideFlags.HideAndDontSave;
+            Color ghostColor = ToolkitPalette.Accent;
+            ghostColor.a = 0.35f;
+            ghostOverlayMaterial.SetColor("_BaseColor", ghostColor);
+            ghostOverlayMaterial.SetFloat("_Surface", 1f); // transparent
+            ghostOverlayMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            return ghostOverlayMaterial;
+        }
+
+        private void DestroySourceCopy()
+        {
+            sourceCopyRenderers.Clear();
+            sourceCopyAuthoredMaterials.Clear();
+            if (sourceCopyRoot != null)
+            {
+                OwnedSourceCopies.Remove(sourceCopyRoot);
+                UnityEngine.Object.DestroyImmediate(sourceCopyRoot);
+                sourceCopyRoot = null;
+            }
+        }
+
+        // GameObject.Find cannot see a HideAndDontSave object, so the stranded copies are only
+        // reachable through Resources.FindObjectsOfTypeAll.
+        private static void SweepStrandedSourceCopies()
+        {
+            OwnedSourceCopies.RemoveWhere(ownedCopy => ownedCopy == null);
+            GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+            for (int objectIndex = 0; objectIndex < allObjects.Length; objectIndex++)
+            {
+                GameObject candidate = allObjects[objectIndex];
+                if (candidate != null
+                    && candidate.name == SourceCopyObjectName
+                    && !OwnedSourceCopies.Contains(candidate))
+                {
+                    UnityEngine.Object.DestroyImmediate(candidate);
+                }
             }
         }
 
         public void Dispose()
         {
+            // Without this a tick after disposal would call EnsureRenderUtility and build a second
+            // PreviewRenderUtility nothing owns.
+            EditorApplication.update -= Tick;
             material?.Dispose();
             material = null;
-            DisableGhost();
+            DestroySourceCopy();
+            if (ghostOverlayMaterial != null)
+            {
+                UnityEngine.Object.DestroyImmediate(ghostOverlayMaterial);
+                ghostOverlayMaterial = null;
+            }
             sceneGizmos.Dispose();
             if (renderUtility != null)
             {

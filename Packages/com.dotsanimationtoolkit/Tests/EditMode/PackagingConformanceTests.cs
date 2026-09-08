@@ -588,10 +588,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.20.0 is Amendment A74, preview
-            // viewports: shared camera navigation, the Actor Editor camera rail, and the VAT Bake
-            // preview viewport with its source ghost.
-            Assert.AreEqual("0.20.0", manifest.version, "Version tracks the shipped feature set; 0.20.0 is preview viewports.");
+            // -- not drift because someone edited the manifest. 0.21.0 is the New Rig source
+            // preview: the prefab a rig is being cut from, shown beside the target list, with the
+            // ticked nodes lit and the focused one boxed.
+            Assert.AreEqual("0.21.0", manifest.version, "Version tracks the shipped feature set; 0.21.0 is the New Rig source preview.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

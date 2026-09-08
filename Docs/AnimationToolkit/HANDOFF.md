@@ -5,7 +5,7 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.20.0).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.21.0).
 **§4** carries Amendment A73 (built, one ⏸ owner checkpoint open) and A74 (built, one ⏸ owner
 checkpoint open).
 
@@ -118,6 +118,23 @@ shape of a suite that silently stopped compiling. Counts must not drop.
 displays" is not proof. Delete scratch assets and confirm `git status` afterwards.
 
 ## 4. The queue
+
+**Built (2026-09-08): New Rig source preview — 0.21.0.** Owner request, built directly rather than
+specced: "if I select a game object for new rig, I would like to see what that prefab looks like
+somewhere on the screen most likely to the right and then all the info to fill out is on the left."
+`NewRigPanel` took the `VatBakePanel` two-column shape (420px form column, viewport pane), and a new
+`RigSourcePreviewElement` renders an inert preview-scene copy of the assigned prefab on the shared
+`PreviewOrbitCameraRig`/`PreviewCameraNavigation`/`PreviewSceneGizmos`. The list and the picture are
+one choice: a ticked node draws as authored, an unticked one greys to a translucent shell (a rail
+toggle hides them outright), and clicking a row boxes that node and retargets `F`. Driven for real
+against `Assets/Prefabs/Units/MaleCitizen.prefab` — 34 nodes, copy confirmed in the Preview Scene,
+untick/re-tick verified to swap and restore materials, focus box verified active; captures at
+`Library/A75Captures/new-rig.png` (before the row-truncation fix) and `new-rig-after.png` (not
+committed — Library is generated). **⏸ Owner checkpoint: the visual pass on `new-rig-after.png`.**
+Two fixes rode along: neither host disposed `VatBakePanel`, leaking a `PreviewRenderUtility` per
+window close, and a long node path pushed the tag button out of its row. Unrelated finding, game
+side not package: `MaleCitizen`'s `Faceware` material (`Assets/Materials/UnitsLegacy/Faceware.mat`)
+has a missing shader and renders magenta — the preview is reporting it faithfully.
 
 **Built (2026-09-08): Amendment A74 — Preview Viewports — 0.20.0.** Spec
 `Docs/AnimationToolkit/Amendment_A74_PreviewViewports_Spec.md`. T1–T10 all landed and gated across

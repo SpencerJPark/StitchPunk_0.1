@@ -978,9 +978,27 @@ namespace DotsAnimationToolkit.Editor
             // billboarded pose, which is why restoring it appeared to do nothing at all.
             RestoreBillboardedNodes();
 
+            // Bone tracks are authoring-only data — FindClipById reads them off the ClipAsset
+            // because they never reach the registry blob — so posing the skeleton must not depend on
+            // a registry existing. A skinned rig that declares no cutout targets builds none at all,
+            // and gating this on it is why scrubbing a bone-only clip moved nothing. Posed before the
+            // parts so the socket markers at the end read bones already at this frame.
+            bool posedBones = false;
+            List<BoneTrack> clipBoneTracks = FindClipById(clipId);
+            if (clipBoneTracks != null && clipBoneTracks.Count > 0)
+            {
+                skeletonMirror.ApplyBoneTracks(clipBoneTracks, normalizedTime);
+                posedBones = true;
+                if (skeletonMirror.UnresolvedBoneNames.Count > 0)
+                {
+                    statusMessage = "Bone name(s) not in the skinned source: "
+                        + string.Join(", ", skeletonMirror.UnresolvedBoneNames);
+                }
+            }
+
             if (!registry.IsCreated)
             {
-                return false;
+                return posedBones;
             }
 
             ref ClipRegistryBlob registryBlob = ref registry.Value;
@@ -995,7 +1013,7 @@ namespace DotsAnimationToolkit.Editor
             }
             if (clipIndex < 0)
             {
-                return false;
+                return posedBones;
             }
 
             ref ClipBlob clipBlob = ref registryBlob.clips[clipIndex];
@@ -1018,15 +1036,6 @@ namespace DotsAnimationToolkit.Editor
             // After the whole pose, never inside the loop: a marker placed before its part is posed
             // shows the previous frame and reads as the socket lagging the rig.
             socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
-
-            // Posed after the parts so one scrub shows both at the same instant, which is the
-            // entire point of authoring bone and cutout rows on one timeline.
-            skeletonMirror.ApplyBoneTracks(FindClipById(clipId), normalizedTime);
-            if (skeletonMirror.UnresolvedBoneNames.Count > 0)
-            {
-                statusMessage = "Bone name(s) not in the skinned source: "
-                    + string.Join(", ", skeletonMirror.UnresolvedBoneNames);
-            }
             return true;
         }
 

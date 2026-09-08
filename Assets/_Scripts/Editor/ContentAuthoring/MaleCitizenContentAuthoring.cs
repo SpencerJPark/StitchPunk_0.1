@@ -20,6 +20,9 @@ namespace StitchPunk.Editor.ContentAuthoring
         private const string ProfilePath = "Assets/ScriptableObjects/Animations/MaleCitizen.profile.asset";
         private const string MaleCitizenUnitPath = "Assets/ScriptableObjects/Units/MaleCitizen.asset";
         private const string RotterUnitPath = "Assets/ScriptableObjects/Units/Rotter.asset";
+        private const string IdleMirroredClipPath = "Assets/ScriptableObjects/Animations/Idle_EastFacing.asset";
+        private const string WalkMirroredClipPath = "Assets/ScriptableObjects/Animations/Walk_EastFacing.asset";
+        private const string AttackMirroredClipPath = "Assets/ScriptableObjects/Animations/MeleeContinuous_EastFacing.asset";
 
         private static readonly string[] FacePartPaths =
         {
@@ -339,6 +342,19 @@ namespace StitchPunk.Editor.ContentAuthoring
             ClipAsset deathFaceClip = FindClip(clipSet, "DeathFace");
             ClipAsset blinkClip = FindClip(clipSet, "Blink");
 
+            // The source clips are authored facing LEFT (confirmed against the rendered content,
+            // 2026-09-08) — but DirectionSlots.southEast is contractually "facing the camera toward
+            // the right," played unmirrored, with SouthWest served by the toolkit's free mirror of
+            // it (FacingResolver.ToAuthoredSide). Putting the natural left-facing clip straight into
+            // southEast therefore shows it backwards both ways: unmirrored-southEast reads as left
+            // when movement is east, and mirroring it for southWest flips it to right when movement
+            // is west. Mirroring each clip once here (not at runtime) and putting the mirrored copy
+            // in southEast makes southEast correctly right-facing and southWest — the toolkit's own
+            // mirror of that — land back on the original left-facing art, matching the source.
+            ClipAsset idleClipEastFacing = GetOrCreateMirroredClip(idleClip, rig, clipSet, IdleMirroredClipPath);
+            ClipAsset walkClipEastFacing = GetOrCreateMirroredClip(walkClip, rig, clipSet, WalkMirroredClipPath);
+            ClipAsset attackClipEastFacing = GetOrCreateMirroredClip(attackClip, rig, clipSet, AttackMirroredClipPath);
+
             ActorProfileAsset profile = AssetDatabase.LoadAssetAtPath<ActorProfileAsset>(ProfilePath);
             bool isNewProfile = profile == null;
             if (isNewProfile)
@@ -348,28 +364,31 @@ namespace StitchPunk.Editor.ContentAuthoring
 
             profile.rig = rig;
             profile.clipSets = new List<ClipSetAsset> { clipSet };
-            profile.turnDirections = AnimationDirections.Six;
+            // Only southEast is ever filled below (Two coverage) — Six left the resolver free to
+            // snap to North/NorthEast/NorthWest, which this content has no clip for at all, so the
+            // walk visibly dropped out at those approach angles (found 2026-09-08, F9 acceptance run).
+            profile.turnDirections = AnimationDirections.Two;
             profile.EnsureBookends();
 
             ActorLayerDefinition baseLayer = FindOrCreateLayer(profile, "Base");
             baseLayer.defaultActive = true;
             ActorAnimationDefinition idleAnimation = FindOrCreateAnimation(baseLayer, animationKeyByName["Idle"]);
             idleAnimation.hasDirections = true;
-            idleAnimation.directionSlots.southEast = idleClip;
+            idleAnimation.directionSlots.southEast = idleClipEastFacing;
             idleAnimation.directionSlots.targetDirections = AnimationDirections.Two;
             idleAnimation.loop = LoopMode.Loop;
             baseLayer.startingAnimationKey = idleAnimation.animationKey;
 
             ActorAnimationDefinition walkAnimation = FindOrCreateAnimation(baseLayer, animationKeyByName["Walk"]);
             walkAnimation.hasDirections = true;
-            walkAnimation.directionSlots.southEast = walkClip;
+            walkAnimation.directionSlots.southEast = walkClipEastFacing;
             walkAnimation.directionSlots.targetDirections = AnimationDirections.Two;
             walkAnimation.loop = LoopMode.Loop;
 
             ActorLayerDefinition actionLayer = FindOrCreateLayer(profile, "Action");
             ActorAnimationDefinition attackAnimation = FindOrCreateAnimation(actionLayer, animationKeyByName["MeleeContinuous"]);
             attackAnimation.hasDirections = true;
-            attackAnimation.directionSlots.southEast = attackClip;
+            attackAnimation.directionSlots.southEast = attackClipEastFacing;
             attackAnimation.directionSlots.targetDirections = AnimationDirections.Two;
             attackAnimation.loop = LoopMode.Once;
 
@@ -489,6 +508,35 @@ namespace StitchPunk.Editor.ContentAuthoring
                 return null;
             }
             return clipSet.clips.FirstOrDefault(clip => clip != null && clip.name == clipName);
+        }
+
+        // Idempotent: loads the mirrored clip from its fixed path if a previous run already made
+        // it, rather than calling MirrorClipUtility.CreateMirroredCopy again — that method
+        // uniquifies its destination path, so a second call would leave an orphaned duplicate
+        // instead of updating anything. A clip DirectionSlots resolves must be a member of the
+        // profile's own clip set or bake never finds it (ClipSetAsset's own "clips this set
+        // registers" contract) — added here rather than left as a free-standing asset.
+        private static ClipAsset GetOrCreateMirroredClip(
+            ClipAsset sourceClip, RigAsset rig, ClipSetAsset clipSet, string mirroredClipPath)
+        {
+            if (sourceClip == null)
+            {
+                return null;
+            }
+
+            ClipAsset mirroredClip = AssetDatabase.LoadAssetAtPath<ClipAsset>(mirroredClipPath);
+            if (mirroredClip == null)
+            {
+                mirroredClip = MirrorClipUtility.CreateMirroredCopy(sourceClip, rig, mirroredClipPath);
+            }
+
+            if (mirroredClip != null && !clipSet.clips.Contains(mirroredClip))
+            {
+                clipSet.clips.Add(mirroredClip);
+                EditorUtility.SetDirty(clipSet);
+            }
+
+            return mirroredClip;
         }
 
         private static uint MintOrReuseTargetTag(string tagName)

@@ -183,6 +183,21 @@ namespace DotsAnimationToolkit.Editor
             bonePoser.Bind(rootTransform);
             result.unresolvedBoneTrackNames = bonePoser.UnresolvedBoneNames;
 
+            // AnimationMode's own revert cannot be relied on here: measured 2026-09-08, a bake left
+            // every bone of the source rig at the last sampled pose even with sampling correctly
+            // wrapped in Begin/EndSampling and AnimationMode stopped afterwards. Snapshotting the
+            // local TRS ourselves makes the restore below independent of that.
+            Transform[] posedTransforms = rootTransform.GetComponentsInChildren<Transform>(true);
+            Vector3[] originalLocalPositions = new Vector3[posedTransforms.Length];
+            Quaternion[] originalLocalRotations = new Quaternion[posedTransforms.Length];
+            Vector3[] originalLocalScales = new Vector3[posedTransforms.Length];
+            for (int transformIndex = 0; transformIndex < posedTransforms.Length; transformIndex++)
+            {
+                originalLocalPositions[transformIndex] = posedTransforms[transformIndex].localPosition;
+                originalLocalRotations[transformIndex] = posedTransforms[transformIndex].localRotation;
+                originalLocalScales[transformIndex] = posedTransforms[transformIndex].localScale;
+            }
+
             UnityEditor.AnimationMode.StartAnimationMode();
             int globalFrame = 0;
             try
@@ -217,6 +232,20 @@ namespace DotsAnimationToolkit.Editor
                 // side effect of what looks like a read-only operation.
                 bonePoser.RestoreOriginalPose();
                 UnityEditor.AnimationMode.StopAnimationMode();
+
+                // Last, and authoritative: whatever the two restores above did or failed to do, the
+                // rig ends the bake exactly as the user left it. Baking is a read of their scene.
+                for (int transformIndex = 0; transformIndex < posedTransforms.Length; transformIndex++)
+                {
+                    Transform posedTransform = posedTransforms[transformIndex];
+                    if (posedTransform == null)
+                    {
+                        continue;
+                    }
+                    posedTransform.localPosition = originalLocalPositions[transformIndex];
+                    posedTransform.localRotation = originalLocalRotations[transformIndex];
+                    posedTransform.localScale = originalLocalScales[transformIndex];
+                }
             }
 
             int totalFrames = globalFrame;

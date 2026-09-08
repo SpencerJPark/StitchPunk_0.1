@@ -229,7 +229,12 @@ namespace DotsAnimationToolkit.Editor
 
                         // The two handed channels only — scale.x stays authored as-is; a runtime
                         // facing term (PartFacing.mirrorX) handles reflection at composition time.
+                        // rotation.z (not the legacy rotationZ field, which ClipAsset.OnAfterDeserialize
+                        // already folded into rotation and never reads again) is the live swing angle
+                        // for every 2.5D cutout rig, whose only-ever-swinging axis is Z — negating the
+                        // dead field left every mirrored clip's limb motion byte-identical to the source.
                         transformKey.position.x = -transformKey.position.x;
+                        transformKey.rotation.z = -transformKey.rotation.z;
                         transformKey.rotationZ = -transformKey.rotationZ;
 
                         transformTrack.keys[keyIndex] = transformKey;
@@ -395,6 +400,7 @@ namespace DotsAnimationToolkit.Editor
                 TransformTrack copiedTrack = new TransformTrack
                 {
                     targetId = sourceTrack.targetId,
+                    tagId = sourceTrack.tagId,
                     blendOp = sourceTrack.blendOp,
                     channels = sourceTrack.channels,
                     keys = sourceTrack.keys != null

@@ -787,6 +787,19 @@ namespace DotsAnimationToolkit.Editor
                 actorEditorPanel = null;
             }
 
+            // Both cover panes own a PreviewRenderUtility of their own, plus a copy of whatever
+            // prefab they were showing. Same rule as the controller below: nothing here is GC'd.
+            if (newRigPanel != null)
+            {
+                newRigPanel.Dispose();
+                newRigPanel = null;
+            }
+            if (vatBakePanel != null)
+            {
+                vatBakePanel.Dispose();
+                vatBakePanel = null;
+            }
+
             // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
             // which the GC reclaims. Leaking them survives domain reloads as a growing native
             // allocation, so disposal here is load-bearing rather than tidy.
@@ -4583,10 +4596,18 @@ namespace DotsAnimationToolkit.Editor
             {
                 // Falls through to the render below unconditionally; the ragdoll step happens there.
             }
-            else if (selectedClip != null && previewController.HasRegistry
+            else if (selectedClip != null
                 && !previewController.SamplePose(selectedClip.Id.Value, playheadTime))
             {
-                viewportStatus = "Clip is not in the built registry — is it listed in the set?";
+                // Not gated on HasRegistry: SamplePose poses whatever the clip actually carries, and
+                // bone tracks need no registry at all. Gating the call meant a skinned rig with no
+                // cutout targets never sampled, so its timeline scrubbed while the rig stood still.
+                // False now means "posed nothing", which is only worth explaining when a registry
+                // exists and the clip is missing from it.
+                if (previewController.HasRegistry)
+                {
+                    viewportStatus = "Clip is not in the built registry — is it listed in the set?";
+                }
             }
             else if (selectedClip == null && clipSet != null && string.IsNullOrEmpty(viewportStatus))
             {

@@ -14,7 +14,7 @@ namespace DotsAnimationToolkit.Editor
     /// VAT bake UI: the shared shell over <see cref="VatTextureBaker"/>, used by both the
     /// standalone <see cref="VatBakeWindow"/> and the Clip Editor's VAT Bake tab.
     /// </summary>
-    public sealed class VatBakePanel : VisualElement
+    public sealed class VatBakePanel : VisualElement, System.IDisposable
     {
         private ObjectField clipSetField;
         private ObjectField skinnedRendererField;
@@ -33,6 +33,12 @@ namespace DotsAnimationToolkit.Editor
         public ITransportTarget TransportTarget
         {
             get { return preview; }
+        }
+
+        /// <summary>Releases the preview's render utility and its copy of the source hierarchy.</summary>
+        public void Dispose()
+        {
+            preview?.Dispose();
         }
 
         public VatBakePanel()
@@ -57,6 +63,7 @@ namespace DotsAnimationToolkit.Editor
                 allowSceneObjects = false,
                 tooltip = "Clips whose ClipAsset names a VAT source clip are baked. Others are skipped."
             };
+            clipSetField.RegisterValueChangedCallback(changeEvent => RefreshPreview());
             root.Add(clipSetField);
 
             // The bake needs the rig twice over: to read the socket rows it samples, and to stamp
@@ -84,8 +91,10 @@ namespace DotsAnimationToolkit.Editor
             {
                 objectType = typeof(SkinnedMeshRenderer),
                 allowSceneObjects = true,
-                tooltip = "The rig to sample. Must be in an open scene — baking poses it."
+                tooltip = "The rig to sample. Must be in an open scene — baking poses it. "
+                    + "Assigning one shows it at rest in the preview, before any bake."
             };
+            skinnedRendererField.RegisterValueChangedCallback(changeEvent => RefreshPreview());
             root.Add(skinnedRendererField);
 
             root.Add(BuildHeading("Settings"));
@@ -186,6 +195,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 sourceBoundHint.style.display = DisplayStyle.Flex;
             }
+            RefreshPreview();
         }
 
         private static Label BuildHeading(string text)
@@ -279,16 +289,26 @@ namespace DotsAnimationToolkit.Editor
 
             VatTextureSetAsset bakedSet = AssetDatabase.LoadAssetAtPath<VatTextureSetAsset>(setPath);
             previewSetField.SetValueWithoutNotify(bakedSet);
-            preview.Show(bakedSet, clipSet, renderer, bakeClips);
+            RefreshPreview();
         }
 
         private void OnPreviewSetFieldChanged(ChangeEvent<Object> changeEvent)
         {
+            RefreshPreview();
+        }
+
+        // One path for every field the preview reads, so assigning a Skinned Mesh puts the subject
+        // on screen at rest without waiting for a bake.
+        private void RefreshPreview()
+        {
+            if (preview == null)
+            {
+                return;
+            }
             preview.Show(
-                changeEvent.newValue as VatTextureSetAsset,
+                previewSetField.value as VatTextureSetAsset,
                 clipSetField.value as ClipSetAsset,
-                skinnedRendererField.value as SkinnedMeshRenderer,
-                null);
+                skinnedRendererField.value as SkinnedMeshRenderer);
         }
 
         // Ids come from the ClipAsset and its tracks, never minted here — a texture set whose
@@ -328,7 +348,9 @@ namespace DotsAnimationToolkit.Editor
                         // Clip Editor rules its timeline into. A set of clips no longer has to
                         // share one rate to share one texture.
                         samplesPerSecond = clip.frameRate,
-                        loopSafe = hasImportedSource && clip.vatSource.loopSafe
+                        // Not gated on hasImportedSource: a clip animated entirely from bone tracks
+                        // loops exactly as much as an imported one, and needs the same extra frame.
+                        loopSafe = clip.vatSource != null && clip.vatSource.loopSafe
                     });
                 }
 

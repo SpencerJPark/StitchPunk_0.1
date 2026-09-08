@@ -20,10 +20,16 @@ namespace DotsAnimationToolkit.Editor
         private const float FramePadding = 1.25f;
         private const float MinimumFrameRadius = 0.25f;
 
+        // Content is authored standing on the floor, so the camera aims at chest height rather than
+        // at the origin under its feet. Same value the Clip Editor's own camera opens with.
+        private const float MinimumFocusHeight = 1f;
+
+        private static readonly Vector3 DefaultOrbitFocus = new Vector3(0f, MinimumFocusHeight, 0f);
+
         private float orbitYaw = 0f;
         private float orbitPitch = 0f;
         private float orbitDistance = DefaultOrbitDistance;
-        private Vector3 orbitFocus = Vector3.zero;
+        private Vector3 orbitFocus = DefaultOrbitFocus;
 
         private Bounds frameTargetBounds;
         private bool hasFrameTarget = false;
@@ -109,7 +115,15 @@ namespace DotsAnimationToolkit.Editor
         {
             orbitYaw = 0f;
             orbitPitch = 0f;
-            if (hasFrameTarget) { Frame(frameTargetBounds); }
+            if (hasFrameTarget)
+            {
+                Frame(frameTargetBounds);
+                return;
+            }
+            // Nothing to frame is still a pose to return to — without this a pan or a flight would
+            // leave the "reset" camera staring off into empty space.
+            orbitFocus = DefaultOrbitFocus;
+            orbitDistance = DefaultOrbitDistance;
         }
 
         // No selection concept exists in a bare mesh preview - frame the whole target, same as ResetView.
@@ -124,10 +138,27 @@ namespace DotsAnimationToolkit.Editor
             hasFrameTarget = true;
         }
 
+        // Leaves the camera where it is; only the next ResetView changes, falling back to the
+        // default pose instead of framing a subject that is no longer on screen.
+        public void ClearFrameTarget()
+        {
+            frameTargetBounds = default(Bounds);
+            hasFrameTarget = false;
+        }
+
         public void Frame(Bounds bounds)
         {
-            orbitFocus = bounds.center;
-            orbitDistance = DistanceThatFrames(Mathf.Max(bounds.extents.magnitude, MinimumFrameRadius));
+            Vector3 framedFocus = bounds.center;
+            framedFocus.y = Mathf.Max(framedFocus.y, MinimumFocusHeight);
+            orbitFocus = framedFocus;
+
+            // Measured from where the camera is aimed, not from the middle of the bounds: raising the
+            // aim pushes the subject down the frame, and a radius drawn around the bounds centre would
+            // crop off whatever the lift moved past the bottom edge.
+            float radius = Mathf.Max(
+                bounds.extents.magnitude + Vector3.Distance(bounds.center, framedFocus),
+                MinimumFrameRadius);
+            orbitDistance = DistanceThatFrames(radius);
         }
 
         public void ApplyTo(Camera camera)

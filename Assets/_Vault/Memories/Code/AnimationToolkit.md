@@ -464,6 +464,174 @@ puts the word in a `Label` child instead, and that is the only way to build icon
 icon for (▲ ▼). And an unattached `VisualElement` drops `SendEvent` (no panel, no dispatcher), so a
 fixture that wants a click calls the bound action instead.
 
+## The 4-arg SetButtonIcon does not parent the icon (2026-09-08)
+
+`ToolkitIcons.SetButtonIcon(button, icon, name, fallback)` and `SetToggleIcon(toggle, icon, …)`
+only assign `icon.image`; **the caller must `Insert(0, icon)` / `Add(icon)` itself.** The 3-arg
+`SetButtonIcon(button, name, fallback)` is the one that creates and parents an icon. Miss the
+parenting and the fallback never fires either — the texture resolves, so no text is set, and you
+get a completely blank button. That is how the VAT preview's Reset Camera button shipped with no
+glyph and no word. `ActorEditorPanel` shows the correct order.
+
+A glyph the editor has no icon for is drawn, not shipped as a PNG: `ToolkitIcons.GhostGlyph`
+renders a 32×32 signed-distance ghost once and caches it, and there is a `SetToggleIcon` overload
+taking a `Texture` for that path. A new static class would have needed a `Conformance_G` allowlist
+entry, so drawn glyphs live on `ToolkitIcons`.
+
+## A per-frame readout in a transport row re-spaces the whole row
+
+`.toolkit-transport` is `justify-content: space-evenly` with `flex-wrap: wrap`, so a label whose
+text changes every tick shifts every control beside it — the VAT preview's frame counter made the
+transport visibly crawl during playback. Any counting readout also takes
+`.toolkit-transport__derived--counter`, which reserves a fixed width.
+
+## VatClipRange.bounds has never been written by a bake (2026-09-08)
+
+`VatTextureBaker` fills `clipId`/`targetId`/`frameStart`/`frameCount`/`fps` and leaves `bounds` at
+`default(Bounds)` — every VAT set in the project has `m_Center: 0, m_Extent: 0`. Two consequences:
+`ClipRegistryBuilder` bakes that zero box into the runtime blob as the VAT clip's culling bounds,
+and any editor code that frames it slams the camera to `MinimumOrbitDistance` at the origin (the
+"VAT preview opens super zoomed in" report). `VatPreviewElement.ResolveFrameBounds` works around it
+by framing `textureSet.runtimeMesh.bounds` when the range box is degenerate, but that is the rest
+pose — VAT displacement can still reach outside it, so the preview crops a deformed clip. **Fixing
+it properly means measuring per-frame extents inside `SampleClip` and re-baking every existing
+set**; not done, and it is the owner's call because it changes baked output.
+
+## The VAT bone-flavour render path — three bugs the new preview found (2026-09-08)
+
+The A74 preview plus its rest-pose Ghost was the first thing to actually *look* at a bake, and it
+immediately surfaced three defects that no fixture caught. All three are fixed; the point of this
+section is that they were invisible until something rendered the bake beside its source.
+
+- **`VatMeshPreparer` and `ToolkitVatCrowdUnlit.shadergraph` disagreed about UV channels.** The graph
+  wires `UV1 → Bone Indices` and `UV2 → Bone Weights` (dump the edges: parse the `.shadergraph` JSON,
+  `GraphData.m_Edges`, and resolve `m_Node`/`m_SlotId` against each node's slots). The preparer packed
+  *two* influences into UV1 alone as `(index0, index1, weight0, weight1)` and never wrote UV2 — so the
+  shader read two weights as bone indices and took its weights from an absent channel. It renders as a
+  mesh that inflates with distance from the root, which reads like a bad bake rather than a wiring bug.
+  This hit the shipped runtime crowd shader too, not just the preview. Every bone-flavour set baked
+  before this needs re-baking.
+- **The bake left the source rig posed.** `VatTextureBaker` sampled inside `AnimationMode` with
+  `BeginSampling`/`EndSampling` correctly paired and still left every bone at the last sampled pose —
+  measured, with the bones set to identity immediately before the bake. **Do not trust
+  `AnimationMode.StopAnimationMode()` to revert.** The bake now snapshots each transform's local TRS
+  before `StartAnimationMode` and reapplies it last in the `finally`, after both the poser's restore
+  and `StopAnimationMode`. Baking is a read of the user's scene; anything less is a destructive edit
+  they did not ask for.
+- **The preview's source copy strands itself on every domain reload.** It is a `HideAndDontSave`
+  instantiate, which outlives a reload while the field pointing at it does not — the same trap
+  `CutsceneViewportElement`'s cameras have. Five copies had accumulated within one session. The fix is
+  a static `HashSet` of copies a live preview still owns plus a `Resources.FindObjectsOfTypeAll` sweep
+  of anything named `VatPreviewSourceCopy` that nobody owns; ownership rather than name alone is what
+  lets the standalone window and the Clip Editor's VAT Bake tab each hold one.
+
+Also: `VatTentacleRigBuilder.CreateTentacle` assigned no material at all, so the sample rendered
+magenta the moment anything drew it. It now builds a URP Lit (Standard fallback) material, and
+`VatSampleTentacleUtility` saves both the procedural mesh *and* that material as assets before writing
+the prefab — `PrefabUtility` cannot serialise a reference to an in-memory object, so either one left
+unsaved comes back null in the prefab.
+
+**A generated `RigAsset` is useless to the Clip Editor without `sourcePrefab`.** The Skinned Source
+field takes a *`RigAsset`*, not a prefab, and `ClipEditorWindow.LoadedPrefab` is just
+`rig.sourcePrefab` — a rig with that field null gives `PreviewSkeletonMirror.Rebuild` nothing to
+instantiate, so the viewport, the Rig Hierarchy pane and the skinned mesh are all simply absent with
+no error anywhere. `VatSampleTentacleUtility` shipped exactly that rig for a while. Build the prefab
+first, then mint the rig through `RigAssetUtility.CreateRig(path, prefab, targets)`, which wires it.
+Empty `targets` is correct for a skinned chain driven by bone tracks — it only costs an informational
+"declares no targets" banner over the viewport, not the preview.
+
+## Clip Editor preview was gated on the baked cutout registry (2026-09-08)
+
+`ClipPreviewController.SamplePose` opened with `if (!registry.IsCreated) { return false; }` — and the
+bone-track posing sat at the *end* of that method. `registry` is the baked `ClipRegistryBlob`, built
+from the rig's **targets**, so a skinned rig declaring no cutout targets built no registry
+(`registry.IsCreated = False`, measured) and scrubbing posed nothing at all. Bone tracks never enter
+the blob — `FindClipById`'s own comment says so — yet they were gated on it.
+
+Bone tracks now pose **before** the registry guards, and those guards return `posedBones` rather than
+`false`. Socket markers moved after the bone pose too: they read the skeleton, and were being updated
+before it was posed, so they trailed the bones by a frame.
+
+**There were two gates, and the second one hid the first.** `ClipEditorWindow`'s render loop called
+`previewController.HasRegistry && !previewController.SamplePose(...)`, so with a targetless rig the
+sampler was never invoked at all and fixing its interior changed nothing on screen. **Calling
+`SamplePose` directly is not a test of the window** — it walks past the caller. Scrub through
+`SetPlayheadTime` (what the ruler calls), then read the live previewed Transforms in a *separate*
+execute_code call, having called no sampler yourself.
+
+**The general trap: preview is coupled to the cutout bake, not to the authored data.** `vatTracks`
+have no lane and no preview anywhere under `Editor/ClipEditor/` (grep returns nothing), and an
+imported `AnimationClip` behind `vatSource` is invisible to the timeline, which only draws authored
+tracks. Scoped in
+[`Tasks/NewPlans/UnifiedClipAuthoring_System.md`](../../Tasks/NewPlans/UnifiedClipAuthoring_System.md)
+— P0 built, P1–P5 open, with the owner decisions listed rather than guessed.
+
+## The sample tentacle is authored, not imported (2026-09-08)
+
+`VatSampleWave` carries its motion as **`ClipAsset.boneTracks`** — 12 lanes, 11 keys each — and no
+`vatSource.sourceClip` at all. It used to be the other way round, and the cost was that the Clip
+Editor timeline was empty: an imported `AnimationClip` behind `vatSource` is invisible to the
+timeline, which only draws authored tracks. `CollectVatClips` treats authored bone tracks as a VAT
+source in their own right, so the clip still bakes; the sample now demonstrates the toolkit's own
+authoring path end to end (see keys → bake → play them back) rather than hiding the animation in a
+`.anim`.
+
+Three things to keep right if this is regenerated:
+
+- **`BoneKey.localPosition` is assigned outright, not added to the bind pose**, despite what the
+  field's doc comment says. `BoneTrackPoser.ApplyTracks` writes `localPosition`/`localRotation`/
+  `localScale` straight onto the Transform, so every key has to restate the bone's rest offset
+  (`(0, SegmentLength, 0)` down the chain) or the whole rig collapses onto its root.
+- **Key spacing has to divide the frame count.** `(keysPerBone - 1)` must divide the clip's frames,
+  or the keys land mid-frame and the Clip Editor opens with a lit "Quantize N Keys" button over a
+  sample it just generated. 11 keys over 60 frames is 6 frames apart; 9 keys was 7.5 and wrong.
+- **`loopSafe` is no longer gated on having an imported clip.** `CollectVatClips` read
+  `hasImportedSource && clip.vatSource.loopSafe`, so a bone-track-only clip never got the duplicated
+  final frame the shader interpolates across at the loop point. It now reads the flag whenever a
+  `vatSource` exists, `sourceClip` or not — which is why the sample sets `vatSource` with a null
+  `sourceClip`.
+
+## The VAT preview shows the source before anything is baked (2026-09-08)
+
+Owner's model, and the shape the panel is built to: assign Clip Set + Rig + Skinned Mesh and the
+subject appears **at rest, not moving**; bake and press play and the *baked* mesh moves; Ghost lays
+the still-at-rest source over it, so "how far did the bake move" is visible against something that
+does not. The Ghost is therefore **frozen, never animated** — an earlier build posed it per frame to
+double-image any drift, which the owner replaced with the rest-pose reading on 2026-09-08.
+
+One object serves both roles: `VatPreviewElement` keeps a single copy of the source hierarchy and
+picks its look from state — authored materials and visible when no set is baked, translucent accent
+when a set exists and Ghost is on, hidden otherwise. It is rebuilt on *every* `Show`, not only when
+the renderer reference changes, because the copy is a snapshot of the rig's current pose and
+re-posing between bakes would otherwise leave a "rest pose" that is not the rest pose. `VatBakePanel`
+routes all four fields through one `RefreshPreview()`; `SetSource` must call it too, since it writes
+its fields with `SetValueWithoutNotify`.
+
+## A cover pane that owns a PreviewRenderUtility must be disposed by the host (2026-09-08)
+
+The Clip Editor's tabs are **cover panes**, hidden by a USS class rather than removed — so a hidden
+panel is still attached, still ticking, and nothing ever raises `DetachFromPanelEvent` on it. The
+only place its native memory can be released is `ClipEditorWindow.OnDisable`, which is why
+`newRigPanel` and `vatBakePanel` are disposed there beside `previewController`. `VatBakePanel` was
+not, from A74 until this was found: every window close leaked a `PreviewRenderUtility` plus a copy
+of the source hierarchy, and neither host of the standalone `VatBakeWindow` disposed it either. Two
+rules fell out. A `Dispose` on one of these panels stays **idempotent** — it does not null its
+element field, since the panel's other methods keep running if the pane is merely hidden. And a
+preview element's `Dispose` unsubscribes its own `EditorApplication.update` tick first, or the next
+tick calls `EnsureRenderUtility` and quietly builds a second one nothing owns.
+
+## The New Rig list and its viewport are one choice (2026-09-08, 0.21.0)
+
+`NewRigPanel` is two columns: the form at a fixed 420px, `RigSourcePreviewElement` filling the rest,
+the same shape `VatBakePanel` uses. Nodes are addressed between them by the hierarchy path
+`PrefabAuthoringBridge.GetHierarchyPath` produces — computed against the *copy's* root in the
+preview and against the prefab's in the panel, which agree because the copy is a straight
+`Instantiate`. Ticking a node forces its copy visible (`SetActive` + `enabled`) rather than leaving
+the prefab's authored visibility, on the reasoning that a ticked target drawing nothing reads as a
+broken tick; unticking restores exactly what was captured at build time. The row label needs
+`labelElement` truncation (`minWidth 0`, ellipsis, no-wrap) — a deep path otherwise pushes the tag
+button out of the row and puts a horizontal scrollbar under the whole list.
+
 ## Do not spawn subagents against this package — unless they never touch the Editor (A73)
 
 Three processes driving one live Unity Editor already caused MCP lock

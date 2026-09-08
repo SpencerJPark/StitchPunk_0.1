@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2564cb6f25ef49cfa4d6dc851e6c8837, type: 3}
-  m_Name: Walk
+  m_Name: Walk_EastFacing
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ClipAsset
-  stableId: 17929205651740358465
+  stableId: 9548166182967173130
   duration: 1
   defaultLoop: 2
   defaultBlendIn: 0
@@ -26,14 +26,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 22
-      rotationZ: 0
+        z: -22
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -47,14 +47,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -68,14 +68,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -22
-      rotationZ: 0
+        z: 22
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -89,14 +89,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -110,14 +110,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 22
-      rotationZ: 0
+        z: -22
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -136,14 +136,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -8
-      rotationZ: 0
+        z: 8
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -157,14 +157,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -30
-      rotationZ: 0
+        z: 30
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -178,14 +178,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -199,14 +199,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -14
-      rotationZ: 0
+        z: 14
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -220,14 +220,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -8
-      rotationZ: 0
+        z: 8
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -246,14 +246,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -267,14 +267,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 8
-      rotationZ: 0
+        z: -8
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -288,14 +288,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 4
-      rotationZ: 0
+        z: -4
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -309,14 +309,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -2
-      rotationZ: 0
+        z: 2
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -330,14 +330,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -356,14 +356,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -22
-      rotationZ: 0
+        z: 22
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -377,14 +377,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -398,14 +398,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 22
-      rotationZ: 0
+        z: -22
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -419,14 +419,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -440,14 +440,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -22
-      rotationZ: 0
+        z: 22
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -466,14 +466,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -487,14 +487,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -14
-      rotationZ: 0
+        z: 14
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -508,14 +508,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -8
-      rotationZ: 0
+        z: 8
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -529,14 +529,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -30
-      rotationZ: 0
+        z: 30
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -550,14 +550,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -576,14 +576,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 4
-      rotationZ: 0
+        z: -4
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -597,14 +597,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -2
-      rotationZ: 0
+        z: 2
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -618,14 +618,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -639,14 +639,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 8
-      rotationZ: 0
+        z: -8
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -660,14 +660,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 4
-      rotationZ: 0
+        z: -4
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -686,14 +686,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -14
-      rotationZ: 0
+        z: 14
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -707,14 +707,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -728,14 +728,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 14
-      rotationZ: 0
+        z: -14
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -749,14 +749,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -770,14 +770,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -14
-      rotationZ: 0
+        z: 14
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -796,14 +796,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -10
-      rotationZ: 0
+        z: 10
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -817,14 +817,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -16
-      rotationZ: 0
+        z: 16
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -838,14 +838,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -859,14 +859,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -12
-      rotationZ: 0
+        z: 12
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -880,14 +880,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -10
-      rotationZ: 0
+        z: 10
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -906,14 +906,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -4
-      rotationZ: 0
+        z: 4
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -927,14 +927,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -948,14 +948,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -2
-      rotationZ: 0
+        z: 2
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -969,14 +969,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -4
-      rotationZ: 0
+        z: 4
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -990,14 +990,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -4
-      rotationZ: 0
+        z: 4
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1016,14 +1016,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 14
-      rotationZ: 0
+        z: -14
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1037,14 +1037,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1058,14 +1058,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -14
-      rotationZ: 0
+        z: 14
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1079,14 +1079,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1100,14 +1100,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 14
-      rotationZ: 0
+        z: -14
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1126,14 +1126,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1147,14 +1147,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -12
-      rotationZ: 0
+        z: 12
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1168,14 +1168,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -10
-      rotationZ: 0
+        z: 10
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1189,14 +1189,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -16
-      rotationZ: 0
+        z: 16
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1210,14 +1210,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1236,14 +1236,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -2
-      rotationZ: 0
+        z: 2
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1257,14 +1257,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -4
-      rotationZ: 0
+        z: 4
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1278,14 +1278,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -4
-      rotationZ: 0
+        z: 4
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1299,14 +1299,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -6
-      rotationZ: 0
+        z: 6
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1320,14 +1320,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -2
-      rotationZ: 0
+        z: 2
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1346,14 +1346,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1367,14 +1367,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: -0.03
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 3
-      rotationZ: 0
+        z: -3
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1388,14 +1388,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1409,14 +1409,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: -0.03
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -3
-      rotationZ: 0
+        z: 3
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1430,14 +1430,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1456,14 +1456,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1477,14 +1477,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -3
-      rotationZ: 0
+        z: 3
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1498,14 +1498,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1519,14 +1519,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 3
-      rotationZ: 0
+        z: -3
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1540,14 +1540,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1566,14 +1566,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1587,14 +1587,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 2
-      rotationZ: 0
+        z: -2
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1608,14 +1608,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1629,14 +1629,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -2
-      rotationZ: 0
+        z: 2
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1650,14 +1650,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1676,14 +1676,14 @@ MonoBehaviour:
     keys:
     - normalizedTime: 0
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1697,14 +1697,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.26666668
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: -1.5
-      rotationZ: 0
+        z: 1.5
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1718,14 +1718,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.5
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1739,14 +1739,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 0.73333335
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 1.5
-      rotationZ: 0
+        z: -1.5
+      rotationZ: -0
       scale:
         x: 1
         y: 1
@@ -1760,14 +1760,14 @@ MonoBehaviour:
         y: 0
     - normalizedTime: 1
       position:
-        x: 0
+        x: -0
         y: 0
         z: 0
       rotation:
         x: 0
         y: 0
-        z: 0
-      rotationZ: 0
+        z: -0
+      rotationZ: -0
       scale:
         x: 1
         y: 1

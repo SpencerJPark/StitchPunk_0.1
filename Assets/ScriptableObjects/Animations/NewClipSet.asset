@@ -21,4 +21,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 03d7b3116af4a044e8bd9bc3b6f0735a, type: 2}
   - {fileID: 11400000, guid: 96049bf34df72bb45affa7542dffc23b, type: 2}
   - {fileID: 11400000, guid: da58561f7fbe5ea41ac82f6a5bb2a9f8, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 11400000, guid: e914c46e7e70bd646a603ef82ec47877, type: 2}
+  - {fileID: 11400000, guid: 14ce4b186fcbc9f40b42c03751c82d16, type: 2}
+  - {fileID: 11400000, guid: 99c2b3b6d116e4741b365f4f176b3f11, type: 2}
   vatTextures: {fileID: 0}

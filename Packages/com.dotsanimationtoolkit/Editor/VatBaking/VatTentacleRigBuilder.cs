@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System.Collections.Generic;
-using UnityEditor;
+using DotsAnimationToolkit.Authoring;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
@@ -19,10 +20,16 @@ namespace DotsAnimationToolkit.Editor
         private const int WaveSampleRate = 30;
         private const float WaveDurationSeconds = 2f;
 
+        // Keys per bone lane. Enough that an eased sample reads as a sine, few enough that a lane in
+        // the Clip Editor is something a person can grab and retime rather than a wall of keys.
+        // (WaveKeysPerBone - 1) must divide the clip's frame count, or every key between the ends
+        // lands mid-frame and the editor opens offering to quantize the sample it just generated.
+        private const int WaveKeysPerBone = 11;
+
         /// <summary>
         /// Creates the rig in the current scene and returns its <see cref="SkinnedMeshRenderer"/>.
         /// </summary>
-        public static SkinnedMeshRenderer CreateTentacle(string name, out AnimationClip waveClip)
+        public static SkinnedMeshRenderer CreateTentacle(string name, out List<BoneTrack> waveBoneTracks)
         {
             GameObject root = new GameObject(name);
 
@@ -52,9 +59,38 @@ namespace DotsAnimationToolkit.Editor
             renderer.bones = bones;
             renderer.rootBone = bones[0];
             renderer.updateWhenOffscreen = true;
+            renderer.sharedMaterial = BuildTentacleMaterial();
 
-            waveClip = BuildWaveClip();
+            waveBoneTracks = BuildWaveBoneTracks();
             return renderer;
+        }
+
+        // A renderer with no material draws magenta, which reads as a broken sample rather than a
+        // sample with nothing assigned. Standard is the fallback for a project without URP.
+        private static Material BuildTentacleMaterial()
+        {
+            Shader tentacleShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (tentacleShader == null)
+            {
+                tentacleShader = Shader.Find("Standard");
+            }
+            if (tentacleShader == null)
+            {
+                return null;
+            }
+
+            Material tentacleMaterial = new Material(tentacleShader);
+            tentacleMaterial.name = "TentacleMaterial";
+            Color tentacleColor = new Color(0.62f, 0.66f, 0.70f, 1f);
+            if (tentacleMaterial.HasProperty("_BaseColor"))
+            {
+                tentacleMaterial.SetColor("_BaseColor", tentacleColor);
+            }
+            if (tentacleMaterial.HasProperty("_Color"))
+            {
+                tentacleMaterial.SetColor("_Color", tentacleColor);
+            }
+            return tentacleMaterial;
         }
 
         // A two-vertex-wide strip running up Y, skinned to the chain: each ring is weighted
@@ -130,54 +166,56 @@ namespace DotsAnimationToolkit.Editor
             return mesh;
         }
 
-        // A travelling wave: every bone rotates on Z, each lagging the one below it, so a bake
-        // that collapses the chain onto one bone's matrix shows up as a rigid rod, not a subtle bug.
-        private static AnimationClip BuildWaveClip()
+        // Authored as BoneTracks, not as an imported AnimationClip, so the sample's motion is visible
+        // and editable in the Clip Editor's own timeline — bone tracks make a clip VAT-bound alone.
+        private static List<BoneTrack> BuildWaveBoneTracks()
         {
-            AnimationClip clip = new AnimationClip();
-            clip.name = "TentacleWave";
-            clip.legacy = false;
-
-            int sampleCount = Mathf.RoundToInt(WaveDurationSeconds * WaveSampleRate);
-            string bonePath = string.Empty;
-
+            List<BoneTrack> boneTracks = new List<BoneTrack>(SegmentCount);
             for (int boneIndex = 0; boneIndex < SegmentCount; boneIndex++)
             {
-                bonePath = boneIndex == 0 ? "Bone0" : bonePath + "/Bone" + boneIndex.ToString();
+                BoneTrack boneTrack = new BoneTrack();
+                boneTrack.boneName = "Bone" + boneIndex.ToString();
 
-                AnimationCurve curveX = new AnimationCurve();
-                AnimationCurve curveY = new AnimationCurve();
-                AnimationCurve curveZ = new AnimationCurve();
-                AnimationCurve curveW = new AnimationCurve();
+                // The chain's rest offset, restated on every key: ApplyTracks assigns localPosition
+                // outright rather than adding to the bind pose, so a key leaving it at zero would
+                // collapse the whole tentacle onto its root.
+                float3 restLocalPosition = boneIndex == 0
+                    ? new float3(0f, 0f, 0f)
+                    : new float3(0f, SegmentLength, 0f);
 
-                for (int sampleIndex = 0; sampleIndex <= sampleCount; sampleIndex++)
+                for (int keyIndex = 0; keyIndex < WaveKeysPerBone; keyIndex++)
                 {
-                    float time = (float)sampleIndex / WaveSampleRate;
-                    float phase = time * Mathf.PI * 2f / WaveDurationSeconds - boneIndex * 0.55f;
+                    float normalizedTime = (float)keyIndex / (WaveKeysPerBone - 1);
+                    Quaternion rotation = Quaternion.Euler(0f, 0f, WaveAngleDegrees(boneIndex, normalizedTime));
 
-                    // Amplitude grows toward the tip, which is how a real tentacle moves and what
-                    // makes the far end unmistakably the far end.
-                    float amplitudeDegrees = 4f + 9f * ((float)boneIndex / SegmentCount);
-                    float angleDegrees = Mathf.Sin(phase) * amplitudeDegrees;
-
-                    Quaternion rotation = Quaternion.Euler(0f, 0f, angleDegrees);
-                    curveX.AddKey(time, rotation.x);
-                    curveY.AddKey(time, rotation.y);
-                    curveZ.AddKey(time, rotation.z);
-                    curveW.AddKey(time, rotation.w);
+                    BoneKey boneKey = new BoneKey();
+                    boneKey.normalizedTime = normalizedTime;
+                    boneKey.localPosition = restLocalPosition;
+                    boneKey.localRotation = new quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+                    boneKey.localScale = new float3(1f, 1f, 1f);
+                    boneKey.interpolation = Interpolation.EaseInOut;
+                    boneTrack.keys.Add(boneKey);
                 }
 
-                AnimationUtility.SetEditorCurve(
-                    clip, EditorCurveBinding.FloatCurve(bonePath, typeof(Transform), "localRotation.x"), curveX);
-                AnimationUtility.SetEditorCurve(
-                    clip, EditorCurveBinding.FloatCurve(bonePath, typeof(Transform), "localRotation.y"), curveY);
-                AnimationUtility.SetEditorCurve(
-                    clip, EditorCurveBinding.FloatCurve(bonePath, typeof(Transform), "localRotation.z"), curveZ);
-                AnimationUtility.SetEditorCurve(
-                    clip, EditorCurveBinding.FloatCurve(bonePath, typeof(Transform), "localRotation.w"), curveW);
+                boneTracks.Add(boneTrack);
             }
+            return boneTracks;
+        }
 
-            return clip;
+        // One travelling sine down the chain. The phase lag per bone is what makes it read as a wave
+        // rather than every joint swinging together, and the amplitude grows toward the tip, which is
+        // how a real tentacle moves and what makes the far end unmistakably the far end.
+        private static float WaveAngleDegrees(int boneIndex, float normalizedTime)
+        {
+            float phase = normalizedTime * Mathf.PI * 2f - boneIndex * 0.55f;
+            float amplitudeDegrees = 4f + 9f * ((float)boneIndex / SegmentCount);
+            return Mathf.Sin(phase) * amplitudeDegrees;
+        }
+
+        /// <summary>Length of the generated wave, in seconds.</summary>
+        public static float WaveDuration
+        {
+            get { return WaveDurationSeconds; }
         }
 
         /// <summary>Frames the wave clip is baked at.</summary>

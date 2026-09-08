@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9603f1d7abc7455ebe2db65efb1c4e9d, type: 3}
   m_Name: VatSampleTentacleClips
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.ClipSetAsset
-  stableId: 13848764163201412749
+  stableId: 17804039358055153199
   clips:
   - {fileID: 11400000, guid: 09f6d43c3b2c2e946b82e168064731b2, type: 2}
   vatTextures: {fileID: 11400000, guid: 8e50915e2c793f2448bfe4067df63ec8, type: 2}

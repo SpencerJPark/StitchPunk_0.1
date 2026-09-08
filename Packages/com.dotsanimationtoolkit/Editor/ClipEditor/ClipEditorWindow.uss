@@ -215,6 +215,14 @@
     margin-left: 6px;
 }
 
+/* For a readout whose text changes every frame. The row is space-evenly and wraps, so a counter
+   that grows a digit re-spaces every control beside it; a reserved width holds them still. */
+.toolkit-transport__derived--counter {
+    width: 148px;
+    flex-shrink: 0;
+    -unity-text-align: middle-left;
+}
+
 /* The cutscene transport's own status line, beside its Continue button -- shouts only when the
    clock is actually stopped, since a hold nobody notices reads as a cutscene that froze. */
 .toolkit-transport__status {
@@ -400,6 +408,15 @@
 
 .toolkit-eye-toggle--off .toolkit-icon-button__icon {
     opacity: 0.45;
+}
+
+/* A non-bookend layer header is itself the drag handle -- grab and move it to reorder. */
+.toolkit-box__header--draggable {
+    cursor: move-arrow;
+}
+
+.toolkit-box--dragging {
+    opacity: 0.5;
 }
 
 /* ------------------------------------------------------------------------------------------- */
@@ -1753,5 +1770,10 @@
 
 .actor-editor__live-dot--active {
     color: rgb(90, 220, 120);
+}
+
+.actor-editor__drop-indicator {
+    height: 2px;
+    background-color: var(--toolkit-color-selected);
 }
 
