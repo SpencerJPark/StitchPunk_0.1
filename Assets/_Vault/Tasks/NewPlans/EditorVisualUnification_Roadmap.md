@@ -1,6 +1,7 @@
 # Editor Visual Unification — one look across the toolkit's tabs
 
-> **Status:** ✅ spec written 2026-09-07, nothing built; execution waits for the owner's prompt.
+> **Status:** ✅ built 2026-09-07 as 0.18.0 (A72-T1 … T12). Open: the owner's visual pass on
+> `Library/A72Captures/before-*.png` vs `after-*.png`.
 > **Spec:** [`Amendment_A72_EditorVisualUnification_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A72_EditorVisualUnification_Spec.md).
 > **Executor:** one Editor-connected orchestrator running the gate, small Sonnet/Haiku subagents
 > doing the file edits (they never touch MCP). Task order and parallel-safety are in the spec's §6.

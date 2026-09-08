@@ -566,8 +566,7 @@ namespace DotsAnimationToolkit.Editor
                 "Keys the selected slot's (or part track's) current live transform at the playhead "
                     + "— move it with Unity's own gizmo first.", "Key");
             // The word stays: the icon says the family, the word says what is keyed.
-            keyButton.text = "Key";
-            keyButton.AddToClassList("toolkit-icon-button--with-text");
+            ToolkitIcons.SetButtonIconAndText(keyButton, ToolkitIcons.Record, "Key");
             keyButton.AddToClassList("clip-editor__bar-action");
             statusActions.Add(keyButton);
 

@@ -229,10 +229,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 // Kept as a field rather than captured locally: the event picker needs it as its anchor.
                 addEventButton.clicked += OpenAddEventPicker;
-                ToolkitIcons.SetButtonIcon(addEventButton, ToolkitIcons.AddEvent, "Add Event");
                 // The word stays: the picker it opens is the affordance, the icon only says which family.
-                addEventButton.text = "Add Event";
-                addEventButton.AddToClassList("toolkit-icon-button--with-text");
+                ToolkitIcons.SetButtonIconAndText(addEventButton, ToolkitIcons.AddEvent, "Add Event");
             }
 
             RegisterTransportShortcuts();

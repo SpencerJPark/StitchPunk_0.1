@@ -191,7 +191,7 @@ namespace DotsAnimationToolkit.Editor
 
             Button starterButton = new Button { text = ResolveAnimationDisplayName(layer != null ? layer.startingAnimationKey : 0u) };
             starterButton.tooltip = "The animation this layer starts on at bake.";
-            starterButton.style.minWidth = 70f;
+            starterButton.AddToClassList("toolkit-box__starter");
             starterButton.clicked += () => OpenStarterMenu(layerIndex, starterButton);
             headerRow.Add(starterButton);
 
@@ -255,7 +255,7 @@ namespace DotsAnimationToolkit.Editor
             animationLiveDots[(layerIndex, animationIndex)] = liveDot;
 
             Label nameLabel = new Label(ResolveAnimationDisplayName(animationKey));
-            nameLabel.style.flexGrow = 1f;
+            nameLabel.AddToClassList("toolkit-box__label");
             row.Add(nameLabel);
 
             Button playButton = ToolkitIcons.MakeIconButton(

@@ -206,16 +206,25 @@ the Clip Editor, which previews one clip, this tab previews the whole profile: e
 composited, triggered the way the game triggers them, turning through the profile's directions,
 dropping and restoring ragdoll on the entries that say so.
 
-**Header.** A profile field, a validation badge (P1–P7 plus clip/rig binding), **Reset** (every
-layer back to its starter or inactive, ragdoll off, direction to south-east), a Play/Pause
-transport, and a direction slider with a readout in the form "137° → SouthEast, mirrored".
+**Header.** A profile field and a validation badge (P1–P7 plus clip/rig binding). The three panes
+below it — **Layers**, **Preview**, **Actor Inspector** — each carry a title, the same way the Clip
+Editor's do.
 
-**Layers column.** `Base` and `Override` are fixed bookends — no delete, no reorder — with
-**+ Layer** inserting between them; other layers move with Up/Down buttons. Each layer row picks a
-starter animation and shows a live dot while the composer has it active. **+ Animation** on a
-layer opens the animation-name picker (typing a new name mints it in the registry). Each animation
-row carries ▶/■ to trigger `PlayAnimation`/`StopAnimation` on the live composer, a live dot while
-playing, and its own per-row scrub field.
+**Transport.** Under the preview, in the toolkit's shared icon style: ⏮ resets every layer to its
+starter or inactive, ragdoll off, direction to south-east; ▶/⏸ runs the composer; ■ pauses and
+resets; ▶ (step) advances one thirtieth of a second while paused. Space, ← → and Home reach it
+whenever this tab is showing. Beside the buttons, a direction slider with a readout in the form
+"137° → SouthEast, mirrored".
+
+**Layers column.** Each layer is its own box. `Base` and `Override` are fixed bookends — no delete,
+no reorder — with **+ Layer** in the pane header inserting between them; other layers move with the
+▲/▼ buttons in their box header. The box header also carries an **eye**, which is the layer's
+`defaultActive` (whether the baked actor starts with the layer on — the preview re-seeds when you
+change it, so the layer visibly stops or starts), a live dot while the composer has it active, and
+the starter-animation button. **+** at the foot of a box opens the animation-name picker (typing a
+new name mints it in the registry). Each animation row carries ▶/■ to trigger
+`PlayAnimation`/`StopAnimation` on the live composer, a live dot while playing, and its own per-row
+scrub field.
 
 **Inspector column.** Blocks for whichever of profile / layer / animation is selected. An
 animation block has a direction-dimension toggle that swaps a plain clip field for the slot queue

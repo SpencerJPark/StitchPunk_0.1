@@ -41,8 +41,8 @@ segment's `holdId` is always empty, since nothing pauses after the end.
 
 Open **Window ▸ DOTS Animation Toolkit ▸ Clip Editor** and switch to the **Cutscene Editor** tab
 (or double-click a `CutsceneAsset` — it opens there directly, via the same `[OnOpenAsset]` seam
-`ActorProfileAssetOpener` uses). **+ Actor Slot** / **+ Prop Slot**, in the row above the timeline,
-add a slot; a slot's header doubles as its selection target — click it to edit its name, kind,
+`ActorProfileAssetOpener` uses). **+ Actor** / **+ Prop**, in the **Cast** pane's header, add a
+slot; a slot's header doubles as its selection target — click it to edit its name, kind,
 actor prefab, rig, clip sets and direction set in the inspector. An Actor slot's **Fill from
 Profile** button picks an `ActorProfileAsset` and writes its rig and clip sets onto the slot in one
 step, so a staged actor stops drifting from the profile that drives it in-game.
@@ -283,7 +283,8 @@ timeline-vs-everything-above).
   has none yet. Ctrl+D duplicates in place at the copied items' own earliest time and leaves the
   copies selected, ready to drag off. The buffer survives switching cutscenes but not a domain
   reload.
-- **Auto Key.** A toolbar toggle, off by default, remembered per editor session
+- **Auto Key.** A toggle in the status row over the lanes (beside **Key** and **Skip Holds**),
+  lit red while on, off by default, remembered per editor session
   (`SessionState`). With it on and the preview active, moving a bound object or one of its parts
   with Unity's own gizmo (or the in-tab viewport gizmo) writes a key at the playhead the instant you
   release the drag — one key per gesture. It tells a gizmo drag from the preview's own writes by
@@ -294,8 +295,11 @@ timeline-vs-everything-above).
   does not take a drag, but dragging a handle turns the key into a custom Bézier with those handles.
   It is the same widget and the same `ClipSampler.Ease` a clip's own keys use, so the shape matches
   playback exactly.
-- **Transport.** Under the toolbar: **Play/Pause/Stop**, **Speed**, **Loop**, **Skip Holds**, a time
-  readout, and a **Continue ▶** button that only appears while gated on a hold. This is a rehearsal
+- **Transport.** The strip at the top of the timeline pane, in the toolkit's shared icon style:
+  ⏮ ◀ ▶ ■ ▶ ⏭ ⟳ (jump to start, step a thirtieth back, play/pause, stop, step forward, jump to
+  end, loop), then **Time** and **Speed** as draggable caption+field pairs, **Zoom** with **All** and
+  **Playhead**, and a **Continue** button that only appears while gated on a hold. Space, ← →,
+  Home and End drive it whenever this tab is showing. This is a rehearsal
   of runtime pacing, not a scrubber — a hold really holds: the transport stops there, names the hold
   id it is waiting on (`⏸ Holding on '<id>'`, noting when the stop came from an event cue rather than
   an authored marker), and waits for Continue exactly as the runtime waits for a host to release
@@ -303,8 +307,8 @@ timeline-vs-everything-above).
   clip keeps advancing, so a looping walk keeps cycling and the camera holds its shot. **Stop**
   returns the playhead to wherever Play was pressed.
 - **Timeline navigation.** Ctrl+wheel zooms about the cursor, keeping the time you're pointing at
-  under the pointer. **Home** fits the whole cutscene to the window; **Alt+P** brings the playhead
-  to the middle without moving it. The header column freezes vertically with the lanes and never
+  under the pointer. **Shift+F** (or **All**) fits the whole cutscene to the window, **F** centres on
+  the selection, and **Alt+P** (or **Playhead**) brings the playhead to the middle without moving it. The header column freezes vertically with the lanes and never
   scrolls horizontally with them.
 
 ## Playing a cutscene

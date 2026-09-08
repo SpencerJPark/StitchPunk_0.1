@@ -137,26 +137,22 @@ remains). Three ⏸ owner checkpoints are open and nothing is queued behind them
 Index: `Assets/_Vault/Tasks/NewPlans/ActorEditor_Roadmap.md`. Both content recipes live in
 `Assets/_Scripts/Editor/ContentAuthoring/` and are re-runnable.
 
-**In progress (2026-09-07, owner prompted the build; paused at the T2 checkpoint on a usage cap):
-Amendment A72, editor visual unification.** Landed: T0 baseline captures in
-`Library/A72Captures/before-*.png` (capture recipe: scale `window.position` by
-`EditorGUIUtility.pixelsPerPoint` before calling `GrabPixels`, or you get the bottom-left corner),
-T1 (`Editor/ClipEditor/Shared/ToolkitPalette.cs`, `ToolkitIcons.cs`, `ToolkitPaletteTests`) and T2
-(USS `Shared` section + `--toolkit-color-*` tokens, UXML `transport-core-slot`, C# class renames).
-Between T2 and T4 the Clip Editor's transport buttons are absent from the UXML by design — the
-`Q<Button>` lookups are null-guarded, so the tab works without them; `CutsceneEditorPanel` and
-`ActorEditorLayersColumn` still add deleted `cutscene-editor__transport*` / `actor-editor__*-row`
-classes and are unstyled until T6/T10. **Next: T3.** The plain-noun allowlist in
-`PackagingConformanceTests` already carries `ToolkitPalette`, `ToolkitIcons`, `CaptionDragHandle`.
-Gate at the checkpoint: 0 compile errors; `ToolkitPaletteTests`, `ClipEditorLayoutTests`,
-`Conformance_F/G` pass; `Conformance_A` is the standing asmdef drift.
+**Built (2026-09-07): Amendment A72, editor visual unification — 0.18.0.** T0–T12 are in
+(commits `A72-T1/T2`, `A72-T3`, `A72-T4/T5/T8`, `A72-T6/T7`, `A72-T9/T10/T11`, `A72-T12`).
+Gated: 0 compile errors; EditMode 760/760 bar the standing `Conformance_A` asmdef drift,
+PlayMode 277/277 (those are the counts the runner reports for the two package assemblies —
+earlier entries quoted 823 / 291 from a different tally; the attribute count in `Tests/EditMode`
+is 760, so nothing dropped). **One ⏸ owner checkpoint is open: the visual pass.** BEFORE and
+AFTER captures of the three tabs are in `Library/A72Captures/before-*.png` / `after-*.png`; the
+owner judges cohesion, the boxed layers and whether the eye reads as `defaultActive`. Nothing is
+queued behind it. Two spec items landed as documented fallbacks: the Cutscene Editor's `F` centres
+on the playhead rather than the earliest selected item (`CutsceneItemAddress` is positional, so
+"earliest selected time" needs a per-lane switch nobody has asked for yet), and the layer eye's
+test drives `ToggleLayerDefaultActive` directly because an unattached `VisualElement` drops
+`SendEvent` (no panel, no dispatcher). Traps found on the way are in
+`Assets/_Vault/Memories/Code/AnimationToolkit.md` ("Shared editor chrome").
 (`Docs/AnimationToolkit/Amendment_A72_EditorVisualUnification_Spec.md`; index
-`Assets/_Vault/Tasks/NewPlans/EditorVisualUnification_Roadmap.md`). The Clip Editor's layout leads;
-the Cutscene and Actor tabs adopt its shape, one icon transport (`TransportCoreElement` /
-`ITransportTarget`) with Space/arrows/Home/End routed to the active tab, boxed lists with an eye
-toggle on actor layers, one palette with a colour per event name. Its §2 decisions are recorded
-owner/architecture calls. T0 and T12 are the orchestrator's (captures, gate); T1–T11 are sized for
-file-only subagents.
+`Assets/_Vault/Tasks/NewPlans/EditorVisualUnification_Roadmap.md`.)
 
 ## 5. Standing owner directives — binding, do not lose
 

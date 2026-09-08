@@ -75,20 +75,18 @@ namespace DotsAnimationToolkit.Editor
             Button addActorButton = ToolkitIcons.MakeIconButton(
                 () => AddSlotRequested?.Invoke(CutsceneSlotKind.Actor), ToolkitIcons.Plus,
                 "Add an actor slot.", "+ Actor");
-            addActorButton.text = "Actor";
-            addActorButton.AddToClassList("toolkit-icon-button--with-text");
+            ToolkitIcons.SetButtonIconAndText(addActorButton, ToolkitIcons.Plus, "Actor");
             addActorButton.AddToClassList("toolkit-pane-action");
             actionsRow.Add(addActorButton);
 
             Button addPropButton = ToolkitIcons.MakeIconButton(
                 () => AddSlotRequested?.Invoke(CutsceneSlotKind.Prop), ToolkitIcons.Plus,
                 "Add a prop slot.", "+ Prop");
-            addPropButton.text = "Prop";
-            addPropButton.AddToClassList("toolkit-icon-button--with-text");
+            ToolkitIcons.SetButtonIconAndText(addPropButton, ToolkitIcons.Plus, "Prop");
             addPropButton.AddToClassList("toolkit-pane-action");
             actionsRow.Add(addPropButton);
 
-            syncToStageButton = new Button(() => SyncToStageRequested?.Invoke()) { text = "Sync to Stage" };
+            syncToStageButton = new Button(() => SyncToStageRequested?.Invoke()) { text = "Sync" };
             syncToStageButton.tooltip =
                 "Writes every bound slot into this scene's CutsceneStageAuthoring component, baking "
                 + "one CutsceneStage entity that plays this cutscene at runtime. Explicit, never "

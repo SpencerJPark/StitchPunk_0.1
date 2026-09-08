@@ -38,6 +38,8 @@ namespace DotsAnimationToolkit.Editor
         private const string IconButtonClassName = "toolkit-icon-button";
         private const string IconButtonIconClassName = "toolkit-icon-button__icon";
         private const string IconButtonTextClassName = "toolkit-icon-button--text";
+        private const string IconButtonWithTextClassName = "toolkit-icon-button--with-text";
+        private const string IconButtonLabelClassName = "toolkit-icon-button__label";
 
         // Not every built-in icon ships a dark-skin variant, and asking IconContent for one that
         // does not exist yields nothing rather than the light original.
@@ -71,6 +73,37 @@ namespace DotsAnimationToolkit.Editor
 
             ApplyIcon(iconButton, iconImage, iconName, fallbackText);
             return iconButton;
+        }
+
+        public static Button MakeIconTextButton(Action onClick, string iconName, string tooltip, string text)
+        {
+            Button iconTextButton = MakeIconButton(onClick, iconName, tooltip, text);
+            SetButtonIconAndText(iconTextButton, iconName, text);
+            return iconTextButton;
+        }
+
+        // The word is a Label child, not button.text: a Button with children gets no text measure
+        // from the layout engine, so its own text would wrap one letter per line.
+        public static void SetButtonIconAndText(Button button, string iconName, string text)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            SetButtonIcon(button, iconName, text);
+            button.text = string.Empty;
+            button.RemoveFromClassList(IconButtonTextClassName);
+
+            Label wordLabel = button.Q<Label>(className: IconButtonLabelClassName);
+            if (wordLabel == null)
+            {
+                wordLabel = new Label { pickingMode = PickingMode.Ignore };
+                wordLabel.AddToClassList(IconButtonLabelClassName);
+                button.Add(wordLabel);
+            }
+            wordLabel.text = text;
+            button.AddToClassList(IconButtonWithTextClassName);
         }
 
         public static void SetButtonIcon(Button button, string iconName, string fallbackText)

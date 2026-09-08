@@ -8,6 +8,44 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] — editor visual unification: one transport, one palette, boxed lists (A72)
+
+### Added
+
+- `ToolkitPalette` / `--toolkit-color-*` — one set of state, lane, marker and event colours shared
+  by every tab, mirrored between C# and the stylesheet by `ToolkitPaletteTests`. Each event name
+  gets its own colour (a hash of its registry key) in both the Clip Editor and Cutscene Editor
+  timelines; selection is blue everywhere, yellow means holding.
+- `ToolkitIcons` — the one place an icon button is built, with a text fallback for any icon that
+  leaves Unity's set.
+- `ITransportTarget` and `TransportCoreElement` — the ⏮ ◀ ▶ ■ ▶ ⏭ ⟳ run every transport bar
+  inserts, behind one interface the Clip Editor, Cutscene Editor and Actor Editor implement. Space,
+  ← →, Home and End now drive whichever tab is showing (they used to drive the hidden Clip Editor
+  from every tab). Stop returns the playhead to where Play was pressed on every tab.
+- `CaptionDragHandle` — the transport's caption-drags-the-field helper, shared.
+- `toolkit-box` — boxed peers: actor layers (with an **eye** that writes `defaultActive`), cast
+  rows, direction slots, New Rig candidates. Pane titles on every side pane.
+
+### Changed
+
+- **Cutscene Editor** takes the Clip Editor's shape: the transport is the middle strip on the
+  timeline (Time and Speed as caption+field pairs, Zoom with All/Playhead beside them), a status
+  row under it carries Key, Auto Key and Skip Holds, the top bar keeps only the asset, New and
+  scene status, `+ Actor` / `+ Prop` moved into the Cast pane header, and the viewport's controls
+  run down a left-edge rail (Move/Rotate/Scale, Frame, Shot, Drive Scene View). `Home`/`End` jump;
+  `F`/`Shift+F` frame.
+- **Actor Editor**: titled Layers / Preview / Actor Inspector panes, the transport under the
+  preview (step and stop only; ⏮ is the old Reset), `+ Layer` in the Layers header, each layer a
+  box with icon play/stop rows.
+- **Clip Editor**: the transport words became the shared icon run with a new ■; Add Event carries
+  its icon; Auto Key lights red while on; selected event pins keep their colour and take a blue
+  stroke.
+
+### Removed
+
+- Per-tab transport styling (`cutscene-editor__transport*`, `actor-editor__layer-row*`) and the
+  `defaultActive` checkbox — the eye is that field.
+
 ## [0.17.0] — Actor Editor: layers, animations, direction and ragdoll, mixed live (A71)
 
 ### Added

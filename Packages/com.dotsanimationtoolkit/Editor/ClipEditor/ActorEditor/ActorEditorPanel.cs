@@ -332,6 +332,9 @@ namespace DotsAnimationToolkit.Editor
             layersColumn = new VisualElement { name = "layers-column" };
             layersColumn.AddToClassList(LayersColumnUssClassName);
             layersColumn.style.width = SideColumnWidth;
+            // Holds its width: a layer box header carries seven controls, and a column that gave
+            // way to the preview would ellipsize every layer name to one letter.
+            layersColumn.style.flexShrink = 0f;
             layersColumn.style.marginRight = 8f;
             body.Add(layersColumn);
 
@@ -345,8 +348,7 @@ namespace DotsAnimationToolkit.Editor
             layersActions.AddToClassList("toolkit-pane-actions");
             Button addLayerButton = ToolkitIcons.MakeIconButton(
                 () => layersColumnView?.AddLayer(), ToolkitIcons.Plus, "Add a layer above Override.", "+ Layer");
-            addLayerButton.text = "Layer";
-            addLayerButton.AddToClassList("toolkit-icon-button--with-text");
+            ToolkitIcons.SetButtonIconAndText(addLayerButton, ToolkitIcons.Plus, "Layer");
             addLayerButton.AddToClassList("toolkit-pane-action");
             addLayerButton.name = "actor-editor-add-layer-button";
             layersActions.Add(addLayerButton);
@@ -390,6 +392,7 @@ namespace DotsAnimationToolkit.Editor
             inspectorColumn = new VisualElement { name = "inspector-column" };
             inspectorColumn.AddToClassList(InspectorColumnUssClassName);
             inspectorColumn.style.width = SideColumnWidth;
+            inspectorColumn.style.minWidth = 260f;
             inspectorColumn.style.marginLeft = 8f;
             body.Add(inspectorColumn);
 

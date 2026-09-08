@@ -588,9 +588,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.17.0 is Amendment A71, the Actor
-            // Editor: layers/animations/direction/ragdoll previewed live, composited across layers.
-            Assert.AreEqual("0.17.0", manifest.version, "Version tracks the shipped feature set; 0.17.0 is Amendment A71's Actor Editor.");
+            // -- not drift because someone edited the manifest. 0.18.0 is Amendment A72, the editor
+            // visual unification: one transport, one palette, boxed lists across the tabs.
+            Assert.AreEqual("0.18.0", manifest.version, "Version tracks the shipped feature set; 0.18.0 is the editor visual unification.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

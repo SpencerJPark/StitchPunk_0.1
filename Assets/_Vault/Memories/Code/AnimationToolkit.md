@@ -418,6 +418,34 @@ model, authoring, playback) and
 - **A skip replays every attach marker it jumped over**, in order, so a skipped run and a watched one
   leave the identical world — including any detach signal a host was waiting on.
 
+## Shared editor chrome — ToolkitPalette / ToolkitIcons / TransportCoreElement (A72, 0.18.0)
+
+Every tab that plays implements `ITransportTarget` and inserts one `TransportCoreElement` into a
+`toolkit-transport__group` named `transport-core-slot`; the window's single root `KeyDownEvent`
+handler resolves the active tab's target per keystroke. Three traps:
+
+- **The palette is mirrored, and the mirror is a test.** `ToolkitPalette.Tokens` (C#) and the
+  `--toolkit-color-*` block in `ClipEditorWindow.uss` must agree channel for channel;
+  `ToolkitPaletteTests.UssTokens_MatchToolkitPalette` fails on any drift. Add a colour in both
+  places or the fixture, not the compiler, tells you.
+- **One root KeyDown registration, ever.** `CreateGUI` re-runs after a domain reload and the
+  root's callbacks survive `Clear()`; a second `RegisterCallback<KeyDownEvent>` on
+  `rootVisualElement` doubles every keystroke. Route new keys through
+  `OnTransportKeyDown` / `ResolveActiveTransportTarget`, and gate Clip-Editor-only cases on
+  `activeTab`.
+- **Inline styles are layout only.** A panel built in C# may set `flexGrow`, `width`,
+  `flexDirection`, margins, `position`. A colour, border, radius, chrome padding or opacity
+  inline outranks the sheet and silently breaks the shared look; it is a class in the `Shared`
+  section, or a data-driven colour (an event lane's accent) with a one-line comment saying so.
+
+Three smaller ones: **a `Button` with a child loses its text measure** — Yoga gives a node with
+children no measure function, so `button.text` beside an icon `Image` wraps one letter per line
+(the first A72 capture showed "Add Event" as a vertical strip); `ToolkitIcons.SetButtonIconAndText`
+puts the word in a `Label` child instead, and that is the only way to build icon-plus-word.
+`ToolkitIcons.MakeIconButton(null, …)` is the deliberate text path for glyphs Unity has no crisp
+icon for (▲ ▼). And an unattached `VisualElement` drops `SendEvent` (no panel, no dispatcher), so a
+fixture that wants a click calls the bound action instead.
+
 ## Do not spawn subagents against this package
 
 Three processes driving one live Unity Editor already caused MCP lock
