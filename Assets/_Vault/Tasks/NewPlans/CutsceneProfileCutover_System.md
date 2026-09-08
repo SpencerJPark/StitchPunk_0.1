@@ -87,7 +87,7 @@ After each: compile gate → the task's fixtures → tick → commit `G6-Pn: <wh
   it fail (`Expected: 0 But was: 1`), restored it. *Gate:* clean compile;
   `StitchPunk.Tests.PlayMode` 16/16 (15 baseline + 1 new), all green.
 
-- [ ] **P3 — Facing parity.** [parallel-safe with P2] The toolkit now snaps
+- [x] **P3 — Facing parity.** [parallel-safe with P2] The toolkit now snaps
   `CutsceneFacing.angleDegrees` with `FacingResolver.FromMovement((cos θ, sin θ), turnDirections, current)`;
   `UnitFacingJob` snaps the same angle through `ResolveMovementXY` + its own fold. *Fixture (EditMode,
   `FacingSpaceTests`):* `CutsceneAngle_SnapsToTheSameDirection_AsTheToolkit` — for θ in
@@ -97,6 +97,23 @@ After each: compile gate → the task's fixtures → tick → commit `G6-Pn: <wh
   Then delete the game's `ActorFacing` write at `UnitFacingSystem.cs` 117–124 **only if** the
   fixture proves the values always agree *and* every unit that turns is always cutscene-driven — it
   is not (aim/movement facing outside cutscenes), so expect to keep it; record the reasoning in §6.
+  **Done 2026-09-08:** found `UnitFacingJob` already calls `FacingResolver.FromMovement` directly
+  (no separate game-side fold to reconcile — this landed in an earlier pass, predating A73) and
+  already writes `ActorFacing.facing` at lines 117–124 using that same `desiredFacing` value, so
+  G6-D2's write already existed; P3's job was to add the parity guard, not build the write. Added
+  `CutsceneAngle_SnapsToTheSameDirection_AsTheToolkit` to `FacingSpaceTests.cs`: for each θ it
+  independently reconstructs the toolkit's `(cos θ, sin θ)` vector (does **not** call through
+  `UnitFacingJob.CutsceneAngleToFacingSpace` for the "toolkit" side — routing both sides through the
+  same helper would pass even if that helper's own convention drifted) and asserts
+  `FacingResolver.FromMovement` snaps it identically to what `ResolveMovementXY` feeds it, across
+  Six/Four/Two. First draft of the fixture routed both sides through the same helper and stayed
+  green even after deliberately swapping cos/sin in `CutsceneAngleToFacingSpace` — caught before
+  committing by the "prove it can fail" step, not after; rewrote the toolkit side to compute its
+  vector independently, reproved the swap now fails (6 of 8 angles wrong under `Six`), restored the
+  correct convention, reconfirmed green. Not deleting the `ActorFacing` write — the fixture proves
+  the two folds already agree, but aim-facing and non-cutscene movement facing are real callers with
+  no cutscene involved, so the second condition for deletion is false, exactly as anticipated. *Gate:*
+  clean compile; `StitchPunk.Tests` 65/65 (57 baseline + 8 new `TestCase` angles), all green.
 
 - [ ] **P4 — Re-author the seven cutscene assets by script.** [parallel-safe with P2/P3 — writes
   assets only] New re-runnable `Assets/_Scripts/Editor/ContentAuthoring/CutsceneProfileReauthoring.cs`

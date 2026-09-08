@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using NUnit.Framework;
 using Unity.Mathematics;
 
@@ -66,6 +67,47 @@ namespace StitchPunk.Tests
             Assert.AreEqual(walkingEast.x, withoutACutscene.x, 1e-5f);
             Assert.AreEqual(walkingEast.z, withoutACutscene.y, 1e-5f,
                 "Without one, the movement delta still decides.");
+        }
+
+        // G6-P3: UnitFacingJob and the toolkit's own CutsceneTimelineSystem (A73 §3.3, WriteActorFacing)
+        // both snap CutsceneFacing.angleDegrees through FacingResolver.FromMovement — one writer's
+        // fold read twice, not two folds that could drift. This pins that the game's own pipeline
+        // (ResolveMovementXY + CutsceneAngleToFacingSpace) feeds FromMovement the identical vector
+        // the toolkit feeds it, so a future change to either side's angle-to-vector convention (the
+        // toolkit A65 east/north-vs-euler bug this file already guards) cannot silently diverge them.
+        [TestCase(0f)]
+        [TestCase(45f)]
+        [TestCase(90f)]
+        [TestCase(135f)]
+        [TestCase(180f)]
+        [TestCase(225f)]
+        [TestCase(270f)]
+        [TestCase(315f)]
+        public void CutsceneAngle_SnapsToTheSameDirection_AsTheToolkit(float angleDegrees)
+        {
+            AnimationDirections[] directionSets =
+            {
+                AnimationDirections.Six, AnimationDirections.Four, AnimationDirections.Two,
+            };
+
+            // Independently reconstructs the toolkit's own convention (CutsceneFacing.angleDegrees
+            // measured FROM +X TOWARD +Z, A65 §3.3) rather than calling through
+            // UnitFacingJob.CutsceneAngleToFacingSpace — routing both sides through the same helper
+            // would make this pass even if that helper's convention drifted from the toolkit's.
+            float angleRadians = math.radians(angleDegrees);
+            float2 toolkitMovementXY = new float2(math.cos(angleRadians), math.sin(angleRadians));
+
+            foreach (AnimationDirections directions in directionSets)
+            {
+                float2 gameMovementXY = UnitFacingJob.ResolveMovementXY(
+                    true, angleDegrees, false, in float2.zero, float3.zero);
+                Direction gameSnap = FacingResolver.FromMovement(in gameMovementXY, directions, Direction.South);
+
+                Direction toolkitSnap = FacingResolver.FromMovement(in toolkitMovementXY, directions, Direction.South);
+
+                Assert.AreEqual(toolkitSnap, gameSnap,
+                    $"angle={angleDegrees}, directions={directions}: the game's snap must match the toolkit's own fold exactly — two writers computing the same thing is the risk this guards against.");
+            }
         }
     }
 }
