@@ -8,6 +8,10 @@ public static class AnimationNameConvention
 
     public static string ForAction(ActionType action) => action.ToString();
 
+    // Face clip naming (G5 follow-up): "<Action>Face", e.g. Death -> "DeathFace". Optional per
+    // unit — an unresolved face name bakes key 0 and is never warned about.
+    public static string ForActionFace(ActionType action) => action + "Face";
+
     public static string ForStanceIdle(StanceType stance) => stance + Idle;
 
     public static string ForStanceWalk(StanceType stance) => stance + Walk;

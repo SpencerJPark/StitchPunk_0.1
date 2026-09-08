@@ -129,6 +129,19 @@ public static class AIUtils
         return 0;
     }
 
+    // Optional face clip for an action ("<Action>Face"); 0 = none authored — callers must
+    // no-op rather than treat it like a missing required animation.
+    public static uint GetFaceAnimationKeyByAction(ref UnitDataBlob unitBlob, ActionType actionType)
+    {
+        ref BlobArray<ActionAnimationKeyBlob> keys = ref unitBlob.faceAnimationKeys;
+        for (int i = 0; i < keys.Length; i++)
+        {
+            if (keys[i].action == actionType)
+                return keys[i].animationKey;
+        }
+        return 0;
+    }
+
     // Falls back to the Normal stance pair when the requested stance's names did not resolve at
     // bake time (both keys 0), then to the bare Idle/Walk keys if even Normal is unresolved, so
     // callers never have to null-check a locomotion animation.

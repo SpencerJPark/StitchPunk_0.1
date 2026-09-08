@@ -37,6 +37,9 @@ public struct UnitDataBlob
     public uint idleAnimationKey;
     public uint walkAnimationKey;
     public BlobArray<ActionAnimationKeyBlob> actionAnimationKeys;
+    // Optional per-action face clip ("<Action>Face"); 0 = no face clip authored for that action —
+    // never folded into UnitLibraryBakingSystem's unresolved-name warning.
+    public BlobArray<ActionAnimationKeyBlob> faceAnimationKeys;
     public BlobArray<StanceAnimationKeysBlob> stanceAnimationKeys;
 }
 

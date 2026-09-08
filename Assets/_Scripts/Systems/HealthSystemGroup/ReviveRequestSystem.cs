@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Entities;
@@ -6,22 +7,26 @@ using Unity.Entities;
 [UpdateInGroup(typeof(HealthSystemGroup))]
 public partial struct ReviveRequestSystem : ISystem
 {
-    private ComponentLookup<PlayerUnitBrain>        playerBrainLookup;
-    private ComponentLookup<ActionInterruptRequest> interruptLookup;
-    private ComponentLookup<SwapBrainRequest>       swapBrainLookup;
-    private ComponentLookup<Minion>                 minionLookup;
-    private ComponentLookup<PlayerInteractable>     playerInteractableLookup;
+    private ComponentLookup<PlayerUnitBrain>         playerBrainLookup;
+    private ComponentLookup<ActionInterruptRequest>  interruptLookup;
+    private ComponentLookup<SwapBrainRequest>        swapBrainLookup;
+    private ComponentLookup<Minion>                  minionLookup;
+    private ComponentLookup<PlayerInteractable>      playerInteractableLookup;
+    private BufferLookup<AnimationCommand>           animationCommandLookup;
+    private ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<UnitDataLibrary>();
-        playerBrainLookup        = state.GetComponentLookup<PlayerUnitBrain>(false);
-        interruptLookup          = state.GetComponentLookup<ActionInterruptRequest>(false);
-        swapBrainLookup          = state.GetComponentLookup<SwapBrainRequest>(false);
-        minionLookup             = state.GetComponentLookup<Minion>(false);
-        playerInteractableLookup = state.GetComponentLookup<PlayerInteractable>(false);
+        playerBrainLookup             = state.GetComponentLookup<PlayerUnitBrain>(false);
+        interruptLookup               = state.GetComponentLookup<ActionInterruptRequest>(false);
+        swapBrainLookup               = state.GetComponentLookup<SwapBrainRequest>(false);
+        minionLookup                  = state.GetComponentLookup<Minion>(false);
+        playerInteractableLookup      = state.GetComponentLookup<PlayerInteractable>(false);
+        animationCommandLookup        = state.GetBufferLookup<AnimationCommand>(false);
+        animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
     }
 
     [BurstCompile]
@@ -32,6 +37,8 @@ public partial struct ReviveRequestSystem : ISystem
         swapBrainLookup.Update(ref state);
         minionLookup.Update(ref state);
         playerInteractableLookup.Update(ref state);
+        animationCommandLookup.Update(ref state);
+        animationCommandPendingLookup.Update(ref state);
 
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
@@ -42,7 +49,9 @@ public partial struct ReviveRequestSystem : ISystem
             interruptLookup   = interruptLookup,
             swapBrainLookup   = swapBrainLookup,
             minionLookup      = minionLookup,
-            playerInteractableLookup = playerInteractableLookup,
+            playerInteractableLookup      = playerInteractableLookup,
+            animationCommandLookup        = animationCommandLookup,
+            animationCommandPendingLookup = animationCommandPendingLookup,
             unitLibrary       = unitLibrary,
         }.Schedule(state.Dependency);
     }
@@ -57,10 +66,12 @@ public partial struct ReviveJob : IJobEntity
 {
     public ComponentLookup<PlayerUnitBrain>        playerBrainLookup;
     public ComponentLookup<ActionInterruptRequest> interruptLookup;
-    public ComponentLookup<SwapBrainRequest>       swapBrainLookup;
-    public ComponentLookup<Minion>                 minionLookup;
-    public ComponentLookup<PlayerInteractable>     playerInteractableLookup;
-    public BlobAssetReference<UnitLibraryBlob>     unitLibrary;
+    public ComponentLookup<SwapBrainRequest>         swapBrainLookup;
+    public ComponentLookup<Minion>                   minionLookup;
+    public ComponentLookup<PlayerInteractable>       playerInteractableLookup;
+    public BufferLookup<AnimationCommand>            animationCommandLookup;
+    public ComponentLookup<AnimationCommandPending>  animationCommandPendingLookup;
+    public BlobAssetReference<UnitLibraryBlob>       unitLibrary;
 
     public void Execute(
         Entity entity,
@@ -98,6 +109,27 @@ public partial struct ReviveJob : IJobEntity
 
         // Clear the death latch so a re-killed reanimated unit re-enters DeathSystem.
         unitAction.current = ActionType.Idle;
+
+        // Play the profile's Resurrection body animation (ragdoll Stop trigger rides on this clip)
+        // and stop the DeathFace clip left playing on the corpse. Both optional (key 0 = no-op).
+        if (animationCommandLookup.HasBuffer(entity) && animationCommandPendingLookup.HasComponent(entity))
+        {
+            ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[srcIdx];
+            uint resurrectionAnimationKey = AIUtils.GetAnimationKeyByAction(ref unitBlob, ActionType.Resurrection);
+            uint deathFaceAnimationKey    = AIUtils.GetFaceAnimationKeyByAction(ref unitBlob, ActionType.Death);
+            DynamicBuffer<AnimationCommand> animationCommands = animationCommandLookup[entity];
+
+            if (resurrectionAnimationKey != 0)
+                PlaybackApi.PlayAnimation(
+                    ref animationCommands,
+                    animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
+                    resurrectionAnimationKey);
+            if (deathFaceAnimationKey != 0)
+                PlaybackApi.StopAnimation(
+                    ref animationCommands,
+                    animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
+                    deathFaceAnimationKey);
+        }
 
         // Convert the brain to the zombie form — SwapBrainSystem (same frame, after this) rebuilds
         // faction/attacks/motivations — and hand the unit to the player: enable Minion (selectable)

@@ -103,6 +103,20 @@ public partial struct UnitLibraryBakingSystem : ISystem
                     ResolveAnimationKey(AnimationNameConvention.ForStanceWalk(stanceType), unresolvedAnimationNames);
             }
 
+            // Face clips are optional per action (G5 follow-up): resolved through the same
+            // registry but collected into a throwaway list, never folded into the unresolved-name
+            // warning below — a missing "<Action>Face" is expected, not a baking problem.
+            List<string> unresolvedFaceAnimationNames = new List<string>();
+            BlobBuilderArray<ActionAnimationKeyBlob> faceKeysArray =
+                builder.Allocate(ref unitsArray[i].faceAnimationKeys, allActionTypes.Length);
+            for (int j = 0; j < allActionTypes.Length; j++)
+            {
+                ActionType actionType = (ActionType)allActionTypes.GetValue(j);
+                faceKeysArray[j].action = actionType;
+                faceKeysArray[j].animationKey =
+                    ResolveAnimationKey(AnimationNameConvention.ForActionFace(actionType), unresolvedFaceAnimationNames);
+            }
+
             if (unresolvedAnimationNames.Count > 0)
             {
                 UnityEngine.Debug.LogWarning(

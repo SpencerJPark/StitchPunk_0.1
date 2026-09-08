@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Entities;
@@ -8,25 +9,30 @@ using Unity.Transforms;
 [UpdateBefore(typeof(ReviveRequestSystem))]
 public partial struct DeathSystem : ISystem
 {
-    private ComponentLookup<ActionInterruptRequest> interruptLookup;
-    private ComponentLookup<AttackRequest>          pendingAttackLookup;
-    private ComponentLookup<UtilityBrain>           utilityBrainLookup;
-    private ComponentLookup<PlayerInteractable>     playerInteractableLookup;
-    private BufferLookup<ThreatEntry>               threatLookup;
-    private BufferLookup<MotivationChangeRequest>   motivationRequestLookup;
-    private BufferLookup<RecentInteraction>         recentInteractionLookup;
+    private ComponentLookup<ActionInterruptRequest>  interruptLookup;
+    private ComponentLookup<AttackRequest>           pendingAttackLookup;
+    private ComponentLookup<UtilityBrain>            utilityBrainLookup;
+    private ComponentLookup<PlayerInteractable>      playerInteractableLookup;
+    private BufferLookup<ThreatEntry>                threatLookup;
+    private BufferLookup<MotivationChangeRequest>    motivationRequestLookup;
+    private BufferLookup<RecentInteraction>          recentInteractionLookup;
+    private BufferLookup<AnimationCommand>           animationCommandLookup;
+    private ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
-        interruptLookup          = state.GetComponentLookup<ActionInterruptRequest>(false);
-        pendingAttackLookup      = state.GetComponentLookup<AttackRequest>(false);
-        utilityBrainLookup       = state.GetComponentLookup<UtilityBrain>(false);
-        playerInteractableLookup = state.GetComponentLookup<PlayerInteractable>(false);
-        threatLookup             = state.GetBufferLookup<ThreatEntry>(false);
-        motivationRequestLookup  = state.GetBufferLookup<MotivationChangeRequest>(false);
-        recentInteractionLookup  = state.GetBufferLookup<RecentInteraction>(false);
+        state.RequireForUpdate<UnitDataLibrary>();
+        interruptLookup               = state.GetComponentLookup<ActionInterruptRequest>(false);
+        pendingAttackLookup           = state.GetComponentLookup<AttackRequest>(false);
+        utilityBrainLookup            = state.GetComponentLookup<UtilityBrain>(false);
+        playerInteractableLookup      = state.GetComponentLookup<PlayerInteractable>(false);
+        threatLookup                  = state.GetBufferLookup<ThreatEntry>(false);
+        motivationRequestLookup       = state.GetBufferLookup<MotivationChangeRequest>(false);
+        recentInteractionLookup       = state.GetBufferLookup<RecentInteraction>(false);
+        animationCommandLookup        = state.GetBufferLookup<AnimationCommand>(false);
+        animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
     }
 
     [BurstCompile]
@@ -39,6 +45,8 @@ public partial struct DeathSystem : ISystem
         threatLookup.Update(ref state);
         motivationRequestLookup.Update(ref state);
         recentInteractionLookup.Update(ref state);
+        animationCommandLookup.Update(ref state);
+        animationCommandPendingLookup.Update(ref state);
 
         bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
             || (loggingCfg.EnabledCategories & (int)LogCategory.Health) != 0;
@@ -48,15 +56,21 @@ public partial struct DeathSystem : ISystem
                 .CreateCommandBuffer(state.WorldUnmanaged)
             : default;
 
+        BlobAssetReference<UnitLibraryBlob> unitLibrary =
+            SystemAPI.GetSingleton<UnitDataLibrary>().library;
+
         state.Dependency = new DeathJob
         {
-            interruptLookup          = interruptLookup,
-            pendingAttackLookup      = pendingAttackLookup,
-            utilityBrainLookup       = utilityBrainLookup,
-            playerInteractableLookup = playerInteractableLookup,
-            threatLookup             = threatLookup,
-            motivationRequestLookup  = motivationRequestLookup,
-            recentInteractionLookup  = recentInteractionLookup,
+            interruptLookup               = interruptLookup,
+            pendingAttackLookup           = pendingAttackLookup,
+            utilityBrainLookup            = utilityBrainLookup,
+            playerInteractableLookup      = playerInteractableLookup,
+            threatLookup                  = threatLookup,
+            motivationRequestLookup       = motivationRequestLookup,
+            recentInteractionLookup       = recentInteractionLookup,
+            animationCommandLookup        = animationCommandLookup,
+            animationCommandPendingLookup = animationCommandPendingLookup,
+            unitLibrary                   = unitLibrary,
             ecb                     = ecb,
             loggingEnabled          = loggingEnabled,
             timestamp               = SystemAPI.Time.ElapsedTime,
@@ -73,13 +87,16 @@ public partial struct DeathSystem : ISystem
 [WithPresent(typeof(Gravity))]
 public partial struct DeathJob : IJobEntity
 {
-    public ComponentLookup<ActionInterruptRequest> interruptLookup;
-    public ComponentLookup<AttackRequest>          pendingAttackLookup;
-    public ComponentLookup<UtilityBrain>           utilityBrainLookup;
-    public ComponentLookup<PlayerInteractable>     playerInteractableLookup;
-    public BufferLookup<ThreatEntry>               threatLookup;
-    public BufferLookup<MotivationChangeRequest>   motivationRequestLookup;
-    public BufferLookup<RecentInteraction>         recentInteractionLookup;
+    public ComponentLookup<ActionInterruptRequest>  interruptLookup;
+    public ComponentLookup<AttackRequest>           pendingAttackLookup;
+    public ComponentLookup<UtilityBrain>            utilityBrainLookup;
+    public ComponentLookup<PlayerInteractable>      playerInteractableLookup;
+    public BufferLookup<ThreatEntry>                threatLookup;
+    public BufferLookup<MotivationChangeRequest>    motivationRequestLookup;
+    public BufferLookup<RecentInteraction>          recentInteractionLookup;
+    public BufferLookup<AnimationCommand>           animationCommandLookup;
+    public ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
+    public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
     public EntityCommandBuffer ecb;
     public bool                loggingEnabled;
     public double              timestamp;
@@ -89,6 +106,7 @@ public partial struct DeathJob : IJobEntity
         in Dead dead,
         in Health health,
         in LocalTransform transform,
+        in UnitData unitData,
         ref UnitAction unitAction,
         ref Movement mover,
         EnabledRefRW<PathRequest>      pathRequestEnabled,
@@ -154,6 +172,30 @@ public partial struct DeathJob : IJobEntity
             motivationRequestLookup[entity].Clear();
         if (recentInteractionLookup.HasBuffer(entity))
             recentInteractionLookup[entity].Clear();
+
+        // 7. Play the profile's Death body animation and, if authored, the DeathFace clip — the
+        //    ragdoll Start/Stop triggers ride on the Death clip itself. Both are optional (key 0).
+        int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
+        if (unitIndex >= 0
+            && animationCommandLookup.HasBuffer(entity)
+            && animationCommandPendingLookup.HasComponent(entity))
+        {
+            ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
+            uint deathAnimationKey     = AIUtils.GetAnimationKeyByAction(ref unitBlob, ActionType.Death);
+            uint deathFaceAnimationKey = AIUtils.GetFaceAnimationKeyByAction(ref unitBlob, ActionType.Death);
+            DynamicBuffer<AnimationCommand> animationCommands = animationCommandLookup[entity];
+
+            if (deathAnimationKey != 0)
+                PlaybackApi.PlayAnimation(
+                    ref animationCommands,
+                    animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
+                    deathAnimationKey);
+            if (deathFaceAnimationKey != 0)
+                PlaybackApi.PlayAnimation(
+                    ref animationCommands,
+                    animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
+                    deathFaceAnimationKey);
+        }
 
         if (loggingEnabled)
             LogUtil.Log(ref ecb,
