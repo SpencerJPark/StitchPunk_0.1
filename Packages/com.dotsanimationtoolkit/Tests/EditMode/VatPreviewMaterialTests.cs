@@ -30,22 +30,24 @@ namespace DotsAnimationToolkit.Tests.EditMode
             VatTextureSetAsset textureSet = ScriptableObject.CreateInstance<VatTextureSetAsset>();
             spawnedObjects.Add(textureSet);
             textureSet.flavor = VatFlavor.BoneMatrix;
-            textureSet.boneTexture = new Texture2D(8, 6);
-            spawnedObjects.Add(textureSet.boneTexture);
-            textureSet.textureWidth = 8;
-            textureSet.rowsPerFrame = 3;
-            textureSet.boneCount = 2;
-            textureSet.runtimeMesh = new Mesh();
-            spawnedObjects.Add(textureSet.runtimeMesh);
+            VatPartTextures part = new VatPartTextures();
+            part.boneTexture = new Texture2D(8, 6);
+            spawnedObjects.Add(part.boneTexture);
+            part.textureWidth = 8;
+            part.rowsPerFrame = 3;
+            part.boneCount = 2;
+            part.runtimeMesh = new Mesh();
+            spawnedObjects.Add(part.runtimeMesh);
+            textureSet.parts.Add(part);
 
-            bool succeeded = VatPreviewMaterial.TryCreate(textureSet, null, out VatPreviewMaterial preview, out string failureMessage);
+            bool succeeded = VatPreviewMaterial.TryCreate(textureSet, part, null, out VatPreviewMaterial preview, out string failureMessage);
 
             Assert.IsTrue(succeeded, failureMessage);
             spawnedObjects.Add(preview.Material);
 
             Vector4 texelParams = preview.Material.GetVector("_VatTexelParams");
             Assert.AreEqual(new Vector4(8, 6, 3, 2), texelParams);
-            Assert.AreSame(textureSet.boneTexture, preview.Material.GetTexture("_VatBoneTex"));
+            Assert.AreSame(part.boneTexture, preview.Material.GetTexture("_VatBoneTex"));
 
             preview.Dispose();
         }
@@ -57,7 +59,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             spawnedObjects.Add(textureSet);
             textureSet.flavor = VatFlavor.VertexPosition;
 
-            bool succeeded = VatPreviewMaterial.TryCreate(textureSet, null, out VatPreviewMaterial preview, out string failureMessage);
+            bool succeeded = VatPreviewMaterial.TryCreate(textureSet, null, null, out VatPreviewMaterial preview, out string failureMessage);
 
             Assert.IsFalse(succeeded);
             Assert.IsNull(preview);

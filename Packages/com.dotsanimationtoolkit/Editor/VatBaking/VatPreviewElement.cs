@@ -21,6 +21,10 @@ namespace DotsAnimationToolkit.Editor
         private VatPreviewMaterial material;
 
         private VatTextureSetAsset textureSet;
+
+        // The one part shown by this preview: the first entry in textureSet.parts, or null. Part
+        // switching is a later amendment's work - this preview has only ever shown one part.
+        private VatPartTextures previewedPart;
         private ClipSetAsset clipSetForNames;
         private SkinnedMeshRenderer sourceRenderer;
 
@@ -159,6 +163,9 @@ namespace DotsAnimationToolkit.Editor
             material?.Dispose();
             material = null;
             this.textureSet = textureSet;
+            previewedPart = textureSet != null && textureSet.parts != null && textureSet.parts.Count > 0
+                ? textureSet.parts[0]
+                : null;
             this.clipSetForNames = clipSetForNames;
             this.sourceRenderer = sourceRenderer;
             lastFramedTextureSet = textureSet;
@@ -231,10 +238,10 @@ namespace DotsAnimationToolkit.Editor
             Texture mainTexture = sourceRenderer != null && sourceRenderer.sharedMaterial != null
                 ? sourceRenderer.sharedMaterial.mainTexture
                 : null;
-            bool created = VatPreviewMaterial.TryCreate(textureSet, mainTexture, out material, out string failureMessage);
+            bool created = VatPreviewMaterial.TryCreate(textureSet, previewedPart, mainTexture, out material, out string failureMessage);
             statusLabel.text = created
-                ? "bones " + textureSet.boneCount.ToString() + " · frames " + textureSet.clipRanges[0].frameCount.ToString()
-                    + " · " + textureSet.textureWidth.ToString() + "x" + textureSet.boneTexture.height.ToString()
+                ? "bones " + previewedPart.boneCount.ToString() + " · frames " + textureSet.clipRanges[0].frameCount.ToString()
+                    + " · " + previewedPart.textureWidth.ToString() + "x" + previewedPart.boneTexture.height.ToString()
                 : failureMessage;
         }
 
@@ -278,9 +285,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 return range.bounds;
             }
-            if (textureSet != null && textureSet.runtimeMesh != null)
+            if (previewedPart != null && previewedPart.runtimeMesh != null)
             {
-                return textureSet.runtimeMesh.bounds;
+                return previewedPart.runtimeMesh.bounds;
             }
             return new Bounds(Vector3.zero, Vector3.one);
         }
@@ -365,9 +372,9 @@ namespace DotsAnimationToolkit.Editor
             renderUtility.BeginPreview(viewportRect, GUIStyle.none);
             cameraRig.ApplyTo(renderUtility.camera);
 
-            if (material != null && textureSet != null && textureSet.runtimeMesh != null)
+            if (material != null && previewedPart != null && previewedPart.runtimeMesh != null)
             {
-                renderUtility.DrawMesh(textureSet.runtimeMesh, Matrix4x4.identity, material.Material, 0);
+                renderUtility.DrawMesh(previewedPart.runtimeMesh, Matrix4x4.identity, material.Material, 0);
             }
 
             renderUtility.camera.Render();

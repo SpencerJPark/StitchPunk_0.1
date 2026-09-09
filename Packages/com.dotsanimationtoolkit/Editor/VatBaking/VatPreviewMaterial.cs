@@ -19,6 +19,7 @@ namespace DotsAnimationToolkit.Editor
 
         public static bool TryCreate(
             VatTextureSetAsset textureSet,
+            VatPartTextures part,
             Texture mainTexture,
             out VatPreviewMaterial preview,
             out string failureMessage)
@@ -37,13 +38,13 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            if (textureSet.boneTexture == null)
+            if (part == null || part.boneTexture == null)
             {
                 failureMessage = "The VAT texture set has no bone texture baked.";
                 return false;
             }
 
-            if (textureSet.runtimeMesh == null)
+            if (part.runtimeMesh == null)
             {
                 failureMessage = "The VAT texture set has no runtime mesh baked.";
                 return false;
@@ -58,8 +59,8 @@ namespace DotsAnimationToolkit.Editor
 
             Material material = new Material(shader);
             material.hideFlags = HideFlags.HideAndDontSave;
-            material.SetTexture("_VatBoneTex", textureSet.boneTexture);
-            material.SetVector("_VatTexelParams", new Vector4(textureSet.textureWidth, textureSet.boneTexture.height, textureSet.rowsPerFrame, textureSet.boneCount));
+            material.SetTexture("_VatBoneTex", part.boneTexture);
+            material.SetVector("_VatTexelParams", new Vector4(part.textureWidth, part.boneTexture.height, part.rowsPerFrame, part.boneCount));
             material.SetTexture("_MainTex", mainTexture != null ? mainTexture : Texture2D.whiteTexture);
             material.SetColor("_BaseColor", Color.white);
             material.SetFloat("_VatFrameA", 0f);
