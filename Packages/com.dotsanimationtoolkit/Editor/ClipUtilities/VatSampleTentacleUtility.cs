@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using DotsAnimationToolkit;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEngine;
@@ -111,6 +112,161 @@ namespace DotsAnimationToolkit.Editor
             finally
             {
                 // The deliverable is the prefab; the scene copy was only somewhere to author it.
+                if (temporaryRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(temporaryRoot);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Generates the two-part sample: the same tentacle plus a second skinned mesh, "TentacleFin",
+        /// weighted to the upper half of its bone chain, sharing one clip whose vatTracks names only
+        /// the fin — so a bake exercises the dedicated-track path and the clip-wide fallback together.
+        /// </summary>
+        public static bool CreateTwoPartSampleAssets(
+            string assetFolder,
+            out ClipSetAsset clipSet,
+            out RigAsset rig,
+            out GameObject samplePrefab,
+            out string failureMessage)
+        {
+            clipSet = null;
+            rig = null;
+            samplePrefab = null;
+            failureMessage = string.Empty;
+
+            if (string.IsNullOrEmpty(assetFolder))
+            {
+                failureMessage = "Asset folder path must not be empty.";
+                return false;
+            }
+
+            GameObject temporaryRoot = null;
+            try
+            {
+                EnsureFolderPath(assetFolder);
+
+                List<BoneTrack> waveBoneTracks;
+                SkinnedMeshRenderer tentacleRenderer =
+                    VatTentacleRigBuilder.CreateTentacle("VatSampleTentacleTwoPart", out waveBoneTracks);
+                temporaryRoot = tentacleRenderer.transform.root.gameObject;
+
+                AnimationClip finWaveAnimationClip;
+                SkinnedMeshRenderer finRenderer = VatTentacleRigBuilder.CreateTentacleFin(
+                    temporaryRoot.transform, tentacleRenderer.bones, out finWaveAnimationClip);
+
+                CreateOrReplaceAsset(
+                    tentacleRenderer.sharedMesh, assetFolder + "/VatSampleTentacleTwoPartMesh.asset");
+                CreateOrReplaceAsset(
+                    tentacleRenderer.sharedMaterial, assetFolder + "/VatSampleTentacleTwoPartMaterial.mat");
+                CreateOrReplaceAsset(
+                    finRenderer.sharedMesh, assetFolder + "/VatSampleTentacleTwoPartFinMesh.asset");
+                CreateOrReplaceAsset(
+                    finRenderer.sharedMaterial, assetFolder + "/VatSampleTentacleTwoPartFinMaterial.mat");
+                CreateOrReplaceAsset(
+                    finWaveAnimationClip, assetFolder + "/VatSampleTentacleTwoPartFinWave.asset");
+                AssetDatabase.SaveAssets();
+
+                tentacleRenderer.sharedMesh =
+                    AssetDatabase.LoadAssetAtPath<Mesh>(assetFolder + "/VatSampleTentacleTwoPartMesh.asset");
+                tentacleRenderer.sharedMaterial =
+                    AssetDatabase.LoadAssetAtPath<Material>(assetFolder + "/VatSampleTentacleTwoPartMaterial.mat");
+                finRenderer.sharedMesh =
+                    AssetDatabase.LoadAssetAtPath<Mesh>(assetFolder + "/VatSampleTentacleTwoPartFinMesh.asset");
+                finRenderer.sharedMaterial =
+                    AssetDatabase.LoadAssetAtPath<Material>(assetFolder + "/VatSampleTentacleTwoPartFinMaterial.mat");
+                AnimationClip savedFinWaveAnimationClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(
+                    assetFolder + "/VatSampleTentacleTwoPartFinWave.asset");
+
+                string prefabPath = assetFolder + "/VatSampleTentacleTwoPart.prefab";
+                if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(prefabPath) != null)
+                {
+                    AssetDatabase.DeleteAsset(prefabPath);
+                }
+                samplePrefab = PrefabUtility.SaveAsPrefabAsset(temporaryRoot, prefabPath);
+
+                string rigPath = assetFolder + "/VatSampleTentacleTwoPartRig.asset";
+                if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(rigPath) != null)
+                {
+                    AssetDatabase.DeleteAsset(rigPath);
+                }
+                // Two targets, both VatMesh: "TentacleMesh" gets no dedicated track below and bakes
+                // from the clip-wide fallback, "TentacleFin" is named in vatTracks and bakes from it.
+                List<RigTargetDefinition> targets = new List<RigTargetDefinition>
+                {
+                    new RigTargetDefinition
+                    {
+                        displayName = "Tentacle",
+                        sourceNodePath = "TentacleMesh",
+                        kind = TargetKind.VatMesh
+                    },
+                    new RigTargetDefinition
+                    {
+                        displayName = "Fin",
+                        sourceNodePath = "TentacleFin",
+                        kind = TargetKind.VatMesh
+                    }
+                };
+                RigAsset rigAsset = RigAssetUtility.CreateRig(rigPath, samplePrefab, targets);
+
+                uint finTargetId = 0u;
+                for (int targetIndex = 0; targetIndex < rigAsset.targets.Count; targetIndex++)
+                {
+                    if (rigAsset.targets[targetIndex].sourceNodePath == "TentacleFin")
+                    {
+                        finTargetId = rigAsset.targets[targetIndex].Id.Value;
+                        break;
+                    }
+                }
+
+                ClipAsset clipAsset = ScriptableObject.CreateInstance<ClipAsset>();
+                clipAsset.duration = VatTentacleRigBuilder.WaveDuration;
+                clipAsset.frameRate = VatTentacleRigBuilder.BakeSampleRate;
+                clipAsset.boneTracks = waveBoneTracks;
+                clipAsset.vatSource = new VatClipSource
+                {
+                    sourceClip = null,
+                    sampleFps = VatTentacleRigBuilder.BakeSampleRate,
+                    loopSafe = true
+                };
+                // Names only the fin: its bake takes the dedicated-track path off the clip above,
+                // while the rest of the chain falls back to the clip-wide bone-track bake.
+                clipAsset.vatTracks = new List<VatTrack>
+                {
+                    new VatTrack
+                    {
+                        targetId = finTargetId,
+                        sourceClip = savedFinWaveAnimationClip,
+                        sampleFps = VatTentacleRigBuilder.BakeSampleRate,
+                        loopSafe = true
+                    }
+                };
+                clipAsset.EnsureStableIds();
+                CreateOrReplaceAsset(clipAsset, assetFolder + "/VatSampleTentacleTwoPartWave.asset");
+
+                ClipSetAsset clipSetAsset = ScriptableObject.CreateInstance<ClipSetAsset>();
+                clipSetAsset.clips = new List<ClipAsset> { clipAsset };
+                CreateOrReplaceAsset(clipSetAsset, assetFolder + "/VatSampleTentacleTwoPartClips.asset");
+
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+
+                clipSet = clipSetAsset;
+                rig = rigAsset;
+                failureMessage = string.Empty;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                clipSet = null;
+                rig = null;
+                samplePrefab = null;
+                failureMessage = exception.Message;
+                return false;
+            }
+            finally
+            {
                 if (temporaryRoot != null)
                 {
                     UnityEngine.Object.DestroyImmediate(temporaryRoot);

@@ -65,6 +65,38 @@ namespace DotsAnimationToolkit.Editor
             return renderer;
         }
 
+        /// <summary>
+        /// Adds a second skinned mesh weighted to the upper half of an existing tentacle's bone chain,
+        /// plus a generated <see cref="AnimationClip"/> animating just those bones, so a two-part
+        /// sample can exercise a bake's dedicated-track path alongside its clip-wide fallback.
+        /// </summary>
+        public static SkinnedMeshRenderer CreateTentacleFin(
+            Transform rootTransform, Transform[] tentacleBones, out AnimationClip waveAnimationClip)
+        {
+            int firstBoneIndex = tentacleBones.Length / 2;
+            int finBoneCount = tentacleBones.Length - firstBoneIndex;
+            Transform[] finBones = new Transform[finBoneCount];
+            for (int finBoneIndex = 0; finBoneIndex < finBoneCount; finBoneIndex++)
+            {
+                finBones[finBoneIndex] = tentacleBones[firstBoneIndex + finBoneIndex];
+            }
+
+            Mesh finMesh = BuildFinStripMesh(finBones, rootTransform, firstBoneIndex);
+
+            GameObject finMeshObject = new GameObject("TentacleFin");
+            finMeshObject.transform.SetParent(rootTransform, false);
+
+            SkinnedMeshRenderer finRenderer = finMeshObject.AddComponent<SkinnedMeshRenderer>();
+            finRenderer.sharedMesh = finMesh;
+            finRenderer.bones = finBones;
+            finRenderer.rootBone = finBones[0];
+            finRenderer.updateWhenOffscreen = true;
+            finRenderer.sharedMaterial = BuildTentacleMaterial();
+
+            waveAnimationClip = BuildFinWaveAnimationClip(rootTransform, tentacleBones, firstBoneIndex);
+            return finRenderer;
+        }
+
         // A renderer with no material draws magenta, which reads as a broken sample rather than a
         // sample with nothing assigned. Standard is the fallback for a project without URP.
         private static Material BuildTentacleMaterial()
@@ -210,6 +242,132 @@ namespace DotsAnimationToolkit.Editor
             float phase = normalizedTime * Mathf.PI * 2f - boneIndex * 0.55f;
             float amplitudeDegrees = 4f + 9f * ((float)boneIndex / SegmentCount);
             return Mathf.Sin(phase) * amplitudeDegrees;
+        }
+
+        // Mirrors BuildStripMesh but over a bone subrange, with weight indices local to the fin's own
+        // (shorter) bones array rather than the full chain's — a SkinnedMeshRenderer's BoneWeight
+        // indexes into its own bones array, never the source skeleton's.
+        private static Mesh BuildFinStripMesh(Transform[] finBones, Transform rootTransform, int firstBoneIndex)
+        {
+            int ringCount = finBones.Length + 1;
+            Vector3[] vertices = new Vector3[ringCount * 2];
+            Vector3[] normals = new Vector3[ringCount * 2];
+            Vector2[] uvs = new Vector2[ringCount * 2];
+            BoneWeight[] boneWeights = new BoneWeight[ringCount * 2];
+
+            for (int ringIndex = 0; ringIndex < ringCount; ringIndex++)
+            {
+                int globalRingIndex = firstBoneIndex + ringIndex;
+                float height = globalRingIndex * SegmentLength;
+                float alongChain = (float)globalRingIndex / SegmentCount;
+                float halfWidth = TentacleWidth * (1f - alongChain * 0.7f) * 0.5f;
+
+                int leftIndex = ringIndex * 2;
+                int rightIndex = leftIndex + 1;
+
+                vertices[leftIndex] = new Vector3(-halfWidth, height, 0f);
+                vertices[rightIndex] = new Vector3(halfWidth, height, 0f);
+                normals[leftIndex] = Vector3.back;
+                normals[rightIndex] = Vector3.back;
+                uvs[leftIndex] = new Vector2(0f, alongChain);
+                uvs[rightIndex] = new Vector2(1f, alongChain);
+
+                int lowerBone = Mathf.Clamp(ringIndex - 1, 0, finBones.Length - 1);
+                int upperBone = Mathf.Clamp(ringIndex, 0, finBones.Length - 1);
+
+                BoneWeight weight = new BoneWeight();
+                weight.boneIndex0 = lowerBone;
+                weight.boneIndex1 = upperBone;
+                weight.weight0 = lowerBone == upperBone ? 1f : 0.5f;
+                weight.weight1 = lowerBone == upperBone ? 0f : 0.5f;
+
+                boneWeights[leftIndex] = weight;
+                boneWeights[rightIndex] = weight;
+            }
+
+            List<int> triangles = new List<int>();
+            for (int segmentIndex = 0; segmentIndex < finBones.Length; segmentIndex++)
+            {
+                int bottomLeft = segmentIndex * 2;
+                int bottomRight = bottomLeft + 1;
+                int topLeft = bottomLeft + 2;
+                int topRight = bottomLeft + 3;
+
+                triangles.Add(bottomLeft); triangles.Add(topLeft); triangles.Add(bottomRight);
+                triangles.Add(bottomRight); triangles.Add(topLeft); triangles.Add(topRight);
+            }
+
+            Matrix4x4[] bindposes = new Matrix4x4[finBones.Length];
+            for (int boneIndex = 0; boneIndex < finBones.Length; boneIndex++)
+            {
+                bindposes[boneIndex] =
+                    finBones[boneIndex].worldToLocalMatrix * rootTransform.localToWorldMatrix;
+            }
+
+            Mesh mesh = new Mesh();
+            mesh.name = "TentacleFinStrip";
+            mesh.vertices = vertices;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.boneWeights = boneWeights;
+            mesh.bindposes = bindposes;
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        // Walks up from node to root collecting names, giving the hierarchical path
+        // AnimationClip.SetCurve and AnimationMode.SampleAnimationClip both key their bindings on.
+        private static string GetRelativeNodePath(Transform node, Transform root)
+        {
+            string path = node.name;
+            Transform current = node.parent;
+            while (current != null && current != root)
+            {
+                path = current.name + "/" + path;
+                current = current.parent;
+            }
+            return path;
+        }
+
+        // A real AnimationClip, not bone tracks: a VatTrack's dedicated bake path samples only an
+        // imported-style clip (VatBakePanel skips a track with a null sourceClip), so the fin needs
+        // its own clip asset even though the whole-tentacle fallback needs none.
+        private static AnimationClip BuildFinWaveAnimationClip(
+            Transform rootTransform, Transform[] tentacleBones, int firstBoneIndex)
+        {
+            AnimationClip waveAnimationClip = new AnimationClip();
+            waveAnimationClip.name = "VatSampleTentacleFinWave";
+            waveAnimationClip.legacy = true;
+
+            for (int boneIndex = firstBoneIndex; boneIndex < tentacleBones.Length; boneIndex++)
+            {
+                string bonePath = GetRelativeNodePath(tentacleBones[boneIndex], rootTransform);
+
+                AnimationCurve rotationCurveX = new AnimationCurve();
+                AnimationCurve rotationCurveY = new AnimationCurve();
+                AnimationCurve rotationCurveZ = new AnimationCurve();
+                AnimationCurve rotationCurveW = new AnimationCurve();
+
+                for (int keyIndex = 0; keyIndex < WaveKeysPerBone; keyIndex++)
+                {
+                    float normalizedTime = (float)keyIndex / (WaveKeysPerBone - 1);
+                    float timeSeconds = normalizedTime * WaveDurationSeconds;
+                    Quaternion rotation = Quaternion.Euler(0f, 0f, WaveAngleDegrees(boneIndex, normalizedTime));
+
+                    rotationCurveX.AddKey(timeSeconds, rotation.x);
+                    rotationCurveY.AddKey(timeSeconds, rotation.y);
+                    rotationCurveZ.AddKey(timeSeconds, rotation.z);
+                    rotationCurveW.AddKey(timeSeconds, rotation.w);
+                }
+
+                waveAnimationClip.SetCurve(bonePath, typeof(Transform), "m_LocalRotation.x", rotationCurveX);
+                waveAnimationClip.SetCurve(bonePath, typeof(Transform), "m_LocalRotation.y", rotationCurveY);
+                waveAnimationClip.SetCurve(bonePath, typeof(Transform), "m_LocalRotation.z", rotationCurveZ);
+                waveAnimationClip.SetCurve(bonePath, typeof(Transform), "m_LocalRotation.w", rotationCurveW);
+            }
+
+            return waveAnimationClip;
         }
 
         /// <summary>Length of the generated wave, in seconds.</summary>
