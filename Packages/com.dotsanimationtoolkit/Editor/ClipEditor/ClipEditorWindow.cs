@@ -1740,7 +1740,14 @@ namespace DotsAnimationToolkit.Editor
                 newRigPanel = new NewRigPanel();
                 newRigPanel.Closed += CloseNewRigTab;
                 newRigPanel.RigCreated += OnNewRigCreated;
+                newRigPanel.UseInEditorRequested += OnRigUseInEditorRequested;
+                newRigPanel.RigTargetsChanged += OnPanelChangedRigTargets;
                 newRigPane.Add(newRigPanel);
+            }
+
+            if (isShown)
+            {
+                newRigPanel.SetSource(activeRig);
             }
 
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1817,6 +1824,10 @@ namespace DotsAnimationToolkit.Editor
             {
                 clipSetsPanel.SetSource(clipSet);
             }
+            if (newRigPanel != null)
+            {
+                newRigPanel.SetSource(activeRig);
+            }
         }
 
         // Picking a profile sets the window's Rig, never its Clip Set — the rig is shared by every
@@ -1843,6 +1854,28 @@ namespace DotsAnimationToolkit.Editor
             {
                 skinnedSourceField.value = createdRig;
             }
+        }
+
+        /// <summary>Answers the Rigs panel asking for a rig to become this window's: points the toolbar Rig field at it and returns to the Clip Editor.</summary>
+        private void OnRigUseInEditorRequested(RigAsset rig)
+        {
+            if (rig != null && skinnedSourceField != null)
+            {
+                skinnedSourceField.value = rig;
+                SetActiveTab(ClipEditorTab.ClipEditor);
+            }
+        }
+
+        /// <summary>Answers the Rigs panel changing the open rig's targets: re-reads the rig so the hierarchy and bindings follow.</summary>
+        private void OnPanelChangedRigTargets(RigAsset rig)
+        {
+            if (rig == null || rig != activeRig)
+            {
+                return;
+            }
+            RebuildHierarchy();
+            RebuildTimeline();
+            RebuildInspector();
         }
 
         /// <summary>Closes the Clip Sets flow at the panel's own request, once a create-with-Load landed.</summary>
