@@ -119,6 +119,31 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-08): Amendment A76 — Rigs tab — 0.23.0.** Spec
+`Docs/AnimationToolkit/Amendment_A76_RigsTab_Spec.md`; §7 carries the full build log. The Rigs tab
+is now catalog | targets | preview over two draggable dividers, the left pair starting at 640px of
+which `RigCatalogColumn` (a deliberate mirror of A75's catalog, not an extraction of it) takes 280.
+Selecting a rig lists every renderer-bearing node in its prefab with that rig's targets ticked;
+tick, untick, retag and repointing Source Prefab each write immediately through four new
+`RigAssetUtility` methods, undoable. **T8 (⏸ owner checkpoint) is open** — nobody has looked at
+this tab yet except through one capture.
+
+Three things a later session should not have to rediscover. `RigTargetDefinition.stableId` is
+`internal`, so only `RigAsset.EnsureStableIds()` can mint a target id and it must run *after* the
+target is in the list — hence `Undo.RecordObject` + direct mutation rather than the
+`SerializedProperty` route clip sets use. A panel that writes on interaction must subscribe to
+`Undo.undoRedoPerformed` or Ctrl+Z changes the asset while its ticks stay put; that was found by
+looking at the capture, not by a test, and fixed. And undo cannot be verified across an
+`AssetDatabase.Refresh()` — the reload makes a working undo look broken. All three are in the vault
+note's new "Rigs tab (A76)" section.
+
+`NewRigPanel` is now `RigsPanel` and `ClipEditorTab.NewRig` is `ClipEditorTab.Rigs`; the UXML names
+`tab-new-rig` / `new-rig-pane` deliberately did not change, since `ClipEditorLayoutTests` asserts
+them and nothing user-visible reads them. Deleting a rig from the catalog is deliberately absent —
+a rig is referenced by actor profiles and every clip track, and there is no sweep wide enough to
+price that yet. EditMode 794/794, PlayMode 283/283, with the standing `Conformance_A` asmdef drift
+still the only failure.
+
 **Built (2026-09-08): Amendment A75 — Clip Sets tab — 0.22.0.** Spec
 `Docs/AnimationToolkit/Amendment_A75_ClipSets_Spec.md`. T1–T7 all landed and gated across four
 subagent waves (T1/T2/T3, then T4/T6a/T6c, then T5, then T6b) plus the orchestrator's own T7

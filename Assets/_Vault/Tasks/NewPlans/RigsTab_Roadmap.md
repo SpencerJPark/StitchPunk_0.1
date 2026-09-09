@@ -1,6 +1,6 @@
 # Rigs tab — a rig catalog, an editable target list, and the preview beside them
 
-> **Status:** 📋 specced 2026-09-08, not built. Package `0.22.0` → `0.23.0`.
+> **Status:** ✅ built 2026-09-08, shipped as 0.23.0. One ⏸ owner checkpoint open.
 > **Spec:** [`Amendment_A76_RigsTab_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A76_RigsTab_Spec.md).
 > **Session prompt:** [`Amendment_A76_RigsTab_Prompt.md`](../../../../Docs/AnimationToolkit/Amendment_A76_RigsTab_Prompt.md).
 > **Executor:** one Editor-connected orchestrator running the gate; `worker` subagents edit files in

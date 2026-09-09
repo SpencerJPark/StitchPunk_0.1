@@ -665,6 +665,37 @@ raises `Closed`, which switches the window back to the Clip Editor tab — drivi
 end-to-end from `execute_code` means the tab visibly closes itself after every default-toggle
 create, which reads as a bug the first time you see it but is D9's intended behavior.
 
+## Rigs tab (A76, 0.23.0)
+
+**Only `RigAsset.EnsureStableIds()` can mint a target id, and it must run after the target is in
+the list.** `RigTargetDefinition.stableId` is `internal` to the Authoring assembly, so an Editor
+write path cannot set it. That is why `RigAssetUtility`'s edit methods use
+`Undo.RecordObject` + direct list mutation rather than the `SerializedObject`/`SerializedProperty`
+route `ClipAssetUtility` uses for clip sets: a `SerializedObject` constructed before
+`EnsureStableIds` writes the freshly-minted id back to 0 on its next `ApplyModifiedProperties`.
+Order is record → mutate → `EnsureStableIds` → `SetDirty` → `SaveAssetIfDirty`, and do **not** call
+`MarkStableIdPersisted` there; that discharges the *asset's* report and belongs to `CreateRig`.
+
+**An immediate-write panel has to listen for `Undo.undoRedoPerformed`.** Edit-mode ticks write
+straight to the asset, so Ctrl+Z changes the rig without the panel being involved and the row keeps
+showing the tick the undo removed. `RigsPanel` subscribes in its constructor and unsubscribes in
+`Dispose`. Any future panel that writes on interaction inherits this problem.
+
+**Undo cannot be verified across an `AssetDatabase.Refresh()`.** Calling `SaveAssets`/`Refresh`
+between the edit and the `PerformUndo` reloads the object and the undo appears to do nothing —
+this reads exactly like a broken undo and is not. Assert on the in-memory instance, with no
+refresh in between; verify persistence separately.
+
+**`ReadScreenPixel` cannot reach a window on a monitor left of the primary.** The Clip Editor
+often sits at a negative x; scaling that by `pixelsPerPoint` addresses off-screen space and the
+capture comes back solid black. Move the window to a positive position, capture, then restore it —
+and note `EditorWindow.RepaintImmediately` is non-public, so it needs reflection.
+
+**A target whose node the prefab no longer has is never handed to the preview.** The preview holds
+a copy of the prefab and has no such node; `SetNodeIncluded`/`FocusNode` must be guarded on
+`!IsMissingNode` at every call site. Those rows exist so a target cannot vanish from the list —
+dropping them would make an unticked box the only evidence a part still exists.
+
 ## Do not spawn subagents against this package — unless they never touch the Editor (A73)
 
 Three processes driving one live Unity Editor already caused MCP lock

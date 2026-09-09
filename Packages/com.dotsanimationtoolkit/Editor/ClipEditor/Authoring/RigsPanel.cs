@@ -101,12 +101,30 @@ namespace DotsAnimationToolkit.Editor
 
             ApplyModeChrome();
             RescanProject();
+
+            // An edit-mode tick writes straight to the asset, so Ctrl+Z changes the rig without
+            // this panel touching it. Without this the row keeps showing the tick the undo removed.
+            Undo.undoRedoPerformed += OnUndoRedoPerformed;
         }
 
         /// <summary>Releases the preview's render utility and its copy of the prefab.</summary>
         public void Dispose()
         {
+            Undo.undoRedoPerformed -= OnUndoRedoPerformed;
             preview?.Dispose();
+        }
+
+        private void OnUndoRedoPerformed()
+        {
+            if (Mode != EditorMode.Edit || SelectedRig == null)
+            {
+                return;
+            }
+
+            // Rebuilt wholesale rather than reconciled row by row: an undo can restore a target,
+            // remove one, or change a tag, and re-reading the rig covers all three.
+            BuildRowsForEditMode(SelectedRig);
+            RaiseRigTargetsChanged();
         }
 
         // Called every time the host shows this tab, so the catalog always reflects the current

@@ -8,6 +8,32 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] — A76 — rigs tab
+
+### Added
+
+- **The Rigs tab browses every rig in the project.** A catalog column, styled like the Clip Sets
+  one, lists each `RigAsset` with its target count and folder, above **New** and **Refresh** and a
+  search field. The tab is now three columns — catalog, targets, preview — over two draggable
+  dividers, the left pair starting at 640px of which the catalog takes 280.
+- **A selected rig is editable in place.** The middle column lists every renderer-bearing node in
+  that rig's prefab with its current targets ticked. Ticking adds a target, unticking removes one,
+  the Tag button retags, and changing Source Prefab repoints the rig — each an immediate write to
+  the asset, undoable with Ctrl+Z, with the ticks following an undo.
+- **Unticking a target that clips animate asks first**, naming up to three of them. Proceeding is
+  allowed: a track whose binding a rig no longer carries is skipped, not an error.
+- **A target whose node the prefab no longer has** shows as a warning row rather than disappearing,
+  so a rig cannot lose a part silently.
+- **Use in Clip Editor** puts the selected rig in the toolbar's Rig field.
+
+### Changed
+
+- `NewRigPanel` is now `RigsPanel`, and `ClipEditorTab.NewRig` is `ClipEditorTab.Rigs`. The UXML
+  element names (`tab-new-rig`, `new-rig-pane`) are unchanged. "New Rig" survives as the targets
+  column's create-mode title.
+- `RigAssetUtility` gained `AddTargetToRig`, `RemoveTargetFromRig`, `SetTargetTag` and
+  `SetRigSourcePrefab`.
+
 ## [0.22.0] — A75 — clip sets tab
 
 ### Added

@@ -1,6 +1,6 @@
 # Amendment A76 — Rigs tab: a rig catalog, an editable target list, and the preview beside them
 
-> **Status:** 📋 specced 2026-09-08, not built. Package `0.22.0` → `0.23.0`.
+> **Status:** ✅ built 2026-09-08, shipped as 0.23.0. One ⏸ owner checkpoint open (§5 T8).
 > **Prompt:** [`Amendment_A76_RigsTab_Prompt.md`](Amendment_A76_RigsTab_Prompt.md).
 > **Predecessor:** [`Amendment_A75_ClipSets_Spec.md`](Amendment_A75_ClipSets_Spec.md) — this amendment
 > gives the Rigs tab the shape A75 gave the Clip Sets tab. Where the two disagree, A75's shipped code
@@ -541,4 +541,55 @@ End the session with this message, verbatim in spirit:
 
 ## 7. Build log
 
-_(empty — the executing session fills this in, as A75's §7 was.)_
+- **T0 baseline:** EditMode 784/784 (one standing `Conformance_A` asmdef drift, pre-existing),
+  PlayMode 283/283 — exactly HANDOFF's numbers. The four uncommitted `Editor/ClipEditor/` files
+  predicted by T0 were present and were left alone; `NewRigPanel.cs`'s pending change was a
+  one-line heading rename that T5a subsumed.
+- **Waves 1–4:** T1–T4 landed in parallel with no rework. **T5b hit its 40-turn cap** after
+  finishing the panel and the fixture but before self-reviewing; per CLAUDE.md it was not resumed —
+  its diff was read, found complete, and checked by a `verifier` against a 13-point list (all
+  passed, including every create-mode preservation check). T6 landed clean, and made one judgement
+  call worth recording: for `OnPanelChangedRigTargets` it reuses `RebuildHierarchy`/`RebuildTimeline`/
+  `RebuildInspector` rather than the whole rig-changed handler, because the rig object has not
+  changed — only its targets — so reassigning `activeRig` would be wrong and clearing the hierarchy
+  selection would be collateral.
+- **Subagent `Read` was broken for the whole of wave 1.** The read-guard hook resolves
+  `.claude/hooks/` relative to the shell's cwd, which had drifted into the package folder when the
+  wave was spawned, so `Read` (and `Bash`) errored for all four workers. Each fell back to
+  `PowerShell`/`Grep` over the same named line ranges and none lost fidelity, but the orchestrator
+  must keep cwd at the repo root when spawning.
+- **Test job filtering:** `run_tests` with `group_names` failed to initialize, and a subsequent
+  unfiltered run silently inherited the filter (9 tests, no result payload, status "failed").
+  Re-running clean fixed it. Do not trust a run whose completed count looks too small.
+- **T7 rename:** done by grep, not by a worker. `git mv` of the `.cs`/`.meta` pair produced one
+  transient `Internal error - unexpected guid mismatch`; a forced refresh cleared it. Prose the
+  rename made false was corrected with it, including two user-facing hints that told the reader to
+  "use New Rig".
+- **T7 drive — full functional pass, all through the real UI toggles.** Tab opens with
+  `rig-catalog-column` 280 × 562, `rig-targets-column` 360 × 562, preview 328 × 562 (the 640 fixed
+  pair, preview taking the remainder); `rigs-list` itemsSource 2, matching the project's two rigs.
+  Against a scratch copy of `NewRig` (20 targets, 34 renderer-bearing nodes): `SelectRig` gave
+  34 rows with exactly 20 ticked and revealed the Use-in-Clip-Editor button; ticking a row grew a
+  **reloaded-from-disk** reference to 21 with a minted non-zero stable id and zero zero-ids
+  anywhere; unticking returned it to 20. Undo verified on the in-memory instance: tick → 21 →
+  Ctrl+Z → 20. The untick guard is live — 19 of the real rig's 20 targets have clips bound, and
+  `DescribeClips` renders `Idle, Idle_EastFacing, Walk and 1 more`.
+- **One defect found and fixed during the drive.** The capture showed a row still ticked after its
+  add had been undone: nothing listened for `Undo.undoRedoPerformed`, so Ctrl+Z changed the asset
+  while the panel's ticks stayed put — precisely what T8 asks the owner to try. `RigsPanel` now
+  subscribes in its constructor and unsubscribes in `Dispose`; re-verified live (tick → True,
+  Ctrl+Z → asset 20 and the row reads False). Recorded in the vault note.
+- **A false alarm worth recording:** an earlier undo check appeared to fail because it ran
+  `SaveAssets`/`Refresh` between the edit and the undo, which reloads the object out from under the
+  undo stack. The code was correct; the check was not.
+- **T7 capture — succeeded**, unlike A75's. `EditorApplication.isFocused` was true. The first
+  attempt came back solid black because the window sits at x = −701 on a monitor left of the
+  primary and the scaled coordinate is off-screen for `ReadScreenPixel`; moving the window to a
+  positive position, capturing, and restoring it produced a legible frame at
+  `Library/A76RigsCaptures/rigs-tab.png`, which was looked at. `EditorWindow.RepaintImmediately`
+  is non-public and needs reflection.
+- **Cleanup:** `Assets/A76Scratch` and its probe deleted (project back to 2 rigs), the Clip Editor
+  window restored to its original position, `git status` clean apart from the pre-existing files
+  T0 recorded.
+- **Final gate:** EditMode 794/794 (784 baseline + 10 new: T1×3, T2×4, T3×2, T5b×1), PlayMode
+  283/283. The only failure throughout is the standing `Conformance_A` drift.
