@@ -564,13 +564,21 @@ namespace DotsAnimationToolkit.Authoring
 
         private void DependsOnVatTextures(VatTextureSetAsset vatTextures)
         {
-            if (vatTextures == null)
+            if (vatTextures == null || vatTextures.parts == null)
             {
                 return;
             }
-            DependsOn(vatTextures.boneTexture);
-            DependsOn(vatTextures.positionTexture);
-            DependsOn(vatTextures.normalTexture);
+            for (int partIndex = 0; partIndex < vatTextures.parts.Count; partIndex++)
+            {
+                VatPartTextures part = vatTextures.parts[partIndex];
+                if (part == null)
+                {
+                    continue;
+                }
+                DependsOn(part.boneTexture);
+                DependsOn(part.positionTexture);
+                DependsOn(part.normalTexture);
+            }
         }
 
         // -----------------------------------------------------------------------------------
@@ -1035,11 +1043,7 @@ namespace DotsAnimationToolkit.Authoring
             }
             return new VatTextureBinding
             {
-                setKey = vatTextures.SetKey,
-                boneOrPositionTexture = vatTextures.flavor == VatFlavor.BoneMatrix
-                    ? vatTextures.boneTexture
-                    : vatTextures.positionTexture,
-                normalTexture = vatTextures.normalTexture
+                setKey = vatTextures.SetKey
             };
         }
     }
