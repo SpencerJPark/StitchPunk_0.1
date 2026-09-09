@@ -17,6 +17,7 @@ namespace DotsAnimationToolkit.Editor
         public bool IsTarget;
         public bool IsMissingNode;
         public bool PreTicked;
+        public TargetKind Kind;
     }
 
     /// <summary>Merges "what the prefab has" with "what the rig claims" into one ordered row list for the Rigs tab, in both its create and edit modes.</summary>
@@ -105,6 +106,7 @@ namespace DotsAnimationToolkit.Editor
                         IsTarget = true,
                         IsMissingNode = false,
                         PreTicked = false,
+                        Kind = matchedTarget.kind,
                     });
                 }
                 else
@@ -144,6 +146,7 @@ namespace DotsAnimationToolkit.Editor
                             IsTarget = true,
                             IsMissingNode = true,
                             PreTicked = false,
+                            Kind = targetDefinition.kind,
                         });
                     }
                 }

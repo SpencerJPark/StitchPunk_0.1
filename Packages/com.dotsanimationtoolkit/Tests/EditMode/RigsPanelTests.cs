@@ -102,6 +102,38 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void SelectRig_CarriesEachTargetsKindOntoItsRow()
+        {
+            rigAsset.targets[0].kind = TargetKind.Quad;
+            rigAsset.targets.Add(new RigTargetDefinition
+            {
+                displayName = "Head",
+                sourceNodePath = "Head",
+                kind = TargetKind.VatMesh,
+            });
+            rigAsset.EnsureStableIds();
+
+            RigsPanel panel = new RigsPanel();
+            try
+            {
+                panel.SelectRig(rigAsset);
+
+                VisualElement targetsColumn = panel.Q<VisualElement>("rig-targets-column");
+                List<Button> kindButtons = targetsColumn.Query<Button>().ToList()
+                    .Where(button => button.text.StartsWith("Kind: "))
+                    .ToList();
+
+                Assert.AreEqual(2, kindButtons.Count);
+                Assert.AreEqual("Kind: Quad", kindButtons[0].text);
+                Assert.AreEqual("Kind: VAT Mesh", kindButtons[1].text);
+            }
+            finally
+            {
+                panel.Dispose();
+            }
+        }
+
+        [Test]
         public void SelectRig_WithNoSourcePrefab_ShowsTheAssignPrefabHint_AndNoRows()
         {
             RigAsset rigWithoutPrefab = ScriptableObject.CreateInstance<RigAsset>();

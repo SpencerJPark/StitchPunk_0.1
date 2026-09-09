@@ -20,9 +20,11 @@ namespace DotsAnimationToolkit.Editor
             public string SourceNodePath;
             public uint TargetStableId;
             public uint TagId;
+            public TargetKind Kind;
             public bool IsMissingNode;
             public Toggle ToggleControl;
             public Button TagButton;
+            public Button KindButton;
             public VisualElement Box;
         }
 
@@ -404,6 +406,49 @@ namespace DotsAnimationToolkit.Editor
                 : "Tag: (unresolved 0x" + row.TagId.ToString("X8") + ")";
         }
 
+        private void OpenRowKindPicker(CandidateRow row, Button anchor)
+        {
+            GenericDropdownMenu menu = new GenericDropdownMenu();
+            menu.AddItem("Quad", row.Kind == TargetKind.Quad, () => SetRowKind(row, TargetKind.Quad));
+            menu.AddItem("VAT Mesh", row.Kind == TargetKind.VatMesh, () => SetRowKind(row, TargetKind.VatMesh));
+            menu.AddItem(
+                "Flipbook", row.Kind == TargetKind.FlipbookPlane, () => SetRowKind(row, TargetKind.FlipbookPlane));
+            menu.DropDown(anchor.worldBound, anchor, DropdownMenuSizeMode.Auto);
+        }
+
+        private void SetRowKind(CandidateRow row, TargetKind kind)
+        {
+            row.Kind = kind;
+            RefreshKindButtonText(row);
+
+            // A row that is not currently a target cannot have its kind written into the asset;
+            // its kind button is already disabled while unticked, so this only guards.
+            if (SelectedRig != null && row.TargetStableId != 0u)
+            {
+                RigAssetUtility.SetTargetKind(SelectedRig, row.TargetStableId, kind);
+            }
+        }
+
+        private void RefreshKindButtonText(CandidateRow row)
+        {
+            if (row.KindButton == null)
+            {
+                return;
+            }
+            switch (row.Kind)
+            {
+                case TargetKind.VatMesh:
+                    row.KindButton.text = "Kind: VAT Mesh";
+                    return;
+                case TargetKind.FlipbookPlane:
+                    row.KindButton.text = "Kind: Flipbook";
+                    return;
+                default:
+                    row.KindButton.text = "Kind: Quad";
+                    return;
+            }
+        }
+
         private static Label BuildHeading(string text)
         {
             Label heading = new Label(text);
@@ -477,12 +522,21 @@ namespace DotsAnimationToolkit.Editor
             // the button is what separates the animated parts from the ones just listed.
             tagButton.SetEnabled(ticked);
 
+            Button kindButton = new Button { text = "Kind: Quad" };
+            kindButton.style.flexShrink = 0f;
+            kindButton.style.minWidth = 100f;
+            kindButton.style.marginLeft = 4f;
+            // An unticked node is not becoming a target, so its kind would go nowhere. Greying
+            // the button is what separates the animated parts from the ones just listed.
+            kindButton.SetEnabled(ticked);
+
             VisualElement candidateBox = new VisualElement();
             candidateBox.AddToClassList("toolkit-box");
 
             VisualElement rowContainer = new VisualElement();
             rowContainer.AddToClassList("toolkit-box__header");
             rowContainer.Add(rowToggle);
+            rowContainer.Add(kindButton);
             rowContainer.Add(tagButton);
             candidateBox.Add(rowContainer);
             candidateContainer.Add(candidateBox);
@@ -493,15 +547,19 @@ namespace DotsAnimationToolkit.Editor
                 SourceNodePath = sourceRow.SourceNodePath,
                 TargetStableId = sourceRow.TargetStableId,
                 TagId = sourceRow.TagId,
+                Kind = sourceRow.Kind,
                 IsMissingNode = sourceRow.IsMissingNode,
                 ToggleControl = rowToggle,
                 TagButton = tagButton,
+                KindButton = kindButton,
                 Box = candidateBox
             };
             RefreshTagButtonText(row);
+            RefreshKindButtonText(row);
             tagButton.clicked += () => OpenRowTagPicker(row, tagButton);
+            kindButton.clicked += () => OpenRowKindPicker(row, kindButton);
             rowToggle.RegisterValueChangedCallback(
-                changeEvent => OnRowToggleChanged(row, rowToggle, tagButton, changeEvent.newValue));
+                changeEvent => OnRowToggleChanged(row, rowToggle, tagButton, kindButton, changeEvent.newValue));
             // TrickleDown, so clicking the toggle or the tag button still shows which node the
             // row means rather than being swallowed by the control that was hit.
             candidateBox.RegisterCallback<PointerDownEvent>(
@@ -516,9 +574,11 @@ namespace DotsAnimationToolkit.Editor
 
         // Edit mode writes the rig asset the moment a row is ticked or unticked; create mode keeps
         // the tick in memory until Create Rig runs.
-        private void OnRowToggleChanged(CandidateRow row, Toggle rowToggle, Button tagButton, bool isChecked)
+        private void OnRowToggleChanged(
+            CandidateRow row, Toggle rowToggle, Button tagButton, Button kindButton, bool isChecked)
         {
             tagButton.SetEnabled(isChecked);
+            kindButton.SetEnabled(isChecked);
             if (!row.IsMissingNode)
             {
                 preview.SetNodeIncluded(row.SourceNodePath, isChecked);
@@ -557,6 +617,7 @@ namespace DotsAnimationToolkit.Editor
                     // callback and asks the owner the same question forever.
                     rowToggle.SetValueWithoutNotify(true);
                     tagButton.SetEnabled(true);
+                    kindButton.SetEnabled(true);
                     if (!row.IsMissingNode)
                     {
                         preview.SetNodeIncluded(row.SourceNodePath, true);

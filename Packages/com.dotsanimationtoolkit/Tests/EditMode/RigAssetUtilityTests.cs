@@ -78,6 +78,22 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
+        public void SetTargetKind_WritesTheKind_AndQuadIsLegal()
+        {
+            RigTargetDefinition addedTarget = RigAssetUtility.AddTargetToRig(rig, "Root/Torso", "Torso");
+
+            bool setVatMeshResult = RigAssetUtility.SetTargetKind(rig, addedTarget.Id.Value, TargetKind.VatMesh);
+
+            Assert.IsTrue(setVatMeshResult);
+            Assert.AreEqual(TargetKind.VatMesh, addedTarget.kind);
+
+            bool setQuadResult = RigAssetUtility.SetTargetKind(rig, addedTarget.Id.Value, TargetKind.Quad);
+
+            Assert.IsTrue(setQuadResult);
+            Assert.AreEqual(TargetKind.Quad, addedTarget.kind);
+        }
+
+        [Test]
         public void RenameRig_RefusesTheCasesThatCannotRename()
         {
             // An unsaved instance has no asset path, so this can never reach AssetDatabase.RenameAsset.

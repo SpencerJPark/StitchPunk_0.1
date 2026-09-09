@@ -138,6 +138,31 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
+        public static bool SetTargetKind(RigAsset rig, uint targetStableId, TargetKind kind)
+        {
+            if (rig == null || rig.targets == null)
+            {
+                return false;
+            }
+
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition candidateTarget = rig.targets[targetIndex];
+                if (candidateTarget != null && candidateTarget.Id.Value == targetStableId)
+                {
+                    Undo.RecordObject(rig, "Set Rig Target Kind");
+                    candidateTarget.kind = kind;
+
+                    EditorUtility.SetDirty(rig);
+                    AssetDatabase.SaveAssetIfDirty(rig);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// Repoints the rig at a different source prefab as one undo step, leaving every target as
         /// it is. False when the rig is null or the prefab is already assigned.
         public static bool SetRigSourcePrefab(RigAsset rig, GameObject sourcePrefab)
