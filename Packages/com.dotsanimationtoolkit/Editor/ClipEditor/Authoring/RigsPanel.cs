@@ -10,8 +10,8 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Rigs tab: a catalog of project rigs plus a New Rig creation flow that picks a prefab, chooses which of its renderer-bearing nodes become rig targets, tags them, and mints a <see cref="RigAsset"/>.</summary>
-    public sealed class NewRigPanel : VisualElement, IDisposable
+    /// <summary>The Rigs tab: a catalog of project rigs beside a target list that creates a new <see cref="RigAsset"/> from a prefab's renderer-bearing nodes, or edits a selected rig's targets in place.</summary>
+    public sealed class RigsPanel : VisualElement, IDisposable
     {
         public enum EditorMode
         {
@@ -57,7 +57,7 @@ namespace DotsAnimationToolkit.Editor
 
         public RigAsset SelectedRig { get; private set; }
 
-        /// <summary>Raised after a successful Create, so the host can untick its New Rig toggle.</summary>
+        /// <summary>Raised after a successful Create, so the host can untick its Rigs tab toggle.</summary>
         public event Action Closed;
 
         // This panel never touches the window's rig itself; it only reports what it built and
@@ -74,7 +74,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Raised after an edit-mode add, remove, or retag has been written to the rig asset.</summary>
         public event Action<RigAsset> RigTargetsChanged;
 
-        public NewRigPanel()
+        public RigsPanel()
         {
             // Written inline rather than through a stylesheet, matching VatBakePanel: this element
             // carries no stylesheet of its own, and a host's sheet has no reason to know the names
@@ -258,7 +258,7 @@ namespace DotsAnimationToolkit.Editor
                 + "with nothing, and changes no asset.";
             footerContainer.Add(assignToggle);
 
-            // No Cancel beside it: the toolbar's New Rig toggle is what opens and closes this flow,
+            // No Cancel beside it: the toolbar’s Rigs toggle is what opens and closes this tab,
             // the way VAT Bake's does, and a second dismissal that leaves the toggle lit would be a
             // button that closes a page the toolbar still says is open.
             Button createButton = new Button(Create) { text = "Create Rig" };
@@ -656,7 +656,7 @@ namespace DotsAnimationToolkit.Editor
         {
             resultLabel.style.color = new StyleColor(new Color(0.95f, 0.55f, 0.55f));
             resultLabel.text = message;
-            Debug.LogWarning("[DOTS Animation Toolkit] New Rig: " + message);
+            Debug.LogWarning("[DOTS Animation Toolkit] Rigs: " + message);
         }
     }
 }

@@ -8,8 +8,8 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Creates a <see cref="RigAsset"/> from a scanned source prefab — the write path behind the
-    /// New Rig flow.
+    /// Creates a <see cref="RigAsset"/> from a scanned source prefab, and edits an existing one's
+    /// targets, tags and source prefab — the write path behind the Rigs tab.
     /// </summary>
     public static class RigAssetUtility
     {

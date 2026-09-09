@@ -8,7 +8,7 @@ namespace DotsAnimationToolkit.Editor
     /// </summary>
     public enum ClipEditorTab
     {
-        NewRig = 0,
+        Rigs = 0,
 
         /// <summary>Browse, create and edit clip sets — which clips each one registers.</summary>
         ClipSets = 1,

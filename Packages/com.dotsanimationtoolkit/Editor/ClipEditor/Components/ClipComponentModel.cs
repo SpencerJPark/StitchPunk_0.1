@@ -237,7 +237,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 unavailableReason = "This clip set's Rig field is empty, and this component is "
                     + "stored on the rig. Assign a RigAsset in the toolbar's Rig field, or build "
-                    + "one with New Rig, to give this component somewhere to live.";
+                    + "one in the Rigs tab, to give this component somewhere to live.";
                 return false;
             }
 

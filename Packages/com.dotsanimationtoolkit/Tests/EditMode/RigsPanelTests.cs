@@ -10,7 +10,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
-    /// <summary>EditMode coverage of <see cref="NewRigPanel"/>'s Edit/Create mode switch and target tick sync.</summary>
+    /// <summary>EditMode coverage of <see cref="RigsPanel"/>'s Edit/Create mode switch and target tick sync.</summary>
     public sealed class RigsPanelTests
     {
         private GameObject sourcePrefabRoot;
@@ -52,12 +52,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void SelectRig_EntersEditMode_WithTheRigsTargetsTicked()
         {
-            NewRigPanel panel = new NewRigPanel();
+            RigsPanel panel = new RigsPanel();
             try
             {
                 panel.SelectRig(rigAsset);
 
-                Assert.AreEqual(NewRigPanel.EditorMode.Edit, panel.Mode);
+                Assert.AreEqual(RigsPanel.EditorMode.Edit, panel.Mode);
                 Assert.AreEqual(rigAsset, panel.SelectedRig);
 
                 VisualElement targetsColumn = panel.Q<VisualElement>("rig-targets-column");
@@ -74,7 +74,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
                 panel.BeginCreate();
 
-                Assert.AreEqual(NewRigPanel.EditorMode.Create, panel.Mode);
+                Assert.AreEqual(RigsPanel.EditorMode.Create, panel.Mode);
                 Assert.IsNull(panel.SelectedRig);
             }
             finally

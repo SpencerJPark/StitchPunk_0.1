@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>One row of the New Rig / Rig Targets list: a prefab node merged with the rig target it may or may not already be.</summary>
+    /// <summary>One row of the Rigs tab target list: a prefab node merged with the rig target it may or may not already be.</summary>
     public sealed class RigTargetRow
     {
         public string SourceNodePath;
@@ -19,7 +19,7 @@ namespace DotsAnimationToolkit.Editor
         public bool PreTicked;
     }
 
-    /// <summary>Merges "what the prefab has" with "what the rig claims" into one ordered row list for the New Rig and Rig Targets panels.</summary>
+    /// <summary>Merges "what the prefab has" with "what the rig claims" into one ordered row list for the Rigs tab, in both its create and edit modes.</summary>
     public static class RigTargetRowBuilder
     {
         /// <summary>Rows for create mode: one per renderer-bearing node, in hierarchy order, pre-ticked per the existing rule.</summary>

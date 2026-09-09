@@ -240,9 +240,9 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement vatBakePane;
         private VatBakePanel vatBakePanel;
 
-        /// <summary>The New Rig flow's cover pane, and the panel built into it the first time it is opened.</summary>
+        /// <summary>The Rigs tab’s cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement newRigPane;
-        private NewRigPanel newRigPanel;
+        private RigsPanel rigsPanel;
 
         /// <summary>The Clip Sets tab's cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement clipSetsPane;
@@ -793,10 +793,10 @@ namespace DotsAnimationToolkit.Editor
 
             // Both cover panes own a PreviewRenderUtility of their own, plus a copy of whatever
             // prefab they were showing. Same rule as the controller below: nothing here is GC'd.
-            if (newRigPanel != null)
+            if (rigsPanel != null)
             {
-                newRigPanel.Dispose();
-                newRigPanel = null;
+                rigsPanel.Dispose();
+                rigsPanel = null;
             }
             if (clipSetsPanel != null)
             {
@@ -1077,7 +1077,7 @@ namespace DotsAnimationToolkit.Editor
                 skinnedSourceField.allowSceneObjects = false;
                 skinnedSourceField.tooltip =
                     "The rig this clip set animates. Its Source Prefab (set on the rig asset "
-                    + "itself) is what the preview instantiates for bone tracks — use New Rig to "
+                    + "itself) is what the preview instantiates for bone tracks — use the Rigs tab to "
                     + "create one, or open an existing rig to assign or change its prefab.";
                 skinnedSourceField.RegisterValueChangedCallback(OnSkinnedSourceChanged);
             }
@@ -1562,7 +1562,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Binds the four tab toggles as a radio group.</summary>
         private void BindTabs()
         {
-            BindTab(ClipEditorTab.NewRig, "tab-new-rig",
+            BindTab(ClipEditorTab.Rigs, "tab-new-rig",
                 "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
                 + "targets, and optionally point this clip set at the result.");
             BindTab(ClipEditorTab.ClipSets, "tab-clip-sets",
@@ -1651,7 +1651,7 @@ namespace DotsAnimationToolkit.Editor
             }
             isApplyingTab = false;
 
-            ShowNewRigTab(activeTab == ClipEditorTab.NewRig);
+            ShowRigsTab(activeTab == ClipEditorTab.Rigs);
             ShowClipSetsTab(activeTab == ClipEditorTab.ClipSets);
             ShowActorEditorTab(activeTab == ClipEditorTab.ActorEditor);
             ShowVatBakeTab(activeTab == ClipEditorTab.VatBake);
@@ -1696,7 +1696,7 @@ namespace DotsAnimationToolkit.Editor
                 cutscenePanel.OnHidden();
             }
 
-            // Covers the dock rather than replacing it (same for the VAT bake, New Rig and
+            // Covers the dock rather than replacing it (same for the VAT bake, Rigs and
             // Direction Sets cover panes): a hidden TwoPaneSplitView lays out at zero by zero
             // and comes back collapsed with no handle to reopen it.
             cutscenePane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1727,27 +1727,27 @@ namespace DotsAnimationToolkit.Editor
             vatBakePane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
-        /// <summary>Shows or hides the New Rig creation flow over the editor.</summary>
-        private void ShowNewRigTab(bool isShown)
+        /// <summary>Shows or hides the Rigs tab over the editor.</summary>
+        private void ShowRigsTab(bool isShown)
         {
             if (newRigPane == null)
             {
                 return;
             }
 
-            if (isShown && newRigPanel == null)
+            if (isShown && rigsPanel == null)
             {
-                newRigPanel = new NewRigPanel();
-                newRigPanel.Closed += CloseNewRigTab;
-                newRigPanel.RigCreated += OnNewRigCreated;
-                newRigPanel.UseInEditorRequested += OnRigUseInEditorRequested;
-                newRigPanel.RigTargetsChanged += OnPanelChangedRigTargets;
-                newRigPane.Add(newRigPanel);
+                rigsPanel = new RigsPanel();
+                rigsPanel.Closed += CloseRigsTab;
+                rigsPanel.RigCreated += OnNewRigCreated;
+                rigsPanel.UseInEditorRequested += OnRigUseInEditorRequested;
+                rigsPanel.RigTargetsChanged += OnPanelChangedRigTargets;
+                newRigPane.Add(rigsPanel);
             }
 
             if (isShown)
             {
-                newRigPanel.SetSource(activeRig);
+                rigsPanel.SetSource(activeRig);
             }
 
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1824,9 +1824,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 clipSetsPanel.SetSource(clipSet);
             }
-            if (newRigPanel != null)
+            if (rigsPanel != null)
             {
-                newRigPanel.SetSource(activeRig);
+                rigsPanel.SetSource(activeRig);
             }
         }
 
@@ -1841,13 +1841,13 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        /// <summary>Closes the New Rig flow at the panel's own request, once it has created a rig.</summary>
-        private void CloseNewRigTab()
+        /// <summary>Closes the Rigs tab at the panel’s own request, once it has created a rig.</summary>
+        private void CloseRigsTab()
         {
             SetActiveTab(ClipEditorTab.ClipEditor);
         }
 
-        /// <summary>Loads a freshly created rig into this window, when the New Rig flow's own toggle asked for it.</summary>
+        /// <summary>Loads a freshly created rig into this window, when the Rigs tab’s own toggle asked for it.</summary>
         private void OnNewRigCreated(RigAsset createdRig, bool loadIntoEditor)
         {
             if (loadIntoEditor && skinnedSourceField != null)
