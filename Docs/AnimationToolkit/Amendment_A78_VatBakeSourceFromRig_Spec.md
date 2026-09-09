@@ -8,7 +8,7 @@
 > **Predecessor:** [`Amendment_A76_RigsTab_Spec.md`](Amendment_A76_RigsTab_Spec.md) — A76 is what makes
 > this possible: a rig now always carries a Source Prefab and a tickable target list.
 > **Executor:** one Editor-connected orchestrator running the gate; `worker` subagents edit files in
-> four waves and never touch MCP.
+> four waves and never touch MCP. Eleven tasks, none larger than two files.
 
 ---
 
@@ -139,6 +139,13 @@ against that one texture. That is the whole gap.
 - **A78-D15 — `VatTextureSetAsset.schemaVersion` is stamped to `1` by the baker.** It is `0` on every
   set ever produced because `SaveResult` never writes it — a latent bug this amendment is the natural
   place to close.
+- **A78-D18 — `Bake` splits into two pure units and a thin panel method** (§5.3). Not for parallelism
+  alone: today's `Bake` holds clip selection, orchestration and asset writing in one 84-line method
+  inside a 569-line UI file, with **no fixture over any of it** — the two things most likely to be
+  wrong per part (which clip feeds which mesh, and what lands where) are today provable only by
+  baking and looking. `VatBakeClipBuilder` touches no `AssetDatabase` and no `GameObject`, so its
+  every rule is testable; `VatTextureSetBuilder` puts folder creation where folder creation belongs.
+  A76 made the same move lifting `RigTargetRowBuilder` out of a panel.
 - **A78-D17 — The Rigs tab authors `TargetKind`, because without it A78's textures are correct and
   unusable.** A part only gets `VatDriven` and its VAT shader properties at entity bake when its kind
   resolves to `VatMesh` (`RigTargetBaker.AddTechniqueComponents`, `:283-291`), and the only route
@@ -263,26 +270,48 @@ symmetry is the contract; write it as one comment and keep the two methods next 
 `flavor`, `clipRanges`, `socketTracks`, `sourceHash`, `sourceRigKey`, `setKey`, `schemaVersion`,
 `TryGetClipRange` and `TryGetTrackRange` are **unchanged** (A78-D9).
 
-### 5.3 `VatBakePanel.Bake` — `:210-293`
+### 5.3 The bake, in three pieces
 
-Shape, after the existing clip-set and rig guards:
+`Bake` today is one 84-line method holding clip selection, orchestration and asset writing at once,
+in a 569-line UI file, with no fixture over any of it. Multiplying it by N parts without splitting it
+would produce the largest single-file change in the amendment and leave its two most error-prone
+parts — which clip feeds which mesh, and what gets written where — testable only by baking. So the
+logic comes out into two pure units and the panel keeps the orchestration (A78-D18). This is the same
+move A76 made when it lifted `RigTargetRowBuilder` and `RigTargetReferenceResolver` out of a panel.
 
 ```
-resolve sources           → refuse and return on failure
-collect per-source clips  → skip a source with none, warning by name
-                          → refuse and create nothing when no source has any (A78-D10)
-warn about vatTracks rows naming targets no source covers (A78-D11)
-instantiate once
-try {
-    for each source:
-        Bake(that source's renderer, that source's clips, sockets only on the first)
-        accumulate ranges, collect the part entry
-} finally { DestroyImmediate(instanceRoot) }
-SaveResult writes N texture assets, N runtime meshes, one set
+5.3a VatBakeClipBuilder   pure     which clips feed which part, and what nothing bakes
+5.3b VatTextureSetBuilder assets   N textures + N meshes + one set asset
+5.3c VatBakePanel.Bake    UI       guards, one instance, the loop, the reporting
 ```
 
-`CollectVatClips` becomes `CollectVatClipsForSource(ClipSetAsset clipSet, VatBakeSource source)`.
-Per clip in the set, in this order:
+#### 5.3a New — `Editor/VatBaking/VatBakeClipBuilder.cs`
+
+```csharp
+/// <summary>One VAT part's bake list: the source it samples and the clips that feed it.</summary>
+public sealed class VatBakeSourcePlan
+{
+    public VatBakeSource Source;
+    public List<VatBakeClip> Clips;
+}
+
+/// <summary>What a bake would do: the parts that have clips, the parts that have none, and the tracks that name nothing.</summary>
+public sealed class VatBakePlan
+{
+    public List<VatBakeSourcePlan> Sources;        // only sources with at least one clip
+    public List<string> SkippedPartNames;          // resolved parts no clip in the set animates
+    public List<string> UnknownTrackTargets;       // vatTracks rows naming targets no source covers
+    public bool HasAnythingToBake { get; }         // Sources.Count > 0
+}
+
+/// <summary>Works out which clips feed which VAT part of a rig, and which parts and tracks nothing will bake.</summary>
+public static class VatBakeClipBuilder
+{
+    public static VatBakePlan Build(ClipSetAsset clipSet, List<VatBakeSource> sources);
+}
+```
+
+Per source, per clip in the set, in this order:
 
 1. A `vatTracks` row whose `targetId == source.TargetId` (and `source.TargetId != 0`) →
    `animationClip = track.sourceClip`, `boneTracks = null`, `loopSafe = track.loopSafe`.
@@ -293,21 +322,81 @@ Per clip in the set, in this order:
 3. Otherwise the clip contributes nothing to this part.
 
 Every emitted `VatBakeClip` carries `targetId = source.TargetId`, `clipId = clip.Id.Value`,
-`samplesPerSecond = clip.frameRate`, `durationSeconds = clip.duration`. Keep the three existing
-comments from `:342-353` — the id-provenance one, the per-clip-FPS one and the loop-safe one — they
-are all still true.
+`samplesPerSecond = clip.frameRate`, `durationSeconds = clip.duration`. Move the three existing
+comments from `VatBakePanel.cs:342-353` across with the code — the id-provenance one, the
+per-clip-FPS one and the loop-safe one — they are all still true and none of them is obvious.
 
-Hoist `VatFlavor bakeFlavor = (VatFlavor)flavorField.value;` above the try; `SaveResult` needs it
-after the instance is gone. Keep the two unresolved-name warning blocks (`:265-285`) per source,
-prefixing each with the part's `DisplayName` so N parts do not produce N anonymous warnings; the bone
-track one's closing sentence — "Check the names on the clip's bone tracks against the skinned mesh
-you assigned" — becomes "…against the rig's source prefab."
+`SkippedPartNames` gets a source whose clip list came out empty (A78-D10). `UnknownTrackTargets` gets
+the `displayName`-or-hex of every `vatTracks` row whose `targetId` matches no source in `sources`
+(A78-D11) — swept once over the whole set, not per source, so a track naming a missing target is
+reported once rather than N times.
 
-`SaveResult` loops: one `VatPartTextures` per source, assets named per A78-D14, `runtimeMesh` from
-`VatMeshPreparer.TryCreateRuntimeMesh(source.PrefabRenderer, …)` — the **prefab** renderer, which
-reads only `sharedMesh` (`VatMeshPreparer.cs:36-49`) and outlives the instance. Stamp
-`schemaVersion = 1` (A78-D15). `sourceRigKey`, `clipSet.vatTextures` assignment and the folder
-machinery are unchanged.
+This file touches no `AssetDatabase`, no `UnityEditor` UI type, and no `GameObject`. That is what
+makes it worth extracting: every rule in it is testable from three `CreateInstance` calls.
+
+#### 5.3b New — `Editor/VatBaking/VatTextureSetBuilder.cs`
+
+```csharp
+/// <summary>One part's bake output, paired back with the source that produced it.</summary>
+public sealed class VatBakePartResult
+{
+    public VatBakeSource Source;
+    public VatBakeResult Result;
+}
+
+/// <summary>Writes a bake's textures, runtime meshes and the VatTextureSetAsset that indexes them.</summary>
+public static class VatTextureSetBuilder
+{
+    /// <returns>The asset path of the written set.</returns>
+    public static string WriteSet(
+        ClipSetAsset clipSet,
+        RigAsset rig,
+        VatFlavor flavor,
+        string outputFolder,
+        List<VatBakePartResult> partResults);
+}
+```
+
+This is today's `SaveResult` (`:381-455`) with a loop around its middle. Per part: the texture
+assets named by A78-D14, and `runtimeMesh` from `VatMeshPreparer.TryCreateRuntimeMesh(
+partResult.Source.PrefabRenderer, …)` — the **prefab** renderer, which reads only `sharedMesh`
+(`VatMeshPreparer.cs:36-49`) and outlives the bake instance. Then one `VatTextureSetAsset` carrying
+every part entry, `clipRanges` concatenated from every part result in part order, `socketTracks` from
+the **first** part result only (A78-D5), `sourceRigKey = rig.StableId`, and `schemaVersion = 1`
+(A78-D15).
+
+`ResolveOutputFolder` stays on the panel — it reads a text field — and hands the resolved string in.
+`EnsureFolderPath`, `CreateOrReplaceAsset`, the `clipSet.vatTextures` assignment and the
+`SaveAssets`/`Refresh` pair move here with it; the panel has no business owning folder creation.
+
+Keep the comment at `:423` explaining why bone influences are packed for the bone flavour only, and
+the one at `:436-438` explaining why a missing runtime mesh warns rather than fails. Both are still
+exactly true, and the second matters more now that one part can fail while others succeed.
+
+#### 5.3c `VatBakePanel.Bake` — `:210-293`
+
+What is left, after the existing clip-set and rig guards:
+
+```
+TryResolve                        → ReportFailure and return
+VatBakeClipBuilder.Build          → ReportFailure and return when !HasAnythingToBake (A78-D10)
+                                  → Debug.LogWarning per SkippedPartName and UnknownTrackTarget
+TryCreateBakeInstance             → ReportFailure and return
+try {
+    for each plan in Sources:
+        FindInInstance, then VatTextureBaker.Bake(that renderer, that plan's clips,
+                                                  sockets on the first call only)
+        → ReportFailure and return on a failed part
+        collect a VatBakePartResult
+} finally { DestroyImmediate(instanceRoot) }
+VatTextureSetBuilder.WriteSet     → ReportSuccess, fill the preview set field, refresh
+```
+
+Hoist `VatFlavor bakeFlavor = (VatFlavor)flavorField.value;` above the try. Keep the two
+unresolved-name warning blocks (`:265-285`) inside the loop, prefixing each with the part's
+`DisplayName` so N parts do not produce N anonymous warnings; the bone-track one's closing sentence —
+"Check the names on the clip's bone tracks against the skinned mesh you assigned" — becomes "…against
+the rig's source prefab." `ReportSuccess` (`:457-482`) gains the part count and keeps its range table.
 
 One side effect worth knowing rather than fixing: `VatTextureBaker` takes `renderer.transform.root`
 as its bake root (`:153`). With a scene object that was whatever the user had dragged the prefab
@@ -359,8 +448,10 @@ press must not bake a stale set of parts.
 
 - **`Runtime/Components/VatTextureBinding.cs`** — drop `boneOrPositionTexture` and `normalTexture`,
   keep `setKey`, and rewrite the summary to say what it now is (the actor-level link to the set).
-  New `VatPartTextureBinding : IComponentData { UnityObjectRef<Texture2D> boneOrPositionTexture;
-  UnityObjectRef<Texture2D> normalTexture; }` beside it.
+- **New `Runtime/Components/VatPartTextureBinding.cs`** — `IComponentData` carrying
+  `UnityObjectRef<Texture2D> boneOrPositionTexture` and `normalTexture`, on the part entity. Its own
+  file, matching the one-component-per-file convention already in that folder, so the task that adds
+  it and the task that strips `VatTextureBinding` share nothing.
 - **`Authoring/Baking/ActorBaker.cs`** — `BuildVatTextureBinding` (`:1030-1045`) returns just the
   key; `DependsOnVatTextures` (`:565-580`) walks `parts` and depends on each texture. `AddSocketRegistry`
   (`:585-605`) is unchanged — `socketTracks` did not move.
@@ -435,9 +526,17 @@ with its VAT parts already marked rather than needing a second pass.
 
 ## 6. Tasks
 
-Wave 1 (`[parallel-safe]`): **T1, T2, T6, T9**. Wave 2: **T3**. Wave 3 (`[parallel-safe]`): **T4, T5**.
-Then **T7** (orchestrator) and **T8** (⏸ checkpoint). T9 touches only Rigs-tab files, disjoint from
-every other task in its wave.
+| Wave | Tasks | Why they can share a wave |
+|---|---|---|
+| — | **T0** (orchestrator) | Baseline and the probe. Its answer can change T3c. |
+| 1 | **T1, T2, T6, T9** | Four disjoint file pairs. T9 touches only Rigs-tab files. |
+| 2 | **T3a, T3b** | Two new files. T3a needs T1's `VatBakeSource`; T3b needs T2's `VatPartTextures`. |
+| 3 | **T3c** | The only task that edits `VatBakePanel.cs`, and it calls all three of the above. |
+| 4 | **T4a, T4b, T5** | Disjoint: `ActorBaker`+`VatTextureBinding`, `RigTargetBaker`+the new component, the inspector. |
+| — | **T7** (orchestrator), **T8** (⏸ checkpoint) | |
+
+No task edits a file another task in its wave edits. Eleven subagent tasks, none larger than two
+files; the two that were biggest before splitting — the panel and the bakers — are now four.
 
 Each brief pastes: the spec path, the task text, its "Read" line, the §5 block it builds, this spec's
 **§2**, and CLAUDE.md's hard rules (no `var`, no single-letter names, explicit types). Every brief
@@ -483,11 +582,15 @@ no prefab asset on disk, everything `DestroyImmediate`d in `TearDown`.
 - `TryResolve_TwoSkinnedMeshesAndNoTarget_RefusesAndNamesBoth` — false, message contains both paths.
   *(Revert-to-fail: return the first candidate — a silent wrong-mesh bake, which is what this rule
   exists to prevent.)*
+- `TryResolve_PrefersVatMeshTargets_OverTargetsThatMerelyCarryAMesh` — two targeted skinned meshes,
+  one `kind == VatMesh` → one source, the `VatMesh` one. Then set both to `Quad` → both come back.
+  *(Revert-to-fail: drop the kind pass — the first case returns two sources. This is A78-D3's ordered
+  rule, and the second half is what keeps every rig authored before T9 bakeable.)*
 - `TryCreateBakeInstance_MakesAHiddenCopy_AndFindInInstanceHitsTheSameNode` — instance root is not
   the prefab root, `hideFlags == HideAndDontSave`, and `FindInInstance` returns a renderer belonging
   to the instance. `DestroyImmediate` it in the test.
 
-Five tests, no more. No fixture for the null-rig guard.
+Six tests, no more. No fixture for the null-rig guard.
 
 ### T2 — The asset shape [parallel-safe]
 
@@ -533,28 +636,81 @@ this task is three files by exception; read only `:10-20` and `:95-125` of that 
 Do not touch `ClipSetsPanel.cs` or `RigCatalogColumn.cs`. **Create mode's existing behaviour must not
 change** beyond carrying the chosen kind into the definitions it builds.
 
-### T3 — The panel
+### T3a — `VatBakeClipBuilder` + fixture [parallel-safe with T3b]
+
+Files: **new** `Editor/VatBaking/VatBakeClipBuilder.cs`, **new**
+`Tests/EditMode/VatBakeClipBuilderTests.cs`. Read `VatBakePanel.cs:317-379` (the method being lifted,
+comments and all), `ClipAsset.cs`'s `VatTrack` and `VatClipSource` declarations, `VatBakeSource`'s
+declaration in `VatBakeSourceResolver.cs`, and §5.3a. Build §5.3a.
+
+This file must reference no `AssetDatabase`, no `GameObject` and no `UnityEditor` UI type. If you find
+yourself needing one, the boundary is wrong — say so in your report rather than widening it.
+
+Fixtures build `ClipAsset`s and `VatBakeSource`s with `CreateInstance` / object initialisers; a
+`VatBakeSource` needs no live renderer for these tests, only its `TargetId` and `DisplayName`.
+
+- `Build_ATargetedTrackWins_OverTheClipWideSource` — a clip with `vatSource.sourceClip = walkClip`
+  and a `vatTracks` row for target 7 naming `capeClip`; sources `{0…no, 7, 9}`. Target 7's plan
+  carries `capeClip` with no bone tracks; target 9's carries `walkClip` **and** the clip's bone
+  tracks. *(Revert-to-fail: check `vatSource` first — target 7 bakes the body's animation onto the
+  cape, silently.)*
+- `Build_APartNoClipAnimates_IsSkippedByName_NotDropped` — a set whose only clip has neither a
+  `vatSource`, bone tracks, nor a row for target 9 → target 9 is absent from `Sources` and present in
+  `SkippedPartNames`. *(Revert-to-fail: drop the skip list — the part vanishes with no warning, which
+  is the silence A78-D10 exists to prevent.)*
+- `Build_ATrackNamingNoSource_IsReportedOnce_NotPerSource` — a `vatTracks` row for target 42 with
+  three sources present → `UnknownTrackTargets` has exactly one entry.
+- `Build_NothingBakeable_ReportsHasAnythingToBakeFalse` — no clip carries any VAT content →
+  `HasAnythingToBake == false` and `Sources` empty.
+
+Four tests. Do not test the field-by-field copy into `VatBakeClip`; the compiler covers it.
+
+### T3b — `VatTextureSetBuilder` [parallel-safe with T3a]
+
+Files: **new** `Editor/VatBaking/VatTextureSetBuilder.cs`. Read `VatBakePanel.cs:381-455` (the method
+being lifted) and `:540-567` (`EnsureFolderPath`, `CreateOrReplaceAsset`, moving with it),
+`VatTextureSetAsset.cs`'s new surface, `VatMeshPreparer.cs:14-30`, and §5.3b. Build §5.3b.
+
+No fixture. This is `AssetDatabase` plumbing whose correctness is "the right files land in the right
+folder", which T7 drives three times against real assets — and a fixture would need an `Assets/`
+prefixed literal, which `Conformance_D` scans for. Do not write one.
+
+Leave `ResolveOutputFolder` on the panel; it reads a text field.
+
+### T3c — The panel
 
 Files: `Editor/VatBaking/VatBakePanel.cs` only. Read it in full, the public surfaces of
-`VatBakeSourceResolver` and `VatTextureSetAsset` (both exist by now), `ToolkitPalette.cs:14-27`, and
-§5.3 + §5.4. Build both.
+`VatBakeSourceResolver`, `VatBakeClipBuilder` and `VatTextureSetBuilder` (all three exist by now),
+`ToolkitPalette.cs:14-27`, and §5.3c + §5.4. Build both.
 
-No fixture — UI wiring plus a call-site restructure (HANDOFF §2); T1 and T2 cover the logic and T7
-drives the real thing. Do not touch `VatTextureBaker.cs` (A78-D4), `VatBakeWindow.cs` or
+The file should come out **shorter than it went in**: `CollectVatClips`, `SaveResult`,
+`EnsureFolderPath` and `CreateOrReplaceAsset` all leave with T3a and T3b. If it grew, the two
+builders are not being called and the logic was reimplemented — report that rather than shipping it.
+
+No fixture — UI wiring plus orchestration (HANDOFF §2); T1, T2 and T3a cover the logic and T7 drives
+the real thing. Do not touch `VatTextureBaker.cs` (A78-D4), `VatBakeWindow.cs` or
 `ClipEditorWindow.cs` — neither host knows the field exists.
 
-Check when done: `grep -n skinnedRendererField Editor/VatBaking/VatBakePanel.cs` returns nothing.
+Check when done: `grep -n "skinnedRendererField\|CollectVatClips\|SaveResult" Editor/VatBaking/VatBakePanel.cs`
+returns nothing.
 
-### T4 — The bakers [parallel-safe]
+### T4a — The runtime component and `ActorBaker` [parallel-safe]
 
-Files: `Authoring/Baking/RigTargetBaker.cs`, `Runtime/Components/VatTextureBinding.cs`. Read
-`RigTargetBaker.cs:265-401`, `VatTextureBinding.cs` in full, `VatTextureSetAsset.cs`'s new surface,
-and §5.5's second and third bullets. Also apply §5.5's `ActorBaker` changes — `ActorBaker.cs:565-580,
-1030-1045` are two small methods, so this task is three files by exception; read only those ranges.
+Files: `Runtime/Components/VatTextureBinding.cs`, `Authoring/Baking/ActorBaker.cs`. Read
+`VatTextureBinding.cs` in full (21 lines), `ActorBaker.cs:560-580` and `:1025-1045` **only**,
+`VatTextureSetAsset.cs`'s new surface, and §5.5's first and second bullets.
 
-No new fixture. `PackagingConformanceTests` and the existing baker fixtures are the gate; if an
-existing fixture asserts on `VatTextureBinding`'s texture fields, update it to the per-part component
-rather than deleting the assertion.
+No new fixture. If an existing fixture asserts on `VatTextureBinding`'s texture fields, move the
+assertion to `VatPartTextureBinding` rather than deleting it.
+
+### T4b — `RigTargetBaker` and the per-part component [parallel-safe]
+
+Files: **new** `Runtime/Components/VatPartTextureBinding.cs`, `Authoring/Baking/RigTargetBaker.cs`.
+Read `:265-401`, `VatTextureSetAsset.cs`'s new surface, `VatTextureBinding.cs` in full as the shape to
+mirror, and §5.5's third bullet. The component is declared here, not in T4a, so the two tasks share no
+file: one component per file is the existing convention in that folder.
+
+No new fixture. `PackagingConformanceTests` and the existing baker fixtures are the gate.
 
 ### T5 — The inspector [parallel-safe]
 
@@ -564,7 +720,7 @@ Toolkit only, no `GUILayout`.
 
 ### T7 — Gate, drive, docs, version (orchestrator)
 
-1. Full gate per HANDOFF §3, both suites. EditMode gains eight; counts must not otherwise drop.
+1. Full gate per HANDOFF §3, both suites. EditMode gains thirteen; counts must not otherwise drop.
 2. **Drive the single tentacle** — the unchanged-behaviour case. VAT Bake window, Clip Set
    `VatSampleTentacleClips`, Rig `VatSampleTentacleRig`, defaults, Bake. Expected, all derivable
    from the code:

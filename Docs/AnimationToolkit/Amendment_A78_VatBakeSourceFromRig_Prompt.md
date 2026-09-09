@@ -29,14 +29,19 @@ any `mcp__UnityMCP__*` tool".
 Run the spec's waves:
 
 - **T0 yourself:** gate, baseline totals, and the one platform probe. The probe's answer can change
-  T3 (see §6 T0) — run it before you spawn anything.
-- **Wave 1, four subagents at once:** T1, T2, T6, T9 (all `[parallel-safe]`, disjoint files). Wait
-  for all four, then **one** compile gate and their eight fixtures by `test_names`. T6 has no
-  fixture — it compiles or it does not.
-- **Wave 2:** T3 (one subagent). Gate. Nothing to run — no fixture, by design.
-- **Wave 3, two subagents at once:** T4, T5. Gate, plus the existing baker fixtures.
-- **T7 yourself:** full gate, the three drives, docs, changelog, version, vault note, HANDOFF §4.
+  T3c (see §6 T0) — run it before you spawn anything.
+- **Wave 1, four subagents at once:** T1, T2, T6, T9. Wait for all four, then **one** compile gate
+  and their nine fixtures by `test_names`. T6 has no fixture — it compiles or it does not.
+- **Wave 2, two subagents at once:** T3a, T3b. Gate plus T3a's four fixtures. T3b has no fixture, on
+  purpose — do not let it write one (see the traps below).
+- **Wave 3:** T3c (one subagent). Gate. Nothing to run — no fixture, by design.
+- **Wave 4, three subagents at once:** T4a, T4b, T5. Gate, plus the existing baker fixtures.
+- **T7 yourself:** full gate, the four drives, docs, changelog, version, vault note, HANDOFF §4.
 - **Stop at T8**, the ⏸ owner checkpoint, with the message the spec gives. Do not continue past it.
+
+§6's table is the authority on which tasks share a wave and why. **No two tasks in one wave edit the
+same file** — that is the invariant; if you find yourself merging two agents' edits to one file, you
+have run the wrong pair.
 
 Commit each task with an `A78-Tn:` prefix, staging paths explicitly, never `git add -A`. Push when
 green.
@@ -53,7 +58,7 @@ green.
   rig, mesh, material, already on disk, `targets: []` and one skinned mesh named `TentacleMesh`. It
   resolves untargeted and its output filenames must not change. The two-part subject is what T6
   builds.
-- Suite baselines: measure at T0. A78 adds eight EditMode tests and no PlayMode tests.
+- Suite baselines: measure at T0. A78 adds thirteen EditMode tests and no PlayMode tests.
 
 ## The traps that will cost you a session if you rediscover them
 
@@ -79,10 +84,16 @@ green.
   `ObjectField` and `EditorGUIUtility.PingObject` are all fine — T5's inspector is the one to watch.
   **T9 must use `GenericDropdownMenu`, not `GenericMenu`** — the latter is IMGUI and fails this gate.
   The working pattern is `ActorEditorInspectorColumn.cs:449-469`.
-- **`Conformance_D` scans raw test-file text for host asset folder paths.** T1's and T2's fixtures
-  build everything in memory and need no `Assets/`-prefixed literal. T6 must take its folder as a
-  parameter, the way `CreateSampleAssets` already does — a hardcoded host path there cost A74 a gate
-  cycle.
+- **`Conformance_D` scans raw test-file text for host asset folder paths.** T1's, T2's and T3a's
+  fixtures build everything in memory and need no `Assets/`-prefixed literal. T6 must take its folder
+  as a parameter, the way `CreateSampleAssets` already does — a hardcoded host path there cost A74 a
+  gate cycle. **This is also why T3b has no fixture**: a test over `AssetDatabase` writing would need
+  exactly such a literal, and T7 drives that path three times against real assets instead. If a
+  subagent reports "I added a test for the set writer", that is the gate about to fail — reject it.
+- **The split is load-bearing, not cosmetic (A78-D18).** T3a must reference no `AssetDatabase`, no
+  `GameObject` and no `UnityEditor` UI type; T3c's file must come out *shorter* than it went in. If
+  T3c grew, the builders were reimplemented inside the panel and the wave needs redoing — check the
+  line count before you gate it.
 - **Never rebuild a pane from inside a value-changed callback.** The Rig callback sets the label's
   text and colour in place and refreshes the preview; it does not rebuild the Source column.
 - **`execute_code` is CodeDom C# 6** — no `using` lines, fully-qualified names, no `out var`.
