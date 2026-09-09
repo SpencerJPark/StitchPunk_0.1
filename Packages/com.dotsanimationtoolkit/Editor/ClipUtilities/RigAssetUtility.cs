@@ -48,6 +48,114 @@ namespace DotsAnimationToolkit.Editor
             return newRig;
         }
 
+        /// Appends a target for sourceNodePath as one undo step, minting its stable id. Returns the
+        /// new target, or null when the rig is null or already has one for that path.
+        public static RigTargetDefinition AddTargetToRig(
+            RigAsset rig, string sourceNodePath, string displayName)
+        {
+            if (rig == null || rig.targets == null)
+            {
+                return null;
+            }
+
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition existingTarget = rig.targets[targetIndex];
+                if (existingTarget != null
+                    && string.Equals(existingTarget.sourceNodePath, sourceNodePath, System.StringComparison.Ordinal))
+                {
+                    return null;
+                }
+            }
+
+            Undo.RecordObject(rig, "Add Rig Target");
+            RigTargetDefinition newTarget = new RigTargetDefinition
+            {
+                displayName = displayName,
+                sourceNodePath = sourceNodePath,
+            };
+            rig.targets.Add(newTarget);
+            // Nothing else can mint the id: stableId is internal to the Authoring assembly.
+            rig.EnsureStableIds();
+
+            EditorUtility.SetDirty(rig);
+            AssetDatabase.SaveAssetIfDirty(rig);
+
+            return newTarget;
+        }
+
+        /// Removes the target carrying targetStableId as one undo step. False when the rig is null
+        /// or no target matches.
+        public static bool RemoveTargetFromRig(RigAsset rig, uint targetStableId)
+        {
+            if (rig == null || rig.targets == null)
+            {
+                return false;
+            }
+
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition candidateTarget = rig.targets[targetIndex];
+                if (candidateTarget != null && candidateTarget.Id.Value == targetStableId)
+                {
+                    Undo.RecordObject(rig, "Remove Rig Target");
+                    rig.targets.RemoveAt(targetIndex);
+
+                    EditorUtility.SetDirty(rig);
+                    AssetDatabase.SaveAssetIfDirty(rig);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// Writes a target's tag as one undo step. False when the rig is null or no target matches.
+        /// tagId 0 means untagged, which is legal.
+        public static bool SetTargetTag(RigAsset rig, uint targetStableId, uint tagId)
+        {
+            if (rig == null || rig.targets == null)
+            {
+                return false;
+            }
+
+            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition candidateTarget = rig.targets[targetIndex];
+                if (candidateTarget != null && candidateTarget.Id.Value == targetStableId)
+                {
+                    Undo.RecordObject(rig, "Set Rig Target Tag");
+                    candidateTarget.tagId = tagId;
+
+                    EditorUtility.SetDirty(rig);
+                    AssetDatabase.SaveAssetIfDirty(rig);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// Repoints the rig at a different source prefab as one undo step, leaving every target as
+        /// it is. False when the rig is null or the prefab is already assigned.
+        public static bool SetRigSourcePrefab(RigAsset rig, GameObject sourcePrefab)
+        {
+            if (rig == null || rig.sourcePrefab == sourcePrefab)
+            {
+                return false;
+            }
+
+            Undo.RecordObject(rig, "Set Rig Source Prefab");
+            rig.sourcePrefab = sourcePrefab;
+
+            EditorUtility.SetDirty(rig);
+            AssetDatabase.SaveAssetIfDirty(rig);
+
+            return true;
+        }
+
         /// <summary>Returns the file name of <paramref name="assetPath"/> without its extension.</summary>
         private static string ExtractAssetName(string assetPath)
         {
