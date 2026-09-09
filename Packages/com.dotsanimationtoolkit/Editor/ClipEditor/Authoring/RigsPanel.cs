@@ -34,6 +34,11 @@ namespace DotsAnimationToolkit.Editor
 
         private const string SelectedBoxUssClassName = "toolkit-box--selected";
 
+        /// <summary>Mirrors the floor <see cref="RigCatalogColumn"/> sets on itself; the inner split needs to know it.</summary>
+        private const float CatalogMinimumWidth = 200f;
+
+        private const float TargetsMinimumWidth = 360f;
+
         private RigCatalogColumn catalog;
         private VisualElement footerContainer;
         private Label targetsTitleLabel;
@@ -87,6 +92,12 @@ namespace DotsAnimationToolkit.Editor
 
             TwoPaneSplitView innerSplitView = new TwoPaneSplitView(0, 280f, TwoPaneSplitViewOrientation.Horizontal);
             innerSplitView.style.flexGrow = 1f;
+            // The outer split's fixed pane IS this inner split, and hiding the tab drops the pair's
+            // stored dimension back to "uninitialised" — without a floor of its own the outer split
+            // then re-lays this out at zero and the tab comes back as nothing but the preview. The
+            // columns' own minWidths cannot help: they sit inside this element, not on it. 560 is
+            // their sum, so the floor costs nothing a drag could otherwise reach.
+            innerSplitView.style.minWidth = CatalogMinimumWidth + TargetsMinimumWidth;
 
             catalog = new RigCatalogColumn();
             catalog.NewRequested += BeginCreate;
@@ -206,7 +217,7 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement targetsColumn = new VisualElement { name = "rig-targets-column" };
             targetsColumn.style.flexGrow = 1f;
-            targetsColumn.style.minWidth = 360f;
+            targetsColumn.style.minWidth = TargetsMinimumWidth;
             targetsColumn.style.paddingTop = 8f;
             targetsColumn.style.paddingLeft = 10f;
             targetsColumn.style.paddingRight = 10f;

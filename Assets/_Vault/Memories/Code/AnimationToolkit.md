@@ -676,6 +676,17 @@ route `ClipAssetUtility` uses for clip sets: a `SerializedObject` constructed be
 Order is record → mutate → `EnsureStableIds` → `SetDirty` → `SaveAssetIfDirty`, and do **not** call
 `MarkStableIdPersisted` there; that discharges the *asset's* report and belongs to `CreateRig`.
 
+**A nested `TwoPaneSplitView` inside a cover pane needs its own `minWidth`, or the tab comes back
+as nothing but its flexible pane.** Hiding a cover pane drops both split views' stored dimension to
+the `-1` "uninitialised" sentinel. On the way back the outer split re-lays its fixed pane from
+scratch — and when that fixed pane is *another split view*, it has no intrinsic width, so it lands
+at zero and every column inside it disappears. The columns' own `minWidth`s cannot save it: they
+sit inside the element being zeroed, not on it. `RigsPanel` floors the inner split at the sum of
+its two columns (560). Re-assigning `fixedPaneInitialDimension` does **not** repair a collapsed
+split — the setter does not re-run the control's `Init`, verified live. `ClipSetsPanel` is not
+affected: its single split's fixed pane is a plain column that carries its own floor. Both tabs do
+lose the dragged width across a hide, settling at the floor rather than the initial dimension.
+
 **An immediate-write panel has to listen for `Undo.undoRedoPerformed`.** Edit-mode ticks write
 straight to the asset, so Ctrl+Z changes the rig without the panel being involved and the row keeps
 showing the tick the undo removed. `RigsPanel` subscribes in its constructor and unsubscribes in

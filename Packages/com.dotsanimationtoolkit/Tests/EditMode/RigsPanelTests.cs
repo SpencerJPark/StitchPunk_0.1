@@ -49,6 +49,30 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Object.DestroyImmediate(sourcePrefabRoot);
         }
 
+        // Hiding the tab drops the split pair's stored dimension back to "uninitialised". The outer
+        // split's fixed pane is the inner split, so without a floor on that element the tab comes
+        // back as nothing but the preview — the columns' own minWidths sit inside it and cannot help.
+        [Test]
+        public void InnerSplitView_CarriesItsOwnWidthFloor_SoAHiddenTabCannotComeBackCollapsed()
+        {
+            RigsPanel panel = new RigsPanel();
+            try
+            {
+                List<TwoPaneSplitView> splitViews = panel.Query<TwoPaneSplitView>().ToList();
+                Assert.AreEqual(2, splitViews.Count, "The tab is built from an outer and an inner split view.");
+
+                TwoPaneSplitView innerSplitView = splitViews[1];
+                Assert.AreEqual(
+                    560f,
+                    innerSplitView.style.minWidth.value.value,
+                    "The inner split must floor at the sum of the two column minimums (200 + 360).");
+            }
+            finally
+            {
+                panel.Dispose();
+            }
+        }
+
         [Test]
         public void SelectRig_EntersEditMode_WithTheRigsTargetsTicked()
         {
