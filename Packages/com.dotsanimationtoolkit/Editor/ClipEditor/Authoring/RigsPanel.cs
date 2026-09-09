@@ -10,15 +10,9 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Rigs tab: a catalog of project rigs beside a target list that creates a new <see cref="RigAsset"/> from a prefab's renderer-bearing nodes, or edits a selected rig's targets in place.</summary>
+    /// <summary>The Rigs tab: a catalog of project rigs beside an editor for the selected rig's name, folder, source prefab, and targets.</summary>
     public sealed class RigsPanel : VisualElement, IDisposable
     {
-        public enum EditorMode
-        {
-            Create,
-            Edit,
-        }
-
         /// <summary>One renderer-bearing node found while scanning the source prefab.</summary>
         private sealed class CandidateRow
         {
@@ -40,38 +34,28 @@ namespace DotsAnimationToolkit.Editor
         private const float TargetsMinimumWidth = 360f;
 
         private RigCatalogColumn catalog;
-        private VisualElement footerContainer;
         private Label targetsTitleLabel;
         private Button useInEditorButton;
+        private Label noSelectionHintLabel;
+        private VisualElement editorContent;
+        private TextField rigNameField;
+        private Label rigFolderLabel;
         private ObjectField sourcePrefabField;
         private Label candidateSummaryLabel;
         private VisualElement candidateContainer;
-        private Toggle assignToggle;
         private Label resultLabel;
         private RigSourcePreviewElement preview;
         private CandidateRow focusedRow;
 
         private readonly List<CandidateRow> candidateRows = new List<CandidateRow>();
         private readonly List<ClipAsset> catalogClips = new List<ClipAsset>();
+        private readonly RigSaveLocation saveLocation = new RigSaveLocation();
 
         // Once the user has picked something this session (a catalog click or New), an incoming
         // SetSource from the window's own active-rig field must not yank the selection back.
         private bool hasUserSelectedThisSession;
 
-        public EditorMode Mode { get; private set; }
-
         public RigAsset SelectedRig { get; private set; }
-
-        /// <summary>Raised after a successful Create, so the host can untick its Rigs tab toggle.</summary>
-        public event Action Closed;
-
-        // This panel never touches the window's rig itself; it only reports what it built and
-        // whether the caller asked to have it loaded — the window decides what loading means.
-        /// <summary>
-        /// Raised after a rig is created and saved. The second argument is whether the panel's own
-        /// "load this rig into the editor" toggle was checked at the time.
-        /// </summary>
-        public event Action<RigAsset, bool> RigCreated;
 
         /// <summary>Raised when the targets column header's "Use in Clip Editor" button is clicked.</summary>
         public event Action<RigAsset> UseInEditorRequested;
@@ -100,7 +84,7 @@ namespace DotsAnimationToolkit.Editor
             innerSplitView.style.minWidth = CatalogMinimumWidth + TargetsMinimumWidth;
 
             catalog = new RigCatalogColumn();
-            catalog.NewRequested += BeginCreate;
+            catalog.NewRequested += CreateAndSelectNewRig;
             catalog.RefreshRequested += RescanProject;
             catalog.RigSelected += SelectRig;
             innerSplitView.Add(catalog);
@@ -110,7 +94,7 @@ namespace DotsAnimationToolkit.Editor
             outerSplitView.Add(BuildPreviewPane());
             Add(outerSplitView);
 
-            ApplyModeChrome();
+            ApplyChromeForSelection();
             RescanProject();
 
             // An edit-mode tick writes straight to the asset, so Ctrl+Z changes the rig without
@@ -127,7 +111,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnUndoRedoPerformed()
         {
-            if (Mode != EditorMode.Edit || SelectedRig == null)
+            if (SelectedRig == null)
             {
                 return;
             }
@@ -151,34 +135,41 @@ namespace DotsAnimationToolkit.Editor
 
         public void SelectRig(RigAsset rig)
         {
-            Mode = EditorMode.Edit;
             SelectedRig = rig;
             hasUserSelectedThisSession = true;
             catalog.SetSelectedRig(rig);
             // Without notify: a plain assignment would fire the field's own change callback and
-            // immediately write this rig's prefab back onto itself.
+            // immediately write this rig's prefab (or name) back onto itself.
             sourcePrefabField.SetValueWithoutNotify(rig != null ? rig.sourcePrefab : null);
-            ApplyModeChrome();
+            rigNameField.SetValueWithoutNotify(rig != null ? rig.name : string.Empty);
+            ApplyChromeForSelection();
             BuildRowsForEditMode(rig);
         }
 
-        public void BeginCreate()
+        /// <summary>Creates an empty rig in the remembered folder and selects it, so the catalog gains an entry the user edits in place.</summary>
+        public void CreateAndSelectNewRig()
         {
-            Mode = EditorMode.Create;
-            SelectedRig = null;
-            hasUserSelectedThisSession = true;
-            catalog.ClearSelection();
-            ApplyModeChrome();
-            RescanHierarchy();
+            string folder = saveLocation.Recall();
+            string assetPath = RigSaveLocation.ResolveTargetAssetPath(folder, RigSaveLocation.DefaultAssetName);
+            RigAsset newRig = RigAssetUtility.CreateRig(assetPath, null, null);
+            if (newRig == null)
+            {
+                ReportFailure("Could not create a new rig asset at \"" + assetPath + "\".");
+                return;
+            }
+
+            RescanProject();
+            SelectRig(newRig);
+            EditorGUIUtility.PingObject(newRig);
         }
 
-        private void ApplyModeChrome()
+        private void ApplyChromeForSelection()
         {
-            targetsTitleLabel.text = Mode == EditorMode.Create
-                ? "New Rig"
-                : (SelectedRig != null ? SelectedRig.name : "Rig");
-            footerContainer.style.display = Mode == EditorMode.Create ? DisplayStyle.Flex : DisplayStyle.None;
-            useInEditorButton.style.display = Mode == EditorMode.Edit ? DisplayStyle.Flex : DisplayStyle.None;
+            bool hasSelection = SelectedRig != null;
+            targetsTitleLabel.text = hasSelection ? SelectedRig.name : "Rig";
+            useInEditorButton.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
+            noSelectionHintLabel.style.display = hasSelection ? DisplayStyle.None : DisplayStyle.Flex;
+            editorContent.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void RescanProject()
@@ -210,6 +201,13 @@ namespace DotsAnimationToolkit.Editor
             rigs.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.name, right.name));
             catalogClips.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.name, right.name));
 
+            // A fresh project has no saved-folder pref yet; landing beside whatever rigs already
+            // exist beats defaulting to the Assets root.
+            saveLocation.FallbackFolder = rigs.Count > 0
+                ? System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(rigs[0])).Replace('\\', '/')
+                : "Assets";
+            rigFolderLabel.text = saveLocation.Recall();
+
             catalog.SetRigs(rigs);
         }
 
@@ -224,7 +222,7 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
-            targetsTitleLabel = new Label("New Rig") { name = "rig-targets-title" };
+            targetsTitleLabel = new Label("Rig") { name = "rig-targets-title" };
             targetsTitleLabel.AddToClassList("toolkit-pane-title");
             header.Add(targetsTitleLabel);
 
@@ -235,67 +233,92 @@ namespace DotsAnimationToolkit.Editor
 
             targetsColumn.Add(header);
 
+            noSelectionHintLabel = new Label("Select a rig, or press New to make one.")
+            {
+                name = "rig-no-selection-hint"
+            };
+            noSelectionHintLabel.style.whiteSpace = WhiteSpace.Normal;
+            noSelectionHintLabel.style.marginTop = 8f;
+            targetsColumn.Add(noSelectionHintLabel);
+
+            editorContent = new VisualElement { name = "rig-editor-content" };
+
+            rigNameField = new TextField("Name") { name = "rig-name-field" };
+            // Commit on blur/Enter, not on every keystroke — renaming an asset per character
+            // would create a file operation per letter.
+            rigNameField.RegisterCallback<FocusOutEvent>(focusOutEvent => CommitRigNameChange());
+            rigNameField.RegisterCallback<KeyDownEvent>(keyDownEvent =>
+            {
+                if (keyDownEvent.keyCode == KeyCode.Return)
+                {
+                    CommitRigNameChange();
+                }
+            });
+            editorContent.Add(rigNameField);
+
+            VisualElement folderRow = new VisualElement { name = "rig-folder-row" };
+            folderRow.style.flexDirection = FlexDirection.Row;
+            folderRow.style.alignItems = Align.Center;
+            folderRow.style.marginBottom = 4f;
+
+            rigFolderLabel = new Label(saveLocation.Recall()) { name = "rig-folder-label" };
+            rigFolderLabel.style.flexGrow = 1f;
+            rigFolderLabel.style.overflow = Overflow.Hidden;
+            rigFolderLabel.style.textOverflow = TextOverflow.Ellipsis;
+            rigFolderLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            folderRow.Add(rigFolderLabel);
+
+            Button rigFolderButton = new Button(OnRigFolderButtonClicked)
+            {
+                text = "…",
+                name = "rig-folder-button",
+                tooltip = "Where the next New rig is created. Does not move the selected rig."
+            };
+            rigFolderButton.style.marginLeft = 4f;
+            folderRow.Add(rigFolderButton);
+
+            editorContent.Add(folderRow);
+
             sourcePrefabField = new ObjectField("Source Prefab")
             {
+                name = "rig-source-prefab-field",
                 objectType = typeof(GameObject),
                 allowSceneObjects = false,
-                tooltip = "The prefab the new rig will preview from and the VAT bake will sample. "
+                tooltip = "The prefab the rig previews from and the VAT bake will sample. "
                     + "Its hierarchy is scanned below for nodes to offer as rig targets."
             };
             sourcePrefabField.RegisterValueChangedCallback(changeEvent =>
             {
-                if (Mode == EditorMode.Create)
+                if (SelectedRig == null)
                 {
-                    RescanHierarchy();
+                    return;
                 }
-                else if (Mode == EditorMode.Edit && SelectedRig != null)
+
+                // Targets are left exactly as they are; nodes that no longer exist just become
+                // missing rows through the ordinary BuildForRig path.
+                GameObject newSourcePrefab = changeEvent.newValue as GameObject;
+                if (RigAssetUtility.SetRigSourcePrefab(SelectedRig, newSourcePrefab))
                 {
-                    // Targets are left exactly as they are; nodes that no longer exist just become
-                    // missing rows through the ordinary BuildForRig path.
-                    GameObject newSourcePrefab = changeEvent.newValue as GameObject;
-                    if (RigAssetUtility.SetRigSourcePrefab(SelectedRig, newSourcePrefab))
-                    {
-                        BuildRowsForEditMode(SelectedRig);
-                        RaiseRigTargetsChanged();
-                    }
+                    BuildRowsForEditMode(SelectedRig);
+                    RaiseRigTargetsChanged();
                 }
             });
-            targetsColumn.Add(sourcePrefabField);
+            editorContent.Add(sourcePrefabField);
 
-            targetsColumn.Add(BuildHeading("Targets"));
+            editorContent.Add(BuildHeading("Targets"));
 
             candidateSummaryLabel = new Label(
                 "Assign a source prefab to scan its hierarchy for renderer-bearing nodes.");
             candidateSummaryLabel.style.whiteSpace = WhiteSpace.Normal;
-            targetsColumn.Add(candidateSummaryLabel);
+            editorContent.Add(candidateSummaryLabel);
 
             ScrollView candidateScroll = new ScrollView();
             candidateScroll.style.flexGrow = 1f;
             candidateScroll.style.marginTop = 4f;
             candidateContainer = candidateScroll.contentContainer;
-            targetsColumn.Add(candidateScroll);
+            editorContent.Add(candidateScroll);
 
-            footerContainer = new VisualElement { name = "new-rig-footer" };
-            footerContainer.Add(BuildHeading("Create"));
-
-            // Not gated on a clip set: loading a rig into the window needs no set, exactly as
-            // picking one in the toolbar does not.
-            assignToggle = new Toggle("Load this rig into the editor");
-            assignToggle.value = true;
-            assignToggle.tooltip =
-                "Puts the new rig in the toolbar's Rig field. Window state only — it pairs the rig "
-                + "with nothing, and changes no asset.";
-            footerContainer.Add(assignToggle);
-
-            // No Cancel beside it: the toolbar’s Rigs toggle is what opens and closes this tab,
-            // the way VAT Bake's does, and a second dismissal that leaves the toggle lit would be a
-            // button that closes a page the toolbar still says is open.
-            Button createButton = new Button(Create) { text = "Create Rig" };
-            createButton.style.height = 28f;
-            createButton.style.marginTop = 6f;
-            footerContainer.Add(createButton);
-
-            targetsColumn.Add(footerContainer);
+            targetsColumn.Add(editorContent);
 
             resultLabel = new Label(string.Empty);
             resultLabel.style.whiteSpace = WhiteSpace.Normal;
@@ -344,7 +367,7 @@ namespace DotsAnimationToolkit.Editor
 
                     // A row that is not currently a target cannot be tagged into the asset; its
                     // tag button is already disabled while unticked, so this only guards.
-                    if (Mode == EditorMode.Edit && SelectedRig != null && row.TargetStableId != 0u)
+                    if (SelectedRig != null && row.TargetStableId != 0u)
                     {
                         RigAssetUtility.SetTargetTag(SelectedRig, row.TargetStableId, chosenTagId);
                         RaiseRigTargetsChanged();
@@ -388,39 +411,8 @@ namespace DotsAnimationToolkit.Editor
             return heading;
         }
 
-        // Walks the assigned prefab's hierarchy for renderer-bearing nodes and offers each as a
-        // candidate target. Renderer rather than a specific subtype, so a cutout part's
-        // MeshRenderer and a VAT source's SkinnedMeshRenderer are found the same way.
-        private void RescanHierarchy()
-        {
-            candidateContainer.Clear();
-            candidateRows.Clear();
-            focusedRow = null;
-
-            GameObject prefab = sourcePrefabField.value as GameObject;
-            // Before the rows are built, so every SetNodeIncluded below lands on a copy that exists.
-            preview.ShowPrefab(prefab);
-
-            if (prefab == null)
-            {
-                candidateSummaryLabel.text =
-                    "Assign a source prefab to scan its hierarchy for renderer-bearing nodes.";
-                return;
-            }
-
-            List<RigTargetRow> rows = RigTargetRowBuilder.BuildForNewRig(prefab);
-            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
-            {
-                BuildCandidateRow(rows[rowIndex], rows[rowIndex].PreTicked);
-            }
-
-            candidateSummaryLabel.text = candidateRows.Count.ToString()
-                + " renderer-bearing node(s) found in \"" + prefab.name + "\". Click a row to find it "
-                + "in the preview.";
-        }
-
-        // Edit mode's row list — a stub that lists what BuildForRig reports, ticking the ones
-        // already a rig target. Untick/re-tag guarding against overwriting the rig is later work.
+        // Lists what BuildForRig reports for the selected rig, ticking the ones already a rig
+        // target. Untick/re-tag guarding against overwriting the rig is later work.
         private void BuildRowsForEditMode(RigAsset rig)
         {
             candidateContainer.Clear();
@@ -432,6 +424,13 @@ namespace DotsAnimationToolkit.Editor
             if (rig == null)
             {
                 candidateSummaryLabel.text = "No rig selected.";
+                return;
+            }
+
+            if (rig.sourcePrefab == null)
+            {
+                candidateSummaryLabel.text =
+                    "Assign a source prefab to scan its hierarchy for renderer-bearing nodes.";
                 return;
             }
 
@@ -523,7 +522,7 @@ namespace DotsAnimationToolkit.Editor
                 preview.SetNodeIncluded(row.SourceNodePath, isChecked);
             }
 
-            if (Mode != EditorMode.Edit || SelectedRig == null)
+            if (SelectedRig == null)
             {
                 return;
             }
@@ -611,73 +610,56 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private void Create()
+        private void CommitRigNameChange()
         {
-            resultLabel.text = string.Empty;
-
-            GameObject prefab = sourcePrefabField.value as GameObject;
-            if (prefab == null)
-            {
-                ReportFailure("Assign a source prefab first.");
-                return;
-            }
-            if (candidateRows.Count == 0)
-            {
-                ReportFailure("No renderer-bearing nodes were found in \"" + prefab.name + "\"'s hierarchy.");
-                return;
-            }
-
-            List<RigTargetDefinition> selectedTargets = new List<RigTargetDefinition>();
-            for (int rowIndex = 0; rowIndex < candidateRows.Count; rowIndex++)
-            {
-                CandidateRow row = candidateRows[rowIndex];
-                if (row.ToggleControl == null || !row.ToggleControl.value)
-                {
-                    continue;
-                }
-                selectedTargets.Add(new RigTargetDefinition
-                {
-                    displayName = row.DisplayName,
-                    sourceNodePath = row.SourceNodePath,
-                    tagId = row.TagId
-                });
-            }
-
-            if (selectedTargets.Count == 0)
-            {
-                ReportFailure("Tick at least one node to become a rig target.");
-                return;
-            }
-
-            string assetPath = EditorUtility.SaveFilePanelInProject(
-                "Create Rig", prefab.name + "Rig", "asset", "Choose where to save the new rig.");
-            if (string.IsNullOrEmpty(assetPath))
+            if (SelectedRig == null)
             {
                 return;
             }
 
-            RigAsset newRig = RigAssetUtility.CreateRig(assetPath, prefab, selectedTargets);
-            if (newRig == null)
+            string requestedName = rigNameField.value;
+            if (requestedName == SelectedRig.name)
             {
-                ReportFailure("Could not create the rig asset at \"" + assetPath + "\".");
                 return;
             }
 
-            resultLabel.style.color = new StyleColor(new Color(0.6f, 0.9f, 0.6f));
-            resultLabel.text = "Created \"" + newRig.name + "\" with " + selectedTargets.Count.ToString()
-                + " target(s).";
-            EditorGUIUtility.PingObject(newRig);
-
-            // So the new rig shows up in the catalog without waiting for a manual Refresh.
-            RescanProject();
-
-            if (RigCreated != null)
+            if (RigAssetUtility.RenameRig(SelectedRig, requestedName))
             {
-                RigCreated(newRig, assignToggle.value);
+                RigAsset renamedRig = SelectedRig;
+                RescanProject();
+                SelectRig(renamedRig);
+                RaiseRigTargetsChanged();
             }
-            if (Closed != null)
+            else
             {
-                Closed();
+                rigNameField.SetValueWithoutNotify(SelectedRig.name);
+            }
+        }
+
+        private void OnRigFolderButtonClicked()
+        {
+            string currentFolder = saveLocation.Recall();
+            string projectAssetsAbsolutePath = Application.dataPath;
+            string startingAbsoluteFolder = System.IO.Path.GetFullPath(
+                System.IO.Path.Combine(System.IO.Path.GetDirectoryName(projectAssetsAbsolutePath), currentFolder));
+
+            string pickedAbsoluteFolder =
+                EditorUtility.OpenFolderPanel("New Rig Folder", startingAbsoluteFolder, string.Empty);
+            if (string.IsNullOrEmpty(pickedAbsoluteFolder))
+            {
+                return;
+            }
+
+            string projectRelativeFolder;
+            if (RigSaveLocation.TryMakeProjectRelative(
+                pickedAbsoluteFolder, projectAssetsAbsolutePath, out projectRelativeFolder))
+            {
+                saveLocation.Remember(projectRelativeFolder);
+                rigFolderLabel.text = projectRelativeFolder;
+            }
+            else
+            {
+                ReportFailure("The chosen folder must be inside this project's Assets folder.");
             }
         }
 

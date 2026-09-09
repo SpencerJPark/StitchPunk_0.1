@@ -156,6 +156,33 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
+        /// Renames the rig's asset file. False when the rig is null, unsaved, the name is blank, or it is already that name.
+        public static bool RenameRig(RigAsset rig, string newName)
+        {
+            if (rig == null || string.IsNullOrWhiteSpace(newName) || rig.name == newName)
+            {
+                return false;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(rig);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            // Returns a message rather than throwing when the name is illegal or already taken.
+            string failureReason = AssetDatabase.RenameAsset(assetPath, newName);
+            if (!string.IsNullOrEmpty(failureReason))
+            {
+                Debug.LogWarning(
+                    "[DOTS Animation Toolkit] Rigs: Could not rename rig to '" + newName + "': " + failureReason, rig);
+                return false;
+            }
+
+            AssetDatabase.SaveAssets();
+            return true;
+        }
+
         /// <summary>Returns the file name of <paramref name="assetPath"/> without its extension.</summary>
         private static string ExtractAssetName(string assetPath)
         {

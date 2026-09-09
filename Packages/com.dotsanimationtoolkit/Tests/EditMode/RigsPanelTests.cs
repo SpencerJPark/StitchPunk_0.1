@@ -10,7 +10,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
-    /// <summary>EditMode coverage of <see cref="RigsPanel"/>'s Edit/Create mode switch and target tick sync.</summary>
+    /// <summary>EditMode coverage of <see cref="RigsPanel"/>'s rig selection and target tick sync.</summary>
     public sealed class RigsPanelTests
     {
         private GameObject sourcePrefabRoot;
@@ -74,14 +74,13 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void SelectRig_EntersEditMode_WithTheRigsTargetsTicked()
+        public void SelectRig_ShowsTheRigsTargetsTicked()
         {
             RigsPanel panel = new RigsPanel();
             try
             {
                 panel.SelectRig(rigAsset);
 
-                Assert.AreEqual(RigsPanel.EditorMode.Edit, panel.Mode);
                 Assert.AreEqual(rigAsset, panel.SelectedRig);
 
                 VisualElement targetsColumn = panel.Q<VisualElement>("rig-targets-column");
@@ -95,15 +94,38 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 List<Toggle> tickedToggles = candidateToggles.Where(toggle => toggle.value).ToList();
                 Assert.AreEqual(1, tickedToggles.Count);
                 Assert.AreEqual("Torso", tickedToggles[0].tooltip);
-
-                panel.BeginCreate();
-
-                Assert.AreEqual(RigsPanel.EditorMode.Create, panel.Mode);
-                Assert.IsNull(panel.SelectedRig);
             }
             finally
             {
                 panel.Dispose();
+            }
+        }
+
+        [Test]
+        public void SelectRig_WithNoSourcePrefab_ShowsTheAssignPrefabHint_AndNoRows()
+        {
+            RigAsset rigWithoutPrefab = ScriptableObject.CreateInstance<RigAsset>();
+            RigsPanel panel = new RigsPanel();
+            try
+            {
+                panel.SelectRig(rigWithoutPrefab);
+
+                VisualElement targetsColumn = panel.Q<VisualElement>("rig-targets-column");
+                List<Toggle> candidateToggles = targetsColumn.Query<Toggle>().ToList()
+                    .Where(toggle => toggle.parent != null
+                        && toggle.parent.ClassListContains("toolkit-box__header"))
+                    .ToList();
+
+                Assert.AreEqual(0, candidateToggles.Count);
+
+                Label summaryLabel = targetsColumn.Query<Label>().ToList()
+                    .First(label => label.text.Contains("Assign a source prefab"));
+                Assert.IsTrue(summaryLabel.text.Contains("Assign a source prefab"));
+            }
+            finally
+            {
+                panel.Dispose();
+                Object.DestroyImmediate(rigWithoutPrefab);
             }
         }
     }

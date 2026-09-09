@@ -1738,8 +1738,6 @@ namespace DotsAnimationToolkit.Editor
             if (isShown && rigsPanel == null)
             {
                 rigsPanel = new RigsPanel();
-                rigsPanel.Closed += CloseRigsTab;
-                rigsPanel.RigCreated += OnNewRigCreated;
                 rigsPanel.UseInEditorRequested += OnRigUseInEditorRequested;
                 rigsPanel.RigTargetsChanged += OnPanelChangedRigTargets;
                 newRigPane.Add(rigsPanel);
@@ -1838,21 +1836,6 @@ namespace DotsAnimationToolkit.Editor
             if (pickedProfile != null && pickedProfile.rig != null && skinnedSourceField != null)
             {
                 skinnedSourceField.value = pickedProfile.rig;
-            }
-        }
-
-        /// <summary>Closes the Rigs tab at the panel’s own request, once it has created a rig.</summary>
-        private void CloseRigsTab()
-        {
-            SetActiveTab(ClipEditorTab.ClipEditor);
-        }
-
-        /// <summary>Loads a freshly created rig into this window, when the Rigs tab’s own toggle asked for it.</summary>
-        private void OnNewRigCreated(RigAsset createdRig, bool loadIntoEditor)
-        {
-            if (loadIntoEditor && skinnedSourceField != null)
-            {
-                skinnedSourceField.value = createdRig;
             }
         }
 

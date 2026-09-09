@@ -76,5 +76,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.IsTrue(clearTagResult);
             Assert.AreEqual(0u, addedTarget.tagId);
         }
+
+        [Test]
+        public void RenameRig_RefusesTheCasesThatCannotRename()
+        {
+            // An unsaved instance has no asset path, so this can never reach AssetDatabase.RenameAsset.
+            Assert.IsFalse(RigAssetUtility.RenameRig(rig, "Whatever"));
+            Assert.IsFalse(RigAssetUtility.RenameRig(null, "Whatever"));
+            Assert.IsFalse(RigAssetUtility.RenameRig(rig, "   "));
+            Assert.IsFalse(RigAssetUtility.RenameRig(rig, rig.name));
+        }
     }
 }

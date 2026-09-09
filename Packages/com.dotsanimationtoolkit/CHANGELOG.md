@@ -8,6 +8,29 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] — A76 follow-up — one way to make a rig
+
+### Changed
+
+- **New creates the rig immediately and selects it.** The catalog's New button writes an empty
+  `RigAsset` into a remembered folder — uniquified, so repeated presses give `NewRig`, `NewRig 1`,
+  `NewRig 2` and nothing is ever overwritten — then selects it so you edit it in place: set a
+  source prefab, then tick targets. **Create mode is gone**, along with the "Create Rig" button,
+  the "Load this rig into the editor" toggle, and the save dialog.
+- **The targets column gained Name and Folder rows.** Name renames the asset, committed on blur or
+  Enter rather than per keystroke. Folder chooses where the *next* New rig is created and is
+  remembered in `EditorPrefs`, defaulting beside the rigs already in the project.
+- A rig with no source prefab shows the "assign a source prefab" hint instead of an empty
+  "0 renderer-bearing node(s)" count.
+
+### Fixed
+
+- **The Rigs tab came back as nothing but the preview** after switching away and returning. Hiding
+  a cover pane resets both split views' stored dimension, and the outer split's fixed pane is the
+  inner split view, which had no width floor of its own to be re-laid against.
+- Creating a rig no longer implies loading it into the Clip Editor; **Use in Clip Editor** is now
+  the only path to the toolbar's Rig field.
+
 ## [0.23.0] — A76 — rigs tab
 
 ### Added
