@@ -96,22 +96,121 @@ namespace DotsAnimationToolkit.Editor
             VisualElement container = new VisualElement();
 
             container.Add(new Label("Flavor:  " + textureSet.flavor.ToString()));
-            container.Add(new Label(
-                "Texture Width:  " + textureSet.textureWidth.ToString()
-                + "     Rows / Frame:  " + textureSet.rowsPerFrame.ToString()));
-
-            Label countLabel = textureSet.flavor == VatFlavor.BoneMatrix
-                ? new Label("Bone Count:  " + textureSet.boneCount.ToString())
-                : new Label("Vertex Count:  " + textureSet.vertexCount.ToString());
-            container.Add(countLabel);
-
             container.Add(new Label("Schema Version:  " + textureSet.schemaVersion.ToString()));
 
             Label setKeyLabel = new Label("Set Key:  0x" + textureSet.SetKey.ToString("X16"));
             setKeyLabel.selection.isSelectable = true;
             container.Add(setKeyLabel);
 
+            container.Add(BuildPartsList(textureSet));
+
             return container;
+        }
+
+        // Per-part numbers replaced the set's former singular texture-width/rows-per-frame/count
+        // fields when a set could bake more than one target's textures.
+        private static VisualElement BuildPartsList(VatTextureSetAsset textureSet)
+        {
+            VisualElement container = new VisualElement();
+            List<VatPartTextures> parts = textureSet.parts;
+
+            if (parts == null || parts.Count == 0)
+            {
+                Label emptyLabel = new Label("No parts baked.");
+                emptyLabel.style.marginTop = 4f;
+                container.Add(emptyLabel);
+                return container;
+            }
+
+            for (int partIndex = 0; partIndex < parts.Count; partIndex++)
+            {
+                container.Add(BuildPartBox(parts[partIndex], textureSet.flavor));
+            }
+
+            return container;
+        }
+
+        private static VisualElement BuildPartBox(VatPartTextures part, VatFlavor flavor)
+        {
+            VisualElement box = new VisualElement();
+            box.AddToClassList("toolkit-box");
+            ApplyBoxFallbackStyle(box);
+
+            VisualElement header = new VisualElement();
+            header.AddToClassList("toolkit-box__header");
+            ApplyBoxHeaderFallbackStyle(header);
+
+            Label titleLabel = new Label(PartDisplayName(part));
+            titleLabel.AddToClassList("toolkit-box__title");
+            titleLabel.style.flexGrow = 1f;
+            titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            header.Add(titleLabel);
+
+            Label targetLabel = new Label(
+                part.targetId == 0u ? "(untargeted)" : "0x" + part.targetId.ToString("X8"));
+            header.Add(targetLabel);
+
+            box.Add(header);
+
+            VisualElement body = new VisualElement();
+            body.AddToClassList("toolkit-box__body");
+            body.style.paddingLeft = 6f;
+            body.style.paddingTop = 2f;
+
+            body.Add(new Label("Flavor:  " + flavor.ToString()));
+
+            Label countLabel = flavor == VatFlavor.BoneMatrix
+                ? new Label("Bone Count:  " + part.boneCount.ToString())
+                : new Label("Vertex Count:  " + part.vertexCount.ToString());
+            body.Add(countLabel);
+
+            body.Add(new Label(
+                "Texture Width:  " + part.textureWidth.ToString()
+                + "     Rows / Frame:  " + part.rowsPerFrame.ToString()));
+
+            body.Add(new Label(
+                "Runtime Mesh:  " + (part.runtimeMesh != null ? part.runtimeMesh.name : "(none)")));
+
+            box.Add(body);
+            return box;
+        }
+
+        private static string PartDisplayName(VatPartTextures part)
+        {
+            return string.IsNullOrEmpty(part.displayName) ? "(unnamed part)" : part.displayName;
+        }
+
+        // No shared USS is loaded into this inspector, so the toolkit-box classes above carry no
+        // styling on their own — these fallbacks reproduce the boxed look inline.
+        private static void ApplyBoxFallbackStyle(VisualElement box)
+        {
+            box.style.marginTop = 6f;
+            box.style.marginBottom = 6f;
+            box.style.paddingBottom = 4f;
+            box.style.borderTopWidth = 1f;
+            box.style.borderBottomWidth = 1f;
+            box.style.borderLeftWidth = 1f;
+            box.style.borderRightWidth = 1f;
+            Color borderColor = new Color(0f, 0f, 0f, 0.35f);
+            box.style.borderTopColor = borderColor;
+            box.style.borderBottomColor = borderColor;
+            box.style.borderLeftColor = borderColor;
+            box.style.borderRightColor = borderColor;
+            box.style.borderTopLeftRadius = 3f;
+            box.style.borderTopRightRadius = 3f;
+            box.style.borderBottomLeftRadius = 3f;
+            box.style.borderBottomRightRadius = 3f;
+        }
+
+        private static void ApplyBoxHeaderFallbackStyle(VisualElement header)
+        {
+            header.style.flexDirection = FlexDirection.Row;
+            header.style.alignItems = Align.Center;
+            header.style.paddingLeft = 4f;
+            header.style.paddingRight = 2f;
+            header.style.paddingTop = 2f;
+            header.style.paddingBottom = 2f;
+            header.style.backgroundColor = new Color(0f, 0f, 0f, 0.12f);
         }
 
         // -----------------------------------------------------------------------------------
@@ -121,17 +220,34 @@ namespace DotsAnimationToolkit.Editor
         private static VisualElement BuildMemorySection(VatTextureSetAsset textureSet)
         {
             VisualElement container = new VisualElement();
+            List<VatPartTextures> parts = textureSet.parts;
 
-            Texture2D primaryTexture = textureSet.flavor == VatFlavor.BoneMatrix
-                ? textureSet.boneTexture
-                : textureSet.positionTexture;
-            string primaryLabel = textureSet.flavor == VatFlavor.BoneMatrix
-                ? "Bone Texture"
-                : "Position Texture";
+            if (parts == null || parts.Count == 0)
+            {
+                container.Add(new Label("No parts baked."));
+                return container;
+            }
 
             long totalBytes = 0L;
-            totalBytes += AddTextureMemoryRow(container, primaryLabel, primaryTexture);
-            totalBytes += AddTextureMemoryRow(container, "Normal Texture", textureSet.normalTexture);
+            for (int partIndex = 0; partIndex < parts.Count; partIndex++)
+            {
+                VatPartTextures part = parts[partIndex];
+
+                Label partLabel = new Label(PartDisplayName(part) + ":");
+                partLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+                partLabel.style.marginTop = partIndex == 0 ? 0f : 6f;
+                container.Add(partLabel);
+
+                Texture2D primaryTexture = textureSet.flavor == VatFlavor.BoneMatrix
+                    ? part.boneTexture
+                    : part.positionTexture;
+                string primaryLabel = textureSet.flavor == VatFlavor.BoneMatrix
+                    ? "Bone Texture"
+                    : "Position Texture";
+
+                totalBytes += AddTextureMemoryRow(container, primaryLabel, primaryTexture);
+                totalBytes += AddTextureMemoryRow(container, "Normal Texture", part.normalTexture);
+            }
 
             if (totalBytes == 0L)
             {
@@ -219,14 +335,15 @@ namespace DotsAnimationToolkit.Editor
             summary.style.marginBottom = 4f;
             container.Add(summary);
 
-            float[] columnWidths = { 150f, 90f, 90f, 90f, 60f };
+            float[] columnWidths = { 150f, 140f, 90f, 90f, 60f };
             container.Add(BuildTableHeaderRow(
                 new string[] { "Clip Id", "Target", "Frame Start", "Frame Count", "FPS" }, columnWidths));
 
             ListView listView = new ListView { fixedItemHeight = TableRowHeight };
             listView.itemsSource = clipRanges;
             listView.makeItem = () => BuildTableRow(columnWidths);
-            listView.bindItem = (VisualElement element, int index) => BindClipRangeRow(element, clipRanges[index]);
+            listView.bindItem = (VisualElement element, int index) =>
+                BindClipRangeRow(element, clipRanges[index], textureSet);
             listView.style.height = Mathf.Min(TableRowHeight * clipRanges.Count, TableMaxHeight);
             listView.Rebuild();
             container.Add(listView);
@@ -236,14 +353,23 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Target reads "(untargeted)" for a clip-wide range baked from <c>ClipAsset.vatSource</c>
-        /// (<see cref="VatClipRange.targetId"/> <c>== 0</c>) and the raw hex id otherwise.
+        /// (<see cref="VatClipRange.targetId"/> <c>== 0</c>) and the raw hex id otherwise, with the
+        /// resolved part's display name appended so the range can be traced to its textures.
         /// </summary>
-        private static void BindClipRangeRow(VisualElement rowElement, VatClipRange clipRange)
+        private static void BindClipRangeRow(
+            VisualElement rowElement, VatClipRange clipRange, VatTextureSetAsset textureSet)
         {
             (rowElement[0] as Label).text = "0x" + clipRange.clipId.ToString("X16");
-            (rowElement[1] as Label).text = clipRange.targetId == 0u
+
+            string targetText = clipRange.targetId == 0u
                 ? "(untargeted)"
                 : "0x" + clipRange.targetId.ToString("X8");
+            if (textureSet.TryGetPart(clipRange.targetId, out VatPartTextures matchedPart))
+            {
+                targetText += "  (" + PartDisplayName(matchedPart) + ")";
+            }
+            (rowElement[1] as Label).text = targetText;
+
             (rowElement[2] as Label).text = clipRange.frameStart.ToString();
             (rowElement[3] as Label).text = clipRange.frameCount.ToString();
             (rowElement[4] as Label).text = clipRange.fps.ToString("0.##");
