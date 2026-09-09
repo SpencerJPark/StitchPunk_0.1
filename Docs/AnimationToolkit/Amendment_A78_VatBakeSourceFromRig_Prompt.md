@@ -7,10 +7,11 @@ its §2, "What is already true"**, which is the difference between a two-day ame
 one — then its §4 "Read first" list in order, then
 `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` §4, which is binding.
 
-The spec's §3 decisions (A78-D1…D17) are settled. Do not re-ask the owner whether the field should be
-disabled rather than deleted (deleted, replaced by a read-only line), whether resolution should test
-`TargetKind.VatMesh` (it must not — nothing authors `kind`, so carrying a skinned mesh is the
-signal), whether the bake may pose the prefab asset (never — one throwaway `Object.Instantiate` for
+The spec's §3 decisions (A78-D1…D18) are settled. Do not re-ask the owner whether the field should be
+disabled rather than deleted (deleted, replaced by a read-only line), how `TargetKind.VatMesh` enters
+resolution (it sharpens it but never gates it — a `VatMesh` target wins, a target merely carrying a
+skinned mesh is next, a lone skinned mesh is the fallback; gating outright would make every rig
+authored before T9 unbakeable, the tentacle included), whether the bake may pose the prefab asset (never — one throwaway `Object.Instantiate` for
 the whole run), whether `VatTextureBaker` changes (it does not — the panel calls it once per part),
 whether `clipRanges` moves into the per-part entries (it stays flat and set-level, which is what
 keeps the runtime untouched), or what happens to a part nothing animates (skipped with a named
@@ -74,8 +75,10 @@ green.
   downstream would complain — the sword just rides the wrong pose.
 - **`Conformance_G` allows exactly eight static-class suffixes** — Api, Builder, Sampler, Resolver,
   Math, Validation, Utility (and `Utility` only inside `Editor/ClipUtilities/`), Editing — plus a
-  plain-noun allowlist. `VatBakeSourceResolver` is legal as named. A `…Helper`, `…Picker` or `…Utils`
-  fails the gate; do not rename it and do not add an allowlist entry. `VatBakeSource` and
+  plain-noun allowlist. All three new static classes are legal as named — `VatBakeSourceResolver`
+  (Resolver), `VatBakeClipBuilder` and `VatTextureSetBuilder` (Builder). A `…Helper`, `…Picker`,
+  `…Collector`, `…Writer` or `…Utils` fails the gate; do not rename them and do not add an allowlist
+  entry. `VatBakeSource`, `VatBakePlan`, `VatBakeSourcePlan`, `VatBakePartResult` and
   `VatPartTextures` are instance classes, unaffected.
 - **`Conformance_F`**: one `<summary>` per file, on the primary type, three lines at most, no
   `<remarks>`, no `§`, no amendment or phase citations in shipped sources. Copying this spec's prose
@@ -108,5 +111,5 @@ green.
 ## When you finish
 
 Update the spec's status line, `Docs/AnimationToolkit/HANDOFF.md` §4 (one paragraph: what landed,
-what is owed — the owner's checkpoint), the vault note section named in T7.7, and stop with the T8
-message. Do not start A79.
+what is owed — the owner's checkpoint), the vault note section named in T7 step 8, and stop with the
+T8 message. Do not start A79.
