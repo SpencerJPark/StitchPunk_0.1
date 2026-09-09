@@ -426,8 +426,14 @@ namespace DotsAnimationToolkit.Editor
                 bakedPartNames.Add(bakePlan.Sources[sourceIndex].Source.DisplayName);
             }
 
+            // No trailing separator when nothing bakes: every part is named on its own line below,
+            // and "baking 0 of 2 VAT parts · " reads as a list that failed to render.
             string headline = "baking " + bakePlan.Sources.Count.ToString() + " of " + sources.Count.ToString()
-                + " VAT parts · " + string.Join(", ", bakedPartNames);
+                + " VAT parts";
+            if (bakedPartNames.Count > 0)
+            {
+                headline = headline + " · " + string.Join(", ", bakedPartNames);
+            }
             if (bakePlan.SkippedPartNames.Count == 0)
             {
                 resolvedSourceLabel.text = headline;
