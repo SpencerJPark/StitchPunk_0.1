@@ -124,7 +124,7 @@ namespace DotsAnimationToolkit.Authoring
 
             AddBillboardMember(authoring, actorAuthoring, effectiveRig, partEntity);
 
-            AddTechniqueComponents(authoring, partEntity, targetKind, restPose);
+            AddTechniqueComponents(authoring, actorAuthoring, partEntity, targetKind, restPose);
 
             if (targetKind == TargetKind.VatMesh)
             {
@@ -267,6 +267,7 @@ namespace DotsAnimationToolkit.Authoring
 
         private void AddTechniqueComponents(
             RigTargetAuthoring authoring,
+            ActorAuthoring actorAuthoring,
             Entity partEntity,
             TargetKind targetKind,
             TargetRestPose restPose)
@@ -288,6 +289,7 @@ namespace DotsAnimationToolkit.Authoring
                     {
                         layerIndex = (byte)math.clamp(authoring.vatDrivingLayerIndex, 0, ActorProfileAsset.MaxLayerCount - 1)
                     });
+                    AddVatPartTextureBinding(authoring, actorAuthoring, partEntity);
                     break;
 
                 case TargetKind.Quad:
@@ -296,6 +298,32 @@ namespace DotsAnimationToolkit.Authoring
                     // PostTransformMatrix, so a quad needs no per-instance material property.
                     break;
             }
+        }
+
+        // The part-level binding this target's own baked part uses, resolved the same way
+        // ValidateVatMaterial resolves it below; a target with no matching part gets no binding,
+        // and the material check is where that mismatch gets reported.
+        private void AddVatPartTextureBinding(
+            RigTargetAuthoring authoring,
+            ActorAuthoring actorAuthoring,
+            Entity partEntity)
+        {
+            VatTextureSetAsset vatTextures = ResolveBindVatTextures(actorAuthoring);
+            if (vatTextures == null || !vatTextures.TryGetPart(authoring.targetStableId, out VatPartTextures part))
+            {
+                return;
+            }
+
+            bool isBoneFlavor = vatTextures.flavor == VatFlavor.BoneMatrix;
+            Texture2D boneOrPositionTexture = isBoneFlavor
+                ? DependsOn(part.boneTexture)
+                : DependsOn(part.positionTexture);
+
+            AddComponent(partEntity, new VatPartTextureBinding
+            {
+                boneOrPositionTexture = boneOrPositionTexture,
+                normalTexture = DependsOn(part.normalTexture)
+            });
         }
 
         // -----------------------------------------------------------------------------------
@@ -349,20 +377,32 @@ namespace DotsAnimationToolkit.Authoring
                 return;
             }
 
+            if (!vatTextures.TryGetPart(authoring.targetStableId, out VatPartTextures part))
+            {
+                Debug.LogWarning(
+                    MessagePrefix + "Rig target '" + authoring.name + "' is a VatMesh part on actor '" +
+                    actorAuthoring.name + "', but VAT texture set '" + vatTextures.name +
+                    "' baked no part for this target, so material '" + material.name +
+                    "' has nothing to be validated against.",
+                    authoring);
+                return;
+            }
+
             bool isBoneFlavor = vatTextures.flavor == VatFlavor.BoneMatrix;
             string texturePropertyName = isBoneFlavor
                 ? BoneTexturePropertyName
                 : PositionTexturePropertyName;
             Texture2D expectedTexture = isBoneFlavor
-                ? DependsOn(vatTextures.boneTexture)
-                : DependsOn(vatTextures.positionTexture);
+                ? DependsOn(part.boneTexture)
+                : DependsOn(part.positionTexture);
 
             if (!material.HasProperty(texturePropertyName))
             {
                 Debug.LogWarning(
                     MessagePrefix + "Material '" + material.name + "' on rig target '" + authoring.name +
-                    "' declares no '" + texturePropertyName + "' slot, so it cannot display VAT texture set '" +
-                    vatTextures.name + "'. Assign a VAT material to this part.",
+                    "' declares no '" + texturePropertyName + "' slot, so it cannot display part '" +
+                    part.displayName + "' of VAT texture set '" + vatTextures.name +
+                    "'. Assign a VAT material to this part.",
                     authoring);
                 return;
             }
@@ -373,8 +413,9 @@ namespace DotsAnimationToolkit.Authoring
                 Debug.LogWarning(
                     MessagePrefix + "Material '" + material.name + "' on rig target '" + authoring.name +
                     "' binds '" + texturePropertyName + "' to '" + DescribeTexture(boundTexture) +
-                    "', but VAT texture set '" + vatTextures.name + "' baked '" +
-                    DescribeTexture(expectedTexture) + "'. The part will animate against the wrong frames.",
+                    "', but part '" + part.displayName + "' of VAT texture set '" + vatTextures.name +
+                    "' baked '" + DescribeTexture(expectedTexture) +
+                    "'. The part will animate against the wrong frames.",
                     authoring);
             }
         }
