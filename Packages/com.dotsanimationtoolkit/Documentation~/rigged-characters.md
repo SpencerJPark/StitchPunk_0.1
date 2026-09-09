@@ -101,9 +101,11 @@ Set `duration`, `defaultLoop`, and `loopSafe` (which appends a duplicate of fram
 
 **Window ▸ DOTS Animation Toolkit ▸ VAT Bake**
 
-Assign the clip set, the **Rig** the textures are being baked for, and the scene's `SkinnedMeshRenderer`; choose **Bone Matrix** flavour, set your sample rate, and bake. The rig is stamped into the texture set, so binding those textures to a different rig later is an error rather than a silently wrong mesh.
+Assign the clip set and the **Rig** the textures are being baked for; choose **Bone Matrix** flavour, set your sample rate, and bake. There is no skinned-mesh field: the bake samples the rig's **Source Prefab**, and the line under the Rig tells you what it resolved to — the part it will cover, or how many of the rig's VAT parts have something to bake. Click that line to ping the prefab. Your character never has to be dragged into an open scene, and the bake never poses the prefab asset; it samples a throwaway copy. The rig is stamped into the texture set, so binding those textures to a different rig later is an error rather than a silently wrong mesh.
 
 It produces the textures, a `VatTextureSetAsset` holding the per-clip frame ranges, **a runtime mesh** with bone influences packed into `UV1`, and — if your rig declares bone sockets — their baked motion.
+
+**A rig with several VAT parts bakes them all in one run.** Every rig target that resolves to a skinned mesh in the Source Prefab is one part, and each gets its own texture and its own runtime mesh, numbered from its own frame 0. Mark those targets **Kind: VAT Mesh** on the Rigs tab — a VAT part left as `Quad` renders at run time as a motionless clump with no error. A part that no clip in the set animates is skipped by name with a warning, and a clip set that animates no part at all creates nothing rather than an empty texture.
 
 > **The runtime mesh matters.** A plain `MeshRenderer` does not bind `BLENDINDICES`/`BLENDWEIGHT`, so the bone influences travel in `UV1` as `(idx0, idx1, w0, w1)`. Use the mesh the bake produced, not your original. If you skip it, nothing errors — the mesh renders as a **motionless clump**, because every vertex reads bone 0 at weight 0.
 

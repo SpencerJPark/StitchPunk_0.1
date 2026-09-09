@@ -1,6 +1,7 @@
 # Amendment A78 — the rig says what to bake, and the bake does every VAT part
 
-> **Status:** 📝 specced 2026-09-08, not built. Takes `0.26.0` unless `CHANGELOG.md` has moved.
+> **Status:** ✅ built 2026-09-08 as `0.26.0`. T1–T7 landed and gated (EditMode 814/814, PlayMode
+> 283/283, bar the standing `Conformance_A` drift); **T8 ⏸ owner checkpoint is open.** Build log in §8.
 > **Prompt:** [`Amendment_A78_VatBakeSourceFromRig_Prompt.md`](Amendment_A78_VatBakeSourceFromRig_Prompt.md).
 > **Successor:** [`Amendment_A79_VatPreviewModes_Spec.md`](Amendment_A79_VatPreviewModes_Spec.md) — the
 > preview toggles the owner asked for in the same breath. Split on his instruction: baking is
@@ -803,5 +804,170 @@ Stop here with this message:
 
 ## 8. Build log
 
-*(the executing session fills this in: suite totals at T0, the probe's four readings, any name drift
-against §4's line numbers, and the three drives' actual output)*
+### T0 — baseline and probe (2026-09-08)
+
+Head is `0.25.0` (A77), so A78 takes `0.26.0` as specced. Compile gate clean, zero console errors.
+
+**Suite baselines.** EditMode `DotsAnimationToolkit.Tests.EditMode` discovered **801**, one failure —
+the standing `Conformance_A` asmdef drift (`DotsAnimationToolkit.Editor` carries an eighth reference,
+`Unity.RenderPipelines.Universal.Runtime`, that architecture §1.3 does not list). Not this
+amendment's, unchanged since A76. PlayMode `DotsAnimationToolkit.Tests.PlayMode` **283/283**, green.
+Both match HANDOFF §4's recorded totals exactly. A78 must land at EditMode 814 (801 + 13).
+
+**The probe** (one `execute_code` call, CodeDom, against the real sample prefab). Four readings:
+
+1. **A `HideAndDontSave` instance is not in any scene at all.** `instance.scene.IsValid()` is false and
+   the active scene's `rootCount` is unchanged (2 → 2 → 2) across instantiate and destroy.
+2. **It never dirties the open scene.** `isDirty` is `False` at all four measurement points — before,
+   after `Instantiate`, after posing, after `DestroyImmediate`. **A78-D7 stands as written and T3c is
+   unchanged: no `EditorSceneManager.NewPreviewScene()` is needed.**
+3. **It is poseable.** Inside `StartAnimationMode` → `BeginSampling` → write `Bone3.localRotation` →
+   `EndSampling`, the rotation stuck (`poseStuck=True`), which is what the bake needs.
+4. **`StopAnimationMode()` does not revert that write** (`revertedByAnimationMode=False`) —
+   independently reproducing what `VatTextureBaker.cs:186-189` already measured and snapshots around.
+   Harmless on a throwaway instance; it is precisely why handing the baker a prefab asset would write
+   the last sampled pose into the `.prefab` on disk, which is A78-D7's whole premise.
+
+`Object.Instantiate` also confirmed to produce **no** prefab link (`prefabLinked=False`), as A78-D7
+requires. The sample prefab holds 14 transforms: root + `Bone0`…`Bone11` + `TentacleMesh`.
+
+### Wave 1 — T1, T2, T6, T9 (2026-09-08)
+
+All four landed. Compile gate after the wave reported **exactly eight `CS1061` errors, all of them in
+`ActorBaker.cs` (571-573, 1040-1042) and `RigTargetBaker.cs` (357-358)** — the deleted singular
+fields, which are T4a's and T4b's work. **Zero errors in any file wave 1 wrote**, which is the whole
+signal the wave gate exists to give. Committed as `A78-T1`, `A78-T2`, `A78-T6`, `A78-T9`; not pushed,
+because the tree is deliberately red until the consumers land.
+
+Two deviations, both recorded rather than silently taken:
+
+- **T2 wrote two fixtures where §6 says one.** Its second test asserted the no-untargeted-part case
+  separately. Folded back into `TryGetPart_PrefersTheExactTarget_ThenFallsBackToUntargeted` as three
+  more assertions, so the amendment still adds the thirteen EditMode tests §6 budgets.
+- **§5.8's create-mode paragraph is stale and was skipped.** A77 removed the Rigs tab's create form:
+  `CreateAndSelectNewRig` now calls `RigAssetUtility.CreateRig(assetPath, null, null)` with no
+  targets, and `OnRowToggleChanged` early-returns when `SelectedRig == null`. There is no create mode
+  left to carry a chosen kind into, so T9 built none. Everything else in §5.8 is unaffected.
+
+**Wave order changed after the wave-1 gate: T4a and T4b moved from wave 4 into wave 2.** The eight
+errors are all in the `Authoring` assembly, and `Editor` compiles *against* `Authoring` — so with
+T4a/T4b left in wave 4, waves 2 and 3 would have produced no compile signal whatsoever for their own
+files, which defeats the per-wave gate. T4a (`VatTextureBinding` + `ActorBaker`) and T4b
+(`VatPartTextureBinding` + `RigTargetBaker`) share no file with T3a (`VatBakeClipBuilder`) or T3b
+(`VatTextureSetBuilder`), so §6's "no two tasks in one wave edit the same file" invariant still holds.
+Revised: **wave 2 = T3a, T3b, T4a, T4b; wave 3 = T3c, T5** (`VatBakePanel.cs` and
+`VatTextureSetAssetEditor.cs`, also disjoint). No task was dropped, added or re-scoped.
+
+### Wave 2 — T3a, T3b, T4a, T4b (2026-09-08)
+
+All four landed and committed as `A78-T3a`, `A78-T3b`, `A78-T4a`, `A78-T4b`. Two recorded judgments
+and one escalation.
+
+- **`sourceHash` on a multi-part set is taken from the first part result** (T3b's flagged judgment).
+  §5.3b's "carrying:" list is silent on the field, and today's `SaveResult` writes the single bake's
+  hash, so first-part is the closest preservation of existing behaviour — and it keeps a single-part
+  bake's stored hash identical, which A78-D14 cares about. Checked before accepting: the staleness
+  comparison in `ClipValidation.cs:146-159` is **dormant in production** — `vatSourceHashRecomputed`
+  defaults to false and no shipping caller passes a recomputed hash; only `ClipValidationTests` does.
+  Folding every part's hash together would be inventing behaviour the spec did not ask for. Recorded
+  rather than done: if multi-part staleness is ever wanted, that fold is the change.
+- **`UnknownTrackTargets` emits the hex form only, never a display name.** A `VatTrack` carries no
+  display name, and by definition the target it names matches no source, so there is nothing to read
+  one from. §5.3a's "displayName-or-hex" is unreachable in its first half.
+
+**Escalation — §5.5's consumer list is incomplete, and the prompt's "A78 does not touch
+`VatPreviewElement`" cannot hold.** Two A74-owned preview sources read the set's deleted singular
+fields and therefore cannot compile: `VatPreviewElement.cs` (bone count, texture dimensions,
+`runtimeMesh` bounds, and the `DrawMesh` call) and `VatPreviewMaterial.cs` (the texture, the texel
+params and the runtime mesh). §2's "per-part textures already reach the GPU" is true of the *runtime*
+but not of the *editor preview*, which reads the set directly. Resolved by the smallest mechanical
+migration that preserves today's behaviour exactly — `VatPreviewMaterial` takes the part alongside the
+set, and `VatPreviewElement` resolves the **first** entry in `parts` and uses it at each site, which
+is precisely what §5.4 already says the preview shows. **No preview feature was added**; the toggles
+remain A79's. Recorded here rather than silently taken, and worth folding into A79's "Read first".
+
+### Wave 3, and the fixture fallout (2026-09-08)
+
+T3c and T5 landed alongside the preview migration. **`VatBakePanel.cs` came out at 555 lines from
+569** — the §6 size check passes, so the builders are genuinely being called.
+
+The compile after wave 3 showed **all production code green and every remaining error in a test
+fixture** — twenty of them, in seven files §5.5 does not mention: the two shared fixture builders
+(`AuthoringTestAssets.cs`, `ActorBakeFixture.cs`) plus `ContentHashGoldenTests`,
+`ClipRegistryBuilderTests`, `ClipRegistryDeterminismTests`, `ActorBakingAcceptanceTests`, and
+`DataContractTests` (which compiled but would have failed at run time on a stale field contract).
+Each migrated mechanically onto one untargeted `VatPartTextures` carrying identical values, so the
+golden content hash still reaches the blob by the same path.
+
+**The acceptance test's texture assertion moved rather than being deleted.** The shared PlayMode rig's
+three targets are all `Quad`, so no part entity there carries `VatPartTextureBinding`; adding a fourth
+target would have perturbed a fixture many tests share. It moved instead into
+`AVatPartBoundToTheBakedTexture_WarnsAboutNothing`, which already bakes a correctly configured
+`VatMesh` part — and because that set's only part is untargeted, the assertion also exercises
+`TryGetPart`'s fallback. It passes.
+
+### Revert-to-fail (2026-09-08)
+
+The five load-bearing fixtures were proven in one pass — five mutations, one compile, one run — then
+restored and re-run green. Each failed with the predicted symptom:
+
+| Mutation | Fixture | Observed failure |
+|---|---|---|
+| Drop the `VatMesh` preference pass | `TryResolve_PrefersVatMeshTargets_…` | Expected 1, was 2 |
+| Never find a targeted track | `Build_ATargetedTrackWins_…` | wrong `AnimationClip` — the silent wrong-part bake |
+| Drop `TryGetPart`'s fallback | `TryGetPart_PrefersTheExactTarget_…` | Expected True, was False |
+| Early-return on `Quad` | `SetTargetKind_WritesTheKind_AndQuadIsLegal` | Expected True, was False |
+| Leave `Kind` default in `BuildForRig` | `SelectRig_CarriesEachTargetsKindOntoItsRow` | "Kind: Quad", expected "Kind: VAT Mesh" |
+
+### T7 — the four drives (2026-09-08)
+
+Suites: **EditMode 814/814** (801 + 13, only the standing `Conformance_A` drift), **PlayMode
+283/283**. Counts did not drop.
+
+1. **The single tentacle, driven through the real panel** (window opened, fields set, `Bake` invoked).
+   The line read exactly `VatSampleTentacle ▸ TentacleMesh · 12 bones`. Reloaded from disk:
+   `VatSampleTentacleClipsVatSet.asset`, `…VatBone.asset`, `…VatRuntimeMesh.asset` — **the same three
+   filenames as before A78** (A78-D14); one part with `targetId == 0`; `schemaVersion == 1`;
+   `sourceRigKey` equal to the rig's `StableId`; texture 16×183 (`NextPowerOfTwo(12)` × 61×3); range
+   `frameStart 0, frameCount 61`; runtime mesh 26 verts with both UV channels populated and
+   `boneWeights.Length == 0`. Scene `rootCount` unchanged and not dirty, and **`git status` showed
+   `VatSampleTentacle.prefab` unmodified** — the A78-D7 assertion.
+2. **The two-part sample.** `CreateTwoPartSampleAssets` produced a rig with two `VatMesh` targets, and
+   the plan exercised **both clip-selection paths in one run**: `Tentacle` via the clip-wide bone
+   tracks, `Fin` via its dedicated `vatTracks` row. The bake wrote two distinct textures (16×183 and
+   8×183, from 12 and 6 bones), two distinct runtime meshes, per-part filenames
+   `…VatTentacleBone.asset` / `…VatFinBone.asset`, and **both ranges at `frameStart 0`** — each
+   indexing its own texture, exactly `183 <= 183`.
+3. **The skip case.** With the clip's bone tracks cleared and its one `vatTracks` row retargeted at
+   the tentacle, the label read `baking 1 of 2 VAT parts · Tentacle` / `Fin — no clip in this set
+   animates it`, the console carried `'Fin': no clip in 'VatSampleTentacleTwoPartClips' animates this
+   VAT part. It will not be baked.`, and the reloaded set held one part. The other part still baked.
+4. **The empty case.** A clip set whose only clip had no VAT content: bake refused, **no set asset was
+   written**, and `clipSet.vatTextures` stayed null (A78-D10). This drive found the one defect of the
+   pass — the headline read `baking 0 of 2 VAT parts · ` with a dangling separator — fixed in
+   `A78-T7`.
+5. **The kind picker**, on a scratch rig: `SetTargetKind` returned true, and the write was proved by
+   loading the asset fresh from its path (`kind == VatMesh`) **and** by reading `kind: 1` out of the
+   raw YAML — not by the dropdown's own label. `Undo.PerformUndo()` restored the previous kind,
+   asserted on the in-memory instance with no `Refresh` in between, per the recorded trap.
+
+Scratch assets deleted and `git status` confirmed clean of them afterwards.
+
+### Foreign working-tree changes — not A78's, deliberately left alone
+
+`Editor/ClipEditor/Cutscene/CutsceneEditorPanel.cs` and a new section in
+`Assets/_Vault/Memories/Code/AnimationToolkit.md` (making the cutscene inspector pane a draggable
+`TwoPaneSplitView`) appeared in the working tree at 21:34, about eight minutes **before** this
+session's first subagent wrote anything at 21:42. They are another session's uncommitted work — the
+subject matches a peer session named "unify editor window controls". Not reverted, and deliberately
+staged into no A78 commit. If a cutscene layout fixture moves at the final gate, that is its doing.
+
+**Drift found at T0 — the sample rig is no longer untargeted.** `git status` carried one uncommitted
+modification: `Assets/ScriptableObjects/Animations/VatSampleTentacle/VatSampleTentacleRig.asset` has
+gained a single target (`displayName: TentacleMesh`, `sourceNodePath: TentacleMesh`,
+`stableId: 708564151`, `kind: 0`/Quad) where the committed asset — and §2 and T7 step 2 of this spec —
+says `targets: []`. Almost certainly residue from an A76/A77 Rigs-tab drive, since that tab writes a
+tick straight to the asset. It does not affect any subagent task, but it moves the tentacle from
+A78-D2's untargeted fallback to its second rule, which under A78-D14 changes the output filenames to
+`…VatTentacleMeshBone.asset` and gives the part a non-zero `targetId`. **Resolved before T7's drive**
+— see the T7 entry below.

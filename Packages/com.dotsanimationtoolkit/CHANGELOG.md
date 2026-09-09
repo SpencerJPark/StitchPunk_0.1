@@ -8,6 +8,44 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.26.0] — A78 — the rig says what to bake, and the bake does every VAT part
+
+### Changed
+
+- **The VAT Bake tab's Skinned Mesh field is gone.** The rig already knows which of its parts become
+  VAT textures, so the bake asks the rig instead of asking you twice. Under the Rig is a read-only
+  line saying what the bake resolved to — `VatSampleTentacle ▸ TentacleMesh · 12 bones` for one part,
+  or `baking 2 of 3 VAT parts · Cape, Hair` for several — and clicking it pings the source prefab.
+- **The bake samples the rig's Source Prefab, so your character no longer has to be in an open
+  scene.** It poses a throwaway copy that belongs to no scene and has no prefab link, which means a
+  bake can no longer write the last sampled frame into your `.prefab` on disk. A rig with no Source
+  Prefab now refuses with a message naming the field to set.
+
+### Added
+
+- **Every VAT part of a rig bakes in one run, each into its own texture and its own runtime mesh.**
+  A `VatTextureSetAsset` now carries a list of parts rather than a single texture, mesh and set of
+  addressing numbers, and each part's frames are numbered from its own frame 0. A part resolves its
+  own textures by target id, falling back to the untargeted part, so a set baked before this release
+  keeps working unchanged.
+- **A part nothing animates is skipped by name**, with a warning saying which part and which clip
+  set, and the other parts still bake. A clip set that animates no part at all creates nothing
+  rather than an empty texture.
+- **A Kind button on every target row in the Rigs tab**, beside the Tag. This is what marks a part as
+  a VAT mesh, and it matters: a VAT part left as `Quad` gets no VAT components at bake and renders at
+  run time as a motionless clump with no error.
+- **`VatPartTextureBinding`** on each VAT part entity, carrying that part's own baked textures. The
+  actor-level `VatTextureBinding` keeps its set key and loses its two texture references, because
+  with several parts there is no one actor-level texture.
+- Material validation now compares each VAT part against **its own** baked texture and names the part
+  in every message, instead of measuring every part against one texture. When a target has no baked
+  part at all, it now says so.
+
+### Fixed
+
+- `VatTextureSetAsset.schemaVersion` was `0` on every set the baker had ever produced; it is now
+  stamped.
+
 ## [0.25.0] — A77 — clip sets create like rigs, and everything renames
 
 ### Added

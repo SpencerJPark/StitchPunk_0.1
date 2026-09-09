@@ -735,6 +735,83 @@ a copy of the prefab and has no such node; `SetNodeIncluded`/`FocusNode` must be
 `!IsMissingNode` at every call site. Those rows exist so a target cannot vanish from the list —
 dropping them would make an unticked box the only evidence a part still exists.
 
+## The Cutscene Inspector pane was a fixed-width VisualElement, not a split pane (2026-09-08)
+
+`CutsceneEditorPanel`'s `centerColumn` (viewport | inspector) was a plain `Row` `VisualElement` with
+the inspector pinned at `style.width = 300f`, unlike every other divider in the same window
+(`castSplit`, `verticalSplit`), which is why it alone had no drag handle. Fixed by making
+`centerColumn` itself a `TwoPaneSplitView(1, 300f, Horizontal)` — same pattern as `castSplit`, fixed
+pane index 1 (the inspector, added second). Per the cover-pane trap below, the new nested split needs
+its own `minWidth` (`380` = viewport's `160` + inspector's `220`) or a hide/show cycle of the
+Cutscene tab collapses it to nothing but the viewport.
+
+## Actor Editor: three flex columns became two nested TwoPaneSplitViews, slider became a dropdown (2026-09-08)
+
+Same fixed-width complaint as the Cutscene Inspector above, times three: `ActorEditorPanel.BuildBody`
+laid out layers | viewport | inspector as one `Row` `VisualElement` with the two side columns pinned
+(`flexShrink = 0`, explicit `width`). Now `layersColumn` (minWidth 220) and an inner `rightSplit`
+(`viewportColumn` minWidth 200 | `inspectorColumn` minWidth 260, itself minWidth 460) sit inside an
+outer `TwoPaneSplitView(0, SideColumnWidth, Horizontal)` with its own `minWidth = 680` — the same
+cover-pane collapse trap applies, since this whole panel is hidden via USS class on tab switch
+(`ClipEditorWindow.ShowActorEditorTab`), not destroyed.
+
+The transport row's **Direction** control was a continuous `Slider(0, 360)` degrees value fed through
+`FacingResolver.FromMovement` (angle → vector → quantized `Direction`) purely so a drag could produce
+any of the 8 facings; the readout label then resolved that quantized `Direction` to its authored side
+via `ToAuthoredSide`. Replaced with an `EnumField` bound to `Direction` directly, feeding
+**`FacingResolver.Snap(desiredFacing, profile.turnDirections)`** instead of `FromMovement` — `Snap` is
+the same quantization `FromMovement` calls internally at its tail, just without the angle round-trip.
+`currentFacingAngleDegrees`/`SouthEastSliderAngleDegrees` are gone entirely; `currentMemberFacing`
+(already the *quantized* result, same as before) is the only state left, and the readout now reads
+`{currentMemberFacing} → {clipFacing}[, mirrored]` with no degree number. A profile with fewer than
+eight `turnDirections` can still show a dropdown pick that doesn't match the readout's resolved side
+(e.g. picking North on a two-direction profile snaps to SouthEast) — that mismatch is the same
+by-design behavior the old slider had (you could drag to any angle; only the *output* was quantized).
+
+## The VAT bake asks the rig, and runs once per part (A78, 0.26.0)
+
+**The bake samples one throwaway instance of `rig.sourcePrefab` and calls `VatTextureBaker.Bake`
+once per VAT part.** `VatBakeSourceResolver` is the single place the part list is decided, and its
+rule is ordered rather than conditional: a `kind == VatMesh` target wins, a target merely carrying a
+skinned mesh is next, and a lone skinned mesh is the untargeted fallback. Gating on `kind` outright
+would have made every rig authored before the Rigs tab grew a Kind picker unbakeable — nothing wrote
+`kind` before then, so they all carry `Quad`.
+
+Four traps, all of them load-bearing:
+
+- **Sockets are sampled on the first part's call only.** `VatTextureBaker` samples them *inside*
+  `Bake`, against the hierarchy **root** rather than the renderer, so passing the list on all N calls
+  writes N copies of every socket track and nothing downstream complains — the sword just rides the
+  wrong pose.
+- **`DestroyImmediate` the bake instance only after the last `Bake` returns.** Each call's own
+  `finally` stops `AnimationMode`; tearing the hierarchy out from under a live sampling session
+  strands the Editor in AnimationMode with no way back but a domain reload. One `finally` around the
+  whole loop, not one per part.
+- **Never hand the baker a prefab asset or a scene object.** It writes local TRS onto every bone of
+  whatever renderer it is given (and restores them in a `finally` precisely because it does), so
+  posing the asset writes the last sampled frame into the `.prefab` on disk. `Object.Instantiate`,
+  **not** `PrefabUtility.InstantiatePrefab`: a copy with no prefab link cannot write back even if a
+  later change forgets the rule. Measured 2026-09-08: a `HideAndDontSave` instance belongs to no
+  scene at all, is fully poseable, and never dirties the open scene — but `StopAnimationMode()` does
+  **not** revert the pose, which is why the baker snapshots TRS itself.
+- **Each part's frames are numbered from its own 0.** That is why per-part baking needed no change to
+  the blob, the registry builder's range filling, or any runtime system: a part only ever indexes
+  into its own texture. `clipRanges` stays flat and set-level, each row carrying its `targetId`.
+
+`VatTextureSetAsset.TryGetPart` mirrors `TryGetTrackRange` exactly — exact target, else the
+`targetId == 0` entry — and that symmetry is the contract that keeps pre-A78 single-part sets working.
+
+**A `Quad`-kinded VAT part renders as a motionless clump with no error.** `RigTargetBaker` only adds
+`VatDriven` and the VAT shader properties in the `VatMesh` arm, so correct textures on a `Quad`
+target are silently useless. That is what the Rigs tab's Kind button exists to prevent.
+
+**Unexplained, not chased (2026-09-08):** a rig produced by `AssetDatabase.CopyAsset` had a target
+added and saved — the YAML on disk carried it, `kind` included — yet after a domain reload Unity
+loaded that asset with `targets.Count == 0`, and a `ForceUpdate` reimport did not fix it. The copy
+shares its `stableId` with its source, but `EnsureStableIds` never clears targets, so that is not the
+cause. A freshly created rig at the same path behaves correctly. Worth knowing before trusting a
+copied rig in a test or a drive.
+
 ## Do not spawn subagents against this package — unless they never touch the Editor (A73)
 
 Three processes driving one live Unity Editor already caused MCP lock

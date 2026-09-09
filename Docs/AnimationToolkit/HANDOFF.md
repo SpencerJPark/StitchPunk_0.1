@@ -119,6 +119,43 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-08): Amendment A78 — the rig says what to bake — 0.26.0.** Spec
+`Docs/AnimationToolkit/Amendment_A78_VatBakeSourceFromRig_Spec.md`; its §8 carries the full build log.
+The VAT Bake tab's Skinned Mesh field is gone: `VatBakeSourceResolver` reads the rig's Source Prefab
+and decides the part list, the panel shows what it resolved to on a read-only line that pings the
+prefab, and the bake poses one throwaway `Object.Instantiate` copy — so a character no longer has to
+be dragged into an open scene and a bake can no longer write a sampled pose into the `.prefab` on
+disk. Every VAT part of a rig now bakes in one run into its own texture and runtime mesh;
+`VatTextureSetAsset` carries a `parts` list, `TryGetPart` mirrors `TryGetTrackRange`'s
+exact-then-untargeted fallback, and `clipRanges` deliberately stays flat and set-level so no runtime
+system changed. `Bake`'s 84-line middle split into `VatBakeClipBuilder` (pure, five fixtures) and
+`VatTextureSetBuilder`, and the panel came out shorter than it went in. The Rigs tab gained a **Kind**
+button per target row (A78-D17) — without it a baked VAT part renders as a motionless clump with no
+error, so it is what makes the rest usable on an actor. `VatTextureBinding` keeps its set key and
+loses its textures to a new per-part `VatPartTextureBinding`; `ValidateVatMaterial` is now per-part
+and names the part. `schemaVersion` is stamped at last (it was `0` on every set ever produced).
+
+Gated **EditMode 814/814** (801 + the 13 new; only the standing `Conformance_A` asmdef drift) and
+**PlayMode 283/283**. All five load-bearing new fixtures were revert-to-fail proven in one pass and
+restored. Driven for real, not just compiled: the sample tentacle re-baked to **byte-identical
+filenames** with `targetId == 0`, `schemaVersion == 1`, a 16×183 texture and 61 frames, and
+`git status` confirmed `VatSampleTentacle.prefab` **unmodified** — the A78-D7 assertion; a new
+two-part sample baked two distinct textures and runtime meshes with both ranges starting at their own
+frame 0; flipping a clip so nothing animated the fin skipped it by name and still baked the other;
+an empty clip set wrote **no asset at all**; and a Kind write was proved by reloading the rig from
+disk and reading the raw YAML, with `Undo.PerformUndo()` restoring it.
+
+**Three things a later session should not rediscover**, all in the vault note's new "The VAT bake
+asks the rig" section: sockets are sampled on the **first** part's call only; the bake instance is
+destroyed once after the last `Bake` returns, never per part; and `StopAnimationMode()` does not
+revert a pose, which is why the baker snapshots TRS itself. Two escalations are recorded in the
+spec's §8 rather than quietly taken — §5.5's consumer list was incomplete (`VatPreviewElement` and
+`VatPreviewMaterial` read the deleted fields and had to be migrated mechanically, adding no preview
+feature; fold this into A79's reading), and §5.8's create-mode paragraph was stale because A77 had
+already removed the Rigs tab's create form. **T8 (⏸ owner checkpoint) is open** — the spec's §6 T8
+names exactly what to open, press and look at, and asks for an eye on three things before A79 builds
+the preview toggles. Nothing is queued behind it.
+
 **Built (2026-09-08): A77 — create-and-rename on both catalog tabs — 0.25.0.** Owner-driven, no
 spec document; the reasoning lives in `Assets/_Vault/Memories/Code/AnimationToolkit.md` under
 "Both catalog tabs create, rename and delete in place". Clip Sets' New now creates an empty set and
