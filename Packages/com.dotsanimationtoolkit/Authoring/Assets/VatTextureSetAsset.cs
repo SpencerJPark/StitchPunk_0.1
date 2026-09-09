@@ -20,29 +20,8 @@ namespace DotsAnimationToolkit.Authoring
         public VatFlavor flavor = VatFlavor.BoneMatrix;
 
         // Deliberately never enters a blob — the blob carries only vatSetKey plus addressing metadata.
-        /// <summary>Per-bone object-space skinning matrices; used by <see cref="VatFlavor.BoneMatrix"/> sets.</summary>
-        public Texture2D boneTexture;
-
-        /// <summary>Absolute object-space vertex positions; used by <see cref="VatFlavor.VertexPosition"/> sets.</summary>
-        public Texture2D positionTexture;
-
-        /// <summary>Optional per-vertex normals accompanying <see cref="positionTexture"/>.</summary>
-        public Texture2D normalTexture;
-
-        /// <summary>The static mesh the baker emitted, with bone indices and weights packed into UV1/UV2.</summary>
-        public Mesh runtimeMesh;
-
-        /// <summary>Bone count of a <see cref="VatFlavor.BoneMatrix"/> set; 0 otherwise.</summary>
-        public int boneCount;
-
-        /// <summary>Vertex count of a <see cref="VatFlavor.VertexPosition"/> set; 0 otherwise.</summary>
-        public int vertexCount;
-
-        /// <summary>Texture width in texels, mirrored into <see cref="VatTextureInfoBlob.textureWidth"/>.</summary>
-        public int textureWidth;
-
-        /// <summary>Texture rows occupied by one animation frame; 1 for the bone flavor.</summary>
-        public int rowsPerFrame = 1;
+        /// <summary>One entry per VAT part this set was baked for.</summary>
+        public List<VatPartTextures> parts = new List<VatPartTextures>();
 
         // A clip with only an untargeted ClipAsset.vatSource bakes exactly one entry here with
         // targetId == 0; a clip whose vatTracks names additional targets bakes one further entry
@@ -142,6 +121,39 @@ namespace DotsAnimationToolkit.Authoring
             return false;
         }
 
+        // Same two-step fallback as TryGetTrackRange above: exact target match, else the
+        // untargeted entry. A part with no dedicated bake keeps resolving the untargeted one.
+        /// <summary>The part baked for a rig target: the exact match, else the untargeted part when one exists.</summary>
+        public bool TryGetPart(uint targetId, out VatPartTextures part)
+        {
+            VatPartTextures untargetedPart = null;
+
+            if (parts != null)
+            {
+                for (int partIndex = 0; partIndex < parts.Count; partIndex++)
+                {
+                    VatPartTextures candidate = parts[partIndex];
+                    if (targetId != 0u && candidate.targetId == targetId)
+                    {
+                        part = candidate;
+                        return true;
+                    }
+                    if (candidate.targetId == 0u && untargetedPart == null)
+                    {
+                        untargetedPart = candidate;
+                    }
+                }
+            }
+
+            if (untargetedPart != null)
+            {
+                part = untargetedPart;
+                return true;
+            }
+            part = null;
+            return false;
+        }
+
         /// <summary>Assigns a fresh stable key when this set still carries the reserved 0 value. Idempotent.</summary>
         internal void EnsureStableIds()
         {
@@ -237,5 +249,40 @@ namespace DotsAnimationToolkit.Authoring
 
         /// <summary>Object-space bounds measured over every baked frame of this clip.</summary>
         public Bounds bounds;
+    }
+
+    /// <summary>One baked VAT part: the textures, the runtime mesh and the addressing numbers for the rig target it covers.</summary>
+    [Serializable]
+    public sealed class VatPartTextures
+    {
+        /// <summary>Stable id of the rig target this part covers, or 0 for the set's single untargeted part.</summary>
+        public uint targetId;
+
+        /// <summary>Cosmetic label; identity is <see cref="targetId"/>, not this string.</summary>
+        public string displayName;
+
+        /// <summary>Per-bone object-space skinning matrices; used by <see cref="VatFlavor.BoneMatrix"/> sets.</summary>
+        public Texture2D boneTexture;
+
+        /// <summary>Absolute object-space vertex positions; used by <see cref="VatFlavor.VertexPosition"/> sets.</summary>
+        public Texture2D positionTexture;
+
+        /// <summary>Optional per-vertex normals accompanying <see cref="positionTexture"/>.</summary>
+        public Texture2D normalTexture;
+
+        /// <summary>The static mesh the baker emitted, with bone indices and weights packed into UV1/UV2.</summary>
+        public Mesh runtimeMesh;
+
+        /// <summary>Bone count of a <see cref="VatFlavor.BoneMatrix"/> part; 0 otherwise.</summary>
+        public int boneCount;
+
+        /// <summary>Vertex count of a <see cref="VatFlavor.VertexPosition"/> part; 0 otherwise.</summary>
+        public int vertexCount;
+
+        /// <summary>Texture width in texels, mirrored into <see cref="VatTextureInfoBlob.textureWidth"/>.</summary>
+        public int textureWidth;
+
+        /// <summary>Texture rows occupied by one animation frame; 1 for the bone flavor.</summary>
+        public int rowsPerFrame = 1;
     }
 }

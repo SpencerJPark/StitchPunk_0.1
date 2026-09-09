@@ -413,13 +413,13 @@ namespace DotsAnimationToolkit.Authoring
 
         private static VatTextureInfoBlob BuildVatInfo(VatTextureSetAsset vatTextures)
         {
-            if (vatTextures == null)
+            // These numbers describe only the set's untargeted part; a per-part set with no
+            // untargeted entry reports 0 / 1 / 0 so a consumer dividing by rowsPerFrame cannot trip.
+            if (vatTextures == null || !vatTextures.TryGetPart(0u, out VatPartTextures untargetedPart))
             {
-                // No VAT data. ClipRegistryBlob.vatSetKey == 0 is the authoritative "no VAT" signal;
-                // rowsPerFrame stays 1 so that any consumer dividing by it cannot trip over a zero.
                 return new VatTextureInfoBlob
                 {
-                    flavor = VatFlavor.BoneMatrix,
+                    flavor = vatTextures == null ? VatFlavor.BoneMatrix : vatTextures.flavor,
                     textureWidth = 0,
                     rowsPerFrame = 1,
                     boneOrVertexCount = 0
@@ -428,11 +428,11 @@ namespace DotsAnimationToolkit.Authoring
             return new VatTextureInfoBlob
             {
                 flavor = vatTextures.flavor,
-                textureWidth = vatTextures.textureWidth,
-                rowsPerFrame = vatTextures.rowsPerFrame,
+                textureWidth = untargetedPart.textureWidth,
+                rowsPerFrame = untargetedPart.rowsPerFrame,
                 boneOrVertexCount = vatTextures.flavor == VatFlavor.BoneMatrix
-                    ? vatTextures.boneCount
-                    : vatTextures.vertexCount
+                    ? untargetedPart.boneCount
+                    : untargetedPart.vertexCount
             };
         }
 
