@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
-using Unity.Mathematics;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -23,10 +22,6 @@ namespace DotsAnimationToolkit.Editor
         private const string InspectorColumnUssClassName = "actor-editor__inspector-column";
 
         private const float SideColumnWidth = 340f;
-
-        // 315 degrees is due south-east under FacingResolver.FromMovement's convention (0 = east,
-        // positive y = north) — the direction every fresh preview and every Reset settles on.
-        private const float SouthEastSliderAngleDegrees = 315f;
 
         /// <summary>Raised when the header's Profile field picks a different asset.</summary>
         public event Action<ActorProfileAsset> ProfileChanged;
@@ -51,7 +46,6 @@ namespace DotsAnimationToolkit.Editor
 
         private bool isComposerProfileStale;
         private bool isPlaying;
-        private float currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
         private Direction currentMemberFacing = Direction.SouthEast;
         private string ragdollRefusalReason;
         private ActorEditorSelection currentSelection = ActorEditorSelection.None;
@@ -59,7 +53,7 @@ namespace DotsAnimationToolkit.Editor
         private ObjectField profileField;
         private ValidationBadgeElement validationBadge;
         private TransportCoreElement transportCore;
-        private Slider directionSlider;
+        private EnumField directionField;
         private Label directionReadoutLabel;
         private VisualElement layersColumn;
         private VisualElement viewportColumn;
@@ -119,10 +113,9 @@ namespace DotsAnimationToolkit.Editor
             previewController?.DisableRagdollPreview();
             ragdollRefusalReason = null;
             SetRagdollToggleWithoutNotify(false);
-            currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
             currentMemberFacing = Direction.SouthEast;
             composer.Facing = Direction.SouthEast;
-            directionSlider?.SetValueWithoutNotify(currentFacingAngleDegrees);
+            directionField?.SetValueWithoutNotify(Direction.SouthEast);
             RefreshDirectionReadoutLabel();
         }
 
@@ -315,13 +308,13 @@ namespace DotsAnimationToolkit.Editor
             directionCaption.AddToClassList("toolkit-transport__caption");
             directionGroup.Add(directionCaption);
 
-            directionSlider = new Slider(0f, 360f) { value = currentFacingAngleDegrees };
-            directionSlider.style.width = 120f;
-            directionSlider.tooltip =
-                "Turn the actor. 0 degrees is due east; the readout says which authored clip that "
-                + "resolves to and whether it is mirrored.";
-            directionSlider.RegisterValueChangedCallback(OnDirectionSliderChanged);
-            directionGroup.Add(directionSlider);
+            directionField = new EnumField(currentMemberFacing);
+            directionField.style.width = 120f;
+            directionField.tooltip =
+                "Turn the actor. The readout says which authored clip that direction resolves to "
+                + "and whether it is mirrored.";
+            directionField.RegisterValueChangedCallback(OnDirectionFieldChanged);
+            directionGroup.Add(directionField);
 
             directionReadoutLabel = new Label();
             directionReadoutLabel.AddToClassList("toolkit-transport__derived");
@@ -336,18 +329,11 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement BuildBody()
         {
-            VisualElement body = new VisualElement();
-            body.style.flexDirection = FlexDirection.Row;
-            body.style.flexGrow = 1f;
-
             layersColumn = new VisualElement { name = "layers-column" };
             layersColumn.AddToClassList(LayersColumnUssClassName);
-            layersColumn.style.width = SideColumnWidth;
-            // Holds its width: a layer box header carries seven controls, and a column that gave
-            // way to the preview would ellipsize every layer name to one letter.
-            layersColumn.style.flexShrink = 0f;
-            layersColumn.style.marginRight = 8f;
-            body.Add(layersColumn);
+            // Floored rather than fixed: a layer box header carries seven controls, and dragging
+            // this pane narrower than that would ellipsize every layer name to one letter.
+            layersColumn.style.minWidth = 220f;
 
             VisualElement layersHeader = new VisualElement();
             layersHeader.AddToClassList("toolkit-pane-header");
@@ -376,7 +362,7 @@ namespace DotsAnimationToolkit.Editor
             viewportColumn = new VisualElement { name = "viewport-column" };
             viewportColumn.AddToClassList(ViewportColumnUssClassName);
             viewportColumn.style.flexGrow = 1f;
-            body.Add(viewportColumn);
+            viewportColumn.style.minWidth = 200f;
 
             VisualElement viewportHeader = new VisualElement();
             viewportHeader.AddToClassList("toolkit-pane-header");
@@ -465,10 +451,7 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorColumn = new VisualElement { name = "inspector-column" };
             inspectorColumn.AddToClassList(InspectorColumnUssClassName);
-            inspectorColumn.style.width = SideColumnWidth;
             inspectorColumn.style.minWidth = 260f;
-            inspectorColumn.style.marginLeft = 8f;
-            body.Add(inspectorColumn);
 
             VisualElement inspectorHeader = new VisualElement();
             inspectorHeader.AddToClassList("toolkit-pane-header");
@@ -486,6 +469,26 @@ namespace DotsAnimationToolkit.Editor
             // profile is picked.
             layersColumnView.Bind(profile, composer);
             inspectorColumnView.Bind(profile, composer);
+
+            // Two nested TwoPaneSplitViews (layers | viewport | inspector) rather than three flex
+            // columns, matching CutsceneEditorPanel's cast | viewport | inspector split. Both need
+            // their own minWidth: this whole pane is a cover pane hidden via USS class when the tab
+            // switches away (see ClipEditorWindow.ShowActorEditorTab), and a hidden TwoPaneSplitView
+            // lays out at zero by zero, collapsing to nothing but the flexible pane on the way back
+            // (see AnimationToolkit.md).
+            TwoPaneSplitView rightSplit = new TwoPaneSplitView(
+                1, SideColumnWidth, TwoPaneSplitViewOrientation.Horizontal);
+            rightSplit.style.flexGrow = 1f;
+            rightSplit.style.minWidth = 460f;
+            rightSplit.Add(viewportColumn);
+            rightSplit.Add(inspectorColumn);
+
+            TwoPaneSplitView body = new TwoPaneSplitView(
+                0, SideColumnWidth, TwoPaneSplitViewOrientation.Horizontal);
+            body.style.flexGrow = 1f;
+            body.style.minWidth = 680f;
+            body.Add(layersColumn);
+            body.Add(rightSplit);
 
             return body;
         }
@@ -509,19 +512,12 @@ namespace DotsAnimationToolkit.Editor
             RefreshValidationBadge();
         }
 
-        private void OnDirectionSliderChanged(ChangeEvent<float> changeEvent)
+        private void OnDirectionFieldChanged(ChangeEvent<Enum> changeEvent)
         {
-            currentFacingAngleDegrees = changeEvent.newValue;
-            ApplyFacingFromSliderAngle();
-        }
-
-        private void ApplyFacingFromSliderAngle()
-        {
-            float angleRadians = Mathf.Deg2Rad * currentFacingAngleDegrees;
-            float2 facingVector = new float2(Mathf.Cos(angleRadians), Mathf.Sin(angleRadians));
+            Direction desiredFacing = (Direction)changeEvent.newValue;
             AnimationDirections quantizeDirections = profile != null ? profile.turnDirections : AnimationDirections.Six;
 
-            currentMemberFacing = FacingResolver.FromMovement(in facingVector, quantizeDirections, currentMemberFacing);
+            currentMemberFacing = FacingResolver.Snap(desiredFacing, quantizeDirections);
             composer.Facing = currentMemberFacing;
             RefreshDirectionReadoutLabel();
         }
@@ -534,7 +530,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             FacingResolver.ToAuthoredSide(currentMemberFacing, out Direction clipFacing, out bool mirrorX);
-            string readout = Mathf.RoundToInt(currentFacingAngleDegrees) + "° → " + clipFacing;
+            string readout = currentMemberFacing + " → " + clipFacing;
             if (mirrorX)
             {
                 readout += ", mirrored";
@@ -638,9 +634,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 composer.SetProfile(profile, previewController);
                 isComposerProfileStale = false;
-                currentFacingAngleDegrees = SouthEastSliderAngleDegrees;
                 currentMemberFacing = Direction.SouthEast;
-                directionSlider?.SetValueWithoutNotify(currentFacingAngleDegrees);
+                directionField?.SetValueWithoutNotify(Direction.SouthEast);
                 RefreshDirectionReadoutLabel();
             }
 

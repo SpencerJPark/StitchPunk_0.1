@@ -13,7 +13,18 @@ MonoBehaviour:
   m_Name: VatSampleTentacleRig
   m_EditorClassIdentifier: DotsAnimationToolkit.Authoring::DotsAnimationToolkit.Authoring.RigAsset
   stableId: 12085256120893141141
-  targets: []
+  targets:
+  - displayName: TentacleMesh
+    stableId: 708564151
+    sourceNodePath: TentacleMesh
+    kind: 0
+    boundsExtents:
+      x: 0.5
+      y: 0.5
+      z: 0.5
+    framesPerVariant: 1
+    facesDirection: 0
+    tagId: 0
   mirrorPairs: []
   sourcePrefab: {fileID: 2040789749895873233, guid: 094a99c5c4bbd2744bcf7469c7b5cfbe, type: 3}
   sockets: []

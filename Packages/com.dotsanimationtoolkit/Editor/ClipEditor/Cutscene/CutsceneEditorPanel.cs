@@ -177,15 +177,17 @@ namespace DotsAnimationToolkit.Editor
             castPanel.SyncToStageRequested += SyncCutsceneToStage;
             castPanel.AddSlotRequested += AddSlot;
 
-            VisualElement centerColumn = new VisualElement();
+            // A nested TwoPaneSplitView inside a cover pane needs its own minWidth or a hide/show
+            // cycle collapses it to its flexible pane alone (see AnimationToolkit.md) — floored at
+            // the sum of the viewport's minWidth (160) and the inspector's (220).
+            TwoPaneSplitView centerColumn = new TwoPaneSplitView(1, 300f, TwoPaneSplitViewOrientation.Horizontal);
             centerColumn.style.flexGrow = 1f;
-            centerColumn.style.flexDirection = FlexDirection.Row;
+            centerColumn.style.minWidth = 380f;
             centerColumn.Add(BuildViewportArea());
 
             VisualElement inspectorPane = new VisualElement();
             inspectorPane.AddToClassList("clip-editor__pane");
-            inspectorPane.style.width = 300f;
-            inspectorPane.style.flexShrink = 0f;
+            inspectorPane.style.minWidth = 220f;
 
             VisualElement inspectorHeader = new VisualElement();
             inspectorHeader.AddToClassList("toolkit-pane-header");

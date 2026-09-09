@@ -36,14 +36,17 @@ public struct Health : IComponentData, IPersist
     public float killRestitution;
     public DamageSource killDamageSource;
 }
+
 public struct HealRequest : IComponentData, IEnableableComponent
 {
     public int healAmount;
 }
+
 public struct HealthBar : IComponentData {
     public Entity barVisualEntity;
     public Entity healthEntity;
 }
+
 [MaterialProperty("_SelectionColor")]
 public struct HitVisual : IComponentData
 {
