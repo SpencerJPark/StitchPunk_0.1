@@ -10,17 +10,10 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>Browse, create, and edit clip sets: a catalog list plus a create form and clip picker for the selected set.</summary>
+    /// <summary>Browse, create, and edit clip sets: a catalog list plus a name/folder editor and clip picker for the selected set.</summary>
     public sealed class ClipSetsPanel : VisualElement, IDisposable
     {
         private const string LogPrefix = "[DOTS Animation Toolkit] Clip Sets: ";
-
-        public enum EditorMode
-        {
-            None,
-            Create,
-            Edit
-        }
 
         private readonly ClipSetSaveLocation saveLocation = new ClipSetSaveLocation();
         private readonly List<ClipSetAsset> catalogClipSets = new List<ClipSetAsset>();
@@ -34,25 +27,19 @@ namespace DotsAnimationToolkit.Editor
 
         private Label editorTitleLabel;
         private Button openInEditorButton;
+        private Label noSelectionHintLabel;
+        private VisualElement editorContent;
 
-        private VisualElement createFormElement;
         private TextField nameField;
         private Label folderLabel;
-        private Label targetPathLabel;
 
         private ClipPickerListElement picker;
 
-        private Toggle loadToggle;
-        private Button createButton;
         private Label editHintLabel;
         private Label resultLabel;
 
-        public event Action Closed;
-        public event Action<ClipSetAsset, bool> ClipSetCreated;
         public event Action<ClipSetAsset> OpenInEditorRequested;
         public event Action<ClipSetAsset> SetClipsChanged;
-
-        public EditorMode Mode { get; private set; } = EditorMode.None;
 
         public ClipSetAsset SelectedSet { get; private set; }
 
@@ -70,7 +57,7 @@ namespace DotsAnimationToolkit.Editor
             Add(splitView);
 
             RefreshCatalogEmptyState();
-            RefreshEditorForMode();
+            ApplyChromeForSelection();
         }
 
         private VisualElement BuildCatalogColumn()
@@ -96,7 +83,7 @@ namespace DotsAnimationToolkit.Editor
             VisualElement actions = new VisualElement();
             actions.AddToClassList("toolkit-pane-actions");
 
-            Button newButton = ToolkitIcons.MakeIconTextButton(BeginCreate, "Toolbar Plus", null, "New");
+            Button newButton = ToolkitIcons.MakeIconTextButton(CreateAndSelectNewClipSet, "Toolbar Plus", null, "New");
             newButton.name = "clip-sets-new-button";
             actions.Add(newButton);
 
@@ -214,6 +201,13 @@ namespace DotsAnimationToolkit.Editor
             }
 
             populateEvent.menu.AppendAction(
+                "Rename",
+                renameAction => InlineRenameEditing.Begin(
+                    row.Q<Label>("clip-set-row-title"),
+                    targetSet.name,
+                    committedName => CommitClipSetRename(targetSet, committedName)),
+                DropdownMenuAction.AlwaysEnabled);
+            populateEvent.menu.AppendAction(
                 "Delete", deleteAction => RequestDeleteClipSet(targetSet), DropdownMenuAction.AlwaysEnabled);
         }
 
@@ -244,9 +238,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (wasSelected)
             {
-                Mode = EditorMode.None;
                 SelectedSet = null;
-                RefreshEditorForMode();
+                ApplyChromeForSelection();
             }
 
             RescanProject();
@@ -313,28 +306,64 @@ namespace DotsAnimationToolkit.Editor
 
             editorColumn.Add(header);
 
-            createFormElement = BuildCreateForm();
-            editorColumn.Add(createFormElement);
+            noSelectionHintLabel = new Label("Select a clip set, or press New to make one.")
+            {
+                name = "clip-set-no-selection-hint"
+            };
+            noSelectionHintLabel.style.whiteSpace = WhiteSpace.Normal;
+            noSelectionHintLabel.style.marginTop = 8f;
+            editorColumn.Add(noSelectionHintLabel);
+
+            editorContent = new VisualElement { name = "clip-set-editor-content" };
+
+            nameField = new TextField("Name") { name = "clip-set-name-field" };
+            // Commit on blur/Enter, not on every keystroke — renaming an asset per character
+            // would create a file operation per letter.
+            nameField.RegisterCallback<FocusOutEvent>(focusOutEvent => CommitNameFieldChange());
+            nameField.RegisterCallback<KeyDownEvent>(keyDownEvent =>
+            {
+                if (keyDownEvent.keyCode == KeyCode.Return)
+                {
+                    CommitNameFieldChange();
+                }
+            });
+            editorContent.Add(nameField);
+
+            VisualElement folderRow = new VisualElement { name = "clip-set-folder-row" };
+            folderRow.style.flexDirection = FlexDirection.Row;
+            folderRow.style.alignItems = Align.Center;
+            folderRow.style.marginBottom = 4f;
+
+            folderLabel = new Label(saveLocation.Recall()) { name = "clip-set-folder-label" };
+            folderLabel.style.flexGrow = 1f;
+            folderLabel.style.overflow = Overflow.Hidden;
+            folderLabel.style.textOverflow = TextOverflow.Ellipsis;
+            folderLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            folderRow.Add(folderLabel);
+
+            Button folderButton = new Button(OnFolderButtonClicked)
+            {
+                text = "…",
+                name = "clip-set-folder-button",
+                tooltip = "Where the next New clip set is created. Does not move the selected clip set."
+            };
+            folderButton.style.marginLeft = 4f;
+            folderRow.Add(folderButton);
+
+            editorContent.Add(folderRow);
 
             picker = new ClipPickerListElement();
             picker.name = "clip-picker";
             picker.style.flexGrow = 1f;
             picker.ClipCheckedChanged += OnPickerClipCheckedChanged;
-            editorColumn.Add(picker);
-
-            loadToggle = new Toggle("Load this set into the editor");
-            loadToggle.name = "clip-set-load-toggle";
-            loadToggle.value = true;
-            editorColumn.Add(loadToggle);
-
-            createButton = new Button(Create) { text = "Create Clip Set" };
-            createButton.name = "clip-set-create-button";
-            createButton.style.height = 28f;
-            editorColumn.Add(createButton);
+            picker.ClipRenameRequested += OnPickerClipRenameRequested;
+            editorContent.Add(picker);
 
             editHintLabel = new Label("Ticks apply to the set immediately. Ctrl+Z undoes.");
             editHintLabel.AddToClassList("clip-editor__hint");
-            editorColumn.Add(editHintLabel);
+            editorContent.Add(editHintLabel);
+
+            editorColumn.Add(editorContent);
 
             resultLabel = new Label();
             resultLabel.name = "clip-sets-result-label";
@@ -345,46 +374,6 @@ namespace DotsAnimationToolkit.Editor
             return editorColumn;
         }
 
-        private VisualElement BuildCreateForm()
-        {
-            VisualElement form = new VisualElement { name = "clip-set-create-form" };
-
-            nameField = new TextField("Name");
-            nameField.name = "clip-set-name-field";
-            nameField.isDelayed = false;
-            nameField.RegisterValueChangedCallback(OnNameFieldChanged);
-            form.Add(nameField);
-
-            VisualElement folderRow = new VisualElement();
-            folderRow.style.flexDirection = FlexDirection.Row;
-
-            Label folderCaption = new Label("Save Folder");
-            folderRow.Add(folderCaption);
-
-            folderLabel = new Label();
-            folderLabel.name = "clip-set-folder-label";
-            folderLabel.AddToClassList("toolkit-box__label");
-            folderRow.Add(folderLabel);
-
-            Button folderButton = new Button(OnFolderButtonClicked) { text = "…" };
-            folderButton.name = "clip-set-folder-button";
-            folderRow.Add(folderButton);
-
-            form.Add(folderRow);
-
-            targetPathLabel = new Label();
-            targetPathLabel.name = "clip-set-target-path-label";
-            targetPathLabel.AddToClassList("clip-editor__hint");
-            form.Add(targetPathLabel);
-
-            return form;
-        }
-
-        private void OnNameFieldChanged(ChangeEvent<string> changeEvent)
-        {
-            RefreshTargetPathLabel();
-        }
-
         private void OnFolderButtonClicked()
         {
             string currentFolder = saveLocation.Recall();
@@ -392,7 +381,7 @@ namespace DotsAnimationToolkit.Editor
             string startingAbsoluteFolder = System.IO.Path.GetFullPath(
                 System.IO.Path.Combine(System.IO.Path.GetDirectoryName(projectAssetsAbsolutePath), currentFolder));
 
-            string pickedAbsoluteFolder = EditorUtility.OpenFolderPanel("Save Clip Set In", startingAbsoluteFolder, string.Empty);
+            string pickedAbsoluteFolder = EditorUtility.OpenFolderPanel("New Clip Set Folder", startingAbsoluteFolder, string.Empty);
             if (string.IsNullOrEmpty(pickedAbsoluteFolder))
             {
                 return;
@@ -403,18 +392,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 saveLocation.Remember(projectRelativeFolder);
                 folderLabel.text = projectRelativeFolder;
-                RefreshTargetPathLabel();
             }
             else
             {
                 ReportFailure("the chosen folder must be inside this project's Assets folder.");
             }
-        }
-
-        private void RefreshTargetPathLabel()
-        {
-            string folder = saveLocation.Recall();
-            targetPathLabel.text = "Will create " + ClipSetSaveLocation.ResolveTargetAssetPath(folder, nameField.value);
         }
 
         private void OnOpenInEditorClicked()
@@ -427,7 +409,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnPickerClipCheckedChanged(ClipAsset clip, bool isChecked)
         {
-            if (Mode != EditorMode.Edit || SelectedSet == null)
+            if (SelectedSet == null)
             {
                 return;
             }
@@ -466,7 +448,7 @@ namespace DotsAnimationToolkit.Editor
             }
             saveLocation.FallbackFolder = fallbackFolder;
 
-            if (openClipSet != null && Mode == EditorMode.None)
+            if (openClipSet != null && SelectedSet == null)
             {
                 SelectSet(openClipSet);
             }
@@ -502,6 +484,7 @@ namespace DotsAnimationToolkit.Editor
             clips.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.name, right.name));
 
             LoadCatalog(clipSets, clips);
+            folderLabel.text = saveLocation.Recall();
         }
 
         public void LoadCatalog(IReadOnlyList<ClipSetAsset> clipSets, IReadOnlyList<ClipAsset> clips)
@@ -520,9 +503,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (SelectedSet != null && !catalogClipSets.Contains(SelectedSet))
             {
-                Mode = EditorMode.None;
                 SelectedSet = null;
-                RefreshEditorForMode();
+                ApplyChromeForSelection();
             }
 
             ApplyCatalogFilter();
@@ -580,7 +562,6 @@ namespace DotsAnimationToolkit.Editor
 
         public void SelectSet(ClipSetAsset clipSet)
         {
-            Mode = EditorMode.Edit;
             SelectedSet = clipSet;
 
             clipSetsList.SetSelectionWithoutNotify(
@@ -588,6 +569,10 @@ namespace DotsAnimationToolkit.Editor
                     ? new List<int> { filteredClipSets.IndexOf(clipSet) }
                     : new List<int>());
             clipSetsList.Rebuild();
+
+            // Without notify: a plain assignment would fire the field's own change callback and
+            // immediately write this set's name back onto itself.
+            nameField.SetValueWithoutNotify(clipSet != null ? clipSet.name : string.Empty);
 
             List<ClipAsset> checkedClips = new List<ClipAsset>();
             if (clipSet != null && clipSet.clips != null)
@@ -603,102 +588,95 @@ namespace DotsAnimationToolkit.Editor
             }
             picker.SetCheckedClips(checkedClips);
 
-            RefreshEditorForMode();
+            ApplyChromeForSelection();
         }
 
-        public void BeginCreate()
-        {
-            Mode = EditorMode.Create;
-            SelectedSet = null;
-
-            clipSetsList.SetSelectionWithoutNotify(new List<int>());
-            clipSetsList.Rebuild();
-
-            nameField.SetValueWithoutNotify(ClipSetSaveLocation.DefaultAssetName);
-            picker.SetCheckedClips(Array.Empty<ClipAsset>());
-
-            folderLabel.text = saveLocation.Recall();
-            RefreshTargetPathLabel();
-
-            RefreshEditorForMode();
-        }
-
-        private void RefreshEditorForMode()
-        {
-            switch (Mode)
-            {
-                case EditorMode.Create:
-                    editorTitleLabel.text = "New Clip Set";
-                    openInEditorButton.style.display = DisplayStyle.None;
-                    createFormElement.style.display = DisplayStyle.Flex;
-                    loadToggle.style.display = DisplayStyle.Flex;
-                    createButton.style.display = DisplayStyle.Flex;
-                    editHintLabel.style.display = DisplayStyle.None;
-                    break;
-                case EditorMode.Edit:
-                    editorTitleLabel.text = SelectedSet != null ? SelectedSet.name : string.Empty;
-                    openInEditorButton.style.display = DisplayStyle.Flex;
-                    createFormElement.style.display = DisplayStyle.None;
-                    loadToggle.style.display = DisplayStyle.None;
-                    createButton.style.display = DisplayStyle.None;
-                    editHintLabel.style.display = DisplayStyle.Flex;
-                    break;
-                default:
-                    editorTitleLabel.text = "Select a clip set or press New.";
-                    openInEditorButton.style.display = DisplayStyle.None;
-                    createFormElement.style.display = DisplayStyle.None;
-                    loadToggle.style.display = DisplayStyle.None;
-                    createButton.style.display = DisplayStyle.None;
-                    editHintLabel.style.display = DisplayStyle.None;
-                    break;
-            }
-        }
-
-        private void Create()
+        /// Creates an empty clip set in the remembered folder and selects it, so the catalog gains an entry the user edits in place.
+        public void CreateAndSelectNewClipSet()
         {
             string folder = saveLocation.Recall();
-            if (!AssetDatabase.IsValidFolder(folder))
-            {
-                ReportFailure("save folder '" + folder + "' is not valid.");
-                return;
-            }
-
-            string assetPath = ClipSetSaveLocation.ResolveTargetAssetPath(folder, nameField.value);
-            ClipSetAsset newSet = ClipAssetUtility.CreateClipSet(assetPath);
-            if (newSet == null)
+            string assetPath = ClipSetSaveLocation.ResolveTargetAssetPath(folder, ClipSetSaveLocation.DefaultAssetName);
+            ClipSetAsset newClipSet = ClipAssetUtility.CreateClipSet(assetPath);
+            if (newClipSet == null)
             {
                 ReportFailure("could not create the clip set asset at '" + assetPath + "'.");
                 return;
             }
 
-            int addedClipCount = 0;
-            foreach (ClipAsset clip in picker.CheckedClips)
-            {
-                if (ClipAssetUtility.AddExistingClipToSet(newSet, clip))
-                {
-                    addedClipCount++;
-                }
-            }
-
-            AssetDatabase.SaveAssets();
-            saveLocation.Remember(folder);
-            EditorGUIUtility.PingObject(newSet);
-
-            // Data-driven outcome colour, not a layout style: an exception to the inline-styles-are-layout-only rule.
-            resultLabel.style.color = new StyleColor(ToolkitPalette.Clean);
-            resultLabel.text = "Created \"" + newSet.name + "\" with " + addedClipCount.ToString() + " clip(s) at " + assetPath + ".";
-
             RescanProject();
-            SelectSet(newSet);
+            SelectSet(newClipSet);
+            EditorGUIUtility.PingObject(newClipSet);
+        }
 
-            if (ClipSetCreated != null)
+        private void ApplyChromeForSelection()
+        {
+            bool hasSelection = SelectedSet != null;
+            editorTitleLabel.text = hasSelection ? SelectedSet.name : "Clip Set";
+            openInEditorButton.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
+            noSelectionHintLabel.style.display = hasSelection ? DisplayStyle.None : DisplayStyle.Flex;
+            editorContent.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        private void CommitNameFieldChange()
+        {
+            if (SelectedSet == null)
             {
-                ClipSetCreated(newSet, loadToggle.value);
+                return;
             }
 
-            if (loadToggle.value && Closed != null)
+            CommitClipSetRename(SelectedSet, nameField.value);
+        }
+
+        // Duplicates ClipAssetUtility.RenameClip's guard/rename body — RenameClip takes a ClipAsset,
+        // not a ClipSetAsset; a RenameClipSet utility method would be the better home for this.
+        private void CommitClipSetRename(ClipSetAsset targetSet, string requestedName)
+        {
+            if (targetSet == null || string.IsNullOrWhiteSpace(requestedName) || requestedName == targetSet.name)
             {
-                Closed();
+                if (targetSet == SelectedSet)
+                {
+                    nameField.SetValueWithoutNotify(targetSet != null ? targetSet.name : string.Empty);
+                }
+                return;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(targetSet);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                ReportFailure("could not rename \"" + targetSet.name + "\": it has no asset path.");
+                return;
+            }
+
+            string renameError = AssetDatabase.RenameAsset(assetPath, requestedName);
+            if (!string.IsNullOrEmpty(renameError))
+            {
+                ReportFailure("could not rename \"" + targetSet.name + "\": " + renameError);
+                if (targetSet == SelectedSet)
+                {
+                    nameField.SetValueWithoutNotify(targetSet.name);
+                }
+                return;
+            }
+
+            ClipSetAsset renamedSet = targetSet;
+            RescanProject();
+            SelectSet(renamedSet);
+        }
+
+        // The picker reports the rename rather than performing it, the same way it reports ticks.
+        private void OnPickerClipRenameRequested(ClipAsset clip, string requestedName)
+        {
+            if (!ClipAssetUtility.RenameClip(clip, requestedName))
+            {
+                ReportFailure("could not rename \"" + (clip != null ? clip.name : "clip") + "\".");
+            }
+
+            // Rescan either way: on success the picker row needs the new name, and on failure it
+            // needs the old one back, since the inline field left the label hidden mid-edit.
+            RescanProject();
+            if (SelectedSet != null)
+            {
+                SelectSet(SelectedSet);
             }
         }
 
@@ -712,6 +690,7 @@ namespace DotsAnimationToolkit.Editor
         public void Dispose()
         {
             picker.ClipCheckedChanged -= OnPickerClipCheckedChanged;
+            picker.ClipRenameRequested -= OnPickerClipRenameRequested;
             clipSetsList.selectionChanged -= OnClipSetsListSelectionChanged;
             clipSetsList.itemsSource = null;
             catalogClipSets.Clear();

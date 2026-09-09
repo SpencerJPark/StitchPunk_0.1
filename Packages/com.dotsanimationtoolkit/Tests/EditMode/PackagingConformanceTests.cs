@@ -588,9 +588,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.24.0 is the Rigs tab with one way to
-            // make a rig: New creates the asset and selects it for editing in place.
-            Assert.AreEqual("0.24.0", manifest.version, "Version tracks the shipped feature set; 0.24.0 is the Rigs tab.");
+            // -- not drift because someone edited the manifest. 0.25.0 is the Rigs and Clip Sets tabs with one way to
+            // make an asset: New creates it and selects it, and rows rename and delete in place.
+            Assert.AreEqual("0.25.0", manifest.version, "Version tracks the shipped feature set; 0.25.0 is create-and-rename on both tabs.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

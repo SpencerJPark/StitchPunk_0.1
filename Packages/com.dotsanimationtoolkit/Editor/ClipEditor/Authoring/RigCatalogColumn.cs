@@ -24,6 +24,8 @@ namespace DotsAnimationToolkit.Editor
         public event Action NewRequested;
         public event Action RefreshRequested;
         public event Action<RigAsset> RigSelected;
+        public event Action<RigAsset, string> RigRenameRequested;
+        public event Action<RigAsset> RigDeleteRequested;
 
         public RigAsset SelectedRig { get; private set; }
 
@@ -186,8 +188,36 @@ namespace DotsAnimationToolkit.Editor
             infoLabel.AddToClassList("clip-editor__hint");
             row.Add(infoLabel);
 
+            // Closes over the row element itself (stable identity, never recreated) rather than
+            // any per-bind data -- the callback reads row.userData live when the menu opens, so a
+            // recycled row always acts on whatever it is currently showing.
+            row.AddManipulator(new ContextualMenuManipulator(
+                populateEvent => PopulateRigRowContextMenu(populateEvent, row)));
+
             itemSlot.Add(row);
             return itemSlot;
+        }
+
+        private void PopulateRigRowContextMenu(ContextualMenuPopulateEvent populateEvent, VisualElement row)
+        {
+            RigAsset targetRig = row.userData as RigAsset;
+            if (targetRig == null)
+            {
+                return;
+            }
+
+            Label titleLabel = row.Q<Label>("rig-row-title");
+            populateEvent.menu.AppendAction(
+                "Rename",
+                renameAction => InlineRenameEditing.Begin(
+                    titleLabel,
+                    targetRig.name,
+                    committedName => RigRenameRequested?.Invoke(targetRig, committedName)),
+                DropdownMenuAction.AlwaysEnabled);
+            populateEvent.menu.AppendAction(
+                "Delete",
+                deleteAction => RigDeleteRequested?.Invoke(targetRig),
+                DropdownMenuAction.AlwaysEnabled);
         }
 
         private void BindRigRow(VisualElement element, int index)

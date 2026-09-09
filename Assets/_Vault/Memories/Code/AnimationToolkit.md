@@ -665,6 +665,34 @@ raises `Closed`, which switches the window back to the Clip Editor tab — drivi
 end-to-end from `execute_code` means the tab visibly closes itself after every default-toggle
 create, which reads as a bug the first time you see it but is D9's intended behavior.
 
+## Both catalog tabs create, rename and delete in place (A77, 0.25.0)
+
+**New creates the asset immediately; there is no create mode on either tab.** `RigsPanel` and
+`ClipSetsPanel` both write an empty asset into a remembered `EditorPrefs` folder through
+`GenerateUniqueAssetPath`, then select it. The folder row on each means *where the next New lands*,
+not where the open asset lives. Creating no longer implies loading: "Use in Clip Editor" /
+"Open in Clip Editor" is the only path to a toolbar field, on both tabs.
+
+**Renaming is one routine with two entry points.** A row's context-menu Rename and the editor
+column's Name field funnel into the same private method on each panel, so the rescan-and-reselect
+behaviour cannot drift apart. The Name field commits on `FocusOutEvent` and Return only — a
+`RegisterValueChangedCallback` there would rename the asset once per typed character.
+
+**`InlineRenameEditing.Begin` hides the row's title label rather than removing it.** The label is
+what `bindItem` re-reads by name, so removing it breaks rebinding on a recycled row. Its three
+handlers (Return, Escape, `FocusOutEvent`) share one `isFinished` flag: Escape cancels and then
+*immediately* blurs, so without the flag the focus-out would commit the edit Escape just cancelled.
+
+**A rig delete moves to the OS trash and clears the selection first.** Reversing A76-D8, which had
+deliberately shipped no delete. `AssetDatabase.MoveAssetToTrash`, never `DeleteAsset`: a rig is
+referenced by actor profiles and by every clip track bound to one of its targets, and the package
+still has no sweep that can price a delete. The panel clears its selection *before* rescanning,
+or the editor column and its preview stay bound to a trashed asset.
+
+**A clip set has no `RenameClipSet` utility.** `ClipAssetUtility.RenameClip` takes a `ClipAsset`,
+so `ClipSetsPanel` duplicates its guard body against `AssetDatabase.RenameAsset` inline. Worth
+absorbing into `ClipAssetUtility` next time that file is open.
+
 ## Rigs tab (A76, 0.23.0)
 
 **Only `RigAsset.EnsureStableIds()` can mint a target id, and it must run after the target is in

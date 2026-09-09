@@ -87,6 +87,8 @@ namespace DotsAnimationToolkit.Editor
             catalog.NewRequested += CreateAndSelectNewRig;
             catalog.RefreshRequested += RescanProject;
             catalog.RigSelected += SelectRig;
+            catalog.RigRenameRequested += RenameRigAndRefresh;
+            catalog.RigDeleteRequested += RequestDeleteRig;
             innerSplitView.Add(catalog);
             innerSplitView.Add(BuildTargetsColumn());
 
@@ -617,23 +619,65 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            string requestedName = rigNameField.value;
-            if (requestedName == SelectedRig.name)
+            RenameRigAndRefresh(SelectedRig, rigNameField.value);
+        }
+
+        /// <summary>Shared by the Name field's commit and the catalog row's Rename context-menu action.</summary>
+        private void RenameRigAndRefresh(RigAsset rig, string requestedName)
+        {
+            if (rig == null || requestedName == rig.name)
             {
                 return;
             }
 
-            if (RigAssetUtility.RenameRig(SelectedRig, requestedName))
+            if (RigAssetUtility.RenameRig(rig, requestedName))
             {
-                RigAsset renamedRig = SelectedRig;
                 RescanProject();
-                SelectRig(renamedRig);
+                SelectRig(rig);
                 RaiseRigTargetsChanged();
             }
             else
             {
-                rigNameField.SetValueWithoutNotify(SelectedRig.name);
+                ReportFailure("Could not rename to \"" + requestedName + "\".");
+                RescanProject();
+                SelectRig(rig);
             }
+        }
+
+        private void RequestDeleteRig(RigAsset rig)
+        {
+            if (rig == null)
+            {
+                return;
+            }
+
+            bool confirmed = EditorUtility.DisplayDialog(
+                "Delete Rig",
+                "Delete \"" + rig.name + "\"? Any actor profile or clip bound to its targets will lose "
+                    + "them. The asset moves to the OS trash, not permanently deleted.",
+                "Delete",
+                "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
+
+            bool wasSelected = SelectedRig == rig;
+            if (!RigAssetUtility.DeleteRig(rig))
+            {
+                ReportFailure("Could not delete \"" + rig.name + "\".");
+                return;
+            }
+
+            // The panel and its preview both hold a reference to this rig (and the preview a copy
+            // of its prefab) -- clearing the selection before rescanning keeps the editor column
+            // from pointing at an asset that no longer exists.
+            if (wasSelected)
+            {
+                SelectRig(null);
+            }
+
+            RescanProject();
         }
 
         private void OnRigFolderButtonClicked()

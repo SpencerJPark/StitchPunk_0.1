@@ -119,6 +119,21 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-08): A77 — create-and-rename on both catalog tabs — 0.25.0.** Owner-driven, no
+spec document; the reasoning lives in `Assets/_Vault/Memories/Code/AnimationToolkit.md` under
+"Both catalog tabs create, rename and delete in place". Clip Sets' New now creates an empty set and
+selects it, the same shape Rigs got in 0.24.0, and its create form is gone. Rig rows gained
+right-click Rename and Delete, clip set rows gained Rename beside their Delete, and clip rows in the
+picker gained Rename — all through one shared `InlineRenameEditing` control that edits the row title
+in place.
+
+Two decisions reversed on the owner's instruction, both previously recorded the other way: **A76-D8
+(no delete in the rig catalog)** is now a delete, confirmed and routed to the OS trash rather than a
+hard delete, because the reference sweep that would price it still does not exist; and creating an
+asset on either tab no longer loads it into the Clip Editor. EditMode 801/801, PlayMode 283/283,
+with the standing `Conformance_A` asmdef drift still the only failure. **Nobody has looked at any of
+this yet** — the A76 ⏸ owner checkpoint is still open and now covers A77 too.
+
 **Built (2026-09-08): Amendment A76 — Rigs tab — 0.23.0.** Spec
 `Docs/AnimationToolkit/Amendment_A76_RigsTab_Spec.md`; §7 carries the full build log. The Rigs tab
 is now catalog | targets | preview over two draggable dividers, the left pair starting at 640px of

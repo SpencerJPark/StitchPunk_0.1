@@ -8,6 +8,31 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] — A77 — clip sets create like rigs, and everything renames
+
+### Added
+
+- **Right-click a rig → Rename or Delete.** Delete confirms first and moves the asset to the OS
+  trash rather than deleting it, because a rig is referenced by actor profiles and by every clip
+  track bound to one of its targets. Deleting the selected rig clears the selection before the
+  catalog rescans, so the editor column is never left pointing at a trashed asset.
+- **Right-click a clip set → Rename**, beside the Delete it already had.
+- **Right-click a clip in the Clip Sets picker → Rename.**
+- **Inline renaming**, shared by all three lists: the row's title becomes a text field in place,
+  Enter commits, Escape cancels, clicking away commits.
+- A **Name** field in the Clip Sets editor column, matching the one the Rigs tab gained in 0.24.0.
+  Both commit on blur or Enter, never per keystroke.
+
+### Changed
+
+- **Clip Sets' New creates an empty set and selects it**, exactly as Rigs' New does — the name
+  field, folder picker, "Will create …" path preview, Create button and Load toggle are gone.
+  Repeated presses give `NewClipSet`, `NewClipSet 1`, … and nothing is overwritten.
+- The Clip Sets folder row now means **where the next New set is created**, not where the open one
+  lives.
+- Creating a clip set no longer loads it into the Clip Editor; **Open in Clip Editor** is the only
+  path to the toolbar field, matching how rigs already behaved.
+
 ## [0.24.0] — A76 follow-up — one way to make a rig
 
 ### Changed

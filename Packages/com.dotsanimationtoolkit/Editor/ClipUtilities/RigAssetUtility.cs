@@ -183,6 +183,32 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
+        /// Moves the rig's asset to the OS trash. False when the rig is null, unsaved, or the move failed.
+        // Trashed rather than deleted outright: actor profiles and clip tracks bound to this rig's
+        // targets can only be recovered if the asset stays reachable from the OS trash.
+        public static bool DeleteRig(RigAsset rig)
+        {
+            if (rig == null)
+            {
+                return false;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(rig);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            if (!AssetDatabase.MoveAssetToTrash(assetPath))
+            {
+                Debug.LogWarning(
+                    "[DOTS Animation Toolkit] Rigs: Could not move rig '" + assetPath + "' to the trash.", rig);
+                return false;
+            }
+
+            return true;
+        }
+
         /// <summary>Returns the file name of <paramref name="assetPath"/> without its extension.</summary>
         private static string ExtractAssetName(string assetPath)
         {

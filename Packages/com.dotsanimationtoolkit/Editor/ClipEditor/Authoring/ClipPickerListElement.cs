@@ -22,6 +22,9 @@ namespace DotsAnimationToolkit.Editor
 
         public event Action<ClipAsset, bool> ClipCheckedChanged;
 
+        /// Raised when a row's context menu asks to rename a clip. The host performs the rename.
+        public event Action<ClipAsset, string> ClipRenameRequested;
+
         public IEnumerable<ClipAsset> CheckedClips => model.CheckedClips;
 
         public ClipPickerListElement()
@@ -179,6 +182,9 @@ namespace DotsAnimationToolkit.Editor
             folderLabel.AddToClassList("clip-editor__hint");
             row.Add(folderLabel);
 
+            row.AddManipulator(new ContextualMenuManipulator(
+                populateEvent => PopulateClipPickerRowContextMenu(populateEvent, row)));
+
             tickToggle.RegisterValueChangedCallback(changeEvent =>
             {
                 RowChangeContext context = (RowChangeContext)row.userData;
@@ -202,6 +208,36 @@ namespace DotsAnimationToolkit.Editor
             });
 
             return row;
+        }
+
+        // Reads the row's live clip off its userData at menu-open time -- rows are recycled by
+        // ListView, so a captured bind-time clip would go stale after the row scrolls.
+        private static void PopulateClipPickerRowContextMenu(ContextualMenuPopulateEvent populateEvent, VisualElement row)
+        {
+            RowChangeContext context = row.userData as RowChangeContext;
+            if (context == null)
+            {
+                return;
+            }
+
+            ClipPickerListElement owner = context.Owner;
+            IReadOnlyList<ClipPickerEntry> visibleEntries = owner.model.VisibleEntries;
+            int currentIndex = context.Index;
+            if (currentIndex < 0 || currentIndex >= visibleEntries.Count)
+            {
+                return;
+            }
+
+            ClipAsset currentClip = visibleEntries[currentIndex].Clip;
+            Label nameLabel = row.Q<Label>("clip-picker-row-name");
+
+            populateEvent.menu.AppendAction(
+                "Rename",
+                renameAction => InlineRenameEditing.Begin(
+                    nameLabel,
+                    currentClip.name,
+                    committedName => owner.ClipRenameRequested?.Invoke(currentClip, committedName)),
+                DropdownMenuAction.AlwaysEnabled);
         }
 
         private void BindClipPickerRow(VisualElement element, int index)

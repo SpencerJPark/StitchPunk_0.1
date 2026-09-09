@@ -1762,8 +1762,6 @@ namespace DotsAnimationToolkit.Editor
             if (isShown && clipSetsPanel == null)
             {
                 clipSetsPanel = new ClipSetsPanel();
-                clipSetsPanel.Closed += CloseClipSetsTab;
-                clipSetsPanel.ClipSetCreated += OnClipSetCreatedByPanel;
                 clipSetsPanel.OpenInEditorRequested += OnClipSetOpenRequested;
                 clipSetsPanel.SetClipsChanged += OnPanelChangedSetClips;
                 clipSetsPane.Add(clipSetsPanel);
@@ -1859,23 +1857,6 @@ namespace DotsAnimationToolkit.Editor
             RebuildHierarchy();
             RebuildTimeline();
             RebuildInspector();
-        }
-
-        /// <summary>Closes the Clip Sets flow at the panel's own request, once a create-with-Load landed.</summary>
-        private void CloseClipSetsTab()
-        {
-            SetActiveTab(ClipEditorTab.ClipEditor);
-        }
-
-        /// <summary>Loads a freshly created clip set into this window, when the Clip Sets panel's own Load toggle asked for it.</summary>
-        private void OnClipSetCreatedByPanel(ClipSetAsset createdSet, bool loadIntoEditor)
-        {
-            if (loadIntoEditor && clipSetField != null)
-            {
-                // Through the toolbar field, not the clipSet backing field directly, so this
-                // follows the same change-notification path as picking a set by hand.
-                clipSetField.value = createdSet;
-            }
         }
 
         /// <summary>Answers the Clip Sets panel's "Open in Clip Editor" button: loads the set and switches tabs.</summary>

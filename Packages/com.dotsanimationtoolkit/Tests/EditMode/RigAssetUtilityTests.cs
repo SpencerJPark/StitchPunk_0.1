@@ -86,5 +86,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.IsFalse(RigAssetUtility.RenameRig(rig, "   "));
             Assert.IsFalse(RigAssetUtility.RenameRig(rig, rig.name));
         }
+
+        [Test]
+        public void DeleteRig_RefusesTheCasesThatCannotDelete()
+        {
+            Assert.IsFalse(RigAssetUtility.DeleteRig(null));
+
+            RigAsset unsavedRig = ScriptableObject.CreateInstance<RigAsset>();
+            Assert.IsFalse(RigAssetUtility.DeleteRig(unsavedRig));
+            Object.DestroyImmediate(unsavedRig);
+        }
     }
 }

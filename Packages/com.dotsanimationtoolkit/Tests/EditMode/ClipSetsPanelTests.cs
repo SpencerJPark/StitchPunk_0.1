@@ -11,7 +11,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
-    /// <summary>EditMode coverage of <see cref="ClipSetsPanel"/>'s Edit/Create mode switch and picker tick sync.</summary>
+    /// <summary>EditMode coverage of <see cref="ClipSetsPanel"/>'s selection, name field, and picker tick sync.</summary>
     public sealed class ClipSetsPanelTests
     {
         private ClipAsset walkClip;
@@ -40,24 +40,28 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void SelectSet_EntersEditMode_WithTheSetsClipsTicked()
+        public void SelectSet_ShowsTheSetsClipsTicked()
         {
             ClipSetsPanel panel = new ClipSetsPanel();
             panel.LoadCatalog(new List<ClipSetAsset> { clipSetAsset }, new List<ClipAsset> { walkClip, runClip, idleClip });
 
             panel.SelectSet(clipSetAsset);
 
-            Assert.AreEqual(ClipSetsPanel.EditorMode.Edit, panel.Mode);
             Assert.AreEqual(clipSetAsset, panel.SelectedSet);
 
             List<ClipAsset> checkedClips = panel.Q<ClipPickerListElement>("clip-picker").CheckedClips.ToList();
             CollectionAssert.AreEquivalent(new List<ClipAsset> { walkClip, runClip }, checkedClips);
+        }
 
-            panel.BeginCreate();
+        [Test]
+        public void SelectSet_PutsTheSetsNameInTheNameField()
+        {
+            ClipSetsPanel panel = new ClipSetsPanel();
+            panel.LoadCatalog(new List<ClipSetAsset> { clipSetAsset }, new List<ClipAsset> { walkClip, runClip, idleClip });
 
-            Assert.AreEqual(ClipSetsPanel.EditorMode.Create, panel.Mode);
-            Assert.IsEmpty(panel.Q<ClipPickerListElement>("clip-picker").CheckedClips.ToList());
-            Assert.AreEqual("NewClipSet", panel.Q<TextField>("clip-set-name-field").value);
+            panel.SelectSet(clipSetAsset);
+
+            Assert.AreEqual(clipSetAsset.name, panel.Q<TextField>("clip-set-name-field").value);
         }
     }
 }
