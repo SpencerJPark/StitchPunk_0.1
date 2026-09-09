@@ -1,6 +1,6 @@
 # Clip Sets — the "New Set" button becomes a tab that browses, creates and edits clip sets
 
-> **Status:** 📋 specced 2026-09-08, not built.
+> **Status:** ✅ built 2026-09-08, shipped as 0.22.0 (plus two visual follow-up commits).
 > **Spec:** [`Amendment_A75_ClipSets_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A75_ClipSets_Spec.md).
 > **Session prompt:** [`Amendment_A75_ClipSets_Prompt.md`](../../../../Docs/AnimationToolkit/Amendment_A75_ClipSets_Prompt.md).
 > **Executor:** one Editor-connected orchestrator running the gate; `worker` subagents edit files in
