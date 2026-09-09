@@ -83,11 +83,12 @@ against that one texture. That is the whole gap.
   one skinned mesh, that mesh is a single source with `targetId = 0` — the untargeted case, which is
   what the sample tentacle is (`targets: []`, one `TentacleMesh`) and what every VAT rig authored
   before A78 is.
-- **A78-D3 — Resolution does not test `TargetKind.VatMesh`.** It reads like the right question and is
-  the wrong one: nothing in the editor authors `kind`. Only the two `Samples~` builders assign a
-  non-`Quad` kind; every rig built through the Rigs tab leaves every target at `Quad`
-  (`RigTargetRowBuilder` never sets it). Gating on `VatMesh` would make every rig a customer can
-  actually author unbakeable. **Carrying a skinned mesh is the signal.**
+- **A78-D3 — `TargetKind.VatMesh` sharpens resolution but never gates it.** Gating on it outright
+  would make every rig authored before T9 unbakeable: nothing set `kind` until this amendment, so
+  every rig built through the Rigs tab carries `Quad` on every target and the sample tentacle carries
+  no targets at all. So the rule is ordered, not conditional — a `VatMesh` target wins, a target
+  merely carrying a skinned mesh is next, a lone skinned mesh is the fallback (§5.1). **Carrying a
+  skinned mesh remains the signal; the kind is a tie-breaker.**
 - **A78-D4 — `VatTextureBaker` is not touched.** The panel calls `Bake` once per source, each call
   with a different renderer out of the **same** posed instance and that source's own clip list. Every
   call numbers its own frames from 0, which is exactly what per-part textures need. This is why A78
@@ -138,6 +139,12 @@ against that one texture. That is the whole gap.
 - **A78-D15 — `VatTextureSetAsset.schemaVersion` is stamped to `1` by the baker.** It is `0` on every
   set ever produced because `SaveResult` never writes it — a latent bug this amendment is the natural
   place to close.
+- **A78-D17 — The Rigs tab authors `TargetKind`, because without it A78's textures are correct and
+  unusable.** A part only gets `VatDriven` and its VAT shader properties at entity bake when its kind
+  resolves to `VatMesh` (`RigTargetBaker.AddTechniqueComponents`, `:283-291`), and the only route
+  today is hand-ticking `useKindOverride` on every prefab child. A `Quad`-kinded VAT part renders as a
+  motionless clump with no error. One dropdown beside the Tag button closes it (§5.8). This is the
+  ninth task and it is not optional: it is what makes the rest of the amendment usable on an actor.
 - **A78-D16 — The sample gains a two-part subject.** The existing single tentacle stays exactly as it
   is and remains the `targetId == 0` acceptance case; a new `CreateTwoPartSampleAssets` builds a
   tentacle with a second skinned mesh and a rig with two targets, so per-part baking has something to
@@ -202,16 +209,18 @@ public static class VatBakeSourceResolver
 | `rig == null` | `"Assign the Rig these textures are baked for."` |
 | `rig.sourcePrefab == null` | `"Rig '<name>' has no Source Prefab, so there is nothing to sample. Set one in the Clip Editor's Rigs tab."` |
 | no `SkinnedMeshRenderer` anywhere under the prefab root | `"'<prefab>' has no skinned mesh. A VAT bake needs one; a rig of cutout quads is not a VAT subject."` |
-| one or more targets resolve to a skinned mesh | ✅ one source per such target, in `rig.targets` order |
-| none do, exactly one skinned mesh in the prefab | ✅ one source, `TargetId = 0` |
-| none do, more than one skinned mesh | `"'<prefab>' has <n> skinned meshes and none of them is a rig target, so the bake cannot tell which to sample: <paths>. Tick the ones you want in the Clip Editor's Rigs tab."` |
+| one or more `kind == VatMesh` targets resolve to a skinned mesh | ✅ one source per such target, in `rig.targets` order |
+| none do, but one or more targets of any kind resolve to a skinned mesh | ✅ one source per such target, in `rig.targets` order |
+| neither, exactly one skinned mesh in the prefab | ✅ one source, `TargetId = 0` |
+| neither, more than one skinned mesh | `"'<prefab>' has <n> skinned meshes and none of them is a rig target, so the bake cannot tell which to sample: <paths>. Tick the ones you want in the Clip Editor's Rigs tab, and set their Kind to VAT Mesh."` |
 
 Paths come from `PrefabAuthoringBridge.GetHierarchyPath(rendererTransform, rig.sourcePrefab.transform)`,
 joined `", "`. A skinned mesh **on the prefab root** yields the empty path, which is legal and which
 `ResolveByPath` maps back to the root — do not skip it the way `RigTargetRowBuilder` skips a root
 renderer. It can never match a target (a target's `sourceNodePath` is empty only when unbound), so it
 only ever reaches the single-mesh rule. Target matching is `StringComparison.Ordinal`, skipping null
-targets and empty paths, and does **not** read `kind` (A78-D3).
+targets and empty paths. The two target rules differ only in their `kind` filter — collect both lists
+in one hierarchy walk and prefer the `VatMesh` one when it is non-empty, rather than walking twice.
 
 `TryCreateBakeInstance` is `Object.Instantiate` → name after the prefab → `HideAndDontSave`, and
 `FindInInstance` is `ResolveByPath` then `GetComponent<SkinnedMeshRenderer>()`. Two comments earn
@@ -380,7 +389,36 @@ one clip whose `vatTracks` names only the fin — so the bake exercises the dedi
 one part and the clip-wide fallback for the other in a single run. Assets land in a folder the caller
 names; the package hardcodes no host path (`Conformance_D`).
 
-### 5.8 Docs
+### 5.8 The kind picker — `RigsPanel.cs` and `RigAssetUtility.cs` (A78-D17)
+
+`RigAssetUtility` gains `SetTargetKind(RigAsset rig, uint targetStableId, TargetKind kind)`, a
+character-for-character mirror of `SetTargetTag` (`:116-139`) with `"Set Rig Target Kind"` as the undo
+label. Same order — `Undo.RecordObject`, mutate, `SetDirty`, `SaveAssetIfDirty` — for the same reason
+A76-D5 gives: `stableId` is `internal`, so the `SerializedProperty` route would write a minted id back
+to 0.
+
+`RigsPanel.CandidateRow` gains `public TargetKind Kind;` and `public Button KindButton;`. The row
+becomes `[toggle | kind | tag]`: a `Button` built beside `tagButton` (`:472-479`) with the same
+`flexShrink = 0f`, `marginLeft = 4f` and a `minWidth` of `100f`, disabled by the same `SetEnabled(ticked)`
+rule and for the same reason — an unticked node is not becoming a target, so its kind would go
+nowhere. Text is `"Kind: Quad"` / `"Kind: VAT Mesh"` / `"Kind: Flipbook"` through a
+`RefreshKindButtonText(row)` mirroring `RefreshTagButtonText` (`:389-405`).
+
+Clicking opens a three-item `GenericDropdownMenu`, `DropDown(anchor.worldBound, anchor,
+DropdownMenuSizeMode.Auto)` — the UI Toolkit menu, proven at `ActorEditorInspectorColumn.cs:449-469`.
+**Not `GenericMenu`**, which is IMGUI and fails `Conformance_E`. Choosing writes through
+`SetTargetKind`, refreshes the button and nothing else: the row is mid-dispatch, and rebuilding the
+list from inside its own callback is the trap the vault note names.
+
+`RigTargetRowBuilder.RigTargetRow` gains `public TargetKind Kind;`, filled from the matched target in
+`BuildForRig` and left `TargetKind.Quad` in `BuildForNewRig` — a node that is not yet a target has no
+kind to carry, and create mode's rows are all new. `RigsPanel` copies it into `CandidateRow` where it
+already copies `TagId` (`:495`).
+
+Create mode writes the chosen kind into the `RigTargetDefinition`s it builds, so a rig can be created
+with its VAT parts already marked rather than needing a second pass.
+
+### 5.9 Docs
 
 - `Documentation~/rigged-characters.md:105` — the Bake step: assign the clip set and the Rig, the
   bake samples the rig's Source Prefab, the line under the Rig names the parts it will bake. Add a
@@ -397,8 +435,9 @@ names; the package hardcodes no host path (`Conformance_D`).
 
 ## 6. Tasks
 
-Wave 1 (`[parallel-safe]`): **T1, T2, T6**. Wave 2: **T3**. Wave 3 (`[parallel-safe]`): **T4, T5**.
-Then **T7** (orchestrator) and **T8** (⏸ checkpoint).
+Wave 1 (`[parallel-safe]`): **T1, T2, T6, T9**. Wave 2: **T3**. Wave 3 (`[parallel-safe]`): **T4, T5**.
+Then **T7** (orchestrator) and **T8** (⏸ checkpoint). T9 touches only Rigs-tab files, disjoint from
+every other task in its wave.
 
 Each brief pastes: the spec path, the task text, its "Read" line, the §5 block it builds, this spec's
 **§2**, and CLAUDE.md's hard rules (no `var`, no single-letter names, explicit types). Every brief
@@ -473,6 +512,27 @@ Read both in full (151 + 227 lines) and §5.7. Build §5.7. **`CreateSampleAsset
 must behave exactly as they do today** — add alongside, do not refactor through. No fixture; T7 drives
 it. No `Assets/`-prefixed literal anywhere (`Conformance_D`).
 
+### T9 — The kind picker [parallel-safe]
+
+Files: `Editor/ClipEditor/Authoring/RigsPanel.cs`, `Editor/ClipUtilities/RigAssetUtility.cs`. Also
+add `RigTargetRow.Kind` in `Editor/ClipEditor/Authoring/RigTargetRowBuilder.cs` — three lines, so
+this task is three files by exception; read only `:10-20` and `:95-125` of that one. Read
+`RigsPanel.cs:14-27, 356-405, 455-510` and the `Create` method in full, `RigAssetUtility.cs:110-140`,
+`ActorEditorInspectorColumn.cs:440-470` (the `GenericDropdownMenu` pattern), and §5.8. Build §5.8.
+
+- Fixture, appended to `Tests/EditMode/RigAssetUtilityTests.cs`:
+  `SetTargetKind_WritesTheKind_AndQuadIsLegal` — set `VatMesh` → true and readable; set back to
+  `Quad` → true and reads `Quad`. *(Revert-to-fail: early-return on `kind == TargetKind.Quad`, the
+  same shape the tag method's zero case has.)*
+- Fixture, appended to `Tests/EditMode/RigsPanelTests.cs`:
+  `SelectRig_CarriesEachTargetsKindOntoItsRow` — a rig with one `Quad` target and one `VatMesh`
+  target; after `SelectRig`, the two rows carry the two kinds. *(Revert-to-fail: leave `Kind` at its
+  default in `BuildForRig` — both rows come back `Quad`, which is the bug that would make every VAT
+  part on screen a motionless clump.)*
+
+Do not touch `ClipSetsPanel.cs` or `RigCatalogColumn.cs`. **Create mode's existing behaviour must not
+change** beyond carrying the chosen kind into the definitions it builds.
+
 ### T3 — The panel
 
 Files: `Editor/VatBaking/VatBakePanel.cs` only. Read it in full, the public surfaces of
@@ -504,7 +564,7 @@ Toolkit only, no `GUILayout`.
 
 ### T7 — Gate, drive, docs, version (orchestrator)
 
-1. Full gate per HANDOFF §3, both suites. EditMode gains six; counts must not otherwise drop.
+1. Full gate per HANDOFF §3, both suites. EditMode gains eight; counts must not otherwise drop.
 2. **Drive the single tentacle** — the unchanged-behaviour case. VAT Bake window, Clip Set
    `VatSampleTentacleClips`, Rig `VatSampleTentacleRig`, defaults, Bake. Expected, all derivable
    from the code:
@@ -525,14 +585,18 @@ Toolkit only, no `GUILayout`.
    with a named warning and the other part still bakes.
 4. **Drive the empty case.** A clip set whose clips have no VAT source and no bone tracks → the panel
    reports it and **no asset is written** (A78-D10). Confirm with `git status`.
-5. Prove every write by reloading from disk (HANDOFF §3). Delete `Assets/A78Scratch/` and the produced
+5. **Drive the kind picker.** On a `CopyAsset` scratch rig under `Assets/A78Scratch/`, set a target's
+   Kind to VAT Mesh through the Rigs tab, `Refresh()`, load the rig fresh from its path and assert
+   `kind == TargetKind.VatMesh`. "The dropdown says VAT Mesh" is not proof (HANDOFF §3). Then confirm
+   `Undo.PerformUndo()` puts it back to `Quad`.
+6. Prove every write by reloading from disk (HANDOFF §3). Delete `Assets/A78Scratch/` and the produced
    tentacle assets; confirm `git status` is clean of them.
-6. §5.8's docs, `CHANGELOG.md`'s `## [0.26.0]`, `package.json` → `0.26.0`.
-7. `Assets/_Vault/Memories/Code/AnimationToolkit.md` — one entry: the bake samples one throwaway
+7. §5.9's docs, `CHANGELOG.md`'s `## [0.26.0]`, `package.json` → `0.26.0`.
+8. `Assets/_Vault/Memories/Code/AnimationToolkit.md` — one entry: the bake samples one throwaway
    instance of the rig's Source Prefab and calls `VatTextureBaker` once per VAT part, each part
    getting its own texture and its own frame numbering; `VatBakeSourceResolver` is the one place the
    part list is decided; sockets are sampled on the first part's call only.
-8. `Docs/AnimationToolkit/HANDOFF.md` §4 — one paragraph.
+9. `Docs/AnimationToolkit/HANDOFF.md` §4 — one paragraph.
 
 Commit per task with an `A78-Tn:` prefix, staging paths explicitly, never `git add -A`.
 
@@ -548,9 +612,14 @@ Stop here with this message:
 > nothing goes into your scene, and the tentacle never has to be dragged in first. Each VAT part of a
 > rig now bakes to its own texture and its own runtime mesh in one run.
 >
-> Two things I would like your eye on before A79 builds the preview toggles — whether that line reads
-> as information or as clutter where a field used to be, and whether the skipped-parts second line
-> belongs there or in the log below the Bake button.
+> The Clip Editor's **Rigs** tab also has a **Kind** button on every target row now, beside the Tag.
+> That is what marks a part as a VAT mesh, and without it a baked part renders as a motionless clump
+> at run time with no error — so it is worth setting on your rigs before you next bake an actor.
+>
+> Three things I would like your eye on before A79 builds the preview toggles — whether the
+> resolved-source line reads as information or as clutter where a field used to be, whether the
+> skipped-parts second line belongs there or in the log below the Bake button, and whether Kind wants
+> to be a button like Tag or a plain dropdown.
 
 ---
 
@@ -558,9 +627,14 @@ Stop here with this message:
 
 - **The preview toggles and their symbols** — A79, on the owner's instruction. This round's preview
   keeps showing the first resolved part, which is what it has always shown.
-- **Authoring `TargetKind` in the Rigs tab.** A78-D3 routes around it. If a target should later
-  declare itself a VAT mesh, that is a Rigs-tab amendment and §5.1's target rule gains a `kind` test
-  with a fallback, not a rewrite.
+- **Authoring `vatTracks`.** "This part plays this source clip" is still a raw `targetId` typed into
+  the `ClipAsset`'s default inspector — nothing in `Editor/` writes `vatTracks` or `vatSource`, and a
+  raw uint in an editor surface is against the standing names-never-numbers directive (HANDOFF §5).
+  A target picker where that uint is belongs with the material-binding gap below, in one authoring
+  round after A79. A78 makes it *matter more*, so record it rather than quietly leaving it.
+- **Binding each part's baked texture onto its material.** Per-part materials are still wired by hand.
+  A78 makes `ValidateVatMaterial` per-part, so the warning finally names the right part instead of
+  comparing every part against one texture — but it wires nothing.
 - **Any change to `VatTextureBaker`** (A78-D4), including its now-belt-and-braces pose restore. It
   restores the hierarchy it was handed, and it is still the only thing protecting a caller that
   passes a scene object — which the public API still permits.

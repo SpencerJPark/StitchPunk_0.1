@@ -7,14 +7,16 @@ its §2, "What is already true"**, which is the difference between a two-day ame
 one — then its §4 "Read first" list in order, then
 `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` §4, which is binding.
 
-The spec's §3 decisions (A78-D1…D16) are settled. Do not re-ask the owner whether the field should be
+The spec's §3 decisions (A78-D1…D17) are settled. Do not re-ask the owner whether the field should be
 disabled rather than deleted (deleted, replaced by a read-only line), whether resolution should test
 `TargetKind.VatMesh` (it must not — nothing authors `kind`, so carrying a skinned mesh is the
 signal), whether the bake may pose the prefab asset (never — one throwaway `Object.Instantiate` for
 the whole run), whether `VatTextureBaker` changes (it does not — the panel calls it once per part),
 whether `clipRanges` moves into the per-part entries (it stays flat and set-level, which is what
 keeps the runtime untouched), or what happens to a part nothing animates (skipped with a named
-warning; a bake with no parts left creates nothing).
+warning; a bake with no parts left creates nothing), or whether the Rigs tab should author
+`TargetKind` (it must — T9; without it a baked part gets no `VatDriven` at entity bake and renders as
+a motionless clump, which makes the rest of this amendment unusable on an actor).
 
 **You are the orchestrator.** You are the only process that touches `mcp__UnityMCP__*`: you compile,
 run tests, drive the Editor and commit. The tasks are sized for `worker` subagents that edit files
@@ -28,9 +30,9 @@ Run the spec's waves:
 
 - **T0 yourself:** gate, baseline totals, and the one platform probe. The probe's answer can change
   T3 (see §6 T0) — run it before you spawn anything.
-- **Wave 1, three subagents at once:** T1, T2, T6 (all `[parallel-safe]`, disjoint files). Wait for
-  all three, then **one** compile gate and their six fixtures by `test_names`. T6 has no fixture — it
-  compiles or it does not.
+- **Wave 1, four subagents at once:** T1, T2, T6, T9 (all `[parallel-safe]`, disjoint files). Wait
+  for all four, then **one** compile gate and their eight fixtures by `test_names`. T6 has no
+  fixture — it compiles or it does not.
 - **Wave 2:** T3 (one subagent). Gate. Nothing to run — no fixture, by design.
 - **Wave 3, two subagents at once:** T4, T5. Gate, plus the existing baker fixtures.
 - **T7 yourself:** full gate, the three drives, docs, changelog, version, vault note, HANDOFF §4.
@@ -51,7 +53,7 @@ green.
   rig, mesh, material, already on disk, `targets: []` and one skinned mesh named `TentacleMesh`. It
   resolves untargeted and its output filenames must not change. The two-part subject is what T6
   builds.
-- Suite baselines: measure at T0. A78 adds six EditMode tests and no PlayMode tests.
+- Suite baselines: measure at T0. A78 adds eight EditMode tests and no PlayMode tests.
 
 ## The traps that will cost you a session if you rediscover them
 
@@ -75,6 +77,8 @@ green.
   into a comment is the most likely way to fail it.
 - **`Conformance_E`** fails on any `Handles.`, `OnGUI` or `GUILayout` under `Editor/`. Labels,
   `ObjectField` and `EditorGUIUtility.PingObject` are all fine — T5's inspector is the one to watch.
+  **T9 must use `GenericDropdownMenu`, not `GenericMenu`** — the latter is IMGUI and fails this gate.
+  The working pattern is `ActorEditorInspectorColumn.cs:449-469`.
 - **`Conformance_D` scans raw test-file text for host asset folder paths.** T1's and T2's fixtures
   build everything in memory and need no `Assets/`-prefixed literal. T6 must take its folder as a
   parameter, the way `CreateSampleAssets` already does — a hardcoded host path there cost A74 a gate
