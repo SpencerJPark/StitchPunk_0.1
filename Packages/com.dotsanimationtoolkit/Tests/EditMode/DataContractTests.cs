@@ -500,7 +500,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(VatTextureBinding)));
             AssertFieldsMatch(typeof(VatTextureBinding), new FieldContract[]
             {
-                Field("setKey", typeof(ulong)),
+                Field("setKey", typeof(ulong))
+            });
+
+            Assert.IsTrue(typeof(IComponentData).IsAssignableFrom(typeof(VatPartTextureBinding)));
+            AssertFieldsMatch(typeof(VatPartTextureBinding), new FieldContract[]
+            {
                 Field("boneOrPositionTexture", typeof(UnityObjectRef<Texture2D>)),
                 Field("normalTexture", typeof(UnityObjectRef<Texture2D>))
             });

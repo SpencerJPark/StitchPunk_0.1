@@ -159,9 +159,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
             VatTextureSetAsset vatTextureSet = Create<VatTextureSetAsset>(assetName);
             vatTextureSet.setKey = vatSetKey;
             vatTextureSet.flavor = VatFlavor.BoneMatrix;
-            vatTextureSet.boneCount = 3;
-            vatTextureSet.textureWidth = 9;
-            vatTextureSet.rowsPerFrame = 1;
+            VatPartTextures untargetedPart = new VatPartTextures();
+            untargetedPart.targetId = 0u;
+            untargetedPart.boneCount = 3;
+            untargetedPart.textureWidth = 9;
+            untargetedPart.rowsPerFrame = 1;
+            vatTextureSet.parts.Add(untargetedPart);
             vatTextureSet.sourceHash = 0xABCDEF0123456789UL;
             vatTextureSet.clipRanges.Clear();
             return vatTextureSet;

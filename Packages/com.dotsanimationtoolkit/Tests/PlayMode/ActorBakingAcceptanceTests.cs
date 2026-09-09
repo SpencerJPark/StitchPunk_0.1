@@ -458,7 +458,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             Texture2D normalTexture = fixtureAssets.CreateTexture("NormalTex");
             VatTextureSetAsset vatTextures =
                 fixtureAssets.CreateVatTextureSet("VatSet", 0x0000000000000602UL, boneTexture);
-            vatTextures.normalTexture = normalTexture;
+            vatTextures.parts[0].normalTexture = normalTexture;
             clipSet.vatTextures = vatTextures;
 
             GameObject clampedActor = fixtureAssets.CreateActorRoot("ClampedActor", rig, clipSet, false);
@@ -493,11 +493,6 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 binding.setKey,
                 "The binding's set key is what section 5.7 matches against the blob's vatSetKey; a " +
                 "default here silently unbinds every VAT part on the actor.");
-            Assert.AreEqual(
-                boneTexture,
-                binding.boneOrPositionTexture.Value,
-                "A bone-flavor set must bind its bone texture, not its position texture.");
-            Assert.AreEqual(normalTexture, binding.normalTexture.Value, "The normal texture too.");
         }
 
         [Test]
@@ -505,7 +500,7 @@ namespace DotsAnimationToolkit.Tests.PlayMode
         {
             // The component is unconditional so the archetype does not fork on content, which means
             // the no-VAT case must be representable as a value. Default is that value: set key 0
-            // matches no blob, and the null texture refs are what section 5.7 checks before binding.
+            // matches no blob, which is what section 5.7 checks before binding.
             RigAsset rig = fixtureAssets.CreateRig("Rig");
             ClipSetAsset clipSet = fixtureAssets.CreateClipSet("Set", 0x0000000000000519UL);
             GameObject actorGameObject = fixtureAssets.CreateActorRoot("Actor", rig, clipSet, false);
@@ -515,7 +510,6 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 bakingWorld.GetPrimaryEntity(actorGameObject));
 
             Assert.AreEqual(0UL, binding.setKey, "No texture set means no set key.");
-            Assert.IsNull(binding.boneOrPositionTexture.Value, "No texture set means no texture.");
         }
 
         [Test]
@@ -1301,6 +1295,18 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 bakingWorld.EntityManager.HasComponent<VatDriven>(
                     bakingWorld.GetPrimaryEntity(vatPart)),
                 "A correctly configured VAT part must bake VAT-driven and silently.");
+
+            // The texture reaches the PART, not the actor: with several VAT parts there is no one
+            // actor-level texture, so this is where a bake result becomes visible to the runtime.
+            // The set's only part is untargeted, so this also exercises TryGetPart's fallback.
+            VatPartTextureBinding partBinding =
+                bakingWorld.EntityManager.GetComponentData<VatPartTextureBinding>(
+                    bakingWorld.GetPrimaryEntity(vatPart));
+            Assert.AreEqual(
+                bakedTexture,
+                partBinding.boneOrPositionTexture.Value,
+                "A bone-flavor set must bind its bone texture onto the part, not its position " +
+                "texture and not nothing; a default here is a part animating against no texture.");
         }
 
         [Test]

@@ -437,8 +437,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             clip.vatSource = new VatClipSource();
             VatTextureSetAsset vatTextureSet = assets.CreateVatTextureSet("VatSet", 0xFEEDUL);
             vatTextureSet.flavor = VatFlavor.VertexPosition;
-            vatTextureSet.vertexCount = 1024;
-            vatTextureSet.rowsPerFrame = 3;
+            vatTextureSet.TryGetPart(0u, out VatPartTextures untargetedPart);
+            untargetedPart.vertexCount = 1024;
+            untargetedPart.rowsPerFrame = 3;
             vatTextureSet.clipRanges.Add(new VatClipRange
             {
                 clipId = 0x10UL,

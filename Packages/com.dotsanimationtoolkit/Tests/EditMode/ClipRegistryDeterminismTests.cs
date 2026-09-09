@@ -350,7 +350,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // The concrete stale-blob case: VAT textures rebaked at a new width while every clip's
             // frame range stays identical. Everything the old stream hashed is unchanged.
             AssertMutationChangesBlobAndHash(
-                clipSet => clipSet.vatTextures.textureWidth = clipSet.vatTextures.textureWidth + 512,
+                clipSet =>
+                {
+                    clipSet.vatTextures.TryGetPart(0u, out VatPartTextures untargetedPart);
+                    untargetedPart.textureWidth = untargetedPart.textureWidth + 512;
+                },
                 "Rebaking VAT textures to a different width");
         }
 
@@ -358,7 +362,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void ChangingTheVatBoneCount_ChangesTheContentHash()
         {
             AssertMutationChangesBlobAndHash(
-                clipSet => clipSet.vatTextures.boneCount = clipSet.vatTextures.boneCount + 7,
+                clipSet =>
+                {
+                    clipSet.vatTextures.TryGetPart(0u, out VatPartTextures untargetedPart);
+                    untargetedPart.boneCount = untargetedPart.boneCount + 7;
+                },
                 "Changing the VAT bone count");
         }
 

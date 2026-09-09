@@ -249,9 +249,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             VatTextureSetAsset vatTextureSet = assets.CreateVatTextureSet("GoldenVatSet", VatSetKey);
             vatTextureSet.flavor = VatFlavor.BoneMatrix;
-            vatTextureSet.boneCount = 12;
-            vatTextureSet.textureWidth = 64;
-            vatTextureSet.rowsPerFrame = 1;
+            vatTextureSet.TryGetPart(0u, out VatPartTextures untargetedPart);
+            untargetedPart.boneCount = 12;
+            untargetedPart.textureWidth = 64;
+            untargetedPart.rowsPerFrame = 1;
             vatTextureSet.clipRanges.Add(new VatClipRange
             {
                 clipId = WalkClipId,

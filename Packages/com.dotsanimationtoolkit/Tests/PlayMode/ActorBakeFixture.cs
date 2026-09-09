@@ -403,10 +403,13 @@ namespace DotsAnimationToolkit.Tests.PlayMode
             VatTextureSetAsset vatTextureSet = Create<VatTextureSetAsset>(assetName);
             vatTextureSet.setKey = setKey;
             vatTextureSet.flavor = VatFlavor.BoneMatrix;
-            vatTextureSet.boneTexture = boneTexture;
-            vatTextureSet.boneCount = 2;
-            vatTextureSet.textureWidth = 6;
-            vatTextureSet.rowsPerFrame = 1;
+            VatPartTextures untargetedPart = new VatPartTextures();
+            untargetedPart.targetId = 0u;
+            untargetedPart.boneTexture = boneTexture;
+            untargetedPart.boneCount = 2;
+            untargetedPart.textureWidth = 6;
+            untargetedPart.rowsPerFrame = 1;
+            vatTextureSet.parts.Add(untargetedPart);
             vatTextureSet.sourceHash = 0x1234567890ABCDEFUL;
             vatTextureSet.clipRanges.Clear();
             return vatTextureSet;
