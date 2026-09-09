@@ -17,7 +17,8 @@ namespace DotsAnimationToolkit.Editor
     public sealed class VatBakePanel : VisualElement, System.IDisposable
     {
         private ObjectField clipSetField;
-        private ObjectField skinnedRendererField;
+        private Label resolvedSourceLabel;
+        private List<VatBakeSource> resolvedSources;
         private EnumField flavorField;
         private ObjectField rigField;
         private FloatField sampleRateField;
@@ -63,7 +64,11 @@ namespace DotsAnimationToolkit.Editor
                 allowSceneObjects = false,
                 tooltip = "Clips whose ClipAsset names a VAT source clip are baked. Others are skipped."
             };
-            clipSetField.RegisterValueChangedCallback(changeEvent => RefreshPreview());
+            clipSetField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RefreshPreview();
+                RefreshResolvedSources();
+            });
             root.Add(clipSetField);
 
             // The bake needs the rig twice over: to read the socket rows it samples, and to stamp
@@ -75,6 +80,7 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "The rig these textures are baked for. Socket rows come from it, and it " +
                     "is stamped into the texture set so the wrong rig cannot bind them."
             };
+            rigField.RegisterValueChangedCallback(changeEvent => RefreshResolvedSources());
             root.Add(rigField);
 
             // Hidden until a host calls SetSource — in the standalone window there is nowhere else
@@ -85,17 +91,13 @@ namespace DotsAnimationToolkit.Editor
             sourceBoundHint.style.display = DisplayStyle.None;
             root.Add(sourceBoundHint);
 
-            // Not bound to the toolbar with the two above, because it is not the same question: this
-            // is a SkinnedMeshRenderer in an open scene, and the window's Rig field is an asset.
-            skinnedRendererField = new ObjectField("Skinned Mesh")
-            {
-                objectType = typeof(SkinnedMeshRenderer),
-                allowSceneObjects = true,
-                tooltip = "The rig to sample. Must be in an open scene — baking poses it. "
-                    + "Assigning one shows it at rest in the preview, before any bake."
-            };
-            skinnedRendererField.RegisterValueChangedCallback(changeEvent => RefreshPreview());
-            root.Add(skinnedRendererField);
+            // Not a field: which meshes a bake covers is a fact about the rig, not a fourth thing to keep in
+            // step with it. This line is the receipt — what the rig resolved to, or why it did not.
+            resolvedSourceLabel = new Label(string.Empty);
+            resolvedSourceLabel.name = "vat-resolved-source-label";
+            resolvedSourceLabel.AddToClassList("clip-editor__hint");
+            resolvedSourceLabel.RegisterCallback<ClickEvent>(clickEvent => PingSourcePrefab());
+            root.Add(resolvedSourceLabel);
 
             root.Add(BuildHeading("Settings"));
 
@@ -195,7 +197,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 sourceBoundHint.style.display = DisplayStyle.Flex;
             }
-            RefreshPreview();
+            RefreshResolvedSources();
         }
 
         private static Label BuildHeading(string text)
@@ -213,7 +215,6 @@ namespace DotsAnimationToolkit.Editor
 
             ClipSetAsset clipSet = clipSetField.value as ClipSetAsset;
             RigAsset rig = rigField.value as RigAsset;
-            SkinnedMeshRenderer renderer = skinnedRendererField.value as SkinnedMeshRenderer;
 
             if (clipSet == null)
             {
@@ -225,67 +226,128 @@ namespace DotsAnimationToolkit.Editor
                 ReportFailure("Assign the Rig these textures are baked for.");
                 return;
             }
-            if (renderer == null)
+
+            // Resolved fresh rather than trusting resolvedSources: a rig edited in the Rigs tab
+            // between the last refresh and this click must not bake a stale set of parts.
+            List<VatBakeSource> sources;
+            string resolveFailureMessage;
+            if (!VatBakeSourceResolver.TryResolve(rig, out sources, out resolveFailureMessage))
             {
-                ReportFailure("Assign a Skinned Mesh Renderer from an open scene.");
+                ReportFailure(resolveFailureMessage);
                 return;
             }
 
-            List<VatBakeClip> bakeClips = CollectVatClips(clipSet);
-            if (bakeClips.Count == 0)
+            VatBakePlan bakePlan = VatBakeClipBuilder.Build(clipSet, sources);
+            if (!bakePlan.HasAnythingToBake)
             {
                 ReportFailure(
-                    "No clip in '" + clipSet.name + "' names a VAT source. Set "
-                    + "vatSource.sourceClip on the ClipAssets you want baked, or add a vatTracks "
-                    + "entry naming a target and a source clip for a target-scoped VAT part, or "
-                    + "author bone tracks in the Clip Editor — any of those marks a clip as VAT-bound.");
+                    "No clip in '" + clipSet.name + "' names a VAT source for any part of '" + rig.name
+                    + "'. Set vatSource.sourceClip on the ClipAssets you want baked, or add a "
+                    + "vatTracks entry naming a target and a source clip for a target-scoped VAT "
+                    + "part, or author bone tracks in the Clip Editor — any of those marks a clip "
+                    + "as VAT-bound.");
                 return;
             }
 
-            VatBakeInput bakeInput = new VatBakeInput
+            for (int skippedIndex = 0; skippedIndex < bakePlan.SkippedPartNames.Count; skippedIndex++)
             {
-                skinnedMeshRenderer = renderer,
-                flavor = (VatFlavor)flavorField.value,
-                samplesPerSecond = sampleRateField.value,
-                useFullPrecision = fullPrecisionField.value,
-                clips = bakeClips,
-                sockets = CollectBoneSockets(rig)
-            };
+                Debug.LogWarning(
+                    "'" + bakePlan.SkippedPartNames[skippedIndex] + "': no clip in '" + clipSet.name
+                    + "' animates this VAT part. It will not be baked.");
+            }
+            for (int unknownIndex = 0; unknownIndex < bakePlan.UnknownTrackTargets.Count; unknownIndex++)
+            {
+                Debug.LogWarning(
+                    "A vatTrack in '" + clipSet.name + "' names target 0x" + bakePlan.UnknownTrackTargets[unknownIndex]
+                    + ", which '" + rig.name + "' does not resolve to a VAT part.");
+            }
 
-            VatBakeResult bakeResult;
-            if (!VatTextureBaker.Bake(bakeInput, out bakeResult))
+            GameObject instanceRoot;
+            string instanceFailureMessage;
+            if (!VatBakeSourceResolver.TryCreateBakeInstance(rig, out instanceRoot, out instanceFailureMessage))
             {
-                ReportFailure(bakeResult.message);
+                ReportFailure(instanceFailureMessage);
                 return;
             }
 
-            // Same reasoning as the socket warning below: the textures are valid, but every listed
-            // bone stayed at its rest pose, which presents as an animation that simply does not
-            // play rather than as an error anyone would go looking for.
-            if (bakeResult.unresolvedBoneTrackNames != null && bakeResult.unresolvedBoneTrackNames.Count > 0)
+            VatFlavor bakeFlavor = (VatFlavor)flavorField.value;
+            List<VatBakePartResult> partResults = new List<VatBakePartResult>();
+
+            try
             {
-                Debug.LogWarning(
-                    "VAT bake could not resolve " + bakeResult.unresolvedBoneTrackNames.Count.ToString()
-                    + " authored bone track name(s) in the source hierarchy: "
-                    + string.Join(", ", bakeResult.unresolvedBoneTrackNames)
-                    + ". Those bones baked at rest. Check the names on the clip's bone tracks "
-                    + "against the skinned mesh you assigned.");
+                for (int planIndex = 0; planIndex < bakePlan.Sources.Count; planIndex++)
+                {
+                    VatBakeSourcePlan sourcePlan = bakePlan.Sources[planIndex];
+                    SkinnedMeshRenderer instanceRenderer =
+                        VatBakeSourceResolver.FindInInstance(instanceRoot, sourcePlan.Source.SourceNodePath);
+                    if (instanceRenderer == null)
+                    {
+                        ReportFailure(
+                            "Could not find '" + sourcePlan.Source.DisplayName + "' in the posed instance of '"
+                            + rig.sourcePrefab.name + "'.");
+                        return;
+                    }
+
+                    VatBakeInput bakeInput = new VatBakeInput
+                    {
+                        skinnedMeshRenderer = instanceRenderer,
+                        flavor = bakeFlavor,
+                        samplesPerSecond = sampleRateField.value,
+                        useFullPrecision = fullPrecisionField.value,
+                        clips = sourcePlan.Clips,
+                        // VatTextureBaker samples sockets inside Bake itself, so a second or third
+                        // call carrying the same list would write N copies of every socket track.
+                        sockets = planIndex == 0 ? CollectBoneSockets(rig) : new List<VatBakeSocket>()
+                    };
+
+                    VatBakeResult bakeResult;
+                    if (!VatTextureBaker.Bake(bakeInput, out bakeResult))
+                    {
+                        ReportFailure("'" + sourcePlan.Source.DisplayName + "': " + bakeResult.message);
+                        return;
+                    }
+
+                    // Same reasoning as the socket warning below: the textures are valid, but every
+                    // listed bone stayed at its rest pose, which presents as an animation that
+                    // simply does not play rather than as an error anyone would go looking for.
+                    if (bakeResult.unresolvedBoneTrackNames != null && bakeResult.unresolvedBoneTrackNames.Count > 0)
+                    {
+                        Debug.LogWarning(
+                            "'" + sourcePlan.Source.DisplayName + "': VAT bake could not resolve "
+                            + bakeResult.unresolvedBoneTrackNames.Count.ToString()
+                            + " authored bone track name(s) in the source hierarchy: "
+                            + string.Join(", ", bakeResult.unresolvedBoneTrackNames)
+                            + ". Those bones baked at rest. Check the names on the clip's bone tracks "
+                            + "against the rig's source prefab.");
+                    }
+
+                    // Surfaced as a warning, not a failure: the textures are valid and usable, but
+                    // every listed socket would sit at the actor origin, which is not something to
+                    // discover later by watching a sword hover at a character's feet.
+                    if (bakeResult.unresolvedSocketBones != null && bakeResult.unresolvedSocketBones.Count > 0)
+                    {
+                        Debug.LogWarning(
+                            "'" + sourcePlan.Source.DisplayName + "': VAT bake could not resolve "
+                            + bakeResult.unresolvedSocketBones.Count.ToString()
+                            + " socket bone(s) in the source hierarchy: "
+                            + string.Join(", ", bakeResult.unresolvedSocketBones)
+                            + ". Check the bone names on the rig's socket rows.");
+                    }
+
+                    partResults.Add(new VatBakePartResult { Source = sourcePlan.Source, Result = bakeResult });
+                }
+            }
+            finally
+            {
+                // Torn down only once, after the last Bake call: each call's own finally stops
+                // AnimationMode, and pulling the hierarchy out from under a live sampling session
+                // strands the Editor in AnimationMode with no way back but a domain reload.
+                Object.DestroyImmediate(instanceRoot);
             }
 
-            // Surfaced as a warning, not a failure: the textures are valid and usable, but every
-            // listed socket would sit at the actor origin, which is not something to discover later
-            // by watching a sword hover at a character's feet.
-            if (bakeResult.unresolvedSocketBones != null && bakeResult.unresolvedSocketBones.Count > 0)
-            {
-                Debug.LogWarning(
-                    "VAT bake could not resolve " + bakeResult.unresolvedSocketBones.Count.ToString()
-                    + " socket bone(s) in the source hierarchy: "
-                    + string.Join(", ", bakeResult.unresolvedSocketBones)
-                    + ". Check the bone names on the rig's socket rows.");
-            }
-
-            string setPath = SaveResult(clipSet, rig, bakeResult, bakeInput.flavor, renderer);
-            ReportSuccess(bakeResult, bakeClips, setPath);
+            string outputFolder = ResolveOutputFolder(clipSet);
+            string setPath = VatTextureSetBuilder.WriteSet(clipSet, rig, bakeFlavor, outputFolder, partResults);
+            ReportSuccess(partResults, setPath);
 
             VatTextureSetAsset bakedSet = AssetDatabase.LoadAssetAtPath<VatTextureSetAsset>(setPath);
             previewSetField.SetValueWithoutNotify(bakedSet);
@@ -297,185 +359,138 @@ namespace DotsAnimationToolkit.Editor
             RefreshPreview();
         }
 
-        // One path for every field the preview reads, so assigning a Skinned Mesh puts the subject
-        // on screen at rest without waiting for a bake.
+        // One path for every field the preview reads, so assigning a Rig puts the subject on
+        // screen at rest without waiting for a bake.
         private void RefreshPreview()
         {
             if (preview == null)
             {
                 return;
             }
+            SkinnedMeshRenderer firstResolvedRenderer = resolvedSources != null && resolvedSources.Count > 0
+                ? resolvedSources[0].PrefabRenderer
+                : null;
             preview.Show(
                 previewSetField.value as VatTextureSetAsset,
                 clipSetField.value as ClipSetAsset,
-                skinnedRendererField.value as SkinnedMeshRenderer);
+                firstResolvedRenderer);
         }
 
-        // Ids come from the ClipAsset and its tracks, never minted here — a texture set whose
-        // ranges do not match the registry's clip/target ids resolves to nothing at runtime, and
-        // the failure is silent (VatMaterialSystem just holds the last frame).
-        private static List<VatBakeClip> CollectVatClips(ClipSetAsset clipSet)
+        // Not called from Bake, which resolves fresh so a rig edited elsewhere between a refresh
+        // and the button press cannot bake a stale set of parts. This is only the on-screen receipt.
+        private void RefreshResolvedSources()
         {
-            List<VatBakeClip> bakeClips = new List<VatBakeClip>();
-            if (clipSet.clips == null)
+            RigAsset rig = rigField.value as RigAsset;
+            List<VatBakeSource> sources;
+            string failureMessage;
+            if (!VatBakeSourceResolver.TryResolve(rig, out sources, out failureMessage))
             {
-                return bakeClips;
+                resolvedSources = null;
+                resolvedSourceLabel.text = failureMessage;
+                resolvedSourceLabel.style.color = new StyleColor(ToolkitPalette.Warning);
+                RefreshPreview();
+                return;
             }
 
-            for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
+            resolvedSources = sources;
+            resolvedSourceLabel.style.color = StyleKeyword.Null;
+
+            if (sources.Count == 1)
             {
-                ClipAsset clip = clipSet.clips[clipIndex];
-                if (clip == null)
-                {
-                    continue;
-                }
-
-                int boneTrackCount = clip.boneTracks == null ? 0 : clip.boneTracks.Count;
-                bool hasImportedSource = clip.vatSource != null && clip.vatSource.sourceClip != null;
-
-                // Authored bone tracks make a clip VAT-bound on their own, so a clip animated
-                // entirely inside the Clip Editor bakes without naming an imported AnimationClip.
-                if (hasImportedSource || boneTrackCount > 0)
-                {
-                    bakeClips.Add(new VatBakeClip
-                    {
-                        clipId = clip.Id.Value,
-                        targetId = 0u,
-                        animationClip = hasImportedSource ? clip.vatSource.sourceClip : null,
-                        boneTracks = clip.boneTracks,
-                        durationSeconds = clip.duration,
-                        // The clip's own FPS, so its block of the texture is exactly the frames the
-                        // Clip Editor rules its timeline into. A set of clips no longer has to
-                        // share one rate to share one texture.
-                        samplesPerSecond = clip.frameRate,
-                        // Not gated on hasImportedSource: a clip animated entirely from bone tracks
-                        // loops exactly as much as an imported one, and needs the same extra frame.
-                        loopSafe = clip.vatSource != null && clip.vatSource.loopSafe
-                    });
-                }
-
-                int vatTrackCount = clip.vatTracks == null ? 0 : clip.vatTracks.Count;
-                for (int trackIndex = 0; trackIndex < vatTrackCount; trackIndex++)
-                {
-                    VatTrack track = clip.vatTracks[trackIndex];
-                    if (track == null || track.sourceClip == null)
-                    {
-                        continue;
-                    }
-
-                    bakeClips.Add(new VatBakeClip
-                    {
-                        clipId = clip.Id.Value,
-                        targetId = track.targetId,
-                        animationClip = track.sourceClip,
-                        // A target-scoped part is a block of the same clip and plays on the same
-                        // clock, so it bakes at the same rate the clip does.
-                        samplesPerSecond = clip.frameRate,
-                        loopSafe = track.loopSafe
-                    });
-                }
-            }
-            return bakeClips;
-        }
-
-        private string SaveResult(
-            ClipSetAsset clipSet,
-            RigAsset rig,
-            VatBakeResult bakeResult,
-            VatFlavor flavor,
-            SkinnedMeshRenderer sourceRenderer)
-        {
-            string outputFolder = ResolveOutputFolder(clipSet);
-            EnsureFolderPath(outputFolder);
-
-            string baseName = clipSet.name + "Vat";
-            bool isBoneFlavor = flavor == VatFlavor.BoneMatrix;
-
-            string texturePath = outputFolder + "/" + baseName + (isBoneFlavor ? "Bone" : "Position") + ".asset";
-            CreateOrReplaceAsset(bakeResult.boneOrPositionTexture, texturePath);
-
-            if (bakeResult.normalTexture != null)
-            {
-                CreateOrReplaceAsset(bakeResult.normalTexture, outputFolder + "/" + baseName + "Normal.asset");
+                VatBakeSource onlySource = sources[0];
+                int boneCount = onlySource.PrefabRenderer.bones == null ? 0 : onlySource.PrefabRenderer.bones.Length;
+                resolvedSourceLabel.text = rig.sourcePrefab.name + " ▸ " + onlySource.DisplayName
+                    + " · " + boneCount.ToString() + " bones";
+                RefreshPreview();
+                return;
             }
 
-            VatTextureSetAsset textureSet = ScriptableObject.CreateInstance<VatTextureSetAsset>();
-            textureSet.flavor = flavor;
-            if (isBoneFlavor)
+            ClipSetAsset clipSet = clipSetField.value as ClipSetAsset;
+            if (clipSet == null)
             {
-                textureSet.boneTexture = bakeResult.boneOrPositionTexture;
+                List<string> allPartNames = new List<string>();
+                for (int sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
+                {
+                    allPartNames.Add(sources[sourceIndex].DisplayName);
+                }
+                resolvedSourceLabel.text = "resolves " + sources.Count.ToString() + " VAT parts · "
+                    + string.Join(", ", allPartNames);
+                RefreshPreview();
+                return;
+            }
+
+            VatBakePlan bakePlan = VatBakeClipBuilder.Build(clipSet, sources);
+            List<string> bakedPartNames = new List<string>();
+            for (int sourceIndex = 0; sourceIndex < bakePlan.Sources.Count; sourceIndex++)
+            {
+                bakedPartNames.Add(bakePlan.Sources[sourceIndex].Source.DisplayName);
+            }
+
+            string headline = "baking " + bakePlan.Sources.Count.ToString() + " of " + sources.Count.ToString()
+                + " VAT parts · " + string.Join(", ", bakedPartNames);
+            if (bakePlan.SkippedPartNames.Count == 0)
+            {
+                resolvedSourceLabel.text = headline;
             }
             else
             {
-                textureSet.positionTexture = bakeResult.boneOrPositionTexture;
-                textureSet.normalTexture = bakeResult.normalTexture;
-            }
-            textureSet.boneCount = bakeResult.boneCount;
-            textureSet.vertexCount = bakeResult.vertexCount;
-            textureSet.textureWidth = bakeResult.textureWidth;
-            textureSet.rowsPerFrame = bakeResult.rowsPerFrame;
-            textureSet.sourceHash = bakeResult.sourceHash;
-            textureSet.sourceRigKey = rig.StableId;
-            textureSet.clipRanges = bakeResult.clipRanges;
-            textureSet.socketTracks = bakeResult.socketTracks;
-
-            // Bone flavour only: a vertex-flavour shader reads baked positions and never touches
-            // bone influences, so packing them would be dead weight in the vertex stream.
-            if (isBoneFlavor)
-            {
-                Mesh runtimeMesh;
-                string meshFailureMessage;
-                if (VatMeshPreparer.TryCreateRuntimeMesh(sourceRenderer, out runtimeMesh, out meshFailureMessage))
+                List<string> skippedLines = new List<string>();
+                for (int skippedIndex = 0; skippedIndex < bakePlan.SkippedPartNames.Count; skippedIndex++)
                 {
-                    CreateOrReplaceAsset(runtimeMesh, outputFolder + "/" + baseName + "RuntimeMesh.asset");
-                    textureSet.runtimeMesh = runtimeMesh;
+                    skippedLines.Add(bakePlan.SkippedPartNames[skippedIndex] + " — no clip in this set animates it");
                 }
-                else
-                {
-                    // Warned rather than failed: the textures are valid and a host may already have
-                    // its own prepared mesh. But a null runtimeMesh renders as a motionless clump
-                    // rather than an error, so silence here would be the worst option.
-                    Debug.LogWarning(
-                        "VAT bake produced no runtime mesh: " + meshFailureMessage +
-                        " The shader needs bone influences in UV1 — see the package's Documentation~/shader-contract.md.");
-                }
+                resolvedSourceLabel.text = headline + "\n" + string.Join("\n", skippedLines);
             }
 
-            string setPath = outputFolder + "/" + baseName + "Set.asset";
-            CreateOrReplaceAsset(textureSet, setPath);
-
-            // Assigning the set back onto the clip set is what clears a clip's VAT source from
-            // pointing at a set with no textures for it.
-            clipSet.vatTextures = textureSet;
-            EditorUtility.SetDirty(clipSet);
-
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            return setPath;
+            RefreshPreview();
         }
 
-        private void ReportSuccess(VatBakeResult bakeResult, List<VatBakeClip> bakeClips, string setPath)
+        private void PingSourcePrefab()
         {
-            summaryLabel.text = "Baked " + bakeClips.Count.ToString() + " clip(s).";
+            RigAsset rig = rigField.value as RigAsset;
+            if (rig != null && rig.sourcePrefab != null)
+            {
+                EditorGUIUtility.PingObject(rig.sourcePrefab);
+            }
+        }
+
+        private void ReportSuccess(List<VatBakePartResult> partResults, string setPath)
+        {
+            int totalClipRangeCount = 0;
+            for (int partIndex = 0; partIndex < partResults.Count; partIndex++)
+            {
+                List<VatClipRange> partRanges = partResults[partIndex].Result.clipRanges;
+                totalClipRangeCount += partRanges == null ? 0 : partRanges.Count;
+            }
+
+            summaryLabel.text = "Baked " + partResults.Count.ToString() + " VAT part(s), "
+                + totalClipRangeCount.ToString() + " clip range(s).";
             summaryLabel.style.color = new StyleColor(new Color(0.45f, 0.8f, 0.5f));
 
             StringBuilder detail = new StringBuilder();
-            detail.AppendLine(bakeResult.message);
             detail.AppendLine("Texture set: " + setPath);
-            detail.AppendLine("Source hash: 0x" + bakeResult.sourceHash.ToString("X16"));
             detail.AppendLine();
-            for (int rangeIndex = 0; rangeIndex < bakeResult.clipRanges.Count; rangeIndex++)
+            for (int partIndex = 0; partIndex < partResults.Count; partIndex++)
             {
-                VatClipRange range = bakeResult.clipRanges[rangeIndex];
-                string targetLabel = range.targetId == 0u
-                    ? string.Empty
-                    : "  target 0x" + range.targetId.ToString("X8");
+                VatBakePartResult partResult = partResults[partIndex];
                 detail.AppendLine(
-                    "clip 0x" + range.clipId.ToString("X16")
-                    + targetLabel
-                    + "  frames " + range.frameStart.ToString()
-                    + ".." + (range.frameStart + range.frameCount - 1).ToString()
-                    + "  @" + range.fps.ToString() + "fps");
+                    partResult.Source.DisplayName + ": " + partResult.Result.message
+                    + "  source hash 0x" + partResult.Result.sourceHash.ToString("X16"));
+
+                List<VatClipRange> clipRanges = partResult.Result.clipRanges;
+                for (int rangeIndex = 0; rangeIndex < clipRanges.Count; rangeIndex++)
+                {
+                    VatClipRange range = clipRanges[rangeIndex];
+                    string targetLabel = range.targetId == 0u
+                        ? string.Empty
+                        : "  target 0x" + range.targetId.ToString("X8");
+                    detail.AppendLine(
+                        "  clip 0x" + range.clipId.ToString("X16")
+                        + targetLabel
+                        + "  frames " + range.frameStart.ToString()
+                        + ".." + (range.frameStart + range.frameCount - 1).ToString()
+                        + "  @" + range.fps.ToString() + "fps");
+                }
             }
 
             AppendLog(detail.ToString());
@@ -535,35 +550,6 @@ namespace DotsAnimationToolkit.Editor
             string clipSetPath = AssetDatabase.GetAssetPath(clipSet);
             int lastSeparator = clipSetPath.LastIndexOf('/');
             return lastSeparator > 0 ? clipSetPath.Substring(0, lastSeparator) : clipSetPath;
-        }
-
-        private static void EnsureFolderPath(string folderPath)
-        {
-            if (AssetDatabase.IsValidFolder(folderPath))
-            {
-                return;
-            }
-
-            string[] segments = folderPath.Split('/');
-            string accumulated = segments[0];
-            for (int segmentIndex = 1; segmentIndex < segments.Length; segmentIndex++)
-            {
-                string next = accumulated + "/" + segments[segmentIndex];
-                if (!AssetDatabase.IsValidFolder(next))
-                {
-                    AssetDatabase.CreateFolder(accumulated, segments[segmentIndex]);
-                }
-                accumulated = next;
-            }
-        }
-
-        private static void CreateOrReplaceAsset(Object asset, string path)
-        {
-            if (AssetDatabase.LoadAssetAtPath<Object>(path) != null)
-            {
-                AssetDatabase.DeleteAsset(path);
-            }
-            AssetDatabase.CreateAsset(asset, path);
         }
     }
 }
