@@ -117,12 +117,25 @@ namespace DotsAnimationToolkit.Editor
             catalogSearchField.style.width = new Length(100f, LengthUnit.Percent);
             catalogSearchField.style.minWidth = 0f;
             catalogSearchField.style.marginTop = 4f;
+            // ToolbarSearchField's own default USS ships a 4px-left/2px-right margin (verified
+            // live) -- on top of an already-100%-wide box that pushes its right edge past the
+            // rows below, which is the "overshoot" this was reported as. Zero it so the field is
+            // flush with the list.
+            catalogSearchField.style.marginLeft = 0f;
+            catalogSearchField.style.marginRight = 0f;
             catalogSearchField.RegisterValueChangedCallback(OnCatalogSearchTextChanged);
             catalogColumn.Add(catalogSearchField);
 
             clipSetsList = new ListView();
             clipSetsList.name = "clip-sets-list";
-            clipSetsList.fixedItemHeight = 52f;
+            // DynamicHeight virtualization renders zero rows in this Unity version (verified live:
+            // itemsSource.Count == 2 but the ListView's own childCount == 0) -- stick with
+            // FixedHeight. ListView positions each slot at a fixed index * fixedItemHeight
+            // regardless of the row's actual content height, so any slack left over here adds
+            // straight onto the visual gap on top of the row's own margin -- sized tight to the
+            // row's measured content (56px) + its 4px top/bottom margin, not generously, so the
+            // margin is the only thing producing the gap.
+            clipSetsList.fixedItemHeight = 64f;
             clipSetsList.selectionType = SelectionType.Single;
             clipSetsList.style.flexGrow = 1f;
             clipSetsList.style.marginTop = 4f;
@@ -141,12 +154,30 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement MakeClipSetRow()
         {
+            // ListView (FixedHeight virtualization) tags whatever makeItem returns with its own
+            // internal item classes and forcibly zeroes ITS margin to keep the fixed-slot math
+            // exact (verified live: an 8px inline margin set directly on that root read back as 0).
+            // A margin on this outer slot is a no-op, so the boxed row that actually wants the gap
+            // has to live one level deeper, as a plain child Unity's pooling never touches.
+            VisualElement itemSlot = new VisualElement();
+            // Unity also paints its own hover/selected background straight onto this slot (verified
+            // live: unity-collection-view__item--selected resolves a solid grey fill across the
+            // WHOLE slot, gap margin included) -- an inline override beats that USS state styling
+            // unconditionally, so the slot itself never shades and only the boxed row below reacts.
+            itemSlot.style.backgroundColor = new StyleColor(Color.clear);
+
             VisualElement row = new VisualElement();
+            row.name = "clip-set-row-box";
             row.AddToClassList("toolkit-box");
-            row.style.marginTop = 6f;
-            row.style.marginBottom = 6f;
-            row.style.marginLeft = 4f;
-            row.style.marginRight = 4f;
+            // Enough to read as separated instead of touching, without the gap dominating a
+            // 56px-tall row -- fixedItemHeight is sized to match (content height + this margin).
+            row.style.marginTop = 4f;
+            row.style.marginBottom = 4f;
+            // No horizontal margin: the row is left flush with the ListView's own bounds, which
+            // stretch to the same catalog-column width the search field's 100% width fills --
+            // an inset here would leave the row short of the search field's right edge.
+            row.style.marginLeft = 0f;
+            row.style.marginRight = 0f;
 
             VisualElement headerRow = new VisualElement();
             headerRow.AddToClassList("toolkit-box__header");
@@ -170,7 +201,8 @@ namespace DotsAnimationToolkit.Editor
             row.AddManipulator(new ContextualMenuManipulator(
                 populateEvent => PopulateClipSetRowContextMenu(populateEvent, row)));
 
-            return row;
+            itemSlot.Add(row);
+            return itemSlot;
         }
 
         private void PopulateClipSetRowContextMenu(ContextualMenuPopulateEvent populateEvent, VisualElement row)
@@ -228,12 +260,16 @@ namespace DotsAnimationToolkit.Editor
             }
 
             ClipSetAsset clipSet = filteredClipSets[index];
-            element.userData = clipSet;
 
-            Label titleLabel = element.Q<Label>("clip-set-row-title");
+            // The boxed row (userData, the selected-state class, the context menu) lives one level
+            // below the item slot ListView hands bindItem -- see MakeClipSetRow.
+            VisualElement row = element.Q<VisualElement>("clip-set-row-box");
+            row.userData = clipSet;
+
+            Label titleLabel = row.Q<Label>("clip-set-row-title");
             titleLabel.text = clipSet != null ? clipSet.name : string.Empty;
 
-            Label infoLabel = element.Q<Label>("clip-set-row-info");
+            Label infoLabel = row.Q<Label>("clip-set-row-info");
             int clipCount = clipSet != null && clipSet.clips != null ? clipSet.clips.Count : 0;
             string assetPath = clipSet != null ? AssetDatabase.GetAssetPath(clipSet) : string.Empty;
             string folderPath = string.IsNullOrEmpty(assetPath)
@@ -241,7 +277,7 @@ namespace DotsAnimationToolkit.Editor
                 : System.IO.Path.GetDirectoryName(assetPath).Replace('\\', '/');
             infoLabel.text = clipCount.ToString() + " clips" + (string.IsNullOrEmpty(folderPath) ? string.Empty : " · " + folderPath);
 
-            element.EnableInClassList("toolkit-box--selected", clipSet == SelectedSet);
+            row.EnableInClassList("toolkit-box--selected", clipSet == SelectedSet);
         }
 
         private void OnClipSetsListSelectionChanged(IEnumerable<object> selectedItems)

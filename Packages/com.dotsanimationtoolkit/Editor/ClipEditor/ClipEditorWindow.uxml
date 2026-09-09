@@ -7,12 +7,12 @@
             <ui:Label text="Rig" class="clip-editor__toolbar-label"/>
             <uie:ObjectField name="skinned-source-field" class="clip-editor__object-field"/>
             <ui:VisualElement name="tab-strip" class="clip-editor__tab-strip">
-                <uie:ToolbarToggle name="tab-new-rig" text="New Rig" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-clip-sets" text="Clip Sets" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-new-rig" text="Rigs" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-clip-editor" text="Clip Editor" value="true" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-vat-bake" text="VAT Bake" class="clip-editor__tab"/>
-                <uie:ToolbarToggle name="tab-actor-editor" text="Actor Editor" class="clip-editor__tab"/>
-                <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscene Editor" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-actor-editor" text="Actor Profiles" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscene Director" class="clip-editor__tab"/>
             </ui:VisualElement>
             <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot"/>
         </uie:Toolbar>

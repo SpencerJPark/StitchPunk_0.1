@@ -35,6 +35,10 @@ namespace DotsAnimationToolkit.Editor
             headerBlock.AddToClassList("toolkit-box__header");
             headerBlock.style.flexDirection = FlexDirection.Column;
             headerBlock.style.alignItems = Align.Stretch;
+            // toolkit-box__header's padding is deliberately asymmetric (4px left, 2px right) so a
+            // header button sits close to the box edge elsewhere -- matched here only, so the
+            // search row's own left/right insets come out equal (verified live: 5.2px each side).
+            headerBlock.style.paddingRight = 4f;
 
             VisualElement titleRow = new VisualElement();
             titleRow.style.flexDirection = FlexDirection.Row;
@@ -47,6 +51,10 @@ namespace DotsAnimationToolkit.Editor
 
             checkedOnlyToggle = new Toggle("Ticked only");
             checkedOnlyToggle.name = "clip-picker-checked-only";
+            // Toggle inherits BaseField's 120px label min-width, meant for aligning inspector-style
+            // field columns -- verified live: the label's own box was 120px wide for ~55px of text,
+            // leaving a big gap before the checkbox. Zero it so the label hugs its text.
+            checkedOnlyToggle.labelElement.style.minWidth = 0f;
             checkedOnlyToggle.RegisterValueChangedCallback(OnCheckedOnlyChanged);
             titleRow.Add(checkedOnlyToggle);
 
@@ -65,6 +73,11 @@ namespace DotsAnimationToolkit.Editor
             // (matches ClipSetsPanel's catalog search field fix).
             searchField.style.width = new Length(100f, LengthUnit.Percent);
             searchField.style.minWidth = 0f;
+            // ToolbarSearchField's own default USS ships a 4px-left/2px-right margin (verified
+            // live on ClipSetsPanel's identical field) -- on a 100%-wide box that skews it right
+            // of the row it sits in. Zero it for even spacing on both sides.
+            searchField.style.marginLeft = 0f;
+            searchField.style.marginRight = 0f;
             searchField.RegisterValueChangedCallback(OnSearchTextChanged);
             searchRow.Add(searchField);
 
