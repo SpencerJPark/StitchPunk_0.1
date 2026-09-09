@@ -10,15 +10,23 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The New Rig creation flow: pick a prefab, choose which of its renderer-bearing nodes become rig targets, tag them, and mint a <see cref="RigAsset"/>.</summary>
+    /// <summary>The Rigs tab: a catalog of project rigs plus a New Rig creation flow that picks a prefab, chooses which of its renderer-bearing nodes become rig targets, tags them, and mints a <see cref="RigAsset"/>.</summary>
     public sealed class NewRigPanel : VisualElement, IDisposable
     {
+        public enum EditorMode
+        {
+            Create,
+            Edit,
+        }
+
         /// <summary>One renderer-bearing node found while scanning the source prefab.</summary>
         private sealed class CandidateRow
         {
             public string DisplayName;
             public string SourceNodePath;
+            public uint TargetStableId;
             public uint TagId;
+            public bool IsMissingNode;
             public Toggle ToggleControl;
             public Button TagButton;
             public VisualElement Box;
@@ -26,6 +34,10 @@ namespace DotsAnimationToolkit.Editor
 
         private const string SelectedBoxUssClassName = "toolkit-box--selected";
 
+        private RigCatalogColumn catalog;
+        private VisualElement footerContainer;
+        private Label targetsTitleLabel;
+        private Button useInEditorButton;
         private ObjectField sourcePrefabField;
         private Label candidateSummaryLabel;
         private VisualElement candidateContainer;
@@ -35,6 +47,15 @@ namespace DotsAnimationToolkit.Editor
         private CandidateRow focusedRow;
 
         private readonly List<CandidateRow> candidateRows = new List<CandidateRow>();
+        private readonly List<ClipAsset> catalogClips = new List<ClipAsset>();
+
+        // Once the user has picked something this session (a catalog click or New), an incoming
+        // SetSource from the window's own active-rig field must not yank the selection back.
+        private bool hasUserSelectedThisSession;
+
+        public EditorMode Mode { get; private set; }
+
+        public RigAsset SelectedRig { get; private set; }
 
         /// <summary>Raised after a successful Create, so the host can untick its New Rig toggle.</summary>
         public event Action Closed;
@@ -47,23 +68,143 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public event Action<RigAsset, bool> RigCreated;
 
+        /// <summary>Raised when the targets column header's "Use in Clip Editor" button is clicked.</summary>
+        public event Action<RigAsset> UseInEditorRequested;
+
+        /// <summary>Raised after an edit-mode add, remove, or retag has been written to the rig asset.</summary>
+        public event Action<RigAsset> RigTargetsChanged;
+
         public NewRigPanel()
         {
             // Written inline rather than through a stylesheet, matching VatBakePanel: this element
             // carries no stylesheet of its own, and a host's sheet has no reason to know the names
             // of rows built here.
             style.flexGrow = 1f;
-            style.flexDirection = FlexDirection.Row;
 
-            VisualElement root = new VisualElement { name = "new-rig-form-column" };
-            root.style.width = 420f;
-            root.style.flexShrink = 0f;
-            root.style.paddingLeft = 10f;
-            root.style.paddingRight = 10f;
-            root.style.paddingTop = 8f;
-            Add(root);
+            // Draggable dividers, same control ClipSetsPanel's own dock uses.
+            TwoPaneSplitView outerSplitView = new TwoPaneSplitView(0, 640f, TwoPaneSplitViewOrientation.Horizontal);
+            outerSplitView.style.flexGrow = 1f;
 
-            root.Add(BuildHeading("New Rig"));
+            TwoPaneSplitView innerSplitView = new TwoPaneSplitView(0, 280f, TwoPaneSplitViewOrientation.Horizontal);
+            innerSplitView.style.flexGrow = 1f;
+
+            catalog = new RigCatalogColumn();
+            catalog.NewRequested += BeginCreate;
+            catalog.RefreshRequested += RescanProject;
+            catalog.RigSelected += SelectRig;
+            innerSplitView.Add(catalog);
+            innerSplitView.Add(BuildTargetsColumn());
+
+            outerSplitView.Add(innerSplitView);
+            outerSplitView.Add(BuildPreviewPane());
+            Add(outerSplitView);
+
+            ApplyModeChrome();
+            RescanProject();
+        }
+
+        /// <summary>Releases the preview's render utility and its copy of the prefab.</summary>
+        public void Dispose()
+        {
+            preview?.Dispose();
+        }
+
+        // Called every time the host shows this tab, so the catalog always reflects the current
+        // project and a freshly-activated rig is pre-selected until the user picks something else.
+        public void SetSource(RigAsset activeRig)
+        {
+            RescanProject();
+            if (!hasUserSelectedThisSession && activeRig != null)
+            {
+                SelectRig(activeRig);
+            }
+        }
+
+        public void SelectRig(RigAsset rig)
+        {
+            Mode = EditorMode.Edit;
+            SelectedRig = rig;
+            hasUserSelectedThisSession = true;
+            catalog.SetSelectedRig(rig);
+            // Without notify: a plain assignment would fire the field's own change callback and
+            // immediately write this rig's prefab back onto itself.
+            sourcePrefabField.SetValueWithoutNotify(rig != null ? rig.sourcePrefab : null);
+            ApplyModeChrome();
+            BuildRowsForEditMode(rig);
+        }
+
+        public void BeginCreate()
+        {
+            Mode = EditorMode.Create;
+            SelectedRig = null;
+            hasUserSelectedThisSession = true;
+            catalog.ClearSelection();
+            ApplyModeChrome();
+            RescanHierarchy();
+        }
+
+        private void ApplyModeChrome()
+        {
+            targetsTitleLabel.text = Mode == EditorMode.Create
+                ? "New Rig"
+                : (SelectedRig != null ? SelectedRig.name : "Rig");
+            footerContainer.style.display = Mode == EditorMode.Create ? DisplayStyle.Flex : DisplayStyle.None;
+            useInEditorButton.style.display = Mode == EditorMode.Edit ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        private void RescanProject()
+        {
+            List<RigAsset> rigs = new List<RigAsset>();
+            string[] rigAssetGuids = AssetDatabase.FindAssets("t:" + nameof(RigAsset));
+            for (int guidIndex = 0; guidIndex < rigAssetGuids.Length; guidIndex++)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(rigAssetGuids[guidIndex]);
+                RigAsset rig = AssetDatabase.LoadAssetAtPath<RigAsset>(assetPath);
+                if (rig != null)
+                {
+                    rigs.Add(rig);
+                }
+            }
+
+            catalogClips.Clear();
+            string[] clipAssetGuids = AssetDatabase.FindAssets("t:" + nameof(ClipAsset));
+            for (int guidIndex = 0; guidIndex < clipAssetGuids.Length; guidIndex++)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(clipAssetGuids[guidIndex]);
+                ClipAsset clip = AssetDatabase.LoadAssetAtPath<ClipAsset>(assetPath);
+                if (clip != null)
+                {
+                    catalogClips.Add(clip);
+                }
+            }
+
+            rigs.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.name, right.name));
+            catalogClips.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.name, right.name));
+
+            catalog.SetRigs(rigs);
+        }
+
+        private VisualElement BuildTargetsColumn()
+        {
+            VisualElement targetsColumn = new VisualElement { name = "rig-targets-column" };
+            targetsColumn.style.flexGrow = 1f;
+            targetsColumn.style.minWidth = 360f;
+            targetsColumn.style.paddingTop = 8f;
+            targetsColumn.style.paddingLeft = 10f;
+            targetsColumn.style.paddingRight = 10f;
+
+            VisualElement header = new VisualElement();
+            header.AddToClassList("toolkit-pane-header");
+            targetsTitleLabel = new Label("New Rig") { name = "rig-targets-title" };
+            targetsTitleLabel.AddToClassList("toolkit-pane-title");
+            header.Add(targetsTitleLabel);
+
+            useInEditorButton = ToolkitIcons.MakeIconTextButton(
+                OnUseInEditorClicked, "editicon.sml", null, "Use in Clip Editor");
+            useInEditorButton.name = "rig-use-in-editor-button";
+            header.Add(useInEditorButton);
+
+            targetsColumn.Add(header);
 
             sourcePrefabField = new ObjectField("Source Prefab")
             {
@@ -72,23 +213,41 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "The prefab the new rig will preview from and the VAT bake will sample. "
                     + "Its hierarchy is scanned below for nodes to offer as rig targets."
             };
-            sourcePrefabField.RegisterValueChangedCallback(changeEvent => RescanHierarchy());
-            root.Add(sourcePrefabField);
+            sourcePrefabField.RegisterValueChangedCallback(changeEvent =>
+            {
+                if (Mode == EditorMode.Create)
+                {
+                    RescanHierarchy();
+                }
+                else if (Mode == EditorMode.Edit && SelectedRig != null)
+                {
+                    // Targets are left exactly as they are; nodes that no longer exist just become
+                    // missing rows through the ordinary BuildForRig path.
+                    GameObject newSourcePrefab = changeEvent.newValue as GameObject;
+                    if (RigAssetUtility.SetRigSourcePrefab(SelectedRig, newSourcePrefab))
+                    {
+                        BuildRowsForEditMode(SelectedRig);
+                        RaiseRigTargetsChanged();
+                    }
+                }
+            });
+            targetsColumn.Add(sourcePrefabField);
 
-            root.Add(BuildHeading("Targets"));
+            targetsColumn.Add(BuildHeading("Targets"));
 
             candidateSummaryLabel = new Label(
                 "Assign a source prefab to scan its hierarchy for renderer-bearing nodes.");
             candidateSummaryLabel.style.whiteSpace = WhiteSpace.Normal;
-            root.Add(candidateSummaryLabel);
+            targetsColumn.Add(candidateSummaryLabel);
 
             ScrollView candidateScroll = new ScrollView();
             candidateScroll.style.flexGrow = 1f;
             candidateScroll.style.marginTop = 4f;
             candidateContainer = candidateScroll.contentContainer;
-            root.Add(candidateScroll);
+            targetsColumn.Add(candidateScroll);
 
-            root.Add(BuildHeading("Create"));
+            footerContainer = new VisualElement { name = "new-rig-footer" };
+            footerContainer.Add(BuildHeading("Create"));
 
             // Not gated on a clip set: loading a rig into the window needs no set, exactly as
             // picking one in the toolbar does not.
@@ -97,7 +256,7 @@ namespace DotsAnimationToolkit.Editor
             assignToggle.tooltip =
                 "Puts the new rig in the toolbar's Rig field. Window state only — it pairs the rig "
                 + "with nothing, and changes no asset.";
-            root.Add(assignToggle);
+            footerContainer.Add(assignToggle);
 
             // No Cancel beside it: the toolbar's New Rig toggle is what opens and closes this flow,
             // the way VAT Bake's does, and a second dismissal that leaves the toggle lit would be a
@@ -105,18 +264,24 @@ namespace DotsAnimationToolkit.Editor
             Button createButton = new Button(Create) { text = "Create Rig" };
             createButton.style.height = 28f;
             createButton.style.marginTop = 6f;
-            root.Add(createButton);
+            footerContainer.Add(createButton);
+
+            targetsColumn.Add(footerContainer);
 
             resultLabel = new Label(string.Empty);
             resultLabel.style.whiteSpace = WhiteSpace.Normal;
             resultLabel.style.marginTop = 8f;
             resultLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            root.Add(resultLabel);
+            targetsColumn.Add(resultLabel);
 
+            return targetsColumn;
+        }
+
+        private VisualElement BuildPreviewPane()
+        {
             VisualElement previewPane = new VisualElement { name = "new-rig-preview-pane" };
             previewPane.style.flexGrow = 1f;
             previewPane.style.minWidth = 320f;
-            Add(previewPane);
 
             VisualElement previewHeader = new VisualElement();
             previewHeader.AddToClassList("toolkit-pane-header");
@@ -128,12 +293,8 @@ namespace DotsAnimationToolkit.Editor
             preview = new RigSourcePreviewElement();
             preview.style.flexGrow = 1f;
             previewPane.Add(preview);
-        }
 
-        /// <summary>Releases the preview's render utility and its copy of the prefab.</summary>
-        public void Dispose()
-        {
-            preview?.Dispose();
+            return previewPane;
         }
 
         // Opens the searchable tag picker for one candidate row — the same VocabularyPicker every
@@ -151,6 +312,14 @@ namespace DotsAnimationToolkit.Editor
                 {
                     row.TagId = chosenTagId;
                     RefreshTagButtonText(row);
+
+                    // A row that is not currently a target cannot be tagged into the asset; its
+                    // tag button is already disabled while unticked, so this only guards.
+                    if (Mode == EditorMode.Edit && SelectedRig != null && row.TargetStableId != 0u)
+                    {
+                        RigAssetUtility.SetTargetTag(SelectedRig, row.TargetStableId, chosenTagId);
+                        RaiseRigTargetsChanged();
+                    }
                 },
                 () =>
                 {
@@ -210,84 +379,184 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
-            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            List<RigTargetRow> rows = RigTargetRowBuilder.BuildForNewRig(prefab);
+            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
             {
-                Renderer renderer = renderers[rendererIndex];
-                Transform rendererTransform = renderer.transform;
-
-                string nodePath = PrefabAuthoringBridge.GetHierarchyPath(rendererTransform, prefab.transform);
-                if (string.IsNullOrEmpty(nodePath))
-                {
-                    // A renderer directly on the prefab root has no path distinct from
-                    // RigTargetDefinition.sourceNodePath's own "unbound" convention (empty means
-                    // not tied to a node). Skipped rather than emitted as a target nothing could
-                    // tell apart from one with no binding at all.
-                    continue;
-                }
-
-                // Pre-ticked when the renderer looks like something the author actually wants
-                // shown — enabled and on an active node. A disabled renderer or an inactive helper
-                // object (an alternate LOD, a debug visualization) is offered but left unticked,
-                // rather than forcing every candidate on and making the list something to prune.
-                bool preTicked = renderer.enabled && rendererTransform.gameObject.activeSelf;
-
-                Toggle rowToggle = new Toggle(nodePath) { value = preTicked };
-                rowToggle.tooltip = nodePath + "\n" + renderer.GetType().Name + " on \"" + rendererTransform.name + "\".";
-                rowToggle.style.flexGrow = 1f;
-                rowToggle.style.flexShrink = 1f;
-                rowToggle.style.overflow = Overflow.Hidden;
-                // A deep node path is longer than the column is wide. Left to grow it pushes the tag
-                // button out of the row and puts a horizontal scrollbar under the whole list.
-                rowToggle.labelElement.style.minWidth = 0f;
-                rowToggle.labelElement.style.flexShrink = 1f;
-                rowToggle.labelElement.style.overflow = Overflow.Hidden;
-                rowToggle.labelElement.style.textOverflow = TextOverflow.Ellipsis;
-                rowToggle.labelElement.style.whiteSpace = WhiteSpace.NoWrap;
-
-                Button tagButton = new Button { text = "Tag: (none)" };
-                tagButton.style.flexShrink = 0f;
-                tagButton.style.minWidth = 90f;
-                tagButton.style.marginLeft = 4f;
-                // An unticked node is not becoming a target, so its tag would go nowhere. Greying
-                // the button is what separates the animated parts from the ones just listed.
-                tagButton.SetEnabled(preTicked);
-
-                VisualElement candidateBox = new VisualElement();
-                candidateBox.AddToClassList("toolkit-box");
-
-                VisualElement rowContainer = new VisualElement();
-                rowContainer.AddToClassList("toolkit-box__header");
-                rowContainer.Add(rowToggle);
-                rowContainer.Add(tagButton);
-                candidateBox.Add(rowContainer);
-                candidateContainer.Add(candidateBox);
-
-                CandidateRow row = new CandidateRow
-                {
-                    DisplayName = rendererTransform.name,
-                    SourceNodePath = nodePath,
-                    ToggleControl = rowToggle,
-                    TagButton = tagButton,
-                    Box = candidateBox
-                };
-                tagButton.clicked += () => OpenRowTagPicker(row, tagButton);
-                rowToggle.RegisterValueChangedCallback(changeEvent =>
-                {
-                    tagButton.SetEnabled(changeEvent.newValue);
-                    preview.SetNodeIncluded(row.SourceNodePath, changeEvent.newValue);
-                });
-                // TrickleDown, so clicking the toggle or the tag button still shows which node the
-                // row means rather than being swallowed by the control that was hit.
-                candidateBox.RegisterCallback<PointerDownEvent>(
-                    pointerEvent => FocusRow(row), TrickleDown.TrickleDown);
-                candidateRows.Add(row);
-                preview.SetNodeIncluded(nodePath, preTicked);
+                BuildCandidateRow(rows[rowIndex], rows[rowIndex].PreTicked);
             }
 
             candidateSummaryLabel.text = candidateRows.Count.ToString()
                 + " renderer-bearing node(s) found in \"" + prefab.name + "\". Click a row to find it "
                 + "in the preview.";
+        }
+
+        // Edit mode's row list — a stub that lists what BuildForRig reports, ticking the ones
+        // already a rig target. Untick/re-tag guarding against overwriting the rig is later work.
+        private void BuildRowsForEditMode(RigAsset rig)
+        {
+            candidateContainer.Clear();
+            candidateRows.Clear();
+            focusedRow = null;
+
+            preview.ShowPrefab(rig != null ? rig.sourcePrefab : null);
+
+            if (rig == null)
+            {
+                candidateSummaryLabel.text = "No rig selected.";
+                return;
+            }
+
+            List<RigTargetRow> rows = RigTargetRowBuilder.BuildForRig(rig);
+            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                RigTargetRow row = rows[rowIndex];
+                BuildCandidateRow(row, row.IsTarget);
+            }
+
+            candidateSummaryLabel.text = candidateRows.Count.ToString() + " node(s) in \"" + rig.name + "\".";
+        }
+
+        private void BuildCandidateRow(RigTargetRow sourceRow, bool ticked)
+        {
+            string rowTitleText = sourceRow.SourceNodePath;
+            if (sourceRow.IsMissingNode)
+            {
+                rowTitleText = string.IsNullOrEmpty(sourceRow.SourceNodePath)
+                    ? "⚠ " + sourceRow.DisplayName + " (no node)"
+                    : "⚠ " + sourceRow.SourceNodePath + " (missing from prefab)";
+            }
+
+            Toggle rowToggle = new Toggle(rowTitleText) { value = ticked };
+            rowToggle.tooltip = sourceRow.SourceNodePath;
+            rowToggle.style.flexGrow = 1f;
+            rowToggle.style.flexShrink = 1f;
+            rowToggle.style.overflow = Overflow.Hidden;
+            // A deep node path is longer than the column is wide. Left to grow it pushes the tag
+            // button out of the row and puts a horizontal scrollbar under the whole list.
+            rowToggle.labelElement.style.minWidth = 0f;
+            rowToggle.labelElement.style.flexShrink = 1f;
+            rowToggle.labelElement.style.overflow = Overflow.Hidden;
+            rowToggle.labelElement.style.textOverflow = TextOverflow.Ellipsis;
+            rowToggle.labelElement.style.whiteSpace = WhiteSpace.NoWrap;
+
+            Button tagButton = new Button { text = "Tag: (none)" };
+            tagButton.style.flexShrink = 0f;
+            tagButton.style.minWidth = 90f;
+            tagButton.style.marginLeft = 4f;
+            // An unticked node is not becoming a target, so its tag would go nowhere. Greying
+            // the button is what separates the animated parts from the ones just listed.
+            tagButton.SetEnabled(ticked);
+
+            VisualElement candidateBox = new VisualElement();
+            candidateBox.AddToClassList("toolkit-box");
+
+            VisualElement rowContainer = new VisualElement();
+            rowContainer.AddToClassList("toolkit-box__header");
+            rowContainer.Add(rowToggle);
+            rowContainer.Add(tagButton);
+            candidateBox.Add(rowContainer);
+            candidateContainer.Add(candidateBox);
+
+            CandidateRow row = new CandidateRow
+            {
+                DisplayName = sourceRow.DisplayName,
+                SourceNodePath = sourceRow.SourceNodePath,
+                TargetStableId = sourceRow.TargetStableId,
+                TagId = sourceRow.TagId,
+                IsMissingNode = sourceRow.IsMissingNode,
+                ToggleControl = rowToggle,
+                TagButton = tagButton,
+                Box = candidateBox
+            };
+            RefreshTagButtonText(row);
+            tagButton.clicked += () => OpenRowTagPicker(row, tagButton);
+            rowToggle.RegisterValueChangedCallback(
+                changeEvent => OnRowToggleChanged(row, rowToggle, tagButton, changeEvent.newValue));
+            // TrickleDown, so clicking the toggle or the tag button still shows which node the
+            // row means rather than being swallowed by the control that was hit.
+            candidateBox.RegisterCallback<PointerDownEvent>(
+                pointerEvent => FocusRow(row), TrickleDown.TrickleDown);
+            candidateRows.Add(row);
+            // The preview has no copy of a missing node, so it is never told about one.
+            if (!row.IsMissingNode)
+            {
+                preview.SetNodeIncluded(sourceRow.SourceNodePath, ticked);
+            }
+        }
+
+        // Edit mode writes the rig asset the moment a row is ticked or unticked; create mode keeps
+        // the tick in memory until Create Rig runs.
+        private void OnRowToggleChanged(CandidateRow row, Toggle rowToggle, Button tagButton, bool isChecked)
+        {
+            tagButton.SetEnabled(isChecked);
+            if (!row.IsMissingNode)
+            {
+                preview.SetNodeIncluded(row.SourceNodePath, isChecked);
+            }
+
+            if (Mode != EditorMode.Edit || SelectedRig == null)
+            {
+                return;
+            }
+
+            if (isChecked)
+            {
+                RigTargetDefinition newTarget =
+                    RigAssetUtility.AddTargetToRig(SelectedRig, row.SourceNodePath, row.DisplayName);
+                if (newTarget != null)
+                {
+                    row.TargetStableId = newTarget.Id.Value;
+                }
+                RaiseRigTargetsChanged();
+                return;
+            }
+
+            List<ClipAsset> boundClips =
+                RigTargetReferenceResolver.FindClipsBoundToTarget(catalogClips, row.TargetStableId, row.TagId);
+            if (boundClips.Count > 0)
+            {
+                bool confirmedRemoval = EditorUtility.DisplayDialog(
+                    "Remove Rig Target",
+                    "\"" + row.DisplayName + "\" is animated by " + RigTargetReferenceResolver.DescribeClips(boundClips)
+                        + ". Those tracks will be skipped when a clip plays on this rig. Remove it anyway?",
+                    "Remove",
+                    "Cancel");
+                if (!confirmedRemoval)
+                {
+                    // SetValueWithoutNotify, not value = true: a plain set re-enters this same
+                    // callback and asks the owner the same question forever.
+                    rowToggle.SetValueWithoutNotify(true);
+                    tagButton.SetEnabled(true);
+                    if (!row.IsMissingNode)
+                    {
+                        preview.SetNodeIncluded(row.SourceNodePath, true);
+                    }
+                    return;
+                }
+            }
+
+            RigAssetUtility.RemoveTargetFromRig(SelectedRig, row.TargetStableId);
+            row.TargetStableId = 0u;
+            RaiseRigTargetsChanged();
+        }
+
+        private void OnUseInEditorClicked()
+        {
+            if (UseInEditorRequested != null)
+            {
+                UseInEditorRequested(SelectedRig);
+            }
+        }
+
+        // Refreshes the catalog row's own info line (target count) in place rather than rebuilding
+        // this panel's target row list, which would be re-entering the toggle callback's own row.
+        private void RaiseRigTargetsChanged()
+        {
+            if (RigTargetsChanged != null)
+            {
+                RigTargetsChanged(SelectedRig);
+            }
+            catalog.SetSelectedRig(SelectedRig);
         }
 
         private void FocusRow(CandidateRow row)
@@ -306,7 +575,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 row.Box.AddToClassList(SelectedBoxUssClassName);
             }
-            preview.FocusNode(row.SourceNodePath);
+            // The preview has no copy of a missing node's transform to focus on.
+            if (!row.IsMissingNode)
+            {
+                preview.FocusNode(row.SourceNodePath);
+            }
         }
 
         private void Create()
@@ -365,6 +638,9 @@ namespace DotsAnimationToolkit.Editor
             resultLabel.text = "Created \"" + newRig.name + "\" with " + selectedTargets.Count.ToString()
                 + " target(s).";
             EditorGUIUtility.PingObject(newRig);
+
+            // So the new rig shows up in the catalog without waiting for a manual Refresh.
+            RescanProject();
 
             if (RigCreated != null)
             {
