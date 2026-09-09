@@ -59,10 +59,15 @@ namespace DotsAnimationToolkit.Editor
         public ClipSetsPanel()
         {
             style.flexGrow = 1f;
-            style.flexDirection = FlexDirection.Row;
 
-            Add(BuildCatalogColumn());
-            Add(BuildEditorColumn());
+            // The same draggable-divider control the Clip Editor's own dock uses (dock-columns
+            // in ClipEditorWindow.uxml) — the fixed pane (index 0) starts at 280px and the user
+            // drags the handle TwoPaneSplitView inserts between the two children.
+            TwoPaneSplitView splitView = new TwoPaneSplitView(0, 280f, TwoPaneSplitViewOrientation.Horizontal);
+            splitView.style.flexGrow = 1f;
+            splitView.Add(BuildCatalogColumn());
+            splitView.Add(BuildEditorColumn());
+            Add(splitView);
 
             RefreshCatalogEmptyState();
             RefreshEditorForMode();
@@ -70,9 +75,13 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement BuildCatalogColumn()
         {
+            // Width is TwoPaneSplitView's to manage (drag-resized); flexGrow so this element
+            // actually fills whatever dimension the split view's fixed pane currently holds
+            // (TwoPaneSplitView sizes its own pane wrapper, not this child directly), and
+            // minWidth as a floor so the drag cannot squeeze it to an unusable sliver.
             VisualElement catalogColumn = new VisualElement { name = "clip-sets-catalog-column" };
-            catalogColumn.style.width = 280f;
-            catalogColumn.style.flexShrink = 0f;
+            catalogColumn.style.flexGrow = 1f;
+            catalogColumn.style.minWidth = 200f;
             catalogColumn.style.paddingTop = 8f;
             catalogColumn.style.paddingLeft = 10f;
             catalogColumn.style.paddingRight = 10f;
@@ -101,9 +110,12 @@ namespace DotsAnimationToolkit.Editor
 
             catalogSearchField = new ToolbarSearchField();
             catalogSearchField.name = "clip-sets-search";
-            // catalogColumn is a column-flow container, so flexGrow would fight the list for
-            // vertical space; alignSelf is the cross-axis (width) stretch we actually want.
-            catalogSearchField.style.alignSelf = Align.Stretch;
+            // alignSelf: Stretch alone was not enough -- the field's own internal content
+            // (text input + icon + cancel button) imposes a min-content width Yoga still honours
+            // over stretch, so it kept overflowing a narrow column regardless of min-width: 0.
+            // An explicit percentage width is clamped to the parent's box unconditionally.
+            catalogSearchField.style.width = new Length(100f, LengthUnit.Percent);
+            catalogSearchField.style.minWidth = 0f;
             catalogSearchField.style.marginTop = 4f;
             catalogSearchField.RegisterValueChangedCallback(OnCatalogSearchTextChanged);
             catalogColumn.Add(catalogSearchField);

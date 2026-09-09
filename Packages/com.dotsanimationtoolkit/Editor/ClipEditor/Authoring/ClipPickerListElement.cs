@@ -60,7 +60,11 @@ namespace DotsAnimationToolkit.Editor
 
             searchField = new ToolbarSearchField();
             searchField.name = "clip-picker-search";
-            searchField.style.flexGrow = 1f;
+            // The field's own internal content imposes a min-content width Yoga honours over
+            // flexGrow/min-width — an explicit percentage width is clamped to the row unconditionally
+            // (matches ClipSetsPanel's catalog search field fix).
+            searchField.style.width = new Length(100f, LengthUnit.Percent);
+            searchField.style.minWidth = 0f;
             searchField.RegisterValueChangedCallback(OnSearchTextChanged);
             searchRow.Add(searchField);
 
