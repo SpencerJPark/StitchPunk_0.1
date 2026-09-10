@@ -1,6 +1,6 @@
 # Shared asset selection — the toolbar's Clip Set and Rig fields move into the tabs, and every tab shares them
 
-> **Status:** 📝 specced 2026-09-09, not built.
+> **Status:** ✅ built 2026-09-09, shipped as 0.27.0. One ⏸ owner checkpoint open (three ⚠ interpretations).
 > **Spec:** [`Amendment_A80_SharedAssetSelection_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A80_SharedAssetSelection_Spec.md).
 > **Session prompt:** [`Amendment_A80_SharedAssetSelection_Prompt.md`](../../../../Docs/AnimationToolkit/Amendment_A80_SharedAssetSelection_Prompt.md).
 > **Executor:** one Editor-connected orchestrator running the gate; `worker` subagents edit files in

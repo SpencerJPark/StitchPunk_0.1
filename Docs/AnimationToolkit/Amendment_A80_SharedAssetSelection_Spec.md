@@ -1,7 +1,6 @@
 # Amendment A80 — one clip set, one rig, every tab: the toolbar fields move into the tabs that own them
 
-> **Status:** 📝 specced 2026-09-09, not built. Takes the version `CHANGELOG.md`'s header rule resolves
-> to when it lands (`0.27.0` if it lands before A79, which is still waiting on A78's checkpoint).
+> **Status:** ✅ built 2026-09-09, shipped as 0.27.0. One ⏸ owner checkpoint open (§5 T13, three ⚠ interpretations).
 > **Prompt:** [`Amendment_A80_SharedAssetSelection_Prompt.md`](Amendment_A80_SharedAssetSelection_Prompt.md).
 > **Predecessors:** [`Amendment_A75_ClipSets_Spec.md`](Amendment_A75_ClipSets_Spec.md) and
 > [`Amendment_A76_RigsTab_Spec.md`](Amendment_A76_RigsTab_Spec.md) — their catalogs become the
@@ -705,4 +704,13 @@ End the session with this message, verbatim in spirit:
   assert the field→selection direction: a panel-less element never dispatches its `ChangeEvent`, so
   the test became `Bind_FollowsTheSharedSelection_AndLeavesTheFieldEditable` (selection→field plus
   the enabled assertion; revert-to-fail is still the `SetEnabled(false)` line). Six touched fixtures
-  **25/25**.
+  **25/25**. Commit `df3334b4`.
+- **Wave 2:** T5f + T6b in parallel (61k / 63k tokens). Gate 14/14. Commit `007262e9`.
+- **Wave 3 (orchestrator):** T7, T9 (ClipSetsPanel's folder fallback moved onto `ShowSet` as
+  `RememberFallbackFolderOf`), T10a. Six fixtures 25/25. Commit `9d31a0de`.
+- **Wave 4:** T12a worker wrote the 0.27.0 changelog and bump (51k). Full EditMode **820/820**
+  (only `Conformance_A`), PlayMode **283/283**. Drive: every §5 T12.2 assertion held. Layout after
+  a hide/show cycle: profiles 200 · layers 220 · viewport rest · inspector 260 in a 969px window —
+  the profiles column settles at its floor, the A75/A76 settle-to-floor behaviour. Captures:
+  `Library/A80Captures/{clip-editor,vat-bake,actor-profiles}.png`, all taken with the Editor
+  focused and looked at. Scratch folder deleted. Commits `a7b149d7` + the docs follow-up.

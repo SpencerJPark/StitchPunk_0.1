@@ -5,7 +5,7 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.22.0).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.27.0).
 **§4** carries Amendment A73 (built, one ⏸ owner checkpoint open), A74 (built, one ⏸ owner
 checkpoint open) and A75 (built, one ⏸ owner checkpoint open).
 
@@ -118,6 +118,32 @@ shape of a suite that silently stopped compiling. Counts must not drop.
 displays" is not proof. Delete scratch assets and confirm `git status` afterwards.
 
 ## 4. The queue
+
+**Built (2026-09-09): Amendment A80 — one clip set, one rig, every tab — 0.27.0.** Spec
+`Docs/AnimationToolkit/Amendment_A80_SharedAssetSelection_Spec.md`; its §7 carries the build log.
+The top bar is tabs and the validation badge; the Clip Set and Rig fields sit under the Clips and
+Rig Hierarchy pane headers (same element names). One `ActiveAssetSelection` per window is written
+by every tab — a catalog click on Clip Sets or Rigs is the pick (reversing A76-D3 on the owner's
+instruction), VAT Bake's two fields are live pickers with the "change them in the top bar" hint
+gone, the standalone VAT window owns a selection of its own, and Actor Profiles is four resizable
+columns: the two shared fields over a searchable profiles catalog (New/Refresh, right-click
+Rename/Delete via `ActorProfileAssetUtility`), Layers, Preview, Actor Inspector — the header
+Profile field is gone. Built by fifteen parallel `worker` subagents (peak 79k tokens, none capped)
+then two, gated once per wave; the orchestrator did `VatBakeWindow`, the scaffolding removal and
+the string sweep. Gated **EditMode 820/820** (814 + 6; only the standing `Conformance_A` drift)
+and **PlayMode 283/283**. Driven for real against `Assets/A80Scratch` copies: a Rigs-tab click and
+a Clip Sets-tab click both landed in the Clip Editor's pane fields (39 hierarchy rows, 13 clips);
+nulling the rig on VAT Bake emptied the hierarchy with the new "Pick a rig above the hierarchy."
+hint; New on Actor Profiles wrote a profile whose **reloaded** asset carried Base first and
+Override last; picking a profile set the shared rig in every field; `TrashProfile` removed it from
+the catalog; a reflected `RestoreView` put both values into all five surfaces. Captures in
+`Library/A80Captures/` (three tabs, looked at). **Three ⏸ interpretations are the owner's to judge**
+(spec §2 ⚠, T13): both shared fields at the top of the Profiles column; VAT Bake's fields kept and
+made live rather than removed; New on either catalog makes the empty asset active everywhere.
+One observation for him: after a tab hide/show the Profiles column settles at its 200px floor
+rather than the 260px it opens at — the same settle-to-floor A75/A76 recorded, not new.
+**Next-build candidates** (2026-09-09 audit, five ranked ideas):
+`Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md`.
 
 **Built (2026-09-08): Amendment A78 — the rig says what to bake — 0.26.0.** Spec
 `Docs/AnimationToolkit/Amendment_A78_VatBakeSourceFromRig_Spec.md`; its §8 carries the full build log.
