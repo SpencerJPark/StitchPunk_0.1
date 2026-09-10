@@ -50,7 +50,8 @@ namespace DotsAnimationToolkit.Editor
         private string ragdollRefusalReason;
         private ActorEditorSelection currentSelection = ActorEditorSelection.None;
 
-        private ObjectField profileField;
+        private ActiveAssetSelection selection;
+        private ActorEditorProfilesColumn profilesColumn;
         private ValidationBadgeElement validationBadge;
         private TransportCoreElement transportCore;
         private EnumField directionField;
@@ -75,7 +76,6 @@ namespace DotsAnimationToolkit.Editor
             style.paddingTop = 6f;
             style.paddingBottom = 6f;
 
-            Add(BuildHeaderRow());
             Add(BuildBody());
         }
 
@@ -150,10 +150,7 @@ namespace DotsAnimationToolkit.Editor
                     return;
                 }
                 profile = value;
-                if (profileField != null)
-                {
-                    profileField.SetValueWithoutNotify(profile);
-                }
+                profilesColumn?.SetSelectedProfile(profile);
 
                 // The composer's blob is rebuilt on the next tick rather than here: SetProfile needs
                 // the window's preview controller, and a profile can be assigned before SetSource
@@ -178,12 +175,28 @@ namespace DotsAnimationToolkit.Editor
         /// Hands the panel the window's preview and rig. Called on every tab switch and whenever
         /// the toolbar Rig field changes while this pane is open.
         /// </summary>
-        public void SetSource(ClipPreviewController controller, RigAsset rig)
+        public void SetSource(ClipPreviewController controller)
         {
             previewController = controller;
-            windowRig = rig;
             cameraNavigation.Rig = controller;
         }
+
+        // Kept for the callers T5f has not yet moved onto the selection; windowRig is deleted next wave.
+        public void SetSource(ClipPreviewController controller, RigAsset rig)
+        {
+            SetSource(controller);
+            windowRig = rig;
+        }
+
+        public void Bind(ActiveAssetSelection sharedSelection)
+        {
+            selection = sharedSelection;
+            profilesColumn?.Bind(sharedSelection);
+        }
+
+        public void RescanProject() => profilesColumn?.RescanProject();
+
+        public void LoadCatalog(IReadOnlyList<ActorProfileAsset> profiles) => profilesColumn?.LoadCatalog(profiles);
 
         // Starts or stops the per-frame tick with the pane's visibility, and borrows the shared
         // preview's camera and billboard state for as long as it has it, restoring both on the way
@@ -224,6 +237,7 @@ namespace DotsAnimationToolkit.Editor
             composer.RagdollStartRequested -= OnComposerRagdollStartRequested;
             composer.RagdollStopRequested -= OnComposerRagdollStopRequested;
             composer.Dispose();
+            profilesColumn?.Dispose();
         }
 
         private void BorrowPreviewCamera()
@@ -267,27 +281,6 @@ namespace DotsAnimationToolkit.Editor
         // -----------------------------------------------------------------------------------------
         // Layout
         // -----------------------------------------------------------------------------------------
-
-        private VisualElement BuildHeaderRow()
-        {
-            VisualElement header = new VisualElement();
-            header.style.flexDirection = FlexDirection.Row;
-            header.style.alignItems = Align.Center;
-            header.style.marginBottom = 6f;
-
-            profileField = new ObjectField("Profile") { objectType = typeof(ActorProfileAsset) };
-            profileField.name = "actor-editor-profile-field";
-            profileField.style.flexGrow = 1f;
-            profileField.RegisterValueChangedCallback(
-                changeEvent => Profile = changeEvent.newValue as ActorProfileAsset);
-            header.Add(profileField);
-
-            validationBadge = new ValidationBadgeElement { name = "actor-editor-validation-badge" };
-            validationBadge.style.marginLeft = 6f;
-            header.Add(validationBadge);
-
-            return header;
-        }
 
         private VisualElement BuildTransportRow()
         {
@@ -369,6 +362,13 @@ namespace DotsAnimationToolkit.Editor
             Label viewportTitle = new Label("Preview");
             viewportTitle.AddToClassList("toolkit-pane-title");
             viewportHeader.Add(viewportTitle);
+
+            VisualElement viewportActions = new VisualElement();
+            viewportActions.AddToClassList("toolkit-pane-actions");
+            validationBadge = new ValidationBadgeElement { name = "actor-editor-validation-badge" };
+            viewportActions.Add(validationBadge);
+            viewportHeader.Add(viewportActions);
+
             viewportColumn.Add(viewportHeader);
 
             viewportStatusLabel = new Label();
@@ -470,12 +470,15 @@ namespace DotsAnimationToolkit.Editor
             layersColumnView.Bind(profile, composer);
             inspectorColumnView.Bind(profile, composer);
 
-            // Two nested TwoPaneSplitViews (layers | viewport | inspector) rather than three flex
-            // columns, matching CutsceneEditorPanel's cast | viewport | inspector split. Both need
-            // their own minWidth: this whole pane is a cover pane hidden via USS class when the tab
-            // switches away (see ClipEditorWindow.ShowActorEditorTab), and a hidden TwoPaneSplitView
-            // lays out at zero by zero, collapsing to nothing but the flexible pane on the way back
-            // (see AnimationToolkit.md).
+            profilesColumn = new ActorEditorProfilesColumn();
+            profilesColumn.ProfileSelected += picked => Profile = picked;
+
+            // Three nested TwoPaneSplitViews (profiles | layers | viewport | inspector) rather than
+            // four flex columns, matching CutsceneEditorPanel's cast | viewport | inspector split.
+            // Every split needs its own minWidth: this whole pane is a cover pane hidden via USS
+            // class when the tab switches away (see ClipEditorWindow.ShowActorEditorTab), and a
+            // hidden TwoPaneSplitView lays out at zero by zero, collapsing to nothing but the
+            // flexible pane on the way back (see AnimationToolkit.md).
             TwoPaneSplitView rightSplit = new TwoPaneSplitView(
                 1, SideColumnWidth, TwoPaneSplitViewOrientation.Horizontal);
             rightSplit.style.flexGrow = 1f;
@@ -483,12 +486,18 @@ namespace DotsAnimationToolkit.Editor
             rightSplit.Add(viewportColumn);
             rightSplit.Add(inspectorColumn);
 
-            TwoPaneSplitView body = new TwoPaneSplitView(
+            TwoPaneSplitView middleSplit = new TwoPaneSplitView(
                 0, SideColumnWidth, TwoPaneSplitViewOrientation.Horizontal);
+            middleSplit.style.flexGrow = 1f;
+            middleSplit.style.minWidth = 680f;
+            middleSplit.Add(layersColumn);
+            middleSplit.Add(rightSplit);
+
+            TwoPaneSplitView body = new TwoPaneSplitView(0, 260f, TwoPaneSplitViewOrientation.Horizontal);
             body.style.flexGrow = 1f;
-            body.style.minWidth = 680f;
-            body.Add(layersColumn);
-            body.Add(rightSplit);
+            body.style.minWidth = 880f;
+            body.Add(profilesColumn);
+            body.Add(middleSplit);
 
             return body;
         }

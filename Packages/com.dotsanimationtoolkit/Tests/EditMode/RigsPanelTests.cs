@@ -17,6 +17,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private GameObject torsoNode;
         private GameObject headNode;
         private RigAsset rigAsset;
+        private RigAsset secondRigAsset;
 
         [SetUp]
         public void SetUp()
@@ -40,12 +41,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 sourceNodePath = "Torso",
             });
             rigAsset.EnsureStableIds();
+
+            secondRigAsset = ScriptableObject.CreateInstance<RigAsset>();
         }
 
         [TearDown]
         public void TearDown()
         {
             Object.DestroyImmediate(rigAsset);
+            Object.DestroyImmediate(secondRigAsset);
             Object.DestroyImmediate(sourcePrefabRoot);
         }
 
@@ -94,6 +98,27 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 List<Toggle> tickedToggles = candidateToggles.Where(toggle => toggle.value).ToList();
                 Assert.AreEqual(1, tickedToggles.Count);
                 Assert.AreEqual("Torso", tickedToggles[0].tooltip);
+            }
+            finally
+            {
+                panel.Dispose();
+            }
+        }
+
+        [Test]
+        public void SelectRig_WritesTheSharedSelection_AndFollowsIt()
+        {
+            ActiveAssetSelection selection = new ActiveAssetSelection();
+            RigsPanel panel = new RigsPanel();
+            try
+            {
+                panel.Bind(selection);
+
+                panel.SelectRig(rigAsset);
+                Assert.AreEqual(rigAsset, selection.Rig);
+
+                selection.SetRig(secondRigAsset);
+                Assert.AreEqual(secondRigAsset, panel.SelectedRig);
             }
             finally
             {

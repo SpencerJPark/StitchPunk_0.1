@@ -25,10 +25,10 @@ namespace DotsAnimationToolkit.Editor
         private Toggle fullPrecisionField;
         private TextField outputFolderField;
         private Label summaryLabel;
-        private Label sourceBoundHint;
         private ScrollView logView;
         private VatPreviewElement preview;
         private ObjectField previewSetField;
+        private ActiveAssetSelection selection;
 
         /// <summary>The preview's own transport, so a host window can route Space/Home/End/arrow keys to it.</summary>
         public ITransportTarget TransportTarget
@@ -39,6 +39,11 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Releases the preview's render utility and its copy of the source hierarchy.</summary>
         public void Dispose()
         {
+            if (selection != null)
+            {
+                selection.ClipSetChanged -= OnSharedClipSetChanged;
+                selection.RigChanged -= OnSharedRigChanged;
+            }
             preview?.Dispose();
         }
 
@@ -60,14 +65,22 @@ namespace DotsAnimationToolkit.Editor
 
             clipSetField = new ObjectField("Clip Set")
             {
+                name = "vat-bake-clip-set-field",
                 objectType = typeof(ClipSetAsset),
                 allowSceneObjects = false,
                 tooltip = "Clips whose ClipAsset names a VAT source clip are baked. Others are skipped."
             };
             clipSetField.RegisterValueChangedCallback(changeEvent =>
             {
-                RefreshPreview();
-                RefreshResolvedSources();
+                ClipSetAsset newClipSet = changeEvent.newValue as ClipSetAsset;
+                if (selection != null)
+                {
+                    selection.SetClipSet(newClipSet);
+                }
+                else
+                {
+                    OnSharedClipSetChanged(newClipSet);
+                }
             });
             root.Add(clipSetField);
 
@@ -75,21 +88,25 @@ namespace DotsAnimationToolkit.Editor
             // sourceRigKey so a later bind cannot pair these textures with another character's mesh.
             rigField = new ObjectField("Rig")
             {
+                name = "vat-bake-rig-field",
                 objectType = typeof(RigAsset),
                 allowSceneObjects = false,
                 tooltip = "The rig these textures are baked for. Socket rows come from it, and it " +
                     "is stamped into the texture set so the wrong rig cannot bind them."
             };
-            rigField.RegisterValueChangedCallback(changeEvent => RefreshResolvedSources());
+            rigField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RigAsset newRig = changeEvent.newValue as RigAsset;
+                if (selection != null)
+                {
+                    selection.SetRig(newRig);
+                }
+                else
+                {
+                    OnSharedRigChanged(newRig);
+                }
+            });
             root.Add(rigField);
-
-            // Hidden until a host calls SetSource — in the standalone window there is nowhere else
-            // to change these fields, so a line pointing elsewhere would be pointing at nothing.
-            sourceBoundHint = new Label(
-                "Clip Set and Rig follow the Clip Editor's own — change them in its top bar.");
-            sourceBoundHint.style.whiteSpace = WhiteSpace.Normal;
-            sourceBoundHint.style.display = DisplayStyle.None;
-            root.Add(sourceBoundHint);
 
             // Not a field: which meshes a bake covers is a fact about the rig, not a fourth thing to keep in
             // step with it. This line is the receipt — what the rig resolved to, or why it did not.
@@ -183,20 +200,38 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public void SetSource(ClipSetAsset clipSet, RigAsset rig)
         {
-            if (clipSetField != null)
+            selection?.SetClipSet(clipSet);
+            selection?.SetRig(rig);
+        }
+
+        /// <summary>Follows a shared clip-set/rig pick across every tab that binds the same selection.</summary>
+        public void Bind(ActiveAssetSelection sharedSelection)
+        {
+            if (selection != null)
             {
-                clipSetField.SetValueWithoutNotify(clipSet);
-                clipSetField.SetEnabled(false);
+                selection.ClipSetChanged -= OnSharedClipSetChanged;
+                selection.RigChanged -= OnSharedRigChanged;
             }
-            if (rigField != null)
+            selection = sharedSelection;
+            if (selection != null)
             {
-                rigField.SetValueWithoutNotify(rig);
-                rigField.SetEnabled(false);
+                selection.ClipSetChanged += OnSharedClipSetChanged;
+                selection.RigChanged += OnSharedRigChanged;
             }
-            if (sourceBoundHint != null)
-            {
-                sourceBoundHint.style.display = DisplayStyle.Flex;
-            }
+            OnSharedClipSetChanged(selection?.ClipSet);
+            OnSharedRigChanged(selection?.Rig);
+        }
+
+        private void OnSharedClipSetChanged(ClipSetAsset clipSet)
+        {
+            clipSetField.SetValueWithoutNotify(clipSet);
+            RefreshPreview();
+            RefreshResolvedSources();
+        }
+
+        private void OnSharedRigChanged(RigAsset rig)
+        {
+            rigField.SetValueWithoutNotify(rig);
             RefreshResolvedSources();
         }
 

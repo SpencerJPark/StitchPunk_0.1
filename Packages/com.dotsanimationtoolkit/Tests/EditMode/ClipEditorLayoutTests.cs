@@ -32,8 +32,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "clip-editor-root", "clip-editor-toolbar",
             "clip-set-field",
             "skinned-source-field", "validation-badge-slot",
-            // The four tabs, in the top bar beside the clip set and rig they all read. Exactly one
-            // is lit, and SetActiveTab is the only writer of that.
+            // The tabs are the top bar's only controls now; the clip-set and skinned-source fields
+            // they used to sit beside moved into their own panes (clip-list-pane, hierarchy-pane).
+            // Exactly one tab is lit, and SetActiveTab is the only writer of that.
             "tab-strip",
             "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
             "tab-vat-bake",
@@ -249,6 +250,27 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AssertSplit(cloneTarget, "dock-columns", TwoPaneSplitViewOrientation.Horizontal, "dock-left");
             AssertSplit(cloneTarget, "dock-left", TwoPaneSplitViewOrientation.Vertical, "clip-list-pane");
             AssertSplit(cloneTarget, "dock-right", TwoPaneSplitViewOrientation.Horizontal, "inspector-pane");
+        }
+
+        [Test]
+        public void AssetFields_LiveInsideTheirPanes_NotTheToolbar()
+        {
+            VisualElement cloneTarget = CloneLayout();
+
+            Assert.IsNotNull(
+                cloneTarget.Q<VisualElement>("clip-list-pane").Q<ObjectField>("clip-set-field"),
+                "clip-set-field moved out of clip-list-pane; the window binds fields by name from " +
+                "anywhere in the tree, so a drift here would still bind and only this layout test " +
+                "would notice.");
+            Assert.IsNotNull(
+                cloneTarget.Q<VisualElement>("hierarchy-pane").Q<ObjectField>("skinned-source-field"),
+                "skinned-source-field moved out of hierarchy-pane; the window binds fields by name " +
+                "from anywhere in the tree, so a drift here would still bind and only this layout " +
+                "test would notice.");
+            Assert.IsNull(
+                cloneTarget.Q<VisualElement>("clip-editor-toolbar").Q<ObjectField>(),
+                "an ObjectField drifted back into clip-editor-toolbar; it would still bind by name " +
+                "and only this layout test would notice.");
         }
 
         private static VisualElement CloneLayout()

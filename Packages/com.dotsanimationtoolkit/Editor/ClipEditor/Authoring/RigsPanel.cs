@@ -53,9 +53,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<ClipAsset> catalogClips = new List<ClipAsset>();
         private readonly RigSaveLocation saveLocation = new RigSaveLocation();
 
-        // Once the user has picked something this session (a catalog click or New), an incoming
-        // SetSource from the window's own active-rig field must not yank the selection back.
-        private bool hasUserSelectedThisSession;
+        private ActiveAssetSelection selection;
 
         public RigAsset SelectedRig { get; private set; }
 
@@ -110,7 +108,25 @@ namespace DotsAnimationToolkit.Editor
         public void Dispose()
         {
             Undo.undoRedoPerformed -= OnUndoRedoPerformed;
+            if (selection != null)
+            {
+                selection.RigChanged -= OnSharedRigChanged;
+            }
+
             preview?.Dispose();
+        }
+
+        /// <summary>Adopts the window's shared rig/clip-set selection, following it until re-bound or disposed.</summary>
+        public void Bind(ActiveAssetSelection sharedSelection)
+        {
+            if (selection != null)
+            {
+                selection.RigChanged -= OnSharedRigChanged;
+            }
+
+            selection = sharedSelection;
+            selection.RigChanged += OnSharedRigChanged;
+            OnSharedRigChanged(selection.Rig);
         }
 
         private void OnUndoRedoPerformed()
@@ -127,20 +143,21 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // Called every time the host shows this tab, so the catalog always reflects the current
-        // project and a freshly-activated rig is pre-selected until the user picks something else.
+        // project. Selection now follows the shared ActiveAssetSelection instead of this parameter.
         public void SetSource(RigAsset activeRig)
         {
             RescanProject();
-            if (!hasUserSelectedThisSession && activeRig != null)
-            {
-                SelectRig(activeRig);
-            }
         }
 
         public void SelectRig(RigAsset rig)
         {
+            ShowRig(rig);
+            selection?.SetRig(rig);
+        }
+
+        private void ShowRig(RigAsset rig)
+        {
             SelectedRig = rig;
-            hasUserSelectedThisSession = true;
             catalog.SetSelectedRig(rig);
             // Without notify: a plain assignment would fire the field's own change callback and
             // immediately write this rig's prefab (or name) back onto itself.
@@ -148,6 +165,16 @@ namespace DotsAnimationToolkit.Editor
             rigNameField.SetValueWithoutNotify(rig != null ? rig.name : string.Empty);
             ApplyChromeForSelection();
             BuildRowsForEditMode(rig);
+        }
+
+        private void OnSharedRigChanged(RigAsset rig)
+        {
+            if (rig == SelectedRig)
+            {
+                return;
+            }
+
+            ShowRig(rig);
         }
 
         /// <summary>Creates an empty rig in the remembered folder and selects it, so the catalog gains an entry the user edits in place.</summary>
@@ -176,7 +203,7 @@ namespace DotsAnimationToolkit.Editor
             editorContent.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
-        private void RescanProject()
+        public void RescanProject()
         {
             List<RigAsset> rigs = new List<RigAsset>();
             string[] rigAssetGuids = AssetDatabase.FindAssets("t:" + nameof(RigAsset));
@@ -735,7 +762,8 @@ namespace DotsAnimationToolkit.Editor
             // from pointing at an asset that no longer exists.
             if (wasSelected)
             {
-                SelectRig(null);
+                ShowRig(null);
+                selection?.SetRig(null);
             }
 
             RescanProject();

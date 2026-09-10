@@ -43,6 +43,8 @@ namespace DotsAnimationToolkit.Editor
 
         public ClipSetAsset SelectedSet { get; private set; }
 
+        private ActiveAssetSelection selection;
+
         public ClipSetsPanel()
         {
             style.flexGrow = 1f;
@@ -238,8 +240,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (wasSelected)
             {
-                SelectedSet = null;
-                ApplyChromeForSelection();
+                ShowSet(null);
+                selection?.SetClipSet(null);
             }
 
             RescanProject();
@@ -399,6 +401,29 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        public void Bind(ActiveAssetSelection sharedSelection)
+        {
+            // Re-bindable: unsubscribe the old one first, or a re-dock double-subscribes.
+            if (selection != null)
+            {
+                selection.ClipSetChanged -= OnSharedClipSetChanged;
+            }
+
+            selection = sharedSelection;
+            selection.ClipSetChanged += OnSharedClipSetChanged;
+            OnSharedClipSetChanged(selection.ClipSet);
+        }
+
+        private void OnSharedClipSetChanged(ClipSetAsset clipSet)
+        {
+            if (clipSet == SelectedSet)
+            {
+                return;
+            }
+
+            ShowSet(clipSet);
+        }
+
         private void OnOpenInEditorClicked()
         {
             if (OpenInEditorRequested != null)
@@ -447,14 +472,9 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
             saveLocation.FallbackFolder = fallbackFolder;
-
-            if (openClipSet != null && SelectedSet == null)
-            {
-                SelectSet(openClipSet);
-            }
         }
 
-        private void RescanProject()
+        public void RescanProject()
         {
             List<ClipSetAsset> clipSets = new List<ClipSetAsset>();
             string[] clipSetAssetGuids = AssetDatabase.FindAssets("t:" + nameof(ClipSetAsset));
@@ -561,6 +581,12 @@ namespace DotsAnimationToolkit.Editor
         }
 
         public void SelectSet(ClipSetAsset clipSet)
+        {
+            ShowSet(clipSet);
+            selection?.SetClipSet(clipSet);
+        }
+
+        private void ShowSet(ClipSetAsset clipSet)
         {
             SelectedSet = clipSet;
 
@@ -689,6 +715,11 @@ namespace DotsAnimationToolkit.Editor
 
         public void Dispose()
         {
+            if (selection != null)
+            {
+                selection.ClipSetChanged -= OnSharedClipSetChanged;
+            }
+
             picker.ClipCheckedChanged -= OnPickerClipCheckedChanged;
             picker.ClipRenameRequested -= OnPickerClipRenameRequested;
             clipSetsList.selectionChanged -= OnClipSetsListSelectionChanged;

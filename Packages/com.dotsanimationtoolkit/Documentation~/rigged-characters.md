@@ -131,8 +131,9 @@ Everything about the window itself — selection, keying, the dopesheet, sockets
 and the route into prefab mode — is in [`clip-editor.md`](clip-editor.md). Two
 things there are worth calling out for a rigged character in particular:
 
-- **The rig hierarchy is the bone picker.** Pick a `RigAsset` in the toolbar's
-  **Rig** field — or build one on the spot with **New Rig** — set its
+- **The rig hierarchy is the bone picker.** Pick a `RigAsset` in the **Rig**
+  field at the top of the Rig Hierarchy pane — or build one on the spot with
+  **New Rig** — set its
   **Source Prefab**, select a bone in the tree, and the inspector offers
   **Add Bone Track** for exactly that bone. No typing, so the "name resolved to
   nothing and the bake froze it at rest" failure cannot happen.

@@ -33,7 +33,7 @@ add to the part's rest pose; scale multiplies it. A key of "no offset" leaves th
 part exactly where the prefab put it. That is what lets one clip drive several
 characters whose proportions differ, and it is why the Clip Editor's preview
 takes each part's rest pose from the **Source Prefab** of the rig you assign in
-the toolbar's **Rig** field.
+the **Rig** field at the top of the Rig Hierarchy pane.
 
 ---
 

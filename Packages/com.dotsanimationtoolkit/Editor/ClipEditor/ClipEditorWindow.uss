@@ -427,23 +427,21 @@
     flex-shrink: 0;
 }
 
-/* Each label heads a pair of fields, so its left margin is the gap between one group and the next
-   rather than the gap between two controls. That is the only spacing in this row that is allowed to
-   be larger than the others, and it is here rather than inline so both labels cannot drift apart. */
+/* Heads the Cutscene Director's own asset bar (its label + object field pair), so its left margin
+   is the gap between that bar and whatever sits to its left. Kept inline-adjacent rather than on the
+   field so the label cannot drift apart from it. */
 .clip-editor__toolbar-label {
     -unity-text-align: middle-left;
     margin-left: 16px;
     margin-right: 4px;
 }
 
-/* The tabs share the top bar with the clip set and rig fields. The -1px shared-edge trick
-   .clip-editor__bar-action uses is for continuing a run of buttons, and the strip no longer follows
-   one — the Rig object field ends that half of the bar. So this is the group gap the toolbar labels
-   use instead: the fields are one run, the tabs are another. */
+/* The tab strip now starts the bar — the clip set and rig pickers moved into their own panes — so
+   there is no group to its left and no gap to hold open. */
 .clip-editor__tab-strip {
     flex-direction: row;
     align-items: stretch;
-    margin-left: 16px;
+    margin-left: 0;
 }
 
 /*
@@ -529,6 +527,13 @@
 
 .clip-editor__object-field {
     width: 200px;
+}
+
+/* The clip set and rig pickers, one per pane, under the pane's own header. Full width because the
+   pane title is the label; the field's own empty text says the type. */
+.clip-editor__pane-field {
+    margin: 2px 6px 4px 6px;
+    flex-shrink: 0;
 }
 
 .clip-editor__frame-field {

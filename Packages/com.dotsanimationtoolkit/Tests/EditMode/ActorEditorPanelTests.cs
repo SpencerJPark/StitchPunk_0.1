@@ -13,8 +13,8 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
-    /// EditMode coverage of <see cref="ActorEditorPanel"/>'s shell: the three named columns and the
-    /// header's profile field exist, and assigning a profile raises <see cref="ActorEditorPanel.ProfileChanged"/>.
+    /// EditMode coverage of <see cref="ActorEditorPanel"/>'s shell: the four named columns exist,
+    /// and assigning a profile raises <see cref="ActorEditorPanel.ProfileChanged"/>.
     /// </summary>
     public sealed class ActorEditorPanelTests
     {
@@ -33,22 +33,24 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void Panel_ExposesThreeNamedColumnsAndTheProfileField()
+        public void Panel_ExposesFourNamedColumns()
         {
             ActorEditorPanel panel = new ActorEditorPanel();
 
+            Assert.IsNotNull(panel.Q<VisualElement>("profiles-column"), "profiles-column must exist.");
             Assert.IsNotNull(panel.Q<VisualElement>("layers-column"), "layers-column must exist.");
             Assert.IsNotNull(panel.Q<VisualElement>("viewport-column"), "viewport-column must exist.");
             Assert.IsNotNull(panel.Q<VisualElement>("inspector-column"), "inspector-column must exist.");
-            Assert.IsNotNull(
+            Assert.IsNull(
                 panel.Q<ObjectField>("actor-editor-profile-field"),
-                "the header Profile field must exist.");
+                "the header Profile field must no longer exist.");
         }
 
         [Test]
-        public void AssigningAProfile_RaisesProfileChangedAndUpdatesTheField()
+        public void AssigningAProfile_RaisesProfileChanged_AndSelectsItInTheCatalog()
         {
             ActorEditorPanel panel = new ActorEditorPanel();
+            panel.LoadCatalog(new List<ActorProfileAsset> { profileAsset });
             ActorProfileAsset raisedProfile = null;
             panel.ProfileChanged += changedProfile => raisedProfile = changedProfile;
 
@@ -57,8 +59,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(profileAsset, raisedProfile);
             Assert.AreEqual(profileAsset, panel.Profile);
             Assert.AreEqual(
-                profileAsset, panel.Q<ObjectField>("actor-editor-profile-field").value,
-                "the header field must reflect a profile assigned through the property.");
+                profileAsset, panel.Q<ActorEditorProfilesColumn>("profiles-column").SelectedProfile,
+                "the profiles column must select the profile assigned through the property.");
         }
 
         [Test]

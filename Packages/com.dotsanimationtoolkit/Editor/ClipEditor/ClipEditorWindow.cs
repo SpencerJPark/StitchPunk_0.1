@@ -328,10 +328,12 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// The rig this window is playing the open set against. Window state, stored on no asset —
-        /// a rig and a clip set are independent, and the two toolbar pickers above are independent
-        /// with them.
+        /// a rig and a clip set are independent, and this mirrors the shared selection every tab
+        /// writes to, not just the two fields on this window's own toolbar.
         /// </summary>
         private RigAsset activeRig;
+
+        private readonly ActiveAssetSelection selection = new ActiveAssetSelection();
 
         // The rig an open Clip Editor is currently showing, or null when none is open or none is
         // picked. The one way a rig reaches code outside this window now that no asset records one.
@@ -698,20 +700,15 @@ namespace DotsAnimationToolkit.Editor
             // but leaves the panes offered a selection they were not showing at the time.
             SetActiveTab(restoredTab);
 
-            // The rig first, and with notify: it is what the hierarchy and the preview are built
-            // from, and OnClipSetChanged below deliberately leaves it alone. Restoring it second
-            // would rebuild both panes twice, the first time against no rig at all.
-            if (skinnedSourceField != null)
-            {
-                skinnedSourceField.value = restoredRig;
-            }
+            // The rig first: it is what the hierarchy and the preview are built from, and
+            // ApplyClipSetSelection below deliberately leaves it alone. Restoring it second would
+            // rebuild both panes twice, the first time against no rig at all. SetRig raises
+            // ApplyRigSelection, which is what does the rebuilding.
+            selection.SetRig(restoredRig);
 
-            if (clipSetField != null)
-            {
-                // With notify: OnClipSetChanged is what repopulates the clip list, the hierarchy and
-                // the preview from the set.
-                clipSetField.value = restoredClipSet;
-            }
+            // SetClipSet raises ApplyClipSetSelection, which is what repopulates the clip list, the
+            // hierarchy and the preview from the set.
+            selection.SetClipSet(restoredClipSet);
 
             int restoredClipIndex = restoredClip != null && restoredClipSet != null
                 && restoredClipSet.clips != null
@@ -771,6 +768,8 @@ namespace DotsAnimationToolkit.Editor
             PrefabStage.prefabSaved -= OnPrefabStageSaved;
             PrefabStage.prefabStageClosing -= OnPrefabStageClosing;
             AssemblyReloadEvents.beforeAssemblyReload -= RememberSessionState;
+            selection.ClipSetChanged -= ApplyClipSetSelection;
+            selection.RigChanged -= ApplyRigSelection;
 
             // Again here, so the capture does not depend on Unity raising beforeAssemblyReload
             // before OnDisable rather than after. Both run before this instance is serialized, and
@@ -892,6 +891,11 @@ namespace DotsAnimationToolkit.Editor
 
             layoutAsset.CloneTree(rootVisualElement);
 
+            // Before BindToolbar, so RestoreView's writes to the selection at the end of this method
+            // land on live handlers instead of firing into nothing.
+            selection.ClipSetChanged += ApplyClipSetSelection;
+            selection.RigChanged += ApplyRigSelection;
+
             BindToolbar();
             BindClipList();
             BindHierarchy();
@@ -939,7 +943,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 clipSetField.objectType = typeof(ClipSetAsset);
                 clipSetField.allowSceneObjects = false;
-                clipSetField.RegisterValueChangedCallback(OnClipSetChanged);
+                clipSetField.RegisterValueChangedCallback(
+                    changeEvent => selection.SetClipSet(changeEvent.newValue as ClipSetAsset));
             }
 
             // Snap and Auto Key are no longer in the top bar. They sit on the status row over the
@@ -1076,10 +1081,11 @@ namespace DotsAnimationToolkit.Editor
                 skinnedSourceField.objectType = typeof(RigAsset);
                 skinnedSourceField.allowSceneObjects = false;
                 skinnedSourceField.tooltip =
-                    "The rig this clip set animates. Its Source Prefab (set on the rig asset "
-                    + "itself) is what the preview instantiates for bone tracks — use the Rigs tab to "
-                    + "create one, or open an existing rig to assign or change its prefab.";
-                skinnedSourceField.RegisterValueChangedCallback(OnSkinnedSourceChanged);
+                    "The rig this window animates. Its Source Prefab is what the hierarchy lists "
+                    + "and the preview instantiates. Shared with every tab — the Rigs tab picks it "
+                    + "too.";
+                skinnedSourceField.RegisterValueChangedCallback(
+                    changeEvent => selection.SetRig(changeEvent.newValue as RigAsset));
             }
 
             VisualElement badgeSlot = rootVisualElement.Q<VisualElement>("validation-badge-slot");
@@ -1304,8 +1310,7 @@ namespace DotsAnimationToolkit.Editor
         {
             get
             {
-                RigAsset rig = skinnedSourceField != null ? skinnedSourceField.value as RigAsset : null;
-                return rig != null ? rig.sourcePrefab : null;
+                return activeRig != null ? activeRig.sourcePrefab : null;
             }
         }
 
@@ -3513,10 +3518,11 @@ namespace DotsAnimationToolkit.Editor
 
         // Window state, written to no asset: no data model pairs a rig with a clip set, so this
         // only records what this window plays the set against — no undo step, no actor bake changes.
-        /// <summary>Handles a pick in the toolbar's Rig field: records it and refreshes everything downstream.</summary>
-        private void OnSkinnedSourceChanged(ChangeEvent<Object> changeEvent)
+        // The shared selection is the source now; this mirrors it and refreshes everything downstream.
+        private void ApplyRigSelection(RigAsset rig)
         {
-            activeRig = changeEvent.newValue as RigAsset;
+            activeRig = rig;
+            skinnedSourceField?.SetValueWithoutNotify(rig);
 
             if (previewController != null)
             {
@@ -3539,8 +3545,8 @@ namespace DotsAnimationToolkit.Editor
             // LoadedPrefab is what Edit Prefab's enabled state depends on, and a pick here is one
             // of the places it changes. Without this the button was disabled at bind time — when
             // no rig is assigned yet — and never re-enabled, so assigning a rig left a button that
-            // swallowed clicks in silence. OnClipSetChanged carries the same refresh now, for the
-            // other place LoadedPrefab can change.
+            // swallowed clicks in silence. ApplyClipSetSelection carries the same refresh now, for
+            // the other place LoadedPrefab can change.
             RefreshPrefabActionState();
             RefreshOpenPaneSource();
         }
@@ -4464,9 +4470,10 @@ namespace DotsAnimationToolkit.Editor
         // Selection plumbing
         // -------------------------------------------------------------------------------------
 
-        private void OnClipSetChanged(ChangeEvent<Object> changeEvent)
+        private void ApplyClipSetSelection(ClipSetAsset newClipSet)
         {
-            clipSet = changeEvent.newValue as ClipSetAsset;
+            clipSet = newClipSet;
+            clipSetField?.SetValueWithoutNotify(newClipSet);
             SelectClip(null);
 
             // The Rig field is deliberately left alone. A clip set names no rig and a rig names no

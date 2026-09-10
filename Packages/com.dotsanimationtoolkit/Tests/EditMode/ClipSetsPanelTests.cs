@@ -18,6 +18,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private ClipAsset runClip;
         private ClipAsset idleClip;
         private ClipSetAsset clipSetAsset;
+        private ClipSetAsset otherClipSetAsset;
 
         [SetUp]
         public void SetUp()
@@ -28,6 +29,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             clipSetAsset = ScriptableObject.CreateInstance<ClipSetAsset>();
             clipSetAsset.clips = new List<ClipAsset> { walkClip, runClip, walkClip };
+
+            otherClipSetAsset = ScriptableObject.CreateInstance<ClipSetAsset>();
+            otherClipSetAsset.clips = new List<ClipAsset> { idleClip };
         }
 
         [TearDown]
@@ -37,6 +41,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Object.DestroyImmediate(runClip);
             Object.DestroyImmediate(idleClip);
             Object.DestroyImmediate(clipSetAsset);
+            Object.DestroyImmediate(otherClipSetAsset);
         }
 
         [Test]
@@ -62,6 +67,26 @@ namespace DotsAnimationToolkit.Tests.EditMode
             panel.SelectSet(clipSetAsset);
 
             Assert.AreEqual(clipSetAsset.name, panel.Q<TextField>("clip-set-name-field").value);
+        }
+
+        [Test]
+        public void SelectSet_WritesTheSharedSelection_AndFollowsIt()
+        {
+            ClipSetsPanel panel = new ClipSetsPanel();
+            panel.LoadCatalog(
+                new List<ClipSetAsset> { clipSetAsset, otherClipSetAsset },
+                new List<ClipAsset> { walkClip, runClip, idleClip });
+
+            ActiveAssetSelection selection = new ActiveAssetSelection();
+            panel.Bind(selection);
+
+            panel.SelectSet(clipSetAsset);
+            Assert.AreEqual(clipSetAsset, selection.ClipSet);
+
+            selection.SetClipSet(otherClipSetAsset);
+            Assert.AreEqual(otherClipSetAsset, panel.SelectedSet);
+
+            panel.Dispose();
         }
     }
 }

@@ -696,4 +696,13 @@ End the session with this message, verbatim in spirit:
 
 ## 7. Build log
 
-_(T0 fills in: baseline counts, head commit, any line drift found. Each wave appends one line.)_
+- **T0 (2026-09-09):** head `df0ffeb4`, tree clean. EditMode **814/814** discovered, one failure =
+  the standing `Conformance_A` asmdef drift (`Unity.RenderPipelines.Universal.Runtime` extra).
+  PlayMode **283/283**. Window anchors re-verified against head: every §3/§4 line number holds.
+- **Wave 1 (2026-09-09):** fifteen workers in parallel, peak 79k tokens (T5e), none capped. One
+  compile error at the gate (`VatBakePanelTests` lacked `using UnityEngine.UIElements` for `Q`),
+  fixed by the orchestrator. `VatBakePanelTests.Bind_FollowsTheSharedSelectionBothWays` could not
+  assert the field→selection direction: a panel-less element never dispatches its `ChangeEvent`, so
+  the test became `Bind_FollowsTheSharedSelection_AndLeavesTheFieldEditable` (selection→field plus
+  the enabled assertion; revert-to-fail is still the `SetEnabled(false)` line). Six touched fixtures
+  **25/25**.
