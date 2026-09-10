@@ -206,15 +206,20 @@ provider that the registry check needs.
 
 ## Authoring in the Actor Editor
 
-Double-click an `ActorProfileAsset` (or open the Clip Editor and pick the **Actor Editor** tab,
-alongside New Rig · Clip Editor · VAT Bake · Cutscene Editor) to author and test one live. Unlike
+Double-click an `ActorProfileAsset` (or open the Clip Editor and pick the **Actor Profiles** tab,
+alongside Clip Sets · Rigs · Clip Editor · VAT Bake · Cutscene Director) to author and test one live. Unlike
 the Clip Editor, which previews one clip, this tab previews the whole profile: every layer
 composited, triggered the way the game triggers them, turning through the profile's directions,
 dropping and restoring ragdoll on the entries that say so.
 
-**Header.** A profile field and a validation badge (P1–P7 plus clip/rig binding). The three panes
-below it — **Layers**, **Preview**, **Actor Inspector** — each carry a title, the same way the Clip
-Editor's do.
+**Profiles column.** The first of four resizable columns. At its top sit the **Clip Set** and
+**Rig** fields every tab shares (picking a profile sets the rig to the profile's own; the clip set
+is the editor's, not the profile's — a profile lists its own clip sets). Below them, a searchable
+catalog of every profile in the project: click one to open it, **New** creates an empty profile
+with its two bookends in the remembered folder, **Refresh** rescans, and a row's right-click menu
+offers **Rename** and **Delete** (to the OS trash, after asking). The three panes beside it —
+**Layers**, **Preview**, **Actor Inspector** — each carry a title, the same way the Clip Editor's
+do; the validation badge (P1–P7 plus clip/rig binding) sits in the Preview pane's header.
 
 **Transport.** Under the preview, in the toolkit's shared icon style: ⏮ resets every layer to its
 starter or inactive, ragdoll off, direction to south-east; ▶/⏸ runs the composer; ■ pauses and

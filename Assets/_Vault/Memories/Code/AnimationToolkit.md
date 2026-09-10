@@ -823,3 +823,31 @@ subagents each editing a disjoint set of `.cs` files and explicitly forbidden fr
 exactly `Cutscene_Roadmap.md` §4's `[parallel-safe]` rule. Default is still sequential, one
 editor-connected agent at a time — the exception only holds when a subagent's brief is scoped to
 files another agent isn't touching and it has no MCP access at all.
+
+## Shared asset selection (A80, 0.27.0)
+
+**One `ActiveAssetSelection` per window; every panel writes it, the window is one subscriber.**
+This supersedes A75's "the panel reports, the window acts" for the clip set and the rig only:
+`RigsPanel.SelectRig`, `ClipSetsPanel.SelectSet`, the VAT Bake fields, the Actor Editor's two
+fields and `ActorEditorPanel.Profile` (which writes `profile.rig`) all call `selection.Set…`
+directly, and `ClipEditorWindow.ApplyRigSelection` / `ApplyClipSetSelection` are just the
+window's own handlers. Other panel events (`OpenInEditorRequested`, `UseInEditorRequested`,
+`SetClipsChanged`, `RigTargetsChanged`, `ProfileChanged`) still follow the old rule.
+
+**The setter guard is `ReferenceEquals`, never `==`.** Unity's `==` calls a destroyed asset equal
+to `null`, so a clear after a delete would be swallowed and every tab would keep a dead reference.
+
+**Every subscriber lands the value with `SetValueWithoutNotify`.** A notifying assignment re-enters
+the selection from inside its own event; the guard stops the loop but not the double refresh.
+Subscribe in `CreateGUI` *before* `BindToolbar` (the `RestoreView` at the end of `CreateGUI` writes
+the selection, so the handlers must already be live) and unsubscribe in `OnDisable`.
+
+**A panel-less element never dispatches its `ChangeEvent`.** `VatBakePanelTests` wanted to write
+the rig field with notify and read the selection back; the event never fires with no panel behind
+the element, so only the selection→field direction is fixture-testable. The field→selection path
+is proven by the T12 drive against the live window.
+
+**A new asset from either catalog's New is the active one everywhere.** `Select…` writes the
+selection, so the empty rig or set replaces the Clip Editor's until it has content. The owner was
+told at the A80 checkpoint; if he wants create-without-select, the one line to move is the
+`selection?.Set…` call in `CreateAndSelect…`.

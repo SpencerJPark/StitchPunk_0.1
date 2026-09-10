@@ -8,6 +8,42 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.0] — A80 — one selection, every tab
+
+### Changed
+
+- **The top bar is just tabs and the validation badge now.** The Clip Set and Rig fields that used
+  to sit in front of the tab strip are gone from there; the Clips pane and the Rig Hierarchy pane in
+  Clip Editor each grew their own field at the top, right above the list the field feeds.
+- **Every tab shares one Clip Set and one Rig.** Click a set on the Clip Sets tab or a rig on the
+  Rigs tab and it becomes the editor's current selection everywhere; change either one from any tab
+  and every other tab picks up the change immediately. "Open in Clip Editor" and "Use in Clip
+  Editor" now just switch to that tab — the switch is the only thing left for them to do.
+- **VAT Bake's Clip Set and Rig fields are live pickers again**, not read-only ghosts. The line
+  telling you to go change them in the top bar is gone, because there is no longer a top bar field to
+  send you to. The standalone VAT Bake window is unaffected and keeps its own independent pair.
+- **Actor Profiles is four resizable columns.** A Profiles catalog on the left — search, New,
+  Refresh, right-click Rename and Delete, with the same shared Clip Set and Rig fields sitting above
+  the list — followed by Layers, Preview, and the Actor Inspector, replacing the old header's single
+  Profile field. Picking a profile still sets the rig for you; it never touches the clip set.
+
+### Added
+
+- **`ActiveAssetSelection`**, one per editor window, holding the Clip Set and Rig every tab now
+  reads from and writes to.
+- **A profiles catalog** on the Actor Profiles tab, with its own create, rename, and trash
+  utilities.
+- Creating a new Clip Set or Rig from its own tab now also makes that new, empty asset the active
+  one everywhere else.
+
+### Removed
+
+- The two object fields that used to live in the top bar ahead of the tab strip.
+- The VAT Bake hint line pointing at the (now gone) top bar fields.
+- The Actor Editor header's Profile field, replaced by the Profiles catalog column.
+- `SetSource` on `RigsPanel`, `ClipSetsPanel`, and `VatBakePanel` — hosts call `Bind` and
+  `RescanProject` instead.
+
 ## [0.26.0] — A78 — the rig says what to bake, and the bake does every VAT part
 
 ### Changed
