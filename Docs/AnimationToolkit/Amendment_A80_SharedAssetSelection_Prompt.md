@@ -22,18 +22,20 @@ editing and write your ≤30-line report", "never call any `mcp__UnityMCP__*` to
 the harness injects after each agent is your budget meter — a HIGH or OVER verdict means the next
 brief in that family gets split further. Run the spec's waves:
 
-- **Wave 1, four subagents at once:** T1, T2, T3, T4 (all `[parallel-safe]`, disjoint files). Wait
-  for all four, then **one** compile gate and T1's two fixtures by `test_names`.
-- **Wave 2, four subagents at once:** T5a, T5b, T5c, T5d (all additive — every panel gains `Bind`
-  and keeps its `SetSource` so the window still compiles). Gate, then the five fixtures they
-  touched by `test_names`. T5d is the largest; if its ledger says it was capped, read its diff and
-  spawn a fresh worker with only the remaining catalog wiring — never SendMessage a capped agent.
-- **Wave 3:** T6 (one subagent, the window). Gate.
-- **Wave 4, you:** T7 (three lines in `VatBakeWindow.cs`), T8 (gate + fixtures + commit), T9
-  (delete the `SetSource` scaffolding by grep), T10 (the §4.7 string sweep by grep/sed).
-- **Wave 5:** T11 (one subagent, the layout assertion) — may run while you do T10.
-- **T12 yourself** — full suites, the scripted drive, captures, docs, version — then stop at
-  **T13**, the ⏸ owner checkpoint, with the message the spec gives.
+- **Wave 1, fifteen subagents at once** (spec §5's table: T1, T2, T3a, T3b, T4a, T4b, T5a, T5b,
+  T5c, T5d, T5e, T6a, T10b, T10c, T11 — all `[parallel-safe]`, disjoint files). A task that calls a
+  type another wave-1 task is writing codes against the signature in the spec; nothing compiles
+  until the wave ends. If the harness caps concurrency, launch in the listed order. Wait for all,
+  then **one** compile gate and the eight fixtures by `test_names` plus `ClipEditorLayoutTests`.
+  Read every ledger line: a capped agent is never resumed — read its diff, spawn a fresh worker
+  with the remaining scope.
+- **Wave 2, two subagents at once:** T5f (the panel's selection wiring) and T6b (the window's tab
+  wiring). Both edit a file wave 1 touched, which is the only reason they are not in wave 1. Gate.
+- **Wave 3, you:** T7 (three lines in `VatBakeWindow.cs`), T9 (delete the `SetSource` scaffolding
+  by grep), T10a (the §4.7 code-string rows by sed). Gate, commit.
+- **Wave 4:** T12a (one subagent: `CHANGELOG.md` + `package.json`) runs while you do **T12** —
+  full suites, the scripted drive, captures, HANDOFF, vault — then stop at **T13**, the ⏸ owner
+  checkpoint, with the message the spec gives.
 
 Commit each wave with an `A80-Tn:` prefix naming every task in the message, staging paths
 explicitly, never `git add -A`. Head was `9faa224b` and the tree clean on 2026-09-09. Push when green.
@@ -67,8 +69,10 @@ explicitly, never `git add -A`. Head was `9faa224b` and the tree clean on 2026-0
   `SelectedSet == null` guard with it.** They protected a catalog selection from being overwritten
   by the toolbar; with a shared selection, the catalog *is* the toolbar. Keeping either one makes
   the Rigs tab disagree with the Clip Editor after the first pick.
-- **Every wave must compile on its own.** Wave 2 adds `Bind` and keeps `SetSource`; wave 3 switches
-  the window; wave 4 deletes `SetSource`. Do not let a worker "tidy up" `SetSource` early.
+- **Every wave must compile on its own, but no task within a wave has to.** Wave 1's panels add
+  `Bind` and keep `SetSource`; T6a keeps the `RefreshOpenPaneSource()` calls; wave 2's T6b switches
+  the window; you delete `SetSource` in wave 3. Do not let a worker "tidy up" `SetSource` early,
+  and do not gate between wave-1 workers — half of them reference types the other half are writing.
 - **The UXML element names do not change** (`clip-set-field`, `skinned-source-field`). Both are in
   `ClipEditorLayoutTests.RequiredElementNames` and in every `Q<>` in the window. Moving an element
   in the tree is free; renaming one is a session.

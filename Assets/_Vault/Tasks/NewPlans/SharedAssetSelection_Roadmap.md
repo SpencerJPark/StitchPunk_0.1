@@ -4,8 +4,9 @@
 > **Spec:** [`Amendment_A80_SharedAssetSelection_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A80_SharedAssetSelection_Spec.md).
 > **Session prompt:** [`Amendment_A80_SharedAssetSelection_Prompt.md`](../../../../Docs/AnimationToolkit/Amendment_A80_SharedAssetSelection_Prompt.md).
 > **Executor:** one Editor-connected orchestrator running the gate; `worker` subagents edit files in
-> five waves (four at once in waves 1 and 2) and never touch MCP. Every task is at most two files
-> with named line ranges — sized to finish inside the 40-turn cap.
+> two waves — fifteen at once, then two — and never touch MCP. Tasks code against each other's
+> spec'd public surfaces and are gated once per wave. Every task is at most two files with named
+> line ranges — sized to finish inside the 40-turn cap.
 > **Predecessors:** [`ClipSets_Roadmap.md`](ClipSets_Roadmap.md), [`RigsTab_Roadmap.md`](RigsTab_Roadmap.md)
 > — their catalogs become the pickers. A79 (VAT preview modes) is unrelated and stays queued behind
 > A78's checkpoint.

@@ -7,8 +7,8 @@
 > [`Amendment_A76_RigsTab_Spec.md`](Amendment_A76_RigsTab_Spec.md) — their catalogs become the
 > pickers; A77 (no doc) made both catalogs create/rename/delete in place; A78 (0.26.0) is head.
 > **Executor:** one Editor-connected orchestrator running the gate; `worker` subagents edit files in
-> five waves and never touch MCP. Every task is at most two files with named line ranges, sized to
-> finish well inside a 40-turn / ~100k-token budget.
+> two waves (fifteen at once, then two) and never touch MCP. Every task is at most two files with
+> named line ranges, sized to finish well inside a 40-turn / ~100k-token budget.
 
 ---
 
@@ -138,8 +138,10 @@ VAT Bake left column:                Actor Profiles:
 - **A80-D14 — Every string that tells the user to "assign … in the toolbar" is rewritten in one
   orchestrator sweep (T10), by grep, not by workers.** The list is in §4.7. `ClipPreviewController.cs:396`
   ("open the error list in the top bar") stays — the badge is still in the top bar.
-- **A80-D15 — `SetSource` on the four panels is removed only after the window has switched to
-  `Bind`** (wave 4), so every wave compiles on its own. Wave 2 is purely additive.
+- **A80-D15 — Tasks build against each other's spec'd public surfaces and are gated once per wave,
+  not once per task.** Wave 1 is fifteen disjoint-file workers gated together; `SetSource` on the
+  four panels stays until the orchestrator deletes it (T9) after the window has switched to `Bind`
+  (T6b), so every wave compiles on its own.
 - **A80-D16 — No new UXML beyond moving two existing elements; the tab strip loses its 16px left
   margin.** `.clip-editor__tab-strip { margin-left: 16px }` existed to separate the strip from the
   Rig field; with nothing to its left it becomes `0`. `.clip-editor__toolbar-label` and
@@ -374,45 +376,64 @@ your search."`. Row info per A80-D8. Copy every layout constant and its comment 
 64f`, the search field's `width = 100%` / `minWidth = 0` / zeroed margins, `Color.clear` slot,
 `marginTop/Bottom = 4f`), and the `userData` rule for recycled rows.
 
+**New `Editor/ClipEditor/ActorEditor/ActorEditorProfilesColumn.cs`** — the whole first column as
+one element, so the panel hosts it the way it hosts `ActorEditorLayersColumn`, and so it can be
+built in parallel with the panel's own layout change.
+
+```csharp
+/// <summary>The Actor Editor's first column: the shared clip set and rig fields over a searchable profile catalog with New, Refresh, and row Rename/Delete.</summary>
+public sealed class ActorEditorProfilesColumn : VisualElement, IDisposable
+{
+    public event Action<ActorProfileAsset> ProfileSelected;  // a catalog click, New, a rename (the renamed asset), or Delete (null)
+
+    public ActorProfileAsset SelectedProfile { get; }
+
+    public void Bind(ActiveAssetSelection sharedSelection);   // the two fields follow and write it
+    public void SetSelectedProfile(ActorProfileAsset profile); // highlight without raising
+    public void RescanProject();                               // FindAssets("t:" + nameof(ActorProfileAsset)), sorted OrdinalIgnoreCase
+    public void LoadCatalog(IReadOnlyList<ActorProfileAsset> profiles);  // for fixtures; no AssetDatabase
+    public void CreateAndSelectNewProfile();
+    public void Dispose();                                     // unsubscribes from the selection
+}
+```
+
+`name = "profiles-column"`, `minWidth = 200f`, padding like `RigCatalogColumn`. Children, top to
+bottom: `clipSetField` (`actor-editor-clip-set-field`, `objectType = typeof(ClipSetAsset)`,
+`allowSceneObjects = false`, class `clip-editor__pane-field`, tooltip *"The clip set every tab is
+working on. Not what this profile plays — a profile lists its own clip sets."*), `rigField`
+(`actor-editor-rig-field`, `typeof(RigAsset)`, tooltip *"The rig every tab is working on. Picking
+a profile sets it to the profile's rig."*), then an `ActorProfileCatalogColumn`. Field callbacks
+write `selection.SetClipSet` / `SetRig`; the selection's events land in the fields with
+`SetValueWithoutNotify`. Catalog wiring: `NewRequested += CreateAndSelectNewProfile`,
+`RefreshRequested += RescanProject`, `ProfileSelected += raise`, `ProfileRenameRequested +=
+RenameProfileAndRefresh`, `ProfileDeleteRequested += RequestDeleteProfile`.
+`CreateAndSelectNewProfile`: `saveLocation.Recall()` → `ActorProfileSaveLocation.ResolveTargetAssetPath(folder,
+DefaultAssetName)` → `ActorProfileAssetUtility.CreateProfile` → `RescanProject()` → select and
+raise. `RenameProfileAndRefresh` / `RequestDeleteProfile` copy `RigsPanel.cs:687-730` (confirm
+text: *"Move \"<name>\" to the trash? Actors and cutscenes that reference it will lose their
+profile."*); on delete, raise `ProfileSelected(null)` **before** the rescan (A77's rule).
+
 **`ActorEditorPanel.cs`:**
 
-- Fields: delete `profileField`; add `private ActiveAssetSelection selection;`,
-  `ActorProfileCatalogColumn profileCatalog`, `VisualElement profilesColumn`, `ObjectField
-  clipSetField`, `ObjectField rigField`, `readonly ActorProfileSaveLocation saveLocation`.
-  `windowRig` is deleted; every read becomes `selection != null ? selection.Rig : null` (there are
-  two: `:184` the assignment, `:659` the status check).
+- Fields: delete `profileField` and `windowRig`; add `private ActiveAssetSelection selection;`
+  and `private ActorEditorProfilesColumn profilesColumn;`. Every `windowRig` read becomes
+  `selection != null ? selection.Rig : null` (two sites: `:184` the assignment goes away, `:659`
+  the status check).
 - Constructor: `Add(BuildBody())` only — `BuildHeaderRow` is deleted (A80-D12).
 - `Profile` setter (`:143-171`): delete the `profileField` lines; add, after `profile = value;`,
-  `profileCatalog?.SetSelectedProfile(profile);` and, after the column binds,
+  `profilesColumn?.SetSelectedProfile(profile);` and, after the column binds,
   `if (profile != null && profile.rig != null) { selection?.SetRig(profile.rig); }`.
 - `SetSource(ClipPreviewController controller, RigAsset rig)` → `SetSource(ClipPreviewController
-  controller)`; the rig comes from the selection. New `Bind(ActiveAssetSelection)` subscribes
-  both events and adopts current values into the two fields with `SetValueWithoutNotify`. New
-  `public void RescanProject()` (`FindAssets("t:" + nameof(ActorProfileAsset))`, sorted
-  `OrdinalIgnoreCase`, `profileCatalog.SetProfiles(list)`, `SetSelectedProfile(profile)`), and
-  `public void LoadCatalog(IReadOnlyList<ActorProfileAsset>)` for the fixture, mirroring
-  `ClipSetsPanel.LoadCatalog`.
-- `BuildBody` (`:330`): build `profilesColumn` (`name = "profiles-column"`, `minWidth = 200f`,
-  padding like `RigCatalogColumn`) containing, top to bottom: `clipSetField`
-  (`actor-editor-clip-set-field`, `objectType = typeof(ClipSetAsset)`, `allowSceneObjects = false`,
-  class `clip-editor__pane-field`, tooltip *"The clip set every tab is working on. Not what this
-  profile plays — a profile lists its own clip sets."*), `rigField` (`actor-editor-rig-field`,
-  `typeof(RigAsset)`, tooltip *"The rig every tab is working on. Picking a profile sets it to the
-  profile's rig."*), then `profileCatalog`. Field callbacks write `selection.SetClipSet` /
-  `SetRig`. Wire the catalog: `NewRequested += CreateAndSelectNewProfile`, `RefreshRequested +=
-  RescanProject`, `ProfileSelected += picked => Profile = picked`, `ProfileRenameRequested +=
-  RenameProfileAndRefresh`, `ProfileDeleteRequested += RequestDeleteProfile`. Then the three splits
-  of A80-D7: `rightSplit` as today; `middleSplit = new TwoPaneSplitView(0, SideColumnWidth,
-  Horizontal)` with `minWidth = 680f` holding `[layersColumn | rightSplit]`; `body = new
-  TwoPaneSplitView(0, 260f, Horizontal)` with `minWidth = 880f` holding `[profilesColumn |
-  middleSplit]`. Move `validationBadge` construction into `viewportHeader` inside a
-  `toolkit-pane-actions` element (name stays `actor-editor-validation-badge`).
-- `CreateAndSelectNewProfile`: `saveLocation.Recall()` → `ResolveTargetAssetPath(folder,
-  DefaultAssetName)` → `ActorProfileAssetUtility.CreateProfile` → `RescanProject()` → `Profile =
-  created`. `RenameProfileAndRefresh` and `RequestDeleteProfile` copy `RigsPanel.cs:687-730`
-  (confirm dialog text: *"Move \"<name>\" to the trash? Actors and cutscenes that reference it will
-  lose their profile."*), with `Profile = null` **before** the rescan on delete.
-- `Dispose` (`:222`): unsubscribe from the selection.
+  controller)`; the rig comes from the selection. New `Bind(ActiveAssetSelection)` stores it and
+  forwards to `profilesColumn.Bind`. New `RescanProject()` and `LoadCatalog(...)` forward to the
+  column. On delete the column raises `ProfileSelected(null)` and the handler sets `Profile = null`.
+- `BuildBody` (`:330`): `profilesColumn = new ActorEditorProfilesColumn(); profilesColumn.ProfileSelected += picked => Profile = picked;`
+  then the three splits of A80-D7: `rightSplit` as today; `middleSplit = new TwoPaneSplitView(0,
+  SideColumnWidth, Horizontal)` with `minWidth = 680f` holding `[layersColumn | rightSplit]`;
+  `body = new TwoPaneSplitView(0, 260f, Horizontal)` with `minWidth = 880f` holding
+  `[profilesColumn | middleSplit]`. Move `validationBadge` construction into `viewportHeader`
+  inside a `toolkit-pane-actions` element (name stays `actor-editor-validation-badge`).
+- `Dispose` (`:222`): `profilesColumn?.Dispose()`.
 - `RenderViewport` (`:659`): the status string becomes `"No rig picked — choose a profile, or pick a
   rig in the column on the left."`.
 
@@ -446,164 +467,199 @@ leave every one of those.
 
 ## 5. Tasks
 
-Wave 1 (`[parallel-safe]` with each other): **T1, T2, T3, T4**. Wave 2 (`[parallel-safe]`, additive):
-**T5a, T5b, T5c, T5d**. Wave 3: **T6**. Wave 4 (orchestrator): **T7, T8, T9, T10**. Wave 5:
-**T11** (worker, `[parallel-safe]` with T10 if run concurrently). Then **T12** (orchestrator) and
-**T13** (⏸ checkpoint).
+**The shape: one wide wave, one narrow wave, then the orchestrator.** Every task that needs another
+task's *public surface* builds against the code block in §4 and is gated together with it at the end
+of the wave, so nothing waits on a compile it does not need. Wave 1 is fifteen workers on fifteen
+disjoint file sets; wave 2 is the two tasks that must follow them (each edits a file wave 1 already
+touched); the rest is grep-and-sed work that is cheaper in the orchestrator than in a brief. If the
+harness caps concurrent agents, fill wave 1 in the order listed — the gate is still one, at the end.
 
 Each brief pastes: the spec path, the task text below, its "Read" line, the §4 block it builds, and
 CLAUDE.md's hard rules (no `var`, no single-letter names, explicit types; one `<summary>` per file
 on the primary type, three lines max, no `<remarks>`, no spec citations in shipped code). Every brief
 ends: "at turn 30 stop editing and write your report; report ≤ 30 lines; never call any
-`mcp__UnityMCP__*` tool; do not open any file this brief does not name."
+`mcp__UnityMCP__*` tool; do not open any file this brief does not name; if a type this brief tells
+you to call does not exist yet, code against the signature in the spec — it lands in the same wave."
 
 ### T0 — Baseline (orchestrator)
 Gate per HANDOFF §3; record EditMode / PlayMode discovered totals in §7 (A78 closed at 814 / 283).
 `git status` first; head is `9faa224b`, the tree was clean on 2026-09-09. Line numbers in §3/§4 were
 taken against that commit — if `ClipEditorWindow.cs` has moved, re-grep the member names.
 
-### T1 — `ActiveAssetSelection` [parallel-safe]
-Files: **new** `Editor/ClipEditor/Shared/ActiveAssetSelection.cs`, **new**
-`Tests/EditMode/ActiveAssetSelectionTests.cs`. Read §4.1 only, plus `Shared/ITransportTarget.cs`
-(30 lines) for the file header and namespace shape. Build §4.1.
+### Wave 1 — fifteen workers, all `[parallel-safe]`, gated once
+
+| Task | Files (≤ 2) | Builds | Depends on (surface only) |
+|---|---|---|---|
+| T1 | new `Shared/ActiveAssetSelection.cs`, new `Tests/EditMode/ActiveAssetSelectionTests.cs` | §4.1 | — |
+| T2 | new `ActorEditor/ActorProfileCatalogColumn.cs` | §4.6 catalog paragraph | — |
+| T3a | new `ActorEditor/ActorProfileSaveLocation.cs` | §4.6 first block | — |
+| T3b | new `ClipUtilities/ActorProfileAssetUtility.cs` | §4.6 second block | — |
+| T4a | `ClipEditorWindow.uxml` | §4.3 UXML half | — |
+| T4b | `ClipEditorWindow.uss` (`:420-470`, `:526-540`) | §4.3 USS half | — |
+| T5a | `Authoring/RigsPanel.cs`, `Tests/EditMode/RigsPanelTests.cs` | §4.4 | T1 |
+| T5b | `Authoring/ClipSetsPanel.cs`, `Tests/EditMode/ClipSetsPanelTests.cs` | §4.4 | T1 |
+| T5c | `VatBaking/VatBakePanel.cs`, new `Tests/EditMode/VatBakePanelTests.cs` | §4.5 (panel only) | T1 |
+| T5d | new `ActorEditor/ActorEditorProfilesColumn.cs` | §4.6 column block | T1, T2, T3a, T3b |
+| T5e | `ActorEditor/ActorEditorPanel.cs`, `Tests/EditMode/ActorEditorPanelTests.cs` | §4.6 panel: layout + hosting | T1, T5d |
+| T6a | `ClipEditor/ClipEditorWindow.cs` | §4.2 core (see below) | T1 |
+| T10b | `Documentation~/clip-editor.md` | §4.7 doc rows | — |
+| T10c | `Documentation~/cutout-characters.md`, `Documentation~/rigged-characters.md` | §4.7 doc rows | — |
+| T11 | `Tests/EditMode/ClipEditorLayoutTests.cs` (`:25-45`, `:240-260`) | the layout assertion | T4a |
+
+**T1.** Read §4.1 and `Shared/ITransportTarget.cs` (30 lines) for the header/namespace shape.
 - `SetRig_RaisesRigChangedOnce_AndNotAgainForTheSameValue`: `CreateInstance<RigAsset>()`; count
   events; `SetRig(rig)` twice → 1; `SetRig(null)` → 2. (Revert-to-fail: drop the equality guard.)
 - `SetClipSet_LeavesTheRigAlone`: set a rig, then a clip set → `RigChanged` count still 1,
   `Rig` unchanged. Destroy both assets in `TearDown`.
 
-### T2 — `ActorProfileCatalogColumn` [parallel-safe]
-Files: **new** `Editor/ClipEditor/ActorEditor/ActorProfileCatalogColumn.cs`. Read
-`RigCatalogColumn.cs:1-160` then `:160-315` (two reads — the guard refuses a 315-line whole-file
-read), `ActorProfileAsset.cs:17-40` (fields), `InlineRenameEditing.cs:9-20`, and §4.6's column
-paragraph. Mirror, do not improve. No fixture (UI wiring); T5d's fixture drives it.
+**T2.** Read `RigCatalogColumn.cs:1-160` then `:160-315` (two reads), `ActorProfileAsset.cs:17-40`,
+`InlineRenameEditing.cs:9-20`. Mirror, do not improve. No fixture — T5e's drives it.
 
-### T3 — `ActorProfileSaveLocation` + `ActorProfileAssetUtility` [parallel-safe]
-Files: **new** `Editor/ClipEditor/ActorEditor/ActorProfileSaveLocation.cs`, **new**
-`Editor/ClipUtilities/ActorProfileAssetUtility.cs`. Read `RigSaveLocation.cs` in full,
-`RigAssetUtility.cs:14-50, 185-230`, `ActorProfileAsset.cs:40-100`, and §4.6's first two blocks.
-No fixture: `CreateProfile` needs `AssetDatabase`, and T12 proves it on disk (bookends present in
-the reloaded asset).
+**T3a.** Read `RigSaveLocation.cs` in full. Rename the type, the prefs key, the default name. No fixture.
 
-### T4 — UXML + USS [parallel-safe]
-Files: `Editor/ClipEditor/ClipEditorWindow.uxml`, `Editor/ClipEditor/ClipEditorWindow.uss`
-(`:420-470`, `:526-540` only). Read §4.3. Move the two fields, delete the two labels, retext
-`hierarchy-empty-label`, apply the three USS edits. **Do not rename any element.** No fixture here;
-T11 adds the layout assertion.
+**T3b.** Read `RigAssetUtility.cs:14-50, 185-230` and `ActorProfileAsset.cs:40-100`. No fixture —
+`CreateProfile` needs `AssetDatabase`; T12 proves the bookends on the reloaded asset.
 
-### T5a — `RigsPanel` binds the selection [parallel-safe, additive]
-Files: `Editor/ClipEditor/Authoring/RigsPanel.cs`, `Tests/EditMode/RigsPanelTests.cs`. Read
-`RigsPanel.cs:50-160, 630-640, 687-730`, `RigsPanelTests.cs:1-60, 77-100`, §4.1's code block, §4.4.
-Add `Bind`, `ShowRig`, `OnSharedRigChanged`, public `RescanProject`; delete
-`hasUserSelectedThisSession`; **keep `SetSource` compiling** as `RescanProject()` only.
-- Test `SelectRig_WritesTheSharedSelection_AndFollowsIt`: `new RigsPanel()`; `Bind(selection)`;
-  `SelectRig(rigA)` → `selection.Rig == rigA`; `selection.SetRig(rigB)` → `panel.SelectedRig ==
-  rigB` and the catalog's `SelectedRig == rigB`. (Revert-to-fail: drop the `selection.SetRig` line
-  in `SelectRig`.) Two `CreateInstance<RigAsset>()`, destroyed in `TearDown`; the panel's
-  `Dispose()` in `TearDown` too (it owns a `PreviewRenderUtility`).
+**T4a.** Read `ClipEditorWindow.uxml` in full. Move the two fields, delete the two labels, retext
+`hierarchy-empty-label`, add the class. **Rename nothing.**
 
-### T5b — `ClipSetsPanel` binds the selection [parallel-safe, additive]
-Files: `Editor/ClipEditor/Authoring/ClipSetsPanel.cs`, `Tests/EditMode/ClipSetsPanelTests.cs`.
-Read `ClipSetsPanel.cs:14-60, 270-285, 400-460, 563-600`, `ClipSetsPanelTests.cs:1-60`, §4.1's code
-block, §4.4. Same shape as T5a.
-- Test `SelectSet_WritesTheSharedSelection_AndFollowsIt`, mirror of T5a's. Use `LoadCatalog` for
-  the two sets so the catalog can highlight them.
+**T4b.** Read `ClipEditorWindow.uss:420-470, 526-540`. The three edits of §4.3; delete no rule.
 
-### T5c — `VatBakePanel` binds the selection [parallel-safe, additive]
-Files: `Editor/VatBaking/VatBakePanel.cs`, **new** `Tests/EditMode/VatBakePanelTests.cs`. Read
-`VatBakePanel.cs:17-100, 184-201`, §4.1's code block, §4.5. Add `Bind`; delete `sourceBoundHint`;
-make the fields write the selection; **keep `SetSource` compiling** (body: `selection?.SetClipSet(clipSet);
-selection?.SetRig(rig);`, or a no-op when unbound). Do not touch `VatBakeWindow.cs` (T7).
-- Test `Bind_FollowsTheSharedSelectionBothWays`: `Bind(selection)`; `selection.SetRig(rig)` →
-  `panel.Q<ObjectField>` for the rig (give it `name = "vat-bake-rig-field"`; the clip set field
-  `"vat-bake-clip-set-field"`) shows `rig` and is enabled; then set the field's `value = null`
-  (with notify) → `selection.Rig == null`. (Revert-to-fail: leave `SetEnabled(false)` in.)
-  `panel.Dispose()` in `TearDown`.
+**T5a.** Read `RigsPanel.cs:50-160, 630-640, 687-730`, `RigsPanelTests.cs:1-60, 77-100`. Add `Bind`,
+`ShowRig`, `OnSharedRigChanged`, public `RescanProject`; delete `hasUserSelectedThisSession`;
+**keep `SetSource` compiling** as `RescanProject()` only.
+- `SelectRig_WritesTheSharedSelection_AndFollowsIt`: `Bind(selection)`; `SelectRig(rigA)` →
+  `selection.Rig == rigA`; `selection.SetRig(rigB)` → `panel.SelectedRig == rigB` and the
+  catalog agrees. (Revert-to-fail: drop the `selection.SetRig` line in `SelectRig`.) `panel.Dispose()`
+  in `TearDown` — it owns a `PreviewRenderUtility`.
 
-### T5d — Actor Profiles: four columns, catalog, selection [additive]
-Files: `Editor/ClipEditor/ActorEditor/ActorEditorPanel.cs`, `Tests/EditMode/ActorEditorPanelTests.cs`.
-Read `ActorEditorPanel.cs:18-66, 142-200, 270-290, 330-500, 655-665`, `ActorEditorPanelTests.cs:1-64`,
-the public surfaces of T2/T3 (their files exist; read only the `public` lines by grep), §4.1's code
-block, §4.6. **Keep `SetSource(ClipPreviewController, RigAsset)` compiling** by adding the
-one-argument overload beside it; the two-argument one forwards and is deleted in T9.
+**T5b.** Read `ClipSetsPanel.cs:14-60, 270-285, 400-460, 563-600`, `ClipSetsPanelTests.cs:1-60`.
+Same shape as T5a; `SetSource` keeps its folder-fallback lines plus `RescanProject()`.
+- `SelectSet_WritesTheSharedSelection_AndFollowsIt`, mirror of T5a's, with `LoadCatalog` for the
+  two sets.
+
+**T5c.** Read `VatBakePanel.cs:17-100, 184-201`. Add `Bind`; delete `sourceBoundHint`; fields write
+the selection; name them `vat-bake-clip-set-field` / `vat-bake-rig-field`; **keep `SetSource`
+compiling** (body: `selection?.SetClipSet(clipSet); selection?.SetRig(rig);`). Do not touch
+`VatBakeWindow.cs`.
+- `Bind_FollowsTheSharedSelectionBothWays`: `selection.SetRig(rig)` → the rig field shows `rig`
+  and is enabled; set the field's `value = null` with notify → `selection.Rig == null`.
+  (Revert-to-fail: leave `SetEnabled(false)` in.) `panel.Dispose()` in `TearDown`.
+
+**T5d.** Read the `public` lines of `ActorProfileCatalogColumn.cs`, `ActorProfileSaveLocation.cs`
+and `ActorProfileAssetUtility.cs` by grep (they may not exist yet — then code to §4.6's blocks),
+`RigsPanel.cs:687-730` (rename/delete to copy), `RigCatalogColumn.cs:32-60` (padding), §4.1's code
+block, and §4.6's column block. No fixture — T5e's second test drives `LoadCatalog` +
+`SetSelectedProfile` through the panel.
+
+**T5e.** Read `ActorEditorPanel.cs:18-66, 142-200, 270-290, 330-500`, `ActorEditorPanelTests.cs:1-64`,
+§4.6's `ActorEditorProfilesColumn` code block and the panel bullets **except** the `Profile`-setter
+rig line, the `windowRig` removal and the status string (those are T5f). Deliver: the four-column
+layout hosting the new column, `BuildHeaderRow` gone, the badge in the Preview header, the
+`profileField` lines out of the `Profile` setter with `profilesColumn?.SetSelectedProfile` in,
+`Bind`, `RescanProject`, `LoadCatalog`, `Dispose` forwarding, **and** the one-argument
+`SetSource(ClipPreviewController)` overload beside the existing two-argument one (which stays until T9).
 - Edit `Panel_ExposesThreeNamedColumnsAndTheProfileField` → `Panel_ExposesFourNamedColumns`:
-  asserts `profiles-column`, `layers-column`, `viewport-column`, `inspector-column`, and that
-  `actor-editor-profile-field` is **absent**.
-- Edit `AssigningAProfile_RaisesProfileChangedAndUpdatesTheField` →
-  `AssigningAProfile_RaisesProfileChanged_AndSetsTheSharedRig`: `Bind(selection)`, profile with a
-  rig → `selection.Rig == profile.rig` and the catalog's `SelectedProfile == profile` (after
-  `LoadCatalog(new[] { profile })`). (Revert-to-fail: drop the `selection.SetRig` line.)
-- Turn budget note: this is the largest worker task. If the row-context-menu rename/delete wiring
-  is not done by turn 30, stop, report exactly which of the five catalog events are wired, and the
-  orchestrator spawns a fresh worker for the remainder against `ActorEditorPanel.cs` only.
+  `profiles-column`, `layers-column`, `viewport-column`, `inspector-column` exist;
+  `actor-editor-profile-field` is absent.
+- Edit `AssigningAProfile_RaisesProfileChangedAndUpdatesTheField` → drop the field assertion, keep
+  the `ProfileChanged` one, add `panel.LoadCatalog(new[] { profile })` first and assert the
+  column's `SelectedProfile == profile` after. (T5f extends it.)
 
-### T6 — Window switches to the selection
-Files: `Editor/ClipEditor/ClipEditorWindow.cs` only. Read `:126, :312, :327-353, :502-513,
-:620-633, :690-730, :767-815, :900-943, :1073-1083, :1303-1311, :1705-1890, :3516-3545, :4467-4495`
-and §4.2. Apply §4.2 in full. `RefreshOpenPaneSource` and `OnActorEditorProfileChanged` are
-deleted here; the panels' `SetSource` overloads still exist, so this compiles. No fixture.
+**T6a.** Read `ClipEditorWindow.cs:126, :312, :327-353, :620-633, :690-730, :767-815, :900-943,
+:1073-1083, :1303-1311, :3516-3545, :4467-4495` and §4.2's first six bullets (through
+`LoadedPrefab`). Deliver: the `selection` field, subscribe in `CreateGUI` before `BindToolbar`,
+unsubscribe in `OnDisable`, the two field callbacks writing the selection, `ApplyRigSelection` /
+`ApplyClipSetSelection` (renamed from the two `On…Changed` handlers, mirror lines first, the old
+`RefreshOpenPaneSource()` calls **kept** for now), `RestoreView` writing the selection, `LoadedPrefab`
+reading `activeRig`, the new rig-field tooltip. **Do not touch `:1705-1890`** — that is T6b.
 
-### T7 — `VatBakeWindow` (orchestrator, three lines)
-§4.5's last bullet. Gate.
+**T10b.** Read `clip-editor.md:10-60, 125-150` and §4.7's doc rows. Rewrite the five "toolbar's
+Rig field" sentences and the New Rig paragraph (`:132-143`) to point at the Rig Hierarchy pane's
+field and the Rigs tab. Leave `:54, 55, 151, 179`.
 
-### T8 — Gate + wave-2/3 fixtures (orchestrator)
-Compile gate, then by `test_names`: the two T1 tests, T5a/T5b/T5c's one each, T5d's two, and the
-whole `ClipEditorLayoutTests` fixture (the UXML moved). Commit `A80-T1..T7`.
+**T10c.** Read `cutout-characters.md:30-40`, `rigged-characters.md:130-138`, §4.7. One sentence each.
 
-### T9 — Remove the scaffolding (orchestrator, by grep)
-Delete `RigsPanel.SetSource`, `ClipSetsPanel.SetSource`, `VatBakePanel.SetSource`, and
-`ActorEditorPanel.SetSource(ClipPreviewController, RigAsset)`. `grep -rn "\.SetSource(" Editor`
-must show only `actorEditorPanel.SetSource(previewController)` and the preview controller's own
-`SetSkinnedSource`/`SetClipSet`/`SetRig` family. Gate.
+**T11.** Read `ClipEditorLayoutTests.cs:25-45, 240-260` and §4.3. Fix the ordering comment at
+`:35-36`; add `AssetFields_LiveInsideTheirPanes_NotTheToolbar`: on `CloneLayout()`, `clip-set-field`
+is a descendant of `clip-list-pane`, `skinned-source-field` of `hierarchy-pane`, and
+`clip-editor-toolbar` contains **no** `ObjectField`. (Revert-to-fail: move either field back.)
 
-### T10 — String sweep (orchestrator, §4.7)
-Apply the table with `sed`/Edit, run the closing grep, gate. Commit `A80-T9, T10`.
+**Wave-1 gate (orchestrator):** one compile gate, then by `test_names`: T1's two, T5a's, T5b's,
+T5c's, T5e's two, and the whole `ClipEditorLayoutTests` fixture. Commit `A80 wave 1: T1–T6a, T10b,
+T10c, T11`.
 
-### T11 — Layout assertion [parallel-safe with T10]
-Files: `Tests/EditMode/ClipEditorLayoutTests.cs` (`:25-45`, `:240-260`). Read those ranges and §4.3.
-Fix the ordering comment at `:35-36`, and add
-`AssetFields_LiveInsideTheirPanes_NotTheToolbar`: on `CloneLayout()`, `clip-set-field` is a
-descendant of `clip-list-pane`, `skinned-source-field` of `hierarchy-pane`, and
-`clip-editor-toolbar` contains **no** `ObjectField`. (Revert-to-fail: put either field back in the
-toolbar.)
+### Wave 2 — two workers, `[parallel-safe]` with each other, gated once
 
-### T12 — Full gate, drive, docs, version (orchestrator)
-1. Full suites (HANDOFF §3 steps 3–4). Discovered totals: EditMode ≥ T0 + 6 (T1 ×2, T5a, T5b, T5c,
-   T11) and T5d's two are edits, not additions; PlayMode unchanged.
+**T5f.** Files: `ActorEditor/ActorEditorPanel.cs`, `Tests/EditMode/ActorEditorPanelTests.cs`. Read
+the file as T5e left it (`grep -n "windowRig\|Profile\b\|RenderViewport"` and 30 lines around each
+hit), §4.6's remaining panel bullets. Deliver: `windowRig` gone (two reads → the selection), the
+`Profile` setter's `selection?.SetRig(profile.rig)` line, the new status string.
+- Extend the second test into `AssigningAProfile_RaisesProfileChanged_AndSetsTheSharedRig`: after
+  `Bind(selection)`, a profile with a rig → `selection.Rig == profile.rig`. (Revert-to-fail: drop
+  the `SetRig` line.)
+
+**T6b.** Files: `ClipEditor/ClipEditorWindow.cs`. Read `:1705-1890` as T6a left it (re-grep
+`ShowVatBakeTab` — T6a's edits above it shift nothing there, but check) and §4.2's last four
+bullets. Deliver: `panel.Bind(selection)` after each `new …Panel()` and before the `Add`; the show
+paths call `RescanProject()` / `actorEditorPanel.SetSource(previewController)` instead of
+`SetSource(...)`; delete `RefreshOpenPaneSource` and its two calls (in the two `Apply…` handlers);
+delete `OnActorEditorProfileChanged` and its `+=`; the two `…Requested` handlers become
+`SetActiveTab(ClipEditorTab.ClipEditor);`.
+
+**Wave-2 gate (orchestrator):** compile gate, `ActorEditorPanelTests` by `group_names`. Commit
+`A80 wave 2: T5f, T6b`.
+
+### Wave 3 — orchestrator only
+
+- **T7** — `VatBakeWindow.cs`: §4.5's last bullet, three lines.
+- **T9** — delete the scaffolding by grep: `RigsPanel.SetSource`, `ClipSetsPanel.SetSource`,
+  `VatBakePanel.SetSource`, `ActorEditorPanel.SetSource(ClipPreviewController, RigAsset)`.
+  `grep -rn "\.SetSource(" Editor` must show only `actorEditorPanel.SetSource(previewController)`
+  and the preview controller's own `SetSkinnedSource` / `SetClipSet` / `SetRig` family.
+- **T10a** — the code rows of §4.7 by `sed`/Edit, plus `sharing-clips.md:56`; run the closing grep.
+- Gate; commit `A80 wave 3: T7, T9, T10a`.
+
+### Wave 4 — the drive, with one worker beside it
+
+**T12a** `[parallel-safe with the orchestrator's drive]` — files: `CHANGELOG.md` (top 25 lines),
+`package.json` (`version` only). Read `CHANGELOG.md:1-25` for the section shape and §1 + §2 of this
+spec. Write the `## [<next>] — A80 — one selection, every tab` section: Changed (top bar, Clip
+Editor panes, catalog click = pick, VAT Bake fields live, Actor Profiles four columns), Added
+(`ActiveAssetSelection`, the profiles catalog with New/Rename/Delete), Removed (the two toolbar
+fields, the VAT Bake hint, the Actor Editor Profile field). Bump `package.json`.
+
+**T12 (orchestrator).**
+1. Full suites (HANDOFF §3 steps 3–4). EditMode ≥ T0 + 6 (T1 ×2, T5a, T5b, T5c, T11; T5e/T5f
+   edit two existing tests); PlayMode unchanged.
 2. Drive over `mcp__UnityMCP__execute_code` (CodeDom C# 6, no `using`, fully-qualified names,
    `resolvedStyle` in a second call). Scratch assets under `Assets/A80Scratch/` via
-   `AssetDatabase.CopyAsset` of `MaleCitizen`'s set, rig and profile — never the owner's originals.
-   - Open the window on **Rigs**, `SelectRig(scratchRig)`; switch to **Clip Editor**; assert the
-     hierarchy tree has rows and `skinned-source-field.value == scratchRig`. Switch to **Clip
-     Sets**, `SelectSet(scratchSet)`; back to Clip Editor; `clip-list.itemsSource.Count > 0` and
-     `clip-set-field.value == scratchSet`. **VAT Bake**: both fields enabled and showing the scratch
-     assets; set the rig field to `null` with notify; back on Clip Editor the hierarchy is empty and
-     the empty label reads "Pick a rig above the hierarchy." Restore the rig.
-   - **Actor Profiles**: `RescanProject()`; second call: four named columns with non-zero
+   `AssetDatabase.CopyAsset` of `MaleCitizen`'s set, rig and profile — never the originals.
+   - **Rigs** → `SelectRig(scratchRig)`; **Clip Editor**: hierarchy has rows,
+     `skinned-source-field.value == scratchRig`. **Clip Sets** → `SelectSet(scratchSet)`; back:
+     `clip-list.itemsSource.Count > 0`, `clip-set-field.value == scratchSet`. **VAT Bake**: both
+     fields enabled and showing the scratch assets; rig field `value = null` with notify; Clip
+     Editor's hierarchy empties, empty label reads "Pick a rig above the hierarchy." Restore.
+   - **Actor Profiles**: `RescanProject()`; second call: four named columns, non-zero
      `layout.width`, roughly `260 : 220 : rest : 260`; `profiles-list.itemsSource.Count >= 1`.
-     Press New through `CreateAndSelectNewProfile`; `AssetDatabase.Refresh()`; **reload the new
-     asset from its path** and assert `layers.Count == 2` with `Base` first and `Override` last
-     (HANDOFF §3: prove the write). Select the scratch profile → `selection.Rig == scratchProfile.rig`
-     and the Clip Editor's rig field agrees. Delete the new profile through `RequestDeleteProfile`
-     (patch `EditorUtility.DisplayDialog` is not possible — run the confirm by hand, or delete the
-     scratch profile with `TrashProfile` directly and assert the catalog no longer lists it and
-     `Profile == null`).
-   - A domain reload check: `RememberSessionState()` then `RestoreSessionState()` on a fresh
-     `CreateGUI` is not drivable; instead `AssemblyReloadEvents`-free proxy — call the private
-     `RestoreView` via reflection with the scratch set and rig and assert both fields and both
-     panels agree. Note the result either way.
+     `CreateAndSelectNewProfile()` through the column; `AssetDatabase.Refresh()`; **reload the new
+     asset from its path**: `layers.Count == 2`, `Base` first, `Override` last. Select the scratch
+     profile → `selection.Rig == scratchProfile.rig`, and the Clip Editor's rig field agrees. Remove
+     the new profile with `ActorProfileAssetUtility.TrashProfile` (the confirm dialog cannot be
+     answered from a script), rescan, assert it is gone and `Profile == null`.
+   - Session restore proxy: call the private `RestoreView` by reflection with the scratch set and
+     rig; both fields and both catalog tabs agree. Note the result either way.
 3. Capture `Library/A80Captures/clip-editor.png`, `vat-bake.png`, `actor-profiles.png`
    (`pixelsPerPoint`, `isFocused` first, positive-x monitor) and **look at them**: no object fields
    in the top bar, the strip flush left, the two pane fields full-width under their headers, four
    legible Actor Profile columns. If a capture is stale, say so and record `resolvedStyle` numbers.
 4. Delete `Assets/A80Scratch` and its `.meta`; `git status` must show only your files.
-5. `CHANGELOG.md` ("A80 — one selection, every tab"), `package.json` bump, HANDOFF §4 paragraph,
-   `Documentation~/clip-editor.md` per §4.7, `Documentation~/actor-profiles.md` (grep "Profile"
-   for the header-field sentence and rewrite it around the catalog column), and the vault note
-   `AnimationToolkit.md`: one section "Shared asset selection (A80)" carrying the three traps —
-   `ReferenceEquals` in the setter guard, `SetValueWithoutNotify` in every subscriber, and the
-   panels-write-the-selection rule that supersedes A75's "panel reports, window acts" for these two
-   values. Traps only, no inventory.
-6. Commit `A80-T11, T12`; push.
+5. HANDOFF §4 paragraph; `Documentation~/actor-profiles.md` (grep "Profile" for the header-field
+   sentence, rewrite around the catalog column); the vault note `AnimationToolkit.md`: one section
+   "Shared asset selection (A80)" carrying the three traps — `ReferenceEquals` in the setter guard,
+   `SetValueWithoutNotify` in every subscriber, and the panels-write-the-selection rule that
+   supersedes A75's "panel reports, window acts" for these two values. Traps only, no inventory.
+6. Commit `A80 wave 4: T12, T12a`; push.
 
 ### T13 — ⏸ owner checkpoint
 End the session with this message, verbatim in spirit:
