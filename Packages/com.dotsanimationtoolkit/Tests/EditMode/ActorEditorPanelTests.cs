@@ -19,6 +19,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
     public sealed class ActorEditorPanelTests
     {
         private ActorProfileAsset profileAsset;
+        private RigAsset rigAsset;
 
         [SetUp]
         public void SetUp()
@@ -30,6 +31,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
         public void TearDown()
         {
             Object.DestroyImmediate(profileAsset);
+            if (rigAsset != null)
+            {
+                Object.DestroyImmediate(rigAsset);
+            }
         }
 
         [Test]
@@ -47,10 +52,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void AssigningAProfile_RaisesProfileChanged_AndSelectsItInTheCatalog()
+        public void AssigningAProfile_RaisesProfileChanged_SelectsItInTheCatalog_AndSetsTheSharedRig()
         {
+            rigAsset = ScriptableObject.CreateInstance<RigAsset>();
+            profileAsset.rig = rigAsset;
+
             ActorEditorPanel panel = new ActorEditorPanel();
             panel.LoadCatalog(new List<ActorProfileAsset> { profileAsset });
+            ActiveAssetSelection selection = new ActiveAssetSelection();
+            panel.Bind(selection);
             ActorProfileAsset raisedProfile = null;
             panel.ProfileChanged += changedProfile => raisedProfile = changedProfile;
 
@@ -61,6 +71,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(
                 profileAsset, panel.Q<ActorEditorProfilesColumn>("profiles-column").SelectedProfile,
                 "the profiles column must select the profile assigned through the property.");
+            Assert.AreEqual(rigAsset, selection.Rig, "assigning a profile must set the shared rig.");
         }
 
         [Test]

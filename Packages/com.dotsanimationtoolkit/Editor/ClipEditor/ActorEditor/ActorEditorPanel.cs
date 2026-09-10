@@ -33,7 +33,6 @@ namespace DotsAnimationToolkit.Editor
         // the window's registry, so a facing or layer change is just a different sample into it.
         // Safe only because the tabs are exclusive; nothing here disposes it.
         private ClipPreviewController previewController;
-        private RigAsset windowRig;
 
         private readonly PreviewCameraNavigation cameraNavigation = new PreviewCameraNavigation();
         private PreviewCameraPose restoredCameraPose;
@@ -161,6 +160,13 @@ namespace DotsAnimationToolkit.Editor
 
                 layersColumnView?.Bind(profile, composer);
                 inspectorColumnView?.Bind(profile, composer);
+
+                // Picking a profile sets the shared rig, never the shared clip set.
+                if (profile != null && profile.rig != null)
+                {
+                    selection?.SetRig(profile.rig);
+                }
+
                 RefreshValidationBadge();
 
                 ProfileChanged?.Invoke(profile);
@@ -181,11 +187,10 @@ namespace DotsAnimationToolkit.Editor
             cameraNavigation.Rig = controller;
         }
 
-        // Kept for the callers T5f has not yet moved onto the selection; windowRig is deleted next wave.
+        // Kept for the callers T5f has not yet moved onto the selection; deleted next wave.
         public void SetSource(ClipPreviewController controller, RigAsset rig)
         {
             SetSource(controller);
-            windowRig = rig;
         }
 
         public void Bind(ActiveAssetSelection sharedSelection)
@@ -665,9 +670,10 @@ namespace DotsAnimationToolkit.Editor
         private void RenderViewport()
         {
             string status = previewController.StatusMessage;
-            if (windowRig == null)
+            RigAsset activeRig = selection != null ? selection.Rig : null;
+            if (activeRig == null)
             {
-                status = "No rig in the top bar — pick a profile to set it, or assign one directly.";
+                status = "No rig picked — choose a profile, or pick a rig in the column on the left.";
             }
 
             if (!string.IsNullOrEmpty(ragdollRefusalReason))

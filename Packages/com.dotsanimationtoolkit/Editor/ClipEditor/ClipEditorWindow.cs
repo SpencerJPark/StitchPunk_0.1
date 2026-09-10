@@ -508,8 +508,8 @@ namespace DotsAnimationToolkit.Editor
             ClipEditorWindow window = FocusTab(ClipEditorTab.ActorEditor);
             if (window != null && window.actorEditorPanel != null && profile != null)
             {
-                // Raises ProfileChanged, which OnActorEditorProfileChanged answers by pointing the
-                // toolbar Rig field at profile.rig — one writer, not two.
+                // Setting Profile writes the shared rig selection from inside the panel — one
+                // writer, not two.
                 window.actorEditorPanel.Profile = profile;
             }
         }
@@ -1723,10 +1723,9 @@ namespace DotsAnimationToolkit.Editor
                 if (vatBakePanel == null)
                 {
                     vatBakePanel = new VatBakePanel();
+                    vatBakePanel.Bind(selection);
                     vatBakePane.Add(vatBakePanel);
                 }
-
-                vatBakePanel.SetSource(clipSet, activeRig);
             }
 
             vatBakePane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1743,6 +1742,7 @@ namespace DotsAnimationToolkit.Editor
             if (isShown && rigsPanel == null)
             {
                 rigsPanel = new RigsPanel();
+                rigsPanel.Bind(selection);
                 rigsPanel.UseInEditorRequested += OnRigUseInEditorRequested;
                 rigsPanel.RigTargetsChanged += OnPanelChangedRigTargets;
                 newRigPane.Add(rigsPanel);
@@ -1750,7 +1750,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (isShown)
             {
-                rigsPanel.SetSource(activeRig);
+                rigsPanel.RescanProject();
             }
 
             newRigPane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1767,6 +1767,7 @@ namespace DotsAnimationToolkit.Editor
             if (isShown && clipSetsPanel == null)
             {
                 clipSetsPanel = new ClipSetsPanel();
+                clipSetsPanel.Bind(selection);
                 clipSetsPanel.OpenInEditorRequested += OnClipSetOpenRequested;
                 clipSetsPanel.SetClipsChanged += OnPanelChangedSetClips;
                 clipSetsPane.Add(clipSetsPanel);
@@ -1774,7 +1775,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (isShown)
             {
-                clipSetsPanel.SetSource(clipSet);
+                clipSetsPanel.RescanProject();
             }
 
             clipSetsPane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1793,11 +1794,12 @@ namespace DotsAnimationToolkit.Editor
                 if (actorEditorPanel == null)
                 {
                     actorEditorPanel = new ActorEditorPanel();
-                    actorEditorPanel.ProfileChanged += OnActorEditorProfileChanged;
+                    actorEditorPanel.Bind(selection);
                     actorEditorPane.Add(actorEditorPanel);
                 }
 
-                actorEditorPanel.SetSource(previewController, activeRig);
+                actorEditorPanel.SetSource(previewController);
+                actorEditorPanel.RescanProject();
             }
 
             actorEditorPane.EnableInClassList(HiddenUssClassName, !isShown);
@@ -1807,49 +1809,10 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        // Both panes read the window's selection rather than holding their own, so a change made
-        // while a pane is open has to reach it or it would offer to act on a set the window
-        // stopped showing.
-        /// <summary>Pushes the window's clip set and rig at whichever pane is open.</summary>
-        private void RefreshOpenPaneSource()
-        {
-            if (vatBakePanel != null)
-            {
-                vatBakePanel.SetSource(clipSet, activeRig);
-            }
-            if (actorEditorPanel != null)
-            {
-                actorEditorPanel.SetSource(previewController, activeRig);
-            }
-            if (clipSetsPanel != null)
-            {
-                clipSetsPanel.SetSource(clipSet);
-            }
-            if (rigsPanel != null)
-            {
-                rigsPanel.SetSource(activeRig);
-            }
-        }
-
-        // Picking a profile sets the window's Rig, never its Clip Set — the rig is shared by every
-        // tab, the clip set is the Clip Editor tab's own edit target.
-        /// <summary>Answers the Actor Editor panel picking a different profile: points the toolbar Rig field at it.</summary>
-        private void OnActorEditorProfileChanged(ActorProfileAsset pickedProfile)
-        {
-            if (pickedProfile != null && pickedProfile.rig != null && skinnedSourceField != null)
-            {
-                skinnedSourceField.value = pickedProfile.rig;
-            }
-        }
-
-        /// <summary>Answers the Rigs panel asking for a rig to become this window's: points the toolbar Rig field at it and returns to the Clip Editor.</summary>
+        /// <summary>Answers the Rigs panel's Use in Clip Editor button: switches tabs — the rig is already the shared selection.</summary>
         private void OnRigUseInEditorRequested(RigAsset rig)
         {
-            if (rig != null && skinnedSourceField != null)
-            {
-                skinnedSourceField.value = rig;
-                SetActiveTab(ClipEditorTab.ClipEditor);
-            }
+            SetActiveTab(ClipEditorTab.ClipEditor);
         }
 
         /// <summary>Answers the Rigs panel changing the open rig's targets: re-reads the rig so the hierarchy and bindings follow.</summary>
@@ -1864,13 +1827,9 @@ namespace DotsAnimationToolkit.Editor
             RebuildInspector();
         }
 
-        /// <summary>Answers the Clip Sets panel's "Open in Clip Editor" button: loads the set and switches tabs.</summary>
+        /// <summary>Answers the Clip Sets panel's Open in Clip Editor button: switches tabs — the set is already the shared selection.</summary>
         private void OnClipSetOpenRequested(ClipSetAsset requestedSet)
         {
-            if (clipSetField != null)
-            {
-                clipSetField.value = requestedSet;
-            }
             SetActiveTab(ClipEditorTab.ClipEditor);
         }
 
@@ -3548,7 +3507,6 @@ namespace DotsAnimationToolkit.Editor
             // swallowed clicks in silence. ApplyClipSetSelection carries the same refresh now, for
             // the other place LoadedPrefab can change.
             RefreshPrefabActionState();
-            RefreshOpenPaneSource();
         }
 
         // -------------------------------------------------------------------------------------
@@ -4498,7 +4456,6 @@ namespace DotsAnimationToolkit.Editor
             {
                 validationBadge.Refresh(activeRig, clipSet);
             }
-            RefreshOpenPaneSource();
         }
 
         private void OnClipSelectionChanged(IEnumerable<object> selection)
