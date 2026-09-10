@@ -165,7 +165,7 @@ no longer drives baked parts (the component wins) — set the entity's
   Painterly Mask Texture** → `Assets/Textures/Painterly/T_PainterlyMask.png`
   (tileable, linear, R/G/B = three independent stroke layers). Hand-painted
   masks: paint three plain grayscale PNGs (`Mask_R/G/B.png`, same folder), then
-  pack them with **Window ▸ Stitch Punk ▸ Texture Channel Packer** — wire each
+  pack them with the DOTS Animator's **Texture Packer** tab — wire each
   file's R channel into the output R/G/B slots, bake over `T_PainterlyMask.png`,
   and save a recipe beside it for one-click repacks. The bake overwrites in
   place, preserving GUID/import settings. (This replaced the fixed-purpose

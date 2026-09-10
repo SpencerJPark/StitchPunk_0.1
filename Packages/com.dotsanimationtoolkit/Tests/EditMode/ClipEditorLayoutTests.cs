@@ -36,6 +36,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // they used to sit beside moved into their own panes (clip-list-pane, hierarchy-pane).
             // Exactly one tab is lit, and SetActiveTab is the only writer of that.
             "tab-strip",
+            "tab-texture-packer",
             "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
             "tab-vat-bake",
             "snap-toggle", "auto-key-toggle",
@@ -77,6 +78,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // The VAT bake tab's slot. Nothing is built into it until the tab is first opened, so a
             // rename here would present as a toggle that does nothing rather than as a failure.
             "vat-bake-pane",
+            // The Texture Packer's slot — first in the tab strip, and lazily filled like the rest.
+            "texture-packer-pane",
             // The New Rig flow's slot, covering the dock the same way the VAT bake tab does
             // (Phase D11). Nothing is built into it until the toggle is first switched on.
             "new-rig-pane",
@@ -162,6 +165,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             string[] tabNames = new string[]
             {
+                "tab-texture-packer",
                 "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
                 "tab-vat-bake"
             };

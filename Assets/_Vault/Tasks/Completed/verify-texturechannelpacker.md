@@ -1,6 +1,6 @@
 ---
 title: Verify — Texture Channel Packer (Editor node tool)
-status: active
+status: superseded by Amendment A81's drive (2026-09-10) — the tool is now the DOTS Animator's Texture Packer tab; see Docs/AnimationToolkit/Amendment_A81_TexturePacker_Spec.md §7
 created: 2026-07-09
 area: code
 ---

@@ -22,7 +22,7 @@ single-character names, explicit types everywhere.
 
 | Path | What it is |
 |---|---|
-| `TexturePacker/` | **Texture Channel Packer** — node-graph window that packs greyscale images into RGBA channels (see below). |
+| _(Texture Channel Packer)_ | **Moved into the toolkit 2026-09-10 (Amendment A81)** — now the DOTS Animator's **Texture Packer** tab, `Packages/com.dotsanimationtoolkit/Editor/TexturePacker/`; see the package's `Documentation~/texture-packer.md`. Nothing game-side remains. |
 | `DirectionSetContext/UnitDirectionSetContextProvider.cs` | The game's half of the toolkit's direction-set context seam (`DirectionSetsPanel_System.md` §4, 2026-08-29). `[InitializeOnLoad]` registers it with `DirectionSetsPanel.SetContextProvider`; it flattens every `UnitSO`'s idle/moving/stance/action mappings into `"<Unit> · <state>"` entries carrying the set, plus the rig **and clip set** resolved from the prefab's `ActorAuthoring` (first set, warning when there are several), and the unit's `animationDirections`. **The direction-set authoring tool itself is no longer game-side** — it is a tab of the toolkit's Clip Editor. |
 | `DialogueEditor/` | `DialogueSequenceEditorWindow` (GraphView node editor for `DialogueSequenceSO`) + `DialogueSequenceSOEditor`. |
 | `AnimationEditor/` | Hybrid preview-scene animation tooling: `AnimationClipEditorWindow`, `AnimationPreviewController(+Editor)`, `EditorAnimationSystem`, `EditorApplyAnimatedPoseSystem`, `AnimationClipUtilities`. |
@@ -67,8 +67,9 @@ the window was opened by hand once). Do not drop the attribute.
 
 ## Pattern: GraphView node windows
 
-Two windows use `UnityEditor.Experimental.GraphView` — `DialogueSequenceEditorWindow`
-and `TexturePackerWindow`. The shared skeleton:
+Two node editors use `UnityEditor.Experimental.GraphView` — `DialogueSequenceEditorWindow`
+here, and the toolkit's `TexturePackerGraphView` (`Packages/com.dotsanimationtoolkit/Editor/TexturePacker/`,
+hosted in a panel rather than a window). The shared skeleton:
 
 - `EditorWindow.CreateGUI()` builds a `Toolbar` (from `UnityEditor.UIElements`) plus a
   `GraphView` with `flexGrow = 1`.
@@ -97,7 +98,8 @@ and `TexturePackerWindow`. The shared skeleton:
 
 ## Pattern: reading source texture pixels
 
-`TexturePackerBaker.DecodeSource` is the reference implementation. Two tiers:
+The toolkit's `TexturePackBaker.DecodeSource` (`Packages/com.dotsanimationtoolkit/Editor/TexturePacker/`)
+is the reference implementation. Two tiers:
 
 1. **Byte-exact (preferred):** `File.ReadAllBytes(path)` → `Texture2D.LoadImage(bytes)`.
    Bypasses the importer entirely, so sources need **no** Read/Write-enabled,
@@ -118,37 +120,9 @@ did not exist beforehand — a repack must never silently undo the user's import
 
 ---
 
-## Texture Channel Packer — `TexturePacker/`
+## Texture Channel Packer — moved to the toolkit (2026-09-10, Amendment A81)
 
-Open with **Window ▸ Stitch Punk ▸ Texture Channel Packer**, or double-click a
-`TexturePackRecipeSO` (`[OnOpenAsset]`).
-
-Drag `Texture2D` assets from the Project window onto the canvas; each becomes a
-`SourceImageNodeView` with a thumbnail and four **output** ports (R/G/B/A, `Capacity.Multi`).
-The single `PackOutputNodeView` has four **input** ports (`Capacity.Single`); each row
-shows an *invert* toggle while wired and a flat-value *slider* while unwired. Sources of
-a different size than the output resolution are bilinearly resampled at bake time.
-
-| File | Responsibility |
-|---|---|
-| `TexturePackerWindow.cs` | `EditorWindow` + toolbar (Bake, Bake As…, recipe `ObjectField`, Save Recipe, Clear); converts the graph into a `PackJobDescription`. |
-| `TexturePackerGraphView.cs` | Canvas: drag-drop, port compatibility, single-capacity edge replacement, `ClearSources`. |
-| `SourceImageNodeView.cs` | One source texture; also hosts `TexturePackerNodeUI` (shared `MakePort` / `SetHeaderColor`). |
-| `PackOutputNodeView.cs` | Channel rows, resolution field, preview `Image` + channel-isolate `EnumField`, Bake button. Undeletable. |
-| `TexturePackerBaker.cs` | Static, GraphView-free: `Bake()` writes the PNG, `BakePreview()` returns a 128 px thumbnail. Owns the decode cache. |
-| `TexturePackRecipeSO.cs` | Editor-only SO snapshot of a graph: channels (sources by **GUID**), resolution, output path, node layout. Also `PackChannel`, `PackChannelIndex`. |
-
-Notes:
-- **`PackChannelIndex`** (`Red/Green/Blue/Alpha = 0..3`, `Count = 4`) is the single
-  source of truth for channel order, names, and port colours. Never pass a bare integer.
-- Recipes store sources by **asset GUID**, so moving or renaming a source PNG does not
-  break them. An unresolvable GUID becomes a red "Missing source" node rather than a
-  hard failure, and its wires are dropped from the bake.
-- Alpha is written only when it is wired or its default ≠ 1; otherwise the output is
-  `RGB24` and the importer gets `alphaSource = None`.
-- The baker caches decoded sources keyed by path + file write time, so the debounced
-  (250 ms) live preview does not re-decode a 4K PNG on every slider drag. The cache is
-  cleared after each bake and when the window closes.
-- `PainterlyMaskPacker.cs` (fixed R/G/B menu item) was **deleted 2026-07-09** — this tool
-  supersedes it. Reproduce it by wiring `Mask_R/G/B.png` → R/G/B and baking over
-  `T_PainterlyMask.png`. See [[Shaders]].
+The packer is now a tab of the DOTS Animator: `Packages/com.dotsanimationtoolkit/Editor/TexturePacker/`,
+documented in the package's `Documentation~/texture-packer.md`. The game-side folder, its
+`Window ▸ Stitch Punk ▸ Texture Channel Packer` entry and `TexturePackRecipeSO` are gone (no recipe
+asset ever existed in `Assets/`, so nothing needed migrating).

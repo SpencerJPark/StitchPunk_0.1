@@ -8,19 +8,22 @@ namespace DotsAnimationToolkit.Editor
     /// </summary>
     public enum ClipEditorTab
     {
-        Rigs = 0,
+        /// <summary>Pack greyscale images into one texture's channels over a node graph, with an image and recipe sidebar.</summary>
+        TexturePacker = 0,
+
+        Rigs = 1,
 
         /// <summary>Browse, create and edit clip sets — which clips each one registers.</summary>
-        ClipSets = 1,
+        ClipSets = 2,
 
         /// <summary>The dock — clip list, hierarchy, viewport, inspector and timeline.</summary>
-        ClipEditor = 2,
+        ClipEditor = 3,
 
-        VatBake = 3,
+        VatBake = 4,
 
         /// <summary>Layer/animation authoring over a composited multi-layer preview.</summary>
-        ActorEditor = 4,
+        ActorEditor = 5,
 
-        CutsceneEditor = 5
+        CutsceneEditor = 6
     }
 }
