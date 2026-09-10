@@ -8,6 +8,39 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.0] — A81 — texture packer tab
+
+### Added
+
+- **The Texture Packer tab**, first in the DOTS Animator's tab strip. The channel packer node
+  graph moves in whole: source nodes with R/G/B/A output ports feeding one Pack Output node, an
+  invert and default toggle per channel, and a bake that writes over the output texture in place,
+  preserving its GUID.
+- **An Images sidebar** listing every `Texture2D` under the project's `Assets` folder with a
+  thumbnail, a search field, and drag-to-canvas or double-click-to-add; a ✓ marks a row already on
+  the canvas, a 👁 toggle hides it from the list. Dragging straight from the Project window still
+  works — the graph reads the same drag payload either way.
+- **A Recipes sidebar.** New asks for a name and folder first; a recipe is renamed and deleted in
+  place, loaded by clicking it, and its asset opens the tab on a Project-window double-click. A
+  recipe is written only by the sidebar's Save button — baking never writes one — and the graph
+  header carries a trailing ● while the canvas differs from what was last loaded or saved.
+  Switching recipes, New, or Clear with unsaved changes asks first, Discard or Cancel.
+- **Per-source R G B A channel chips** under each source node's thumbnail, previewing that channel
+  alone in greyscale.
+- **A Presets ▾ menu** beside the output resolution field, including Match Largest Source.
+- Dropping a texture on a Pack Output channel row adds the source and wires its R channel into
+  that slot; dropping one on an existing source node swaps its image in place with every wire
+  intact.
+- `TexturePackMath`, a pure and tested home for channel routing, invert, default fill, and
+  resampling, plus `TexturePackBaker`, `TexturePackRecipeAsset`, and
+  `TexturePackRecipeAssetUtility` in the Editor assembly.
+
+### Changed
+
+- **`ClipEditorTab` gains a first entry** for the new tab, so every other tab's enum value shifts
+  up by one. The session's remembered tab index is not migrated — it persists within one session
+  only, so a shifted number costs at most one wrong tab after the first reload.
+
 ## [0.27.0] — A80 — one selection, every tab
 
 ### Changed

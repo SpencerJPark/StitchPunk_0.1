@@ -152,6 +152,9 @@ And the two references both of them lean on:
 
 - [`clip-editor.md`](clip-editor.md) — the authoring window itself: selection,
   keying, the dopesheet, sockets, and the route into Unity's prefab mode.
+- [`texture-packer.md`](texture-packer.md) — packing greyscale images into
+  the channels of one texture, the sidebar's Images and Recipes modes, and
+  baking in place.
 - [`animation-events.md`](animation-events.md) — authoring event markers, the
   pulse-vs-window split, naming keys with a registry, and reading both channels
   from a Burst job.

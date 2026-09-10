@@ -248,6 +248,10 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement clipSetsPane;
         private ClipSetsPanel clipSetsPanel;
 
+        /// <summary>The Texture Packer tab's cover pane, and the panel built into it the first time it is opened.</summary>
+        private VisualElement texturePackerPane;
+        private TexturePackerPanel texturePackerPanel;
+
         /// <summary>The Actor Editor pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement actorEditorPane;
         private ActorEditorPanel actorEditorPanel;
@@ -263,7 +267,7 @@ namespace DotsAnimationToolkit.Editor
         /// because every switch has to write the ones that did not change, and a lookup miss would
         /// leave one lit alongside the new one.
         /// </summary>
-        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[6];
+        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[7];
 
         /// <summary>The Cutscene Editor's cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement cutscenePane;
@@ -521,6 +525,16 @@ namespace DotsAnimationToolkit.Editor
             if (window != null && window.cutscenePanel != null && cutscene != null)
             {
                 window.cutscenePanel.LoadCutscene(cutscene);
+            }
+        }
+
+        /// <summary>Brings the Clip Editor forward on its Texture Packer tab, with <paramref name="recipe"/> loaded.</summary>
+        public static void FocusTexturePackerTab(TexturePackRecipeAsset recipe)
+        {
+            ClipEditorWindow window = FocusTab(ClipEditorTab.TexturePacker);
+            if (window != null && window.texturePackerPanel != null && recipe != null)
+            {
+                window.texturePackerPanel.LoadRecipe(recipe);
             }
         }
 
@@ -802,6 +816,11 @@ namespace DotsAnimationToolkit.Editor
                 clipSetsPanel.Dispose();
                 clipSetsPanel = null;
             }
+            if (texturePackerPanel != null)
+            {
+                texturePackerPanel.Dispose();
+                texturePackerPanel = null;
+            }
             if (vatBakePanel != null)
             {
                 vatBakePanel.Dispose();
@@ -1001,6 +1020,7 @@ namespace DotsAnimationToolkit.Editor
             vatBakePane = rootVisualElement.Q<VisualElement>("vat-bake-pane");
             newRigPane = rootVisualElement.Q<VisualElement>("new-rig-pane");
             clipSetsPane = rootVisualElement.Q<VisualElement>("clip-sets-pane");
+            texturePackerPane = rootVisualElement.Q<VisualElement>("texture-packer-pane");
             cutscenePane = rootVisualElement.Q<VisualElement>("cutscene-pane");
 
             // Before BindTabs, which hides the whole stack on any tab but Clip Editor.
@@ -1564,9 +1584,13 @@ namespace DotsAnimationToolkit.Editor
 
         // Clicking the lit tab is a no-op, not a toggle-off: nothing sits behind a tab to reveal, so
         // a false value would leave the window showing a pane no tab claims. Snapped back to true.
-        /// <summary>Binds the four tab toggles as a radio group.</summary>
+        /// <summary>Binds the five tab toggles as a radio group.</summary>
         private void BindTabs()
         {
+            BindTab(ClipEditorTab.TexturePacker, "tab-texture-packer",
+                "Pack greyscale images into the channels of one texture: drag images from the "
+                + "sidebar or the Project window onto the canvas, wire their channels into the "
+                + "Pack Output node, and bake over the output in place.");
             BindTab(ClipEditorTab.Rigs, "tab-new-rig",
                 "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
                 + "targets, and optionally point this clip set at the result.");
@@ -1656,6 +1680,7 @@ namespace DotsAnimationToolkit.Editor
             }
             isApplyingTab = false;
 
+            ShowTexturePackerTab(activeTab == ClipEditorTab.TexturePacker);
             ShowRigsTab(activeTab == ClipEditorTab.Rigs);
             ShowClipSetsTab(activeTab == ClipEditorTab.ClipSets);
             ShowActorEditorTab(activeTab == ClipEditorTab.ActorEditor);
@@ -1779,6 +1804,27 @@ namespace DotsAnimationToolkit.Editor
             }
 
             clipSetsPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        private void ShowTexturePackerTab(bool isShown)
+        {
+            if (texturePackerPane == null)
+            {
+                return;
+            }
+
+            if (isShown && texturePackerPanel == null)
+            {
+                texturePackerPanel = new TexturePackerPanel();
+                texturePackerPane.Add(texturePackerPanel);
+            }
+
+            if (isShown)
+            {
+                texturePackerPanel.RescanProject();
+            }
+
+            texturePackerPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
         /// <summary>Shows or hides the Actor Editor pane over the editor.</summary>
