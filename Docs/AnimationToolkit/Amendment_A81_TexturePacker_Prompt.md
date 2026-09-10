@@ -7,8 +7,10 @@ protocol is binding. The spec's §2 decisions (A81-D1…D21) are settled; do not
 whether the tab is first (it is), whether the game-side folder is deleted (it is, by you, in T16),
 whether the sidebar rows are a list or a grid (boxed list rows with 48px thumbnails), whether recipes
 get a catalog (a segmented `Images | Recipes` sidebar), or which extras are in (double-click add,
-channel-row drop auto-wire, presets + channel chips — and not a standalone window, auto-repack, or
-a rig filter).
+channel-row drop auto-wire, presets + channel chips, drop-to-replace on a source node — and not a
+standalone window, auto-repack, or a rig filter), or how recipes are written (New prompts for a
+name; the Recipes tab's Save button is the **only** writer — a bake never touches the recipe; an
+unsaved marker and a discard prompt guard the difference).
 
 **You are the orchestrator.** You are the only process that touches `mcp__UnityMCP__*`: you compile,
 run tests, drive the Editor and commit. The tasks are sized for **`worker` subagents that edit files
@@ -74,6 +76,12 @@ Commit per wave with an `A81-Tn:` prefix naming every task, staging paths explic
   the tab strip itself. A plain `value = true` re-enters the callback.
 - **A recycled `ListView` row must not capture per-bind data** — store the entry in `row.userData`
   and read it live, exactly as `RigCatalogColumn.MakeRigRow` explains. Both new columns copy that.
+- **The game-side `BakeTo` writes the output path back into the loaded recipe** (`:266-270`). That
+  block must not be moved across — it is exactly the "saved every time" the owner ruled out. If a
+  worker's panel calls `SetDirty` on a recipe anywhere but `SaveRecipe`, send it back.
+- **Three drop targets nest: source node, output channel row, canvas.** The node and the row
+  handlers `StopPropagation()` after `AcceptDrag`, or the canvas handler fires too and a replace
+  becomes a replace plus a duplicate node.
 - **`DragAndDrop.StartDrag` must run inside a pointer event** — `PointerMoveEvent` with
   `pressedButtons == 1`, then `StopPropagation()` so the `ListView` does not also start a rectangle
   selection. The idiom is `ClipEditorWindow.RegisterReparentDrag`.

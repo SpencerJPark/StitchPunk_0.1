@@ -18,11 +18,14 @@
   `Assets/`-rooted `Texture2D` as a boxed row with a 48px thumbnail, name, size and folder; search;
   drag one or many onto the canvas (an editor drag, so the graph's existing Project-window drop code
   accepts both); double-click adds at the visible centre; ✓ on rows already on the canvas and an eye
-  toggle to hide them. Recipes: the A77 catalog (New / Refresh / search / right-click Rename, Delete),
-  click to load — replacing the toolbar's recipe object field.
-- **Three graph extras:** dropping an image on an R/G/B/A row of the Pack Output node adds and wires
-  it; a Presets ▾ menu beside the size field; R G B A chips under each source thumbnail that isolate
-  that channel.
+  toggle to hide them. Recipes: the A77 catalog (New / Save / Refresh / search / right-click Rename,
+  Delete), click to load — replacing the toolbar's recipe object field. New asks for a name; Save
+  there is the only thing that ever writes a recipe (a bake never does); the graph header shows an
+  unsaved marker and switching away from unsaved changes asks first.
+- **Four graph extras:** dropping an image on an R/G/B/A row of the Pack Output node adds and wires
+  it; dropping one on an existing source node swaps the image with its wires intact (the recipe then
+  saves the new image); a Presets ▾ menu beside the size field; R G B A chips under each source
+  thumbnail that isolate that channel.
 - **The packing logic becomes testable:** `TexturePackMath` (pure) gets the two fixtures the tool
   never had; `TexturePackBaker` (instance, owns the decode cache) and the recipe translation on the
   graph view keep the panel small.
@@ -31,9 +34,10 @@
 
 First tab; boxed list rows, not a grid; segmented sidebar with a recipe catalog; double-click add,
 channel-row drop auto-wire (R channel), presets + chips; **not** this round: standalone window,
-auto-repack on source change, rig-scoped filter, `Packages/` textures. Two ⚠ interpretations for the
-checkpoint: the sidebar switch borrows the top-tab look (D6); New creates the recipe instantly in
-the remembered folder with a default name, like Clip Sets (D13).
+auto-repack on source change, rig-scoped filter, `Packages/` textures. Recipes are named on
+creation, renamed in place, and written only by the Recipes tab's Save (D13, D23, D24 — the owner's
+words: "only if I say so from the recipe tab"). One ⚠ interpretation for the checkpoint: the sidebar
+switch borrows the top-tab look (D6).
 
 ## A finding the build must act on first
 
@@ -45,4 +49,4 @@ T0 drives it once before anything moves, so the port starts from known behaviour
 ## Open after the build
 
 ⏸ **T18 owner checkpoint** — what to open and press, and three questions: the sidebar switch style,
-instant-New vs prompt-for-name, and the 280px sidebar start width.
+whether the ` ●` unsaved marker reads, and the 280px sidebar start width.

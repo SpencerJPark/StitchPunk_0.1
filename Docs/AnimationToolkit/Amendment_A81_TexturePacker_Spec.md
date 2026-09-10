@@ -28,11 +28,13 @@ shape, a 48px thumbnail per row); a **segmented sidebar** — `Images | Recipes`
 a catalog too and the toolbar's lone recipe object field goes; three of the four offered extras —
 **double-click adds to canvas** (with a ✓ on rows already on the canvas and a hide filter),
 **drop onto a channel row auto-wires**, and **resolution presets + a per-source channel view**;
-and **no** rig-scoped filtering, standalone window, or auto-repack this round. This is the
-acceptance layout:
+and **no** rig-scoped filtering, standalone window, or auto-repack this round. Two later additions
+the same day: drop-to-replace on a source node (D22), and — on learning what recipes were — "make
+sure I can name and rename the recipes, I also don't want one saved every time, only if I say so
+from the recipe tab" (D13, D23, D24). This is the acceptance layout:
 
 ```
-┌ [Images][Recipes]        [👁][⟳] ┬ Recipe: T_PainterlyMask_Recipe   [Bake][Bake As…][Save Recipe][Clear] ┐
+┌ [Images][Recipes]        [👁][⟳] ┬ Recipe: T_PainterlyMask_Recipe ●          [Bake][Bake As…][Clear] ┐
 │ 🔍 search                        │                                                                        │
 │ ┌────┬─────────────────────────┐ │   ┌ Mask_R ───────┐                    ┌ Pack Output ─────────┐        │
 │ │▒▒▒▒│ Mask_R                  │ │   │ [thumb]       │ R ●────────────● R │ [inv]                │        │
@@ -48,6 +50,8 @@ acceptance layout:
 ---
 
 ## 2. Decisions (recorded — do not re-ask). ⚠ marks an interpretation the owner has not confirmed.
+
+Numbered in the order they were made, not by topic — D22 to D24 came after the first draft.
 
 - **A81-D1 — The packer becomes `ClipEditorTab.TexturePacker = 0`; every other value shifts up by
   one.** `tabToggles` is sized 7. The UXML gains `tab-texture-packer` (text "Texture Packer") as the
@@ -84,7 +88,7 @@ acceptance layout:
 - **A81-D6 — The sidebar's mode switch is two `ToolbarToggle`s in the `clip-editor__tab` style,**
   sitting where a pane title would, in one `toolkit-pane-header`; the header's `toolkit-pane-actions`
   slot shows the *active column's* actions (Images: 👁 hide-on-canvas toggle + ⟳ Refresh; Recipes:
-  + New + ⟳ Refresh). The owner said the top tabs "should stay the same" — the same look one level
+  + New, 💾 Save, ⟳ Refresh). The owner said the top tabs "should stay the same" — the same look one level
   down is the consistent choice, and a title reading "Images" under a lit "Images" toggle is noise.
   ⚠ interpretation.
 - **A81-D7 — Image rows mirror `RigCatalogColumn` exactly** (`fixedItemHeight = 64f`, the zeroed
@@ -114,21 +118,40 @@ acceptance layout:
 - **A81-D12 — Double-click on an image row adds it at the visible centre of the graph.** Rows
   already on the canvas show ✓; the 👁 toggle hides them from the list. Neither re-adds — the graph's
   `AddSourceNode` already de-duplicates by GUID.
-- **A81-D13 — The recipe catalog is the Clip Sets shape, including its New:** `+ New` creates
-  `NewTexturePackRecipe.asset` immediately in the remembered folder (EditorPrefs
+- **A81-D13 — The recipe catalog is the Clip Sets shape, but New asks for a name first.** Owner
+  (2026-09-10): "make sure I can name and rename the recipes". `+ New` opens
+  `EditorUtility.SaveFilePanelInProject("New texture pack recipe", "NewTexturePackRecipe", "asset",
+  "Choose the recipe's name and folder.", RecallRecipeFolder())`; Cancel creates nothing. A chosen
+  path creates an empty recipe there, remembers its folder (EditorPrefs
   `DotsAnimationToolkit.TexturePacker.RecipeFolder`, validated with `IsValidFolder`, fallback
   `"Assets"`), selects it, pings it, and clears the graph. Right-click Rename (inline, via
   `InlineRenameEditing.Begin`) and Delete (confirm dialog, `MoveAssetToTrash`). Clicking a recipe
-  loads it. `Save Recipe` writes into the selected recipe, or — with none selected — prompts for a
-  path as today and then selects the result. The remembered folder is updated whenever a recipe is
-  created, saved, or picked. ⚠ interpretation: mirrors A77's "New makes the empty asset active".
+  loads it. The remembered folder is also updated whenever a recipe is saved or picked.
+- **A81-D23 — A recipe is written only by the Recipes tab's Save button. Nothing else ever writes
+  one.** Owner: "I don't want one saved every time, only if I say so from the recipe tab." So:
+  `Save` lives in the Recipes column's header actions (`+ New`, `💾 Save`, `⟳ Refresh`), not in the
+  graph header; with a recipe selected it writes the graph into it, with none selected it prompts
+  for a name and folder (the same panel as New) and then selects the result. **Bake no longer
+  touches the recipe** — the game-side `BakeTo` wrote `outputAssetPath` back into the loaded recipe
+  and set it dirty; that line does not come across. Loading, renaming, deleting and refreshing write
+  nothing to the loaded recipe's graph either. The graph header's recipe label shows a trailing
+  ` ●` while the canvas differs from what was last loaded or saved (a `hasUnsavedChanges` flag set
+  by `GraphChanged` and `SettingsChanged`, cleared by load and save), so the owner can see when a
+  Save would matter.
+- **A81-D24 — Leaving unsaved changes asks first.** Clicking another recipe, pressing New, or
+  pressing Clear while `hasUnsavedChanges` is true opens
+  `DisplayDialog("Unsaved changes", "'<name>' has unsaved changes. Discard them?", "Discard",
+  "Cancel")` (`"The graph has unsaved changes."` when nothing is loaded). Cancel leaves everything
+  as it was, including the catalog's highlighted row (`SetSelectedRecipe(LoadedRecipe)`); Discard
+  proceeds. The counterpart of D23: if the tool never saves for you, it must not lose work
+  silently either.
 - **A81-D14 — Deleting a recipe is allowed.** Unlike a rig, nothing references a recipe; the packed
   PNG it produced is untouched. The dialog says so.
 - **A81-D15 — The graph column's chrome is a `toolkit-pane-header`, not a `Toolbar`.** Left: a
-  `Label` `texture-packer-recipe-label` reading `"Recipe: <name>"` or `"Unsaved graph"`. Right,
-  pushed by `toolkit-pane-actions`: Bake, Bake As…, Save Recipe, Clear as
-  `ToolkitIcons.MakeIconTextButton`s (icon + word, the catalogs' New/Refresh style). The recipe
-  `ObjectField` is gone (D13 replaces it).
+  `Label` `texture-packer-recipe-label` reading `"Recipe: <name>"` or `"No recipe"`, with D23's
+  ` ●` suffix while unsaved. Right, pushed by `toolkit-pane-actions`: Bake, Bake As…, Clear as
+  `ToolkitIcons.MakeIconTextButton`s (icon + word, the catalogs' New/Refresh style). Save is not
+  here (D23). The recipe `ObjectField` is gone (D13 replaces it).
 - **A81-D16 — Resolution presets are a `GenericDropdownMenu` off a "Presets ▾" button** beside the
   size field (`RigsPanel.OpenRowKindPicker` at `:429-437` is the idiom): `Match Largest Source`,
   `256`, `512`, `1024`, `2048`, `4096`. A number sets the size field to N×N; the first item raises
@@ -151,6 +174,14 @@ acceptance layout:
   panel are UI wiring (HANDOFF §2: zero tests); the recipe asset's `ToPackRequest` hits
   `AssetDatabase`; the baker writes files. The channel routing, invert, default fill and resampling
   are the logic the feature exists for, were never tested game-side, and are pure once extracted.
+- **A81-D22 — Drop on an existing source node replaces its texture in place, wires intact.** Asked
+  2026-09-10 after the owner learned what a recipe is ("can I swap the images out in that node set
+  up?"): yes, by dropping. The node keeps its ports, so every edge survives; title, thumbnail, size
+  label and `TextureGuid` change; a lit channel chip is cleared. A ⚠ *missing* node can be replaced
+  the same way — that is how a recipe whose source was deleted gets repaired. Only the first dragged
+  texture is used. If that texture is already on the canvas on another node the drop is refused with
+  a `Debug.LogWarning` (D21 prefix) rather than creating a duplicate GUID the recipe could not
+  distinguish. Save Recipe afterwards records the new image; Bake uses it immediately.
 - **A81-D21 — Tab tooltip and log prefix.** Tooltip: "Pack greyscale images into the channels of one
   texture: drag images from the sidebar or the Project window onto the canvas, wire their channels
   into the Pack Output node, and bake over the output in place." Log prefix:
@@ -184,8 +215,7 @@ acceptance layout:
      (202), `TexturePackRecipeSO.cs` (151) — each in full.
 5. `Packages/com.dotsanimationtoolkit/Editor/ClipEditor/Authoring/RigCatalogColumn.cs` in full (315
    lines) — the sidebar columns mirror it, comments and all.
-6. `Editor/ClipEditor/Authoring/ClipSetsPanel.cs:52-64` (the split view) and `:621-635`
-   (`CreateAndSelectNewClipSet` — the New idiom D13 copies); `Editor/ClipEditor/Authoring/ClipSetSaveLocation.cs`
+6. `Editor/ClipEditor/Authoring/ClipSetsPanel.cs:52-64` (the split view); `Editor/ClipEditor/Authoring/ClipSetSaveLocation.cs`
    in full (66 lines — its static helpers are reused, its class is not copied).
 7. `Editor/ClipUtilities/ActorProfileAssetUtility.cs` in full (110 lines) — Create / Rename / Trash,
    the shape `TexturePackRecipeAssetUtility` copies.
@@ -325,14 +355,17 @@ public const string DefaultAssetName = "NewTexturePackRecipe";
 /// The last folder a recipe was created, saved or picked in, when it still exists; otherwise "Assets".
 public static string RecallRecipeFolder()
 public static void RememberRecipeFolder(string projectRelativeFolder)
-/// Creates an empty recipe at a uniquified path in folder. Null when the folder is invalid.
-public static TexturePackRecipeAsset CreateRecipe(string folder)
+/// Asks for a name and folder (starting in the remembered folder) and creates an empty recipe there. Null when the owner cancels.
+public static TexturePackRecipeAsset CreateRecipeWithPrompt()
+/// Creates an empty recipe at exactly assetPath (must end in .asset, under the project). Null when the path is unusable. What the prompt and the drive both call.
+public static TexturePackRecipeAsset CreateRecipe(string assetPath)
 public static bool RenameRecipe(TexturePackRecipeAsset recipe, string newName)
 public static bool TrashRecipe(TexturePackRecipeAsset recipe)
 ```
 
-`CreateRecipe` = `ClipSetSaveLocation.ResolveTargetAssetPath(folder, DefaultAssetName)` →
-`CreateInstance` → `AssetDatabase.CreateAsset` → `SaveAssets` → `RememberRecipeFolder(folder)`.
+`CreateRecipeWithPrompt` = the D13 `SaveFilePanelInProject` call → empty string returns null →
+`CreateRecipe(chosenPath)`. `CreateRecipe` = `CreateInstance` → `AssetDatabase.CreateAsset` →
+`SaveAssets` → `RememberRecipeFolder(Path.GetDirectoryName(assetPath).Replace('\\', '/'))`.
 `RenameRecipe` sanitizes with `ClipSetSaveLocation.SanitizeAssetName` and refuses an unchanged or
 empty name. `TrashRecipe` = `MoveAssetToTrash`, false with a warning when it fails.
 
@@ -345,19 +378,29 @@ old `TexturePackerNodeUI`, unchanged.
 **`SourceImageNodeView : Node`** — the moved node plus D17:
 
 ```csharp
-public string TextureGuid { get; }
-public Texture2D SourceTexture { get; }
+public string TextureGuid { get; private set; }
+public Texture2D SourceTexture { get; private set; }
 public bool IsMissing { get; }
 /// -1 while no chip is lit.
 public int ViewedChannel { get; }
 public event Action<SourceImageNodeView, int> ChannelViewChanged;
+/// A texture was dropped on this node; the graph decides whether the swap is allowed.
+public event Action<SourceImageNodeView, Texture2D> ReplaceRequested;
 public Port GetChannelPort(int channelIndex)
 public int FindChannelIndex(Port port)
 /// Takes ownership of an isolated-channel thumbnail (null restores the imported texture) and destroys the one it replaces.
 public void SetChannelPreview(Texture2D channelPreview)
 public void DisposeChannelPreview()
+/// Swaps the texture behind this node: guid, title, header colour, thumbnail and size label rebuild; ports and their edges are untouched; a lit chip is cleared.
+public void ReplaceTexture(string textureGuid, Texture2D sourceTexture)
 public static SourceImageNodeView CreateFromGuid(string textureGuid)
 ```
+
+The body (thumbnail, size label, chips, or the missing label) is built into one `bodyContainer`
+inside `extensionContainer` so `ReplaceTexture` can `Clear()` and rebuild it without touching the
+ports. The node registers `DragUpdatedEvent` (Copy when a `Texture2D` is being dragged) and
+`DragPerformEvent` (`AcceptDrag`, raise `ReplaceRequested(this, firstTexture)`, `StopPropagation()`
+— or the canvas handler also adds a node) on itself (D22).
 
 The chips: a row of four `ToolbarToggle`s named `source-channel-chip-r/g/b/a`, text `R G B A`,
 class `clip-editor__tab`, under the thumbnail, radio behaviour via `SetValueWithoutNotify` (the
@@ -412,6 +455,10 @@ public void AddSourcesAtVisibleCenter(IReadOnlyList<Texture2D> textures)
 public void AddSourcesWiredIntoChannel(int outputChannelIndex, IReadOnlyList<Texture2D> textures)
 /// GUIDs of every source node on the canvas — what the sidebar marks ✓.
 public List<string> CollectSourceGuids()
+/// Swaps the texture behind an existing node, edges intact. False (with a warning) when the texture has no GUID or is already on another node. Raises GraphChanged.
+public bool ReplaceSourceTexture(SourceImageNodeView node, Texture2D replacement)
+/// Re-raised from every source node so the panel subscribes once.
+public event Action<SourceImageNodeView, int> SourceChannelViewChanged;
 
 /// Rebuilds the canvas from a recipe: sources by GUID at their saved positions, wires, inverts, defaults, size, output node position.
 public void LoadFromRecipe(TexturePackRecipeAsset recipe)
@@ -424,7 +471,10 @@ public PackRequest BuildPackRequest(string outputAssetPath)
 the part after the null-graph guard), `WriteGraphInto` (`:474-503`) and
 `BuildJobDescription`/`BuildChannelJob` (`:164-211`) moved verbatim onto the view. The output node's
 `SourceDroppedOnChannel` is subscribed in the constructor and answered by
-`AddSourcesWiredIntoChannel`. **`AddSourcesWiredIntoChannel` must call `DisconnectExistingEdges`
+`AddSourcesWiredIntoChannel`. Every node `AddSourceNode` creates gets its `ReplaceRequested` bound to
+`ReplaceSourceTexture` and its `ChannelViewChanged` re-raised as `SourceChannelViewChanged` — in
+`AddSourceNode`, the one place nodes are made, so a recipe load and a drop behave alike.
+**`AddSourcesWiredIntoChannel` must call `DisconnectExistingEdges`
 before `ConnectPorts`** — `ConnectPorts` bypasses `graphViewChanged`, so the single-capacity
 replacement the vault documents does not run on its own. `ClearSources` and the
 `elementsToRemove` branch of `OnGraphViewChanged` call `DisposeChannelPreview()` on every source
@@ -465,9 +515,11 @@ context menu kept:
 ```csharp
 public event Action<TexturePackRecipeAsset> RecipeSelected;
 public event Action NewRequested;
+/// The only way a recipe is ever written (D23).
+public event Action SaveRequested;
 public event Action<TexturePackRecipeAsset, string> RecipeRenameRequested;
 public event Action<TexturePackRecipeAsset> RecipeDeleteRequested;
-public VisualElement HeaderActions { get; }          // + New, ⟳ Refresh
+public VisualElement HeaderActions { get; }          // + New, 💾 Save, ⟳ Refresh
 public TexturePackRecipeAsset SelectedRecipe { get; }
 public void RescanProject();
 public void SetSelectedRecipe(TexturePackRecipeAsset recipe);   // no event
@@ -475,7 +527,8 @@ public void RefreshRows();                                        // after a sav
 ```
 
 Element names: `recipes-search`, `recipes-list`, `recipe-row-box`, `recipe-row-title`,
-`recipe-row-info`, `recipes-new-button`, `recipes-refresh-button`. Row info:
+`recipe-row-info`, `recipes-new-button`, `recipes-save-button` (`"d_SaveAs"`, "Save", tooltip
+"Write the current graph into the selected recipe, or into a new one"), `recipes-refresh-button`. Row info:
 `"<n> wired · <output file name>"` or `"<n> wired · no output yet"`; tooltip the output path. Empty
 texts: `"No recipes in this project yet. Press New."` / `"No recipes match your search."`.
 
@@ -515,38 +568,44 @@ public sealed class TexturePackerPanel : VisualElement, IDisposable
 
 Constructor: `style.flexGrow = 1`; the D5 split view with `Sidebar` and a graph column
 (`texture-packer-graph-column`, `flexGrow = 1`, `minWidth = 480f`) holding the D15 header
-(`texture-packer-header`, buttons `texture-packer-bake-button` `"d_SaveAs"`/"Bake",
-`texture-packer-bake-as-button` `"d_SaveAs"`/"Bake As…", `texture-packer-save-recipe-button`
-`"d_ScriptableObject Icon"`/"Save Recipe", `texture-packer-clear-button`
+(`texture-packer-header`, buttons `texture-packer-bake-button` `"d_PreTextureRGB"`/"Bake",
+`texture-packer-bake-as-button` `"d_PreTextureRGB"`/"Bake As…", `texture-packer-clear-button`
 `"d_TreeEditor.Trash"`/"Clear" — every icon name carries its word as fallback, so a name that does
 not resolve still reads) and the D19 `graphHost` with the `Graph` inside. One `TexturePackBaker`
-field.
+field, one `bool hasUnsavedChanges` (D23) that every `RefreshRecipeLabel()` reads.
 
 Wiring, all in the constructor:
 
 | From | Handler |
 |---|---|
-| `Graph.GraphChanged` | `AutoAssignResolution()`, `Sidebar.Images.SetOnCanvasGuids(Graph.CollectSourceGuids())`, `SchedulePreviewRefresh()` |
-| `Graph.OutputNode.SettingsChanged` | `SchedulePreviewRefresh()` |
+| `Graph.GraphChanged` | `AutoAssignResolution()`, `Sidebar.Images.SetOnCanvasGuids(Graph.CollectSourceGuids())`, `MarkUnsaved()`, `SchedulePreviewRefresh()` |
+| `Graph.OutputNode.SettingsChanged` | `MarkUnsaved()`, `SchedulePreviewRefresh()` |
 | `Graph.OutputNode.BakeRequested` | `Bake()` |
 | `Graph.OutputNode.MatchLargestSourceRequested` | `resolutionAssigned = false; AutoAssignResolution();` |
-| every source node's `ChannelViewChanged` (subscribed by the graph and re-raised as `Graph.SourceChannelViewChanged` — add that pass-through event to §4.7's surface) | build a `PackRequest` with R, G, B bound to `(node path, channel)`, A default 1, resolution = the source's size; `node.SetChannelPreview(baker.BakePreview(request, 96, PackPreviewChannel.RGB))`; `-1` → `SetChannelPreview(null)` |
+| `Graph.SourceChannelViewChanged` | build a `PackRequest` with R, G, B bound to `(node path, channel)`, A default 1, resolution = the source's size; `node.SetChannelPreview(baker.BakePreview(request, 96, PackPreviewChannel.RGB))`; `-1` → `SetChannelPreview(null)` |
 | `Sidebar.Images.ImagesActivated` | `Graph.AddSourcesAtVisibleCenter(textures)` |
-| `Sidebar.Recipes.RecipeSelected` | `LoadRecipe(recipe)` |
-| `Sidebar.Recipes.NewRequested` | `CreateRecipe(RecallRecipeFolder())` → rescan → `LoadRecipe(newRecipe)` → `PingObject` |
-| `Sidebar.Recipes.RecipeRenameRequested` | `RenameRecipe` → rescan → reselect |
-| `Sidebar.Recipes.RecipeDeleteRequested` | `DisplayDialog("Delete Recipe", "Delete '<name>'? The packed texture it produced is not touched.", "Delete", "Cancel")` → `TrashRecipe` → if it was `LoadedRecipe`, `ClearGraph()` → rescan |
+| `Sidebar.Recipes.RecipeSelected` | `ConfirmDiscardIfUnsaved()` (D24; on Cancel `SetSelectedRecipe(LoadedRecipe)` and return) → `LoadRecipe(recipe)` |
+| `Sidebar.Recipes.NewRequested` | `ConfirmDiscardIfUnsaved()` → `CreateRecipeWithPrompt()` (null → return) → rescan → `LoadRecipe(newRecipe)` → `PingObject` |
+| `Sidebar.Recipes.SaveRequested` | `SaveRecipe()`: `LoadedRecipe` null → `CreateRecipeWithPrompt()` (null → return) and select it; then `Graph.WriteToRecipe(LoadedRecipe)`, `LoadedRecipe.outputAssetPath = outputAssetPath`, `SetDirty`, `SaveAssets`, `hasUnsavedChanges = false`, `RefreshRecipeLabel()`, `Sidebar.Recipes.RefreshRows()`, `RememberRecipeFolder` |
+| `Sidebar.Recipes.RecipeRenameRequested` | `RenameRecipe` → rescan → reselect (the graph is untouched — a rename is not a save) |
+| `Sidebar.Recipes.RecipeDeleteRequested` | `DisplayDialog("Delete Recipe", "Delete '<name>'? The packed texture it produced is not touched.", "Delete", "Cancel")` → `TrashRecipe` → if it was `LoadedRecipe`, `LoadedRecipe = null`, `RefreshRecipeLabel()` (the canvas stays; it is now an unsaved graph) → rescan |
+| header Clear | `ConfirmDiscardIfUnsaved()` → `ClearGraph()` (which sets `LoadedRecipe = null`, clears the catalog selection, `hasUnsavedChanges = false`) |
 
 `Bake`, `BakeAs`, `BakeTo`, `DirectoryOfOrAssets`, `AutoAssignResolution`, `SchedulePreviewRefresh`,
-`RefreshPreview`, `ClearGraph`, `SaveRecipe` are the window's (`:213-342`, `:344-361`, `:439-472`)
-with `graphView.X` → `Graph.X`, `TexturePackerBaker.` → `baker.`, `BuildJobDescription()` →
-`Graph.BuildPackRequest(outputAssetPath)`, `LoadRecipe` → `Graph.LoadFromRecipe(recipe)` then
-`outputAssetPath = recipe.outputAssetPath; resolutionAssigned = recipe.HasAnySource;` then the
-label, `Sidebar.Recipes.SetSelectedRecipe(recipe)`, `Sidebar.SetMode(Recipes)`,
-`RememberRecipeFolder(folder of recipe)`, `SchedulePreviewRefresh()`. `SaveRecipe` with no
-`LoadedRecipe` prompts as today, then rescans and selects. After a save or a successful bake:
-`Sidebar.Recipes.RefreshRows()`. `Dispose`: `Graph.OutputNode.DisposePreviewTexture()`, every source
-node's `DisposeChannelPreview()`, `baker.ClearSourceCache()`, `scheduledPreview?.Pause()`.
+`RefreshPreview`, `ClearGraph` are the window's (`:213-342`, `:344-361`) with `graphView.X` →
+`Graph.X`, `TexturePackerBaker.` → `baker.`, `BuildJobDescription()` →
+`Graph.BuildPackRequest(outputAssetPath)`. **`BakeTo` drops the block at `:266-270` that wrote
+`outputAssetPath` into the loaded recipe** (D23); a bake that picks a new path only sets the
+panel's `outputAssetPath`, refreshes the output node's label and calls `MarkUnsaved()` — the recipe
+learns the path when the owner presses Save. `LoadRecipe` → `Graph.LoadFromRecipe(recipe)` then
+`outputAssetPath = recipe.outputAssetPath; resolutionAssigned = recipe.HasAnySource;
+hasUnsavedChanges = false;` then the label, `Sidebar.Recipes.SetSelectedRecipe(recipe)`,
+`Sidebar.SetMode(Recipes)`, `RememberRecipeFolder(folder of recipe)`, `SchedulePreviewRefresh()`.
+`SaveRecipe` is the row in the table above — the old `:439-472` body with the prompt swapped for
+`CreateRecipeWithPrompt()`. `MarkUnsaved()` is a no-op while `LoadRecipe`/`ClearGraph` are running
+(an `isRestoringGraph` guard), or the load itself would flag the graph dirty. `Dispose`:
+`Graph.OutputNode.DisposePreviewTexture()`, every source node's `DisposeChannelPreview()`,
+`baker.ClearSourceCache()`, `scheduledPreview?.Pause()`.
 
 ### 4.10 Window integration — `Editor/ClipEditor/ClipEditorWindow.cs` + new `Editor/TexturePacker/TexturePackRecipeAssetOpener.cs` (T12)
 
@@ -633,8 +692,9 @@ or `Conformance_G` rejects the `Utility` suffix.
 ### T5 — `TexturePackPortBuilder` + `SourceImageNodeView` [parallel-safe]
 Files: **new** `Editor/TexturePacker/TexturePackPortBuilder.cs`, **new**
 `Editor/TexturePacker/SourceImageNodeView.cs`. Read `SourceImageNodeView.cs` (game-side) in full,
+`TexturePackerGraphView.cs:187-235` (the drag handlers being mirrored on the node),
 `ClipEditorWindow.cs:1641-1657` (the radio idiom), `Editor.md` "Pattern: GraphView node windows",
-§4.1, §4.6. No fixture.
+§4.1, §4.6. No fixture. Includes D22's `ReplaceTexture` and the node-level drop handlers.
 
 ### T6 — `PackOutputNodeView` [parallel-safe]
 Files: **new** `Editor/TexturePacker/PackOutputNodeView.cs`. Read `PackOutputNodeView.cs` (game-side)
@@ -661,8 +721,9 @@ Files: **new** `Editor/TexturePacker/TexturePackerSidebar.cs`. Read `ClipEditorW
 
 ### T11 — `TexturePackerPanel` [parallel-safe]
 Files: **new** `Editor/TexturePacker/TexturePackerPanel.cs`. Read `TexturePackerWindow.cs:78-162`,
-`:213-361`, `:439-472`; `ClipSetsPanel.cs:52-64`; §4.3, §4.5, §4.7, §4.8 surfaces; §4.9 in full.
-No fixture. This is the largest task: if the report at turn 30 says the recipe handlers are
+`:213-361`, `:439-472`; `ClipSetsPanel.cs:52-64`; §4.3, §4.5, §4.7, §4.8 surfaces; §4.9 in full,
+and D23/D24 (the no-auto-save rule and the discard prompt — the two places the moved code must
+*change*, not just move). No fixture. This is the largest task: if the report at turn 30 says the recipe handlers are
 unwritten, the orchestrator spawns a second `worker` for exactly those, not a resume.
 
 ### T12 — Window wiring + opener [parallel-safe]
@@ -682,8 +743,9 @@ Rename / Delete / double-click), bake-in-place and the GUID guarantee, the PNG-v
 
 ### T14 — Changelog [parallel-safe]
 Files: `CHANGELOG.md` (a new `## [0.28.0] — A81 — texture packer tab` section above `## [0.27.0]`).
-Read `CHANGELOG.md:1-40` for the voice, §2. Added: the tab, the sidebar, the recipe catalog, chips,
-presets, channel-row drop, `TexturePackMath`. Changed: nothing user-facing in other tabs beyond the
+Read `CHANGELOG.md:1-40` for the voice, §2. Added: the tab, the sidebar, the recipe catalog (named
+on creation, renamed in place, saved only by its Save button, unsaved marker, discard prompt), chips,
+presets, channel-row drop, drop-to-replace on a source node, `TexturePackMath`. Changed: nothing user-facing in other tabs beyond the
 tab strip gaining a first entry. Removed: nothing (the game-side tool was never in the package).
 
 ### T15 — Orchestrator edits
@@ -717,14 +779,23 @@ first); `Shaders.md:168` and any other `Window ▸ Stitch Punk ▸ Texture Chann
      uncompressed, sRGB off; reload the `Texture2D` from disk and read one pixel through a linear
      `RenderTexture` blit to confirm G carries the second source and R the first's alpha or R (say
      which). Bake again → same GUID.
-   - Recipes: `Sidebar.Recipes` New → an asset exists at `RecallRecipeFolder()`, is selected, the
-     graph is empty; wire one source, `Save Recipe`; **reload the recipe from disk** and assert
-     `WiredChannelCount == 1` and `outputAssetPath` set. Rename via `RenameRecipe` → the row
-     reads the new name after `RescanProject`. `TrashRecipe` → gone from the catalog.
+   - Recipes (New's prompt cannot be driven — call `CreateRecipe("Assets/A81Scratch/Probe_Recipe.asset")`
+     directly, then reflect the panel's `LoadRecipe`): the recipe is selected, the graph is empty,
+     the header label reads `Recipe: Probe_Recipe`. Wire one source and bake to
+     `Assets/A81Scratch/T_Packed2.png`: the label gains ` ●`, and **the recipe reloaded from disk
+     still has an empty `outputAssetPath` and zero wired channels** — D23's whole point. Raise
+     `Sidebar.Recipes.SaveRequested`: reload from disk → `WiredChannelCount == 1`,
+     `outputAssetPath` set, the ` ●` gone. Rename via `RenameRecipe` → the row reads the new name
+     after `RescanProject` and the reloaded graph is unchanged. `TrashRecipe` → gone from the
+     catalog, label reads `No recipe ●`, the canvas still holds its nodes.
    - Double-click a recipe asset in the Project (`AssetDatabase.OpenAsset`) → the window lands on
      the Texture Packer tab with that recipe loaded.
    - A source node's chip: `SetChannelPreview` through the graph's pass-through event → the
      thumbnail's `image` is a 96px-capped greyscale texture; chip off → the imported texture again.
+   - Replace (D22): with the first source wired into R, `Graph.ReplaceSourceTexture(node, third
+     scratch texture)` → `true`, `node.TextureGuid` is the third's, `node.title` its name, the R
+     edge still `connected`; `WriteToRecipe` then records the third's GUID in channel R; a second
+     call with the texture already on the other node → `false` and a warning, nothing changed.
 3. Capture `Library/A81TexturePackerCaptures/texture-packer-tab.png` (scale by `pixelsPerPoint`,
    check `EditorApplication.isFocused` first, positive window position — A76's build log has the
    recipe) and **look at it**: sidebar rows with thumbnails, ✓ on one, the two nodes wired, the
@@ -742,15 +813,18 @@ End the session with this message, verbatim in spirit:
 > Open the DOTS Animator; **Texture Packer** is now the first tab. The left column lists every
 > texture under `Assets/` with a thumbnail — search it, drag one or several onto the canvas (or
 > double-click one), or drag one straight onto the R/G/B/A row of the Pack Output node to have it
-> wired in. Rows already on the canvas show ✓; the eye button hides them. Dragging from the Project
-> window still works. Under each source thumbnail the R G B A chips show that channel alone; beside
+> wired in, or onto an existing source node to swap that image out while its wires stay. Rows
+> already on the canvas show ✓; the eye button hides them. Dragging from the Project window still
+> works. Under each source thumbnail the R G B A chips show that channel alone; beside
 > the size field, **Presets ▾** offers the common squares and "Match Largest Source". Switch the
-> sidebar to **Recipes**: New creates one in the last folder you used, click loads, right-click
-> renames or deletes, Save Recipe writes the graph into the selected one, and double-clicking a
-> recipe asset in the Project opens this tab on it. The old `Window ▸ Stitch Punk` entry is gone.
+> sidebar to **Recipes**: New asks for a name and folder, click loads, right-click renames or
+> deletes, and **Save** there is the only thing that ever writes a recipe — baking does not, and the
+> header shows ` ●` beside the recipe name while the canvas has unsaved changes. Switching away
+> from unsaved changes asks first. Double-clicking a recipe asset in the Project opens this tab on
+> it. The old `Window ▸ Stitch Punk` entry is gone.
 > Judge: the sidebar mode switch borrows the top-tab look (A81-D6) — right, or should it be a plain
-> title with a dropdown? New creating the recipe instantly with a default name (A81-D13) — right, or
-> should it prompt for a name first? And the 280px sidebar start width.
+> title with a dropdown? Does the ` ●` unsaved marker read clearly enough, or should it be the word?
+> And the 280px sidebar start width.
 
 ---
 
