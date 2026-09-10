@@ -3,7 +3,7 @@
 You are running **Amendment A81 — Texture Packer tab** on the DOTS Animation Toolkit package in this
 repo. The spec is `Docs/AnimationToolkit/Amendment_A81_TexturePacker_Spec.md`. Read it in full, then
 its §3 "Read first" list in order, then `Assets/_Vault/Tasks/NewPlans/Cutscene_Roadmap.md` §4 — that
-protocol is binding. The spec's §2 decisions (A81-D1…D21) are settled; do not re-ask the owner
+protocol is binding. The spec's §2 decisions (A81-D1…D24) are settled; do not re-ask the owner
 whether the tab is first (it is), whether the game-side folder is deleted (it is, by you, in T16),
 whether the sidebar rows are a list or a grid (boxed list rows with 48px thumbnails), whether recipes
 get a catalog (a segmented `Images | Recipes` sidebar), or which extras are in (double-click add,
