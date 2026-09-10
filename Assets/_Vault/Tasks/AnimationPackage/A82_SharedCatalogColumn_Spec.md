@@ -216,3 +216,40 @@ any `mcp__UnityMCP__*` tool." Spawn from the repo root.
 ## 7. Build log
 
 _(empty — the session appends here: T0 totals and split-view inventory, D4 call, drift notes)_
+
+### T0 — baseline (2026-09-10, head `5f0c91ab`)
+
+- **Suites:** EditMode 823 discovered, 822 pass; the one failure is pre-existing and unrelated —
+  `Conformance_A_AsmdefReferenceLists_MatchSection13Exactly` (the Editor asmdef carries an extra
+  `Unity.RenderPipelines.Universal.Runtime` reference; A81 shipped with it). PlayMode 283 discovered, 283 pass.
+- **Split-view inventory (`new TwoPaneSplitView` under `Editor/`):** ten sites, seven in cover
+  panes (the spec said eight — `ClipSetsPanel` has one split, not two; there is no `ClipSets.Picker`
+  key). Defaults for D7 are the shipped literals:
+  `RigsPanel` outer 640 (fixed = inner split, → `Rigs.Targets`) and inner 280 (→ `Rigs.Catalog`);
+  `ClipSetsPanel` 280 (→ `ClipSets.Catalog`); `ActorEditorPanel` body 260 (→
+  `ActorEditor.Profiles`), middle 340 (`SideColumnWidth`, → `ActorEditor.Layers`), right 340 with
+  fixed index 1 (→ `ActorEditor.Preview`); `TexturePackerPanel` 280 (→ `TexturePacker.Sidebar` —
+  the split lives in the panel, not `TexturePackerSidebar.cs` as T5 assumed). The three in
+  `CutsceneEditorPanel` are not cover-pane catalogs and stay raw.
+- **Live probe on the Rigs tab (Unity 6000.5):** hide/show reproduces the collapse — fixed pane
+  280 → 200 (its `minWidth`), the split's own width 640 → 560. `m_FixedPaneDimension` reads `-1`
+  until something writes it; the vault's "re-assigning `fixedPaneInitialDimension` does not repair
+  a collapsed split" is **stale for this version**: the public setter re-runs `Init`, moved the
+  drag-line anchor and the pane to the new value both before and after the collapse, and with a
+  non-`-1` dimension injected. Writing `fixedPane.style.width` alone moves the pane but leaves the
+  drag-line anchor where it was. So `CoverPaneSplitView` re-applies through the public setter and
+  writes the pane's style dimension as well. The drag-line anchor is named `unity-dragline-anchor`,
+  class `unity-two-pane-split-view__dragline-anchor`.
+- **Captures:** `EditorApplication.isFocused == false` for the whole session so far — no
+  `before_*` capture is possible (vault rule: a stale frame is worse than none). Re-check at T10.
+- **D4 call:** `ImageCatalogColumn` is **not** re-homed. Its item is `ImageCatalogEntry` (a GUID
+  record with a lazily loaded texture), not a `UnityEngine.Object`; it has no New/Rename/Delete,
+  multi-selects, drags to the canvas and activates on double-click. Re-homing it would load every
+  project texture eagerly and bend the column around one consumer. With Images out, the
+  `thumbnail`/`isMarked` decorators have no consumer and are not built. T6 is a no-op.
+- **T8 pre-check:** `ClipEditorLayoutTests` names only the dock's four splits (`Dock_SplitsMatch…`),
+  which stay raw `TwoPaneSplitView`s; no cover-pane split is asserted. T8 is a no-op.
+- **Shape call:** the three thin hosts inherit `ToolkitCatalogColumn<TAsset>` (so it is not
+  `sealed` as §4.1 sketched) rather than wrapping it — wrapping adds an element to the tree for
+  nothing. Property/event names avoid the `Selected` clash in the sketch: `SelectedAsset` and
+  `AssetSelected`.
