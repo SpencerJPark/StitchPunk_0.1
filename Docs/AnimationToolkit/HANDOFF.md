@@ -119,6 +119,38 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-10): Amendment A81 — Texture Packer tab — 0.28.0.** Spec
+`Docs/AnimationToolkit/Amendment_A81_TexturePacker_Spec.md`; its §7 carries the build log. The
+game's channel packer is now the DOTS Animator's **first tab** (`ClipEditorTab.TexturePacker = 0`,
+every other value shifted up): a `TwoPaneSplitView` of a segmented `Images | Recipes` sidebar (280
+px, boxed rows with 48 px thumbnails, search, drag-out via `DragAndDrop.StartDrag`, double-click
+adds at the visible centre, ✓ + an eye toggle for rows already on the canvas; the recipe catalog
+with New-by-name, click-to-load, right-click Rename/Delete and the **only** Save) over the moved
+node graph (`Editor/TexturePacker/`, twelve files; `TexturePackRecipeAssetUtility` in
+`ClipUtilities/`). New over the game-side tool: drop on an output channel row auto-wires the
+source's R, drop on a source node swaps its image with wires intact, R G B A chips preview one
+channel per source, a Presets ▾ menu with Match Largest Source, and — owner directive — a bake
+never writes a recipe; the header shows ` ●` while the canvas is unsaved and switching away asks.
+`Assets/_Scripts/Editor/TexturePacker/` is `git rm`'d; no recipe asset ever existed, so nothing
+migrated. Built by fourteen parallel `worker` subagents (peak 90k tokens, none capped) after the
+orchestrator drove the old window once and wrote `PackRequest.cs`; one wave, one gate (one missing
+`using`), then three orchestrator fixes found by the drive (sidebar header grouping, a trashed
+recipe marks the canvas unsaved, the rename refreshes the header label). Gated **EditMode 823/823**
+(820 + 3 `TexturePackMathTests`, invert proven revert-to-fail; only the standing `Conformance_A`
+drift) and **PlayMode 283/283**. Driven for real against generated 64² greyscale PNGs in
+`Assets/A81Scratch`: 75 sidebar rows for 75 `Assets/`-rooted textures, sidebar activation → node +
+✓ + hidden by the eye toggle, two drops into G → exactly one edge, bake → `RGB24`, sRGB off,
+uncompressed, pixel `(0, 200, 0)`, same GUID after a re-bake; a recipe created, loaded, wired and
+**baked without the on-disk recipe changing**, then Save wrote it (1 wired, path set, ` ●` gone),
+rename kept the graph, `AssetDatabase.OpenAsset` landed on the tab with it loaded, trash left the
+canvas; a G chip produced a 64² greyscale preview and restored the source on release; replace kept
+the R wire and recorded the new GUID, a duplicate was refused with the prefixed warning. **No
+capture** — `EditorApplication.isFocused` was false throughout (the owner was elsewhere), so the
+tab has not been seen by anyone; that and the ⚠ D6 header look are the owner's checkpoint.
+**Observation for him:** the sidebar's `toolkit-pane-header` wraps its actions onto a second row at
+280 px (the mode toggles plus three Recipes buttons do not fit on one), so the header is two rows
+tall in Recipes mode.
+
 **Built (2026-09-09): Amendment A80 — one clip set, one rig, every tab — 0.27.0.** Spec
 `Docs/AnimationToolkit/Amendment_A80_SharedAssetSelection_Spec.md`; its §7 carries the build log.
 The top bar is tabs and the validation badge; the Clip Set and Rig fields sit under the Clips and

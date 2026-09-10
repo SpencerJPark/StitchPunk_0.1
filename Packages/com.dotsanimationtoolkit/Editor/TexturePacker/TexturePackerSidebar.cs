@@ -42,18 +42,27 @@ namespace DotsAnimationToolkit.Editor
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
 
+            // One group, not two loose children: the header spreads its children with
+            // space-between, which would push the two toggles to opposite edges.
+            VisualElement modeToggles = new VisualElement { name = "sidebar-mode-toggles" };
+            modeToggles.style.flexDirection = FlexDirection.Row;
+            modeToggles.style.flexShrink = 0f;
+            header.Add(modeToggles);
+
             imagesToggle = new ToolbarToggle { name = "sidebar-images-toggle", text = "Images" };
             imagesToggle.AddToClassList(TabUssClassName);
             imagesToggle.RegisterValueChangedCallback(OnImagesToggleChanged);
-            header.Add(imagesToggle);
+            modeToggles.Add(imagesToggle);
 
             recipesToggle = new ToolbarToggle { name = "sidebar-recipes-toggle", text = "Recipes" };
             recipesToggle.AddToClassList(TabUssClassName);
             recipesToggle.RegisterValueChangedCallback(OnRecipesToggleChanged);
-            header.Add(recipesToggle);
+            modeToggles.Add(recipesToggle);
 
             actionsSlot = new VisualElement { name = "sidebar-actions" };
             actionsSlot.AddToClassList("toolkit-pane-actions");
+            // Stays on the right edge even when the header wraps it onto a second row.
+            actionsSlot.style.marginLeft = StyleKeyword.Auto;
             header.Add(actionsSlot);
 
             Add(header);

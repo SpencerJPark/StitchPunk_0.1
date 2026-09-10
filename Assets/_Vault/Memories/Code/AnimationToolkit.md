@@ -851,3 +851,32 @@ is proven by the T12 drive against the live window.
 selection, so the empty rig or set replaces the Clip Editor's until it has content. The owner was
 told at the A80 checkpoint; if he wants create-without-select, the one line to move is the
 `selection?.Set…` call in `CreateAndSelect…`.
+
+## Texture Packer tab (A81, 0.28.0)
+
+The game's channel packer moved into `Editor/TexturePacker/` as the DOTS Animator's first tab —
+traps only, the rest is `Documentation~/texture-packer.md`:
+
+- **`GraphView` calls `StretchToParentSize()` on itself** — absolute, all insets 0. Added beside a
+  header it draws over the header (the old window's toolbar was under the canvas, verified live
+  at T0). `TexturePackerPanel` adds the graph to its own `texture-packer-graph-host` under the
+  header, never beside it.
+- **`ConnectPorts` bypasses `graphViewChanged`**, so the single-capacity replacement documented in
+  `Editor.md` never runs for a programmatic wire. `AddSourcesWiredIntoChannel` calls
+  `DisconnectExistingEdges` first or the row ends up with two edges. Likewise programmatic
+  `AddSourceNode`/`ConnectPorts` raise no `GraphChanged` — the sidebar helpers raise it themselves,
+  which is also what makes `AutoAssignResolution` run for a sidebar add.
+- **Every radio is `SetValueWithoutNotify`**: the sidebar's `Images | Recipes` toggles, the
+  R G B A chips on a source node, and the tab strip. A plain `value = true` re-enters the callback.
+- **Three nested drop targets** (source node, output channel row, canvas): the node and the row
+  `StopPropagation()` after `AcceptDrag()`, or the canvas handler fires too and a replace becomes a
+  replace plus a duplicate node. A sidebar drag starts inside `PointerMoveEvent` with
+  `pressedButtons == 1` and stops propagation so the `ListView` does not also rectangle-select.
+- **`Conformance_D` scans `*.md` and `*.json`** — `Assets/<Folder>` in the docs page, the changelog
+  or a fixture string fails the gate; `Assets/…` and `Assets/` alone pass (empty segment).
+- **Only `SaveRecipe` writes a recipe** (owner directive). `BakeTo` no longer writes the output path
+  back; a trashed recipe marks the canvas unsaved. Compare recipes with `ReferenceEquals`.
+- **The shared `toolkit-pane-header` has `flex-wrap: wrap`**: mode toggles plus three action buttons
+  do not fit 280 px, so the sidebar header is two rows tall in Recipes mode. Group left-side
+  controls in one child or `space-between` spreads them to the edges.
+

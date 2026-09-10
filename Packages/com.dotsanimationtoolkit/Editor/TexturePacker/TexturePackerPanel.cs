@@ -383,6 +383,8 @@ namespace DotsAnimationToolkit.Editor
             TexturePackRecipeAssetUtility.RenameRecipe(recipe, newName);
             Sidebar.Recipes.RescanProject();
             Sidebar.Recipes.SetSelectedRecipe(LoadedRecipe);
+            // The header shows the recipe's name, and that is what just changed.
+            RefreshRecipeLabel();
         }
 
         private void OnRecipeDeleteRequested(TexturePackRecipeAsset recipe)
@@ -399,9 +401,12 @@ namespace DotsAnimationToolkit.Editor
 
             TexturePackRecipeAssetUtility.TrashRecipe(recipe);
 
-            if (recipe == LoadedRecipe)
+            // ReferenceEquals, not ==: Unity's == calls a trashed asset equal to null.
+            if (ReferenceEquals(recipe, LoadedRecipe))
             {
+                // The canvas outlived its recipe, so it is unsaved work again.
                 LoadedRecipe = null;
+                hasUnsavedChanges = true;
                 RefreshRecipeLabel();
             }
 
