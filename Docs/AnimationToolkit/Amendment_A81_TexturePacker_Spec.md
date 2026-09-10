@@ -181,7 +181,7 @@ Numbered in the order they were made, not by topic — D22 to D24 came after the
   the same way — that is how a recipe whose source was deleted gets repaired. Only the first dragged
   texture is used. If that texture is already on the canvas on another node the drop is refused with
   a `Debug.LogWarning` (D21 prefix) rather than creating a duplicate GUID the recipe could not
-  distinguish. Save Recipe afterwards records the new image; Bake uses it immediately.
+  distinguish. The Recipes tab's Save afterwards records the new image (D23); Bake uses it immediately.
 - **A81-D21 — Tab tooltip and log prefix.** Tooltip: "Pack greyscale images into the channels of one
   texture: drag images from the sidebar or the Project window onto the canvas, wire their channels
   into the Pack Output node, and bake over the output in place." Log prefix:
