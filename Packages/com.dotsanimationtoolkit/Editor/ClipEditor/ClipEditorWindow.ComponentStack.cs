@@ -51,8 +51,8 @@ namespace DotsAnimationToolkit.Editor
             new HashSet<ClipComponentKind>();
 
         /// <summary>
-        /// The rig this window is playing the open set against — window state, picked in the toolbar
-        /// and stored on no asset. Independent of <see cref="clipSet"/> in both directions.
+        /// The rig this window is playing the open set against — window state, picked in the Rig Hierarchy pane
+        /// or on any tab, and stored on no asset. Independent of <see cref="clipSet"/> in both directions.
         /// </summary>
         private RigAsset ActiveRig
         {
@@ -1112,7 +1112,7 @@ namespace DotsAnimationToolkit.Editor
             else
             {
                 row.Add(MakeHint(
-                    "Assign a rigged prefab in the toolbar to pick the bone this should follow."));
+                    "Pick a rig with a Source Prefab above the hierarchy to pick the bone this should follow."));
             }
 
             row.Add(new Button(() => ConfirmDeleteSocket(socket))

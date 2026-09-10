@@ -22,7 +22,7 @@ namespace DotsAnimationToolkit.Editor
             public UnityEngine.Object clipSet;
             public UnityEngine.Object selectedClip;
 
-            // A RigAsset rather than the prefab it used to carry: the toolbar field now picks the
+            // A RigAsset rather than the prefab it used to carry: the Rig Hierarchy pane's field now picks the
             // rig, and the rig itself says which prefab the preview loads.
             public UnityEngine.Object rig;
             public float playheadTime;

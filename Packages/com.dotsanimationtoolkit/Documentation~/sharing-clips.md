@@ -53,8 +53,8 @@ the bake resolves against — never where the track appears in the Clip Editor's
    rig to need it. Reuse an existing tag whenever the part plays the same role on another rig; that's
    what makes tracks travel later.
 2. **Author the clip normally.** Keying, event markers, and everything else on the timeline are
-   unaffected by whether a track binds by tag or by target. The toolbar's **Rig** and **Clip Set**
-   pickers are independent: swapping the set never swaps the rig, and swapping the rig never empties
+   unaffected by whether a track binds by tag or by target. The **Rig** and **Clip Set**
+   pickers at the top of their panes are independent: swapping the set never swaps the rig, and swapping the rig never empties
    the clip list. The rig is window state — stored on no asset, never baked, and making no claim
    about where the set can play. Point the same set at a second rig to see, right there, which of
    its tracks line up and which the badge reports as skipped.

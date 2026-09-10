@@ -194,17 +194,7 @@ namespace DotsAnimationToolkit.Editor
             previewPane.Add(preview);
         }
 
-        /// <summary>
-        /// Binds what is baked to the host's own selection, disabling both fields so they follow
-        /// the host rather than a stale local choice. <see cref="VatBakeWindow"/> never calls this.
-        /// </summary>
-        public void SetSource(ClipSetAsset clipSet, RigAsset rig)
-        {
-            selection?.SetClipSet(clipSet);
-            selection?.SetRig(rig);
-        }
-
-        /// <summary>Follows a shared clip-set/rig pick across every tab that binds the same selection.</summary>
+        // Follows a shared clip-set/rig pick across every host that binds the same selection.
         public void Bind(ActiveAssetSelection sharedSelection)
         {
             if (selection != null)

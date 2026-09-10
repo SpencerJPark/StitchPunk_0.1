@@ -1301,7 +1301,7 @@ namespace DotsAnimationToolkit.Editor
             editPrefabButton.tooltip = canOpen
                 ? "Open this prefab in Unity's prefab mode. Structural edits — parenting, adding "
                     + "parts, moving meshes — belong there, not here."
-                : "Assign a rig in the toolbar's Rig field, and give that rig a Source Prefab, to edit it.";
+                : "Pick a rig above the hierarchy, and give that rig a Source Prefab, to edit it.";
         }
 
         // The one place that reads the rig's prefab, so every consumer below follows the rig field
@@ -3586,7 +3586,7 @@ namespace DotsAnimationToolkit.Editor
             }
             if (ActiveRig == null)
             {
-                return "Assign a rig to the toolbar's Rig field.";
+                return "Pick a rig above the hierarchy.";
             }
             if (ActiveRig.sourcePrefab == null)
             {
@@ -7940,7 +7940,7 @@ namespace DotsAnimationToolkit.Editor
                 TextField boneField = new TextField("Bone");
                 boneField.SetValueWithoutNotify(socket.boneName);
                 boneField.tooltip =
-                    "Assign a prefab in the toolbar's rig field to pick from its bones instead.";
+                    "Pick a rig with a Source Prefab above the hierarchy to pick from its bones instead.";
                 boneField.RegisterValueChangedCallback(changeEvent =>
                 {
                     RecordSocketEdit(rig, "Rebind Socket");
@@ -9150,7 +9150,7 @@ namespace DotsAnimationToolkit.Editor
             if (selectedClip == null || clipSerializedObject == null)
             {
                 inspectorPane.Add(MakeHint(clipSet == null
-                    ? "Assign a clip set in the toolbar."
+                    ? "Pick a clip set above the clip list."
                     : "Select a clip to edit its properties."));
 
                 // Sockets are rig data, so they are listed whether or not a clip is open.
@@ -9188,7 +9188,7 @@ namespace DotsAnimationToolkit.Editor
 
             TextField boneNameField = new TextField("Bone Name");
             boneNameField.tooltip =
-                "Assign a rig with a Source Prefab in the toolbar to pick from the hierarchy "
+                "Pick a rig with a Source Prefab above the hierarchy to pick from it "
                 + "instead. Case sensitive — the bake reports a name it cannot resolve.";
             inspectorPane.Add(boneNameField);
             inspectorPane.Add(new Button(() => AddBoneTrack(boneNameField.value))

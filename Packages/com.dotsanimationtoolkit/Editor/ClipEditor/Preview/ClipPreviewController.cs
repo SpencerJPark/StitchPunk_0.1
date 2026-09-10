@@ -308,7 +308,7 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Sets the rig the bound set is previewed on. Independent of <see cref="SetClipSet"/>:
-        /// either can change without the other, exactly as the two toolbar pickers can.
+        /// either can change without the other, exactly as the two shared pickers can.
         /// </summary>
         public void SetRig(RigAsset rig)
         {
@@ -388,7 +388,7 @@ namespace DotsAnimationToolkit.Editor
             catch (ArgumentNullException)
             {
                 registry = default(BlobAssetReference<ClipRegistryBlob>);
-                statusMessage = "Assign a rig to the toolbar's Rig field.";
+                statusMessage = "Pick a rig above the hierarchy.";
             }
             catch (ClipValidationException)
             {
@@ -933,7 +933,7 @@ namespace DotsAnimationToolkit.Editor
             if (boundRig == null)
             {
                 DisposeMirrors();
-                statusMessage = "Assign a rig in the toolbar's Rig field.";
+                statusMessage = "Pick a rig above the hierarchy.";
                 return;
             }
 

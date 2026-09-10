@@ -177,20 +177,11 @@ namespace DotsAnimationToolkit.Editor
         // Host entry points
         // -----------------------------------------------------------------------------------------
 
-        /// <summary>
-        /// Hands the panel the window's preview and rig. Called on every tab switch and whenever
-        /// the toolbar Rig field changes while this pane is open.
-        /// </summary>
+        // The rig is not handed over here: it is read from the shared selection this panel is bound to.
         public void SetSource(ClipPreviewController controller)
         {
             previewController = controller;
             cameraNavigation.Rig = controller;
-        }
-
-        // Kept for the callers T5f has not yet moved onto the selection; deleted next wave.
-        public void SetSource(ClipPreviewController controller, RigAsset rig)
-        {
-            SetSource(controller);
         }
 
         public void Bind(ActiveAssetSelection sharedSelection)

@@ -236,7 +236,7 @@ namespace DotsAnimationToolkit.Editor
             if (Scope(kind) == ClipComponentScope.Rig && rig == null)
             {
                 unavailableReason = "This clip set's Rig field is empty, and this component is "
-                    + "stored on the rig. Assign a RigAsset in the toolbar's Rig field, or build "
+                    + "stored on the rig. Pick a RigAsset above the hierarchy, or build "
                     + "one in the Rigs tab, to give this component somewhere to live.";
                 return false;
             }

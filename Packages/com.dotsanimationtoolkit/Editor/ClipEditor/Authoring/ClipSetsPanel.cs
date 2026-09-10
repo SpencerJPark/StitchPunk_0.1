@@ -454,14 +454,13 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        public void SetSource(ClipSetAsset openClipSet)
+        // The set on show is where the next New lands when no folder has been remembered yet.
+        private void RememberFallbackFolderOf(ClipSetAsset shownClipSet)
         {
-            RescanProject();
-
             string fallbackFolder = "Assets";
-            if (openClipSet != null)
+            if (shownClipSet != null)
             {
-                string assetPath = AssetDatabase.GetAssetPath(openClipSet);
+                string assetPath = AssetDatabase.GetAssetPath(shownClipSet);
                 if (!string.IsNullOrEmpty(assetPath))
                 {
                     string folderPath = System.IO.Path.GetDirectoryName(assetPath).Replace('\\', '/');
@@ -588,6 +587,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void ShowSet(ClipSetAsset clipSet)
         {
+            RememberFallbackFolderOf(clipSet);
             SelectedSet = clipSet;
 
             clipSetsList.SetSelectionWithoutNotify(

@@ -142,13 +142,6 @@ namespace DotsAnimationToolkit.Editor
             RaiseRigTargetsChanged();
         }
 
-        // Called every time the host shows this tab, so the catalog always reflects the current
-        // project. Selection now follows the shared ActiveAssetSelection instead of this parameter.
-        public void SetSource(RigAsset activeRig)
-        {
-            RescanProject();
-        }
-
         public void SelectRig(RigAsset rig)
         {
             ShowRig(rig);

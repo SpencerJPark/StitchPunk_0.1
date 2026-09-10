@@ -15,6 +15,10 @@ namespace DotsAnimationToolkit.Editor
         private VatBakePanel panel;
         private bool hasRegisteredRootKeyDown;
 
+        // The panel follows a shared selection wherever it is hosted; standalone, this window is
+        // the only writer, so the selection is its own and the panel's fields are the only pickers.
+        private readonly ActiveAssetSelection standaloneSelection = new ActiveAssetSelection();
+
         [MenuItem("Window/DOTS Animation Toolkit/VAT Bake")]
         public static void ShowWindow()
         {
@@ -38,6 +42,7 @@ namespace DotsAnimationToolkit.Editor
             rootVisualElement.AddToClassList("clip-editor__root");
 
             panel = new VatBakePanel();
+            panel.Bind(standaloneSelection);
             rootVisualElement.Add(panel);
 
             if (!hasRegisteredRootKeyDown)
