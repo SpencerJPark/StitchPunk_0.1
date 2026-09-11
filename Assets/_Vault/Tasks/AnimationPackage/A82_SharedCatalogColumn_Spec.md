@@ -253,3 +253,27 @@ _(empty — the session appends here: T0 totals and split-view inventory, D4 cal
   `sealed` as §4.1 sketched) rather than wrapping it — wrapping adds an element to the tree for
   nothing. Property/event names avoid the `Selected` clash in the sketch: `SelectedAsset` and
   `AssetSelected`.
+
+### Wave 1 (T1, T2) — 2026-09-10
+
+- Committed `080a685c`. `ToolkitCatalogColumn.cs` 359 lines, `CoverPaneSplitView.cs` 130,
+  fixture 42. Compile clean; `StoredDimension_SurvivesAFreshInstance_AndReappliesToTheFixedPane`
+  passes, and fails (pane stays 200 instead of 300) with the re-apply body stubbed — kept.
+- The fixture asserts through a fresh instance rather than a panel remove/re-add: a panel-less
+  element dispatches no geometry events, so the hide/show path is proven by the T10 drive only.
+
+### Wave 2 (T3–T8) — 2026-09-10/11
+
+- T3, T4, T5, T7 ran as four parallel workers; T6 and T8 were no-ops (see T0). Three workers
+  (T4, T5, T7) were killed by the account's Sonnet rate limit mid-task. T4's and T5's catalog
+  rewrites were complete on disk (both hosts verified line-by-line against `git show HEAD`), T5's
+  one-line `TexturePackerPanel` split edit was missing and was applied by the orchestrator, and
+  T7 had not started — it was respawned fresh and finished (733 → 521 lines).
+- Thin hosts: `RigCatalogColumn` 90 lines, `ActorProfileCatalogColumn` 88, `RecipeCatalogColumn`
+  120 (Save button inserted at index 1 of `HeaderActions`; `RescanProject` → `Rescan()` with a
+  `scan` delegate).
+- **Gate:** the Editor was closed when the wave finished, so the wave-2 compile gate and the
+  fixtures (`ClipEditorLayoutTests`, `ActiveAssetSelectionTests`, `ActorEditorPanelTests`,
+  `ClipSetsPanelTests`) are **pending**; the wave passed static review only (every host call site
+  grepped against the new surfaces, no raw `TwoPaneSplitView` left in a cover pane). Committed
+  anyway so the work is not lost; the gate result is appended below when the Editor is back.

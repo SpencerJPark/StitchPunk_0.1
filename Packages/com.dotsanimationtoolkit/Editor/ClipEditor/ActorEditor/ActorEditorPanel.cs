@@ -469,27 +469,28 @@ namespace DotsAnimationToolkit.Editor
             profilesColumn = new ActorEditorProfilesColumn();
             profilesColumn.ProfileSelected += picked => Profile = picked;
 
-            // Three nested TwoPaneSplitViews (profiles | layers | viewport | inspector) rather than
+            // Three nested CoverPaneSplitViews (profiles | layers | viewport | inspector) rather than
             // four flex columns, matching CutsceneEditorPanel's cast | viewport | inspector split.
             // Every split needs its own minWidth: this whole pane is a cover pane hidden via USS
             // class when the tab switches away (see ClipEditorWindow.ShowActorEditorTab), and a
             // hidden TwoPaneSplitView lays out at zero by zero, collapsing to nothing but the
             // flexible pane on the way back (see AnimationToolkit.md).
-            TwoPaneSplitView rightSplit = new TwoPaneSplitView(
-                1, SideColumnWidth, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView rightSplit = new CoverPaneSplitView(
+                "ActorEditor.Preview", 1, SideColumnWidth, TwoPaneSplitViewOrientation.Horizontal);
             rightSplit.style.flexGrow = 1f;
             rightSplit.style.minWidth = 460f;
             rightSplit.Add(viewportColumn);
             rightSplit.Add(inspectorColumn);
 
-            TwoPaneSplitView middleSplit = new TwoPaneSplitView(
-                0, SideColumnWidth, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView middleSplit = new CoverPaneSplitView(
+                "ActorEditor.Layers", 0, SideColumnWidth, TwoPaneSplitViewOrientation.Horizontal);
             middleSplit.style.flexGrow = 1f;
             middleSplit.style.minWidth = 680f;
             middleSplit.Add(layersColumn);
             middleSplit.Add(rightSplit);
 
-            TwoPaneSplitView body = new TwoPaneSplitView(0, 260f, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView body = new CoverPaneSplitView(
+                "ActorEditor.Profiles", 0, 260f, TwoPaneSplitViewOrientation.Horizontal);
             body.style.flexGrow = 1f;
             body.style.minWidth = 880f;
             body.Add(profilesColumn);

@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -17,13 +16,9 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly ClipSetSaveLocation saveLocation = new ClipSetSaveLocation();
         private readonly List<ClipSetAsset> catalogClipSets = new List<ClipSetAsset>();
-        private readonly List<ClipSetAsset> filteredClipSets = new List<ClipSetAsset>();
         private readonly List<ClipAsset> catalogClips = new List<ClipAsset>();
 
-        private string catalogSearchText = string.Empty;
-        private ToolbarSearchField catalogSearchField;
-        private ListView clipSetsList;
-        private Label catalogEmptyLabel;
+        private ToolkitCatalogColumn<ClipSetAsset> catalog;
 
         private Label editorTitleLabel;
         private Button openInEditorButton;
@@ -50,167 +45,51 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
 
             // The same draggable-divider control the Clip Editor's own dock uses (dock-columns
-            // in ClipEditorWindow.uxml) — the fixed pane (index 0) starts at 280px and the user
-            // drags the handle TwoPaneSplitView inserts between the two children.
-            TwoPaneSplitView splitView = new TwoPaneSplitView(0, 280f, TwoPaneSplitViewOrientation.Horizontal);
+            // in ClipEditorWindow.uxml) — the fixed pane (index 0) starts at 280px and the divider is
+            // remembered across a tab hide/show.
+            CoverPaneSplitView splitView = new CoverPaneSplitView("ClipSets.Catalog", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
             splitView.style.flexGrow = 1f;
             splitView.Add(BuildCatalogColumn());
             splitView.Add(BuildEditorColumn());
             Add(splitView);
 
-            RefreshCatalogEmptyState();
             ApplyChromeForSelection();
         }
 
         private VisualElement BuildCatalogColumn()
         {
-            // Width is TwoPaneSplitView's to manage (drag-resized); flexGrow so this element
-            // actually fills whatever dimension the split view's fixed pane currently holds
-            // (TwoPaneSplitView sizes its own pane wrapper, not this child directly), and
-            // minWidth as a floor so the drag cannot squeeze it to an unusable sliver.
-            VisualElement catalogColumn = new VisualElement { name = "clip-sets-catalog-column" };
-            catalogColumn.style.flexGrow = 1f;
-            catalogColumn.style.minWidth = 200f;
-            catalogColumn.style.paddingTop = 8f;
-            catalogColumn.style.paddingLeft = 10f;
-            catalogColumn.style.paddingRight = 10f;
-
-            VisualElement header = new VisualElement();
-            header.AddToClassList("toolkit-pane-header");
-
-            Label title = new Label("Clip Sets");
-            title.AddToClassList("toolkit-pane-title");
-            header.Add(title);
-
-            VisualElement actions = new VisualElement();
-            actions.AddToClassList("toolkit-pane-actions");
-
-            Button newButton = ToolkitIcons.MakeIconTextButton(CreateAndSelectNewClipSet, "Toolbar Plus", null, "New");
-            newButton.name = "clip-sets-new-button";
-            actions.Add(newButton);
-
-            Button refreshButton = ToolkitIcons.MakeIconTextButton(
-                RescanProject, "Refresh", "Rescan the project for clip sets and clips", "Refresh");
-            refreshButton.name = "clip-sets-refresh-button";
-            actions.Add(refreshButton);
-
-            header.Add(actions);
-            catalogColumn.Add(header);
-
-            catalogSearchField = new ToolbarSearchField();
-            catalogSearchField.name = "clip-sets-search";
-            // alignSelf: Stretch alone was not enough -- the field's own internal content
-            // (text input + icon + cancel button) imposes a min-content width Yoga still honours
-            // over stretch, so it kept overflowing a narrow column regardless of min-width: 0.
-            // An explicit percentage width is clamped to the parent's box unconditionally.
-            catalogSearchField.style.width = new Length(100f, LengthUnit.Percent);
-            catalogSearchField.style.minWidth = 0f;
-            catalogSearchField.style.marginTop = 4f;
-            // ToolbarSearchField's own default USS ships a 4px-left/2px-right margin (verified
-            // live) -- on top of an already-100%-wide box that pushes its right edge past the
-            // rows below, which is the "overshoot" this was reported as. Zero it so the field is
-            // flush with the list.
-            catalogSearchField.style.marginLeft = 0f;
-            catalogSearchField.style.marginRight = 0f;
-            catalogSearchField.RegisterValueChangedCallback(OnCatalogSearchTextChanged);
-            catalogColumn.Add(catalogSearchField);
-
-            clipSetsList = new ListView();
-            clipSetsList.name = "clip-sets-list";
-            // DynamicHeight virtualization renders zero rows in this Unity version (verified live:
-            // itemsSource.Count == 2 but the ListView's own childCount == 0) -- stick with
-            // FixedHeight. ListView positions each slot at a fixed index * fixedItemHeight
-            // regardless of the row's actual content height, so any slack left over here adds
-            // straight onto the visual gap on top of the row's own margin -- sized tight to the
-            // row's measured content (56px) + its 4px top/bottom margin, not generously, so the
-            // margin is the only thing producing the gap.
-            clipSetsList.fixedItemHeight = 64f;
-            clipSetsList.selectionType = SelectionType.Single;
-            clipSetsList.style.flexGrow = 1f;
-            clipSetsList.style.marginTop = 4f;
-            clipSetsList.makeItem = MakeClipSetRow;
-            clipSetsList.bindItem = BindClipSetRow;
-            clipSetsList.itemsSource = filteredClipSets;
-            clipSetsList.selectionChanged += OnClipSetsListSelectionChanged;
-            catalogColumn.Add(clipSetsList);
-
-            catalogEmptyLabel = new Label("No clip sets in this project yet. Press New.");
-            catalogEmptyLabel.AddToClassList("clip-editor__hint");
-            catalogColumn.Add(catalogEmptyLabel);
-
-            return catalogColumn;
-        }
-
-        private VisualElement MakeClipSetRow()
-        {
-            // ListView (FixedHeight virtualization) tags whatever makeItem returns with its own
-            // internal item classes and forcibly zeroes ITS margin to keep the fixed-slot math
-            // exact (verified live: an 8px inline margin set directly on that root read back as 0).
-            // A margin on this outer slot is a no-op, so the boxed row that actually wants the gap
-            // has to live one level deeper, as a plain child Unity's pooling never touches.
-            VisualElement itemSlot = new VisualElement();
-            // Unity also paints its own hover/selected background straight onto this slot (verified
-            // live: unity-collection-view__item--selected resolves a solid grey fill across the
-            // WHOLE slot, gap margin included) -- an inline override beats that USS state styling
-            // unconditionally, so the slot itself never shades and only the boxed row below reacts.
-            itemSlot.style.backgroundColor = new StyleColor(Color.clear);
-
-            VisualElement row = new VisualElement();
-            row.name = "clip-set-row-box";
-            row.AddToClassList("toolkit-box");
-            // Enough to read as separated instead of touching, without the gap dominating a
-            // 56px-tall row -- fixedItemHeight is sized to match (content height + this margin).
-            row.style.marginTop = 4f;
-            row.style.marginBottom = 4f;
-            // No horizontal margin: the row is left flush with the ListView's own bounds, which
-            // stretch to the same catalog-column width the search field's 100% width fills --
-            // an inset here would leave the row short of the search field's right edge.
-            row.style.marginLeft = 0f;
-            row.style.marginRight = 0f;
-
-            VisualElement headerRow = new VisualElement();
-            headerRow.AddToClassList("toolkit-box__header");
-
-            Label titleLabel = new Label();
-            titleLabel.name = "clip-set-row-title";
-            titleLabel.AddToClassList("toolkit-box__title");
-            headerRow.Add(titleLabel);
-
-            row.Add(headerRow);
-
-            Label infoLabel = new Label();
-            infoLabel.name = "clip-set-row-info";
-            infoLabel.AddToClassList("toolkit-box__label");
-            infoLabel.AddToClassList("clip-editor__hint");
-            row.Add(infoLabel);
-
-            // Closes over the row element itself (stable identity, never recreated) rather than
-            // any per-bind data — the callback reads row.userData live when the menu opens, so a
-            // recycled row always offers to delete whatever it is currently showing.
-            row.AddManipulator(new ContextualMenuManipulator(
-                populateEvent => PopulateClipSetRowContextMenu(populateEvent, row)));
-
-            itemSlot.Add(row);
-            return itemSlot;
-        }
-
-        private void PopulateClipSetRowContextMenu(ContextualMenuPopulateEvent populateEvent, VisualElement row)
-        {
-            ClipSetAsset targetSet = row.userData as ClipSetAsset;
-            if (targetSet == null)
+            CatalogColumnOptions<ClipSetAsset> options = new CatalogColumnOptions<ClipSetAsset>
             {
-                return;
-            }
+                elementName = "clip-sets-catalog-column",
+                namePrefix = "clip-sets",
+                title = "Clip Sets",
+                newButtonIconName = "Toolbar Plus",
+                newButtonTooltip = null,
+                refreshButtonIconName = "Refresh",
+                refreshButtonTooltip = "Rescan the project for clip sets and clips",
+                emptyProjectMessage = "No clip sets in this project yet. Press New.",
+                emptySearchMessage = "No clip sets match your search.",
+                secondLine = DescribeClipSet,
+                allowRename = true,
+                allowDelete = true,
+            };
+            catalog = new ToolkitCatalogColumn<ClipSetAsset>(options);
+            catalog.NewRequested += CreateAndSelectNewClipSet;
+            catalog.RefreshRequested += RescanProject;
+            catalog.AssetSelected += SelectSet;
+            catalog.RenameRequested += CommitClipSetRename;
+            catalog.DeleteRequested += RequestDeleteClipSet;
+            return catalog;
+        }
 
-            populateEvent.menu.AppendAction(
-                "Rename",
-                renameAction => InlineRenameEditing.Begin(
-                    row.Q<Label>("clip-set-row-title"),
-                    targetSet.name,
-                    committedName => CommitClipSetRename(targetSet, committedName)),
-                DropdownMenuAction.AlwaysEnabled);
-            populateEvent.menu.AppendAction(
-                "Delete", deleteAction => RequestDeleteClipSet(targetSet), DropdownMenuAction.AlwaysEnabled);
+        private static string DescribeClipSet(ClipSetAsset clipSet)
+        {
+            int clipCount = clipSet != null && clipSet.clips != null ? clipSet.clips.Count : 0;
+            string assetPath = clipSet != null ? AssetDatabase.GetAssetPath(clipSet) : string.Empty;
+            string folderPath = string.IsNullOrEmpty(assetPath)
+                ? string.Empty
+                : System.IO.Path.GetDirectoryName(assetPath).Replace('\\', '/');
+            return clipCount.ToString() + " clips" + (string.IsNullOrEmpty(folderPath) ? string.Empty : " · " + folderPath);
         }
 
         private void RequestDeleteClipSet(ClipSetAsset targetSet)
@@ -245,43 +124,6 @@ namespace DotsAnimationToolkit.Editor
             }
 
             RescanProject();
-        }
-
-        private void BindClipSetRow(VisualElement element, int index)
-        {
-            if (index < 0 || index >= filteredClipSets.Count)
-            {
-                return;
-            }
-
-            ClipSetAsset clipSet = filteredClipSets[index];
-
-            // The boxed row (userData, the selected-state class, the context menu) lives one level
-            // below the item slot ListView hands bindItem -- see MakeClipSetRow.
-            VisualElement row = element.Q<VisualElement>("clip-set-row-box");
-            row.userData = clipSet;
-
-            Label titleLabel = row.Q<Label>("clip-set-row-title");
-            titleLabel.text = clipSet != null ? clipSet.name : string.Empty;
-
-            Label infoLabel = row.Q<Label>("clip-set-row-info");
-            int clipCount = clipSet != null && clipSet.clips != null ? clipSet.clips.Count : 0;
-            string assetPath = clipSet != null ? AssetDatabase.GetAssetPath(clipSet) : string.Empty;
-            string folderPath = string.IsNullOrEmpty(assetPath)
-                ? string.Empty
-                : System.IO.Path.GetDirectoryName(assetPath).Replace('\\', '/');
-            infoLabel.text = clipCount.ToString() + " clips" + (string.IsNullOrEmpty(folderPath) ? string.Empty : " · " + folderPath);
-
-            row.EnableInClassList("toolkit-box--selected", clipSet == SelectedSet);
-        }
-
-        private void OnClipSetsListSelectionChanged(IEnumerable<object> selectedItems)
-        {
-            foreach (object selectedItem in selectedItems)
-            {
-                SelectSet(selectedItem as ClipSetAsset);
-                return;
-            }
         }
 
         private VisualElement BuildEditorColumn()
@@ -450,7 +292,7 @@ namespace DotsAnimationToolkit.Editor
                     SetClipsChanged(SelectedSet);
                 }
 
-                clipSetsList.Rebuild();
+                catalog.RefreshRows();
             }
         }
 
@@ -526,57 +368,10 @@ namespace DotsAnimationToolkit.Editor
                 ApplyChromeForSelection();
             }
 
-            ApplyCatalogFilter();
+            catalog.SetItems(catalogClipSets);
+            catalog.Select(SelectedSet);
 
             picker.SetClips(catalogClips);
-        }
-
-        private void OnCatalogSearchTextChanged(ChangeEvent<string> changeEvent)
-        {
-            catalogSearchText = changeEvent.newValue ?? string.Empty;
-            ApplyCatalogFilter();
-        }
-
-        private void ApplyCatalogFilter()
-        {
-            filteredClipSets.Clear();
-            for (int index = 0; index < catalogClipSets.Count; index++)
-            {
-                ClipSetAsset clipSet = catalogClipSets[index];
-                if (clipSet == null)
-                {
-                    continue;
-                }
-                if (string.IsNullOrEmpty(catalogSearchText)
-                    || clipSet.name.IndexOf(catalogSearchText, StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    filteredClipSets.Add(clipSet);
-                }
-            }
-
-            clipSetsList.Rebuild();
-            RefreshCatalogEmptyState();
-
-            if (SelectedSet != null)
-            {
-                clipSetsList.SetSelectionWithoutNotify(
-                    filteredClipSets.Contains(SelectedSet)
-                        ? new List<int> { filteredClipSets.IndexOf(SelectedSet) }
-                        : new List<int>());
-            }
-        }
-
-        private void RefreshCatalogEmptyState()
-        {
-            bool isEmpty = filteredClipSets.Count == 0;
-            clipSetsList.style.display = isEmpty ? DisplayStyle.None : DisplayStyle.Flex;
-            catalogEmptyLabel.style.display = isEmpty ? DisplayStyle.Flex : DisplayStyle.None;
-            if (isEmpty)
-            {
-                catalogEmptyLabel.text = catalogClipSets.Count == 0
-                    ? "No clip sets in this project yet. Press New."
-                    : "No clip sets match your search.";
-            }
         }
 
         public void SelectSet(ClipSetAsset clipSet)
@@ -590,11 +385,7 @@ namespace DotsAnimationToolkit.Editor
             RememberFallbackFolderOf(clipSet);
             SelectedSet = clipSet;
 
-            clipSetsList.SetSelectionWithoutNotify(
-                clipSet != null && filteredClipSets.Contains(clipSet)
-                    ? new List<int> { filteredClipSets.IndexOf(clipSet) }
-                    : new List<int>());
-            clipSetsList.Rebuild();
+            catalog.Select(clipSet);
 
             // Without notify: a plain assignment would fire the field's own change callback and
             // immediately write this set's name back onto itself.
@@ -722,10 +513,7 @@ namespace DotsAnimationToolkit.Editor
 
             picker.ClipCheckedChanged -= OnPickerClipCheckedChanged;
             picker.ClipRenameRequested -= OnPickerClipRenameRequested;
-            clipSetsList.selectionChanged -= OnClipSetsListSelectionChanged;
-            clipSetsList.itemsSource = null;
             catalogClipSets.Clear();
-            filteredClipSets.Clear();
             catalogClips.Clear();
             SelectedSet = null;
         }

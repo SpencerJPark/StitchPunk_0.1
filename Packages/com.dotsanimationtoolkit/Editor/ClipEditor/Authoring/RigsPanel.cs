@@ -70,11 +70,11 @@ namespace DotsAnimationToolkit.Editor
             // of rows built here.
             style.flexGrow = 1f;
 
-            // Draggable dividers, same control ClipSetsPanel's own dock uses.
-            TwoPaneSplitView outerSplitView = new TwoPaneSplitView(0, 640f, TwoPaneSplitViewOrientation.Horizontal);
+            // Draggable dividers that remember where they were dragged across a tab hide/show.
+            CoverPaneSplitView outerSplitView = new CoverPaneSplitView("Rigs.Targets", 0, 640f, TwoPaneSplitViewOrientation.Horizontal);
             outerSplitView.style.flexGrow = 1f;
 
-            TwoPaneSplitView innerSplitView = new TwoPaneSplitView(0, 280f, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView innerSplitView = new CoverPaneSplitView("Rigs.Catalog", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
             innerSplitView.style.flexGrow = 1f;
             // The outer split's fixed pane IS this inner split, and hiding the tab drops the pair's
             // stored dimension back to "uninitialised" — without a floor of its own the outer split

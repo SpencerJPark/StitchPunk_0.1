@@ -65,7 +65,7 @@ namespace DotsAnimationToolkit.Editor
             graphColumn.Add(BuildHeader());
             graphColumn.Add(graphHost);
 
-            TwoPaneSplitView splitView = new TwoPaneSplitView(0, 280f, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView splitView = new CoverPaneSplitView("TexturePacker.Sidebar", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
             splitView.style.flexGrow = 1f;
             splitView.Add(Sidebar);
             splitView.Add(graphColumn);
