@@ -154,7 +154,8 @@ The window also carries **New Rig**, **VAT Bake**, **Actor Editor** and **Cutsce
 alongside the Clip Editor timeline. The Actor Editor is where a profile's layers, named
 animations, direction coverage and ragdoll triggers are authored and previewed live, composited
 across every layer rather than one clip at a time — see
-[`actor-profiles.md`](actor-profiles.md).
+[`actor-profiles.md`](actor-profiles.md). Every one of those tabs remembers where you dragged its
+dividers, across tab switches and across closing and reopening the window.
 
 ### Coming back
 

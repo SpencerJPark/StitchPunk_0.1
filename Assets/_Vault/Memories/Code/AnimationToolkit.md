@@ -880,3 +880,36 @@ traps only, the rest is `Documentation~/texture-packer.md`:
   do not fit 280 px, so the sidebar header is two rows tall in Recipes mode. Group left-side
   controls in one child or `space-between` spreads them to the edges.
 
+
+## Catalog columns and cover-pane splits are shared (A82, 0.29.0)
+
+**One `ToolkitCatalogColumn<TAsset>` (`Editor/ClipEditor/Shared/`) behind the Rigs, Clip Sets,
+Actor Profiles and Recipes catalogs.** `RigCatalogColumn`, `ActorProfileCatalogColumn` and
+`RecipeCatalogColumn` are thin subclasses that build a `CatalogColumnOptions<T>` (element name,
+name prefix, title, tooltips, empty messages, `secondLine`/`tooltip`/`scan` delegates,
+allowRename/allowDelete) and forward the events under their old names; `ClipSetsPanel` uses the
+generic directly. Child element names come from the prefix: `{prefix}-list`, `{prefix}-row-box`,
+`{prefix}-row-title`, `{prefix}-row-info`, `{prefix}-search`, `{prefix}-new-button`. An empty
+`title` builds no header and leaves `HeaderActions` unparented for the host — that is how the
+Texture Packer sidebar hoists New/Save/Refresh into its own header. `ImageCatalogColumn` is
+deliberately not on it: its rows are GUID records with lazily loaded textures, multi-select and
+drag-out, not `UnityEngine.Object` catalog assets.
+
+**`CoverPaneSplitView` (same folder) is every cover-pane split.** Prefs key
+`DotsAnimationToolkit.Split.<tab>.<pane>` — seven keys: `Rigs.Catalog`, `Rigs.Targets`,
+`ClipSets.Catalog`, `ActorEditor.Profiles`, `ActorEditor.Layers`, `ActorEditor.Preview`,
+`TexturePacker.Sidebar`. It stores the fixed pane's resolved dimension on a `PointerUpEvent` on
+the drag-line anchor (class `unity-two-pane-split-view__dragline-anchor`, queried lazily on the
+first sized geometry pass because it is not in the hierarchy at construction), and re-applies it
+on the first `GeometryChangedEvent` with a positive size after one with a zero size — the hide.
+Its `contentContainer` is the inner `TwoPaneSplitView`, so hosts still `Add` two panes and set
+`minWidth` on the wrapper (the nested-split floor from the Rigs-tab note still applies).
+
+**The re-apply trap, re-measured on 6000.5 (2026-09-10).** The earlier note that assigning
+`fixedPaneInitialDimension` "does not repair a collapsed split" is stale for this version: the
+public setter re-runs the control's setup and moves both the pane and the drag-line anchor, before
+and after a collapse, even with a non-sentinel internal dimension. What does NOT work is writing
+`fixedPane.style.width` alone — the pane moves, the anchor stays where it was (verified live:
+pane 400, anchor still 280). `ReapplyStoredDimension` writes both. Setting the property while
+the split is at zero width is wasted, hence the pending flag rather than re-applying in the
+zero-size pass itself.

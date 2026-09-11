@@ -1,6 +1,6 @@
 # Amendment A82 — One catalog column, one cover-pane split, remembered dividers
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.29.0`.
+> **Status:** 🔨 built 2026-09-11 as `0.29.0` (commits `080a685c`, `c3a49b33`); wave-2 compile gate + T10 drive pending an open Editor; ⏸ T11 owner checkpoint open. §7 is the build log.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 0, first.
 > **Predecessors:** A76 (`RigCatalogColumn`), A80 (`ActorProfileCatalogColumn`), A81
 > (`ImageCatalogColumn`, `RecipeCatalogColumn`), A75/A77 (`ClipSetsPanel`'s inline catalog). Where

@@ -589,9 +589,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.28.0 is the Texture Packer tab: the
-            // channel packer moved into the toolkit with an image and recipe sidebar.
-            Assert.AreEqual("0.28.0", manifest.version, "Version tracks the shipped feature set; 0.28.0 is the Texture Packer tab.");
+            // -- not drift because someone edited the manifest. 0.29.0 is the shared catalog column and the
+            // cover-pane split that remembers its divider across a tab hide/show.
+            Assert.AreEqual("0.29.0", manifest.version, "Version tracks the shipped feature set; 0.29.0 is the shared catalog column and remembered dividers.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 

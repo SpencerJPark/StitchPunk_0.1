@@ -8,6 +8,28 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0] — A82 — one catalog column, remembered dividers
+
+### Added
+
+- **Dividers are remembered per tab.** Drag the divider on the Rigs, Clip Sets, Actor Editor or
+  Texture Packer tab, switch away and back, close and reopen the window: it is where you left it.
+  Every cover-pane split is now a `CoverPaneSplitView`, which stores the dragged width in
+  `EditorPrefs` (`DotsAnimationToolkit.Split.<tab>.<pane>`) when the drag line is released and
+  re-applies it after the zero-width layout pass a hidden tab produces — the pass that used to
+  floor every divider at its pane's minimum width.
+- `ToolkitCatalogColumn<TAsset>`, one element behind the Rigs, Clip Sets, Actor Profiles and
+  Recipes catalogs: search, New, Refresh, boxed two-line rows, right-click Rename and Delete. A
+  host supplies the second line, an optional tooltip and an optional scan, and owns every write.
+
+### Changed
+
+- `RigCatalogColumn`, `ActorProfileCatalogColumn` and `RecipeCatalogColumn` are thin hosts over
+  the shared column, and `ClipSetsPanel` no longer carries its own copy; their public surfaces
+  are unchanged, and so are the rows, search fields and context menus. The Images sidebar keeps
+  its own element: its rows are texture records with lazy thumbnails, multi-select and drag-out,
+  not catalog assets.
+
 ## [0.28.0] — A81 — texture packer tab
 
 ### Added

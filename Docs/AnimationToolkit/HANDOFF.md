@@ -119,6 +119,20 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-11): Amendment A82 — one catalog column, remembered dividers — 0.29.0.** Spec
+`Assets/_Vault/Tasks/AnimationPackage/A82_SharedCatalogColumn_Spec.md`; its §7 carries the build
+log. `ToolkitCatalogColumn<TAsset>` and `CoverPaneSplitView` (both `Editor/ClipEditor/Shared/`)
+now sit behind the Rigs, Clip Sets, Actor Profiles and Recipes catalogs and all seven cover-pane
+splits (`DotsAnimationToolkit.Split.<tab>.<pane>` in `EditorPrefs`); the three named catalog
+classes are thin subclasses with unchanged public surfaces, `ClipSetsPanel` lost its inline copy,
+and the Images sidebar deliberately stays on its own element (its rows are not assets). Live probe
+on 6000.5 corrected the vault: the public `fixedPaneInitialDimension` setter DOES repair a
+collapsed split; writing the pane's style width alone leaves the drag line behind. Wave 1 is
+gated and its fixture proven to fail; **wave 2 landed while the Editor was closed and has had
+static review only** — run the compile gate, the four catalog/layout fixtures and the T10
+hide/show drive before the T11 owner checkpoint. Three of four wave-2 workers were killed by a
+Sonnet rate limit mid-task; their partial output was verified and completed rather than resumed.
+
 **Built (2026-09-10): Amendment A81 — Texture Packer tab — 0.28.0.** Spec
 `Docs/AnimationToolkit/Amendment_A81_TexturePacker_Spec.md`; its §7 carries the build log. The
 game's channel packer is now the DOTS Animator's **first tab** (`ClipEditorTab.TexturePacker = 0`,
