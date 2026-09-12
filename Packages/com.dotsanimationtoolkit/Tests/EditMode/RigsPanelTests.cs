@@ -62,10 +62,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             RigsPanel panel = new RigsPanel();
             try
             {
-                List<TwoPaneSplitView> splitViews = panel.Query<TwoPaneSplitView>().ToList();
-                Assert.AreEqual(2, splitViews.Count, "The tab is built from an outer and an inner split view.");
+                List<CoverPaneSplitView> splitViews = panel.Query<CoverPaneSplitView>().ToList();
+                Assert.AreEqual(2, splitViews.Count, "The tab is built from an outer and an inner remembered split view.");
 
-                TwoPaneSplitView innerSplitView = splitViews[1];
+                CoverPaneSplitView innerSplitView = splitViews[1];
                 Assert.AreEqual(
                     560f,
                     innerSplitView.style.minWidth.value.value,
