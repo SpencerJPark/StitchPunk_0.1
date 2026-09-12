@@ -122,8 +122,8 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 **Built (2026-09-11): Amendment A82 — one catalog column, remembered dividers — 0.29.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A82_SharedCatalogColumn_Spec.md`; its §7 carries the build
 log. `ToolkitCatalogColumn<TAsset>` and `CoverPaneSplitView` (both `Editor/ClipEditor/Shared/`)
-now sit behind the Rigs, Clip Sets, Actor Profiles and Recipes catalogs and all seven cover-pane
-splits (`DotsAnimationToolkit.Split.<tab>.<pane>` in `EditorPrefs`); the three named catalog
+now sit behind the Rigs, Clip Sets, Actor Profiles and Recipes catalogs and all eight cover-pane
+splits (VAT Bake gained one) (`DotsAnimationToolkit.Split.<tab>.<pane>` in `EditorPrefs`); the three named catalog
 classes are thin subclasses with unchanged public surfaces, `ClipSetsPanel` lost its inline copy,
 and the Images sidebar deliberately stays on its own element (its rows are not assets). Live probe
 on 6000.5 corrected the vault: the public `fixedPaneInitialDimension` setter DOES repair a

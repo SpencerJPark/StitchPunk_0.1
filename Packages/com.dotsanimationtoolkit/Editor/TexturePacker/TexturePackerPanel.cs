@@ -96,7 +96,7 @@ namespace DotsAnimationToolkit.Editor
             actions.Add(bakeAsButton);
 
             Button clearButton = ToolkitIcons.MakeIconTextButton(
-                OnClearButtonClicked, "d_TreeEditor.Trash", "Remove every source node and wire. The output node stays.", "Clear");
+                OnClearButtonClicked, ToolkitIcons.Trash, "Remove every source node and wire. The output node stays.", "Clear");
             clearButton.name = "texture-packer-clear-button";
             actions.Add(clearButton);
 

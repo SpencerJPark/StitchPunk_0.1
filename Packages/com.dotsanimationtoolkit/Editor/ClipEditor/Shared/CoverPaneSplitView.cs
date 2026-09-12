@@ -87,7 +87,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (!isDragLineAnchorHooked)
             {
-                VisualElement anchor = splitView.Q<VisualElement>(className: DragLineAnchorUssClassName);
+                VisualElement anchor = FindOwnDragLineAnchor();
                 if (anchor != null)
                 {
                     anchor.RegisterCallback<PointerUpEvent>(OnDragLineReleased);
@@ -98,9 +98,50 @@ namespace DotsAnimationToolkit.Editor
             if (isReapplyPending)
             {
                 isReapplyPending = false;
-                // The property re-run moves the drag-line anchor; the style write is what a real
-                // drag itself does, so both are needed to match the dragged state exactly.
                 ReapplyStoredDimension();
+                // The split registers its own size handler in its first-layout setup, after this
+                // callback, so it runs next and parks the anchor at the floor it has just measured;
+                // nothing re-syncs it once the pane lays out at the stored width. Re-assigning an
+                // unchanged dimension is a no-op, so the anchor is placed from the laid-out pane.
+                splitView.schedule.Execute(SyncDragLineAnchorToFixedPane);
+            }
+        }
+
+        // A descendant query would find a nested split's anchor first; the split's own anchor is a
+        // direct hierarchy child beside its content container.
+        private VisualElement FindOwnDragLineAnchor()
+        {
+            int directChildCount = splitView.hierarchy.childCount;
+            for (int childIndex = 0; childIndex < directChildCount; childIndex++)
+            {
+                VisualElement child = splitView.hierarchy[childIndex];
+                if (child.ClassListContains(DragLineAnchorUssClassName))
+                {
+                    return child;
+                }
+            }
+
+            return null;
+        }
+
+        private void SyncDragLineAnchorToFixedPane()
+        {
+            VisualElement anchor = FindOwnDragLineAnchor();
+            VisualElement fixedPane = FixedPane;
+            if (anchor == null || fixedPane == null)
+            {
+                return;
+            }
+
+            if (orientation == TwoPaneSplitViewOrientation.Horizontal)
+            {
+                float paneWidth = fixedPane.resolvedStyle.width;
+                anchor.style.left = fixedPaneIndex == 0 ? paneWidth : splitView.resolvedStyle.width - paneWidth;
+            }
+            else
+            {
+                float paneHeight = fixedPane.resolvedStyle.height;
+                anchor.style.top = fixedPaneIndex == 0 ? paneHeight : splitView.resolvedStyle.height - paneHeight;
             }
         }
 

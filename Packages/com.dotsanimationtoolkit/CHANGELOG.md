@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Dividers are remembered per tab.** Drag the divider on the Rigs, Clip Sets, Actor Editor or
-  Texture Packer tab, switch away and back, close and reopen the window: it is where you left it.
+- **Dividers are remembered per tab.** Drag the divider on the Rigs, Clip Sets, VAT Bake, Actor
+  Editor or Texture Packer tab, switch away and back, close and reopen the window: it is where
+  you left it. The VAT Bake form is a draggable pane for the first time.
   Every cover-pane split is now a `CoverPaneSplitView`, which stores the dragged width in
   `EditorPrefs` (`DotsAnimationToolkit.Split.<tab>.<pane>`) when the drag line is released and
   re-applies it after the zero-width layout pass a hidden tab produces — the pass that used to

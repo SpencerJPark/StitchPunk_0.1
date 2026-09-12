@@ -896,9 +896,9 @@ deliberately not on it: its rows are GUID records with lazily loaded textures, m
 drag-out, not `UnityEngine.Object` catalog assets.
 
 **`CoverPaneSplitView` (same folder) is every cover-pane split.** Prefs key
-`DotsAnimationToolkit.Split.<tab>.<pane>` — seven keys: `Rigs.Catalog`, `Rigs.Targets`,
-`ClipSets.Catalog`, `ActorEditor.Profiles`, `ActorEditor.Layers`, `ActorEditor.Preview`,
-`TexturePacker.Sidebar`. It stores the fixed pane's resolved dimension on a `PointerUpEvent` on
+`DotsAnimationToolkit.Split.<tab>.<pane>` — eight keys: `Rigs.Catalog`, `Rigs.Targets`,
+`ClipSets.Catalog`, `VatBake.Form`, `ActorEditor.Profiles`, `ActorEditor.Layers`,
+`ActorEditor.Preview`, `TexturePacker.Sidebar`. It stores the fixed pane's resolved dimension on a `PointerUpEvent` on
 the drag-line anchor (class `unity-two-pane-split-view__dragline-anchor`, queried lazily on the
 first sized geometry pass because it is not in the hierarchy at construction), and re-applies it
 on the first `GeometryChangedEvent` with a positive size after one with a zero size — the hide.
@@ -913,3 +913,15 @@ and after a collapse, even with a non-sentinel internal dimension. What does NOT
 pane 400, anchor still 280). `ReapplyStoredDimension` writes both. Setting the property while
 the split is at zero width is wasted, hence the pending flag rather than re-applying in the
 zero-size pass itself.
+
+**Two traps the owner's first drive found (2026-09-12).** (1) The split registers its own size
+handler in its first-layout setup — *after* the wrapper's `GeometryChangedEvent` callback — so on
+the show pass it runs second and parks the drag-line anchor at the floor it has just measured; the
+pane then lays out at the stored width and nothing re-syncs the anchor (the "black line over the
+content" the owner saw). Re-assigning an unchanged `fixedPaneInitialDimension` is a no-op, so the
+wrapper schedules `SyncDragLineAnchorToFixedPane` for the next frame and places the anchor from the
+laid-out pane (`left = paneWidth` for index 0, `splitWidth − paneWidth` for index 1 — the split's
+own arithmetic). (2) `splitView.Q(className: dragline-anchor)` walks descendants and, on a split
+whose fixed pane is another split, returns the *nested* split's anchor first — releases then wrote
+the outer key from the inner drag line. The anchor is a direct `hierarchy` child beside the
+content container; look only there.

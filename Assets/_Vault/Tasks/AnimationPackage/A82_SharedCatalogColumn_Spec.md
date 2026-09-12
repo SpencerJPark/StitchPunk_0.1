@@ -308,3 +308,29 @@ _(empty — the session appends here: T0 totals and split-view inventory, D4 cal
   when it became focused; there is no `before_*` to compare against either. D8's "pixel-identical"
   claim rests on the code carrying the row structure, constants and comments across verbatim, and
   on the owner's eyes at T11.
+
+### T11 feedback round 1 — 2026-09-12 (owner screenshot in this folder)
+
+- **Reported:** on Rigs, Clip Sets and Actor Profiles, drag the divider, leave the tab and come
+  back: the content keeps its width but the drag line snaps back — a black line over the content.
+  Also: the VAT Bake tab still has no draggable divider.
+- **Cause 1 (drag line):** the split registers its own size handler in its first-layout setup, i.e.
+  after the wrapper's `GeometryChangedEvent` callback, so on the show pass it runs second and parks
+  the anchor at the floor it just measured; the pane then lays out at the stored width and nothing
+  re-syncs the anchor. Re-assigning an unchanged `fixedPaneInitialDimension` is a no-op, so the
+  deferred fix places the anchor from the laid-out pane (`SyncDragLineAnchorToFixedPane`, one frame
+  later, the split's own arithmetic for both fixed-pane indices).
+- **Cause 2 (found on the way):** the anchor hook used a descendant query, which on a split whose
+  fixed pane is another split returns the nested split's anchor — releases on the inner line wrote
+  the outer key (the `Rigs.Targets=640` and `ActorEditor.Preview=260` values seen at T10 were that).
+  Now `FindOwnDragLineAnchor` looks only at the split's direct hierarchy children.
+- **Verified live on Actor Profiles** (the nested case): resizer-driven drag 350 → 280, release
+  stores 280, hide/show → pane 280, anchor 280; Layers and Preview (index 1) also pane == anchor.
+- **VAT Bake:** the form column was a fixed 420 px flex child. It is now the fixed pane of
+  `CoverPaneSplitView("VatBake.Form", 0, 420)` with a 320 floor; the preview keeps its 320 floor.
+  Eight keys now. Live: pane 420, anchor 420.
+- **Also fixed:** `TexturePackerPanel`'s Clear button passed `"d_TreeEditor.Trash"` to a resolver
+  that prefixes `d_` itself; the console error in the screenshot was that. It passes
+  `ToolkitIcons.Trash` now.
+- Suites after the fixes: EditMode 824 (same pre-existing `Conformance_A` failure only), PlayMode
+  283/283.

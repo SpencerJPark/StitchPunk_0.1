@@ -50,15 +50,18 @@ namespace DotsAnimationToolkit.Editor
         public VatBakePanel()
         {
             style.flexGrow = 1f;
-            style.flexDirection = FlexDirection.Row;
+
+            // The form is the fixed pane; its divider is remembered across a tab hide/show.
+            CoverPaneSplitView splitView = new CoverPaneSplitView("VatBake.Form", 0, 420f, TwoPaneSplitViewOrientation.Horizontal);
+            splitView.style.flexGrow = 1f;
+            Add(splitView);
 
             VisualElement formColumn = new VisualElement { name = "vat-bake-form-column" };
-            formColumn.style.width = 420f;
-            formColumn.style.flexShrink = 0f;
+            formColumn.style.minWidth = 320f;
             formColumn.style.paddingLeft = 10f;
             formColumn.style.paddingRight = 10f;
             formColumn.style.paddingTop = 8f;
-            Add(formColumn);
+            splitView.Add(formColumn);
 
             VisualElement root = formColumn;
             root.Add(BuildHeading("Source"));
@@ -180,7 +183,7 @@ namespace DotsAnimationToolkit.Editor
             VisualElement previewPane = new VisualElement { name = "vat-bake-preview-pane" };
             previewPane.style.flexGrow = 1f;
             previewPane.style.minWidth = 320f;
-            Add(previewPane);
+            splitView.Add(previewPane);
 
             VisualElement previewHeader = new VisualElement();
             previewHeader.AddToClassList("toolkit-pane-header");
