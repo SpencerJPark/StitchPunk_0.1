@@ -1,6 +1,6 @@
 # Amendment A82 — One catalog column, one cover-pane split, remembered dividers
 
-> **Status:** 🔨 built 2026-09-11 as `0.29.0` (commits `080a685c`, `c3a49b33`); wave-2 compile gate + T10 drive pending an open Editor; ⏸ T11 owner checkpoint open. §7 is the build log.
+> **Status:** 🔨 built 2026-09-11 as `0.29.0` (commits `080a685c`, `c3a49b33`); ⏸ T11 owner checkpoint open. §7 is the build log.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 0, first.
 > **Predecessors:** A76 (`RigCatalogColumn`), A80 (`ActorProfileCatalogColumn`), A81
 > (`ImageCatalogColumn`, `RecipeCatalogColumn`), A75/A77 (`ClipSetsPanel`'s inline catalog). Where
@@ -277,3 +277,34 @@ _(empty — the session appends here: T0 totals and split-view inventory, D4 cal
   `ClipSetsPanelTests`) are **pending**; the wave passed static review only (every host call site
   grepped against the new surfaces, no raw `TwoPaneSplitView` left in a cover pane). Committed
   anyway so the work is not lost; the gate result is appended below when the Editor is back.
+
+### Wave 2 gate + full suites — 2026-09-11 (Editor reopened)
+
+- Compile clean; `RigCatalogColumn` and `RecipeCatalogColumn` load with base
+  `ToolkitCatalogColumn`1`. One fixture drifted: `RigsPanelTests.InnerSplitView_CarriesItsOwnWidthFloor…`
+  queried `TwoPaneSplitView` and read the floor as 0 because the floor now sits on the wrapper —
+  re-pointed at `CoverPaneSplitView` (`c6880c91`), which is the T8 edit the spec predicted, in a
+  fixture other than the one it named.
+- **EditMode 824 discovered (823 + the new fixture), 823 pass;** the one failure is the
+  pre-existing `Conformance_A` asmdef reference. **PlayMode 283/283.** Totals did not drop.
+
+### T10 — drive (2026-09-12, live window)
+
+- **Store path:** a `PointerUpEvent` sent to the Rigs inner drag-line anchor wrote the pane's
+  resolved width (stored 360 → 300 observed); layout passes alone never store (pane at 300 with
+  stored 360 stayed 360 across a frame).
+- **Hide/show:** switching Rigs → Clip Editor → Rigs took both panes to 0 and back; the outer
+  split came back at its stored 640 and the inner at 278.8 rather than its 200 floor — the
+  re-apply fired, then `TwoPaneSplitView`'s own clamp bounded it (300 + the targets column's 360
+  minimum exceeds the 640 inner split). A real drag is clamped by the same rule, so the synthetic
+  value was simply out of range; no code change. The synthetic 300 was cleared from EditorPrefs.
+- **Real input:** mid-drive the owner started using the window (active tab changed under the
+  probe, Editor focus came and went), so the scripted drive stopped there. The prefs at that
+  moment — `ActorEditor.Layers=255.2`, `ActorEditor.Preview=260`, `TexturePacker.Sidebar=330`,
+  `Rigs.Targets=640` — are values only a real drag-line release can write, on three of the four
+  tabs. Not driven: the close-and-reopen path (covered by the fixture: the wrapper's constructor
+  passes `StoredDimension` to the split) and the Clip Sets tab's own hide/show.
+- **Captures:** none. The Editor was unfocused for the whole build and the owner was in the window
+  when it became focused; there is no `before_*` to compare against either. D8's "pixel-identical"
+  claim rests on the code carrying the row structure, constants and comments across verbatim, and
+  on the owner's eyes at T11.
