@@ -1,6 +1,6 @@
 # Amendment A85 — Event payload schema: a key says what its parameters mean
 
-> **Status:** ✅ built 2026-09-13 as `0.32.0` (commits `743d0fab`, `d78e21f2`, `5169daf0`, close-out); ⏸ T10 owner checkpoint open.
+> **Status:** ✅ built 2026-09-13 as `0.32.0` (commits `743d0fab`, `d78e21f2`, `5169daf0`, close-out); accepted 2026-09-13 (T10 owner checkpoint answered: Payload foldout stays, collapsed; both ⚠ interpretations kept as built).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A55 (event authoring), A83 (the inspector pane).
 > **Executor:** one orchestrator; `worker` subagents in **one wave of five**, each ≤ 2 files.
@@ -127,7 +127,7 @@ generate button passes closures over the entries. Other registries pass null and
   names persisted; open a clip with that key and confirm the dropdown; generate constants and open
   the generated file. Capture the inspector.
 - [x] **T9 — Close.** HANDOFF §4, roadmap checkbox.
-- [ ] **T10 — ⏸ owner checkpoint.** Message: "In Project Settings ▸ DOTS Animation ▸ Event Keys,
+- [x] **T10 — ⏸ owner checkpoint.** Message: "In Project Settings ▸ DOTS Animation ▸ Event Keys,
   give Footstep an int label 'Foot' with values Left/Right. Open a clip with a Footstep marker: the
   inspector shows a dropdown. Regenerate constants and read `AnimEvents.FootstepValues`. ⚠ The
   Quick Edit window grew a Payload foldout per row — say if it should stay collapsed or go."

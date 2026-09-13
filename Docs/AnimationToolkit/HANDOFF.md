@@ -132,8 +132,8 @@ XML doc and a nested `<Key>Values` class, fed by two optional closures on
 only), PlayMode 283. Drive proved persistence through a domain reload and the generated
 `AnimEvents.SoundValues`; the live window was not driven and nothing captured (Editor unfocused).
 **For A86:** the cutscene event inspector still binds raw fields (`CutsceneEditorPanel.cs`
-`AddBoundField(eventProperty, "intParam", …)`) and should call the same builder. **⏸ T10 owner
-checkpoint open.** Roadmap box ticks when answered.
+`AddBoundField(eventProperty, "intParam", …)`) and should call the same builder. **T10 owner checkpoint answered 2026-09-13: kept as built
+(Payload foldout stays collapsed; both interpretations confirmed). A85 closed.**
 
 **Built (2026-09-12): Amendment A84 — asset reference index, "where is this used" — 0.31.0.**
 Spec `Assets/_Vault/Tasks/AnimationPackage/A84_AssetReferenceIndex_Spec.md`; its §7 carries the D1
@@ -145,9 +145,8 @@ answers seven `ReferencesTo…` queries plus `CountTracksBoundToTarget` and `Sum
 pane's "animated" bold and `RigTargetReferenceResolver` both go through it. The Rig, Clip Set and
 Actor Profile delete dialogs open with "Referenced by N …" and up to ten names. Suites: EditMode
 826 (824 + 2, standing `Conformance_A` failure only), PlayMode 283. Drive proved the three
-behaviours against scratch copies; no capture (Editor unfocused). **⏸ T11 owner checkpoint
-open:** right-click Delete on a referenced rig, clip set or profile and judge the wording and the
-ten-name cap. Roadmap box ticks when answered.
+behaviours against scratch copies; no capture (Editor unfocused). **T11 owner checkpoint answered
+2026-09-13: delete-dialog wording and the ten-name cap kept as built. A84 closed.**
 
 **Built (2026-09-12): Amendment A83 — the Clip Editor window is four panes — 0.30.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A83_WindowDecomposition_Spec.md`; its §7 carries the range

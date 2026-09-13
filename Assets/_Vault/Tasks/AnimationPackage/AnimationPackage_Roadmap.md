@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0`, its T11 owner checkpoint open (box ticks when answered). A85 built 2026-09-13 as `0.32.0`, its T10 owner checkpoint open (box ticks when answered). A86–A92 are next, in any order.
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86–A92 are next, in any order.
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -21,8 +21,8 @@ free minor and correct the spec's status line.
 
 ### Phase 1 — infrastructure (A84 first; A85–A92 are independent of each other and can run in any order, or in parallel sessions on separate branches)
 
-- [ ] **A84 — Asset Reference Index** (`0.31.0`) — [`A84_AssetReferenceIndex_Spec.md`](A84_AssetReferenceIndex_Spec.md). One editor service answering "where is this rig / clip / set / profile / event key / tag used". Fixes the tag-bound undercount in delete confirmations. A92, A93 and A94 read it.
-- [ ] **A85 — Event payload schema** (`0.32.0`) — [`A85_EventPayloadSchema_Spec.md`](A85_EventPayloadSchema_Spec.md). A registry entry says what `intParam` / `floatParam` mean; the Clip Editor shows a dropdown instead of a raw integer; generated constants carry the meaning.
+- [x] **A84 — Asset Reference Index** (`0.31.0`) — [`A84_AssetReferenceIndex_Spec.md`](A84_AssetReferenceIndex_Spec.md). One editor service answering "where is this rig / clip / set / profile / event key / tag used". Fixes the tag-bound undercount in delete confirmations. A92, A93 and A94 read it.
+- [x] **A85 — Event payload schema** (`0.32.0`) — [`A85_EventPayloadSchema_Spec.md`](A85_EventPayloadSchema_Spec.md). A registry entry says what `intParam` / `floatParam` mean; the Clip Editor shows a dropdown instead of a raw integer; generated constants carry the meaning.
 - [ ] **A86 — One event editing surface for clips and cutscenes** (`0.33.0`) — [`A86_UnifiedEventEditing_Spec.md`](A86_UnifiedEventEditing_Spec.md). Same inspector, lane drawing and validation for `EventMarker` and `CutsceneEventMarker`; serialized types untouched.
 - [ ] **A87 — Scrub crossings and sound on scrub** (`0.34.0`) — [`A87_ScrubEventCrossings_Spec.md`](A87_ScrubEventCrossings_Spec.md). Playhead-before / playhead-after crossing detection in the editor, an editor-only preview `AudioClip` per registry entry. Lifts the standing "do not start it" (HANDOFF §5) on the owner's 2026-09-10 instruction.
 - [ ] **A88 — Layered event preview in the Actor Editor** (`0.35.0`) — [`A88_LayeredEventPreview_Spec.md`](A88_LayeredEventPreview_Spec.md). Per-layer marker strip under the composited preview; inactive and crossfade-source layers drawn as non-emitting.

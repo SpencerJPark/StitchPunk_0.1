@@ -1,6 +1,6 @@
 # Amendment A84 — Asset Reference Index: "where is this used"
 
-> **Status:** 🔨 built 2026-09-12 as `0.31.0` (commits `A84-T1..T7`, `A84-T8..T10`); ⏸ T11 owner checkpoint open.
+> **Status:** ✅ built 2026-09-12 as `0.31.0` (commits `A84-T1..T7`, `A84-T8..T10`) and accepted 2026-09-13 (T11 owner checkpoint answered: wording and ten-name cap kept as built).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1, first.
 > **Predecessors:** A83 (the hierarchy pane owns `CountTracksForTarget`). A77 recorded "the
 > reference sweep that would price a delete still does not exist" — this is that sweep.
@@ -156,7 +156,7 @@ Boilerplate per roadmap §3.3. All wave tasks are `[parallel-safe]`.
   profile → right-click Delete on Rigs shows "Referenced by 1 profile"; a tag-bound track on a
   target → hierarchy row shows animated. Delete the scratch folder; `git status` clean.
 - [x] **T10 — Close.** HANDOFF §4 paragraph, roadmap checkbox.
-- [ ] **T11 — ⏸ owner checkpoint.** Message: "Right-click Delete on any rig, clip set or profile
+- [x] **T11 — ⏸ owner checkpoint.** Message: "Right-click Delete on any rig, clip set or profile
   that something uses — the dialog now says what. Tell me if the wording or the ten-name cap reads
   wrong."
 
