@@ -508,7 +508,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void FrameSelection()
         {
-            if (selectedClip == null || selectedKeys.Count == 0)
+            if (selectedClip == null || session.SelectedKeys.Count == 0)
             {
                 FrameAll();
                 return;
@@ -517,7 +517,7 @@ namespace DotsAnimationToolkit.Editor
             float earliest = float.MaxValue;
             float latest = float.MinValue;
             int resolved = 0;
-            foreach (KeyAddress address in selectedKeys)
+            foreach (KeyAddress address in session.SelectedKeys)
             {
                 float keyTime;
                 if (!TryGetSelectedKeyTime(address, out keyTime))

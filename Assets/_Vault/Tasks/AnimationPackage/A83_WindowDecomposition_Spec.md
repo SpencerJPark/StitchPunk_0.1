@@ -1,6 +1,6 @@
 # Amendment A83 — Decompose `ClipEditorWindow.cs` into pane elements
 
-> **Status:** 🔧 in progress — T0–T3 built and gated 2026-09-12 (still `0.29.0`); owner chose option 1 of §7.4 (orchestrator slices, workers fix up) and T3 landed under it. Takes `0.30.0`.
+> **Status:** 🔧 in progress — T0–T4 built and gated 2026-09-12 (still `0.29.0`); owner chose option 1 of §7.4 (orchestrator slices, workers fix up) and T3 landed under it. Takes `0.30.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 0, second.
 > **Predecessors:** A82 (the shared column and split view, so the extracted panes do not carry
 > raw split views). `ActorEditorPanel` hosting `ActorEditorLayersColumn` / `ActorEditorProfilesColumn`
@@ -142,7 +142,7 @@ T2–T5; a worker reads only its rows.
 - [x] **T3 — `RigHierarchyPane` (one worker).** Same shape; ranges from T1; carries
   `CountTracksForTarget` unchanged (A84 fixes its matching). Gate +
   `ClipEditorHierarchySelectionTests`. Commit `A83-T3`.
-- [ ] **T4 — `ClipInspectorPane` (one worker).** Ranges from T1, including the two
+- [x] **T4 — `ClipInspectorPane` (one worker).** Ranges from T1, including the two
   `(KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)` builders. Gate +
   `ClipEditorAddEventTests`. Commit `A83-T4`.
 - [ ] **T5 — `TimelinePane` (one worker, possibly two if the range exceeds ~1,500 lines — then the
@@ -472,7 +472,57 @@ The owner call is which the roadmap wants before A84 starts.
   `PackagingConformanceTests` — pass except the pre-existing `Conformance_A`; full EditMode
   **824** (same single failure). Window **9,176 → 8,104**, `ComponentStack` 1,531 → 1,446.
 
-**Left for whoever continues:** T4–T7 unticked; D7's 2,500-line target is not reachable without
+### 7.6 T4 — `ClipInspectorPane` (2026-09-12, same method as T3)
+
+- **Landed.** `Editor/ClipEditor/Panes/ClipInspectorPane.cs`, 1,979 lines; window **8,104 → 6,278**.
+  Same asserted-slice script and the same verbatim check: **60 bodies identical**, the three that
+  differ are the three substituted on purpose (`AddTransformFields` — the Key button's held-edit
+  block became the window's `KeyDisplayedTransform` + `IsTransformEditHeldFor`; `AddBoneTrack` —
+  `statusLabel.text =` became `ReportStatus(…)` and the hierarchy lookup a delegate;
+  `MakeClipNameField` — list refresh + timeline rebuild became the `ClipRenamed` event). No worker.
+- **Surface.** The pane owns the `inspector-content` `ScrollView`, the `SerializedObject`
+  (`RefreshSerializedClip`, called by the window at the same six moments as before), the live
+  bindings, the key/event/easing/bone/socket/flipbook/transform field builders, and the clip
+  inspector. Window→pane: `RebuildInspector`, `RefreshLiveInspectorValues`, `RefreshSerializedClip`,
+  `ResolveEventKeyAddressForFlatIndex`, the four block builders the component stack calls
+  (`AddTransformFields`, `AddBoneTransformFields`, `BuildFlipbookTrackBlock`, `AddSocketFields`),
+  `MakeSelectionHeading` + `SelectionHeadingElement`, the two socket dropdown builders,
+  `ContentPane` (the `ScrollView`, for the component stack's own `Add`s), and the statics
+  `MakeHeading`, `MakeHint`, `IsBeingEdited`, `DescribeEventName`, `FindRegistryEntryByKey`,
+  `ResolveReferenceFrameRate`, `ResolveEventKeyRegistry`. Pane→window: **29 delegates** set in
+  `CreateGUI`, each named after the window member it stands in for so the moved bodies read
+  unchanged (`RecordClipEdit`, `CommitClipEdit`, the three `Request…Rebuild`s, `RebuildTimeline`,
+  `MarkPreviewDirty`, undo gestures, `GetKeyTime`, `ResolveEventFlatIndex`, `BuildComponentStack`,
+  `AddSocketDirectory`, the socket commit trio, `FocusSocket`, the held-transform quartet,
+  `ResolveDisplayedTransform`/`ReadRigEditPose` as two `out`-parameter delegate types,
+  `IsRigEditMode`, `FindBoneTrackIndex`, `FindHierarchyItemForKey`, `ReportStatus`,
+  `KeyDisplayedTransform`, `IsTransformEditHeldFor`) plus `PickerRoot` for the vocabulary popup and
+  one event, `ClipRenamed`. A later cleanup can fold the 29 into one host interface; the count is
+  the honest measure of how much of the inspector is glue over window operations (D5 keeps the
+  component stack, the held-transform edit, the socket commits and the retag block on the window).
+- **D8 done early.** `selectedKeys`, `activeKey` and `hasActiveKey` moved to the session now
+  (`SelectedKeys` — the set itself —, `ActiveKey`, `HasActiveKey`, plain settable properties; the
+  spec's unused `SelectedKey`/`SetSelectedKey`/`SelectedKeyChanged` were replaced by them). Every
+  window and partial read was re-pointed on code lines (`session.…`). D9 done for the playhead:
+  `SelectClip` and `SetPlayheadTime` mirror `playheadTime` into `session.SetPlayhead`; the pane
+  reads `session.PlayheadNormalized`. The inspector reads the hierarchy selection off the session
+  (`SelectedHierarchyItems`, now defaulting to an empty list, and `ActiveHierarchyItem`) — D4.
+- **Binding order changed for all three panes (records a trap).** Every pane is now constructed
+  and bound to the selection and session in `OnEnable` (`Bind(null, selection, session,
+  previewController)`), and `CreateGUI` binds the UXML root; a pane registers its element and
+  event callbacks only when it is handed a root. Reason: `ClipEditorAddEventTests` drives the
+  window without `CreateGUI`, and the hidden instance never runs it either, yet both reach pane
+  members that read the session. Verified live on the hidden instance: `RememberSessionState`,
+  `OnUndoRedo` and `FlushDeferredPaneRebuilds` all run clean with all three panes present.
+- **Fixture:** `ClipEditorAddEventTests` read the three key-selection fields off the window; it
+  now reads them off the window's `session` and mirrors the clip it sets into it. Assertions
+  unchanged.
+- **Gate:** compile clean; `ClipEditorAddEventTests` (3), `ClipKeyClipboardTests`,
+  `ClipEditorLayoutTests`, `ClipEditorHierarchySelectionTests`, `ClipEditorAuthoringTests`,
+  `PackagingConformanceTests` — pass except the pre-existing `Conformance_A`; full EditMode
+  **824** (same single failure).
+
+**Left for whoever continues:** T5–T7 unticked; D7's 2,500-line target is not reachable without
 T3–T5; the vault "grep the member, read forty lines" instructions that name the window are still
 correct for everything but the clip list. No captures exist (§7.1).
 

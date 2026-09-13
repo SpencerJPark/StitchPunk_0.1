@@ -70,10 +70,10 @@ namespace DotsAnimationToolkit.Editor
                     clipListView.selectionChanged += OnClipSelectionChanged;
                     clipListView.itemsSource = new List<ClipAsset>();
                 }
-            }
 
-            selection.ClipSetChanged += OnClipSetChanged;
-            session.SelectedClipChanged += OnSelectedClipChanged;
+                selection.ClipSetChanged += OnClipSetChanged;
+                session.SelectedClipChanged += OnSelectedClipChanged;
+            }
         }
 
         public void Dispose()

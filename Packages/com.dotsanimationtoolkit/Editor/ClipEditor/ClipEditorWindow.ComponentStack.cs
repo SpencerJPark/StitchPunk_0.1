@@ -65,14 +65,14 @@ namespace DotsAnimationToolkit.Editor
         {
             ClipObjectRef objectRef = BuildObjectRef(item);
 
-            SelectionHeadingElement heading = MakeSelectionHeading(
+            ClipInspectorPane.SelectionHeadingElement heading = clipInspectorPane.MakeSelectionHeading(
                 item.kind == HierarchyItemKind.RigTarget
                     ? ResolveTargetDisplayName(item.targetId)
                     : item.displayName,
                 isActive);
             DescribeSelectedObject(heading.label, item, objectRef);
             BindPartTagButton(heading, item);
-            inspectorPane.Add(heading);
+            clipInspectorPane.ContentPane.Add(heading);
 
             // Keyed off ActiveHierarchyItem directly rather than the isActive parameter: that flag
             // is nulled out by the caller for a single selection to suppress the "(active)" marker
@@ -98,7 +98,7 @@ namespace DotsAnimationToolkit.Editor
             for (int instanceIndex = 0; instanceIndex < componentInstances.Count; instanceIndex++)
             {
                 ClipComponentInstance instance = componentInstances[instanceIndex];
-                inspectorPane.Add(BuildComponentBlock(objectRef, instance));
+                clipInspectorPane.ContentPane.Add(BuildComponentBlock(objectRef, instance));
             }
 
             // Said on the absence of a clip rather than on an empty stack, which no longer happens:
@@ -106,11 +106,11 @@ namespace DotsAnimationToolkit.Editor
             // being able to mean "nothing to read it from".
             if (selectedClip == null)
             {
-                inspectorPane.Add(MakeHint(
+                clipInspectorPane.ContentPane.Add(ClipInspectorPane.MakeHint(
                     "No clip selected, so nothing here is keyed. Pick one to animate this object."));
             }
 
-            inspectorPane.Add(BuildAddComponentButton(objectRef));
+            clipInspectorPane.ContentPane.Add(BuildAddComponentButton(objectRef));
         }
 
         // Says what kind of thing the selected row is, on the heading's hover rather than under it —
@@ -160,7 +160,7 @@ namespace DotsAnimationToolkit.Editor
         /// Shows the part-tag button on a claimed rig target's heading, hidden otherwise — an
         /// unclaimed prefab node has no <see cref="RigTargetDefinition"/> to carry a tag.
         /// </summary>
-        private void BindPartTagButton(SelectionHeadingElement heading, HierarchyItem item)
+        private void BindPartTagButton(ClipInspectorPane.SelectionHeadingElement heading, HierarchyItem item)
         {
             RigTargetDefinition target =
                 item.targetId != 0u ? hierarchyPane.FindRigTargetById(item.targetId) : null;
@@ -216,7 +216,7 @@ namespace DotsAnimationToolkit.Editor
                     // The registry changed underneath every open heading (a tag renamed or newly
                     // created via "Edit..." / "Create tag..."), so the whole inspector's labels
                     // are re-derived rather than just this one's.
-                    RebuildInspector();
+                    clipInspectorPane.RebuildInspector();
                 });
         }
 
@@ -407,7 +407,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 collapsedComponentKinds.Add(kind);
             }
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         /// <summary>Fills a component's body with the fields that kind owns.</summary>
@@ -417,14 +417,14 @@ namespace DotsAnimationToolkit.Editor
             switch (instance.kind)
             {
                 case ClipComponentKind.Transform:
-                    AddTransformFields(body, objectRef.targetId);
+                    clipInspectorPane.AddTransformFields(body, objectRef.targetId);
                     return;
 
                 case ClipComponentKind.BoneTransform:
                     // By name rather than by the resolved track, because the track may not exist
                     // yet: a transform is on every object from the moment it is selected, and the
                     // first key is what mints the track to hold it.
-                    AddBoneTransformFields(body, objectRef.boneName);
+                    clipInspectorPane.AddBoneTransformFields(body, objectRef.boneName);
                     return;
 
                 case ClipComponentKind.Flipbook:
@@ -432,7 +432,7 @@ namespace DotsAnimationToolkit.Editor
                     SpriteTrack track = ResolveSpriteTrack(instance);
                     if (track != null)
                     {
-                        body.Add(BuildFlipbookTrackBlock(track, instance.index));
+                        body.Add(clipInspectorPane.BuildFlipbookTrackBlock(track, instance.index));
                     }
                     return;
                 }
@@ -456,7 +456,7 @@ namespace DotsAnimationToolkit.Editor
                     SocketDefinition socket = ResolveSocket(instance);
                     if (socket != null)
                     {
-                        AddSocketFields(body, socket);
+                        clipInspectorPane.AddSocketFields(body, socket);
                     }
                     return;
                 }
@@ -555,7 +555,7 @@ namespace DotsAnimationToolkit.Editor
                     // The registry changed underneath every open track button (a tag renamed or
                     // newly created), so the whole inspector's labels are re-derived rather than
                     // just this one's — same discipline as RigAssetEditor.RefreshAllTargetTagButtons.
-                    RebuildInspector();
+                    clipInspectorPane.RebuildInspector();
                 });
         }
 
@@ -709,7 +709,7 @@ namespace DotsAnimationToolkit.Editor
 
                 // A billboard root changes how the node renders in the preview, and marks its row.
                 hierarchyPane.RefreshHierarchyRows();
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
                 return;
             }
 
@@ -755,7 +755,7 @@ namespace DotsAnimationToolkit.Editor
             // stands for one.
             RebuildTimeline();
             hierarchyPane.RebuildHierarchy();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // The label a newly added rig-scoped component carries, built from its object's name. A
@@ -807,7 +807,7 @@ namespace DotsAnimationToolkit.Editor
                     FocusSocket(0u);
                 }
                 CommitSocketEdit(true);
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
                 return;
             }
 
@@ -840,12 +840,12 @@ namespace DotsAnimationToolkit.Editor
 
             // The removed track's keys may well be in the selection, and an address into a track
             // that no longer exists is a selection nothing can draw.
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
 
             RebuildTimeline();
             hierarchyPane.RebuildHierarchy();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // Removes a billboard root, and the keys of every clip track that addressed it. The one
@@ -887,11 +887,11 @@ namespace DotsAnimationToolkit.Editor
             AssetDatabase.SaveAssetIfDirty(rig);
             CommitSocketEdit(false);
 
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
             hierarchyPane.RefreshHierarchyRows();
             RebuildTimeline();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // Removes a ragdoll body from the rig, asking first. No key warning to fold in: unlike a
@@ -934,7 +934,7 @@ namespace DotsAnimationToolkit.Editor
             CommitSocketEdit(false);
 
             hierarchyPane.RefreshHierarchyRows();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         private static string DescribeSocketForPrompt(SocketDefinition socket)
@@ -971,8 +971,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            inspectorPane.Add(MakeHeading("Attachment Points"));
-            inspectorPane.Add(MakeHint(
+            clipInspectorPane.ContentPane.Add(ClipInspectorPane.MakeHeading("Attachment Points"));
+            clipInspectorPane.ContentPane.Add(ClipInspectorPane.MakeHint(
                 "Sockets live on the rig, and are edited on the part or bone they follow. "
                 + rig.sockets.Count + " on this rig."));
 
@@ -983,7 +983,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-                inspectorPane.Add(BuildSocketDirectoryRow(rig, socket));
+                clipInspectorPane.ContentPane.Add(BuildSocketDirectoryRow(rig, socket));
             }
         }
 
@@ -991,7 +991,7 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement row = new VisualElement();
             row.AddToClassList(ComponentBlockUssClassName);
-            row.Add(MakeHeading(hierarchyPane.DescribeSocketLabel(socket)));
+            row.Add(ClipInspectorPane.MakeHeading(hierarchyPane.DescribeSocketLabel(socket)));
 
             int sourceItemId;
             if (hierarchyPane.TryFindSocketSourceItemId(socket.Id.Value, out sourceItemId))
@@ -1004,7 +1004,7 @@ namespace DotsAnimationToolkit.Editor
                 return row;
             }
 
-            row.Add(MakeHint(
+            row.Add(ClipInspectorPane.MakeHint(
                 "Follows nothing this rig has, so it has no object to be edited on. Rebind it "
                 + "below, or remove it."));
 
@@ -1014,21 +1014,21 @@ namespace DotsAnimationToolkit.Editor
                 RecordSocketEdit(rig, "Change Socket Mode");
                 socket.mode = (SocketAttachMode)changeEvent.newValue;
                 CommitSocketEdit(true);
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
             });
             row.Add(modeField);
 
             if (socket.mode == SocketAttachMode.RigTarget)
             {
-                row.Add(BuildSocketTargetField(rig, socket));
+                row.Add(clipInspectorPane.BuildSocketTargetField(rig, socket));
             }
             else if (previewController != null)
             {
-                row.Add(BuildSocketBoneField(rig, socket));
+                row.Add(clipInspectorPane.BuildSocketBoneField(rig, socket));
             }
             else
             {
-                row.Add(MakeHint(
+                row.Add(ClipInspectorPane.MakeHint(
                     "Pick a rig with a Source Prefab above the hierarchy to pick the bone this should follow."));
             }
 
@@ -1048,7 +1048,7 @@ namespace DotsAnimationToolkit.Editor
             }
             hierarchyPane.SelectItemById(sourceItemId);
             FocusSocket(socket.Id.Value);
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // -------------------------------------------------------------------------------------
@@ -1062,7 +1062,7 @@ namespace DotsAnimationToolkit.Editor
         {
             if (selectedClip == null)
             {
-                parent.Add(MakeHint(
+                parent.Add(ClipInspectorPane.MakeHint(
                     "This node faces the viewer. Select a clip to animate how much."));
                 return;
             }
@@ -1075,7 +1075,7 @@ namespace DotsAnimationToolkit.Editor
             bool isOnKey = track != null
                 && ClipBillboardEditing.FindKeyIndexAt(track, playheadTime) >= 0;
 
-            parent.Add(MakeHint(keyCount == 0
+            parent.Add(ClipInspectorPane.MakeHint(keyCount == 0
                 ? "Facing the viewer, unanimated — editing a value below makes the first key."
                 : (isOnKey
                     ? "On a key — editing changes this key."
@@ -1127,7 +1127,7 @@ namespace DotsAnimationToolkit.Editor
             });
             parent.Add(enabledField);
 
-            parent.Add(MakeHint(
+            parent.Add(ClipInspectorPane.MakeHint(
                 keyCount + " key(s). Billboard keys have no timeline row yet — they are edited "
                 + "here, at the playhead."));
         }
@@ -1230,7 +1230,7 @@ namespace DotsAnimationToolkit.Editor
                     + "centre handle moves it, six face handles resize it, and a rotation ring turns it."
             });
 
-            parent.Add(MakeHeading("Box"));
+            parent.Add(ClipInspectorPane.MakeHeading("Box"));
 
             Vector3Field boxCenterField = new Vector3Field("Center");
             boxCenterField.tooltip = "Local offset from the addressed node's origin.";
@@ -1263,7 +1263,7 @@ namespace DotsAnimationToolkit.Editor
             });
             parent.Add(boxRotationField);
 
-            parent.Add(MakeHeading("Physical"));
+            parent.Add(ClipInspectorPane.MakeHeading("Physical"));
 
             FloatField massField = new FloatField("Mass");
             massField.tooltip = "Must be greater than 0 — the inertia tensor is derived from this "
@@ -1321,7 +1321,7 @@ namespace DotsAnimationToolkit.Editor
 
             AddRagdollLimitFields(parent, rig, ragdollBody);
 
-            parent.Add(MakeHeading("Self-Collision"));
+            parent.Add(ClipInspectorPane.MakeHeading("Self-Collision"));
 
             IntegerField selfGroupField = new IntegerField("Self Group");
             selfGroupField.tooltip = "Which of 8 self-collision groups this body belongs to — a bit "
@@ -1364,8 +1364,8 @@ namespace DotsAnimationToolkit.Editor
         private void AddRagdollLimitFields(
             VisualElement parent, RigAsset rig, RagdollBodyDefinition ragdollBody)
         {
-            parent.Add(MakeHeading("Joint Limit"));
-            parent.Add(MakeHint(
+            parent.Add(ClipInspectorPane.MakeHeading("Joint Limit"));
+            parent.Add(ClipInspectorPane.MakeHint(
                 "Measured against this body's implied parent — its nearest ragdolled ancestor in "
                 + "the addressed hierarchy. Both the hinge pair and the swing/twist pair are always "
                 + "kept, whichever one is shown here."));
@@ -1421,7 +1421,7 @@ namespace DotsAnimationToolkit.Editor
             return new Vector3(value.x, value.y, value.z);
         }
 
-        private static float3 ToFloat3(Vector3 value)
+        internal static float3 ToFloat3(Vector3 value)
         {
             return new float3(value.x, value.y, value.z);
         }

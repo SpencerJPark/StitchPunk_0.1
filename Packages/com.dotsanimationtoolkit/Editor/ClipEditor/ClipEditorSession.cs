@@ -10,11 +10,14 @@ namespace DotsAnimationToolkit.Editor
     public sealed class ClipEditorSession
     {
         public ClipAsset SelectedClip { get; private set; }
-        public KeyAddress SelectedKey { get; private set; }
+        // The key selection is one set with two writers, the timeline and the inspector, so the
+        // set itself lives here; the active key is the one most recently clicked.
+        public HashSet<KeyAddress> SelectedKeys { get; } = new HashSet<KeyAddress>();
+        public KeyAddress ActiveKey { get; set; }
+        public bool HasActiveKey { get; set; }
         public float PlayheadNormalized { get; private set; }
 
         public event Action<ClipAsset> SelectedClipChanged;
-        public event Action<KeyAddress> SelectedKeyChanged;
         public event Action<float> PlayheadChanged;
 
         // "Something structural changed; panes re-query." Raised by a pane after it created,
@@ -23,7 +26,7 @@ namespace DotsAnimationToolkit.Editor
 
         // The hierarchy pane's live selection, published every time it is applied. The list is the
         // pane's own; readers see it as it is now, not as it was when the event fired.
-        internal IReadOnlyList<HierarchyItem> SelectedHierarchyItems { get; private set; }
+        internal IReadOnlyList<HierarchyItem> SelectedHierarchyItems { get; private set; } = new List<HierarchyItem>();
         internal HierarchyItem ActiveHierarchyItem { get; private set; }
         public event Action HierarchySelectionChanged;
 
@@ -31,12 +34,6 @@ namespace DotsAnimationToolkit.Editor
         {
             SelectedClip = clip;
             SelectedClipChanged?.Invoke(clip);
-        }
-
-        public void SetSelectedKey(KeyAddress address)
-        {
-            SelectedKey = address;
-            SelectedKeyChanged?.Invoke(address);
         }
 
         public void SetPlayhead(float normalizedTime)

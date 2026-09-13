@@ -84,28 +84,12 @@ namespace DotsAnimationToolkit.Editor
         private const string LaneWrappedUssClassName = "clip-editor__lane--wrapped";
         private const string TrackFoldoutUssClassName = "clip-editor__track-foldout";
         private const string ChannelHeaderUssClassName = "clip-editor__channel-header";
-        private const string HeadingUssClassName = "clip-editor__heading";
         private const string HintUssClassName = "clip-editor__hint";
-        private const string FlipbookTrackUssClassName = "clip-editor__flipbook-track";
-        private const string FlipbookKeyUssClassName = "clip-editor__flipbook-key";
-        private const string FlipbookResolvedUssClassName = "clip-editor__flipbook-resolved";
-        private const string FlipbookInvalidUssClassName = "clip-editor__flipbook-resolved--invalid";
-        private const string TransformBlockUssClassName = "clip-editor__transform-block";
-        private const string TransformOnKeyUssClassName = "clip-editor__transform-block--on-key";
-        private const string TransformInterpolatedUssClassName = "clip-editor__transform-block--interpolated";
-        private const string TransformModifiedUssClassName = "clip-editor__transform-block--modified";
-        private const string TransformStateChipUssClassName = "clip-editor__transform-state";
         private const string ReconcileRowUssClassName = "clip-editor__reconcile-row";
         private const string ReconcileRowLabelUssClassName = "clip-editor__reconcile-row-label";
         private const string ReconcileRemapUssClassName = "clip-editor__reconcile-remap";
         private const string ViewportFrameRigEditUssClassName =
             "clip-editor__viewport-frame--rig-edit";
-        private const string SelectionHeadingRowUssClassName = "clip-editor__selection-heading-row";
-        private const string SelectionHeadingUssClassName = "clip-editor__selection-heading";
-        private const string SelectionHeadingActiveUssClassName =
-            "clip-editor__selection-heading--active";
-        private const string SelectionHeadingTagButtonUssClassName =
-            "clip-editor__selection-heading-tag-button";
 
         private ToolbarToggle snapToggle;
         private ToolbarToggle autoKeyToggle;
@@ -286,7 +270,6 @@ namespace DotsAnimationToolkit.Editor
         private int timelineRowCount;
         private TimeRulerElement ruler;
         private PlayheadElement playhead;
-        private ScrollView inspectorPane;
         private Label statusLabel;
         private Image previewImage;
         private Label previewStatusLabel;
@@ -317,10 +300,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly ActiveAssetSelection selection = new ActiveAssetSelection();
         private readonly ClipEditorSession session = new ClipEditorSession();
         private ClipListPane clipListPane;
-        // Constructed in OnEnable, not in CreateGUI: session capture and undo read its selection on
-        // an instance whose tree was never built (as they read the lists it replaced), and Unity
-        // forbids making a VisualElement in a field initializer.
         private RigHierarchyPane hierarchyPane;
+        private ClipInspectorPane clipInspectorPane;
 
         // The rig an open Clip Editor is currently showing, or null when none is open or none is
         // picked. The one way a rig reaches code outside this window now that no asset records one.
@@ -342,15 +323,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         private ClipAsset selectedClip;
-        private SerializedObject clipSerializedObject;
-
-        private readonly HashSet<KeyAddress> selectedKeys = new HashSet<KeyAddress>();
-
-        // The key the inspector edits: the one most recently clicked, not an arbitrary member of the
-        // selection. A HashSet has no order, so iterating selectedKeys for "the last" one showed
-        // whichever key the hash buckets happened to yield, not the one the user clicked.
-        private KeyAddress activeKey;
-        private bool hasActiveKey;
 
         /// <summary>Rebuilt per paste, which is once per keystroke and not per frame.</summary>
         private readonly List<ClipObjectRef> pasteDestinations = new List<ClipObjectRef>();
@@ -675,7 +647,15 @@ namespace DotsAnimationToolkit.Editor
 
             previewController = new ClipPreviewController();
             cameraNavigation.Rig = previewController;
+            // Built here, not in CreateGUI: the hidden instance and the fixtures reach them before any
+            // tree exists, and a VisualElement cannot be a field initializer. Bound to the shared
+            // selection and session now; CreateGUI hands each its UXML root.
+            clipListPane = new ClipListPane();
+            clipListPane.Bind(null, selection, session, previewController);
             hierarchyPane = new RigHierarchyPane();
+            hierarchyPane.Bind(null, selection, session, previewController);
+            clipInspectorPane = new ClipInspectorPane();
+            clipInspectorPane.Bind(null, selection, session, previewController);
 
             // Raised while this instance is still alive and before Unity serializes it, which is the
             // only moment the state below can still be read. See RememberSessionState.
@@ -723,6 +703,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 hierarchyPane.Dispose();
                 hierarchyPane = null;
+            }
+            if (clipInspectorPane != null)
+            {
+                clipInspectorPane.Dispose();
+                clipInspectorPane = null;
             }
 
             // Both cover panes own a PreviewRenderUtility of their own, plus a copy of whatever
@@ -780,16 +765,16 @@ namespace DotsAnimationToolkit.Editor
             // callback that is already running.
             DiscardKeyTransform();
 
-            selectedKeys.Clear();
-            hasActiveKey = false;
-            RefreshSerializedClip();
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
+            clipInspectorPane.RefreshSerializedClip();
             MarkPreviewDirty();
             RebuildTimeline();
 
             // Undo can restore a different clip length or frame rate, and the ruler and the
             // transport fields both read from those rather than deriving them.
             OnClipTimingChanged();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
 
             // An undo can put a held, unkeyed move back (HeldTransformEdit) or take one away, and
             // the gizmo is drawn at the pose that value decides. Left alone it would sit where the
@@ -840,7 +825,6 @@ namespace DotsAnimationToolkit.Editor
             session.HierarchySelectionChanged += DiscardPendingTransformEdit;
 
             BindToolbar();
-            clipListPane = new ClipListPane();
             clipListPane.Bind(rootVisualElement.Q<VisualElement>("clip-list-pane"), selection, session, previewController);
             hierarchyPane.IsRigEditMode = () => IsRigEditMode;
             hierarchyPane.ResolveTargetDisplayName = ResolveTargetDisplayName;
@@ -851,7 +835,37 @@ namespace DotsAnimationToolkit.Editor
             hierarchyPane.ReparentRequested += ReparentInPrefab;
             hierarchyPane.Bind(rootVisualElement.Q<VisualElement>("hierarchy-pane"), selection, session, previewController);
             BindViewport();
-            BindInspector();
+            clipInspectorPane.PickerRoot = rootVisualElement;
+            clipInspectorPane.IsRigEditMode = () => IsRigEditMode;
+            clipInspectorPane.RecordClipEdit = RecordClipEdit;
+            clipInspectorPane.CommitClipEdit = CommitClipEdit;
+            clipInspectorPane.RequestInspectorRebuild = RequestInspectorRebuild;
+            clipInspectorPane.RequestTimelineRebuild = RequestTimelineRebuild;
+            clipInspectorPane.RequestHierarchyRebuild = RequestHierarchyRebuild;
+            clipInspectorPane.RebuildTimeline = RebuildTimeline;
+            clipInspectorPane.MarkPreviewDirty = MarkPreviewDirty;
+            clipInspectorPane.BeginUndoGesture = BeginUndoGesture;
+            clipInspectorPane.EndUndoGesture = EndUndoGesture;
+            clipInspectorPane.ReportStatus = text => statusLabel.text = text;
+            clipInspectorPane.GetKeyTime = GetKeyTime;
+            clipInspectorPane.ResolveEventFlatIndex = ResolveEventFlatIndex;
+            clipInspectorPane.FindBoneTrackIndex = hierarchyPane.FindBoneTrackIndex;
+            clipInspectorPane.FindHierarchyItemForKey = hierarchyPane.FindHierarchyItemForKey;
+            clipInspectorPane.BuildComponentStack = BuildComponentStack;
+            clipInspectorPane.AddSocketDirectory = AddSocketDirectory;
+            clipInspectorPane.FocusSocket = FocusSocket;
+            clipInspectorPane.RecordSocketEdit = RecordSocketEdit;
+            clipInspectorPane.CommitSocketEdit = CommitSocketEdit;
+            clipInspectorPane.CommitSocketPlacementEdit = CommitSocketPlacementEdit;
+            clipInspectorPane.ResolveDisplayedTransform = ResolveDisplayedTransform;
+            clipInspectorPane.ReadRigEditPose = ReadRigEditPose;
+            clipInspectorPane.ApplyTransformEdit = ApplyTransformEdit;
+            clipInspectorPane.CommitPendingTransformEdit = CommitPendingTransformEdit;
+            clipInspectorPane.DiscardPendingTransformEdit = DiscardPendingTransformEdit;
+            clipInspectorPane.KeyDisplayedTransform = KeyDisplayedTransform;
+            clipInspectorPane.IsTransformEditHeldFor = IsTransformEditHeldFor;
+            clipInspectorPane.ClipRenamed += OnClipRenamed;
+            clipInspectorPane.Bind(rootVisualElement.Q<VisualElement>("inspector-pane"), selection, session, previewController);
             BindTimeline();
 
             // After BindTimeline, not with the rest of the toolbar bindings where it used to sit:
@@ -1010,7 +1024,7 @@ namespace DotsAnimationToolkit.Editor
                     {
                         CommitPendingTransformEdit();
                     }
-                    RebuildInspector();
+                    clipInspectorPane.RebuildInspector();
                 });
             }
 
@@ -1180,7 +1194,7 @@ namespace DotsAnimationToolkit.Editor
             // prefab would make its eventual destination a coin toss.
             DiscardPendingTransformEdit();
             ApplyRigEditChrome();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
             MarkPreviewDirty();
         }
 
@@ -1212,7 +1226,7 @@ namespace DotsAnimationToolkit.Editor
                 previewController.DisableRagdollPreview();
             }
 
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // Clicking the lit tab is a no-op, not a toggle-off: nothing sits behind a tab to reveal, so
@@ -1503,7 +1517,7 @@ namespace DotsAnimationToolkit.Editor
             }
             hierarchyPane.RebuildHierarchy();
             RebuildTimeline();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         /// <summary>Answers the Clip Sets panel's Open in Clip Editor button: switches tabs — the set is already the shared selection.</summary>
@@ -1765,7 +1779,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Re-runs the whole check after one fix.</summary>
         private void AfterReconcileEdit()
         {
-            RefreshSerializedClip();
+            clipInspectorPane.RefreshSerializedClip();
             RunReconciliation();
             RebuildTimeline();
             MarkPreviewDirty();
@@ -2067,11 +2081,6 @@ namespace DotsAnimationToolkit.Editor
             // EndCameraGesture: the stuck state is fly mode, which swallows every keystroke.
             previewImage.RegisterCallback<PointerCaptureOutEvent>(
                 captureEvent => EndCameraGesture());
-        }
-
-        private void BindInspector()
-        {
-            inspectorPane = rootVisualElement.Q<ScrollView>("inspector-content");
         }
 
         private void BindTimeline()
@@ -2793,7 +2802,7 @@ namespace DotsAnimationToolkit.Editor
                         break;
                 }
                 ApplyGizmoDragValue(gizmoDragStartPosition, rotatedValue, gizmoDragStartScale);
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
                 RefreshGizmo();
                 return;
             }
@@ -2847,7 +2856,7 @@ namespace DotsAnimationToolkit.Editor
                 ApplyGizmoDragValue(gizmoDragStartPosition, gizmoDragStartRotation, scaledValue);
             }
 
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
             RefreshGizmo();
         }
 
@@ -2937,7 +2946,7 @@ namespace DotsAnimationToolkit.Editor
             socket.localPosition = inverseBase * (draggedPosition - basePosition);
             socket.localEulerAngles = (inverseBase * draggedRotation).eulerAngles;
             CommitSocketEdit(true);
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         /// <summary>Ends a gizmo drag, keying the result when auto-key asked for it.</summary>
@@ -2978,7 +2987,7 @@ namespace DotsAnimationToolkit.Editor
                 // held and drawn as modified, or absent. Neither writes anything on release.
             }
 
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
             RefreshGizmo();
         }
 
@@ -3115,7 +3124,7 @@ namespace DotsAnimationToolkit.Editor
                 }
                 hierarchyPane.SelectItemById(itemId);
                 FocusSocket(pickedSocketId);
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
                 return;
             }
             else if (previewController.TryGetTargetIdForTransform(pickedTransform, out pickedTargetId))
@@ -3164,7 +3173,7 @@ namespace DotsAnimationToolkit.Editor
             pickCandidates.Clear();
             hierarchyPane.RebuildHierarchy();
             RebuildTimeline();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
             if (validationBadge != null)
             {
                 validationBadge.Refresh(activeRig, clipSet);
@@ -3237,22 +3246,18 @@ namespace DotsAnimationToolkit.Editor
         private void SelectClip(ClipAsset clip)
         {
             selectedClip = clip;
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
             SetPlaying(false);
             playheadTime = 0f;
-            RefreshSerializedClip();
+            session.SetPlayhead(playheadTime);
+            clipInspectorPane.RefreshSerializedClip();
             RebuildTimeline();
 
             // The bar is bound once, while nothing is selected, so its fields start disabled and
             // showing zero. Without this they stay that way for the rest of the session and the
             // clip length simply cannot be typed into.
             SyncTransportFromClip();
-        }
-
-        private void RefreshSerializedClip()
-        {
-            clipSerializedObject = selectedClip != null ? new SerializedObject(selectedClip) : null;
         }
 
         // -------------------------------------------------------------------------------------
@@ -3339,16 +3344,43 @@ namespace DotsAnimationToolkit.Editor
         // selection are one selection with two sources, so the keys go and both panes rebuild.
         private void OnHierarchyTreeSelectionChanged()
         {
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
             RebuildTimeline();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         private void OnHierarchySelectionCleared()
         {
             RebuildTimeline();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
+        }
+
+        // The inspector's Key button: adopt what is on screen if nothing is held, then key it.
+        private void KeyDisplayedTransform(uint targetId, float3 position, float3 rotationDegrees, float3 scale)
+        {
+            if (!hasPendingTransformEdit || pendingTransformTargetId != targetId)
+            {
+                // Nothing held: key the value currently on screen, which is how a pose reached
+                // by scrubbing gets pinned down.
+                pendingTransformTargetId = targetId;
+                pendingPosition = position;
+                pendingRotationDegrees = rotationDegrees;
+                pendingScale = scale;
+                hasPendingTransformEdit = true;
+            }
+            CommitPendingTransformEdit();
+        }
+
+        private bool IsTransformEditHeldFor(uint targetId)
+        {
+            return hasPendingTransformEdit && pendingTransformTargetId == targetId;
+        }
+
+        private void OnClipRenamed()
+        {
+            clipListPane?.RefreshClipList();
+            RebuildTimeline();
         }
 
         private void OnPaneRequestedRebuild()
@@ -3490,6 +3522,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             playheadTime = clampedTime;
+            session.SetPlayhead(playheadTime);
             if (playhead != null)
             {
                 playhead.NormalizedTime = playheadTime;
@@ -3498,7 +3531,7 @@ namespace DotsAnimationToolkit.Editor
 
             // The inspector shows the value at the playhead, so it moves with it. In place rather
             // than by rebuilding: a rebuild would destroy the field being typed into.
-            RefreshLiveInspectorValues();
+            clipInspectorPane.RefreshLiveInspectorValues();
         }
 
         /// <summary>Frames to snap to, or zero when snapping is off.</summary>
@@ -3537,7 +3570,7 @@ namespace DotsAnimationToolkit.Editor
                 statusLabel.text = clipSet == null ? "Assign a clip set." : "Select a clip.";
                 timelineRowCount = 0;
                 SyncGhostLanes();
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
                 return;
             }
 
@@ -3556,7 +3589,7 @@ namespace DotsAnimationToolkit.Editor
             statusLabel.text = selectedClip.name
                 + "   duration " + selectedClip.duration.ToString("0.###") + "s"
                 + "   loop " + selectedClip.defaultLoop.ToString()
-                + "   selected " + selectedKeys.Count.ToString();
+                + "   selected " + session.SelectedKeys.Count.ToString();
 
             ruler.durationSeconds = selectedClip.duration;
             ruler.frameCount = TransportFrameCount;
@@ -3663,7 +3696,7 @@ namespace DotsAnimationToolkit.Editor
                 // events on one frame land on three rows rather than piling under one. Events stay
                 // visible while focused — they belong to the clip rather than to any one part, so
                 // hiding them would make event authoring impossible the moment anything was selected.
-                AnimEventKeyRegistry eventRegistry = ResolveEventKeyRegistry();
+                AnimEventKeyRegistry eventRegistry = ClipInspectorPane.ResolveEventKeyRegistry();
                 List<uint> eventLaneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
                 for (int laneIndex = 0; laneIndex < eventLaneKeys.Count; laneIndex++)
                 {
@@ -3675,7 +3708,7 @@ namespace DotsAnimationToolkit.Editor
                         times.Add(selectedClip.events[laneFlatIndices[position]].normalizedTime);
                     }
                     AddTrackRow(
-                        DescribeEventName(eventLaneKeys[laneIndex], eventRegistry),
+                        ClipInspectorPane.DescribeEventName(eventLaneKeys[laneIndex], eventRegistry),
                         null, null, TimelineTrackKind.Event, laneIndex, times, false, ref rowIndex,
                         laneAccent: ToolkitPalette.ColorForEventKey(eventLaneKeys[laneIndex]));
                 }
@@ -3699,7 +3732,7 @@ namespace DotsAnimationToolkit.Editor
             SyncGhostLanes();
 
             SetPlayheadTime(playheadTime);
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // Channel rows show the same keys as their track, not keys of their own: one TransformKey
@@ -3893,7 +3926,7 @@ namespace DotsAnimationToolkit.Editor
                 trackIndex = trackIndex,
                 isAlternateRow = (rowIndex & 1) == 1,
                 isChannelRow = isChannelRow,
-                isKeySelected = selectedKeys.Contains,
+                isKeySelected = session.SelectedKeys.Contains,
 
                 // Born with the current view. A lane created without it renders unzoomed under a
                 // ruler that is not, until something happens to push the view down again.
@@ -4015,23 +4048,23 @@ namespace DotsAnimationToolkit.Editor
             laneStack.Focus();
 
             bool additive = pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
-            if (!additive && !selectedKeys.Contains(address))
+            if (!additive && !session.SelectedKeys.Contains(address))
             {
-                selectedKeys.Clear();
-                hasActiveKey = false;
+                session.SelectedKeys.Clear();
+                session.HasActiveKey = false;
             }
-            if (additive && selectedKeys.Contains(address))
+            if (additive && session.SelectedKeys.Contains(address))
             {
-                selectedKeys.Remove(address);
+                session.SelectedKeys.Remove(address);
                 // Deselecting the active key hands the panel back to whatever remains, rather than
                 // leaving it editing a key that is no longer selected.
-                hasActiveKey = false;
+                session.HasActiveKey = false;
             }
             else
             {
-                selectedKeys.Add(address);
-                activeKey = address;
-                hasActiveKey = true;
+                session.SelectedKeys.Add(address);
+                session.ActiveKey = address;
+                session.HasActiveKey = true;
             }
 
             SyncBoneSelectionToKey(address);
@@ -4073,7 +4106,7 @@ namespace DotsAnimationToolkit.Editor
             dragAutoScroll = rootVisualElement.schedule
                 .Execute(TickDragAutoScroll).Every(16);
             RepaintLanes();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // The tree's selection is set without notifying: the notification clears the key selection,
@@ -4152,7 +4185,7 @@ namespace DotsAnimationToolkit.Editor
 
             // The whole selection moves by the grabbed key's delta, so relative spacing survives a
             // multi-key drag. Moving every key to the pointer instead would collapse them together.
-            foreach (KeyAddress address in selectedKeys)
+            foreach (KeyAddress address in session.SelectedKeys)
             {
                 SetKeyTime(address, GetKeyTime(address) + delta);
             }
@@ -4177,7 +4210,7 @@ namespace DotsAnimationToolkit.Editor
             string range = normalizedTime < 0f || normalizedTime > 1f ? "   (outside clip)" : string.Empty;
             statusLabel.text = "Frame " + frame.ToString("0.##")
                 + "   " + (normalizedTime * selectedClip.duration).ToString("0.###") + "s"
-                + "   " + selectedKeys.Count.ToString() + " key(s)" + range;
+                + "   " + session.SelectedKeys.Count.ToString() + " key(s)" + range;
         }
 
         // Driven by a scheduler, not pointer movement: the case that matters is the pointer held
@@ -4266,10 +4299,10 @@ namespace DotsAnimationToolkit.Editor
                 bool additive = pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
                 if (!additive)
                 {
-                    selectedKeys.Clear();
-                    hasActiveKey = false;
+                    session.SelectedKeys.Clear();
+                    session.HasActiveKey = false;
                     RepaintLanes();
-                    RebuildInspector();
+                    clipInspectorPane.RebuildInspector();
                 }
 
                 // The same press can still become a box select, so the playhead is held rather than
@@ -4287,8 +4320,8 @@ namespace DotsAnimationToolkit.Editor
             EndUndoGesture();
 
             EditorUtility.SetDirty(selectedClip);
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
             SortTrackKeys(trackKind, trackIndex);
             SetPlayheadTime(insertTime);
             RebuildTimeline();
@@ -4302,10 +4335,10 @@ namespace DotsAnimationToolkit.Editor
             bool additive = pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
             if (!additive)
             {
-                selectedKeys.Clear();
-                hasActiveKey = false;
+                session.SelectedKeys.Clear();
+                session.HasActiveKey = false;
                 RepaintLanes();
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
             }
 
             // Held rather than moved, for the reason spelled out in OnLanePointerDown: the playhead
@@ -4408,7 +4441,7 @@ namespace DotsAnimationToolkit.Editor
             boxSelectElement.HideBand();
 
             RepaintLanes();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         /// <summary>Adds every key whose lane row and time fall inside the band.</summary>
@@ -4416,8 +4449,8 @@ namespace DotsAnimationToolkit.Editor
         {
             if (!isBoxSelectAdditive)
             {
-                selectedKeys.Clear();
-                hasActiveKey = false;
+                session.SelectedKeys.Clear();
+                session.HasActiveKey = false;
             }
 
             for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
@@ -4449,7 +4482,7 @@ namespace DotsAnimationToolkit.Editor
                         lane.ChangeCoordinatesTo(laneStack, new Vector2(keyXInLane, 0f)).x;
                     if (keyXInStack >= bandRect.xMin && keyXInStack <= bandRect.xMax)
                     {
-                        selectedKeys.Add(
+                        session.SelectedKeys.Add(
                             new KeyAddress(lane.trackKind, lane.trackIndex, keyIndex));
                     }
                 }
@@ -4484,7 +4517,7 @@ namespace DotsAnimationToolkit.Editor
             // Collapsing on release is what turns a drag of dozens of move events into a single
             // Ctrl+Z rather than dozens of them.
             Undo.CollapseUndoOperations(gestureUndoGroup);
-            RefreshSerializedClip();
+            clipInspectorPane.RefreshSerializedClip();
             MarkPreviewDirty();
         }
 
@@ -4565,7 +4598,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Puts the selected keys on the clipboard, and says what was taken.</summary>
         private void CopySelectedKeys()
         {
-            ClipKeyClipboard.Copy(selectedClip, selectedKeys);
+            ClipKeyClipboard.Copy(selectedClip, session.SelectedKeys);
             if (!ClipKeyClipboard.HasContent)
             {
                 return;
@@ -4628,7 +4661,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 RebuildTimeline();
                 hierarchyPane.RebuildHierarchy();
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
             }
 
             ShowNotification(new GUIContent(DescribePasteResult(pasteResult)));
@@ -4662,12 +4695,12 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Removes every selected key.</summary>
         private void DeleteSelectedKeys()
         {
-            if (selectedKeys.Count == 0)
+            if (session.SelectedKeys.Count == 0)
             {
                 return;
             }
 
-            KeyAddress[] ordered = new List<KeyAddress>(selectedKeys).ToArray();
+            KeyAddress[] ordered = new List<KeyAddress>(session.SelectedKeys).ToArray();
             int[] removalIndex = new int[ordered.Length];
             for (int index = 0; index < ordered.Length; index++)
             {
@@ -4720,8 +4753,8 @@ namespace DotsAnimationToolkit.Editor
             EndUndoGesture();
 
             EditorUtility.SetDirty(selectedClip);
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
             RebuildTimeline();
         }
 
@@ -4904,7 +4937,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
+            AnimEventKeyRegistry registry = ClipInspectorPane.ResolveEventKeyRegistry();
             VocabularyPicker.Open(
                 rootVisualElement,
                 addEventButton,
@@ -4942,11 +4975,11 @@ namespace DotsAnimationToolkit.Editor
             // sorting after is what lets the selection follow the marker to wherever it lands
             // rather than pointing at whatever key ends up in its old slot.
             int newFlatIndex = selectedClip.events.Count - 1;
-            KeyAddress newAddress = ResolveEventKeyAddressForFlatIndex(newFlatIndex);
-            selectedKeys.Clear();
-            selectedKeys.Add(newAddress);
-            activeKey = newAddress;
-            hasActiveKey = true;
+            KeyAddress newAddress = clipInspectorPane.ResolveEventKeyAddressForFlatIndex(newFlatIndex);
+            session.SelectedKeys.Clear();
+            session.SelectedKeys.Add(newAddress);
+            session.ActiveKey = newAddress;
+            session.HasActiveKey = true;
 
             SortTrackKeys(TimelineTrackKind.Event, newAddress.trackIndex);
             SetPlayheadTime(insertTime);
@@ -4956,13 +4989,13 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>That event's default window, if it has one.</summary>
         private float ResolveDefaultWindowSecondsForKey(uint eventKey)
         {
-            AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
-            AnimEventKeyEntry entry = FindRegistryEntryByKey(registry, eventKey);
+            AnimEventKeyRegistry registry = ClipInspectorPane.ResolveEventKeyRegistry();
+            AnimEventKeyEntry entry = ClipInspectorPane.FindRegistryEntryByKey(registry, eventKey);
             if (entry == null || entry.defaultWindowFrames <= 0)
             {
                 return 0f;
             }
-            return entry.defaultWindowFrames / ResolveReferenceFrameRate(registry);
+            return entry.defaultWindowFrames / ClipInspectorPane.ResolveReferenceFrameRate(registry);
         }
 
         // -------------------------------------------------------------------------------------
@@ -5010,7 +5043,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
+            AnimEventKeyRegistry registry = ClipInspectorPane.ResolveEventKeyRegistry();
             VocabularyPicker.Open(
                 rootVisualElement,
                 anchor,
@@ -5069,7 +5102,7 @@ namespace DotsAnimationToolkit.Editor
 
             List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
             string laneLabel = laneIndex < laneKeys.Count
-                ? DescribeEventName(laneKeys[laneIndex], ResolveEventKeyRegistry())
+                ? ClipInspectorPane.DescribeEventName(laneKeys[laneIndex], ClipInspectorPane.ResolveEventKeyRegistry())
                 : "this lane";
 
             bool confirmed = EditorUtility.DisplayDialog(
@@ -5092,8 +5125,8 @@ namespace DotsAnimationToolkit.Editor
             }
             CommitClipEdit();
 
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
             RebuildTimeline();
         }
 
@@ -5193,14 +5226,14 @@ namespace DotsAnimationToolkit.Editor
         private void RemapSelectionAfterSort(
             TimelineTrackKind trackKind, int trackIndex, int[] newIndexOfOldIndex)
         {
-            if (selectedKeys.Count == 0)
+            if (session.SelectedKeys.Count == 0)
             {
                 return;
             }
 
-            List<KeyAddress> remapped = new List<KeyAddress>(selectedKeys.Count);
+            List<KeyAddress> remapped = new List<KeyAddress>(session.SelectedKeys.Count);
             bool changed = false;
-            foreach (KeyAddress address in selectedKeys)
+            foreach (KeyAddress address in session.SelectedKeys)
             {
                 // Other tracks did not move, so their addresses are still correct.
                 if (address.trackKind != trackKind || address.trackIndex != trackIndex)
@@ -5224,24 +5257,24 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            selectedKeys.Clear();
+            session.SelectedKeys.Clear();
             for (int index = 0; index < remapped.Count; index++)
             {
-                selectedKeys.Add(remapped[index]);
+                session.SelectedKeys.Add(remapped[index]);
             }
 
-            if (hasActiveKey
-                && activeKey.trackKind == trackKind
-                && activeKey.trackIndex == trackIndex)
+            if (session.HasActiveKey
+                && session.ActiveKey.trackKind == trackKind
+                && session.ActiveKey.trackIndex == trackIndex)
             {
-                if (activeKey.keyIndex >= 0 && activeKey.keyIndex < newIndexOfOldIndex.Length)
+                if (session.ActiveKey.keyIndex >= 0 && session.ActiveKey.keyIndex < newIndexOfOldIndex.Length)
                 {
-                    activeKey = new KeyAddress(
-                        trackKind, trackIndex, newIndexOfOldIndex[activeKey.keyIndex]);
+                    session.ActiveKey = new KeyAddress(
+                        trackKind, trackIndex, newIndexOfOldIndex[session.ActiveKey.keyIndex]);
                 }
                 else
                 {
-                    hasActiveKey = false;
+                    session.HasActiveKey = false;
                 }
             }
         }
@@ -5253,8 +5286,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
 
             AddTrackKeysToSelection(TimelineTrackKind.Transform, selectedClip.transformTracks.Count);
             AddTrackKeysToSelection(TimelineTrackKind.Sprite, selectedClip.spriteTracks.Count);
@@ -5266,7 +5299,7 @@ namespace DotsAnimationToolkit.Editor
                 EventLaneAddressing.ComputeLaneKeys(selectedClip.events).Count);
 
             RepaintLanes();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
             RebuildTimeline();
         }
 
@@ -5283,21 +5316,21 @@ namespace DotsAnimationToolkit.Editor
             int keyCount = CountKeysOnTrack(trackKind, trackIndex);
             for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
             {
-                selectedKeys.Add(new KeyAddress(trackKind, trackIndex, keyIndex));
+                session.SelectedKeys.Add(new KeyAddress(trackKind, trackIndex, keyIndex));
             }
         }
 
         /// <summary>Clears the key selection without touching the hierarchy selection.</summary>
         private void DeselectAllKeys()
         {
-            if (selectedKeys.Count == 0)
+            if (session.SelectedKeys.Count == 0)
             {
                 return;
             }
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
             RepaintLanes();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
             RebuildTimeline();
         }
 
@@ -5311,12 +5344,12 @@ namespace DotsAnimationToolkit.Editor
             }
             if (!additive)
             {
-                selectedKeys.Clear();
-                hasActiveKey = false;
+                session.SelectedKeys.Clear();
+                session.HasActiveKey = false;
             }
             AddKeysOnTrackToSelection(trackKind, trackIndex);
             RepaintLanes();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
             RebuildTimeline();
         }
 
@@ -5357,8 +5390,8 @@ namespace DotsAnimationToolkit.Editor
                 selectedClip.boneTracks[trackIndex].keys.Sort(CompareBoneKeys);
             }
             selectedClip.events.Sort(CompareEventMarkers);
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
         }
 
         private static int CompareTransformKeys(TransformKey first, TransformKey second)
@@ -5382,265 +5415,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Inspector. Bound fields get undo, dirtying and prefab overrides for free, so nothing
-        // here hand-rolls an edit path.
-        // -------------------------------------------------------------------------------------
-
-        /// <summary>One flipbook track's live fields, so a scrub can update them without a rebuild.</summary>
-        private sealed class LiveFlipbookBinding
-        {
-            public SpriteTrack track;
-            public IntegerField valueField;
-            public EnumField indexModeField;
-            public Label resolvedLabel;
-            public Label stateHint;
-        }
-
-        /// <summary>One selected object's transform fields, so a scrub can update them in place.</summary>
-        private sealed class LiveTransformBinding
-        {
-            /// <summary>The rig target this block edits; 0 when <see cref="boneName"/> is set.</summary>
-            public uint targetId;
-
-            // The name, not the track: a node with no keys yet still has a block on screen, and the
-            // track that will hold its poses does not exist yet either.
-            /// <summary>The node this block edits by name; empty for a part.</summary>
-            public string boneName;
-
-            public VisualElement block;
-            public Label stateChip;
-            public Vector3Field positionField;
-            public Vector3Field rotationField;
-            public Vector3Field scaleField;
-        }
-
-        private readonly List<LiveTransformBinding> liveTransformBindings =
-            new List<LiveTransformBinding>();
-        private readonly List<LiveFlipbookBinding> liveFlipbookBindings =
-            new List<LiveFlipbookBinding>();
-
-        private void ClearLiveInspectorBindings()
-        {
-            liveTransformBindings.Clear();
-            liveFlipbookBindings.Clear();
-        }
-
-        // A focused field is skipped, not overwritten: half-typed text is a value the user is
-        // mid-authoring, and a scrub that stamped over it would fight the person using it.
-        /// <summary>Pushes the value at the playhead into the fields already on screen.</summary>
-        private void RefreshLiveInspectorValues()
-        {
-            for (int bindingIndex = 0; bindingIndex < liveTransformBindings.Count; bindingIndex++)
-            {
-                RefreshLiveTransformBinding(liveTransformBindings[bindingIndex]);
-            }
-
-            for (int bindingIndex = 0; bindingIndex < liveFlipbookBindings.Count; bindingIndex++)
-            {
-                RefreshLiveFlipbookBinding(liveFlipbookBindings[bindingIndex]);
-            }
-        }
-
-        private void RefreshLiveTransformBinding(LiveTransformBinding binding)
-        {
-            if (!string.IsNullOrEmpty(binding.boneName))
-            {
-                RefreshLiveBoneValues(binding);
-                return;
-            }
-
-            // Rig Edit's fields show the live preview pose, not the clip's offset-from-rest value
-            // (see AddTransformFields) -- the per-tick refresh has to keep showing that same thing,
-            // or the correct value painted when the block was built would be overwritten by the
-            // wrong one on the very next tick.
-            if (IsRigEditMode)
-            {
-                RefreshLiveRigEditTransform(binding);
-                return;
-            }
-
-            float3 position;
-            float3 rotationDegrees;
-            float3 scale;
-            TransformValueState valueState = ResolveDisplayedTransform(
-                binding.targetId, out position, out rotationDegrees, out scale);
-
-            SetVectorWithoutDisturbingEdit(
-                binding.positionField, new Vector3(position.x, position.y, position.z));
-            SetVectorWithoutDisturbingEdit(
-                binding.rotationField,
-                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
-            SetVectorWithoutDisturbingEdit(
-                binding.scaleField, new Vector3(scale.x, scale.y, scale.z));
-
-            if (binding.stateChip != null)
-            {
-                binding.stateChip.text = DescribeTransformState(valueState);
-                binding.stateChip.EnableInClassList(
-                    TransformModifiedUssClassName, valueState == TransformValueState.Modified);
-            }
-            if (binding.block != null)
-            {
-                binding.block.EnableInClassList(
-                    TransformOnKeyUssClassName, valueState == TransformValueState.OnKey);
-                binding.block.EnableInClassList(
-                    TransformInterpolatedUssClassName,
-                    valueState == TransformValueState.Interpolated);
-                binding.block.EnableInClassList(
-                    TransformModifiedUssClassName, valueState == TransformValueState.Modified);
-            }
-        }
-
-        /// <summary>
-        /// Rig Edit's per-tick refresh for a rig target's transform block: the same live-pose
-        /// source <see cref="AddTransformFields"/> paints it with initially, kept in sync so the
-        /// fields never drift from what the viewport gizmo is dragging.
-        /// </summary>
-        private void RefreshLiveRigEditTransform(LiveTransformBinding binding)
-        {
-            float3 position;
-            float3 rotationDegrees;
-            float3 scale;
-            ReadRigEditPose(binding.targetId, out position, out rotationDegrees, out scale);
-
-            SetVectorWithoutDisturbingEdit(
-                binding.positionField, new Vector3(position.x, position.y, position.z));
-            SetVectorWithoutDisturbingEdit(
-                binding.rotationField,
-                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
-            SetVectorWithoutDisturbingEdit(
-                binding.scaleField, new Vector3(scale.x, scale.y, scale.z));
-        }
-
-        private void RefreshLiveBoneValues(LiveTransformBinding binding)
-        {
-            // Rig Edit's fields show the live preview pose, not a bone track's key value -- see
-            // AddBoneTransformFields. The per-tick refresh has to keep showing that same thing.
-            if (IsRigEditMode)
-            {
-                RefreshLiveRigEditBone(binding);
-                return;
-            }
-
-            // Looked up per refresh rather than held, because the first key on this node mints the
-            // track: a reference captured when the block was built would stay null for the rest of
-            // the block's life, leaving the fields frozen the moment they started to matter.
-            BoneTrack track = FindBoneTrack(binding.boneName);
-
-            float3 position;
-            float3 rotationDegrees;
-            float3 scale;
-            bool hasKeys = ClipBoneEditing.TryEvaluate(
-                track, playheadTime, out position, out rotationDegrees, out scale);
-            bool isOnKey = ClipBoneEditing.FindKeyIndexAt(track, playheadTime) >= 0;
-
-            SetVectorWithoutDisturbingEdit(
-                binding.positionField, new Vector3(position.x, position.y, position.z));
-            SetVectorWithoutDisturbingEdit(
-                binding.rotationField,
-                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
-            SetVectorWithoutDisturbingEdit(
-                binding.scaleField, new Vector3(scale.x, scale.y, scale.z));
-
-            if (binding.stateChip != null)
-            {
-                binding.stateChip.text = DescribeBoneState(hasKeys, isOnKey);
-            }
-            if (binding.block != null)
-            {
-                binding.block.EnableInClassList(TransformOnKeyUssClassName, isOnKey);
-                binding.block.EnableInClassList(
-                    TransformInterpolatedUssClassName, hasKeys && !isOnKey);
-            }
-        }
-
-        /// <summary>
-        /// Rig Edit's per-tick refresh for a bone or bare grouping transform's block: the same
-        /// live-pose source <see cref="AddBoneTransformFields"/> paints it with initially.
-        /// </summary>
-        private void RefreshLiveRigEditBone(LiveTransformBinding binding)
-        {
-            float3 position;
-            float3 rotationDegrees;
-            float3 scale;
-            ReadRigEditBonePose(binding.boneName, out position, out rotationDegrees, out scale);
-
-            SetVectorWithoutDisturbingEdit(
-                binding.positionField, new Vector3(position.x, position.y, position.z));
-            SetVectorWithoutDisturbingEdit(
-                binding.rotationField,
-                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
-            SetVectorWithoutDisturbingEdit(
-                binding.scaleField, new Vector3(scale.x, scale.y, scale.z));
-        }
-
-        private void RefreshLiveFlipbookBinding(LiveFlipbookBinding binding)
-        {
-            SpriteTrack track = binding.track;
-            if (track == null || track.keys == null || track.keys.Count == 0)
-            {
-                return;
-            }
-
-            int effectiveKeyIndex = ClipSpriteEditing.FindEffectiveKeyIndex(track, playheadTime);
-            if (effectiveKeyIndex < 0)
-            {
-                return;
-            }
-            SpriteKey currentKey = track.keys[effectiveKeyIndex];
-
-            if (binding.valueField != null && !IsBeingEdited(binding.valueField))
-            {
-                binding.valueField.SetValueWithoutNotify(currentKey.sliceIndex);
-            }
-            if (binding.indexModeField != null && !IsBeingEdited(binding.indexModeField))
-            {
-                binding.indexModeField.SetValueWithoutNotify(currentKey.indexMode);
-            }
-            if (binding.resolvedLabel != null)
-            {
-                ApplyFlipbookResolvedLabel(binding.resolvedLabel, currentKey, track.baseIndex);
-            }
-            if (binding.stateHint != null)
-            {
-                binding.stateHint.text =
-                    ClipSpriteEditing.FindKeyIndexAt(track, playheadTime) >= 0
-                        ? "On a key — editing changes this key."
-                        : "Held from an earlier key — editing keys the value here.";
-            }
-        }
-
-        private static void SetVectorWithoutDisturbingEdit(Vector3Field field, Vector3 value)
-        {
-            if (field == null || IsBeingEdited(field))
-            {
-                return;
-            }
-            field.SetValueWithoutNotify(value);
-        }
-
-        // The capture test is not redundant with the focus test: a field's drag handle captures the
-        // mouse without focusing the input behind it, so focus alone misses a number being dragged.
-        /// <summary>Whether the user is currently typing in a field, or dragging it.</summary>
-        private static bool IsBeingEdited(VisualElement field)
-        {
-            if (field == null || field.panel == null)
-            {
-                return false;
-            }
-
-            VisualElement capturing =
-                field.panel.GetCapturingElement(PointerId.mousePointerId) as VisualElement;
-            if (capturing != null && (capturing == field || field.Contains(capturing)))
-            {
-                return true;
-            }
-
-            VisualElement focused = field.panel.focusController.focusedElement as VisualElement;
-            return focused != null && (focused == field || field.Contains(focused));
-        }
-
-        // -------------------------------------------------------------------------------------
         // Deferred pane rebuilds.
         // -------------------------------------------------------------------------------------
 
@@ -5661,7 +5435,7 @@ namespace DotsAnimationToolkit.Editor
                 inspectorRebuildPending = true;
                 return;
             }
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         /// <summary>Rebuilds the timeline, or defers it to the end of a live drag.</summary>
@@ -5720,1033 +5494,8 @@ namespace DotsAnimationToolkit.Editor
             }
             if (rebuildInspector)
             {
-                RebuildInspector();
+                clipInspectorPane.RebuildInspector();
             }
-        }
-
-        /// <summary>Fills the inspector for whatever is selected: a key, a bone, or the clip itself.</summary>
-        private void RebuildInspector()
-        {
-            if (inspectorPane == null)
-            {
-                return;
-            }
-            inspectorPane.Clear();
-            ClearLiveInspectorBindings();
-
-            if (selectedKeys.Count > 0 && BuildKeyInspector())
-            {
-                return;
-            }
-
-            // One labelled block per selected object, in pick order. With a single selection this
-            // is exactly the old panel plus a name; with several it is the only way to tell whose
-            // numbers are whose.
-            if (hierarchyPane.SelectedHierarchyItems.Count > 0)
-            {
-                // Only marked when there is more than one block: with a single selection every
-                // block is the active one, and saying so is noise.
-                HierarchyItem activeItem =
-                    hierarchyPane.SelectedHierarchyItems.Count > 1 ? hierarchyPane.ActiveHierarchyItem : null;
-
-                for (int itemIndex = 0; itemIndex < hierarchyPane.SelectedHierarchyItems.Count; itemIndex++)
-                {
-                    HierarchyItem item = hierarchyPane.SelectedHierarchyItems[itemIndex];
-                    BuildComponentStack(item, item == activeItem);
-                }
-                return;
-            }
-
-            BuildClipInspector();
-        }
-
-        /// <summary>Returns false when the addressed key has gone, so the caller can fall through.</summary>
-        private bool BuildKeyInspector()
-        {
-            if (selectedClip == null || clipSerializedObject == null)
-            {
-                return false;
-            }
-            clipSerializedObject.Update();
-
-            // Multi-select edits the last address only. Driving N keys from one field needs a
-            // mixed-value story the property system does not hand us, so rather than pretend, the
-            // inspector says plainly which key it is editing.
-            // The clicked key, when one is known. Falling back to an arbitrary set member only
-            // happens for selections made without a click, such as a box select.
-            KeyAddress shown = default(KeyAddress);
-            if (hasActiveKey && selectedKeys.Contains(activeKey))
-            {
-                shown = activeKey;
-            }
-            else
-            {
-                foreach (KeyAddress address in selectedKeys)
-                {
-                    shown = address;
-                }
-            }
-
-            SerializedProperty keyProperty = FindKeyProperty(shown);
-            if (keyProperty == null)
-            {
-                return false;
-            }
-
-            // The key's object first, with its components. A key is a moment of something, and the
-            // something is what the channels belong to — reading the key without it meant losing
-            // sight of what else the part was doing at that time. An event marker has no object:
-            // it belongs to the clip, so it gets no stack.
-            if (shown.trackKind != TimelineTrackKind.Event)
-            {
-                HierarchyItem owningItem = hierarchyPane.FindHierarchyItemForKey(shown);
-                if (owningItem != null)
-                {
-                    BuildComponentStack(owningItem, true);
-                }
-            }
-
-            inspectorPane.Add(MakeHeading(
-                shown.trackKind.ToString() + " key at "
-                + GetKeyTime(shown).ToString("0.###")));
-            if (selectedKeys.Count > 1)
-            {
-                inspectorPane.Add(MakeHint(
-                    selectedKeys.Count.ToString() + " selected — editing the last."));
-            }
-
-            // A flipbook key gets purpose-built fields rather than the generic property drawer,
-            // because its stored number is only meaningful beside its mode and its track's base —
-            // three fields the drawer renders as three unrelated numbers.
-            if (shown.trackKind == TimelineTrackKind.Sprite)
-            {
-                AddSelectedFlipbookKeyFields(shown);
-                return true;
-            }
-
-            // An event marker gets purpose-built fields for the same reason a flipbook key does: the
-            // generic drawer renders its key as a bare uint the author has to know the meaning of,
-            // and its window as a number of seconds nobody times animation in.
-            if (shown.trackKind == TimelineTrackKind.Event)
-            {
-                AddSelectedEventMarkerFields(shown);
-                return true;
-            }
-
-            AddKeyValueFields(keyProperty);
-            inspectorPane.Bind(clipSerializedObject);
-
-            AddInterpolationControls(shown);
-            return true;
-        }
-
-        // Flattened rather than one PropertyField on the struct: the drawer renders an array
-        // element as a foldout named "Element 3", meaningless beside a heading naming the key by
-        // its time. Easing fields are skipped since AddInterpolationControls shows them as a curve.
-        /// <summary>The key's own values, each as its own field, with the easing fields left out.</summary>
-        private void AddKeyValueFields(SerializedProperty keyProperty)
-        {
-            SerializedProperty childProperty = keyProperty.Copy();
-            SerializedProperty endProperty = keyProperty.GetEndProperty();
-            bool enterChildren = true;
-            while (childProperty.NextVisible(enterChildren)
-                && !SerializedProperty.EqualContents(childProperty, endProperty))
-            {
-                enterChildren = false;
-                if (IsEasingPropertyName(childProperty.name))
-                {
-                    continue;
-                }
-                inspectorPane.Add(new PropertyField(childProperty.Copy()));
-            }
-        }
-
-        private static bool IsEasingPropertyName(string propertyName)
-        {
-            return propertyName == "interpolation"
-                || propertyName == "bezierStartHandle"
-                || propertyName == "bezierEndHandle";
-        }
-
-        // The window field edits in frames but stores seconds — the conversion happens here, at the
-        // one point a person is looking at the number, with resolved seconds shown beside it.
-        /// <summary>The selected event marker: which event it is, how long its window runs, and its payload.</summary>
-        private void AddSelectedEventMarkerFields(KeyAddress address)
-        {
-            int flatIndex = ResolveEventFlatIndex(address);
-            if (selectedClip.events == null || flatIndex < 0)
-            {
-                return;
-            }
-
-            EventMarker marker = selectedClip.events[flatIndex];
-            AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
-
-            AddEventKeyField(address, marker, registry);
-            AddEventWindowField(address, marker, registry);
-
-            IntegerField intParamField = new IntegerField("Int Param");
-            intParamField.tooltip =
-                "Delivered on the AnimEventOutput pulse. Not carried by the window mask.";
-            intParamField.SetValueWithoutNotify(marker.intParam);
-            intParamField.RegisterValueChangedCallback(changeEvent =>
-            {
-                EditEventMarker(address, "Edit Event Payload", editedMarker =>
-                {
-                    editedMarker.intParam = changeEvent.newValue;
-                    return editedMarker;
-                });
-            });
-            inspectorPane.Add(intParamField);
-
-            FloatField floatParamField = new FloatField("Float Param");
-            floatParamField.tooltip =
-                "Delivered on the AnimEventOutput pulse. Not carried by the window mask.";
-            floatParamField.SetValueWithoutNotify(marker.floatParam);
-            floatParamField.RegisterValueChangedCallback(changeEvent =>
-            {
-                EditEventMarker(address, "Edit Event Payload", editedMarker =>
-                {
-                    editedMarker.floatParam = changeEvent.newValue;
-                    return editedMarker;
-                });
-            });
-            inspectorPane.Add(floatParamField);
-        }
-
-        /// <summary>Which event this marker fires, chosen from the project's event-name vocabulary.</summary>
-        private void AddEventKeyField(
-            KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)
-        {
-            Button eventButton = new Button
-            {
-                text = "Event: " + DescribeEventName(marker.eventKey, registry)
-            };
-            eventButton.clicked += () => OpenEventKeyPicker(address, registry, eventButton);
-            inspectorPane.Add(eventButton);
-            inspectorPane.Add(MakeHint(DescribeEventKey(marker.eventKey, registry)));
-        }
-
-        /// <summary>The event's name, or an unresolved id when the registry does not (or no longer) names it.</summary>
-        private static string DescribeEventName(uint eventKey, AnimEventKeyRegistry registry)
-        {
-            string resolvedName = registry != null ? registry.FindName(eventKey) : null;
-            return resolvedName ?? "(unresolved 0x" + eventKey.ToString("X8") + ")";
-        }
-
-        private void OpenEventKeyPicker(
-            KeyAddress address, AnimEventKeyRegistry registry, Button anchor)
-        {
-            VocabularyPicker.Open(
-                rootVisualElement,
-                anchor,
-                registry,
-                registry,
-                VocabularyPickerConfig.ForEventKeys(registry),
-                chosenEventKey => ApplyEventKeyChoice(address, chosenEventKey, registry),
-                RebuildInspector);
-        }
-
-        private void ApplyEventKeyChoice(
-            KeyAddress address, uint chosenEventKey, AnimEventKeyRegistry registry)
-        {
-            int flatIndex = ResolveEventFlatIndex(address);
-            if (flatIndex < 0)
-            {
-                return;
-            }
-
-            AnimEventKeyEntry chosen = FindRegistryEntryByKey(registry, chosenEventKey);
-            EditEventMarker(address, "Change Event Key", editedMarker =>
-            {
-                editedMarker.eventKey = chosenEventKey;
-
-                // The registry's default window applies only when the marker has none of its own,
-                // so re-pointing a hand-tuned six-frame window at another event does not quietly
-                // reset it to that event's default.
-                if (editedMarker.windowSeconds <= 0f && chosen != null && chosen.defaultWindowFrames > 0)
-                {
-                    editedMarker.windowSeconds =
-                        chosen.defaultWindowFrames / ResolveReferenceFrameRate(registry);
-                }
-                return editedMarker;
-            });
-
-            // The eventKey just written can move the marker into a different lane (E6 Task 2), so
-            // its selection has to follow — re-resolved from the flat index captured before the
-            // edit rather than trusting the caller's now possibly-stale lane/local pair.
-            KeyAddress newAddress = ResolveEventKeyAddressForFlatIndex(flatIndex);
-            if (selectedKeys.Remove(address))
-            {
-                selectedKeys.Add(newAddress);
-            }
-            if (hasActiveKey && activeKey.Equals(address))
-            {
-                activeKey = newAddress;
-            }
-
-            RebuildInspector();
-        }
-
-        /// <summary>The lane-local <see cref="KeyAddress"/> for an event marker at a known flat index.</summary>
-        private KeyAddress ResolveEventKeyAddressForFlatIndex(int flatIndex)
-        {
-            uint eventKey = selectedClip.events[flatIndex].eventKey;
-            List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
-            int laneIndex = laneKeys.IndexOf(eventKey);
-            int localIndex = EventLaneAddressing
-                .ResolveLaneFlatIndices(selectedClip.events, laneIndex).IndexOf(flatIndex);
-            return new KeyAddress(TimelineTrackKind.Event, laneIndex, localIndex);
-        }
-
-        /// <summary>How long the marker holds its mask bit, edited in frames.</summary>
-        private void AddEventWindowField(
-            KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)
-        {
-            float frameRate = ResolveReferenceFrameRate(registry);
-
-            IntegerField windowField = new IntegerField("Window (frames)");
-            windowField.tooltip =
-                "How many frames the event's AnimEventMask bit stays open. 0 makes it pulse-only: "
-                + "it still fires with its payload, it just holds no state.";
-            windowField.SetValueWithoutNotify(Mathf.RoundToInt(marker.windowSeconds * frameRate));
-            windowField.RegisterValueChangedCallback(changeEvent =>
-            {
-                EditEventMarker(address, "Edit Event Window", editedMarker =>
-                {
-                    editedMarker.windowSeconds = Mathf.Max(0, changeEvent.newValue) / frameRate;
-                    return editedMarker;
-                });
-            });
-            inspectorPane.Add(windowField);
-
-            if (marker.windowSeconds > 0f)
-            {
-                inspectorPane.Add(MakeHint(
-                    marker.windowSeconds.ToString("0.###") + "s at "
-                    + frameRate.ToString("0.##") + " fps"));
-            }
-        }
-
-        /// <summary>The entry holding a specific key, or null when the registry does not have it.</summary>
-        private static AnimEventKeyEntry FindRegistryEntryByKey(
-            AnimEventKeyRegistry registry, uint eventKey)
-        {
-            if (registry == null || registry.entries == null)
-            {
-                return null;
-            }
-            for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
-            {
-                AnimEventKeyEntry entry = registry.entries[entryIndex];
-                if (entry != null && entry.eventKey == eventKey)
-                {
-                    return entry;
-                }
-            }
-            return null;
-        }
-
-        /// <summary>The one-line status under the event button: its name, and whether it can hold a window.</summary>
-        private static string DescribeEventKey(uint eventKey, AnimEventKeyRegistry registry)
-        {
-            string displayName = DescribeEventName(eventKey, registry);
-            if (eventKey < (uint)ReservedEventKeys.FirstUserKey)
-            {
-                return displayName + " is reserved by the package — this clip will fail "
-                    + "validation (V09).";
-            }
-            if (!AnimEventMaskKeys.IsMaskable(eventKey))
-            {
-                return displayName
-                    + " · pulse-only (outside the maskable range, so a window here would never open).";
-            }
-            return displayName + " · mask bit " + (eventKey - AnimEventMaskKeys.FirstMaskKey) + ".";
-        }
-
-        /// <summary>The project-wide event registry; the only source now that the per-set override is gone.</summary>
-        private AnimEventKeyRegistry ResolveEventKeyRegistry()
-        {
-            return VocabularyRegistryProvider.AnimEventKeys;
-        }
-
-        /// <summary>The registry's display rate, or the package default when there is no registry.</summary>
-        private static float ResolveReferenceFrameRate(AnimEventKeyRegistry registry)
-        {
-            if (registry == null || registry.referenceFrameRate < 1f)
-            {
-                return AnimEventKeyRegistry.DefaultReferenceFrameRate;
-            }
-            return registry.referenceFrameRate;
-        }
-
-        /// <summary>Applies one undoable edit to an event marker and refreshes what shows it.</summary>
-        private void EditEventMarker(
-            KeyAddress address, string undoLabel, System.Func<EventMarker, EventMarker> edit)
-        {
-            int flatIndex = ResolveEventFlatIndex(address);
-            if (selectedClip.events == null || flatIndex < 0)
-            {
-                return;
-            }
-            RecordClipEdit(undoLabel);
-            selectedClip.events[flatIndex] = edit(selectedClip.events[flatIndex]);
-            CommitClipEdit();
-
-            // Requested: the payload fields are dragged, and a timeline rebuild per mouse move is
-            // wasted work at best.
-            RequestTimelineRebuild();
-        }
-
-        /// <summary>The selected flipbook key: stored value, mode, and what it resolves to.</summary>
-        private void AddSelectedFlipbookKeyFields(KeyAddress address)
-        {
-            if (selectedClip.spriteTracks == null
-                || address.trackIndex >= selectedClip.spriteTracks.Count)
-            {
-                return;
-            }
-            SpriteTrack track = selectedClip.spriteTracks[address.trackIndex];
-            if (track == null || track.keys == null || address.keyIndex >= track.keys.Count)
-            {
-                return;
-            }
-
-            SpriteKey key = track.keys[address.keyIndex];
-
-            IntegerField valueField = new IntegerField("Index");
-            valueField.SetValueWithoutNotify(key.sliceIndex);
-            valueField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordClipEdit("Edit Flipbook Key");
-                SpriteKey editedKey = track.keys[address.keyIndex];
-                editedKey.sliceIndex = changeEvent.newValue;
-                track.keys[address.keyIndex] = editedKey;
-                CommitClipEdit();
-                RequestInspectorRebuild();
-            });
-            inspectorPane.Add(valueField);
-
-            EnumField indexModeField = new EnumField("Index Mode", key.indexMode);
-            indexModeField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ToggleFlipbookKeyMode(
-                    track, address.keyIndex, (SpriteIndexMode)changeEvent.newValue);
-            });
-            inspectorPane.Add(indexModeField);
-
-            inspectorPane.Add(MakeFlipbookResolvedLabel(key, track.baseIndex));
-
-            IntegerField baseIndexField = new IntegerField("Base Index");
-            baseIndexField.SetValueWithoutNotify(track.baseIndex);
-            baseIndexField.tooltip = "Shared by every relative key on this track.";
-            baseIndexField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordClipEdit("Change Flipbook Base Index");
-                track.baseIndex = changeEvent.newValue;
-                CommitClipEdit();
-                RequestInspectorRebuild();
-            });
-            inspectorPane.Add(baseIndexField);
-        }
-
-        // Dragging writes Bezier and refreshes the dropdown's label in place rather than rebuilding
-        // the inspector: a rebuild mid-gesture would replace the element under the captured pointer.
-        /// <summary>The selected key's easing: a named preset to start from, and the curve it draws.</summary>
-        private void AddInterpolationControls(KeyAddress address)
-        {
-            if (address.trackKind != TimelineTrackKind.Transform
-                && address.trackKind != TimelineTrackKind.Bone)
-            {
-                return;
-            }
-
-            Interpolation currentInterpolation = GetKeyInterpolation(address);
-            float2 startHandle;
-            float2 endHandle;
-            GetKeyBezierHandles(address, out startHandle, out endHandle);
-
-            inspectorPane.Add(MakeHeading("Easing"));
-
-            EasingCurveEditorElement curveEditor = new EasingCurveEditorElement();
-            curveEditor.SetCurveWithoutNotify(currentInterpolation, startHandle, endHandle);
-
-            DropdownField presetField = new DropdownField(
-                "Curve",
-                new List<string>(EasingPresets.DisplayNames),
-                EasingPresets.IndexOf(currentInterpolation, startHandle, endHandle));
-            presetField.tooltip =
-                "The shape the curve leaves this key with. Pick a preset, then drag the handles to "
-                + "make it your own.";
-            presetField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyEasingPreset(address, curveEditor, changeEvent.newValue);
-            });
-
-            curveEditor.curveEdited += (draggedStart, draggedEnd) =>
-            {
-                SetKeyCurve(address, Interpolation.Bezier, draggedStart, draggedEnd);
-                presetField.SetValueWithoutNotify(EasingPresets.DisplayNameOf(
-                    Interpolation.Bezier, draggedStart, draggedEnd));
-            };
-
-            inspectorPane.Add(presetField);
-            inspectorPane.Add(curveEditor);
-            inspectorPane.Add(MakeHint(
-                "Drag the handles to reshape the curve — that turns any preset into a custom one. "
-                + "They stay inside the unit square: outside it the curve stops being a function of "
-                + "time, or overshoots further than the baked bounds allow."));
-        }
-
-        // Picking "Custom" keeps the shape already on screen and only changes what stores it: it is
-        // a request to start editing, not a request to look different.
-        /// <summary>Writes the chosen preset onto the key and onto the curve widget.</summary>
-        private void ApplyEasingPreset(
-            KeyAddress address, EasingCurveEditorElement curveEditor, string chosenDisplayName)
-        {
-            int chosenIndex = EasingPresets.IndexOfDisplayName(chosenDisplayName);
-            if (chosenIndex < 0)
-            {
-                return;
-            }
-
-            if (EasingPresets.IsCustomIndex(chosenIndex))
-            {
-                float2 shownStartHandle;
-                float2 shownEndHandle;
-                curveEditor.GetHandles(out shownStartHandle, out shownEndHandle);
-                SetKeyCurve(address, Interpolation.Bezier, shownStartHandle, shownEndHandle);
-                curveEditor.SetCurveWithoutNotify(
-                    Interpolation.Bezier, shownStartHandle, shownEndHandle);
-                return;
-            }
-
-            EasingPreset preset = EasingPresets.At(chosenIndex);
-            SetKeyCurve(address, preset.interpolation, preset.startHandle, preset.endHandle);
-            curveEditor.SetCurveWithoutNotify(
-                preset.interpolation, preset.startHandle, preset.endHandle);
-        }
-
-        private Interpolation GetKeyInterpolation(KeyAddress address)
-        {
-            if (address.trackKind == TimelineTrackKind.Bone)
-            {
-                return selectedClip.boneTracks[address.trackIndex].keys[address.keyIndex].interpolation;
-            }
-            return selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex].interpolation;
-        }
-
-        // Handles are written even for fixed modes, which never read them: they are the matching
-        // cubic, so a key later switched to Bezier starts from the shape it was already playing.
-        /// <summary>Writes a key's easing mode and its handles together.</summary>
-        private void SetKeyCurve(
-            KeyAddress address, Interpolation interpolation, float2 startHandle, float2 endHandle)
-        {
-            RecordClipEdit("Change Key Easing");
-            EnsureUsableBezierHandles(ref startHandle, ref endHandle, interpolation);
-            if (address.trackKind == TimelineTrackKind.Bone)
-            {
-                BoneTrack track = selectedClip.boneTracks[address.trackIndex];
-                BoneKey key = track.keys[address.keyIndex];
-                key.interpolation = interpolation;
-                key.bezierStartHandle = startHandle;
-                key.bezierEndHandle = endHandle;
-                track.keys[address.keyIndex] = key;
-            }
-            else
-            {
-                TransformTrack track = selectedClip.transformTracks[address.trackIndex];
-                TransformKey key = track.keys[address.keyIndex];
-                key.interpolation = interpolation;
-                key.bezierStartHandle = startHandle;
-                key.bezierEndHandle = endHandle;
-                track.keys[address.keyIndex] = key;
-            }
-            CommitClipEdit();
-        }
-
-        // A key that never carried handles holds two zeros, which the sampler reads as linear;
-        // writing the diagonal handles on the switch keeps the editor and the sampler agreeing.
-        /// <summary>Gives a Bezier key with no handles the ones that describe a straight line.</summary>
-        private static void EnsureUsableBezierHandles(
-            ref float2 startHandle, ref float2 endHandle, Interpolation interpolation)
-        {
-            if (interpolation != Interpolation.Bezier)
-            {
-                return;
-            }
-            if (math.all(startHandle == float2.zero) && math.all(endHandle == float2.zero))
-            {
-                startHandle = EasingPresets.LinearStartHandle;
-                endHandle = EasingPresets.LinearEndHandle;
-            }
-        }
-
-        private void GetKeyBezierHandles(
-            KeyAddress address, out float2 startHandle, out float2 endHandle)
-        {
-            if (address.trackKind == TimelineTrackKind.Bone)
-            {
-                BoneKey key = selectedClip.boneTracks[address.trackIndex].keys[address.keyIndex];
-                startHandle = key.bezierStartHandle;
-                endHandle = key.bezierEndHandle;
-                return;
-            }
-            TransformKey transformKey =
-                selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex];
-            startHandle = transformKey.bezierStartHandle;
-            endHandle = transformKey.bezierEndHandle;
-        }
-
-        /// <summary>The live pose of a bone at the playhead, editable in place.</summary>
-        private void AddBoneTransformFields(VisualElement parent, string boneName)
-        {
-            LiveTransformBinding binding = new LiveTransformBinding { boneName = boneName };
-            liveTransformBindings.Add(binding);
-
-            bool isRigEdit = IsRigEditMode;
-
-            float3 position;
-            float3 rotationDegrees;
-            float3 scale;
-            bool hasKeys;
-            bool isOnKey;
-            if (isRigEdit)
-            {
-                // A bone track has no rest pose to fall back to (ApplyBoneEdit's own remark), so
-                // outside Rig Edit an unkeyed bone reads as zero -- correct there, since zero
-                // literally is "no offset yet". Rig Edit has no offset concept at all; it shows the
-                // node's live preview pose, the same source RefreshRigEditGizmo pivots on.
-                ReadRigEditBonePose(boneName, out position, out rotationDegrees, out scale);
-                hasKeys = false;
-                isOnKey = false;
-            }
-            else
-            {
-                // Resolved rather than passed in, and allowed to come back null: every object shows
-                // a transform from the moment it is selected, and the track that stores its poses is
-                // minted by the first key. Everything below reads a null track as "no keys", which is
-                // exactly what an unkeyed node has.
-                BoneTrack track = FindBoneTrack(boneName);
-                hasKeys = ClipBoneEditing.TryEvaluate(
-                    track, playheadTime, out position, out rotationDegrees, out scale);
-                isOnKey = ClipBoneEditing.FindKeyIndexAt(track, playheadTime) >= 0;
-            }
-
-            binding.stateChip = MakeHint(isRigEdit
-                ? "Base pose — drag the viewport gizmo to edit it. Rig Edit writes the prefab, not "
-                    + "a key, so these fields are read-only here."
-                : DescribeBoneState(hasKeys, isOnKey));
-            parent.Add(binding.stateChip);
-
-            VisualElement transformBlock = new VisualElement();
-            transformBlock.AddToClassList(TransformBlockUssClassName);
-            transformBlock.EnableInClassList(TransformOnKeyUssClassName, isOnKey);
-            transformBlock.EnableInClassList(TransformInterpolatedUssClassName, hasKeys && !isOnKey);
-            binding.block = transformBlock;
-
-            Vector3Field positionField = new Vector3Field("Position");
-            positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
-            positionField.SetEnabled(!isRigEdit);
-            positionField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyBoneEditFromFields(binding);
-            });
-            binding.positionField = positionField;
-            transformBlock.Add(positionField);
-
-            Vector3Field rotationField = new Vector3Field("Rotation");
-            rotationField.SetValueWithoutNotify(
-                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
-            rotationField.SetEnabled(!isRigEdit);
-            rotationField.tooltip =
-                "Euler degrees. The authored key stores a quaternion; this is the readable form of "
-                + "it, converted at the boundary.";
-            rotationField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyBoneEditFromFields(binding);
-            });
-            binding.rotationField = rotationField;
-            transformBlock.Add(rotationField);
-
-            Vector3Field scaleField = new Vector3Field("Scale");
-            scaleField.SetValueWithoutNotify(new Vector3(scale.x, scale.y, scale.z));
-            scaleField.SetEnabled(!isRigEdit);
-            scaleField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyBoneEditFromFields(binding);
-            });
-            binding.scaleField = scaleField;
-            transformBlock.Add(scaleField);
-
-            parent.Add(transformBlock);
-
-            // Every route into keying is refused in Rig Edit (ApplyBoneEdit is a clip edit; this
-            // mode writes the prefab), so a Key button that could not do anything would just be
-            // another dead control on top of the read-only fields above.
-            if (isRigEdit)
-            {
-                return;
-            }
-
-            parent.Add(new Button(() =>
-            {
-                ApplyBoneEdit(boneName, position, rotationDegrees, scale);
-            })
-            {
-                text = "Key"
-            });
-        }
-
-        /// <summary>
-        /// A skinned bone or bare grouping transform's live preview pose, for Rig Edit's read-only
-        /// display -- the same source <see cref="RefreshRigEditGizmo"/> pivots on, found by name
-        /// since a component block only has the bone name.
-        /// </summary>
-        private void ReadRigEditBonePose(
-            string boneName, out float3 position, out float3 rotationDegrees, out float3 scale)
-        {
-            int previewIndex = previewController != null
-                ? previewController.FindHierarchyIndexByName(boneName)
-                : -1;
-            Transform node = previewIndex >= 0 ? previewController.GetTransformByIndex(previewIndex) : null;
-            if (node == null)
-            {
-                position = float3.zero;
-                rotationDegrees = float3.zero;
-                scale = new float3(1f, 1f, 1f);
-                return;
-            }
-
-            position = new float3(node.localPosition.x, node.localPosition.y, node.localPosition.z);
-            Vector3 nodeEuler = node.localEulerAngles;
-            rotationDegrees = new float3(nodeEuler.x, nodeEuler.y, nodeEuler.z);
-            scale = new float3(node.localScale.x, node.localScale.y, node.localScale.z);
-        }
-
-        /// <summary>The bone track posing a node on this clip, or null when nothing keys it yet.</summary>
-        private BoneTrack FindBoneTrack(string boneName)
-        {
-            if (selectedClip == null || selectedClip.boneTracks == null
-                || string.IsNullOrEmpty(boneName))
-            {
-                return null;
-            }
-            for (int trackIndex = 0; trackIndex < selectedClip.boneTracks.Count; trackIndex++)
-            {
-                BoneTrack track = selectedClip.boneTracks[trackIndex];
-                if (track != null
-                    && string.Equals(track.boneName, boneName, System.StringComparison.Ordinal))
-                {
-                    return track;
-                }
-            }
-            return null;
-        }
-
-        private static string DescribeBoneState(bool hasKeys, bool isOnKey)
-        {
-            if (!hasKeys)
-            {
-                return "No keys yet — editing creates the first one.";
-            }
-            return isOnKey
-                ? "On a key — editing changes this key."
-                : "Between keys — this value is sampled, not stored.";
-        }
-
-        // Always keys, unlike a transform edit: a bone track has no rest pose in this window to
-        // fall back to, so a held-but-unkeyed value would vanish on the next scrub.
-        /// <summary>Writes a bone pose at the playhead, creating the track if this is its first key.</summary>
-        private void ApplyBoneEdit(
-            string boneName, float3 position, float3 rotationDegrees, float3 scale)
-        {
-            if (selectedClip == null || string.IsNullOrEmpty(boneName))
-            {
-                return;
-            }
-
-            RecordClipEdit("Key Bone");
-
-            BoneTrack track = FindBoneTrack(boneName);
-            bool isFirstKey = track == null;
-            if (isFirstKey)
-            {
-                if (selectedClip.boneTracks == null)
-                {
-                    selectedClip.boneTracks = new List<BoneTrack>();
-                }
-                track = new BoneTrack
-                {
-                    boneName = boneName,
-                    keys = new List<BoneKey>()
-                };
-                selectedClip.boneTracks.Add(track);
-            }
-
-            ClipBoneEditing.SetKeyValues(track, playheadTime, position, rotationDegrees, scale);
-            CommitClipEdit();
-
-            selectedKeys.Clear();
-            hasActiveKey = false;
-
-            // Requested, not run: a drag calls this on every mouse move, and rebuilding the timeline
-            // per move is the stutter even where it does not destroy the field outright.
-            RequestTimelineRebuild();
-
-            // Only the first key rebuilds the panels around the field. It is the one that changes
-            // what they say — the row becomes animated and the component stops reading "not keyed"
-            // — and a rebuild on every keystroke would destroy the field being typed into.
-            if (isFirstKey)
-            {
-                RequestHierarchyRebuild();
-                RequestInspectorRebuild();
-            }
-        }
-
-        /// <summary>Writes a bone transform block's three fields as one key, then re-states the block.</summary>
-        private void ApplyBoneEditFromFields(LiveTransformBinding binding)
-        {
-            if (binding == null
-                || string.IsNullOrEmpty(binding.boneName)
-                || binding.positionField == null
-                || binding.rotationField == null
-                || binding.scaleField == null)
-            {
-                return;
-            }
-
-            ApplyBoneEdit(
-                binding.boneName,
-                ToFloat3(binding.positionField.value),
-                ToFloat3(binding.rotationField.value),
-                ToFloat3(binding.scaleField.value));
-            RefreshLiveTransformBinding(binding);
-        }
-
-        // -------------------------------------------------------------------------------------
-        // Sockets.
-        // -------------------------------------------------------------------------------------
-
-        // "Follows" is fixed here: changing it would move the socket onto a different object, so
-        // that is done by removing it and adding one where it belongs. Every edit records undo on
-        // the rig, not the clip: a socket is rig structure every clip in the set shares.
-        /// <summary>A socket's fields: what it follows, where it sits, and what to hang off it.</summary>
-        private void AddSocketFields(VisualElement parent, SocketDefinition socket)
-        {
-            RigAsset rig = ActiveRig;
-            if (rig == null)
-            {
-                return;
-            }
-
-            bool resolved = previewController != null && previewController.IsSocketResolved(socket);
-            parent.Add(MakeHint(resolved
-                ? "Attachment point — follows this object every frame."
-                : "Follows nothing: the binding below matches no part or bone, so this socket "
-                    + "will sit at the actor's origin."));
-
-            parent.Add(new Button(() => FocusSocket(socket.Id.Value))
-            {
-                text = "Move in View",
-                tooltip =
-                    "Puts the viewport gizmo on this socket's marker. W and E then move and rotate "
-                    + "it, writing the offset below."
-            });
-
-            TextField nameField = new TextField("Name");
-            nameField.SetValueWithoutNotify(socket.displayName);
-            nameField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordSocketEdit(rig, "Rename Socket");
-                socket.displayName = changeEvent.newValue;
-                CommitSocketEdit(false);
-            });
-            parent.Add(nameField);
-
-            // The binding is stated, not offered. This socket is a component of the object it
-            // follows, so rebinding it is removing it here and adding one where it belongs —
-            // a dropdown that silently moved it into another object's stack would read as a
-            // disappearance.
-            Label followsLabel = MakeHint(socket.mode == SocketAttachMode.RigTarget
-                ? "Follows this rig target, live."
-                : "Follows this bone, whose motion is baked into the VAT.");
-            parent.Add(followsLabel);
-
-            if (socket.mode == SocketAttachMode.Bone)
-            {
-                parent.Add(MakeSocketBakeHint(socket));
-
-                IntegerField layerField = new IntegerField("Layer");
-                layerField.SetValueWithoutNotify(socket.layerIndex);
-                layerField.tooltip =
-                    "Which playback layer drives this socket's time. Only meaningful for a bone "
-                    + "socket, whose pose comes from the baked track rather than from a live part.";
-                layerField.RegisterValueChangedCallback(changeEvent =>
-                {
-                    RecordSocketEdit(rig, "Change Socket Layer");
-                    socket.layerIndex = Mathf.Max(0, changeEvent.newValue);
-                    CommitSocketPlacementEdit();
-                });
-                parent.Add(layerField);
-            }
-
-            parent.Add(MakeHeading("Offset"));
-
-            Vector3Field offsetPositionField = new Vector3Field("Position");
-            offsetPositionField.SetValueWithoutNotify(socket.localPosition);
-            offsetPositionField.tooltip =
-                "In the followed part or bone's local space, so it stays put as the rig moves.";
-            offsetPositionField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordSocketEdit(rig, "Move Socket");
-                socket.localPosition = changeEvent.newValue;
-                CommitSocketPlacementEdit();
-            });
-            parent.Add(offsetPositionField);
-
-            Vector3Field offsetRotationField = new Vector3Field("Rotation");
-            offsetRotationField.SetValueWithoutNotify(socket.localEulerAngles);
-            offsetRotationField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordSocketEdit(rig, "Rotate Socket");
-                socket.localEulerAngles = changeEvent.newValue;
-                CommitSocketPlacementEdit();
-            });
-            parent.Add(offsetRotationField);
-
-            parent.Add(MakeHeading("Preview Attachment"));
-            parent.Add(MakeHint(
-                "Editor only. Hangs a prefab off this socket so the placement can be judged "
-                + "against the animation; nothing reads it at run time or ships in a build."));
-
-            ObjectField attachmentField = new ObjectField("Prefab");
-            attachmentField.objectType = typeof(GameObject);
-            attachmentField.allowSceneObjects = false;
-            attachmentField.SetValueWithoutNotify(socket.previewAttachment);
-            attachmentField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordSocketEdit(rig, "Set Socket Preview Attachment");
-                socket.previewAttachment = changeEvent.newValue as GameObject;
-                CommitSocketEdit(false);
-
-                if (previewController != null)
-                {
-                    previewController.RefreshSocketAttachments();
-                }
-                MarkPreviewDirty();
-            });
-            parent.Add(attachmentField);
-
-        }
-
-        // Only a bone socket needs baking: a rig-target socket's motion is its part's transform,
-        // resolved live every frame, while a bone socket follows a bone that exists at run time
-        // only as VAT texels, so its motion has to be sampled and stored ahead of time.
-        /// <summary>Says whether a bone socket has baked motion yet, and for how many clips.</summary>
-        private Label MakeSocketBakeHint(SocketDefinition socket)
-        {
-            VatTextureSetAsset textures = clipSet != null ? clipSet.vatTextures : null;
-            if (textures == null)
-            {
-                return MakeHint(
-                    "Not baked: this clip set has no VAT texture set. A bone socket's motion is "
-                    + "captured by the VAT bake — until then it resolves to the actor's origin at "
-                    + "run time. Window ▸ DOTS Animation Toolkit ▸ VAT Bake.");
-            }
-
-            int bakedClipCount = 0;
-            for (int trackIndex = 0;
-                textures.socketTracks != null && trackIndex < textures.socketTracks.Count;
-                trackIndex++)
-            {
-                VatSocketTrack track = textures.socketTracks[trackIndex];
-                if (track != null && track.socketId == socket.Id.Value)
-                {
-                    bakedClipCount++;
-                }
-            }
-
-            if (bakedClipCount == 0)
-            {
-                return MakeHint(
-                    "Not baked: no captured motion for this socket. Re-run the VAT bake, and check "
-                    + "the Console for unresolved bone names while you are there.");
-            }
-            return MakeHint("Baked across " + bakedClipCount.ToString() + " clip(s).");
-        }
-
-        /// <summary>A dropdown of the rig's parts, so a target binding cannot be mistyped.</summary>
-        private VisualElement BuildSocketTargetField(RigAsset rig, SocketDefinition socket)
-        {
-            List<string> targetNames = new List<string>();
-            List<uint> targetIds = new List<uint>();
-            for (int targetIndex = 0; rig.targets != null && targetIndex < rig.targets.Count; targetIndex++)
-            {
-                RigTargetDefinition target = rig.targets[targetIndex];
-                if (target == null)
-                {
-                    continue;
-                }
-                targetNames.Add(string.IsNullOrEmpty(target.displayName)
-                    ? "Target " + target.Id.Value.ToString()
-                    : target.displayName);
-                targetIds.Add(target.Id.Value);
-            }
-
-            if (targetNames.Count == 0)
-            {
-                return MakeHint("The rig declares no parts for a socket to follow.");
-            }
-
-            int currentIndex = Mathf.Max(0, targetIds.IndexOf(socket.targetId));
-            PopupField<string> targetField =
-                new PopupField<string>("Target", targetNames, currentIndex);
-            targetField.RegisterValueChangedCallback(changeEvent =>
-            {
-                int chosen = targetNames.IndexOf(changeEvent.newValue);
-                if (chosen < 0)
-                {
-                    return;
-                }
-                RecordSocketEdit(rig, "Rebind Socket");
-                socket.targetId = targetIds[chosen];
-                CommitSocketEdit(true);
-            });
-            return targetField;
-        }
-
-        /// <summary>A dropdown of the loaded prefab's transform names, falling back to typing.</summary>
-        private VisualElement BuildSocketBoneField(RigAsset rig, SocketDefinition socket)
-        {
-            previewController.CollectHierarchyNames(hierarchyNameCache);
-            if (hierarchyNameCache.Count == 0)
-            {
-                TextField boneField = new TextField("Bone");
-                boneField.SetValueWithoutNotify(socket.boneName);
-                boneField.tooltip =
-                    "Pick a rig with a Source Prefab above the hierarchy to pick from its bones instead.";
-                boneField.RegisterValueChangedCallback(changeEvent =>
-                {
-                    RecordSocketEdit(rig, "Rebind Socket");
-                    socket.boneName = changeEvent.newValue;
-                    CommitSocketEdit(true);
-                });
-                return boneField;
-            }
-
-            List<string> boneNames = new List<string>(hierarchyNameCache);
-            boneNames.Sort();
-            int currentIndex = Mathf.Max(0, boneNames.IndexOf(socket.boneName));
-
-            PopupField<string> bonePopup = new PopupField<string>("Bone", boneNames, currentIndex);
-            bonePopup.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordSocketEdit(rig, "Rebind Socket");
-                socket.boneName = changeEvent.newValue;
-                CommitSocketEdit(true);
-            });
-            return bonePopup;
         }
 
         private void RecordSocketEdit(RigAsset rig, string undoLabel)
@@ -6832,243 +5581,6 @@ namespace DotsAnimationToolkit.Editor
             }
             hierarchyPane.RebuildHierarchy();
             MarkPreviewDirty();
-        }
-
-        /// <summary>A block's name, marked when it is the active row.</summary>
-        private SelectionHeadingElement MakeSelectionHeading(string name, bool isActive)
-        {
-            Label label = MakeHeading(isActive ? name + "   (active)" : name);
-            label.AddToClassList(SelectionHeadingUssClassName);
-            label.EnableInClassList(SelectionHeadingActiveUssClassName, isActive);
-
-            // Part tag button: shown only when the row names a claimed rig target, bound in
-            // BuildComponentStack once the target is resolved. Built here rather than left null so
-            // the row layout (label grown, button at the far edge) is correct before the caller
-            // fills it in.
-            Button tagButton = new Button();
-            tagButton.AddToClassList(SelectionHeadingTagButtonUssClassName);
-            tagButton.tooltip = "The role this part plays, stored on the rig — shared by every "
-                + "clip in this set. A clip that binds a track to this tag plays on any other rig "
-                + "that tags a part the same way.";
-
-            SelectionHeadingElement row = new SelectionHeadingElement(label, tagButton);
-            row.AddToClassList(SelectionHeadingRowUssClassName);
-            row.Add(label);
-            row.Add(tagButton);
-            return row;
-        }
-
-        /// <summary>One selection heading: the part's name, plus its rig-level tag button at the far edge.</summary>
-        private sealed class SelectionHeadingElement : VisualElement
-        {
-            public readonly Label label;
-            public readonly Button tagButton;
-
-            public SelectionHeadingElement(Label label, Button tagButton)
-            {
-                this.label = label;
-                this.tagButton = tagButton;
-            }
-        }
-
-        /// <summary>
-        /// One track's settings plus the value it is showing at the playhead, editable in place.
-        /// </summary>
-        private VisualElement BuildFlipbookTrackBlock(SpriteTrack track, int trackIndex)
-        {
-            VisualElement trackBlock = new VisualElement();
-            trackBlock.AddToClassList(FlipbookTrackUssClassName);
-
-            int keyCount = track.keys != null ? track.keys.Count : 0;
-            int effectiveKeyIndex = ClipSpriteEditing.FindEffectiveKeyIndex(track, playheadTime);
-            bool isOnKey = ClipSpriteEditing.FindKeyIndexAt(track, playheadTime) >= 0;
-
-            trackBlock.Add(MakeHeading("Track " + trackIndex + "  ·  " + keyCount + " key(s)"));
-
-            Label stateHint = MakeHint(keyCount == 0
-                ? "Empty — editing the index below creates the first key."
-                : (isOnKey
-                    ? "On a key — editing changes this key."
-                    : "Held from an earlier key — editing keys the value here."));
-            trackBlock.Add(stateHint);
-
-            LiveFlipbookBinding binding = new LiveFlipbookBinding
-            {
-                track = track,
-                stateHint = stateHint
-            };
-            liveFlipbookBindings.Add(binding);
-
-            if (keyCount > 0 && effectiveKeyIndex >= 0)
-            {
-                SpriteKey currentKey = track.keys[effectiveKeyIndex];
-
-                IntegerField valueField = new IntegerField("Index");
-                valueField.SetValueWithoutNotify(currentKey.sliceIndex);
-                valueField.tooltip =
-                    "The number this key stores: an array index in Absolute mode, or an offset from "
-                    + "the base index in RelativeToBase.";
-                valueField.RegisterValueChangedCallback(changeEvent =>
-                {
-                    ApplyFlipbookEdit(track, changeEvent.newValue, currentKey.indexMode);
-                });
-                binding.valueField = valueField;
-                trackBlock.Add(valueField);
-
-                EnumField indexModeField = new EnumField("Index Mode", currentKey.indexMode);
-                indexModeField.tooltip =
-                    "Absolute names a frame outright. RelativeToBase holds an offset from the "
-                    + "track's base index. Switching keeps the frame the key shows.";
-                indexModeField.RegisterValueChangedCallback(changeEvent =>
-                {
-                    ToggleFlipbookKeyMode(
-                        track, effectiveKeyIndex, (SpriteIndexMode)changeEvent.newValue);
-                });
-                binding.indexModeField = indexModeField;
-                trackBlock.Add(indexModeField);
-
-                Label resolvedLabel = MakeFlipbookResolvedLabel(currentKey, track.baseIndex);
-                binding.resolvedLabel = resolvedLabel;
-                trackBlock.Add(resolvedLabel);
-            }
-            else
-            {
-                IntegerField emptyValueField = new IntegerField("Index");
-                emptyValueField.SetValueWithoutNotify(0);
-                emptyValueField.RegisterValueChangedCallback(changeEvent =>
-                {
-                    ApplyFlipbookEdit(track, changeEvent.newValue, SpriteIndexMode.Absolute);
-                });
-                trackBlock.Add(emptyValueField);
-            }
-
-            IntegerField baseIndexField = new IntegerField("Base Index");
-            baseIndexField.SetValueWithoutNotify(track.baseIndex);
-            baseIndexField.tooltip =
-                "Every RelativeToBase key on this track offsets from here. Changing it retargets "
-                + "the whole track onto a different span of the texture array; the keys keep their "
-                + "offsets untouched.";
-            baseIndexField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordClipEdit("Change Flipbook Base Index");
-                track.baseIndex = changeEvent.newValue;
-                CommitClipEdit();
-
-                // Every relative key's resolved index just moved, and the resolved index is what the
-                // line above shows. Refreshed in place first so a drag reads true as it goes; the
-                // rebuild lands when the drag ends and catches the rows this cannot reach.
-                RefreshLiveInspectorValues();
-                RequestInspectorRebuild();
-            });
-            trackBlock.Add(baseIndexField);
-
-            EnumField frameModeField = new EnumField("Frame Mode", track.mode);
-            frameModeField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordClipEdit("Change Flipbook Frame Mode");
-                track.mode = (SpriteFrameMode)changeEvent.newValue;
-                CommitClipEdit();
-            });
-            trackBlock.Add(frameModeField);
-
-            EnumField sliceSpaceField = new EnumField("Slice Space", track.sliceSpace);
-            sliceSpaceField.tooltip =
-                "Whether this track's resolved value replaces the part's frame outright, or is "
-                + "added to the rest slice the character's variant chose.";
-            sliceSpaceField.RegisterValueChangedCallback(changeEvent =>
-            {
-                RecordClipEdit("Change Flipbook Slice Space");
-                track.sliceSpace = (SpriteSliceSpace)changeEvent.newValue;
-                CommitClipEdit();
-            });
-            trackBlock.Add(sliceSpaceField);
-
-            return trackBlock;
-        }
-
-        // Unlike a transform edit this always keys, regardless of auto-key: a flipbook value is a
-        // discrete frame with no in-between to hold, so a held edit would just silently disappear.
-        /// <summary>Writes a flipbook index at the playhead, creating a key there when there is none.</summary>
-        private void ApplyFlipbookEdit(SpriteTrack track, int storedValue, SpriteIndexMode indexMode)
-        {
-            if (selectedClip == null || track == null)
-            {
-                return;
-            }
-
-            RecordClipEdit("Edit Flipbook Index");
-            ClipSpriteEditing.SetKeyValue(track, playheadTime, storedValue, indexMode);
-            CommitClipEdit();
-
-            selectedKeys.Clear();
-            hasActiveKey = false;
-
-            // Requested: the Index field is dragged, and a per-move timeline rebuild would take the
-            // field with it the moment the first key mints a lane.
-            RequestTimelineRebuild();
-
-            // The resolved "+5 → 12" reading is the one thing on screen this changes, and it is
-            // refreshable without a rebuild.
-            RefreshLiveInspectorValues();
-        }
-
-        /// <summary>Shows what a key resolves to, in the "+5 → 12" form.</summary>
-        private static Label MakeFlipbookResolvedLabel(SpriteKey key, int baseIndex)
-        {
-            Label resolvedLabel = new Label();
-            resolvedLabel.AddToClassList(FlipbookResolvedUssClassName);
-            ApplyFlipbookResolvedLabel(resolvedLabel, key, baseIndex);
-            return resolvedLabel;
-        }
-
-        /// <summary>Writes the "+5 → 12" reading onto an existing label.</summary>
-        private static void ApplyFlipbookResolvedLabel(Label resolvedLabel, SpriteKey key, int baseIndex)
-        {
-            int resolvedIndex = SpriteIndexResolver.Resolve(key.sliceIndex, key.indexMode, baseIndex);
-
-            string resolvedText;
-            if (key.indexMode == SpriteIndexMode.RelativeToBase)
-            {
-                string offsetText = key.sliceIndex >= 0
-                    ? "+" + key.sliceIndex.ToString()
-                    : key.sliceIndex.ToString();
-                resolvedText = offsetText + " → " + resolvedIndex.ToString();
-            }
-            else if (key.sliceIndex == SpriteIndexResolver.NoChangeSentinel)
-            {
-                resolvedText = "no change";
-            }
-            else
-            {
-                resolvedText = "→ " + resolvedIndex.ToString();
-            }
-
-            resolvedLabel.text = resolvedText;
-            resolvedLabel.EnableInClassList(
-                FlipbookInvalidUssClassName,
-                key.indexMode == SpriteIndexMode.RelativeToBase && resolvedIndex < 0);
-        }
-
-        /// <summary>Switches a key between absolute and relative without moving the frame it shows.</summary>
-        private void ToggleFlipbookKeyMode(SpriteTrack track, int keyIndex, SpriteIndexMode newMode)
-        {
-            SpriteKey key = track.keys[keyIndex];
-            if (key.indexMode == newMode)
-            {
-                return;
-            }
-
-            int resolvedIndex = SpriteIndexResolver.Resolve(
-                key.sliceIndex, key.indexMode, track.baseIndex);
-
-            RecordClipEdit("Change Flipbook Key Mode");
-            key.indexMode = newMode;
-            key.sliceIndex = SpriteIndexResolver.StoredValueFor(
-                resolvedIndex, newMode, track.baseIndex);
-            track.keys[keyIndex] = key;
-            CommitClipEdit();
-
-            RebuildInspector();
         }
 
         private string ResolveTargetDisplayName(uint targetId)
@@ -7338,8 +5850,8 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private void OnTrackListChanged()
         {
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
             expandedTrackKeys.Clear();
         }
 
@@ -7457,7 +5969,7 @@ namespace DotsAnimationToolkit.Editor
                 // A merge deleted a track, so every stored track index is suspect — and even without
                 // one the open clip's serialized copy and its preview are now behind the asset.
                 OnTrackListChanged();
-                RefreshSerializedClip();
+                clipInspectorPane.RefreshSerializedClip();
                 MarkPreviewDirty();
             }
 
@@ -7592,7 +6104,7 @@ namespace DotsAnimationToolkit.Editor
         {
             Undo.CollapseUndoOperations(gestureUndoGroup);
             EditorUtility.SetDirty(selectedClip);
-            RefreshSerializedClip();
+            clipInspectorPane.RefreshSerializedClip();
             MarkPreviewDirty();
         }
 
@@ -7675,29 +6187,6 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
-        // Values are read back off the fields, not closed over at build time: the block no longer
-        // rebuilds on every change, so a captured value would stay stale and silently undo a
-        // second field's drag.
-        /// <summary>Writes a part transform block's three fields as one edit, then re-states the block.</summary>
-        private void ApplyTransformEditFromFields(LiveTransformBinding binding)
-        {
-            if (binding == null
-                || binding.positionField == null
-                || binding.rotationField == null
-                || binding.scaleField == null)
-            {
-                return;
-            }
-
-            ApplyTransformEdit(
-                binding.targetId,
-                ToFloat3(binding.positionField.value),
-                ToFloat3(binding.rotationField.value),
-                ToFloat3(binding.scaleField.value),
-                false);
-            RefreshLiveTransformBinding(binding);
-        }
-
         /// <summary>Writes the held edit into a key at the playhead, creating the track if needed.</summary>
         private void CommitPendingTransformEdit()
         {
@@ -7744,8 +6233,8 @@ namespace DotsAnimationToolkit.Editor
             CommitClipEdit();
             hasPendingTransformEdit = false;
 
-            selectedKeys.Clear();
-            hasActiveKey = false;
+            session.SelectedKeys.Clear();
+            session.HasActiveKey = false;
 
             // Auto-key routes every mouse move of a field drag through here, so this is requested
             // rather than run for the same reason ApplyBoneEdit's is.
@@ -7759,126 +6248,6 @@ namespace DotsAnimationToolkit.Editor
             // than the one gesture in the block that is final.
             RecordHeldTransformEdit("Revert Held Move");
             hasPendingTransformEdit = false;
-        }
-
-        /// <summary>The always-visible transform block for the selected part.</summary>
-        private void AddTransformFields(VisualElement parent, uint targetId)
-        {
-            LiveTransformBinding binding = new LiveTransformBinding { targetId = targetId };
-            liveTransformBindings.Add(binding);
-
-            bool isRigEdit = IsRigEditMode;
-
-            float3 position;
-            float3 rotationDegrees;
-            float3 scale;
-            TransformValueState valueState;
-            if (isRigEdit)
-            {
-                // The clip has an offset-from-rest value here (zero, if the part is unkeyed) that
-                // has no relationship to where the node actually sits -- see RefreshRigEditGizmo.
-                // Rig Edit shows and edits the live preview pose instead.
-                ReadRigEditPose(targetId, out position, out rotationDegrees, out scale);
-                valueState = TransformValueState.Unkeyed;
-            }
-            else
-            {
-                valueState = ResolveDisplayedTransform(targetId, out position, out rotationDegrees, out scale);
-            }
-
-            binding.stateChip = isRigEdit
-                ? MakeHint("Base pose — drag the viewport gizmo to edit it. Rig Edit writes the "
-                    + "prefab, not a key, so these fields are read-only here.")
-                : MakeTransformStateChip(valueState);
-            parent.Add(binding.stateChip);
-
-            VisualElement transformBlock = new VisualElement();
-            binding.block = transformBlock;
-            transformBlock.AddToClassList(TransformBlockUssClassName);
-            transformBlock.EnableInClassList(
-                TransformOnKeyUssClassName, !isRigEdit && valueState == TransformValueState.OnKey);
-            transformBlock.EnableInClassList(
-                TransformInterpolatedUssClassName,
-                !isRigEdit && valueState == TransformValueState.Interpolated);
-            transformBlock.EnableInClassList(
-                TransformModifiedUssClassName, !isRigEdit && valueState == TransformValueState.Modified);
-
-            Vector3Field positionField = new Vector3Field("Position");
-            positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
-            positionField.SetEnabled(!isRigEdit);
-            positionField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyTransformEditFromFields(binding);
-            });
-            binding.positionField = positionField;
-            transformBlock.Add(positionField);
-
-            Vector3Field rotationField = new Vector3Field("Rotation");
-            rotationField.SetValueWithoutNotify(
-                new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
-            rotationField.SetEnabled(!isRigEdit);
-            rotationField.tooltip =
-                "Euler degrees in Unity's ZXY order. The bake converts to radians once. "
-                + "A flat rig leaves x and y at zero.";
-            rotationField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyTransformEditFromFields(binding);
-            });
-            binding.rotationField = rotationField;
-            transformBlock.Add(rotationField);
-
-            Vector3Field scaleField = new Vector3Field("Scale");
-            scaleField.SetValueWithoutNotify(new Vector3(scale.x, scale.y, scale.z));
-            scaleField.SetEnabled(!isRigEdit);
-            scaleField.RegisterValueChangedCallback(changeEvent =>
-            {
-                ApplyTransformEditFromFields(binding);
-            });
-            binding.scaleField = scaleField;
-            transformBlock.Add(scaleField);
-
-            parent.Add(transformBlock);
-
-            // Keying is refused outright in Rig Edit (CommitPendingTransformEdit), so a Key/Revert
-            // row that could not do anything would just be another dead control on top of the
-            // read-only fields above.
-            if (isRigEdit)
-            {
-                return;
-            }
-
-            VisualElement keyRow = new VisualElement();
-            keyRow.AddToClassList(FlipbookKeyUssClassName);
-            keyRow.Add(new Button(() =>
-            {
-                if (!hasPendingTransformEdit || pendingTransformTargetId != targetId)
-                {
-                    // Nothing held: key the value currently on screen, which is how a pose reached
-                    // by scrubbing gets pinned down.
-                    pendingTransformTargetId = targetId;
-                    pendingPosition = position;
-                    pendingRotationDegrees = rotationDegrees;
-                    pendingScale = scale;
-                    hasPendingTransformEdit = true;
-                }
-                CommitPendingTransformEdit();
-                RebuildInspector();
-            })
-            {
-                text = "Key"
-            });
-            if (hasPendingTransformEdit && pendingTransformTargetId == targetId)
-            {
-                keyRow.Add(new Button(() =>
-                {
-                    DiscardPendingTransformEdit();
-                    RebuildInspector();
-                })
-                {
-                    text = "Revert"
-                });
-            }
-            parent.Add(keyRow);
         }
 
         /// <summary>
@@ -7905,200 +6274,5 @@ namespace DotsAnimationToolkit.Editor
             scale = new float3(node.localScale.x, node.localScale.y, node.localScale.z);
         }
 
-        private static string DescribeTransformState(TransformValueState valueState)
-        {
-            switch (valueState)
-            {
-                case TransformValueState.OnKey:
-                    return "On a key — editing changes this key.";
-                case TransformValueState.Interpolated:
-                    return "Between keys — this value is sampled, not stored.";
-                case TransformValueState.Modified:
-                    return "Modified, not keyed — press Key to keep it.";
-                default:
-                    return "No transform track yet — editing creates one.";
-            }
-        }
-
-        private static Label MakeTransformStateChip(TransformValueState valueState)
-        {
-            Label chip = new Label(DescribeTransformState(valueState));
-            chip.AddToClassList(HintUssClassName);
-            chip.AddToClassList(TransformStateChipUssClassName);
-            chip.EnableInClassList(
-                TransformModifiedUssClassName, valueState == TransformValueState.Modified);
-            return chip;
-        }
-
-        private void BuildClipInspector()
-        {
-            if (selectedClip == null || clipSerializedObject == null)
-            {
-                inspectorPane.Add(MakeHint(clipSet == null
-                    ? "Pick a clip set above the clip list."
-                    : "Select a clip to edit its properties."));
-
-                // Sockets are rig data, so they are listed whether or not a clip is open.
-                AddSocketDirectory();
-                return;
-            }
-            clipSerializedObject.Update();
-
-            inspectorPane.Add(MakeHeading("Clip"));
-            inspectorPane.Add(MakeClipNameField());
-            AddBoundField("duration");
-            AddBoundField("defaultLoop");
-            AddBoundField("rig");
-            AddBoneTrackControls();
-            AddSocketDirectory();
-            inspectorPane.Bind(clipSerializedObject);
-        }
-
-        /// <summary>Clip-level bone-track summary, plus the by-name fallback for a set with no rig assigned.</summary>
-        private void AddBoneTrackControls()
-        {
-            inspectorPane.Add(MakeHeading("Bone Tracks"));
-
-            int boneTrackCount = selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0;
-            inspectorPane.Add(new Label(boneTrackCount.ToString() + " track(s)"));
-
-            // LoadedPrefab, not just whether a rig is assigned: a rig with no sourcePrefab yet has
-            // no hierarchy to pick a bone from either, and the typed fallback covers that state.
-            bool hasHierarchy = LoadedPrefab != null;
-            if (hasHierarchy)
-            {
-                inspectorPane.Add(MakeHint("Pick a bone in the Hierarchy pane to add or edit its track."));
-                return;
-            }
-
-            TextField boneNameField = new TextField("Bone Name");
-            boneNameField.tooltip =
-                "Pick a rig with a Source Prefab above the hierarchy to pick from it "
-                + "instead. Case sensitive — the bake reports a name it cannot resolve.";
-            inspectorPane.Add(boneNameField);
-            inspectorPane.Add(new Button(() => AddBoneTrack(boneNameField.value))
-            {
-                text = "Add Bone Track"
-            });
-        }
-
-        private void AddBoneTrack(string boneName)
-        {
-            if (selectedClip == null || string.IsNullOrWhiteSpace(boneName))
-            {
-                return;
-            }
-
-            if (selectedClip.boneTracks == null)
-            {
-                selectedClip.boneTracks = new List<BoneTrack>();
-            }
-
-            // One track per bone. Two tracks naming the same bone is a validation error, and the
-            // second one would silently lose to whichever the bake applied last — better to refuse
-            // it here, where the user can see why. Reported on the timeline's status line rather
-            // than the viewport's, which the preview tick overwrites thirty times a second.
-            if (hierarchyPane.FindBoneTrackIndex(boneName) >= 0)
-            {
-                statusLabel.text = "A bone track for '" + boneName + "' already exists.";
-                return;
-            }
-
-            BeginUndoGesture("Add Bone Track");
-            selectedClip.boneTracks.Add(new BoneTrack
-            {
-                boneName = boneName,
-                keys = new List<BoneKey>()
-            });
-            EndUndoGesture();
-
-            EditorUtility.SetDirty(selectedClip);
-            RebuildTimeline();
-        }
-
-        // isDelayed is load-bearing: without it the field commits on every keystroke, and each
-        // commit is a file rename on disk.
-        /// <summary>The clip's asset name, editable in place.</summary>
-        private TextField MakeClipNameField()
-        {
-            TextField nameField = new TextField("Name");
-            nameField.isDelayed = true;
-            nameField.SetValueWithoutNotify(selectedClip.name);
-            nameField.RegisterValueChangedCallback(changeEvent =>
-            {
-                if (!ClipAssetUtility.RenameClip(selectedClip, changeEvent.newValue))
-                {
-                    // Refused — an illegal or duplicate name. Put the field back to the truth rather
-                    // than leaving it showing a name the asset does not have.
-                    nameField.SetValueWithoutNotify(selectedClip != null ? selectedClip.name : string.Empty);
-                    return;
-                }
-                clipListPane?.RefreshClipList();
-                RebuildTimeline();
-            });
-            return nameField;
-        }
-
-        private static Label MakeHeading(string text)
-        {
-            Label label = new Label(text);
-            label.AddToClassList(HeadingUssClassName);
-            return label;
-        }
-
-        private static Label MakeHint(string text)
-        {
-            Label label = new Label(text);
-            label.AddToClassList(HintUssClassName);
-            return label;
-        }
-
-        private void AddBoundField(string propertyPath)
-        {
-            SerializedProperty property = clipSerializedObject.FindProperty(propertyPath);
-            if (property != null)
-            {
-                inspectorPane.Add(new PropertyField(property));
-            }
-        }
-
-        private SerializedProperty FindKeyProperty(KeyAddress address)
-        {
-            switch (address.trackKind)
-            {
-                case TimelineTrackKind.Transform:
-                    return FindTrackKeyProperty("transformTracks", address);
-                case TimelineTrackKind.Sprite:
-                    return FindTrackKeyProperty("spriteTracks", address);
-                case TimelineTrackKind.Bone:
-                    return FindTrackKeyProperty("boneTracks", address);
-                default:
-                {
-                    SerializedProperty events = clipSerializedObject.FindProperty("events");
-                    int flatIndex = ResolveEventFlatIndex(address);
-                    if (events == null || flatIndex < 0 || flatIndex >= events.arraySize)
-                    {
-                        return null;
-                    }
-                    return events.GetArrayElementAtIndex(flatIndex);
-                }
-            }
-        }
-
-        private SerializedProperty FindTrackKeyProperty(string tracksPath, KeyAddress address)
-        {
-            SerializedProperty tracks = clipSerializedObject.FindProperty(tracksPath);
-            if (tracks == null || address.trackIndex >= tracks.arraySize)
-            {
-                return null;
-            }
-            SerializedProperty keys = tracks.GetArrayElementAtIndex(address.trackIndex)
-                .FindPropertyRelative("keys");
-            if (keys == null || address.keyIndex >= keys.arraySize)
-            {
-                return null;
-            }
-            return keys.GetArrayElementAtIndex(address.keyIndex);
-        }
     }
 }

@@ -167,9 +167,8 @@ namespace DotsAnimationToolkit.Editor
                 }
 
                 BindHierarchy(paneRoot);
+                selection.RigChanged += OnRigChanged;
             }
-
-            selection.RigChanged += OnRigChanged;
         }
 
         public void Dispose()

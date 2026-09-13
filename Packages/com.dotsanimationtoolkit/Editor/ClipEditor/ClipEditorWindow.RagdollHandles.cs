@@ -46,7 +46,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 previewController.SetSelectedRagdollBodyId(bodyId);
             }
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         private static RagdollBodyDefinition FindRagdollBodyById(RigAsset rig, uint bodyId)
@@ -331,7 +331,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 EditorUtility.SetDirty(rig);
             }
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // -----------------------------------------------------------------------------------

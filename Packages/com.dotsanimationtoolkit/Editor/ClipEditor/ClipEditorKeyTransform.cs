@@ -121,7 +121,7 @@ namespace DotsAnimationToolkit.Editor
                 CancelKeyTransform();
             }
 
-            if (selectedClip == null || selectedKeys.Count == 0)
+            if (selectedClip == null || session.SelectedKeys.Count == 0)
             {
                 statusLabel.text = "Select keys first — G moves them, S scales them.";
                 return;
@@ -152,7 +152,7 @@ namespace DotsAnimationToolkit.Editor
         {
             transformSnapshots.Clear();
 
-            foreach (KeyAddress address in selectedKeys)
+            foreach (KeyAddress address in session.SelectedKeys)
             {
                 KeyTransformTrackSnapshot snapshot =
                     FindSnapshot(address.trackKind, address.trackIndex);
@@ -250,7 +250,7 @@ namespace DotsAnimationToolkit.Editor
             EditorUtility.SetDirty(selectedClip);
             EndUndoGesture();
             RebuildTimeline();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         /// <summary>Abandons the gesture, leaving nothing behind — not even an undo entry.</summary>
@@ -270,10 +270,10 @@ namespace DotsAnimationToolkit.Editor
             // cancelled gesture that left a "Move Animation Keys" entry behind would make the next
             // Ctrl+Z appear to do nothing.
             Undo.RevertAllDownToGroup(gestureUndoGroup);
-            RefreshSerializedClip();
+            clipInspectorPane.RefreshSerializedClip();
             MarkPreviewDirty();
             RebuildTimeline();
-            RebuildInspector();
+            clipInspectorPane.RebuildInspector();
         }
 
         // Drops a running gesture without restoring anything or touching the undo stack — for an
@@ -440,7 +440,7 @@ namespace DotsAnimationToolkit.Editor
 
             float earliest = float.MaxValue;
             float latest = float.MinValue;
-            foreach (KeyAddress address in selectedKeys)
+            foreach (KeyAddress address in session.SelectedKeys)
             {
                 float keyTime;
                 if (!TryGetSelectedKeyTime(address, out keyTime))

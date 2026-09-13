@@ -259,7 +259,7 @@ namespace DotsAnimationToolkit.Editor
                 if (clipLengthField != null)
                 {
                     clipLengthField.SetEnabled(hasClip);
-                    if (!IsBeingEdited(clipLengthField))
+                    if (!ClipInspectorPane.IsBeingEdited(clipLengthField))
                     {
                         clipLengthField.SetValueWithoutNotify(hasClip ? selectedClip.duration : 0f);
                     }
@@ -267,7 +267,7 @@ namespace DotsAnimationToolkit.Editor
                 if (frameRateField != null)
                 {
                     frameRateField.SetEnabled(hasClip);
-                    if (!IsBeingEdited(frameRateField))
+                    if (!ClipInspectorPane.IsBeingEdited(frameRateField))
                     {
                         frameRateField.SetValueWithoutNotify(
                             hasClip ? Mathf.Max(1, Mathf.RoundToInt(selectedClip.frameRate)) : 30);
@@ -307,11 +307,11 @@ namespace DotsAnimationToolkit.Editor
                 // Not written into a field being typed in — an unconditional write would make the
                 // caret jump on every keystroke. A caption drag is not excluded: the write-back is
                 // what clamps the readout at the clip's ends.
-                if (currentFrameField != null && !IsBeingEdited(currentFrameField))
+                if (currentFrameField != null && !ClipInspectorPane.IsBeingEdited(currentFrameField))
                 {
                     currentFrameField.SetValueWithoutNotify(NormalizedToFrame(playheadTime));
                 }
-                if (currentSecondsField != null && !IsBeingEdited(currentSecondsField))
+                if (currentSecondsField != null && !ClipInspectorPane.IsBeingEdited(currentSecondsField))
                 {
                     currentSecondsField.SetValueWithoutNotify(playheadTime * TransportDuration);
                 }

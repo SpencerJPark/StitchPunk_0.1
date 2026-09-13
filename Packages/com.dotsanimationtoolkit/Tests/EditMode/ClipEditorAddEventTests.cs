@@ -146,11 +146,21 @@ namespace DotsAnimationToolkit.Tests.EditMode
             }
         }
 
+        // The window keeps its own field and mirrors it into the session the panes read, so a
+        // fixture that bypasses SelectClip has to write both.
         private static void SetSelectedClip(ClipEditorWindow window, ClipAsset clip)
         {
             typeof(ClipEditorWindow)
                 .GetField("selectedClip", BindingFlags.NonPublic | BindingFlags.Instance)
                 .SetValue(window, clip);
+            GetSession(window).SetSelectedClip(clip);
+        }
+
+        private static ClipEditorSession GetSession(ClipEditorWindow window)
+        {
+            return (ClipEditorSession)typeof(ClipEditorWindow)
+                .GetField("session", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(window);
         }
 
         private static void SetPlayheadTime(ClipEditorWindow window, float normalizedTime)
@@ -169,23 +179,17 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
         private static HashSet<KeyAddress> GetSelectedKeys(ClipEditorWindow window)
         {
-            return (HashSet<KeyAddress>)typeof(ClipEditorWindow)
-                .GetField("selectedKeys", BindingFlags.NonPublic | BindingFlags.Instance)
-                .GetValue(window);
+            return GetSession(window).SelectedKeys;
         }
 
         private static bool GetHasActiveKey(ClipEditorWindow window)
         {
-            return (bool)typeof(ClipEditorWindow)
-                .GetField("hasActiveKey", BindingFlags.NonPublic | BindingFlags.Instance)
-                .GetValue(window);
+            return GetSession(window).HasActiveKey;
         }
 
         private static KeyAddress GetActiveKey(ClipEditorWindow window)
         {
-            return (KeyAddress)typeof(ClipEditorWindow)
-                .GetField("activeKey", BindingFlags.NonPublic | BindingFlags.Instance)
-                .GetValue(window);
+            return GetSession(window).ActiveKey;
         }
     }
 }
