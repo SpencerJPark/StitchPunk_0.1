@@ -3336,6 +3336,7 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
+            float previousPlayheadTime = playheadTime;
             playheadTime = clampedTime;
             session.SetPlayhead(playheadTime);
             if (timelinePane.Playhead != null)
@@ -3343,6 +3344,7 @@ namespace DotsAnimationToolkit.Editor
                 timelinePane.Playhead.NormalizedTime = playheadTime;
             }
             SyncTransportPlayhead();
+            timelinePane.ReportPlayheadMoved(previousPlayheadTime, playheadTime, isPlaying, isLoopEnabled);
 
             // The inspector shows the value at the playhead, so it moves with it. In place rather
             // than by rebuilding: a rebuild would destroy the field being typed into.

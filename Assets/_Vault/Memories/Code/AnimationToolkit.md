@@ -1042,3 +1042,35 @@ opens with `SummarizeForDialog`'s "Referenced by 2 profiles, 1 cutscene." plus u
   rigs; cutscene slots hold `rig`, `clipSets`, `profile` and tag-addressed `partTracks`, never a
   `ClipAsset` (clip blocks carry an `animationKey`); profiles are referenced only by cutscene slots.
   `VatTextureSetAsset.sourceRigKey` is a hash, not a reference, and is not indexed.
+
+## Sound on scrub (A87, 0.34.0)
+
+Every Clip Editor playhead write goes through `ClipEditorWindow.SetPlayheadTime`: ruler scrub, key
+click, frame step, rebuild re-set, and the play tick. The tick wraps with `Floor` *before* calling
+it. The setter calls `TimelinePane.ReportPlayheadMoved(previous, current, isPlaying,
+isLoopEnabled)`, and the pane resolves crossings with `ScrubEventCrossingResolver`, flashes
+`TrackLaneElement.FlashPin(localIndex)` and plays `AnimEventKeyRegistry.FindPreviewClip` through
+`EditorEventPreviewPlayer`.
+
+- **D3 outcome (probed 2026-09-13):** `UnityEditor.AudioUtil` is internal but its members are
+  public static: `PlayPreviewClip(AudioClip, int, bool)`, `IsPreviewClipPlaying()`,
+  `StopAllPreviewClips()`. Reach them by reflection off `typeof(EditorWindow).Assembly`. They need
+  no `AudioListener`, give **one voice** (a second call replaces the first) and have no volume
+  control. A hidden `AudioSource` + `PlayOneShot` also reports `isPlaying`, but only because the
+  open scene had a listener. `isPlaying` / `IsPreviewClipPlaying` are the only proof available from
+  a session; whether it is audible needs the owner.
+- **The resolver infers wrap direction from the delta, not from speed.** While playing with Loop, a
+  jump of more than half the clip is a wrap taken the short way round, so negative-speed playback
+  wraps correctly. While paused, the same jump is a seek and fires nothing.
+- **Guards in the pane, and why:** a clip switch fires nothing (`lastCrossingReportClip`), and a
+  key drag fires nothing (`isDraggingKeys`). The drag carries the playhead with the dragged pin, so
+  without the guard the pin re-fires on every pointer move.
+- **The project registry is JSON, not YAML.** `VocabularyRegistryProvider` writes it with
+  `EditorJsonUtility`, and an `AudioClip` field round-trips as `{fileID, guid, type}`. So a new
+  object-reference field on a vocabulary entry needs no extra persistence work.
+- Conformance_G scans only **static** classes. A sealed instance class such as the player needs no
+  allowlist entry.
+- **Cutscenes do not flash or sound yet (D6 deferred).** Their markers are seconds on
+  `CutsceneEventMarker`, and their pins are per-marker `VisualElement`s in
+  `CutsceneMomentLaneElement`, not `TrackLaneElement` paint. The hook belongs in
+  `CutsceneEditorPanel.SetPlayhead`, so it needs three files plus a seconds overload of the resolver.

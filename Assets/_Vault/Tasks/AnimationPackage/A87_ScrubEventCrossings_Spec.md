@@ -200,3 +200,42 @@ is a scheduled style change on the existing pin element.
   Attack 18, Dialogue 19), and the page is **Project Settings ▸ DOTS Animation Toolkit ▸ Event
   Names**. T10's message is adapted to name `Sound`. No key is added.
 - `Editor/ClipEditor/Preview/` exists, so §4's new files have their home.
+- **D2 persistence check.** The project registry is not a YAML asset. `VocabularyRegistryProvider`
+  writes it with `EditorJsonUtility.ToJson` and reads it with `FromJsonOverwrite`. An in-memory
+  round-trip kept `previewClip` as `{fileID: 8300000, guid, type: 3}` and restored
+  `Assets/Audio/Splat1.mp3`, so the reference survives the JSON path.
+
+### Wave T2–T6 — spawned 2026-09-13 after `82811536`
+
+T3 is briefed to add `TimelinePane.ReportPlayheadMoved` and a lane-local `FlashPin(int keyIndex)`.
+T4 builds on AudioUtil. T5 adds `PropertyField(previewClip)` in the Payload foldout; a PropertyField
+on an `AudioClip` reference renders an `ObjectField<AudioClip>`.
+
+- All five workers finished at 53–78k tokens. Compile clean, no errors. T6's warnings are the
+  owner's `NewClip 1` T6 bake skips, not A87.
+- Review fixes by the orchestrator: removed three `<summary>` blocks T3 added (TimelinePane,
+  TrackLaneElement) and T4's empty constructor. **Added an `isDraggingKeys` guard** in
+  `ReportPlayheadMoved`: `UpdateKeyDrag` carries the playhead with the dragged pin, so the dragged
+  marker sat at `current` on every move and would have re-fired its own flash and sound.
+- T5's persistence answer covered only the `SerializedObject` binding. The project registry is JSON
+  on disk, so T8 proves the write.
+- **Fixtures:** `ScrubEventCrossingResolverTests` 2/2 pass. Revert-to-fail, as one mutation because
+  each fixture exercises only its own branch: wrap branch disabled and backward branch emptied →
+  both failed (`Missing: < 1, 0 >`, `Missing: < 0 >`). Restored byte-identical (sha256 `cd5f6565…`).
+
+### T7 — orchestrator
+
+- `ClipEditorWindow.SetPlayheadTime` keeps `previousPlayheadTime` and calls
+  `timelinePane.ReportPlayheadMoved(previousPlayheadTime, playheadTime, isPlaying,
+  isLoopEnabled)` after `SyncTransportPlayhead`. `isLoopEnabled` lives in `ClipEditorTransport.cs`.
+  The player is created lazily by the pane and disposed in `TimelinePane.Dispose`, so the window
+  needs no construction wiring.
+- **Drift: no Conformance_G allowlist entry.** Its regex matches only `static class`, and
+  `EditorEventPreviewPlayer` is a sealed instance class. An allowlist entry would be dead.
+- **D6 deferred, logged per the spec.** Cutscene markers are `CutsceneEventMarker.time` in seconds.
+  Their pins are one `VisualElement` per marker in `CutsceneMomentLaneElement`, not
+  `TrackLaneElement` paint. The hook belongs in `CutsceneEditorPanel.SetPlayhead` (`:916`, also
+  reached by the tick at `:740` and `OnPlayheadScrubbed`). That is three files (panel, moment lane,
+  a seconds overload of the resolver), not two. Follow-up candidate.
+- Version pins 0.34.0: `package.json`, and `PackagingConformanceTests` comment + Assert.
+- Vault note: `AnimationToolkit.md` § "Sound on scrub (A87, 0.34.0)".
