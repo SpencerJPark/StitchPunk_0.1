@@ -77,7 +77,7 @@ namespace DotsAnimationToolkit.Editor
             for (int findingIndex = 0; findingIndex < findings.Count; findingIndex++)
             {
                 ValidationMessage message = findings[findingIndex];
-                Label findingLabel = new Label("V09 · " + message.code.ToString() + " · " + message.text);
+                Label findingLabel = new Label(message.code.ToString() + " · " + message.text);
                 findingLabel.style.whiteSpace = WhiteSpace.Normal;
                 findingLabel.style.color = message.severity == ValidationSeverity.Error
                     ? ToolkitPalette.Error

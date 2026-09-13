@@ -119,6 +119,23 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-13): Amendment A86 — one event editing surface for clips and cutscenes — 0.33.0.**
+Spec `Assets/_Vault/Tasks/AnimationPackage/A86_UnifiedEventEditing_Spec.md`; its §7 carries seven
+spec-vs-code drifts (the cutscene inspector lives in `CutsceneEditorPanel`, there was no cutscene
+validator, the pulse-only-window rule was already V20, the cutscene lane is USS elements, D5 had no
+task), the build log and the drive. `EventMarkerInspectorElement` edits both marker types through
+`IEventMarkerAccessor` (`ClipEventMarkerAccessor`, `CutsceneEventMarkerAccessor`); a host
+`ICutsceneEventInspectorProvider` still owns the payload for its keys via `PayloadOverride`.
+`EventLaneStyle` draws the pin on both lanes (a holding cutscene event is a Holding-coloured
+outline); `EventMarkerContextMenu` is the right-click menu on both. `AnimEventValidation` owns
+V09/V19/V20 and the new V41 (key not in the registry, only when a registry is passed) and V42 (int
+outside the value names); `ClipValidation` delegates, both inspectors show the marker's findings.
+Suites: EditMode 829 (827 + 2, standing `Conformance_A` failure only), PlayMode 283. Drive proved
+field edits, the schema dropdown, copy/paste payload and disk persistence on scratch copies, and
+found one bug (a literal "V09 ·" prefix on every finding, fixed); no capture of the live window.
+`G1CheckpointCutscene.asset` stores reserved event key 1 and now shows V09. **T10 owner checkpoint
+open.**
+
 **Built (2026-09-13): Amendment A85 — event payload schema — 0.32.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A85_EventPayloadSchema_Spec.md`; its §7 carries the drifts,
 two ⚠ interpretations and the drive log. `AnimEventKeyEntry` gained `intParamLabel`,

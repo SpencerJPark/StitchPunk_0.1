@@ -1,6 +1,6 @@
 # Amendment A86 — One event editing surface for clips and cutscenes
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.33.0`.
+> **Status:** ✅ built 2026-09-13 as `0.33.0` (T0–T9); ⏸ T10 owner checkpoint open. §7 carries seven spec-vs-code drifts, the build log and the drive.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A55 (clip event lanes), A64/A65 (cutscene event lane and cues), A85 (payload
 > fields). **Serialized types are not touched** — see D1.
@@ -104,34 +104,34 @@ none unless a rule is new (the pulse-only-window warning is new — take the nex
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Grep both validators for `eventKey` and
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Grep both validators for `eventKey` and
   list the codes they emit today (D4 reuses them). Confirm D3's claim about the cutscene lane's
   glyph. Capture both inspectors before.
-- [ ] **T1 — Interface file (orchestrator).** Write `IEventMarkerAccessor.cs` (the interface only)
+- [x] **T1 — Interface file (orchestrator).** Write `IEventMarkerAccessor.cs` (the interface only)
   so the wave compiles against it. Gate. Commit `A86-T1`.
-- [ ] **T2 — Two adapters [parallel-safe]** — Files: new `ClipEventMarkerAccessor.cs`, new
+- [x] **T2 — Two adapters [parallel-safe]** — Files: new `ClipEventMarkerAccessor.cs`, new
   `CutsceneEventMarkerAccessor.cs` (both `Editor/ClipEditor/Components/`).
-- [ ] **T3 — Inspector element [parallel-safe]** — Files: new `EventMarkerInspectorElement.cs`.
+- [x] **T3 — Inspector element [parallel-safe]** — Files: new `EventMarkerInspectorElement.cs`.
   Read `EventPayloadFieldBuilder.cs`, `VocabularyPicker.cs` (grep public surface).
-- [ ] **T4 — `EventLaneStyle` + cutscene lane adopts it [parallel-safe]** — Files: new
+- [x] **T4 — `EventLaneStyle` + cutscene lane adopts it [parallel-safe]** — Files: new
   `EventLaneStyle.cs`, `CutsceneMomentLaneElement.cs` (event-drawing range only).
-- [ ] **T5 — `AnimEventValidation` + fixture [parallel-safe]** — Files: new
+- [x] **T5 — `AnimEventValidation` + fixture [parallel-safe]** — Files: new
   `AnimEventValidation.cs`, new `Tests/EditMode/AnimEventValidationTests.cs`. Fixture:
   `WindowOnPulseOnlyKey_IsAWarning` (key 80, window 0.2 → one Warning) and
   `KeyBelowFirstUserKey_IsAnError` (key 3 → Error). Revert-to-fail: remove each rule.
-- [ ] **T6 — Docs + changelog [parallel-safe]** — Files: `Documentation~/animation-events.md`
+- [x] **T6 — Docs + changelog [parallel-safe]** — Files: `Documentation~/animation-events.md`
   ("Cutscene events use the same inspector" paragraph), `CHANGELOG.md` `## [0.33.0]`.
 - **Gate the wave.** `AnimEventValidationTests`. Commit `A86-T2..T6`.
-- [ ] **T7 — Orchestrator edits (sequential, two files that the wave could not own).**
+- [x] **T7 — Orchestrator edits (sequential, two files that the wave could not own).**
   `ClipInspectorPane.cs`: the two event builders become one `EventMarkerInspectorElement.Bind`
   call with a `ClipEventMarkerAccessor`. `CutsceneEventInspectorProviders.cs`: likewise with the
   cutscene adapter. `TrackLaneElement.cs`: pin drawing calls `EventLaneStyle`. `ClipValidation` and
   the cutscene validator call `AnimEventValidation` and drop their own rules. Gate;
   `ClipEditorAddEventTests`, `ClipValidationTests` (grep the fixture's real name), the cutscene
   validation fixture. `Conformance_G` allowlist for `EventLaneStyle`. `package.json`.
-- [ ] **T8 — Drive.** Full suites. Open a clip and a cutscene each with an event; edit key and
+- [x] **T8 — Drive.** Full suites. Open a clip and a cutscene each with an event; edit key and
   payload on both; reload both from disk; confirm. Capture both inspectors after.
-- [ ] **T9 — Close.** HANDOFF §4, vault note ("Event lanes are per-name" section gains: one
+- [x] **T9 — Close.** HANDOFF §4, vault note ("Event lanes are per-name" section gains: one
   inspector, one validation), roadmap checkbox.
 - [ ] **T10 — ⏸ owner checkpoint.** Message: "Select an event on a clip, then on a cutscene. Same
   inspector, same pin. The cutscene one has Fire on skip / Hold rows; the clip one has Window. Say
@@ -186,3 +186,77 @@ Spec vs reality, decided and recorded here rather than re-specced silently:
    T7 wires both.
 7. **Time row is read-only (§4.2).** The cutscene inspector's editable "Time (s)" field goes away;
    dragging on the lane still moves the marker. Raised at T10.
+
+### T1 — interface (commit `dd5c04b3`)
+
+`IEventMarkerAccessor` plus an `EventMarkerField` enum (hosts need to know *which* field changed:
+a key change can move a clip marker's lane and changes a cutscene pin's colour), and
+`ValidationCode.V41`/`V42`. Gate clean.
+
+### T2–T6 + T6b — one wave of six workers (commit `906763e2`)
+
+52–75k tokens each, no guard denials. Post-wave checks: every new file has
+`using DotsAnimationToolkit.Authoring;` where needed and null-checks registry rows. One slip fixed
+by hand: `EventLaneStyle` carried two method `<summary>`s (Conformance_F). Gate clean;
+`AnimEventValidationTests` 2/2. **Revert-to-fail:** both rules switched off behind a probe → both
+tests failed ("Expected: 1 But was: 0"); file restored byte-identical (`cmp`).
+
+### T7 — orchestrator wiring (commit `dd185eb5`)
+
+- `ClipInspectorPane`: the key button, window field, payload builder calls and key-choice method
+  became one `EventMarkerInspectorElement` over a `ClipEventMarkerAccessor`, plus the marker's
+  findings. `OnClipEventMarkerFieldEdited` calls `RefreshSerializedClip` + `MarkPreviewDirty` —
+  **not** `CommitClipEdit`, whose `Undo.CollapseUndoOperations(gestureUndoGroup)` would collapse
+  from a stale group, because the accessor records its own undo. `DescribeEventKey`,
+  `EditEventMarker`, `AddEventWindowField`, `OpenEventKeyPicker`, `ApplyEventKeyChoice` deleted.
+- `CutsceneEditorPanel.BuildEventInspector`: same element over `CutsceneEventMarkerAccessor`,
+  `PayloadOverride` → `CutsceneEventInspectorProviders.TryBuild`, findings, hold note kept; edits
+  end in `serializedObject.Update()`. `BuildEventRows` sets `drawsEventPins` and the marker menu
+  (duplicate inserts a copy 0.1 s later).
+- `TrackLaneElement`: pin and window bar through `EventLaneStyle`; a `ContextualMenuManipulator`
+  raises `eventKeyContextMenu` for the pin under the pointer (middle button pans, so no clash).
+  `TimelinePane` fills it: Change key (with the registry default-window rule), Duplicate (one
+  reference frame later), Delete (selects then `DeleteSelectedKeys`).
+- `ClipValidation.ValidateClip`/`ValidateBind` gain optional `eventKeyRegistry`;
+  `ValidationBadgeElement` passes the project registry; the bake passes none.
+  `AnimEventValidation.RegistryContainsKey`/`ValueNamesForKey` adapt a registry (null → rule off).
+- Conformance_G allowlist: `EventLaneStyle`, `EventMarkerContextMenu`. `package.json` and the
+  conformance pin → `0.33.0`.
+- Fixtures: `AnimEventValidationTests`, `ClipValidationTests`, `ClipEditorAddEventTests`,
+  `PackagingConformanceTests` (72, standing `Conformance_A` only); `CoLocatedEventMarkerTests`,
+  `TimelineGeometryHitTests` 10/10.
+
+### T8 — suites and drive
+
+**Suites:** EditMode **829** (827 + 2; standing `Conformance_A` failure only), PlayMode **283**.
+
+**Drive** on scratch copies (`NewClip 1.asset` → clip, `A65CheckpointCutscene.asset` → cutscene),
+saved by object with `SaveAssetIfDirty`, then the YAML read back from disk:
+
+- An element with no live panel never dispatches `ChangeEvent`; an unshown `EditorWindow`'s root
+  has a null panel too. The elements were therefore hosted for the length of one synchronous call
+  on an already-painted window's root (`MainToolbarWindow`) and removed in a `finally` — nothing
+  painted in between, no layout touched.
+- Clip marker 1 through the real fields: Window 6 frames → `windowSeconds: 0.1`, Int 3, Float 0.5;
+  `FieldEdited` raised Window, IntParam, FloatParam. Key 16 → 18 through the accessor. Context menu
+  lists Rename key…, Change key…, Duplicate marker, Delete marker | Copy payload, Paste payload
+  (Paste disabled until a copy); Copy on marker 1 + Paste on marker 0 → marker 0 `intParam: 3`,
+  `floatParam: 0.5`. On disk: `eventKey: 18 / intParam: 3 / floatParam: 0.5 / windowSeconds: 0.1`.
+- Cutscene marker 0: rows Event, Time (read-only "3s"), Int/Float Param, Fire On Skip, Hold Until
+  Released — no Window row. Key 19 → 17, Int 7, Fire On Skip off. Against an in-memory registry
+  whose Damage entry names two values, the payload became a `Strength` dropdown showing raw `7`,
+  index −1, label tinted Warning; picking Heavy wrote 1. On disk: `eventKey: 17 / intParam: 1 /
+  fireOnSkip: 0 / holdUntilReleased: 1`.
+- **Bug found and fixed:** `SetFindings` prefixed every label with a literal `"V09 · "` (the T3
+  brief's example text was taken verbatim), so a V42 finding read "V09 · V42 · …".
+- `G1CheckpointCutscene.asset` stores event key **1**, so its inspector now shows V09 (Error) — a
+  game-side asset fact, not an A86 defect.
+- Cleanup: scratch folder deleted after `Undo.ClearUndo`; the event registry file hashes identical
+  to before the drive (`b315ce62…`); `NewClip.asset` untouched.
+- **No capture.** The docked DOTS Animator window was not driven: showing a scratch clip in it would
+  replace the owner's open clip session. The two elements were proven one level down instead.
+
+### T9 — close
+
+HANDOFF §4 paragraph, vault note ("Event lanes are per-name" gains the A86 traps), this log. The
+roadmap box stays unticked until T10 is answered.

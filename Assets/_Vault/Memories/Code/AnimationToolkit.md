@@ -126,6 +126,33 @@ against V04/V09 (never V03), and `ClipRegistryBuilder.FillEvents` re-sorts by
 time before baking regardless of authoring order. If you add code that reads
 `ClipAsset.events` directly, do not assume it is time-ordered.
 
+**One inspector, one pin, one rule set for clip and cutscene markers (A86, 0.33.0).**
+`EventMarkerInspectorElement` (`Editor/ClipEditor/Components/`) edits either marker through
+`IEventMarkerAccessor` (`ClipEventMarkerAccessor` by flat index, `CutsceneEventMarkerAccessor` by
+list index); `EventLaneStyle` draws the pin on both lanes; `AnimEventValidation`
+(`Authoring/Validation/`) owns V09/V19/V20 plus V41 (key not in the registry) and V42 (int outside
+the value names). Traps:
+
+- **The accessor records undo itself, so a clip host must not call `CommitClipEdit`** — it collapses
+  from the window's last `gestureUndoGroup`, which is stale here and would fold unrelated history
+  into this edit. `ClipInspectorPane` calls `RefreshSerializedClip` + `MarkPreviewDirty` instead.
+  The cutscene panel writes through the accessor and then `serializedObject.Update()`, or the next
+  `ApplyModifiedProperties` writes the old value back.
+- **There is no cutscene validator.** Cutscene findings show only under the inspector
+  (`SetFindings`). V41/V42 run only when a registry is passed: the badge and both inspectors pass
+  the project registry, the bake passes none, so a deleted name never fails a build.
+  `ValidationCode` bytes 41–47 are P1–P7, so V41 = 48 and V42 = 49.
+- **Cutscene pins are still one `VisualElement` per marker**, not painted by the lane:
+  `CutsceneMomentLaneElement.drawsEventPins` keeps the marker USS class (queries use it) and
+  outranks the diamond with inline `rotate`/border/background overrides, painting the pin in
+  `generateVisualContent`. A holding event is a `ToolkitPalette.Holding` outline; the `--holding`
+  class is never added to a pin (its 3px border would box it).
+- **A host `ICutsceneEventInspectorProvider` still wins the payload** through the element's
+  `PayloadOverride`; the schema builder renders every other key.
+- `G1CheckpointCutscene.asset` stores event key 1 (reserved), so its inspector shows V09 — a game
+  asset fact, not an A86 bug.
+
+
 ## Never rebuild a pane from a value-changed callback
 
 A UI Toolkit field's drag handle captures the pointer **on the element itself**, so removing that
