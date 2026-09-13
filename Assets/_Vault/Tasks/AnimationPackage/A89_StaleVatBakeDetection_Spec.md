@@ -1,6 +1,6 @@
 # Amendment A89 — Stale VAT bake detection
 
-> **Status:** 🔨 building 2026-09-13. Takes `0.35.0` (A88 is not built; it takes the next free minor when it runs — §7).
+> **Status:** ✅ built 2026-09-13 as `0.35.0` (A88 is not built; it takes the next free minor when it runs — §7). ⏸ T8 owner checkpoint open.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A78 (per-part bake, `VatTextureSetAsset.sourceHash` / `sourceRigKey`),
 > A80 (VAT Bake fields are live pickers on the shared selection).
@@ -89,28 +89,28 @@ A 10 px dot + label, `Refresh(VatBakeFreshness, string reason)`; tooltip = reaso
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Grep the hashing code; list D2's inputs
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Grep the hashing code; list D2's inputs
   against what it folds today; time a compute over the sample tentacle set with `execute_code`.
   Record in §7.
-- [ ] **T1 — Resolver + fixture [parallel-safe]** — Files: new `VatSourceHashResolver.cs`, new
+- [x] **T1 — Resolver + fixture [parallel-safe]** — Files: new `VatSourceHashResolver.cs`, new
   `Tests/EditMode/VatSourceHashResolverTests.cs`. Fixture:
   `ChangingAPartKind_ChangesTheHash_AndReportsRigChanged` — two in-memory rigs differing only in
   one target's `kind` → different `ComputeRigKey`; `Resolve` with a set stamped with the first →
   `Stale`, reason contains "rig". Revert-to-fail: drop `kind` from the fold.
-- [ ] **T2 — Badge element [parallel-safe]** — Files: new `VatFreshnessBadgeElement.cs`.
-- [ ] **T3 — VAT Bake tab hosts the badge; bake writes via the resolver [parallel-safe]** — Files:
+- [x] **T2 — Badge element [parallel-safe]** — Files: new `VatFreshnessBadgeElement.cs`.
+- [x] **T3 — VAT Bake tab hosts the badge; bake writes via the resolver [parallel-safe]** — Files:
   `VatBakePanel.cs` (the resolved-line range + `Bind` handlers), `VatTextureSetBuilder.cs` (the
   hash write site only).
-- [ ] **T4 — Clip Sets tab hosts the badge + docs [parallel-safe]** — Files: `ClipSetsPanel.cs`
+- [x] **T4 — Clip Sets tab hosts the badge + docs [parallel-safe]** — Files: `ClipSetsPanel.cs`
   (the `vatTextures` row only), `Documentation~/rigged-characters.md` (a "Is my bake current?"
   paragraph). Changelog is T5.
 - **Gate the wave.** `VatSourceHashResolverTests`, the existing VAT builder fixtures (grep
   `VatBakeClipBuilder` under `Tests/EditMode/`). Commit `A89-T1..T4`.
-- [ ] **T5 — Orchestrator edits.** `CHANGELOG.md` `## [0.36.0]` (state D2's one-time staleness if
+- [x] **T5 — Orchestrator edits.** `CHANGELOG.md` `## [0.36.0]` (state D2's one-time staleness if
   it applies); `package.json`; vault note "The VAT bake asks the rig" gains the resolver.
-- [ ] **T6 — Drive.** Full suites. Bake the sample tentacle → Fresh. Flip one target's Kind → Stale,
+- [x] **T6 — Drive.** Full suites. Bake the sample tentacle → Fresh. Flip one target's Kind → Stale,
   "rig changed". Rebake → Fresh. Add a clip to the set → Stale, "clips changed". Capture both tabs.
-- [ ] **T7 — Close.** HANDOFF §4, roadmap checkbox.
+- [x] **T7 — Close.** HANDOFF §4, roadmap checkbox.
 - [ ] **T8 — ⏸ owner checkpoint.** Message: "VAT Bake tab: a dot beside the resolved-parts line
   says Fresh / Stale / Unbaked with the reason on hover; Clip Sets shows the same on the VAT
   Textures row. ⚠ Want a Rebake button on the Clip Sets badge that jumps to VAT Bake?"
@@ -210,3 +210,66 @@ A 10 px dot + label, `Refresh(VatBakeFreshness, string reason)`; tooltip = reaso
     lookup by stable id.
   - With no rig found, it reads Stale: "the rig it was baked from is not in the project".
   - The `ClipSetAssetEditor` inspector gets no badge.
+
+### T1–T4 wave and gate (2026-09-13)
+
+- **Workers:** four, 65–111k tokens each. The ledger hook failed at spawn because the shell cwd
+  had drifted into the package; the edits were unaffected. Review fixes before the gate:
+  - moved a comment that split an existing block in `ValidationBadgeElement`
+  - removed an unused `using`
+  - renamed a local called `set`
+- **Gate:** compile clean. 80 targeted fixtures pass (the resolver, VAT baker, clip builder and
+  `ClipValidationTests`).
+- **Revert-to-fail:** one compile covered two mutations. Dropping `kind` from the rig fold failed
+  `ChangingAPartKind…` ("Expected: not equal"). Dropping the clips hash from `ComputeSourceHash`
+  failed `AddingAVatBoundClip…` ("Expected Stale, was Fresh"). The file was restored
+  byte-identical (sha256 `4d1bf5e7…`).
+- **Suites:** EditMode 833 (831 + 2, standing `Conformance_A` only), PlayMode 283.
+  - Commits: `2abf151e` (T0–T4) and `d38eacd2` (T5).
+
+### T6 — drive (2026-09-13)
+
+- **SaveAssets guard.** `CreateTwoPartSampleAssets` and `VatTextureSetBuilder.WriteSet` both call
+  `AssetDatabase.SaveAssets()`. At drive time the owner had two dirty non-shader assets:
+  `EditorBuildSettings` and `Assets/Materials/RobertsCross.mat`.
+  - Every drive call cleared the dirty flag on each dirty asset outside the scratch folder, and set
+    it back in a `finally`. Nothing of the owner's was written, which git status confirms.
+- **Host.** The drive used a floating `VatBakeWindow`, which owns its own `ActiveAssetSelection`,
+  plus a detached `ClipSetsPanel` bound to that same selection. The owner's docked DOTS Animator
+  window was never touched.
+- **Bake (real private `Bake`, two parts):**
+  - The VAT Bake badge went from **Unbaked** to **Fresh**.
+  - The on-disk YAML stores `sourceHash` 4086868802694568373 (`0x38B77985DC3C59B5`), equal to the
+    recomputed value, plus `sourceRigStructureHash` and `sourceRigKey` = `rig.StableId`.
+  - At Fresh, V08 is silent; the only code is V10, which was already there.
+- **Point 3 proven.** Toggling `loopSafe` on the Fin part's vatTrack only, then saving, makes
+  V08 fire as an Error in `ValidationBadgeElement`.
+- **Drive-found bug: `EditorApplication.projectChanged` does not fire on saving an existing
+  asset.** A probe counter read 0 after the save, even a tick later, so both badges stayed Fresh.
+  - Fixed with `Editor/VatBaking/VatSourceImportWatcher.cs`, an `AssetPostprocessor` relay
+    coalesced through `delayCall`. Both panels subscribe to it in place of `projectChanged`.
+  - D5 ("after any asset import") now holds as written.
+- **After the fix (recompile clean), each step's result:**
+  1. **Reselect** → both badges **Stale**, "Clips changed". The Fin-only edit shows on both
+     tabs.
+  2. **Flip Fin's Kind to Quad and save** → one tick later, both badges **Stale**, "Rig changed"
+     (the watcher works).
+  3. **Rebake** → VAT Bake **Fresh** straight away; Clip Sets **Fresh** a tick later. One part,
+     since Fin is now Quad.
+  4. **Add a VAT-bound clip through the Clip Sets picker handler** → Clip Sets **Stale**, "Clips
+     changed", in the same call. After the set is saved, VAT Bake reads **Stale**, "Clips
+     changed".
+- **Captures** (Editor focused, pixelsPerPoint 2.5):
+  - `Library/A89Captures/vat_bake_stale_rig_changed.png`: a yellow dot and "Stale" at the right
+    end of the resolved-parts line.
+  - `vat_bake_fresh_after_rebake.png`: the same spot, green "Fresh".
+  - **The Clip Sets tab was not captured.** It exists only inside the owner's docked DOTS Animator
+    window, so it was proven one level down.
+- **Seen in the capture, not changed:** the resolved-parts line still read "baking 2 of 2 VAT
+  parts · Tentacle, Fin" after the rig save and the one-part rebake.
+  - `RefreshResolvedSources` runs on selection only, which is older A78 behaviour.
+  - Hooking it to the watcher would also rebuild the preview's copy of the source hierarchy on
+    every import batch, so the question goes to the owner at T8.
+- **Cleanup:** window closed, panel disposed, undo cleared, `Assets/A89Drive` deleted. The three
+  registry files are byte-identical to the pre-drive backups, and git status shows only the
+  owner's pre-existing files.

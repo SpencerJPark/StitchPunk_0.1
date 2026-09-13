@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `Resolve` reports a `VatTextureSetAsset` as `Fresh`, `Stale` (the reason says "rig changed"
   or "clips changed") or `Unbaked`.
 - `VatFreshnessBadgeElement` (editor): a dot and a word, with the reason on hover.
+- `VatSourceImportWatcher` (editor): raises `AssetsImported` once after each import batch. The
+  badges refresh on it, because `EditorApplication.projectChanged` does not fire when an existing
+  asset is saved.
 - VAT Bake tab: the badge sits beside the line under the Rig.
 - Clip Sets tab: a new read-only **VAT Textures** row names the set's texture set and carries the
   same badge. Both refresh on selection, on save or import, and after a bake.

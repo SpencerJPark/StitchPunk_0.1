@@ -119,6 +119,30 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-13): Amendment A89 — stale VAT bake detection — 0.35.0** (A88 is not built and
+takes the next free minor). Spec: `Assets/_Vault/Tasks/AnimationPackage/A89_StaleVatBakeDetection_Spec.md`.
+Its §7 logs five drifts and the design settled at T0.
+- **One source hash, computed only in `VatSourceHashResolver`.** It folds every VAT-bound clip
+  plus the rig's structure. `VatTextureSetBuilder.WriteSet` stamps it set-wide, where before it
+  stored only part 0's hash, together with the new `sourceRigStructureHash`, so a stale set can
+  say "rig changed" or "clips changed".
+- **Unchanged or newly consumed:** `sourceRigKey` stays identity, so V40 is untouched. V08 was
+  dormant and now receives the recomputed hash in `ValidationBadgeElement`.
+- **UI:** `VatFreshnessBadgeElement` (Fresh / Stale / Unbaked) sits beside the VAT Bake tab's
+  resolved-parts line and on a new VAT Textures row in the Clip Sets tab.
+- **When it refreshes:** on selection, after a bake, and through `VatSourceImportWatcher`, an
+  `AssetPostprocessor` relay. The drive found that `EditorApplication.projectChanged` does not
+  fire when an existing asset is saved.
+- **One-time staleness:** every set baked before 0.35.0 reads Stale once.
+- **Suites:** EditMode 833 (831 + 2, standing `Conformance_A` only), PlayMode 283.
+- **Drive:** a floating `VatBakeWindow` plus a detached `ClipSetsPanel`. A SaveAssets guard kept
+  the owner's dirty assets unwritten.
+  - Results: bake → Fresh; a Fin-only edit → Stale "clips changed" and V08; flip a Kind → Stale
+    "rig changed"; rebake → Fresh; add a clip → Stale.
+  - The VAT Bake tab was captured in both states. The Clip Sets tab was not, because it lives
+    only in the owner's docked window.
+- **⏸ T8 checkpoint open.**
+
 **Built (2026-09-13): Amendment A87 — scrub crossings and sound on scrub — 0.34.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A87_ScrubEventCrossings_Spec.md`. Its §7 carries the D3 audio
 probe and the drifts: the playhead write lives in `ClipEditorWindow.SetPlayheadTime`, not the pane;

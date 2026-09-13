@@ -59,7 +59,7 @@ namespace DotsAnimationToolkit.Editor
 
             ApplyChromeForSelection();
 
-            EditorApplication.projectChanged += RefreshVatFreshness;
+            VatSourceImportWatcher.AssetsImported += RefreshVatFreshness;
         }
 
         private VisualElement BuildCatalogColumn()
@@ -602,7 +602,7 @@ namespace DotsAnimationToolkit.Editor
 
         public void Dispose()
         {
-            EditorApplication.projectChanged -= RefreshVatFreshness;
+            VatSourceImportWatcher.AssetsImported -= RefreshVatFreshness;
 
             if (selection != null)
             {

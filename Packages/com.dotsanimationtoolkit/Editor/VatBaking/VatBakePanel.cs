@@ -45,7 +45,7 @@ namespace DotsAnimationToolkit.Editor
                 selection.ClipSetChanged -= OnSharedClipSetChanged;
                 selection.RigChanged -= OnSharedRigChanged;
             }
-            EditorApplication.projectChanged -= RefreshFreshnessBadge;
+            VatSourceImportWatcher.AssetsImported -= RefreshFreshnessBadge;
             preview?.Dispose();
         }
 
@@ -134,7 +134,7 @@ namespace DotsAnimationToolkit.Editor
             resolvedSourceRow.Add(freshnessBadge);
             root.Add(resolvedSourceRow);
 
-            EditorApplication.projectChanged += RefreshFreshnessBadge;
+            VatSourceImportWatcher.AssetsImported += RefreshFreshnessBadge;
 
             root.Add(BuildHeading("Settings"));
 

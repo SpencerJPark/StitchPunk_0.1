@@ -881,7 +881,11 @@ computes the stored hash.**
     rig's structure lives in `sourceRigStructureHash`. Do not fold structure into `sourceRigKey`.
   - **A source AnimationClip is identified by GUID + `GetAssetDependencyHash` + name + length.**
     The dependency hash moves on save, not on an unsaved in-memory edit (measured 2026-09-13), so
-    the badge refreshes on `EditorApplication.projectChanged` and on selection, never per gesture.
+    the badge refreshes on import (`VatSourceImportWatcher`) and on selection, never per gesture.
+    **`EditorApplication.projectChanged` does not fire when an existing asset is saved**
+    (measured in the A89 drive with a probe counter: 0 after `SaveAssetIfDirty` of a clip, even a
+    tick later). It reports Project-window changes only. `VatSourceImportWatcher` is an
+    `AssetPostprocessor` relay that coalesces through `delayCall`.
     The name and length catch swapping one clip for another inside the same FBX, where the GUID
     and dependency hash stay the same.
   - **Only VAT-bound clips are folded** (a `vatSource.sourceClip`, any `vatTracks`, or any bone
