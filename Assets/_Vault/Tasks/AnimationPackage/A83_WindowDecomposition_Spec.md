@@ -1,6 +1,6 @@
 # Amendment A83 — Decompose `ClipEditorWindow.cs` into pane elements
 
-> **Status:** 🔧 in progress — T0–T4 built and gated 2026-09-12 (still `0.29.0`); owner chose option 1 of §7.4 (orchestrator slices, workers fix up) and T3 landed under it. Takes `0.30.0`.
+> **Status:** 🔧 in progress — T0–T5 built and gated 2026-09-12 (still `0.29.0`); owner chose option 1 of §7.4 (orchestrator slices, workers fix up) and T3 landed under it. Takes `0.30.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 0, second.
 > **Predecessors:** A82 (the shared column and split view, so the extracted panes do not carry
 > raw split views). `ActorEditorPanel` hosting `ActorEditorLayersColumn` / `ActorEditorProfilesColumn`
@@ -145,7 +145,7 @@ T2–T5; a worker reads only its rows.
 - [x] **T4 — `ClipInspectorPane` (one worker).** Ranges from T1, including the two
   `(KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)` builders. Gate +
   `ClipEditorAddEventTests`. Commit `A83-T4`.
-- [ ] **T5 — `TimelinePane` (one worker, possibly two if the range exceeds ~1,500 lines — then the
+- [x] **T5 — `TimelinePane` (one worker, possibly two if the range exceeds ~1,500 lines — then the
   lane rows and the ruler/playhead are split into two sequential workers).** Gate +
   `ClipEditorLayoutTests` + `ClipKeyClipboardTests`. Commit `A83-T5`.
 - [ ] **T6 — Verification (orchestrator).** Full suites; totals must equal T0's. Captures
@@ -522,7 +522,47 @@ The owner call is which the roadmap wants before A84 starts.
   `PackagingConformanceTests` — pass except the pre-existing `Conformance_A`; full EditMode
   **824** (same single failure).
 
-**Left for whoever continues:** T5–T7 unticked; D7's 2,500-line target is not reachable without
+### 7.7 T5 — `TimelinePane` (2026-09-12, same method; one slice, not two workers)
+
+- **Landed.** `Editor/ClipEditor/Panes/TimelinePane.cs` (2,183 lines) plus
+  `TimelinePane.View.cs` (635) — the former `ClipEditorView.cs` window partial moved whole and
+  became the pane's own partial, since 90 of its references were to the timeline's elements and
+  view state (**A83-D10**: the View partial was inseparable from the pane; the §7.1 "stays like
+  D5" reading was wrong for it and is corrected here). `CountKeysOnTrack` (a pure clip query the
+  lanes and the key-transform gesture both need) left `ClipEditorKeyTransform.cs` for the pane.
+  Window **6,278 → 4,268**. Verbatim check: **66 bodies identical**; the 11 that differ are
+  exactly the ones whose `hierarchyPane.`/`clipInspectorPane.` calls became delegates.
+- **Surface.** Window→pane: `RebuildTimeline`, `RepaintLanes`, `RefreshLaneKeys`, `GetKeyTime`,
+  `SetKeyTime`, `ResolveEventFlatIndex`, `SortTrackKeys`, `SortAllTracks`, `SelectAllKeys`,
+  `DeselectAllKeys`, `CopySelectedKeys`, `PasteKeysAtPlayhead`, `DeleteSelectedKeys`,
+  `AddEventAtPlayhead`, `OnTrackListChanged`, `FrameAll`, `FrameSelection`, `RefreshZoomRange`,
+  `TryGetSelectedKeyTime`, `CountKeysOnTrack`, and the element/state reads the Transport and
+  KeyTransform partials still need (`Ruler`, `Playhead`, `LaneColumn`, `LaneStack`, `StatusLabel`,
+  `ViewZoom`, `ViewPan`, `LaneWidth`, `LastSortIndexMap`). Pane→window: **31 delegates** named
+  after the members they stand in for, four of them providers behind same-named private
+  properties so the bodies read unchanged (`SnapFrameCount`, `TransportFrameCount`,
+  `LargeStepFrames`, `IsTransformActive`), plus `WindowRoot` (popup overlay root) and
+  `TransportTarget` (the keyboard map's `((ITransportTarget)this)` became this property). The
+  undo-gesture trio, `OpenAddEventPicker` (it anchors on the transport bar's button), the retag
+  block and `TrackBindingLabel` (now `internal`) stay on the window.
+- **Wiring moved to `OnEnable` (records a trap).** Every pane is now constructed, state-bound and
+  delegate-wired in `OnEnable` (`WirePanes`), and `CreateGUI` only hands each its UXML root.
+  `ClipEditorAddEventTests` drives `AddEventAtPlayhead` on a window that never runs `CreateGUI`;
+  with the delegates wired there it worked, and the hidden instance's `RememberSessionState`,
+  `OnUndoRedo`, `FlushDeferredPaneRebuilds` and `OnEditorTick` all run clean live with four panes.
+- **Two substitutions worth knowing:** the drag auto-scroll ticker was scheduled on
+  `rootVisualElement.schedule`; it is now `laneStack.schedule` (the pane element is never in a
+  panel, so its own scheduler would never run). Every re-point in this task skipped string
+  literals explicitly — `playhead` and `ruler` are plain words in tooltips.
+- **Fixture:** `ClipEditorAddEventTests` invokes `AddEventAtPlayhead` on the window's
+  `timelinePane` and mirrors the playhead it sets into the session (D9), as it already did for
+  the clip. Assertions unchanged.
+- **Gate:** compile clean; `ClipEditorAddEventTests` (3), `ClipKeyClipboardTests`,
+  `ClipEditorLayoutTests`, `ClipEditorHierarchySelectionTests`, `ClipEditorAuthoringTests`,
+  `PackagingConformanceTests` — pass except the pre-existing `Conformance_A`; full EditMode
+  **824** (same single failure).
+
+**Left for whoever continues:** T6–T7 unticked; D7's 2,500-line target is not reachable without
 T3–T5; the vault "grep the member, read forty lines" instructions that name the window are still
 correct for everything but the clip list. No captures exist (§7.1).
 

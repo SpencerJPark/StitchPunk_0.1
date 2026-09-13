@@ -289,7 +289,7 @@ namespace DotsAnimationToolkit.Editor
                 RefreshQuantizeButton();
 
                 // The zoom-in limit is a frame count, and the frame count is what just changed.
-                RefreshZoomRange();
+                timelinePane.RefreshZoomRange();
             }
             finally
             {
@@ -339,10 +339,10 @@ namespace DotsAnimationToolkit.Editor
         // position rather than its frame number, since the frame it indexed into just changed length.
         private void OnClipTimingChanged()
         {
-            if (ruler != null)
+            if (timelinePane.Ruler != null)
             {
-                ruler.frameCount = TransportFrameCount;
-                ruler.MarkDirtyRepaint();
+                timelinePane.Ruler.frameCount = TransportFrameCount;
+                timelinePane.Ruler.MarkDirtyRepaint();
             }
             SyncTransportFromClip();
             MarkPreviewDirty();
@@ -406,7 +406,7 @@ namespace DotsAnimationToolkit.Editor
                 FrameToNormalized(NormalizedToFrame(normalizedTime)));
             EditorUtility.SetDirty(selectedClip);
             MarkPreviewDirty();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             RefreshQuantizeButton();
         }
 
@@ -631,11 +631,11 @@ namespace DotsAnimationToolkit.Editor
                     // instead, which is the meaning every animator already has for it.
                     if (keyEvent.shiftKey)
                     {
-                        FrameAll();
+                        timelinePane.FrameAll();
                     }
                     else
                     {
-                        FrameSelection();
+                        timelinePane.FrameSelection();
                     }
                     break;
                 case KeyCode.KeypadPeriod:
@@ -644,7 +644,7 @@ namespace DotsAnimationToolkit.Editor
                         handled = false;
                         break;
                     }
-                    FrameSelection();
+                    timelinePane.FrameSelection();
                     break;
                 case KeyCode.A:
                     if (!isClipEditorTab)
@@ -654,11 +654,11 @@ namespace DotsAnimationToolkit.Editor
                     }
                     if (keyEvent.altKey)
                     {
-                        DeselectAllKeys();
+                        timelinePane.DeselectAllKeys();
                     }
                     else
                     {
-                        SelectAllKeys();
+                        timelinePane.SelectAllKeys();
                     }
                     break;
 
@@ -672,7 +672,7 @@ namespace DotsAnimationToolkit.Editor
                     }
                     if (commandKey && selectedClip != null)
                     {
-                        CopySelectedKeys();
+                        timelinePane.CopySelectedKeys();
                     }
                     else
                     {
@@ -687,7 +687,7 @@ namespace DotsAnimationToolkit.Editor
                     }
                     if (commandKey && selectedClip != null)
                     {
-                        PasteKeysAtPlayhead();
+                        timelinePane.PasteKeysAtPlayhead();
                     }
                     else
                     {
@@ -702,8 +702,8 @@ namespace DotsAnimationToolkit.Editor
                     }
                     if (commandKey && selectedClip != null)
                     {
-                        CopySelectedKeys();
-                        PasteKeysAtPlayhead();
+                        timelinePane.CopySelectedKeys();
+                        timelinePane.PasteKeysAtPlayhead();
                     }
                     else
                     {

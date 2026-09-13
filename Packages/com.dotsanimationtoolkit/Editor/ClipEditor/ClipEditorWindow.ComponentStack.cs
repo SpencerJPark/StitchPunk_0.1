@@ -753,7 +753,7 @@ namespace DotsAnimationToolkit.Editor
             // A new track is a new lane, and the timeline is where its keys will be made. The
             // hierarchy is rebuilt too: a promoted node has just become a part, and its row now
             // stands for one.
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             hierarchyPane.RebuildHierarchy();
             clipInspectorPane.RebuildInspector();
         }
@@ -843,7 +843,7 @@ namespace DotsAnimationToolkit.Editor
             session.SelectedKeys.Clear();
             session.HasActiveKey = false;
 
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             hierarchyPane.RebuildHierarchy();
             clipInspectorPane.RebuildInspector();
         }
@@ -890,7 +890,7 @@ namespace DotsAnimationToolkit.Editor
             session.SelectedKeys.Clear();
             session.HasActiveKey = false;
             hierarchyPane.RefreshHierarchyRows();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             clipInspectorPane.RebuildInspector();
         }
 

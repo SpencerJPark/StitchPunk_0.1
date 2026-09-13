@@ -123,7 +123,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (selectedClip == null || session.SelectedKeys.Count == 0)
             {
-                statusLabel.text = "Select keys first — G moves them, S scales them.";
+                timelinePane.StatusLabel.text = "Select keys first — G moves them, S scales them.";
                 return;
             }
 
@@ -189,7 +189,7 @@ namespace DotsAnimationToolkit.Editor
 
         private KeyTransformTrackSnapshot CreateSnapshot(TimelineTrackKind trackKind, int trackIndex)
         {
-            int keyCount = CountKeysOnTrack(trackKind, trackIndex);
+            int keyCount = timelinePane.CountKeysOnTrack(trackKind, trackIndex);
             if (keyCount <= 0)
             {
                 return null;
@@ -206,34 +206,10 @@ namespace DotsAnimationToolkit.Editor
             for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
             {
                 snapshot.originalTimes[keyIndex] =
-                    GetKeyTime(new KeyAddress(trackKind, trackIndex, keyIndex));
+                    timelinePane.GetKeyTime(new KeyAddress(trackKind, trackIndex, keyIndex));
                 snapshot.currentIndexOfOriginal[keyIndex] = keyIndex;
             }
             return snapshot;
-        }
-
-        private int CountKeysOnTrack(TimelineTrackKind trackKind, int trackIndex)
-        {
-            if (selectedClip == null)
-            {
-                return 0;
-            }
-            switch (trackKind)
-            {
-                case TimelineTrackKind.Transform:
-                    return trackIndex >= 0 && trackIndex < selectedClip.transformTracks.Count
-                        ? selectedClip.transformTracks[trackIndex].keys.Count : 0;
-                case TimelineTrackKind.Sprite:
-                    return trackIndex >= 0 && trackIndex < selectedClip.spriteTracks.Count
-                        ? selectedClip.spriteTracks[trackIndex].keys.Count : 0;
-                case TimelineTrackKind.Bone:
-                    return selectedClip.boneTracks != null
-                        && trackIndex >= 0 && trackIndex < selectedClip.boneTracks.Count
-                        ? selectedClip.boneTracks[trackIndex].keys.Count : 0;
-                default:
-                    return EventLaneAddressing.ResolveLaneFlatIndices(
-                        selectedClip.events, trackIndex).Count;
-            }
         }
 
         /// <summary>Confirms the gesture, leaving one undo step behind.</summary>
@@ -249,7 +225,7 @@ namespace DotsAnimationToolkit.Editor
 
             EditorUtility.SetDirty(selectedClip);
             EndUndoGesture();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             clipInspectorPane.RebuildInspector();
         }
 
@@ -272,7 +248,7 @@ namespace DotsAnimationToolkit.Editor
             Undo.RevertAllDownToGroup(gestureUndoGroup);
             clipInspectorPane.RefreshSerializedClip();
             MarkPreviewDirty();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             clipInspectorPane.RebuildInspector();
         }
 
@@ -298,14 +274,14 @@ namespace DotsAnimationToolkit.Editor
                     originalIndex < snapshot.originalTimes.Length;
                     originalIndex++)
                 {
-                    SetKeyTime(
+                    timelinePane.SetKeyTime(
                         new KeyAddress(
                             snapshot.trackKind,
                             snapshot.trackIndex,
                             snapshot.currentIndexOfOriginal[originalIndex]),
                         snapshot.originalTimes[originalIndex]);
                 }
-                SortTrackKeys(snapshot.trackKind, snapshot.trackIndex);
+                timelinePane.SortTrackKeys(snapshot.trackKind, snapshot.trackIndex);
                 ComposeSnapshotIndices(snapshot);
             }
         }
@@ -364,7 +340,7 @@ namespace DotsAnimationToolkit.Editor
 
                     // Deliberately unclamped: pushing keys past the clip end is a legitimate step on
                     // the way to a longer clip, and the out-of-range shading exists to show it.
-                    SetKeyTime(
+                    timelinePane.SetKeyTime(
                         new KeyAddress(
                             snapshot.trackKind,
                             snapshot.trackIndex,
@@ -372,7 +348,7 @@ namespace DotsAnimationToolkit.Editor
                         time);
                 }
 
-                SortTrackKeys(snapshot.trackKind, snapshot.trackIndex);
+                timelinePane.SortTrackKeys(snapshot.trackKind, snapshot.trackIndex);
                 ComposeSnapshotIndices(snapshot);
             }
 
@@ -380,7 +356,7 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
             // RefreshLaneKeys, not RepaintLanes: a lane draws the times it was built with, so a
             // plain repaint would leave every diamond where it started while the data moved.
-            RefreshLaneKeys();
+            timelinePane.RefreshLaneKeys();
             ShowTransformReadout(grabDelta, scaleFactor, snapping);
         }
 
@@ -395,7 +371,7 @@ namespace DotsAnimationToolkit.Editor
                 return typedFrames / Mathf.Max(1, TransportFrameCount);
             }
 
-            TimelineGeometry geometry = TimelineGeometry.Create(LaneWidth, viewZoom, viewPan);
+            TimelineGeometry geometry = TimelineGeometry.Create(timelinePane.LaneWidth, timelinePane.ViewZoom, timelinePane.ViewPan);
             float delta = (transformPointerCurrentX - transformPointerStartX)
                 / geometry.PixelsPerNormalizedUnit;
             if (snapping)
@@ -416,7 +392,7 @@ namespace DotsAnimationToolkit.Editor
                 return typedFactor;
             }
 
-            TimelineGeometry geometry = TimelineGeometry.Create(LaneWidth, viewZoom, viewPan);
+            TimelineGeometry geometry = TimelineGeometry.Create(timelinePane.LaneWidth, timelinePane.ViewZoom, timelinePane.ViewPan);
             float pivotX = geometry.TimeToX(transformPivotTime);
             float startOffset = transformPointerStartX - pivotX;
 
@@ -443,7 +419,7 @@ namespace DotsAnimationToolkit.Editor
             foreach (KeyAddress address in session.SelectedKeys)
             {
                 float keyTime;
-                if (!TryGetSelectedKeyTime(address, out keyTime))
+                if (!timelinePane.TryGetSelectedKeyTime(address, out keyTime))
                 {
                     continue;
                 }
@@ -462,7 +438,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Folds a sort's index map into the snapshot's original-to-current mapping.</summary>
         private void ComposeSnapshotIndices(KeyTransformTrackSnapshot snapshot)
         {
-            int[] sortMap = lastSortIndexMap;
+            int[] sortMap = timelinePane.LastSortIndexMap;
             if (sortMap == null)
             {
                 return;
@@ -622,14 +598,14 @@ namespace DotsAnimationToolkit.Editor
 
         private float LaneXFromWorld(float worldX)
         {
-            return laneColumn != null ? worldX - laneColumn.worldBound.xMin : worldX;
+            return timelinePane.LaneColumn != null ? worldX - timelinePane.LaneColumn.worldBound.xMin : worldX;
         }
 
         // The gesture starts from the keyboard, with no pointer event to read; anchoring on the
         // playhead makes the first pixel of mouse movement a small change rather than a jump.
         private float PlayheadLaneX()
         {
-            return TimelineGeometry.Create(LaneWidth, viewZoom, viewPan).TimeToX(playheadTime);
+            return TimelineGeometry.Create(timelinePane.LaneWidth, timelinePane.ViewZoom, timelinePane.ViewPan).TimeToX(playheadTime);
         }
 
         // -----------------------------------------------------------------------------------

@@ -46,22 +46,6 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Below this a pane is a sliver with nothing readable in it, so it is never stored.</summary>
         private const float MinimumSplitDimension = 60f;
 
-        /// <summary>
-        /// Where a dragged track-name column width is remembered. Alongside the split positions and
-        /// keyed the same way, for the same reason: it is a habit of the person, not of the project.
-        /// </summary>
-        private const string TrackHeaderWidthPrefsKey =
-            "DotsAnimationToolkit.ClipEditor.TrackHeaderWidth";
-
-        /// <summary>Narrow enough to be a deliberate choice, wide enough to still name a row.</summary>
-        private const float MinimumTrackHeaderWidth = 90f;
-
-        // The ceiling on the name column, and the width the lanes are never dragged below. The
-        // second is the one that matters: without a floor for the lanes, a narrow window would
-        // leave the keys with no room at all.
-        private const float MaximumTrackHeaderWidth = 480f;
-        private const float MinimumLaneWidth = 160f;
-
         // How far the pointer may travel between press and release and still count as a click.
         // Without this, every viewport orbit (which begins with the same press as a selection)
         // would also change the selection.
@@ -69,21 +53,7 @@ namespace DotsAnimationToolkit.Editor
 
         private const string HiddenUssClassName = "clip-editor--hidden";
         private const string TabActiveUssClassName = "clip-editor__tab--active";
-        private const string TrackHeaderUssClassName = "clip-editor__track-header";
-        private const string TrackHeaderLabelUssClassName = "clip-editor__track-header-label";
-        private const string TrackHeaderPartUssClassName = "clip-editor__track-header-part";
-        private const string TrackHeaderPartGroupUssClassName = "clip-editor__track-header-part-group";
-        private const string TrackHeaderBindingUssClassName = "clip-editor__track-header-binding";
-        private const string TrackHeaderArrowUssClassName = "clip-editor__track-header-arrow";
 
-        /// <summary>
-        /// The pair that keeps a two-line header and its lane the same height. Never applied one
-        /// without the other — see <see cref="SyncTrackHeaderWrap"/>.
-        /// </summary>
-        private const string TrackHeaderWrappedUssClassName = "clip-editor__track-header--wrapped";
-        private const string LaneWrappedUssClassName = "clip-editor__lane--wrapped";
-        private const string TrackFoldoutUssClassName = "clip-editor__track-foldout";
-        private const string ChannelHeaderUssClassName = "clip-editor__channel-header";
         private const string HintUssClassName = "clip-editor__hint";
         private const string ReconcileRowUssClassName = "clip-editor__reconcile-row";
         private const string ReconcileRowLabelUssClassName = "clip-editor__reconcile-row-label";
@@ -109,19 +79,6 @@ namespace DotsAnimationToolkit.Editor
         private float3 gizmoDragStartRotation;
         private float3 gizmoDragStartScale;
         private float gizmoDragStartParameter;
-
-        // Box selection. Armed on a press in empty lane space and only becomes a band once the
-        // pointer has travelled, so a plain click still just moves the playhead.
-        private const float BoxSelectStartToleranceSquared = 16f;
-        private BoxSelectElement boxSelectElement;
-        private VisualElement boxSelectLane;
-        private Vector2 boxSelectOriginInStack;
-        private bool isBoxSelectArmed;
-        private bool isBoxSelectActive;
-        private bool isBoxSelectAdditive;
-
-        /// <summary>Which tracks show their per-channel rows, keyed by kind and index.</summary>
-        private readonly HashSet<long> expandedTrackKeys = new HashSet<long>();
 
         // Where the held, unkeyed transform value lives — in an object, so Ctrl+Z can reach it (see
         // HeldTransformEdit). The properties below let every reader in this file keep reading the
@@ -250,27 +207,6 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Guards the re-entry writing the other two gizmo toggles causes.</summary>
         private bool isApplyingGizmoMode;
 
-        private VisualElement trackHeaderColumn;
-        private VisualElement laneColumn;
-        private VisualElement laneStack;
-        private GhostLaneStripElement ghostLanes;
-
-        // The name column, its drag strip, and the width the user last asked that column to be.
-        // Kept unclamped by the window's own size, so narrowing and widening the window again
-        // returns the column to where it was left. Zero means nobody has ever dragged it.
-        private VisualElement trackHeaderStack;
-        private VisualElement trackHeaderResizer;
-        private float requestedTrackHeaderWidth;
-        private float appliedTrackHeaderWidth;
-        private float trackHeaderDragStartWidth;
-        private float trackHeaderDragStartPointerX;
-
-        // Rows the last rebuild put in the lane column (tracks + channel rows), so the ghost rows
-        // below can carry on the stripe alternation without re-deriving it from childCount.
-        private int timelineRowCount;
-        private TimeRulerElement ruler;
-        private PlayheadElement playhead;
-        private Label statusLabel;
         private Image previewImage;
         private Label previewStatusLabel;
         private ValidationBadgeElement validationBadge;
@@ -302,6 +238,7 @@ namespace DotsAnimationToolkit.Editor
         private ClipListPane clipListPane;
         private RigHierarchyPane hierarchyPane;
         private ClipInspectorPane clipInspectorPane;
+        private TimelinePane timelinePane;
 
         // The rig an open Clip Editor is currently showing, or null when none is open or none is
         // picked. The one way a rig reaches code outside this window now that no asset records one.
@@ -324,9 +261,6 @@ namespace DotsAnimationToolkit.Editor
 
         private ClipAsset selectedClip;
 
-        /// <summary>Rebuilt per paste, which is once per keystroke and not per frame.</summary>
-        private readonly List<ClipObjectRef> pasteDestinations = new List<ClipObjectRef>();
-
         private ToolbarToggle rigEditToggle;
         private ToolbarToggle ragdollPreviewToggle;
         private VisualElement reconcilePanel;
@@ -339,10 +273,6 @@ namespace DotsAnimationToolkit.Editor
         // scrub tick that changes the displayed value.
         private readonly List<SpriteTrack> flipbookTracks = new List<SpriteTrack>();
         private readonly List<int> flipbookTrackIndices = new List<int>();
-
-        // Reused per timeline rebuild for the same reason: the Events lane is rebuilt whenever any
-        // track is, which is on every structural edit.
-        private readonly List<float> eventWindowLengths = new List<float>();
 
         // Viewport picking. Hits are gathered on pointer-down, from the press position, and applied
         // on release — see OnPreviewPointerUp for why that is not the same as selecting on press.
@@ -364,12 +294,8 @@ namespace DotsAnimationToolkit.Editor
 
         // Drag state. The undo group is captured on pointer-down so every move inside the gesture
         // collapses into it on release.
-        private bool isDraggingKeys;
         private int gestureUndoGroup;
         private string gestureUndoName;
-        private float dragPreviousTime;
-        private TimelineTrackKind dragTrackKind;
-        private int dragTrackIndex;
 
         // Opens the Clip Editor, docked beside the Scene view when it is being created. The dock
         // neighbour is a request, not a command: Unity honours it only when the window is created,
@@ -656,10 +582,90 @@ namespace DotsAnimationToolkit.Editor
             hierarchyPane.Bind(null, selection, session, previewController);
             clipInspectorPane = new ClipInspectorPane();
             clipInspectorPane.Bind(null, selection, session, previewController);
+            timelinePane = new TimelinePane();
+            timelinePane.Bind(null, selection, session, previewController);
+            WirePanes();
 
             // Raised while this instance is still alive and before Unity serializes it, which is the
             // only moment the state below can still be read. See RememberSessionState.
             AssemblyReloadEvents.beforeAssemblyReload += RememberSessionState;
+        }
+
+        // Every window operation a pane reaches, and every pane event the window answers. Wired
+        // here with the panes rather than in CreateGUI, so an instance that never builds its
+        // tree (the hidden window, the fixtures) still has working panes.
+        private void WirePanes()
+        {
+            hierarchyPane.IsRigEditMode = () => IsRigEditMode;
+            hierarchyPane.ResolveTargetDisplayName = ResolveTargetDisplayName;
+            hierarchyPane.TreeSelectionChanged += OnHierarchyTreeSelectionChanged;
+            hierarchyPane.SelectionCleared += OnHierarchySelectionCleared;
+            hierarchyPane.ContextMenuRequested += BuildHierarchyContextMenu;
+            hierarchyPane.PrefabOpenRequested += OpenPrefabAt;
+            hierarchyPane.ReparentRequested += ReparentInPrefab;
+
+            clipInspectorPane.PickerRoot = rootVisualElement;
+            clipInspectorPane.IsRigEditMode = () => IsRigEditMode;
+            clipInspectorPane.RecordClipEdit = RecordClipEdit;
+            clipInspectorPane.CommitClipEdit = CommitClipEdit;
+            clipInspectorPane.RequestInspectorRebuild = RequestInspectorRebuild;
+            clipInspectorPane.RequestTimelineRebuild = RequestTimelineRebuild;
+            clipInspectorPane.RequestHierarchyRebuild = RequestHierarchyRebuild;
+            clipInspectorPane.RebuildTimeline = timelinePane.RebuildTimeline;
+            clipInspectorPane.MarkPreviewDirty = MarkPreviewDirty;
+            clipInspectorPane.BeginUndoGesture = BeginUndoGesture;
+            clipInspectorPane.EndUndoGesture = EndUndoGesture;
+            clipInspectorPane.ReportStatus = text => timelinePane.StatusLabel.text = text;
+            clipInspectorPane.GetKeyTime = timelinePane.GetKeyTime;
+            clipInspectorPane.ResolveEventFlatIndex = timelinePane.ResolveEventFlatIndex;
+            clipInspectorPane.FindBoneTrackIndex = hierarchyPane.FindBoneTrackIndex;
+            clipInspectorPane.FindHierarchyItemForKey = hierarchyPane.FindHierarchyItemForKey;
+            clipInspectorPane.BuildComponentStack = BuildComponentStack;
+            clipInspectorPane.AddSocketDirectory = AddSocketDirectory;
+            clipInspectorPane.FocusSocket = FocusSocket;
+            clipInspectorPane.RecordSocketEdit = RecordSocketEdit;
+            clipInspectorPane.CommitSocketEdit = CommitSocketEdit;
+            clipInspectorPane.CommitSocketPlacementEdit = CommitSocketPlacementEdit;
+            clipInspectorPane.ResolveDisplayedTransform = ResolveDisplayedTransform;
+            clipInspectorPane.ReadRigEditPose = ReadRigEditPose;
+            clipInspectorPane.ApplyTransformEdit = ApplyTransformEdit;
+            clipInspectorPane.CommitPendingTransformEdit = CommitPendingTransformEdit;
+            clipInspectorPane.DiscardPendingTransformEdit = DiscardPendingTransformEdit;
+            clipInspectorPane.KeyDisplayedTransform = KeyDisplayedTransform;
+            clipInspectorPane.IsTransformEditHeldFor = IsTransformEditHeldFor;
+            clipInspectorPane.ClipRenamed += OnClipRenamed;
+
+            timelinePane.WindowRoot = rootVisualElement;
+            timelinePane.TransportTarget = this;
+            timelinePane.SnapFrameCountProvider = () => SnapFrameCount;
+            timelinePane.TransportFrameCountProvider = () => TransportFrameCount;
+            timelinePane.LargeStepFramesProvider = () => LargeStepFrames;
+            timelinePane.IsTransformActiveProvider = () => IsTransformActive;
+            timelinePane.SetPlayheadTime = SetPlayheadTime;
+            timelinePane.RecordClipEdit = RecordClipEdit;
+            timelinePane.CommitClipEdit = CommitClipEdit;
+            timelinePane.MarkPreviewDirty = MarkPreviewDirty;
+            timelinePane.BeginUndoGesture = BeginUndoGesture;
+            timelinePane.RecordUndoGestureStep = RecordUndoGestureStep;
+            timelinePane.EndUndoGesture = EndUndoGesture;
+            timelinePane.EnsureClipTrackTagsAssigned = EnsureClipTrackTagsAssigned;
+            timelinePane.RecordSocketEdit = RecordSocketEdit;
+            timelinePane.CommitSocketEdit = CommitSocketEdit;
+            timelinePane.ShowNotification = ShowNotification;
+            timelinePane.BuildObjectRef = BuildObjectRef;
+            timelinePane.DescribeTrackBinding = DescribeTrackBinding;
+            timelinePane.OpenTimelineTrackTagPicker = OpenTimelineTrackTagPicker;
+            timelinePane.OpenTimelinePartPicker = OpenTimelinePartPicker;
+            timelinePane.IsTargetSelected = hierarchyPane.IsTargetSelected;
+            timelinePane.IsBoneSelected = hierarchyPane.IsBoneSelected;
+            timelinePane.DescribeSelection = hierarchyPane.DescribeSelection;
+            timelinePane.RefreshHierarchyRows = hierarchyPane.RefreshHierarchyRows;
+            timelinePane.SelectHierarchyItem = hierarchyPane.SelectHierarchyItem;
+            timelinePane.SelectItemByIdWithoutNotify = hierarchyPane.SelectItemByIdWithoutNotify;
+            timelinePane.ClearTreeSelectionWithoutNotify = hierarchyPane.ClearTreeSelectionWithoutNotify;
+            timelinePane.RebuildHierarchy = hierarchyPane.RebuildHierarchy;
+            timelinePane.RebuildInspector = clipInspectorPane.RebuildInspector;
+            timelinePane.ResolveEventKeyAddressForFlatIndex = clipInspectorPane.ResolveEventKeyAddressForFlatIndex;
         }
 
         private void OnDisable()
@@ -708,6 +714,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 clipInspectorPane.Dispose();
                 clipInspectorPane = null;
+            }
+            if (timelinePane != null)
+            {
+                timelinePane.Dispose();
+                timelinePane = null;
             }
 
             // Both cover panes own a PreviewRenderUtility of their own, plus a copy of whatever
@@ -769,7 +780,7 @@ namespace DotsAnimationToolkit.Editor
             session.HasActiveKey = false;
             clipInspectorPane.RefreshSerializedClip();
             MarkPreviewDirty();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
 
             // Undo can restore a different clip length or frame rate, and the ruler and the
             // transport fields both read from those rather than deriving them.
@@ -826,55 +837,10 @@ namespace DotsAnimationToolkit.Editor
 
             BindToolbar();
             clipListPane.Bind(rootVisualElement.Q<VisualElement>("clip-list-pane"), selection, session, previewController);
-            hierarchyPane.IsRigEditMode = () => IsRigEditMode;
-            hierarchyPane.ResolveTargetDisplayName = ResolveTargetDisplayName;
-            hierarchyPane.TreeSelectionChanged += OnHierarchyTreeSelectionChanged;
-            hierarchyPane.SelectionCleared += OnHierarchySelectionCleared;
-            hierarchyPane.ContextMenuRequested += BuildHierarchyContextMenu;
-            hierarchyPane.PrefabOpenRequested += OpenPrefabAt;
-            hierarchyPane.ReparentRequested += ReparentInPrefab;
             hierarchyPane.Bind(rootVisualElement.Q<VisualElement>("hierarchy-pane"), selection, session, previewController);
             BindViewport();
-            clipInspectorPane.PickerRoot = rootVisualElement;
-            clipInspectorPane.IsRigEditMode = () => IsRigEditMode;
-            clipInspectorPane.RecordClipEdit = RecordClipEdit;
-            clipInspectorPane.CommitClipEdit = CommitClipEdit;
-            clipInspectorPane.RequestInspectorRebuild = RequestInspectorRebuild;
-            clipInspectorPane.RequestTimelineRebuild = RequestTimelineRebuild;
-            clipInspectorPane.RequestHierarchyRebuild = RequestHierarchyRebuild;
-            clipInspectorPane.RebuildTimeline = RebuildTimeline;
-            clipInspectorPane.MarkPreviewDirty = MarkPreviewDirty;
-            clipInspectorPane.BeginUndoGesture = BeginUndoGesture;
-            clipInspectorPane.EndUndoGesture = EndUndoGesture;
-            clipInspectorPane.ReportStatus = text => statusLabel.text = text;
-            clipInspectorPane.GetKeyTime = GetKeyTime;
-            clipInspectorPane.ResolveEventFlatIndex = ResolveEventFlatIndex;
-            clipInspectorPane.FindBoneTrackIndex = hierarchyPane.FindBoneTrackIndex;
-            clipInspectorPane.FindHierarchyItemForKey = hierarchyPane.FindHierarchyItemForKey;
-            clipInspectorPane.BuildComponentStack = BuildComponentStack;
-            clipInspectorPane.AddSocketDirectory = AddSocketDirectory;
-            clipInspectorPane.FocusSocket = FocusSocket;
-            clipInspectorPane.RecordSocketEdit = RecordSocketEdit;
-            clipInspectorPane.CommitSocketEdit = CommitSocketEdit;
-            clipInspectorPane.CommitSocketPlacementEdit = CommitSocketPlacementEdit;
-            clipInspectorPane.ResolveDisplayedTransform = ResolveDisplayedTransform;
-            clipInspectorPane.ReadRigEditPose = ReadRigEditPose;
-            clipInspectorPane.ApplyTransformEdit = ApplyTransformEdit;
-            clipInspectorPane.CommitPendingTransformEdit = CommitPendingTransformEdit;
-            clipInspectorPane.DiscardPendingTransformEdit = DiscardPendingTransformEdit;
-            clipInspectorPane.KeyDisplayedTransform = KeyDisplayedTransform;
-            clipInspectorPane.IsTransformEditHeldFor = IsTransformEditHeldFor;
-            clipInspectorPane.ClipRenamed += OnClipRenamed;
             clipInspectorPane.Bind(rootVisualElement.Q<VisualElement>("inspector-pane"), selection, session, previewController);
-            BindTimeline();
-
-            // After BindTimeline, not with the rest of the toolbar bindings where it used to sit:
-            // the three GeometryChanged handlers that re-apply the view on a resize hang off
-            // laneStack, laneColumn and the scroll viewport, and BindTimeline is what resolves the
-            // first two. Bound before them, those three registrations were skipped every time —
-            // silently, since each is guarded by a null check — and the timeline kept painting at
-            // the pixel scale it had before the pane was dragged to a new size.
-            BindTimelineView();
+            timelinePane.Bind(rootVisualElement.Q<VisualElement>("timeline-pane"), selection, session, previewController);
             BindSplits();
 
             // Sync the preview with the state the window opened in, so the viewport reports "no clip
@@ -890,7 +856,7 @@ namespace DotsAnimationToolkit.Editor
 
             clipListPane.RefreshClipActionButtons();
             hierarchyPane.RebuildHierarchy();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
 
             // Last, because both drive the fields and the tree this method has only just finished
             // building. A re-dock carries its state in hand and takes precedence; otherwise this is
@@ -1142,7 +1108,7 @@ namespace DotsAnimationToolkit.Editor
             // restore, and reconciliation last, since it diffs against that rebuilt hierarchy.
             hierarchyPane.RebuildHierarchy();
             RestoreRoundTripState();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             hierarchyPane.RefreshPrefabActionState();
             MarkPreviewDirty();
 
@@ -1516,7 +1482,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             hierarchyPane.RebuildHierarchy();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             clipInspectorPane.RebuildInspector();
         }
 
@@ -1781,7 +1747,7 @@ namespace DotsAnimationToolkit.Editor
         {
             clipInspectorPane.RefreshSerializedClip();
             RunReconciliation();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             MarkPreviewDirty();
         }
 
@@ -2083,44 +2049,6 @@ namespace DotsAnimationToolkit.Editor
                 captureEvent => EndCameraGesture());
         }
 
-        private void BindTimeline()
-        {
-            statusLabel = rootVisualElement.Q<Label>("timeline-status");
-            trackHeaderColumn = rootVisualElement.Q<VisualElement>("track-header-column");
-            laneColumn = rootVisualElement.Q<VisualElement>("lane-column");
-            BindTrackHeaderResizer();
-
-            // The lane stack owns keyboard focus: shortcuts registered here cannot swallow
-            // keystrokes meant for the inspector's own text fields.
-            laneStack = rootVisualElement.Q<VisualElement>("lane-stack");
-            if (laneStack == null)
-            {
-                return;
-            }
-            laneStack.RegisterCallback<KeyDownEvent>(OnTimelineKeyDown);
-
-            // Ruler above the lanes, playhead over both. Inserted rather than declared in UXML
-            // because neither has a UXML factory, and giving them one would buy nothing: this window
-            // is the only thing in the package that instantiates them.
-            ruler = new TimeRulerElement();
-            ruler.scrubbed += SetPlayheadTime;
-            laneStack.Insert(0, ruler);
-
-            // Straight after the lane column, so the empty rows begin where the tracks stop. Added
-            // before the two overlays below: they are drawn in tree order, and a band or a playhead
-            // painted under the ghost rows would vanish the moment it left the last track.
-            ghostLanes = new GhostLaneStripElement();
-            ghostLanes.ghostPointerDown += OnGhostLanePointerDown;
-            laneStack.Add(ghostLanes);
-
-            // Under the playhead so the current-time line stays readable over a band.
-            boxSelectElement = new BoxSelectElement();
-            laneStack.Add(boxSelectElement);
-
-            playhead = new PlayheadElement();
-            laneStack.Add(playhead);
-        }
-
         // -------------------------------------------------------------------------------------
         // Split persistence
         // -------------------------------------------------------------------------------------
@@ -2235,119 +2163,6 @@ namespace DotsAnimationToolkit.Editor
 
             persistedSplitDimensions[prefsKey] = currentDimension;
             EditorPrefs.SetFloat(prefsKey, currentDimension);
-        }
-
-        // A drag strip, not a TwoPaneSplitView: this row lives inside the timeline's scroll view,
-        // whose height is whatever the tracks add up to, so there is nothing definite for a split
-        // to divide.
-        /// <summary>Makes the track-name column draggable, and remembers where it was left.</summary>
-        private void BindTrackHeaderResizer()
-        {
-            trackHeaderStack = rootVisualElement.Q<VisualElement>("track-header-stack");
-            trackHeaderResizer = rootVisualElement.Q<VisualElement>("track-header-resizer");
-            if (trackHeaderStack == null || trackHeaderResizer == null)
-            {
-                return;
-            }
-
-            trackHeaderResizer.tooltip =
-                "Drag to widen the track name column. A name too wide for the column wraps onto a "
-                + "second line rather than being cut off.";
-
-            if (EditorPrefs.HasKey(TrackHeaderWidthPrefsKey))
-            {
-                SetTrackHeaderWidth(
-                    EditorPrefs.GetFloat(TrackHeaderWidthPrefsKey, MinimumTrackHeaderWidth));
-            }
-
-            trackHeaderResizer.RegisterCallback<PointerDownEvent>(pointerEvent =>
-            {
-                if (pointerEvent.button != 0)
-                {
-                    return;
-                }
-                trackHeaderDragStartWidth = trackHeaderStack.resolvedStyle.width;
-                if (float.IsNaN(trackHeaderDragStartWidth))
-                {
-                    return;
-                }
-
-                // Panel coordinates, not the strip's own: the strip travels with the column it is
-                // resizing, so a local x would be measured against a moving origin and the drag
-                // would fight itself.
-                trackHeaderDragStartPointerX = pointerEvent.position.x;
-                trackHeaderResizer.CapturePointer(pointerEvent.pointerId);
-                pointerEvent.StopPropagation();
-            });
-
-            trackHeaderResizer.RegisterCallback<PointerMoveEvent>(pointerEvent =>
-            {
-                if (!trackHeaderResizer.HasPointerCapture(pointerEvent.pointerId))
-                {
-                    return;
-                }
-                SetTrackHeaderWidth(
-                    trackHeaderDragStartWidth
-                        + (pointerEvent.position.x - trackHeaderDragStartPointerX));
-                pointerEvent.StopPropagation();
-            });
-
-            trackHeaderResizer.RegisterCallback<PointerUpEvent>(pointerEvent =>
-            {
-                if (!trackHeaderResizer.HasPointerCapture(pointerEvent.pointerId))
-                {
-                    return;
-                }
-                trackHeaderResizer.ReleasePointer(pointerEvent.pointerId);
-                EditorPrefs.SetFloat(TrackHeaderWidthPrefsKey, requestedTrackHeaderWidth);
-                pointerEvent.StopPropagation();
-            });
-
-            // A narrowed window has to take width back off the column, or the lanes are squeezed to
-            // nothing by a column that does not shrink. Widening hands it back, which is why the
-            // requested width is kept rather than being overwritten by each clamp.
-            VisualElement timelineRow = rootVisualElement.Q<VisualElement>("timeline-row");
-            if (timelineRow != null)
-            {
-                timelineRow.RegisterCallback<GeometryChangedEvent>(
-                    geometryEvent => ApplyTrackHeaderWidth());
-            }
-        }
-
-        /// <summary>Records the width the user is asking for, then fits it to the room available.</summary>
-        private void SetTrackHeaderWidth(float requestedWidth)
-        {
-            requestedTrackHeaderWidth = Mathf.Clamp(
-                requestedWidth, MinimumTrackHeaderWidth, MaximumTrackHeaderWidth);
-            ApplyTrackHeaderWidth();
-        }
-
-        private void ApplyTrackHeaderWidth()
-        {
-            if (trackHeaderStack == null || requestedTrackHeaderWidth <= 0f)
-            {
-                return;
-            }
-
-            float fittedWidth = requestedTrackHeaderWidth;
-            VisualElement timelineRow = trackHeaderStack.parent;
-            if (timelineRow != null && timelineRow.contentRect.width > 1f)
-            {
-                fittedWidth = Mathf.Min(
-                    fittedWidth,
-                    Mathf.Max(
-                        MinimumTrackHeaderWidth,
-                        timelineRow.contentRect.width - MinimumLaneWidth));
-            }
-
-            // Guarded because this also runs from a geometry callback, and writing an unchanged
-            // width would dirty the layout that called it.
-            if (Mathf.Abs(appliedTrackHeaderWidth - fittedWidth) < 0.5f)
-            {
-                return;
-            }
-            appliedTrackHeaderWidth = fittedWidth;
-            trackHeaderStack.style.width = fittedWidth;
         }
 
         // -------------------------------------------------------------------------------------
@@ -3172,7 +2987,7 @@ namespace DotsAnimationToolkit.Editor
             previousPickCandidates.Clear();
             pickCandidates.Clear();
             hierarchyPane.RebuildHierarchy();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             clipInspectorPane.RebuildInspector();
             if (validationBadge != null)
             {
@@ -3252,7 +3067,7 @@ namespace DotsAnimationToolkit.Editor
             playheadTime = 0f;
             session.SetPlayhead(playheadTime);
             clipInspectorPane.RefreshSerializedClip();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
 
             // The bar is bound once, while nothing is selected, so its fields start disabled and
             // showing zero. Without this they stay that way for the rest of the session and the
@@ -3346,13 +3161,13 @@ namespace DotsAnimationToolkit.Editor
         {
             session.SelectedKeys.Clear();
             session.HasActiveKey = false;
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             clipInspectorPane.RebuildInspector();
         }
 
         private void OnHierarchySelectionCleared()
         {
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
             clipInspectorPane.RebuildInspector();
         }
 
@@ -3380,7 +3195,7 @@ namespace DotsAnimationToolkit.Editor
         private void OnClipRenamed()
         {
             clipListPane?.RefreshClipList();
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
         }
 
         private void OnPaneRequestedRebuild()
@@ -3523,9 +3338,9 @@ namespace DotsAnimationToolkit.Editor
 
             playheadTime = clampedTime;
             session.SetPlayhead(playheadTime);
-            if (playhead != null)
+            if (timelinePane.Playhead != null)
             {
-                playhead.NormalizedTime = playheadTime;
+                timelinePane.Playhead.NormalizedTime = playheadTime;
             }
             SyncTransportPlayhead();
 
@@ -3544,948 +3359,6 @@ namespace DotsAnimationToolkit.Editor
                     return 0;
                 }
                 return TransportFrameCount;
-            }
-        }
-
-        // -------------------------------------------------------------------------------------
-        // Timeline construction
-        // -------------------------------------------------------------------------------------
-
-        private void RebuildTimeline()
-        {
-            if (trackHeaderColumn == null || laneColumn == null)
-            {
-                return;
-            }
-
-            trackHeaderColumn.Clear();
-            laneColumn.Clear();
-
-            // The hierarchy's bold marks track which clip is selected, so it is refreshed with the
-            // timeline rather than only when the rig changes.
-            hierarchyPane.RefreshHierarchyRows();
-
-            if (selectedClip == null)
-            {
-                statusLabel.text = clipSet == null ? "Assign a clip set." : "Select a clip.";
-                timelineRowCount = 0;
-                SyncGhostLanes();
-                clipInspectorPane.RebuildInspector();
-                return;
-            }
-
-            // Focus mode: with a selection, the timeline shows only that selection's tracks. It is
-            // what makes a busy clip readable — but a row that has silently vanished is worse than a
-            // busy timeline, so the status line always says what is being hidden and how to undo it.
-            bool isFocused = hierarchyPane.SelectedHierarchyItems.Count > 0;
-            int hiddenTrackCount = 0;
-
-            // A track with no keys writes nothing at any time, so it is not a curve yet — it is a
-            // component waiting for its first key, and the place to make that key is the part's own
-            // Key button in the inspector. Counted, because "I added a Transform and no row
-            // appeared" needs an answer on screen rather than in the source.
-            int keylessTrackCount = 0;
-
-            statusLabel.text = selectedClip.name
-                + "   duration " + selectedClip.duration.ToString("0.###") + "s"
-                + "   loop " + selectedClip.defaultLoop.ToString()
-                + "   selected " + session.SelectedKeys.Count.ToString();
-
-            ruler.durationSeconds = selectedClip.duration;
-            ruler.frameCount = TransportFrameCount;
-            ruler.RefreshSecondLabels();
-            ruler.MarkDirtyRepaint();
-
-            int rowIndex = 0;
-            List<float> times = new List<float>();
-
-            List<TransformTrack> transformTracks = selectedClip.transformTracks;
-            for (int trackIndex = 0; transformTracks != null && trackIndex < transformTracks.Count; trackIndex++)
-            {
-                TransformTrack track = transformTracks[trackIndex];
-                if (track == null)
-                {
-                    continue;
-                }
-                if (track.keys == null || track.keys.Count == 0)
-                {
-                    keylessTrackCount++;
-                    continue;
-                }
-                TrackBindingLabel binding = DescribeTrackBinding(track.targetId, track.tagId);
-                if (isFocused && !hierarchyPane.IsTargetSelected(binding.resolvedTargetId))
-                {
-                    hiddenTrackCount++;
-                    continue;
-                }
-                times.Clear();
-                for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
-                {
-                    times.Add(track.keys[keyIndex].normalizedTime);
-                }
-                AddTrackRow(
-                    binding.tagText, binding.partText, "Transform · " + track.channels.ToString(),
-                    TimelineTrackKind.Transform, trackIndex, times, true, ref rowIndex);
-            }
-
-            List<SpriteTrack> spriteTracks = selectedClip.spriteTracks;
-            for (int trackIndex = 0; spriteTracks != null && trackIndex < spriteTracks.Count; trackIndex++)
-            {
-                SpriteTrack track = spriteTracks[trackIndex];
-                if (track == null)
-                {
-                    continue;
-                }
-                if (track.keys == null || track.keys.Count == 0)
-                {
-                    keylessTrackCount++;
-                    continue;
-                }
-                TrackBindingLabel binding = DescribeTrackBinding(track.targetId, track.tagId);
-                if (isFocused && !hierarchyPane.IsTargetSelected(binding.resolvedTargetId))
-                {
-                    hiddenTrackCount++;
-                    continue;
-                }
-                times.Clear();
-                for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
-                {
-                    times.Add(track.keys[keyIndex].normalizedTime);
-                }
-                AddTrackRow(
-                    binding.tagText, binding.partText, "Flipbook · " + track.mode.ToString(),
-                    TimelineTrackKind.Sprite, trackIndex, times, true, ref rowIndex);
-            }
-
-            // Bone rows sit between the part rows and the events, so a character's skeleton and its
-            // cutout parts read as one stack.
-            List<BoneTrack> boneTracks = selectedClip.boneTracks;
-            for (int trackIndex = 0; boneTracks != null && trackIndex < boneTracks.Count; trackIndex++)
-            {
-                BoneTrack track = boneTracks[trackIndex];
-                if (track == null)
-                {
-                    continue;
-                }
-                if (track.keys == null || track.keys.Count == 0)
-                {
-                    keylessTrackCount++;
-                    continue;
-                }
-                if (isFocused && !hierarchyPane.IsBoneSelected(track.boneName))
-                {
-                    hiddenTrackCount++;
-                    continue;
-                }
-                times.Clear();
-                for (int keyIndex = 0; keyIndex < track.keys.Count; keyIndex++)
-                {
-                    times.Add(track.keys[keyIndex].normalizedTime);
-                }
-
-                // A bone binds by name, not by tag — there is no tag half to show, so the row keeps
-                // the single-label shape the other kinds have grown out of.
-                AddTrackRow(
-                    string.IsNullOrEmpty(track.boneName) ? "<unnamed bone>" : track.boneName,
-                    null, "Bone", TimelineTrackKind.Bone, trackIndex, times, false, ref rowIndex);
-            }
-
-            if (selectedClip.events != null && selectedClip.events.Count > 0)
-            {
-                // One lane per event name (E6 Task 2), not one shared lane with stacking: three
-                // events on one frame land on three rows rather than piling under one. Events stay
-                // visible while focused — they belong to the clip rather than to any one part, so
-                // hiding them would make event authoring impossible the moment anything was selected.
-                AnimEventKeyRegistry eventRegistry = ClipInspectorPane.ResolveEventKeyRegistry();
-                List<uint> eventLaneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
-                for (int laneIndex = 0; laneIndex < eventLaneKeys.Count; laneIndex++)
-                {
-                    List<int> laneFlatIndices = EventLaneAddressing.ResolveLaneFlatIndices(
-                        selectedClip.events, laneIndex);
-                    times.Clear();
-                    for (int position = 0; position < laneFlatIndices.Count; position++)
-                    {
-                        times.Add(selectedClip.events[laneFlatIndices[position]].normalizedTime);
-                    }
-                    AddTrackRow(
-                        ClipInspectorPane.DescribeEventName(eventLaneKeys[laneIndex], eventRegistry),
-                        null, null, TimelineTrackKind.Event, laneIndex, times, false, ref rowIndex,
-                        laneAccent: ToolkitPalette.ColorForEventKey(eventLaneKeys[laneIndex]));
-                }
-            }
-
-            if (isFocused)
-            {
-                statusLabel.text += "   ·   focused on " + hierarchyPane.DescribeSelection()
-                    + (hiddenTrackCount > 0
-                        ? " (" + hiddenTrackCount.ToString() + " track(s) hidden — deselect to show all)"
-                        : string.Empty);
-            }
-
-            if (keylessTrackCount > 0)
-            {
-                statusLabel.text += "   ·   " + keylessTrackCount.ToString()
-                    + " track(s) with no keys — select the part and press Key to start one";
-            }
-
-            timelineRowCount = rowIndex;
-            SyncGhostLanes();
-
-            SetPlayheadTime(playheadTime);
-            clipInspectorPane.RebuildInspector();
-        }
-
-        // Channel rows show the same keys as their track, not keys of their own: one TransformKey
-        // carries position, rotation and scale together, so dragging a key on any channel retimes
-        // the one underlying key.
-        /// <summary>Adds a track's row and, when it is expanded, one row per animated channel.</summary>
-        private void AddTrackRow(
-            string headerText, string partText, string detailText, TimelineTrackKind trackKind,
-            int trackIndex, List<float> times, bool hasBindingControls, ref int rowIndex,
-            Color? laneAccent = null)
-        {
-            long trackKey = MakeTrackKey(trackKind, trackIndex);
-            string[] channelNames = GetChannelNames(trackKind);
-            bool canExpand = channelNames.Length > 0;
-            bool isExpanded = canExpand && expandedTrackKeys.Contains(trackKey);
-
-            VisualElement headerRow = new VisualElement();
-            headerRow.AddToClassList(TrackHeaderUssClassName);
-
-            if (canExpand)
-            {
-                Button foldoutButton = new Button(() => ToggleTrackExpanded(trackKey))
-                {
-                    text = isExpanded ? "▾" : "▸"
-                };
-                foldoutButton.AddToClassList(TrackFoldoutUssClassName);
-                headerRow.Add(foldoutButton);
-            }
-
-            string rowTooltip = headerText
-                + (string.IsNullOrEmpty(partText) ? string.Empty : "   →   " + partText)
-                + (string.IsNullOrEmpty(detailText) ? string.Empty : "\n" + detailText)
-                + (hasBindingControls
-                    ? "\nClick the tag to move this row's keys to another tag; click the part to "
-                      + "choose which rig part wears the tag.\nClick the row background to select "
-                      + "every key on this track; shift-click adds them to the selection."
-                    : "\nClick to select every key on this track; "
-                      + "shift-click to add them to the selection.")
-                + (trackKind == TimelineTrackKind.Event ? "\nRight-click for lane actions." : string.Empty);
-
-            Label headerLabel = new Label(headerText);
-            headerLabel.AddToClassList(TrackHeaderLabelUssClassName);
-            headerLabel.tooltip = rowTooltip;
-            headerRow.Add(headerLabel);
-
-            VisualElement partGroup = null;
-            Label partLabel = null;
-            if (!string.IsNullOrEmpty(partText))
-            {
-                // Grouped so a column too narrow for both halves moves the arrow and the part down
-                // together and the second line reads "→ Part". Ignored by picking so a press on the
-                // gap between the two halves still reaches the row background, which is what selects
-                // the track's keys.
-                partGroup = new VisualElement();
-                partGroup.AddToClassList(TrackHeaderPartGroupUssClassName);
-                partGroup.pickingMode = PickingMode.Ignore;
-
-                if (hasBindingControls)
-                {
-                    // The arrow is the row's grammar made visible: keys belong to the tag, the tag
-                    // lands on the part. It is not a click target.
-                    Label arrowLabel = new Label("→");
-                    arrowLabel.AddToClassList(TrackHeaderArrowUssClassName);
-                    partGroup.Add(arrowLabel);
-                }
-                partLabel = new Label(partText);
-                partLabel.AddToClassList(TrackHeaderPartUssClassName);
-                partLabel.tooltip = rowTooltip;
-                partGroup.Add(partLabel);
-                headerRow.Add(partGroup);
-            }
-
-            TimelineTrackKind headerTrackKind = trackKind;
-            int headerTrackIndex = trackIndex;
-            EventCallback<PointerDownEvent> selectTrackKeys = pointerEvent =>
-            {
-                bool additive = pointerEvent.shiftKey
-                    || pointerEvent.ctrlKey || pointerEvent.commandKey;
-                SelectAllKeysOnTrack(headerTrackKind, headerTrackIndex, additive);
-                pointerEvent.StopPropagation();
-            };
-
-            if (hasBindingControls)
-            {
-                headerLabel.AddToClassList(TrackHeaderBindingUssClassName);
-                headerLabel.RegisterCallback<PointerDownEvent>(pointerEvent =>
-                {
-                    pointerEvent.StopPropagation();
-                    OpenTimelineTrackTagPicker(headerTrackKind, headerTrackIndex, headerLabel);
-                });
-                if (partLabel != null)
-                {
-                    partLabel.AddToClassList(TrackHeaderBindingUssClassName);
-                    partLabel.RegisterCallback<PointerDownEvent>(pointerEvent =>
-                    {
-                        pointerEvent.StopPropagation();
-                        OpenTimelinePartPicker(headerTrackKind, headerTrackIndex, partLabel);
-                    });
-                }
-
-                // Only a press on the row's own background selects — a press on either picker half
-                // stopped propagating above, and the foldout button owns its own click.
-                headerRow.RegisterCallback<PointerDownEvent>(pointerEvent =>
-                {
-                    VisualElement pressed = pointerEvent.target as VisualElement;
-                    if (pressed == headerRow)
-                    {
-                        selectTrackKeys(pointerEvent);
-                    }
-                });
-            }
-            else
-            {
-                headerLabel.RegisterCallback(selectTrackKeys);
-                if (partLabel != null)
-                {
-                    // The part name is half the same row, so clicking it selects the same keys. A
-                    // dead strip beside a live one reads as the row having stopped working.
-                    partLabel.RegisterCallback(selectTrackKeys);
-                }
-            }
-
-            // An event lane's header is its own authoring surface, not just a label: the other track
-            // kinds have no equivalent menu because none names a project-wide vocabulary entry.
-            if (trackKind == TimelineTrackKind.Event)
-            {
-                headerLabel.AddManipulator(new ContextualMenuManipulator(
-                    menuEvent => BuildEventLaneContextMenu(menuEvent, headerTrackIndex, headerLabel)));
-            }
-
-            trackHeaderColumn.Add(headerRow);
-
-            TrackLaneElement lane = AddLane(trackKind, trackIndex, times, rowIndex, false);
-            if (laneAccent.HasValue)
-            {
-                // The accent is data-driven per lane, so it is set here rather than through a USS class.
-                lane.eventColor = laneAccent.Value;
-                headerLabel.style.borderLeftWidth = 3f;
-                headerLabel.style.borderLeftColor = laneAccent.Value;
-            }
-            BindTrackHeaderWrap(headerRow, partGroup, lane);
-            rowIndex++;
-
-            if (!isExpanded)
-            {
-                return;
-            }
-
-            for (int channelIndex = 0; channelIndex < channelNames.Length; channelIndex++)
-            {
-                Label channelHeader = new Label(channelNames[channelIndex]);
-                channelHeader.AddToClassList(TrackHeaderUssClassName);
-                channelHeader.AddToClassList(ChannelHeaderUssClassName);
-                trackHeaderColumn.Add(channelHeader);
-
-                AddLane(trackKind, trackIndex, times, rowIndex, true);
-                rowIndex++;
-            }
-        }
-
-        // Normalized here, not in the lane: the lane draws in normalized time and has no idea what
-        // the clip's duration is, and the window is authored in seconds.
-        /// <summary>One event lane's window lengths as a fraction of the clip, parallel to its filtered key times.</summary>
-        private List<float> CollectEventWindowLengths(int laneIndex)
-        {
-            eventWindowLengths.Clear();
-            if (selectedClip == null || selectedClip.events == null)
-            {
-                return eventWindowLengths;
-            }
-
-            List<int> laneFlatIndices =
-                EventLaneAddressing.ResolveLaneFlatIndices(selectedClip.events, laneIndex);
-            float duration = Mathf.Max(selectedClip.duration, ClipAsset.MinimumDuration);
-            for (int position = 0; position < laneFlatIndices.Count; position++)
-            {
-                eventWindowLengths.Add(
-                    selectedClip.events[laneFlatIndices[position]].windowSeconds / duration);
-            }
-            return eventWindowLengths;
-        }
-
-        /// <summary>Adds one lane, and hands it back so the header beside it can be paired with it.</summary>
-        private TrackLaneElement AddLane(
-            TimelineTrackKind trackKind, int trackIndex, List<float> times, int rowIndex,
-            bool isChannelRow)
-        {
-            TrackLaneElement lane = new TrackLaneElement
-            {
-                trackKind = trackKind,
-                trackIndex = trackIndex,
-                isAlternateRow = (rowIndex & 1) == 1,
-                isChannelRow = isChannelRow,
-                isKeySelected = session.SelectedKeys.Contains,
-
-                // Born with the current view. A lane created without it renders unzoomed under a
-                // ruler that is not, until something happens to push the view down again.
-                viewLaneWidth = LaneWidth,
-                viewZoom = viewZoom,
-                viewPan = viewPan
-            };
-            lane.SetKeyTimes(times);
-            if (trackKind == TimelineTrackKind.Event)
-            {
-                lane.SetKeyWindows(CollectEventWindowLengths(trackIndex));
-            }
-            lane.keyPointerDown += OnKeyPointerDown;
-            lane.lanePointerDown += OnLanePointerDown;
-            laneColumn.Add(lane);
-            return lane;
-        }
-
-        // Watched on the part group, not the row: the row's height is this callback's own output,
-        // and watching it would be watching itself. The group's y is zero beside the tag, a lane's
-        // height once it has wrapped below it.
-        /// <summary>Keeps a header that has wrapped onto a second line exactly as tall as its own lane.</summary>
-        private static void BindTrackHeaderWrap(
-            VisualElement headerRow, VisualElement partGroup, TrackLaneElement lane)
-        {
-            if (headerRow == null || partGroup == null || lane == null)
-            {
-                return;
-            }
-
-            partGroup.RegisterCallback<GeometryChangedEvent>(geometryEvent =>
-            {
-                bool isWrapped = partGroup.layout.y > 1f;
-                headerRow.EnableInClassList(TrackHeaderWrappedUssClassName, isWrapped);
-                lane.EnableInClassList(LaneWrappedUssClassName, isWrapped);
-            });
-        }
-
-        private static long MakeTrackKey(TimelineTrackKind trackKind, int trackIndex)
-        {
-            return ((long)trackKind << 32) | (uint)trackIndex;
-        }
-
-        private void ToggleTrackExpanded(long trackKey)
-        {
-            if (!expandedTrackKeys.Remove(trackKey))
-            {
-                expandedTrackKeys.Add(trackKey);
-            }
-            RebuildTimeline();
-        }
-
-        /// <summary>The channels a track kind animates, or an empty array when it has none to show.</summary>
-        private static string[] GetChannelNames(TimelineTrackKind trackKind)
-        {
-            switch (trackKind)
-            {
-                case TimelineTrackKind.Transform:
-                    return new string[]
-                    {
-                        "Position X", "Position Y", "Position Z", "Rotation Z", "Scale X", "Scale Y"
-                    };
-                case TimelineTrackKind.Bone:
-                    return new string[] { "Position", "Rotation", "Scale" };
-                case TimelineTrackKind.Sprite:
-                    return new string[] { "Index" };
-                default:
-                    return new string[0];
-            }
-        }
-
-        private void RepaintLanes()
-        {
-            for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
-            {
-                laneColumn[childIndex].MarkDirtyRepaint();
-            }
-        }
-
-        // Use this, not RepaintLanes, whenever key times have changed: a lane holds the times it
-        // was built with, so a plain repaint redraws stale positions during a drag. Rebuilding the
-        // timeline instead would destroy the element holding the pointer capture mid-gesture.
-        /// <summary>Re-reads every lane key time from the clip, then repaints.</summary>
-        private void RefreshLaneKeys()
-        {
-            if (laneColumn == null || selectedClip == null)
-            {
-                RepaintLanes();
-                return;
-            }
-
-            List<float> times = new List<float>();
-            for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
-            {
-                TrackLaneElement lane = laneColumn[childIndex] as TrackLaneElement;
-                if (lane == null)
-                {
-                    laneColumn[childIndex].MarkDirtyRepaint();
-                    continue;
-                }
-
-                times.Clear();
-                int keyCount = CountKeysOnTrack(lane.trackKind, lane.trackIndex);
-                for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
-                {
-                    times.Add(GetKeyTime(new KeyAddress(lane.trackKind, lane.trackIndex, keyIndex)));
-                }
-                lane.SetKeyTimes(times);
-                lane.MarkDirtyRepaint();
-            }
-        }
-
-        // -------------------------------------------------------------------------------------
-        // Gestures. One undo step per gesture.
-        // -------------------------------------------------------------------------------------
-
-        private void OnKeyPointerDown(KeyAddress address, PointerDownEvent pointerEvent)
-        {
-            laneStack.Focus();
-
-            bool additive = pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
-            if (!additive && !session.SelectedKeys.Contains(address))
-            {
-                session.SelectedKeys.Clear();
-                session.HasActiveKey = false;
-            }
-            if (additive && session.SelectedKeys.Contains(address))
-            {
-                session.SelectedKeys.Remove(address);
-                // Deselecting the active key hands the panel back to whatever remains, rather than
-                // leaving it editing a key that is no longer selected.
-                session.HasActiveKey = false;
-            }
-            else
-            {
-                session.SelectedKeys.Add(address);
-                session.ActiveKey = address;
-                session.HasActiveKey = true;
-            }
-
-            SyncBoneSelectionToKey(address);
-
-            if (selectedClip == null)
-            {
-                RepaintLanes();
-                return;
-            }
-
-            SetPlayheadTime(GetKeyTime(address));
-
-            // Everything from here to pointer-up becomes one undo step. Recording BEFORE the first
-            // mutation is what makes undo restore the pre-drag state rather than some intermediate
-            // frame of it.
-            BeginUndoGesture("Move Animation Keys");
-
-            isDraggingKeys = true;
-            dragTrackKind = address.trackKind;
-            dragTrackIndex = address.trackIndex;
-
-            VisualElement lane = pointerEvent.currentTarget as VisualElement;
-            if (lane != null)
-            {
-                lane.CapturePointer(pointerEvent.pointerId);
-                lane.RegisterCallback<PointerMoveEvent>(OnDragMove);
-                lane.RegisterCallback<PointerUpEvent>(OnDragEnd);
-
-                dragPointerLaneX = pointerEvent.localPosition.x;
-            }
-
-            // Measured from where the pointer is, not from where the key is. Seeding with the key
-            // time meant grabbing a key slightly off its centre jumped it by that offset on the
-            // first move; from here the key follows the cursor exactly.
-            dragPreviousTime = TimelineGeometry.Snap(
-                TimelineGeometry.Create(LaneWidth, viewZoom, viewPan).XToTime(dragPointerLaneX),
-                SnapFrameCount);
-
-            dragAutoScroll = rootVisualElement.schedule
-                .Execute(TickDragAutoScroll).Every(16);
-            RepaintLanes();
-            clipInspectorPane.RebuildInspector();
-        }
-
-        // The tree's selection is set without notifying: the notification clears the key selection,
-        // so the click would deselect the very key that caused it.
-        /// <summary>Moves the viewport outline and the tree onto the bone whose key was grabbed.</summary>
-        private void SyncBoneSelectionToKey(KeyAddress address)
-        {
-            string boneName = null;
-            if (address.trackKind == TimelineTrackKind.Bone
-                && selectedClip != null
-                && selectedClip.boneTracks != null
-                && address.trackIndex < selectedClip.boneTracks.Count)
-            {
-                BoneTrack track = selectedClip.boneTracks[address.trackIndex];
-                boneName = track != null ? track.boneName : null;
-            }
-
-            int itemId = RigHierarchyPane.NothingSelectedItemId;
-            if (!string.IsNullOrEmpty(boneName) && previewController != null)
-            {
-                int previewIndex = previewController.FindHierarchyIndexByName(boneName);
-                if (previewIndex >= 0)
-                {
-                    itemId = previewIndex;
-                }
-            }
-            hierarchyPane.SelectHierarchyItem(itemId);
-
-            if (itemId != RigHierarchyPane.NothingSelectedItemId)
-            {
-                hierarchyPane.SelectItemByIdWithoutNotify(itemId);
-            }
-            else
-            {
-                hierarchyPane.ClearTreeSelectionWithoutNotify();
-            }
-        }
-
-        private void OnDragMove(PointerMoveEvent moveEvent)
-        {
-            if (!isDraggingKeys || selectedClip == null)
-            {
-                return;
-            }
-
-            TrackLaneElement lane = moveEvent.currentTarget as TrackLaneElement;
-            if (lane == null)
-            {
-                return;
-            }
-
-            dragPointerLaneX = moveEvent.localPosition.x;
-            UpdateKeyDrag();
-        }
-
-        /// <summary>Moves the selection to follow the pointer, using the view as it is right now.</summary>
-        private void UpdateKeyDrag()
-        {
-            if (!isDraggingKeys || selectedClip == null)
-            {
-                return;
-            }
-
-            // Read live, never cached: this is the same width the lanes and the ruler are drawn
-            // with this frame, so the key lands under the cursor rather than near it.
-            TimelineGeometry geometry = TimelineGeometry.Create(LaneWidth, viewZoom, viewPan);
-            float pointerTime = TimelineGeometry.Snap(
-                geometry.XToTime(dragPointerLaneX), SnapFrameCount);
-            float delta = pointerTime - dragPreviousTime;
-            if (Mathf.Abs(delta) < 1e-6f)
-            {
-                return;
-            }
-
-            RecordUndoGestureStep();
-
-            // The whole selection moves by the grabbed key's delta, so relative spacing survives a
-            // multi-key drag. Moving every key to the pointer instead would collapse them together.
-            foreach (KeyAddress address in session.SelectedKeys)
-            {
-                SetKeyTime(address, GetKeyTime(address) + delta);
-            }
-            dragPreviousTime = pointerTime;
-
-            EditorUtility.SetDirty(selectedClip);
-            SetPlayheadTime(pointerTime);
-            MarkPreviewDirty();
-            RefreshLaneKeys();
-            ShowDragReadout(pointerTime);
-        }
-
-        /// <summary>Says which frame the drag is landing on, in the status line.</summary>
-        private void ShowDragReadout(float normalizedTime)
-        {
-            if (statusLabel == null)
-            {
-                return;
-            }
-            int frameCount = Mathf.Max(1, TransportFrameCount);
-            float frame = normalizedTime * frameCount;
-            string range = normalizedTime < 0f || normalizedTime > 1f ? "   (outside clip)" : string.Empty;
-            statusLabel.text = "Frame " + frame.ToString("0.##")
-                + "   " + (normalizedTime * selectedClip.duration).ToString("0.###") + "s"
-                + "   " + session.SelectedKeys.Count.ToString() + " key(s)" + range;
-        }
-
-        // Driven by a scheduler, not pointer movement: the case that matters is the pointer held
-        // still against the edge, which a movement-only trigger would not scroll for.
-        /// <summary>Scrolls the view when a drag reaches the edge of the lane, so the gesture can continue.</summary>
-        private void TickDragAutoScroll()
-        {
-            if (!isDraggingKeys)
-            {
-                return;
-            }
-
-            float laneWidth = LaneWidth;
-            const float EdgeMarginPixels = 28f;
-            const float MaximumScrollPixelsPerTick = 14f;
-
-            float overshoot = 0f;
-            if (dragPointerLaneX < EdgeMarginPixels)
-            {
-                overshoot = dragPointerLaneX - EdgeMarginPixels;
-            }
-            else if (dragPointerLaneX > laneWidth - EdgeMarginPixels)
-            {
-                overshoot = dragPointerLaneX - (laneWidth - EdgeMarginPixels);
-            }
-            if (Mathf.Abs(overshoot) < 0.5f)
-            {
-                return;
-            }
-
-            // Proportional to how far past the margin the pointer is, so easing into the edge
-            // scrolls gently and shoving past it scrolls fast.
-            float scrollPixels = Mathf.Clamp(
-                overshoot, -MaximumScrollPixelsPerTick, MaximumScrollPixelsPerTick);
-            TimelineGeometry geometry = TimelineGeometry.Create(laneWidth, viewZoom, viewPan);
-            viewPan += scrollPixels / geometry.PixelsPerNormalizedUnit;
-            ApplyTimelineView();
-
-            // The view moved under a stationary pointer, so the time under the pointer changed and
-            // the keys have to follow it. Without this the selection would sit still while the
-            // world slid past.
-            UpdateKeyDrag();
-        }
-
-        private void OnDragEnd(PointerUpEvent upEvent)
-        {
-            VisualElement lane = upEvent.currentTarget as VisualElement;
-            if (lane != null)
-            {
-                lane.ReleasePointer(upEvent.pointerId);
-                lane.UnregisterCallback<PointerMoveEvent>(OnDragMove);
-                lane.UnregisterCallback<PointerUpEvent>(OnDragEnd);
-            }
-
-            if (dragAutoScroll != null)
-            {
-                dragAutoScroll.Pause();
-                dragAutoScroll = null;
-            }
-
-            if (!isDraggingKeys)
-            {
-                return;
-            }
-            isDraggingKeys = false;
-
-            EndUndoGesture();
-            if (selectedClip != null)
-            {
-                SortTrackKeys(dragTrackKind, dragTrackIndex);
-                RebuildTimeline();
-            }
-        }
-
-        /// <summary>
-        /// Handles a press on empty lane space: single click moves the playhead and clears the
-        /// selection, double click adds a key (parity item "double-click add").
-        /// </summary>
-        private void OnLanePointerDown(
-            TimelineTrackKind trackKind, int trackIndex, float normalizedTime, PointerDownEvent pointerEvent)
-        {
-            laneStack.Focus();
-
-            if (pointerEvent.clickCount < 2 || selectedClip == null)
-            {
-                bool additive = pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
-                if (!additive)
-                {
-                    session.SelectedKeys.Clear();
-                    session.HasActiveKey = false;
-                    RepaintLanes();
-                    clipInspectorPane.RebuildInspector();
-                }
-
-                // The same press can still become a box select, so the playhead is held rather than
-                // moved. Moving it here dragged it along behind every band the user drew, which
-                // reads as the two gestures fighting each other. It is applied on release, and only
-                // if the press turned out to be a click.
-                pendingPlayheadTime = normalizedTime;
-                BeginBoxSelect(pointerEvent, additive);
-                return;
-            }
-
-            float insertTime = TimelineGeometry.Snap(normalizedTime, SnapFrameCount);
-            BeginUndoGesture("Add Animation Key");
-            InsertKey(trackKind, trackIndex, insertTime);
-            EndUndoGesture();
-
-            EditorUtility.SetDirty(selectedClip);
-            session.SelectedKeys.Clear();
-            session.HasActiveKey = false;
-            SortTrackKeys(trackKind, trackIndex);
-            SetPlayheadTime(insertTime);
-            RebuildTimeline();
-        }
-
-        /// <summary>Handles a press on the empty rows below the last track: click-clears-and-scrubs, drag-selects.</summary>
-        private void OnGhostLanePointerDown(float normalizedTime, PointerDownEvent pointerEvent)
-        {
-            laneStack.Focus();
-
-            bool additive = pointerEvent.shiftKey || pointerEvent.ctrlKey || pointerEvent.commandKey;
-            if (!additive)
-            {
-                session.SelectedKeys.Clear();
-                session.HasActiveKey = false;
-                RepaintLanes();
-                clipInspectorPane.RebuildInspector();
-            }
-
-            // Held rather than moved, for the reason spelled out in OnLanePointerDown: the playhead
-            // dragging along behind every band reads as the two gestures fighting each other.
-            pendingPlayheadTime = normalizedTime;
-            BeginBoxSelect(pointerEvent, additive);
-        }
-
-        // -------------------------------------------------------------------------------------
-        // Box selection
-        // -------------------------------------------------------------------------------------
-
-        /// <summary>
-        /// Where a press on empty lane space would put the playhead, applied only if it stays a click.
-        /// </summary>
-        private float pendingPlayheadTime;
-
-        private void BeginBoxSelect(PointerDownEvent pointerEvent, bool additive)
-        {
-            VisualElement lane = pointerEvent.currentTarget as VisualElement;
-            if (lane == null || laneStack == null || boxSelectElement == null)
-            {
-                return;
-            }
-
-            boxSelectOriginInStack = lane.ChangeCoordinatesTo(laneStack, pointerEvent.localPosition);
-            boxSelectLane = lane;
-            isBoxSelectArmed = true;
-            isBoxSelectActive = false;
-            isBoxSelectAdditive = additive;
-
-            lane.CapturePointer(pointerEvent.pointerId);
-            lane.RegisterCallback<PointerMoveEvent>(OnBoxSelectMove);
-            lane.RegisterCallback<PointerUpEvent>(OnBoxSelectEnd);
-        }
-
-        private void OnBoxSelectMove(PointerMoveEvent moveEvent)
-        {
-            if (!isBoxSelectArmed)
-            {
-                return;
-            }
-
-            VisualElement lane = moveEvent.currentTarget as VisualElement;
-            if (lane == null)
-            {
-                return;
-            }
-
-            Vector2 currentInStack = lane.ChangeCoordinatesTo(laneStack, moveEvent.localPosition);
-            Vector2 travel = currentInStack - boxSelectOriginInStack;
-            if (!isBoxSelectActive && travel.sqrMagnitude < BoxSelectStartToleranceSquared)
-            {
-                return;
-            }
-
-            isBoxSelectActive = true;
-            boxSelectElement.SetBand(Rect.MinMaxRect(
-                Mathf.Min(boxSelectOriginInStack.x, currentInStack.x),
-                Mathf.Min(boxSelectOriginInStack.y, currentInStack.y),
-                Mathf.Max(boxSelectOriginInStack.x, currentInStack.x),
-                Mathf.Max(boxSelectOriginInStack.y, currentInStack.y)));
-        }
-
-        private void OnBoxSelectEnd(PointerUpEvent upEvent)
-        {
-            VisualElement lane = upEvent.currentTarget as VisualElement;
-            if (lane != null)
-            {
-                lane.ReleasePointer(upEvent.pointerId);
-                lane.UnregisterCallback<PointerMoveEvent>(OnBoxSelectMove);
-                lane.UnregisterCallback<PointerUpEvent>(OnBoxSelectEnd);
-            }
-
-            if (!isBoxSelectArmed)
-            {
-                return;
-            }
-            isBoxSelectArmed = false;
-            boxSelectLane = null;
-
-            if (!isBoxSelectActive)
-            {
-                // It was a click after all, so now the playhead moves.
-                SetPlayheadTime(pendingPlayheadTime);
-                return;
-            }
-            isBoxSelectActive = false;
-
-            Vector2 endInStack = lane != null
-                ? lane.ChangeCoordinatesTo(laneStack, upEvent.localPosition)
-                : boxSelectOriginInStack;
-            Rect bandRect = Rect.MinMaxRect(
-                Mathf.Min(boxSelectOriginInStack.x, endInStack.x),
-                Mathf.Min(boxSelectOriginInStack.y, endInStack.y),
-                Mathf.Max(boxSelectOriginInStack.x, endInStack.x),
-                Mathf.Max(boxSelectOriginInStack.y, endInStack.y));
-
-            SelectKeysInsideBand(bandRect);
-            boxSelectElement.HideBand();
-
-            RepaintLanes();
-            clipInspectorPane.RebuildInspector();
-        }
-
-        /// <summary>Adds every key whose lane row and time fall inside the band.</summary>
-        private void SelectKeysInsideBand(Rect bandRect)
-        {
-            if (!isBoxSelectAdditive)
-            {
-                session.SelectedKeys.Clear();
-                session.HasActiveKey = false;
-            }
-
-            for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
-            {
-                TrackLaneElement lane = laneColumn[childIndex] as TrackLaneElement;
-                if (lane == null)
-                {
-                    continue;
-                }
-
-                Rect laneRectInStack = lane.ChangeCoordinatesTo(laneStack, lane.contentRect);
-                if (laneRectInStack.yMax < bandRect.yMin || laneRectInStack.yMin > bandRect.yMax)
-                {
-                    continue;
-                }
-
-                // The live view, not Create(width) -- that one-argument overload means zoom 1 and
-                // pan 0, so the band was tested against where the keys would be on an unzoomed,
-                // unscrolled timeline rather than where they are. At the default view the two agree,
-                // which is why this looked like it worked; anywhere else it selected whatever
-                // happened to line up under the wrong mapping.
-                TimelineGeometry geometry =
-                    TimelineGeometry.Create(LaneWidth, viewZoom, viewPan);
-                IReadOnlyList<float> keyTimes = lane.KeyTimes;
-                for (int keyIndex = 0; keyIndex < keyTimes.Count; keyIndex++)
-                {
-                    float keyXInLane = geometry.TimeToX(keyTimes[keyIndex]);
-                    float keyXInStack =
-                        lane.ChangeCoordinatesTo(laneStack, new Vector2(keyXInLane, 0f)).x;
-                    if (keyXInStack >= bandRect.xMin && keyXInStack <= bandRect.xMax)
-                    {
-                        session.SelectedKeys.Add(
-                            new KeyAddress(lane.trackKind, lane.trackIndex, keyIndex));
-                    }
-                }
             }
         }
 
@@ -4521,414 +3394,6 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
-        // -------------------------------------------------------------------------------------
-        // Keyboard map
-        // -------------------------------------------------------------------------------------
-
-        private void OnTimelineKeyDown(KeyDownEvent keyEvent)
-        {
-            // A running grab or scale owns the keyboard. This handler sits on the lane stack, which
-            // is inside the root the modal handler listens on, so it sees every key first — and it
-            // reads Backspace as "delete the selected keys" while the gesture reads it as "rub out
-            // the last digit I typed". Bowing out here lets the event bubble to the gesture.
-            if (IsTransformActive)
-            {
-                return;
-            }
-
-            if (selectedClip == null)
-            {
-                return;
-            }
-
-            bool commandModifier = keyEvent.ctrlKey || keyEvent.commandKey;
-
-            switch (keyEvent.keyCode)
-            {
-                case KeyCode.Space:
-                    ((ITransportTarget)this).TogglePlay();
-                    break;
-                case KeyCode.Delete:
-                case KeyCode.Backspace:
-                    DeleteSelectedKeys();
-                    break;
-                case KeyCode.Home:
-                    ((ITransportTarget)this).JumpToStart();
-                    break;
-                case KeyCode.End:
-                    ((ITransportTarget)this).JumpToEnd();
-                    break;
-                case KeyCode.LeftArrow:
-                    ((ITransportTarget)this).Step(keyEvent.shiftKey ? -Mathf.Max(1, LargeStepFrames) : -1);
-                    break;
-                case KeyCode.RightArrow:
-                    ((ITransportTarget)this).Step(keyEvent.shiftKey ? Mathf.Max(1, LargeStepFrames) : 1);
-                    break;
-                case KeyCode.C:
-                    if (!commandModifier)
-                    {
-                        return;
-                    }
-                    CopySelectedKeys();
-                    break;
-                case KeyCode.V:
-                    if (!commandModifier)
-                    {
-                        return;
-                    }
-                    PasteKeysAtPlayhead();
-                    break;
-                case KeyCode.D:
-                    // Duplicate is copy+paste at the playhead, so it cannot drift from paste's
-                    // behaviour the way a second implementation would.
-                    if (!commandModifier)
-                    {
-                        return;
-                    }
-                    CopySelectedKeys();
-                    PasteKeysAtPlayhead();
-                    break;
-                default:
-                    return;
-            }
-
-            keyEvent.StopPropagation();
-        }
-
-        /// <summary>Puts the selected keys on the clipboard, and says what was taken.</summary>
-        private void CopySelectedKeys()
-        {
-            ClipKeyClipboard.Copy(selectedClip, session.SelectedKeys);
-            if (!ClipKeyClipboard.HasContent)
-            {
-                return;
-            }
-
-            // Said out loud because copy is the one half of the pair with nothing on screen to show
-            // for it. Silence after Ctrl+C is indistinguishable from a shortcut that did not fire.
-            ShowNotification(new GUIContent(
-                "Copied " + ClipKeyClipboard.KeyCount.ToString() + " key(s) from "
-                + ClipKeyClipboard.ObjectCount.ToString() + " object(s)"));
-        }
-
-        /// <summary>Pastes the clipboard onto the selected objects, anchored at the playhead.</summary>
-        private void PasteKeysAtPlayhead()
-        {
-            if (!ClipKeyClipboard.HasContent || selectedClip == null)
-            {
-                return;
-            }
-
-            pasteDestinations.Clear();
-            for (int itemIndex = 0; itemIndex < hierarchyPane.SelectedHierarchyItems.Count; itemIndex++)
-            {
-                pasteDestinations.Add(BuildObjectRef(hierarchyPane.SelectedHierarchyItems[itemIndex]));
-            }
-
-            // Recorded whether or not the paste turns out to write the rig: a flipbook pasted onto
-            // an untagged node can declare a new part, and that can't be known before it runs.
-            RigAsset rig = ActiveRig;
-            if (rig != null)
-            {
-                RecordSocketEdit(rig, "Paste Animation Keys");
-            }
-
-            BeginUndoGesture("Paste Animation Keys");
-            ClipKeyPasteResult pasteResult =
-                ClipKeyClipboard.Paste(selectedClip, rig, pasteDestinations, playheadTime);
-
-            // A paste can mint a track on an untagged part; A56 D4 says no keyed track goes
-            // tagless, and inside the gesture so one Ctrl+Z undoes the paste and the tagging.
-            EnsureClipTrackTagsAssigned("Paste Animation Keys");
-            EndUndoGesture();
-
-            if (pasteResult.touchedRig && rig != null)
-            {
-                AssetDatabase.SaveAssetIfDirty(rig);
-                CommitSocketEdit(true);
-            }
-
-            if (pasteResult.keyCount > 0)
-            {
-                EditorUtility.SetDirty(selectedClip);
-                SortAllTracks();
-            }
-
-            // A promoted node has just become a part, so its row stands for one and the timeline has
-            // a lane it did not have. Both are rebuilt even when nothing was pasted, because a
-            // component may still have been added.
-            if (pasteResult.keyCount > 0 || pasteResult.addedComponentCount > 0)
-            {
-                RebuildTimeline();
-                hierarchyPane.RebuildHierarchy();
-                clipInspectorPane.RebuildInspector();
-            }
-
-            ShowNotification(new GUIContent(DescribePasteResult(pasteResult)));
-        }
-
-        /// <summary>One line saying what the paste did, including the parts of it that did nothing.</summary>
-        private static string DescribePasteResult(ClipKeyPasteResult pasteResult)
-        {
-            if (pasteResult.keyCount == 0 && pasteResult.addedComponentCount == 0)
-            {
-                return "Nothing pasted — the clipboard's components could not be placed here.";
-            }
-
-            string described = "Pasted " + pasteResult.keyCount.ToString() + " key(s)";
-            if (pasteResult.addedComponentCount > 0)
-            {
-                described += ", added " + pasteResult.addedComponentCount.ToString()
-                    + " component(s)";
-            }
-            if (pasteResult.droppedKeyCount > 0)
-            {
-                described += ", dropped " + pasteResult.droppedKeyCount.ToString();
-            }
-            return described;
-        }
-
-        // Removed in descending index order: ascending would shift not-yet-deleted indices down by
-        // one each time. Event addresses sort by flat storage index, not lane-local, since every
-        // event lane shares one underlying events list and a removal can shift a different lane's
-        // not-yet-processed marker.
-        /// <summary>Removes every selected key.</summary>
-        private void DeleteSelectedKeys()
-        {
-            if (session.SelectedKeys.Count == 0)
-            {
-                return;
-            }
-
-            KeyAddress[] ordered = new List<KeyAddress>(session.SelectedKeys).ToArray();
-            int[] removalIndex = new int[ordered.Length];
-            for (int index = 0; index < ordered.Length; index++)
-            {
-                removalIndex[index] = ordered[index].trackKind == TimelineTrackKind.Event
-                    ? EventLaneAddressing.ResolveFlatIndex(
-                        selectedClip.events, ordered[index].trackIndex, ordered[index].keyIndex)
-                    : ordered[index].keyIndex;
-            }
-            System.Array.Sort(removalIndex, ordered);
-            System.Array.Reverse(removalIndex);
-            System.Array.Reverse(ordered);
-
-            BeginUndoGesture("Delete Animation Keys");
-            for (int addressIndex = 0; addressIndex < ordered.Length; addressIndex++)
-            {
-                KeyAddress address = ordered[addressIndex];
-                int flatOrLocalIndex = removalIndex[addressIndex];
-                switch (address.trackKind)
-                {
-                    case TimelineTrackKind.Transform:
-                        if (address.trackIndex < selectedClip.transformTracks.Count
-                            && flatOrLocalIndex < selectedClip.transformTracks[address.trackIndex].keys.Count)
-                        {
-                            selectedClip.transformTracks[address.trackIndex].keys.RemoveAt(flatOrLocalIndex);
-                        }
-                        break;
-                    case TimelineTrackKind.Sprite:
-                        if (address.trackIndex < selectedClip.spriteTracks.Count
-                            && flatOrLocalIndex < selectedClip.spriteTracks[address.trackIndex].keys.Count)
-                        {
-                            selectedClip.spriteTracks[address.trackIndex].keys.RemoveAt(flatOrLocalIndex);
-                        }
-                        break;
-                    case TimelineTrackKind.Bone:
-                        if (selectedClip.boneTracks != null
-                            && address.trackIndex < selectedClip.boneTracks.Count
-                            && flatOrLocalIndex < selectedClip.boneTracks[address.trackIndex].keys.Count)
-                        {
-                            selectedClip.boneTracks[address.trackIndex].keys.RemoveAt(flatOrLocalIndex);
-                        }
-                        break;
-                    default:
-                        if (flatOrLocalIndex >= 0 && flatOrLocalIndex < selectedClip.events.Count)
-                        {
-                            selectedClip.events.RemoveAt(flatOrLocalIndex);
-                        }
-                        break;
-                }
-            }
-            EndUndoGesture();
-
-            EditorUtility.SetDirty(selectedClip);
-            session.SelectedKeys.Clear();
-            session.HasActiveKey = false;
-            RebuildTimeline();
-        }
-
-        // -------------------------------------------------------------------------------------
-        // Key access. The lists hold structs, so every edit is a read-modify-write.
-        // -------------------------------------------------------------------------------------
-
-        private float GetKeyTime(KeyAddress address)
-        {
-            if (selectedClip == null)
-            {
-                return 0f;
-            }
-            switch (address.trackKind)
-            {
-                case TimelineTrackKind.Transform:
-                    return selectedClip.transformTracks[address.trackIndex].keys[address.keyIndex].normalizedTime;
-                case TimelineTrackKind.Sprite:
-                    return selectedClip.spriteTracks[address.trackIndex].keys[address.keyIndex].normalizedTime;
-                case TimelineTrackKind.Bone:
-                    return selectedClip.boneTracks[address.trackIndex].keys[address.keyIndex].normalizedTime;
-                default:
-                {
-                    int flatIndex = ResolveEventFlatIndex(address);
-                    return flatIndex >= 0 ? selectedClip.events[flatIndex].normalizedTime : 0f;
-                }
-            }
-        }
-
-        private void SetKeyTime(KeyAddress address, float normalizedTime)
-        {
-            if (selectedClip == null)
-            {
-                return;
-            }
-            switch (address.trackKind)
-            {
-                case TimelineTrackKind.Transform:
-                {
-                    TransformTrack track = selectedClip.transformTracks[address.trackIndex];
-                    TransformKey key = track.keys[address.keyIndex];
-                    key.normalizedTime = normalizedTime;
-                    track.keys[address.keyIndex] = key;
-                    break;
-                }
-                case TimelineTrackKind.Sprite:
-                {
-                    SpriteTrack track = selectedClip.spriteTracks[address.trackIndex];
-                    SpriteKey key = track.keys[address.keyIndex];
-                    key.normalizedTime = normalizedTime;
-                    track.keys[address.keyIndex] = key;
-                    break;
-                }
-                case TimelineTrackKind.Bone:
-                {
-                    BoneTrack track = selectedClip.boneTracks[address.trackIndex];
-                    BoneKey key = track.keys[address.keyIndex];
-                    key.normalizedTime = normalizedTime;
-                    track.keys[address.keyIndex] = key;
-                    break;
-                }
-                default:
-                {
-                    int flatIndex = ResolveEventFlatIndex(address);
-                    if (flatIndex < 0)
-                    {
-                        break;
-                    }
-                    EventMarker marker = selectedClip.events[flatIndex];
-                    marker.normalizedTime = normalizedTime;
-                    selectedClip.events[flatIndex] = marker;
-                    break;
-                }
-            }
-        }
-
-        /// <summary>The flat <see cref="selectedClip"/>.events position one event address points to.</summary>
-        private int ResolveEventFlatIndex(KeyAddress address)
-        {
-            return EventLaneAddressing.ResolveFlatIndex(
-                selectedClip.events, address.trackIndex, address.keyIndex);
-        }
-
-        // Copies the preceding key rather than type defaults, so adding a key does not change the
-        // pose the clip produces — a key at zero scale would snap the part to the origin on insert.
-        /// <summary>Adds a key at <paramref name="normalizedTime"/>, copying the key at or before it.</summary>
-        private void InsertKey(
-            TimelineTrackKind trackKind, int trackIndex, float normalizedTime, uint explicitEventKey = 0u)
-        {
-            switch (trackKind)
-            {
-                case TimelineTrackKind.Transform:
-                {
-                    List<TransformKey> keys = selectedClip.transformTracks[trackIndex].keys;
-                    TransformKey inserted = new TransformKey
-                    {
-                        position = float3.zero,
-                        scale = new float3(1f, 1f, 1f),
-                        interpolation = Interpolation.Linear
-                    };
-                    for (int keyIndex = 0; keyIndex < keys.Count; keyIndex++)
-                    {
-                        if (keys[keyIndex].normalizedTime <= normalizedTime)
-                        {
-                            inserted = keys[keyIndex];
-                        }
-                    }
-                    inserted.normalizedTime = normalizedTime;
-                    keys.Add(inserted);
-                    break;
-                }
-                case TimelineTrackKind.Sprite:
-                {
-                    List<SpriteKey> keys = selectedClip.spriteTracks[trackIndex].keys;
-                    SpriteKey inserted = new SpriteKey();
-                    for (int keyIndex = 0; keyIndex < keys.Count; keyIndex++)
-                    {
-                        if (keys[keyIndex].normalizedTime <= normalizedTime)
-                        {
-                            inserted = keys[keyIndex];
-                        }
-                    }
-                    inserted.normalizedTime = normalizedTime;
-                    keys.Add(inserted);
-                    break;
-                }
-                case TimelineTrackKind.Bone:
-                {
-                    List<BoneKey> keys = selectedClip.boneTracks[trackIndex].keys;
-
-                    // Identity rotation and unit scale, so an inserted key on an empty track is the
-                    // bone's rest pose rather than a degenerate zero-scale quaternion. A default
-                    // quaternion is all zeros, which is not a rotation at all and collapses the
-                    // skin the moment it is sampled.
-                    BoneKey inserted = new BoneKey
-                    {
-                        localPosition = float3.zero,
-                        localRotation = quaternion.identity,
-                        localScale = new float3(1f, 1f, 1f),
-                        interpolation = Interpolation.Linear
-                    };
-                    for (int keyIndex = 0; keyIndex < keys.Count; keyIndex++)
-                    {
-                        if (keys[keyIndex].normalizedTime <= normalizedTime)
-                        {
-                            inserted = keys[keyIndex];
-                        }
-                    }
-                    inserted.normalizedTime = normalizedTime;
-                    keys.Add(inserted);
-                    break;
-                }
-                default:
-                {
-                    // trackIndex addresses an existing event lane — double-clicking the "Footstep"
-                    // lane adds another Footstep. A negative trackIndex (the transport bar's Add
-                    // Event button) has no lane to read, so it carries the key the picker already
-                    // chose instead of guessing one. Never key 0: that struct default is the
-                    // reserved "invalid" key, which used to fail validation at bake time.
-                    List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
-                    uint eventKey = trackIndex >= 0 && trackIndex < laneKeys.Count
-                        ? laneKeys[trackIndex]
-                        : explicitEventKey;
-                    selectedClip.events.Add(new EventMarker
-                    {
-                        normalizedTime = normalizedTime,
-                        eventKey = eventKey,
-                        windowSeconds = ResolveDefaultWindowSecondsForKey(eventKey)
-                    });
-                    break;
-                }
-            }
-        }
-
         /// <summary>The Add Event button on the transport bar: opens the event picker anchored to it.</summary>
         private void OpenAddEventPicker()
         {
@@ -4944,474 +3409,10 @@ namespace DotsAnimationToolkit.Editor
                 registry,
                 registry,
                 VocabularyPickerConfig.ForEventKeys(registry),
-                chosenEventKey => AddEventAtPlayhead(chosenEventKey),
+                chosenEventKey => timelinePane.AddEventAtPlayhead(chosenEventKey),
                 // A Create… mint or an Edit… rename changes what a lane header should read, not
                 // just the marker inspector — the timeline has to rebuild, not just RebuildInspector.
-                RebuildTimeline);
-        }
-
-        // Selects the new marker rather than clearing selection, unlike a double-click add: a
-        // toolbar button gives the author no on-screen cue to where the marker landed.
-        /// <summary>Places a marker for <paramref name="eventKey"/> at the playhead and selects it.</summary>
-        private void AddEventAtPlayhead(uint eventKey)
-        {
-            if (selectedClip == null)
-            {
-                return;
-            }
-
-            float insertTime = TimelineGeometry.Snap(playheadTime, SnapFrameCount);
-            BeginUndoGesture("Add Event");
-
-            // -1: this button targets no particular lane, unlike a double-click inside one, so
-            // InsertKey carries the key the picker already chose instead of reading laneKeys[-1].
-            InsertKey(TimelineTrackKind.Event, -1, insertTime, eventKey);
-            EndUndoGesture();
-
-            EditorUtility.SetDirty(selectedClip);
-
-            // Select the marker just added, before the sort below can move it — SortTrackKeys
-            // remaps whatever is selected through the sort's index map, so selecting first and
-            // sorting after is what lets the selection follow the marker to wherever it lands
-            // rather than pointing at whatever key ends up in its old slot.
-            int newFlatIndex = selectedClip.events.Count - 1;
-            KeyAddress newAddress = clipInspectorPane.ResolveEventKeyAddressForFlatIndex(newFlatIndex);
-            session.SelectedKeys.Clear();
-            session.SelectedKeys.Add(newAddress);
-            session.ActiveKey = newAddress;
-            session.HasActiveKey = true;
-
-            SortTrackKeys(TimelineTrackKind.Event, newAddress.trackIndex);
-            SetPlayheadTime(insertTime);
-            RebuildTimeline();
-        }
-
-        /// <summary>That event's default window, if it has one.</summary>
-        private float ResolveDefaultWindowSecondsForKey(uint eventKey)
-        {
-            AnimEventKeyRegistry registry = ClipInspectorPane.ResolveEventKeyRegistry();
-            AnimEventKeyEntry entry = ClipInspectorPane.FindRegistryEntryByKey(registry, eventKey);
-            if (entry == null || entry.defaultWindowFrames <= 0)
-            {
-                return 0f;
-            }
-            return entry.defaultWindowFrames / ClipInspectorPane.ResolveReferenceFrameRate(registry);
-        }
-
-        // -------------------------------------------------------------------------------------
-        // Event lane header menu.
-        // -------------------------------------------------------------------------------------
-
-        /// <summary>
-        /// Right-click menu for an event lane's header: add another marker to this lane without
-        /// hunting for empty space in it, select every marker on it, re-point the whole lane to a
-        /// different event, or delete it outright.
-        /// </summary>
-        private void BuildEventLaneContextMenu(
-            ContextualMenuPopulateEvent menuEvent, int laneIndex, VisualElement anchor)
-        {
-            if (selectedClip == null)
-            {
-                return;
-            }
-            List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
-            if (laneIndex < 0 || laneIndex >= laneKeys.Count)
-            {
-                return;
-            }
-            uint laneKey = laneKeys[laneIndex];
-
-            menuEvent.menu.AppendAction(
-                "Add marker at playhead", action => AddEventAtPlayhead(laneKey));
-            menuEvent.menu.AppendAction(
-                "Select all markers",
-                action => SelectAllKeysOnTrack(TimelineTrackKind.Event, laneIndex, false));
-            menuEvent.menu.AppendAction(
-                "Change event…", action => OpenChangeLaneEventPicker(laneIndex, anchor));
-            menuEvent.menu.AppendAction(
-                "Delete lane", action => DeleteEventLane(laneIndex));
-        }
-
-        /// <summary>
-        /// Opens the event picker anchored to a lane header. Unlike the picker a marker's own
-        /// inspector opens (<see cref="OpenEventKeyPicker"/>), the choice here repoints every marker
-        /// on the lane at once — see <see cref="ApplyLaneEventChoice"/>.
-        /// </summary>
-        private void OpenChangeLaneEventPicker(int laneIndex, VisualElement anchor)
-        {
-            if (selectedClip == null)
-            {
-                return;
-            }
-            AnimEventKeyRegistry registry = ClipInspectorPane.ResolveEventKeyRegistry();
-            VocabularyPicker.Open(
-                rootVisualElement,
-                anchor,
-                registry,
-                registry,
-                VocabularyPickerConfig.ForEventKeys(registry),
-                chosenEventKey => ApplyLaneEventChoice(laneIndex, chosenEventKey),
-                RebuildTimeline);
-        }
-
-        /// <summary>
-        /// Re-points every marker in one lane to <paramref name="chosenEventKey"/> under one undo
-        /// gesture — distinct from renaming the registry row, which changes what a key is called
-        /// rather than which key a marker carries.
-        /// </summary>
-        private void ApplyLaneEventChoice(int laneIndex, uint chosenEventKey)
-        {
-            if (selectedClip == null || selectedClip.events == null)
-            {
-                return;
-            }
-            List<int> flatIndices = EventLaneAddressing.ResolveLaneFlatIndices(selectedClip.events, laneIndex);
-            if (flatIndices.Count == 0)
-            {
-                return;
-            }
-
-            RecordClipEdit("Change Event");
-            for (int position = 0; position < flatIndices.Count; position++)
-            {
-                EventMarker marker = selectedClip.events[flatIndices[position]];
-                marker.eventKey = chosenEventKey;
-                selectedClip.events[flatIndices[position]] = marker;
-            }
-            CommitClipEdit();
-            RebuildTimeline();
-        }
-
-        /// <summary>
-        /// Removes every marker in one lane, behind a confirmation naming how many — the same
-        /// courtesy a registry-row delete gives (<c>TargetTagRegistryEditor.RemoveEntry</c>,
-        /// <c>AnimEventKeyRegistryEditor.RemoveEntry</c>), but this deletes markers, not a
-        /// vocabulary row.
-        /// </summary>
-        private void DeleteEventLane(int laneIndex)
-        {
-            if (selectedClip == null || selectedClip.events == null)
-            {
-                return;
-            }
-            List<int> flatIndices = EventLaneAddressing.ResolveLaneFlatIndices(selectedClip.events, laneIndex);
-            if (flatIndices.Count == 0)
-            {
-                return;
-            }
-
-            List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(selectedClip.events);
-            string laneLabel = laneIndex < laneKeys.Count
-                ? ClipInspectorPane.DescribeEventName(laneKeys[laneIndex], ClipInspectorPane.ResolveEventKeyRegistry())
-                : "this lane";
-
-            bool confirmed = EditorUtility.DisplayDialog(
-                "Delete Event Lane",
-                "Delete lane '" + laneLabel + "'?\n\n" + flatIndices.Count
-                    + " marker(s) on it will be removed.",
-                "Delete", "Cancel");
-            if (!confirmed)
-            {
-                return;
-            }
-
-            RecordClipEdit("Delete Event Lane");
-            // flatIndices is in ascending flat order (EventLaneAddressing's documented contract);
-            // removing from the back is what keeps the not-yet-removed indices still ahead of it
-            // valid as the list shrinks.
-            for (int position = flatIndices.Count - 1; position >= 0; position--)
-            {
-                selectedClip.events.RemoveAt(flatIndices[position]);
-            }
-            CommitClipEdit();
-
-            session.SelectedKeys.Clear();
-            session.HasActiveKey = false;
-            RebuildTimeline();
-        }
-
-        // The sampler's segment search assumes ascending times; an out-of-order key does not throw,
-        // it silently makes a segment unreachable. Dragging a key past a neighbour reorders rather
-        // than clamps, so indices change here — the selection is remapped, not cleared, below.
-        /// <summary>Restores ascending key order after an edit, and moves the selection with the keys.</summary>
-        private void SortTrackKeys(TimelineTrackKind trackKind, int trackIndex)
-        {
-            int[] newIndexOfOldIndex;
-            switch (trackKind)
-            {
-                case TimelineTrackKind.Transform:
-                    newIndexOfOldIndex = SortKeysTrackingIndices(
-                        selectedClip.transformTracks[trackIndex].keys, TransformKeyTime);
-                    break;
-                case TimelineTrackKind.Sprite:
-                    newIndexOfOldIndex = SortKeysTrackingIndices(
-                        selectedClip.spriteTracks[trackIndex].keys, SpriteKeyTime);
-                    break;
-                case TimelineTrackKind.Bone:
-                    newIndexOfOldIndex = SortKeysTrackingIndices(
-                        selectedClip.boneTracks[trackIndex].keys, BoneKeyTime);
-                    break;
-                default:
-                    newIndexOfOldIndex = SortEventLaneKeys(trackIndex);
-                    break;
-            }
-
-            lastSortIndexMap = newIndexOfOldIndex;
-            RemapSelectionAfterSort(trackKind, trackIndex, newIndexOfOldIndex);
-        }
-
-        // Writes sorted markers back into the exact flat slots this lane's markers already occupied,
-        // rather than sorting the whole list, since every lane shares ClipAsset.events.
-        /// <summary>Sorts one event lane's markers by time in place, without disturbing any other lane's markers.</summary>
-        private int[] SortEventLaneKeys(int laneIndex)
-        {
-            List<int> flatIndices = EventLaneAddressing.ResolveLaneFlatIndices(
-                selectedClip.events, laneIndex);
-            List<EventMarker> laneMarkers = new List<EventMarker>(flatIndices.Count);
-            for (int position = 0; position < flatIndices.Count; position++)
-            {
-                laneMarkers.Add(selectedClip.events[flatIndices[position]]);
-            }
-
-            int[] newIndexOfOldIndex = SortKeysTrackingIndices(laneMarkers, EventMarkerTime);
-
-            for (int position = 0; position < flatIndices.Count; position++)
-            {
-                selectedClip.events[flatIndices[position]] = laneMarkers[position];
-            }
-            return newIndexOfOldIndex;
-        }
-
-        // Read by the modal grab/scale gesture, which tracks keys by their index at gesture start
-        // and must follow them through every re-sort a mirroring scale causes.
-        /// <summary>The index map produced by the most recent sort.</summary>
-        private int[] lastSortIndexMap;
-
-        // The width is deliberately not cached alongside it: a cached width is how the cursor and
-        // the key came apart.
-        /// <summary>Pointer x within the dragged lane, as of the last move.</summary>
-        private float dragPointerLaneX;
-        private IVisualElementScheduledItem dragAutoScroll;
-
-        // Ties break on the original index, making the sort stable: two keys stacked on the same
-        // frame keep their order rather than swapping on every re-sort.
-        /// <summary>Sorts a key list by time and reports where each key ended up.</summary>
-        private static int[] SortKeysTrackingIndices<TKey>(List<TKey> keys, System.Func<TKey, float> timeOf)
-        {
-            int keyCount = keys.Count;
-            int[] sortedOrder = new int[keyCount];
-            for (int index = 0; index < keyCount; index++)
-            {
-                sortedOrder[index] = index;
-            }
-
-            TKey[] originalKeys = keys.ToArray();
-            System.Array.Sort(sortedOrder, delegate (int leftIndex, int rightIndex)
-            {
-                int comparison = timeOf(originalKeys[leftIndex])
-                    .CompareTo(timeOf(originalKeys[rightIndex]));
-                return comparison != 0 ? comparison : leftIndex.CompareTo(rightIndex);
-            });
-
-            int[] newIndexOfOldIndex = new int[keyCount];
-            for (int position = 0; position < keyCount; position++)
-            {
-                keys[position] = originalKeys[sortedOrder[position]];
-                newIndexOfOldIndex[sortedOrder[position]] = position;
-            }
-            return newIndexOfOldIndex;
-        }
-
-        /// <summary>Rewrites the addresses of one track's selected keys through a sort's index map.</summary>
-        private void RemapSelectionAfterSort(
-            TimelineTrackKind trackKind, int trackIndex, int[] newIndexOfOldIndex)
-        {
-            if (session.SelectedKeys.Count == 0)
-            {
-                return;
-            }
-
-            List<KeyAddress> remapped = new List<KeyAddress>(session.SelectedKeys.Count);
-            bool changed = false;
-            foreach (KeyAddress address in session.SelectedKeys)
-            {
-                // Other tracks did not move, so their addresses are still correct.
-                if (address.trackKind != trackKind || address.trackIndex != trackIndex)
-                {
-                    remapped.Add(address);
-                    continue;
-                }
-                if (address.keyIndex < 0 || address.keyIndex >= newIndexOfOldIndex.Length)
-                {
-                    // The key is gone rather than moved; dropping it is the only honest answer.
-                    changed = true;
-                    continue;
-                }
-                remapped.Add(new KeyAddress(
-                    trackKind, trackIndex, newIndexOfOldIndex[address.keyIndex]));
-                changed = true;
-            }
-
-            if (!changed)
-            {
-                return;
-            }
-
-            session.SelectedKeys.Clear();
-            for (int index = 0; index < remapped.Count; index++)
-            {
-                session.SelectedKeys.Add(remapped[index]);
-            }
-
-            if (session.HasActiveKey
-                && session.ActiveKey.trackKind == trackKind
-                && session.ActiveKey.trackIndex == trackIndex)
-            {
-                if (session.ActiveKey.keyIndex >= 0 && session.ActiveKey.keyIndex < newIndexOfOldIndex.Length)
-                {
-                    session.ActiveKey = new KeyAddress(
-                        trackKind, trackIndex, newIndexOfOldIndex[session.ActiveKey.keyIndex]);
-                }
-                else
-                {
-                    session.HasActiveKey = false;
-                }
-            }
-        }
-
-        /// <summary>Selects every key in the clip, across every track.</summary>
-        private void SelectAllKeys()
-        {
-            if (selectedClip == null)
-            {
-                return;
-            }
-            session.SelectedKeys.Clear();
-            session.HasActiveKey = false;
-
-            AddTrackKeysToSelection(TimelineTrackKind.Transform, selectedClip.transformTracks.Count);
-            AddTrackKeysToSelection(TimelineTrackKind.Sprite, selectedClip.spriteTracks.Count);
-            AddTrackKeysToSelection(
-                TimelineTrackKind.Bone,
-                selectedClip.boneTracks != null ? selectedClip.boneTracks.Count : 0);
-            AddTrackKeysToSelection(
-                TimelineTrackKind.Event,
-                EventLaneAddressing.ComputeLaneKeys(selectedClip.events).Count);
-
-            RepaintLanes();
-            clipInspectorPane.RebuildInspector();
-            RebuildTimeline();
-        }
-
-        private void AddTrackKeysToSelection(TimelineTrackKind trackKind, int trackCount)
-        {
-            for (int trackIndex = 0; trackIndex < trackCount; trackIndex++)
-            {
-                AddKeysOnTrackToSelection(trackKind, trackIndex);
-            }
-        }
-
-        private void AddKeysOnTrackToSelection(TimelineTrackKind trackKind, int trackIndex)
-        {
-            int keyCount = CountKeysOnTrack(trackKind, trackIndex);
-            for (int keyIndex = 0; keyIndex < keyCount; keyIndex++)
-            {
-                session.SelectedKeys.Add(new KeyAddress(trackKind, trackIndex, keyIndex));
-            }
-        }
-
-        /// <summary>Clears the key selection without touching the hierarchy selection.</summary>
-        private void DeselectAllKeys()
-        {
-            if (session.SelectedKeys.Count == 0)
-            {
-                return;
-            }
-            session.SelectedKeys.Clear();
-            session.HasActiveKey = false;
-            RepaintLanes();
-            clipInspectorPane.RebuildInspector();
-            RebuildTimeline();
-        }
-
-        /// <summary>Selects every key on one track, replacing the selection unless adding to it.</summary>
-        private void SelectAllKeysOnTrack(
-            TimelineTrackKind trackKind, int trackIndex, bool additive)
-        {
-            if (selectedClip == null)
-            {
-                return;
-            }
-            if (!additive)
-            {
-                session.SelectedKeys.Clear();
-                session.HasActiveKey = false;
-            }
-            AddKeysOnTrackToSelection(trackKind, trackIndex);
-            RepaintLanes();
-            clipInspectorPane.RebuildInspector();
-            RebuildTimeline();
-        }
-
-        private static float TransformKeyTime(TransformKey key)
-        {
-            return key.normalizedTime;
-        }
-
-        private static float SpriteKeyTime(SpriteKey key)
-        {
-            return key.normalizedTime;
-        }
-
-        private static float BoneKeyTime(BoneKey key)
-        {
-            return key.normalizedTime;
-        }
-
-        private static float EventMarkerTime(EventMarker marker)
-        {
-            return marker.normalizedTime;
-        }
-
-        private void SortAllTracks()
-        {
-            for (int trackIndex = 0; trackIndex < selectedClip.transformTracks.Count; trackIndex++)
-            {
-                selectedClip.transformTracks[trackIndex].keys.Sort(CompareTransformKeys);
-            }
-            for (int trackIndex = 0; trackIndex < selectedClip.spriteTracks.Count; trackIndex++)
-            {
-                selectedClip.spriteTracks[trackIndex].keys.Sort(CompareSpriteKeys);
-            }
-            for (int trackIndex = 0;
-                selectedClip.boneTracks != null && trackIndex < selectedClip.boneTracks.Count;
-                trackIndex++)
-            {
-                selectedClip.boneTracks[trackIndex].keys.Sort(CompareBoneKeys);
-            }
-            selectedClip.events.Sort(CompareEventMarkers);
-            session.SelectedKeys.Clear();
-            session.HasActiveKey = false;
-        }
-
-        private static int CompareTransformKeys(TransformKey first, TransformKey second)
-        {
-            return first.normalizedTime.CompareTo(second.normalizedTime);
-        }
-
-        private static int CompareSpriteKeys(SpriteKey first, SpriteKey second)
-        {
-            return first.normalizedTime.CompareTo(second.normalizedTime);
-        }
-
-        private static int CompareBoneKeys(BoneKey first, BoneKey second)
-        {
-            return first.normalizedTime.CompareTo(second.normalizedTime);
-        }
-
-        private static int CompareEventMarkers(EventMarker first, EventMarker second)
-        {
-            return first.normalizedTime.CompareTo(second.normalizedTime);
+                timelinePane.RebuildTimeline);
         }
 
         // -------------------------------------------------------------------------------------
@@ -5446,7 +3447,7 @@ namespace DotsAnimationToolkit.Editor
                 timelineRebuildPending = true;
                 return;
             }
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
         }
 
         /// <summary>Rebuilds the hierarchy, or defers it to the end of a live drag.</summary>
@@ -5490,7 +3491,7 @@ namespace DotsAnimationToolkit.Editor
             }
             if (rebuildTimeline)
             {
-                RebuildTimeline();
+                timelinePane.RebuildTimeline();
             }
             if (rebuildInspector)
             {
@@ -5607,7 +3608,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>
         /// How one track's binding reads on its timeline header, and which rig part it drives.
         /// </summary>
-        private readonly struct TrackBindingLabel
+        internal readonly struct TrackBindingLabel
         {
             /// <summary>What the clip stores its keys against — the primary half of the header.</summary>
             public readonly string tagText;
@@ -5721,7 +3722,7 @@ namespace DotsAnimationToolkit.Editor
                 tagRegistry,
                 VocabularyPickerConfig.ForTrackTagRebind(tagRegistry),
                 chosenTagId => RetagTrack(trackKind, trackIndex, chosenTagId),
-                RebuildTimeline);
+                timelinePane.RebuildTimeline);
         }
 
         /// <summary>
@@ -5784,7 +3785,7 @@ namespace DotsAnimationToolkit.Editor
                     ClipComponentModel.MergeTransformTracks(
                         track, selectedClip.transformTracks[destinationIndex]);
                     selectedClip.transformTracks.RemoveAt(trackIndex);
-                    OnTrackListChanged();
+                    timelinePane.OnTrackListChanged();
                 }
                 else
                 {
@@ -5824,7 +3825,7 @@ namespace DotsAnimationToolkit.Editor
                     ClipComponentModel.MergeSpriteTracks(
                         track, selectedClip.spriteTracks[destinationIndex]);
                     selectedClip.spriteTracks.RemoveAt(trackIndex);
-                    OnTrackListChanged();
+                    timelinePane.OnTrackListChanged();
                 }
                 else
                 {
@@ -5841,18 +3842,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 validationBadge.Refresh(ActiveRig, clipSet);
             }
-            RebuildTimeline();
-        }
-
-        /// <summary>
-        /// A merge deleted a track, so every stored track index after it points one row off.
-        /// Selection and expansion are addressed by those indices; cheaper to drop than remap.
-        /// </summary>
-        private void OnTrackListChanged()
-        {
-            session.SelectedKeys.Clear();
-            session.HasActiveKey = false;
-            expandedTrackKeys.Clear();
+            timelinePane.RebuildTimeline();
         }
 
         // Lands an existing row's tag on another rig part: the row is the subject, so its keys are
@@ -5968,7 +3958,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 // A merge deleted a track, so every stored track index is suspect — and even without
                 // one the open clip's serialized copy and its preview are now behind the asset.
-                OnTrackListChanged();
+                timelinePane.OnTrackListChanged();
                 clipInspectorPane.RefreshSerializedClip();
                 MarkPreviewDirty();
             }
@@ -6008,7 +3998,7 @@ namespace DotsAnimationToolkit.Editor
 
             // Rebuilds the inspector as its last act, so the button that was just picked re-reads
             // its own label from here rather than needing a second refresh call beside this one.
-            RebuildTimeline();
+            timelinePane.RebuildTimeline();
         }
 
         /// <summary>

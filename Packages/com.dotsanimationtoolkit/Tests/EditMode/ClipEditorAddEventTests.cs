@@ -163,18 +163,24 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 .GetValue(window);
         }
 
+        // Same two-sided write as the clip: the window keeps the field, the panes read the session.
         private static void SetPlayheadTime(ClipEditorWindow window, float normalizedTime)
         {
             typeof(ClipEditorWindow)
                 .GetField("playheadTime", BindingFlags.NonPublic | BindingFlags.Instance)
                 .SetValue(window, normalizedTime);
+            GetSession(window).SetPlayhead(normalizedTime);
         }
 
+        // AddEventAtPlayhead lives on the timeline pane the window builds and wires in OnEnable.
         private static void InvokeAddEventAtPlayhead(ClipEditorWindow window, uint eventKey)
         {
-            typeof(ClipEditorWindow)
+            object timelinePane = typeof(ClipEditorWindow)
+                .GetField("timelinePane", BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetValue(window);
+            timelinePane.GetType()
                 .GetMethod("AddEventAtPlayhead", BindingFlags.NonPublic | BindingFlags.Instance)
-                .Invoke(window, new object[] { eventKey });
+                .Invoke(timelinePane, new object[] { eventKey });
         }
 
         private static HashSet<KeyAddress> GetSelectedKeys(ClipEditorWindow window)

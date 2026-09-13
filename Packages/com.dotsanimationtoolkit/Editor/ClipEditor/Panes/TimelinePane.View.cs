@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    public sealed partial class ClipEditorWindow
+    public sealed partial class TimelinePane
     {
         private const string ZoomPrefKey = "DotsAnimationToolkit.ClipEditor.Zoom";
         private const string PanPrefKey = "DotsAnimationToolkit.ClipEditor.Pan";
@@ -36,15 +36,15 @@ namespace DotsAnimationToolkit.Editor
         private float panPointerStartX;
         private float panStartValue;
 
-        private void BindTimelineView()
+        private void BindTimelineView(VisualElement paneRoot)
         {
             viewZoom = Mathf.Clamp(
                 EditorPrefs.GetFloat(ZoomPrefKey, 1f),
                 TimelineGeometry.MinimumZoom, MaximumViewZoom);
             viewPan = EditorPrefs.GetFloat(PanPrefKey, 0f);
 
-            timelineScroll = rootVisualElement.Q<ScrollView>("timeline-scroll");
-            zoomSlider = rootVisualElement.Q<Slider>("zoom-slider");
+            timelineScroll = paneRoot.Q<ScrollView>("timeline-scroll");
+            zoomSlider = paneRoot.Q<Slider>("zoom-slider");
             if (zoomSlider != null)
             {
                 zoomSlider.tooltip =
@@ -62,18 +62,18 @@ namespace DotsAnimationToolkit.Editor
                     {
                         return;
                     }
-                    SetZoomAtTime(changeEvent.newValue, playheadTime);
+                    SetZoomAtTime(changeEvent.newValue, session.PlayheadNormalized);
                 });
             }
 
-            Button frameAllButton = rootVisualElement.Q<Button>("frame-all-button");
+            Button frameAllButton = paneRoot.Q<Button>("frame-all-button");
             if (frameAllButton != null)
             {
                 frameAllButton.clicked += FrameAll;
                 frameAllButton.tooltip = "Fit the whole clip in the timeline.";
             }
 
-            Button frameSelectionButton = rootVisualElement.Q<Button>("frame-selection-button");
+            Button frameSelectionButton = paneRoot.Q<Button>("frame-selection-button");
             if (frameSelectionButton != null)
             {
                 frameSelectionButton.clicked += FrameSelection;
@@ -164,7 +164,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Points the slider's ends at the current zoom bounds, and pulls the view inside them.</summary>
-        private void RefreshZoomRange()
+        internal void RefreshZoomRange()
         {
             float ceiling = MaximumViewZoom;
             float clampedZoom = Mathf.Clamp(viewZoom, TimelineGeometry.MinimumZoom, ceiling);
@@ -233,7 +233,7 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>The one width every part of the timeline converts against.</summary>
-        private float LaneWidth
+        internal float LaneWidth
         {
             get
             {
@@ -376,7 +376,7 @@ namespace DotsAnimationToolkit.Editor
                 }
                 else
                 {
-                    SetZoomAtTime(viewZoom * factor, playheadTime);
+                    SetZoomAtTime(viewZoom * factor, session.PlayheadNormalized);
                 }
                 wheelEvent.StopPropagation();
                 return;
@@ -501,14 +501,14 @@ namespace DotsAnimationToolkit.Editor
         // Framing.
         // -----------------------------------------------------------------------------------
 
-        private void FrameAll()
+        internal void FrameAll()
         {
             FrameRange(0f, 1f);
         }
 
-        private void FrameSelection()
+        internal void FrameSelection()
         {
-            if (selectedClip == null || session.SelectedKeys.Count == 0)
+            if (session.SelectedClip == null || session.SelectedKeys.Count == 0)
             {
                 FrameAll();
                 return;
@@ -546,10 +546,10 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>The authored time of one selected key, or false when the address no longer resolves.</summary>
         // Every index is bounds-checked rather than trusted: an address can outlive the key it
         // pointed at (a delete or undo renumbers the list), and a stale one here would throw during repaint.
-        private bool TryGetSelectedKeyTime(KeyAddress address, out float normalizedTime)
+        internal bool TryGetSelectedKeyTime(KeyAddress address, out float normalizedTime)
         {
             normalizedTime = 0f;
-            if (selectedClip == null)
+            if (session.SelectedClip == null)
             {
                 return false;
             }
@@ -558,7 +558,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 case TimelineTrackKind.Transform:
                 {
-                    List<TransformTrack> tracks = selectedClip.transformTracks;
+                    List<TransformTrack> tracks = session.SelectedClip.transformTracks;
                     if (tracks == null || address.trackIndex < 0 || address.trackIndex >= tracks.Count)
                     {
                         return false;
@@ -574,7 +574,7 @@ namespace DotsAnimationToolkit.Editor
                 }
                 case TimelineTrackKind.Sprite:
                 {
-                    List<SpriteTrack> tracks = selectedClip.spriteTracks;
+                    List<SpriteTrack> tracks = session.SelectedClip.spriteTracks;
                     if (tracks == null || address.trackIndex < 0 || address.trackIndex >= tracks.Count)
                     {
                         return false;
@@ -590,7 +590,7 @@ namespace DotsAnimationToolkit.Editor
                 }
                 case TimelineTrackKind.Bone:
                 {
-                    List<BoneTrack> tracks = selectedClip.boneTracks;
+                    List<BoneTrack> tracks = session.SelectedClip.boneTracks;
                     if (tracks == null || address.trackIndex < 0 || address.trackIndex >= tracks.Count)
                     {
                         return false;
@@ -606,7 +606,7 @@ namespace DotsAnimationToolkit.Editor
                 }
                 default:
                 {
-                    List<EventMarker> markers = selectedClip.events;
+                    List<EventMarker> markers = session.SelectedClip.events;
                     int flatIndex = EventLaneAddressing.ResolveFlatIndex(
                         markers, address.trackIndex, address.keyIndex);
                     if (markers == null || flatIndex < 0)
