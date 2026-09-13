@@ -18,26 +18,7 @@ namespace DotsAnimationToolkit.Editor
         private static readonly Color KeySelectedFill = new Color(0.30f, 0.62f, 0.95f);
         private static readonly Color KeyOutline = new Color(0.08f, 0.08f, 0.09f);
 
-        // Half the event marker's drawn width, in pixels. Narrower than EventMarkerHalfHeight on
-        // purpose: a pin reads as a pin because it is taller than it is wide.
-        private const float EventMarkerHalfWidth = 5f;
-
-        /// <summary>
-        /// Half the event marker's drawn height, in pixels — the same footprint the old
-        /// scaled-up diamond used (<c>KeyDrawRadius * 1.35</c>), so this phase changes the shape
-        /// without also relitigating how much lane height an event key is allowed to claim.
-        /// </summary>
-        private const float EventMarkerHalfHeight = TimelineGeometry.KeyDrawRadius * 1.35f;
-
-        /// <summary>
-        /// How far below centre the marker's flat shoulders sit before the sides taper to the
-        /// point, as a fraction of <see cref="EventMarkerHalfHeight"/>.
-        /// </summary>
-        private const float EventMarkerShoulderFraction = 0.2f;
-
-        // Half-width of an event marker's grab box, in pixels — the same 2px pad KeyHitRadius
-        // carries over a pose key's draw radius, so the pin is exactly as forgiving to click.
-        private const float EventKeyHitRadius = EventMarkerHalfWidth + 2f;
+        private const float EventKeyHitRadius = EventLaneStyle.PinHitHalfWidth;
 
         // How much closer one hit-tested key must be than another before OnPointerDown treats them
         // as genuinely different rather than a tie — two keys at the same time give bit-for-bit equal distances.
@@ -90,11 +71,47 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         public const string UssClassName = "clip-editor__lane";
 
+        // Raised on a right-click over an event pin; the lane only says which marker is under the
+        // pointer, the pane fills the menu.
+        public event Action<KeyAddress, DropdownMenu> eventKeyContextMenu;
+
         public TrackLaneElement()
         {
             AddToClassList(UssClassName);
             generateVisualContent += OnGenerateVisualContent;
             RegisterCallback<PointerDownEvent>(OnPointerDown);
+            this.AddManipulator(new ContextualMenuManipulator(OnContextualMenuPopulate));
+        }
+
+        private void OnContextualMenuPopulate(ContextualMenuPopulateEvent menuEvent)
+        {
+            if (trackKind != TimelineTrackKind.Event || eventKeyContextMenu == null)
+            {
+                return;
+            }
+
+            TimelineGeometry geometry = Geometry;
+            float localX = menuEvent.localMousePosition.x;
+            int nearestIndex = -1;
+            float nearestDistance = float.MaxValue;
+            for (int keyIndex = 0; keyIndex < keyTimes.Count; keyIndex++)
+            {
+                if (!geometry.HitsKey(localX, keyTimes[keyIndex], EventKeyHitRadius))
+                {
+                    continue;
+                }
+                float distance = Mathf.Abs(localX - geometry.TimeToX(keyTimes[keyIndex]));
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearestIndex = keyIndex;
+                }
+            }
+
+            if (nearestIndex >= 0)
+            {
+                eventKeyContextMenu(new KeyAddress(trackKind, trackIndex, nearestIndex), menuEvent.menu);
+            }
         }
 
         /// <summary>Replaces the times this lane shows and repaints.</summary>
@@ -296,7 +313,7 @@ namespace DotsAnimationToolkit.Editor
 
                 if (trackKind == TimelineTrackKind.Event)
                 {
-                    DrawEventMarker(painter, x, centreY);
+                    EventLaneStyle.DrawPin(painter, x, centreY, eventColor, isEventSelectedKey);
                     continue;
                 }
 
@@ -314,25 +331,6 @@ namespace DotsAnimationToolkit.Editor
                 painter.Fill();
                 painter.Stroke();
             }
-        }
-
-        // Draws one event marker as a pin — flat shoulders tapering to a single point at the exact
-        // key time — rather than a bigger diamond, so an event reads as obviously not-a-pose-key.
-        private static void DrawEventMarker(Painter2D painter, float x, float centreY)
-        {
-            float shoulderY = centreY - EventMarkerHalfHeight;
-            float taperStartY = centreY + EventMarkerHalfHeight * EventMarkerShoulderFraction;
-            float tipY = centreY + EventMarkerHalfHeight;
-
-            painter.BeginPath();
-            painter.MoveTo(new Vector2(x - EventMarkerHalfWidth, shoulderY));
-            painter.LineTo(new Vector2(x + EventMarkerHalfWidth, shoulderY));
-            painter.LineTo(new Vector2(x + EventMarkerHalfWidth, taperStartY));
-            painter.LineTo(new Vector2(x, tipY));
-            painter.LineTo(new Vector2(x - EventMarkerHalfWidth, taperStartY));
-            painter.ClosePath();
-            painter.Fill();
-            painter.Stroke();
         }
 
         // Draws the translucent bar spanning each event marker's window. A window past the clip end
@@ -355,8 +353,6 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            painter.fillColor = new Color(eventColor.r, eventColor.g, eventColor.b, 0.30f);
-
             int barCount = Mathf.Min(keyWindows.Count, keyTimes.Count);
             for (int keyIndex = 0; keyIndex < barCount; keyIndex++)
             {
@@ -369,18 +365,7 @@ namespace DotsAnimationToolkit.Editor
                 float startX = geometry.TimeToX(keyTimes[keyIndex]);
                 float endX = Mathf.Min(
                     geometry.TimeToX(keyTimes[keyIndex] + windowLength), rect.width);
-                if (endX <= startX)
-                {
-                    continue;
-                }
-
-                painter.BeginPath();
-                painter.MoveTo(new Vector2(startX, centreY - barHalfHeight));
-                painter.LineTo(new Vector2(endX, centreY - barHalfHeight));
-                painter.LineTo(new Vector2(endX, centreY + barHalfHeight));
-                painter.LineTo(new Vector2(startX, centreY + barHalfHeight));
-                painter.ClosePath();
-                painter.Fill();
+                EventLaneStyle.DrawWindow(painter, startX, endX, centreY, barHalfHeight, eventColor);
             }
         }
     }

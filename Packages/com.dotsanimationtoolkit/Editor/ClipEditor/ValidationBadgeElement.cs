@@ -107,7 +107,8 @@ namespace DotsAnimationToolkit.Editor
             List<ValidationMessage> messages = ClipValidation.ValidateBind(
                 rig,
                 new ClipSetAsset[] { clipSet },
-                tagRegistry: VocabularyRegistryProvider.TargetTags);
+                tagRegistry: VocabularyRegistryProvider.TargetTags,
+                eventKeyRegistry: VocabularyRegistryProvider.AnimEventKeys);
 
             // A project-wide fact ClipValidation cannot see on its own (Editor-only AssetDatabase
             // access), appended here rather than folded into the call above.

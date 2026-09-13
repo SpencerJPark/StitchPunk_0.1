@@ -530,9 +530,7 @@ namespace DotsAnimationToolkit.Editor
                 || propertyName == "bezierEndHandle";
         }
 
-        // The window field edits in frames but stores seconds — the conversion happens here, at the
-        // one point a person is looking at the number, with resolved seconds shown beside it.
-        /// <summary>The selected event marker: which event it is, how long its window runs, and its payload.</summary>
+        // The same element edits a cutscene's event marker, so the two inspectors cannot drift.
         private void AddSelectedEventMarkerFields(KeyAddress address)
         {
             int flatIndex = ResolveEventFlatIndex(address);
@@ -541,100 +539,44 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            EventMarker marker = session.SelectedClip.events[flatIndex];
             AnimEventKeyRegistry registry = ResolveEventKeyRegistry();
-
-            AddEventKeyField(address, marker, registry);
-            AddEventWindowField(address, marker, registry);
-
-            AnimEventKeyEntry payloadEntry = FindRegistryEntryByKey(registry, marker.eventKey);
-
-            VisualElement intParamField = EventPayloadFieldBuilder.BuildIntField(
-                payloadEntry, marker.intParam,
-                newIntParam => EditEventMarker(address, "Edit Event Payload", editedMarker =>
-                {
-                    editedMarker.intParam = newIntParam;
-                    return editedMarker;
-                }));
-            if (intParamField != null)
-            {
-                inspectorPane.Add(intParamField);
-            }
-
-            VisualElement floatParamField = EventPayloadFieldBuilder.BuildFloatField(
-                payloadEntry, marker.floatParam,
-                newFloatParam => EditEventMarker(address, "Edit Event Payload", editedMarker =>
-                {
-                    editedMarker.floatParam = newFloatParam;
-                    return editedMarker;
-                }));
-            if (floatParamField != null)
-            {
-                inspectorPane.Add(floatParamField);
-            }
+            ClipEventMarkerAccessor accessor = new ClipEventMarkerAccessor(session.SelectedClip, flatIndex);
+            EventMarkerInspectorElement markerInspector = new EventMarkerInspectorElement { PickerHost = PickerRoot };
+            markerInspector.Bind(accessor, registry);
+            markerInspector.SetFindings(ValidateClipEventMarker(session.SelectedClip, flatIndex, registry));
+            markerInspector.FieldEdited += editedField => OnClipEventMarkerFieldEdited(address, flatIndex, editedField);
+            markerInspector.RegistryChanged += RebuildInspector;
+            inspectorPane.Add(markerInspector);
         }
 
-        /// <summary>Which event this marker fires, chosen from the project's event-name vocabulary.</summary>
-        private void AddEventKeyField(
-            KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)
+        private static List<ValidationMessage> ValidateClipEventMarker(
+            ClipAsset clip, int flatIndex, AnimEventKeyRegistry registry)
         {
-            Button eventButton = new Button
-            {
-                text = "Event: " + DescribeEventName(marker.eventKey, registry)
-            };
-            eventButton.clicked += () => OpenEventKeyPicker(address, registry, eventButton);
-            inspectorPane.Add(eventButton);
-            inspectorPane.Add(MakeHint(DescribeEventKey(marker.eventKey, registry)));
+            EventMarker marker = clip.events[flatIndex];
+            List<ValidationMessage> findings = new List<ValidationMessage>();
+            AnimEventValidation.ValidateMarker(
+                flatIndex, marker.eventKey, marker.intParam, marker.windowSeconds,
+                AnimEventValidation.RegistryContainsKey(registry),
+                AnimEventValidation.ValueNamesForKey(registry),
+                clip, "clip '" + clip.name + "'", findings);
+            return findings;
         }
 
-        /// <summary>The event's name, or an unresolved id when the registry does not (or no longer) names it.</summary>
-        internal static string DescribeEventName(uint eventKey, AnimEventKeyRegistry registry)
+        private void OnClipEventMarkerFieldEdited(KeyAddress address, int flatIndex, EventMarkerField editedField)
         {
-            string resolvedName = registry != null ? registry.FindName(eventKey) : null;
-            return resolvedName ?? "(unresolved 0x" + eventKey.ToString("X8") + ")";
-        }
+            RefreshSerializedClip();
+            MarkPreviewDirty();
 
-        private void OpenEventKeyPicker(
-            KeyAddress address, AnimEventKeyRegistry registry, Button anchor)
-        {
-            VocabularyPicker.Open(
-                PickerRoot,
-                anchor,
-                registry,
-                registry,
-                VocabularyPickerConfig.ForEventKeys(registry),
-                chosenEventKey => ApplyEventKeyChoice(address, chosenEventKey, registry),
-                RebuildInspector);
-        }
-
-        private void ApplyEventKeyChoice(
-            KeyAddress address, uint chosenEventKey, AnimEventKeyRegistry registry)
-        {
-            int flatIndex = ResolveEventFlatIndex(address);
-            if (flatIndex < 0)
+            // Requested: the payload fields are dragged, and a timeline rebuild per mouse move is
+            // wasted work at best.
+            RequestTimelineRebuild();
+            if (editedField != EventMarkerField.Key)
             {
                 return;
             }
 
-            AnimEventKeyEntry chosen = FindRegistryEntryByKey(registry, chosenEventKey);
-            EditEventMarker(address, "Change Event Key", editedMarker =>
-            {
-                editedMarker.eventKey = chosenEventKey;
-
-                // The registry's default window applies only when the marker has none of its own,
-                // so re-pointing a hand-tuned six-frame window at another event does not quietly
-                // reset it to that event's default.
-                if (editedMarker.windowSeconds <= 0f && chosen != null && chosen.defaultWindowFrames > 0)
-                {
-                    editedMarker.windowSeconds =
-                        chosen.defaultWindowFrames / ResolveReferenceFrameRate(registry);
-                }
-                return editedMarker;
-            });
-
-            // The eventKey just written can move the marker into a different lane (E6 Task 2), so
-            // its selection has to follow — re-resolved from the flat index captured before the
-            // edit rather than trusting the caller's now possibly-stale lane/local pair.
+            // A new key can move the marker into a different lane, so its selection has to follow —
+            // re-resolved from the flat index rather than the now possibly-stale lane/local pair.
             KeyAddress newAddress = ResolveEventKeyAddressForFlatIndex(flatIndex);
             if (session.SelectedKeys.Remove(address))
             {
@@ -644,8 +586,14 @@ namespace DotsAnimationToolkit.Editor
             {
                 session.ActiveKey = newAddress;
             }
-
             RebuildInspector();
+        }
+
+        /// <summary>The event's name, or an unresolved id when the registry does not (or no longer) names it.</summary>
+        internal static string DescribeEventName(uint eventKey, AnimEventKeyRegistry registry)
+        {
+            string resolvedName = registry != null ? registry.FindName(eventKey) : null;
+            return resolvedName ?? "(unresolved 0x" + eventKey.ToString("X8") + ")";
         }
 
         /// <summary>The lane-local <see cref="KeyAddress"/> for an event marker at a known flat index.</summary>
@@ -657,35 +605,6 @@ namespace DotsAnimationToolkit.Editor
             int localIndex = EventLaneAddressing
                 .ResolveLaneFlatIndices(session.SelectedClip.events, laneIndex).IndexOf(flatIndex);
             return new KeyAddress(TimelineTrackKind.Event, laneIndex, localIndex);
-        }
-
-        /// <summary>How long the marker holds its mask bit, edited in frames.</summary>
-        private void AddEventWindowField(
-            KeyAddress address, EventMarker marker, AnimEventKeyRegistry registry)
-        {
-            float frameRate = ResolveReferenceFrameRate(registry);
-
-            IntegerField windowField = new IntegerField("Window (frames)");
-            windowField.tooltip =
-                "How many frames the event's AnimEventMask bit stays open. 0 makes it pulse-only: "
-                + "it still fires with its payload, it just holds no state.";
-            windowField.SetValueWithoutNotify(Mathf.RoundToInt(marker.windowSeconds * frameRate));
-            windowField.RegisterValueChangedCallback(changeEvent =>
-            {
-                EditEventMarker(address, "Edit Event Window", editedMarker =>
-                {
-                    editedMarker.windowSeconds = Mathf.Max(0, changeEvent.newValue) / frameRate;
-                    return editedMarker;
-                });
-            });
-            inspectorPane.Add(windowField);
-
-            if (marker.windowSeconds > 0f)
-            {
-                inspectorPane.Add(MakeHint(
-                    marker.windowSeconds.ToString("0.###") + "s at "
-                    + frameRate.ToString("0.##") + " fps"));
-            }
         }
 
         /// <summary>The entry holding a specific key, or null when the registry does not have it.</summary>
@@ -707,23 +626,6 @@ namespace DotsAnimationToolkit.Editor
             return null;
         }
 
-        /// <summary>The one-line status under the event button: its name, and whether it can hold a window.</summary>
-        private static string DescribeEventKey(uint eventKey, AnimEventKeyRegistry registry)
-        {
-            string displayName = DescribeEventName(eventKey, registry);
-            if (eventKey < (uint)ReservedEventKeys.FirstUserKey)
-            {
-                return displayName + " is reserved by the package — this clip will fail "
-                    + "validation (V09).";
-            }
-            if (!AnimEventMaskKeys.IsMaskable(eventKey))
-            {
-                return displayName
-                    + " · pulse-only (outside the maskable range, so a window here would never open).";
-            }
-            return displayName + " · mask bit " + (eventKey - AnimEventMaskKeys.FirstMaskKey) + ".";
-        }
-
         /// <summary>The project-wide event registry; the only source now that the per-set override is gone.</summary>
         internal static AnimEventKeyRegistry ResolveEventKeyRegistry()
         {
@@ -738,24 +640,6 @@ namespace DotsAnimationToolkit.Editor
                 return AnimEventKeyRegistry.DefaultReferenceFrameRate;
             }
             return registry.referenceFrameRate;
-        }
-
-        /// <summary>Applies one undoable edit to an event marker and refreshes what shows it.</summary>
-        private void EditEventMarker(
-            KeyAddress address, string undoLabel, System.Func<EventMarker, EventMarker> edit)
-        {
-            int flatIndex = ResolveEventFlatIndex(address);
-            if (session.SelectedClip.events == null || flatIndex < 0)
-            {
-                return;
-            }
-            RecordClipEdit(undoLabel);
-            session.SelectedClip.events[flatIndex] = edit(session.SelectedClip.events[flatIndex]);
-            CommitClipEdit();
-
-            // Requested: the payload fields are dragged, and a timeline rebuild per mouse move is
-            // wasted work at best.
-            RequestTimelineRebuild();
         }
 
         /// <summary>The selected flipbook key: stored value, mode, and what it resolves to.</summary>

@@ -725,8 +725,126 @@ namespace DotsAnimationToolkit.Editor
             }
             lane.keyPointerDown += OnKeyPointerDown;
             lane.lanePointerDown += OnLanePointerDown;
+            lane.eventKeyContextMenu += (address, menu) => PopulateEventMarkerMenu(address, menu, lane);
             laneColumn.Add(lane);
             return lane;
+        }
+
+        private void PopulateEventMarkerMenu(KeyAddress address, DropdownMenu menu, VisualElement anchor)
+        {
+            if (session.SelectedClip == null)
+            {
+                return;
+            }
+            int flatIndex = ResolveEventFlatIndex(address);
+            if (flatIndex < 0)
+            {
+                return;
+            }
+
+            ClipEventMarkerAccessor accessor = new ClipEventMarkerAccessor(session.SelectedClip, flatIndex);
+            EventMarkerContextMenu.Populate(
+                menu,
+                accessor,
+                ClipInspectorPane.ResolveEventKeyRegistry(),
+                () => OpenMarkerEventKeyPicker(flatIndex, anchor),
+                () => DuplicateEventMarker(flatIndex),
+                () => DeleteEventMarker(address),
+                editedField => AfterEventMarkerEditedFromMenu(flatIndex),
+                RebuildTimeline);
+        }
+
+        private void OpenMarkerEventKeyPicker(int flatIndex, VisualElement anchor)
+        {
+            AnimEventKeyRegistry registry = ClipInspectorPane.ResolveEventKeyRegistry();
+            VocabularyPicker.Open(
+                WindowRoot,
+                anchor,
+                registry,
+                registry,
+                VocabularyPickerConfig.ForEventKeys(registry),
+                chosenEventKey => ApplyMarkerEventChoice(flatIndex, chosenEventKey),
+                RebuildTimeline);
+        }
+
+        private void ApplyMarkerEventChoice(int flatIndex, uint chosenEventKey)
+        {
+            if (session.SelectedClip == null)
+            {
+                return;
+            }
+            ClipEventMarkerAccessor accessor = new ClipEventMarkerAccessor(session.SelectedClip, flatIndex);
+            if (!accessor.MarkerExists)
+            {
+                return;
+            }
+            accessor.Key = chosenEventKey;
+
+            // Same rule as the inspector's picker: a registry default fills only a marker with no window of its own.
+            float defaultWindowSeconds = ResolveDefaultWindowSecondsForKey(chosenEventKey);
+            if (accessor.WindowSeconds <= 0f && defaultWindowSeconds > 0f)
+            {
+                accessor.WindowSeconds = defaultWindowSeconds;
+            }
+            AfterEventMarkerEditedFromMenu(flatIndex);
+        }
+
+        // Re-selects by flat index: a key change can move the marker into another lane.
+        private void AfterEventMarkerEditedFromMenu(int flatIndex)
+        {
+            if (session.SelectedClip == null || flatIndex < 0 || flatIndex >= session.SelectedClip.events.Count)
+            {
+                return;
+            }
+            KeyAddress newAddress = ResolveEventKeyAddressForFlatIndex(flatIndex);
+            session.SelectedKeys.Clear();
+            session.SelectedKeys.Add(newAddress);
+            session.ActiveKey = newAddress;
+            session.HasActiveKey = true;
+            MarkPreviewDirty();
+            RebuildTimeline();
+            RebuildInspector();
+        }
+
+        // One reference frame later, so the copy does not sit invisibly under the original.
+        private void DuplicateEventMarker(int flatIndex)
+        {
+            ClipAsset clip = session.SelectedClip;
+            if (clip == null || clip.events == null || flatIndex < 0 || flatIndex >= clip.events.Count)
+            {
+                return;
+            }
+
+            EventMarker duplicate = clip.events[flatIndex];
+            if (clip.duration > 0f)
+            {
+                float oneFrameSeconds = 1f / ClipInspectorPane.ResolveReferenceFrameRate(
+                    ClipInspectorPane.ResolveEventKeyRegistry());
+                duplicate.normalizedTime = Mathf.Min(1f, duplicate.normalizedTime + oneFrameSeconds / clip.duration);
+            }
+
+            BeginUndoGesture("Duplicate Event");
+            clip.events.Add(duplicate);
+            EndUndoGesture();
+            EditorUtility.SetDirty(clip);
+
+            KeyAddress newAddress = ResolveEventKeyAddressForFlatIndex(clip.events.Count - 1);
+            session.SelectedKeys.Clear();
+            session.SelectedKeys.Add(newAddress);
+            session.ActiveKey = newAddress;
+            session.HasActiveKey = true;
+
+            SortTrackKeys(TimelineTrackKind.Event, newAddress.trackIndex);
+            RebuildTimeline();
+        }
+
+        private void DeleteEventMarker(KeyAddress address)
+        {
+            session.SelectedKeys.Clear();
+            session.SelectedKeys.Add(address);
+            session.ActiveKey = address;
+            session.HasActiveKey = true;
+            DeleteSelectedKeys();
         }
 
         // Watched on the part group, not the row: the row's height is this callback's own output,
@@ -1765,7 +1883,7 @@ namespace DotsAnimationToolkit.Editor
 
         /// <summary>
         /// Opens the event picker anchored to a lane header. Unlike the picker a marker's own
-        /// inspector opens (<see cref="OpenEventKeyPicker"/>), the choice here repoints every marker
+        /// inspector opens (<see cref="EventMarkerInspectorElement"/>), the choice here repoints every marker
         /// on the lane at once — see <see cref="ApplyLaneEventChoice"/>.
         /// </summary>
         private void OpenChangeLaneEventPicker(int laneIndex, VisualElement anchor)

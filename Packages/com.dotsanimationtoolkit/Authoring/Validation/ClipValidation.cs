@@ -38,14 +38,14 @@ namespace DotsAnimationToolkit.Authoring
         /// <returns>Findings in discovery order (asset reading order, not rule number). Empty when the clip is fully valid.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="clip"/> is null.</exception>
         public static List<ValidationMessage> ValidateClip(
-            ClipAsset clip, TargetTagRegistry tagRegistry = null)
+            ClipAsset clip, TargetTagRegistry tagRegistry = null, AnimEventKeyRegistry eventKeyRegistry = null)
         {
             if (clip == null)
             {
                 throw new ArgumentNullException(nameof(clip));
             }
             List<ValidationMessage> messages = new List<ValidationMessage>();
-            ValidateClipInto(clip, null, tagRegistry, messages);
+            ValidateClipInto(clip, null, tagRegistry, eventKeyRegistry, messages);
             return messages;
         }
 
@@ -76,7 +76,8 @@ namespace DotsAnimationToolkit.Authoring
             ValidationStage stage = ValidationStage.Authoring,
             bool vatSourceHashRecomputed = false,
             ulong recomputedVatSourceHash = 0UL,
-            TargetTagRegistry tagRegistry = null)
+            TargetTagRegistry tagRegistry = null,
+            AnimEventKeyRegistry eventKeyRegistry = null)
         {
             List<ValidationMessage> messages = new List<ValidationMessage>();
             if (rig != null)
@@ -138,7 +139,7 @@ namespace DotsAnimationToolkit.Authoring
                         clipsByStableId.Add(clip.stableId, clip);
                     }
 
-                    ValidateClipInto(clip, rig, tagRegistry, messages);
+                    ValidateClipInto(clip, rig, tagRegistry, eventKeyRegistry, messages);
                     ValidateVatCoverageInto(clipSet, clip, rig, messages);
                 }
             }
@@ -943,6 +944,7 @@ namespace DotsAnimationToolkit.Authoring
             ClipAsset clip,
             RigAsset resolutionRig,
             TargetTagRegistry tagRegistry,
+            AnimEventKeyRegistry eventKeyRegistry,
             List<ValidationMessage> messages)
         {
             if (clip.duration < ClipAsset.MinimumDuration)
@@ -1110,53 +1112,16 @@ namespace DotsAnimationToolkit.Authoring
             {
                 EventMarker eventMarker = clip.events[eventIndex];
                 ValidateNormalizedTimeInto(clip, eventMarker.normalizedTime, "Event " + eventIndex, messages);
-                if (eventMarker.eventKey < (uint)ReservedEventKeys.FirstUserKey)
-                {
-                    messages.Add(new ValidationMessage(
-                        ValidationSeverity.Error,
-                        ValidationCode.V09,
-                        clip,
-                        "Event " + eventIndex + " of clip '" + clip.name + "' uses key " +
-                        eventMarker.eventKey + "; keys below " +
-                        (uint)ReservedEventKeys.FirstUserKey + " are reserved by the package."));
-                }
-
-                ValidateEventWindowInto(clip, eventMarker, eventIndex, messages);
-            }
-        }
-
-        // A window longer than the clip is not reported: on a looping clip that just means "open for
-        // the whole loop", and on a Once clip the layer going inactive already resolves it.
-        private static void ValidateEventWindowInto(
-            ClipAsset clip,
-            EventMarker eventMarker,
-            int eventIndex,
-            List<ValidationMessage> messages)
-        {
-            if (eventMarker.windowSeconds < 0f)
-            {
-                messages.Add(new ValidationMessage(
-                    ValidationSeverity.Error,
-                    ValidationCode.V19,
+                AnimEventValidation.ValidateMarker(
+                    eventIndex,
+                    eventMarker.eventKey,
+                    eventMarker.intParam,
+                    eventMarker.windowSeconds,
+                    AnimEventValidation.RegistryContainsKey(eventKeyRegistry),
+                    AnimEventValidation.ValueNamesForKey(eventKeyRegistry),
                     clip,
-                    "Event " + eventIndex + " of clip '" + clip.name + "' has a window of " +
-                    eventMarker.windowSeconds + " seconds; a window cannot be negative. The bake " +
-                    "clamps it to 0, which makes the event pulse-only."));
-                return;
-            }
-
-            if (eventMarker.windowSeconds > 0f
-                && !AnimEventMaskKeys.IsMaskable(eventMarker.eventKey))
-            {
-                messages.Add(new ValidationMessage(
-                    ValidationSeverity.Warning,
-                    ValidationCode.V20,
-                    clip,
-                    "Event " + eventIndex + " of clip '" + clip.name + "' authors a " +
-                    eventMarker.windowSeconds + "s window on key " + eventMarker.eventKey +
-                    ", which is outside the maskable range " + AnimEventMaskKeys.FirstMaskKey +
-                    "–" + AnimEventMaskKeys.LastMaskKey + ". The event still fires, but no " +
-                    "AnimEventMask bit exists for it, so the window can never be observed."));
+                    "clip '" + clip.name + "'",
+                    messages);
             }
         }
 

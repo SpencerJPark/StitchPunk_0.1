@@ -2922,9 +2922,71 @@ namespace DotsAnimationToolkit.Editor
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(eventsProperty, index, time);
             lane.EmptySpaceDoubleClicked += time => InsertEventDefault(eventsProperty, time);
             lane.MomentDeleteRequested += index => DeleteArrayElement(eventsProperty, index);
+            lane.drawsEventPins = true;
+            lane.populateMarkerMenu = (menu, index) =>
+                PopulateCutsceneEventMarkerMenu(menu, eventsProperty, index, lane);
             AddTimelineRow(
                 content, "Events", lane, () => SelectItem(-1, SelectedLaneKind.Event, -1, -1),
                 LaneRowHeight, isGroup: true, accentClass: "events");
+        }
+
+        private void PopulateCutsceneEventMarkerMenu(
+            DropdownMenu menu, SerializedProperty eventsProperty, int eventIndex, VisualElement anchor)
+        {
+            CutsceneEventMarkerAccessor accessor = new CutsceneEventMarkerAccessor(cutscene, eventIndex);
+            EventMarkerContextMenu.Populate(
+                menu,
+                accessor,
+                VocabularyRegistryProvider.AnimEventKeys,
+                () => OpenCutsceneEventKeyPicker(accessor, anchor),
+                () => DuplicateCutsceneEvent(eventsProperty, eventIndex),
+                () => DeleteArrayElement(eventsProperty, eventIndex),
+                OnCutsceneEventMarkerFieldEdited,
+                RequestTimelineRebuild);
+        }
+
+        private void OpenCutsceneEventKeyPicker(CutsceneEventMarkerAccessor accessor, VisualElement anchor)
+        {
+            AnimEventKeyRegistry registry = VocabularyRegistryProvider.AnimEventKeys;
+            VocabularyPicker.Open(
+                this, anchor, registry, registry,
+                VocabularyPickerConfig.ForEventKeys(registry),
+                chosenEventKey =>
+                {
+                    accessor.Key = chosenEventKey;
+                    OnCutsceneEventMarkerFieldEdited(EventMarkerField.Key);
+                },
+                () => RequestTimelineRebuild());
+        }
+
+        // A tenth of a second later, so the copy does not sit invisibly under the original.
+        private void DuplicateCutsceneEvent(SerializedProperty eventsProperty, int eventIndex)
+        {
+            if (eventIndex < 0 || eventIndex >= eventsProperty.arraySize)
+            {
+                return;
+            }
+            eventsProperty.InsertArrayElementAtIndex(eventIndex);
+            SerializedProperty copyTimeProperty =
+                eventsProperty.GetArrayElementAtIndex(eventIndex + 1).FindPropertyRelative("time");
+            copyTimeProperty.floatValue = copyTimeProperty.floatValue + 0.1f;
+            SortByTime(eventsProperty);
+            selectedItems.Clear();
+            primaryItem = null;
+            selectedItemIndex = -1;
+            CommitStructuralChange();
+        }
+
+        private void OnCutsceneEventMarkerFieldEdited(EventMarkerField editedField)
+        {
+            serializedObject.Update();
+
+            // A key or hold change alters the pin colour, the Holds row ghost and the hold note.
+            if (editedField == EventMarkerField.Key || editedField == EventMarkerField.HoldUntilReleased)
+            {
+                RequestTimelineRebuild();
+                RequestInspectorRebuild();
+            }
         }
 
         // The Holds lane: every authored marker, then one read-only ghost per holding event. The
@@ -5037,37 +5099,28 @@ namespace DotsAnimationToolkit.Editor
                 serializedObject.FindProperty("events").GetArrayElementAtIndex(eventIndex);
 
             inspectorScroll.Add(BuildHeading("Event"));
-            AddBoundField(eventProperty, "time", "Time (s)");
-            AddBoundField(eventProperty, "eventKey", "Event Key");
 
-            // The payload's own container, so a host provider can own it whole: "sequence id 7" is
-            // a number here and a named line in the game that authored it.
-            VisualElement payloadContainer = new VisualElement();
-            inspectorScroll.Add(payloadContainer);
-            if (!CutsceneEventInspectorProviders.TryBuild(
-                    cutscene.events[eventIndex].eventKey, eventProperty, payloadContainer))
-            {
-                AddBoundField(eventProperty, "intParam", "Int Param", payloadContainer);
-                AddBoundField(eventProperty, "floatParam", "Float Param", payloadContainer);
-            }
+            AnimEventKeyRegistry registry = VocabularyRegistryProvider.AnimEventKeys;
+            CutsceneEventMarkerAccessor accessor = new CutsceneEventMarkerAccessor(cutscene, eventIndex);
+            EventMarkerInspectorElement markerInspector = new EventMarkerInspectorElement { PickerHost = this };
 
-            AddBoundField(eventProperty, "fireOnSkip", "Fire On Skip");
+            // A host provider still owns the whole payload for a key it claims: "sequence id 7" is a
+            // number here and a named line in the game that authored it.
+            markerInspector.PayloadOverride = (eventKey, payloadContainer) =>
+                CutsceneEventInspectorProviders.TryBuild(eventKey, eventProperty, payloadContainer);
+            markerInspector.Bind(accessor, registry);
 
-            // Not AddBoundField: this one changes the marker's glyph and adds a ghost to the Holds
-            // row, so it rebuilds the timeline - and a rebuild driven by an unfiltered bind echo is
-            // the flicker ShouldIgnoreBindingEcho exists for.
-            PropertyField holdField = new PropertyField(
-                eventProperty.FindPropertyRelative("holdUntilReleased"), "Hold Until Released");
-            holdField.Bind(serializedObject);
-            holdField.RegisterCallback<ChangeEvent<bool>>(changeEvent =>
-            {
-                if (ShouldIgnoreBindingEcho(changeEvent))
-                {
-                    return;
-                }
-                RebuildTimeline();
-            });
-            inspectorScroll.Add(holdField);
+            List<ValidationMessage> findings = new List<ValidationMessage>();
+            AnimEventValidation.ValidateMarker(
+                eventIndex, accessor.Key, accessor.IntParam, 0f,
+                AnimEventValidation.RegistryContainsKey(registry),
+                AnimEventValidation.ValueNamesForKey(registry),
+                cutscene, "cutscene '" + cutscene.name + "'", findings);
+            markerInspector.SetFindings(findings);
+
+            markerInspector.FieldEdited += OnCutsceneEventMarkerFieldEdited;
+            markerInspector.RegistryChanged += RequestTimelineRebuild;
+            inspectorScroll.Add(markerInspector);
 
             string derivedHoldId;
             CutsceneDerivedHolds.TryResolveHoldId(cutscene.events[eventIndex].eventKey, out derivedHoldId);
