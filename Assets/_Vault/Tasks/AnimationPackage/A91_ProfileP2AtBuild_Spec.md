@@ -1,6 +1,6 @@
 # Amendment A91 — Profile P2 reported at save and at player build
 
-> **Status:** ✅ built 2026-09-13 as `0.36.0` (spec said `0.38.0`; A88 and A90 are unbuilt — §7). ⏸ T7 owner checkpoint open.
+> **Status:** ✅ built 2026-09-13 as `0.36.0` (spec said `0.38.0`; A88 and A90 are unbuilt — §7). Accepted 2026-09-13 (T7 answered; a real player build to confirm the build hook is deferred).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A70 (profiles, P1–P4 validation), A71 (the Actor Editor badge that is today's
 > only P2 surface).
@@ -40,8 +40,8 @@ error across the project).
   authoring-only by design) or reference `UnityEditor` from Authoring (`Conformance_C`). Editor-side
   hooks are the correct boundary; the builder's own comment already says so.
 - **A91-D2 — Save-time is a warning, build-time is an error.** A half-finished profile must be
-  saveable; a player build with an unplayable name is a shipped bug. ⚠ The owner may prefer the
-  save-time check silent and the badge sufficient — the checkpoint asks.
+  saveable; a player build with an unplayable name is a shipped bug. Confirmed by the owner
+  2026-09-13: keep the save warning, because it fires only while the profile has P2 findings.
 - **A91-D3 — One shared scan.** `ProfileP2Scan` (plain noun, allowlist; `Editor/ClipUtilities/`)
   returns `List<ValidationMessage>` for one profile or for every profile in the project, calling
   `ActorProfileValidation` with `VocabularyRegistryProvider.AnimationNames`. Both hooks and A94's
@@ -117,7 +117,7 @@ message so clicking the console line pings the profile.
   the message; toggle D5 off → build proceeds past the preprocessor (cancel the build after that
   point; no need to complete it). Delete the scratch profile.
 - [x] **T6 — Close.** HANDOFF §4, roadmap checkbox.
-- [ ] **T7 — ⏸ owner checkpoint.** Message: "Profiles now warn on save and fail a player build when
+- [x] **T7 — ⏸ owner checkpoint.** Message: "Profiles now warn on save and fail a player build when
   an animation name is not in the registry. ⚠ Keep the save-time warning, or is the Actor Editor
   badge enough and only the build should complain?"
 
@@ -198,3 +198,10 @@ unaffected. Nothing in the drive calls `SaveAssets`; the owner's dirty `EditorBu
   git status shows only the owner's files.
 - **Not captured.** The toggle is a stock UI Toolkit `Toggle` on a Project Settings page; the owner
   can look at Project Settings ▸ DOTS Animation Toolkit ▸ Animation Names.
+
+**T7 (owner, 2026-09-13).**
+1. **Save warning:** keep it while it is relevant to there being issues. That is the built behaviour.
+   The hook warns only for a profile with P2 findings and goes quiet once they are fixed. No change.
+2. **Real player build:** not now; the owner is away from the PC. The build hook stays proven one
+   level down only. A real build is a later owner check, not a blocker.
+3. **Toggle scope:** per machine (EditorPrefs), as built. No change.

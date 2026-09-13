@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) and A87 (`0.34.0`) built 2026-09-13, both with their T10 owner checkpoint open. A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` with its T7 owner checkpoint open; every A94 prerequisite is now built. A88, A90 and A92 are next, in any order.
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) and A87 (`0.34.0`) built 2026-09-13, both with their T10 owner checkpoint open. A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build to confirm its build hook is deferred until the owner is at the PC); every A94 prerequisite is now built. A88, A90 and A92 are next, in any order.
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -16,10 +16,7 @@
 >   Event Names (Payload foldout), then scrub across a Sound marker in any clip. Does it play? Then
 >   answer two questions. **D1:** when you click far along the ruler, should every skipped marker
 >   fire, or none (current)? **D5:** is the 120 ms own-colour outline flash visible enough?
-> - [ ] **A91 T7:** three questions (spec §5 T7). Keep the console warning on profile save, or is
->   the Actor Editor badge enough? Confirm the build hook with a real player build yourself? Keep
->   the "Fail player builds on profile name errors" toggle per machine, or make it project-wide?
-> - Answering any of these ticks its box below and updates the status line above.
+> - Answering either ticks its box below and updates the status line above.
 
 Tick a box only when the spec's own status line says built **and** its ⏸ owner checkpoint (if any)
 has been answered. A spec's session ticks its own tasks inside the spec; this list is the owner's
@@ -40,7 +37,7 @@ free minor and correct the spec's status line.
 - [ ] **A88 — Layered event preview in the Actor Editor** (`0.35.0`) — [`A88_LayeredEventPreview_Spec.md`](A88_LayeredEventPreview_Spec.md). Per-layer marker strip under the composited preview; inactive and crossfade-source layers drawn as non-emitting.
 - [x] **A89 — Stale VAT bake detection** (`0.35.0`) — [`A89_StaleVatBakeDetection_Spec.md`](A89_StaleVatBakeDetection_Spec.md). Compute the source hash without baking; badge the VAT Bake tab and the clip set when it differs from `VatTextureSetAsset.sourceHash`.
 - [ ] **A90 — Camera-data fallback warning** (`0.37.0`) — [`A90_CameraDataWarning_Spec.md`](A90_CameraDataWarning_Spec.md). A project with no `AnimationToolkitCameraData` writer gets one warning naming the sample, not silent spherical billboarding.
-- [ ] **A91 — Profile P2 at save and at build** (`0.36.0`) — [`A91_ProfileP2AtBuild_Spec.md`](A91_ProfileP2AtBuild_Spec.md). Animation-name membership checked on asset save and as a build preprocessor; the bake still cannot do it and the spec says why.
+- [x] **A91 — Profile P2 at save and at build** (`0.36.0`) — [`A91_ProfileP2AtBuild_Spec.md`](A91_ProfileP2AtBuild_Spec.md). Animation-name membership checked on asset save and as a build preprocessor; the bake still cannot do it and the spec says why.
 - [ ] **A92 — Project-wide refactor operations** (`0.39.0`) — [`A92_RefactorOperations_Spec.md`](A92_RefactorOperations_Spec.md). Re-key an event, merge two keys, replace a tag across every clip, set, profile and cutscene in one undo step. Needs A84.
 
 ### Phase 2 — tabs (A93 and A94 first; the rest in any order)

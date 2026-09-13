@@ -134,8 +134,9 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
   was missing. The builder comment and `actor-profiles.md` said otherwise and are corrected.
 - **Suites:** EditMode 835 (833 + 2, standing `Conformance_A` only), PlayMode 283. The build hook
   was proven one level down, with no real player build, on the owner's instruction.
-- **T7 owner checkpoint open:** keep the save warning? confirm with a real build? per-machine or
-  project-wide toggle?
+- **T7 answered 2026-09-13, accepted.** The save warning stays; it fires only while a profile has
+  P2 findings. The toggle stays per machine. A real player build to confirm the build hook is
+  deferred until the owner is at the PC; the hook is proven one level down only.
 
 **Built (2026-09-13): Amendment A89 — stale VAT bake detection — 0.35.0** (A88 is not built and
 takes the next free minor). Spec: `Assets/_Vault/Tasks/AnimationPackage/A89_StaleVatBakeDetection_Spec.md`.
