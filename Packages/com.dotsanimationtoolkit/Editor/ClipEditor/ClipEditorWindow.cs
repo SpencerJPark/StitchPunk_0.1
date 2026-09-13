@@ -69,7 +69,6 @@ namespace DotsAnimationToolkit.Editor
 
         private const string HiddenUssClassName = "clip-editor--hidden";
         private const string TabActiveUssClassName = "clip-editor__tab--active";
-        private const string ClipRowUssClassName = "clip-editor__clip-row";
         private const string HierarchyRowUssClassName = "clip-editor__hierarchy-row";
         private const string AnimatedBoneUssClassName = "clip-editor__hierarchy-row--animated";
         private const string BillboardRootUssClassName = "clip-editor__hierarchy-row--billboard-root";
@@ -123,10 +122,6 @@ namespace DotsAnimationToolkit.Editor
         private const string SelectionHeadingTagButtonUssClassName =
             "clip-editor__selection-heading-tag-button";
 
-        private ObjectField clipSetField;
-        private ListView clipListView;
-        private Button newClipButton;
-        private Button deleteClipButton;
         private TreeView hierarchyTreeView;
         private Label hierarchyEmptyLabel;
         private ToolbarToggle snapToggle;
@@ -338,6 +333,8 @@ namespace DotsAnimationToolkit.Editor
         private RigAsset activeRig;
 
         private readonly ActiveAssetSelection selection = new ActiveAssetSelection();
+        private readonly ClipEditorSession session = new ClipEditorSession();
+        private ClipListPane clipListPane;
 
         // The rig an open Clip Editor is currently showing, or null when none is open or none is
         // picked. The one way a rig reaches code outside this window now that no asset records one.
@@ -728,17 +725,16 @@ namespace DotsAnimationToolkit.Editor
                 && restoredClipSet.clips != null
                 ? restoredClipSet.clips.IndexOf(restoredClip)
                 : -1;
-            if (clipListView != null && restoredClipIndex >= 0)
+            if (clipListPane != null && restoredClipIndex >= 0)
             {
-                clipListView.SetSelection(restoredClipIndex);
-                clipListView.ScrollToItem(restoredClipIndex);
+                clipListPane.SelectClipRow(restoredClipIndex);
             }
             else if (restoredClip != null)
             {
                 // The clip is no longer in the set — deleted, or moved to another set while this
                 // window was down. Loading it anyway would show a timeline the clip list disagrees
                 // with, so the set is all that comes back.
-                SelectClip(null);
+                session.SetSelectedClip(null);
             }
 
             if (rigEditToggle != null)
@@ -784,6 +780,8 @@ namespace DotsAnimationToolkit.Editor
             AssemblyReloadEvents.beforeAssemblyReload -= RememberSessionState;
             selection.ClipSetChanged -= ApplyClipSetSelection;
             selection.RigChanged -= ApplyRigSelection;
+            session.SelectedClipChanged -= SelectClip;
+            session.RebuildRequested -= OnPaneRequestedRebuild;
 
             // Again here, so the capture does not depend on Unity raising beforeAssemblyReload
             // before OnDisable rather than after. Both run before this instance is serialized, and
@@ -802,6 +800,12 @@ namespace DotsAnimationToolkit.Editor
                 actorEditorPanel.SetTicking(false);
                 actorEditorPanel.Dispose();
                 actorEditorPanel = null;
+            }
+
+            if (clipListPane != null)
+            {
+                clipListPane.Dispose();
+                clipListPane = null;
             }
 
             // Both cover panes own a PreviewRenderUtility of their own, plus a copy of whatever
@@ -914,9 +918,12 @@ namespace DotsAnimationToolkit.Editor
             // land on live handlers instead of firing into nothing.
             selection.ClipSetChanged += ApplyClipSetSelection;
             selection.RigChanged += ApplyRigSelection;
+            session.SelectedClipChanged += SelectClip;
+            session.RebuildRequested += OnPaneRequestedRebuild;
 
             BindToolbar();
-            BindClipList();
+            clipListPane = new ClipListPane();
+            clipListPane.Bind(rootVisualElement.Q<VisualElement>("clip-list-pane"), selection, session, previewController);
             BindHierarchy();
             BindViewport();
             BindInspector();
@@ -942,7 +949,7 @@ namespace DotsAnimationToolkit.Editor
                 validationBadge.Refresh(activeRig, clipSet);
             }
 
-            RefreshClipActionButtons();
+            clipListPane.RefreshClipActionButtons();
             RebuildHierarchy();
             RebuildTimeline();
 
@@ -957,15 +964,6 @@ namespace DotsAnimationToolkit.Editor
 
         private void BindToolbar()
         {
-            clipSetField = rootVisualElement.Q<ObjectField>("clip-set-field");
-            if (clipSetField != null)
-            {
-                clipSetField.objectType = typeof(ClipSetAsset);
-                clipSetField.allowSceneObjects = false;
-                clipSetField.RegisterValueChangedCallback(
-                    changeEvent => selection.SetClipSet(changeEvent.newValue as ClipSetAsset));
-            }
-
             // Snap and Auto Key are no longer in the top bar. They sit on the status row over the
             // key area with the scale pivot, because all three answer "what will my next edit here
             // do" — a different question from the clip set and rig identity this bar is for.
@@ -1119,166 +1117,6 @@ namespace DotsAnimationToolkit.Editor
         private TargetTagRegistry ResolveTargetTagRegistry()
         {
             return VocabularyRegistryProvider.TargetTags;
-        }
-
-        private void BindClipList()
-        {
-            newClipButton = rootVisualElement.Q<Button>("new-clip-button");
-            if (newClipButton != null)
-            {
-                newClipButton.clicked += CreateClip;
-                newClipButton.tooltip =
-                    "Create a clip beside the clip set on disk, using the set's rig, and add it to "
-                    + "the set.";
-            }
-
-            deleteClipButton = rootVisualElement.Q<Button>("delete-clip-button");
-            if (deleteClipButton != null)
-            {
-                deleteClipButton.clicked += DeleteSelectedClip;
-                deleteClipButton.tooltip =
-                    "Remove the selected clip from the set, and optionally send its asset to the "
-                    + "trash. Asks first.";
-            }
-
-            clipListView = rootVisualElement.Q<ListView>("clip-list");
-            if (clipListView == null)
-            {
-                return;
-            }
-            clipListView.fixedItemHeight = 20f;
-            clipListView.selectionType = SelectionType.Single;
-            clipListView.makeItem = MakeClipRow;
-            clipListView.bindItem = BindClipRow;
-            clipListView.selectionChanged += OnClipSelectionChanged;
-            clipListView.itemsSource = new List<ClipAsset>();
-        }
-
-        // Creates a clip in the assigned set and selects it, ready to author. Shared with the clip
-        // set's own inspector via ClipAssetUtility, so a clip made here is indistinguishable from
-        // one made there. Pinged as well as selected, since it is written to disk without asking where.
-        private void CreateClip()
-        {
-            if (clipSet == null)
-            {
-                return;
-            }
-
-            ClipAsset newClip = ClipAssetUtility.CreateClipInSet(clipSet);
-            if (newClip == null)
-            {
-                return;
-            }
-
-            RefreshClipList();
-            EditorGUIUtility.PingObject(newClip);
-
-            int newClipIndex = clipSet.clips != null ? clipSet.clips.IndexOf(newClip) : -1;
-            if (newClipIndex >= 0)
-            {
-                // Through the list's own selection, so creating a clip lands in exactly the state
-                // clicking one would — SelectClip, the timeline rebuild and the inspector all follow
-                // from the one notification.
-                clipListView.SetSelection(newClipIndex);
-                clipListView.ScrollToItem(newClipIndex);
-            }
-
-            MarkPreviewDirty();
-        }
-
-        /// <summary>Re-points the list at the set's clips and repaints its rows.</summary>
-        private void RefreshClipList()
-        {
-            if (clipListView == null)
-            {
-                return;
-            }
-            clipListView.itemsSource = clipSet != null && clipSet.clips != null
-                ? (System.Collections.IList)clipSet.clips
-                : new List<ClipAsset>();
-            clipListView.Rebuild();
-        }
-
-        // Enables the Clips pane's actions for the states in which they mean something. A clip is
-        // only meaningful inside a set, so "no set assigned" disables New; Delete additionally needs
-        // a clip selected.
-        private void RefreshClipActionButtons()
-        {
-            if (newClipButton != null)
-            {
-                newClipButton.SetEnabled(clipSet != null);
-            }
-            if (deleteClipButton != null)
-            {
-                deleteClipButton.SetEnabled(clipSet != null && selectedClip != null);
-            }
-        }
-
-        // Asks what to do with the selected clip, then un-registers it and optionally trashes it.
-        // Three answers, since "remove from the set" and "delete the file" are different intentions
-        // a two-button dialog would conflate. Deleting the asset is not undoable; removing from the set is.
-        private void DeleteSelectedClip()
-        {
-            if (clipSet == null || selectedClip == null || clipSet.clips == null)
-            {
-                return;
-            }
-
-            int clipIndex = clipSet.clips.IndexOf(selectedClip);
-            if (clipIndex < 0)
-            {
-                return;
-            }
-
-            ClipAsset clipToDelete = selectedClip;
-            int choice = EditorUtility.DisplayDialogComplex(
-                "Delete Clip",
-                "Delete '" + clipToDelete.name + "'?\n\n"
-                + "Delete Asset sends the clip file to the trash and removes it from '"
-                + clipSet.name + "'. This cannot be undone.\n\n"
-                + "Remove From Set un-registers it, leaves the asset on disk, and can be undone.",
-                "Delete Asset",
-                "Cancel",
-                "Remove From Set");
-
-            if (choice == 1)
-            {
-                return;
-            }
-
-            if (choice == 0)
-            {
-                ClipAssetUtility.DeleteClipFromSet(clipSet, clipIndex, clipToDelete);
-            }
-            else
-            {
-                ClipAssetUtility.RemoveClipFromSet(clipSet, clipIndex);
-            }
-
-            SelectClip(null);
-            RefreshClipList();
-            SelectClipNearIndex(clipIndex);
-
-            MarkPreviewDirty();
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(activeRig, clipSet);
-            }
-        }
-
-        /// <summary>Selects whatever now occupies <paramref name="removedIndex"/>, or the last clip.</summary>
-        private void SelectClipNearIndex(int removedIndex)
-        {
-            if (clipListView == null || clipSet == null || clipSet.clips == null
-                || clipSet.clips.Count == 0)
-            {
-                RefreshClipActionButtons();
-                return;
-            }
-
-            int nextIndex = Mathf.Clamp(removedIndex, 0, clipSet.clips.Count - 1);
-            clipListView.SetSelection(nextIndex);
-            clipListView.ScrollToItem(nextIndex);
         }
 
         /// <summary>Creates a clip set wherever the user chooses, and loads it into the window.</summary>
@@ -1886,8 +1724,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            RefreshClipList();
-            RefreshClipActionButtons();
+            clipListPane?.RefreshClipList();
+            clipListPane?.RefreshClipActionButtons();
             MarkPreviewDirty();
             if (validationBadge != null)
             {
@@ -3556,28 +3394,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // -------------------------------------------------------------------------------------
-        // Clip list
-        // -------------------------------------------------------------------------------------
-
-        private static VisualElement MakeClipRow()
-        {
-            Label label = new Label();
-            label.AddToClassList(ClipRowUssClassName);
-            return label;
-        }
-
-        private void BindClipRow(VisualElement element, int index)
-        {
-            Label label = element as Label;
-            if (label == null || clipSet == null || clipSet.clips == null || index >= clipSet.clips.Count)
-            {
-                return;
-            }
-            ClipAsset clip = clipSet.clips[index];
-            label.text = clip != null ? clip.name : "<missing>";
-        }
-
-        // -------------------------------------------------------------------------------------
         // Prefab hierarchy. The rig's transforms, as the pick list for bone tracks.
         // -------------------------------------------------------------------------------------
 
@@ -4477,16 +4293,13 @@ namespace DotsAnimationToolkit.Editor
         private void ApplyClipSetSelection(ClipSetAsset newClipSet)
         {
             clipSet = newClipSet;
-            clipSetField?.SetValueWithoutNotify(newClipSet);
-            SelectClip(null);
+            session.SetSelectedClip(null);
 
             // The Rig field is deliberately left alone. A clip set names no rig and a rig names no
             // clips — they are independent assets, paired only where an ActorAuthoring states both —
             // so swapping the open set must not swap the rig underneath it, any more than swapping
             // the rig should empty the clip list. Playing this set against the rig already loaded is
             // the whole point of the window: the tags line up, or they are reported as not lining up.
-            RefreshClipList();
-            RefreshClipActionButtons();
 
             // The hierarchy's rows come from the rig, which has not changed — but which of them a
             // clip already animates is drawn from the set, so the rows are re-rendered rather than
@@ -4504,17 +4317,6 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private void OnClipSelectionChanged(IEnumerable<object> selection)
-        {
-            ClipAsset clip = null;
-            foreach (object item in selection)
-            {
-                clip = item as ClipAsset;
-                break;
-            }
-            SelectClip(clip);
-        }
-
         private void SelectClip(ClipAsset clip)
         {
             selectedClip = clip;
@@ -4523,7 +4325,6 @@ namespace DotsAnimationToolkit.Editor
             SetPlaying(false);
             playheadTime = 0f;
             RefreshSerializedClip();
-            RefreshClipActionButtons();
             RebuildTimeline();
 
             // The bar is bound once, while nothing is selected, so its fields start disabled and
@@ -4614,6 +4415,16 @@ namespace DotsAnimationToolkit.Editor
         {
             previewRegistryDirty = true;
             previewDirtiedAt = EditorApplication.timeSinceStartup;
+        }
+
+        // A pane created, deleted or renamed a clip: the preview and the badge are the window's to refresh.
+        private void OnPaneRequestedRebuild()
+        {
+            MarkPreviewDirty();
+            if (validationBadge != null)
+            {
+                validationBadge.Refresh(activeRig, clipSet);
+            }
         }
 
         // Every early exit below is about the pose, not the picture: with no clip, no registry, or
@@ -9294,7 +9105,7 @@ namespace DotsAnimationToolkit.Editor
                     nameField.SetValueWithoutNotify(selectedClip != null ? selectedClip.name : string.Empty);
                     return;
                 }
-                RefreshClipList();
+                clipListPane?.RefreshClipList();
                 RebuildTimeline();
             });
             return nameField;
