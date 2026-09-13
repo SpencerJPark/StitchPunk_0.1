@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0`, its T11 owner checkpoint open (box ticks when answered). A85–A92 are next, in any order.
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0`, its T11 owner checkpoint open (box ticks when answered). A85 built 2026-09-13 as `0.32.0`, its T10 owner checkpoint open (box ticks when answered). A86–A92 are next, in any order.
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are

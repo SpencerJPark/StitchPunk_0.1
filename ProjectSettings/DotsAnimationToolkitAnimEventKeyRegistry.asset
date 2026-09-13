@@ -10,25 +10,41 @@
                 "name": "Sound",
                 "eventKey": 16,
                 "defaultWindowFrames": 0,
-                "description": "Plays Sound"
+                "description": "Plays Sound",
+                "intParamLabel": "",
+                "intParamValueNames": [],
+                "floatParamLabel": "",
+                "floatParamUnit": ""
             },
             {
                 "name": "Damage",
                 "eventKey": 17,
                 "defaultWindowFrames": 0,
-                "description": "Applys damage to self"
+                "description": "Applys damage to self",
+                "intParamLabel": "",
+                "intParamValueNames": [],
+                "floatParamLabel": "",
+                "floatParamUnit": ""
             },
             {
                 "name": "Attack",
                 "eventKey": 18,
                 "defaultWindowFrames": 0,
-                "description": "The frame damage should land. AttackRequestSystem enqueues the DamageBus event on this (Action layer); hitTime is the timeout fallback when a clip has no Attack event."
+                "description": "The frame damage should land. AttackRequestSystem enqueues the DamageBus event on this (Action layer); hitTime is the timeout fallback when a clip has no Attack event.",
+                "intParamLabel": "",
+                "intParamValueNames": [],
+                "floatParamLabel": "",
+                "floatParamUnit": ""
             },
             {
                 "name": "Dialogue",
                 "eventKey": 19,
                 "defaultWindowFrames": 0,
-                "description": ""
+                "description": "",
+                "intParamLabel": "",
+                "intParamValueNames": [],
+                "floatParamLabel": "",
+                "floatParamUnit": ""
             }
         ],
         "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/AnimEvents.cs"

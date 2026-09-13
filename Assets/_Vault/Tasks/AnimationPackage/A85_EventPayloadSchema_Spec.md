@@ -1,6 +1,6 @@
 # Amendment A85 — Event payload schema: a key says what its parameters mean
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.32.0`.
+> **Status:** ✅ built 2026-09-13 as `0.32.0` (commits `743d0fab`, `d78e21f2`, `5169daf0`, close-out); ⏸ T10 owner checkpoint open.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A55 (event authoring), A83 (the inspector pane).
 > **Executor:** one orchestrator; `worker` subagents in **one wave of five**, each ≤ 2 files.
@@ -100,33 +100,33 @@ generate button passes closures over the entries. Other registries pass null and
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Open `ProjectSettings/` and note the event
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Open `ProjectSettings/` and note the event
   registry file's name and current entry count in §7.
-- [ ] **T1 — Entry fields (orchestrator).** §4.1 by hand; gate; commit `A85-T1`.
-- [ ] **T2 — `EventPayloadFieldBuilder` [parallel-safe]** — Files: new file. Read §4.2, the
+- [x] **T1 — Entry fields (orchestrator).** §4.1 by hand; gate; commit `A85-T1`.
+- [x] **T2 — `EventPayloadFieldBuilder` [parallel-safe]** — Files: new file. Read §4.2, the
   inspector builders' ranges (for the element idiom: how labels and fields are styled today).
-- [ ] **T3 — Generator + fixture [parallel-safe]** — Files: `ConstantsGenerator.cs`,
+- [x] **T3 — Generator + fixture [parallel-safe]** — Files: `ConstantsGenerator.cs`,
   `Tests/EditMode/ConstantsGeneratorTests.cs`. Fixture:
   `EnumeratedKey_EmitsNestedValuesClass` — two names `["Left","Right"]` on one row → output
   contains `public static class FootstepValues` with `Left = 0` and `Right = 1`, and the summary
   line contains the int label. Revert-to-fail: drop the nested emission.
-- [ ] **T4 — Clip inspector uses the builder [parallel-safe]** — Files: `ClipInspectorPane.cs`
+- [x] **T4 — Clip inspector uses the builder [parallel-safe]** — Files: `ClipInspectorPane.cs`
   (the two builder ranges only). Replace the two raw fields with `EventPayloadFieldBuilder` calls;
   keep undo recording as it is.
-- [ ] **T5 — Registry inspector + Quick Edit foldout [parallel-safe]** — Files:
+- [x] **T5 — Registry inspector + Quick Edit foldout [parallel-safe]** — Files:
   `AnimEventKeyRegistryEditor.cs`, `VocabularyQuickEditWindow.cs`. A "Payload" foldout per entry
   with the four fields; persist through `VocabularyRegistryProvider.Persist`.
-- [ ] **T6 — Docs + changelog [parallel-safe]** — Files: `Documentation~/animation-events.md`
+- [x] **T6 — Docs + changelog [parallel-safe]** — Files: `Documentation~/animation-events.md`
   (a "Payload schema" subsection under "Naming your events", with the generated-constants example),
   `CHANGELOG.md` `## [0.32.0]`.
 - **Gate the wave.** `ConstantsGeneratorTests`, `ClipEditorAddEventTests`. Commit `A85-T2..T6`.
-- [ ] **T7 — Orchestrator edits.** `package.json`; `Conformance_G` allowlist if T2 needed it; vault
+- [x] **T7 — Orchestrator edits.** `package.json`; `Conformance_G` allowlist if T2 needed it; vault
   note "The vocabulary pattern" gains the schema fields.
-- [ ] **T8 — Drive.** Full suites. Give one real key two value names, save, reload the registry
+- [x] **T8 — Drive.** Full suites. Give one real key two value names, save, reload the registry
   from disk (`VocabularyRegistryProvider.AnimEventKeys` after a domain reload) and confirm the
   names persisted; open a clip with that key and confirm the dropdown; generate constants and open
   the generated file. Capture the inspector.
-- [ ] **T9 — Close.** HANDOFF §4, roadmap checkbox.
+- [x] **T9 — Close.** HANDOFF §4, roadmap checkbox.
 - [ ] **T10 — ⏸ owner checkpoint.** Message: "In Project Settings ▸ DOTS Animation ▸ Event Keys,
   give Footstep an int label 'Foot' with values Left/Right. Open a clip with a Footstep marker: the
   inspector shows a dropdown. Regenerate constants and read `AnimEvents.FootstepValues`. ⚠ The
@@ -143,4 +143,78 @@ generate button passes closures over the entries. Other registries pass null and
 
 ## 7. Build log
 
-_(empty)_
+**T0 (2026-09-13, head `ececae16`).** Compile gate clean. Suite totals inherited from A84 and not
+re-run: EditMode 826 (one standing failure, `Conformance_A` asmdef reference list), PlayMode 283.
+Event registry file: `ProjectSettings/DotsAnimationToolkitAnimEventKeyRegistry.asset`
+(`EditorJsonUtility` JSON), **4 entries**: Sound 16, Damage 17, Attack 18, Dialogue 19. Generated
+file `Assets/Generated/DotsAnimationToolkit/AnimEvents.cs` (tracked). Probe: a `DropdownField`
+given `SetValueWithoutNotify("7")` outside its choices keeps value `"7"` with index −1, so D3's
+raw-number display needs no workaround.
+
+Drifts:
+- **`VocabularyQuickEditWindow` never names `AnimEventKeyEntry`**: it hosts the registry editor
+  through `Editor.CreateEditor`. T5 therefore edits only `AnimEventKeyRegistryEditor.cs` for the
+  foldout, and the Quick Edit window inherits it.
+- **The generate path is `VocabularyConstantsSection.RegenerateIfConfigured`**, not a button on
+  `AnimEventKeyRegistryEditor` (there is no button; A-era "no button, no dialog, ever"). The
+  closures ride on two optional constructor parameters of `VocabularyConstantsSection`, which took
+  T5's second file slot. Payload edits regenerate when the inspector closes (`OnDisable`), like a
+  rename.
+- **The spec's §3 builder ranges (`EventMarker marker, AnimEventKeyRegistry registry`) are the key
+  and window fields;** the two raw payload fields live in `AddSelectedEventMarkerFields`
+  (`ClipInspectorPane.cs:550–576`). T4 replaced those.
+- **There is no Footstep key in this project's registry**, and the settings page is **Project
+  Settings ▸ DOTS Animation Toolkit ▸ Event Names**, not "DOTS Animation ▸ Event Keys". The T10
+  message is given verbatim with that correction attached.
+
+Interpretations (⚠, asked at T10):
+- ⚠ **D1 against D2.** D1 says an empty label hides the field; D2 says no schema is today's
+  behaviour, and today every key shows both raw fields. Built: an entry with no schema at all
+  (both labels empty, no value names) shows today's raw "Int Param" / "Float Param"; once any
+  schema field is set, an unlabelled parameter hides.
+- ⚠ **A hidden parameter that still stores a non-zero value is shown**, as "Int Param (unused)" /
+  "Float Param (unused)" in `ToolkitPalette.Warning`, so a value that fires at runtime never
+  becomes invisible (D3's "never silently clamped", extended).
+- **D5 note for A86:** the payload rendering is `EventPayloadFieldBuilder.BuildIntField` /
+  `BuildFloatField` (`Editor/ClipEditor/Components/`), pure over an `AnimEventKeyEntry`; the
+  cutscene event inspector still binds raw "Int Param" / "Float Param" fields
+  (`CutsceneEditorPanel.cs` `AddBoundField(eventProperty, "intParam", …)`) and should call the same
+  two methods when A86 unifies the surfaces.
+
+**T1 (743d0fab).** The four fields by hand; gate clean.
+
+**Wave T2–T6 (d78e21f2).** Five workers in parallel against pinned signatures; all finished well
+under the cap (52–72k tokens, 5–18 tool uses). Orchestrator fixes before the gate: T2's new file
+lacked `using DotsAnimationToolkit.Authoring;`; T5's `DescribePayloadForConstants` and nested-names
+closure were not null-safe on a null registry row. One gate: compile clean,
+`ConstantsGeneratorTests` + `ClipEditorAddEventTests` 6/6. **Revert-to-fail:** with the nested
+emission disabled, `EnumeratedKey_EmitsNestedValuesClass` failed on its class assertion; restored,
+it passes. Kept.
+
+**T7 (5169daf0).** `package.json` and the `PackagingConformanceTests` pin at `0.32.0`; no
+`Conformance_G` allowlist entry (the `Builder` suffix passes); vault "The vocabulary pattern" gained
+the schema paragraph and its traps.
+
+**T8 — suites and drive (2026-09-13).** EditMode **827** (826 + 1; only the standing
+`Conformance_A` failure), PlayMode **283/283**. Drive against the real registry: the Sound key (16)
+was given `intParamLabel = "Variant"` and names Soft/Loud and persisted; the registry editor was
+created and destroyed so `OnDisable` regenerated `AnimEvents.cs` through the real path. The file
+read `/// <summary>Event 'Sound'. intParam: Variant (0 = Soft, 1 = Loud).</summary>` followed by
+`public static class SoundValues { Soft = 0; Loud = 1 }`. After a forced domain reload,
+`VocabularyRegistryProvider.AnimEventKeys` re-read label and both names from disk, and
+`StitchPunk.Generated` had compiled `AnimEvents+SoundValues` (Soft=0, Loud=1).
+
+**The live Clip Editor could not be driven and nothing was captured:** the Editor was unfocused
+for the whole drive, and the owner's docked DOTS Animator window had a null panel with `CreateGUI`
+not yet re-run after the reload (Unity rebuilds a docked window's GUI only when it paints). Forcing
+it visible would rearrange the owner's layout without fixing OS focus, so the inspector was proven
+one level down instead: `EventPayloadFieldBuilder` over the persisted Sound entry and `NewClip 1`'s
+real first marker (key 16, intParam 0, floatParam 0) gave a `DropdownField` labelled Variant on
+Soft (index 0, choices Soft/Loud) and a hidden float field; intParam 7 gave value "7", index −1,
+label in `ToolkitPalette.Warning`; a null entry gave today's "Int Param" `IntegerField`. The owner's
+window selection was never changed.
+
+**Restore.** The Sound entry's schema was cleared, persisted and regenerated; `AnimEvents.cs` is
+byte-identical to HEAD. `ProjectSettings/DotsAnimationToolkitAnimEventKeyRegistry.asset` now
+serializes the four new fields empty on all four entries (no value changed) — the shape any later
+persist writes, committed with the close-out rather than reverted.

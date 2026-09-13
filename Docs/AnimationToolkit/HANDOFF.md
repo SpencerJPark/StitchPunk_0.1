@@ -119,6 +119,22 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-13): Amendment A85 — event payload schema — 0.32.0.** Spec
+`Assets/_Vault/Tasks/AnimationPackage/A85_EventPayloadSchema_Spec.md`; its §7 carries the drifts,
+two ⚠ interpretations and the drive log. `AnimEventKeyEntry` gained `intParamLabel`,
+`intParamValueNames`, `floatParamLabel`, `floatParamUnit`, edited under a "Payload" foldout per row
+in `AnimEventKeyRegistryEditor` (the Quick Edit window hosts that editor, so it inherits the
+foldout). `EventPayloadFieldBuilder` (`Editor/ClipEditor/Components/`) renders the Clip Editor's
+payload fields from the schema: a dropdown over value names, a labelled field, or hidden; a key
+with no schema keeps the raw fields. `ConstantsGenerator` writes the schema into each constant's
+XML doc and a nested `<Key>Values` class, fed by two optional closures on
+`VocabularyConstantsSection`. Suites: EditMode 827 (826 + 1, standing `Conformance_A` failure
+only), PlayMode 283. Drive proved persistence through a domain reload and the generated
+`AnimEvents.SoundValues`; the live window was not driven and nothing captured (Editor unfocused).
+**For A86:** the cutscene event inspector still binds raw fields (`CutsceneEditorPanel.cs`
+`AddBoundField(eventProperty, "intParam", …)`) and should call the same builder. **⏸ T10 owner
+checkpoint open.** Roadmap box ticks when answered.
+
 **Built (2026-09-12): Amendment A84 — asset reference index, "where is this used" — 0.31.0.**
 Spec `Assets/_Vault/Tasks/AnimationPackage/A84_AssetReferenceIndex_Spec.md`; its §7 carries the D1
 measurement, the six spec-vs-asset drifts and the drive log. `AssetReferenceIndex`
