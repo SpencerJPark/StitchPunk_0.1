@@ -1,6 +1,6 @@
 # Amendment A91 — Profile P2 reported at save and at player build
 
-> **Status:** 🔨 building 2026-09-13. Takes `0.36.0` (spec said `0.38.0`; A88 and A90 are unbuilt — §7).
+> **Status:** ✅ built 2026-09-13 as `0.36.0` (spec said `0.38.0`; A88 and A90 are unbuilt — §7). ⏸ T7 owner checkpoint open.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A70 (profiles, P1–P4 validation), A71 (the Actor Editor badge that is today's
 > only P2 surface).
@@ -95,28 +95,28 @@ message so clicking the console line pings the profile.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Confirm how the Actor Editor badge calls the
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Confirm how the Actor Editor badge calls the
   validator with the vocabulary; confirm `Validation` is an allowed `Conformance_G` suffix for
   the two hook classes (they are not static — no rule; but check the `Editor/ClipUtilities/`
   placement rule for `Utility` does not bite a non-utility there).
-- [ ] **T1 — Scan + fixture [parallel-safe]** — Files: new `ProfileP2Scan.cs`, new
+- [x] **T1 — Scan + fixture [parallel-safe]** — Files: new `ProfileP2Scan.cs`, new
   `Tests/EditMode/ProfileP2ScanTests.cs`. Fixture: `ScanProfile_ReportsOnlyP2` — an in-memory
   profile with one unknown `animationKey` and one P1-class error (e.g. a duplicate layer name —
   grep the validator for what P1 is) → exactly one message, code P2. The vocabulary is a fake
   `IVocabularyRegistry`; the scan takes an optional registry parameter so the test does not touch
   `ProjectSettings/`. Revert-to-fail: drop the code filter.
-- [ ] **T2 — Save hook + build hook [parallel-safe]** — Files: new `ActorProfileSaveValidation.cs`,
+- [x] **T2 — Save hook + build hook [parallel-safe]** — Files: new `ActorProfileSaveValidation.cs`,
   new `ActorProfileBuildValidation.cs`. No fixture (Unity callback wiring).
-- [ ] **T3 — Settings toggle + docs [parallel-safe]** — Files: `VocabularySettingsProvider.cs`
+- [x] **T3 — Settings toggle + docs [parallel-safe]** — Files: `VocabularySettingsProvider.cs`
   (D5's bool), `Documentation~/actor-profiles.md` ("Name errors at save and build" paragraph).
 - **Gate the wave.** `ProfileP2ScanTests`. Commit `A91-T1..T3`.
-- [ ] **T4 — Orchestrator edits.** `CHANGELOG.md` `## [0.38.0]`; `package.json`; `Conformance_G`
+- [x] **T4 — Orchestrator edits.** `CHANGELOG.md` `## [0.38.0]`; `package.json`; `Conformance_G`
   allowlist for `ProfileP2Scan`; HANDOFF §7 loses the P2 bullet.
-- [ ] **T5 — Drive.** Full suites. Give a scratch profile an animation key not in the registry, save
+- [x] **T5 — Drive.** Full suites. Give a scratch profile an animation key not in the registry, save
   → one warning pinging the profile. Run a player build (`Build Settings`, any target) → fails with
   the message; toggle D5 off → build proceeds past the preprocessor (cancel the build after that
   point; no need to complete it). Delete the scratch profile.
-- [ ] **T6 — Close.** HANDOFF §4, roadmap checkbox.
+- [x] **T6 — Close.** HANDOFF §4, roadmap checkbox.
 - [ ] **T7 — ⏸ owner checkpoint.** Message: "Profiles now warn on save and fail a player build when
   an animation name is not in the registry. ⚠ Keep the save-time warning, or is the Actor Editor
   badge enough and only the build should complain?"
@@ -162,3 +162,39 @@ message so clicking the console line pings the profile.
 9. **No real player build at T5** (owner instruction): the build hook is proven one level down
    (`TypeCache` contains it; `OnPreprocessBuild(null)` throws with the toggle on, returns with it
    off), so the hook must never read `report`.
+
+**T1–T3 wave (three workers, 52–58k tokens each).** The gate found one error. T1's copy of the
+private fake registry missed `GeneratedConstantsPath` (CS0535): the brief's read range ended one line
+short. The orchestrator fixed it.
+
+**Revert-to-fail** on `ProfileP2Scan`, both mutations in one compile:
+- Filter dropped only when a registry is passed: `ScanProfile_ReportsOnlyP2` failed, 3 ≠ 1.
+- Null registry passed through to `Validate`: `ScanProfile_WithNoRegistrySuppliedChecksTheProjectRegistry`
+  failed, 0 ≠ 1.
+- Restored from backup, sha256 identical.
+
+Commits `3e022580` (T0–T3), `eceb96b5` (T4), `2d1641ec` (T5/T6 docs, minus this file).
+
+**T5 suites:** EditMode 835 (833 + 2, standing `Conformance_A` only), PlayMode 283.
+
+**T5 drive setup.** Scratch folder `Assets/A91Scratch/`, key `0xDEADBEEF`, confirmed absent from the
+9-entry registry. The project's 2 real profiles had 0 P2 findings, so today's player builds are
+unaffected. Nothing in the drive calls `SaveAssets`; the owner's dirty `EditorBuildSettings` and
+`RobertsCross.mat` stayed unwritten.
+
+- **Save.** `CreateAsset` gave 0 warnings. `SetDirty` + `SaveAssetIfDirty` gave exactly 1, naming the
+  profile, its path, layer `Base`, entry 0 and the id. A second save with nothing dirty gave 0.
+  - This answers the T0 probe: the hook fires for `SaveAssetIfDirty`.
+  - It does not fire for `CreateAsset`, so a new profile warns on its next save.
+- **Build**, proven one level down with no real player build:
+  - `TypeCache` holds both hooks; `callbackOrder` is 0.
+  - Toggle on (default): `OnPreprocessBuild(null)` threw `BuildFailedException` naming the scratch
+    profile. Pref false: it returned.
+- **Toggle.** It exists only on the Animation Names page, as the last child.
+  - Mounted in a floating utility window: `value = false` wrote the pref false, `true` wrote true.
+  - Without a panel, the change event does not dispatch.
+  - The window was closed. The pref key was deleted, as it was absent before.
+- **Cleanup.** Scratch folder deleted. The three registries are byte-identical to their backups, and
+  git status shows only the owner's files.
+- **Not captured.** The toggle is a stock UI Toolkit `Toggle` on a Project Settings page; the owner
+  can look at Project Settings ▸ DOTS Animation Toolkit ▸ Animation Names.
