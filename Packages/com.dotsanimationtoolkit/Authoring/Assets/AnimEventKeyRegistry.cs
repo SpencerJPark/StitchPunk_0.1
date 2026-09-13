@@ -163,5 +163,17 @@ namespace DotsAnimationToolkit.Authoring
 
         [Tooltip("Free-text note on what this event is for. Shown in the event picker's hover card.")]
         [TextArea(1, 3)] public string description = string.Empty;
+
+        [Tooltip("What intParam means for this event. Empty hides the field in the Clip Editor.")]
+        public string intParamLabel = string.Empty;
+
+        [Tooltip("Named values for intParam, index = value. Empty means any integer.")]
+        public List<string> intParamValueNames = new List<string>();
+
+        [Tooltip("What floatParam means for this event. Empty hides the field.")]
+        public string floatParamLabel = string.Empty;
+
+        [Tooltip("Display suffix for floatParam, e.g. m/s. Display only.")]
+        public string floatParamUnit = string.Empty;
     }
 }
