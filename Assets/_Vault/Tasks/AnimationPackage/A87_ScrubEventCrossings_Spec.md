@@ -1,6 +1,6 @@
 # Amendment A87 — Scrub crossings and sound on scrub
 
-> **Status:** 🔨 building 2026-09-13 (T0 probe done, see §7). Takes `0.34.0`.
+> **Status:** ✅ built 2026-09-13 as `0.34.0` (Clip Editor; D6 cutscenes deferred, see §7). **T10 owner checkpoint open.**
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Lifts** HANDOFF §5's "not on the queue — do not start it" on the owner's 2026-09-10 instruction
 > to spec it. Sound *mixing* remains out of the package (roadmap §2).
@@ -110,37 +110,37 @@ is a scheduled style change on the existing pin element.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline + probe (orchestrator).** Gate; totals. **Probe D3** with `execute_code`
+- [x] **T0 — Baseline + probe (orchestrator).** Gate; totals. **Probe D3** with `execute_code`
   (CodeDom C# 6: fully-qualified names, no `using`): reflect
   `UnityEditor.AudioUtil.PlayPreviewClip(AudioClip, int, bool)` and call it with any project
   `AudioClip`; ask the owner-less way — check `AudioSettings` and `EditorUtility.audioMasterMute` —
   then try (2). Record which produced sound in §7; brief T4 with it.
-- [ ] **T1 — Entry field (orchestrator).** §4.2; gate; commit `A87-T1`.
-- [ ] **T2 — Resolver + fixture [parallel-safe]** — Files: new `ScrubEventCrossingResolver.cs`,
+- [x] **T1 — Entry field (orchestrator).** §4.2; gate; commit `A87-T1`.
+- [x] **T2 — Resolver + fixture [parallel-safe]** — Files: new `ScrubEventCrossingResolver.cs`,
   new `Tests/EditMode/ScrubEventCrossingResolverTests.cs`. Fixtures:
   `ForwardWrap_CrossesTailThenHead` (markers at 0.9 and 0.1; previous 0.85, current 0.15, playing,
   Loop → `[idxOf0.9, idxOf0.1]` in that order) and `BackwardScrub_CrossesMarkerBetween` (marker
   0.5; previous 0.6, current 0.4, not playing → one). Revert-to-fail: drop the wrap branch; drop the
   backward branch.
-- [ ] **T3 — Timeline hook + pin flash [parallel-safe]** — Files: `TimelinePane.cs` (playhead
+- [x] **T3 — Timeline hook + pin flash [parallel-safe]** — Files: `TimelinePane.cs` (playhead
   write range only), `TrackLaneElement.cs` (add `FlashPin(int flatIndex)`; D5).
-- [ ] **T4 — `EditorEventPreviewPlayer` [parallel-safe]** — Files: new file. Brief carries the
+- [x] **T4 — `EditorEventPreviewPlayer` [parallel-safe]** — Files: new file. Brief carries the
   D3 winner verbatim.
-- [ ] **T5 — Registry inspector: preview clip row [parallel-safe]** — Files:
+- [x] **T5 — Registry inspector: preview clip row [parallel-safe]** — Files:
   `AnimEventKeyRegistryEditor.cs` (the Payload foldout gains an `ObjectField<AudioClip>`),
   `AnimEventKeyRegistry.cs` (add `FindPreviewClip(uint)` beside `FindName`).
-- [ ] **T6 — Docs + changelog [parallel-safe]** — Files: `Documentation~/animation-events.md`
+- [x] **T6 — Docs + changelog [parallel-safe]** — Files: `Documentation~/animation-events.md`
   ("Hearing events in the editor" subsection, stating D1 and that this is preview-only, not a sound
   system), `CHANGELOG.md` `## [0.34.0]`.
 - **Gate the wave.** `ScrubEventCrossingResolverTests`. Commit `A87-T2..T6`.
-- [ ] **T7 — Orchestrator edits.** Wire the player's construction/disposal into the pane; D6 for
+- [x] **T7 — Orchestrator edits.** Wire the player's construction/disposal into the pane; D6 for
   the cutscene playhead if reachable; `Conformance_G` allowlist (`EditorEventPreviewPlayer`);
   `package.json`; vault note section "Sound on scrub (A87)" recording the D3 outcome.
-- [ ] **T8 — Drive.** Full suites. Assign a clip to one key; open a clip with that marker; drag the
+- [x] **T8 — Drive.** Full suites. Assign a clip to one key; open a clip with that marker; drag the
   playhead across it — hear it, see the flash; step frames across it — once; play a looping clip —
   once per loop. Record in §7 which of these you could verify (sound needs the owner's ears —
   report "flash verified, sound not verifiable from here" if so).
-- [ ] **T9 — Close.** HANDOFF §4 (and strike the §5 "do not start it" line, citing this
+- [x] **T9 — Close.** HANDOFF §4 (and strike the §5 "do not start it" line, citing this
   amendment), roadmap checkbox.
 - [ ] **T10 — ⏸ owner checkpoint.** Message: "Give Footstep a preview clip in Project Settings ▸
   Event Keys. Scrub across a footstep marker in any clip. Two questions: ⚠ D1 — when you click far
@@ -239,3 +239,34 @@ on an `AudioClip` reference renders an `ObjectField<AudioClip>`.
   a seconds overload of the resolver), not two. Follow-up candidate.
 - Version pins 0.34.0: `package.json`, and `PackagingConformanceTests` comment + Assert.
 - Vault note: `AnimationToolkit.md` § "Sound on scrub (A87, 0.34.0)".
+
+### T8 — drive (2026-09-13)
+
+- **Full suites:** EditMode 831 (829 + 2; only the standing `Conformance_A` asmdef-list failure),
+  PlayMode 283/283. Totals did not drop.
+- **Crossings, one level down** (`execute_code`). The drive used a `TimelinePane` with a
+  `ClipEditorSession`, an in-memory clip with one Sound (key 16) marker at 0.5, and an event
+  `TrackLaneElement` in its `laneColumn`. Sound was given `Splat1` in memory only, restored in
+  `finally`.
+  - Scrub 0.4 → 0.6: pin flashed, player created, `IsPreviewClipPlaying` true.
+  - Frame steps: 0.49 → 0.50 flashed and 0.50 → 0.51 did not, so a step fires once.
+  - Paused seek 0.05 → 0.95: no flash.
+  - Looping play ticks over two loops: 2 crossings. Reverse looping play through a wrap: 1.
+  - During a key drag: none. First report after a clip switch: none; the next scrub fired.
+  - `Dispose`: player gone, preview stopped.
+- **Registry write proven on disk.** The registry editor builds one "Preview Clip" `PropertyField`
+  per row, bound to `entries.Array.data[n].previewClip` (`PPtr<$AudioClip>`, so an AudioClip
+  `ObjectField`). A write through `SerializedObject` + `VocabularyRegistryProvider.Persist` (what
+  `OnSerializedObjectChanged` calls) put Splat1's guid inside the Sound entry on disk. A fresh
+  `FromJsonOverwrite` of the file gave `FindPreviewClip(16)` = `Assets/Audio/Splat1.mp3` and
+  `FindPreviewClip(17)` = null. The file was restored from backup, sha256 `b315ce62…` again, with
+  no other files changed.
+- **Not verified from here:** that the sound is audible (owner's ears), and the flash on screen.
+  The owner's docked DOTS Animator window was not driven or captured, to avoid replacing their open
+  clip session. The `TrackSerializedObjectValue` callback path needs a live panel, so the drive
+  called the method it invokes instead.
+
+### T9 — close
+
+HANDOFF §4 paragraph added, and §5's "do not start it" struck, citing A87. Roadmap status line
+updated. The A87 box stays unticked until T10 is answered, like A86's.

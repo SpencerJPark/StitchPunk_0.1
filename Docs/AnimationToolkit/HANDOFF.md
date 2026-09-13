@@ -119,6 +119,23 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-13): Amendment A87 — scrub crossings and sound on scrub — 0.34.0.** Spec
+`Assets/_Vault/Tasks/AnimationPackage/A87_ScrubEventCrossings_Spec.md`. Its §7 carries the D3 audio
+probe and the drifts: the playhead write lives in `ClipEditorWindow.SetPlayheadTime`, not the pane;
+`FlashPin` is lane-local; wraps are inferred from the delta, so reverse play works; `Play` has no
+volume parameter; no Conformance_G entry was needed; and D6 (cutscenes) is deferred because it
+needs three files. `ClipEditorWindow.SetPlayheadTime` calls `TimelinePane.ReportPlayheadMoved`,
+which resolves crossings with `ScrubEventCrossingResolver`, flashes the pin (`TrackLaneElement.FlashPin`,
+own-colour 3 px outline for 120 ms) and plays `AnimEventKeyRegistry.FindPreviewClip` through
+`EditorEventPreviewPlayer` (`AudioUtil.PlayPreviewClip` by reflection; one voice, same clip at most
+once per 40 ms). A clip switch and a key drag fire nothing; a paused jump over half the clip is a
+seek. `AnimEventKeyEntry.previewClip` is edited under each Event Names row's Payload foldout.
+Suites: EditMode 831 (829 + 2, standing `Conformance_A` failure only), PlayMode 283. The drive
+ran one level down and never touched the owner's live window. It proved the flash and the preview
+start on a scrub, one firing per frame step, one per loop in both play directions, nothing on seek,
+drag or clip switch, and the JSON write to disk. The registry file was restored afterwards. Sound
+itself is not verifiable from a session. **T10 owner checkpoint open.**
+
 **Built (2026-09-13): Amendment A86 — one event editing surface for clips and cutscenes — 0.33.0.**
 Spec `Assets/_Vault/Tasks/AnimationPackage/A86_UnifiedEventEditing_Spec.md`; its §7 carries seven
 spec-vs-code drifts (the cutscene inspector lives in `CutsceneEditorPanel`, there was no cutscene
@@ -491,7 +508,9 @@ test drives `ToggleLayerDefaultActive` directly because an unattached `VisualEle
 - The owner eventually wants to hear sound while scrubbing. Note the Clip Editor's scrub path poses
   through `ClipSampler` and never runs `EventEmissionSystem`/`EventWindowSystem` (ECS, play-time
   only), so that needs its own crossing detection comparing playhead-before against playhead-after.
-  **Not on the queue — do not start it.**
+  ~~**Not on the queue — do not start it.**~~ Lifted on the owner's 2026-09-10 instruction and built
+  as Amendment A87 (0.34.0, Clip Editor only; cutscene timeline deferred). Sound *mixing* stays out of
+  the package.
 
 ## 6. Do not decide these alone
 
