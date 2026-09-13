@@ -1124,3 +1124,22 @@ isLoopEnabled)`, and the pane resolves crossings with `ScrubEventCrossingResolve
   `CutsceneEventMarker`, and their pins are per-marker `VisualElement`s in
   `CutsceneMomentLaneElement`, not `TrackLaneElement` paint. The hook belongs in
   `CutsceneEditorPanel.SetPlayhead`, so it needs three files plus a seconds overload of the resolver.
+
+## Profile name errors at save and build (A91, 0.36.0)
+
+Traps only; the design is in the spec's §7 and HANDOFF §4.
+- `ActorProfileValidation.Validate(profile, null)` skips only registry membership. A zero
+  `animationKey` is P2 even with null, so the bake already fails it. Any wrapper taking an optional
+  registry must resolve null to `VocabularyRegistryProvider.AnimationNames` before calling, or it
+  silently checks nothing. `ProfileP2Scan` does, and its second fixture guards it.
+- `AssetModificationProcessor.OnWillSaveAssets` fires for `AssetDatabase.SaveAssetIfDirty(object)`.
+  It does NOT fire for `AssetDatabase.CreateAsset`, or for a save with nothing dirty. A brand-new
+  profile warns on its next save, not on creation.
+- `ActorProfileBuildValidation.OnPreprocessBuild` never reads its `BuildReport`, so a drive can call
+  it with null. This game's player build is long and writes `EditorBuildSettings`; don't run one to
+  test a preprocessor.
+- A UI Toolkit `Toggle` in a detached `VisualElement` does not dispatch `ChangeEvent` on `value =`.
+  A `SettingsProvider.activateHandler` called by hand is one. To prove the callback one level down,
+  mount the root in a floating `EditorWindow` after `ShowUtility()`, then `Close()` it.
+- A brief that says "copy lines X–Y" must cover every member. The fake `IVocabularyRegistry` copy
+  lost `GeneratedConstantsPath` to a range one line short (CS0535 at the gate).

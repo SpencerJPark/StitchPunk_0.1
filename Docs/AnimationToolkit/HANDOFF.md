@@ -119,6 +119,24 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-13): Amendment A91 — profile animation name errors (P2) at save and at player build —
+0.36.0** (A88 and A90 are unbuilt; A91 took the next free minor). Spec:
+`Assets/_Vault/Tasks/AnimationPackage/A91_ProfileP2AtBuild_Spec.md`; its §7 logs nine T0 drifts.
+- **One scan, `ProfileP2Scan`** (`ScanProfile`, `ScanProject`, `FormatForConsole`). A null registry
+  resolves to the project one and is never passed through, because `Validate` treats null as "skip
+  the membership check". A94's H03 calls it.
+- **Save:** `ActorProfileSaveValidation` (`OnWillSaveAssets`) logs one warning per P2 finding and
+  never blocks. It fires on `SaveAssetIfDirty`, not on `CreateAsset`.
+- **Build:** `ActorProfileBuildValidation` (`IPreprocessBuildWithReport`) throws
+  `BuildFailedException` listing every finding. The per-machine EditorPrefs toggle sits on the
+  Animation Names settings page and defaults to on.
+- **Drift worth knowing:** the bake already failed a zero `animationKey`; only registry membership
+  was missing. The builder comment and `actor-profiles.md` said otherwise and are corrected.
+- **Suites:** EditMode 835 (833 + 2, standing `Conformance_A` only), PlayMode 283. The build hook
+  was proven one level down, with no real player build, on the owner's instruction.
+- **T7 owner checkpoint open:** keep the save warning? confirm with a real build? per-machine or
+  project-wide toggle?
+
 **Built (2026-09-13): Amendment A89 — stale VAT bake detection — 0.35.0** (A88 is not built and
 takes the next free minor). Spec: `Assets/_Vault/Tasks/AnimationPackage/A89_StaleVatBakeDetection_Spec.md`.
 Its §7 logs five drifts and the design settled at T0.
