@@ -957,3 +957,29 @@ too (`ClipEditorAddEventTests` shows the two-sided helpers).
   tooltips), then diff every moved body against `HEAD`.** That is how T3–T5 landed with one to
   eight compile errors each. The viewport/gizmo block is the next natural lift; D7's 2,500-line
   target is still 1,770 lines away.
+
+## Asset Reference Index (A84, 0.31.0)
+
+**`AssetReferenceIndex` (`Editor/ClipUtilities/`) answers "what references this?"** for rigs, clips,
+clip sets, profiles, VAT texture sets, event keys and tags, each as a `List<AssetReference>`
+(owner, kind, detail). Editor-only, in-memory, no serialized cache: `AssetReferenceIndexPostprocessor`
+marks it dirty on any `.asset` import/delete/move and the next query rescans. Every catalog delete
+dialog (`RigsPanel`, `ClipSetsPanel`, `ActorEditorProfilesColumn` — not the thin catalog columns)
+opens with `SummarizeForDialog`'s "Referenced by 2 profiles, 1 cutscene." plus up to ten names.
+
+- **The scan cost is `FindAssets`, not loading.** Measured 2026-09-12 on 24 toolkit assets: six
+  separate `t:` calls 207–328 ms, one combined `"t:ClipAsset t:ClipSetAsset t:RigAsset
+  t:ActorProfileAsset t:CutsceneAsset t:VatTextureSetAsset"` 64–68 ms (multiple `t:` terms OR
+  together and return the same 24), `LoadAllAssetsAtPath` ~0 ms once cached. Keep the one combined
+  call; an incremental rebuild would buy nothing.
+- **The tag-first binding rule lives in `TrackTargetMatchResolver.TrackBindsTarget`:** a track
+  with a non-zero `tagId` binds the target wearing that tag and never falls back to its raw
+  `targetId`; a track with `tagId == 0` binds by raw id only. `RigTargetReferenceResolver`
+  delegates to it; `RigHierarchyPane.CountTracksForTarget` goes through
+  `AssetReferenceIndex.CountTracksBoundToTarget(clip, rig, targetId)`, which is pure over the two
+  assets handed in (never rescans — it runs per hierarchy row on repaint) and falls back to raw-id
+  matching when the rig does not declare the target.
+- **What references what (verified against the assets, not the spec):** clip sets never reference
+  rigs; cutscene slots hold `rig`, `clipSets`, `profile` and tag-addressed `partTracks`, never a
+  `ClipAsset` (clip blocks carry an `animationKey`); profiles are referenced only by cutscene slots.
+  `VatTextureSetAsset.sourceRigKey` is a hash, not a reference, and is not indexed.

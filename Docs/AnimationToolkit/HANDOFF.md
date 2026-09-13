@@ -119,6 +119,20 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-12): Amendment A84 — asset reference index, "where is this used" — 0.31.0.**
+Spec `Assets/_Vault/Tasks/AnimationPackage/A84_AssetReferenceIndex_Spec.md`; its §7 carries the D1
+measurement, the six spec-vs-asset drifts and the drive log. `AssetReferenceIndex`
+(`Editor/ClipUtilities/`) scans every toolkit asset with one combined `FindAssets` (65 ms; six
+separate calls cost 250+ ms), is dirtied by an `AssetPostprocessor` on any `.asset` change, and
+answers seven `ReferencesTo…` queries plus `CountTracksBoundToTarget` and `SummarizeForDialog`.
+`TrackTargetMatchResolver.TrackBindsTarget` is the one tag-first binding rule; the hierarchy
+pane's "animated" bold and `RigTargetReferenceResolver` both go through it. The Rig, Clip Set and
+Actor Profile delete dialogs open with "Referenced by N …" and up to ten names. Suites: EditMode
+826 (824 + 2, standing `Conformance_A` failure only), PlayMode 283. Drive proved the three
+behaviours against scratch copies; no capture (Editor unfocused). **⏸ T11 owner checkpoint
+open:** right-click Delete on a referenced rig, clip set or profile and judge the wording and the
+ten-name cap. Roadmap box ticks when answered.
+
 **Built (2026-09-12): Amendment A83 — the Clip Editor window is four panes — 0.30.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A83_WindowDecomposition_Spec.md`; its §7 carries the range
 map, the per-extraction logs and every decision (D8–D10). `ClipEditorWindow.cs` went from 9,365
