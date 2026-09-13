@@ -894,6 +894,25 @@ computes the stored hash.**
 - **Where the rig comes from on the Clip Sets tab.** That tab has no rig of its own. Its badge
   uses the shared selection's rig when its `StableId` matches `sourceRigKey`, and otherwise finds
   the rig in the project by stable id.
+- **Owner follow-ups (A89 T9–T11, 2026-09-13):**
+  - **The VAT Bake receipt line refreshes on import through `VatBakePanel.OnSourcesImported`.**
+    - It returns early while its key is unchanged: `ComputeSourceHash` XOR the stored
+      `sourceHash`, about 0.07 ms.
+    - Otherwise it runs `RefreshResolvedSources(false)`. It calls `RefreshPreview` only when
+      `FirstResolvedRenderer()` is a different object, because `VatPreviewElement.Show`
+      re-instantiates the whole source hierarchy on every call.
+    - Proven by `sourceCopyRoot` keeping its `EntityId` across a rig save.
+    - Never pass `true` from an import path.
+  - **Rebake on the Clip Sets tab** raises `ClipSetsPanel.RebakeRequested(set, bakedRig)`. The
+    window sets the shared selection (the rig only when one was found) and switches to
+    `ClipEditorTab.VatBake`. Nothing bakes.
+  - **V08's text is rewritten in the editor, not in `ClipValidation`.**
+    `ValidationBadgeElement.DescribeStaleVatBake` replaces the generic authoring text with set +
+    rig + resolver reason, and `ApplyMessages` sorts V08 first and prefixes the summary with
+    "VAT stale · ".
+    - Any new badge caller that recomputes the hash must call `DescribeStaleVatBake` too.
+      `ActorEditorPanel` does.
+    - A94's Health tab pins H06 above every finding (its spec, D8).
 
 **Unexplained, not chased (2026-09-08):** a rig produced by `AssetDatabase.CopyAsset` had a target
 added and saved — the YAML on disk carried it, `kind` included — yet after a domain reload Unity

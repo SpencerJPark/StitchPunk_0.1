@@ -134,7 +134,38 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
+            DescribeStaleVatBake(messages, clipSet, rig);
             ApplyMessages(messages);
+        }
+
+        // The authoring rule can only say the hash moved; the editor resolver can say what changed.
+        internal static void DescribeStaleVatBake(
+            List<ValidationMessage> messages,
+            ClipSetAsset vatOwnerSet,
+            RigAsset rig)
+        {
+            if (messages == null || vatOwnerSet == null || vatOwnerSet.vatTextures == null || rig == null)
+            {
+                return;
+            }
+
+            for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
+            {
+                ValidationMessage message = messages[messageIndex];
+                if (message.code != ValidationCode.V08)
+                {
+                    continue;
+                }
+
+                VatSourceHashResolver.Resolve(vatOwnerSet, rig, vatOwnerSet.vatTextures, out string reason);
+                string text = "Stale VAT bake on set '" + vatOwnerSet.name + "' for rig '" + rig.name
+                    + "'. " + reason + " Use Rebake on the Clip Sets tab, or the VAT Bake tab.";
+                messages[messageIndex] = new ValidationMessage(
+                    message.severity,
+                    message.code,
+                    message.assetContext,
+                    text);
+            }
         }
 
         /// <summary>
@@ -164,13 +195,30 @@ namespace DotsAnimationToolkit.Editor
             currentMessages.Clear();
             HasErrors = false;
 
-            int errorCount = 0;
-            int warningCount = 0;
+            // V08 (stale VAT bake) leads the list: it silently plays old motion, so it must be seen
+            // before the reader scrolls past it among unrelated findings.
+            bool hasStaleVatBake = false;
+            List<ValidationMessage> remainingMessages = new List<ValidationMessage>();
             for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
             {
                 ValidationMessage message = messages[messageIndex];
-                currentMessages.Add(message);
-                if (message.severity == ValidationSeverity.Error)
+                if (message.code == ValidationCode.V08)
+                {
+                    hasStaleVatBake = true;
+                    currentMessages.Add(message);
+                }
+                else
+                {
+                    remainingMessages.Add(message);
+                }
+            }
+            currentMessages.AddRange(remainingMessages);
+
+            int errorCount = 0;
+            int warningCount = 0;
+            for (int messageIndex = 0; messageIndex < currentMessages.Count; messageIndex++)
+            {
+                if (currentMessages[messageIndex].severity == ValidationSeverity.Error)
                 {
                     errorCount++;
                 }
@@ -191,6 +239,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 summaryButton.text = errorCount.ToString() + " err  " + warningCount.ToString() + " warn";
                 summaryButton.style.color = errorCount > 0 ? ErrorColor : WarningColor;
+            }
+
+            if (hasStaleVatBake)
+            {
+                summaryButton.text = "VAT stale · " + summaryButton.text;
             }
 
             // The panel repeats the counts because it is read on its own, over the preview, with the

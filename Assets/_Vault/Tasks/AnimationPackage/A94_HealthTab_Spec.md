@@ -56,7 +56,9 @@ it.
   `H01` clip in no set (Warning; Fix: none); `H02` clip set lists a null clip (Error; Fix: Remove
   null); `H03` profile names an animation not in the registry (Error — A91's scan); `H04` profile
   rig ≠ a listed clip set's rig (Error); `H05` rig used by no profile (Note); `H06` VAT stale /
-  unbaked (Warning / Error — A89's resolver; Fix: Rebake jumps to VAT Bake with the set selected);
+  unbaked (**Error for both** — owner 2026-09-13, matching A89's V08 Error; A89's resolver; Fix:
+  Rebake jumps to VAT Bake with the set and its baked rig selected, the same jump as A89's Clip Sets
+  Rebake button; see D8);
   `H07` clip track tag absent from the tag registry (Error — the T3 analogue, via `ClipValidation`);
   `H08` event key used but not in the event registry (Error — `AnimEventValidation`); `H09` asset
   has an unpersisted stable id (Warning; Fix: Save — calls `MarkStableIdPersisted` and `SaveAssets`);
@@ -74,6 +76,18 @@ it.
   fix for H01 belongs here (it trashes an asset) — omitted unless the owner asks.
 - **A94-D7 — The badge is not replaced.** Per-clip, per-rig validation stays where it is; Health
   is cross-asset.
+- **A94-D8 — A stale or unbaked VAT bake is the first thing Health says, and it is easy to find**
+  (owner, 2026-09-13, answering A89's checkpoint).
+  - **Pinned first.** H06 findings sort above every other finding, errors included. This is a
+    silent failure: the actor plays old motion with no error at run time.
+  - **Row text** names the clip set, the rig, and the resolver's reason ("rig changed" or "clips
+    changed").
+  - **Row actions:** **Rebake** (D6's jump) and **Locate**, which selects and pings the texture
+    set, then the clip set.
+  - **Rig lookup.** Use the same rig lookup the Clip Sets tab uses: the rig whose `StableId`
+    equals `sourceRigKey`. It is private `ClipSetsPanel.FindRigTheSetWasBakedFrom` today; T5 lifts
+    it into `VatSourceHashResolver` or `AssetReferenceIndex` rather than copying it.
+  - ⚠ Whether the tab strip shows a count ("Health (1)") while any H06 exists. The checkpoint asks.
 
 ---
 
@@ -123,13 +137,19 @@ calling every rule in code order; plain noun, allowlist.
 - [ ] **T1 — Shared types (orchestrator).** §4.1; expose A84's cached asset lists if needed. Gate.
   Commit `A94-T1`.
 - [ ] **T2 — `HealthScan` + fixture [parallel-safe]** — Files: new `HealthScan.cs`, new
-  `Tests/EditMode/HealthScanTests.cs` (`Run_OrdersErrorsFirst`: a context producing one Note and
-  one Error → Error first). Revert-to-fail: drop the sort.
+  `Tests/EditMode/HealthScanTests.cs`:
+  - `Run_OrdersErrorsFirst`: a context producing one Note and one Error → the Error comes first.
+  - `Run_PinsStaleVatBakesAboveOtherErrors` (D8): an H02 Error and an H06 → H06 comes first.
+  - Revert-to-fail: drop the sort, then drop the H06 pin.
 - [ ] **T3 — Rules H01, H02, H05 [parallel-safe]** — Files: new `HealthRules/ClipMembershipRules.cs`
   (H01, H02), new `HealthRules/RigUsageRule.cs` (H05). Fixture is T9's.
 - [ ] **T4 — Rules H03, H04 [parallel-safe]** — Files: new `HealthRules/ProfileRules.cs`.
 - [ ] **T5 — Rules H06, H09 [parallel-safe]** — Files: new `HealthRules/VatFreshnessRule.cs`, new
   `HealthRules/StableIdRule.cs`.
+  - H06 follows D8: an Error for stale and for unbaked, the row text names set + rig + reason, and
+    the row carries Locate.
+  - The rig lookup is lifted from `ClipSetsPanel` at T1 (orchestrator) so this worker only calls
+    it.
 - [ ] **T6 — Rules H07, H08, H10 [parallel-safe]** — Files: new `HealthRules/TagAndKeyRules.cs`.
 - [ ] **T7 — List element [parallel-safe]** — Files: new `HealthFindingListElement.cs`.
 - [ ] **T8 — Panel [parallel-safe]** — Files: new `HealthPanel.cs`.

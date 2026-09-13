@@ -1407,6 +1407,7 @@ namespace DotsAnimationToolkit.Editor
                 clipSetsPanel = new ClipSetsPanel();
                 clipSetsPanel.Bind(selection);
                 clipSetsPanel.OpenInEditorRequested += OnClipSetOpenRequested;
+                clipSetsPanel.RebakeRequested += OnClipSetRebakeRequested;
                 clipSetsPanel.SetClipsChanged += OnPanelChangedSetClips;
                 clipSetsPane.Add(clipSetsPanel);
             }
@@ -1490,6 +1491,17 @@ namespace DotsAnimationToolkit.Editor
         private void OnClipSetOpenRequested(ClipSetAsset requestedSet)
         {
             SetActiveTab(ClipEditorTab.ClipEditor);
+        }
+
+        private void OnClipSetRebakeRequested(ClipSetAsset requestedSet, RigAsset bakedRig)
+        {
+            selection.SetClipSet(requestedSet);
+            // A rig the project no longer has must not clear the rig already open.
+            if (bakedRig != null)
+            {
+                selection.SetRig(bakedRig);
+            }
+            SetActiveTab(ClipEditorTab.VatBake);
         }
 
         /// <summary>Answers the Clip Sets panel adding or removing a clip on the currently open set.</summary>

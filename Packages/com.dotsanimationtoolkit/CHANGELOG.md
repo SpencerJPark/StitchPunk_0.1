@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same badge. Both refresh on selection, on save or import, and after a bake.
 - `VatTextureSetAsset.sourceRigStructureHash`: the rig half of `sourceHash`, stored so a stale
   set can say which side moved.
+- Clip Sets tab: a **Rebake** button on the VAT Textures row, shown whenever the set is not Fresh.
+  It opens the VAT Bake tab with the set and the rig it was baked for already selected. It does
+  not bake by itself.
+- VAT Bake tab: the line under the Rig now also refreshes after a save or import.
+  - The refresh is skipped while nothing it shows has changed.
+  - The preview's copy of the rig is rebuilt only when the mesh being baked changed.
+- A stale VAT bake is now hard to miss in the validation badges.
+  - The badge summary leads with "VAT stale", and the V08 row sorts first.
+  - The V08 row names the set, the rig and what changed.
+  - The Actor Editor's badge now checks for a stale bake too.
 
 ### Changed
 

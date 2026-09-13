@@ -141,7 +141,16 @@ Its §7 logs five drifts and the design settled at T0.
     "rig changed"; rebake → Fresh; add a clip → Stale.
   - The VAT Bake tab was captured in both states. The Clip Sets tab was not, because it lives
     only in the owner's docked window.
-- **⏸ T8 checkpoint open.**
+- **T8 answered the same day. Its follow-ups are built at the same version:**
+  - A **Rebake** button on the Clip Sets VAT Textures row. It jumps to VAT Bake with the set and its
+    baked rig selected, and does not bake.
+  - The VAT Bake resolved-parts line refreshes on import. It skips on an unchanged key, and the
+    preview is rebuilt only when the subject renderer changes.
+  - V08 is obvious: its row sorts first, the summary is prefixed "VAT stale · ", the text names set,
+    rig and reason, and the Actor Editor badge feeds V08 too.
+  - A94's spec gained D8: H06 is an Error for stale and unbaked, pinned above every finding, with
+    Rebake and Locate.
+  - EditMode 833 (standing `Conformance_A` only). The drive log is in spec §7.
 
 **Built (2026-09-13): Amendment A87 — scrub crossings and sound on scrub — 0.34.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A87_ScrubEventCrossings_Spec.md`. Its §7 carries the D3 audio

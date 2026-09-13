@@ -1,6 +1,6 @@
 # Amendment A89 — Stale VAT bake detection
 
-> **Status:** ✅ built 2026-09-13 as `0.35.0` (A88 is not built; it takes the next free minor when it runs — §7). ⏸ T8 owner checkpoint open.
+> **Status:** ✅ built and accepted 2026-09-13 as `0.35.0` (A88 is not built; it takes the next free minor when it runs — §7). T8 answered; follow-ups T9–T12 built.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A78 (per-part bake, `VatTextureSetAsset.sourceHash` / `sourceRigKey`),
 > A80 (VAT Bake fields are live pickers on the shared selection).
@@ -111,9 +111,33 @@ A 10 px dot + label, `Refresh(VatBakeFreshness, string reason)`; tooltip = reaso
 - [x] **T6 — Drive.** Full suites. Bake the sample tentacle → Fresh. Flip one target's Kind → Stale,
   "rig changed". Rebake → Fresh. Add a clip to the set → Stale, "clips changed". Capture both tabs.
 - [x] **T7 — Close.** HANDOFF §4, roadmap checkbox.
-- [ ] **T8 — ⏸ owner checkpoint.** Message: "VAT Bake tab: a dot beside the resolved-parts line
+- [x] **T8 — ⏸ owner checkpoint.** Message: "VAT Bake tab: a dot beside the resolved-parts line
   says Fresh / Stale / Unbaked with the reason on hover; Clip Sets shows the same on the VAT
   Textures row. ⚠ Want a Rebake button on the Clip Sets badge that jumps to VAT Bake?"
+  **Answered 2026-09-13:**
+  1. Yes to the Rebake button.
+  2. Yes, refresh the resolved-parts line on import, "but make it performant".
+  3. Yes to V08 as an Error, "but make sure the error is obvious", and the Health tab must warn
+     about it before anything else and make it easy to locate.
+- [x] **T9 — Rebake on the Clip Sets badge [parallel-safe]** — Files: `ClipSetsPanel.cs`,
+  `ClipEditorWindow.cs`.
+  - The button is shown only when the badge is not Fresh.
+  - `RebakeRequested(set, bakedRig)` → the window sets the shared selection (the rig only when one
+    was found) and calls `SetActiveTab(VatBake)`. Nothing bakes (D4).
+- [x] **T10 — Resolved-parts line on import, cheaply [parallel-safe]** — Files: `VatBakePanel.cs`.
+  - `OnSourcesImported` returns early while the key (source hash XOR stored hash) is unchanged.
+  - Otherwise it runs `RefreshResolvedSources(false)`, and rebuilds the preview only when the
+    first resolved renderer changed.
+- [x] **T11 — Obvious V08 [parallel-safe]** — Files: `ValidationBadgeElement.cs`,
+  `ActorEditorPanel.cs`.
+  - `DescribeStaleVatBake` rewrites the V08 text with set, rig and reason.
+  - V08 sorts first, and the summary is prefixed "VAT stale · ".
+  - The Actor Editor badge now feeds V08 too.
+- [x] **T12 — A94 spec (orchestrator).** H06 becomes an Error for stale and unbaked. New D8: H06
+  is pinned above every finding, rows carry Rebake + Locate, the rig lookup is lifted rather than
+  copied, and a new fixture `Run_PinsStaleVatBakesAboveOtherErrors`.
+- **Gate, drive one level down, docs (CHANGELOG 0.35.0 section, `rigged-characters.md`), commit
+  `A89-T9..T12`.**
 
 ---
 
@@ -273,3 +297,35 @@ A 10 px dot + label, `Refresh(VatBakeFreshness, string reason)`; tooltip = reaso
 - **Cleanup:** window closed, panel disposed, undo cleared, `Assets/A89Drive` deleted. The three
   registry files are byte-identical to the pre-drive backups, and git status shows only the
   owner's pre-existing files.
+
+### T9–T12 — owner follow-ups (2026-09-13)
+
+- **Workers:** three, 62–64k tokens each, on disjoint files. The orchestrator did T12 (the A94
+  spec), the CHANGELOG and the docs. Review fix: one duplicated why-comment trimmed in
+  `ValidationBadgeElement`.
+- **Gate:** compile clean twice (the wave, then the comment-only fix). EditMode 833 (standing
+  `Conformance_A` only). PlayMode was not re-run: the change is editor-only, and the last run was
+  283/283.
+- **No fixtures.** These tasks are UI wiring and message shaping, all proven in the drive below.
+- **Drive** (floating `VatBakeWindow` + detached `ClipSetsPanel`, SaveAssets guard, scratch
+  `Assets/A89Drive` deleted afterwards, registries byte-identical):
+  - **T9:** while Unbaked, Rebake is visible. `OnRebakeClicked` raised `RebakeRequested` with
+    "VatSampleTentacleTwoPartClips / VatSampleTentacleTwoPartRig". At Stale, Rebake is visible.
+    - The window handler (`OnClipSetRebakeRequested` → selection + `SetActiveTab(VatBake)`) was
+      checked by code review only, because driving it would take over the owner's docked window.
+  - **T10:** after bake, the line read "baking 2 of 2 VAT parts · Tentacle, Fin". Flipping Fin to
+    Quad and saving the rig changed it, one import tick later, to "VatSampleTentacleTwoPart ▸
+    Tentacle · 12 bones".
+    - The preview's `sourceCopyRoot` kept `EntityId` 568105589213675442, so there was no rebuild.
+    - Captured: `Library/A89Captures/vat_bake_line_refreshed_on_import.png`.
+  - **T11 at Fresh:** summary "0 err  1 warn".
+  - **T11 at Stale:** summary "VAT stale · 1 err  1 warn". Row 0 reads V08/Error "Stale VAT bake
+    on set 'VatSampleTentacleTwoPartClips' for rig 'VatSampleTentacleTwoPartRig'. Rig changed since
+    this set was baked. Rebake it. Use Rebake on the Clip Sets tab, or the VAT Bake tab." Row 1 is
+    V10.
+    - `ActorEditorPanel` shares `DescribeStaleVatBake`, but the Actor Editor was not driven (it
+      needs a profile in the owner's window).
+- **Interpretations made without asking (the next owner look can overturn them):**
+  - Rebake jumps and does not bake.
+  - The freshness badge keeps D3's colours (Stale is yellow) while V08 is a red Error.
+  - A94-D8's tab-strip count is left as a ⚠ for A94's own checkpoint.

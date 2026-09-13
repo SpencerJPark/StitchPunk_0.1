@@ -559,7 +559,43 @@ namespace DotsAnimationToolkit.Editor
 
             List<ValidationMessage> messages =
                 ActorProfileValidation.Validate(profile, VocabularyRegistryProvider.AnimationNames);
-            messages.AddRange(ClipValidation.ValidateBind(profile.rig, profile.clipSets));
+
+            // Several clip sets can each carry VAT textures (that overlap is V39's concern); the
+            // bind's stale-bake check only needs the first one that actually supplies them.
+            ClipSetAsset vatOwnerSet = null;
+            if (profile.clipSets != null)
+            {
+                for (int clipSetIndex = 0; clipSetIndex < profile.clipSets.Count; clipSetIndex++)
+                {
+                    ClipSetAsset candidateClipSet = profile.clipSets[clipSetIndex];
+                    if (candidateClipSet != null && candidateClipSet.vatTextures != null)
+                    {
+                        vatOwnerSet = candidateClipSet;
+                        break;
+                    }
+                }
+            }
+
+            List<ValidationMessage> bindMessages;
+            if (profile.rig != null && vatOwnerSet != null)
+            {
+                ulong recomputedVatSourceHash = VatSourceHashResolver.ComputeSourceHash(
+                    vatOwnerSet,
+                    profile.rig,
+                    vatOwnerSet.vatTextures.flavor);
+                bindMessages = ClipValidation.ValidateBind(
+                    profile.rig,
+                    profile.clipSets,
+                    vatSourceHashRecomputed: true,
+                    recomputedVatSourceHash: recomputedVatSourceHash);
+            }
+            else
+            {
+                bindMessages = ClipValidation.ValidateBind(profile.rig, profile.clipSets);
+            }
+
+            ValidationBadgeElement.DescribeStaleVatBake(bindMessages, vatOwnerSet, profile.rig);
+            messages.AddRange(bindMessages);
             validationBadge.RefreshFromMessages(messages);
         }
 

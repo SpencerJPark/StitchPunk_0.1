@@ -31,6 +31,8 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement vatTexturesRow;
         private Label vatTexturesNameLabel;
         private VatFreshnessBadgeElement vatFreshnessBadge;
+        private Button rebakeButton;
+        private RigAsset lastResolvedRig;
 
         private ClipPickerListElement picker;
 
@@ -39,6 +41,7 @@ namespace DotsAnimationToolkit.Editor
 
         public event Action<ClipSetAsset> OpenInEditorRequested;
         public event Action<ClipSetAsset> SetClipsChanged;
+        public event Action<ClipSetAsset, RigAsset> RebakeRequested;
 
         public ClipSetAsset SelectedSet { get; private set; }
 
@@ -229,6 +232,16 @@ namespace DotsAnimationToolkit.Editor
             vatFreshnessBadge.style.marginLeft = 6f;
             vatTexturesRow.Add(vatFreshnessBadge);
 
+            rebakeButton = new Button(OnRebakeClicked)
+            {
+                text = "Rebake",
+                name = "clip-set-rebake-button",
+                tooltip = "Open the VAT Bake tab with this clip set and the rig it was baked for. Nothing bakes until you press Bake there."
+            };
+            rebakeButton.style.marginLeft = 6f;
+            rebakeButton.style.display = DisplayStyle.None;
+            vatTexturesRow.Add(rebakeButton);
+
             editorContent.Add(vatTexturesRow);
 
             picker = new ClipPickerListElement();
@@ -313,6 +326,19 @@ namespace DotsAnimationToolkit.Editor
             if (OpenInEditorRequested != null)
             {
                 OpenInEditorRequested(SelectedSet);
+            }
+        }
+
+        private void OnRebakeClicked()
+        {
+            if (SelectedSet == null)
+            {
+                return;
+            }
+
+            if (RebakeRequested != null)
+            {
+                RebakeRequested(SelectedSet, lastResolvedRig);
             }
         }
 
@@ -473,6 +499,9 @@ namespace DotsAnimationToolkit.Editor
             string reason;
             VatBakeFreshness freshness = VatSourceHashResolver.Resolve(shownClipSet, rig, shownClipSet.vatTextures, out reason);
             vatFreshnessBadge.Refresh(freshness, reason);
+
+            lastResolvedRig = rig;
+            rebakeButton.style.display = freshness == VatBakeFreshness.Fresh ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         // The Clip Sets tab has no rig of its own, so the freshness check falls back to the

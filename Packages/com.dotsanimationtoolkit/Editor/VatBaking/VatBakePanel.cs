@@ -30,6 +30,7 @@ namespace DotsAnimationToolkit.Editor
         private VatPreviewElement preview;
         private ObjectField previewSetField;
         private ActiveAssetSelection selection;
+        private ulong lastImportedSourcesKey;
 
         /// <summary>The preview's own transport, so a host window can route Space/Home/End/arrow keys to it.</summary>
         public ITransportTarget TransportTarget
@@ -45,7 +46,7 @@ namespace DotsAnimationToolkit.Editor
                 selection.ClipSetChanged -= OnSharedClipSetChanged;
                 selection.RigChanged -= OnSharedRigChanged;
             }
-            VatSourceImportWatcher.AssetsImported -= RefreshFreshnessBadge;
+            VatSourceImportWatcher.AssetsImported -= OnSourcesImported;
             preview?.Dispose();
         }
 
@@ -134,7 +135,7 @@ namespace DotsAnimationToolkit.Editor
             resolvedSourceRow.Add(freshnessBadge);
             root.Add(resolvedSourceRow);
 
-            VatSourceImportWatcher.AssetsImported += RefreshFreshnessBadge;
+            VatSourceImportWatcher.AssetsImported += OnSourcesImported;
 
             root.Add(BuildHeading("Settings"));
 
@@ -236,14 +237,40 @@ namespace DotsAnimationToolkit.Editor
         {
             clipSetField.SetValueWithoutNotify(clipSet);
             RefreshPreview();
-            RefreshResolvedSources();
+            RefreshResolvedSources(true);
             RefreshFreshnessBadge();
         }
 
         private void OnSharedRigChanged(RigAsset rig)
         {
             rigField.SetValueWithoutNotify(rig);
-            RefreshResolvedSources();
+            RefreshResolvedSources(true);
+            RefreshFreshnessBadge();
+        }
+
+        // A save or import can change what the resolved-sources line and freshness badge report
+        // without changing selection, so this is the cheap path that skips selection's own refresh.
+        private void OnSourcesImported()
+        {
+            ClipSetAsset importedClipSet = clipSetField.value as ClipSetAsset;
+            RigAsset importedRig = rigField.value as RigAsset;
+            VatTextureSetAsset importedTextures = importedClipSet != null ? importedClipSet.vatTextures : null;
+            ulong importedKey = VatSourceHashResolver.ComputeSourceHash(importedClipSet, importedRig, (VatFlavor)flavorField.value)
+                ^ (importedTextures != null ? importedTextures.sourceHash : 0UL);
+            if (importedKey == lastImportedSourcesKey)
+            {
+                return;
+            }
+            lastImportedSourcesKey = importedKey;
+
+            // The preview copies the whole source hierarchy on every Show, so an import rebuilds
+            // it only when the subject mesh actually changed.
+            SkinnedMeshRenderer previousRenderer = FirstResolvedRenderer();
+            RefreshResolvedSources(false);
+            if (FirstResolvedRenderer() != previousRenderer)
+            {
+                RefreshPreview();
+            }
             RefreshFreshnessBadge();
         }
 
@@ -437,18 +464,22 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            SkinnedMeshRenderer firstResolvedRenderer = resolvedSources != null && resolvedSources.Count > 0
-                ? resolvedSources[0].PrefabRenderer
-                : null;
             preview.Show(
                 previewSetField.value as VatTextureSetAsset,
                 clipSetField.value as ClipSetAsset,
-                firstResolvedRenderer);
+                FirstResolvedRenderer());
+        }
+
+        private SkinnedMeshRenderer FirstResolvedRenderer()
+        {
+            return resolvedSources != null && resolvedSources.Count > 0
+                ? resolvedSources[0].PrefabRenderer
+                : null;
         }
 
         // Not called from Bake, which resolves fresh so a rig edited elsewhere between a refresh
         // and the button press cannot bake a stale set of parts. This is only the on-screen receipt.
-        private void RefreshResolvedSources()
+        private void RefreshResolvedSources(bool rebuildPreview)
         {
             RigAsset rig = rigField.value as RigAsset;
             List<VatBakeSource> sources;
@@ -458,7 +489,10 @@ namespace DotsAnimationToolkit.Editor
                 resolvedSources = null;
                 resolvedSourceLabel.text = failureMessage;
                 resolvedSourceLabel.style.color = new StyleColor(ToolkitPalette.Warning);
-                RefreshPreview();
+                if (rebuildPreview)
+                {
+                    RefreshPreview();
+                }
                 return;
             }
 
@@ -471,7 +505,10 @@ namespace DotsAnimationToolkit.Editor
                 int boneCount = onlySource.PrefabRenderer.bones == null ? 0 : onlySource.PrefabRenderer.bones.Length;
                 resolvedSourceLabel.text = rig.sourcePrefab.name + " ▸ " + onlySource.DisplayName
                     + " · " + boneCount.ToString() + " bones";
-                RefreshPreview();
+                if (rebuildPreview)
+                {
+                    RefreshPreview();
+                }
                 return;
             }
 
@@ -485,7 +522,10 @@ namespace DotsAnimationToolkit.Editor
                 }
                 resolvedSourceLabel.text = "resolves " + sources.Count.ToString() + " VAT parts · "
                     + string.Join(", ", allPartNames);
-                RefreshPreview();
+                if (rebuildPreview)
+                {
+                    RefreshPreview();
+                }
                 return;
             }
 
@@ -518,7 +558,10 @@ namespace DotsAnimationToolkit.Editor
                 resolvedSourceLabel.text = headline + "\n" + string.Join("\n", skippedLines);
             }
 
-            RefreshPreview();
+            if (rebuildPreview)
+            {
+                RefreshPreview();
+            }
         }
 
         private void PingSourcePrefab()
