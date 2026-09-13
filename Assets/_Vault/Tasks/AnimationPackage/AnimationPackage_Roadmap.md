@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10, none built. Head is `63190d66` (A81, `0.28.0`).
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 built and accepted 2026-09-12. Head is `5418de26` (A82, `0.29.0`).
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -16,7 +16,7 @@ free minor and correct the spec's status line.
 
 ### Phase 0 — the two prerequisites (sequential, in this order)
 
-- [ ] **A82 — One catalog column, one cover-pane split** (`0.29.0`) — [`A82_SharedCatalogColumn_Spec.md`](A82_SharedCatalogColumn_Spec.md). Extracts `ToolkitCatalogColumn<TAsset>` from the five near-identical catalogs and a `CoverPaneSplitView` that remembers its divider. Every later tab builds on both.
+- [x] **A82 — One catalog column, one cover-pane split** (`0.29.0`) — [`A82_SharedCatalogColumn_Spec.md`](A82_SharedCatalogColumn_Spec.md). Extracts `ToolkitCatalogColumn<TAsset>` from the five near-identical catalogs and a `CoverPaneSplitView` that remembers its divider. Every later tab builds on both.
 - [ ] **A83 — Decompose `ClipEditorWindow.cs` into pane elements** (`0.30.0`) — [`A83_WindowDecomposition_Spec.md`](A83_WindowDecomposition_Spec.md). Four sequential extractions behind a characterisation pass. No behaviour change. After this, every tab task below is parallel-safe against the window file.
 
 ### Phase 1 — infrastructure (A84 first; A85–A92 are independent of each other and can run in any order, or in parallel sessions on separate branches)
