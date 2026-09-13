@@ -1,6 +1,6 @@
 # Amendment A91 — Profile P2 reported at save and at player build
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.38.0`.
+> **Status:** 🔨 building 2026-09-13. Takes `0.36.0` (spec said `0.38.0`; A88 and A90 are unbuilt — §7).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A70 (profiles, P1–P4 validation), A71 (the Actor Editor badge that is today's
 > only P2 surface).
@@ -130,4 +130,35 @@ message so clicking the console line pings the profile.
 
 ## 7. Build log
 
-_(empty)_
+**T0 (2026-09-13, head `f3dc66b4`, 0.35.0).** Baseline compile clean; inherited totals EditMode 833
+(standing `Conformance_A` only), PlayMode 283. Drift against this spec, all settled here:
+
+1. **Version.** Spec said `0.38.0` / head `0.37.0`; A88 and A90 are unbuilt, so A91 takes `0.36.0`.
+2. **P1 is not "a duplicate layer name"** (T1 hint). P1 = layer count outside 2..8 or missing
+   Base/Override bookends. T1's fixture uses a single-layer profile.
+3. **P2 is only half skipped at bake.** `Validate` emits P2 for `animationKey == 0` even with a null
+   registry, so `ActorProfileBuilder.Build`/`ComputeContentHash` already fail on it; only registry
+   membership needs the vocabulary. The builder's doc comment ("judged … at entity bake") and
+   `actor-profiles.md`'s paragraph under Validation are wrong. **Settled:** `ScanProfile` reports
+   every P2 message (both halves, one code); T4 corrects the builder comment (no `UnityEditor` text),
+   T3 rewrites the doc paragraph.
+4. **Null means "skip".** `Validate(profile, null)` skips membership. **Settled:** `ScanProfile` and
+   `ScanProject` take an optional `IVocabularyRegistry animationNames = null` (A94's pure rules can
+   pass an in-memory one); null is replaced by `VocabularyRegistryProvider.AnimationNames` before
+   `Validate`, never passed through. Second fixture covers it.
+5. **`FakeAnimationNameRegistry` is private** to `ActorProfileValidationTests`. The new fixture
+   carries its own.
+6. **`VocabularySettingsProvider` has no `EditorPrefs` idiom** (it is a UI Toolkit `SettingsProvider`
+   factory). **Settled:** the key and a `FailPlayerBuildsOnNameErrors` static property live on
+   `ActorProfileBuildValidation`; `CreateProvider` gains an optional page-controls callback and the
+   Animation Names page appends a UI Toolkit `Toggle`. EditorPrefs (per machine) per D5.
+7. **No save/build hook precedent** in the package. Signatures verified live:
+   `static string[] OnWillSaveAssets(string[])` on an `AssetModificationProcessor` subclass;
+   `IPreprocessBuildWithReport.OnPreprocessBuild(BuildReport)` + `callbackOrder`;
+   `BuildFailedException(string)`. `Conformance_G` checks only static classes, so the two hook
+   classes need nothing; `ProfileP2Scan` goes on `PlainNounStaticClasses` at T4.
+8. **T0 probe deferred** (does `OnWillSaveAssets` fire for `SaveAssetIfDirty`?): `execute_code`
+   assemblies are not scanned for processors, so the real hook is the probe, run after the gate.
+9. **No real player build at T5** (owner instruction): the build hook is proven one level down
+   (`TypeCache` contains it; `OnPreprocessBuild(null)` throws with the toggle on, returns with it
+   off), so the hook must never read `report`.

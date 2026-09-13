@@ -22,7 +22,8 @@ namespace DotsAnimationToolkit.Editor
                 "Project/DOTS Animation Toolkit/Target Tags",
                 "Target Tags",
                 () => VocabularyRegistryProvider.TargetTags,
-                new string[] { "tag", "target", "vocabulary" });
+                new string[] { "tag", "target", "vocabulary" },
+                null);
         }
 
         [SettingsProvider]
@@ -32,7 +33,8 @@ namespace DotsAnimationToolkit.Editor
                 "Project/DOTS Animation Toolkit/Event Names",
                 "Event Names",
                 () => VocabularyRegistryProvider.AnimEventKeys,
-                new string[] { "event", "animation", "vocabulary" });
+                new string[] { "event", "animation", "vocabulary" },
+                null);
         }
 
         [SettingsProvider]
@@ -42,13 +44,15 @@ namespace DotsAnimationToolkit.Editor
                 "Project/DOTS Animation Toolkit/Animation Names",
                 "Animation Names",
                 () => VocabularyRegistryProvider.AnimationNames,
-                new string[] { "animation", "name", "vocabulary" });
+                new string[] { "animation", "name", "vocabulary" },
+                AppendBuildValidationToggle);
         }
 
         // A rename here is not undoable, like Unity's own Tags & Layers page: both registries live
         // in ProjectSettings/, and Undo only tracks SerializedObject edits against a real asset.
         private static SettingsProvider CreateProvider(
-            string settingsPath, string label, Func<ScriptableObject> resolveRegistry, string[] keywords)
+            string settingsPath, string label, Func<ScriptableObject> resolveRegistry, string[] keywords,
+            Action<VisualElement> appendPageControls)
         {
             UnityEditor.Editor registryEditor = null;
 
@@ -64,6 +68,11 @@ namespace DotsAnimationToolkit.Editor
                     {
                         rootElement.Add(inspectorGui);
                     }
+
+                    if (appendPageControls != null)
+                    {
+                        appendPageControls(rootElement);
+                    }
                 },
                 deactivateHandler = () =>
                 {
@@ -76,6 +85,18 @@ namespace DotsAnimationToolkit.Editor
                 keywords = new HashSet<string>(keywords)
             };
             return provider;
+        }
+
+        private static void AppendBuildValidationToggle(VisualElement rootElement)
+        {
+            Toggle failPlayerBuildsToggle = new Toggle("Fail player builds on profile name errors");
+            failPlayerBuildsToggle.tooltip =
+                "Stops a player build when any actor profile names an animation that is not in this list. Stored per machine.";
+            failPlayerBuildsToggle.value = ActorProfileBuildValidation.FailPlayerBuildsOnNameErrors;
+            failPlayerBuildsToggle.style.marginTop = 8;
+            failPlayerBuildsToggle.RegisterValueChangedCallback(
+                toggleChange => ActorProfileBuildValidation.FailPlayerBuildsOnNameErrors = toggleChange.newValue);
+            rootElement.Add(failPlayerBuildsToggle);
         }
     }
 }

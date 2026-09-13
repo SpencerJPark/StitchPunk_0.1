@@ -200,9 +200,25 @@ actor that doesn't already have it — ragdoll bodies are rig content, and a pro
 | P6 | Warning | `ragdollTrigger != None` but the rig declares no ragdoll bodies |
 | P7 | Warning | `startingAnimationKey` names an entry on a different layer, or `defaultActive` is set with no starting key |
 
-P2 (registry membership) is judged at bake and in the Actor Editor badge, not by
-`ActorProfileBuilder` itself — building a blob has no access to the editor-only vocabulary
-provider that the registry check needs.
+### Name errors at save and build
+
+At bake, `ActorProfileBuilder` checks only half of P2: an entry with no animation name
+(`animationKey` 0) fails the bake. Whether a name exists in the Animation Names registry cannot be
+checked there, because the registry is editor-only project data that never ships to players.
+
+The Actor Editor's validation badge reports both halves.
+
+Saving an actor profile asset logs one console warning per P2 finding, naming the profile, the
+layer and the entry. Clicking the warning pings the profile. Saving is never blocked.
+
+A player build fails with a list of every P2 finding across all actor profiles in the project.
+
+The build check can be turned off with **Fail player builds on profile name errors** in Project
+Settings ▸ DOTS Animation Toolkit ▸ Animation Names. It is on by default and stored per machine
+(EditorPrefs).
+
+Editor tooling can run the same check through `ProfileP2Scan.ScanProfile` (one profile) and
+`ProfileP2Scan.ScanProject` (every profile).
 
 ## Authoring in the Actor Editor
 
