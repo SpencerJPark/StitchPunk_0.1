@@ -92,6 +92,22 @@ sits in a component block's header and writes the **clip**'s `TransformTrack.tag
 `SpriteTrack.tagId` — whether that one track resolves by target id or by tag. Same
 `VocabularyPicker`, different asset written.
 
+**An event key carries a payload schema (A85, 0.32.0).** `AnimEventKeyEntry` has `intParamLabel`,
+`intParamValueNames` (index = value), `floatParamLabel`, `floatParamUnit`, edited under a "Payload"
+foldout per row in `AnimEventKeyRegistryEditor`. `EventPayloadFieldBuilder`
+(`Editor/ClipEditor/Components/`) renders a marker's two fields from it: no schema at all → the
+old raw "Int Param"/"Float Param"; value names → `DropdownField` (an out-of-range int shows its raw
+number tinted, never clamped); label → labelled field; unlabelled → hidden unless the marker
+still stores a non-zero value ("… (unused)", tinted). Traps: `VocabularyQuickEditWindow` hosts the
+registry editor through `CreateEditor`, so edit the editor, never the window. Generation runs in
+`VocabularyConstantsSection.RegenerateIfConfigured` (no button), with the schema passed as two
+optional closures; payload edits regenerate only on `OnDisable`, an add/remove immediately.
+`Conformance_G`'s static-class regex reads string literals, so the generator writes
+`"public static class " + name`, never a literal name. A nested `FootstepValues` class takes its
+name from the row-wide `usedNameCounts` (a row named `FootstepValues` cannot collide in either
+order), and its value dictionary is pre-seeded with the class name (a member named like its type
+is CS0542).
+
 See [`sharing-clips.md`](../../../Packages/com.dotsanimationtoolkit/Documentation~/sharing-clips.md)
 for the target-tag authoring workflow and
 [`animation-events.md`](../../../Packages/com.dotsanimationtoolkit/Documentation~/animation-events.md)
