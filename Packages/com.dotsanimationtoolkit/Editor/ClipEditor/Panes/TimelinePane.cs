@@ -95,6 +95,13 @@ namespace DotsAnimationToolkit.Editor
         private ClipEditorSession session;
         private ClipPreviewController previewController;
 
+        // ReportPlayheadMoved scratch state: which clip the last report was for (a clip switch
+        // never fires the new clip's markers for a jump it did not cause), and the reused buffer
+        // ScrubEventCrossingResolver appends flat event indices into.
+        private ClipAsset lastCrossingReportClip;
+        private readonly List<int> crossedEventFlatIndices = new List<int>();
+        private EditorEventPreviewPlayer eventPreviewPlayer;
+
         // The window's root, for popups that must overlay the whole window.
         internal VisualElement WindowRoot { get; set; }
 
@@ -172,6 +179,78 @@ namespace DotsAnimationToolkit.Editor
             {
                 dragAutoScroll.Pause();
                 dragAutoScroll = null;
+            }
+            if (eventPreviewPlayer != null)
+            {
+                eventPreviewPlayer.Dispose();
+                eventPreviewPlayer = null;
+            }
+        }
+
+        // Reached from every playhead write, the play tick included, so it must never rebuild or dirty.
+        internal void ReportPlayheadMoved(
+            float previousNormalized, float currentNormalized, bool isPlaying, bool isLoopEnabled)
+        {
+            ClipAsset clip = session != null ? session.SelectedClip : null;
+            if (clip != lastCrossingReportClip)
+            {
+                lastCrossingReportClip = clip;
+                return;
+            }
+
+            // A key drag carries the playhead with the dragged pin, which would re-fire it on every move.
+            if (isDraggingKeys || clip == null || clip.events == null || clip.events.Count == 0)
+            {
+                return;
+            }
+
+            crossedEventFlatIndices.Clear();
+            ScrubEventCrossingResolver.Resolve(
+                previousNormalized, currentNormalized, isPlaying,
+                isLoopEnabled ? LoopMode.Loop : LoopMode.Once, clip.events, crossedEventFlatIndices);
+            if (crossedEventFlatIndices.Count == 0)
+            {
+                return;
+            }
+
+            List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(clip.events);
+            AnimEventKeyRegistry eventRegistry = ClipInspectorPane.ResolveEventKeyRegistry();
+
+            for (int crossedIndex = 0; crossedIndex < crossedEventFlatIndices.Count; crossedIndex++)
+            {
+                int flatIndex = crossedEventFlatIndices[crossedIndex];
+                EventMarker marker = clip.events[flatIndex];
+                int laneIndex = laneKeys.IndexOf(marker.eventKey);
+                if (laneIndex < 0)
+                {
+                    continue;
+                }
+                int localIndex = EventLaneAddressing.ResolveLaneFlatIndices(clip.events, laneIndex).IndexOf(flatIndex);
+
+                if (laneColumn != null && localIndex >= 0)
+                {
+                    for (int childIndex = 0; childIndex < laneColumn.childCount; childIndex++)
+                    {
+                        TrackLaneElement lane = laneColumn[childIndex] as TrackLaneElement;
+                        if (lane == null || lane.isChannelRow || lane.trackKind != TimelineTrackKind.Event
+                            || lane.trackIndex != laneIndex)
+                        {
+                            continue;
+                        }
+                        lane.FlashPin(localIndex);
+                        break;
+                    }
+                }
+
+                AudioClip previewClip = eventRegistry != null ? eventRegistry.FindPreviewClip(marker.eventKey) : null;
+                if (previewClip != null)
+                {
+                    if (eventPreviewPlayer == null)
+                    {
+                        eventPreviewPlayer = new EditorEventPreviewPlayer();
+                    }
+                    eventPreviewPlayer.Play(previewClip);
+                }
             }
         }
 

@@ -283,16 +283,19 @@ namespace DotsAnimationToolkit.Editor
                 entryProperty.FindPropertyRelative("intParamValueNames");
             SerializedProperty floatParamLabelProperty = entryProperty.FindPropertyRelative("floatParamLabel");
             SerializedProperty floatParamUnitProperty = entryProperty.FindPropertyRelative("floatParamUnit");
+            SerializedProperty previewClipProperty = entryProperty.FindPropertyRelative("previewClip");
 
             Foldout payloadFoldout = new Foldout { text = "Payload", value = false };
             payloadFoldout.style.marginLeft = 12f;
             payloadFoldout.tooltip =
                 "What intParam and floatParam mean for this event. The Clip Editor shows a dropdown "
-                + "or a labelled field from these; an empty label hides that field.";
+                + "or a labelled field from these; an empty label hides that field. The preview clip "
+                + "plays in the editor when a marker with this event is crossed while scrubbing.";
             payloadFoldout.Add(new PropertyField(intParamLabelProperty, "Int Label"));
             payloadFoldout.Add(new PropertyField(intParamValueNamesProperty, "Int Values"));
             payloadFoldout.Add(new PropertyField(floatParamLabelProperty, "Float Label"));
             payloadFoldout.Add(new PropertyField(floatParamUnitProperty, "Float Unit"));
+            payloadFoldout.Add(new PropertyField(previewClipProperty, "Preview Clip"));
             rowGroup.Add(payloadFoldout);
 
             return rowGroup;

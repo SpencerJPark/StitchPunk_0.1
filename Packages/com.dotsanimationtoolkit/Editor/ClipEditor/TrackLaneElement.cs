@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -19,6 +20,9 @@ namespace DotsAnimationToolkit.Editor
         private static readonly Color KeyOutline = new Color(0.08f, 0.08f, 0.09f);
 
         private const float EventKeyHitRadius = EventLaneStyle.PinHitHalfWidth;
+
+        private const long FlashDurationMilliseconds = 120;
+        private const float FlashOutlineWidth = 3f;
 
         // How much closer one hit-tested key must be than another before OnPointerDown treats them
         // as genuinely different rather than a tie — two keys at the same time give bit-for-bit equal distances.
@@ -38,6 +42,9 @@ namespace DotsAnimationToolkit.Editor
         /// frequent, latency-sensitive event a per-call <c>List</c> allocation should stay out of.
         /// </summary>
         private readonly List<int> pointerTiedKeyIndices = new List<int>();
+
+        // Lane-local key index to the EditorApplication.timeSinceStartup its flash ends at.
+        private readonly Dictionary<int, double> flashExpiryByKeyIndex = new Dictionary<int, double>();
 
         public TimelineTrackKind trackKind;
         public int trackIndex;
@@ -123,7 +130,22 @@ namespace DotsAnimationToolkit.Editor
                 keyTimes.Add(times[keyIndex]);
             }
             keyWindows.Clear();
+
+            // Indices no longer point at the same keys once the list is rebuilt.
+            flashExpiryByKeyIndex.Clear();
             MarkDirtyRepaint();
+        }
+
+        public void FlashPin(int keyIndex)
+        {
+            if (keyIndex < 0 || keyIndex >= keyTimes.Count)
+            {
+                return;
+            }
+
+            flashExpiryByKeyIndex[keyIndex] = EditorApplication.timeSinceStartup + FlashDurationMilliseconds / 1000.0;
+            MarkDirtyRepaint();
+            schedule.Execute(MarkDirtyRepaint).StartingIn(FlashDurationMilliseconds);
         }
 
         // Supplies the window length behind each event key, as a fraction of the clip. Call after
@@ -313,7 +335,17 @@ namespace DotsAnimationToolkit.Editor
 
                 if (trackKind == TimelineTrackKind.Event)
                 {
-                    EventLaneStyle.DrawPin(painter, x, centreY, eventColor, isEventSelectedKey);
+                    bool isFlashingKey = !isEventSelectedKey
+                        && flashExpiryByKeyIndex.TryGetValue(keyIndex, out double flashExpiry)
+                        && flashExpiry > EditorApplication.timeSinceStartup;
+                    if (isFlashingKey)
+                    {
+                        EventLaneStyle.DrawPin(painter, x, centreY, eventColor, eventColor, FlashOutlineWidth);
+                    }
+                    else
+                    {
+                        EventLaneStyle.DrawPin(painter, x, centreY, eventColor, isEventSelectedKey);
+                    }
                     continue;
                 }
 

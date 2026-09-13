@@ -8,6 +8,32 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.34.0] — A87 — scrub crossings and sound on scrub
+
+### Added
+
+- Event Names registry rows gain a **Preview Clip** field (an `AudioClip`, stored as
+  `previewClip`) under the row's Payload foldout, so an event name can carry a sound to preview
+  in the editor. The registry lives under `ProjectSettings/` and is authoring-only — a player
+  build never carries the reference.
+- `AnimEventKeyRegistry.FindPreviewClip(uint)`: looks up the preview clip assigned to an event
+  key.
+- Crossing an event marker's pin now flashes it, outlined in its own color for 120 ms, and plays
+  its event's preview clip if one is assigned. This fires while dragging the playhead on the
+  ruler, stepping frames, clicking a key to jump to it, and during playback.
+- `ScrubEventCrossingResolver` (editor, pure): given the previous and current playhead position,
+  returns the marker indices crossed between them.
+- `EditorEventPreviewPlayer` (editor): plays a clip through Unity's editor audio preview on a
+  crossing.
+
+### Notes
+
+- Preview playback is an editor scrubbing aid, not a sound system: one clip plays at a time (a
+  second crossing in the same instant replaces the first), there is no volume control, and the
+  same clip will not replay more than once within 40 ms so a fast drag does not stutter. A jump
+  of more than half the clip while paused (clicking far along the ruler) is treated as a seek and
+  plays nothing; switching clips or dragging a marker plays nothing either.
+
 ## [0.33.0] — A86 — one event editing surface for clips and cutscenes
 
 ### Added

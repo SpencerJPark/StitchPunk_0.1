@@ -67,6 +67,23 @@ namespace DotsAnimationToolkit.Authoring
             return null;
         }
 
+        public AudioClip FindPreviewClip(uint eventKey)
+        {
+            if (entries == null)
+            {
+                return null;
+            }
+            for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
+            {
+                AnimEventKeyEntry entry = entries[entryIndex];
+                if (entry != null && entry.eventKey == eventKey)
+                {
+                    return entry.previewClip;
+                }
+            }
+            return null;
+        }
+
         /// <summary>The lowest maskable key this registry has not already used, or 0 when all 64 are taken.</summary>
         public uint FindFirstFreeKey()
         {

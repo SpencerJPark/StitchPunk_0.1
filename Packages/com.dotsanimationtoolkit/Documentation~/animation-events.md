@@ -112,6 +112,28 @@ the hold color instead of drawing a thicker ring. Right-clicking a marker on eit
 **Rename key…**, **Change key…**, **Duplicate marker**, **Delete marker**, **Copy payload**, and
 **Paste payload**.
 
+### Hearing events in the editor
+
+When the playhead crosses an event marker, that marker's pin flashes — outlined in its own
+color for a moment — and if the event has a preview clip assigned, the editor plays it. This
+happens while dragging the playhead on the ruler, stepping frames, clicking a key to jump to it,
+and during playback. A preview clip is set per event name in the Event Names registry (**Project
+Settings > DOTS Animation Toolkit > Event Names**), under that row's Payload foldout — it is an
+authoring convenience only, never packaged into a player build.
+
+Crossing follows the direction you move: scrubbing forward sounds every marker between the old
+playhead position and the new one, inclusive of the new position; scrubbing backward sounds every
+marker in that same span except the position you started from, so a marker is heard whichever way
+you drag over it. A looping clip that wraps past its end crosses the tail markers and then the
+head markers in the same step. A jump of more than half the clip while paused — clicking far
+along the ruler — is treated as a seek rather than a scrub and plays nothing. Switching to a
+different clip plays nothing, and neither does dragging a marker (the playhead follows it). Only a marker's own time fires a sound; a window's open span stays silent.
+
+This is a scrubbing aid, not a sound system: at most one clip plays at a time, with no volume
+control, and the same clip will not replay more than once within a short window so a fast drag
+does not stutter. Nothing here runs at runtime — no `AudioSource` is added, no mixing happens, and
+game code keeps consuming `AnimEventOutput` exactly as before.
+
 ## Naming your events
 
 Event keys are `uint`s, but you never type or read one. **A name is typed in exactly one place:**
