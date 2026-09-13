@@ -260,3 +260,36 @@ saved by object with `SaveAssetIfDirty`, then the YAML read back from disk:
 
 HANDOFF §4 paragraph, vault note ("Event lanes are per-name" gains the A86 traps), this log. The
 roadmap box stays unticked until T10 is answered.
+
+### Owner follow-up before T10 (2026-09-13) — adding a cutscene event, and the row look
+
+The owner could not find how to add a cutscene event (the only way was a double-click on the shared
+Events row, which created an event with reserved key 0) and asked for the cutscene rows to match the
+Clip Editor's. Two calls answered by the owner: **every** Director row takes the clip row look, and
+cutscene Events split into **one row per event name**. Built the same day, still `0.33.0`:
+
+- `BuildEventRows`: an "Events" group row whose **+** header button, right-click (**Add event at
+  playhead…**) and double-click all open the event picker before inserting, then one
+  `BuildEventNameRow` per name (header strip in the name's colour; header click selects every marker
+  of the name; right-click **Add marker at playhead / Select all markers / Change event… / Delete
+  row**, the last behind a confirmation). `EventLaneAddressing` gained `CutsceneEventMarker`
+  overloads; each row's lane passes `originalIndices`, so it raises real list indices.
+  `InsertEventDefault` is gone; `InsertCutsceneEvent` writes every field.
+- Two latent bugs fixed on the way: A86-T7 set `drawsEventPins` *after* `SetTimes`, so the old row
+  still drew diamonds (now set in the initializer); and the old insert copied the last element's
+  `holdUntilReleased`.
+- Row look: rows were already 22px in both editors, so nothing got taller. Lane rows alternate
+  rgb 46/54 (the clip lane colours) with no divider line, lane elements are transparent, headers
+  lose the boxed background and small grey text (family accent strips and bold group labels stay),
+  and moment markers sit vertically centred.
+- Gates: compile clean; `EventLaneAddressingTests`, `ToolkitPaletteTests`, `ClipEditorLayoutTests`,
+  `PackagingConformanceTests` (23, standing `Conformance_A` only); full EditMode **829** (standing
+  failure only). PlayMode not re-run: editor UI only.
+- Drive, one level down: per-name grouping over A65/G1/G2 and a list with a null row (Sound 0,3 /
+  Dialogue 1,5); a pin-mode lane hosted briefly on a borrowed panel — markers `top 50%`,
+  `marginTop -8.75px`, unrotated, transparent, holding class kept off; the second marker's menu
+  raised real index 5. **Not driven:** the full panel. `LoadCutscene` overwrites the session's
+  remembered cutscene and a structural commit applies the preview into the open scene, so building
+  a second panel beside the owner's would have side effects; the rows are for the owner's eye.
+- Docs: `cutscenes.md` Events section rewritten (it still described a numeric Event Key field and
+  one shared row), `animation-events.md` and `CHANGELOG.md` 0.33.0 extended.

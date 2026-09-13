@@ -133,8 +133,10 @@ outside the value names); `ClipValidation` delegates, both inspectors show the m
 Suites: EditMode 829 (827 + 2, standing `Conformance_A` failure only), PlayMode 283. Drive proved
 field edits, the schema dropdown, copy/paste payload and disk persistence on scratch copies, and
 found one bug (a literal "V09 ·" prefix on every finding, fixed); no capture of the live window.
-`G1CheckpointCutscene.asset` stores reserved event key 1 and now shows V09. **T10 owner checkpoint
-open.**
+`G1CheckpointCutscene.asset` stores reserved event key 1 and now shows V09. Owner follow-up the same day:
+cutscene events are added through the event picker (**+** on the Events group row, right-click, or
+double-click), split into one row per event name, and every Director row takes the Clip Editor's
+lane look (EditMode 829 again). **T10 owner checkpoint open.**
 
 **Built (2026-09-13): Amendment A85 — event payload schema — 0.32.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A85_EventPayloadSchema_Spec.md`; its §7 carries the drifts,

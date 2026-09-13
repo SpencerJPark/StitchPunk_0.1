@@ -62,5 +62,42 @@ namespace DotsAnimationToolkit.Editor
             List<int> flatIndices = ResolveLaneFlatIndices(events, laneIndex);
             return localIndex >= 0 && localIndex < flatIndices.Count ? flatIndices[localIndex] : -1;
         }
+
+        // The cutscene timeline's Events rows use the same one-row-per-name grouping as a clip.
+        public static List<uint> ComputeLaneKeys(List<CutsceneEventMarker> events)
+        {
+            List<uint> laneKeys = new List<uint>();
+            if (events == null)
+            {
+                return laneKeys;
+            }
+            for (int eventIndex = 0; eventIndex < events.Count; eventIndex++)
+            {
+                if (events[eventIndex] != null && !laneKeys.Contains(events[eventIndex].eventKey))
+                {
+                    laneKeys.Add(events[eventIndex].eventKey);
+                }
+            }
+            return laneKeys;
+        }
+
+        public static List<int> ResolveLaneFlatIndices(List<CutsceneEventMarker> events, int laneIndex)
+        {
+            List<int> flatIndices = new List<int>();
+            List<uint> laneKeys = ComputeLaneKeys(events);
+            if (laneIndex < 0 || laneIndex >= laneKeys.Count)
+            {
+                return flatIndices;
+            }
+            uint targetKey = laneKeys[laneIndex];
+            for (int eventIndex = 0; eventIndex < events.Count; eventIndex++)
+            {
+                if (events[eventIndex] != null && events[eventIndex].eventKey == targetKey)
+                {
+                    flatIndices.Add(eventIndex);
+                }
+            }
+            return flatIndices;
+        }
     }
 }

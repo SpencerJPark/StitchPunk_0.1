@@ -106,8 +106,8 @@ field the selected marker type doesn't have is hidden rather than greyed out. A 
 already owns a key's payload fields through its own inspector provider keeps them; the
 schema-driven fields render for every other key.
 
-On the cutscene timeline the Events row draws the same pin as the Clip Editor's event lanes,
-coloured by event name, and a marker that is holding the clock (Hold Until Released) is outlined in
+On the cutscene timeline each event name gets its own row under **Events**, drawing the same pin
+as the Clip Editor's event lanes, coloured by event name, and a marker that is holding the clock (Hold Until Released) is outlined in
 the hold color instead of drawing a thicker ring. Right-clicking a marker on either timeline opens
 **Rename key…**, **Change key…**, **Duplicate marker**, **Delete marker**, **Copy payload**, and
 **Paste payload**.

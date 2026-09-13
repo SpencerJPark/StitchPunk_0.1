@@ -38,6 +38,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Int Param / Float Param fields, and its Time field is read-only — drag the marker on the lane to
   retime it.
 
+- The Cutscene Director's Events row splits into one row per event name, coloured by name, like the
+  Clip Editor's Events lanes. Add an event with the **+** button on the Events group row, **Add event
+  at playhead…** on its right-click menu, or a double-click on the group row — each opens the event
+  picker first, so a new cutscene event always has a name (it used to be created with key 0). A
+  name's row header has **Add marker at playhead**, **Select all markers**, **Change event…** and
+  **Delete row**.
+- Every Cutscene Director row takes the Clip Editor's row look: lanes alternate shade with no divider
+  lines, headers use the default text instead of small grey text on a boxed cell, and markers sit
+  centred in their row.
+
 ## [0.32.0] — A85 — event payload schema: a key says what its parameters mean
 
 ### Added

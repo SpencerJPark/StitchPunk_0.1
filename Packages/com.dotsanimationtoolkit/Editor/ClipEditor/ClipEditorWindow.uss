@@ -1514,12 +1514,17 @@
 .cutscene-editor__row {
     flex-direction: row;
     flex-shrink: 0;
-    border-bottom-width: 1px;
-    border-bottom-color: rgb(34, 34, 34);
 }
 
-.cutscene-editor__row--group {
-    background-color: rgb(54, 54, 54);
+/* The Clip Editor's lane look (TrackLaneElement's LaneBackground / LaneAlternate): rows alternate
+   shade and carry no divider line, so the alternation itself is what separates one row from the next.
+   Declared before --selected so a selected row still wins. */
+.cutscene-editor__lane-row {
+    background-color: rgb(46, 46, 48);
+}
+
+.cutscene-editor__lane-row--alternate {
+    background-color: rgb(54, 54, 56);
 }
 
 .cutscene-editor__row--selected {
@@ -1529,16 +1534,11 @@
 .cutscene-editor__track-header {
     flex-shrink: 0;
     justify-content: center;
-    background-color: rgb(48, 48, 48);
     border-right-width: 1px;
-    border-right-color: rgb(30, 30, 30);
+    border-right-color: rgba(0, 0, 0, 0.35);
     border-left-width: 3px;
     border-left-color: rgba(0, 0, 0, 0);
     padding-left: 6px;
-}
-
-.cutscene-editor__track-header--group {
-    background-color: rgb(56, 56, 56);
 }
 
 /* Per-kind accent strips: which family a row belongs to, readable at timeline-glance distance. */
@@ -1548,25 +1548,24 @@
 .cutscene-editor__track-header--events { border-left-color: rgb(230, 150, 70); }
 .cutscene-editor__track-header--holds  { border-left-color: rgb(230, 200, 80); }
 
+/* Default size and colour, like a Clip Editor track header, rather than small grey text. */
 .cutscene-editor__track-header-label {
-    font-size: 11px;
     -unity-text-align: middle-left;
-    color: rgb(200, 200, 200);
     overflow: hidden;
 }
 
 .cutscene-editor__track-header-label--group {
     -unity-font-style: bold;
-    color: rgb(230, 230, 230);
 }
 
 .cutscene-editor__track-header-label--indent {
     padding-left: 14px;
 }
 
+/* Transparent so the row's alternating shade shows through. */
 .cutscene-editor__clip-lane,
 .cutscene-editor__moment-lane {
-    background-color: rgb(40, 40, 40);
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .cutscene-editor__clip-block {

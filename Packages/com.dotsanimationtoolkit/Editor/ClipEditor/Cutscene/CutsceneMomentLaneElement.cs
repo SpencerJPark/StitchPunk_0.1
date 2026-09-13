@@ -154,7 +154,10 @@ namespace DotsAnimationToolkit.Editor
                 VisualElement marker = new VisualElement();
                 marker.AddToClassList(MarkerUssClassName);
                 marker.style.position = Position.Absolute;
-                marker.style.top = 2f;
+                // Centred in the row like a Clip Editor key, whatever height the panel gives the lane.
+                float markerHeight = drawsEventPins ? EventLaneStyle.PinHalfHeight * 2f + 4f : MarkerSize;
+                marker.style.top = new Length(50f, LengthUnit.Percent);
+                marker.style.marginTop = -markerHeight * 0.5f;
                 Color fillColor = perMarkerColors != null && capturedIndex < perMarkerColors.Count
                     ? perMarkerColors[capturedIndex]
                     : markerColor;

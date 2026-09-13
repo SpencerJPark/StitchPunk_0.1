@@ -225,15 +225,24 @@ that names it as the one exception to "one camera just moving around the scene."
 
 ### Events lane, including holding events
 
-Double-click to add a `CutsceneEventMarker`; the inspector's **Event Key** is a plain numeric field
-against the same event-key vocabulary a clip's own events use — every cutscene event lives on one
-shared "Events" row (unlike a clip's own Events lane, which grows one row per distinct event name).
-**Int Param** / **Float Param** carry a payload the same way a clip event's do, and a payload that
-means something to your game rather than to the toolkit (a dialogue sequence id, say) can have its
-own inspector: implement `ICutsceneEventInspectorProvider` in your editor assembly and register it
-from an `[InitializeOnLoadMethod]` via `CutsceneEventInspectorProviders.Register(...)`. Return `true`
-from `TryBuildInspector` for the keys you own and the default int/float fields stay for everyone
-else.
+Add an event with the **+** button on the **Events** group row — it opens the event picker and
+places the chosen event at the playhead — or right-click the **Events** row for **Add event at
+playhead…**, or double-click the Events group row to pick an event and place it where you clicked.
+Each event name then gets its own row under Events, coloured by name, exactly like a clip's Events
+lanes: double-click a name's row to add another marker of that event there, and right-click its
+header for **Add marker at playhead**, **Select all markers**, **Change event…** and **Delete row**.
+Right-click a marker for **Rename key…**, **Change key…**, **Duplicate marker**, **Delete marker**,
+**Copy payload** and **Paste payload**.
+
+Selecting a marker opens the same event inspector a clip marker uses: **Event** (the picker), a
+read-only **Time** (drag the marker to retime it), the payload fields drawn from the event's payload
+schema, **Fire On Skip** and **Hold Until Released**, followed by any validation finding for that
+marker. A payload that means something to your game rather than to the toolkit (a dialogue sequence
+id, say) can have its own inspector: implement `ICutsceneEventInspectorProvider` in your editor
+assembly and register it from an `[InitializeOnLoadMethod]` via
+`CutsceneEventInspectorProviders.Register(...)`. Return `true` from `TryBuildInspector` for the keys
+you own and the schema-driven fields stay for everyone else.
+
 
 **Fire On Skip** defaults on: a skipped cutscene must leave the same world state as a watched one
 unless a marker opts out.

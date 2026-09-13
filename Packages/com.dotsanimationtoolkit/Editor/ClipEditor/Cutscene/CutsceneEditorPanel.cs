@@ -2181,6 +2181,16 @@ namespace DotsAnimationToolkit.Editor
         // One row across two columns. Both halves carry the same explicit height, so a wrapping
         // label or a themed border can never leave the header column out of step with its lanes.
         /// <summary>Adds a row's header cell and its lane, and returns the header cell so a caller can hang a menu on it.</summary>
+        // Counted per rebuild so lane rows alternate shade like the Clip Editor's; the ruler row resets it.
+        private int timelineLaneRowCount;
+
+        private void MarkAsLaneRow(VisualElement laneRow)
+        {
+            laneRow.AddToClassList("cutscene-editor__lane-row");
+            laneRow.EnableInClassList("cutscene-editor__lane-row--alternate", (timelineLaneRowCount & 1) == 1);
+            timelineLaneRowCount++;
+        }
+
         private VisualElement AddTimelineRow(
             VisualElement laneContent, string headerLabel, VisualElement laneElement,
             Action onHeaderClick, float rowHeight, bool isGroup = false, string accentClass = null,
@@ -2218,6 +2228,14 @@ namespace DotsAnimationToolkit.Editor
             VisualElement laneRow = new VisualElement();
             laneRow.AddToClassList("cutscene-editor__row");
             laneRow.EnableInClassList("cutscene-editor__row--group", isGroup);
+            if (laneElement is CutsceneTimelineRulerElement)
+            {
+                timelineLaneRowCount = 0;
+            }
+            else
+            {
+                MarkAsLaneRow(laneRow);
+            }
             laneRow.EnableInClassList("cutscene-editor__row--selected", isSelected);
             laneRow.style.height = rowHeight;
             laneRow.Add(laneElement);
@@ -2241,6 +2259,7 @@ namespace DotsAnimationToolkit.Editor
             VisualElement laneSpacer = new VisualElement();
             laneSpacer.style.height = rowHeight;
             laneSpacer.style.flexShrink = 0f;
+            MarkAsLaneRow(laneSpacer);
             laneContent.Add(laneSpacer);
         }
 
@@ -2893,41 +2912,243 @@ namespace DotsAnimationToolkit.Editor
                 accentClass: "camera", indentLabel: true);
         }
 
+        // The group row is where a new event name starts; each name then gets its own row beneath it,
+        // the way a clip's Events lanes do.
         private void BuildEventRows(VisualElement content, float contentWidth)
         {
             SerializedProperty eventsProperty = serializedObject.FindProperty("events");
-            List<float> times = new List<float>(cutscene.events.Count);
-            List<string> variantClasses = new List<string>(cutscene.events.Count);
-            List<Color> eventMarkerColors = new List<Color>(cutscene.events.Count);
-            for (int i = 0; i < cutscene.events.Count; i++)
-            {
-                times.Add(cutscene.events[i].time);
-                variantClasses.Add(cutscene.events[i].holdUntilReleased
-                    ? "cutscene-editor__moment-marker--holding"
-                    : null);
-                eventMarkerColors.Add(ToolkitPalette.ColorForEventKey(cutscene.events[i].eventKey));
-            }
 
-            CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
+            CutsceneMomentLaneElement groupLane = new CutsceneMomentLaneElement
             {
                 pixelsPerSecond = pixelsPerSecond,
                 markerColor = ToolkitPalette.LaneEvents,
                 style = { width = contentWidth, height = LaneRowHeight }
             };
-            bool isSelected = selectedLaneKind == SelectedLaneKind.Event;
+            groupLane.SetTimes(new List<float>(), -1);
+            groupLane.EmptySpaceDoubleClicked += time => OpenAddCutsceneEventPicker(time, groupLane);
+            groupLane.AddManipulator(new ContextualMenuManipulator(menuEvent =>
+                AppendAddEventAtPlayheadAction(menuEvent.menu, groupLane)));
+            AddTimelineRow(
+                content, "Events", groupLane, () => SelectItem(-1, SelectedLaneKind.Event, -1, -1),
+                LaneRowHeight, isGroup: true, accentClass: "events",
+                configureHeaderCell: AddEventGroupHeaderControls);
+
+            AnimEventKeyRegistry registry = VocabularyRegistryProvider.AnimEventKeys;
+            List<uint> laneKeys = EventLaneAddressing.ComputeLaneKeys(cutscene.events);
+            for (int laneIndex = 0; laneIndex < laneKeys.Count; laneIndex++)
+            {
+                BuildEventNameRow(
+                    content, contentWidth, eventsProperty, registry, laneKeys[laneIndex],
+                    EventLaneAddressing.ResolveLaneFlatIndices(cutscene.events, laneIndex));
+            }
+        }
+
+        private void BuildEventNameRow(
+            VisualElement content, float contentWidth, SerializedProperty eventsProperty,
+            AnimEventKeyRegistry registry, uint laneKey, List<int> laneEventIndices)
+        {
+            Color laneColor = ToolkitPalette.ColorForEventKey(laneKey);
+            List<float> times = new List<float>(laneEventIndices.Count);
+            List<string> variantClasses = new List<string>(laneEventIndices.Count);
+            List<Color> markerColors = new List<Color>(laneEventIndices.Count);
+            for (int position = 0; position < laneEventIndices.Count; position++)
+            {
+                CutsceneEventMarker marker = cutscene.events[laneEventIndices[position]];
+                times.Add(marker.time);
+                variantClasses.Add(marker.holdUntilReleased ? "cutscene-editor__moment-marker--holding" : null);
+                markerColors.Add(laneColor);
+            }
+
+            // drawsEventPins in the initializer: SetTimes builds the markers, so setting it afterwards
+            // would leave this row drawing diamonds.
+            CutsceneMomentLaneElement lane = new CutsceneMomentLaneElement
+            {
+                pixelsPerSecond = pixelsPerSecond,
+                markerColor = laneColor,
+                drawsEventPins = true,
+                style = { width = contentWidth, height = LaneRowHeight }
+            };
             RegisterMomentLane(lane, -1, SelectedLaneKind.Event, -1);
-            lane.SetTimes(times, isSelected ? selectedItemIndex : -1, variantClasses, null, eventMarkerColors);
+            lane.SetTimes(times, -1, variantClasses, null, markerColors, laneEventIndices);
             lane.MomentSelected += index => SelectItemFromLaneBackground(
                 index, -1, SelectedLaneKind.Event, -1);
             lane.MomentMoveCommitted += (index, time) => CommitMomentTime(eventsProperty, index, time);
-            lane.EmptySpaceDoubleClicked += time => InsertEventDefault(eventsProperty, time);
+            lane.EmptySpaceDoubleClicked += time => InsertCutsceneEvent(time, laneKey);
             lane.MomentDeleteRequested += index => DeleteArrayElement(eventsProperty, index);
-            lane.drawsEventPins = true;
             lane.populateMarkerMenu = (menu, index) =>
                 PopulateCutsceneEventMarkerMenu(menu, eventsProperty, index, lane);
+
+            string rowName = registry != null ? registry.FindName(laneKey) : null;
             AddTimelineRow(
-                content, "Events", lane, () => SelectItem(-1, SelectedLaneKind.Event, -1, -1),
-                LaneRowHeight, isGroup: true, accentClass: "events");
+                content, rowName ?? "(unresolved 0x" + laneKey.ToString("X8") + ")", lane,
+                () => SelectCutsceneEventsWithKey(laneKey), LaneRowHeight, indentLabel: true,
+                configureHeaderCell: headerCell =>
+                {
+                    // One colour per name, so the strip is set inline rather than through an accent class.
+                    headerCell.style.borderLeftColor = laneColor;
+                    headerCell.AddManipulator(new ContextualMenuManipulator(menuEvent =>
+                        BuildEventNameRowMenu(menuEvent.menu, laneKey, headerCell)));
+                });
+        }
+
+        private void AddEventGroupHeaderControls(VisualElement headerCell)
+        {
+            headerCell.style.flexDirection = FlexDirection.Row;
+            headerCell.style.alignItems = Align.Center;
+            Label existingLabel = headerCell.Q<Label>(className: "cutscene-editor__track-header-label");
+            if (existingLabel != null)
+            {
+                existingLabel.style.flexGrow = 1f;
+            }
+
+            Button addEventButton = null;
+            addEventButton = ToolkitIcons.MakeIconButton(
+                () => OpenAddCutsceneEventPicker(playheadSeconds, addEventButton),
+                ToolkitIcons.Plus, "Add an event at the playhead.", "+");
+            headerCell.Add(addEventButton);
+            headerCell.AddManipulator(new ContextualMenuManipulator(menuEvent =>
+                AppendAddEventAtPlayheadAction(menuEvent.menu, headerCell)));
+        }
+
+        private void AppendAddEventAtPlayheadAction(DropdownMenu menu, VisualElement anchor)
+        {
+            menu.AppendAction("Add event at playhead…",
+                menuAction => OpenAddCutsceneEventPicker(playheadSeconds, anchor));
+        }
+
+        // The picker comes first, so a new cutscene event always has a name.
+        private void OpenAddCutsceneEventPicker(float time, VisualElement anchor)
+        {
+            AnimEventKeyRegistry registry = VocabularyRegistryProvider.AnimEventKeys;
+            VocabularyPicker.Open(
+                this, anchor, registry, registry,
+                VocabularyPickerConfig.ForEventKeys(registry),
+                chosenEventKey => InsertCutsceneEvent(time, chosenEventKey),
+                () => RequestTimelineRebuild());
+        }
+
+        // Every field is written: InsertArrayElementAtIndex copies the last element, which may be a
+        // holding cue with a payload.
+        private void InsertCutsceneEvent(float time, uint eventKey)
+        {
+            SerializedProperty eventsProperty = serializedObject.FindProperty("events");
+            int index = eventsProperty.arraySize;
+            eventsProperty.InsertArrayElementAtIndex(index);
+            SerializedProperty element = eventsProperty.GetArrayElementAtIndex(index);
+            element.FindPropertyRelative("time").floatValue = Mathf.Max(0f, time);
+            element.FindPropertyRelative("eventKey").uintValue = eventKey;
+            element.FindPropertyRelative("intParam").intValue = 0;
+            element.FindPropertyRelative("floatParam").floatValue = 0f;
+            element.FindPropertyRelative("fireOnSkip").boolValue = true;
+            element.FindPropertyRelative("holdUntilReleased").boolValue = false;
+            SortByTime(eventsProperty);
+            CommitStructuralChange();
+        }
+
+        private void SelectCutsceneEventsWithKey(uint eventKey)
+        {
+            selectedItems.Clear();
+            primaryItem = null;
+            for (int eventIndex = 0; eventIndex < cutscene.events.Count; eventIndex++)
+            {
+                if (cutscene.events[eventIndex] == null || cutscene.events[eventIndex].eventKey != eventKey)
+                {
+                    continue;
+                }
+                CutsceneItemAddress address = new CutsceneItemAddress(-1, SelectedLaneKind.Event, -1, eventIndex);
+                selectedItems.Add(address);
+                if (!primaryItem.HasValue)
+                {
+                    primaryItem = address;
+                }
+            }
+            if (!primaryItem.HasValue)
+            {
+                SelectItem(-1, SelectedLaneKind.Event, -1, -1);
+                return;
+            }
+            ApplyPrimarySelectionSideEffects();
+            RequestTimelineRebuild();
+            RequestInspectorRebuild();
+        }
+
+        private void BuildEventNameRowMenu(DropdownMenu menu, uint eventKey, VisualElement anchor)
+        {
+            menu.AppendAction("Add marker at playhead",
+                menuAction => InsertCutsceneEvent(playheadSeconds, eventKey));
+            menu.AppendAction("Select all markers", menuAction => SelectCutsceneEventsWithKey(eventKey));
+            menu.AppendAction("Change event…", menuAction => OpenChangeCutsceneEventRowPicker(eventKey, anchor));
+            menu.AppendAction("Delete row", menuAction => DeleteCutsceneEventRow(eventKey));
+        }
+
+        private void OpenChangeCutsceneEventRowPicker(uint eventKey, VisualElement anchor)
+        {
+            AnimEventKeyRegistry registry = VocabularyRegistryProvider.AnimEventKeys;
+            VocabularyPicker.Open(
+                this, anchor, registry, registry,
+                VocabularyPickerConfig.ForEventKeys(registry),
+                chosenEventKey => RepointCutsceneEventRow(eventKey, chosenEventKey),
+                () => RequestTimelineRebuild());
+        }
+
+        // Re-points every marker of one name — distinct from renaming the registry row, which changes
+        // what a key is called rather than which key a marker carries.
+        private void RepointCutsceneEventRow(uint eventKey, uint chosenEventKey)
+        {
+            if (chosenEventKey == eventKey)
+            {
+                return;
+            }
+            Undo.RecordObject(cutscene, "Change Event");
+            for (int eventIndex = 0; eventIndex < cutscene.events.Count; eventIndex++)
+            {
+                if (cutscene.events[eventIndex] != null && cutscene.events[eventIndex].eventKey == eventKey)
+                {
+                    cutscene.events[eventIndex].eventKey = chosenEventKey;
+                }
+            }
+            EditorUtility.SetDirty(cutscene);
+            serializedObject.Update();
+            RebuildTimeline();
+            RequestInspectorRebuild();
+        }
+
+        private void DeleteCutsceneEventRow(uint eventKey)
+        {
+            List<int> rowEventIndices = new List<int>();
+            for (int eventIndex = 0; eventIndex < cutscene.events.Count; eventIndex++)
+            {
+                if (cutscene.events[eventIndex] != null && cutscene.events[eventIndex].eventKey == eventKey)
+                {
+                    rowEventIndices.Add(eventIndex);
+                }
+            }
+            if (rowEventIndices.Count == 0)
+            {
+                return;
+            }
+
+            AnimEventKeyRegistry registry = VocabularyRegistryProvider.AnimEventKeys;
+            string rowName = registry != null ? registry.FindName(eventKey) : null;
+            bool confirmed = EditorUtility.DisplayDialog(
+                "Delete event row",
+                "Delete " + rowEventIndices.Count + " '" + (rowName ?? "0x" + eventKey.ToString("X8"))
+                    + "' marker(s) from this cutscene?",
+                "Delete", "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
+
+            SerializedProperty eventsProperty = serializedObject.FindProperty("events");
+            for (int position = rowEventIndices.Count - 1; position >= 0; position--)
+            {
+                eventsProperty.DeleteArrayElementAtIndex(rowEventIndices[position]);
+            }
+            selectedItems.Clear();
+            primaryItem = null;
+            selectedItemIndex = -1;
+            CommitStructuralChange();
         }
 
         private void PopulateCutsceneEventMarkerMenu(
@@ -3861,20 +4082,6 @@ namespace DotsAnimationToolkit.Editor
             int index = listProperty.arraySize;
             listProperty.InsertArrayElementAtIndex(index);
             listProperty.GetArrayElementAtIndex(index).FindPropertyRelative("time").floatValue = time;
-            SortByTime(listProperty);
-            CommitStructuralChange();
-        }
-
-        private void InsertEventDefault(SerializedProperty listProperty, float time)
-        {
-            int index = listProperty.arraySize;
-            listProperty.InsertArrayElementAtIndex(index);
-            SerializedProperty element = listProperty.GetArrayElementAtIndex(index);
-            element.FindPropertyRelative("time").floatValue = time;
-            element.FindPropertyRelative("eventKey").uintValue = 0u;
-            element.FindPropertyRelative("intParam").intValue = 0;
-            element.FindPropertyRelative("floatParam").floatValue = 0f;
-            element.FindPropertyRelative("fireOnSkip").boolValue = true;
             SortByTime(listProperty);
             CommitStructuralChange();
         }

@@ -151,6 +151,22 @@ the value names). Traps:
   `PayloadOverride`; the schema builder renders every other key.
 - `G1CheckpointCutscene.asset` stores event key 1 (reserved), so its inspector shows V09 — a game
   asset fact, not an A86 bug.
+- **Cutscene events are one row per name too (A86 owner follow-up, 2026-09-13).**
+  `CutsceneEditorPanel.BuildEventRows` draws an "Events" group row (its **+** button, right-click
+  and double-click all open the event picker first) and then one `BuildEventNameRow` per
+  `EventLaneAddressing.ComputeLaneKeys(cutscene.events)` key — the cutscene overloads skip null
+  rows. Each lane is registered as `SelectedLaneKind.Event` with `originalIndices`, so every index
+  it raises (select, drag, delete, marker menu) is the real `cutscene.events` index. Traps:
+  **set `drawsEventPins` in the object initializer** — `SetTimes` builds the markers, and A86-T7
+  set it afterwards, so the old single row kept drawing diamonds; and **`InsertArrayElementAtIndex`
+  at the end copies the last element**, so an insert must write every field (the old
+  `InsertEventDefault` never reset `holdUntilReleased`, and its key 0 is reserved).
+- **Cutscene rows wear the Clip Editor's lane look.** `AddTimelineRow` tags each non-ruler lane row
+  `cutscene-editor__lane-row` and every other one `--alternate` (rgb 46/54, `TrackLaneElement`'s
+  `LaneBackground`/`LaneAlternate`); the ruler row resets the count. Lane elements are transparent
+  and rows carry no divider line. Both editors' rows were already 22px — the difference was shade,
+  header text and marker centring (markers now sit at `top: 50%` with a negative half-height
+  margin), not height.
 
 
 ## Never rebuild a pane from a value-changed callback
