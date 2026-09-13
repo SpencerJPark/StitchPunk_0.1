@@ -1,6 +1,6 @@
 # Amendment A83 — Decompose `ClipEditorWindow.cs` into pane elements
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.30.0`.
+> **Status:** 🔧 in progress — T0–T2 built and gated 2026-09-12 (head `bf33f4bb`, still `0.29.0`); T3 sizing in §7.4 raised an execution-model question for the owner before T3 starts. Takes `0.30.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 0, second.
 > **Predecessors:** A82 (the shared column and split view, so the extracted panes do not carry
 > raw split views). `ActorEditorPanel` hosting `ActorEditorLayersColumn` / `ActorEditorProfilesColumn`
@@ -130,12 +130,12 @@ T2–T5; a worker reads only its rows.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals in §7. `wc -l` on the window and its
+- [x] **T0 — Baseline (orchestrator).** Gate; totals in §7. `wc -l` on the window and its
   partials. Capture every tab to `Library/A83Captures/before_*.png`.
-- [ ] **T1 — Range map + `ClipEditorSession` (orchestrator).** Grep the window for every method
+- [x] **T1 — Range map + `ClipEditorSession` (orchestrator).** Grep the window for every method
   and field; classify by the §1 table; write §4.3 into §7. Write `ClipEditorSession.cs` by hand.
   Gate. Commit `A83-T1`.
-- [ ] **T2 — `ClipListPane` (one worker, sequential).** Files: new
+- [x] **T2 — `ClipListPane` (one worker, sequential).** Files: new
   `Editor/ClipEditor/Panes/ClipListPane.cs`, `Editor/ClipEditor/ClipEditorWindow.cs` (only the
   ranges T1 lists for this pane, plus the construction site in `CreateGUI`). Move, do not rewrite.
   Gate + `ClipEditorLayoutTests` + `ClipEditorAuthoringTests`. Commit `A83-T2`.
@@ -225,9 +225,12 @@ recorded as decisions here, flagged at the checkpoint):**
 
 **What `RebuildRequested` means (fixed here so T2–T5 agree):** a pane raises it after it created,
 deleted or renamed a clip. The window's handler is exactly `MarkPreviewDirty()` +
-`validationBadge.Refresh(activeRig, clipSet)`; each pane's handler is its own cheap re-query
-(`ClipListPane`: `RefreshClipList` + `RefreshClipActionButtons`). It never rebuilds the inspector
-or the hierarchy — both are gesture-guarded `Request…Rebuild` paths a pane calls explicitly.
+`validationBadge.Refresh(activeRig, clipSet)`. `ClipListPane` does not subscribe: at T2 every
+raise comes from the pane itself, after it has already refreshed its list (a second
+`ListView.Rebuild` on the heels of `SetSelection` is exactly the kind of order change this
+amendment must not introduce). T4 decides how a rename in the inspector reaches the list. It never
+rebuilds the inspector or the hierarchy — both are gesture-guarded `Request…Rebuild` paths a pane
+calls explicitly.
 
 #### 7.2.1 `ClipListPane` (T2) — 9 methods, 204 lines, no partial touches it
 
@@ -364,5 +367,61 @@ amendment and the reason T5 is last).
 
 #### 7.2.5 T1 gate
 
-_(recorded below when done)_
+Compile clean; `Conformance_F`/`Conformance_G` pass on the new file. Commit `5197d933`.
+
+### 7.3 T2 — `ClipListPane` (2026-09-12, commit `bf33f4bb`)
+
+- **Landed as briefed.** `Editor/ClipEditor/Panes/ClipListPane.cs`, 287 lines; the window went
+  **9,365 → 9,176**. All thirteen window sites from §7.2.1 re-pointed; `SelectClip` is now the
+  session's `SelectedClipChanged` handler and its only entry; `OnPaneRequestedRebuild` is the
+  window's `RebuildRequested` handler (preview mark + badge). Two moved `<summary>` lines became
+  `//` comments so the pane file keeps one summary.
+- **Gate:** compile clean; `ClipEditorLayoutTests` (7), `ClipEditorAuthoringTests`,
+  `PackagingConformanceTests` — all pass except the pre-existing `Conformance_A`. Wave-close full
+  suites: EditMode **824** (same single failure), PlayMode **283/283**. Totals unchanged from T0.
+- **Measured cost — this is the finding that changes the plan.** The T2 worker used its entire
+  40-turn cap (92k tokens, 48 tool calls) on the smallest pane: 204 moved lines and 13 re-pointed
+  sites, with every range and every substitution spelled out in the brief. It finished the work
+  but not its report. The turn cap is the budget, so 40 turns ≈ 200 moved lines + ~15 call-site
+  re-points is the unit of extraction this repo can actually run.
+
+### 7.4 T3 sizing — why the session stopped here
+
+`RigHierarchyPane` at the post-T2 line numbers (re-run the §7.2 grep; the §7.2.2 names still
+hold): the moving methods span **1,122–1,372 and 1,979–2,219 and 3,400–4,291**, about 1,450
+lines. Reference counts outside those ranges that must be re-pointed after the move:
+`hierarchyTreeView` 36, `selectedHierarchyItems` 36, `HierarchyItem` (the nested type) 60,
+`hierarchyItemsById` 14, `selectedSocketId` 19 (one **write** from `ComponentStack.FocusSocket`),
+`LoadedPrefab` 15, `RebuildHierarchy` 13, `selectedTargetId` 10, `ActiveHierarchyItem` 10,
+`ResolveHierarchyPath` 10, plus ~40 across the smaller members — roughly **90 call sites**, of
+which 27 are in the D5 partials. At the measured unit that is five to seven sequential workers,
+each of which must leave the window compiling, which a partial move of one selection model does
+not naturally do.
+
+**Escalation (roadmap §3.9 — a question, not a re-spec).** The spec's execution model ("one
+worker per extraction, four extractions, two sessions") does not survive T2's measurement:
+T3–T5 total ~6,000 lines and ~300 re-points, roughly twenty-five worker runs at the cap, each
+needing a compiling intermediate state. Three ways forward, my recommendation first:
+
+1. **Orchestrator slices, workers fix up (recommended).** The orchestrator moves each range with a
+   line-slicing script (deterministic, reads nothing) and adds the pane's public surface by hand
+   from the §7 map; a worker then re-points one family of call sites per run (≤15 sites, two
+   files). The intermediate state compiles because the pane is `partial`-free but the window
+   gets a thin forwarding property per moved member for one commit, deleted by the last fix-up
+   worker. Estimated eight worker runs for T3, similar for T4, ten for T5. Two to three more
+   sessions.
+2. **Partial-class split only.** Move the four ranges into `ClipEditorWindow.ClipList.cs`,
+   `.Hierarchy.cs`, `.Inspector.cs`, `.Timeline.cs` as further partials — zero re-points, one
+   script, one session — and defer the element boundary (D3/D4) to a later amendment. Every
+   later tab spec becomes parallel-safe against the *main* file immediately, which was the
+   roadmap's stated reason for A83. Weaker isolation: a partial still sees every window field.
+3. **Stop at T2.** Ship 0.30.0 with the one pane, note that the remaining three follow the same
+   shape when a later amendment needs them.
+
+Option 2 gets the roadmap's benefit for one session; option 1 gets the spec's design for three.
+The owner call is which the roadmap wants before A84 starts.
+
+**Left for whoever continues:** T3–T7 unticked; D7's 2,500-line target is not reachable without
+T3–T5; the vault "grep the member, read forty lines" instructions that name the window are still
+correct for everything but the clip list. No captures exist (§7.1).
 
