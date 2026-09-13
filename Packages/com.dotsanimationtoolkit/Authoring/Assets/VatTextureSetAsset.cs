@@ -35,8 +35,11 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>Bone-socket motion captured during the same bake pass that produced the textures.</summary>
         public List<VatSocketTrack> socketTracks = new List<VatSocketTrack>();
 
-        /// <summary>Hash of the sources this set was baked from (source mesh, clips, settings). A mismatch means the bake is stale.</summary>
+        /// <summary>Hash of the sources this set was baked from (every VAT-bound clip and the rig's structure), across all parts. A mismatch means the bake is stale.</summary>
         public ulong sourceHash;
+
+        // The rig half of sourceHash, kept so a stale set can say whether the rig or the clips moved. 0 = baked before it was recorded.
+        public ulong sourceRigStructureHash;
 
         // A VAT texture encodes one skinned mesh's vertex motion and cannot retarget, so unlike
         // transform and sprite content it pins its set to one rig. 0 means "baked before this field

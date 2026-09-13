@@ -100,13 +100,16 @@ namespace DotsAnimationToolkit.Editor
 
                 if (partResultIndex == 0)
                 {
-                    textureSet.sourceHash = bakeResult.sourceHash;
                     if (bakeResult.socketTracks != null)
                     {
                         textureSet.socketTracks.AddRange(bakeResult.socketTracks);
                     }
                 }
             }
+
+            // Set-wide, because part 0's own hash never saw an edit to any other part.
+            textureSet.sourceHash = VatSourceHashResolver.ComputeSourceHash(clipSet, rig, flavor);
+            textureSet.sourceRigStructureHash = VatSourceHashResolver.ComputeRigStructureHash(rig, flavor);
 
             string setPath = outputFolder + "/" + setBaseName + "Set.asset";
             CreateOrReplaceAsset(textureSet, setPath);

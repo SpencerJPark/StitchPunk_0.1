@@ -111,6 +111,8 @@ It produces the textures, a `VatTextureSetAsset` holding the per-clip frame rang
 
 Watch the Console: unresolved socket bone names are reported here as warnings.
 
+**Is my bake current?** A dot beside the resolved-parts line on the VAT Bake tab, and a VAT Textures row on the Clip Sets tab, read **Fresh**, **Stale**, or **Unbaked** — hover either one for the reason, "rig changed" or "clips changed". A bake goes stale when a VAT-bound clip's id, length, rate, source clip content (once saved), or bone-track keys change, or when the rig's targets' path or kind, its bone sockets, or its parts' meshes change. The check refreshes on selection, on save or import, and after a bake, so an edit you haven't saved yet won't show until you do. It never rebakes for you — the badge is information, the Bake button is the action. Sets baked before 0.35.0 read Stale once, since they predate the check.
+
 ### 6. Set up the actor
 
 Create an `ActorProfileAsset`, assign the **Rig** and the clip set. Add `ActorAuthoring` to a prefab and set its **Profile** to this asset, then add a child per target with `RigTargetAuthoring`. Assign the baked runtime mesh and a material using `ToolkitVatCrowdUnlit` (or your own shader — see [`shader-contract.md`](shader-contract.md)). See [`actor-profiles.md`](actor-profiles.md) for layers and named animations.
@@ -160,3 +162,4 @@ things there are worth calling out for a rigged character in particular:
 | Attachment is one frame behind | You are reading `LocalToWorld` somewhere instead of composing from the actor matrix |
 | Visible stepping on a large rig | Half precision quantisation — enable Full Precision |
 | Nothing animates at all | The prefab is not in a SubScene, or the clip set failed validation and baked no registry |
+| The actor plays an old version of an animation after an edit | The VAT bake is stale — check the badge and rebake |

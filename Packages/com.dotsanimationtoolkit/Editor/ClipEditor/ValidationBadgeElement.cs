@@ -101,12 +101,21 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // The stale-bake hash needs the editor-only resolver, which is why the authoring
+            // assembly cannot recompute it itself.
+            bool vatSourceHashRecomputed = rig != null && clipSet.vatTextures != null;
+            ulong recomputedVatSourceHash = vatSourceHashRecomputed
+                ? VatSourceHashResolver.ComputeSourceHash(clipSet, rig, clipSet.vatTextures.flavor)
+                : 0UL;
+
             // Validated as the bind the window is showing: this set against whichever rig is
             // loaded. With no rig loaded the binding rules cannot speak and stay quiet — an unbound
             // set is a legitimate state, not a fault.
             List<ValidationMessage> messages = ClipValidation.ValidateBind(
                 rig,
                 new ClipSetAsset[] { clipSet },
+                vatSourceHashRecomputed: vatSourceHashRecomputed,
+                recomputedVatSourceHash: recomputedVatSourceHash,
                 tagRegistry: VocabularyRegistryProvider.TargetTags,
                 eventKeyRegistry: VocabularyRegistryProvider.AnimEventKeys);
 

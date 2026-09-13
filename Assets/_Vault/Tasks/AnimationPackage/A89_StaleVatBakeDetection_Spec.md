@@ -1,6 +1,6 @@
 # Amendment A89 — Stale VAT bake detection
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.36.0`.
+> **Status:** 🔨 building 2026-09-13. Takes `0.35.0` (A88 is not built; it takes the next free minor when it runs — §7).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A78 (per-part bake, `VatTextureSetAsset.sourceHash` / `sourceRigKey`),
 > A80 (VAT Bake fields are live pickers on the shared selection).
@@ -124,4 +124,89 @@ A 10 px dot + label, `Refresh(VatBakeFreshness, string reason)`; tooltip = reaso
 
 ## 7. Build log
 
-_(empty)_
+### T0 — baseline and grounding (2026-09-13, head `7bb90dae`)
+
+- **Gate:** compile clean, 0 errors. Suite totals inherited from A87 (EditMode 831 with the standing
+  `Conformance_A` failure, PlayMode 283), not re-run.
+- **Version drift:** A88 (`0.35.0`) is not built, so A89 takes `0.35.0`, the next free minor.
+  Owner instruction, 2026-09-13.
+- **Drift 1, confirmed.** "Nothing ever compares them" is wrong. `ClipValidation.ValidateBind`
+  already has V08 (`vatSourceHashRecomputed` + `recomputedVatSourceHash`: Error while authoring,
+  Warning at Bake), but it is dormant. No editor caller passes a recomputed hash; only
+  `AuthoringTestAssets` does. `ValidationBadgeElement.HasErrors` has no reader, so waking V08
+  gates nothing.
+- **Drift 2, confirmed.** The hash is `VatTextureBaker.ComputeSourceHash(input, elementCount,
+  totalFrames)` (`:623`, called at `:266`), not in `VatBakeClipBuilder`. It folds flavor, input
+  rate, element count, total frames, full precision, and per clip the id, target, loopSafe,
+  resolved rate, `animationClip.length` and `name.GetHashCode()`. It omits the rig's stable id,
+  `sourceNodePath`, `kind`, bone-track key data, the AnimationClip GUID and its content.
+  - Both derived inputs can be computed without sampling. `elementCount` is the resolved part's
+    `PrefabRenderer.bones.Length` or `sharedMesh.vertexCount`. The bake instance is an
+    `Object.Instantiate` of the same prefab.
+  - `totalFrames` is Σ `max(1, round(length × rate)) + (loopSafe ? 1 : 0)`, with length taken
+    from the clip or else `ClipAsset.duration` (`SampleClip :478-532`).
+  - D1 holds without amendment.
+- **Drift 3, confirmed.** `VatTextureSetBuilder.cs:101` writes only part 0's `sourceHash`, so an
+  edit to any other part never changes it.
+- **Drift 4, confirmed.** `sourceRigKey = rig.StableId` (`:35`), and V40 compares against it.
+  `sourceRigKey` is left untouched.
+- **Drift 5, confirmed.** `ClipSetsPanel` has no `vatTextures` reference. The field lives in
+  `ClipSetAssetEditor:72` (PropertyField) and is read at `ClipInspectorPane:1193`.
+- **Probe** (`CreateTwoPartSampleAssets` into a scratch folder, since deleted):
+  - Two parts resolve: Tentacle (12 bones, 26 vertices) and Fin (6 bones, 14 vertices). One clip
+    carries 12 bone tracks plus one vatTrack whose source is a native `.asset` AnimationClip.
+  - One compute costs **0.070 ms**: `TryResolve`, then GUID + `GetAssetDependencyHash` per
+    source clip, then a walk over every bone key. D5 holds.
+  - `GetAssetDependencyHash` changes when a clip edit is **saved**, and not for an unsaved
+    in-memory edit. That is the right signal for "import timestamp".
+
+### Design settled at T0 (escalated at T8, not re-specced)
+
+- **One hash function.** `VatSourceHashResolver` is the only code that computes the stored
+  value. `VatTextureSetBuilder.WriteSet` stamps
+  `sourceHash = ComputeSourceHash(clipSet, rig, flavor)`, set-wide over every part, replacing the
+  part-0 write.
+  - `VatTextureBaker`'s per-part `VatBakeResult.sourceHash` stays as a per-part receipt: it is
+    logged and pinned by three baker fixtures, but no longer stored.
+  - The freshness badge calls `Resolve`, because V08 cannot say Unbaked or which side moved.
+    `ValidationBadgeElement.Refresh` feeds V08 the same `ComputeSourceHash` whenever a rig and a
+    texture set exist.
+- **Two sub-hashes, one new field.** `sourceHash = Fold(ComputeClipsHash(clipSet),
+  ComputeRigStructureHash(rig, flavor))`.
+  - `VatTextureSetAsset.sourceRigStructureHash` (new, added at T0) stores the rig half, so
+    `Resolve` names "rig changed" or "clips changed".
+  - 0 means the set was baked before the field existed. Such a set reports "sources changed"
+    without saying which.
+  - `sourceRigKey` keeps storing `rig.StableId`, so V40 is untouched.
+  - The spec's `ComputeRigKey` is renamed `ComputeRigStructureHash`, so it cannot be mistaken for
+    `sourceRigKey`.
+- **Clip side:** every clip that is VAT-bound (a `vatSource.sourceClip`, any `vatTracks` entry,
+  or any bone track). Clips that are not VAT-bound are skipped, so adding a sprite-only clip is not
+  a false stale. It folds:
+  - stable id, `duration`, `frameRate`
+  - `vatSource`: source clip identity and `loopSafe`
+  - each vatTrack: `targetId`, source clip identity, `loopSafe`
+  - each bone track: its name, and every key field bit-exact
+  - Source clip identity is the GUID + `GetAssetDependencyHash`. An asset-less clip uses its
+    name + length.
+  - Strings go through FNV-1a, which replaces `name.GetHashCode()`.
+  - Conservative: `duration` is folded even when an imported clip's length overrides it.
+- **Rig side:**
+  - stable id and the source prefab's GUID
+  - every target's id, `sourceNodePath` and `kind`
+  - every bone socket's id and `boneName` (the bake samples them)
+  - flavor, plus each resolved part's target id, path and element count, or a failure sentinel
+  - Not folded: `displayName` (file names only), `samplesPerSecond` (every ClipAsset carries
+    `frameRate`, so the input rate is never used), `useFullPrecision` (a format choice, not a
+    source, and not stored on the set).
+- **One-time staleness:** every set baked before `0.35.0` reads Stale once, which goes in the
+  changelog. The project holds no baked set today.
+- **Triggers (D5):** selection change, `EditorApplication.projectChanged`, after a bake, and on
+  Clip Sets after a pick. An unsaved in-memory edit shows on the next save or selection. There is
+  no per-gesture hook and no polling.
+- **Clip Sets host (drift 5):** a new read-only "VAT Textures" row in `ClipSetsPanel`'s editor
+  column, holding the set name and the badge. It shows when the set is VAT-bound or has textures.
+  - Its rig is the shared selection's rig when that matches `sourceRigKey`, otherwise a project
+    lookup by stable id.
+  - With no rig found, it reads Stale: "the rig it was baked from is not in the project".
+  - The `ClipSetAssetEditor` inspector gets no badge.

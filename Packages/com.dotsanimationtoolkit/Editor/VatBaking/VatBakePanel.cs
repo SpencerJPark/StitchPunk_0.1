@@ -18,6 +18,7 @@ namespace DotsAnimationToolkit.Editor
     {
         private ObjectField clipSetField;
         private Label resolvedSourceLabel;
+        private VatFreshnessBadgeElement freshnessBadge;
         private List<VatBakeSource> resolvedSources;
         private EnumField flavorField;
         private ObjectField rigField;
@@ -44,6 +45,7 @@ namespace DotsAnimationToolkit.Editor
                 selection.ClipSetChanged -= OnSharedClipSetChanged;
                 selection.RigChanged -= OnSharedRigChanged;
             }
+            EditorApplication.projectChanged -= RefreshFreshnessBadge;
             preview?.Dispose();
         }
 
@@ -117,7 +119,22 @@ namespace DotsAnimationToolkit.Editor
             resolvedSourceLabel.name = "vat-resolved-source-label";
             resolvedSourceLabel.AddToClassList("clip-editor__hint");
             resolvedSourceLabel.RegisterCallback<ClickEvent>(clickEvent => PingSourcePrefab());
-            root.Add(resolvedSourceLabel);
+            resolvedSourceLabel.style.flexGrow = 1;
+            resolvedSourceLabel.style.flexShrink = 1;
+
+            freshnessBadge = new VatFreshnessBadgeElement();
+            freshnessBadge.style.marginLeft = 6;
+            freshnessBadge.style.display = DisplayStyle.None;
+
+            VisualElement resolvedSourceRow = new VisualElement();
+            resolvedSourceRow.name = "vat-resolved-source-row";
+            resolvedSourceRow.style.flexDirection = FlexDirection.Row;
+            resolvedSourceRow.style.alignItems = Align.FlexStart;
+            resolvedSourceRow.Add(resolvedSourceLabel);
+            resolvedSourceRow.Add(freshnessBadge);
+            root.Add(resolvedSourceRow);
+
+            EditorApplication.projectChanged += RefreshFreshnessBadge;
 
             root.Add(BuildHeading("Settings"));
 
@@ -220,12 +237,36 @@ namespace DotsAnimationToolkit.Editor
             clipSetField.SetValueWithoutNotify(clipSet);
             RefreshPreview();
             RefreshResolvedSources();
+            RefreshFreshnessBadge();
         }
 
         private void OnSharedRigChanged(RigAsset rig)
         {
             rigField.SetValueWithoutNotify(rig);
             RefreshResolvedSources();
+            RefreshFreshnessBadge();
+        }
+
+        private void RefreshFreshnessBadge()
+        {
+            if (freshnessBadge == null)
+            {
+                return;
+            }
+
+            ClipSetAsset badgeClipSet = clipSetField.value as ClipSetAsset;
+            RigAsset badgeRig = rigField.value as RigAsset;
+            if (badgeClipSet == null || badgeRig == null ||
+                (badgeClipSet.vatTextures == null && !VatSourceHashResolver.HasVatBoundClips(badgeClipSet)))
+            {
+                freshnessBadge.style.display = DisplayStyle.None;
+                return;
+            }
+
+            string reason;
+            VatBakeFreshness freshness = VatSourceHashResolver.Resolve(badgeClipSet, badgeRig, badgeClipSet.vatTextures, out reason);
+            freshnessBadge.style.display = DisplayStyle.Flex;
+            freshnessBadge.Refresh(freshness, reason);
         }
 
         private static Label BuildHeading(string text)
@@ -380,6 +421,7 @@ namespace DotsAnimationToolkit.Editor
             VatTextureSetAsset bakedSet = AssetDatabase.LoadAssetAtPath<VatTextureSetAsset>(setPath);
             previewSetField.SetValueWithoutNotify(bakedSet);
             RefreshPreview();
+            RefreshFreshnessBadge();
         }
 
         private void OnPreviewSetFieldChanged(ChangeEvent<Object> changeEvent)

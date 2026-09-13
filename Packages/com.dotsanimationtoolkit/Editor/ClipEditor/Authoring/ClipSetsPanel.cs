@@ -28,6 +28,10 @@ namespace DotsAnimationToolkit.Editor
         private TextField nameField;
         private Label folderLabel;
 
+        private VisualElement vatTexturesRow;
+        private Label vatTexturesNameLabel;
+        private VatFreshnessBadgeElement vatFreshnessBadge;
+
         private ClipPickerListElement picker;
 
         private Label editHintLabel;
@@ -54,6 +58,8 @@ namespace DotsAnimationToolkit.Editor
             Add(splitView);
 
             ApplyChromeForSelection();
+
+            EditorApplication.projectChanged += RefreshVatFreshness;
         }
 
         private VisualElement BuildCatalogColumn()
@@ -203,6 +209,28 @@ namespace DotsAnimationToolkit.Editor
 
             editorContent.Add(folderRow);
 
+            vatTexturesRow = new VisualElement { name = "clip-set-vat-textures-row" };
+            vatTexturesRow.style.flexDirection = FlexDirection.Row;
+            vatTexturesRow.style.alignItems = Align.Center;
+            vatTexturesRow.style.marginTop = 4f;
+
+            Label vatTexturesCaptionLabel = new Label("VAT Textures");
+            vatTexturesCaptionLabel.style.minWidth = 120f;
+            vatTexturesRow.Add(vatTexturesCaptionLabel);
+
+            vatTexturesNameLabel = new Label { name = "clip-set-vat-textures-label" };
+            vatTexturesNameLabel.style.flexGrow = 1f;
+            vatTexturesNameLabel.style.overflow = Overflow.Hidden;
+            vatTexturesNameLabel.style.textOverflow = TextOverflow.Ellipsis;
+            vatTexturesNameLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            vatTexturesRow.Add(vatTexturesNameLabel);
+
+            vatFreshnessBadge = new VatFreshnessBadgeElement();
+            vatFreshnessBadge.style.marginLeft = 6f;
+            vatTexturesRow.Add(vatFreshnessBadge);
+
+            editorContent.Add(vatTexturesRow);
+
             picker = new ClipPickerListElement();
             picker.name = "clip-picker";
             picker.style.flexGrow = 1f;
@@ -256,11 +284,18 @@ namespace DotsAnimationToolkit.Editor
             if (selection != null)
             {
                 selection.ClipSetChanged -= OnSharedClipSetChanged;
+                selection.RigChanged -= OnSharedRigChanged;
             }
 
             selection = sharedSelection;
             selection.ClipSetChanged += OnSharedClipSetChanged;
+            selection.RigChanged += OnSharedRigChanged;
             OnSharedClipSetChanged(selection.ClipSet);
+        }
+
+        private void OnSharedRigChanged(RigAsset rig)
+        {
+            RefreshVatFreshness();
         }
 
         private void OnSharedClipSetChanged(ClipSetAsset clipSet)
@@ -300,6 +335,7 @@ namespace DotsAnimationToolkit.Editor
                 }
 
                 catalog.RefreshRows();
+                RefreshVatFreshness();
             }
         }
 
@@ -413,6 +449,59 @@ namespace DotsAnimationToolkit.Editor
             picker.SetCheckedClips(checkedClips);
 
             ApplyChromeForSelection();
+            RefreshVatFreshness();
+        }
+
+        private void RefreshVatFreshness()
+        {
+            if (vatTexturesRow == null)
+            {
+                return;
+            }
+
+            ClipSetAsset shownClipSet = SelectedSet;
+            if (shownClipSet == null || (shownClipSet.vatTextures == null && !VatSourceHashResolver.HasVatBoundClips(shownClipSet)))
+            {
+                vatTexturesRow.style.display = DisplayStyle.None;
+                return;
+            }
+
+            vatTexturesRow.style.display = DisplayStyle.Flex;
+            vatTexturesNameLabel.text = shownClipSet.vatTextures != null ? shownClipSet.vatTextures.name : "None";
+
+            RigAsset rig = FindRigTheSetWasBakedFrom(shownClipSet.vatTextures);
+            string reason;
+            VatBakeFreshness freshness = VatSourceHashResolver.Resolve(shownClipSet, rig, shownClipSet.vatTextures, out reason);
+            vatFreshnessBadge.Refresh(freshness, reason);
+        }
+
+        // The Clip Sets tab has no rig of its own, so the freshness check falls back to the
+        // rig named by the bound texture set's sourceRigKey when the shared selection lacks one.
+        private RigAsset FindRigTheSetWasBakedFrom(VatTextureSetAsset textures)
+        {
+            RigAsset selectedRig = selection != null ? selection.Rig : null;
+            if (textures == null || textures.sourceRigKey == 0UL)
+            {
+                return selectedRig;
+            }
+
+            if (selectedRig != null && selectedRig.StableId == textures.sourceRigKey)
+            {
+                return selectedRig;
+            }
+
+            string[] rigGuids = AssetDatabase.FindAssets("t:" + nameof(RigAsset));
+            for (int rigIndex = 0; rigIndex < rigGuids.Length; rigIndex++)
+            {
+                string rigPath = AssetDatabase.GUIDToAssetPath(rigGuids[rigIndex]);
+                RigAsset candidateRig = AssetDatabase.LoadAssetAtPath<RigAsset>(rigPath);
+                if (candidateRig != null && candidateRig.StableId == textures.sourceRigKey)
+                {
+                    return candidateRig;
+                }
+            }
+
+            return null;
         }
 
         /// Creates an empty clip set in the remembered folder and selects it, so the catalog gains an entry the user edits in place.
@@ -513,9 +602,12 @@ namespace DotsAnimationToolkit.Editor
 
         public void Dispose()
         {
+            EditorApplication.projectChanged -= RefreshVatFreshness;
+
             if (selection != null)
             {
                 selection.ClipSetChanged -= OnSharedClipSetChanged;
+                selection.RigChanged -= OnSharedRigChanged;
             }
 
             picker.ClipCheckedChanged -= OnPickerClipCheckedChanged;
