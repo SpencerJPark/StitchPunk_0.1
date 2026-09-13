@@ -31,9 +31,9 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>Builds the profile blob.</summary>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="profile"/> is null.</exception>
         /// <exception cref="ClipValidationException">
-        /// Thrown when the profile carries any P1-P4 error. P2 (animation name registry
-        /// membership) is skipped here — Authoring cannot reach the editor-only vocabulary
-        /// provider — and is judged instead by the Actor Editor badge and at entity bake.
+        /// Thrown when the profile carries any P1-P4 error. Of P2, only a zero animationKey is caught
+        /// here; registry membership needs the editor-only vocabulary and is reported on save and
+        /// at player build instead.
         /// </exception>
         public static BlobAssetReference<ActorProfileBlob> Build(ActorProfileAsset profile, Allocator allocator)
         {

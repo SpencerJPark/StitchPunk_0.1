@@ -580,9 +580,6 @@ it agrees with your code. That habit sank three earlier gates.
   so ticking the flag on a descendant as well is redundant rather than cancelling. The slot
   inspector says so when it finds one. Ticking *nothing* is still the failure that turns nothing,
   and the bake warns about that.
-- `ActorProfileBuilder` skips P2 (animation-name registry membership) at bake — building a blob has
-  no access to the editor-only vocabulary provider that check needs. The Actor Editor's validation
-  badge (A71) is where a profile's P2 violations actually get reported.
 
 ## 8. Not yet judged by eye
 

@@ -8,6 +8,27 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] — A91 — animation name errors at profile save and player build
+
+### Added
+
+- `ProfileP2Scan` (editor): returns the P2 findings for one actor profile, or for every profile in
+  the project. P2 covers an entry with no animation name and an entry naming an animation missing
+  from the Animation Names registry. When no registry is passed, the scan uses the project's.
+- `ActorProfileSaveValidation` (editor): saving an actor profile logs one console warning per P2
+  finding, naming the profile, layer and entry. Clicking the warning pings the profile. The save
+  is never blocked.
+- `ActorProfileBuildValidation` (editor): a player build fails, listing every P2 finding across
+  the project.
+- Project Settings ▸ DOTS Animation Toolkit ▸ Animation Names: **Fail player builds on profile
+  name errors**. On by default, stored per machine.
+
+### Changed
+
+- `ActorProfileBuilder` and `actor-profiles.md` now state what the bake checks. A zero
+  `animationKey` fails the bake; registry membership is not checked there. Both previously said
+  P2 was judged "at entity bake".
+
 ## [0.35.0] — A89 — stale VAT bake detection
 
 ### Added
