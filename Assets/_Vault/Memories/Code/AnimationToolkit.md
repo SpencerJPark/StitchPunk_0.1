@@ -277,7 +277,7 @@ Three things not to rediscover:
   directly, while `rowIndex` counts only the rows actually drawn. Renumbering the first to match the
   second would repoint every key address in the window at the wrong track.
 - **An empty track has no row, so the timeline is not where its first key comes from** — the part's
-  **Key** button in the inspector (`ClipEditorWindow.cs`, the `keyRow` block) is, and it never
+  **Key** button in the inspector (`Panes/ClipInspectorPane.cs`, the `keyRow` block in `AddTransformFields`; the window's `KeyDisplayedTransform` does the write) is, and it never
   needed a lane. The status line says how many tracks are hidden this way, because "I added a
   Transform and no row appeared" otherwise has no answer on screen.
 - **Focus mode resolves through the tag**, using the shared `ClipComponentModel.FindTargetByTag`
@@ -925,3 +925,35 @@ own arithmetic). (2) `splitView.Q(className: dragline-anchor)` walks descendants
 whose fixed pane is another split, returns the *nested* split's anchor first — releases then wrote
 the outer key from the inner drag line. The anchor is a direct `hierarchy` child beside the
 content container; look only there.
+
+## The Clip Editor window is four panes (A83, 0.30.0)
+
+`ClipEditorWindow.cs` keeps the tab strip, session state, docking, the transport target, the
+viewport and gizmo, the held-transform edit, the retag block and the validation badge; the four
+dock panes are elements in `Editor/ClipEditor/Panes/` (`ls` it): `ClipListPane`,
+`RigHierarchyPane`, `ClipInspectorPane`, `TimelinePane` plus its `.View` partial (the old
+`ClipEditorView.cs`). **Grep across `Editor/ClipEditor/`, not the window file** — a method kept
+its name when it moved, so `grep -rn "void RebuildTimeline" Editor/ClipEditor/` finds it.
+`ClipEditorSession` (same folder) carries the selected clip, the key selection set, the active
+key, the playhead and the hierarchy selection. The window's `selectedClip` and `playheadTime`
+fields are mirrored into it, never replaced: a fixture that pokes the field must write the session
+too (`ClipEditorAddEventTests` shows the two-sided helpers).
+
+- **Panes are built, bound and wired in `OnEnable` (`WirePanes`) and only rooted in
+  `CreateGUI`.** A `VisualElement` cannot be a field initializer on an `EditorWindow` (Unity
+  throws "VisualElementCreation is not allowed…"), and the hidden off-screen instance never runs
+  `CreateGUI` yet still runs `RememberSessionState`, undo and the tick — so does every fixture that
+  `CreateInstance`s the window. A pane registers element callbacks only when it is handed a root.
+- **Pane→window calls are delegates named after the window member** (`internal
+  System.Action<string> RecordClipEdit { get; set; }`), so a moved body reads as it did on the
+  window. Window→pane calls are direct (`timelinePane.RebuildTimeline()`); pane→pane goes through
+  the session. Four window properties the timeline reads (`SnapFrameCount`,
+  `TransportFrameCount`, `LargeStepFrames`, `IsTransformActive`) are same-named private
+  properties behind `…Provider` delegates.
+- **Schedule on an element that is in the panel.** The pane elements are never parented, so
+  `pane.schedule` never ticks; the key-drag auto-scroll runs on `laneStack.schedule`.
+- **Moving code by script: assert every range's first and last line before cutting, re-point by
+  regex on code lines only and outside string literals (`playhead` and `ruler` are plain words in
+  tooltips), then diff every moved body against `HEAD`.** That is how T3–T5 landed with one to
+  eight compile errors each. The viewport/gizmo block is the next natural lift; D7's 2,500-line
+  target is still 1,770 lines away.

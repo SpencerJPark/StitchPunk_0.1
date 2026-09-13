@@ -1,6 +1,6 @@
 # Amendment A83 — Decompose `ClipEditorWindow.cs` into pane elements
 
-> **Status:** 🔧 in progress — T0–T5 built and gated 2026-09-12 (still `0.29.0`); owner chose option 1 of §7.4 (orchestrator slices, workers fix up) and T3 landed under it. Takes `0.30.0`.
+> **Status:** ✅ built 2026-09-12 as `0.30.0` (T0–T7); ⏸ **T8 owner checkpoint open.** Option 1 of §7.4 (orchestrator slices) carried T3–T5; D8–D10 recorded in §7.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 0, second.
 > **Predecessors:** A82 (the shared column and split view, so the extracted panes do not carry
 > raw split views). `ActorEditorPanel` hosting `ActorEditorLayersColumn` / `ActorEditorProfilesColumn`
@@ -148,10 +148,10 @@ T2–T5; a worker reads only its rows.
 - [x] **T5 — `TimelinePane` (one worker, possibly two if the range exceeds ~1,500 lines — then the
   lane rows and the ruler/playhead are split into two sequential workers).** Gate +
   `ClipEditorLayoutTests` + `ClipKeyClipboardTests`. Commit `A83-T5`.
-- [ ] **T6 — Verification (orchestrator).** Full suites; totals must equal T0's. Captures
+- [x] **T6 — Verification (orchestrator).** Full suites; totals must equal T0's. Captures
   `after_*.png`; compare with `before_*` — identical is the acceptance. `wc -l` the window; record
   against D7.
-- [ ] **T7 — Docs (orchestrator or worker).** `CHANGELOG.md` `## [0.30.0]` (one paragraph: no
+- [x] **T7 — Docs (orchestrator or worker).** `CHANGELOG.md` `## [0.30.0]` (one paragraph: no
   user-visible change; four pane elements). Vault note: replace every "grep the member, read forty
   lines" instruction that names the window with the pane file. `package.json`.
 - [ ] **T8 — ⏸ owner checkpoint.** Message: "Nothing should look different. Open the Clip Editor,
@@ -562,7 +562,28 @@ The owner call is which the roadmap wants before A84 starts.
   `PackagingConformanceTests` — pass except the pre-existing `Conformance_A`; full EditMode
   **824** (same single failure).
 
-**Left for whoever continues:** T6–T7 unticked; D7's 2,500-line target is not reachable without
-T3–T5; the vault "grep the member, read forty lines" instructions that name the window are still
-correct for everything but the clip list. No captures exist (§7.1).
+### 7.8 T6 — verification (2026-09-12)
+
+- Full suites after T5: EditMode **824** (the same single pre-existing `Conformance_A` failure),
+  PlayMode **283/283** — equal to T0. `ClipEditorLayoutTests` unchanged and green throughout (D1).
+- Captures: none exist (§7.1), so the "identical captures" acceptance falls to T8 in full.
+- **D7 outcome: not reached.** Window **9,365 → 4,268**. What remains, by block: viewport, gizmo
+  and pick (~1,050 lines: `BindViewport` through `ApplyRigSelection`), tabs, docking and session
+  state (~900), the retag block (~500: `ResolveTargetDisplayName` … `EnsureClipTrackTagsAssigned`),
+  the held-transform edit (~300), reconciliation (~170), splits (~150), pane wiring (~120), the
+  deferred-rebuild quartet and the toolbar. The viewport/gizmo block is the natural next lift
+  (`ViewportPane`); per D7 that is the next session's T0 call, not this amendment's.
+
+### 7.9 T7 — docs (2026-09-12)
+
+`CHANGELOG.md` `## [0.30.0]` (one paragraph, no user-visible change); `package.json` and the
+`PackagingConformanceTests` pin at `0.30.0`; vault `AnimationToolkit.md` gained "The Clip Editor
+window is four panes (A83, 0.30.0)" — the grep rule, the session mirror, and the four traps — and
+the one instruction that named the window for a member now on a pane (the inspector's Key button)
+points at `Panes/ClipInspectorPane.cs`; `HANDOFF.md` §4 has the built paragraph. No
+`Documentation~` page names the window.
+
+**Left for whoever continues:** T8 (owner checkpoint) open; the roadmap box is ticked only when
+it is answered. The vault's "grep the member, read forty lines" habit still works — grep across
+`Editor/ClipEditor/`, the member kept its name.
 

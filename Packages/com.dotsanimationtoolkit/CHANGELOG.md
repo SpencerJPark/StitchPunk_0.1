@@ -8,6 +8,19 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0] — A83 — the Clip Editor window is four panes
+
+### Changed
+
+- **No user-visible change.** The Clip Editor's four dock panes — the clip list, the hierarchy,
+  the inspector and the timeline — are now four elements under `Editor/ClipEditor/Panes/`
+  (`ClipListPane`, `RigHierarchyPane`, `ClipInspectorPane`, `TimelinePane` with its view
+  partial), each bound to the window's shared `ActiveAssetSelection` and a new
+  `ClipEditorSession` (selected clip, key selection, playhead, hierarchy selection). The window
+  keeps the tab strip, session state, docking, the transport, the viewport and its gizmo, and the
+  validation badge. `ClipEditorWindow.cs` went from 9,365 lines to 4,268. Methods kept their
+  names when they moved; the UXML did not change.
+
 ## [0.29.0] — A82 — one catalog column, remembered dividers
 
 ### Added

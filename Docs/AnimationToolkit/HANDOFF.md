@@ -119,14 +119,18 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-**In progress (2026-09-12): Amendment A83 — decompose `ClipEditorWindow.cs` into pane elements — 0.30.0, T0–T2 done.** Spec
+**Built (2026-09-12): Amendment A83 — the Clip Editor window is four panes — 0.30.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A83_WindowDecomposition_Spec.md`; its §7 carries the range
-map for all four panes and the build log. `ClipEditorSession` (`Editor/ClipEditor/`) and the first
-pane, `ClipListPane` (`Editor/ClipEditor/Panes/`), are in at `bf33f4bb`; the window is 9,176
-lines. **Stopped before T3 on a measured fact:** the smallest extraction consumed a whole 40-turn
-worker, so the spec's one-worker-per-pane model cannot carry the remaining ~6,000 lines — §7.4
-lists three ways forward and asks the owner which. Do not start T3 until that is answered. No
-captures exist (Editor unfocused all session); the checkpoint drive is the acceptance.
+map, the per-extraction logs and every decision (D8–D10). `ClipEditorWindow.cs` went from 9,365
+lines to 4,268; the clip list, hierarchy, inspector and timeline are elements under
+`Editor/ClipEditor/Panes/`, bound to `ActiveAssetSelection` and the new `ClipEditorSession`, built
+and wired in `OnEnable` and rooted in `CreateGUI`. No UXML, rename or behaviour change; methods
+kept their names, and a scripted check compared every moved body to the original. Suites equal to
+the baseline (EditMode 824 with the pre-existing `Conformance_A` failure, PlayMode 283). The owner
+chose the orchestrator-slices execution model after the first worker measurement; no captures
+exist (Editor unfocused), so the **T8 owner checkpoint** — open the Clip Editor, pick a clip,
+scrub, add an event, add a key, drag a hierarchy row — is the acceptance. D7's 2,500-line target
+was not reached; the viewport/gizmo block is the next lift, for a later amendment.
 
 **Built (2026-09-11): Amendment A82 — one catalog column, remembered dividers — 0.29.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A82_SharedCatalogColumn_Spec.md`; its §7 carries the build
