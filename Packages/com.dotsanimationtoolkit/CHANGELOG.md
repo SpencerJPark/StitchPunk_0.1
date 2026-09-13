@@ -8,6 +8,27 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0] — A85 — event payload schema: a key says what its parameters mean
+
+### Added
+
+- `AnimEventKeyEntry` gains four fields — `intParamLabel`, `intParamValueNames` (index = value,
+  empty = any integer), `floatParamLabel`, `floatParamUnit` (display suffix only) — edited under a
+  collapsed **Payload** foldout per row in the registry inspector (**Project Settings → DOTS
+  Animation Toolkit → Event Names**) or the picker's **Edit…** window. Existing registries need no
+  migration; empty fields mean no schema, today's behaviour.
+- `EventPayloadFieldBuilder`: the Clip Editor's event inspector renders from the schema — a
+  dropdown over named values, a labelled `IntegerField`/`FloatField` for a label-only parameter, or
+  a hidden field for an unlabelled one (shown as "(unused)" in the warning colour if a marker still
+  stores a non-zero value there). A stored int outside the named range shows its raw number in the
+  dropdown in the warning colour; it is never clamped.
+
+### Changed
+
+- `ConstantsGenerator` gives a key with a schema its meaning in the generated constant's XML doc,
+  and a key with named int values a nested `<Key>Values` class of named `const int`s. Value names
+  are sanitized and de-duplicated the same way row names are.
+
 ## [0.31.0] — A84 — asset reference index: "where is this used"
 
 ### Added

@@ -27,17 +27,23 @@ namespace DotsAnimationToolkit.Editor
         private readonly string entryNoun;
         private readonly string fallbackEntryNamePrefix;
         private readonly Action persistRegistry;
+        private readonly Func<int, string> summaryForRow;
+        private readonly Func<int, IReadOnlyList<string>> nestedValueNamesForRow;
 
         /// <param name="registryContext">The same registry as a <see cref="UnityEngine.Object"/>, so a console message can be clicked back to its inspector.</param>
         /// <param name="persistRegistry">Called after the remembered path changes — the project
         /// vocabularies have no autosave, so a path left unpersisted is lost on domain reload.</param>
+        /// <param name="summaryForRow">null = plain constants.</param>
+        /// <param name="nestedValueNamesForRow">null = plain constants.</param>
         public VocabularyConstantsSection(
             IVocabularyRegistry registry,
             UnityEngine.Object registryContext,
             string defaultFileName,
             string entryNoun,
             string fallbackEntryNamePrefix,
-            Action persistRegistry)
+            Action persistRegistry,
+            Func<int, string> summaryForRow = null,
+            Func<int, IReadOnlyList<string>> nestedValueNamesForRow = null)
         {
             this.registry = registry;
             this.registryContext = registryContext;
@@ -45,6 +51,8 @@ namespace DotsAnimationToolkit.Editor
             this.entryNoun = entryNoun;
             this.fallbackEntryNamePrefix = fallbackEntryNamePrefix;
             this.persistRegistry = persistRegistry;
+            this.summaryForRow = summaryForRow;
+            this.nestedValueNamesForRow = nestedValueNamesForRow;
 
             style.marginTop = 8f;
             Rebuild();
@@ -110,7 +118,8 @@ namespace DotsAnimationToolkit.Editor
             List<string> reports = new List<string>();
             string className = ConstantsGenerator.ClassNameFromFilePath(storedPath, defaultFileName);
             string generatedSource = ConstantsGenerator.BuildVocabularyConstantsSource(
-                registry, className, entryNoun, fallbackEntryNamePrefix, reports);
+                registry, className, entryNoun, fallbackEntryNamePrefix, reports,
+                summaryForRow, nestedValueNamesForRow);
 
             // Runs on every field blur, not one deliberate button press, so a same-content rewrite
             // is skipped — it would still trigger a compile-scale AssetDatabase.Refresh for nothing.

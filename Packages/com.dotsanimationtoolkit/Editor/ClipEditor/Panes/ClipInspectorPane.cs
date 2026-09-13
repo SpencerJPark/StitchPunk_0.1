@@ -547,33 +547,31 @@ namespace DotsAnimationToolkit.Editor
             AddEventKeyField(address, marker, registry);
             AddEventWindowField(address, marker, registry);
 
-            IntegerField intParamField = new IntegerField("Int Param");
-            intParamField.tooltip =
-                "Delivered on the AnimEventOutput pulse. Not carried by the window mask.";
-            intParamField.SetValueWithoutNotify(marker.intParam);
-            intParamField.RegisterValueChangedCallback(changeEvent =>
-            {
-                EditEventMarker(address, "Edit Event Payload", editedMarker =>
-                {
-                    editedMarker.intParam = changeEvent.newValue;
-                    return editedMarker;
-                });
-            });
-            inspectorPane.Add(intParamField);
+            AnimEventKeyEntry payloadEntry = FindRegistryEntryByKey(registry, marker.eventKey);
 
-            FloatField floatParamField = new FloatField("Float Param");
-            floatParamField.tooltip =
-                "Delivered on the AnimEventOutput pulse. Not carried by the window mask.";
-            floatParamField.SetValueWithoutNotify(marker.floatParam);
-            floatParamField.RegisterValueChangedCallback(changeEvent =>
-            {
-                EditEventMarker(address, "Edit Event Payload", editedMarker =>
+            VisualElement intParamField = EventPayloadFieldBuilder.BuildIntField(
+                payloadEntry, marker.intParam,
+                newIntParam => EditEventMarker(address, "Edit Event Payload", editedMarker =>
                 {
-                    editedMarker.floatParam = changeEvent.newValue;
+                    editedMarker.intParam = newIntParam;
                     return editedMarker;
-                });
-            });
-            inspectorPane.Add(floatParamField);
+                }));
+            if (intParamField != null)
+            {
+                inspectorPane.Add(intParamField);
+            }
+
+            VisualElement floatParamField = EventPayloadFieldBuilder.BuildFloatField(
+                payloadEntry, marker.floatParam,
+                newFloatParam => EditEventMarker(address, "Edit Event Payload", editedMarker =>
+                {
+                    editedMarker.floatParam = newFloatParam;
+                    return editedMarker;
+                }));
+            if (floatParamField != null)
+            {
+                inspectorPane.Add(floatParamField);
+            }
         }
 
         /// <summary>Which event this marker fires, chosen from the project's event-name vocabulary.</summary>

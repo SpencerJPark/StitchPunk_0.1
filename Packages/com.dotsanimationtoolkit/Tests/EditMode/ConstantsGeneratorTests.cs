@@ -89,5 +89,37 @@ namespace DotsAnimationToolkit.Tests.EditMode
             StringAssert.Contains("public const uint Foot_step = 0x00000001u;", generatedSource);
             StringAssert.Contains("public const uint Foot_step_1 = 0x00000002u;", generatedSource);
         }
+
+        [Test]
+        public void EnumeratedKey_EmitsNestedValuesClass()
+        {
+            AnimEventKeyRegistry registry = ScriptableObject.CreateInstance<AnimEventKeyRegistry>();
+            createdObjects.Add(registry);
+            AnimEventKeyEntry footstepEntry = new AnimEventKeyEntry
+            {
+                name = "Footstep",
+                eventKey = 16u,
+                intParamLabel = "Foot",
+            };
+            footstepEntry.intParamValueNames.Add("Left");
+            footstepEntry.intParamValueNames.Add("Right");
+            registry.entries.Add(footstepEntry);
+
+            string generatedSource = ConstantsGenerator.BuildVocabularyConstantsSource(
+                registry,
+                "AnimEvents",
+                "Event",
+                "Event",
+                null,
+                rowIndex => "intParam: " + registry.entries[rowIndex].intParamLabel,
+                rowIndex => registry.entries[rowIndex].intParamValueNames);
+
+            Assert.IsTrue(
+                generatedSource.Contains("public static class FootstepValues"),
+                "A row with named intParam values must get its own nested values class.");
+            StringAssert.Contains("public const int Left = 0;", generatedSource);
+            StringAssert.Contains("public const int Right = 1;", generatedSource);
+            StringAssert.Contains("Event 'Footstep'. intParam: Foot</summary>", generatedSource);
+        }
     }
 }

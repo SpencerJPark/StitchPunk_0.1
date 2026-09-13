@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
@@ -78,6 +79,25 @@ namespace DotsAnimationToolkit.Editor
                         EditorUtility.SetDirty(persistedRegistry);
                         AssetDatabase.SaveAssetIfDirty(persistedRegistry);
                     }
+                },
+                entryIndex =>
+                {
+                    AnimEventKeyRegistry summaryRegistry = target as AnimEventKeyRegistry;
+                    if (summaryRegistry == null || entryIndex < 0 || entryIndex >= summaryRegistry.entries.Count)
+                    {
+                        return null;
+                    }
+                    return DescribePayloadForConstants(summaryRegistry.entries[entryIndex]);
+                },
+                entryIndex =>
+                {
+                    AnimEventKeyRegistry nestedRegistry = target as AnimEventKeyRegistry;
+                    if (nestedRegistry == null || entryIndex < 0 || entryIndex >= nestedRegistry.entries.Count
+                        || nestedRegistry.entries[entryIndex] == null)
+                    {
+                        return null;
+                    }
+                    return nestedRegistry.entries[entryIndex].intParamValueNames;
                 });
             root.Add(constantsSection);
 
@@ -122,6 +142,49 @@ namespace DotsAnimationToolkit.Editor
             {
                 constantsSection?.RegenerateIfConfigured();
             }
+        }
+
+        // Builds the payload line appended to a generated constant's <summary>; null when the
+        // entry has no intParam/floatParam schema to describe.
+        private static string DescribePayloadForConstants(AnimEventKeyEntry entry)
+        {
+            if (entry == null)
+            {
+                return null;
+            }
+            List<string> parts = new List<string>();
+
+            bool hasIntValueNames = entry.intParamValueNames != null && entry.intParamValueNames.Count > 0;
+            bool hasIntSchema = !string.IsNullOrEmpty(entry.intParamLabel) || hasIntValueNames;
+            if (hasIntSchema)
+            {
+                string intLabel = string.IsNullOrEmpty(entry.intParamLabel) ? "value" : entry.intParamLabel;
+                string intValueNames = string.Empty;
+                if (hasIntValueNames)
+                {
+                    List<string> namedValues = new List<string>();
+                    for (int valueIndex = 0; valueIndex < entry.intParamValueNames.Count; valueIndex++)
+                    {
+                        namedValues.Add(valueIndex + " = " + entry.intParamValueNames[valueIndex]);
+                    }
+                    intValueNames = " (" + string.Join(", ", namedValues) + ")";
+                }
+                parts.Add("intParam: " + intLabel + intValueNames);
+            }
+
+            if (!string.IsNullOrEmpty(entry.floatParamLabel))
+            {
+                string unitSuffix = string.IsNullOrEmpty(entry.floatParamUnit)
+                    ? string.Empty
+                    : " in " + entry.floatParamUnit;
+                parts.Add("floatParam: " + entry.floatParamLabel + unitSuffix);
+            }
+
+            if (parts.Count == 0)
+            {
+                return null;
+            }
+            return string.Join("; ", parts) + ".";
         }
 
         // -----------------------------------------------------------------------------------
@@ -214,6 +277,23 @@ namespace DotsAnimationToolkit.Editor
             PropertyField descriptionField = new PropertyField(descriptionProperty, string.Empty);
             descriptionFoldout.Add(descriptionField);
             rowGroup.Add(descriptionFoldout);
+
+            SerializedProperty intParamLabelProperty = entryProperty.FindPropertyRelative("intParamLabel");
+            SerializedProperty intParamValueNamesProperty =
+                entryProperty.FindPropertyRelative("intParamValueNames");
+            SerializedProperty floatParamLabelProperty = entryProperty.FindPropertyRelative("floatParamLabel");
+            SerializedProperty floatParamUnitProperty = entryProperty.FindPropertyRelative("floatParamUnit");
+
+            Foldout payloadFoldout = new Foldout { text = "Payload", value = false };
+            payloadFoldout.style.marginLeft = 12f;
+            payloadFoldout.tooltip =
+                "What intParam and floatParam mean for this event. The Clip Editor shows a dropdown "
+                + "or a labelled field from these; an empty label hides that field.";
+            payloadFoldout.Add(new PropertyField(intParamLabelProperty, "Int Label"));
+            payloadFoldout.Add(new PropertyField(intParamValueNamesProperty, "Int Values"));
+            payloadFoldout.Add(new PropertyField(floatParamLabelProperty, "Float Label"));
+            payloadFoldout.Add(new PropertyField(floatParamUnitProperty, "Float Unit"));
+            rowGroup.Add(payloadFoldout);
 
             return rowGroup;
         }

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -43,12 +44,16 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         /// <param name="reports">Optional accumulator; one line per row whose emitted constant was
         /// not what was authored (sanitized, renamed, escaped, or skipped).</param>
+        /// <param name="summaryForRow">Row index to extra summary text; null = emit as before.</param>
+        /// <param name="nestedValueNamesForRow">Row index to named values; null = emit as before.</param>
         public static string BuildVocabularyConstantsSource(
             IVocabularyRegistry registry,
             string className,
             string entryNoun,
             string fallbackEntryNamePrefix,
-            List<string> reports)
+            List<string> reports,
+            Func<int, string> summaryForRow = null,
+            Func<int, IReadOnlyList<string>> nestedValueNamesForRow = null)
         {
             StringBuilder source = new StringBuilder();
             int entryCount = registry != null ? registry.VocabularyEntryCount : 0;
@@ -114,12 +119,24 @@ namespace DotsAnimationToolkit.Editor
                         + emittedIdentifierName + "'.");
                 }
 
-                source.Append(
-                    "    /// <summary>" + entryNoun + " '" + EscapeXmlDocText(authoredName)
-                    + "'.</summary>\n");
+                string rowSummary = summaryForRow != null ? summaryForRow(entryIndex) : null;
+                string summaryLine = "    /// <summary>" + entryNoun + " '" + EscapeXmlDocText(authoredName) + "'.";
+                if (!string.IsNullOrEmpty(rowSummary))
+                {
+                    summaryLine += " " + EscapeXmlDocText(rowSummary);
+                }
+                source.Append(summaryLine + "</summary>\n");
                 source.Append(
                     "    public const uint " + emittedIdentifierName + " = 0x"
                     + entryId.ToString("X8") + "u;\n");
+
+                IReadOnlyList<string> nestedValueNames =
+                    nestedValueNamesForRow != null ? nestedValueNamesForRow(entryIndex) : null;
+                if (nestedValueNames != null && nestedValueNames.Count > 0)
+                {
+                    AppendNestedValuesClass(
+                        source, uniqueIdentifierName, nestedValueNames, usedNameCounts, reports);
+                }
             }
 
             source.Append("}\n");
@@ -162,6 +179,66 @@ namespace DotsAnimationToolkit.Editor
             {
                 reports.Add(reportLine);
             }
+        }
+
+        // The class name shares the rows' usedNameCounts, so it cannot collide with a row literally
+        // named "FootstepValues" whichever of the two comes first.
+        private static void AppendNestedValuesClass(
+            StringBuilder source,
+            string enclosingRowIdentifierName,
+            IReadOnlyList<string> nestedValueNames,
+            Dictionary<string, int> usedNameCounts,
+            List<string> reports)
+        {
+            string desiredValuesClassName = enclosingRowIdentifierName + "Values";
+            string valuesClassName = MakeUniqueName(desiredValuesClassName, usedNameCounts);
+            if (valuesClassName != desiredValuesClassName)
+            {
+                AddReport(
+                    reports,
+                    "'" + desiredValuesClassName + "' collides with an earlier row once written as "
+                    + "C#, so the named-values class for '" + enclosingRowIdentifierName
+                    + "' is emitted as '" + valuesClassName + "'.");
+            }
+
+            source.Append(
+                "\n    /// <summary>Named intParam values for '"
+                + EscapeXmlDocText(enclosingRowIdentifierName) + "'.</summary>\n");
+            source.Append("    public static class " + valuesClassName + "\n");
+            source.Append("    {\n");
+
+            // Pre-seeded with the class's own name: a member named the same as its enclosing type
+            // is CS0542, so that name must never be handed out to a value.
+            Dictionary<string, int> usedValueNameCounts = new Dictionary<string, int> { { valuesClassName, 0 } };
+
+            for (int valueIndex = 0; valueIndex < nestedValueNames.Count; valueIndex++)
+            {
+                string authoredValueName = nestedValueNames[valueIndex];
+                string baseValueName = SanitizeIdentifier(authoredValueName);
+                if (string.IsNullOrEmpty(baseValueName))
+                {
+                    baseValueName = "Value" + valueIndex.ToString();
+                }
+
+                string uniqueValueName = MakeUniqueName(baseValueName, usedValueNameCounts);
+                string emittedValueName = EscapeReservedKeyword(uniqueValueName);
+
+                if (emittedValueName != authoredValueName)
+                {
+                    string describedValue = string.IsNullOrEmpty(authoredValueName)
+                        ? "Value " + (valueIndex + 1).ToString()
+                        : "'" + authoredValueName + "'";
+                    AddReport(
+                        reports,
+                        describedValue + " in '" + valuesClassName
+                        + "' is not a legal, unique C# identifier and is emitted as '"
+                        + emittedValueName + "'.");
+                }
+
+                source.Append("        public const int " + emittedValueName + " = " + valueIndex.ToString() + ";\n");
+            }
+
+            source.Append("    }\n");
         }
 
         // -----------------------------------------------------------------------------------

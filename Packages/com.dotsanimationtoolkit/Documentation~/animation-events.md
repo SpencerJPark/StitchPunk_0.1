@@ -104,12 +104,61 @@ the picker's search field, that opens the registry directly. There is nothing to
 by hand first: the registry auto-creates under `ProjectSettings/` the moment anything asks for it,
 the same way the target-tag registry does.
 
-Each entry has a name, its key, an optional default window, and a description shown as the picker
-row's hover text — and, in the registry inspector itself (**Project Settings → DOTS Animation
-Toolkit → Event Names**, or the picker's **Edit…** button), a row you can rename in place, with a
-**Remove** button behind a confirmation naming how many markers use it. Removing an event is a
-different cost than removing a tag: it cannot fail a bake (see below), so the dialog says the key
-becomes unresolved, not that anything breaks.
+Each entry has a name, its key, an optional default window, a description shown as the picker
+row's hover text, and an optional payload schema for its two parameters — and, in the registry
+inspector itself (**Project Settings → DOTS Animation Toolkit → Event Names**, or the picker's
+**Edit…** button), a row you can rename in place, with a **Remove** button behind a confirmation
+naming how many markers use it. Removing an event is a different cost than removing a tag: it
+cannot fail a bake (see below), so the dialog says the key becomes unresolved, not that anything
+breaks.
+
+### Payload schema
+
+`intParam` and `floatParam` are just numbers on the wire — nothing enforces what they mean. A key
+can declare a schema for them so the Clip Editor and the generated constants carry that meaning
+instead of leaving it to a comment. Set it under the row's collapsed **Payload** foldout, in the
+registry inspector or the picker's **Edit…** window:
+
+| Fields set | Clip Editor shows | Generated constant |
+|---|---|---|
+| `intParamValueNames` non-empty | Dropdown over the names (stores the index) | Nested `<Key>Values` class, one `const int` per name |
+| `intParamLabel` only | `IntegerField` titled with the label | `<summary>` names the label |
+| `floatParamLabel` (+ optional `floatParamUnit`) | `FloatField` titled with the label, unit shown as a suffix | `<summary>` names the label and unit |
+| Neither label set | Field hidden — unless a marker still stores a non-zero value there, then it shows as "Int Param (unused)" / "Float Param (unused)" in the warning colour | — |
+
+A stored `intParam` outside the named range still shows, as its raw number in the dropdown, in the
+warning colour — it is never clamped. Value names are sanitized to C# identifiers the same way row
+names are; a collision is renamed with a suffix and reported in the console. Existing registries
+need no migration — empty fields deserialize as "no schema," today's behaviour.
+
+A key with a schema generates like this:
+
+```csharp
+public static class AnimEvents
+{
+    /// <summary>Event 'Footstep'. intParam: Foot (0 = Left, 1 = Right); floatParam: Speed in m/s.</summary>
+    public const uint Footstep = 0x00000010u;
+    /// <summary>Named intParam values for 'Footstep'.</summary>
+    public static class FootstepValues
+    {
+        public const int Left = 0;
+        public const int Right = 1;
+    }
+}
+```
+
+A consumer reading a pulse checks the key, then reads the payload through the named constant
+instead of a bare `0`:
+
+```csharp
+if (eventOutput.eventKey == AnimEvents.Footstep)
+{
+    bool isLeftFoot = eventOutput.intParam == AnimEvents.FootstepValues.Left;
+    float footstepSpeed = eventOutput.floatParam;
+}
+```
+
+
 
 The registry is **authoring-only — it is never baked and never read at runtime.**
 The key/bit relationship is arithmetic, so nothing at runtime needs a table to
