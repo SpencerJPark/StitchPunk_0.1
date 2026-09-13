@@ -217,7 +217,13 @@ namespace DotsAnimationToolkit.Authoring
         P6 = 46,
 
         /// <summary>Warning: a layer's <c>startingAnimationKey</c> names an entry on a different layer, or the layer is <c>defaultActive</c> with no starter.</summary>
-        P7 = 47
+        P7 = 47,
+
+        /// <summary>Error: an event marker's key is not in the event name registry — a deleted name. Only judged when a registry is supplied.</summary>
+        V41 = 48,
+
+        /// <summary>Warning: an event marker's <c>intParam</c> is outside the named values its registry entry declares.</summary>
+        V42 = 49
     }
 
     /// <summary>Which caller is validating. Only changes the severity of the VAT-staleness check: a stale VAT bake blocks authoring but not entity baking.</summary>

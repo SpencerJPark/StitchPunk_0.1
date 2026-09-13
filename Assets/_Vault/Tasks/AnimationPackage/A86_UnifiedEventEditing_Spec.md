@@ -146,4 +146,43 @@ none unless a rule is new (the pulse-only-window warning is new — take the nex
 
 ## 7. Build log
 
-_(empty)_
+### T0 — baseline and drift (2026-09-13, head `a6983203`)
+
+Compile gate clean. Totals inherited from A85's close at the same head (EditMode 827 with the one
+pre-existing `Conformance_A` failure, PlayMode 283). Before-captures skipped: the Editor was
+unfocused (`EditorApplication.isFocused` false), so the docked window does not paint.
+
+Spec vs reality, decided and recorded here rather than re-specced silently:
+
+1. **The cutscene event inspector is `CutsceneEditorPanel.BuildEventInspector`**, not
+   `CutsceneEventInspectorProviders.cs`. That file is the public host seam
+   (`ICutsceneEventInspectorProvider`, bound to a `SerializedProperty`). It stays: the new element
+   takes a payload override the cutscene panel routes to `CutsceneEventInspectorProviders.TryBuild`,
+   so a host provider still owns the payload for the keys it claims. T7 edits the panel.
+2. **There is no cutscene validator.** `Authoring/Validation/` has only `ClipValidation` and
+   `ActorProfileValidation`; the cutscene panel's `BuildSlotValidationNotes` knows nothing about
+   events. So nothing is deleted on the cutscene side. Instead both inspectors show the selected
+   marker's `AnimEventValidation` findings under the element (`SetFindings`), and `ClipValidation`
+   delegates its event rules for the badge and the bake.
+3. **Codes (D4).** Existing: V09 (key below `FirstUserKey`, Error), V19 (negative window, Error),
+   V20 (window on a pulse-only key, Warning — so this rule is *not* new). All three move. New:
+   **V41** = 48 (key absent from the registry, Error, judged only when a registry is passed — the
+   badge passes the project registry, the bake passes none, mirroring T3's `tagRegistry`), **V42** =
+   49 (`intParam` outside the entry's value names, Warning). Enum byte values 41–47 are P1–P7, so the
+   next V takes 48. Added in T1 so T5 stays at two files.
+4. **T5's fixtures swap to the two new rules** (`KeyAbsentFromRegistry_IsAnError`,
+   `IntParamOutsideValueNames_IsAWarning`). The spec's pair (key 80 window, key 3) already exist as
+   `ClipValidationTests.V20_…` / `V09_…`, which exercise `AnimEventValidation` once T7 delegates.
+5. **D3: the cutscene lane does not paint.** `CutsceneMomentLaneElement` builds one 10px
+   `VisualElement` per marker, shaped by USS (`rotate: 45deg` diamond; `--holding` adds a 3px amber
+   border), fill per key already from `ColorForEventKey`. The clip pin is `Painter2D` in
+   `TrackLaneElement.DrawEventMarker`. So `EventLaneStyle` takes a `Painter2D` (not a
+   `MeshGenerationContext` + `Rect`), and the moment lane gains a pin mode whose markers paint the
+   pin in `generateVisualContent`; a holding event keeps its meaning as a `ToolkitPalette.Holding`
+   outline.
+6. **D5 had no task.** Added **T6b** to the wave: `EventMarkerContextMenu.cs` (Rename key, Change
+   key, Duplicate, Delete, Copy / Paste payload) over the accessor plus host callbacks. The clip lane
+   has no per-marker menu today (only the lane header's); the cutscene marker menu is "Delete" only.
+   T7 wires both.
+7. **Time row is read-only (§4.2).** The cutscene inspector's editable "Time (s)" field goes away;
+   dragging on the lane still moves the marker. Raised at T10.
