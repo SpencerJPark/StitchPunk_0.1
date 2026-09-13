@@ -9,6 +9,15 @@
 
 ## 1. The order, with checkboxes
 
+> **⏸ Owner to-do (left 2026-09-13, answer in any session):**
+> - [ ] **A86 T10:** check the unified event inspector, pins and right-click menu on a clip and a
+>   cutscene (spec §5 T10 message).
+> - [ ] **A87 T10:** give **Sound** a preview clip in Project Settings ▸ DOTS Animation Toolkit ▸
+>   Event Names (Payload foldout), then scrub across a Sound marker in any clip. Does it play? Then
+>   answer two questions. **D1:** when you click far along the ruler, should every skipped marker
+>   fire, or none (current)? **D5:** is the 120 ms own-colour outline flash visible enough?
+> - Answering either ticks its box below and updates the status line above.
+
 Tick a box only when the spec's own status line says built **and** its ⏸ owner checkpoint (if any)
 has been answered. A spec's session ticks its own tasks inside the spec; this list is the owner's
 view. Versions are the expected `CHANGELOG.md` slot; if the changelog has moved, take the next
