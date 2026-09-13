@@ -1,6 +1,6 @@
 # Amendment A83 — Decompose `ClipEditorWindow.cs` into pane elements
 
-> **Status:** ✅ built 2026-09-12 as `0.30.0` (T0–T7); ⏸ **T8 owner checkpoint open.** Option 1 of §7.4 (orchestrator slices) carried T3–T5; D8–D10 recorded in §7.
+> **Status:** ✅ built and accepted 2026-09-12 as `0.30.0` (T0–T8; owner checkpoint answered "everything works"). Option 1 of §7.4 (orchestrator slices) carried T3–T5; D8–D10 recorded in §7.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 0, second.
 > **Predecessors:** A82 (the shared column and split view, so the extracted panes do not carry
 > raw split views). `ActorEditorPanel` hosting `ActorEditorLayersColumn` / `ActorEditorProfilesColumn`
@@ -154,7 +154,7 @@ T2–T5; a worker reads only its rows.
 - [x] **T7 — Docs (orchestrator or worker).** `CHANGELOG.md` `## [0.30.0]` (one paragraph: no
   user-visible change; four pane elements). Vault note: replace every "grep the member, read forty
   lines" instruction that names the window with the pane file. `package.json`.
-- [ ] **T8 — ⏸ owner checkpoint.** Message: "Nothing should look different. Open the Clip Editor,
+- [x] **T8 — ⏸ owner checkpoint.** Message: "Nothing should look different. Open the Clip Editor,
   pick a clip, scrub, add an event, add a key, drag a hierarchy row. If any of that misbehaves,
   that is this amendment. Line counts before/after are in the spec's §7."
 
@@ -583,7 +583,6 @@ the one instruction that named the window for a member now on a pane (the inspec
 points at `Panes/ClipInspectorPane.cs`; `HANDOFF.md` §4 has the built paragraph. No
 `Documentation~` page names the window.
 
-**Left for whoever continues:** T8 (owner checkpoint) open; the roadmap box is ticked only when
-it is answered. The vault's "grep the member, read forty lines" habit still works — grep across
+**Closed 2026-09-12:** the owner drove the checkpoint and answered "everything works"; roadmap box ticked. The vault's "grep the member, read forty lines" habit still works — grep across
 `Editor/ClipEditor/`, the member kept its name.
 

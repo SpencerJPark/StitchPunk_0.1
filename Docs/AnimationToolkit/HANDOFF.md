@@ -128,8 +128,9 @@ and wired in `OnEnable` and rooted in `CreateGUI`. No UXML, rename or behaviour 
 kept their names, and a scripted check compared every moved body to the original. Suites equal to
 the baseline (EditMode 824 with the pre-existing `Conformance_A` failure, PlayMode 283). The owner
 chose the orchestrator-slices execution model after the first worker measurement; no captures
-exist (Editor unfocused), so the **T8 owner checkpoint** — open the Clip Editor, pick a clip,
-scrub, add an event, add a key, drag a hierarchy row — is the acceptance. D7's 2,500-line target
+exist (Editor unfocused), so the T8 owner checkpoint — open the Clip Editor, pick a clip,
+scrub, add an event, add a key, drag a hierarchy row — was the acceptance; **answered "everything
+works" 2026-09-12, A83 closed.** D7's 2,500-line target
 was not reached; the viewport/gizmo block is the next lift, for a later amendment.
 
 **Built (2026-09-11): Amendment A82 — one catalog column, remembered dividers — 0.29.0.** Spec
