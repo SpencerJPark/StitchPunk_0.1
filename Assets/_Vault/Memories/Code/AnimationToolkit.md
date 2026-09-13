@@ -864,6 +864,33 @@ Four traps, all of them load-bearing:
 `VatDriven` and the VAT shader properties in the `VatMesh` arm, so correct textures on a `Quad`
 target are silently useless. That is what the Rigs tab's Kind button exists to prevent.
 
+**Staleness is judged by `VatSourceHashResolver` (A89, 0.35.0), and it is the only code that
+computes the stored hash.**
+
+- **How the stamp is written.** `VatTextureSetBuilder.WriteSet` stamps `sourceHash =
+  Fold(ComputeClipsHash, ComputeRigStructureHash)` after the part loop. It also stores the rig half
+  in `sourceRigStructureHash`, which is how a stale set can say "rig changed" or "clips changed".
+- **Who reads it.** Two consumers compare against the same function: the freshness badge
+  (`Resolve`) and V08 in `ValidationBadgeElement`. Never compute a second hash to decide
+  staleness.
+- **Four traps:**
+  - **Before 0.35.0 the set stored part 0's hash only**, because the write sat inside
+    `if (partResultIndex == 0)`. An edit that touched only the Fin part of a two-part set never
+    went stale. `VatBakeResult.sourceHash` is still that per-part hash, and is logged only.
+  - **`sourceRigKey` is identity, not structure.** V40 compares it with `rig.StableId`, so the
+    rig's structure lives in `sourceRigStructureHash`. Do not fold structure into `sourceRigKey`.
+  - **A source AnimationClip is identified by GUID + `GetAssetDependencyHash` + name + length.**
+    The dependency hash moves on save, not on an unsaved in-memory edit (measured 2026-09-13), so
+    the badge refreshes on `EditorApplication.projectChanged` and on selection, never per gesture.
+    The name and length catch swapping one clip for another inside the same FBX, where the GUID
+    and dependency hash stay the same.
+  - **Only VAT-bound clips are folded** (a `vatSource.sourceClip`, any `vatTracks`, or any bone
+    tracks). Adding a sprite-only clip to a set does not make it stale. `vatSource.sampleFps` is
+    not folded because the bake uses `ClipAsset.frameRate`.
+- **Where the rig comes from on the Clip Sets tab.** That tab has no rig of its own. Its badge
+  uses the shared selection's rig when its `StableId` matches `sourceRigKey`, and otherwise finds
+  the rig in the project by stable id.
+
 **Unexplained, not chased (2026-09-08):** a rig produced by `AssetDatabase.CopyAsset` had a target
 added and saved — the YAML on disk carried it, `kind` included — yet after a domain reload Unity
 loaded that asset with `targets.Count == 0`, and a `ForceUpdate` reimport did not fix it. The copy

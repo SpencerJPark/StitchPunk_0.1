@@ -8,6 +8,41 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.35.0] — A89 — stale VAT bake detection
+
+### Added
+
+- `VatSourceHashResolver` (editor): computes a clip set + rig's VAT source hash without baking,
+  and `Resolve` reports a `VatTextureSetAsset` as `Fresh`, `Stale` (the reason says "rig changed"
+  or "clips changed") or `Unbaked`.
+- `VatFreshnessBadgeElement` (editor): a dot and a word, with the reason on hover.
+- VAT Bake tab: the badge sits beside the line under the Rig.
+- Clip Sets tab: a new read-only **VAT Textures** row names the set's texture set and carries the
+  same badge. Both refresh on selection, on save or import, and after a bake.
+- `VatTextureSetAsset.sourceRigStructureHash`: the rig half of `sourceHash`, stored so a stale
+  set can say which side moved.
+
+### Changed
+
+- **`VatTextureSetAsset.sourceHash` now covers every part and more inputs.** It used to store
+  only the first part's hash, so an edit that touched only a second part never changed it.
+  - New inputs: the rig's stable id, source prefab, and each target's path and kind; bone
+    sockets; each authored bone track's key data; and each source AnimationClip's GUID and saved
+    content (dependency hash).
+  - A clip name is now hashed stably instead of with `string.GetHashCode()`.
+  - **Every set baked before 0.35.0 reads Stale once. Rebake it.**
+- The Clip Editor's validation badge now runs the stale-bake rule V08 whenever a rig and a VAT
+  texture set are both present. Before this, nothing in the editor ever supplied the recomputed
+  hash, so V08 could not fire.
+
+### Notes
+
+- Not hashed: part display names, the bake's fallback sample rate (every clip carries its own
+  frame rate), and Full Precision.
+- An unsaved edit to an imported AnimationClip counts once it is saved.
+- `VatBakeResult.sourceHash` is still computed per part and logged, but it is no longer what the
+  set stores.
+
 ## [0.34.0] — A87 — scrub crossings and sound on scrub
 
 ### Added
