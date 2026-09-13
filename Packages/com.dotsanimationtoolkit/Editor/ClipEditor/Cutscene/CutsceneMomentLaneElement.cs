@@ -40,6 +40,13 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Marker fill color — distinguishes a facing lane from an event lane at a glance.</summary>
         public Color markerColor = new Color(0.55f, 0.75f, 0.95f);
 
+        // The Events row draws the same tapered pin as the Clip Editor's event lane instead of the
+        // USS diamond, so an event reads the same way in both editors.
+        public bool drawsEventPins;
+
+        // When set, replaces the marker's default single "Delete" menu with a caller-built one.
+        public Action<DropdownMenu, int> populateMarkerMenu;
+
         // Asked per marker on every rebuild and every in-place refresh, so a lane draws the panel's
         // whole selection set rather than the one index it was handed. Null means "only selectedIndex".
         /// <summary>Whether the item at an index is in the panel's selection.</summary>
@@ -147,17 +154,56 @@ namespace DotsAnimationToolkit.Editor
                 VisualElement marker = new VisualElement();
                 marker.AddToClassList(MarkerUssClassName);
                 marker.style.position = Position.Absolute;
-                marker.style.width = MarkerSize;
-                marker.style.height = MarkerSize;
                 marker.style.top = 2f;
-                marker.style.backgroundColor = perMarkerColors != null && capturedIndex < perMarkerColors.Count
+                Color fillColor = perMarkerColors != null && capturedIndex < perMarkerColors.Count
                     ? perMarkerColors[capturedIndex]
                     : markerColor;
-                // Shape lives in USS, not in an inline style: an inline rotate would outrank the
-                // variant classes below, and a Detach marker must be able to stop being a diamond.
-                if (capturedIndex < variantClasses.Count && !string.IsNullOrEmpty(variantClasses[capturedIndex]))
+
+                bool isHoldingVariant = capturedIndex < variantClasses.Count
+                    && variantClasses[capturedIndex] == "cutscene-editor__moment-marker--holding";
+
+                if (drawsEventPins)
                 {
-                    marker.AddToClassList(variantClasses[capturedIndex]);
+                    // Inline overrides outrank the USS diamond, but the class itself stays so other
+                    // code can still query MarkerUssClassName.
+                    marker.style.width = CurrentMarkerWidth();
+                    marker.style.height = EventLaneStyle.PinHalfHeight * 2f + 4f;
+                    marker.style.rotate = new Rotate(new Angle(0f));
+                    marker.style.borderTopWidth = 0f;
+                    marker.style.borderBottomWidth = 0f;
+                    marker.style.borderLeftWidth = 0f;
+                    marker.style.borderRightWidth = 0f;
+                    marker.style.backgroundColor = new Color(0f, 0f, 0f, 0f);
+                    marker.generateVisualContent += context =>
+                    {
+                        Rect contentRect = marker.contentRect;
+                        Vector2 centre = new Vector2(contentRect.width * 0.5f, contentRect.height * 0.5f);
+                        bool markerSelected = IsSelected(capturedIndex);
+                        if (markerSelected)
+                        {
+                            EventLaneStyle.DrawPin(context.painter2D, centre.x, centre.y, fillColor, ToolkitPalette.Selected, 2f);
+                        }
+                        else if (isHoldingVariant)
+                        {
+                            EventLaneStyle.DrawPin(context.painter2D, centre.x, centre.y, fillColor, ToolkitPalette.Holding, 2.5f);
+                        }
+                        else
+                        {
+                            EventLaneStyle.DrawPin(context.painter2D, centre.x, centre.y, fillColor, EventLaneStyle.PinOutline, 1f);
+                        }
+                    };
+                }
+                else
+                {
+                    marker.style.width = MarkerSize;
+                    marker.style.height = MarkerSize;
+                    marker.style.backgroundColor = fillColor;
+                    // Shape lives in USS, not in an inline style: an inline rotate would outrank the
+                    // variant classes below, and a Detach marker must be able to stop being a diamond.
+                    if (capturedIndex < variantClasses.Count && !string.IsNullOrEmpty(variantClasses[capturedIndex]))
+                    {
+                        marker.AddToClassList(variantClasses[capturedIndex]);
+                    }
                 }
                 marker.EnableInClassList(SelectedMarkerUssClassName, IsSelected(capturedIndex));
                 PositionMarker(marker, times[capturedIndex]);
@@ -179,8 +225,18 @@ namespace DotsAnimationToolkit.Editor
                 marker.RegisterCallback<PointerUpEvent>(
                     pointerEvent => OnMarkerPointerUp(pointerEvent, capturedIndex, marker));
                 marker.AddManipulator(new ContextualMenuManipulator(
-                    menuEvent => menuEvent.menu.AppendAction(
-                        "Delete", _ => MomentDeleteRequested?.Invoke(ResolveIndex(capturedIndex)))));
+                    menuEvent =>
+                    {
+                        if (populateMarkerMenu != null)
+                        {
+                            populateMarkerMenu(menuEvent.menu, ResolveIndex(capturedIndex));
+                        }
+                        else
+                        {
+                            menuEvent.menu.AppendAction(
+                                "Delete", _ => MomentDeleteRequested?.Invoke(ResolveIndex(capturedIndex)));
+                        }
+                    }));
 
                 Add(marker);
                 markerElements.Add(marker);
@@ -207,6 +263,7 @@ namespace DotsAnimationToolkit.Editor
             for (int index = 0; index < markerElements.Count; index++)
             {
                 markerElements[index].EnableInClassList(SelectedMarkerUssClassName, IsSelected(index));
+                markerElements[index].MarkDirtyRepaint();
             }
         }
 
@@ -262,7 +319,14 @@ namespace DotsAnimationToolkit.Editor
         private void PositionMarker(VisualElement marker, float timeSeconds)
         {
             float x = CutsceneTimelineGeometry.Create(pixelsPerSecond).TimeToX(timeSeconds);
-            marker.style.left = x - MarkerSize * 0.5f;
+            marker.style.left = x - CurrentMarkerWidth() * 0.5f;
+        }
+
+        // Pins are wider than the diamond hit box, so positioning must centre on whichever width
+        // this lane is actually drawing.
+        private float CurrentMarkerWidth()
+        {
+            return drawsEventPins ? EventLaneStyle.PinHitHalfWidth * 2f : MarkerSize;
         }
 
         private void OnMarkerPointerDown(PointerDownEvent pointerEvent, int index, VisualElement marker)

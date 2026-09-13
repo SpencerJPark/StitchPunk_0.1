@@ -94,6 +94,24 @@ reference rate used for display lives on the registry asset and defaults to 60.
 Changing it re-labels existing windows without changing how long any of them
 lasts.
 
+### Cutscene events use the same inspector
+
+A clip's event marker and a cutscene's event marker share one inspector, reading and writing
+either kind through a common accessor. Selecting a marker shows **Event** (the same picker), a
+read-only **Time** (seconds, plus the frame at the registry's reference frame rate for a clip
+marker — a cutscene marker's time is no longer editable here, drag it on the lane instead), and
+the payload fields drawn from the event's payload schema. **Window (frames)** appears only on a
+clip marker; **Fire On Skip** and **Hold Until Released** appear only on a cutscene marker — a
+field the selected marker type doesn't have is hidden rather than greyed out. A cutscene host that
+already owns a key's payload fields through its own inspector provider keeps them; the
+schema-driven fields render for every other key.
+
+On the cutscene timeline the Events row draws the same pin as the Clip Editor's event lanes,
+coloured by event name, and a marker that is holding the clock (Hold Until Released) is outlined in
+the hold color instead of drawing a thicker ring. Right-clicking a marker on either timeline opens
+**Rename key…**, **Change key…**, **Duplicate marker**, **Delete marker**, **Copy payload**, and
+**Paste payload**.
+
 ## Naming your events
 
 Event keys are `uint`s, but you never type or read one. **A name is typed in exactly one place:**
@@ -287,6 +305,11 @@ that is never stored.
 | V09 | Error | An event uses a key below 16 (reserved by the package) |
 | V19 | Error | A marker's window is negative |
 | V20 | Warning | A window is authored on a key outside 16–79, where no bit exists to observe it |
+| V41 | Error | A marker's key is not in the event name registry (the name was deleted) |
+| V42 | Warning | `intParam` is outside the named values the event's payload schema declares |
+
+These rules apply to cutscene event markers in the inspector too, except V19 and V20, which
+concern windows and cutscene markers don't have one.
 
 ## Gotchas
 

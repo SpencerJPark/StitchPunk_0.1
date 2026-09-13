@@ -8,6 +8,36 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.0] — A86 — one event editing surface for clips and cutscenes
+
+### Added
+
+- `EventMarkerInspectorElement`: one inspector for both a clip's event marker and a cutscene's
+  event marker, editing either through `IEventMarkerAccessor` (`ClipEventMarkerAccessor`,
+  `CutsceneEventMarkerAccessor`). Rows are Event, a read-only Time (seconds, plus frame for a clip
+  marker), the payload fields from the event's payload schema, then `Window (frames)` on a clip
+  marker only and `Fire On Skip` / `Hold Until Released` on a cutscene marker only — a field the
+  selected marker type doesn't have is hidden rather than disabled. A host's
+  `ICutsceneEventInspectorProvider` still owns the payload fields for the keys it claims; the
+  schema rendering applies to every other key.
+- `EventMarkerContextMenu`: right-click an event marker on either timeline for Rename key…, Change
+  key…, Duplicate marker, Delete marker, Copy payload, and Paste payload.
+- `AnimEventValidation`: one rule set for event markers, shared by clip validation and the
+  inspectors on both clip and cutscene markers. Adds **V41** (Error — a marker's key is not in the
+  event name registry) and **V42** (Warning — `intParam` is outside the named values the event's
+  payload schema declares).
+
+### Changed
+
+- Clip validation's event rules (V09, V19, V20) now live in `AnimEventValidation` with identical
+  messages; the cutscene event inspector shows the same findings (it had no event validation before).
+- The cutscene Events row draws the same pin as the Clip Editor's event lanes (`EventLaneStyle`),
+  coloured by event name; a marker holding the clock (Hold Until Released) is outlined in the hold
+  color instead of a thicker ring.
+- The cutscene event inspector now renders the payload schema's dropdown and labels instead of raw
+  Int Param / Float Param fields, and its Time field is read-only — drag the marker on the lane to
+  retime it.
+
 ## [0.32.0] — A85 — event payload schema: a key says what its parameters mean
 
 ### Added
