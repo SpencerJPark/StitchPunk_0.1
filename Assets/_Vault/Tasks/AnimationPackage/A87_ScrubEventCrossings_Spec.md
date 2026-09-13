@@ -1,6 +1,6 @@
 # Amendment A87 — Scrub crossings and sound on scrub
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.34.0`.
+> **Status:** 🔨 building 2026-09-13 (T0 probe done, see §7). Takes `0.34.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Lifts** HANDOFF §5's "not on the queue — do not start it" on the owner's 2026-09-10 instruction
 > to spec it. Sound *mixing* remains out of the package (roadmap §2).
@@ -158,4 +158,45 @@ is a scheduled style change on the existing pin element.
 
 ## 7. Build log
 
-_(empty — must contain the D3 probe result before any wave is spawned)_
+### T0 — 2026-09-13, head `e84a2aac`
+
+- **Baseline gate:** refresh + compile clean, console has no errors. Suite totals taken from the
+  A86 close at this head, not re-run: EditMode 829 (one pre-existing failure,
+  `PackagingConformanceTests.Conformance_A` asmdef reference list), PlayMode 283.
+- **D3 probe (against `Assets/Audio/Splat1.mp3`, 1.848 s, DecompressOnLoad):**
+  `EditorUtility.audioMasterMute` false; output 48 kHz stereo.
+  (1) `UnityEditor.AudioUtil` (internal type) exposes **public static**
+  `PlayPreviewClip(AudioClip clip, int startSample = 0, bool loop = false)`,
+  `IsPreviewClipPlaying()`, `StopAllPreviewClips()`. Invoked by reflection:
+  `IsPreviewClipPlaying()` returned **true** straight after.
+  (2) `EditorUtility.CreateGameObjectWithHideFlags(HideAndDontSave, AudioSource)` +
+  `PlayOneShot`: `isPlaying` **true**, but only because the open scene has an `AudioListener`.
+  **Winner: (1)**, by spec order and because it needs no listener in the open scene. Its limits,
+  carried into T4: one preview voice (a second call replaces the first) and no volume control.
+  Nobody has listened to either one yet. Both are "reported playing", and the owner's ears settle it.
+- **Drift: the playhead write is not in `TimelinePane.cs`.** The pane's `SetPlayheadTime` is a
+  delegate (`TimelinePane.cs:117`) bound to `ClipEditorWindow.SetPlayheadTime` (`:3310`, wired at
+  `:644`). Every write reaches it: ruler scrub, key click, frame step, rebuild re-set, and the play
+  tick (`OnEditorTick`, which wraps with `Floor` before calling it). **Call:** the pane gets
+  `ReportPlayheadMoved(previous, current, isPlaying, isLoopEnabled)` (T3: resolver call, lane flash,
+  player), and the window's setter calls it with the pre-clamp `playheadTime` (T7, one line). A
+  rebuild re-sets the same value and fires nothing. The pane skips a report when the selected clip
+  differs from the one it last saw, so switching clips never fires the new clip's markers.
+- **Drift: `FlashPin(int flatIndex)` cannot take a flat index.** A lane holds only its own
+  lane-local key times. **Call:** `TrackLaneElement.FlashPin(int keyIndex)` is lane-local, and the pane maps
+  flat → (lane, local) through `EventLaneAddressing`.
+- **Drift: D1's wrap test is forward-only, but the window plays backwards too** (negative speed
+  wraps 0.02 → 0.98). **Call:** while playing with Loop, a raw delta larger than half the clip is
+  a wrap taken the short way round the loop, in either direction. While not playing, the same delta
+  is a seek and fires nothing (D1 as written). The spec's two fixtures are unchanged by this.
+- **Drift: D4's `Play(AudioClip clip, float volume)`.** The winning mechanism has no volume.
+  **Call:** `Play(AudioClip clip)`, because a parameter the implementation ignores is a lie. Every
+  §4.4 caller passed `1f`.
+- **⚠ D5 interpretation.** `ToolkitPalette.EventColors` are already full alpha, so "full alpha"
+  shows nothing. **Call:** a flashing pin draws through `EventLaneStyle.DrawPin`'s explicit-outline
+  overload with the pin's own colour as a 3 px outline, which makes it swell for 120 ms. Selection
+  still wins the outline. The flash adds no new colour token. Added to the T10 question.
+- **Drift: T10 message.** This project has no `Footstep` key (registry: Sound 16, Damage 17,
+  Attack 18, Dialogue 19), and the page is **Project Settings ▸ DOTS Animation Toolkit ▸ Event
+  Names**. T10's message is adapted to name `Sound`. No key is added.
+- `Editor/ClipEditor/Preview/` exists, so §4's new files have their home.

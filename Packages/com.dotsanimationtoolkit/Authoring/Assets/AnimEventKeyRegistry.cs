@@ -175,5 +175,8 @@ namespace DotsAnimationToolkit.Authoring
 
         [Tooltip("Display suffix for floatParam, e.g. m/s. Display only.")]
         public string floatParamUnit = string.Empty;
+
+        [Tooltip("Editor-only: played when a marker with this key is crossed while scrubbing or previewing.")]
+        public AudioClip previewClip;
     }
 }
