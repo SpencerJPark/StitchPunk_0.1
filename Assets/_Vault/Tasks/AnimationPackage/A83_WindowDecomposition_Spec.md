@@ -1,6 +1,6 @@
 # Amendment A83 — Decompose `ClipEditorWindow.cs` into pane elements
 
-> **Status:** 🔧 in progress — T0–T2 built and gated 2026-09-12 (head `bf33f4bb`, still `0.29.0`); T3 sizing in §7.4 raised an execution-model question for the owner before T3 starts. Takes `0.30.0`.
+> **Status:** 🔧 in progress — T0–T3 built and gated 2026-09-12 (still `0.29.0`); owner chose option 1 of §7.4 (orchestrator slices, workers fix up) and T3 landed under it. Takes `0.30.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 0, second.
 > **Predecessors:** A82 (the shared column and split view, so the extracted panes do not carry
 > raw split views). `ActorEditorPanel` hosting `ActorEditorLayersColumn` / `ActorEditorProfilesColumn`
@@ -139,7 +139,7 @@ T2–T5; a worker reads only its rows.
   `Editor/ClipEditor/Panes/ClipListPane.cs`, `Editor/ClipEditor/ClipEditorWindow.cs` (only the
   ranges T1 lists for this pane, plus the construction site in `CreateGUI`). Move, do not rewrite.
   Gate + `ClipEditorLayoutTests` + `ClipEditorAuthoringTests`. Commit `A83-T2`.
-- [ ] **T3 — `RigHierarchyPane` (one worker).** Same shape; ranges from T1; carries
+- [x] **T3 — `RigHierarchyPane` (one worker).** Same shape; ranges from T1; carries
   `CountTracksForTarget` unchanged (A84 fixes its matching). Gate +
   `ClipEditorHierarchySelectionTests`. Commit `A83-T3`.
 - [ ] **T4 — `ClipInspectorPane` (one worker).** Ranges from T1, including the two
@@ -421,7 +421,58 @@ needing a compiling intermediate state. Three ways forward, my recommendation fi
 Option 2 gets the roadmap's benefit for one session; option 1 gets the spec's design for three.
 The owner call is which the roadmap wants before A84 starts.
 
-**Left for whoever continues:** T3–T7 unticked; D7's 2,500-line target is not reachable without
+### 7.5 T3 — `RigHierarchyPane` (2026-09-12, option 1 as chosen by the owner)
+
+- **How it was done.** The orchestrator sliced every range with an asserted line-number script
+  (each range's first and last line checked against expected text before the cut), assembled
+  `Editor/ClipEditor/Panes/RigHierarchyPane.cs` (1,322 lines) around a hand-written surface, and
+  re-pointed the window's call sites by regex on code lines only (comment lines skipped). A
+  scripted verbatim check then compared every moved body against `HEAD`: **32 identical**, and the
+  six that differ are exactly the six substituted on purpose (`BindHierarchy` queries `paneRoot`;
+  `MakeHierarchyRow`/`RegisterReparentDrag` raise events; `ApplyHierarchySelection` publishes to
+  the session where it used to call `DiscardPendingTransformEdit`; `ApplyHierarchySelectionChange`
+  and `ClearHierarchySelection` raise events where they used to clear keys and rebuild). No worker
+  was needed: the re-point families were mechanical and the one compile error was a single
+  site (`ReadRigEditPose` → `ResolveTargetSourceNode`).
+- **Surface.** Window→pane: `RebuildHierarchy`, `RefreshHierarchyRows`, `SelectHierarchyItem`,
+  `ClearHierarchySelection`, `SelectItemById`/`SelectItemsById`/`SelectItemByIdWithoutNotify`/
+  `ClearTreeSelectionWithoutNotify` (the four ways the window drove the `TreeView` directly), the
+  lookups (`ResolveHierarchyPath`, `ResolveHierarchyTransform`, `ResolveTargetSourceNode`,
+  `FindSocket`, `FindSocketIndex`, `FindRigTargetById`, `TryFind…ItemId`, `FindBoneTrackIndex`,
+  `FindItemIdByName`, `FindHierarchyItemForKey`, `DescribeSocketLabel`, `CountTracksForTarget`),
+  `IsTargetSelected`/`IsBoneSelected`/`DescribeSelection`, `RefreshPrefabActionState`, and the
+  state reads `SelectedHierarchyItems`, `ActiveHierarchyItem`, `SelectedTargetId`,
+  `SelectedBoneName`, `SelectedSocketId` (settable: `FocusSocket` writes it). Pane→window: events
+  `TreeSelectionChanged` (window clears keys, rebuilds timeline+inspector), `SelectionCleared`
+  (rebuilds both), `ContextMenuRequested` (→ `BuildHierarchyContextMenu`), `PrefabOpenRequested`
+  (→ `OpenPrefabAt`), `ReparentRequested` (→ `ReparentInPrefab`); two `Func` properties named
+  like the members they stand in for so bodies stay verbatim (`IsRigEditMode`,
+  `ResolveTargetDisplayName`). Session (D8): `SetHierarchySelection` + `HierarchySelectionChanged`,
+  whose window handler is `DiscardPendingTransformEdit` — raised at the same point in
+  `ApplyHierarchySelection` the call used to sit, so the timing is unchanged.
+- **Departures from §7.2.2, all recorded here:** `HierarchyItemKind`/`HierarchyItem` are
+  file-scope `internal` in the pane file; `SocketBelongsToItem` and `FindHierarchyItemForKey`
+  left the `ComponentStack` partial (they are hierarchy lookups over pane data — the only two
+  members that moved out of a D5 partial); `BuildHierarchyContextMenu`, the billboard/ragdoll
+  address builders, `OpenPrefabAt`, `ReparentInPrefab`, `LoadedPrefab` and the round-trip block
+  stay on the window (they touch the dock, notifications or the component stack); the pane keeps
+  a private `LoadedPrefab`/`ActiveRig` reading `selection.Rig`, which the window's
+  `ApplyRigSelection` mirrors into `activeRig` before anything reads either. `OpenPrefabForSelection`
+  (one line) was deleted; the Edit Prefab button raises `PrefabOpenRequested(ActiveHierarchyItem)`.
+- **Trap found and recorded:** the pane is constructed in `OnEnable`, not in `CreateGUI` and not
+  as a field initializer. The hidden off-screen `ClipEditorWindow` instance never runs
+  `CreateGUI`, yet `RememberSessionState` and undo read the selection on it (the lists it
+  replaced were always there), and Unity refuses a `VisualElement` in a `ScriptableObject` field
+  initializer ("VisualElementCreation is not allowed…"). Verified live: after the fix
+  `RememberSessionState` on that instance runs clean.
+- **Fixture:** `ClipEditorHierarchySelectionTests` reflected `ApplyHierarchySelection` and the
+  nested types off the window; it now reflects them off `RigHierarchyPane` bound to no tree
+  (`Bind(null, selection, session, null)`), same three assertions. `Bind` is `public` for that.
+- **Gate:** compile clean; `ClipEditorHierarchySelectionTests` (3), `ClipEditorLayoutTests` (7),
+  `PackagingConformanceTests` — pass except the pre-existing `Conformance_A`; full EditMode
+  **824** (same single failure). Window **9,176 → 8,104**, `ComponentStack` 1,531 → 1,446.
+
+**Left for whoever continues:** T4–T7 unticked; D7's 2,500-line target is not reachable without
 T3–T5; the vault "grep the member, read forty lines" instructions that name the window are still
 correct for everything but the clip list. No captures exist (§7.1).
 

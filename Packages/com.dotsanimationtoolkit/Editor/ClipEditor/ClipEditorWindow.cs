@@ -69,21 +69,6 @@ namespace DotsAnimationToolkit.Editor
 
         private const string HiddenUssClassName = "clip-editor--hidden";
         private const string TabActiveUssClassName = "clip-editor__tab--active";
-        private const string HierarchyRowUssClassName = "clip-editor__hierarchy-row";
-        private const string AnimatedBoneUssClassName = "clip-editor__hierarchy-row--animated";
-        private const string BillboardRootUssClassName = "clip-editor__hierarchy-row--billboard-root";
-        private const string BillboardInheritedUssClassName =
-            "clip-editor__hierarchy-row--billboard-inherited";
-
-        /// <summary>
-        /// Marks a declared billboard root in the tree. A glyph rather than a texture: the row is a
-        /// <c>Label</c>, so a prefix costs no layout change, survives every theme, and cannot go
-        /// missing the way a packaged icon can.
-        /// </summary>
-        private const string BillboardRootGlyph = "◈ ";
-
-        /// <summary>Marks a node inheriting a billboard from an ancestor. Deliberately fainter.</summary>
-        private const string BillboardInheritedGlyph = "· ";
         private const string TrackHeaderUssClassName = "clip-editor__track-header";
         private const string TrackHeaderLabelUssClassName = "clip-editor__track-header-label";
         private const string TrackHeaderPartUssClassName = "clip-editor__track-header-part";
@@ -122,8 +107,6 @@ namespace DotsAnimationToolkit.Editor
         private const string SelectionHeadingTagButtonUssClassName =
             "clip-editor__selection-heading-tag-button";
 
-        private TreeView hierarchyTreeView;
-        private Label hierarchyEmptyLabel;
         private ToolbarToggle snapToggle;
         private ToolbarToggle autoKeyToggle;
 
@@ -308,7 +291,6 @@ namespace DotsAnimationToolkit.Editor
         private Image previewImage;
         private Label previewStatusLabel;
         private ValidationBadgeElement validationBadge;
-        private ObjectField skinnedSourceField;
 
         private ClipPreviewController previewController;
         private bool previewRegistryDirty;
@@ -335,6 +317,10 @@ namespace DotsAnimationToolkit.Editor
         private readonly ActiveAssetSelection selection = new ActiveAssetSelection();
         private readonly ClipEditorSession session = new ClipEditorSession();
         private ClipListPane clipListPane;
+        // Constructed in OnEnable, not in CreateGUI: session capture and undo read its selection on
+        // an instance whose tree was never built (as they read the lists it replaced), and Unity
+        // forbids making a VisualElement in a field initializer.
+        private RigHierarchyPane hierarchyPane;
 
         // The rig an open Clip Editor is currently showing, or null when none is open or none is
         // picked. The one way a rig reaches code outside this window now that no asset records one.
@@ -366,74 +352,9 @@ namespace DotsAnimationToolkit.Editor
         private KeyAddress activeKey;
         private bool hasActiveKey;
 
-        // What is selected in the hierarchy, as the tree item id — which is also the preview's
-        // index for the same transform. -1 is nothing. An index rather than a name, since names
-        // repeat; an index rather than a Transform, since the preview skeleton rebuilds whenever the rig changes.
-        private int selectedHierarchyItemId = NothingSelectedItemId;
-
-        // What a hierarchy row stands for: the rig's parts, and the previewed prefab's transforms —
-        // two kinds sharing one tree since they are the two kinds of thing a clip animates. An enum
-        // rather than a pair of booleans, since most code asks "is this a prefab transform".
-        private enum HierarchyItemKind
-        {
-            /// <summary>A transform of the previewed prefab.</summary>
-            PrefabTransform,
-
-            /// <summary>A part the rig declares, which transform and flipbook tracks bind to.</summary>
-            RigTarget
-        }
-
-        private sealed class HierarchyItem
-        {
-            public HierarchyItemKind kind;
-            public string displayName;
-
-            // The rig part this row is, or 0 when the rig declares none for it. Set for a rig-target
-            // row always, and for a previewed node whenever a part records that node's path as its
-            // source — everything asking "which part is this row" reads this, not the row's kind.
-            public uint targetId;
-
-            /// <summary>Set for a previewed transform: its index in the preview's hierarchy.</summary>
-            public int previewIndex;
-        }
-
-        /// <summary>
-        /// Tree ids for rig targets, which must not collide with the preview hierarchy indices that
-        /// id the transform rows. Preview indices are always ≥ 0, so targets take the negatives —
-        /// no threshold constant to outgrow, unlike an offset scheme.
-        /// </summary>
-        private const int RigTargetItemIdBase = -2;
-
-        /// <summary>
-        /// Not −1: that is a legitimate tree id under <see cref="RigTargetItemIdBase"/>'s scheme,
-        /// and overloading it would make the first rig target indistinguishable from no selection.
-        /// </summary>
-        private const int NothingSelectedItemId = int.MinValue;
-
-        private readonly Dictionary<int, HierarchyItem> hierarchyItemsById =
-            new Dictionary<int, HierarchyItem>();
-
-        /// <summary>
-        /// Every selected row, in tree order. The timeline shows the tracks of all of them and the
-        /// inspector gives each its own labelled block.
-        /// </summary>
-        private readonly List<HierarchyItem> selectedHierarchyItems = new List<HierarchyItem>();
-
         /// <summary>Rebuilt per paste, which is once per keystroke and not per frame.</summary>
         private readonly List<ClipObjectRef> pasteDestinations = new List<ClipObjectRef>();
 
-        /// <summary>The row the gizmo and the viewport outline follow, of the several selected.</summary>
-        private int activeHierarchyItemId = NothingSelectedItemId;
-
-        /// <summary>
-        /// The previous selection, so the next change can be diffed to find the row just added.
-        /// </summary>
-        private readonly HashSet<int> previouslySelectedItemIds = new HashSet<int>();
-
-        /// <summary>Set while a selection change is being applied, to stop it re-entering itself.</summary>
-        private bool isHandlingHierarchySelection;
-
-        private Button editPrefabButton;
         private ToolbarToggle rigEditToggle;
         private ToolbarToggle ragdollPreviewToggle;
         private VisualElement reconcilePanel;
@@ -441,17 +362,6 @@ namespace DotsAnimationToolkit.Editor
         private Label reconcileTitle;
         private VisualElement viewportFrame;
         private Label rigEditBanner;
-
-        // The selected transform's name, which is the identity bone tracks bind by. Carried
-        // alongside the index rather than derived from it, so the bake's contract and the window's
-        // selection stay separate things.
-        private string selectedBoneName;
-
-        /// <summary>The selected rig target, or 0 when the selection is a bone or nothing.</summary>
-        private uint selectedTargetId;
-
-        /// <summary>The selected socket, or 0 when the selection is anything else.</summary>
-        private uint selectedSocketId;
 
         // Reused per inspector rebuild rather than allocated, since a rebuild happens on every
         // scrub tick that changes the displayed value.
@@ -595,9 +505,9 @@ namespace DotsAnimationToolkit.Editor
                 rigEditMode = IsRigEditMode,
                 tab = (int)activeTab
             };
-            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            for (int itemIndex = 0; itemIndex < hierarchyPane.SelectedHierarchyItems.Count; itemIndex++)
             {
-                state.selectedNames.Add(selectedHierarchyItems[itemIndex].displayName);
+                state.selectedNames.Add(hierarchyPane.SelectedHierarchyItems[itemIndex].displayName);
             }
             ClipEditorDocking.SetPendingState(state);
 
@@ -674,9 +584,9 @@ namespace DotsAnimationToolkit.Editor
             sessionRigEditMode = IsRigEditMode;
             sessionTab = activeTab;
             sessionSelectedNames.Clear();
-            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            for (int itemIndex = 0; itemIndex < hierarchyPane.SelectedHierarchyItems.Count; itemIndex++)
             {
-                sessionSelectedNames.Add(selectedHierarchyItems[itemIndex].displayName);
+                sessionSelectedNames.Add(hierarchyPane.SelectedHierarchyItems[itemIndex].displayName);
             }
             hasSessionState = true;
         }
@@ -765,6 +675,7 @@ namespace DotsAnimationToolkit.Editor
 
             previewController = new ClipPreviewController();
             cameraNavigation.Rig = previewController;
+            hierarchyPane = new RigHierarchyPane();
 
             // Raised while this instance is still alive and before Unity serializes it, which is the
             // only moment the state below can still be read. See RememberSessionState.
@@ -782,6 +693,7 @@ namespace DotsAnimationToolkit.Editor
             selection.RigChanged -= ApplyRigSelection;
             session.SelectedClipChanged -= SelectClip;
             session.RebuildRequested -= OnPaneRequestedRebuild;
+            session.HierarchySelectionChanged -= DiscardPendingTransformEdit;
 
             // Again here, so the capture does not depend on Unity raising beforeAssemblyReload
             // before OnDisable rather than after. Both run before this instance is serialized, and
@@ -806,6 +718,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 clipListPane.Dispose();
                 clipListPane = null;
+            }
+            if (hierarchyPane != null)
+            {
+                hierarchyPane.Dispose();
+                hierarchyPane = null;
             }
 
             // Both cover panes own a PreviewRenderUtility of their own, plus a copy of whatever
@@ -920,11 +837,19 @@ namespace DotsAnimationToolkit.Editor
             selection.RigChanged += ApplyRigSelection;
             session.SelectedClipChanged += SelectClip;
             session.RebuildRequested += OnPaneRequestedRebuild;
+            session.HierarchySelectionChanged += DiscardPendingTransformEdit;
 
             BindToolbar();
             clipListPane = new ClipListPane();
             clipListPane.Bind(rootVisualElement.Q<VisualElement>("clip-list-pane"), selection, session, previewController);
-            BindHierarchy();
+            hierarchyPane.IsRigEditMode = () => IsRigEditMode;
+            hierarchyPane.ResolveTargetDisplayName = ResolveTargetDisplayName;
+            hierarchyPane.TreeSelectionChanged += OnHierarchyTreeSelectionChanged;
+            hierarchyPane.SelectionCleared += OnHierarchySelectionCleared;
+            hierarchyPane.ContextMenuRequested += BuildHierarchyContextMenu;
+            hierarchyPane.PrefabOpenRequested += OpenPrefabAt;
+            hierarchyPane.ReparentRequested += ReparentInPrefab;
+            hierarchyPane.Bind(rootVisualElement.Q<VisualElement>("hierarchy-pane"), selection, session, previewController);
             BindViewport();
             BindInspector();
             BindTimeline();
@@ -950,7 +875,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             clipListPane.RefreshClipActionButtons();
-            RebuildHierarchy();
+            hierarchyPane.RebuildHierarchy();
             RebuildTimeline();
 
             // Last, because both drive the fields and the tree this method has only just finished
@@ -1089,23 +1014,6 @@ namespace DotsAnimationToolkit.Editor
                 });
             }
 
-            // The rig this window plays the open set against. Window state only — no asset records
-            // it, and picking one here changes nothing any actor bakes. The rig's own sourcePrefab
-            // is what the preview instantiates and the hierarchy pane lists, so an empty field is
-            // an empty hierarchy pane rather than a missing one.
-            skinnedSourceField = rootVisualElement.Q<ObjectField>("skinned-source-field");
-            if (skinnedSourceField != null)
-            {
-                skinnedSourceField.objectType = typeof(RigAsset);
-                skinnedSourceField.allowSceneObjects = false;
-                skinnedSourceField.tooltip =
-                    "The rig this window animates. Its Source Prefab is what the hierarchy lists "
-                    + "and the preview instantiates. Shared with every tab — the Rigs tab picks it "
-                    + "too.";
-                skinnedSourceField.RegisterValueChangedCallback(
-                    changeEvent => selection.SetRig(changeEvent.newValue as RigAsset));
-            }
-
             VisualElement badgeSlot = rootVisualElement.Q<VisualElement>("validation-badge-slot");
             if (badgeSlot != null)
             {
@@ -1119,49 +1027,6 @@ namespace DotsAnimationToolkit.Editor
             return VocabularyRegistryProvider.TargetTags;
         }
 
-        /// <summary>Creates a clip set wherever the user chooses, and loads it into the window.</summary>
-        private void BindHierarchy()
-        {
-            hierarchyEmptyLabel = rootVisualElement.Q<Label>("hierarchy-empty-label");
-
-            hierarchyTreeView = rootVisualElement.Q<TreeView>("hierarchy-tree");
-            if (hierarchyTreeView == null)
-            {
-                return;
-            }
-            hierarchyTreeView.fixedItemHeight = 20f;
-
-            // Multiple, so several parts can be focused on the timeline at once. Ctrl-click adds,
-            // shift-click extends — the conventions every list in the editor already uses.
-            hierarchyTreeView.selectionType = SelectionType.Multiple;
-            hierarchyTreeView.makeItem = MakeHierarchyRow;
-            hierarchyTreeView.bindItem = BindHierarchyRow;
-            hierarchyTreeView.selectionChanged += OnHierarchySelectionChanged;
-
-            editPrefabButton = rootVisualElement.Q<Button>("edit-prefab-button");
-            if (editPrefabButton != null)
-            {
-                editPrefabButton.clicked += OpenPrefabForSelection;
-            }
-            RefreshPrefabActionState();
-        }
-
-        // Disabled rather than left to fail on click: a scene object dropped into the rig field
-        // has no prefab asset behind it to open.
-        private void RefreshPrefabActionState()
-        {
-            if (editPrefabButton == null)
-            {
-                return;
-            }
-            bool canOpen = PrefabAuthoringBridge.CanOpen(LoadedPrefab);
-            editPrefabButton.SetEnabled(canOpen);
-            editPrefabButton.tooltip = canOpen
-                ? "Open this prefab in Unity's prefab mode. Structural edits — parenting, adding "
-                    + "parts, moving meshes — belong there, not here."
-                : "Pick a rig above the hierarchy, and give that rig a Source Prefab, to edit it.";
-        }
-
         // The one place that reads the rig's prefab, so every consumer below follows the rig field
         // to the same answer.
         private GameObject LoadedPrefab
@@ -1170,60 +1035,6 @@ namespace DotsAnimationToolkit.Editor
             {
                 return activeRig != null ? activeRig.sourcePrefab : null;
             }
-        }
-
-        /// <summary>The path of a hierarchy row's object below the prefab root, for addressing it in a stage.</summary>
-        private string ResolveHierarchyPath(HierarchyItem item)
-        {
-            if (item == null || previewController == null)
-            {
-                return string.Empty;
-            }
-
-            Transform root = previewController.HierarchyRoot;
-            if (root == null)
-            {
-                return string.Empty;
-            }
-
-            Transform node;
-            switch (item.kind)
-            {
-                case HierarchyItemKind.RigTarget:
-                    // The recorded path first, when the target has one: two planes called "Plane"
-                    // is the ordinary case, and a name match would pick whichever came first.
-                    node = ResolveTargetSourceNode(item.targetId, root);
-                    if (node == null)
-                    {
-                        node = PrefabAuthoringBridge.FindByName(root, item.displayName);
-                    }
-                    break;
-                default:
-                    node = previewController.GetTransformByIndex(item.previewIndex);
-                    break;
-            }
-            return node != null ? PrefabAuthoringBridge.GetHierarchyPath(node, root) : string.Empty;
-        }
-
-        /// <summary>The previewed node a rig target records as its source, or null when it has none.</summary>
-        private Transform ResolveTargetSourceNode(uint targetId, Transform root)
-        {
-            RigAsset rig = ActiveRig;
-            if (rig == null || rig.targets == null || root == null || targetId == 0u)
-            {
-                return null;
-            }
-            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
-            {
-                RigTargetDefinition target = rig.targets[targetIndex];
-                if (target == null || target.Id.Value != targetId
-                    || string.IsNullOrEmpty(target.sourceNodePath))
-                {
-                    continue;
-                }
-                return PrefabAuthoringBridge.ResolveByPath(root, target.sourceNodePath);
-            }
-            return null;
         }
 
         // -------------------------------------------------------------------------------------
@@ -1242,9 +1053,9 @@ namespace DotsAnimationToolkit.Editor
         {
             roundTripPlayheadTime = playheadTime;
             roundTripSelectedNames.Clear();
-            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            for (int itemIndex = 0; itemIndex < hierarchyPane.SelectedHierarchyItems.Count; itemIndex++)
             {
-                roundTripSelectedNames.Add(selectedHierarchyItems[itemIndex].displayName);
+                roundTripSelectedNames.Add(hierarchyPane.SelectedHierarchyItems[itemIndex].displayName);
             }
             hasRoundTripState = true;
         }
@@ -1315,10 +1126,10 @@ namespace DotsAnimationToolkit.Editor
 
             // Order matters: the tree must rebuild from the new hierarchy before selection/playhead
             // restore, and reconciliation last, since it diffs against that rebuilt hierarchy.
-            RebuildHierarchy();
+            hierarchyPane.RebuildHierarchy();
             RestoreRoundTripState();
             RebuildTimeline();
-            RefreshPrefabActionState();
+            hierarchyPane.RefreshPrefabActionState();
             MarkPreviewDirty();
 
             RunReconciliation();
@@ -1337,34 +1148,18 @@ namespace DotsAnimationToolkit.Editor
             List<int> restoredIds = new List<int>();
             for (int nameIndex = 0; nameIndex < roundTripSelectedNames.Count; nameIndex++)
             {
-                int itemId = FindItemIdByName(roundTripSelectedNames[nameIndex]);
-                if (itemId != NothingSelectedItemId)
+                int itemId = hierarchyPane.FindItemIdByName(roundTripSelectedNames[nameIndex]);
+                if (itemId != RigHierarchyPane.NothingSelectedItemId)
                 {
                     restoredIds.Add(itemId);
                 }
             }
 
-            if (hierarchyTreeView == null || restoredIds.Count == 0)
+            if (restoredIds.Count == 0)
             {
                 return;
             }
-            hierarchyTreeView.SetSelectionById(restoredIds);
-        }
-
-        private int FindItemIdByName(string displayName)
-        {
-            if (string.IsNullOrEmpty(displayName))
-            {
-                return NothingSelectedItemId;
-            }
-            foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
-            {
-                if (pair.Value != null && pair.Value.displayName == displayName)
-                {
-                    return pair.Key;
-                }
-            }
-            return NothingSelectedItemId;
+            hierarchyPane.SelectItemsById(restoredIds);
         }
 
         // -------------------------------------------------------------------------------------
@@ -1706,7 +1501,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            RebuildHierarchy();
+            hierarchyPane.RebuildHierarchy();
             RebuildTimeline();
             RebuildInspector();
         }
@@ -1762,14 +1557,14 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Writes a gizmo drag into the prefab's base pose.</summary>
         private void CommitRigBaseEdit(float3 position, float3 rotationDegrees, float3 scale)
         {
-            HierarchyItem item = ActiveHierarchyItem;
+            HierarchyItem item = hierarchyPane.ActiveHierarchyItem;
             if (item == null)
             {
                 ShowNotification(new GUIContent("Select a part to edit its base pose."));
                 return;
             }
 
-            string path = ResolveHierarchyPath(item);
+            string path = hierarchyPane.ResolveHierarchyPath(item);
             GameObject prefab = LoadedPrefab;
             if (prefab == null)
             {
@@ -1976,12 +1771,6 @@ namespace DotsAnimationToolkit.Editor
             MarkPreviewDirty();
         }
 
-        /// <summary>Opens prefab mode on the active row, or on the prefab root when none is picked.</summary>
-        private void OpenPrefabForSelection()
-        {
-            OpenPrefabAt(ActiveHierarchyItem);
-        }
-
         private void OpenPrefabAt(HierarchyItem item)
         {
             GameObject prefab = LoadedPrefab;
@@ -2004,7 +1793,7 @@ namespace DotsAnimationToolkit.Editor
                 // Docking first, opening second. Reopening the window is itself a focus grab, so
                 // doing it after the stage had opened would snatch focus straight back off the
                 // Scene view the user just asked to look at.
-                string pathToOpen = ResolveHierarchyPath(item);
+                string pathToOpen = hierarchyPane.ResolveHierarchyPath(item);
                 GameObject prefabToOpen = prefab;
                 RedockBesideSceneView(() =>
                 {
@@ -2014,7 +1803,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            PrefabAuthoringBridge.OpenPrefab(prefab, ResolveHierarchyPath(item));
+            PrefabAuthoringBridge.OpenPrefab(prefab, hierarchyPane.ResolveHierarchyPath(item));
 
             // Deferred by one tick: the stage's own scene view is still being brought up by the
             // call above, and focusing into the middle of that lands on the outgoing view.
@@ -2041,7 +1830,7 @@ namespace DotsAnimationToolkit.Editor
                 action =>
                 {
                     if (!PrefabAuthoringBridge.SelectInOpenStageOrScene(
-                            LoadedPrefab, ResolveHierarchyPath(item)))
+                            LoadedPrefab, hierarchyPane.ResolveHierarchyPath(item)))
                     {
                         ShowNotification(new GUIContent(
                             "No open prefab stage or scene instance holds that object."));
@@ -2129,7 +1918,7 @@ namespace DotsAnimationToolkit.Editor
             return new RigNodeAddress
             {
                 kind = RigNodeAddressKind.HierarchyPath,
-                hierarchyPath = ResolveHierarchyPath(item)
+                hierarchyPath = hierarchyPane.ResolveHierarchyPath(item)
             };
         }
 
@@ -2201,7 +1990,7 @@ namespace DotsAnimationToolkit.Editor
             return new RigNodeAddress
             {
                 kind = RigNodeAddressKind.HierarchyPath,
-                hierarchyPath = ResolveHierarchyPath(item)
+                hierarchyPath = hierarchyPane.ResolveHierarchyPath(item)
             };
         }
 
@@ -2210,7 +1999,7 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private void RefreshAfterBillboardEdit()
         {
-            RefreshHierarchyRows();
+            hierarchyPane.RefreshHierarchyRows();
             if (previewImage != null)
             {
                 previewImage.MarkDirtyRepaint();
@@ -2703,9 +2492,9 @@ namespace DotsAnimationToolkit.Editor
 
             // A socket takes the gizmo wherever its marker currently sits, clip or no clip: its
             // offset is rig data, so it is placeable without a clip selected at all.
-            if (selectedSocketId != 0u)
+            if (hierarchyPane.SelectedSocketId != 0u)
             {
-                Transform marker = previewController.GetSocketMarker(selectedSocketId);
+                Transform marker = previewController.GetSocketMarker(hierarchyPane.SelectedSocketId);
                 previewController.SetGizmo(
                     marker != null, gizmoMode,
                     marker != null ? marker.localPosition : Vector3.zero,
@@ -2719,9 +2508,9 @@ namespace DotsAnimationToolkit.Editor
             // rule; it used to be reimplemented here as "selectedTargetId == 0u || selectedClip ==
             // null", which is a clip-authoring question and made Rig Edit dead whenever no clip was
             // open or the node was a bare grouping transform or skinned bone.
-            HierarchyItem activeRigEditItem = IsRigEditMode ? ActiveHierarchyItem : null;
+            HierarchyItem activeRigEditItem = IsRigEditMode ? hierarchyPane.ActiveHierarchyItem : null;
             if (!GizmoDragRouting.ShouldShowTransformGizmo(
-                    IsRigEditMode, activeRigEditItem != null, selectedTargetId != 0u, selectedClip != null))
+                    IsRigEditMode, activeRigEditItem != null, hierarchyPane.SelectedTargetId != 0u, selectedClip != null))
             {
                 previewController.SetGizmo(false, gizmoMode, Vector3.zero, GizmoHandle.None);
                 return;
@@ -2737,7 +2526,7 @@ namespace DotsAnimationToolkit.Editor
             float3 rotationDegrees;
             float3 scale;
             ResolveDisplayedTransform(
-                selectedTargetId, out position, out rotationDegrees, out scale);
+                hierarchyPane.SelectedTargetId, out position, out rotationDegrees, out scale);
 
             previewController.SetGizmo(
                 true, gizmoMode, new Vector3(position.x, position.y, position.z), activeGizmoHandle);
@@ -2748,7 +2537,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Rig Edit's gizmo pivot: the selected node's own live preview transform, or a held drag's value.</summary>
         private void RefreshRigEditGizmo(HierarchyItem item)
         {
-            Transform node = ResolveHierarchyTransform(item);
+            Transform node = hierarchyPane.ResolveHierarchyTransform(item);
             if (node == null)
             {
                 previewController.SetGizmo(false, gizmoMode, Vector3.zero, GizmoHandle.None);
@@ -2855,11 +2644,11 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Whether the press landed on a gizmo handle, and if so, starts the drag.</summary>
         private bool TryBeginGizmoDrag(Vector2 localPosition)
         {
-            bool draggingSocket = selectedSocketId != 0u;
-            HierarchyItem activeRigEditItem = (!draggingSocket && IsRigEditMode) ? ActiveHierarchyItem : null;
+            bool draggingSocket = hierarchyPane.SelectedSocketId != 0u;
+            HierarchyItem activeRigEditItem = (!draggingSocket && IsRigEditMode) ? hierarchyPane.ActiveHierarchyItem : null;
             if (!draggingSocket
                 && !GizmoDragRouting.ShouldShowTransformGizmo(
-                    IsRigEditMode, activeRigEditItem != null, selectedTargetId != 0u, selectedClip != null))
+                    IsRigEditMode, activeRigEditItem != null, hierarchyPane.SelectedTargetId != 0u, selectedClip != null))
             {
                 return false;
             }
@@ -2885,7 +2674,7 @@ namespace DotsAnimationToolkit.Editor
                 // The drag works in the marker's own space, which is where the gizmo is drawn.
                 // The offset it writes back is in the followed part's space, and the conversion
                 // between the two happens once, on release.
-                Transform marker = previewController.GetSocketMarker(selectedSocketId);
+                Transform marker = previewController.GetSocketMarker(hierarchyPane.SelectedSocketId);
                 if (marker == null)
                 {
                     return false;
@@ -2901,7 +2690,7 @@ namespace DotsAnimationToolkit.Editor
                 // No track to seed from -- the drag starts from the node's own live pose, not a
                 // clip-relative offset. See RefreshRigEditGizmo for why sampling the clip here would
                 // be wrong.
-                Transform node = ResolveHierarchyTransform(activeRigEditItem);
+                Transform node = hierarchyPane.ResolveHierarchyTransform(activeRigEditItem);
                 if (node == null)
                 {
                     return false;
@@ -2914,14 +2703,14 @@ namespace DotsAnimationToolkit.Editor
             else
             {
                 ResolveDisplayedTransform(
-                    selectedTargetId, out position, out rotationDegrees, out scale);
+                    hierarchyPane.SelectedTargetId, out position, out rotationDegrees, out scale);
             }
 
             // One step for the whole drag, opened before the first pointer move writes anything —
             // the same rule the release path follows for a key. Only for a drag that will hold a
             // clip value: a socket or Rig Edit drag records its own object when it commits, and a
             // step here would be a "Move Part" that moved nothing.
-            if (selectedSocketId == 0u && !IsRigEditMode)
+            if (hierarchyPane.SelectedSocketId == 0u && !IsRigEditMode)
             {
                 RecordHeldTransformEdit("Move Part");
             }
@@ -3065,7 +2854,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Sends a drag's value wherever the current selection says it belongs.</summary>
         private void ApplyGizmoDragValue(float3 position, float3 rotationDegrees, float3 scale)
         {
-            if (selectedSocketId != 0u)
+            if (hierarchyPane.SelectedSocketId != 0u)
             {
                 pendingSocketPosition = position;
                 pendingSocketRotation = rotationDegrees;
@@ -3082,7 +2871,7 @@ namespace DotsAnimationToolkit.Editor
                 PreviewRigNodeDrag(position, rotationDegrees, scale);
                 return;
             }
-            ApplyTransformEdit(selectedTargetId, position, rotationDegrees, scale, false);
+            ApplyTransformEdit(hierarchyPane.SelectedTargetId, position, rotationDegrees, scale, false);
         }
 
         private bool hasPendingSocketEdit;
@@ -3092,7 +2881,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Moves the selected node live during a Rig Edit drag, without touching the asset.</summary>
         private void PreviewRigNodeDrag(float3 position, float3 rotationDegrees, float3 scale)
         {
-            Transform node = ResolveHierarchyTransform(ActiveHierarchyItem);
+            Transform node = hierarchyPane.ResolveHierarchyTransform(hierarchyPane.ActiveHierarchyItem);
             if (node == null)
             {
                 return;
@@ -3105,7 +2894,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Moves the marker during the drag, without touching the asset.</summary>
         private void PreviewSocketDrag(float3 position, float3 rotationDegrees)
         {
-            Transform marker = previewController.GetSocketMarker(selectedSocketId);
+            Transform marker = previewController.GetSocketMarker(hierarchyPane.SelectedSocketId);
             if (marker == null)
             {
                 return;
@@ -3118,7 +2907,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Writes a finished socket drag back as an offset in the followed thing's space.</summary>
         private void CommitSocketDrag()
         {
-            SocketDefinition socket = FindSocket(selectedSocketId);
+            SocketDefinition socket = hierarchyPane.FindSocket(hierarchyPane.SelectedSocketId);
             RigAsset rig = ActiveRig;
             if (socket == null || rig == null || !hasPendingSocketEdit)
             {
@@ -3167,7 +2956,7 @@ namespace DotsAnimationToolkit.Editor
             // for it and would make Resolve report Nothing regardless of the drag that just happened.
             bool hasPendingEdit = IsRigEditMode ? hasPendingRigPoseEdit : hasPendingTransformEdit;
             GizmoDragDestination destination = GizmoDragRouting.Resolve(
-                selectedSocketId != 0u, false, IsRigEditMode, IsAutoKeyEnabled, hasPendingEdit);
+                hierarchyPane.SelectedSocketId != 0u, false, IsRigEditMode, IsAutoKeyEnabled, hasPendingEdit);
 
             switch (destination)
             {
@@ -3261,7 +3050,7 @@ namespace DotsAnimationToolkit.Editor
             if (pickCandidates.Count == 0)
             {
                 previousPickCandidates.Clear();
-                ClearHierarchySelection();
+                hierarchyPane.ClearHierarchySelection();
                 return;
             }
 
@@ -3304,7 +3093,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Selects a transform of the previewed rig by driving the tree, not by bypassing it.</summary>
         private void SelectHierarchyTransform(Transform pickedTransform)
         {
-            if (hierarchyTreeView == null || previewController == null)
+            if (previewController == null)
             {
                 return;
             }
@@ -3320,12 +3109,11 @@ namespace DotsAnimationToolkit.Editor
             // of the thing it follows rather than a row of its own.
             if (previewController.TryGetSocketIdForTransform(pickedTransform, out pickedSocketId))
             {
-                if (!TryFindSocketSourceItemId(pickedSocketId, out itemId))
+                if (!hierarchyPane.TryFindSocketSourceItemId(pickedSocketId, out itemId))
                 {
                     return;
                 }
-                hierarchyTreeView.SetSelectionById(itemId);
-                hierarchyTreeView.ScrollToItemById(itemId);
+                hierarchyPane.SelectItemById(itemId);
                 FocusSocket(pickedSocketId);
                 RebuildInspector();
                 return;
@@ -3334,7 +3122,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 // A cutout part quad. Its row is a rig target, not a transform of the previewed
                 // prefab, so the id comes from the target table rather than the preview hierarchy.
-                if (!TryFindRigTargetItemId(pickedTargetId, out itemId))
+                if (!hierarchyPane.TryFindRigTargetItemId(pickedTargetId, out itemId))
                 {
                     return;
                 }
@@ -3348,10 +3136,8 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            hierarchyTreeView.SetSelectionById(itemId);
-
             // Every item is expanded when the tree is built, so the row exists to be scrolled to.
-            hierarchyTreeView.ScrollToItemById(itemId);
+            hierarchyPane.SelectItemById(itemId);
         }
 
         private void OnPreviewWheel(WheelEvent wheelEvent)
@@ -3365,7 +3151,6 @@ namespace DotsAnimationToolkit.Editor
         private void ApplyRigSelection(RigAsset rig)
         {
             activeRig = rig;
-            skinnedSourceField?.SetValueWithoutNotify(rig);
 
             if (previewController != null)
             {
@@ -3374,10 +3159,10 @@ namespace DotsAnimationToolkit.Editor
             }
             // Cleared before the tree is rebuilt: the old instance's transforms are gone, so the
             // held index now points into a hierarchy that no longer exists.
-            SelectHierarchyItem(NothingSelectedItemId);
+            hierarchyPane.SelectHierarchyItem(RigHierarchyPane.NothingSelectedItemId);
             previousPickCandidates.Clear();
             pickCandidates.Clear();
-            RebuildHierarchy();
+            hierarchyPane.RebuildHierarchy();
             RebuildTimeline();
             RebuildInspector();
             if (validationBadge != null)
@@ -3390,306 +3175,7 @@ namespace DotsAnimationToolkit.Editor
             // no rig is assigned yet — and never re-enabled, so assigning a rig left a button that
             // swallowed clicks in silence. ApplyClipSetSelection carries the same refresh now, for
             // the other place LoadedPrefab can change.
-            RefreshPrefabActionState();
-        }
-
-        // -------------------------------------------------------------------------------------
-        // Prefab hierarchy. The rig's transforms, as the pick list for bone tracks.
-        // -------------------------------------------------------------------------------------
-
-        /// <summary>Rebuilds the hierarchy from the assigned rigged prefab.</summary>
-        private void RebuildHierarchy()
-        {
-            if (hierarchyTreeView == null)
-            {
-                return;
-            }
-
-            hierarchyItemsById.Clear();
-            List<TreeViewItemData<HierarchyItem>> rootItems = new List<TreeViewItemData<HierarchyItem>>();
-
-            // The rig's parts come first: they are what a cutout clip animates, and they are what a
-            // flipbook track binds to. Before this they appeared nowhere in the window, so a
-            // flipbook track had no object to belong to.
-            rootItems.AddRange(BuildRigTargetItems());
-
-            // Built from the preview's live instance, not from the prefab asset. The viewport picks
-            // transforms out of that instance, so sourcing the tree from it means a picked object is
-            // literally a node of the tree's own source — no mapping between two hierarchies that
-            // have to be kept in agreement.
-            Transform hierarchyRoot = previewController != null ? previewController.HierarchyRoot : null;
-            if (hierarchyRoot != null)
-            {
-                rootItems.Add(BuildHierarchyItem(hierarchyRoot));
-            }
-
-            hierarchyTreeView.SetRootItems(rootItems);
-            hierarchyTreeView.Rebuild();
-            if (rootItems.Count > 0)
-            {
-                // Expanded up front so any id the viewport picks has a visible row to select and
-                // scroll to, without the window having to walk up and expand ancestors first.
-                hierarchyTreeView.ExpandAll();
-            }
-
-            if (hierarchyEmptyLabel != null)
-            {
-                hierarchyEmptyLabel.text = ResolveHierarchyEmptyMessage();
-                hierarchyEmptyLabel.EnableInClassList(HiddenUssClassName, rootItems.Count > 0);
-            }
-        }
-
-        /// <summary>What the empty-hierarchy hint should say, given why it is empty.</summary>
-        private string ResolveHierarchyEmptyMessage()
-        {
-            if (clipSet == null)
-            {
-                return "Assign a clip set.";
-            }
-            if (ActiveRig == null)
-            {
-                return "Pick a rig above the hierarchy.";
-            }
-            if (ActiveRig.sourcePrefab == null)
-            {
-                return "Rig \"" + ActiveRig.name + "\" has no Source Prefab assigned yet. Open "
-                    + "the rig asset and assign one to preview and author bone tracks.";
-            }
-            return "This rig's source prefab has no child transforms to show.";
-        }
-
-        // The id is the preview's own index for that transform, not a counter kept here — two
-        // independent walks would agree only as long as nobody changed one of them.
-        /// <summary>Builds one tree item, taking its id from the preview.</summary>
-        private TreeViewItemData<HierarchyItem> BuildHierarchyItem(Transform transformNode)
-        {
-            List<TreeViewItemData<HierarchyItem>> childItems =
-                new List<TreeViewItemData<HierarchyItem>>();
-            for (int childIndex = 0; childIndex < transformNode.childCount; childIndex++)
-            {
-                childItems.Add(BuildHierarchyItem(transformNode.GetChild(childIndex)));
-            }
-
-            int itemId = previewController.GetHierarchyIndex(transformNode);
-            HierarchyItem item = new HierarchyItem
-            {
-                kind = HierarchyItemKind.PrefabTransform,
-                displayName = transformNode.name,
-                previewIndex = itemId,
-                targetId = ResolveNodeTargetId(transformNode)
-            };
-            hierarchyItemsById[itemId] = item;
-            return new TreeViewItemData<HierarchyItem>(itemId, item, childItems);
-        }
-
-        /// <summary>The rig part claiming a previewed node, or 0 when none does.</summary>
-        private uint ResolveNodeTargetId(Transform transformNode)
-        {
-            RigAsset rig = ActiveRig;
-            Transform root = previewController != null ? previewController.HierarchyRoot : null;
-            if (rig == null || root == null || transformNode == null)
-            {
-                return 0u;
-            }
-            return ClipComponentModel.ResolveTargetIdForNode(
-                rig, PrefabAuthoringBridge.GetHierarchyPath(transformNode, root));
-        }
-
-        // A target recording which previewed node it stands for is skipped: that node's own row is
-        // where it appears, and two rows for one part could not be told apart.
-        /// <summary>One row per rig target that has no node of its own, flat.</summary>
-        private List<TreeViewItemData<HierarchyItem>> BuildRigTargetItems()
-        {
-            List<TreeViewItemData<HierarchyItem>> targetItems =
-                new List<TreeViewItemData<HierarchyItem>>();
-            RigAsset rig = ActiveRig;
-            if (rig == null || rig.targets == null)
-            {
-                return targetItems;
-            }
-
-            Transform hierarchyRoot = previewController != null
-                ? previewController.HierarchyRoot
-                : null;
-
-            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
-            {
-                RigTargetDefinition target = rig.targets[targetIndex];
-                if (target == null)
-                {
-                    continue;
-                }
-                if (hierarchyRoot != null && !string.IsNullOrEmpty(target.sourceNodePath)
-                    && PrefabAuthoringBridge.ResolveByPath(
-                        hierarchyRoot, target.sourceNodePath) != null)
-                {
-                    continue;
-                }
-
-                int itemId = RigTargetItemIdBase - targetIndex;
-                HierarchyItem item = new HierarchyItem
-                {
-                    kind = HierarchyItemKind.RigTarget,
-                    displayName = string.IsNullOrEmpty(target.displayName)
-                        ? "Target " + target.Id.Value.ToString()
-                        : target.displayName,
-                    targetId = target.Id.Value
-                };
-                hierarchyItemsById[itemId] = item;
-                targetItems.Add(new TreeViewItemData<HierarchyItem>(itemId, item));
-            }
-            return targetItems;
-        }
-
-        /// <summary>A socket's one-line label: its name, what it follows, and a mark when that resolves to nothing.</summary>
-        private string DescribeSocketLabel(SocketDefinition socket)
-        {
-            string name = string.IsNullOrEmpty(socket.displayName)
-                ? "Socket " + socket.Id.Value.ToString()
-                : socket.displayName;
-
-            string follows = socket.mode == SocketAttachMode.RigTarget
-                ? ResolveTargetDisplayName(socket.targetId)
-                : (string.IsNullOrEmpty(socket.boneName) ? "<no bone>" : socket.boneName);
-
-            bool resolved = previewController != null && previewController.IsSocketResolved(socket);
-            return name + "  →  " + follows + (resolved ? string.Empty : "   (unresolved)");
-        }
-
-        /// <summary>The socket with this id on the loaded rig, or null.</summary>
-        private SocketDefinition FindSocket(uint socketId)
-        {
-            RigAsset rig = ActiveRig;
-            if (rig == null || rig.sockets == null)
-            {
-                return null;
-            }
-            for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
-            {
-                SocketDefinition socket = rig.sockets[socketIndex];
-                if (socket != null && socket.Id.Value == socketId)
-                {
-                    return socket;
-                }
-            }
-            return null;
-        }
-
-        private int FindSocketIndex(uint socketId)
-        {
-            RigAsset rig = ActiveRig;
-            if (rig == null || rig.sockets == null)
-            {
-                return -1;
-            }
-            for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
-            {
-                SocketDefinition socket = rig.sockets[socketIndex];
-                if (socket != null && socket.Id.Value == socketId)
-                {
-                    return socketIndex;
-                }
-            }
-            return -1;
-        }
-
-        // Manipulator and double-click callback are attached once, reading the row's current item
-        // through a field the bind step refreshes — rows are recycled, so binding per-item would
-        // stack a new handler on the same element every time it scrolled back into view.
-        /// <summary>One hierarchy row, wired for the two gestures that reach prefab mode.</summary>
-        private VisualElement MakeHierarchyRow()
-        {
-            HierarchyRowLabel label = new HierarchyRowLabel();
-            label.AddToClassList(HierarchyRowUssClassName);
-
-            label.AddManipulator(new ContextualMenuManipulator(
-                menuEvent => BuildHierarchyContextMenu(menuEvent, label.item)));
-
-            label.RegisterCallback<PointerDownEvent>(pointerEvent =>
-            {
-                if (pointerEvent.clickCount >= 2 && pointerEvent.button == 0)
-                {
-                    OpenPrefabAt(label.item);
-                }
-            });
-
-            RegisterReparentDrag(label);
-
-            return label;
-        }
-
-        // Built on DragAndDrop and UI Toolkit's drag events, not the TreeView's own drag hooks
-        // (not public in this Unity version) — the built-in reorderable flag would reorder the
-        // view and leave the prefab untouched, which is the parallel hierarchy this must not become.
-        /// <summary>Wires one row for drag-to-reparent, which only does anything in Rig Edit mode.</summary>
-        private void RegisterReparentDrag(HierarchyRowLabel label)
-        {
-            label.RegisterCallback<PointerMoveEvent>(pointerEvent =>
-            {
-                if (!IsRigEditMode
-                    || pointerEvent.pressedButtons != 1
-                    || label.item == null
-                    || label.item.kind != HierarchyItemKind.PrefabTransform)
-                {
-                    return;
-                }
-
-                DragAndDrop.PrepareStartDrag();
-                DragAndDrop.SetGenericData(ReparentDragKey, label.item);
-                DragAndDrop.objectReferences = new Object[0];
-                DragAndDrop.StartDrag("Reparent " + label.item.displayName);
-                pointerEvent.StopPropagation();
-            });
-
-            label.RegisterCallback<DragUpdatedEvent>(dragEvent =>
-            {
-                DragAndDrop.visualMode = CanDropOn(label.item)
-                    ? DragAndDropVisualMode.Move
-                    : DragAndDropVisualMode.Rejected;
-                dragEvent.StopPropagation();
-            });
-
-            label.RegisterCallback<DragPerformEvent>(dragEvent =>
-            {
-                HierarchyItem dragged = DragAndDrop.GetGenericData(ReparentDragKey) as HierarchyItem;
-                if (CanDropOn(label.item) && dragged != null)
-                {
-                    DragAndDrop.AcceptDrag();
-                    ReparentInPrefab(dragged, label.item);
-                }
-                dragEvent.StopPropagation();
-            });
-        }
-
-        private const string ReparentDragKey = "DotsAnimationToolkit.ReparentItem";
-
-        /// <summary>Whether the row under the cursor is a legal drop target for the current drag.</summary>
-        private bool CanDropOn(HierarchyItem dropTarget)
-        {
-            if (!IsRigEditMode || dropTarget == null
-                || dropTarget.kind != HierarchyItemKind.PrefabTransform)
-            {
-                return false;
-            }
-
-            HierarchyItem dragged = DragAndDrop.GetGenericData(ReparentDragKey) as HierarchyItem;
-            if (dragged == null || dragged == dropTarget
-                || dragged.kind != HierarchyItemKind.PrefabTransform)
-            {
-                return false;
-            }
-
-            // The deep check, asked of the preview's copy of the hierarchy. It answers the same
-            // question the write would ask of the asset, so an illegal drop is a rejected cursor
-            // rather than a notification after the fact.
-            if (previewController == null)
-            {
-                return false;
-            }
-            Transform draggedNode = previewController.GetTransformByIndex(dragged.previewIndex);
-            Transform targetNode = previewController.GetTransformByIndex(dropTarget.previewIndex);
-            string ignoredError;
-            return RigStructureEditor.ValidateReparent(draggedNode, targetNode, out ignoredError);
+            hierarchyPane.RefreshPrefabActionState();
         }
 
         /// <summary>Moves a dragged object under the row it was dropped on, in the prefab asset.</summary>
@@ -3702,8 +3188,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            string childPath = ResolveHierarchyPath(dragged);
-            string parentPath = ResolveHierarchyPath(newParent);
+            string childPath = hierarchyPane.ResolveHierarchyPath(dragged);
+            string parentPath = hierarchyPane.ResolveHierarchyPath(newParent);
 
             string error;
             if (!RigStructureEditor.TryReparent(prefab, childPath, parentPath, out error))
@@ -3715,575 +3201,6 @@ namespace DotsAnimationToolkit.Editor
             hasWrittenPrefabPose = true;
             RememberRoundTripState();
             ReloadAfterPrefabEdit();
-        }
-
-        /// <summary>A row label that remembers which item it is currently showing.</summary>
-        private sealed class HierarchyRowLabel : Label
-        {
-            public HierarchyItem item;
-        }
-
-        private void BindHierarchyRow(VisualElement element, int index)
-        {
-            HierarchyRowLabel label = element as HierarchyRowLabel;
-            if (label == null)
-            {
-                return;
-            }
-            HierarchyItem item = hierarchyTreeView.GetItemDataForIndex<HierarchyItem>(index);
-            label.item = item;
-            if (item == null)
-            {
-                label.text = string.Empty;
-                return;
-            }
-            label.text = item.displayName;
-
-            // Bold marks something the selected clip already animates, so the tree doubles as the
-            // answer to "what does this clip actually touch?".
-            // Either binding counts. A claimed node can be animated as a part and still carry a
-            // bone track left over from before it was one, and a row that went un-bolded because
-            // the wrong half was checked would say this clip does not touch it.
-            bool isAnimated = item.targetId != 0u && CountTracksForTarget(item.targetId) > 0;
-            if (!isAnimated && item.kind != HierarchyItemKind.RigTarget)
-            {
-                isAnimated = FindBoneTrackIndex(item.displayName) >= 0;
-            }
-            label.EnableInClassList(AnimatedBoneUssClassName, isAnimated);
-            ApplyBillboardIndicator(label, item);
-        }
-
-        /// <summary>The rig target with this id, or null.</summary>
-        private RigTargetDefinition FindRigTargetById(uint targetId)
-        {
-            RigAsset rig = ActiveRig;
-            if (rig == null || rig.targets == null)
-            {
-                return null;
-            }
-            for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
-            {
-                RigTargetDefinition target = rig.targets[targetIndex];
-                if (target != null && target.Id.Value == targetId)
-                {
-                    return target;
-                }
-            }
-            return null;
-        }
-
-        // Three states, not two: "this node billboards" and "this node decides how it billboards"
-        // are different facts, and a fully billboarded node's animated rotation is replaced outright
-        // at resolve time, so keying it changes nothing visible without a marker to explain why.
-        /// <summary>Marks a row as a billboard root, as inheriting one, or as neither.</summary>
-        private void ApplyBillboardIndicator(HierarchyRowLabel label, HierarchyItem item)
-        {
-            label.EnableInClassList(BillboardRootUssClassName, false);
-            label.EnableInClassList(BillboardInheritedUssClassName, false);
-            label.tooltip = string.Empty;
-
-            RigAsset rig = ActiveRig;
-            if (rig == null || rig.billboardRoots == null || rig.billboardRoots.Count == 0)
-            {
-                return;
-            }
-
-            Transform node = ResolveHierarchyTransform(item);
-            if (node == null)
-            {
-                return;
-            }
-
-            Transform previewRoot = previewController != null ? previewController.HierarchyRoot : null;
-            List<ResolvedBillboardRoot> resolvedRoots =
-                BillboardRootResolver.Resolve(rig, previewRoot, null);
-            int rootIndex =
-                BillboardRootResolver.FindNearestRootIndex(resolvedRoots, node, previewRoot);
-            if (rootIndex < 0)
-            {
-                return;
-            }
-
-            BillboardRootDefinition definition = resolvedRoots[rootIndex].definition;
-            string rootName = string.IsNullOrEmpty(definition.displayName)
-                ? "(unnamed root)"
-                : definition.displayName;
-
-            if (resolvedRoots[rootIndex].node == node)
-            {
-                label.EnableInClassList(BillboardRootUssClassName, true);
-                label.text = BillboardRootGlyph + label.text;
-                label.tooltip = "Billboard root - " + ObjectNames.NicifyVariableName(
-                    definition.mode.ToString());
-                return;
-            }
-
-            label.EnableInClassList(BillboardInheritedUssClassName, true);
-            label.text = BillboardInheritedGlyph + label.text;
-            label.tooltip = "Billboards with «" + rootName + "»";
-        }
-
-        /// <summary>The preview transform a hierarchy row stands for, or null when it stands for none.</summary>
-        private Transform ResolveHierarchyTransform(HierarchyItem item)
-        {
-            if (item == null || previewController == null)
-            {
-                return null;
-            }
-            Transform root = previewController.HierarchyRoot;
-            if (root == null)
-            {
-                return null;
-            }
-
-            switch (item.kind)
-            {
-                case HierarchyItemKind.RigTarget:
-                    return PrefabAuthoringBridge.FindByName(root, item.displayName);
-                default:
-                    return previewController.GetTransformByIndex(item.previewIndex);
-            }
-        }
-
-        // Sockets have no rows of their own; a socket whose source resolves to nothing has no row
-        // to offer, which is what the clip inspector's socket list exists to catch.
-        /// <summary>The hierarchy row a socket hangs off: the part or bone it follows.</summary>
-        private bool TryFindSocketSourceItemId(uint socketId, out int itemId)
-        {
-            itemId = NothingSelectedItemId;
-            SocketDefinition socket = FindSocket(socketId);
-            if (socket == null)
-            {
-                return false;
-            }
-
-            if (socket.mode == SocketAttachMode.RigTarget)
-            {
-                return TryFindRigTargetItemId(socket.targetId, out itemId);
-            }
-
-            foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
-            {
-                if (pair.Value.kind == HierarchyItemKind.RigTarget)
-                {
-                    continue;
-                }
-                if (string.Equals(
-                        pair.Value.displayName, socket.boneName, System.StringComparison.Ordinal))
-                {
-                    itemId = pair.Key;
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>The row standing for a part, whichever pane it came from.</summary>
-        private bool TryFindRigTargetItemId(uint targetId, out int itemId)
-        {
-            foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
-            {
-                if (targetId != 0u && pair.Value.targetId == targetId)
-                {
-                    itemId = pair.Key;
-                    return true;
-                }
-            }
-            itemId = NothingSelectedItemId;
-            return false;
-        }
-
-        /// <summary>How many transform and flipbook tracks the selected clip aims at a target.</summary>
-        private int CountTracksForTarget(uint targetId)
-        {
-            if (selectedClip == null)
-            {
-                return 0;
-            }
-
-            int trackCount = 0;
-            for (int trackIndex = 0;
-                selectedClip.transformTracks != null && trackIndex < selectedClip.transformTracks.Count;
-                trackIndex++)
-            {
-                TransformTrack track = selectedClip.transformTracks[trackIndex];
-                if (track != null && track.targetId == targetId)
-                {
-                    trackCount++;
-                }
-            }
-            for (int trackIndex = 0;
-                selectedClip.spriteTracks != null && trackIndex < selectedClip.spriteTracks.Count;
-                trackIndex++)
-            {
-                SpriteTrack track = selectedClip.spriteTracks[trackIndex];
-                if (track != null && track.targetId == targetId)
-                {
-                    trackCount++;
-                }
-            }
-            return trackCount;
-        }
-
-        /// <summary>The single place a hierarchy selection takes effect, whichever surface caused it.</summary>
-        private void OnHierarchySelectionChanged(IEnumerable<object> selection)
-        {
-            // Re-entry guard, and not an optional one. A selection change rebuilds the timeline,
-            // which calls RefreshItems to redraw the tree's "animated" marks, and RefreshItems
-            // re-resolves the tree's own selection — which can notify again. Without this the two
-            // call each other until the stack runs out.
-            if (isHandlingHierarchySelection)
-            {
-                return;
-            }
-            isHandlingHierarchySelection = true;
-            try
-            {
-                ApplyHierarchySelectionChange();
-            }
-            finally
-            {
-                isHandlingHierarchySelection = false;
-            }
-
-        }
-
-        // Active is the row just added, found by diffing against the previous selection rather than
-        // taking the last of selectedIndices, which is ordered by row position, not click order.
-        /// <summary>Adopts the tree's whole selection and works out which row of it is active.</summary>
-        private void ApplyHierarchySelectionChange()
-        {
-            // An echo is not a click. RefreshItems re-resolves the tree's selection and notifies
-            // with the set that is already applied; taking that for a user action cleared the key
-            // selection a moment after the click that made it, so clicking a key showed the bone
-            // panel instead of the key. Suppressing the notification at the RefreshItems call is
-            // only half the fix — it cannot cover a notification the tree defers to a later frame.
-            if (IsHierarchySelectionEcho())
-            {
-                return;
-            }
-
-            int previousActiveItemId = selectedHierarchyItemId;
-
-            selectedHierarchyItems.Clear();
-            int newlySelectedItemId = NothingSelectedItemId;
-            bool previousActiveIsStillSelected = false;
-
-            foreach (int selectedIndex in hierarchyTreeView.selectedIndices)
-            {
-                int itemId = hierarchyTreeView.GetIdForIndex(selectedIndex);
-                HierarchyItem item;
-                if (!hierarchyItemsById.TryGetValue(itemId, out item))
-                {
-                    continue;
-                }
-                selectedHierarchyItems.Add(item);
-
-                if (itemId == previousActiveItemId)
-                {
-                    previousActiveIsStillSelected = true;
-                }
-                else if (!previouslySelectedItemIds.Contains(itemId))
-                {
-                    newlySelectedItemId = itemId;
-                }
-            }
-
-            // A row was added: that is the one just clicked. Nothing was added (a row was removed
-            // instead, or the whole range was replaced): keep the active row if it survived, else
-            // fall back to the first of what is left.
-            if (newlySelectedItemId != NothingSelectedItemId)
-            {
-                activeHierarchyItemId = newlySelectedItemId;
-            }
-            else if (!previousActiveIsStillSelected)
-            {
-                activeHierarchyItemId = selectedHierarchyItems.Count > 0
-                    ? FindItemIdOf(selectedHierarchyItems[0])
-                    : NothingSelectedItemId;
-            }
-
-            previouslySelectedItemIds.Clear();
-            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
-            {
-                previouslySelectedItemIds.Add(FindItemIdOf(selectedHierarchyItems[itemIndex]));
-            }
-
-            // Key selection and hierarchy selection are one selection with two sources: showing a
-            // key's values under a heading naming a different object would be a lie about what the
-            // fields edit.
-            selectedKeys.Clear();
-            hasActiveKey = false;
-            ApplyHierarchySelection();
-            RebuildTimeline();
-            RebuildInspector();
-        }
-
-        // Compared by resolved item, not only by id: a rebuilt hierarchy can hand out the same ids
-        // for freshly constructed items, and treating that as an echo would leave
-        // selectedHierarchyItems holding detached objects the inspector would then edit.
-        /// <summary>Whether the tree is reporting the selection that has already been applied.</summary>
-        private bool IsHierarchySelectionEcho()
-        {
-            if (hierarchyTreeView == null)
-            {
-                return false;
-            }
-
-            int matchedCount = 0;
-            foreach (int selectedIndex in hierarchyTreeView.selectedIndices)
-            {
-                int itemId = hierarchyTreeView.GetIdForIndex(selectedIndex);
-                HierarchyItem item;
-                if (!hierarchyItemsById.TryGetValue(itemId, out item))
-                {
-                    return false;
-                }
-                if (!previouslySelectedItemIds.Contains(itemId)
-                    || !selectedHierarchyItems.Contains(item))
-                {
-                    return false;
-                }
-                matchedCount++;
-            }
-
-            // Counts as well as membership, so a selection that shrank is not mistaken for an echo
-            // of the larger one it came from.
-            return matchedCount == previouslySelectedItemIds.Count
-                && matchedCount == selectedHierarchyItems.Count;
-        }
-
-        // RefreshItems re-resolves the tree's selection while redrawing it, which raises
-        // selectionChanged — every call here is only a redraw and must not reach the selection handler.
-        /// <summary>Repaints the tree's rows without letting the repaint pose as a selection change.</summary>
-        private void RefreshHierarchyRows()
-        {
-            if (hierarchyTreeView == null)
-            {
-                return;
-            }
-            bool wasHandlingSelection = isHandlingHierarchySelection;
-            isHandlingHierarchySelection = true;
-            try
-            {
-                hierarchyTreeView.RefreshItems();
-            }
-            finally
-            {
-                isHandlingHierarchySelection = wasHandlingSelection;
-            }
-        }
-
-        /// <summary>
-        /// Selects one row and nothing else — the viewport's click path and the timeline's.
-        /// </summary>
-        private void SelectHierarchyItem(int itemId)
-        {
-            selectedHierarchyItems.Clear();
-            previouslySelectedItemIds.Clear();
-            activeHierarchyItemId = NothingSelectedItemId;
-
-            HierarchyItem item;
-            if (hierarchyItemsById.TryGetValue(itemId, out item))
-            {
-                selectedHierarchyItems.Add(item);
-                previouslySelectedItemIds.Add(itemId);
-                activeHierarchyItemId = itemId;
-            }
-            ApplyHierarchySelection();
-        }
-
-        /// <summary>Points the viewport outline and the gizmo at the active row, or at nothing.</summary>
-        private void ApplyHierarchySelection()
-        {
-            // A held edit belongs to the part it was made on; changing the selection ends it.
-            DiscardPendingTransformEdit();
-
-            HierarchyItem activeItem = ActiveHierarchyItem;
-            if (activeItem == null)
-            {
-                selectedHierarchyItemId = NothingSelectedItemId;
-                selectedBoneName = null;
-                selectedTargetId = 0u;
-
-                // A socket is reached through the object carrying it, so selecting nothing leaves
-                // the gizmo nothing to be on.
-                selectedSocketId = 0u;
-                if (previewController != null)
-                {
-                    previewController.SetSelectedHierarchyIndex(-1);
-                    previewController.SetSelectedSocketId(0u);
-                }
-                return;
-            }
-
-            selectedHierarchyItemId = FindItemIdOf(activeItem);
-            // Selecting an object drops whichever socket the gizmo was on, unless that socket is
-            // one of this object's own components — the gizmo has to be on something the selection
-            // can still see.
-            if (!SocketBelongsToItem(selectedSocketId, activeItem))
-            {
-                selectedSocketId = 0u;
-            }
-            if (previewController != null)
-            {
-                previewController.SetSelectedSocketId(selectedSocketId);
-            }
-            // targetId is set on a RigTarget row always, and on a PrefabTransform row whenever a
-            // part claims that node — a claimed part is as much a clip-authoring target as a rig
-            // target row is (see HierarchyItem.targetId), so the gizmo/drag key on it either way.
-            selectedTargetId = activeItem.targetId;
-            if (activeItem.kind == HierarchyItemKind.RigTarget)
-            {
-                selectedBoneName = null;
-                if (previewController != null)
-                {
-                    previewController.SetSelectedTargetId(activeItem.targetId);
-                }
-                return;
-            }
-
-            selectedBoneName = activeItem.displayName;
-            if (previewController != null)
-            {
-                previewController.SetSelectedHierarchyIndex(activeItem.previewIndex);
-            }
-        }
-
-        /// <summary>The row the gizmo and the outline follow: the one most recently added.</summary>
-        private HierarchyItem ActiveHierarchyItem
-        {
-            get
-            {
-                HierarchyItem item;
-                if (activeHierarchyItemId != NothingSelectedItemId
-                    && hierarchyItemsById.TryGetValue(activeHierarchyItemId, out item)
-                    && selectedHierarchyItems.Contains(item))
-                {
-                    return item;
-                }
-                return selectedHierarchyItems.Count > 0 ? selectedHierarchyItems[0] : null;
-            }
-        }
-
-        private int FindItemIdOf(HierarchyItem item)
-        {
-            foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
-            {
-                if (pair.Value == item)
-                {
-                    return pair.Key;
-                }
-            }
-            return NothingSelectedItemId;
-        }
-
-        /// <summary>Whether a transform or flipbook track's target is in the current selection.</summary>
-        private bool IsTargetSelected(uint targetId)
-        {
-            if (targetId == 0u)
-            {
-                return false;
-            }
-            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
-            {
-                if (selectedHierarchyItems[itemIndex].targetId == targetId)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>Whether a bone track's bone is in the current selection.</summary>
-        private bool IsBoneSelected(string boneName)
-        {
-            if (string.IsNullOrEmpty(boneName))
-            {
-                return false;
-            }
-            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
-            {
-                HierarchyItem item = selectedHierarchyItems[itemIndex];
-                if (item.kind == HierarchyItemKind.PrefabTransform && item.displayName == boneName)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /// <summary>Names what the timeline is focused on, for the status line.</summary>
-        private string DescribeSelection()
-        {
-            if (selectedHierarchyItems.Count == 0)
-            {
-                return "nothing";
-            }
-            if (selectedHierarchyItems.Count > 2)
-            {
-                return selectedHierarchyItems.Count.ToString() + " objects";
-            }
-
-            string described = string.Empty;
-            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
-            {
-                if (itemIndex > 0)
-                {
-                    described += " + ";
-                }
-                described += DescribeHierarchyItemName(selectedHierarchyItems[itemIndex]);
-            }
-            return described;
-        }
-
-        private string DescribeHierarchyItemName(HierarchyItem item)
-        {
-            return item.kind == HierarchyItemKind.RigTarget
-                ? ResolveTargetDisplayName(item.targetId)
-                : item.displayName;
-        }
-
-        /// <summary>Deselects everywhere at once — tree, viewport outline and inspector.</summary>
-        private void ClearHierarchySelection()
-        {
-            // Not "< 0": rig-target rows carry negative ids, so a less-than test would treat every
-            // selected part as nothing selected and refuse to clear it.
-            if (selectedHierarchyItemId == NothingSelectedItemId)
-            {
-                return;
-            }
-
-            // Without notifying, because the clearing this would trigger is exactly what the rest of
-            // this method does — and re-entering it would clear a key selection that a viewport
-            // click on empty space has no business touching.
-            if (hierarchyTreeView != null)
-            {
-                hierarchyTreeView.SetSelectionWithoutNotify(new int[0]);
-            }
-            SelectHierarchyItem(NothingSelectedItemId);
-            // The timeline is rebuilt too: with nothing selected the focus filter lifts, and the
-            // rows it was hiding have to come back or clearing the selection would look like it
-            // deleted them.
-            RebuildTimeline();
-            RebuildInspector();
-        }
-
-        private int FindBoneTrackIndex(string boneName)
-        {
-            if (selectedClip == null || selectedClip.boneTracks == null || string.IsNullOrEmpty(boneName))
-            {
-                return -1;
-            }
-            for (int trackIndex = 0; trackIndex < selectedClip.boneTracks.Count; trackIndex++)
-            {
-                BoneTrack track = selectedClip.boneTracks[trackIndex];
-                if (track != null && track.boneName == boneName)
-                {
-                    return trackIndex;
-                }
-            }
-            return -1;
         }
 
         // -------------------------------------------------------------------------------------
@@ -4304,8 +3221,8 @@ namespace DotsAnimationToolkit.Editor
             // The hierarchy's rows come from the rig, which has not changed — but which of them a
             // clip already animates is drawn from the set, so the rows are re-rendered rather than
             // left showing the previous set's bold.
-            SelectHierarchyItem(NothingSelectedItemId);
-            RebuildHierarchy();
+            hierarchyPane.SelectHierarchyItem(RigHierarchyPane.NothingSelectedItemId);
+            hierarchyPane.RebuildHierarchy();
 
             if (previewController != null)
             {
@@ -4418,6 +3335,22 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // A pane created, deleted or renamed a clip: the preview and the badge are the window's to refresh.
+        // The tree's selection changed by a click or a driven select: key selection and hierarchy
+        // selection are one selection with two sources, so the keys go and both panes rebuild.
+        private void OnHierarchyTreeSelectionChanged()
+        {
+            selectedKeys.Clear();
+            hasActiveKey = false;
+            RebuildTimeline();
+            RebuildInspector();
+        }
+
+        private void OnHierarchySelectionCleared()
+        {
+            RebuildTimeline();
+            RebuildInspector();
+        }
+
         private void OnPaneRequestedRebuild()
         {
             MarkPreviewDirty();
@@ -4597,7 +3530,7 @@ namespace DotsAnimationToolkit.Editor
 
             // The hierarchy's bold marks track which clip is selected, so it is refreshed with the
             // timeline rather than only when the rig changes.
-            RefreshHierarchyRows();
+            hierarchyPane.RefreshHierarchyRows();
 
             if (selectedClip == null)
             {
@@ -4611,7 +3544,7 @@ namespace DotsAnimationToolkit.Editor
             // Focus mode: with a selection, the timeline shows only that selection's tracks. It is
             // what makes a busy clip readable — but a row that has silently vanished is worse than a
             // busy timeline, so the status line always says what is being hidden and how to undo it.
-            bool isFocused = selectedHierarchyItems.Count > 0;
+            bool isFocused = hierarchyPane.SelectedHierarchyItems.Count > 0;
             int hiddenTrackCount = 0;
 
             // A track with no keys writes nothing at any time, so it is not a curve yet — it is a
@@ -4647,7 +3580,7 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
                 TrackBindingLabel binding = DescribeTrackBinding(track.targetId, track.tagId);
-                if (isFocused && !IsTargetSelected(binding.resolvedTargetId))
+                if (isFocused && !hierarchyPane.IsTargetSelected(binding.resolvedTargetId))
                 {
                     hiddenTrackCount++;
                     continue;
@@ -4676,7 +3609,7 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
                 TrackBindingLabel binding = DescribeTrackBinding(track.targetId, track.tagId);
-                if (isFocused && !IsTargetSelected(binding.resolvedTargetId))
+                if (isFocused && !hierarchyPane.IsTargetSelected(binding.resolvedTargetId))
                 {
                     hiddenTrackCount++;
                     continue;
@@ -4706,7 +3639,7 @@ namespace DotsAnimationToolkit.Editor
                     keylessTrackCount++;
                     continue;
                 }
-                if (isFocused && !IsBoneSelected(track.boneName))
+                if (isFocused && !hierarchyPane.IsBoneSelected(track.boneName))
                 {
                     hiddenTrackCount++;
                     continue;
@@ -4750,7 +3683,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (isFocused)
             {
-                statusLabel.text += "   ·   focused on " + DescribeSelection()
+                statusLabel.text += "   ·   focused on " + hierarchyPane.DescribeSelection()
                     + (hiddenTrackCount > 0
                         ? " (" + hiddenTrackCount.ToString() + " track(s) hidden — deselect to show all)"
                         : string.Empty);
@@ -5158,7 +4091,7 @@ namespace DotsAnimationToolkit.Editor
                 boneName = track != null ? track.boneName : null;
             }
 
-            int itemId = NothingSelectedItemId;
+            int itemId = RigHierarchyPane.NothingSelectedItemId;
             if (!string.IsNullOrEmpty(boneName) && previewController != null)
             {
                 int previewIndex = previewController.FindHierarchyIndexByName(boneName);
@@ -5167,20 +4100,15 @@ namespace DotsAnimationToolkit.Editor
                     itemId = previewIndex;
                 }
             }
-            SelectHierarchyItem(itemId);
+            hierarchyPane.SelectHierarchyItem(itemId);
 
-            if (hierarchyTreeView == null)
+            if (itemId != RigHierarchyPane.NothingSelectedItemId)
             {
-                return;
-            }
-            if (itemId != NothingSelectedItemId)
-            {
-                hierarchyTreeView.SetSelectionByIdWithoutNotify(new int[] { itemId });
-                hierarchyTreeView.ScrollToItemById(itemId);
+                hierarchyPane.SelectItemByIdWithoutNotify(itemId);
             }
             else
             {
-                hierarchyTreeView.SetSelectionWithoutNotify(new int[0]);
+                hierarchyPane.ClearTreeSelectionWithoutNotify();
             }
         }
 
@@ -5659,9 +4587,9 @@ namespace DotsAnimationToolkit.Editor
             }
 
             pasteDestinations.Clear();
-            for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+            for (int itemIndex = 0; itemIndex < hierarchyPane.SelectedHierarchyItems.Count; itemIndex++)
             {
-                pasteDestinations.Add(BuildObjectRef(selectedHierarchyItems[itemIndex]));
+                pasteDestinations.Add(BuildObjectRef(hierarchyPane.SelectedHierarchyItems[itemIndex]));
             }
 
             // Recorded whether or not the paste turns out to write the rig: a flipbook pasted onto
@@ -5699,7 +4627,7 @@ namespace DotsAnimationToolkit.Editor
             if (pasteResult.keyCount > 0 || pasteResult.addedComponentCount > 0)
             {
                 RebuildTimeline();
-                RebuildHierarchy();
+                hierarchyPane.RebuildHierarchy();
                 RebuildInspector();
             }
 
@@ -6755,7 +5683,7 @@ namespace DotsAnimationToolkit.Editor
                 hierarchyRebuildPending = true;
                 return;
             }
-            RebuildHierarchy();
+            hierarchyPane.RebuildHierarchy();
         }
 
         // Driven from the tick, not a pointer-capture-out callback: a capture released by the
@@ -6784,7 +5712,7 @@ namespace DotsAnimationToolkit.Editor
             // selection already applied — so the other two still run, and at worst repeat work.
             if (rebuildHierarchy)
             {
-                RebuildHierarchy();
+                hierarchyPane.RebuildHierarchy();
             }
             if (rebuildTimeline)
             {
@@ -6814,16 +5742,16 @@ namespace DotsAnimationToolkit.Editor
             // One labelled block per selected object, in pick order. With a single selection this
             // is exactly the old panel plus a name; with several it is the only way to tell whose
             // numbers are whose.
-            if (selectedHierarchyItems.Count > 0)
+            if (hierarchyPane.SelectedHierarchyItems.Count > 0)
             {
                 // Only marked when there is more than one block: with a single selection every
                 // block is the active one, and saying so is noise.
                 HierarchyItem activeItem =
-                    selectedHierarchyItems.Count > 1 ? ActiveHierarchyItem : null;
+                    hierarchyPane.SelectedHierarchyItems.Count > 1 ? hierarchyPane.ActiveHierarchyItem : null;
 
-                for (int itemIndex = 0; itemIndex < selectedHierarchyItems.Count; itemIndex++)
+                for (int itemIndex = 0; itemIndex < hierarchyPane.SelectedHierarchyItems.Count; itemIndex++)
                 {
-                    HierarchyItem item = selectedHierarchyItems[itemIndex];
+                    HierarchyItem item = hierarchyPane.SelectedHierarchyItems[itemIndex];
                     BuildComponentStack(item, item == activeItem);
                 }
                 return;
@@ -6871,7 +5799,7 @@ namespace DotsAnimationToolkit.Editor
             // it belongs to the clip, so it gets no stack.
             if (shown.trackKind != TimelineTrackKind.Event)
             {
-                HierarchyItem owningItem = FindHierarchyItemForKey(shown);
+                HierarchyItem owningItem = hierarchyPane.FindHierarchyItemForKey(shown);
                 if (owningItem != null)
                 {
                     BuildComponentStack(owningItem, true);
@@ -7876,7 +6804,7 @@ namespace DotsAnimationToolkit.Editor
         private void ConfirmDeleteSocket(SocketDefinition socket)
         {
             RigAsset rig = ActiveRig;
-            int socketIndex = FindSocketIndex(socket.Id.Value);
+            int socketIndex = hierarchyPane.FindSocketIndex(socket.Id.Value);
             if (rig == null || socketIndex < 0)
             {
                 return;
@@ -7897,12 +6825,12 @@ namespace DotsAnimationToolkit.Editor
             EditorUtility.SetDirty(rig);
             AssetDatabase.SaveAssetIfDirty(rig);
 
-            ClearHierarchySelection();
+            hierarchyPane.ClearHierarchySelection();
             if (previewController != null)
             {
                 previewController.RebuildSockets();
             }
-            RebuildHierarchy();
+            hierarchyPane.RebuildHierarchy();
             MarkPreviewDirty();
         }
 
@@ -8422,7 +7350,7 @@ namespace DotsAnimationToolkit.Editor
         {
             RigAsset rig = ActiveRig;
             if (tagId == 0u
-                || !WriteRigPartTag(rig, FindRigTargetById(newTargetId), tagId, "Move Target Tag"))
+                || !WriteRigPartTag(rig, hierarchyPane.FindRigTargetById(newTargetId), tagId, "Move Target Tag"))
             {
                 return;
             }
@@ -8962,7 +7890,7 @@ namespace DotsAnimationToolkit.Editor
             uint targetId, out float3 position, out float3 rotationDegrees, out float3 scale)
         {
             Transform root = previewController != null ? previewController.HierarchyRoot : null;
-            Transform node = root != null ? ResolveTargetSourceNode(targetId, root) : null;
+            Transform node = root != null ? hierarchyPane.ResolveTargetSourceNode(targetId, root) : null;
             if (node == null)
             {
                 position = float3.zero;
@@ -9070,7 +7998,7 @@ namespace DotsAnimationToolkit.Editor
             // second one would silently lose to whichever the bake applied last — better to refuse
             // it here, where the user can see why. Reported on the timeline's status line rather
             // than the viewport's, which the preview tick overwrites thirty times a second.
-            if (FindBoneTrackIndex(boneName) >= 0)
+            if (hierarchyPane.FindBoneTrackIndex(boneName) >= 0)
             {
                 statusLabel.text = "A bone track for '" + boneName + "' already exists.";
                 return;

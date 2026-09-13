@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 
 namespace DotsAnimationToolkit.Editor
@@ -20,6 +21,12 @@ namespace DotsAnimationToolkit.Editor
         // deleted or renamed a clip; the window answers with the preview and the badge.
         public event Action RebuildRequested;
 
+        // The hierarchy pane's live selection, published every time it is applied. The list is the
+        // pane's own; readers see it as it is now, not as it was when the event fired.
+        internal IReadOnlyList<HierarchyItem> SelectedHierarchyItems { get; private set; }
+        internal HierarchyItem ActiveHierarchyItem { get; private set; }
+        public event Action HierarchySelectionChanged;
+
         public void SetSelectedClip(ClipAsset clip)
         {
             SelectedClip = clip;
@@ -36,6 +43,13 @@ namespace DotsAnimationToolkit.Editor
         {
             PlayheadNormalized = normalizedTime;
             PlayheadChanged?.Invoke(normalizedTime);
+        }
+
+        internal void SetHierarchySelection(IReadOnlyList<HierarchyItem> selectedItems, HierarchyItem activeItem)
+        {
+            SelectedHierarchyItems = selectedItems;
+            ActiveHierarchyItem = activeItem;
+            HierarchySelectionChanged?.Invoke();
         }
 
         public void RequestRebuild()

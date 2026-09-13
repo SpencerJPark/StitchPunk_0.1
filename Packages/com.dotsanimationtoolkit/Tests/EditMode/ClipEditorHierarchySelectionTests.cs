@@ -5,12 +5,11 @@ using System.Collections;
 using System.Reflection;
 using NUnit.Framework;
 using DotsAnimationToolkit.Editor;
-using UnityEngine;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
     /// <summary>
-    /// EditMode coverage of <c>ClipEditorWindow.ApplyHierarchySelection</c>'s
+    /// EditMode coverage of <c>RigHierarchyPane.ApplyHierarchySelection</c>'s
     /// <c>selectedTargetId</c> assignment (Phase D12, Task 1).
     /// </summary>
     /// <remarks>
@@ -28,7 +27,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
     /// a standalone helper, because the rule now has no branch left to state on its own — the fix is
     /// that a claimed part's <c>targetId</c> flows through unconditionally. Asserting on the actual
     /// method is what would have caught the regression: a hand-written mirror of "just returns
-    /// targetId" would have been equally wrong in exactly the way the bug was.
+    /// targetId" would have been equally wrong in exactly the way the bug was. The method moved from
+    /// the window to the hierarchy pane with the rest of the tree code; the pane is bound to no
+    /// visual tree here, only to a fresh selection and session, which is all the method reads.
     /// </para>
     /// </remarks>
     public sealed class ClipEditorHierarchySelectionTests
@@ -38,78 +39,68 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [Test]
         public void ApplyHierarchySelection_ClaimedPrefabTransform_SetsSelectedTargetId()
         {
-            ClipEditorWindow window = ScriptableObject.CreateInstance<ClipEditorWindow>();
-            try
-            {
-                SelectSingleHierarchyItem(window, "PrefabTransform", targetId: 7u, displayName: "Torso");
-                InvokeApplyHierarchySelection(window);
+            RigHierarchyPane pane = BindUnparentedPane();
+            SelectSingleHierarchyItem(pane, "PrefabTransform", targetId: 7u, displayName: "Torso");
+            InvokeApplyHierarchySelection(pane);
 
-                Assert.AreEqual(
-                    7u, ReadSelectedTargetId(window),
-                    "A claimed part (PrefabTransform row, non-zero targetId) must key the gizmo, "
-                        + "same as a declared RigTarget row does — this is the exact D12 regression: "
-                        + "the common case for an ordinary clip-authoring drag was forced to 0.");
-            }
-            finally
-            {
-                ScriptableObject.DestroyImmediate(window);
-            }
+            Assert.AreEqual(
+                7u, ReadSelectedTargetId(pane),
+                "A claimed part (PrefabTransform row, non-zero targetId) must key the gizmo, "
+                    + "same as a declared RigTarget row does — this is the exact D12 regression: "
+                    + "the common case for an ordinary clip-authoring drag was forced to 0.");
         }
 
         [Test]
         public void ApplyHierarchySelection_RigTargetRow_StillSetsSelectedTargetId()
         {
-            ClipEditorWindow window = ScriptableObject.CreateInstance<ClipEditorWindow>();
-            try
-            {
-                SelectSingleHierarchyItem(window, "RigTarget", targetId: 9u, displayName: "Head");
-                InvokeApplyHierarchySelection(window);
+            RigHierarchyPane pane = BindUnparentedPane();
+            SelectSingleHierarchyItem(pane, "RigTarget", targetId: 9u, displayName: "Head");
+            InvokeApplyHierarchySelection(pane);
 
-                Assert.AreEqual(
-                    9u, ReadSelectedTargetId(window),
-                    "The pre-existing RigTarget case must keep working unchanged.");
-            }
-            finally
-            {
-                ScriptableObject.DestroyImmediate(window);
-            }
+            Assert.AreEqual(
+                9u, ReadSelectedTargetId(pane),
+                "The pre-existing RigTarget case must keep working unchanged.");
         }
 
         [Test]
         public void ApplyHierarchySelection_UnclaimedPrefabTransform_LeavesSelectedTargetIdZero()
         {
-            ClipEditorWindow window = ScriptableObject.CreateInstance<ClipEditorWindow>();
-            try
-            {
-                SelectSingleHierarchyItem(window, "PrefabTransform", targetId: 0u, displayName: "Bone");
-                InvokeApplyHierarchySelection(window);
+            RigHierarchyPane pane = BindUnparentedPane();
+            SelectSingleHierarchyItem(pane, "PrefabTransform", targetId: 0u, displayName: "Bone");
+            InvokeApplyHierarchySelection(pane);
 
-                Assert.AreEqual(
-                    0u, ReadSelectedTargetId(window),
-                    "A bare grouping transform or skinned bone with no claimed part has nothing for "
-                        + "a TransformTrack to key against — this must still show no clip-authoring "
-                        + "gizmo (Rig Edit's separate, node-only gate is unaffected).");
-            }
-            finally
-            {
-                ScriptableObject.DestroyImmediate(window);
-            }
+            Assert.AreEqual(
+                0u, ReadSelectedTargetId(pane),
+                "A bare grouping transform or skinned bone with no claimed part has nothing for "
+                    + "a TransformTrack to key against — this must still show no clip-authoring "
+                    + "gizmo (Rig Edit's separate, node-only gate is unaffected).");
+        }
+
+        // No pane root and no preview: ApplyHierarchySelection guards both, and the session it
+        // publishes into is what the window would otherwise have handed it.
+        private static RigHierarchyPane BindUnparentedPane()
+        {
+            RigHierarchyPane pane = new RigHierarchyPane();
+            pane.Bind(null, new ActiveAssetSelection(), new ClipEditorSession(), null);
+            return pane;
         }
 
         /// <summary>
-        /// Builds one <c>HierarchyItem</c> of the given private nested <c>HierarchyItemKind</c>,
+        /// Builds one <c>HierarchyItem</c> of the given internal <c>HierarchyItemKind</c>,
         /// selects it, and marks it active — the state <c>ApplyHierarchySelection</c> reads.
         /// </summary>
         private static void SelectSingleHierarchyItem(
-            ClipEditorWindow window, string kindName, uint targetId, string displayName)
+            RigHierarchyPane pane, string kindName, uint targetId, string displayName)
         {
-            Type windowType = typeof(ClipEditorWindow);
-            Type kindType = windowType.GetNestedType("HierarchyItemKind", BindingFlags.NonPublic);
-            Type itemType = windowType.GetNestedType("HierarchyItem", BindingFlags.NonPublic);
+            Type paneType = typeof(RigHierarchyPane);
+            Type kindType = paneType.Assembly.GetType("DotsAnimationToolkit.Editor.HierarchyItemKind");
+            Type itemType = paneType.Assembly.GetType("DotsAnimationToolkit.Editor.HierarchyItem");
+            Assert.IsNotNull(kindType, "HierarchyItemKind must be a file-scope type beside RigHierarchyPane.");
+            Assert.IsNotNull(itemType, "HierarchyItem must be a file-scope type beside RigHierarchyPane.");
             object item = Activator.CreateInstance(itemType, nonPublic: true);
 
-            // HierarchyItem itself is a private nested class, but its fields are public — the
-            // class's accessibility, not the fields', so these two lookups need different flags.
+            // HierarchyItem itself is internal, but its fields are public — the class's
+            // accessibility, not the fields', so these two lookups need different flags.
             itemType.GetField("kind", BindingFlags.Public | BindingFlags.Instance)
                 .SetValue(item, Enum.Parse(kindType, kindName));
             itemType.GetField("displayName", BindingFlags.Public | BindingFlags.Instance)
@@ -119,32 +110,32 @@ namespace DotsAnimationToolkit.Tests.EditMode
             itemType.GetField("previewIndex", BindingFlags.Public | BindingFlags.Instance)
                 .SetValue(item, 0);
 
-            FieldInfo hierarchyItemsByIdField = windowType.GetField(
+            FieldInfo hierarchyItemsByIdField = paneType.GetField(
                 "hierarchyItemsById", BindingFlags.NonPublic | BindingFlags.Instance);
-            IDictionary hierarchyItemsById = (IDictionary)hierarchyItemsByIdField.GetValue(window);
+            IDictionary hierarchyItemsById = (IDictionary)hierarchyItemsByIdField.GetValue(pane);
             hierarchyItemsById.Add(ActiveItemId, item);
 
-            FieldInfo selectedHierarchyItemsField = windowType.GetField(
+            FieldInfo selectedHierarchyItemsField = paneType.GetField(
                 "selectedHierarchyItems", BindingFlags.NonPublic | BindingFlags.Instance);
-            IList selectedHierarchyItems = (IList)selectedHierarchyItemsField.GetValue(window);
+            IList selectedHierarchyItems = (IList)selectedHierarchyItemsField.GetValue(pane);
             selectedHierarchyItems.Add(item);
 
-            windowType.GetField("activeHierarchyItemId", BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(window, ActiveItemId);
+            paneType.GetField("activeHierarchyItemId", BindingFlags.NonPublic | BindingFlags.Instance)
+                .SetValue(pane, ActiveItemId);
         }
 
-        private static void InvokeApplyHierarchySelection(ClipEditorWindow window)
+        private static void InvokeApplyHierarchySelection(RigHierarchyPane pane)
         {
-            typeof(ClipEditorWindow)
+            typeof(RigHierarchyPane)
                 .GetMethod("ApplyHierarchySelection", BindingFlags.NonPublic | BindingFlags.Instance)
-                .Invoke(window, null);
+                .Invoke(pane, null);
         }
 
-        private static uint ReadSelectedTargetId(ClipEditorWindow window)
+        private static uint ReadSelectedTargetId(RigHierarchyPane pane)
         {
-            return (uint)typeof(ClipEditorWindow)
+            return (uint)typeof(RigHierarchyPane)
                 .GetField("selectedTargetId", BindingFlags.NonPublic | BindingFlags.Instance)
-                .GetValue(window);
+                .GetValue(pane);
         }
     }
 }

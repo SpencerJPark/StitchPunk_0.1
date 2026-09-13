@@ -86,7 +86,7 @@ namespace DotsAnimationToolkit.Editor
             // writes the prefab's base pose for any selected node, target or not. Outside Rig Edit
             // the RigTarget-kind gate is unchanged -- clip authoring's gizmo still needs a declared
             // target and a selected clip, checked inside RefreshGizmo itself.
-            if (item == ActiveHierarchyItem
+            if (item == hierarchyPane.ActiveHierarchyItem
                 && (item.kind == HierarchyItemKind.RigTarget || IsRigEditMode))
             {
                 RefreshGizmo();
@@ -163,7 +163,7 @@ namespace DotsAnimationToolkit.Editor
         private void BindPartTagButton(SelectionHeadingElement heading, HierarchyItem item)
         {
             RigTargetDefinition target =
-                item.targetId != 0u ? FindRigTargetById(item.targetId) : null;
+                item.targetId != 0u ? hierarchyPane.FindRigTargetById(item.targetId) : null;
             if (target == null)
             {
                 heading.tagButton.style.display = DisplayStyle.None;
@@ -257,7 +257,7 @@ namespace DotsAnimationToolkit.Editor
             bool isSkinnedBone =
                 previewController != null && previewController.IsSkinnedBone(item.previewIndex);
             return ClipObjectRef.Bone(
-                item.displayName, item.targetId, billboardRootId, ResolveHierarchyPath(item),
+                item.displayName, item.targetId, billboardRootId, hierarchyPane.ResolveHierarchyPath(item),
                 ragdollBodyId, isSkinnedBone);
         }
 
@@ -349,7 +349,7 @@ namespace DotsAnimationToolkit.Editor
             if (instance.kind == ClipComponentKind.Socket)
             {
                 SocketDefinition socket = ResolveSocket(instance);
-                bool isGizmoTarget = socket != null && socket.Id.Value == selectedSocketId;
+                bool isGizmoTarget = socket != null && socket.Id.Value == hierarchyPane.SelectedSocketId;
                 block.EnableInClassList(ComponentActiveUssClassName, isGizmoTarget);
             }
 
@@ -708,7 +708,7 @@ namespace DotsAnimationToolkit.Editor
                 CommitSocketEdit(true);
 
                 // A billboard root changes how the node renders in the preview, and marks its row.
-                RefreshHierarchyRows();
+                hierarchyPane.RefreshHierarchyRows();
                 RebuildInspector();
                 return;
             }
@@ -754,7 +754,7 @@ namespace DotsAnimationToolkit.Editor
             // hierarchy is rebuilt too: a promoted node has just become a part, and its row now
             // stands for one.
             RebuildTimeline();
-            RebuildHierarchy();
+            hierarchyPane.RebuildHierarchy();
             RebuildInspector();
         }
 
@@ -798,7 +798,7 @@ namespace DotsAnimationToolkit.Editor
                     return;
                 }
 
-                bool wasGizmoTarget = socket.Id.Value == selectedSocketId;
+                bool wasGizmoTarget = socket.Id.Value == hierarchyPane.SelectedSocketId;
                 RecordSocketEdit(rig, "Remove Socket");
                 ClipComponentModel.Remove(selectedClip, rig, instance);
                 AssetDatabase.SaveAssetIfDirty(rig);
@@ -844,7 +844,7 @@ namespace DotsAnimationToolkit.Editor
             hasActiveKey = false;
 
             RebuildTimeline();
-            RebuildHierarchy();
+            hierarchyPane.RebuildHierarchy();
             RebuildInspector();
         }
 
@@ -889,7 +889,7 @@ namespace DotsAnimationToolkit.Editor
 
             selectedKeys.Clear();
             hasActiveKey = false;
-            RefreshHierarchyRows();
+            hierarchyPane.RefreshHierarchyRows();
             RebuildTimeline();
             RebuildInspector();
         }
@@ -933,7 +933,7 @@ namespace DotsAnimationToolkit.Editor
             }
             CommitSocketEdit(false);
 
-            RefreshHierarchyRows();
+            hierarchyPane.RefreshHierarchyRows();
             RebuildInspector();
         }
 
@@ -948,95 +948,12 @@ namespace DotsAnimationToolkit.Editor
         // the hierarchy, so this is what "which socket am I moving" means.
         private void FocusSocket(uint socketId)
         {
-            selectedSocketId = socketId;
+            hierarchyPane.SelectedSocketId = socketId;
             if (previewController != null)
             {
                 previewController.SetSelectedSocketId(socketId);
             }
             RefreshGizmo();
-        }
-
-        // The hierarchy row owning a key's track, or null when the object has no row. A bone is
-        // matched by name and a part by id, since a bone lives in an imported hierarchy this
-        // package never assigned an id to.
-        private HierarchyItem FindHierarchyItemForKey(KeyAddress address)
-        {
-            if (selectedClip == null)
-            {
-                return null;
-            }
-
-            if (address.trackKind == TimelineTrackKind.Bone)
-            {
-                if (selectedClip.boneTracks == null
-                    || address.trackIndex < 0
-                    || address.trackIndex >= selectedClip.boneTracks.Count)
-                {
-                    return null;
-                }
-                string boneName = selectedClip.boneTracks[address.trackIndex].boneName;
-                foreach (KeyValuePair<int, HierarchyItem> pair in hierarchyItemsById)
-                {
-                    if (pair.Value.kind != HierarchyItemKind.RigTarget
-                        && string.Equals(
-                            pair.Value.displayName, boneName, System.StringComparison.Ordinal))
-                    {
-                        return pair.Value;
-                    }
-                }
-                return null;
-            }
-
-            uint targetId = 0u;
-            if (address.trackKind == TimelineTrackKind.Transform)
-            {
-                if (selectedClip.transformTracks == null
-                    || address.trackIndex < 0
-                    || address.trackIndex >= selectedClip.transformTracks.Count)
-                {
-                    return null;
-                }
-                targetId = selectedClip.transformTracks[address.trackIndex].targetId;
-            }
-            else if (address.trackKind == TimelineTrackKind.Sprite)
-            {
-                if (selectedClip.spriteTracks == null
-                    || address.trackIndex < 0
-                    || address.trackIndex >= selectedClip.spriteTracks.Count)
-                {
-                    return null;
-                }
-                targetId = selectedClip.spriteTracks[address.trackIndex].targetId;
-            }
-
-            int itemId;
-            if (targetId == 0u || !TryFindRigTargetItemId(targetId, out itemId))
-            {
-                return null;
-            }
-            HierarchyItem item;
-            return hierarchyItemsById.TryGetValue(itemId, out item) ? item : null;
-        }
-
-        /// <summary>Whether a socket is one of this row's own components.</summary>
-        private bool SocketBelongsToItem(uint socketId, HierarchyItem item)
-        {
-            if (socketId == 0u || item == null)
-            {
-                return false;
-            }
-            SocketDefinition socket = FindSocket(socketId);
-            if (socket == null)
-            {
-                return false;
-            }
-            if (socket.mode == SocketAttachMode.RigTarget)
-            {
-                // On the id, not the row's kind: a claimed node is the part its sockets follow.
-                return item.targetId != 0u && socket.targetId == item.targetId;
-            }
-            return item.kind != HierarchyItemKind.RigTarget
-                && string.Equals(socket.boneName, item.displayName, System.StringComparison.Ordinal);
         }
 
         // -------------------------------------------------------------------------------------
@@ -1074,10 +991,10 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement row = new VisualElement();
             row.AddToClassList(ComponentBlockUssClassName);
-            row.Add(MakeHeading(DescribeSocketLabel(socket)));
+            row.Add(MakeHeading(hierarchyPane.DescribeSocketLabel(socket)));
 
             int sourceItemId;
-            if (TryFindSocketSourceItemId(socket.Id.Value, out sourceItemId))
+            if (hierarchyPane.TryFindSocketSourceItemId(socket.Id.Value, out sourceItemId))
             {
                 row.Add(new Button(() => SelectSocketSource(socket))
                 {
@@ -1125,13 +1042,11 @@ namespace DotsAnimationToolkit.Editor
         private void SelectSocketSource(SocketDefinition socket)
         {
             int sourceItemId;
-            if (!TryFindSocketSourceItemId(socket.Id.Value, out sourceItemId)
-                || hierarchyTreeView == null)
+            if (!hierarchyPane.TryFindSocketSourceItemId(socket.Id.Value, out sourceItemId))
             {
                 return;
             }
-            hierarchyTreeView.SetSelectionById(sourceItemId);
-            hierarchyTreeView.ScrollToItemById(sourceItemId);
+            hierarchyPane.SelectItemById(sourceItemId);
             FocusSocket(socket.Id.Value);
             RebuildInspector();
         }

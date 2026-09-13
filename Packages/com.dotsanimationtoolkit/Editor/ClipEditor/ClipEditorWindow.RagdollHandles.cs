@@ -326,7 +326,7 @@ namespace DotsAnimationToolkit.Editor
 
             RigAsset rig = ActiveRig;
             GizmoDragDestination destination = GizmoDragRouting.Resolve(
-                selectedSocketId != 0u, true, IsRigEditMode, IsAutoKeyEnabled, true);
+                hierarchyPane.SelectedSocketId != 0u, true, IsRigEditMode, IsAutoKeyEnabled, true);
             if (destination == GizmoDragDestination.RagdollBody && rig != null)
             {
                 EditorUtility.SetDirty(rig);
