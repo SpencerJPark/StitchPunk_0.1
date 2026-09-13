@@ -732,10 +732,17 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            string referenceSummary = AssetReferenceIndex.SummarizeForDialog(AssetReferenceIndex.ReferencesToRig(rig));
+            string dialogBody = "Delete \"" + rig.name + "\"? Any actor profile or cutscene slot bound to it will lose "
+                + "it. The asset moves to the OS trash, not permanently deleted.";
+            if (referenceSummary.Length > 0)
+            {
+                dialogBody = referenceSummary + "\n\n" + dialogBody;
+            }
+
             bool confirmed = EditorUtility.DisplayDialog(
                 "Delete Rig",
-                "Delete \"" + rig.name + "\"? Any actor profile or clip bound to its targets will lose "
-                    + "them. The asset moves to the OS trash, not permanently deleted.",
+                dialogBody,
                 "Delete",
                 "Cancel");
             if (!confirmed)

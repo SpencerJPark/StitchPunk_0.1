@@ -115,12 +115,7 @@ namespace DotsAnimationToolkit.Editor
 
         private static bool TrackMatchesTarget(uint trackTargetId, uint trackTagId, uint targetStableId, uint tagId)
         {
-            if (trackTagId != 0 && tagId != 0 && trackTagId == tagId)
-            {
-                return true;
-            }
-
-            return trackTagId == 0 && trackTargetId == targetStableId;
+            return TrackTargetMatchResolver.TrackBindsTarget(trackTargetId, trackTagId, targetStableId, tagId);
         }
     }
 }

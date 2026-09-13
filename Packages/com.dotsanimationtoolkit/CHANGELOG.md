@@ -8,6 +8,30 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.31.0] — A84 — asset reference index: "where is this used"
+
+### Added
+
+- `AssetReferenceIndex` (Editor/ClipUtilities): one editor service that scans every toolkit asset
+  once (clips, clip sets, rigs, actor profiles, cutscenes, VAT texture sets — one combined
+  `AssetDatabase.FindAssets` call), stays current through an `AssetPostprocessor` that marks it
+  dirty on any `.asset` import, delete or move, and answers `ReferencesToRig / Clip / ClipSet /
+  Profile / VatTextures / EventKey / Tag`, each as a list of (owner, kind, detail). Editor-only,
+  in-memory, no serialized cache.
+- `TrackTargetMatchResolver.TrackBindsTarget` — the one tag-aware rule for "does this track
+  animate this rig target": by tag when the track carries one, by raw target id only when it
+  does not.
+
+### Changed
+
+- Delete confirmations on the Rigs, Clip Sets and Actor Profiles catalogs open with what the
+  index found ("Referenced by 2 profiles, 1 cutscene." then the names, ten at most, then "+N
+  more"). The delete itself is unchanged: OS trash, then rescan.
+- The Clip Editor hierarchy's "animated" bold now uses the tag-aware rule, so a tag-bound track
+  marks the target wearing that tag rather than only a raw-id match.
+- `AnimEventBindingUtility`'s project-wide counts read the index and now include cutscene event
+  markers, not only clip markers.
+
 ## [0.30.0] — A83 — the Clip Editor window is four panes
 
 ### Changed

@@ -185,9 +185,16 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            string referenceSummary = AssetReferenceIndex.SummarizeForDialog(AssetReferenceIndex.ReferencesToProfile(profile));
+            string dialogBody = "Move \"" + profile.name + "\" to the trash? Actors and cutscenes that reference it will lose their profile.";
+            if (referenceSummary.Length > 0)
+            {
+                dialogBody = referenceSummary + "\n\n" + dialogBody;
+            }
+
             bool confirmed = EditorUtility.DisplayDialog(
                 "Delete Actor Profile",
-                "Move \"" + profile.name + "\" to the trash? Actors and cutscenes that reference it will lose their profile.",
+                dialogBody,
                 "Move to Trash",
                 "Cancel");
             if (!confirmed)

@@ -187,3 +187,14 @@ In Rig Edit:
 Both go through Unity's prefab APIs. With a prefab stage open for that asset, edits land in the stage: undoable, visible, saved when you save the stage. With no stage open, the asset is written immediately via `LoadPrefabContents`/`SaveAsPrefabAsset`, which **cannot be undone** — there is no open instance for the undo system to restore. Open the prefab first if you want an undo stack.
 
 ---
+
+## Deleting things
+
+Right-click Delete on a rig, clip set or actor profile in its catalog. The confirmation now opens
+with what else in the project points at it — "Referenced by 2 profiles, 1 cutscene." — followed
+by their names (the first ten; the rest are counted as "+N more"). Profiles are referenced by
+cutscene slots; rigs by profiles and cutscene slots; clip sets by profiles and cutscene slots.
+Nothing is blocked: Delete still moves the asset to the operating-system trash, and anything that
+referenced it is left pointing at nothing until you re-assign it. The list comes from an
+in-memory index rebuilt on the first query after any asset import, so it is current without a
+manual refresh.

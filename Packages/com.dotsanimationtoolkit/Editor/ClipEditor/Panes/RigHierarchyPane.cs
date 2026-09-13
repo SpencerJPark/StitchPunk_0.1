@@ -844,36 +844,10 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
-        /// <summary>How many transform and flipbook tracks the selected clip aims at a target.</summary>
+        /// <summary>How many transform and flipbook tracks the selected clip aims at a target, by tag when the track carries one.</summary>
         internal int CountTracksForTarget(uint targetId)
         {
-            if (session.SelectedClip == null)
-            {
-                return 0;
-            }
-
-            int trackCount = 0;
-            for (int trackIndex = 0;
-                session.SelectedClip.transformTracks != null && trackIndex < session.SelectedClip.transformTracks.Count;
-                trackIndex++)
-            {
-                TransformTrack track = session.SelectedClip.transformTracks[trackIndex];
-                if (track != null && track.targetId == targetId)
-                {
-                    trackCount++;
-                }
-            }
-            for (int trackIndex = 0;
-                session.SelectedClip.spriteTracks != null && trackIndex < session.SelectedClip.spriteTracks.Count;
-                trackIndex++)
-            {
-                SpriteTrack track = session.SelectedClip.spriteTracks[trackIndex];
-                if (track != null && track.targetId == targetId)
-                {
-                    trackCount++;
-                }
-            }
-            return trackCount;
+            return AssetReferenceIndex.CountTracksBoundToTarget(session.SelectedClip, ActiveRig, targetId);
         }
 
         /// <summary>The single place a hierarchy selection takes effect, whichever surface caused it.</summary>

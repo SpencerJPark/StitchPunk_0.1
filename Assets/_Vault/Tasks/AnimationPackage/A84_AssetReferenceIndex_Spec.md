@@ -170,4 +170,32 @@ Boilerplate per roadmap §3.3. All wave tasks are `[parallel-safe]`.
 
 ## 7. Build log
 
-_(empty)_
+- **T0 (2026-09-12).** Head `a1cc4e97`, `0.30.0`. Console clean, `isCompiling` false; inherited
+  baseline EditMode 824 (one pre-existing `Conformance_A` failure), PlayMode 283. Project holds 24
+  toolkit assets: 11 clips, 2 clip sets, 2 rigs, 2 profiles, 7 cutscenes, 0 VAT sets. **D1
+  measurement:** six separate `FindAssets("t:…")` calls cost 207–328 ms across four rounds — the
+  `t:` search is the cost, `LoadAllAssetsAtPath` is ~0 ms once cached (~120 ms cold). One combined
+  call `FindAssets("t:ClipAsset t:ClipSetAsset t:RigAsset t:ActorProfileAsset t:CutsceneAsset
+  t:VatTextureSetAsset")` returns the same 24 in 64–68 ms. Under 250 ms, so D1 stays simple: full
+  rescan on the first query after a dirty mark, using the one combined filter.
+- **Drift found in §3 reads (follow the code, not the spec):**
+  - Clip sets do not reference rigs (`ClipSetAsset` has `clips` and `vatTextures` only), so
+    "rigs → profiles and clip sets" is "rigs → profiles and cutscene slots" (`CutsceneSlot.rig`).
+  - Cutscene slots hold no `ClipAsset`; clip blocks carry an `animationKey` resolved through the
+    slot's profile. `CutsceneSlotClip` is dropped; the slot references that do exist are `rig`,
+    `clipSets`, `profile` → kinds `CutsceneSlotRig`, `CutsceneSlotClipSet`, `CutsceneSlotProfile`.
+  - T5 has the profile delete quote the index, but §4.1 lists no profile query. Added
+    `ReferencesToProfile(ActorProfileAsset)` (cutscene slots are the only asset-side referrer).
+  - Cutscene part tracks (`CutsceneKeyedTrack.tagId`) are tag-addressed; `ReferencesToTag` reports
+    them as `CutsceneTrackTag`. `ClipTrackTarget` is renamed `ClipTrackTag` — the only query that
+    yields a clip-track reference is the tag one.
+  - The D2 rule already exists privately as `RigTargetReferenceResolver.TrackMatchesTarget`
+    (`Editor/ClipEditor/Authoring/`). `TrackTargetMatchResolver` becomes its public home; the
+    private copy delegates to it after the wave.
+  - The rig and profile delete handlers are not in the catalog columns: after A82 the columns are
+    thin event forwarders, and the `DisplayDialog` bodies live in `RigsPanel.RequestDeleteRig`
+    (`Editor/ClipEditor/Authoring/RigsPanel.cs`) and
+    `ActorEditorProfilesColumn.RequestDeleteProfile` (`Editor/ClipEditor/ActorEditor/`). T5 edits
+    those two files.
+- **T1 (2026-09-12).** `Editor/ClipUtilities/AssetReferenceIndex.cs` written with the drifted enum
+  (fourteen kinds), the struct, and stubs throwing `NotImplementedException`.

@@ -99,10 +99,17 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            string referenceSummary = AssetReferenceIndex.SummarizeForDialog(AssetReferenceIndex.ReferencesToClipSet(targetSet));
+            string dialogBody = "Delete \"" + targetSet.name + "\"? Any actor profile or cutscene slot referencing it will lose those "
+                + "clips. The asset moves to the OS trash, not permanently deleted.";
+            if (referenceSummary.Length > 0)
+            {
+                dialogBody = referenceSummary + "\n\n" + dialogBody;
+            }
+
             bool confirmed = EditorUtility.DisplayDialog(
                 "Delete Clip Set",
-                "Delete \"" + targetSet.name + "\"? Any actor profile referencing it will lose those "
-                    + "clips. The asset moves to the OS trash, not permanently deleted.",
+                dialogBody,
                 "Delete",
                 "Cancel");
             if (!confirmed)

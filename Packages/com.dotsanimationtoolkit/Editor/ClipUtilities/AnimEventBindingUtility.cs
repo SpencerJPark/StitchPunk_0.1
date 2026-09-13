@@ -2,14 +2,13 @@
 
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
-using UnityEditor;
 
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Counts how many event markers use a given <see cref="AnimEventKeyEntry"/>'s key, so
-    /// <see cref="AnimEventKeyRegistryEditor"/> can show that count before a delete. Unlike a tag
-    /// id, an event key is not validated — removing its registry row only leaves it unresolved.
+    /// Counts how many clip and cutscene event markers use a given <see cref="AnimEventKeyEntry"/>'s
+    /// key, so <see cref="AnimEventKeyRegistryEditor"/> can show that count before a delete. Unlike
+    /// a tag id, an event key is not validated — removing its registry row only leaves it unresolved.
     /// </summary>
     public static class AnimEventBindingUtility
     {
@@ -50,7 +49,18 @@ namespace DotsAnimationToolkit.Editor
             {
                 return 0;
             }
-            return CountMarkerBindings(entry.eventKey, FindAllClipAssetsInProject());
+
+            List<AssetReference> references = AssetReferenceIndex.ReferencesToEventKey(entry.eventKey);
+            int bindingCount = 0;
+            for (int referenceIndex = 0; referenceIndex < references.Count; referenceIndex++)
+            {
+                AssetReferenceKind kind = references[referenceIndex].kind;
+                if (kind == AssetReferenceKind.ClipEventMarker || kind == AssetReferenceKind.CutsceneEventMarker)
+                {
+                    bindingCount++;
+                }
+            }
+            return bindingCount;
         }
 
         public static int CountBoundClips(uint eventKey, IReadOnlyList<ClipAsset> clips)
@@ -87,34 +97,18 @@ namespace DotsAnimationToolkit.Editor
             {
                 return 0;
             }
-            return CountBoundClips(entry.eventKey, FindAllClipAssetsInProject());
-        }
 
-        // Uses LoadAllAssetsAtPath, not LoadAssetAtPath<ClipAsset> — the latter would silently
-        // miss a clip that is a sub-asset rather than its file's main object.
-        private static List<ClipAsset> FindAllClipAssetsInProject()
-        {
-            List<ClipAsset> clips = new List<ClipAsset>();
-            string[] clipAssetGuids = AssetDatabase.FindAssets("t:" + nameof(ClipAsset));
-            HashSet<string> seenPaths = new HashSet<string>();
-            for (int guidIndex = 0; guidIndex < clipAssetGuids.Length; guidIndex++)
+            List<AssetReference> references = AssetReferenceIndex.ReferencesToEventKey(entry.eventKey);
+            HashSet<UnityEngine.Object> boundOwners = new HashSet<UnityEngine.Object>();
+            for (int referenceIndex = 0; referenceIndex < references.Count; referenceIndex++)
             {
-                string assetPath = AssetDatabase.GUIDToAssetPath(clipAssetGuids[guidIndex]);
-                if (string.IsNullOrEmpty(assetPath) || !seenPaths.Add(assetPath))
+                AssetReference reference = references[referenceIndex];
+                if (reference.kind == AssetReferenceKind.ClipEventMarker)
                 {
-                    continue;
-                }
-                UnityEngine.Object[] assetsAtPath = AssetDatabase.LoadAllAssetsAtPath(assetPath);
-                for (int assetIndex = 0; assetIndex < assetsAtPath.Length; assetIndex++)
-                {
-                    ClipAsset clip = assetsAtPath[assetIndex] as ClipAsset;
-                    if (clip != null)
-                    {
-                        clips.Add(clip);
-                    }
+                    boundOwners.Add(reference.owner);
                 }
             }
-            return clips;
+            return boundOwners.Count;
         }
     }
 }
