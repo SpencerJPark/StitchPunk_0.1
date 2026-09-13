@@ -3,7 +3,7 @@
 > **Status:** 📝 specced 2026-09-10, not built. Takes `0.43.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** A78 (per-part `ValidateVatMaterial`), A82 (column, split view), the shader
-> contract (`Documentation~/shader-contract.md`). Optional: A95 (grid-sheet cross-check).
+> contract (`Documentation~/shader-contract.md`). Optional: A95 (sheet-bound tracks need an array sampler — cross-check).
 > **Executor:** one orchestrator; `worker` subagents in **one wave of seven**, each ≤ 2 files.
 
 ---
@@ -25,8 +25,8 @@ missing one silently renders wrong: a VAT part with no `_VatFrameA` is a motionl
 flipbook quad with no `_ImageIndex` shows frame 0 forever, a billboard with no `_BillboardParams`
 never turns. The only check today is `ValidateVatMaterial` at bake, VAT-only, in a baker. After this
 amendment a Materials tab lists every material any rig's source prefab uses, per target kind, and
-says which contract properties it has and lacks, whether DOTS instancing is on, and — for a grid
-sheet — whether its flipbook layout matches. A Create button makes a correct material from the
+says which contract properties it has and lacks, whether DOTS instancing is on, and — for a part whose
+sprite track is bound to a sheet — whether the material samples a `Texture2DArray`. A Create button makes a correct material from the
 package's shipped example shader for a chosen rig target.
 
 ```
@@ -38,7 +38,7 @@ package's shipped example shader for a chosen rig target.
 │ │ ● M_Citizen_Face    Flipbook   │ │ ✓ _ImageIndex  ✓ _AtlasFrame  ✓ _BillboardParams              │ │
 │ │ ● M_Old             (unused)   │ │ – _VatFrameA (not needed for Quad)                           │ │
 │ └────────────────────────────────┘ │ ✓ DOTS instancing                                             │ │
-│                                    │ ● Flipbook: material says 8x4, sheet CitizenFace is 8x2      │ │
+│                                    │ ● Sheet: CitizenFace binds Face, material has no _MainTexArray│ │
 │                                    └──────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -59,9 +59,10 @@ package's shipped example shader for a chosen rig target.
   needed → Note; `enableInstancing == false` → Error for every kind (Entities Graphics needs it).
   The existing `ValidateVatMaterial` in `RigTargetBaker` calls this class for its texture-size
   check plus the property check — one source of truth, two callers.
-- **A96-D4 — Flipbook cross-check (A95 present):** if the material exposes columns/rows properties
-  (T0 names them from `ToolkitFlipbook.hlsl`) and a `SpriteTrack.sheet` bound on any clip in the
-  shared clip set targets this material's part, compare; mismatch → Warning naming both.
+- **A96-D4 — Sheet cross-check (A95 present; A95 D0/D7 rewrote this 2026-09-12):** if a
+  `SpriteTrack.sheet` bound on any clip in the shared clip set targets this material's part and the
+  material has no `_MainTexArray` texture property, Warning naming the sheet, the part and the
+  material. There is no columns/rows layout to compare — A95 builds `Texture2DArray`s, not grids.
 - **A96-D5 — Create makes a material from `Shaders/ToolkitCompositeExample.shader`** (T0 confirms
   the path and that it is the shipped example), enables instancing, sets keywords for the chosen
   target kind, saves beside the rig's prefab as `M_<Rig>_<Target>.mat`, and **does not** assign it
@@ -113,9 +114,9 @@ renderers and `VatBakeSourceResolver`'s node lookup.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Name the example shader file; name the
-  flipbook columns/rows property names (or record that layout is derived from texture size — then
-  D4 compares against `SpriteSheetAsset.cellSize` instead). Record `TargetKind` values.
+- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Name the example shader file; confirm
+  `_MainTexArray` is the array sampler property in `ToolkitSpriteUnlitArray.shadergraph` (D4 keys
+  on it). Record `TargetKind` values.
 - [ ] **T1 — Nothing to pre-write** beyond confirming names; proceed.
 - [ ] **T2 — Contract validation + fixture [parallel-safe]** — Files: new
   `MaterialContractValidation.cs`, new `Tests/EditMode/MaterialContractValidationTests.cs`

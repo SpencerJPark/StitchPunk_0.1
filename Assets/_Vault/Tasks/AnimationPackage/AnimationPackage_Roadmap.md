@@ -35,7 +35,7 @@ free minor and correct the spec's status line.
 
 - [ ] **A93 — Events tab** (`0.40.0`) — [`A93_EventsTab_Spec.md`](A93_EventsTab_Spec.md). Registry catalog, payload + usage, a routing table baked to a blob hosts read, a consumer-stub generator. Needs A84, A85.
 - [ ] **A94 — Health tab** (`0.41.0`) — [`A94_HealthTab_Spec.md`](A94_HealthTab_Spec.md). One project-wide findings list replacing the per-clip badge for cross-asset problems. Needs A84, A89.
-- [ ] **A95 — Sprite Sheets tab** (`0.42.0`) — [`A95_SpriteSheetsTab_Spec.md`](A95_SpriteSheetsTab_Spec.md). Atlas and flipbook builder writing the rects and indices sprite tracks already expect.
+- [ ] **A95 — Sprite Sheets tab** (`0.42.0`) — [`A95_SpriteSheetsTab_Spec.md`](A95_SpriteSheetsTab_Spec.md). `Texture2DArray` flipbook builder with a contact-sheet preview, writing the layer indices sprite tracks already expect; frame-by-name picker on sprite keys. Atlas output dropped 2026-09-12 (spec D0).
 - [ ] **A96 — Materials tab** (`0.43.0`) — [`A96_MaterialsTab_Spec.md`](A96_MaterialsTab_Spec.md). Every actor material against the shader contract; create-from-template.
 - [ ] **A97 — Retarget tab** (`0.44.0`) — [`A97_RetargetTab_Spec.md`](A97_RetargetTab_Spec.md). Clip × rig binding table with per-row tag remap and roster coverage.
 - [ ] **A98 — Capture tab** (`0.45.0`) — [`A98_CaptureTab_Spec.md`](A98_CaptureTab_Spec.md). PNG sequence (and optional GIF) from the preview camera for a clip, profile animation or cutscene.
