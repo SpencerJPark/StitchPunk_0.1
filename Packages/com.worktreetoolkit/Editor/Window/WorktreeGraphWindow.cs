@@ -13,9 +13,10 @@ namespace WorktreeToolkit.Editor
     {
         private const double PollIntervalSeconds = 3.0;
         private const double SpinnerUpdateIntervalSeconds = 0.1;
-        private const float CanvasMargin = 24f;
-        private const float ColumnStepPixels = 184f;
-        private const float RowStepPixels = 132f;
+        private const float CanvasMargin = 32f;
+        private const float ColumnStepPixels = 228f;
+        private const float RowStepPixels = 172f;
+        private const string HasSelectedTileEditorPrefKey = "WorktreeToolkit.HasSelectedTile";
 
         [MenuItem("Window/Worktree Toolkit")]
         public static void Open()
@@ -39,6 +40,7 @@ namespace WorktreeToolkit.Editor
         private Label statusLineTextLabel;
         private GateQueueStrip gateQueueStrip;
         private WorktreeInspectorPane inspectorPane;
+        private WorktreeLegend legendElement;
         private Label emptyHintLabel;
 
         // EditorWindow fields survive a domain reload; per-session bookkeeping must not.
@@ -99,7 +101,7 @@ namespace WorktreeToolkit.Editor
 
             Button stageChipButton = new Button(this.HandleStageChipClicked);
             stageChipButton.AddToClassList("worktree-header__stage-chip");
-            this.stageChipLabel = new Label("stage: unknown");
+            this.stageChipLabel = new Label("Open in Editor: unknown");
             this.stageChipBadgeLabel = new Label();
             this.stageChipBadgeLabel.AddToClassList("worktree-header__badge");
             this.stageChipBadgeLabel.style.display = DisplayStyle.None;
@@ -111,15 +113,15 @@ namespace WorktreeToolkit.Editor
             headerSpacer.style.flexGrow = 1f;
             headerRow.Add(headerSpacer);
 
-            headerRow.Add(WorktreeIcons.MakeIconButton(this.RequestGraphRefresh, WorktreeIcons.Refresh, "Refresh the worktree graph", "Refresh"));
-            headerRow.Add(WorktreeIcons.MakeIconButton(this.HandleAddWorktreeButtonClicked, WorktreeIcons.Create, "Create a worktree", "+"));
+            headerRow.Add(WorktreeIcons.MakeIconTextButton(this.RequestGraphRefresh, WorktreeIcons.Refresh, "Reload the worktree list", "Refresh"));
+            headerRow.Add(WorktreeIcons.MakeIconTextButton(this.HandleAddWorktreeButtonClicked, WorktreeIcons.Create, "Create a new worktree", "New worktree"));
 
             this.brokerButtonHolder = new VisualElement();
             this.brokerButtonHolder.style.flexDirection = FlexDirection.Row;
             headerRow.Add(this.brokerButtonHolder);
             this.RebuildBrokerButton();
 
-            this.menuButtonElement = WorktreeIcons.MakeIconButton(this.HandleMenuButtonClicked, WorktreeIcons.Menu, "More actions", "Menu");
+            this.menuButtonElement = WorktreeIcons.MakeIconTextButton(this.HandleMenuButtonClicked, WorktreeIcons.Menu, "More actions", "More");
             headerRow.Add(this.menuButtonElement);
 
             this.createIdField = new TextField();
@@ -165,6 +167,14 @@ namespace WorktreeToolkit.Editor
             scrollView.style.flexGrow = 1f;
             scrollView.AddToClassList("worktree-canvas");
             canvasColumn.Add(scrollView);
+
+            // Sibling after the ScrollView, absolutely positioned, so it stays pinned top-right while the canvas scrolls.
+            this.legendElement = new WorktreeLegend();
+            this.legendElement.style.position = Position.Absolute;
+            this.legendElement.style.top = 8f;
+            this.legendElement.style.right = 8f;
+            this.legendElement.SetFirstUseHintVisible(!EditorPrefs.GetBool(HasSelectedTileEditorPrefKey, false));
+            canvasColumn.Add(this.legendElement);
 
             this.canvasElement = new VisualElement();
             this.canvasElement.style.position = Position.Relative;
@@ -253,7 +263,8 @@ namespace WorktreeToolkit.Editor
 
             bool brokerIsEnabled = GateBroker.IsEnabled;
             string brokerIconName = brokerIsEnabled ? WorktreeIcons.BrokerOn : WorktreeIcons.BrokerOff;
-            Button brokerButton = WorktreeIcons.MakeIconTextButton(this.HandleBrokerButtonClicked, brokerIconName, "Toggle the gate broker", "Broker");
+            string brokerButtonText = brokerIsEnabled ? "Broker: on" : "Broker: off";
+            Button brokerButton = WorktreeIcons.MakeIconTextButton(this.HandleBrokerButtonClicked, brokerIconName, "Toggle the gate broker", brokerButtonText);
 
             VisualElement brokerDot = new VisualElement();
             brokerDot.AddToClassList("worktree-header__broker-dot");
@@ -281,7 +292,7 @@ namespace WorktreeToolkit.Editor
         {
             GenericMenu menu = new GenericMenu();
             menu.AddItem(new GUIContent("Adopt existing worktrees"), false, this.HandleAdoptMenuItemClicked);
-            menu.AddItem(new GUIContent("Edit noise globs..."), false, this.HandleEditNoiseGlobsMenuItemClicked);
+            menu.AddItem(new GUIContent("Edit noise globs…"), false, this.HandleEditNoiseGlobsMenuItemClicked);
             menu.AddItem(new GUIContent("Open documentation"), false, HandleOpenDocumentationMenuItemClicked);
             menu.AddItem(new GUIContent("Gate broker enabled"), GateBroker.IsEnabled, this.HandleToggleBrokerMenuItemClicked);
             menu.DropDown(this.menuButtonElement.worldBound);
@@ -335,6 +346,12 @@ namespace WorktreeToolkit.Editor
             this.selectedNodeId = nodeId;
             this.ApplySelectionToNodes();
             this.UpdateInspectorForSelection();
+
+            if (!EditorPrefs.GetBool(HasSelectedTileEditorPrefKey, false))
+            {
+                EditorPrefs.SetBool(HasSelectedTileEditorPrefKey, true);
+                this.legendElement.SetFirstUseHintVisible(false);
+            }
         }
 
         private void ClearSelection()
@@ -359,6 +376,8 @@ namespace WorktreeToolkit.Editor
                 this.inspectorPane.ShowNothingSelected();
                 return;
             }
+
+            this.inspectorPane.SetTrunkBranch(this.currentGraph.trunk);
 
             if (string.Equals(this.selectedNodeId, WorktreeTreeLayout.TrunkNodeId, StringComparison.Ordinal))
             {
@@ -556,6 +575,8 @@ namespace WorktreeToolkit.Editor
                     nodeElement.BindWorktree(worktreeNode, worktreeIsOnStage, stageIsBusy);
                 }
 
+                nodeElement.SetTrunkBranch(graph.trunk);
+
                 maxRight = Mathf.Max(maxRight, leftPosition + WorktreeNodeElement.SlotWidth);
                 maxBottom = Mathf.Max(maxBottom, topPosition + WorktreeNodeElement.SlotHeight);
             }
@@ -640,12 +661,13 @@ namespace WorktreeToolkit.Editor
         private void UpdateStageChip(WorktreeGraphDto graph)
         {
             string branchName = graph.stage != null ? graph.stage.branch : "unknown";
-            this.stageChipLabel.text = "stage: " + branchName;
+            this.stageChipLabel.text = "Open in Editor: " + branchName;
 
             int dirtyTrackedCount = graph.stage != null ? graph.stage.dirtyTracked : 0;
             if (dirtyTrackedCount > 0)
             {
-                this.stageChipBadgeLabel.text = "⚠ " + dirtyTrackedCount.ToString();
+                string uncommittedFileWord = dirtyTrackedCount == 1 ? "file" : "files";
+                this.stageChipBadgeLabel.text = " · " + dirtyTrackedCount.ToString() + " uncommitted " + uncommittedFileWord;
                 this.stageChipBadgeLabel.style.display = DisplayStyle.Flex;
             }
             else
@@ -691,8 +713,9 @@ namespace WorktreeToolkit.Editor
                 }
             }
 
-            this.statusLineTextLabel.text = totalWorktreeCount.ToString() + " worktrees · " + buildingCount.ToString()
-                + " building · " + gatingCount.ToString() + " gating · " + readyCount.ToString() + " ready";
+            string worktreeCountWord = totalWorktreeCount == 1 ? " worktree" : " worktrees";
+            this.statusLineTextLabel.text = totalWorktreeCount.ToString() + worktreeCountWord + " · " + buildingCount.ToString()
+                + " building · " + gatingCount.ToString() + " checking · " + readyCount.ToString() + " ready";
         }
 
         private void UpdateStatusSpinner(double currentTimeSeconds)
@@ -740,10 +763,10 @@ namespace WorktreeToolkit.Editor
             }
 
             bool confirmed = EditorUtility.DisplayDialog(
-                "Put on stage",
-                "Switch this project to " + targetNode.branch
-                    + "? Unsaved scenes, or unsaved assets that this branch changes, will block the move.",
-                "Switch",
+                "Open in Editor",
+                "Switch this Editor to " + targetNode.branch
+                    + "? Unsaved scenes, or unsaved assets that this branch changes, will stop the switch.",
+                "Open",
                 "Cancel");
             if (!confirmed)
             {
@@ -762,6 +785,16 @@ namespace WorktreeToolkit.Editor
                 return;
             }
 
+            bool confirmed = EditorUtility.DisplayDialog(
+                "Back to " + this.currentGraph.trunk,
+                "Switch this Editor back to " + this.currentGraph.trunk + "?",
+                "Switch back",
+                "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
+
             StageMoveOutcome outcome = StageSwapGuard.MoveStage(this.currentGraph.trunk, "return");
             this.HandleStageMoveOutcome(outcome);
             this.RequestGraphRefresh();
@@ -775,10 +808,10 @@ namespace WorktreeToolkit.Editor
                 return;
             }
 
+            string trunkBranchName = this.currentGraph != null ? this.currentGraph.trunk : "trunk";
             bool confirmed = EditorUtility.DisplayDialog(
-                "Merge worktree",
-                "Merge " + targetNode.branch + " into "
-                    + (this.currentGraph != null ? this.currentGraph.trunk : "trunk") + "?",
+                "Merge into " + trunkBranchName,
+                "Add " + targetNode.branch + "'s commits to " + trunkBranchName + "? History stays linear.",
                 "Merge",
                 "Cancel");
             if (!confirmed)
@@ -808,9 +841,9 @@ namespace WorktreeToolkit.Editor
             }
 
             bool confirmed = EditorUtility.DisplayDialog(
-                "Remove worktree",
-                "Remove the worktree for " + targetNode.branch + "? An unmerged branch is kept.",
-                "Remove",
+                "Delete worktree",
+                "Delete the worktree folder for " + targetNode.branch + "? An unmerged branch is kept.",
+                "Delete",
                 "Cancel");
             if (!confirmed)
             {

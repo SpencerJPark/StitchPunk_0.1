@@ -3,7 +3,7 @@ using UnityEngine.UIElements;
 
 namespace WorktreeToolkit.Editor
 {
-    /// <summary>Controller-prompt style footer: round key badges paired with a short action word.</summary>
+    /// <summary>Plain-language footer: gesture/action word pairs separated by dot separators.</summary>
     public sealed class WorktreeFooterBar : VisualElement
     {
         public WorktreeFooterBar()
@@ -13,12 +13,23 @@ namespace WorktreeToolkit.Editor
             style.alignItems = Align.Center;
             style.flexShrink = 0f;
 
-            Add(CreateHint("2×", "Put on stage", "Double-click a worktree tile to put that worktree on stage."));
-            Add(CreateHint("RMB", "Actions", "Right-click a worktree tile to open its actions menu (Put on stage, Merge, Remove, Reveal)."));
-            Add(CreateHint("F5", "Refresh", "Press F5 while this window has focus to refresh the worktree list."));
+            Add(CreateHint("Click a tile:", "details", "Click a worktree tile to see its details."));
+            AddSeparator();
+            Add(CreateHint("Double-click:", "open in Editor", "Double-click a worktree tile to open that worktree in the Editor."));
+            AddSeparator();
+            Add(CreateHint("Right-click:", "more actions", "Right-click a worktree tile to open its actions menu (Put on stage, Merge, Remove, Reveal)."));
+            AddSeparator();
+            Add(CreateHint("F5:", "refresh", "Press F5 while this window has focus to refresh the worktree list."));
         }
 
-        private static VisualElement CreateHint(string keyText, string wordText, string tooltipText)
+        private void AddSeparator()
+        {
+            Label separatorLabel = new Label("·");
+            separatorLabel.AddToClassList("worktree-footer__separator");
+            Add(separatorLabel);
+        }
+
+        private static VisualElement CreateHint(string gestureText, string wordText, string tooltipText)
         {
             VisualElement hintContainer = new VisualElement();
             hintContainer.AddToClassList("worktree-footer__hint");
@@ -26,20 +37,16 @@ namespace WorktreeToolkit.Editor
             hintContainer.style.alignItems = Align.Center;
             hintContainer.tooltip = tooltipText;
 
-            Label keyBadgeLabel = new Label(keyText);
-            keyBadgeLabel.AddToClassList("worktree-footer__key");
-            keyBadgeLabel.style.minWidth = 20f;
-            keyBadgeLabel.style.height = 20f;
-            keyBadgeLabel.style.paddingLeft = 5f;
-            keyBadgeLabel.style.paddingRight = 5f;
-            keyBadgeLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
-            keyBadgeLabel.tooltip = tooltipText;
+            Label gestureLabel = new Label(gestureText);
+            gestureLabel.AddToClassList("worktree-footer__gesture");
+            gestureLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            gestureLabel.tooltip = tooltipText;
 
             Label wordLabel = new Label(wordText);
             wordLabel.AddToClassList("worktree-footer__word");
             wordLabel.tooltip = tooltipText;
 
-            hintContainer.Add(keyBadgeLabel);
+            hintContainer.Add(gestureLabel);
             hintContainer.Add(wordLabel);
             return hintContainer;
         }

@@ -26,14 +26,14 @@ namespace WorktreeToolkit.Editor
     /// </summary>
     public sealed class WorktreeNodeElement : VisualElement
     {
-        public const float SlotWidth = 132f;
-        public const float SlotHeight = 112f;
-        public const float TileSize = 72f;
+        public const float SlotWidth = 168f;
+        public const float SlotHeight = 156f;
+        public const float TileSize = 96f;
 
-        private const int RayCount = 12;
-        private const float RayLengthFraction = 0.45f;
-        private const float RayAlpha = 0.06f;
-        private const float RayLineWidth = 2f;
+        private const float GlyphSize = 52f;
+        private const float GlyphStrokeWidth = 3.5f;
+        private const float LockGlyphSize = 20f;
+        private const float LockGlyphStrokeWidth = 2f;
         private const float GatingPulsePeriodSeconds = 1.2f;
 
         public string NodeId { get; }
@@ -44,11 +44,11 @@ namespace WorktreeToolkit.Editor
         public event Action<string, WorktreeNodeAction> ActionRequested;
 
         private readonly VisualElement selectionOutline;
-        private readonly Image selectionEyeIcon;
         private readonly VisualElement tileElement;
-        private readonly Image tileIconImage;
-        private readonly Image lockBadgeImage;
+        private readonly WorktreeGlyphElement tileGlyphElement;
+        private readonly WorktreeGlyphElement lockGlyphElement;
         private readonly VisualElement gatingPipElement;
+        private readonly Label ribbonLabel;
         private readonly Label captionLabel;
 
         private bool isTrunkNode;
@@ -59,6 +59,7 @@ namespace WorktreeToolkit.Editor
         private bool isGatingActive;
         private string fullBranchName;
         private string shortBranchName;
+        private string trunkBranchName = "main";
 
         public WorktreeNodeElement(string nodeId)
         {
@@ -82,34 +83,44 @@ namespace WorktreeToolkit.Editor
             this.selectionOutline.pickingMode = PickingMode.Ignore;
             this.Add(this.selectionOutline);
 
-            this.selectionEyeIcon = WorktreeIcons.MakeIcon(WorktreeIcons.SelectionEye, 14f);
-            this.selectionEyeIcon.AddToClassList("worktree-node__selection-eye");
-            this.selectionEyeIcon.style.position = Position.Absolute;
-            this.selectionEyeIcon.style.left = (SlotWidth - 14f) / 2f;
-            this.selectionEyeIcon.style.top = -6f - 14f - 4f;
-            this.selectionEyeIcon.style.display = DisplayStyle.None;
-            this.Add(this.selectionEyeIcon);
-
             this.tileElement = new VisualElement();
             this.tileElement.AddToClassList("worktree-node__tile");
             this.tileElement.style.width = TileSize;
             this.tileElement.style.height = TileSize;
             this.tileElement.style.justifyContent = Justify.Center;
             this.tileElement.style.alignItems = Align.Center;
-            this.tileElement.generateVisualContent += this.OnGenerateTileVisualContent;
             this.Add(this.tileElement);
 
-            this.tileIconImage = WorktreeIcons.MakeIcon(WorktreeIcons.Unclaimed, 32f);
-            this.tileIconImage.AddToClassList("worktree-node__tile-icon");
-            this.tileElement.Add(this.tileIconImage);
+            this.tileGlyphElement = new WorktreeGlyphElement();
+            this.tileGlyphElement.AddToClassList("worktree-node__glyph");
+            this.tileGlyphElement.style.width = GlyphSize;
+            this.tileGlyphElement.style.height = GlyphSize;
+            this.tileGlyphElement.StrokeWidth = GlyphStrokeWidth;
+            this.tileElement.Add(this.tileGlyphElement);
 
-            this.lockBadgeImage = WorktreeIcons.MakeIcon(WorktreeIcons.LockIconName, 12f);
-            this.lockBadgeImage.AddToClassList("worktree-node__lock");
-            this.lockBadgeImage.style.position = Position.Absolute;
-            this.lockBadgeImage.style.top = 2f;
-            this.lockBadgeImage.style.right = 2f;
-            this.lockBadgeImage.style.display = DisplayStyle.None;
-            this.tileElement.Add(this.lockBadgeImage);
+            this.lockGlyphElement = new WorktreeGlyphElement();
+            this.lockGlyphElement.AddToClassList("worktree-node__lock");
+            this.lockGlyphElement.style.width = LockGlyphSize;
+            this.lockGlyphElement.style.height = LockGlyphSize;
+            this.lockGlyphElement.Glyph = WorktreeGlyph.Padlock;
+            this.lockGlyphElement.StrokeWidth = LockGlyphStrokeWidth;
+            this.lockGlyphElement.GlyphColor = WorktreePalette.Cream;
+            this.lockGlyphElement.style.position = Position.Absolute;
+            this.lockGlyphElement.style.top = 2f;
+            this.lockGlyphElement.style.right = 2f;
+            this.lockGlyphElement.style.display = DisplayStyle.None;
+            this.tileElement.Add(this.lockGlyphElement);
+
+            this.ribbonLabel = new Label("ON STAGE");
+            this.ribbonLabel.AddToClassList("worktree-node__ribbon");
+            this.ribbonLabel.style.position = Position.Absolute;
+            this.ribbonLabel.style.left = 0f;
+            this.ribbonLabel.style.right = 0f;
+            this.ribbonLabel.style.bottom = 0f;
+            this.ribbonLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            this.ribbonLabel.style.display = DisplayStyle.None;
+            this.ribbonLabel.pickingMode = PickingMode.Ignore;
+            this.tileElement.Add(this.ribbonLabel);
 
             this.gatingPipElement = new VisualElement();
             this.gatingPipElement.AddToClassList("worktree-node__pip");
@@ -161,12 +172,12 @@ namespace WorktreeToolkit.Editor
             this.ApplyTileState(newTileState);
             this.ApplyCentralIcon(isTrunkNodeIcon: false, leadStatusText: leadStatusText);
 
-            string tooltipText = $"{node.branch}\n{(isLeadBound ? node.lead.status : "unclaimed")}\n" +
+            string plainLanguageStateLine = isLockedTile
+                ? $"Locked: {DescribeLockReason(node, isLeadBound, leadStatusText)}"
+                : (isOnStage ? "Open in your Editor" : "Ready to act on — click for details");
+
+            string tooltipText = $"{plainLanguageStateLine}\n{node.branch}\n{(isLeadBound ? node.lead.status : "unclaimed")}\n" +
                 $"ahead {node.ahead} · behind {node.behind} · dirty {node.dirty}";
-            if (isLockedTile)
-            {
-                tooltipText += $"\n{DescribeLockReason(node, isLeadBound, leadStatusText)}";
-            }
 
             if (stageIsBusy)
             {
@@ -191,19 +202,24 @@ namespace WorktreeToolkit.Editor
             this.ApplyTileState(newTileState);
             this.ApplyCentralIcon(isTrunkNodeIcon: true, leadStatusText: null);
 
+            string plainLanguageStateLine = isOnStage ? "Open in your Editor" : "Ready to act on — click for details";
             string statusText = this.isStageBusy
                 ? $"busy: {stage.busyWith.holder}"
                 : (stage.dirtyTracked == 0 ? "stage clean" : $"{stage.dirtyTracked} modified");
-            this.tileElement.tooltip = $"{trunkBranch}\n{statusText}";
+            this.tileElement.tooltip = $"{plainLanguageStateLine}\n{trunkBranch}\n{statusText}";
 
             this.RefreshCaptionText();
+        }
+
+        public void SetTrunkBranch(string trunkBranch)
+        {
+            this.trunkBranchName = string.IsNullOrEmpty(trunkBranch) ? "main" : trunkBranch;
         }
 
         public void SetSelected(bool isSelectedNow)
         {
             this.isSelected = isSelectedNow;
             this.selectionOutline.style.display = isSelectedNow ? DisplayStyle.Flex : DisplayStyle.None;
-            this.selectionEyeIcon.style.display = isSelectedNow ? DisplayStyle.Flex : DisplayStyle.None;
             this.RefreshCaptionText();
         }
 
@@ -211,7 +227,7 @@ namespace WorktreeToolkit.Editor
         {
             if (this.isSpinnerActive)
             {
-                this.tileIconImage.image = WorktreeIcons.SpinnerFrame(editorTimeSeconds);
+                this.tileGlyphElement.SpinnerAngleRadians = (float)(editorTimeSeconds * Mathf.PI * 2.0 * 0.8);
             }
 
             if (this.isGatingActive)
@@ -229,11 +245,8 @@ namespace WorktreeToolkit.Editor
             this.tileElement.EnableInClassList("worktree-node__tile--unlocked", newTileState == WorktreeTileState.Unlocked);
             this.tileElement.EnableInClassList("worktree-node__tile--on-stage", newTileState == WorktreeTileState.OnStage);
 
-            this.tileIconImage.EnableInClassList("worktree-node__tile-icon--dimmed", newTileState == WorktreeTileState.Locked);
-            this.lockBadgeImage.style.display = newTileState == WorktreeTileState.Locked ? DisplayStyle.Flex : DisplayStyle.None;
-
-            // Rays are only drawn when unlocked/on-stage; force a repaint so a state flip is reflected immediately.
-            this.tileElement.MarkDirtyRepaint();
+            this.lockGlyphElement.style.display = newTileState == WorktreeTileState.Locked ? DisplayStyle.Flex : DisplayStyle.None;
+            this.ribbonLabel.style.display = newTileState == WorktreeTileState.OnStage ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void ApplyCentralIcon(bool isTrunkNodeIcon, string leadStatusText)
@@ -244,7 +257,8 @@ namespace WorktreeToolkit.Editor
 
             if (isTrunkNodeIcon)
             {
-                this.tileIconImage.image = WorktreeIcons.Resolve(WorktreeIcons.Branch);
+                this.tileGlyphElement.Glyph = WorktreeGlyph.BranchFork;
+                this.tileGlyphElement.GlyphColor = this.TileState == WorktreeTileState.Locked ? WorktreePalette.CreamDim : WorktreePalette.Cream;
                 return;
             }
 
@@ -253,63 +267,39 @@ namespace WorktreeToolkit.Editor
             {
                 case "building":
                     this.isSpinnerActive = true;
-                    this.tileIconImage.image = WorktreeIcons.SpinnerFrame(0.0);
+                    this.tileGlyphElement.Glyph = WorktreeGlyph.Spinner;
                     break;
                 case "gating":
                     this.isSpinnerActive = true;
                     this.isGatingActive = true;
                     this.gatingPipElement.style.display = DisplayStyle.Flex;
-                    this.tileIconImage.image = WorktreeIcons.SpinnerFrame(0.0);
+                    this.tileGlyphElement.Glyph = WorktreeGlyph.Spinner;
                     break;
                 case "ready":
                 case "done":
-                    this.tileIconImage.image = WorktreeIcons.Resolve(WorktreeIcons.Ready);
+                    this.tileGlyphElement.Glyph = WorktreeGlyph.Check;
                     break;
                 case "failed":
-                    this.tileIconImage.image = WorktreeIcons.Resolve(WorktreeIcons.Failed);
+                    this.tileGlyphElement.Glyph = WorktreeGlyph.Cross;
+                    break;
+                case "unclaimed":
+                    this.tileGlyphElement.Glyph = WorktreeGlyph.DashedRing;
                     break;
                 default:
-                    this.tileIconImage.image = WorktreeIcons.Resolve(WorktreeIcons.Unclaimed);
+                    // No lead bound at all: a hand-made worktree, nothing tracking it yet.
+                    this.tileGlyphElement.Glyph = WorktreeGlyph.BranchFork;
                     break;
             }
+
+            this.tileGlyphElement.GlyphColor = this.TileState == WorktreeTileState.Locked ? WorktreePalette.CreamDim : WorktreePalette.Cream;
         }
 
         private void RefreshCaptionText()
         {
-            this.captionLabel.text = this.isSelected ? this.fullBranchName : this.shortBranchName;
+            this.captionLabel.text = this.isTrunkNode
+                ? $"{this.fullBranchName} · trunk"
+                : (this.isSelected ? this.fullBranchName : this.shortBranchName);
             this.captionLabel.EnableInClassList("worktree-node__caption--selected", this.isSelected);
-        }
-
-        private void OnGenerateTileVisualContent(MeshGenerationContext context)
-        {
-            if (this.TileState == WorktreeTileState.Locked)
-            {
-                return;
-            }
-
-            Rect contentRect = context.visualElement.contentRect;
-            if (contentRect.width <= 0f || contentRect.height <= 0f)
-            {
-                return;
-            }
-
-            Vector2 centerPoint = new Vector2(contentRect.width * 0.5f, contentRect.height * 0.5f);
-            float rayLength = Mathf.Min(contentRect.width, contentRect.height) * RayLengthFraction;
-
-            Painter2D painter = context.painter2D;
-            painter.strokeColor = new Color(WorktreePalette.Cream.r, WorktreePalette.Cream.g, WorktreePalette.Cream.b, RayAlpha);
-            painter.lineWidth = RayLineWidth;
-
-            for (int rayIndex = 0; rayIndex < RayCount; rayIndex++)
-            {
-                float rayAngleRadians = rayIndex * (Mathf.PI * 2f / RayCount);
-                Vector2 rayEndPoint = centerPoint + new Vector2(Mathf.Cos(rayAngleRadians), Mathf.Sin(rayAngleRadians)) * rayLength;
-
-                painter.BeginPath();
-                painter.MoveTo(centerPoint);
-                painter.LineTo(rayEndPoint);
-                painter.Stroke();
-            }
         }
 
         private void OnTileClicked(ClickEvent clickEvent)
@@ -331,21 +321,27 @@ namespace WorktreeToolkit.Editor
         {
             if (this.isTrunkNode)
             {
-                populateEvent.menu.AppendAction("Reveal", trunkRevealAction =>
+                if (!this.isCurrentlyOnStage)
+                {
+                    populateEvent.menu.AppendAction($"Back to {this.trunkBranchName}", trunkReturnAction =>
+                        this.ActionRequested?.Invoke(this.NodeId, WorktreeNodeAction.ReturnStage));
+                }
+
+                populateEvent.menu.AppendAction("Show in Explorer", trunkRevealAction =>
                     this.ActionRequested?.Invoke(this.NodeId, WorktreeNodeAction.Reveal));
                 return;
             }
 
-            string stageMenuLabel = this.isCurrentlyOnStage ? "Return to trunk" : "Put on stage";
+            string stageMenuLabel = this.isCurrentlyOnStage ? $"Back to {this.trunkBranchName}" : "Open in Editor";
             WorktreeNodeAction stageMenuAction = this.isCurrentlyOnStage ? WorktreeNodeAction.ReturnStage : WorktreeNodeAction.PutOnStage;
 
             populateEvent.menu.AppendAction(stageMenuLabel, stageAction =>
                 this.ActionRequested?.Invoke(this.NodeId, stageMenuAction));
-            populateEvent.menu.AppendAction("Merge", mergeAction =>
+            populateEvent.menu.AppendAction($"Merge into {this.trunkBranchName}", mergeAction =>
                 this.ActionRequested?.Invoke(this.NodeId, WorktreeNodeAction.Merge));
-            populateEvent.menu.AppendAction("Remove", removeAction =>
+            populateEvent.menu.AppendAction("Delete worktree", removeAction =>
                 this.ActionRequested?.Invoke(this.NodeId, WorktreeNodeAction.Remove));
-            populateEvent.menu.AppendAction("Reveal", revealAction =>
+            populateEvent.menu.AppendAction("Show in Explorer", revealAction =>
                 this.ActionRequested?.Invoke(this.NodeId, WorktreeNodeAction.Reveal));
         }
 

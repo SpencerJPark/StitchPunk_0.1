@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using UnityEditor;
 using UnityEngine.UIElements;
 
 namespace WorktreeToolkit.Editor
@@ -23,15 +24,27 @@ namespace WorktreeToolkit.Editor
         private readonly Label pathValueLabel;
 
         private readonly Button putOnStageButton;
+        private readonly Label putOnStageDescriptionLabel;
+
         private readonly Button returnToTrunkButton;
+        private readonly Label returnToTrunkTitleLabel;
+        private readonly Label returnToTrunkDescriptionLabel;
+
         private readonly Button mergeButton;
+        private readonly Label mergeTitleLabel;
+        private readonly Label mergeDescriptionLabel;
+
         private readonly Button removeButton;
+        private readonly Label removeDescriptionLabel;
+
         private readonly Button revealButton;
+        private readonly Label revealDescriptionLabel;
 
         private readonly Label emptyHintLabel;
         private readonly VisualElement contentContainer;
 
         private string currentNodeId;
+        private string trunkBranchName = "main";
 
         public event Action<string, WorktreeNodeAction> ActionRequested;
 
@@ -45,6 +58,10 @@ namespace WorktreeToolkit.Editor
 
             this.statusLabel = new Label { name = "worktree-inspector-status" };
             this.statusLabel.AddToClassList("worktree-inspector__status");
+            this.statusLabel.style.whiteSpace = WhiteSpace.Normal;
+
+            Label detailsSectionLabel = new Label("DETAILS");
+            detailsSectionLabel.AddToClassList("worktree-inspector__section");
 
             VisualElement keyValueContainer = new VisualElement { name = "worktree-inspector-kv-container" };
 
@@ -61,8 +78,13 @@ namespace WorktreeToolkit.Editor
             VisualElement uncommittedRow = this.CreateKeyValueRow("Uncommitted", this.uncommittedValueLabel);
 
             this.pathValueLabel = new Label();
+            this.pathValueLabel.style.whiteSpace = WhiteSpace.Normal;
             this.pathValueLabel.RegisterCallback<ClickEvent>(this.OnPathValueClicked);
             VisualElement pathRow = this.CreateKeyValueRow("Path", this.pathValueLabel);
+
+            Button copyPathButton = new Button(this.OnCopyPathClicked) { text = "Copy" };
+            copyPathButton.AddToClassList("worktree-kv__copy");
+            pathRow.Add(copyPathButton);
 
             keyValueContainer.Add(this.specRow);
             keyValueContainer.Add(this.modelsRow);
@@ -70,51 +92,47 @@ namespace WorktreeToolkit.Editor
             keyValueContainer.Add(uncommittedRow);
             keyValueContainer.Add(pathRow);
 
-            VisualElement ruleElement = new VisualElement { name = "worktree-inspector-rule" };
-            ruleElement.AddToClassList("worktree-inspector__rule");
+            Label actionsSectionLabel = new Label("ACTIONS");
+            actionsSectionLabel.AddToClassList("worktree-inspector__section");
 
-            this.putOnStageButton = WorktreeIcons.MakeIconTextButton(
+            this.putOnStageButton = this.CreateActionBox(
+                WorktreeIcons.SelectionEye, "worktree-action--teal", "Open in Editor",
                 () => this.RaiseActionRequested(WorktreeNodeAction.PutOnStage),
-                WorktreeIcons.SelectionEye, "Put this worktree on stage", "Put on stage");
-            this.putOnStageButton.AddToClassList("worktree-action-button");
-            this.putOnStageButton.AddToClassList("worktree-action-button--teal");
+                out _, out this.putOnStageDescriptionLabel);
 
-            this.returnToTrunkButton = WorktreeIcons.MakeIconTextButton(
+            this.returnToTrunkButton = this.CreateActionBox(
+                WorktreeIcons.ReturnStage, "worktree-action--teal", "Back to " + this.trunkBranchName,
                 () => this.RaiseActionRequested(WorktreeNodeAction.ReturnStage),
-                WorktreeIcons.ReturnStage, "Return the stage to trunk", "Return to trunk");
-            this.returnToTrunkButton.AddToClassList("worktree-action-button");
-            this.returnToTrunkButton.AddToClassList("worktree-action-button--teal");
+                out this.returnToTrunkTitleLabel, out this.returnToTrunkDescriptionLabel);
 
-            this.mergeButton = WorktreeIcons.MakeIconTextButton(
+            this.mergeButton = this.CreateActionBox(
+                WorktreeIcons.Merge, "worktree-action--teal", "Merge into " + this.trunkBranchName,
                 () => this.RaiseActionRequested(WorktreeNodeAction.Merge),
-                WorktreeIcons.Merge, "Merge this worktree", "Merge");
-            this.mergeButton.AddToClassList("worktree-action-button");
-            this.mergeButton.AddToClassList("worktree-action-button--teal");
+                out this.mergeTitleLabel, out this.mergeDescriptionLabel);
 
-            this.removeButton = WorktreeIcons.MakeIconTextButton(
+            this.removeButton = this.CreateActionBox(
+                WorktreeIcons.Remove, "worktree-action--crimson", "Delete worktree",
                 () => this.RaiseActionRequested(WorktreeNodeAction.Remove),
-                WorktreeIcons.Remove, "Remove this worktree", "Remove");
-            this.removeButton.AddToClassList("worktree-action-button");
-            this.removeButton.AddToClassList("worktree-action-button--crimson");
+                out _, out this.removeDescriptionLabel);
 
-            this.revealButton = WorktreeIcons.MakeIconTextButton(
+            this.revealButton = this.CreateActionBox(
+                WorktreeIcons.Reveal, "worktree-action--neutral", "Show in Explorer",
                 () => this.RaiseActionRequested(WorktreeNodeAction.Reveal),
-                WorktreeIcons.Reveal, "Reveal in file explorer", "Reveal");
-            this.revealButton.AddToClassList("worktree-action-button");
-            this.revealButton.AddToClassList("worktree-action-button--neutral");
+                out _, out this.revealDescriptionLabel);
 
             this.contentContainer = new VisualElement { name = "worktree-inspector-content" };
             this.contentContainer.Add(this.titleLabel);
             this.contentContainer.Add(this.statusLabel);
+            this.contentContainer.Add(detailsSectionLabel);
             this.contentContainer.Add(keyValueContainer);
-            this.contentContainer.Add(ruleElement);
+            this.contentContainer.Add(actionsSectionLabel);
             this.contentContainer.Add(this.putOnStageButton);
             this.contentContainer.Add(this.returnToTrunkButton);
             this.contentContainer.Add(this.mergeButton);
             this.contentContainer.Add(this.removeButton);
             this.contentContainer.Add(this.revealButton);
 
-            this.emptyHintLabel = new Label("Select a tile") { name = "worktree-inspector-empty-hint" };
+            this.emptyHintLabel = new Label("Select a tile to see its details and actions.") { name = "worktree-inspector-empty-hint" };
             this.emptyHintLabel.AddToClassList("worktree-empty-hint");
 
             this.Add(this.contentContainer);
@@ -138,6 +156,61 @@ namespace WorktreeToolkit.Editor
             return rowElement;
         }
 
+        // Every action reads as a labeled box (icon + title + one-line description) instead of a bare
+        // icon button, so the owner can tell what a control does without hovering for a tooltip.
+        private Button CreateActionBox(
+            string iconName,
+            string colorModifierClass,
+            string titleText,
+            Action onClick,
+            out Label titleLabelOut,
+            out Label descriptionLabelOut)
+        {
+            Button actionButton = new Button(onClick) { text = string.Empty };
+            actionButton.AddToClassList("worktree-action");
+            actionButton.AddToClassList(colorModifierClass);
+            actionButton.style.flexDirection = FlexDirection.Row;
+            actionButton.style.alignItems = Align.FlexStart;
+
+            Image actionIconImage = WorktreeIcons.MakeIcon(iconName, 16f);
+            actionIconImage.AddToClassList("worktree-action__icon");
+
+            VisualElement actionTextColumn = new VisualElement();
+            actionTextColumn.AddToClassList("worktree-action__text");
+            actionTextColumn.style.flexGrow = 1f;
+
+            Label actionTitleLabel = new Label(titleText);
+            actionTitleLabel.AddToClassList("worktree-action__title");
+
+            Label actionDescriptionLabel = new Label();
+            actionDescriptionLabel.AddToClassList("worktree-action__description");
+            actionDescriptionLabel.style.whiteSpace = WhiteSpace.Normal;
+
+            actionTextColumn.Add(actionTitleLabel);
+            actionTextColumn.Add(actionDescriptionLabel);
+
+            actionButton.Add(actionIconImage);
+            actionButton.Add(actionTextColumn);
+
+            titleLabelOut = actionTitleLabel;
+            descriptionLabelOut = actionDescriptionLabel;
+            return actionButton;
+        }
+
+        // A disabled action stays visible (so the owner still sees it exists) but its description
+        // swaps to the reason it is blocked, rather than hiding the control entirely.
+        private void ApplyActionDescription(Label descriptionLabel, string normalDescription, string blockedReason)
+        {
+            bool isBlocked = !string.IsNullOrEmpty(blockedReason);
+            descriptionLabel.text = isBlocked ? "Unavailable: " + blockedReason + "." : normalDescription;
+            descriptionLabel.EnableInClassList("worktree-action__description--blocked", isBlocked);
+        }
+
+        public void SetTrunkBranch(string trunkBranch)
+        {
+            this.trunkBranchName = string.IsNullOrEmpty(trunkBranch) ? "main" : trunkBranch;
+        }
+
         public void ShowNothingSelected()
         {
             this.currentNodeId = null;
@@ -151,8 +224,13 @@ namespace WorktreeToolkit.Editor
             this.contentContainer.style.display = DisplayStyle.Flex;
             this.emptyHintLabel.style.display = DisplayStyle.None;
 
-            this.titleLabel.text = (trunkBranch ?? string.Empty).ToUpperInvariant();
-            this.statusLabel.text = trunkIsOnStage ? "trunk · on stage" : "trunk";
+            string trunkDisplayName = string.IsNullOrEmpty(trunkBranch) ? this.trunkBranchName : trunkBranch;
+            this.titleLabel.text = trunkDisplayName.ToUpperInvariant();
+
+            string trunkStatusSentence = "Trunk — the branch your Editor normally shows.";
+            this.statusLabel.text = trunkIsOnStage
+                ? trunkStatusSentence + " It is open in your Editor now."
+                : trunkStatusSentence;
 
             this.specRow.style.display = DisplayStyle.None;
             this.modelsRow.style.display = DisplayStyle.None;
@@ -165,16 +243,19 @@ namespace WorktreeToolkit.Editor
             // Trunk is already the stage; the only stage-move offered here is returning to it when
             // the stage currently sits on some other worktree.
             this.putOnStageButton.style.display = DisplayStyle.None;
+
             this.returnToTrunkButton.style.display = trunkIsOnStage ? DisplayStyle.None : DisplayStyle.Flex;
+            this.returnToTrunkTitleLabel.text = "Back to " + trunkDisplayName;
             this.returnToTrunkButton.SetEnabled(true);
-            this.returnToTrunkButton.tooltip = "Return the stage to trunk";
+            this.ApplyActionDescription(
+                this.returnToTrunkDescriptionLabel, "Switch this Editor back to " + trunkDisplayName + ".", null);
 
             this.mergeButton.style.display = DisplayStyle.None;
             this.removeButton.style.display = DisplayStyle.None;
 
             this.revealButton.style.display = DisplayStyle.Flex;
             this.revealButton.SetEnabled(true);
-            this.revealButton.tooltip = "Reveal in file explorer";
+            this.ApplyActionDescription(this.revealDescriptionLabel, "Open the worktree folder.", null);
         }
 
         public void ShowWorktree(WorktreeNodeDto node, bool isOnStage, bool stageIsBusy)
@@ -184,13 +265,68 @@ namespace WorktreeToolkit.Editor
             this.emptyHintLabel.style.display = DisplayStyle.None;
 
             this.titleLabel.text = (node.branch ?? string.Empty).ToUpperInvariant();
-            this.statusLabel.text = string.IsNullOrEmpty(node.lead?.status) ? "unclaimed" : node.lead.status;
+
+            bool leadIsBound = node.lead != null && node.lead.IsBound;
+            string leadStatusRaw = leadIsBound ? node.lead.status : null;
+            string normalizedLeadStatus = string.IsNullOrEmpty(leadStatusRaw) ? string.Empty : leadStatusRaw.ToLowerInvariant();
+
+            string leadStatusSentence;
+            if (node.lead == null)
+            {
+                leadStatusSentence = "Created by hand — no spec lead is attached.";
+            }
+            else
+            {
+                switch (normalizedLeadStatus)
+                {
+                    case "building":
+                        leadStatusSentence = "Building — a spec lead is working in this worktree.";
+                        break;
+                    case "gating":
+                        leadStatusSentence = "Checking — the Editor is compiling this worktree's latest commit.";
+                        break;
+                    case "ready":
+                        leadStatusSentence = "Ready — the lead finished. Open it in the Editor to review, then merge.";
+                        break;
+                    case "failed":
+                        leadStatusSentence = "Failed — the lead stopped. Read its report before deciding.";
+                        break;
+                    case "done":
+                        leadStatusSentence = "Done — already merged.";
+                        break;
+                    default:
+                        leadStatusSentence = "Unclaimed — no spec lead has claimed this worktree yet.";
+                        break;
+                }
+            }
+
+            // Stale/missing/locked/parked describe the worktree itself and take priority over
+            // whatever the lead status says, since those states make the lead status moot.
+            string overrideSentence = null;
+            if (node.stale)
+            {
+                overrideSentence = "Stale — far behind " + this.trunkBranchName + " with nothing new.";
+            }
+            else if (node.missing)
+            {
+                overrideSentence = "Missing — the worktree folder is gone.";
+            }
+            else if (node.locked)
+            {
+                overrideSentence = "Locked — a Claude session is still using it.";
+            }
+            else if (node.parked)
+            {
+                overrideSentence = "Parked — its branch is open in your Editor for review.";
+            }
+
+            string statusSentence = overrideSentence ?? leadStatusSentence;
+            this.statusLabel.text = isOnStage ? statusSentence + " It is open in your Editor now." : statusSentence;
 
             this.specRow.style.display = DisplayStyle.Flex;
             this.modelsRow.style.display = DisplayStyle.Flex;
             this.aheadBehindRow.style.display = DisplayStyle.Flex;
 
-            bool leadIsBound = node.lead != null && node.lead.IsBound;
             this.specValueLabel.text = leadIsBound && !string.IsNullOrEmpty(node.lead.spec)
                 ? Path.GetFileName(node.lead.spec)
                 : "unclaimed";
@@ -210,56 +346,73 @@ namespace WorktreeToolkit.Editor
             this.removeButton.style.display = DisplayStyle.Flex;
             this.revealButton.style.display = DisplayStyle.Flex;
 
+            this.returnToTrunkTitleLabel.text = "Back to " + this.trunkBranchName;
+            this.mergeTitleLabel.text = "Merge into " + this.trunkBranchName;
+
             bool leadIsBusy = string.Equals(node.lead?.status, "building", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(node.lead?.status, "gating", StringComparison.OrdinalIgnoreCase);
 
-            this.putOnStageButton.SetEnabled(true);
-            this.putOnStageButton.tooltip = "Put this worktree on stage";
-            this.returnToTrunkButton.SetEnabled(true);
-            this.returnToTrunkButton.tooltip = "Return the stage to trunk";
-            this.mergeButton.SetEnabled(true);
-            this.mergeButton.tooltip = "Merge this worktree";
-            this.removeButton.SetEnabled(true);
-            this.removeButton.tooltip = "Remove this worktree";
-            this.revealButton.SetEnabled(true);
-            this.revealButton.tooltip = "Reveal in file explorer";
+            string putOnStageBlockedReason = null;
+            string returnToTrunkBlockedReason = null;
+            string mergeBlockedReason = null;
+            string removeBlockedReason = null;
 
             if (stageIsBusy)
             {
-                this.putOnStageButton.SetEnabled(false);
-                this.putOnStageButton.tooltip = "Stage is busy";
-                this.returnToTrunkButton.SetEnabled(false);
-                this.returnToTrunkButton.tooltip = "Stage is busy";
-                this.mergeButton.SetEnabled(false);
-                this.mergeButton.tooltip = "Stage is busy";
+                putOnStageBlockedReason = "the stage is busy";
+                returnToTrunkBlockedReason = "the stage is busy";
+                mergeBlockedReason = "the stage is busy";
             }
 
             if (leadIsBusy)
             {
-                this.putOnStageButton.SetEnabled(false);
-                this.putOnStageButton.tooltip = "lead still running";
-                this.mergeButton.SetEnabled(false);
-                this.mergeButton.tooltip = "lead still running";
+                putOnStageBlockedReason = "the lead is still running";
+                mergeBlockedReason = "the lead is still running";
             }
 
             if (node.parked)
             {
-                this.mergeButton.SetEnabled(false);
-                this.mergeButton.tooltip = "parked for review";
-                this.removeButton.SetEnabled(false);
-                this.removeButton.tooltip = "parked for review";
+                mergeBlockedReason = "this worktree is parked for review";
+                removeBlockedReason = "this worktree is parked for review";
             }
 
             if (node.stale || node.missing)
             {
-                this.mergeButton.SetEnabled(false);
-                this.mergeButton.tooltip = node.missing ? "worktree is missing" : "worktree is stale";
+                mergeBlockedReason = node.missing
+                    ? "the worktree folder is gone"
+                    : "this worktree is far behind " + this.trunkBranchName;
             }
+
+            this.putOnStageButton.SetEnabled(putOnStageBlockedReason == null);
+            this.ApplyActionDescription(
+                this.putOnStageDescriptionLabel, "Switch this Editor to " + node.branch + " so you can try it.", putOnStageBlockedReason);
+
+            this.returnToTrunkButton.SetEnabled(returnToTrunkBlockedReason == null);
+            this.ApplyActionDescription(
+                this.returnToTrunkDescriptionLabel, "Switch this Editor back to " + this.trunkBranchName + ".", returnToTrunkBlockedReason);
+
+            this.mergeButton.SetEnabled(mergeBlockedReason == null);
+            this.ApplyActionDescription(
+                this.mergeDescriptionLabel,
+                "Add this branch's commits to " + this.trunkBranchName + ", keeping history linear.",
+                mergeBlockedReason);
+
+            this.removeButton.SetEnabled(removeBlockedReason == null);
+            this.ApplyActionDescription(
+                this.removeDescriptionLabel, "Remove the worktree folder. An unmerged branch is kept.", removeBlockedReason);
+
+            this.revealButton.SetEnabled(true);
+            this.ApplyActionDescription(this.revealDescriptionLabel, "Open the worktree folder.", null);
         }
 
         private void OnPathValueClicked(ClickEvent clickEvent)
         {
             this.RaiseActionRequested(WorktreeNodeAction.Reveal);
+        }
+
+        private void OnCopyPathClicked()
+        {
+            EditorGUIUtility.systemCopyBuffer = this.pathValueLabel.text ?? string.Empty;
         }
 
         private void RaiseActionRequested(WorktreeNodeAction action)

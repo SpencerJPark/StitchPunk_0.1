@@ -1,6 +1,16 @@
 # Worktree Toolkit — UI redesign (node window, Cult of the Lamb skill-tree style)
 
-> **Status:** 📝 specced 2026-09-14, not built.
+> **Status:** 🔨 built 2026-09-14.
+> - Nine Sonnet workers in one wave (T1–T8); compile clean; `WorktreeTreeLayoutTests` 2/2.
+> - Reflection drive: header, status line, split view, inspector and footer render; the trunk tile is
+>   crimson on stage; a hand-made demo worktree draws as a teal unlocked tile.
+> - Orchestrator fix: a worktree with no lead is not locked; only a hook-made unclaimed one is.
+> - No capture yet (Unity unfocused). ⏸ Owner visual checkpoint open, including the §2 font question.
+>
+> **Owner round 2 (2026-09-14):** "Close, needs tweaks"; the areas are tiles and spacing, the
+> header/footer bars, and the inspector pane. Verbatim: *"The icons look weirdly pixelated, not very
+> clear, controls are not intuitive, like I can't tell how to work it just by looking at it."*
+> Font: keep Unity's.
 > **Owner input (2026-09-14):**
 > - C1 verdict on the first window: *"Definitely needs some ui work, pretty ugly and unprofessional looking in its current state."*
 > - Style direction: *"I gave you an image of the game Cult of the Lamb skill tree in tasks/claude. I like the colors and style."*
@@ -53,9 +63,8 @@ Painter2D in `WorktreePalette`):
 | `--worktree-color-selection` | `rgb(245, 245, 245)` | selection outline |
 | `--worktree-color-amber` | `rgb(232, 170, 60)` | gating pulse only (the image has no amber; keep it to that one use) |
 
-**Font:** Unity's default editor font in cream, bold for titles, with no custom font this pass. ⚠
-**Owner question for the checkpoint:** the image's serif, hand-drawn look needs a bundled font file
-(e.g. an OFL-licensed serif shipped in the package); the owner decides whether it is worth it.
+**Font:** Unity's default editor font in cream, bold for titles. **Owner call 2026-09-14:** keep
+Unity's font, with no bundled serif, so do not re-ask.
 
 Carried over from the owner's editor rules: symbols over words for actions (Unity built-in icons),
 peers visually separate, one palette, and an icon beside a word via a `Label` child (never
@@ -259,3 +268,47 @@ public sealed class WorktreeFooterBar : VisualElement { public WorktreeFooterBar
   - Drive: select a tile, double-click to stage, return, then create and remove a scratch worktree.
   - Capture after, next to the reference image.
   - ⏸ **Owner checkpoint** with before / after / reference, and ask the font question in §2.
+
+## 8. Round 3 — owner-approved fixes (2026-09-14)
+
+**What the capture showed** (linear capture; the first capture was gamma-wrong, so colours were
+brightened):
+- tile icons are 16 px built-in icons stretched to 32 px, so they are blurry, and the folder icon for
+  "unclaimed" is meaningless;
+- the rays read as scratch noise;
+- the inspector actions look like plain text;
+- the header icons are unlabeled;
+- the footer badges are cryptic ("2×", and "RMB" overflows its badge);
+- the eye over the selection is meaningless;
+- nothing explains the colours;
+- "stage" is jargon.
+
+**Approved, all seven:**
+1. **Vector tile glyphs.** A new `WorktreeGlyphs` / `WorktreeGlyphElement` draws each glyph as
+   Painter2D lines, crisp at any DPI: branch fork for the trunk, check for ready/done, cross for
+   failed, spinning arc for building/gating, padlock in the corner when locked, dashed ring for
+   unclaimed. The rays are removed. Circles are polylines, not `Arc`.
+2. **Bigger tiles, clearer state.**
+   - Tile 96, slot 168×156, spacing `32 + column × 228` / `32 + row × 172`.
+   - A crimson "ON STAGE" ribbon on the tile open in the Editor.
+   - A white outline only for selection (no eye).
+   - The trunk caption reads "main · trunk".
+3. **Legend + first-use hint** (`WorktreeLegend`, canvas top-right).
+   - Crimson "Open in your Editor", teal "Ready to act on", grey "Locked or waiting".
+   - "Click a tile to see its details and actions" until the first selection (EditorPrefs
+     `WorktreeToolkit.HasSelectedTile`).
+4. **Plain-language actions:** Open in Editor · Back to <trunk> · Merge into <trunk> · Delete
+   worktree · Show in Explorer.
+5. **Labeled header buttons:** Refresh · New worktree · Broker: on/off (with its dot) · More. The
+   stage chip reads "Open in Editor: <branch>" with " · N uncommitted files" when N > 0.
+6. **Readable footer:** plain text "Click a tile: details · Double-click: open in Editor · Right-click:
+   more actions · F5: refresh".
+7. **Real inspector buttons.**
+   - Sections DETAILS / ACTIONS.
+   - Each action is a full-width box with a coloured left edge, icon, bold title and a one-line
+     description; an unavailable action shows "Unavailable: <reason>".
+   - A status sentence explains the lead state.
+   - The path wraps and has a Copy button.
+
+Built by seven workers in one wave (glyphs, tile, legend, inspector, footer, USS, window); surfaces
+are pinned in each brief.
