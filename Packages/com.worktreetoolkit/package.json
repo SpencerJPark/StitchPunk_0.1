@@ -1,0 +1,19 @@
+{
+  "name": "com.worktreetoolkit",
+  "displayName": "Worktree Toolkit",
+  "version": "0.1.0",
+  "unity": "6000.5",
+  "description": "Run parallel AI specs in git worktrees of one Unity project and review each by swapping it into the Editor you already have open. A node window shows trunk and branches, a Python CLI does every git operation, and an Editor gate broker compiles and tests worktree commits on request. Early internal build: the CLI exists, the Editor window and broker do not yet.",
+  "keywords": [
+    "git",
+    "worktree",
+    "ai",
+    "claude",
+    "workflow"
+  ],
+  "author": {
+    "name": "Spencer Park",
+    "email": "spencerjamespark@gmail.com"
+  },
+  "dependencies": {}
+}

@@ -85,6 +85,9 @@ Building1.blend
 # silently dropped from every commit.
 !/Packages/com.dotsanimationtoolkit/
 !/Packages/com.dotsmovementtoolkit/
+!/Packages/com.worktreetoolkit/
+# Python bytecode from the Worktree Toolkit CLI and its tests.
+Packages/com.worktreetoolkit/Tools~/**/__pycache__/
 
 # Disk round-trip test scratch assets. TearDown deletes these, but an Editor crash
 # mid-test leaves them inside the package folder — and this package is shipped, so a
