@@ -1,6 +1,6 @@
 # Amendment A90 — Camera-data fallback warning and a shipped writer sample
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.37.0`.
+> **Status:** 🔨 building 2026-09-13 — T0 done (§7 logs ten drifts), wave T1–T3 running. Takes `0.37.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** the billboard and LOD systems; the game's `AnimationToolkitCameraBridge.cs`
 > (`Assets/_Scripts/MonoBehaviours/Managers/`) is the host-side writer this sample generalises.
@@ -132,4 +132,51 @@ those updates (the HANDOFF §2 trap: the call inspects logs already received). R
 
 ## 7. Build log
 
-_(empty)_
+### T0 — grounding against `2ad9b4f9` (2026-09-13)
+
+Baseline: compile gate clean (no console errors). Suites inherited from A91: EditMode 835 (standing
+`Conformance_A` only), PlayMode 283. Drift, each settled here, not in §1–§6 (protocol rule 9):
+
+1. **Singleton comment wrong twice.** `AnimationToolkitSingletons.cs:18` says "consumed only by
+   `AnimLodDistanceSystem`"; `BillboardResolveSystem.cs:32` requires it too. `ToolkitCameraSync` exists
+   nowhere (only as plan text in `Phase_B_Architecture.md`). T4 fixes the first half; T2 makes the second true.
+2. **D1 trigger too broad.** `AnimLod` is opt-in per actor (`ActorBaker.cs:125`) and distance LOD is
+   opt-in again (`distanceLodEnabled`, default false). **Settled:** a consumer is waiting when a
+   `BillboardRootElement` entity exists, **or** an `AnimLod` entity exists **and** the config singleton
+   has `distanceLodEnabled`. Frames count only while a consumer waits. Gated by
+   `RequireAnyForUpdate(billboardRootsQuery, lodActorsQuery)`.
+3. **D2 message untrue.** Without the singleton `BillboardResolveSystem` does not run at all, so rig
+   billboards do not turn; "fall back to spherical" is the zero-`forward` case with the singleton present.
+   The shader billboard path never reads the singleton (it reads Unity's camera position and the
+   separate `_ToolkitCameraForward` global, documented in `shader-contract.md`), so it is unaffected.
+   Nothing in the project writes that global, the game bridge included. **Settled message** (consequence
+   clause picks what is actually waiting):
+   `DOTS Animation Toolkit: no AnimationToolkitCameraData singleton after 120 frames, so <consequence>.
+   Write the singleton from your camera every frame, or import the Camera Sync sample and add
+   ToolkitCameraSync to a scene object.` Consequences: both — "billboarded rigs are not turning to face
+   the camera and distance LOD is not running"; billboards — "billboarded rigs are not turning to face
+   the camera"; LOD — "distance LOD is not running, so AnimLod levels stay where they are".
+4. **Placement.** `AnimationToolkitBindingSystemGroup` is already `OrderFirst` in the top group.
+   **Settled:** plain `[UpdateInGroup(typeof(AnimationToolkitSystemGroup))]`, no order claimed; the
+   120-frame grace makes intra-frame position irrelevant.
+5. **Revert-to-fail could not fail** (Unity never fails on unexpected warnings, and a log at exactly
+   120 never repeats). **Settled:** fixtures assert `World.Unmanaged.ResolveSystemStateRef(handle).Enabled`
+   (`WorldUnmanaged.cs:1185`; manual `SystemHandle.Update` honours `Enabled`, `:892`). Fixture 1: billboard
+   rig, enabled after 119 updates, disabled after 120 with the warning expected. Fixture 2: `AnimLod`
+   actor with `distanceLodEnabled = false`, still enabled after 240. No `InternalsVisibleTo`, so the test
+   carries its own 120.
+6. **T3 named three files.** CHANGELOG moved to T4.
+7. **Conformance:** `Conformance_F` scans raw lines of `*.cs` in Runtime/Runtime.Physics/Authoring/Editor,
+   strings included; `Samples~` is not scanned by F or G. `Conformance_C`/`D` scan every `*.cs`/`*.asmdef`
+   under the package root, `Samples~` included. No sample asmdef in `AsmdefExpectations`; no test pins
+   `package.json` samples. Version pins: `package.json` and `PackagingConformanceTests.cs:592,594`.
+8. **D3 asmdef too thin.** `Vector3 → float3` needs `Unity.Mathematics`. **Settled:** Runtime, Entities,
+   Collections, Mathematics (no Transforms). The sample re-finds its entity when the world changes or the
+   entity is gone, which the game bridge does not.
+9. **T5 drive unsafe and mis-aimed.** The bridge is in `Assets/Scenes/TestArea.unity`, not
+   `DOTSTestScene`. Play mode, a disabled scene component and a sample import would all edit the owner's
+   open Editor. **Settled:** proof is the PlayMode fixtures plus T4's `Samples~` compile check; T7 asks
+   whether the owner wants a Play-mode try. Note: `CutsceneA64Checkpoint.unity` places a toolkit actor
+   and has no bridge, so it may start warning.
+10. **HANDOFF §1** (`HANDOFF.md:43-47`) closing clause is wrong twice (drift 3, and the new warning);
+    T6 rewrites the clause.

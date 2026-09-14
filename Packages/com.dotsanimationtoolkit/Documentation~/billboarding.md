@@ -167,7 +167,12 @@ never have to ask whether what you just read is real.
 - **The shader path has no hierarchy and no arbitrary axis.** `_BillboardParams` has no channel wide
   enough for one, so it treats `Axis Constrained` as `Upright`. Hierarchical billboarding is CPU-only.
 - **A host must write the camera.** The package never reads a `Camera` — it cannot know which of your
-  cameras matters. Write `AnimationToolkitCameraData` each frame. Leave `forward` at zero and
-  screen-aligned modes fall back to spherical, which is a different look rather than a broken one.
+  cameras matters. Write `AnimationToolkitCameraData` each frame, or import the **Camera Sync** sample
+  and add `ToolkitCameraSync` to any scene object. Until something writes it, billboarded rigs do not
+  turn at all and distance LOD does not run. When a billboarded rig, or an `AnimLod` actor with
+  distance LOD enabled, has waited 120 frames without it, the console logs one warning per world naming
+  the singleton and the sample. Leave `forward` at zero and screen-aligned modes fall back to
+  spherical, which is a different look rather than a broken one. The shader billboard path does not
+  read this singleton; it needs the `_ToolkitCameraForward` global instead (see `shader-contract.md`).
 - **Facing never comes from the view matrix.** During shadow rendering the view matrix belongs to the
   light, and a billboard derived from it casts the shadow of a shape the camera never sees.
