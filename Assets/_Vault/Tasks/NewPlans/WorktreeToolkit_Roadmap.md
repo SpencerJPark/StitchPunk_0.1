@@ -364,8 +364,20 @@ are disjoint.
     report;
   - orchestrator tells the owner which nodes are ready → owner reviews (window or "put a92 on
     stage") → "merge a92" → `merge` → push → `remove`.
-- ⏸ **C2 owner checkpoint:** two throwaway one-file specs run end to end in parallel: both gated,
-  one reviewed on stage, both merged, both worktrees gone, `main` history linear.
+- ✅ **C2 dry run 2026-09-14** (owner chose it; throwaway trunk `dryrun-trunk` kept `main` clean):
+  - Two haiku `spec-lead`s ran alpha and beta in parallel through the `/worktree-run` skill: hook
+    worktrees, commit, and broker gates, both `pass`.
+  - `review alpha` put the branch on stage, and its script compiled there while beta's was absent;
+    `return` worked.
+  - `merge alpha` fast-forwarded; `merge beta` rebased onto alpha, then fast-forwarded. No merge
+    commits.
+  - `remove` deleted both worktrees and both merged branches; the owner's uncommitted files stayed
+    untouched throughout.
+  - Findings fixed the same day, each with a revert-proven fixture:
+    - beta gated **before** `claim`, so `gate` now refuses unclaimed worktrees and `spec-lead` step 2
+      is hardened;
+    - `merge` refused on the owner's always-dirty stage, so D9b is extended: merge refuses only on
+      uncommitted edits to files the branch changes (`trunk...branch`).
 
 **Phase 5 — own-Editor mode (opt-in)**
 - `links.py` package junctions (already built) + Library seed in `create --mode own-editor` +

@@ -13,8 +13,10 @@ report, so at turn 70 stop editing and write your report.
 1. First command: `git rev-parse --show-toplevel`. That Windows path is the worktree root —
    use it for every file path you or your workers touch. Never use `pwd`: it can hand back a
    path shaped wrong for Windows tools (roadmap trap 8).
-2. Claim the spec: `python Packages/com.worktreetoolkit/Tools~/worktree.py claim <spec-id>
-   --spec <path> --lead-model <m> --worker-model <m>`.
+2. Claim the spec, before touching any file:
+   `python Packages/com.worktreetoolkit/Tools~/worktree.py claim <spec-id> --spec <path> --lead-model <m> --worker-model <m>`.
+   It must exit 0 and print branch `spec/<spec-id>`. If it fails, stop and report the error — `gate`
+   refuses an unclaimed worktree (the C2 dry run caught a lead that skipped this step).
 3. Read the spec. Cut the work into waves of at most two-file `worker` tasks. Spawn each
    worker with `model: <worker model>` and the worktree's absolute path in the brief —
    CLAUDE.md's brief checklist applies to every brief you write.

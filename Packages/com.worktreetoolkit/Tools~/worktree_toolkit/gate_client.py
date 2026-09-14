@@ -49,8 +49,10 @@ def enqueue_gate(
     with state_store.StateLock(toolkit_context.common_git_directory):
         state = state_store.load_state(toolkit_context.common_git_directory)
         entry = state_store.find_entry_by_path(state, toolkit_context.repository_root)
-        if entry is None:
-            raise RefusedError("claim this worktree first")
+        # The C2 dry run found a lead that gated before claiming; an unclaimed gate has no spec to report against.
+        if entry is None or entry.lead is None or not entry.lead.spec:
+            raise RefusedError(
+                "claim this worktree first: worktree.py claim <spec-id> --spec <path> --lead-model <model> --worker-model <model>")
         if entry.parked or git_runner.dirty_entry_count(toolkit_context.working_directory) > 0:
             raise RefusedError("commit before gating")
         if not broker_is_alive(toolkit_context.common_git_directory):

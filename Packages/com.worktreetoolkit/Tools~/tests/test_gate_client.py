@@ -61,7 +61,8 @@ class GateClientTests(unittest.TestCase):
 
     def test_enqueue_gate_raises_no_broker_error_and_leaves_the_queue_empty(self):
         worktree_path = self.repository.add_raw_worktree("alpha")
-        self._register_worktree("alpha", worktree_path)
+        # Claimed, so the missing broker is what refuses (an unclaimed worktree is refused first).
+        self._register_worktree("alpha", worktree_path, lead_status="building")
 
         with self.assertRaises(NoBrokerError):
             gate_client.enqueue_gate(worktree_path, [], [], timeout_seconds=5)

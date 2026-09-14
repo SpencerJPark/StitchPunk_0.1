@@ -26,12 +26,25 @@ def merge_worktree(working_directory: str, worktree_id: str) -> dict:
         if stage_current_branch != trunk_branch:
             raise RefusedError("the stage is not on trunk branch '{0}'".format(trunk_branch))
 
-        stage_tracked_modifications = context.filter_noise_paths(
-            git_runner.tracked_modifications(toolkit_context.stage_path), toolkit_state.config.stage_noise_globs
-        )
-        if stage_tracked_modifications:
+        # A fast-forward carries uncommitted edits the branch never touches and git refuses real overwrites itself,
+        # so only a modified path the branch also changes blocks (the owner's stage is never clean; D9b).
+        branch_changed_paths_text = git_runner.run_git(
+            ["diff", "--name-only", "{0}...{1}".format(trunk_branch, worktree_entry.branch)], toolkit_context.stage_path
+        ).standard_output
+        branch_changed_paths = {
+            changed_path.replace("\\", "/") for changed_path in branch_changed_paths_text.splitlines() if changed_path
+        }
+        conflicting_stage_modifications = [
+            modified_path
+            for modified_path in context.filter_noise_paths(
+                git_runner.tracked_modifications(toolkit_context.stage_path), toolkit_state.config.stage_noise_globs
+            )
+            if modified_path.replace("\\", "/") in branch_changed_paths
+        ]
+        if conflicting_stage_modifications:
             raise RefusedError(
-                "stage has tracked modifications after noise filtering: {0}".format(", ".join(stage_tracked_modifications))
+                "stage has uncommitted changes to files '{0}' also changes: {1}".format(
+                    worktree_entry.branch, ", ".join(conflicting_stage_modifications))
             )
 
         if worktree_entry.parked:

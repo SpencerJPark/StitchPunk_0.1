@@ -69,3 +69,10 @@ Run the fixtures (temp repos only, never the real project):
     `hasRequestedStateDirectory` came back `true` while the `Task` and `GateRequestStore` came back null,
     so the queue never resolved again. A bare `[Serializable]` DTO came back as an all-defaults
     instance. Mark per-session bookkeeping `[System.NonSerialized]`.
+12. **Small-model leads skip steps.** In the C2 dry run a haiku `spec-lead` gated before running
+    `claim`, so the hook-made worktree was still on `worktree-agent-…` with no spec. Enforce order in
+    the CLI (`gate` refuses unclaimed worktrees), not just in agent instructions.
+13. **The owner's stage is never clean.** Every stage-moving command (review, return, stage-commit,
+    merge) refuses only on uncommitted edits to files the move changes (D9b). A blanket "no tracked
+    modifications" rule blocked the whole workflow in practice. git itself still refuses real
+    overwrites.
