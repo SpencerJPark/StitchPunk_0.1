@@ -57,8 +57,14 @@ def _build_doctor_result(working_directory: str) -> Dict[str, Any]:
     settings_path = os.path.join(toolkit_context.stage_path, ".claude", "settings.json")
     try:
         with open(settings_path, "r", encoding="utf-8") as settings_file:
-            settings_text = settings_file.read()
-        result["hooksInstalled"] = "worktree.py\" hook-create" in settings_text
+            settings_document = json.load(settings_file)
+        # Parse rather than substring-match: the raw file escapes the quote before hook-create.
+        create_hook_commands = [
+            hook.get("command", "")
+            for hook_group in settings_document.get("hooks", {}).get("WorktreeCreate", [])
+            for hook in hook_group.get("hooks", [])
+        ]
+        result["hooksInstalled"] = any(command.endswith("worktree.py\" hook-create") for command in create_hook_commands)
     except Exception:
         result["hooksInstalled"] = False
 

@@ -23,6 +23,26 @@
           }
         ]
       }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/Packages/com.worktreetoolkit/Tools~/worktree.py\" hook-create"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/Packages/com.worktreetoolkit/Tools~/worktree.py\" hook-remove"
+          }
+        ]
+      }
     ]
   }
 }
