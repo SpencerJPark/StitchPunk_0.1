@@ -120,6 +120,19 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-13): Amendment A88 — layered event preview in the Actor Editor — 0.38.0**, **T9 owner
+checkpoint open.** Spec: `Assets/_Vault/Tasks/AnimationPackage/A88_LayeredEventPreview_Spec.md`; its §7
+logs thirteen T0 drifts. A collapsible **Layer Events** strip (`LayerEventStripElement`) sits under the
+Preview column's transport: one 22 px row per layer with the playing clip's pins, a playhead and
+`t / duration`, a stopped layer dimmed to 35%, a crossfade source's pins hollow; crossings flash the pin
+(120 ms, 3 px) and play the A87 preview sound. The rule lives in `LayerEventRowResolver`: a layer emits
+when `Active` **or** `FinishedThisFrame` (the spec said Active only), the ghost keys on the `Blending`
+flag, and time goes through `ClipSampler.ResolveLoopMode` + `MapTimeNormalized`. `ActorPreviewComposer`
+gained `LayerCount` and `Layer(int)`. The panel ticks the strip from both `Tick()` and `Step(int)`.
+Suites: EditMode 838 (835 + 3, standing Conformance_A only), PlayMode 285. Not driven in the docked window
+and not captured; mount proven on a detached panel. On MaleCitizen only `MeleeContinuous` carries a marker
+(`Attack`, no preview clip), and there is no Override animation to play.
+
 **Built (2026-09-13): Amendment A90 — missing camera data warning and the Camera Sync sample — 0.37.0**,
 **T7 answered 2026-09-13: accepted** (the sample stays singleton-only). Spec: `Assets/_Vault/Tasks/AnimationPackage/A90_CameraDataWarning_Spec.md`;
 its §7 logs ten T0 drifts.

@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` and accepted the same day. A88 and A92 are next, in any order.
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` and accepted the same day. A88 built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; 13 T0 drifts settled in its §7); its T9 owner checkpoint is open. A92 is next.
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -12,6 +12,11 @@
 > **⏸ Owner to-do (left 2026-09-13, answer in any session):**
 > - [ ] **A87 follow-up (built 2026-09-13, not yet seen):** select an event pin in a clip, then scrub across
 >   it. It should swell for about a tenth of a second, then show its selection outline again.
+> - [ ] **A88 T9 (built 2026-09-13 as `0.38.0`, not yet seen):** Actor Profiles ▸ MaleCitizen ▸ ▶ Walk
+>   on Base, then ▶ MeleeContinuous on Action (Blink already runs on Eyes). Under the preview's
+>   transport, the Layer Events strip has one row per layer; MeleeContinuous's `Attack` pin at 0.35
+>   flashes once per ▶ (silently, no preview clip), and being play-once its row dims by itself at the end.
+>   Two questions: does dimmed/hollow read as "will not fire"? Should the strip start collapsed?
 > - Answering any of these ticks its box below and updates the status line above.
 
 Tick a box only when the spec's own status line says built **and** its ⏸ owner checkpoint (if any)
@@ -30,7 +35,7 @@ free minor and correct the spec's status line.
 - [x] **A85 — Event payload schema** (`0.32.0`) — [`A85_EventPayloadSchema_Spec.md`](A85_EventPayloadSchema_Spec.md). A registry entry says what `intParam` / `floatParam` mean; the Clip Editor shows a dropdown instead of a raw integer; generated constants carry the meaning.
 - [x] **A86 — One event editing surface for clips and cutscenes** (`0.33.0`) — [`A86_UnifiedEventEditing_Spec.md`](A86_UnifiedEventEditing_Spec.md). Same inspector, lane drawing and validation for `EventMarker` and `CutsceneEventMarker`; serialized types untouched.
 - [x] **A87 — Scrub crossings and sound on scrub** (`0.34.0`) — [`A87_ScrubEventCrossings_Spec.md`](A87_ScrubEventCrossings_Spec.md). Playhead-before / playhead-after crossing detection in the editor, an editor-only preview `AudioClip` per registry entry. Lifts the standing "do not start it" (HANDOFF §5) on the owner's 2026-09-10 instruction.
-- [ ] **A88 — Layered event preview in the Actor Editor** (`0.35.0`) — [`A88_LayeredEventPreview_Spec.md`](A88_LayeredEventPreview_Spec.md). Per-layer marker strip under the composited preview; inactive and crossfade-source layers drawn as non-emitting.
+- [ ] **A88 — Layered event preview in the Actor Editor** (`0.38.0`) — [`A88_LayeredEventPreview_Spec.md`](A88_LayeredEventPreview_Spec.md). Per-layer marker strip under the composited preview; inactive and crossfade-source layers drawn as non-emitting.
 - [x] **A89 — Stale VAT bake detection** (`0.35.0`) — [`A89_StaleVatBakeDetection_Spec.md`](A89_StaleVatBakeDetection_Spec.md). Compute the source hash without baking; badge the VAT Bake tab and the clip set when it differs from `VatTextureSetAsset.sourceHash`.
 - [x] **A90 — Camera-data fallback warning** (`0.37.0`) — [`A90_CameraDataWarning_Spec.md`](A90_CameraDataWarning_Spec.md). A project with no `AnimationToolkitCameraData` writer gets one warning naming the sample, not silent spherical billboarding.
 - [x] **A91 — Profile P2 at save and at build** (`0.36.0`) — [`A91_ProfileP2AtBuild_Spec.md`](A91_ProfileP2AtBuild_Spec.md). Animation-name membership checked on asset save and as a build preprocessor; the bake still cannot do it and the spec says why.

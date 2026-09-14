@@ -1161,3 +1161,26 @@ Traps only; the design is in the spec's §7 and HANDOFF §4.
   asmdef, refresh, then confirm `Library/ScriptAssemblies/<name>.dll` has a fresh mtime. A clean
   console alone does not prove the assembly was built. `AssetDatabase.DeleteAsset` on the folder
   leaves no stray `.meta`.
+
+## Layered event strip (A88, 0.38.0)
+
+Traps only; the design is in the spec's §7 and HANDOFF §4.
+- The runtime emit gate is `Active` **or** `FinishedThisFrame`, not `Active` alone: a Once clip that
+  just finished is already inactive and still emits that frame's crossings plus `ClipFinished`. The
+  crossfade source emits nothing, and "is blending" means the `Blending` flag, not `blendDuration > 0`.
+  `LayerEventRowResolver` mirrors both; its fixture guards them.
+- `PlaybackLayer.time` is un-wrapped seconds (speed may be negative, loop may be `UseClipDefault`).
+  Anything that feeds `ScrubEventCrossingResolver` must go through
+  `ClipSampler.ResolveLoopMode(layer.loop, clip.defaultLoop)` then `MapTimeNormalized`, or a looping
+  clip's playhead runs off the row and every crossing after the first loop is lost.
+- The preview `ClipRegistryBlob` is sorted and deduped, so its `clipIndex` is not a clip-set index.
+  Find the authoring `ClipAsset` (where markers live) by scanning `profile.clipSets[*].clips` for
+  `clip.Id`, and do it only when the layer's clip changes; the strip rebuilds rows only when the layer
+  count changes, never per tick.
+- The Actor Editor ticks the composer in two places, `Tick()` and the paused `Step(int)`. Anything
+  that follows `composer.Tick` must hook both. A step passes `isPlaying: true` so a stepped loop wrap
+  still fires.
+- `new PlaybackLayer()` has `clipIndex 0`, which is a valid index. An "empty" layer must say -1
+  explicitly, as `ActorPreviewComposer.Layer(int)` does for an invalid index.
+- A fixture with two assertions in one test lets the first mutation mask the second, and Unity's
+  NUnit has no `Assert.Multiple`. Give each rule its own test so one compile proves every mutation.

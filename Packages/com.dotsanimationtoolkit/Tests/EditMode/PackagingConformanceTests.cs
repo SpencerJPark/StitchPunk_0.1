@@ -589,9 +589,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual("DOTS Animation Toolkit", manifest.displayName, "Display name must match architecture section 1.1.");
             // Pinned deliberately, like the golden content hash: a version bump is a claim about
             // what shipped, so it should be made once, on purpose, in the same change that ships it
-            // -- not drift because someone edited the manifest. 0.37.0 is the missing camera data warning and the Camera Sync sample; 0.36.0 is animation name errors reported at profile save and player build; 0.35.0 is stale VAT bake detection; 0.34.0 is scrub crossings and sound on scrub; 0.33.0 is one event inspector, pin and rule set for clip and cutscene markers; 0.32.0 the event payload schema behind the Clip Editor's payload dropdown; 0.31.0 the asset reference index behind every delete confirmation; 0.30.0 was the Clip Editor window decomposed into four panes; 0.29.0 the shared catalog column and the
+            // -- not drift because someone edited the manifest. 0.38.0 is the layered event strip in the Actor Editor; 0.37.0 is the missing camera data warning and the Camera Sync sample; 0.36.0 is animation name errors reported at profile save and player build; 0.35.0 is stale VAT bake detection; 0.34.0 is scrub crossings and sound on scrub; 0.33.0 is one event inspector, pin and rule set for clip and cutscene markers; 0.32.0 the event payload schema behind the Clip Editor's payload dropdown; 0.31.0 the asset reference index behind every delete confirmation; 0.30.0 was the Clip Editor window decomposed into four panes; 0.29.0 the shared catalog column and the
             // cover-pane split that remembers its divider across a tab hide/show.
-            Assert.AreEqual("0.37.0", manifest.version, "Version tracks the shipped feature set; 0.37.0 is the missing camera data warning and the Camera Sync sample.");
+            Assert.AreEqual("0.38.0", manifest.version, "Version tracks the shipped feature set; 0.38.0 is the layered event strip in the Actor Editor.");
             Assert.AreEqual("6000.5", manifest.unity, "Minimum Unity version must match architecture section 1.1.");
         }
 
