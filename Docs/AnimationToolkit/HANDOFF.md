@@ -204,7 +204,7 @@ Suites: EditMode 831 (829 + 2, standing `Conformance_A` failure only), PlayMode 
 ran one level down and never touched the owner's live window. It proved the flash and the preview
 start on a scrub, one firing per frame step, one per loop in both play directions, nothing on seek,
 drag or clip switch, and the JSON write to disk. The registry file was restored afterwards. Sound
-itself is not verifiable from a session. **T10 owner checkpoint open.**
+itself is not verifiable from a session. **T10 partly answered 2026-09-13: sound plays on scrub; D1 and D5 still open.**
 
 **Built (2026-09-13): Amendment A86 — one event editing surface for clips and cutscenes — 0.33.0.**
 Spec `Assets/_Vault/Tasks/AnimationPackage/A86_UnifiedEventEditing_Spec.md`; its §7 carries seven
@@ -223,7 +223,7 @@ found one bug (a literal "V09 ·" prefix on every finding, fixed); no capture of
 `G1CheckpointCutscene.asset` stores reserved event key 1 and now shows V09. Owner follow-up the same day:
 cutscene events are added through the event picker (**+** on the Events group row, right-click, or
 double-click), split into one row per event name, and every Director row takes the Clip Editor's
-lane look (EditMode 829 again). **T10 owner checkpoint open.**
+lane look (EditMode 829 again). **T10 answered 2026-09-13: accepted ("events are unified").**
 
 **Built (2026-09-13): Amendment A85 — event payload schema — 0.32.0.** Spec
 `Assets/_Vault/Tasks/AnimationPackage/A85_EventPayloadSchema_Spec.md`; its §7 carries the drifts,

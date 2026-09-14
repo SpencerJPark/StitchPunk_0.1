@@ -1,6 +1,6 @@
 # Amendment A86 — One event editing surface for clips and cutscenes
 
-> **Status:** ✅ built 2026-09-13 as `0.33.0` (T0–T9); ⏸ T10 owner checkpoint open. §7 carries seven spec-vs-code drifts, the build log and the drive.
+> **Status:** ✅ built 2026-09-13 as `0.33.0` (T0–T9); T10 answered and accepted 2026-09-13 (owner: events are unified). §7 carries seven spec-vs-code drifts, the build log and the drive.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A55 (clip event lanes), A64/A65 (cutscene event lane and cues), A85 (payload
 > fields). **Serialized types are not touched** — see D1.
@@ -133,7 +133,7 @@ none unless a rule is new (the pulse-only-window warning is new — take the nex
   payload on both; reload both from disk; confirm. Capture both inspectors after.
 - [x] **T9 — Close.** HANDOFF §4, vault note ("Event lanes are per-name" section gains: one
   inspector, one validation), roadmap checkbox.
-- [ ] **T10 — ⏸ owner checkpoint.** Message: "Select an event on a clip, then on a cutscene. Same
+- [x] **T10 — ⏸ owner checkpoint.** Message: "Select an event on a clip, then on a cutscene. Same
   inspector, same pin. The cutscene one has Fire on skip / Hold rows; the clip one has Window. Say
   if the cutscene pin should have kept its old glyph."
 
@@ -293,3 +293,7 @@ cutscene Events split into **one row per event name**. Built the same day, still
   a second panel beside the owner's would have side effects; the rows are for the owner's eye.
 - Docs: `cutscenes.md` Events section rewritten (it still described a numeric Event Key field and
   one shared row), `animation-events.md` and `CHANGELOG.md` 0.33.0 extended.
+
+### T10 answer (2026-09-13)
+
+Owner: "events are unified". Accepted as built. The pin-glyph question got no objection, so the unified glyph stays.

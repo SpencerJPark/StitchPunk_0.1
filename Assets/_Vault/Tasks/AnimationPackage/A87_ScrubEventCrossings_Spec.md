@@ -1,6 +1,6 @@
 # Amendment A87 — Scrub crossings and sound on scrub
 
-> **Status:** ✅ built 2026-09-13 as `0.34.0` (Clip Editor; D6 cutscenes deferred, see §7). **T10 owner checkpoint open.**
+> **Status:** ✅ built 2026-09-13 as `0.34.0` (Clip Editor; D6 cutscenes deferred, see §7). **T10 partly answered 2026-09-13:** sound plays on scrub; D1 and D5 still open.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Lifts** HANDOFF §5's "not on the queue — do not start it" on the owner's 2026-09-10 instruction
 > to spec it. Sound *mixing* remains out of the package (roadmap §2).
@@ -270,3 +270,7 @@ on an `AudioClip` reference renders an `ObjectField<AudioClip>`.
 
 HANDOFF §4 paragraph added, and §5's "do not start it" struck, citing A87. Roadmap status line
 updated. The A87 box stays unticked until T10 is answered, like A86's.
+
+### T10 partial answer (2026-09-13)
+
+Owner: "sounds work". The preview clip plays on scrub, which closes the one thing no session could verify. D1 (skipped markers on a far click) is unanswered. D5 was explained back to the owner: 1 px dark outline normally, 3 px own-colour outline for 120 ms on a crossing. Both stay open.
