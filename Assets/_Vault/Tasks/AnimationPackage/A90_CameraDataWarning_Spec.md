@@ -1,6 +1,6 @@
 # Amendment A90 — Camera-data fallback warning and a shipped writer sample
 
-> **Status:** 🔨 building 2026-09-13 — T0 done (§7 logs ten drifts), wave T1–T3 running. Takes `0.37.0`.
+> **Status:** ✅ built 2026-09-13 as `0.37.0`, ⏸ T7 owner checkpoint open. §7 logs ten T0 drifts and the T1–T6 run.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** the billboard and LOD systems; the game's `AnimationToolkitCameraBridge.cs`
 > (`Assets/_Scripts/MonoBehaviours/Managers/`) is the host-side writer this sample generalises.
@@ -95,28 +95,28 @@ those updates (the HANDOFF §2 trap: the call inspects logs already received). R
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Confirm whether `ToolkitCameraSync` exists
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Confirm whether `ToolkitCameraSync` exists
   anywhere (grep `Samples~` and `Runtime/`); fix the singleton's comment in T4 if it names a file
   that does not exist. Check `Conformance_F`'s scan for string literals.
-- [ ] **T1 — System + PlayMode fixture [parallel-safe]** — Files: new
+- [x] **T1 — System + PlayMode fixture [parallel-safe]** — Files: new
   `CameraDataMissingWarningSystem.cs`, new `Tests/PlayMode/CameraDataMissingWarningSystemTests.cs`.
   Read `ConfigBootstrapSystem.cs`, an existing PlayMode fixture (grep `GetOrCreateSystem` under
   `Tests/PlayMode/` and read one).
-- [ ] **T2 — Sample [parallel-safe]** — Files: new `Samples~/CameraSync/ToolkitCameraSync.cs`,
+- [x] **T2 — Sample [parallel-safe]** — Files: new `Samples~/CameraSync/ToolkitCameraSync.cs`,
   new `Samples~/CameraSync/DotsAnimationToolkit.Samples.CameraSync.asmdef`. Read the cutscene
   sample's asmdef and the game bridge.
-- [ ] **T3 — Docs + changelog [parallel-safe]** — Files: `Documentation~/billboarding.md` (the
+- [x] **T3 — Docs + changelog [parallel-safe]** — Files: `Documentation~/billboarding.md` (the
   camera-data paragraph gains the warning text and the sample name; a `Samples~/CameraSync/README.md`
   is the second file), `CHANGELOG.md` `## [0.37.0]`.
 - **Gate the wave.** PlayMode `CameraDataMissingWarningSystemTests`. Commit `A90-T1..T3`.
-- [ ] **T4 — Orchestrator edits.** `package.json` (version and the `samples` array gains Camera
+- [x] **T4 — Orchestrator edits.** `package.json` (version and the `samples` array gains Camera
   Sync); the singleton comment; **compile-check `Samples~/CameraSync`** through a temporary asmdef
   copy under `Assets/A90Scratch/` then delete it; `Conformance_A` may need the sample asmdef listed
   — follow what the test says.
-- [ ] **T5 — Drive.** Full suites. In `DOTSTestScene`, disable the game's bridge, enter Play, see
+- [x] **T5 — Drive.** Full suites. In `DOTSTestScene`, disable the game's bridge, enter Play, see
   the one warning at ~frame 120, confirm it does not repeat; re-enable the bridge. Import the sample
   into the scratch folder, drop it on the camera, confirm the warning is gone.
-- [ ] **T6 — Close.** HANDOFF §1's "still true" paragraph loses its "no warning" clause; §4;
+- [x] **T6 — Close.** HANDOFF §1's "still true" paragraph loses its "no warning" clause; §4;
   roadmap checkbox.
 - [ ] **T7 — ⏸ owner checkpoint.** Message: "Nothing to look at unless you remove the camera
   bridge — then one console warning at about two seconds tells you what to add. Read the warning
@@ -180,3 +180,24 @@ Baseline: compile gate clean (no console errors). Suites inherited from A91: Edi
    and has no bridge, so it may start warning.
 10. **HANDOFF §1** (`HANDOFF.md:43-47`) closing clause is wrong twice (drift 3, and the new warning);
     T6 rewrites the clause.
+
+### T1–T6 — run log (2026-09-13)
+
+1. **Wave.** Three `worker`s (55k, 53k, 51k tokens), every file as briefed, no deviations. Gate: reload
+   clean, `CameraDataMissingWarningSystemTests` 2/2.
+2. **Revert-to-fail**, one compile, two mutations chosen so neither masks the other: the disable made
+   conditional on `!billboardsAreWaiting` → fixture 1 fails (Enabled True, expected False); LOD forced
+   `|| true` → fixture 2 fails (Enabled False, expected True). Restored from backup, sha256 matched.
+   Wave committed as `0e52e24f`.
+3. **T4.** `package.json` `0.37.0` plus the Camera Sync samples entry; conformance pin `0.37.0`; the
+   singleton summary names both systems and the sample; `CHANGELOG.md` `## [0.37.0]`. `Samples~`
+   compile check: copied into `Assets/A90Scratch/` with the asmdef renamed
+   `A90Scratch.CameraSyncCompileCheck`; reload clean and the DLL freshly built in
+   `Library/ScriptAssemblies`; folder removed with `DeleteAsset`, no stray `.meta`, git status clean.
+4. **T5**, per drift 9: no scene opened, no Play mode, no sample import. Suites: EditMode 835 (standing
+   `Conformance_A` only), PlayMode 285 (283 + 2).
+5. **T6.** HANDOFF §1 clause and §4; `billboarding.md` (wave); vault note traps; roadmap status and
+   owner to-do.
+6. **Escalated, not re-specced:** the sample writes only the singleton. The shader billboard path reads
+   `_ToolkitCameraForward`, which nothing in the project writes. Whether the sample should also set
+   that global is a T7 question.

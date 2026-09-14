@@ -8,6 +8,25 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.37.0] — A90 — missing camera data warning and the Camera Sync sample
+
+### Added
+
+- `CameraDataMissingWarningSystem`: when billboarded rigs, or `AnimLod` actors with distance LOD
+  enabled, have waited 120 frames for an `AnimationToolkitCameraData` singleton, the console logs one
+  warning per world. It says what is not running and names the fix, then the system disables itself.
+  It stays silent once the singleton exists, and for `AnimLod` actors while distance LOD is off.
+- **Camera Sync** sample: `ToolkitCameraSync` writes the singleton every frame from `Camera.main` or
+  an assigned camera. It finds the entity again after the default world is recreated.
+
+### Changed
+
+- `AnimationToolkitCameraData`'s comment now names both systems that wait for it. It previously named
+  only `AnimLodDistanceSystem`, and a sample that did not exist.
+- `billboarding.md` states what happens without camera data: rig billboards do not turn and distance
+  LOD does not run. It names the warning and the sample, and notes that the shader billboard path reads
+  `_ToolkitCameraForward` instead.
+
 ## [0.36.0] — A91 — animation name errors at profile save and player build
 
 ### Added

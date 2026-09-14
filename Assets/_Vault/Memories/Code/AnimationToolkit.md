@@ -1143,3 +1143,21 @@ Traps only; the design is in the spec's §7 and HANDOFF §4.
   mount the root in a floating `EditorWindow` after `ShowUtility()`, then `Close()` it.
 - A brief that says "copy lines X–Y" must cover every member. The fake `IVocabularyRegistry` copy
   lost `GeneratedConstantsPath` to a range one line short (CS0535 at the gate).
+
+## Missing camera data warning (A90, 0.37.0)
+
+Traps only; the design is in the spec's §7 and HANDOFF §4.
+- Without `AnimationToolkitCameraData`, `BillboardResolveSystem` does not run at all. "Falls back to
+  spherical" is the zero-`forward` case with the singleton present. The shader billboard path never
+  reads the singleton: it reads `_WorldSpaceCameraPos` and the `_ToolkitCameraForward` global, and
+  nothing in this project writes that global (the game bridge included).
+- A fixture for "warns once" cannot rest on `LogAssert`: Unity never fails on an unexpected warning.
+  Assert the state change instead. `world.Unmanaged.ResolveSystemStateRef(handle).Enabled` reads an
+  unmanaged system's flag, and a manual `SystemHandle.Update` honours it.
+- One compile can cover two revert-to-fail mutations only if neither masks the other. Removing a
+  shared `state.Enabled = false` hid the "LOD forced on" mutation, so the disable was made conditional
+  on the billboard branch instead.
+- `Samples~` compile check: copy the `.cs` and asmdef into an `Assets/` scratch folder, rename the
+  asmdef, refresh, then confirm `Library/ScriptAssemblies/<name>.dll` has a fresh mtime. A clean
+  console alone does not prove the assembly was built. `AssetDatabase.DeleteAsset` on the folder
+  leaves no stray `.meta`.

@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) and A87 (`0.34.0`) built 2026-09-13, both with their T10 owner checkpoint open. A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build to confirm its build hook is deferred until the owner is at the PC); every A94 prerequisite is now built. A88, A90 and A92 are next, in any order.
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) and A87 (`0.34.0`) built 2026-09-13, both with their T10 owner checkpoint open. A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build to confirm its build hook is deferred until the owner is at the PC); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` with its T7 owner checkpoint open. A88 and A92 are next, in any order.
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -16,7 +16,10 @@
 >   Event Names (Payload foldout), then scrub across a Sound marker in any clip. Does it play? Then
 >   answer two questions. **D1:** when you click far along the ruler, should every skipped marker
 >   fire, or none (current)? **D5:** is the 120 ms own-colour outline flash visible enough?
-> - Answering either ticks its box below and updates the status line above.
+> - [ ] **A90 T7:** read the camera data warning text (HANDOFF §4 quotes it) and say if it is clear.
+>   Say whether you want to try the warning and the Camera Sync sample in Play mode yourself, and
+>   whether the sample should also write the shader's `_ToolkitCameraForward` global.
+> - Answering any of these ticks its box below and updates the status line above.
 
 Tick a box only when the spec's own status line says built **and** its ⏸ owner checkpoint (if any)
 has been answered. A spec's session ticks its own tasks inside the spec; this list is the owner's

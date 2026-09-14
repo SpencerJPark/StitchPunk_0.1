@@ -15,7 +15,7 @@ namespace DotsAnimationToolkit
         public float4 lodDistancesSq; // squared camera-distance thresholds; x/y/z promote AnimLod.level to 1/2/3, w reserved
     }
 
-    /// <summary>Camera position singleton consumed only by <c>AnimLodDistanceSystem</c>. Written by the host, or by the <c>ToolkitCameraSync</c> sample MonoBehaviour.</summary>
+    /// <summary>Camera singleton that <c>BillboardResolveSystem</c> and <c>AnimLodDistanceSystem</c> both wait for. Written by the host every frame, or by the Camera Sync sample's <c>ToolkitCameraSync</c>.</summary>
     public struct AnimationToolkitCameraData : IComponentData
     {
         public float3 position; // world space

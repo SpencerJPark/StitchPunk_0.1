@@ -39,12 +39,13 @@ directional entry resolves per-facing, and ragdoll can be triggered from an anim
 Two things carried forward from the pre-cutscene era, still true: **every existing `ActorAuthoring`
 still needs its `clipSet` re-pointed by hand** where Phase F's migration-free field removal (2026-08-29)
 was never followed by a bulk fix — `MaleCitizen` (the game's first toolkit actor, built for G0) is
-re-pointed and working; `PlayerUnit`/`BaseUnit`'s separate body-part tree is not. And the package's
-screen-aligned billboard mode still needs a host-written `AnimationToolkitCameraData` singleton
-(`BillboardResolveSystem`'s `RequireForUpdate`) to do anything — the game now has one
-(`AnimationToolkitCameraBridge.cs`, `Assets/_Scripts/MonoBehaviours/Managers/`, added while verifying
-G3's acceptance cutscene), but that is a game-side fix, not a package one; a project with no such
-writer still gets silent spherical billboarding with no warning.
+re-pointed and working; `PlayerUnit`/`BaseUnit`'s separate body-part tree is not. And rig billboards
+and distance LOD still need a host-written `AnimationToolkitCameraData` singleton (both
+`BillboardResolveSystem` and `AnimLodDistanceSystem` `RequireForUpdate` it) — the game has one
+(`AnimationToolkitCameraBridge.cs`, `Assets/_Scripts/MonoBehaviours/Managers/`, placed only in
+`TestArea.unity`). Without a writer, billboarded rigs do not turn at all (spherical is the zero-`forward`
+case, not this one) and distance LOD does not run; since 0.37.0 (A90) the console says so once after
+120 frames and names the Camera Sync sample.
 
 ## 2. How to work here
 
@@ -118,6 +119,23 @@ shape of a suite that silently stopped compiling. Counts must not drop.
 displays" is not proof. Delete scratch assets and confirm `git status` afterwards.
 
 ## 4. The queue
+
+**Built (2026-09-13): Amendment A90 — missing camera data warning and the Camera Sync sample — 0.37.0**,
+⏸ T7 owner checkpoint open. Spec: `Assets/_Vault/Tasks/AnimationPackage/A90_CameraDataWarning_Spec.md`;
+its §7 logs ten T0 drifts.
+- **`CameraDataMissingWarningSystem`** (top group, no declared order, not Burst). It warns once per world
+  when billboard roots, or `AnimLod` actors with `distanceLodEnabled`, have waited 120 frames for
+  `AnimationToolkitCameraData`, then disables itself. It disables silently once the singleton exists.
+- **Message:** "DOTS Animation Toolkit: no AnimationToolkitCameraData singleton after 120 frames, so
+  billboarded rigs are not turning to face the camera. Write the singleton from your camera every frame,
+  or import the Camera Sync sample and add ToolkitCameraSync to a scene object." The clause after "so"
+  names distance LOD instead ("distance LOD is not running, so AnimLod levels stay where they are"), or both.
+- **Sample:** `Samples~/CameraSync` (`ToolkitCameraSync`), compile-checked through a scratch assembly.
+- **Drift worth knowing:** without the singleton, rig billboards do not turn at all; spherical is the
+  zero-`forward` case. The shader path reads `_ToolkitCameraForward`, which nothing in the project writes.
+- **Suites:** EditMode 835 (standing `Conformance_A` only), PlayMode 285 (283 + 2). No Play-mode drive,
+  on the owner's instruction. `CutsceneA64Checkpoint.unity` places a toolkit actor with no bridge, so it
+  may start warning.
 
 **Built (2026-09-13): Amendment A91 — profile animation name errors (P2) at save and at player build —
 0.36.0** (A88 and A90 are unbuilt; A91 took the next free minor). Spec:
