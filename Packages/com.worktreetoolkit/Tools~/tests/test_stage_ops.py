@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import unittest
 
 from tests.repo_fixture import TemporaryRepository
@@ -49,12 +50,15 @@ class StageOpsTests(unittest.TestCase):
         self.assertFalse(state.worktrees["alpha"].parked)
         self.assertIsNone(state.stage_review_worktree_id)
 
-    def test_review_worktree_refuses_on_dirty_stage_until_noise_glob_covers_it(self):
+    def test_review_worktree_only_refuses_when_the_uncommitted_path_is_also_changed_by_the_branch(self):
+        # Both sides need shared.txt before the worktree branch diverges, so main can later diff against it.
+        self.repository.commit_file(self.repository.stage_path, "shared.txt", "shared\n", "add shared.txt")
+
         worktree_path = self.repository.add_raw_worktree("beta")
         _register_worktree(self.repository, "beta", worktree_path, "spec/beta")
+        self.repository.commit_file(worktree_path, "shared.txt", "changed on branch\n", "branch edits shared.txt")
 
-        # readme.txt is a tracked file from TemporaryRepository's initial commit; leave it modified, uncommitted.
-        self.repository.write_file(self.repository.stage_path, "readme.txt", "dirty\n")
+        self.repository.write_file(self.repository.stage_path, "shared.txt", "dirty on stage\n")
 
         with self.assertRaises(RefusedError):
             stage_ops.review_worktree(self.repository.stage_path, "beta")
@@ -62,13 +66,16 @@ class StageOpsTests(unittest.TestCase):
         self.assertEqual(git_runner.current_branch(self.repository.stage_path), "main")
         self.assertEqual(git_runner.current_branch(worktree_path), "spec/beta")
 
-        with StateLock(self.common_git_directory):
-            state = load_state(self.common_git_directory)
-            state.config.stage_noise_globs.append("readme.txt")
-            save_state(self.common_git_directory, state)
+        # Revert the conflicting edit; touch readme.txt instead, which the branch never changed.
+        self.repository.write_file(self.repository.stage_path, "shared.txt", "shared\n")
+        self.repository.write_file(self.repository.stage_path, "readme.txt", "dirty\n")
 
         review_result = stage_ops.review_worktree(self.repository.stage_path, "beta")
         self.assertEqual(review_result, {"stageBranch": "spec/beta", "parkedWorktreeId": "beta"})
+
+        readme_path = os.path.join(self.repository.stage_path, "readme.txt")
+        with open(readme_path, "r", encoding="utf-8") as readme_file:
+            self.assertEqual(readme_file.read(), "dirty\n")
 
 
 if __name__ == "__main__":

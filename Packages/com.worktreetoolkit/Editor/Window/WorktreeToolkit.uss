@@ -1,0 +1,142 @@
+/* Worktree Toolkit graph window styles. Colours are USS custom properties so both Editor skins
+   can be tuned in one place; Painter2D edge colours live in WorktreeEdgeLayer (USS cannot reach them). */
+
+:root {
+    --worktree-accent: rgb(76, 158, 250);
+    --worktree-card-background: var(--unity-colors-default-background, rgb(56, 56, 56));
+    --worktree-card-border: var(--unity-colors-default-border, rgb(35, 35, 35));
+    --worktree-card-text: var(--unity-colors-default-text, rgb(210, 210, 210));
+    --worktree-card-text-dim: rgb(160, 160, 160);
+    --worktree-trunk-tint: rgb(64, 76, 64);
+    --worktree-stale-color: rgb(224, 168, 64);
+    --worktree-missing-color: rgb(214, 90, 90);
+    --worktree-banner-background: rgb(72, 96, 128);
+    --worktree-banner-text: rgb(235, 235, 235);
+    --worktree-error-background: rgb(96, 48, 48);
+    --worktree-error-border: rgb(150, 62, 62);
+    --worktree-error-text: rgb(240, 220, 220);
+    --worktree-queue-row-background: rgba(255, 255, 255, 0.04);
+    --worktree-queue-row-border: rgba(255, 255, 255, 0.08);
+}
+
+.worktree-node {
+    background-color: var(--worktree-card-background);
+    border-left-color: var(--worktree-card-border);
+    border-right-color: var(--worktree-card-border);
+    border-top-color: var(--worktree-card-border);
+    border-bottom-color: var(--worktree-card-border);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    color: var(--worktree-card-text);
+}
+
+.worktree-node--on-stage {
+    border-left-color: var(--worktree-accent);
+    border-right-color: var(--worktree-accent);
+    border-top-color: var(--worktree-accent);
+    border-bottom-color: var(--worktree-accent);
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+}
+
+.worktree-node--inactive {
+    opacity: 0.45;
+}
+
+.worktree-node--trunk {
+    background-color: var(--worktree-trunk-tint);
+}
+
+.worktree-node--stale .worktree-node__status {
+    color: var(--worktree-stale-color);
+}
+
+.worktree-node--missing .worktree-node__status {
+    color: var(--worktree-missing-color);
+}
+
+.worktree-node__title {
+    color: var(--worktree-card-text);
+    -unity-font-style: bold;
+}
+
+.worktree-node__models {
+    color: var(--worktree-card-text-dim);
+    font-size: 11px;
+}
+
+.worktree-node__status {
+    color: var(--worktree-card-text-dim);
+    font-size: 11px;
+}
+
+.worktree-node__counts {
+    color: var(--worktree-card-text-dim);
+    font-size: 11px;
+}
+
+.worktree-node__actions {
+    flex-direction: row;
+    justify-content: flex-end;
+}
+
+.worktree-window__busy-banner {
+    background-color: var(--worktree-banner-background);
+    color: var(--worktree-banner-text);
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.worktree-window__error {
+    background-color: var(--worktree-error-background);
+    color: var(--worktree-error-text);
+    border-left-color: var(--worktree-error-border);
+    border-right-color: var(--worktree-error-border);
+    border-top-color: var(--worktree-error-border);
+    border-bottom-color: var(--worktree-error-border);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    white-space: normal;
+}
+
+.gate-queue {
+    border-top-color: var(--worktree-card-border);
+    border-top-width: 1px;
+}
+
+.gate-queue__row {
+    flex-direction: row;
+    justify-content: space-between;
+    background-color: var(--worktree-queue-row-background);
+    border-bottom-color: var(--worktree-queue-row-border);
+    border-bottom-width: 1px;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+.gate-queue__phase {
+    color: var(--worktree-card-text-dim);
+    font-size: 11px;
+}

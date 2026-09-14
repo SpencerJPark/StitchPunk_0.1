@@ -1,7 +1,10 @@
 # Worktree Toolkit — parallel AI specs in one Unity project, reviewed by swapping the Editor
 
-> **Status:** 🔨 Phase 1 (CLI) built 2026-09-14 with the Editor closed — 15 fixtures green, P1/P2/P5 probed;
-> P3/P4/P6/P7 and Phases 2–5 need the Editor. New embedded package `Packages/com.worktreetoolkit`, `0.1.0`.
+> **Status (2026-09-14 evening):** Phases 1–3 built. CLI 16 fixtures green; hooks, agent and skill installed here.
+> Probes P1/P2/P3/P4/P5/P7 done (P6 deferred to Phase 5). Node window and gate broker compile clean.
+> `WorktreeTreeLayoutTests` 2/2 green. A real broker gate returned compile-errors for a deliberate
+> CS0103 and restored `main` in 22 s. ⏸ C1 owner look at the window is open. Phase 5
+> (own-Editor mode) not started. Package `Packages/com.worktreetoolkit`, `0.1.0`.
 > **Executor:** one Editor-connected orchestrator (the only session with Unity MCP) + `worker`
 > subagents per wave. Phase 0 probes run first and can change sections 4–5.
 > **Why now:** parallel sessions today share one Editor and one Library ("one Editor, one driver"
@@ -245,6 +248,10 @@ Window mock (root left, forks right, the on-stage node lit, the others greyed):
    longer writes `__pycache__`. Stitch Punk today: 86-character worktree prefix + 147-character
    longest tracked path = 233 of 260, but own-Editor Libraries will pass the limit, so `doctor`
    reports `longPathsEnabled`.
+10. **`stash-stage` takes every tracked change** (P7), including the orchestrator's own uncommitted
+    vault notes. A later edit to the same file then blocks `pop-stage`. Commit doc edits before
+    stashing, or revert them and re-apply after the pop. A future `stash-stage` should list the
+    paths it will take.
 
 ## 8. Phase 0 — probes (orchestrator, before any code; results go into section 4)
 
@@ -263,15 +270,40 @@ Window mock (root left, forks right, the on-stage node lit, the others greyed):
       to `C:\tmp\...`, **outside the worktree**. Briefs must hand agents the Windows path from
       `git rev-parse --show-toplevel`, never `pwd` (trap 8).
   - Not yet probed: the periodic sweep.
-- **P3** With a dirty in-memory ScriptableObject open, run `DisallowAutoRefresh` → `git switch` →
-  `Refresh`. Record whether Unity prompts, reloads or overwrites.
-- **P4** `CompilationPipeline.RequestScriptCompilation()` with no script changes: does
-  `compilationFinished` still fire? This decides how the broker detects "nothing to compile".
+- **P3 ✅ 2026-09-14** (probe material on stage, red on disk)
+  - Setup: set green in memory + `SetDirty`, then `DisallowAutoRefresh` → `git switch --detach`
+    to a commit with blue on disk → `AllowAutoRefresh` + `Refresh`.
+  - Result: the **same instance** turned blue, `IsDirty` false, **no prompt**, nothing written back.
+    Unity silently **discards unsaved in-memory edits** to files git changes.
+  - Rule: before a stage move, refuse when an open scene is dirty or a dirty asset's path is in
+    `git diff --name-only HEAD <target>` (CLI `changed-paths`). Never save on the owner's behalf.
+  - Side finding: `EditorUtility.IsDirty` is noisy. An idle Editor reported 14 dirty persistent
+    assets (11 shaders, a TMP font texture), so only the intersection with changed paths counts.
+- **P4 ✅ 2026-09-14** `CompilationPipeline.RequestScriptCompilation()` with no script changes:
+  - `compilationStarted` → `compilationFinished` fire 27 ms apart;
+  - **no** `assemblyCompilationFinished` fires (nothing recompiled);
+  - **a domain reload still follows** (`beforeAssemblyReload` 290 ms later).
+  - Consequences for the broker:
+    - detect "compile done" with `compilationFinished`, never by counting assembly events;
+    - after the reload, read `EditorUtility.scriptCompilationFailed`, because an empty message
+      list does not mean no errors when assemblies were skipped;
+    - persist `phase` before requesting, because even a no-op gate reloads the domain.
 - **P5 ✅ 2026-09-14** `git worktree remove --force` wipes junction targets (any depth); plain
   remove refuses; `shutil.rmtree` (3.12) and unlink-first are safe → trap 1.
 - **P6** First open to idle for an own-Editor worktree: no seed, full seed, seed minus
   PackageCache. Record GB and minutes and pick D5's seed set from the numbers.
-- **P7** Stage swap cost `main` → spec → `main` with a script-only diff: seconds to idle each way.
+- **P7 ✅ 2026-09-14** through the real CLI: `stash-stage` → `review swapprobe-a` (+1 Editor script,
+  +1 material) → probes → `return` → `pop-stage`.
+  - Forward: git 0.4 s; `Refresh` 1.7 s; compile start +1.1 s; `Assembly-CSharp-Editor` 32.7 s;
+    reload done ≈ 60 s after compile start, **≈ 63 s swap-to-idle**.
+  - Backward (script removed): **≈ 31 s** refresh-to-idle.
+  - So gates take minutes: the window shows a busy banner, and the broker queues one gate at a time.
+  - Findings on the way:
+    - `stash-stage` stashes **every** tracked change, including the orchestrator's own uncommitted
+      vault edits (trap 10);
+    - `review` correctly refused on an uncommitted roadmap edit;
+    - MCP `execute_code` blocks `AssetDatabase.DeleteAsset` unless `safety_checks=false`.
+- **P6** deferred to Phase 5 (own-Editor mode); nothing in Phases 2–4 depends on it.
 
 ## 9. Build phases
 

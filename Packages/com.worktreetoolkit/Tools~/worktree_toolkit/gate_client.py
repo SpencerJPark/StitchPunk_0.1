@@ -12,19 +12,21 @@ from worktree_toolkit.errors import GateTimeoutError, NoBrokerError, RefusedErro
 
 HEARTBEAT_FILE_NAME = "broker-heartbeat.json"
 HEARTBEAT_MAX_AGE_SECONDS = 10.0
+# A successful gate compile is followed by a domain reload that silences the heartbeat for 30-60 s (probe P7).
+HEARTBEAT_MAX_AGE_DURING_GATE_SECONDS = 240.0
 
 
 def _heartbeat_file_path(common_git_directory: str) -> str:
     return os.path.join(state_store.state_directory(common_git_directory), HEARTBEAT_FILE_NAME)
 
 
-def broker_is_alive(common_git_directory: str) -> bool:
+def broker_is_alive(common_git_directory: str, maximum_age_seconds: float = HEARTBEAT_MAX_AGE_SECONDS) -> bool:
     heartbeat_file_path = _heartbeat_file_path(common_git_directory)
     try:
         heartbeat_age_seconds = time.time() - os.path.getmtime(heartbeat_file_path)
     except OSError:
         return False
-    return heartbeat_age_seconds <= HEARTBEAT_MAX_AGE_SECONDS
+    return heartbeat_age_seconds <= maximum_age_seconds
 
 
 def _write_json_atomically(file_path: str, payload: dict) -> None:
@@ -87,7 +89,7 @@ def wait_for_result(
         if os.path.isfile(result_file_path):
             with open(result_file_path, "r", encoding="utf-8") as result_file:
                 return json.load(result_file)
-        if not broker_is_alive(common_git_directory):
+        if not broker_is_alive(common_git_directory, HEARTBEAT_MAX_AGE_DURING_GATE_SECONDS):
             raise NoBrokerError("broker heartbeat went stale while waiting for a gate result")
         if time.time() >= deadline_time:
             raise GateTimeoutError("gate result did not arrive within {0} seconds".format(timeout_seconds))

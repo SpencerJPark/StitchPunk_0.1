@@ -11,13 +11,16 @@ are lightweight by default.
 
 ## 2. Status
 
-**Built (Phase 1):** the CLI (`Tools~/worktree.py`) — worktree creation, claiming, staging,
-gating, merging, and removal, all as git operations with `--json` output.
+**Built:**
+- **The CLI** (`Tools~/worktree.py`): worktree creation, claiming, staging, gating, merging and
+  removal, all as git operations with `--json` output.
+- **The node window** (`Window ▸ Worktree Toolkit`): trunk and branch cards, greyed when not on
+  stage, with put-on-stage, return, merge, remove and reveal actions.
+- **The in-Editor gate broker:** it compiles a worktree commit on request, runs named EditMode
+  fixtures, and restores trunk. Toggle it at `Tools ▸ Worktree Toolkit ▸ Gate Broker Enabled`.
 
-**Not built yet:** the Editor node window (`Window ▸ Worktree Toolkit`), the in-Editor gate
-broker, and own-Editor mode (per-worktree Library + linked packages). Until those land, gates run
-through the Editor's existing MCP tooling and there is no visual graph of worktrees — use `list`
-for that.
+**Not built yet:** own-Editor mode (per-worktree Library plus linked packages). PlayMode fixtures
+are refused by the broker.
 
 ## 3. Requirements
 

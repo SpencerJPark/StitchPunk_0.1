@@ -223,6 +223,30 @@ def _command_install_claude(arguments: argparse.Namespace, working_directory: st
     return 0
 
 
+def _command_where(arguments: argparse.Namespace, working_directory: str) -> int:
+    resolved_context = context.resolve_context(working_directory)
+    result: Dict[str, Any] = {
+        "stagePath": resolved_context.stage_path,
+        "commonGitDirectory": resolved_context.common_git_directory,
+        "stateDirectory": state_store.state_directory(resolved_context.common_git_directory),
+        "protocol": state_store.PROTOCOL_VERSION,
+    }
+    _print_result(result, arguments.json)
+    return 0
+
+
+def _command_changed_paths(arguments: argparse.Namespace, working_directory: str) -> int:
+    resolved_context = context.resolve_context(working_directory)
+    git_result = git_runner.run_git(
+        ["diff", "--name-only", "HEAD", arguments.reference], resolved_context.stage_path
+    )
+    changed_paths = [
+        line.replace("\\", "/") for line in git_result.standard_output.splitlines() if line
+    ]
+    _print_result({"paths": changed_paths}, arguments.json)
+    return 0
+
+
 def _extract_global_cwd_option(argument_list: List[str]) -> "tuple[Optional[str], List[str]]":
     """Pulls --cwd out by hand: argparse's subparser-default clobbers a shared dest set at the
     top level (a known argparse gotcha), and --cwd must work whether it precedes or follows the
@@ -339,6 +363,13 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     config_parser.add_argument("--add-noise-glob", action="append", default=[])
     config_parser.add_argument("--remove-noise-glob", action="append", default=[])
     config_parser.set_defaults(command_handler=_command_config)
+
+    where_parser = subcommand_parsers.add_parser("where", parents=[common_arguments_parser])
+    where_parser.set_defaults(command_handler=_command_where)
+
+    changed_paths_parser = subcommand_parsers.add_parser("changed-paths", parents=[common_arguments_parser])
+    changed_paths_parser.add_argument("reference")
+    changed_paths_parser.set_defaults(command_handler=_command_changed_paths)
 
     return top_level_parser
 

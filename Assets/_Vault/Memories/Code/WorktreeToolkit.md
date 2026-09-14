@@ -51,3 +51,21 @@ Run the fixtures (temp repos only, never the real project):
    fails `Filename too long` and leaves the folder. `remove_worktree` finishes that one case with a
    `\\?\` rmtree (fixture `test_remove_long_paths`). `worktree.py` sets `sys.dont_write_bytecode` so
    agents running the CLI never leave `__pycache__` in worktrees.
+7. **`EditorWindow.CreateGUI` is not virtual** (reflection on 6000.5: no member). Unity calls it by
+   name, like `OnGUI`. `public override void CreateGUI()` is CS0115; write `public void CreateGUI()`.
+8. **Focusing the Editor mid-wave imports half-finished work.** A worker's new file references a
+   type another worker hasn't written yet, so the focus-triggered compile errors, and those errors
+   block `run_tests` from starting ("tests did not start within timeout"). Gate a wave only after
+   every worker in it has reported.
+9. **`WorktreeCliClient.RunAsync` must resolve everything on the main thread.** `EditorPrefs.GetString`
+   (the Python-path override) and `Application.dataPath` throw "can only be called from the main
+   thread" on a `Task.Run` thread. The window's `ContinueWith` swallowed the fault, so its
+   refresh-in-progress flag stuck true and the window stayed empty with no error.
+10. **Never add to `EditorApplication.delayCall` from a thread-pool continuation.** Even with the fault
+    fixed and the CLI returning correct JSON in 551 ms, the callback was silently lost and the window
+    stayed empty. The window now stores its pending `Task`s in fields and drains completed ones in its
+    `EditorApplication.update` handler, on the main thread, before the has-focus check.
+11. **An `EditorWindow`'s private fields survive a domain reload; non-serializable ones come back null.**
+    `hasRequestedStateDirectory` came back `true` while the `Task` and `GateRequestStore` came back null,
+    so the queue never resolved again. A bare `[Serializable]` DTO came back as an all-defaults
+    instance. Mark per-session bookkeeping `[System.NonSerialized]`.

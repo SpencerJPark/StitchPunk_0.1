@@ -19,12 +19,20 @@ from worktree_toolkit.state_store import (
 )
 
 
-def stage_blockers(context: ToolkitContext, state: ToolkitState) -> List[str]:
+def stage_blockers(context: ToolkitContext, state: ToolkitState, target_reference: Optional[str] = None) -> List[str]:
     """Human-readable reasons the stage cannot be moved right now; an empty list means it is safe."""
     blockers: List[str] = []
     remaining_tracked_paths = filter_noise_paths(tracked_modifications(context.stage_path), state.config.stage_noise_globs)
-    for changed_path in remaining_tracked_paths:
-        blockers.append("modified: " + changed_path)
+    if target_reference is None:
+        for changed_path in remaining_tracked_paths:
+            blockers.append("modified: " + changed_path)
+    else:
+        # git already carries an untouched modification across a switch and refuses to overwrite a touched one itself.
+        target_diff_output = run_git(["diff", "--name-only", "HEAD", target_reference], context.stage_path).standard_output
+        target_changed_paths = set(target_diff_output.splitlines())
+        for changed_path in remaining_tracked_paths:
+            if changed_path in target_changed_paths:
+                blockers.append("modified and changed by {0}: {1}".format(target_reference, changed_path))
     lock_path = stage_lock_path(context.common_git_directory)
     if os.path.exists(lock_path):
         holder_description = "unknown"
@@ -48,7 +56,7 @@ def review_worktree(working_directory: str, worktree_id: str) -> dict:
             raise RefusedError("return the stage first")
         if entry.lead is not None and entry.lead.status in ("building", "gating"):
             raise RefusedError("worktree '{0}' lead is {1}; wait for it to finish".format(worktree_id, entry.lead.status))
-        blockers = stage_blockers(context, state)
+        blockers = stage_blockers(context, state, entry.branch)
         if blockers:
             raise RefusedError("stage is not clear: " + "; ".join(blockers))
         if dirty_entry_count(entry.path) > 0:
@@ -76,10 +84,12 @@ def return_stage(working_directory: str) -> dict:
         if state.stage_review_worktree_id is None:
             raise RefusedError("no review recorded on the stage")
         entry = require_entry(state, state.stage_review_worktree_id)
-        remaining_tracked_paths = filter_noise_paths(tracked_modifications(context.stage_path), state.config.stage_noise_globs)
-        if remaining_tracked_paths:
-            raise RefusedError("stage has tracked modifications: " + ", ".join(remaining_tracked_paths))
         trunk_branch = state.config.trunk_branch
+        modification_blockers = [
+            blocker_text for blocker_text in stage_blockers(context, state, trunk_branch) if not blocker_text.startswith("stage busy:")
+        ]
+        if modification_blockers:
+            raise RefusedError("stage has tracked modifications: " + ", ".join(modification_blockers))
         run_git(["switch", trunk_branch], context.stage_path)
         run_git(["switch", entry.branch], entry.path)
         entry.parked = False
@@ -134,7 +144,7 @@ def place_commit_on_stage(working_directory: str, commit_sha: str, holder_descri
         state = load_state(context.common_git_directory)
         if state.stage_review_worktree_id is not None:
             raise RefusedError("a worktree review is on the stage; return it first")
-        blockers = stage_blockers(context, state)
+        blockers = stage_blockers(context, state, commit_sha)
         if blockers:
             raise RefusedError("stage is not clear: " + "; ".join(blockers))
         lock_path = stage_lock_path(context.common_git_directory)
