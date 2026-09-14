@@ -243,6 +243,19 @@ resets; ▶ (step) advances one thirtieth of a second while paused. Space, ← �
 whenever this tab is showing. Beside the buttons, a direction slider with a readout in the form
 "137° → SouthEast, mirrored".
 
+**Layer events.** Under the transport, a collapsible strip shows one row per layer: the layer's
+name, the event pins of the clip it is playing laid on that clip's own time axis, a playhead, and
+the time as `t / duration`. Crossing a pin while playing or stepping flashes it and plays the
+event's preview sound; a paused jump of more than half a clip fires nothing. The strip is
+read-only (edit markers in the Clip Editor), and whether it starts expanded is remembered per
+machine.
+
+**Which layers emit events.** Every layer that is playing emits its own clip's events, so an
+Override layer does not silence Base. A stopped layer emits nothing, except on the frame a
+play-once clip finishes, when it emits that frame's crossings and then `ClipFinished`. A clip
+crossfading out emits nothing; the strip draws a stopped layer's pins dimmed and a
+crossfading-out clip's pins hollow.
+
 **Layers column.** Each layer is its own box. `Base` and `Override` are fixed bookends — no delete,
 no reorder — with **+ Layer** in the pane header inserting between them; other layers move with the
 ▲/▼ buttons in their box header. The box header also carries an **eye**, which is the layer's

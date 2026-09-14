@@ -62,6 +62,7 @@ namespace DotsAnimationToolkit.Editor
         private Label viewportStatusLabel;
         private ActorEditorLayersColumn layersColumnView;
         private ActorEditorInspectorColumn inspectorColumnView;
+        private LayerEventStripElement layerEventStrip;
 
         public ActorEditorPanel()
         {
@@ -128,6 +129,8 @@ namespace DotsAnimationToolkit.Editor
             if (!isPlaying && composer.IsCreated && previewController != null)
             {
                 composer.Tick(Mathf.Max(0, frameDelta) * (1f / 30f), previewController);
+                // A step is one frame of playback, so a stepped loop wrap still fires its markers.
+                layerEventStrip?.Tick(true);
                 RenderViewport();
             }
         }
@@ -160,6 +163,7 @@ namespace DotsAnimationToolkit.Editor
 
                 layersColumnView?.Bind(profile, composer);
                 inspectorColumnView?.Bind(profile, composer);
+                layerEventStrip?.Bind(profile, composer);
 
                 // Picking a profile sets the shared rig, never the shared clip set.
                 if (profile != null && profile.rig != null)
@@ -232,6 +236,7 @@ namespace DotsAnimationToolkit.Editor
         {
             composer.RagdollStartRequested -= OnComposerRagdollStartRequested;
             composer.RagdollStopRequested -= OnComposerRagdollStopRequested;
+            layerEventStrip?.Dispose();
             composer.Dispose();
             profilesColumn?.Dispose();
         }
@@ -441,6 +446,9 @@ namespace DotsAnimationToolkit.Editor
 
             viewportColumn.Add(BuildTransportRow());
 
+            layerEventStrip = new LayerEventStripElement();
+            viewportColumn.Add(layerEventStrip);
+
             // The expanded findings list floats over the viewport, the same corner the Clip Editor
             // tab uses for its own badge.
             validationBadge.AttachMessagePanel(viewportColumn);
@@ -465,6 +473,7 @@ namespace DotsAnimationToolkit.Editor
             // profile is picked.
             layersColumnView.Bind(profile, composer);
             inspectorColumnView.Bind(profile, composer);
+            layerEventStrip.Bind(profile, composer);
 
             profilesColumn = new ActorEditorProfilesColumn();
             profilesColumn.ProfileSelected += picked => Profile = picked;
@@ -686,6 +695,7 @@ namespace DotsAnimationToolkit.Editor
                 // Advancing at zero elapsed still re-samples the composited pose, so a scrub made
                 // while paused (the layer row's time field) is visible immediately.
                 composer.Tick(isPlaying ? elapsedSeconds : 0f, previewController);
+                layerEventStrip?.Tick(isPlaying);
             }
 
             RefreshValidationBadge();
