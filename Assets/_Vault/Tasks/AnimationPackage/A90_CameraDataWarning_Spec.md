@@ -1,6 +1,6 @@
 # Amendment A90 — Camera-data fallback warning and a shipped writer sample
 
-> **Status:** ✅ built 2026-09-13 as `0.37.0`, ⏸ T7 owner checkpoint open. §7 logs ten T0 drifts and the T1–T6 run.
+> **Status:** ✅ built 2026-09-13 as `0.37.0` and accepted the same day. §7 logs ten T0 drifts, the T1–T6 run and the T7 answer.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** the billboard and LOD systems; the game's `AnimationToolkitCameraBridge.cs`
 > (`Assets/_Scripts/MonoBehaviours/Managers/`) is the host-side writer this sample generalises.
@@ -118,7 +118,7 @@ those updates (the HANDOFF §2 trap: the call inspects logs already received). R
   into the scratch folder, drop it on the camera, confirm the warning is gone.
 - [x] **T6 — Close.** HANDOFF §1's "still true" paragraph loses its "no warning" clause; §4;
   roadmap checkbox.
-- [ ] **T7 — ⏸ owner checkpoint.** Message: "Nothing to look at unless you remove the camera
+- [x] **T7 — ⏸ owner checkpoint.** Message: "Nothing to look at unless you remove the camera
   bridge — then one console warning at about two seconds tells you what to add. Read the warning
   text and say if it is clear."
 
@@ -201,3 +201,9 @@ Baseline: compile gate clean (no console errors). Suites inherited from A91: Edi
 6. **Escalated, not re-specced:** the sample writes only the singleton. The shader billboard path reads
    `_ToolkitCameraForward`, which nothing in the project writes. Whether the sample should also set
    that global is a T7 question.
+
+### T7 answer (2026-09-13)
+
+Owner: "90 is good". Accepted as built. The warning text stays, and no Play-mode try was requested. The
+sample stays singleton-only, since writing `_ToolkitCameraForward` was not asked for; `shader-contract.md`
+already names that global as the host's job. A later amendment can add it if wanted.

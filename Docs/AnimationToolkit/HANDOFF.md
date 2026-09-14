@@ -121,7 +121,7 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 ## 4. The queue
 
 **Built (2026-09-13): Amendment A90 — missing camera data warning and the Camera Sync sample — 0.37.0**,
-⏸ T7 owner checkpoint open. Spec: `Assets/_Vault/Tasks/AnimationPackage/A90_CameraDataWarning_Spec.md`;
+**T7 answered 2026-09-13: accepted** (the sample stays singleton-only). Spec: `Assets/_Vault/Tasks/AnimationPackage/A90_CameraDataWarning_Spec.md`;
 its §7 logs ten T0 drifts.
 - **`CameraDataMissingWarningSystem`** (top group, no declared order, not Burst). It warns once per world
   when billboard roots, or `AnimLod` actors with `distanceLodEnabled`, have waited 120 frames for
@@ -153,8 +153,10 @@ its §7 logs ten T0 drifts.
 - **Suites:** EditMode 835 (833 + 2, standing `Conformance_A` only), PlayMode 283. The build hook
   was proven one level down, with no real player build, on the owner's instruction.
 - **T7 answered 2026-09-13, accepted.** The save warning stays; it fires only while a profile has
-  P2 findings. The toggle stays per machine. A real player build to confirm the build hook is
-  deferred until the owner is at the PC; the hook is proven one level down only.
+  P2 findings. The toggle stays per machine. A real player build was attempted 2026-09-13
+  but stopped on unrelated game compile errors (`StitchPunk.Editor` builds into the player), so the
+  hook is still proven one level down only. Accepted as working for now; check tracked in
+  `Assets/_Vault/Spencer/verify-a91-player-build.md`.
 
 **Built (2026-09-13): Amendment A89 — stale VAT bake detection — 0.35.0** (A88 is not built and
 takes the next free minor). Spec: `Assets/_Vault/Tasks/AnimationPackage/A89_StaleVatBakeDetection_Spec.md`.

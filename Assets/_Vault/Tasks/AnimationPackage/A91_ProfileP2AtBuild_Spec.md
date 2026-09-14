@@ -1,6 +1,6 @@
 # Amendment A91 — Profile P2 reported at save and at player build
 
-> **Status:** ✅ built 2026-09-13 as `0.36.0` (spec said `0.38.0`; A88 and A90 are unbuilt — §7). Accepted 2026-09-13 (T7 answered; a real player build to confirm the build hook is deferred).
+> **Status:** ✅ built 2026-09-13 as `0.36.0` (spec said `0.38.0`; A88 and A90 are unbuilt — §7). Accepted 2026-09-13 (T7 answered). A real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A70 (profiles, P1–P4 validation), A71 (the Actor Editor badge that is today's
 > only P2 surface).
@@ -205,3 +205,18 @@ unaffected. Nothing in the drive calls `SaveAssets`; the owner's dirty `EditorBu
 2. **Real player build:** not now; the owner is away from the PC. The build hook stays proven one
    level down only. A real build is a later owner check, not a blocker.
 3. **Toggle scope:** per machine (EditorPrefs), as built. No change.
+
+### Real player build attempt (2026-09-13)
+
+- The owner ran a player build. It stopped on unrelated script compile errors in `Assets/_Scripts/Editor/`
+  (`PropertyDrawer`, `Editor`, `IMGUI` not found). Likely cause: `StitchPunk.Editor.asmdef` has
+  `includePlatforms: []`, so it compiles into the player. Not changed; game-side.
+- "Player build stopped" never reached the console, so the hook was not exercised.
+- The build list's only scene was the missing `Assets/Scenes/Main.unity` when the session checked; the
+  owner has since changed `EditorBuildSettings`.
+- **Owner call:** accept as working for now. The follow-up check is tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`.
+- Scratch recipe used (deleted afterwards): `Assets/A91BuildTest/A91BuildTest.profile.asset`, created by
+  reflection. `CreateInstance`, `EnsureStableIds`, `EnsureBookends`, then one default
+  `ActorAnimationDefinition` added to `layers[0].animations`, then `CreateAsset` with no `SaveAssets`.
+  `ProfileP2Scan.ScanProject(null)` returned exactly one finding: "Layer 'Base' entry 0 has no animation
+  name (animationKey is 0)".
