@@ -293,6 +293,19 @@ namespace DotsAnimationToolkit.Editor
             return IsValidLayerIndex(layerIndex) ? layers[layerIndex].animationKey : 0u;
         }
 
+        public int LayerCount
+        {
+            get { return layers.IsCreated ? layers.Length : 0; }
+        }
+
+        public PlaybackLayer Layer(int layerIndex)
+        {
+            // default(PlaybackLayer) would read as clip index 0; the -1 sentinels say "no clip".
+            return IsValidLayerIndex(layerIndex)
+                ? layers[layerIndex]
+                : new PlaybackLayer { clipIndex = -1, previousClipIndex = -1 };
+        }
+
         /// <summary>The playing clip's duration in seconds, or 0 when the layer has none.</summary>
         public float ClipDuration(int layerIndex)
         {
