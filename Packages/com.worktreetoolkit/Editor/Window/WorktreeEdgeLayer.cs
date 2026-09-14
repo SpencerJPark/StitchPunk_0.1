@@ -4,28 +4,27 @@ using UnityEngine.UIElements;
 
 namespace WorktreeToolkit.Editor
 {
-    /// <summary>One parent-to-child stage relationship drawn as a curve between two card anchors.</summary>
+    /// <summary>One parent-to-child stage relationship drawn as an orthogonal polyline between two tile anchors.</summary>
     public readonly struct WorktreeEdge
     {
         public readonly Vector2 start;
         public readonly Vector2 end;
-        public readonly bool isActive;
+        public readonly WorktreeTileState childState;
 
-        public WorktreeEdge(Vector2 start, Vector2 end, bool isActive)
+        public WorktreeEdge(Vector2 start, Vector2 end, WorktreeTileState childState)
         {
             this.start = start;
             this.end = end;
-            this.isActive = isActive;
+            this.childState = childState;
         }
     }
 
-    /// <summary>Absolute-filling layer behind the worktree cards that paints Bezier edges between them.</summary>
+    /// <summary>Absolute-filling layer behind the worktree tiles that paints skill-tree style right-angle edges between them.</summary>
     public sealed class WorktreeEdgeLayer : VisualElement
     {
-        public static readonly Color ActiveEdgeColor = new Color(0.30f, 0.62f, 0.98f, 1f);
-        public static readonly Color InactiveEdgeColor = new Color(0.30f, 0.62f, 0.98f, 0.35f);
-
-        private const float EdgeLineWidth = 2f;
+        private const float EdgeLineWidth = 3f;
+        private const float MinimumMidpointOffset = 16f;
+        private const float ForkSquareHalfSize = 1.5f;
 
         private IReadOnlyList<WorktreeEdge> edges = System.Array.Empty<WorktreeEdge>();
 
@@ -37,7 +36,7 @@ namespace WorktreeToolkit.Editor
             style.top = 0f;
             style.right = 0f;
             style.bottom = 0f;
-            generateVisualContent += OnGenerateVisualContent;
+            generateVisualContent += DrawEdges;
         }
 
         public void SetEdges(IReadOnlyList<WorktreeEdge> edges)
@@ -46,7 +45,7 @@ namespace WorktreeToolkit.Editor
             MarkDirtyRepaint();
         }
 
-        private void OnGenerateVisualContent(MeshGenerationContext context)
+        private void DrawEdges(MeshGenerationContext context)
         {
             if (edges.Count == 0)
             {
@@ -55,23 +54,52 @@ namespace WorktreeToolkit.Editor
 
             Painter2D painter = context.painter2D;
             painter.lineWidth = EdgeLineWidth;
+            painter.lineJoin = LineJoin.Miter;
+            painter.lineCap = LineCap.Butt;
+
+            // Locked edges first, then unlocked, then on-stage last, so the current path always sits on top.
+            DrawEdgesForState(painter, WorktreeTileState.Locked, WorktreePalette.LineLocked);
+            DrawEdgesForState(painter, WorktreeTileState.Unlocked, WorktreePalette.Teal);
+            DrawEdgesForState(painter, WorktreeTileState.OnStage, WorktreePalette.Crimson);
+        }
+
+        private void DrawEdgesForState(Painter2D painter, WorktreeTileState state, Color color)
+        {
+            painter.strokeColor = color;
+            painter.fillColor = color;
 
             for (int edgeIndex = 0; edgeIndex < edges.Count; edgeIndex++)
             {
                 WorktreeEdge edge = edges[edgeIndex];
-                painter.strokeColor = edge.isActive ? ActiveEdgeColor : InactiveEdgeColor;
+                if (edge.childState != state)
+                {
+                    continue;
+                }
 
-                // Horizontal-tangent cubic: control points sit halfway between the anchors on the x axis
-                // so the curve leaves each card level and bends toward the other's row.
-                float halfDistanceX = (edge.end.x - edge.start.x) * 0.5f;
-                Vector2 startControlPoint = new Vector2(edge.start.x + halfDistanceX, edge.start.y);
-                Vector2 endControlPoint = new Vector2(edge.end.x - halfDistanceX, edge.end.y);
+                float midpointX = edge.start.x + Mathf.Max(MinimumMidpointOffset, (edge.end.x - edge.start.x) * 0.5f);
+                Vector2 forkPoint = new Vector2(midpointX, edge.start.y);
+                Vector2 descentPoint = new Vector2(midpointX, edge.end.y);
 
                 painter.BeginPath();
                 painter.MoveTo(edge.start);
-                painter.BezierCurveTo(startControlPoint, endControlPoint, edge.end);
+                painter.LineTo(forkPoint);
+                painter.LineTo(descentPoint);
+                painter.LineTo(edge.end);
                 painter.Stroke();
+
+                DrawForkSquare(painter, forkPoint);
             }
+        }
+
+        private static void DrawForkSquare(Painter2D painter, Vector2 forkPoint)
+        {
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(forkPoint.x - ForkSquareHalfSize, forkPoint.y - ForkSquareHalfSize));
+            painter.LineTo(new Vector2(forkPoint.x + ForkSquareHalfSize, forkPoint.y - ForkSquareHalfSize));
+            painter.LineTo(new Vector2(forkPoint.x + ForkSquareHalfSize, forkPoint.y + ForkSquareHalfSize));
+            painter.LineTo(new Vector2(forkPoint.x - ForkSquareHalfSize, forkPoint.y + ForkSquareHalfSize));
+            painter.ClosePath();
+            painter.Fill();
         }
     }
 }

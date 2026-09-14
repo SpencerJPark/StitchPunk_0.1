@@ -1,142 +1,429 @@
-/* Worktree Toolkit graph window styles. Colours are USS custom properties so both Editor skins
-   can be tuned in one place; Painter2D edge colours live in WorktreeEdgeLayer (USS cannot reach them). */
+/* Worktree Toolkit node window — style reference: Cult of the Lamb tech-tree screen
+   (Assets/_Vault/Tasks/Claude/Cult-of-the-Lamb10312022-092045-91069.jpg).
+   Black bars, charcoal ground, teal/crimson lit tiles, cream text and key badges. */
 
 :root {
-    --worktree-accent: rgb(76, 158, 250);
-    --worktree-card-background: var(--unity-colors-default-background, rgb(56, 56, 56));
-    --worktree-card-border: var(--unity-colors-default-border, rgb(35, 35, 35));
-    --worktree-card-text: var(--unity-colors-default-text, rgb(210, 210, 210));
-    --worktree-card-text-dim: rgb(160, 160, 160);
-    --worktree-trunk-tint: rgb(64, 76, 64);
-    --worktree-stale-color: rgb(224, 168, 64);
-    --worktree-missing-color: rgb(214, 90, 90);
-    --worktree-banner-background: rgb(72, 96, 128);
-    --worktree-banner-text: rgb(235, 235, 235);
-    --worktree-error-background: rgb(96, 48, 48);
-    --worktree-error-border: rgb(150, 62, 62);
-    --worktree-error-text: rgb(240, 220, 220);
-    --worktree-queue-row-background: rgba(255, 255, 255, 0.04);
-    --worktree-queue-row-border: rgba(255, 255, 255, 0.08);
+    --worktree-color-ground: rgb(22, 22, 22);
+    --worktree-color-bar: rgb(8, 8, 8);
+    --worktree-color-tile: rgb(44, 46, 45);
+    --worktree-color-tile-lit: rgb(74, 88, 84);
+    --worktree-color-line-locked: rgb(60, 60, 60);
+    --worktree-color-line-locked-hover: rgb(90, 90, 90);
+    --worktree-color-teal: rgb(32, 190, 158);
+    --worktree-color-teal-hover: rgb(80, 220, 190);
+    --worktree-color-crimson: rgb(200, 32, 30);
+    --worktree-color-cream: rgb(240, 234, 214);
+    --worktree-color-cream-dim: rgba(240, 234, 214, 0.45);
+    --worktree-color-selection: rgb(245, 245, 245);
+    --worktree-color-amber: rgb(232, 170, 60);
 }
+
+.worktree-window {
+    flex-grow: 1;
+    background-color: var(--worktree-color-ground);
+}
+
+/* Header bar */
+
+.worktree-header {
+    flex-direction: row;
+    align-items: center;
+    height: 34px;
+    background-color: var(--worktree-color-bar);
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.worktree-header__title {
+    color: var(--worktree-color-cream);
+    font-size: 14px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+}
+
+.worktree-header__ornament {
+    color: var(--worktree-color-cream-dim);
+    font-size: 12px;
+    margin-left: 4px;
+    margin-right: 4px;
+    -unity-text-align: middle-center;
+}
+
+.worktree-header__stage-chip {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--worktree-color-bar);
+    border-width: 1px;
+    border-color: var(--worktree-color-cream);
+    border-radius: 3px;
+    padding-left: 8px;
+    padding-right: 8px;
+    height: 22px;
+    color: var(--worktree-color-cream);
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+.worktree-header__stage-chip:hover {
+    background-color: rgba(240, 234, 214, 0.08);
+}
+
+.worktree-header__badge {
+    color: var(--worktree-color-amber);
+    font-size: 11px;
+    -unity-font-style: bold;
+    margin-left: 6px;
+}
+
+.worktree-header__broker-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--worktree-color-line-locked);
+    margin-left: 4px;
+}
+
+.worktree-header__broker-dot--alive {
+    background-color: var(--worktree-color-teal);
+}
+
+/* Status line */
+
+.worktree-status-line {
+    height: 20px;
+    background-color: var(--worktree-color-bar);
+    justify-content: center;
+    padding-left: 10px;
+}
+
+.worktree-status-line__text {
+    color: var(--worktree-color-cream-dim);
+    font-size: 11px;
+    -unity-text-align: middle-left;
+}
+
+.worktree-status-line__text--busy {
+    color: var(--worktree-color-amber);
+}
+
+.worktree-status-line__text--error {
+    color: var(--worktree-color-crimson);
+}
+
+/* Inline create row */
+
+.worktree-create-row {
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--worktree-color-bar);
+    padding: 4px 8px;
+}
+
+/* Canvas */
+
+.worktree-canvas {
+    flex-grow: 1;
+    background-color: var(--worktree-color-ground);
+}
+
+.worktree-empty-hint {
+    color: var(--worktree-color-cream-dim);
+    font-size: 11px;
+    -unity-text-align: upper-center;
+    white-space: nowrap;
+}
+
+/* Node / tile */
 
 .worktree-node {
-    background-color: var(--worktree-card-background);
-    border-left-color: var(--worktree-card-border);
-    border-right-color: var(--worktree-card-border);
-    border-top-color: var(--worktree-card-border);
-    border-bottom-color: var(--worktree-card-border);
-    border-left-width: 1px;
-    border-right-width: 1px;
-    border-top-width: 1px;
-    border-bottom-width: 1px;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
-    padding-left: 6px;
-    padding-right: 6px;
-    padding-top: 6px;
-    padding-bottom: 6px;
-    color: var(--worktree-card-text);
+    position: absolute;
 }
 
-.worktree-node--on-stage {
-    border-left-color: var(--worktree-accent);
-    border-right-color: var(--worktree-accent);
-    border-top-color: var(--worktree-accent);
-    border-bottom-color: var(--worktree-accent);
-    border-left-width: 2px;
-    border-right-width: 2px;
-    border-top-width: 2px;
-    border-bottom-width: 2px;
+.worktree-node__tile {
+    width: 72px;
+    height: 72px;
+    align-items: center;
+    justify-content: center;
+    border-width: 2px;
+    border-color: var(--worktree-color-line-locked);
+    background-color: var(--worktree-color-tile);
+    border-radius: 2px;
 }
 
-.worktree-node--inactive {
-    opacity: 0.45;
+.worktree-node__tile--locked {
+    border-width: 2px;
+    border-color: var(--worktree-color-line-locked);
+    background-color: var(--worktree-color-tile);
 }
 
-.worktree-node--trunk {
-    background-color: var(--worktree-trunk-tint);
+.worktree-node__tile--locked:hover {
+    border-color: var(--worktree-color-line-locked-hover);
 }
 
-.worktree-node--stale .worktree-node__status {
-    color: var(--worktree-stale-color);
+.worktree-node__tile--unlocked {
+    border-width: 3px;
+    border-color: var(--worktree-color-teal);
+    background-color: var(--worktree-color-tile-lit);
 }
 
-.worktree-node--missing .worktree-node__status {
-    color: var(--worktree-missing-color);
+.worktree-node__tile--unlocked:hover {
+    border-color: var(--worktree-color-teal-hover);
 }
 
-.worktree-node__title {
-    color: var(--worktree-card-text);
+.worktree-node__tile--on-stage {
+    border-width: 3px;
+    border-color: var(--worktree-color-crimson);
+    background-color: var(--worktree-color-tile-lit);
+}
+
+.worktree-node__tile--on-stage:hover {
+    border-color: var(--worktree-color-crimson);
+}
+
+.worktree-node__tile-icon {
+    width: 32px;
+    height: 32px;
+}
+
+/* not-on-stage tiles keep full fill; only the icon dims when locked */
+.worktree-node__tile-icon--dimmed {
+    opacity: 0.35;
+}
+
+.worktree-node__lock {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+}
+
+.worktree-node__pip {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--worktree-color-amber);
+}
+
+.worktree-node__caption {
+    color: var(--worktree-color-cream-dim);
+    font-size: 11px;
+    -unity-text-align: upper-center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 132px;
+}
+
+.worktree-node__caption--selected {
+    color: var(--worktree-color-cream);
+    font-size: 12px;
     -unity-font-style: bold;
+    background-color: var(--worktree-color-bar);
+    padding: 2px 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 132px;
 }
 
-.worktree-node__models {
-    color: var(--worktree-card-text-dim);
-    font-size: 11px;
+.worktree-node__selection {
+    position: absolute;
+    border-width: 2px;
+    border-color: var(--worktree-color-selection);
+    border-radius: 6px;
 }
 
-.worktree-node__status {
-    color: var(--worktree-card-text-dim);
-    font-size: 11px;
+.worktree-node__selection-eye {
+    color: var(--worktree-color-cream);
+    width: 14px;
+    height: 14px;
+    -unity-text-align: middle-center;
 }
 
-.worktree-node__counts {
-    color: var(--worktree-card-text-dim);
-    font-size: 11px;
+/* Divider + gate strip */
+
+.worktree-divider {
+    height: 2px;
+    background-color: var(--worktree-color-cream);
+    margin-top: 28px;
 }
 
-.worktree-node__actions {
+.worktree-queue-strip {
     flex-direction: row;
-    justify-content: flex-end;
+    align-items: center;
+    padding: 4px 8px;
 }
 
-.worktree-window__busy-banner {
-    background-color: var(--worktree-banner-background);
-    color: var(--worktree-banner-text);
+.worktree-queue-chip {
+    flex-direction: row;
+    align-items: center;
+    border-width: 1px;
+    border-color: var(--worktree-color-line-locked);
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin-right: 6px;
+    color: var(--worktree-color-cream-dim);
+    font-size: 11px;
+}
+
+.worktree-queue-chip--active {
+    border-color: var(--worktree-color-teal);
+    color: var(--worktree-color-cream);
+}
+
+/* Inspector */
+
+.worktree-inspector {
+    background-color: var(--worktree-color-ground);
+    padding: 8px;
+}
+
+.worktree-inspector__title {
+    color: var(--worktree-color-cream);
+    font-size: 13px;
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+}
+
+.worktree-inspector__status {
+    color: var(--worktree-color-cream-dim);
+    font-size: 11px;
+    margin-top: 2px;
+    margin-bottom: 8px;
+}
+
+.worktree-kv {
+    flex-direction: row;
+    margin-bottom: 4px;
+}
+
+.worktree-kv__key {
+    color: var(--worktree-color-cream-dim);
+    font-size: 11px;
+    width: 84px;
+    -unity-text-align: middle-left;
+}
+
+.worktree-kv__value {
+    color: var(--worktree-color-cream);
+    font-size: 12px;
+    -unity-text-align: middle-left;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+
+.worktree-inspector__rule {
+    height: 1px;
+    background-color: var(--worktree-color-line-locked);
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+/* Action buttons */
+
+.worktree-action-button {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    border-width: 1px;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--worktree-color-cream);
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.worktree-action-button:hover {
+    background-color: rgba(240, 234, 214, 0.08);
+}
+
+.worktree-action-button:disabled {
+    opacity: 0.4;
+}
+
+.worktree-action-button--teal {
+    border-color: var(--worktree-color-teal);
+}
+
+.worktree-action-button--crimson {
+    border-color: var(--worktree-color-crimson);
+}
+
+.worktree-action-button--neutral {
+    border-color: var(--worktree-color-line-locked);
+}
+
+/* Footer bar */
+
+.worktree-footer {
+    flex-direction: row;
+    align-items: center;
+    height: 30px;
+    background-color: var(--worktree-color-bar);
     padding-left: 8px;
     padding-right: 8px;
-    padding-top: 4px;
-    padding-bottom: 4px;
 }
 
-.worktree-window__error {
-    background-color: var(--worktree-error-background);
-    color: var(--worktree-error-text);
-    border-left-color: var(--worktree-error-border);
-    border-right-color: var(--worktree-error-border);
-    border-top-color: var(--worktree-error-border);
-    border-bottom-color: var(--worktree-error-border);
-    border-left-width: 1px;
-    border-right-width: 1px;
-    border-top-width: 1px;
-    border-bottom-width: 1px;
-    padding-left: 8px;
-    padding-right: 8px;
-    padding-top: 6px;
-    padding-bottom: 6px;
-    white-space: normal;
-}
-
-.gate-queue {
-    border-top-color: var(--worktree-card-border);
-    border-top-width: 1px;
-}
-
-.gate-queue__row {
+.worktree-footer__hint {
     flex-direction: row;
-    justify-content: space-between;
-    background-color: var(--worktree-queue-row-background);
-    border-bottom-color: var(--worktree-queue-row-border);
-    border-bottom-width: 1px;
+    align-items: center;
+    margin-right: 16px;
+}
+
+.worktree-footer__key {
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background-color: var(--worktree-color-cream);
+    color: rgb(0, 0, 0);
+    font-size: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-right: 6px;
+}
+
+.worktree-footer__word {
+    color: var(--worktree-color-cream-dim);
+    font-size: 11px;
+    -unity-text-align: middle-left;
+}
+
+/* Icons and icon buttons */
+
+.worktree-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.worktree-icon-button {
+    width: 24px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0px;
+}
+
+.worktree-icon-button:hover {
+    background-color: rgba(240, 234, 214, 0.08);
+}
+
+.worktree-icon-button--with-text {
+    width: auto;
+    flex-direction: row;
     padding-left: 6px;
     padding-right: 6px;
-    padding-top: 3px;
-    padding-bottom: 3px;
 }
 
-.gate-queue__phase {
-    color: var(--worktree-card-text-dim);
+.worktree-icon-button__label {
+    color: var(--worktree-color-cream);
     font-size: 11px;
+    margin-left: 4px;
+    -unity-text-align: middle-left;
 }

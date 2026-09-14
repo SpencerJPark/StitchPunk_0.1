@@ -1,10 +1,16 @@
 # Worktree Toolkit — parallel AI specs in one Unity project, reviewed by swapping the Editor
 
-> **Status (2026-09-14 evening):** Phases 1–3 built. CLI 16 fixtures green; hooks, agent and skill installed here.
-> Probes P1/P2/P3/P4/P5/P7 done (P6 deferred to Phase 5). Node window and gate broker compile clean.
-> `WorktreeTreeLayoutTests` 2/2 green. A real broker gate returned compile-errors for a deliberate
-> CS0103 and restored `main` in 22 s. ⏸ C1 owner look at the window is open. Phase 5
-> (own-Editor mode) not started. Package `Packages/com.worktreetoolkit`, `0.1.0`.
+> **Status (2026-09-14 evening):** Phases 1–4 built and drive-proven.
+> - CLI: 19 fixtures green; hooks, agent and skill installed here.
+> - Probes P1–P5 and P7 done; P6 deferred to Phase 5.
+> - Broker gates proven: compile-errors and pass, surviving the domain reload.
+> - ✅ C2 dry run: two parallel spec-leads through review, merge and remove.
+> - C1 round 1 rejected ("ugly and unprofessional"). The window was rebuilt in the owner's Cult of the
+>   Lamb skill-tree style ([`WorktreeToolkit_UI_Redesign.md`](WorktreeToolkit_UI_Redesign.md)). ⏸ C1
+>   round 2 open.
+> - Phase 5 (own-Editor mode) not started.
+>
+> Package `Packages/com.worktreetoolkit`, `0.1.0`.
 > **Executor:** one Editor-connected orchestrator (the only session with Unity MCP) + `worker`
 > subagents per wave. Phase 0 probes run first and can change sections 4–5.
 > **Why now:** parallel sessions today share one Editor and one Library ("one Editor, one driver"

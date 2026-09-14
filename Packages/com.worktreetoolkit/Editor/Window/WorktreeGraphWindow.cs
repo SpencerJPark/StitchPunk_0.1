@@ -12,9 +12,10 @@ namespace WorktreeToolkit.Editor
     public sealed class WorktreeGraphWindow : EditorWindow
     {
         private const double PollIntervalSeconds = 3.0;
-        private const float ColumnWidth = 272f;
-        private const float RowHeight = 100f;
-        private const float CanvasMargin = 16f;
+        private const double SpinnerUpdateIntervalSeconds = 0.1;
+        private const float CanvasMargin = 24f;
+        private const float ColumnStepPixels = 184f;
+        private const float RowStepPixels = 132f;
 
         [MenuItem("Window/Worktree Toolkit")]
         public static void Open()
@@ -26,29 +27,38 @@ namespace WorktreeToolkit.Editor
         private readonly Dictionary<string, WorktreeNodeElement> nodeElementsById =
             new Dictionary<string, WorktreeNodeElement>(StringComparer.Ordinal);
 
-        private Label stageLabel;
-        private Toggle brokerToggle;
-        private Label queueCountLabel;
-        private VisualElement createRow;
-        private TextField createIdField;
-        private Label busyBannerLabel;
-        private Label errorLabel;
-        private GateQueuePanel queuePanel;
         private VisualElement canvasElement;
         private WorktreeEdgeLayer edgeLayer;
+        private VisualElement createRow;
+        private TextField createIdField;
+        private Label stageChipLabel;
+        private Label stageChipBadgeLabel;
+        private VisualElement brokerButtonHolder;
+        private Button menuButtonElement;
+        private Image statusSpinnerImage;
+        private Label statusLineTextLabel;
+        private GateQueueStrip gateQueueStrip;
+        private WorktreeInspectorPane inspectorPane;
+        private Label emptyHintLabel;
 
         // EditorWindow fields survive a domain reload; per-session bookkeeping must not.
         [System.NonSerialized] private GateRequestStore requestStore;
         [System.NonSerialized] private WorktreeGraphDto currentGraph;
+        [System.NonSerialized] private string selectedNodeId;
         // Polled from EditorApplication.update: queuing a main-thread callback from a thread-pool continuation silently lost it.
         private Task<WorktreeCliResult> pendingGraphTask;
         private Task<WorktreeCliResult> pendingWhereTask;
         [System.NonSerialized] private bool hasRequestedStateDirectory;
         [System.NonSerialized] private double lastPollTimeSeconds;
+        [System.NonSerialized] private double lastSpinnerUpdateTimeSeconds;
 
         public void CreateGUI()
         {
             VisualElement root = this.rootVisualElement;
+            root.AddToClassList("worktree-window");
+            root.style.flexGrow = 1f;
+            root.focusable = true;
+            root.RegisterCallback<KeyDownEvent>(this.HandleRootKeyDown);
 
             StyleSheet styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
                 "Packages/com.worktreetoolkit/Editor/Window/WorktreeToolkit.uss");
@@ -57,60 +67,124 @@ namespace WorktreeToolkit.Editor
                 root.styleSheets.Add(styleSheet);
             }
 
-            VisualElement toolbarRow = new VisualElement();
-            toolbarRow.style.flexDirection = FlexDirection.Row;
-            root.Add(toolbarRow);
+            this.BuildHeader(root);
+            this.BuildStatusLine(root);
+            this.BuildSplitView(root);
 
-            Button refreshButton = new Button(this.RequestGraphRefresh) { text = "⟳" };
-            Button addWorktreeButton = new Button { text = "＋" };
-            this.stageLabel = new Label("Stage: unknown");
-            this.brokerToggle = new Toggle("Broker") { value = GateBroker.IsEnabled };
-            this.brokerToggle.RegisterValueChangedCallback(this.HandleBrokerToggleChanged);
-            this.queueCountLabel = new Label("Queue: 0");
+            root.Add(new WorktreeFooterBar());
 
-            toolbarRow.Add(refreshButton);
-            toolbarRow.Add(addWorktreeButton);
-            toolbarRow.Add(this.stageLabel);
-            toolbarRow.Add(this.brokerToggle);
-            toolbarRow.Add(this.queueCountLabel);
+            this.ResolveStateDirectoryOnce();
+            this.RequestGraphRefresh();
+        }
+
+        private void BuildHeader(VisualElement root)
+        {
+            VisualElement headerRow = new VisualElement();
+            headerRow.AddToClassList("worktree-header");
+            root.Add(headerRow);
+
+            headerRow.Add(WorktreeIcons.MakeIcon(WorktreeIcons.Branch, 16f));
+
+            Label leftOrnamentLabel = new Label("~");
+            leftOrnamentLabel.AddToClassList("worktree-header__ornament");
+            headerRow.Add(leftOrnamentLabel);
+
+            Label titleLabel = new Label("Worktrees");
+            titleLabel.AddToClassList("worktree-header__title");
+            headerRow.Add(titleLabel);
+
+            Label rightOrnamentLabel = new Label("~");
+            rightOrnamentLabel.AddToClassList("worktree-header__ornament");
+            headerRow.Add(rightOrnamentLabel);
+
+            Button stageChipButton = new Button(this.HandleStageChipClicked);
+            stageChipButton.AddToClassList("worktree-header__stage-chip");
+            this.stageChipLabel = new Label("stage: unknown");
+            this.stageChipBadgeLabel = new Label();
+            this.stageChipBadgeLabel.AddToClassList("worktree-header__badge");
+            this.stageChipBadgeLabel.style.display = DisplayStyle.None;
+            stageChipButton.Add(this.stageChipLabel);
+            stageChipButton.Add(this.stageChipBadgeLabel);
+            headerRow.Add(stageChipButton);
+
+            VisualElement headerSpacer = new VisualElement();
+            headerSpacer.style.flexGrow = 1f;
+            headerRow.Add(headerSpacer);
+
+            headerRow.Add(WorktreeIcons.MakeIconButton(this.RequestGraphRefresh, WorktreeIcons.Refresh, "Refresh the worktree graph", "Refresh"));
+            headerRow.Add(WorktreeIcons.MakeIconButton(this.HandleAddWorktreeButtonClicked, WorktreeIcons.Create, "Create a worktree", "+"));
+
+            this.brokerButtonHolder = new VisualElement();
+            this.brokerButtonHolder.style.flexDirection = FlexDirection.Row;
+            headerRow.Add(this.brokerButtonHolder);
+            this.RebuildBrokerButton();
+
+            this.menuButtonElement = WorktreeIcons.MakeIconButton(this.HandleMenuButtonClicked, WorktreeIcons.Menu, "More actions", "Menu");
+            headerRow.Add(this.menuButtonElement);
 
             this.createIdField = new TextField();
-            Button createButton = new Button(this.HandleCreateButtonClicked) { text = "Create" };
+            Button createSubmitButton = new Button(this.HandleCreateButtonClicked) { text = "Create" };
             this.createRow = new VisualElement();
-            this.createRow.style.flexDirection = FlexDirection.Row;
+            this.createRow.AddToClassList("worktree-create-row");
             this.createRow.style.display = DisplayStyle.None;
             this.createRow.Add(this.createIdField);
-            this.createRow.Add(createButton);
+            this.createRow.Add(createSubmitButton);
             root.Add(this.createRow);
+        }
 
-            addWorktreeButton.clicked += this.HandleAddWorktreeButtonClicked;
+        private void BuildStatusLine(VisualElement root)
+        {
+            VisualElement statusLineRow = new VisualElement();
+            statusLineRow.AddToClassList("worktree-status-line");
+            root.Add(statusLineRow);
 
-            this.busyBannerLabel = new Label();
-            this.busyBannerLabel.AddToClassList("worktree-window__busy-banner");
-            this.busyBannerLabel.style.display = DisplayStyle.None;
-            root.Add(this.busyBannerLabel);
+            this.statusSpinnerImage = new Image { scaleMode = ScaleMode.ScaleToFit };
+            this.statusSpinnerImage.AddToClassList("worktree-icon");
+            this.statusSpinnerImage.style.width = 14f;
+            this.statusSpinnerImage.style.height = 14f;
+            this.statusSpinnerImage.style.display = DisplayStyle.None;
+            statusLineRow.Add(this.statusSpinnerImage);
 
-            this.errorLabel = new Label();
-            this.errorLabel.AddToClassList("worktree-window__error");
-            this.errorLabel.style.display = DisplayStyle.None;
-            root.Add(this.errorLabel);
+            this.statusLineTextLabel = new Label();
+            this.statusLineTextLabel.AddToClassList("worktree-status-line__text");
+            statusLineRow.Add(this.statusLineTextLabel);
+        }
 
-            this.queuePanel = new GateQueuePanel();
-            root.Add(this.queuePanel);
+        private void BuildSplitView(VisualElement root)
+        {
+            TwoPaneSplitView splitView = new TwoPaneSplitView(1, 300f, TwoPaneSplitViewOrientation.Horizontal);
+            splitView.style.flexGrow = 1f;
+            root.Add(splitView);
+
+            VisualElement canvasColumn = new VisualElement();
+            canvasColumn.style.flexGrow = 1f;
+            canvasColumn.style.flexDirection = FlexDirection.Column;
+            splitView.Add(canvasColumn);
 
             ScrollView scrollView = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             scrollView.style.flexGrow = 1f;
-            root.Add(scrollView);
+            scrollView.AddToClassList("worktree-canvas");
+            canvasColumn.Add(scrollView);
 
             this.canvasElement = new VisualElement();
             this.canvasElement.style.position = Position.Relative;
+            this.canvasElement.RegisterCallback<PointerDownEvent>(this.HandleCanvasBackgroundPointerDown);
             scrollView.Add(this.canvasElement);
 
             this.edgeLayer = new WorktreeEdgeLayer();
             this.canvasElement.Add(this.edgeLayer);
 
-            this.ResolveStateDirectoryOnce();
-            this.RequestGraphRefresh();
+            VisualElement dividerElement = new VisualElement();
+            dividerElement.AddToClassList("worktree-divider");
+            dividerElement.style.height = 2f;
+            canvasColumn.Add(dividerElement);
+
+            this.gateQueueStrip = new GateQueueStrip();
+            canvasColumn.Add(this.gateQueueStrip);
+
+            this.inspectorPane = new WorktreeInspectorPane();
+            this.inspectorPane.ActionRequested += this.HandleNodeActionRequested;
+            splitView.Add(this.inspectorPane);
         }
 
         private void OnEnable()
@@ -133,12 +207,29 @@ namespace WorktreeToolkit.Editor
         {
             this.DrainCompletedCliTasks();
 
-            if (!this.hasFocus)
+            if (this.canvasElement == null)
             {
                 return;
             }
 
             double currentTimeSeconds = EditorApplication.timeSinceStartup;
+
+            foreach (WorktreeNodeElement nodeElement in this.nodeElementsById.Values)
+            {
+                nodeElement.Tick(currentTimeSeconds);
+            }
+
+            if (currentTimeSeconds - this.lastSpinnerUpdateTimeSeconds >= SpinnerUpdateIntervalSeconds)
+            {
+                this.lastSpinnerUpdateTimeSeconds = currentTimeSeconds;
+                this.UpdateStatusSpinner(currentTimeSeconds);
+            }
+
+            if (!this.hasFocus)
+            {
+                return;
+            }
+
             if (currentTimeSeconds - this.lastPollTimeSeconds < PollIntervalSeconds)
             {
                 return;
@@ -148,9 +239,147 @@ namespace WorktreeToolkit.Editor
             this.RequestGraphRefresh();
         }
 
-        private void HandleBrokerToggleChanged(ChangeEvent<bool> changeEvent)
+        private void HandleRootKeyDown(KeyDownEvent keyDownEvent)
         {
-            GateBroker.IsEnabled = changeEvent.newValue;
+            if (keyDownEvent.keyCode == KeyCode.F5)
+            {
+                this.RequestGraphRefresh();
+            }
+        }
+
+        private void RebuildBrokerButton()
+        {
+            this.brokerButtonHolder.Clear();
+
+            bool brokerIsEnabled = GateBroker.IsEnabled;
+            string brokerIconName = brokerIsEnabled ? WorktreeIcons.BrokerOn : WorktreeIcons.BrokerOff;
+            Button brokerButton = WorktreeIcons.MakeIconTextButton(this.HandleBrokerButtonClicked, brokerIconName, "Toggle the gate broker", "Broker");
+
+            VisualElement brokerDot = new VisualElement();
+            brokerDot.AddToClassList("worktree-header__broker-dot");
+            if (brokerIsEnabled)
+            {
+                brokerDot.AddToClassList("worktree-header__broker-dot--alive");
+            }
+            brokerButton.Add(brokerDot);
+
+            this.brokerButtonHolder.Add(brokerButton);
+        }
+
+        private void HandleBrokerButtonClicked()
+        {
+            GateBroker.IsEnabled = !GateBroker.IsEnabled;
+            this.RebuildBrokerButton();
+        }
+
+        private void HandleStageChipClicked()
+        {
+            this.HandleNodeSelectionRequested(WorktreeTreeLayout.TrunkNodeId);
+        }
+
+        private void HandleMenuButtonClicked()
+        {
+            GenericMenu menu = new GenericMenu();
+            menu.AddItem(new GUIContent("Adopt existing worktrees"), false, this.HandleAdoptMenuItemClicked);
+            menu.AddItem(new GUIContent("Edit noise globs..."), false, this.HandleEditNoiseGlobsMenuItemClicked);
+            menu.AddItem(new GUIContent("Open documentation"), false, HandleOpenDocumentationMenuItemClicked);
+            menu.AddItem(new GUIContent("Gate broker enabled"), GateBroker.IsEnabled, this.HandleToggleBrokerMenuItemClicked);
+            menu.DropDown(this.menuButtonElement.worldBound);
+        }
+
+        private void HandleAdoptMenuItemClicked()
+        {
+            WorktreeCliResult cliResult = WorktreeCliClient.Run("adopt");
+            if (!cliResult.Succeeded)
+            {
+                this.ShowError(ResolveCliFailureMessage(cliResult));
+            }
+            else
+            {
+                this.ClearError();
+            }
+
+            this.RequestGraphRefresh();
+        }
+
+        private void HandleEditNoiseGlobsMenuItemClicked()
+        {
+            WorktreeCliResult cliResult = WorktreeCliClient.Run("config");
+            string dialogMessage = cliResult.Succeeded ? cliResult.standardOutput : ResolveCliFailureMessage(cliResult);
+            EditorUtility.DisplayDialog("Noise globs", dialogMessage, "OK");
+        }
+
+        private static void HandleOpenDocumentationMenuItemClicked()
+        {
+            EditorUtility.RevealInFinder(System.IO.Path.GetFullPath("Packages/com.worktreetoolkit/Documentation~/worktree-toolkit.md"));
+        }
+
+        private void HandleToggleBrokerMenuItemClicked()
+        {
+            GateBroker.IsEnabled = !GateBroker.IsEnabled;
+            this.RebuildBrokerButton();
+        }
+
+        private void HandleCanvasBackgroundPointerDown(PointerDownEvent pointerDownEvent)
+        {
+            if (pointerDownEvent.target != this.canvasElement)
+            {
+                return;
+            }
+
+            this.ClearSelection();
+        }
+
+        private void HandleNodeSelectionRequested(string nodeId)
+        {
+            this.selectedNodeId = nodeId;
+            this.ApplySelectionToNodes();
+            this.UpdateInspectorForSelection();
+        }
+
+        private void ClearSelection()
+        {
+            this.selectedNodeId = null;
+            this.ApplySelectionToNodes();
+            this.inspectorPane.ShowNothingSelected();
+        }
+
+        private void ApplySelectionToNodes()
+        {
+            foreach (KeyValuePair<string, WorktreeNodeElement> nodeEntry in this.nodeElementsById)
+            {
+                nodeEntry.Value.SetSelected(string.Equals(nodeEntry.Key, this.selectedNodeId, StringComparison.Ordinal));
+            }
+        }
+
+        private void UpdateInspectorForSelection()
+        {
+            if (string.IsNullOrEmpty(this.selectedNodeId) || this.currentGraph == null)
+            {
+                this.inspectorPane.ShowNothingSelected();
+                return;
+            }
+
+            if (string.Equals(this.selectedNodeId, WorktreeTreeLayout.TrunkNodeId, StringComparison.Ordinal))
+            {
+                bool trunkIsOnStage = this.currentGraph.stage != null
+                    && string.Equals(this.currentGraph.stage.branch, this.currentGraph.trunk, StringComparison.Ordinal);
+                this.inspectorPane.ShowTrunk(this.currentGraph.stage, this.currentGraph.trunk, trunkIsOnStage);
+                return;
+            }
+
+            WorktreeNodeDto selectedWorktreeNode = this.FindWorktreeNode(this.selectedNodeId);
+            if (selectedWorktreeNode == null)
+            {
+                this.selectedNodeId = null;
+                this.inspectorPane.ShowNothingSelected();
+                return;
+            }
+
+            bool worktreeIsOnStage = this.currentGraph.stage != null
+                && string.Equals(selectedWorktreeNode.branch, this.currentGraph.stage.branch, StringComparison.Ordinal);
+            bool stageIsBusy = this.currentGraph.stage != null && this.currentGraph.stage.busyWith != null && this.currentGraph.stage.busyWith.IsHeld;
+            this.inspectorPane.ShowWorktree(selectedWorktreeNode, worktreeIsOnStage, stageIsBusy);
         }
 
         private void HandleAddWorktreeButtonClicked()
@@ -183,7 +412,7 @@ namespace WorktreeToolkit.Editor
         }
 
         // Once per window lifetime: resolve the shared gate-protocol state directory so the
-        // queue panel and queue count have somewhere to read from.
+        // queue strip and status line have somewhere to read from.
         private void ResolveStateDirectoryOnce()
         {
             if (this.hasRequestedStateDirectory)
@@ -221,7 +450,7 @@ namespace WorktreeToolkit.Editor
                 if (WorktreeCliJson.TryParse(whereResult, out WherePathsDto wherePaths, out string whereErrorMessage))
                 {
                     this.requestStore = new GateRequestStore(wherePaths.stateDirectory);
-                    this.queuePanel.Refresh(this.requestStore);
+                    this.gateQueueStrip.Refresh(this.requestStore);
                 }
                 else
                 {
@@ -266,10 +495,11 @@ namespace WorktreeToolkit.Editor
             this.ClearError();
             this.currentGraph = graph;
             this.RebuildGraph(graph);
+            this.ApplySelectionToNodes();
+            this.UpdateInspectorForSelection();
 
-            this.queuePanel.Refresh(this.requestStore);
-            int queuedCount = this.requestStore != null ? this.requestStore.ListQueuedRequests().Count : 0;
-            this.queueCountLabel.text = "Queue: " + queuedCount.ToString();
+            this.gateQueueStrip.Refresh(this.requestStore);
+            this.UpdateStatusLine(graph);
         }
 
         private void RebuildGraph(WorktreeGraphDto graph)
@@ -302,13 +532,14 @@ namespace WorktreeToolkit.Editor
                 if (!this.nodeElementsById.TryGetValue(layoutNode.nodeId, out WorktreeNodeElement nodeElement))
                 {
                     nodeElement = new WorktreeNodeElement(layoutNode.nodeId);
+                    nodeElement.SelectionRequested += this.HandleNodeSelectionRequested;
                     nodeElement.ActionRequested += this.HandleNodeActionRequested;
                     this.nodeElementsById.Add(layoutNode.nodeId, nodeElement);
                     this.canvasElement.Add(nodeElement);
                 }
 
-                float leftPosition = CanvasMargin + (layoutNode.column * ColumnWidth);
-                float topPosition = CanvasMargin + (layoutNode.row * RowHeight);
+                float leftPosition = CanvasMargin + (layoutNode.column * ColumnStepPixels);
+                float topPosition = CanvasMargin + (layoutNode.row * RowStepPixels);
                 nodeElement.style.position = Position.Absolute;
                 nodeElement.style.left = leftPosition;
                 nodeElement.style.top = topPosition;
@@ -325,8 +556,8 @@ namespace WorktreeToolkit.Editor
                     nodeElement.BindWorktree(worktreeNode, worktreeIsOnStage, stageIsBusy);
                 }
 
-                maxRight = Mathf.Max(maxRight, leftPosition + WorktreeNodeElement.CardWidth);
-                maxBottom = Mathf.Max(maxBottom, topPosition + WorktreeNodeElement.CardHeight);
+                maxRight = Mathf.Max(maxRight, leftPosition + WorktreeNodeElement.SlotWidth);
+                maxBottom = Mathf.Max(maxBottom, topPosition + WorktreeNodeElement.SlotHeight);
             }
 
             List<string> staleNodeIds = new List<string>();
@@ -353,19 +584,20 @@ namespace WorktreeToolkit.Editor
                     continue;
                 }
 
-                float parentLeft = CanvasMargin + (parentLayoutNode.column * ColumnWidth);
-                float parentTop = CanvasMargin + (parentLayoutNode.row * RowHeight);
-                float childLeft = CanvasMargin + (layoutNode.column * ColumnWidth);
-                float childTop = CanvasMargin + (layoutNode.row * RowHeight);
+                float parentLeft = CanvasMargin + (parentLayoutNode.column * ColumnStepPixels);
+                float parentTop = CanvasMargin + (parentLayoutNode.row * RowStepPixels);
+                float childLeft = CanvasMargin + (layoutNode.column * ColumnStepPixels);
+                float childTop = CanvasMargin + (layoutNode.row * RowStepPixels);
 
-                Vector2 edgeStart = new Vector2(parentLeft + WorktreeNodeElement.CardWidth, parentTop + (WorktreeNodeElement.CardHeight / 2f));
-                Vector2 edgeEnd = new Vector2(childLeft, childTop + (WorktreeNodeElement.CardHeight / 2f));
+                Vector2 edgeStart = new Vector2(
+                    parentLeft + ((WorktreeNodeElement.SlotWidth + WorktreeNodeElement.TileSize) / 2f),
+                    parentTop + (WorktreeNodeElement.TileSize / 2f));
+                Vector2 edgeEnd = new Vector2(
+                    childLeft + ((WorktreeNodeElement.SlotWidth - WorktreeNodeElement.TileSize) / 2f),
+                    childTop + (WorktreeNodeElement.TileSize / 2f));
 
-                bool isActive = graph.stage != null
-                    && worktreeById.TryGetValue(layoutNode.nodeId, out WorktreeNodeDto childWorktreeNode)
-                    && string.Equals(childWorktreeNode.branch, graph.stage.branch, StringComparison.Ordinal);
-
-                edges.Add(new WorktreeEdge(edgeStart, edgeEnd, isActive));
+                WorktreeTileState childTileState = this.nodeElementsById[layoutNode.nodeId].TileState;
+                edges.Add(new WorktreeEdge(edgeStart, edgeEnd, childTileState));
             }
 
             this.edgeLayer.SetEdges(edges);
@@ -373,27 +605,108 @@ namespace WorktreeToolkit.Editor
             this.canvasElement.style.width = maxRight + CanvasMargin;
             this.canvasElement.style.height = maxBottom + CanvasMargin;
 
-            this.UpdateBusyBanner(graph);
-            this.stageLabel.text = graph.stage != null ? "Stage: " + graph.stage.branch : "Stage: unknown";
+            this.UpdateEmptyStateHint(graph, layoutById);
+            this.UpdateStageChip(graph);
         }
 
-        private void UpdateBusyBanner(WorktreeGraphDto graph)
+        private void UpdateEmptyStateHint(WorktreeGraphDto graph, Dictionary<string, WorktreeLayoutNode> layoutById)
+        {
+            bool graphIsEmpty = graph.worktrees == null || graph.worktrees.Length == 0;
+            if (!graphIsEmpty)
+            {
+                if (this.emptyHintLabel != null)
+                {
+                    this.emptyHintLabel.RemoveFromHierarchy();
+                    this.emptyHintLabel = null;
+                }
+                return;
+            }
+
+            if (this.emptyHintLabel == null)
+            {
+                this.emptyHintLabel = new Label("No worktrees yet. Run /worktree-run in Claude, or press + to create one.");
+                this.emptyHintLabel.AddToClassList("worktree-empty-hint");
+                this.emptyHintLabel.style.position = Position.Absolute;
+                this.canvasElement.Add(this.emptyHintLabel);
+            }
+
+            WorktreeLayoutNode trunkLayoutNode = layoutById[WorktreeTreeLayout.TrunkNodeId];
+            float trunkLeft = CanvasMargin + (trunkLayoutNode.column * ColumnStepPixels);
+            float trunkTop = CanvasMargin + (trunkLayoutNode.row * RowStepPixels);
+            this.emptyHintLabel.style.left = trunkLeft;
+            this.emptyHintLabel.style.top = trunkTop + WorktreeNodeElement.SlotHeight;
+        }
+
+        private void UpdateStageChip(WorktreeGraphDto graph)
+        {
+            string branchName = graph.stage != null ? graph.stage.branch : "unknown";
+            this.stageChipLabel.text = "stage: " + branchName;
+
+            int dirtyTrackedCount = graph.stage != null ? graph.stage.dirtyTracked : 0;
+            if (dirtyTrackedCount > 0)
+            {
+                this.stageChipBadgeLabel.text = "⚠ " + dirtyTrackedCount.ToString();
+                this.stageChipBadgeLabel.style.display = DisplayStyle.Flex;
+            }
+            else
+            {
+                this.stageChipBadgeLabel.style.display = DisplayStyle.None;
+            }
+        }
+
+        private void UpdateStatusLine(WorktreeGraphDto graph)
         {
             bool stageIsBusy = graph.stage != null && graph.stage.busyWith != null && graph.stage.busyWith.IsHeld;
             if (stageIsBusy)
             {
-                this.busyBannerLabel.text = "Stage busy: " + graph.stage.busyWith.holder;
-                this.busyBannerLabel.style.display = DisplayStyle.Flex;
+                this.statusLineTextLabel.text = "busy: " + graph.stage.busyWith.holder;
+                this.statusLineTextLabel.AddToClassList("worktree-status-line__text--busy");
+                return;
             }
-            else if (EditorApplication.isCompiling)
+
+            this.statusLineTextLabel.RemoveFromClassList("worktree-status-line__text--busy");
+
+            int totalWorktreeCount = graph.worktrees != null ? graph.worktrees.Length : 0;
+            int buildingCount = 0;
+            int gatingCount = 0;
+            int readyCount = 0;
+            if (graph.worktrees != null)
             {
-                this.busyBannerLabel.text = "Unity is compiling";
-                this.busyBannerLabel.style.display = DisplayStyle.Flex;
+                foreach (WorktreeNodeDto worktreeNode in graph.worktrees)
+                {
+                    string leadStatus = worktreeNode != null && worktreeNode.lead != null ? worktreeNode.lead.status : null;
+                    if (string.Equals(leadStatus, "building", StringComparison.OrdinalIgnoreCase))
+                    {
+                        buildingCount++;
+                    }
+                    else if (string.Equals(leadStatus, "gating", StringComparison.OrdinalIgnoreCase))
+                    {
+                        gatingCount++;
+                    }
+                    else if (string.Equals(leadStatus, "ready", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(leadStatus, "done", StringComparison.OrdinalIgnoreCase))
+                    {
+                        readyCount++;
+                    }
+                }
             }
-            else
+
+            this.statusLineTextLabel.text = totalWorktreeCount.ToString() + " worktrees · " + buildingCount.ToString()
+                + " building · " + gatingCount.ToString() + " gating · " + readyCount.ToString() + " ready";
+        }
+
+        private void UpdateStatusSpinner(double currentTimeSeconds)
+        {
+            bool stageIsBusy = this.currentGraph != null && this.currentGraph.stage != null
+                && this.currentGraph.stage.busyWith != null && this.currentGraph.stage.busyWith.IsHeld;
+            if (!stageIsBusy)
             {
-                this.busyBannerLabel.style.display = DisplayStyle.None;
+                this.statusSpinnerImage.style.display = DisplayStyle.None;
+                return;
             }
+
+            this.statusSpinnerImage.style.display = DisplayStyle.Flex;
+            this.statusSpinnerImage.image = WorktreeIcons.SpinnerFrame(currentTimeSeconds);
         }
 
         private void HandleNodeActionRequested(string nodeId, WorktreeNodeAction action)
@@ -576,14 +889,14 @@ namespace WorktreeToolkit.Editor
 
         private void ShowError(string message)
         {
-            this.errorLabel.text = message;
-            this.errorLabel.style.display = DisplayStyle.Flex;
+            this.statusLineTextLabel.text = message;
+            this.statusLineTextLabel.RemoveFromClassList("worktree-status-line__text--busy");
+            this.statusLineTextLabel.AddToClassList("worktree-status-line__text--error");
         }
 
         private void ClearError()
         {
-            this.errorLabel.text = string.Empty;
-            this.errorLabel.style.display = DisplayStyle.None;
+            this.statusLineTextLabel.RemoveFromClassList("worktree-status-line__text--error");
         }
     }
 }
