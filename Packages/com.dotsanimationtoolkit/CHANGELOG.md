@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   LOD does not run. It names the warning and the sample, and notes that the shader billboard path reads
   `_ToolkitCameraForward` instead.
 
+### Fixed
+
+- Clip Editor: an event pin that is selected now flashes when the playhead crosses it. The selection
+  outline used to hide the 120 ms flash; the flash now shows first, then the selection outline returns.
+
 ## [0.36.0] — A91 — animation name errors at profile save and player build
 
 ### Added

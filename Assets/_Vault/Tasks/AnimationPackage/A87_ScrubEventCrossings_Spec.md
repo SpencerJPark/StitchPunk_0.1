@@ -1,6 +1,6 @@
 # Amendment A87 — Scrub crossings and sound on scrub
 
-> **Status:** ✅ built 2026-09-13 as `0.34.0` (Clip Editor; D6 cutscenes deferred, see §7). **T10 partly answered 2026-09-13:** sound plays on scrub; D1 and D5 still open.
+> **Status:** ✅ built 2026-09-13 as `0.34.0` (Clip Editor; D6 cutscenes deferred, see §7). **T10 answered 2026-09-13, accepted:** sound plays; D1 kept (a seek fires nothing); D5 flash kept, and now also shows on a selected pin.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Lifts** HANDOFF §5's "not on the queue — do not start it" on the owner's 2026-09-10 instruction
 > to spec it. Sound *mixing* remains out of the package (roadmap §2).
@@ -142,7 +142,7 @@ is a scheduled style change on the existing pin element.
   report "flash verified, sound not verifiable from here" if so).
 - [x] **T9 — Close.** HANDOFF §4 (and strike the §5 "do not start it" line, citing this
   amendment), roadmap checkbox.
-- [ ] **T10 — ⏸ owner checkpoint.** Message: "Give Footstep a preview clip in Project Settings ▸
+- [x] **T10 — ⏸ owner checkpoint.** Message: "Give Footstep a preview clip in Project Settings ▸
   Event Keys. Scrub across a footstep marker in any clip. Two questions: ⚠ D1 — when you click far
   along the ruler, should every skipped marker fire (audio-editor style) or none (current)? And is
   120 ms of flash visible enough?"
@@ -274,3 +274,13 @@ updated. The A87 box stays unticked until T10 is answered, like A86's.
 ### T10 partial answer (2026-09-13)
 
 Owner: "sounds work". The preview clip plays on scrub, which closes the one thing no session could verify. D1 (skipped markers on a far click) is unanswered. D5 was explained back to the owner: 1 px dark outline normally, 3 px own-colour outline for 120 ms on a crossing. Both stay open.
+
+### T10 answer, completed (2026-09-13)
+
+- **D1:** "nothing should fire since you skipped over them". That is the built rule (a paused or far seek
+  fires nothing), so no change.
+- **D5:** "the flash is fine unless the event is selected, then it isn't visibly flashing at all".
+  Cause: `TrackLaneElement` computed `isFlashingKey` as `!isEventSelectedKey && ...`, so selection won
+  the outline (the §7 D5 call). **Fixed:** the guard is dropped, so the flash draws for its 120 ms and the
+  selection outline returns after it. Compile-gated only; UI drawing gets no fixture. Logged under
+  CHANGELOG `0.37.0` ### Fixed rather than a new version. The owner has not yet seen the fix.

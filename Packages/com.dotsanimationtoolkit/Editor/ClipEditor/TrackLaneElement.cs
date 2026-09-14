@@ -335,8 +335,9 @@ namespace DotsAnimationToolkit.Editor
 
                 if (trackKind == TimelineTrackKind.Event)
                 {
-                    bool isFlashingKey = !isEventSelectedKey
-                        && flashExpiryByKeyIndex.TryGetValue(keyIndex, out double flashExpiry)
+                    // The flash beats the selection outline for its 120 ms; otherwise scrubbing the
+                    // event you just selected shows no crossing at all.
+                    bool isFlashingKey = flashExpiryByKeyIndex.TryGetValue(keyIndex, out double flashExpiry)
                         && flashExpiry > EditorApplication.timeSinceStartup;
                     if (isFlashingKey)
                     {

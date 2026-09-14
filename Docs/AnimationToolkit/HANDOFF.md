@@ -204,7 +204,7 @@ Suites: EditMode 831 (829 + 2, standing `Conformance_A` failure only), PlayMode 
 ran one level down and never touched the owner's live window. It proved the flash and the preview
 start on a scrub, one firing per frame step, one per loop in both play directions, nothing on seek,
 drag or clip switch, and the JSON write to disk. The registry file was restored afterwards. Sound
-itself is not verifiable from a session. **T10 partly answered 2026-09-13: sound plays on scrub; D1 and D5 still open.**
+itself is not verifiable from a session. **T10 answered 2026-09-13, accepted:** sound plays; D1 kept (a seek fires nothing); D5 kept, with one fix — a selected pin now flashes too (selection used to hide it; CHANGELOG `0.37.0` Fixed).
 
 **Built (2026-09-13): Amendment A86 — one event editing surface for clips and cutscenes — 0.33.0.**
 Spec `Assets/_Vault/Tasks/AnimationPackage/A86_UnifiedEventEditing_Spec.md`; its §7 carries seven

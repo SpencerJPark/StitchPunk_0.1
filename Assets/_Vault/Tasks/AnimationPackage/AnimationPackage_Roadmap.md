@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13; its T10 is partly answered (sound plays on scrub), with D1 and D5 still open. A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build to confirm its build hook is deferred until the owner is at the PC); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` with its T7 owner checkpoint open. A88 and A92 are next, in any order.
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build to confirm its build hook is deferred until the owner is at the PC); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` with its T7 owner checkpoint open. A88 and A92 are next, in any order.
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -10,10 +10,8 @@
 ## 1. The order, with checkboxes
 
 > **⏸ Owner to-do (left 2026-09-13, answer in any session):**
-> - [ ] **A87 T10** (sound on scrub confirmed working 2026-09-13; D1 and D5 still open): give **Sound** a preview clip in Project Settings ▸ DOTS Animation Toolkit ▸
->   Event Names (Payload foldout), then scrub across a Sound marker in any clip. Does it play? Then
->   answer two questions. **D1:** when you click far along the ruler, should every skipped marker
->   fire, or none (current)? **D5:** is the 120 ms own-colour outline flash visible enough?
+> - [ ] **A87 follow-up (built 2026-09-13, not yet seen):** select an event pin in a clip, then scrub across
+>   it. It should swell for about a tenth of a second, then show its selection outline again.
 > - [ ] **A90 T7:** read the camera data warning text (HANDOFF §4 quotes it) and say if it is clear.
 >   Say whether you want to try the warning and the Camera Sync sample in Play mode yourself, and
 >   whether the sample should also write the shader's `_ToolkitCameraForward` global.
@@ -34,7 +32,7 @@ free minor and correct the spec's status line.
 - [x] **A84 — Asset Reference Index** (`0.31.0`) — [`A84_AssetReferenceIndex_Spec.md`](A84_AssetReferenceIndex_Spec.md). One editor service answering "where is this rig / clip / set / profile / event key / tag used". Fixes the tag-bound undercount in delete confirmations. A92, A93 and A94 read it.
 - [x] **A85 — Event payload schema** (`0.32.0`) — [`A85_EventPayloadSchema_Spec.md`](A85_EventPayloadSchema_Spec.md). A registry entry says what `intParam` / `floatParam` mean; the Clip Editor shows a dropdown instead of a raw integer; generated constants carry the meaning.
 - [x] **A86 — One event editing surface for clips and cutscenes** (`0.33.0`) — [`A86_UnifiedEventEditing_Spec.md`](A86_UnifiedEventEditing_Spec.md). Same inspector, lane drawing and validation for `EventMarker` and `CutsceneEventMarker`; serialized types untouched.
-- [ ] **A87 — Scrub crossings and sound on scrub** (`0.34.0`) — [`A87_ScrubEventCrossings_Spec.md`](A87_ScrubEventCrossings_Spec.md). Playhead-before / playhead-after crossing detection in the editor, an editor-only preview `AudioClip` per registry entry. Lifts the standing "do not start it" (HANDOFF §5) on the owner's 2026-09-10 instruction.
+- [x] **A87 — Scrub crossings and sound on scrub** (`0.34.0`) — [`A87_ScrubEventCrossings_Spec.md`](A87_ScrubEventCrossings_Spec.md). Playhead-before / playhead-after crossing detection in the editor, an editor-only preview `AudioClip` per registry entry. Lifts the standing "do not start it" (HANDOFF §5) on the owner's 2026-09-10 instruction.
 - [ ] **A88 — Layered event preview in the Actor Editor** (`0.35.0`) — [`A88_LayeredEventPreview_Spec.md`](A88_LayeredEventPreview_Spec.md). Per-layer marker strip under the composited preview; inactive and crossfade-source layers drawn as non-emitting.
 - [x] **A89 — Stale VAT bake detection** (`0.35.0`) — [`A89_StaleVatBakeDetection_Spec.md`](A89_StaleVatBakeDetection_Spec.md). Compute the source hash without baking; badge the VAT Bake tab and the clip set when it differs from `VatTextureSetAsset.sourceHash`.
 - [ ] **A90 — Camera-data fallback warning** (`0.37.0`) — [`A90_CameraDataWarning_Spec.md`](A90_CameraDataWarning_Spec.md). A project with no `AnimationToolkitCameraData` writer gets one warning naming the sample, not silent spherical billboarding.
