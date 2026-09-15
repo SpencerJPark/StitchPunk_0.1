@@ -1473,3 +1473,37 @@ Traps only; the record is A102's §7 and HANDOFF §4.
   Performance Testing package writes `Assets/Resources/PerformanceTestRun*.json` during a build and deletes them after.
 - Clean-project import: `-createProject` then a manifest `file:` entry then `-projectPath … -quit`; the package's own
   `dependencies` pull Entities and URP with nothing added by hand, and the only first-import writes are URP's defaults.
+
+## Unified authoring and the whole-animation VAT preview (A103, 0.55.0)
+
+Traps only; the record is A103's §7 and HANDOFF §4.
+- **Imported key time k plays at clip time k.** The bake samples `sourceClip.length` at `clip.frameRate`, and the runtime
+  maps playback over `clip.duration`, so imported lanes normalise by the ClipAsset's duration, never the imported
+  clip's length. `VatTrack.sampleFps` / `VatClipSource.sampleFps` are dead: nothing in the bake reads them.
+- **Two rest-pose conventions.** The Clip Editor mirror is root-relative (its quads are flat siblings); real nested
+  nodes need local rest from `RestPoseCapture.FromTransform`, with the rest slice read from
+  `RigTargetAuthoring.restSliceIndex` (`RigTargetDefinition` has none). Writing root-relative rest onto a nested node
+  places every child wrong.
+- **Baked VAT draws at the skeleton instance root's `localToWorldMatrix`**, because the bake writes root space. The
+  overlay replaces the skinned mesh; turning it off must re-enable the renderers.
+- **`ScriptableObject.CreateInstance` fills `[Serializable]` class fields**, so `clip.vatSource` is never null; test
+  `vatSource.sourceClip`.
+- **`ClipComponentModel` switches default to Socket.** A new component kind needs an explicit case in every switch, or
+  `Add` writes a rig socket. `VatBinding` is deliberately **not** in `stackOrder`/`addableKinds`: the model keys it by
+  target id alone, which would put an untargeted mesh's binding on every node; the window appends it on the node
+  `VatBakeSourceResolver` resolves.
+- **Live zoom/pan goes through `TimelinePane.View.cs` `ApplyTimelineView`.** A rebuild-only push looks right until the
+  first zoom.
+- **A rail toggle that changes renderer visibility needs its own value-changed callback.** `VatPreviewElement`'s
+  *Other parts* shipped from the waves without one and with no default, so the posed half stayed hidden until Ghost
+  re-ran `RefreshSourceCopyAppearance`; five fixtures and three green gates could not see it, one stage drive did.
+- **Driving the VAT pipeline without `SaveAssets`:** `VatTextureSetBuilder.WriteSet` and
+  `VatSampleTentacleUtility.CreateTwoPartSampleAssets` both call `AssetDatabase.SaveAssets()`. Bake in memory instead:
+  `VatBakeSourceResolver.TryResolve` → `VatBakeClipBuilder.Build` → `TryCreateBakeInstance` → `VatTextureBaker.Bake` per
+  source (sockets list empty past the first) → `VatMeshPreparer.TryCreateRuntimeMesh` → a `CreateInstance`
+  `VatTextureSetAsset` on an in-memory clip-set copy. Destroy the texture and mesh after.
+- **`VatBakeWindow` has no `OnDisable`**: closing the floating window never disposes its panel, so its preview's source
+  copy stays in `VatPreviewElement.OwnedSourceCopies` until a domain reload. Destroy it by hand after a drive.
+- **Project state found 2026-09-15:** `VatSampleTentacleRig` declares one target (it is not a targetless rig);
+  `VatSampleTentacleClips.vatTextures` points at a deleted asset; the Clip Editor's proxy quad for a VAT-mesh target
+  renders magenta.

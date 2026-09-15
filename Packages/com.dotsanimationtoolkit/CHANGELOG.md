@@ -8,6 +8,23 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.55.0] — Unified authoring and VAT preview
+
+### Added
+- Clip Editor viewport: **Baked VAT** rail toggle (off by default, available only while the open clip set has a VAT texture set). Draws each baked VAT part from its textures at the playhead, at the skeleton root, in place of the live skinned mesh; turning it off restores the skinned meshes.
+- **VAT binding** inspector component (`VatBindingComponentElement`, `ClipComponentKind.VatBinding`) on every node the bake resolves as a VAT part: Source clip and Loop safe, with a length-mismatch line. Writes the part's `vatTracks` row, or `vatSource` for a one-mesh rig; clearing Source removes the binding.
+- Timeline: read-only imported-clip rows (one per animated node, hollow dimmed keys) for `vatSource` and every `vatTracks` source, placed by the clip's duration; keys past the duration are counted in the tooltip. They hide under a focus selection and count toward "track(s) hidden".
+- VAT Bake preview plays every baked part, lists clips by name, and gains **VAT parts** and **Other parts** rail toggles (both on by default) beside Ghost; Other parts poses quads and flipbooks from the clip set on the source copy's real nodes, in local space.
+- `RegistryTargetPoser`: the preview registry build and per-target pose loop shared by the Clip Editor and the VAT Bake preview. `VatPreviewFrameResolver` mirrors the runtime VAT frame rule for editor previews.
+- `ToolkitIcons.VatPartsGlyph` and `ToolkitIcons.CutoutPartsGlyph`.
+
+### Changed
+- A rig with no targets now builds a preview registry like any other; the "declares no targets" status is gone. When nothing in the set keys bones or names a VAT source the status line says so, as information.
+- `VatPreviewElement.Show` takes the rig as its third parameter.
+
+### Verified
+- Driven on the stage 2026-09-15 with in-memory assets only: a zero-target rig previews a bone-track clip (three scrub times, three poses); Baked VAT renders three distinct frames and restores the skinned mesh when turned off; the VAT Bake preview's four toggle states render four distinct images without moving the playhead; a VAT binding survives a reload from disk as one `vatTracks` row.
+
 ## [0.54.0] — Release readiness
 
 ### Changed

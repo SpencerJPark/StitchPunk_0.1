@@ -79,7 +79,8 @@ owner's product calls are recorded in the roadmap §2. Adding tabs now is scope 
    to make per the standing delegation): the dependency is legitimate; add it to the expectation
    and to the architecture doc §1.3.** No sample compile test exists today — the only `Samples~`
    mention in `PackagingConformanceTests.cs` is the `UnityEditor` scan's Editor-folder exemption.
-2. **Unified Clip Authoring (UA) P1–P5** — the owner's own directive ("I should be animating
+2. ✅ **Done 2026-09-15 as A103 (`0.55.0`)** — Baked VAT in the Clip Editor, VAT binding row, read-only imported lanes, targetless rigs preview, and the VAT Bake preview's VAT parts / Other parts toggles.
+   **Unified Clip Authoring (UA) P1–P5** — the owner's own directive ("I should be animating
    everything in the same window, vat bones, object transforms, flipbooks"), P0 built 2026-09-08,
    the rest specced with three ← DECISION markers. **A79** (VAT Bake preview shows the other parts)
    is the same gap seen from the other tab: both want per-kind posers that do not depend on the
@@ -129,7 +130,7 @@ fixtures without a scene):
    dependency and `-quit`, grepping its log for `error CS`. Closes the A91 check as a side effect.
 2. **Zombie Conversion → Despawn + Minion Order Robustness (parallel worktrees) → Ranged.** ✅ Despawn and Minion Order Robustness built 2026-09-15 (verify files open, rebake first); Ranged is next. Pure
    DOTS systems with approved specs; `/worktree-run` is built and drive-proven for exactly this.
-3. **UA + A79 as one spec** (§3 item 2), with the three decisions recorded above.
+3. ✅ Done 2026-09-15 as A103 (`0.55.0`). **UA + A79 as one spec** (§3 item 2), with the three decisions recorded above.
 4. **HANDOFF and index truth pass** (§3 item 3).
 5. **`PlayerUnit` as a toolkit actor — the scripted half only:** a recipe script authoring rig
    targets, a clip set and a profile from the existing body-part tree, gated by the same

@@ -1,6 +1,6 @@
 # A103 — Unified authoring and the whole-animation VAT preview
 
-> **Status:** 📝 specced 2026-09-15 against `556823b7` (package `0.54.0`), takes `0.55.0`; not built. Merges
+> **Status:** ✅ built 2026-09-15 as `0.55.0` (merge `b115e391`, integration `4ea091af`, drive fix `37258750`); S6 closed under the standing rule with Q1–Q3 kept in HANDOFF §4. Specced against `556823b7`. Merges
 > [`UnifiedClipAuthoring_System.md`](../NewPlans/UnifiedClipAuthoring_System.md) P1–P5 (UA) with
 > [`Amendment_A79_VatPreviewModes_Spec.md`](../../../../Docs/AnimationToolkit/Amendment_A79_VatPreviewModes_Spec.md), per
 > `Code_Audit_2026-09.md` §3 item 2. Both source specs are superseded by this one.
@@ -393,14 +393,14 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
 
 ## 6. Tasks — stage orchestrator (Editor-bound, never a lead)
 
-- [ ] **S0 — Phase 0.**
+- [x] **S0 — Phase 0.**
   - `ListAgents`; `doctor --json`.
   - Baseline: compile gate, EditMode 868 (zero failures), PlayMode 285.
   - CHANGELOG top `## [0.54.0]`; both registry sha256s.
   - Record all of it in §7; commit; push.
-- [ ] **S1 — Hand gates.** None expected (no PlayMode fixture, no runtime file). Answer any "gate needed" per
+- [x] **S1 — Hand gates.** None expected (no PlayMode fixture, no runtime file). Answer any "gate needed" per
   trap 25.
-- [ ] **S2 — Merge and wire** (merge `a103`, then one integration commit):
+- [x] **S2 — Merge and wire** (merge `a103`, then one integration commit):
   - **UXML:** `baked-vat-preview-toggle` plus `baked-vat-preview-icon` in `overlay-tool-row` after
     `ragdoll-preview-toggle`.
   - **`ClipEditorWindow.cs` toggle binding:**
@@ -411,8 +411,8 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
   - **USS:** the lane-header modifier.
   - **Tests:** `ClipEditorLayoutTests` gains the toggle name.
   - **Gate:** `ClipEditorLayoutTests`, all five §4 fixtures, the regression set.
-- [ ] **S3 — Full suites once.** EditMode ≥ 868 + the new tests, zero failures; PlayMode 285.
-- [ ] **S4 — Drives** (scratch only: `Assets/A103Scratch/`; never the docked Clip Editor, never
+- [x] **S3 — Full suites once.** EditMode ≥ 868 + the new tests, zero failures; PlayMode 285.
+- [x] **S4 — Drives** (scratch only: `Assets/A103Scratch/`; never the docked Clip Editor, never
   `MaleCitizen.prefab` / `NewRig.asset`, no `SaveAssets`, no Play mode). Record each in §7:
   - **(a) P1/P2:**
     - A detached `ClipPreviewController` on the real `VatSampleTentacleRig` + `VatSampleTentacleClips`: `HasRegistry`
@@ -442,7 +442,7 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
 
   Captures only when `EditorApplication.isFocused`, scaled by `pixelsPerPoint`. Delete scratch; re-check both
   registry sha256s.
-- [ ] **S5 — Close.**
+- [x] **S5 — Close.**
   - **Versions:** CHANGELOG `0.55.0` from T15; `package.json` and the conformance pin at `0.55.0`.
   - **HANDOFF:** §4 paragraph on top.
   - **Status lines and boxes:** A78's status line gains "T8 closed under the standing rule 2026-09-15 (A103-D5)";
@@ -451,7 +451,7 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
   - **Vault:** `AnimationToolkit.md` gains a section with D4's time rule, D7's two rest conventions, D10's
     root-space draw, and the dead `sampleFps` fields.
   - Commit; push.
-- [ ] **S6 — ⏸ owner checkpoint** (closes as accepted under the standing rule unless game breaking; ask anyway, with
+- [x] **S6 — ⏸ owner checkpoint** (closes as accepted under the standing rule unless game breaking; ask anyway, with
   the S4 captures):
   - **Q1.** In the Clip Editor, *Baked VAT* is off by default and **replaces** the live skinned mesh with the baked
     one rather than overlaying both. Is that the view you want for spotting bake drift, or should it default on,
@@ -533,3 +533,62 @@ Gate 2 (`72749f4c`): **pass, 49 of 49** (`ClipPreviewRegistryTests` + `ClipPrevi
 - Live zoom/pan goes through the partial `TimelinePane.View.cs` `ApplyTimelineView`. A rebuild-only push looks right until the first zoom.
 
 **HANDOFF draft:** A103 (0.55.0) joins UA P1–P5 and A79 around one poser split. `RegistryTargetPoser` owns the preview registry blob and the per-target pose loop. `ClipPreviewController` writes it into the flat mirror with root-relative rest; `VatPreviewPartPoser` writes it into the VAT Bake source copy's real nodes with local rest, and excludes VAT-part targets. Targetless rigs now build registries (the `PartCount == 0` gate is gone), with an informational line when nothing will move. The Clip Editor gains a default-off Baked VAT toggle that draws baked parts at the skeleton root in place of the skinned mesh, a VAT binding inspector row that writes `vatTracks`/`vatSource`, and read-only imported-clip lanes placed by the clip's duration. The VAT Bake preview now plays every part, names clips, and splits VAT parts / Other parts / Ghost. Five new EditMode fixtures (F1–F5) each failed on their revert. The owner checkpoint is S6: Q1 default-off and replace-not-overlay, Q2 glyph legibility and the "Other parts" name, Q3 one row per bone.
+
+**S1 — Hand gates (stage).** None requested: the lead ran every gate through the broker (W1 16 of 16 on the third try, W2 49 of 49 on the second, W3 49 of 49), and no runtime or `Authoring/` file changed.
+
+**S2 — Merge and wire (stage, 2026-09-15).** `worktree.py merge a103` → trunk `b115e391` (9 commits), pushed, worktree and branch removed. Integration `4ea091af`:
+- **Toggle:** UXML `baked-vat-preview-toggle` + `baked-vat-preview-icon` after `ragdoll-preview-toggle`. `ClipEditorWindow.cs` binds it (icon `ToolkitIcons.VatPartsGlyph`, value → `BakedVatPreviewEnabled`). `RefreshBakedVatPreviewToggle` enables it only while `clipSet.vatTextures` is set, re-read on a set change and on the debounced preview refresh, because a bake assigns textures without a set change. Forced off otherwise.
+- **Binding row:** `ClipEditorWindow.ComponentStack.cs` appends the component on the node `VatBakeSourceResolver` resolves (by target id, or by node path for the untargeted mesh).
+  - **Not in `stackOrder`/`addableKinds` (deviation from the For-integration block):** `ClipComponentModel`'s collection rule keys by target id alone, so an untargeted binding would have shown on every node once `vatSource` was set.
+  - **No remove button:** clearing Source is the remove path, so the model's no-op `Remove` is never reached. Describe and body cases added.
+- **Styling and comments:** USS `.clip-editor__track-header--imported`; the stale `PushViewToImportedClipLanes` comment trimmed; `ClipEditorLayoutTests` lists the toggle.
+- **Gate:** compile clean; 60 of 60 (F1–F5, the preview regression set, `ClipRegistryBuilderTests`, `ClipEditorLayoutTests`, `PackagingConformanceTests`). Fourteen Editor-generated `.cs.meta` committed in `7239c4ce`.
+
+**S3 — Full suites (stage).** `DotsAnimationToolkit.Tests.EditMode` **873 of 873** (868 + F1–F5), `.PlayMode` **285 of 285**.
+
+**S4 — Drives (stage, 2026-09-15).** Detached controllers, in-memory assets, and a floating `VatBakeWindow` opened and closed; never the docked Clip Editor, no Play mode, no `SaveAssets`.
+- **Drift 20:** `VatSampleTentacleRig` now declares one target (the A78 VAT target), so it is not a targetless rig.
+- **Drift 21:** `VatSampleTentacleClips.vatTextures` points at a deleted asset — no baked VAT set exists in the project.
+- **Drift 22:** both `VatSampleTentacleUtility.CreateTwoPartSampleAssets` and `VatTextureSetBuilder.WriteSet` call `AssetDatabase.SaveAssets()`, which the drive rules forbid. So (b) and (c) baked **in memory**: the resolver, the clip builder, `VatTextureBaker.Bake` per source and `VatMeshPreparer`, assembled into a `CreateInstance` set on an in-memory copy of the clip set.
+- **(a) P1/P2 — pass.**
+  - Real tentacle rig + set on a detached controller: `HasRegistry` true, empty status. Bone Z at t 0.1 / 0.5 / 0.9, each read in a call separate from its scrub:
+    | Bone | t 0.1 | t 0.5 | t 0.9 |
+    |---|---|---|---|
+    | Bone0 | 2.35 | 0.00 | 357.65 |
+    | Bone6 | 356.15 | 358.66 | 6.02 |
+    | Bone11 | 9.30 | 357.17 | 355.28 |
+  - An in-memory **zero-target** rig with the same prefab and set: `HasRegistry` true, clip in registry, posed, empty status.
+  - A set whose clip keys nothing: "Rig 'A103TargetlessRig' has no parts, and nothing in this set keys bones or names a VAT source — nothing here will move."
+- **(c) Baked VAT — pass.** In-memory bake of TentacleMesh (runtime mesh made, one range). With the toggle on, `Render` pixel hashes at 0.1 / 0.5 / 0.9 are all distinct and the live `SkinnedMeshRenderer` is disabled. Off at 0.5, the hash changes and the renderer is re-enabled. Captures `c_baked_vat_on_*.png`, `c_baked_vat_off_0.5.png`: the baked tentacle deforms under the bone handles. The magenta square at its base is also in the off capture: the mirror's proxy quad for the VAT-mesh target, pre-existing.
+- **(b) A79 — pass after one fix.**
+  - **Poser:** an in-memory mixed rig (the VAT target plus a Quad "Arm" at `sourceNodePath` "Arm"), with an Arm rotation clip sharing VatSampleWave's id and duration.
+    - `HasNonVatParts` true; `IsVatPartRenderer` true for the tentacle, false for the Arm.
+    - The Arm reads 9.0 / 45.0 / 81.0 degrees at 0.1 / 0.5 / 0.9.
+    - A sentinel offset on the VAT node survived posing, and `RestoreRestPose` returned the Arm to 0.
+  - **First UI pass — defect:** after a bake both new toggles were enabled but **off**, and the Arm renderer stayed hidden with *Other parts* on, so both-on rendered identical to VAT-only.
+    - **Cause:** the constructor never set the toggles on, and *Other parts* had no value-changed callback, so `RefreshSourceCopyAppearance` ran only in `Show`.
+    - **Fix (`37258750`, stage, five lines):** default both on; *Other parts* re-runs the appearance.
+  - **Re-driven after compile:** defaults on and Arm visible after `Show`.
+    | State | Arm | Skinned mesh |
+    |---|---|---|
+    | both on | 45.8°, visible | — |
+    | VAT only | 0.0°, hidden | — |
+    | Other only | 45.8°, visible | — |
+    | Ghost + both | visible | ghosted |
+    The four hashes are distinct, the playhead holds 1.017 s through every toggle, and the callbacks fire without manual invocation. Captures `b_vat_bake_preview_*.png`: both-on shows the deformed baked tentacle and the Arm quad rotated 45 degrees beside it.
+- **(d) P3 binding — pass.**
+  - **Setup:** a scratch `ClipAsset` + `AnimationClip` under `Assets/A103Scratch/`; `SetSourceClip` on target 7 (with Loop safe) and target 0; `SaveAssetIfDirty`.
+  - **YAML:** `vatTracks: - targetId: 7, sourceClip: {guid 2ace752b…}, loopSafe: 1` and `vatSource.sourceClip` set.
+  - **After `Resources.UnloadAsset` + reload:** one row, both sources back, loop safe back.
+  - **Length line:** the 1.2 s source on a 1.0 s clip reads "the last 0.20 s never plays".
+- **(e) P4 lanes — pass.** Two lanes: Bone0 `[0.00, 0.50]` with one key past the end (1.2 s), Bone1 `[0.00, 0.25, 1.00]`.
+- **Cleanup:** every in-memory object destroyed (baked texture and mesh included). Two leaked preview source copies destroyed: `VatBakeWindow` has no `OnDisable`, so closing it never disposes its panel (pre-existing). Scratch folder deleted; no `A103*` object left; both registry sha256s unchanged; `git status` clean.
+- **Not driven:** the docked Clip Editor window itself — the rail toggle's enable rule, the binding row inside the live inspector, and imported lanes under live zoom/pan.
+
+**S5 — Close (stage).**
+- **Versions:** CHANGELOG `## [0.55.0] — Unified authoring and VAT preview`; `package.json` and the conformance pin at `0.55.0`.
+- **HANDOFF:** §4 paragraph on top, with Q1–Q3 and the three pre-existing findings.
+- **Status lines:** A78 T8 closed (A103-D5); this spec's status line and S0–S6 boxes.
+- **Elsewhere:** roadmap Phase 5 box ticked; audit §3.2 and §5.3 marked done; `AnimationToolkit.md` gains the A103 section.
+
+**S6 — ⏸ checkpoint closed under the standing rule** (owner away, nothing game breaking); Q1–Q3 kept in HANDOFF §4 with the capture paths.

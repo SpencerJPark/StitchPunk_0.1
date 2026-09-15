@@ -1,7 +1,7 @@
 # Amendment A78 — the rig says what to bake, and the bake does every VAT part
 
 > **Status:** ✅ built 2026-09-08 as `0.26.0`. T1–T7 landed and gated (EditMode 814/814, PlayMode
-> 283/283, bar the standing `Conformance_A` drift); **T8 ⏸ owner checkpoint is open.** Build log in §8.
+> 283/283, bar the standing `Conformance_A` drift); **T8 ⏸ owner checkpoint closed under the standing rule 2026-09-15 (A103-D5).** Build log in §8.
 > **Prompt:** [`Amendment_A78_VatBakeSourceFromRig_Prompt.md`](Amendment_A78_VatBakeSourceFromRig_Prompt.md).
 > **Successor:** [`Amendment_A79_VatPreviewModes_Spec.md`](Amendment_A79_VatPreviewModes_Spec.md) — the
 > preview toggles the owner asked for in the same breath. Split on his instruction: baking is
