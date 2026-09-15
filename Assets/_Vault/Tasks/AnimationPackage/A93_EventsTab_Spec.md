@@ -230,6 +230,12 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
   14. **Package `.meta` files are tracked.** The lead writes a meta for every new file and for `Editor/Events/`.
   15. **Batch contract:** T11 writes only `Documentation~/events-tab.md`; the CHANGELOG text lives in For integration.
 - **T1 (spec-lead).** Wrote the three shared types (4.1, singleton field `Value` as `ClipRegistry`). Committed stubs for every cross-worker surface: `AnimEventRoutingBuilder`, `AnimEventRoutingAssetUtility`, `AnimEventConsumerStubBuilder`, and the three `Editor/Events/` columns.
+- **Wave T2–T11 (spec-lead, ten parallel sonnet workers, one file pair each).**
+  - Lead fix after review: T7's Generate Constants passed `null` for the constants row callbacks, which would regenerate `AnimEvents` without payload lines and value-name constants. It now passes the inspector's two callbacks (`AnimEventKeyRegistryEditor.DescribePayloadForConstants` made `internal`). New, Rename and Delete regenerate constants, as the inspector does.
+  - Drift 16: the baker is the sibling class `AnimEventRoutingBaker` in the same file, the package idiom from `CutsceneStageAuthoring`, not a nested `Baker`.
+  - Drift 17: the stub emits a `// Place after EventEmissionSystem` comment instead of an `[UpdateAfter]` attribute, because `EventEmissionSystem` sits in `AnimationToolkitLogicSystemGroup` and the host picks its own group.
+  - Gate 1 (wave commit `b9e49dff`): compile-errors, `EventsPanel.cs` missing `using DotsAnimationToolkit.Authoring;` (CS0246 ×3). Fixed by a fresh worker.
+  - Stage trap (message 2026-09-14): gate fixture names must be namespace-qualified (`DotsAnimationToolkit.Tests.EditMode.<Fixture>`). A bare name matches zero tests and still reports pass. The T1 gate was compile-only, so nothing needed re-gating.
 
 ### For integration
 
