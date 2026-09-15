@@ -185,6 +185,8 @@ namespace DotsAnimationToolkit.Editor
         private CapturePanel capturePanel;
         private VisualElement ragdollPane;
         private RagdollPanel ragdollPanel;
+        private VisualElement statsPane;
+        private StatsPanel statsPanel;
 
         /// <summary>The Actor Editor pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement actorEditorPane;
@@ -201,7 +203,7 @@ namespace DotsAnimationToolkit.Editor
         /// because every switch has to write the ones that did not change, and a lookup miss would
         /// leave one lit alongside the new one.
         /// </summary>
-        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[14];
+        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[15];
 
         /// <summary>The Cutscene Editor's cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement cutscenePane;
@@ -860,6 +862,9 @@ namespace DotsAnimationToolkit.Editor
             // The Ragdoll viewport owns a ClipPreviewController and its PreviewRenderUtility.
             ragdollPanel?.Dispose();
             ragdollPanel = null;
+            // Its profiler recorders are native handles the GC never releases.
+            statsPanel?.Dispose();
+            statsPanel = null;
 
             // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
             // which the GC reclaims. Leaking them survives domain reloads as a growing native
@@ -1046,6 +1051,7 @@ namespace DotsAnimationToolkit.Editor
             retargetPane = rootVisualElement.Q<VisualElement>("retarget-pane");
             capturePane = rootVisualElement.Q<VisualElement>("capture-pane");
             ragdollPane = rootVisualElement.Q<VisualElement>("ragdoll-pane");
+            statsPane = rootVisualElement.Q<VisualElement>("stats-pane");
 
             // Before BindTabs, which hides the whole stack on any tab but Clip Editor.
             viewportOverlay = rootVisualElement.Q<VisualElement>("viewport-overlay");
@@ -1362,6 +1368,9 @@ namespace DotsAnimationToolkit.Editor
             BindTab(ClipEditorTab.Ragdoll, "tab-ragdoll",
                 "The shared rig's ragdoll: its bodies, the box handles in a viewport with a Drop and Reset "
                 + "transport, and an inspector for the selected body's limits above the rig-wide settings.");
+            BindTab(ClipEditorTab.Stats, "tab-stats",
+                "In Play mode, what the toolkit is doing in the running world: actor and layer counts, a LOD "
+                + "histogram, events per frame, VAT texture memory and per-group timings, with a Markdown snapshot.");
 
             ApplyActiveTab();
         }
@@ -1447,6 +1456,7 @@ namespace DotsAnimationToolkit.Editor
             ShowRetargetTab(activeTab == ClipEditorTab.Retarget);
             ShowCaptureTab(activeTab == ClipEditorTab.Capture);
             ShowRagdollTab(activeTab == ClipEditorTab.Ragdoll);
+            ShowStatsTab(activeTab == ClipEditorTab.Stats);
 
             // The overlay's controls only mean anything while looking at the 3D area, and the cover
             // panes are drawn over the whole body — so on any other tab it is underneath one of them
@@ -1776,6 +1786,22 @@ namespace DotsAnimationToolkit.Editor
             }
 
             ragdollPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        private void ShowStatsTab(bool isShown)
+        {
+            if (statsPane == null)
+            {
+                return;
+            }
+
+            if (isShown && statsPanel == null)
+            {
+                statsPanel = new StatsPanel();
+                statsPane.Add(statsPanel);
+            }
+
+            statsPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
         /// <summary>Answers the Rigs panel's Use in Clip Editor button: switches tabs — the rig is already the shared selection.</summary>

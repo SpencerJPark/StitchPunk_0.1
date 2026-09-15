@@ -8,6 +8,15 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.53.0] — Stats tab
+
+### Added
+- **Stats tab**, after Ragdoll in the Clip Editor's tab strip: in Play mode it reads the default world four times a second and shows what the toolkit is doing and costing. **Actors**: actors, playback layers, actors ragdolling, cutscene players, and a LOD 0–3 histogram (every actor bucketed; past 100,000 actors a 1,024-actor sample, marked "sampled"). **Events / frame**: a 15-second sparkline with now and peak, actors with pending events, actors with an event window open. **VAT**: parts bound, distinct textures and their runtime memory. **Timing (ms)**: the toolkit's system group and its Binding, Logic, Presentation and Ragdoll groups, read from the systems' own profiler markers, so the Profiler window does not need to be open. **Snapshot** copies the same numbers as a Markdown table, with the package version, time and world, to the clipboard. In Edit mode every value is a dash.
+- `ToolkitStatsCollector`, `ToolkitStatsSample`, `SparklineElement`, `StatsSnapshotFormatting` and `StatsPanel` in `Editor/Stats/`. Documentation: `stats-tab.md`.
+
+### Changed
+- Nothing in the runtime: the tab only reads, and adds no components or counters to any system.
+
 ## [0.52.1] — Flipbooks and Cutscenes
 
 ### Changed

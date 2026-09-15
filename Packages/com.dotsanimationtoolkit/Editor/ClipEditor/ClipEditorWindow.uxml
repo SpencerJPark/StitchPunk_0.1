@@ -16,6 +16,7 @@
                 <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscenes" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-capture" text="Capture" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-ragdoll" text="Ragdoll" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-stats" text="Stats" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-health" text="Health" class="clip-editor__tab clip-editor__tab--health"/>
             </ui:VisualElement>
         </uie:Toolbar>
@@ -153,6 +154,7 @@
             <ui:VisualElement name="retarget-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="capture-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="ragdoll-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
+            <ui:VisualElement name="stats-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

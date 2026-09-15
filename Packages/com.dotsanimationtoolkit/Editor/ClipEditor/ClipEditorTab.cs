@@ -38,6 +38,9 @@ namespace DotsAnimationToolkit.Editor
 
         Ragdoll = 13,
 
+        /// <summary>Play-mode counts, LOD histogram, events per frame, VAT memory and group timings for the default world.</summary>
+        Stats = 14,
+
         Health = 9
     }
 }

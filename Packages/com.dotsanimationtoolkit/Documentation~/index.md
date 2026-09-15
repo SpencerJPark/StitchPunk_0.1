@@ -183,6 +183,9 @@ And the two references both of them lean on:
   coverage across every rig.
 - [`capture-tab.md`](capture-tab.md) — the Capture tab: PNG sequences and GIFs
   of a clip, profile animation or cutscene from the orbit preview camera.
+- [`stats-tab.md`](stats-tab.md) — the Stats tab: in Play mode, actor and
+  layer counts, a LOD histogram, events per frame, VAT texture memory and
+  per-group timings, with a Markdown snapshot for bug reports.
 - [`animation-events.md`](animation-events.md) — authoring event markers, the
   pulse-vs-window split, naming keys with a registry, and reading both channels
   from a Burst job.

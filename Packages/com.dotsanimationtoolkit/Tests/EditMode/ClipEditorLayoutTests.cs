@@ -40,7 +40,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
             "tab-vat-bake",
             "tab-events", "tab-health", "tab-flipbooks",
-            "tab-materials", "tab-retarget", "tab-capture", "tab-ragdoll",
+            "tab-materials", "tab-retarget", "tab-capture", "tab-ragdoll", "tab-stats",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle",
             // The floating overlay over the viewport, and the row of viewport tools inside it —
@@ -94,8 +94,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "events-pane", "health-pane", "flipbooks-pane",
             // Materials (after Rigs), Retarget (after Clip Editor) and Capture (after Cutscenes); Health is last.
             "materials-pane", "retarget-pane", "capture-pane",
-            // Ragdoll, after Capture and before Health.
-            "ragdoll-pane"
+            // Ragdoll, after Capture, then Stats, before Health.
+            "ragdoll-pane", "stats-pane"
         };
 
         [Test]
@@ -177,7 +177,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
                 "tab-vat-bake",
                 "tab-events", "tab-health", "tab-flipbooks",
-                "tab-materials", "tab-retarget", "tab-capture", "tab-ragdoll"
+                "tab-materials", "tab-retarget", "tab-capture", "tab-ragdoll", "tab-stats"
             };
 
             List<string> litTabs = new List<string>();

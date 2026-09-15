@@ -83,6 +83,12 @@ entity.
   preview camera to a PNG sequence (optionally transparent) or a looping
   GIF — see
   [`Documentation~/capture-tab.md`](Documentation~/capture-tab.md).
+- **Stats tab:** in Play mode, reads the running world four times a second:
+  actor, layer, ragdoll and cutscene counts, a LOD histogram, events per
+  frame with a 15-second sparkline, VAT texture memory and per-group frame
+  timings, with a Snapshot button that copies the numbers as a Markdown
+  table. See
+  [`Documentation~/stats-tab.md`](Documentation~/stats-tab.md).
 - A large automated test suite backs the above: 340+ EditMode tests
   (validation, identity stability, bake determinism, sampling/event math,
   VAT baking, shader-source conformance) and 200+ PlayMode tests (entity

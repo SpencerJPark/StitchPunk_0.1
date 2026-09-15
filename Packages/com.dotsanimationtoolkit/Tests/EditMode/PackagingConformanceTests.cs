@@ -404,7 +404,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "VatTextureBaker", "ClipKeyConversion", "CutsceneSceneBinding", "RagdollSolver", "StableIdMinting",
             "ToolkitPalette", "ToolkitIcons", "CaptionDragHandle", "ToolkitChrome",
             "PackChannelIndex", "TexturePackRecipeAssetOpener", "AssetReferenceIndex", "EventLaneStyle", "EventMarkerContextMenu", "ProfileP2Scan",
-            "HealthScan"
+            "HealthScan", "StatsSnapshotFormatting"
         };
 
         // (f) No doc-comment essays or spec citations survive in shipped sources (Amendment A69, section 2.3).
