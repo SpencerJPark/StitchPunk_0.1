@@ -243,3 +243,33 @@ converted damage stub `Systems/CombatSystemGroup/DamageEventSystemAnimEventSyste
 Fixed on the stage in `529e8bcc` (`[UpdateInGroup(typeof(CombatSystemGroup))]`), re-run 65 of 65.
 `StitchPunk.Tests.PlayMode` **16** of 16. Floor for this batch: `StitchPunk.Tests` 65 (+ `AttackResolutionTests` from
 minion-orders), `StitchPunk.Tests.PlayMode` 16 (+ `DespawnSystemTests`), both with zero failures.
+
+**T0 (lead, 2026-09-15).** Claimed `spec/despawn`. Every 12.1 name re-verified by grep; baseline gate (conformance pair) **9 of 9**.
+Drift found beyond 12.1 (6):
+- **DS-T3 as written would never fire.** An `EnabledRefRW<Despawn>` parameter enrols `Despawn` as enabled-only (Gotchas), so
+  `LifetimeCountdownJob` carries `[WithPresent(typeof(Despawn))]`. Test 1 starts with `Despawn` off to pin it.
+- `NativeHashMap` cannot key on `UnitType` (enums are not `IEquatable`) — dormant counts are keyed by `(int)unitType`.
+- `NativeList.ParallelWriter` cannot grow — both gather lists take `despawnRequestQuery.CalculateEntityCount()` (enabled-filtered) as capacity.
+- `Components.md` listed a non-existent `NeedsAnimatorInit` in `SpawnerComponents.cs` (row + field block) — corrected.
+- New edge, not fixed (outside this spec's files): a unit distance-pooled on the frame its `Despawn` is enabled keeps the bit
+  in the pool (the gather skips `Disabled`) and despawns again on reclaim; `SpawnStateInitSystem` does not reset `Despawn`.
+  Recorded in `Gotchas.md`. Also `SystemGroups.cs:157`'s comment omits Ragdoll (stage-owned).
+- Main pass trims existing dormant overflow first, then pools this frame's returns into what is left (same outcome as the §5 wording).
+
+**Commits.** `e996c7db` T1 (lead) · `27c5c1e1` T2+T3 (lead) + T4 (worker) + T6 (two docs workers, lead fixes) · `8709f6fd` T5 fixture (worker).
+
+### For integration
+
+- **Vault truths to check at merge** (the minion-orders lead edits the same notes; take both sides): `Systems.md` tree line and
+  `DespawnSystemGroup` table read LifetimeSystem → UnitPoolReturnSystem → DespawnSystem; `Components.md` `SpawnerComponents.cs`
+  row and the `## Spawner Components` block list `Despawn`/`Lifetime`/`NewlySpawned` (no `NeedsAnimatorInit`); `Contracts.md` has
+  one `Despawn` row after `SaveRequest / LoadRequest`; `Gotchas.md` `## Spawning` gains two entries (root-only pooling; same-frame
+  distance-pool keeps `Despawn` on).
+- **Rebake:** `UnitAuthoring.Baker` now adds `Despawn` (disabled) to every unit prefab — an archetype change. The owner's next Play
+  rebakes; until then baked subscenes lack `Despawn` and `DespawnSystem` simply finds nothing. No scene or asset was edited.
+- **Follow-up (not in this spec's files):** add `Despawn` → off to `SpawnStateInitSystem` if reclaimed units vanish on the frame
+  they are reclaimed (Gotchas entry). `SystemGroups.cs:157` LateSim comment omits Ragdoll.
+- **Play checks for `verify-despawn.md`** (from §10): a `LifetimeAuthoring` cube (seconds 3) in `DOTSTestScene` vanishes about 3 s
+  into Play and the Entities window shows it gone; toggling `Despawn` on a spawned unit in the inspector gives it `Disabled` (not
+  destroyed) with `Despawn` back off, and a `UnitSpawner` later reclaims it; walking far from a crowd leaves at most 64 dormant
+  units per `UnitType`; watch whether pooled units' body parts still render (DS-D5 root-only choice).
