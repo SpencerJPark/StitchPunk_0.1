@@ -17,7 +17,8 @@
 // warnings as errors — a sweep that would pick this file up wherever it sits. It also ships in the
 // published tarball unless Tests/ is excluded, so a consumer project imports and variant-compiles
 // it; a built-in-pipeline shader inside a URP-only package is a support ticket waiting to happen.
-// The two texture properties are the only thing the tests read, and they are pipeline-agnostic.
+// The two texture properties and the three frame properties the material contract requires are the
+// only thing the tests read, and they are pipeline-agnostic.
 
 Shader "Hidden/DotsAnimationToolkit/Tests/VatMaterialProbe"
 {
@@ -25,6 +26,9 @@ Shader "Hidden/DotsAnimationToolkit/Tests/VatMaterialProbe"
     {
         _VatBoneTex ("VAT Bone Matrix Texture", 2D) = "black" {}
         _VatPosTex ("VAT Vertex Position Texture", 2D) = "black" {}
+        _VatFrameA ("VAT Frame A", Float) = 0
+        _VatFrameB ("VAT Frame B", Float) = 0
+        _VatBlend ("VAT Blend", Float) = 0
     }
 
     SubShader

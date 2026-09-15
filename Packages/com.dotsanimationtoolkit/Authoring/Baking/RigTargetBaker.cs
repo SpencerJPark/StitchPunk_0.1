@@ -418,6 +418,20 @@ namespace DotsAnimationToolkit.Authoring
                     "'. The part will animate against the wrong frames.",
                     authoring);
             }
+
+            // Only reached once the VAT slot exists: a material with no slot is already the one warning
+            // above, and listing every frame property it also lacks would bury that.
+            List<ValidationMessage> contractMessages = new List<ValidationMessage>();
+            MaterialContractValidation.Validate(material, TargetKind.VatMesh, authoring.name, contractMessages);
+            if (contractMessages.Count > 0)
+            {
+                string[] contractTexts = new string[contractMessages.Count];
+                for (int messageIndex = 0; messageIndex < contractMessages.Count; messageIndex++)
+                {
+                    contractTexts[messageIndex] = contractMessages[messageIndex].text;
+                }
+                Debug.LogWarning(MessagePrefix + string.Join(" ", contractTexts), authoring);
+            }
         }
 
         private Material ResolveMaterialUnderTest(RigTargetAuthoring authoring)

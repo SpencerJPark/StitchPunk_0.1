@@ -380,6 +380,8 @@ namespace DotsAnimationToolkit.Tests.PlayMode
                 "cannot be reached at all.");
             Material material = new Material(shader);
             material.name = name;
+            // A correctly configured VAT material has instancing on, or the bake's contract check warns.
+            material.enableInstancing = true;
             createdObjects.Add(material);
             if (boneTexture != null)
             {
