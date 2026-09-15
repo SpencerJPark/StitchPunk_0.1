@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.44.0] — A94F — Health tab rework
 
+Owner checkpoint T12 accepted 2026-09-14 ("these look good for now").
+
 ### Changed
 - Health tab reworked: a large "Scan project" button with last-scan status, three severity chips that count and filter, and a findings list beside a detail panel (title, explanation, affected assets with ping and Open, and one button per fix).
 - Findings carry several actions. H02 Remove missing, H06 Rebake and H09 Save are unchanged in behaviour; every finding gains Locate actions.

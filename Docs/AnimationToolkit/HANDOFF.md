@@ -128,7 +128,7 @@ chosen reference array's importer settings (or the project arrays' shared defaul
 `.asset`; re-bakes keep the GUID. The catalog column gained a per-row rename/delete predicate. Drive: a baked grid of
 opaque swatches imports as DXT1 where `EyeArray` is DXT5, because AutomaticCompressed follows the source's alpha.
 
-**A94F (0.44.0), built 2026-09-14, ⏸ T12 open.** Health is two panels: a big Scan project button with last-scan
+**A94F (0.44.0), built 2026-09-14, T12 accepted 2026-09-14.** Health is two panels: a big Scan project button with last-scan
 status, severity chips that count and filter, a findings list of two-line rows, and a detail panel with the
 explanation, every affected asset and one button per fix. H01, H05 and H06 gain Delete behind a confirmation that
 names the path and what still references it (VAT deletes take only part files no other set uses). H11 (profile bind

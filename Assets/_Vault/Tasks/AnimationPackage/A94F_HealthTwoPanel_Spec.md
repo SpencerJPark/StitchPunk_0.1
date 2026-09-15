@@ -1,6 +1,6 @@
 # Amendment A94F — Health tab rework: a big Scan, a findings list and a detail panel
 
-> **Status:** ✅ built 2026-09-14 as `0.44.0` in the A93F–A95F parallel worktree batch (merged `19ec21f7`, integrated `f67b47e3`); ⏸ T12 owner checkpoint open. Specced the same day from the owner's A94 T14 answer and widened with
+> **Status:** ✅ built 2026-09-14 as `0.44.0` in the A93F–A95F parallel worktree batch (merged `19ec21f7`, integrated `f67b47e3`); **T12 accepted 2026-09-14** (owner: "these look good for now"). Specced the same day from the owner's A94 T14 answer and widened with
 > the "Health (n)" count and the badge removal (H-D8 to H-D10).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A94.
 > **Predecessors:** A94 (`0.41.0`), A82 (`CoverPaneSplitView`), A84 (reference index).
@@ -209,7 +209,7 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
   H06's title, detail and actions. On scratch copies only: an orphan scratch clip shows H01 with "Delete clip…";
   run `TrashClip` beneath the dialog and confirm the file left and the rescan dropped H01. Never press a real Delete.
 - [x] **T11 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and conformance pin `0.44.0`.
-- [ ] **T12 — ⏸ owner checkpoint.** "The tab reads Health (2) in red before you open it, and the error badge beside
+- [x] **T12 — ⏸ owner checkpoint.** "The tab reads Health (2) in red before you open it, and the error badge beside
   the tabs is gone. Press Scan project and pick each finding: the right panel explains it and lists the fixes, and
   deletes ask first and name what uses the asset. Break a clip's binding in the Clip Editor: within a second Health
   shows it as H11. Readable now?"
@@ -308,3 +308,8 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
   sha256s unchanged.
 - **Not seen by eye:** the drawn layout, the rich-text dots on the chips, the tab label's colour in the real window,
   and a clip edit reaching H11 within a second.
+
+### Owner checkpoint answer (2026-09-14)
+
+- **Accepted as built.** The owner, on T12: "these look good for now". Nothing in this section's drift is overturned,
+  so the checkpoint closes with no follow-up.

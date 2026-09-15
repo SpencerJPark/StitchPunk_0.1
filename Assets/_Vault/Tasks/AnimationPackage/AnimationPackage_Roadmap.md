@@ -10,7 +10,6 @@
 ## 1. The order, with checkboxes
 
 > **⏸ Owner to-do (A93F–A95F, built 2026-09-14):**
-> - A94F T12: the tab reads "Health (2)" in red; Scan project, pick each finding, read the detail panel and fixes.
 > - A95F T10: Sprite Sheets lists the ten arrays; open `EyeArray`, rename frames, Save, then pick them by name in a clip.
 >
 > Earlier: on 2026-09-14 the owner accepted A87's follow-up, A88 T9 and A92 T10 without a hands-on look ("assume they
@@ -41,7 +40,7 @@ free minor and correct the spec's status line.
 ### Phase 2 — tabs (A93 and A94 first; the rest in any order)
 
 - [x] **A93F — Events tab rework** (`0.43.0`, built 2026-09-14, T10 accepted 2026-09-14) — [`A93F_EventsTabRework_Spec.md`](A93F_EventsTabRework_Spec.md). Owner's A93 answer: routing removed, the right column lists the animations using the event, `AnimEventBufferApi` helper, no event entities.
-- [ ] **A94F — Health tab rework** (`0.44.0`, built 2026-09-14, ⏸ T12 open) — [`A94F_HealthTwoPanel_Spec.md`](A94F_HealthTwoPanel_Spec.md). Owner's A94 answer: big Scan, list + detail panel, Delete behind confirmations, a "Health (n)" count, and the Clip Editor's error badge removed in Health's favour.
+- [x] **A94F — Health tab rework** (`0.44.0`, built 2026-09-14, T12 accepted 2026-09-14) — [`A94F_HealthTwoPanel_Spec.md`](A94F_HealthTwoPanel_Spec.md). Owner's A94 answer: big Scan, list + detail panel, Delete behind confirmations, a "Health (n)" count, and the Clip Editor's error badge removed in Health's favour.
 - [ ] **A95F — Sprite Sheets over existing arrays** (`0.45.0`, built 2026-09-14, ⏸ T10 open) — [`A95F_SheetsFromArrays_Spec.md`](A95F_SheetsFromArrays_Spec.md). Owner's A95 answer: every project `Texture2DArray` listed, frames named by number until renamed; baked sheets import as grid PNGs with the project arrays' own settings.
 - [x] **A93 — Events tab** (`0.40.0`) — [`A93_EventsTab_Spec.md`](A93_EventsTab_Spec.md). Registry catalog, payload + usage, a routing table baked to a blob hosts read, a consumer-stub generator. Needs A84, A85.
 - [x] **A94 — Health tab** (`0.41.0`) — [`A94_HealthTab_Spec.md`](A94_HealthTab_Spec.md). One project-wide findings list replacing the per-clip badge for cross-asset problems. Needs A84, A89.
