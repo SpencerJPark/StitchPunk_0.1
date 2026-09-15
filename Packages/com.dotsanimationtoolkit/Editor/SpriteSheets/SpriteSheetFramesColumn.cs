@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
