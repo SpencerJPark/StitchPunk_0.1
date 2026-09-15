@@ -113,6 +113,22 @@ Run the fixtures (temp repos only, never the real project):
 25. **The broker refuses PlayMode fixtures** ("play-mode fixtures are not supported by the broker yet", A96 batch, 2026-09-14). A
     lead that needs one sends "gate needed"; the stage runs `stage-commit`, the compile gate, the PlayMode fixture and
     `restore-trunk`, then messages the verdict (which may resume a lead that already stopped, trap 22).
+27. **A file committed to trunk after a worktree forked deadlocks every later gate** (A104, 2026-09-15). The stage
+    orchestrator committed five Editor-generated `.md.meta` files to trunk; the a104 worktree had already forked. A
+    gate detaches the stage to the lead's commit, where those files do not exist, so the Editor regenerates them as
+    untracked. Restoring trunk then wants to write the tracked copies over them and git refuses: *"the following
+    untracked working tree files would be overwritten by checkout"*. `GateBroker` retried `git switch main` 180+
+    times over sixteen minutes, the request sat in `phase: "returning"`, `stage.busyWith` never cleared and no
+    result file was written — while the gate's own `tests.jsonl` already said 17 passed, 0 failed. The lead saw only
+    a silent gate and stopped twice waiting.
+    - **Read the Unity console, not just the CLI.** The retry line names the blocking files; `list --json` only ever
+      says `gating`.
+    - **Clearing it:** delete the untracked copies (diff them against trunk first — these were byte-identical), and
+      the next retry returns on its own.
+    - **Do not commit Editor-generated metas to trunk while a worktree is open.** Either land them before the fork or
+      hold them until after the merge. The A104 run reverted the commit and re-landed it at the close.
+    - A watchdog is cheap: a gate holding `stage.busyWith` for more than ~6 minutes is a stage problem, not a slow
+      test run.
 26. **`restore-trunk` leaves the empty folders a lead's commit created,** and the Editor then writes a folder `.meta` onto the stage
     as an untracked file (`Editor/Capture.meta`, twice in the A98 batch). Harmless for a branch that tracks no metas; a branch that
     commits that `.meta` would be refused at its next stage move. Check `git status` after every hand gate.
