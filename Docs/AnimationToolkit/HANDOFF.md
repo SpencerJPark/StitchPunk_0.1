@@ -120,6 +120,15 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Owner answers (2026-09-14) to A93 T16, A94 T14 and A95 T15, reworks specced, not built.** Events: routing is removed
+from the package and the right column becomes the usage list; no event entities (runtime events stay on the
+`AnimEventOutput` buffer, plus an `AnimEventBufferApi` helper); the owner's generated damage stub is converted, not
+deleted (`A93F_EventsTabRework_Spec.md`, `0.43.0`). Health: a big Scan button, a findings list beside a detail panel
+with fix actions, Delete behind confirmations for H01, H05 and stale H06 textures (`A94F_HealthTwoPanel_Spec.md`,
+`0.44.0`). Sprite Sheets: every project `Texture2DArray` listed, frames named by number until renamed, thumbnails by
+GPU `CopyTexture` (`A95F_SheetsFromArrays_Spec.md`, `0.45.0`). Batch prompt:
+`Assets/_Vault/Spencer/next-session-parallel-a93f-a95f-prompt.md`; A96–A98 follow at `0.46.0`–`0.48.0`.
+
 **Built (2026-09-14): Amendment A95 — Sprite Sheets tab — 0.42.0**, **T15 owner checkpoint open.** Spec:
 `Assets/_Vault/Tasks/AnimationPackage/A95_SpriteSheetsTab_Spec.md` (§7: drifts, integration, drive). Built in a
 parallel worktree batch with A93 and A94, integrated in `ffdc6754`. The tab (`Editor/SpriteSheets/`) lists

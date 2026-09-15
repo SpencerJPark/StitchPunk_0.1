@@ -1,6 +1,6 @@
 # Amendment A94 — Health tab: one project-wide findings list
 
-> **Status:** ✅ built 2026-09-14 as `0.41.0` in the parallel worktree batch A93–A95; ⏸ T14 owner checkpoint open.
+> **Status:** ✅ built 2026-09-14 as `0.41.0` in the parallel worktree batch A93–A95; T14 answered 2026-09-14; rework specced as A94F.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2, second.
 > **Predecessors:** A82 (split view), A84 (reference index), A89 (VAT freshness), A91
 > (`ProfileP2Scan`), A86 (`AnimEventValidation`).
@@ -168,7 +168,7 @@ calling every rule in code order; plain noun, allowlist.
 - [x] **T12 — Vault + HANDOFF.** Vault note "Health tab (A94)": D4's timing, the rule-file layout.
   HANDOFF §4; §7 loses any bullet a rule now covers.
 - [x] **T13 — Close.** Roadmap checkbox.
-- [ ] **T14 — ⏸ owner checkpoint.** Message: "Open Health and press Scan. The findings on your
+- [x] **T14 — ⏸ owner checkpoint.** Message: "Open Health and press Scan. The findings on your
   project are: [paste §7's list]. Click a row to ping. Say which rules are noise and whether H01
   should offer Delete."
 
@@ -256,3 +256,13 @@ calling every rule in code order; plain noun, allowlist.
 - **H09 fix (T11)** on `Assets/A94Scratch/A94DriveClip.asset`: created with an unpersisted id, H09 found with fix "Save", fix run, 0 H09 in memory and the asset not dirty; after `Resources.UnloadAsset` + reload still 0 H09, `HasUnpersistedStableId` false, serialized JSON identical across the reload. Scratch deleted.
 - **Panel:** detached `new HealthPanel()` + `Bind()` built (55 elements), reported `StaleVatBakeCount` 1, disposed.
 - **Not verified:** Remove missing (it would edit the real `NewClipSet`) and Rebake (it jumps the docked window) were not clicked; H03, H07 and H08 have no fixture and find nothing on this project. Wording for the checkpoint: an unbaked set reads "on rig 'no rig'". No capture (docked window).
+
+### Owner checkpoint answer (T14, 2026-09-14)
+
+- **Owner:** Scan should be a much bigger, more obvious button. Most of the information is cramped and hard to read.
+  Delete is a fine option where it makes sense, still with a warning. Rather than the list being the bulk of the tab,
+  use two panels: the list, and a panel showing the detail and the options for dealing with the issue.
+- **Settled:** Delete, behind a confirmation naming the asset and its usage, for H01 (clip in no set), H05 (unused
+  rig) and a stale H06's existing VAT textures.
+- **Still open:** the "Health (n)" tab-strip count was not answered; A94F's checkpoint asks again.
+- **Rework:** [`A94F_HealthTwoPanel_Spec.md`](A94F_HealthTwoPanel_Spec.md) (`0.44.0`).

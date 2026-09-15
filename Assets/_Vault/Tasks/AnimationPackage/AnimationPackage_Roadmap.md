@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` and accepted the same day. A88 built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; 13 T0 drifts settled in its §7); its T9 owner checkpoint is open. A92 built 2026-09-14 as `0.39.0` (13 T0 drifts in its §7; cutscene part tracks included and merge payloads left raw, owner calls 2026-09-14); its T10 owner checkpoint is open. A93 (`0.40.0`), A94 (`0.41.0`) and A95 (`0.42.0`) built 2026-09-14 in one parallel worktree batch, integrated in `ffdc6754` (A93's routing asset default moved to `Assets/Generated/DotsAnimationToolkit/` by Conformance_D); their T16, T14 and T15 owner checkpoints are open. Next: A96, A97 and A98 (`Assets/_Vault/Spencer/next-session-parallel-a96-a98-prompt.md`).
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` and accepted the same day. A88 built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; 13 T0 drifts settled in its §7); its T9 owner checkpoint is open. A92 built 2026-09-14 as `0.39.0` (13 T0 drifts in its §7; cutscene part tracks included and merge payloads left raw, owner calls 2026-09-14); its T10 owner checkpoint is open. A93 (`0.40.0`), A94 (`0.41.0`) and A95 (`0.42.0`) built 2026-09-14 in one parallel worktree batch, integrated in `ffdc6754` (A93's routing asset default moved to `Assets/Generated/DotsAnimationToolkit/` by Conformance_D); their T16, T14 and T15 checkpoints were answered the same day and reworked as A93F, A94F and A95F (specced, `0.43.0`–`0.45.0`). Next: A93F–A95F in parallel (`Assets/_Vault/Spencer/next-session-parallel-a93f-a95f-prompt.md`), then A96, A97 and A98 at `0.46.0`–`0.48.0` (`Assets/_Vault/Spencer/next-session-parallel-a96-a98-prompt.md`).
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -23,20 +23,8 @@
 >   them all back. The same flow is behind Merge into… on an Event Keys row, Replace in clips with… on a
 >   Target Tags row, and right-click on a Rigs tab Tag button. Merge also rewrites the event registry, which
 >   has uncommitted edits. Question: do the dialog wording and the four entry points read right?
-> - [ ] **A93 T16 (built 2026-09-14 as `0.40.0`, not yet seen):** Clip Editor ▸ Events. Left: your event keys
->   with the 64-key budget line. Middle: the selected key's fields and every clip, cutscene and profile using it
->   (click a row to ping it). Right: its routes, and Generate consumer stub…. Two questions: the routing asset now
->   auto-creates at `Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset` (the spec said
->   `Assets/Settings/…`; the package may only name `Assets/Generated`) — right place? Should the Routes column
->   exist at all, or is the stub alone enough?
-> - [ ] **A94 T14 (built 2026-09-14 as `0.41.0`, not yet seen):** Clip Editor ▸ Health ▸ Scan. Expect three
->   rows: H06 `VatSampleTentacleClips` unbaked (pinned first, Rebake + Locate), H02 `NewClipSet` lists 3 missing
->   clips (Remove missing), H05 `VatSampleTentacleRig` used by no profile. Questions: which rules are noise? Should
->   H01 offer Delete? Should the tab read "Health (1)" while a stale or unbaked VAT finding exists?
-> - [ ] **A95 T15 (built 2026-09-14 as `0.42.0`, not yet seen):** Clip Editor ▸ Sprite Sheets ▸ New, drag four
->   same-size images in from Images, reorder, Bake, Save; drag the array into a `ToolkitSpriteUnlitArray`
->   material's `_MainTexArray`. Then on a sprite key pick a Frame by name. Questions: want a compressed-array
->   follow-up (arrays bake uncompressed RGBA32)? Schedule the game-side task retiring `TextureArrayBuilder.cs`?
+> - [ ] **A95 leftovers (asked 2026-09-14, not answered):** want a compressed-array follow-up (sheets bake
+>   uncompressed RGBA32)? Schedule the game-side task retiring `TextureArrayBuilder.cs`?
 > - Answering any of these ticks its box below and updates the status line above.
 
 Tick a box only when the spec's own status line says built **and** its ⏸ owner checkpoint (if any)
@@ -63,9 +51,12 @@ free minor and correct the spec's status line.
 
 ### Phase 2 — tabs (A93 and A94 first; the rest in any order)
 
-- [ ] **A93 — Events tab** (`0.40.0`) — [`A93_EventsTab_Spec.md`](A93_EventsTab_Spec.md). Registry catalog, payload + usage, a routing table baked to a blob hosts read, a consumer-stub generator. Needs A84, A85.
-- [ ] **A94 — Health tab** (`0.41.0`) — [`A94_HealthTab_Spec.md`](A94_HealthTab_Spec.md). One project-wide findings list replacing the per-clip badge for cross-asset problems. Needs A84, A89.
-- [ ] **A95 — Sprite Sheets tab** (`0.42.0`) — [`A95_SpriteSheetsTab_Spec.md`](A95_SpriteSheetsTab_Spec.md). `Texture2DArray` flipbook builder with a contact-sheet preview, writing the layer indices sprite tracks already expect; frame-by-name picker on sprite keys. Atlas output dropped 2026-09-12 (spec D0).
+- [ ] **A93F — Events tab rework** (`0.43.0`) — [`A93F_EventsTabRework_Spec.md`](A93F_EventsTabRework_Spec.md). Owner's A93 answer: routing removed, the right column lists the animations using the event, `AnimEventBufferApi` helper, no event entities.
+- [ ] **A94F — Health tab rework** (`0.44.0`) — [`A94F_HealthTwoPanel_Spec.md`](A94F_HealthTwoPanel_Spec.md). Owner's A94 answer: big Scan, list + detail panel, Delete behind confirmations.
+- [ ] **A95F — Sprite Sheets over existing arrays** (`0.45.0`) — [`A95F_SheetsFromArrays_Spec.md`](A95F_SheetsFromArrays_Spec.md). Owner's A95 answer: every project `Texture2DArray` listed, frames named by number until renamed.
+- [x] **A93 — Events tab** (`0.40.0`) — [`A93_EventsTab_Spec.md`](A93_EventsTab_Spec.md). Registry catalog, payload + usage, a routing table baked to a blob hosts read, a consumer-stub generator. Needs A84, A85.
+- [x] **A94 — Health tab** (`0.41.0`) — [`A94_HealthTab_Spec.md`](A94_HealthTab_Spec.md). One project-wide findings list replacing the per-clip badge for cross-asset problems. Needs A84, A89.
+- [x] **A95 — Sprite Sheets tab** (`0.42.0`) — [`A95_SpriteSheetsTab_Spec.md`](A95_SpriteSheetsTab_Spec.md). `Texture2DArray` flipbook builder with a contact-sheet preview, writing the layer indices sprite tracks already expect; frame-by-name picker on sprite keys. Atlas output dropped 2026-09-12 (spec D0).
 - [ ] **A96 — Materials tab** (`0.43.0`) — [`A96_MaterialsTab_Spec.md`](A96_MaterialsTab_Spec.md). Every actor material against the shader contract; create-from-template.
 - [ ] **A97 — Retarget tab** (`0.44.0`) — [`A97_RetargetTab_Spec.md`](A97_RetargetTab_Spec.md). Clip × rig binding table with per-row tag remap and roster coverage.
 - [ ] **A98 — Capture tab** (`0.45.0`) — [`A98_CaptureTab_Spec.md`](A98_CaptureTab_Spec.md). PNG sequence (and optional GIF) from the preview camera for a clip, profile animation or cutscene.

@@ -1,6 +1,6 @@
 # Amendment A95 — Sprite Sheets tab: Texture2DArray flipbook builder
 
-> **Status:** ✅ built 2026-09-14 as `0.42.0` in the parallel worktree batch A93–A95 (spec rewritten 2026-09-12, atlas dropped, §2 D0; T12 drive partial, see §7); ⏸ T15 owner checkpoint open.
+> **Status:** ✅ built 2026-09-14 as `0.42.0` in the parallel worktree batch A93–A95 (spec rewritten 2026-09-12, atlas dropped, §2 D0; T12 drive partial, see §7); T15 answered 2026-09-14; rework specced as A95F.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** A81 (the Images catalog and `TexturePackBaker`'s readable-copy pattern), A82
 > (column, split view). The Texture Packer packs **channels**; this tab stacks **frames** — they are
@@ -214,7 +214,7 @@ Bake, unsaved marker, output path), three columns, `Dispose`.
 - [x] **T13 — Vault + HANDOFF.** Vault note "Sprite Sheets tab (A95)": D0's two facts and the T0
   mip probe result.
 - [x] **T14 — Close.** Roadmap checkbox.
-- [ ] **T15 — ⏸ owner checkpoint.** Message: "Sprite Sheets tab: New, drag frames in from Images,
+- [x] **T15 — ⏸ owner checkpoint.** Message: "Sprite Sheets tab: New, drag frames in from Images,
   reorder, Bake, Save, drag the array into the part material. Then in the Clip Editor pick a frame
   by name on a sprite key. ⚠ Arrays bake as uncompressed RGBA32 — want a compressed-format
   follow-up? And the game-side G-task retiring `TextureArrayBuilder.cs` (D10) — schedule it?"
@@ -307,3 +307,17 @@ Bake, unsaved marker, output path), three columns, `Dispose`.
   - Panel: detached `new SpriteSheetsPanel()`, `RescanProject()`, `LoadSheet` built (190 elements, one contact sheet) without dirtying the loaded sheet; disposed.
 - **Traps found:** a detached `PopupField` never dispatches its `ChangeEvent` (no panel), so a drive must host popups in a window; `SpriteSliceSpace` is `Absolute`/`RelativeToRest` on the track, while RelativeToBase is the per-key `SpriteIndexMode` the picker reads.
 - **Not verified:** the Play-mode step (the array in a `ToolkitSpriteUnlitArray` material on the composite sample actor), because the batch's owner cautions forbid Play mode; `ClipInspectorPane` itself was not rendered (its write expression was called directly); drag-reorder in the Frames ListView; no capture (docked window).
+
+### Owner checkpoint answer (T15, 2026-09-14)
+
+- **Owner:** unsure of the tab's purpose. The explanation given:
+  - the project's part arrays are grid PNGs Unity already imports as `Texture2DArray`s (`textureShape: 4`, 8×8), so
+    the stacker mostly duplicates the importer;
+  - frame names are labels only, since keys store the layer number;
+  - only 11 sprite keys are hand-authored (Blink 9, DeathFace 2).
+- **Decision:** keep the naming option, but the existing arrays must show up in the tab, with frame names defaulting
+  to numbers.
+- **Not answered:** the compressed-array follow-up and scheduling the game-side `TextureArrayBuilder.cs` retirement.
+- **Rework:** [`A95F_SheetsFromArrays_Spec.md`](A95F_SheetsFromArrays_Spec.md) (`0.45.0`). A spec gap worth
+  remembering: A95 assumed nothing in the project built arrays, and D0 missed that the importer already turns a grid
+  PNG into an array.

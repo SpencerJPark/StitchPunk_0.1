@@ -1,6 +1,6 @@
 # Amendment A93 — Events tab: registry, payload, usage, routing table, consumer stubs
 
-> **Status:** ✅ built 2026-09-14 as `0.40.0` in the parallel worktree batch A93–A95 (T13 drive partial, see §7); ⏸ T16 owner checkpoint open.
+> **Status:** ✅ built 2026-09-14 as `0.40.0` in the parallel worktree batch A93–A95 (T13 drive partial, see §7); T16 answered 2026-09-14; rework specced as A93F.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2, first.
 > **Predecessors:** A82 (catalog column, split view), A84 (usage index), A85 (payload schema),
 > A87 (preview clip). Optional: A92 (Merge lands on the row menu if built).
@@ -193,7 +193,7 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
 - [x] **T14 — Vault + HANDOFF.** Vault note "Events tab (A93)": D2's call, D4's location, the
   "never handles" rule restated. HANDOFF §4.
 - [x] **T15 — Close.** Roadmap checkbox.
-- [ ] **T16 — ⏸ owner checkpoint.** Message: "Open the Events tab. Left: your keys with the
+- [x] **T16 — ⏸ owner checkpoint.** Message: "Open the Events tab. Left: your keys with the
   64-key budget. Middle: fields and where each key is used — click a row to ping it. Right: routes;
   press Generate consumer stub and read the file it wrote. Two ⚠: the routing asset auto-creates
   under Assets/Settings/DotsAnimationToolkit/ — right place? And should the routes column exist at
@@ -313,3 +313,17 @@ A93 (0.40.0) adds the Clip Editor's Events tab. Keys (left) is the project event
   - Stub: `WriteToFolder` wrote `A93DriveAnimEventSystem.cs` (3 kinds, 3 `case`s, no `var`); a compile gate built it into Assembly-CSharp as an `ISystem`, console clean. Deleted and recompiled.
   - Panel: detached `new EventsPanel()` + `Bind(copy)` built (71 elements, one ListView) and disposed.
 - **Not verified:** the subscene + Play-mode singleton read (`AnimEventRoutingAuthoring` in `DOTSTestScene`); the batch's owner cautions forbid opening scenes and entering Play, so `TryGetRoutes` is proven by its fixture only. The Keys column's New, Rename, Delete and Merge were not clicked (they persist the project registry or open modal dialogs). No capture: the tab lives only in the owner's docked window, which the batch must not drive.
+
+### Owner checkpoint answer (T16, 2026-09-14)
+
+- **Owner:** a whole panel that generates one routing `ISystem`, which a game only ever needs one of, makes no sense.
+  Spawning systems for specific events, or event entities, might; either way the right panel would be better as the
+  list of animations that use the event.
+- **Settled in the same conversation:**
+  - Routing is removed from the package: asset, authoring and baker, builder, blob, Api, asset utility, the stub
+    generator and `EventRoutesColumn`. Q1 (the routing asset's location) is moot.
+  - No event entities. After a buffer-vs-entities trade-off (an entity per event is a structural change every frame),
+    runtime events stay on the per-actor `AnimEventOutput` buffer, plus a Burst `AnimEventBufferApi` helper.
+  - The owner's generated `Assets/_Scripts/Systems/CombatSystemGroup/DamageEventSystemAnimEventSystem.cs` (untracked)
+    is converted to the helper by the stage, not deleted.
+- **Rework:** [`A93F_EventsTabRework_Spec.md`](A93F_EventsTabRework_Spec.md) (`0.43.0`).

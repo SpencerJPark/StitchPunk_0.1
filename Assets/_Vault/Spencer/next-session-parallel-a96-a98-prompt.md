@@ -1,15 +1,18 @@
 You are the **stage orchestrator** for a parallel batch on the DOTS Animation Toolkit package
-(Packages/com.dotsanimationtoolkit, version 0.42.0 after the A93–A95 batch). Three specs run at once in their own
+(Packages/com.dotsanimationtoolkit, version 0.45.0 after the A93F–A95F follow-up batch; run
+`Assets/_Vault/Spencer/next-session-parallel-a93f-a95f-prompt.md` first). Three specs run at once in their own
 git worktrees, each under a `spec-lead`, through the Worktree Toolkit (`/worktree-run`,
 Packages/com.worktreetoolkit). You alone touch mcp__UnityMCP__*, merge, integrate, drive and close.
 
 | Spec | Path | Version | Tab slot |
 |---|---|---|---|
-| a96 | Assets/_Vault/Tasks/AnimationPackage/A96_MaterialsTab_Spec.md | 0.43.0 | `ClipEditorTab.Materials = 10` |
-| a97 | Assets/_Vault/Tasks/AnimationPackage/A97_RetargetTab_Spec.md | 0.44.0 | `ClipEditorTab.Retarget = 11` |
-| a98 | Assets/_Vault/Tasks/AnimationPackage/A98_CaptureTab_Spec.md | 0.45.0 | `ClipEditorTab.Capture = 12` |
+| a96 | Assets/_Vault/Tasks/AnimationPackage/A96_MaterialsTab_Spec.md | 0.46.0 | `ClipEditorTab.Materials = 10` |
+| a97 | Assets/_Vault/Tasks/AnimationPackage/A97_RetargetTab_Spec.md | 0.47.0 | `ClipEditorTab.Retarget = 11` |
+| a98 | Assets/_Vault/Tasks/AnimationPackage/A98_CaptureTab_Spec.md | 0.48.0 | `ClipEditorTab.Capture = 12` |
 
 Why these three:
+- **Versions moved:** the three specs' status lines still say 0.43.0–0.45.0; take 0.46.0–0.48.0 and correct each
+  status line (roadmap rule).
 - **A96** needed A95 (built 0.42.0); it only reads sheet-bound sprite tracks. Its T0 is greps, so the lead can
   do it.
 - **A97** needed A84 and A92 (both built); its T0 reads `ValidateBind`, also a grep.
@@ -43,32 +46,20 @@ gates green. No review swap is needed. Delete this line to require my word per m
    - Owner's A92 T10 answer: <PASTE HERE>
      - Strings are in `Editor/ClipEditor/Editing/RefactorPromptEditing.cs`.
      - Gate: `RefactorTargetResolverTests`. Commit A92-T11.
-   - Owner's A93 T16 answer: <PASTE HERE>
-     - Q1, routing asset location: now `AnimEventRoutingAssetUtility.DefaultAssetPath` =
-       `Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset`. Conformance_D allows only `Assets/Generated`
-       in package files, so any other folder needs an owner call about that rule.
-     - Q2, keep the Routes column?
-     - Gate: `AnimEventRoutingApiTests`, `AnimEventRoutingBuilderTests`, `AnimEventConsumerStubBuilderTests`,
-       `PackagingConformanceTests`. Commit A93-T17.
-   - Owner's A94 T14 answer: <PASTE HERE>
-     - Noise rules; H01 Delete; the "Health (n)" tab count. For the count, `HealthPanel.StaleVatBakeCount` +
-       `FindingsChanged` exist, and `ShowHealthTab` in `ClipEditorWindow.cs` builds the panel lazily, so a count
-       before first open means an eager build.
-     - Gate: `HealthScanTests`, `HealthRulesTests`, `ClipEditorLayoutTests`. Commit A94-T15.
-   - Owner's A95 T15 answer: <PASTE HERE>
-     - Compressed arrays follow-up? Schedule the game-side G-task retiring `TextureArrayBuilder.cs`?
-     - Either is a new spec or task note, not a code change here. Commit A95-T16.
+   - A93 T16, A94 T14 and A95 T15 were answered 2026-09-14 and reworked as A93F–A95F. If the follow-up
+     batch left its own checkpoint answers unrecorded, add slots for A93F T10, A94F T12 and A95F T10 here.
 2. **Preflight:** `python Packages/com.worktreetoolkit/Tools~/worktree.py doctor --json`.
    - Stop if git fails, hooks aren't installed, or `brokerAlive` is false.
    - `stageBlockers` listing only the owner's uncommitted files is expected (trap 13).
 3. **Baseline:** compile gate, then full suites (`DotsAnimationToolkit.Tests.EditMode`, then `.PlayMode`).
-   - Expected at the A93–A95 close: EditMode 850 with only the standing Conformance_A failure, PlayMode 285.
+   - Expected: the totals the A93F–A95F close recorded (A93–A95 closed at EditMode 850, standing Conformance_A
+     only, and PlayMode 285; A93F removes three fixtures and adds one).
 4. **Unity-bound T0 work** (leads cannot do it); paste the results into that lead's prompt:
    - **A98 T0:** the D3 GIF timing probe (read A98 §2 D3 and §5 T0 in full; `execute_code` is CodeDom C# 6, no
      local functions). Also record whether `PreviewRenderUtility` owns the camera's target (grep `targetTexture`
      and `BeginPreview` in the preview controllers). The probe decides whether A98's GIF task runs; tell the lead
      the verdict.
-   - **All three:** confirm CHANGELOG's top section is `## [0.42.0]` (or the newest owner-answer version).
+   - **All three:** confirm CHANGELOG's top section is `## [0.45.0]` (or the newest owner-answer version).
 5. Record the sha256 of `ProjectSettings/DotsAnimationToolkitAnimEventKeyRegistry.asset` and
    `ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset`. Record the results in each spec's §7 (commit only
    those files), push, so the worktrees branch from it.
@@ -159,19 +150,19 @@ A gate is real only when its passed count equals the tests named. Conformance_A 
    - Then `worktree.py remove <id>` for each.
 2. **One integration commit** "A96-A98 integration", built from the three For-integration blocks:
    - enum members 10/11/12;
-   - UXML toggles and panes after Sprite Sheets;
+   - UXML toggles and panes at the end of the strip, after Health (the owner reordered the strip in `f51cad62`);
    - fields, pane lookups, BindTab, ApplyActiveTab Show calls, Show…Tab methods, and teardown in
      `ClipEditorWindow.cs`;
    - `tabToggles` sized 13;
    - both tab-name lists and the pane list in `ClipEditorLayoutTests`;
    - `index.md`;
-   - CHANGELOG `## [0.45.0]`, `## [0.44.0]` and `## [0.43.0]`, newest on top;
-   - `package.json` 0.45.0;
-   - the conformance pin (comment gains 0.43.0–0.45.0, Assert at 0.45.0);
+   - CHANGELOG `## [0.48.0]`, `## [0.47.0]` and `## [0.46.0]`, newest on top;
+   - `package.json` 0.48.0;
+   - the conformance pin (comment gains 0.46.0–0.48.0, Assert at 0.48.0);
    - the Conformance_G allowlist.
 
    Then the compile gate, the three specs' fixtures + `ClipEditorLayoutTests` + `PackagingConformanceTests`.
-3. **Full suites once.** Totals must not drop below 850/285 plus the new fixtures.
+3. **Full suites once.** Totals must not drop below the A93F–A95F close totals plus the new fixtures.
 4. **Drives:** A96, A97 and A98's drive tasks, one at a time, following the cautions below. Record the results in
    each spec's §7. Proven patterns from A93–A95:
    - `EditorJsonUtility` round trip of a `CreateInstance` registry copy;
