@@ -200,6 +200,13 @@ asset beside the array, which the sprite key picker uses.
   - **Drift 8: how settings are copied.** Default-platform settings go through the importer's own `maxTextureSize` / `textureCompression` / `crunchedCompression` / `compressionQuality`. Per-platform overrides are copied over a fixed platform-name list, because no API enumerates overrides.
   - **Drift 9: `generateMips` defaults to true** (S-D8's defaults).
 - **2026-09-14 — T1** committed `7fa86f08`. Gate SpriteSheetValidationTests + PackagingConformanceTests: compile clean, 13 passed, 1 failed (Conformance_A, the standing failure).
+- **2026-09-14 — T2..T7 wave** committed `705146d4` (six workers, all reported before the gate).
+  - **Gate:** SpriteSheetArrayNamesTests, SpriteSheetValidationTests, SpriteSheetBakerTests, ClipEditorAddEventTests and PackagingConformanceTests. Compile clean; 18 passed, 1 failed (Conformance_A only), 19 tests named. One "Unity is compiling" refusal was retried.
+  - **Revert-to-fail:** mutation `6e524bc2` skipped the existing-sheet lookup and the grid y flip.
+    - `GetOrCreateSheetForArray_NamesByIndex_AndReusesTheExistingSheet` failed, returning a second sheet ("NamesTestArray_Sheet 1").
+    - `Bake_LayerOrderIsListOrder` failed: layer 0 read 0, where 255 was expected.
+  - **Reset:** `git reset --hard HEAD~1` restored both files; their sha256s match the pre-mutation hashes.
+  - **Unverified:** the panel, frames column and Sheet field have no fixture. Their UI behaviour is left to the stage drive, T8.
 
 ### For integration
 
