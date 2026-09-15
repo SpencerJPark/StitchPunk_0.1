@@ -238,3 +238,53 @@ Bake, unsaved marker, output path), three columns, `Dispose`.
   canvas anyway. Owner confirmed; atlas dropped, tab redefined as the array builder (D0).
 - **2026-09-14 — stage Phase 0 (parallel batch A93–A95, stage orchestrator).** Baseline at `bdd439b9`: compile clean; EditMode 840 (standing `Conformance_A` failure only), PlayMode 285. CHANGELOG top is `## [0.39.0]`. A88 T9 and A92 T10 were unanswered at batch start. Registry sha256: event keys `3bdb420d…d14701`, tags `dbec3d5f…d1eb4f`. T0 (no-Unity part), T1, the wave and the fixtures run under a `spec-lead` in its own worktree; window wiring, CHANGELOG, `package.json`, conformance pin, drive, vault, HANDOFF and close stay with the stage orchestrator.
 - **T0 mip probe (stage, `execute_code`).** `new Texture2DArray(4, 4, 2, RGBA32, mipChain: true)`, `SetPixels32` layer 0 red and layer 1 green, `Apply(true)`: `mipmapCount` 3, `isReadable` true; `GetPixels32(layer: 1, mip: 1)` has 4 pixels of (0,255,0,255); `GetPixels32(0, 2)` has 1 pixel of (255,0,0,255). Unity generates each layer's mips from level 0, so D5's `generateMips` needs no per-layer mip sources.
+- **2026-09-14 - spec-lead worktree build (branch `spec/a95`, lead opus, workers sonnet).** T0 no-Unity part (greps), T1 and the T2-T10 wave. T1 `3b36f652` committed `SpriteSheetAsset` + `SpriteSheetFrame`, `SpriteTrack.sheet`, and compiling stubs for every type the wave shares (so nine workers built against pinned signatures); T1 gate pass (compile clean, `ClipEditorAddEventTests` 1/1).
+- **T0 drifts (code reading, no Unity):**
+  1. `TexturePackRecipeAsset` lives in `Editor/TexturePacker/` (Editor assembly), not `Authoring/Assets/`. `SpriteSheetAsset` still goes in `Authoring/Assets/` as D2 says, because `SpriteTrack.sheet` (Authoring) references it; the SO and `SpriteSheetFrame` therefore ship in the Authoring assembly.
+  2. D6 serialized type change confirmed safe: `ClipRegistryBuilder` sprite entries (lines 588-619) carry the track object, and the blob fill (lines 738-747) copies only `mode`, `sliceSpace`, `baseIndex` and `keys` by name; the content hash (line 1114) reads the blob. `ClipValidation` never reads the field. So `sheet` is never baked and never changes a content hash.
+  3. `MirrorClipUtility` (line 429) copies a `SpriteTrack` field by field and would have dropped `sheet`; T1 adds `sheet = sourceTrack.sheet`. `ClipComponentModel` line 775 builds a fresh track (null sheet is right).
+  4. `ImageCatalogColumn` has no Add button: `ImagesActivated` fires on double-click. D4's "multi-select and press Add" is double-click in the panel; drag of the multi-selection is unchanged.
+  5. D5's Save-only rule: the Texture Packer keeps its graph apart from the recipe, but a sheet has no separate model. The panel edits a `HideAndDontSave` working copy (`SpriteSheetAssetUtility.CreateWorkingCopy`, `SaveWorkingCopy` = `EditorUtility.CopySerialized` + `SaveAssetIfDirty`), so a project-wide save never writes unsaved sheet edits. Bake writes only the array.
+  6. `TexturePackRecipeAssetUtility` calls `AssetDatabase.SaveAssets()`; the sprite sheet utility does not (`CreateAsset` and `RenameAsset` write on their own).
+  7. The vault pattern "writing a texture asset in place" is for PNGs (`File.WriteAllBytes` + `ImportAsset`). A `Texture2DArray` `.asset` has no source file, so the baker overwrites by `EditorUtility.CopySerialized(newArray, existing)` + `SaveAssetIfDirty` to keep the GUID. The fixture covers only the first write; the overwrite path is unverified until the T12 drive bakes twice.
+  8. The inspector has two sprite-key surfaces, not one: `AddSelectedFlipbookKeyFields` (selected key) and `BuildFlipbookTrackBlock` (playhead block, refreshed on scrub through `LiveFlipbookBinding`). D6 is applied to both, the frame popup rides the live binding, and the picker is extracted into `Editor/ClipEditor/Panes/SpriteSheetFramePickerBuilder.cs` (static, `Builder` suffix) so the pane edit stays small. Stored values go through the existing `SpriteIndexResolver.StoredValueFor`.
+  9. `AssetReferenceIndex` does not index `SpriteTrack.sheet`: renaming a sheet is safe (GUID ref) and trashing one leaves tracks with a missing reference, which loads as null and simply hides the pickers. Left for a later A84 follow-up.
+  10. Additions beyond the spec text: `SpriteSheetAsset.FindFrameByLayerIndex`, a `…` output-path chooser in the panel, and a size column in the Frames list that flags a mismatch before Bake.
+
+### For integration
+
+**CHANGELOG** (`## [0.42.0]`):
+
+```
+## [0.42.0] - 2026-09-14
+
+### Added
+- Sprite Sheets tab: stacks same-size frames from the Images catalog into one Texture2DArray (uncompressed RGBA32, optional mips, Point/Clamp defaults) and names every layer in a new `SpriteSheetAsset`. Drag or double-click images into Frames, drag rows to reorder (list order is layer order), Bake writes `T_<Sheet>_Array.asset` beside the sheet or overwrites the chosen array in place; the sheet is written only by Save, with the unsaved marker and discard prompt. The contact sheet shows every layer as a thumbnail, names it on hover and selects its row on click.
+- Clip Editor sprite key inspector: a Sheet field per sprite track and Frame / Base Frame dropdowns that pick by name. Absolute keys store the frame's layer, RelativeToBase keys the layer minus the base; the raw index stays visible but read-only while a sheet is bound. AtlasRect tracks show the Sheet field disabled ("sheets bind Slice tracks").
+- `SpriteTrack.sheet` (authoring-only, never baked: the clip blob and content hash are unchanged; a missing field deserializes to null).
+- Documentation: `sprite-sheets.md`; `cutout-characters.md` points at the tab.
+
+### Notes
+- No atlas or grid PNG builder: slice keys address Texture2DArray layers, and an atlas rect only remaps UVs on a fixed quad.
+```
+
+**Conformance_G:** no allowlist names needed. `SpriteSheetValidation` (Validation), `SpriteSheetAssetUtility` (Utility, in `Editor/ClipUtilities`) and `SpriteSheetFramePickerBuilder` (Builder) use role suffixes; `SpriteSheetBaker`, `SpriteSheetsPanel`, `SpriteSheetCatalogColumn`, `SpriteSheetFramesColumn` and `SpriteSheetPreviewElement` are instance classes.
+
+**Wiring (stage):**
+- `ClipEditorTab.SpriteSheets = 9`, after Health.
+- UXML toggle `tab-sprite-sheets`, text "Sprite Sheets"; pane `sprite-sheets-pane`.
+- Window field `private SpriteSheetsPanel spriteSheetsPanel;`. Mirror `texturePackerPanel` exactly (`ClipEditorWindow.cs` 1430-1438 and 736-739 at `527e3b5f`). In `Show…Tab`, when shown and the panel is null: `spriteSheetsPanel = new SpriteSheetsPanel(); spriteSheetsPane.Add(spriteSheetsPanel);`, and on every show `spriteSheetsPanel.RescanProject();`. In teardown: `spriteSheetsPanel.Dispose(); spriteSheetsPanel = null;`.
+- There is no Bind: the panel is complete after construction and works detached. Optional opener (not built, window-side): double-clicking a `SpriteSheetAsset` calls `spriteSheetsPanel.LoadSheet(sheet)`, like `TexturePackRecipeAssetOpener` + `ClipEditorWindow.cs:340`.
+- `index.md`: add `[Sprite Sheets](sprite-sheets.md)` beside the Texture Packer entry.
+- Layout test: the pane name `sprite-sheets-pane` and panel element names `sprite-sheet-catalog-column`, `image-catalog-column`, `sprite-sheet-frames-column`, `sprite-sheet-preview`. Split prefs keys: `SpriteSheets.Sidebar`, `SpriteSheets.Catalogs`, `SpriteSheets.Frames`.
+
+**Vault-note traps (Sprite Sheets tab, A95):**
+- `SpriteTrack.sheet` is a serialized type change on `ClipAsset`, authoring-only. `ClipRegistryBuilder` copies `mode`, `sliceSpace`, `baseIndex` and `keys` by name, so the blob and content hash ignore it. A new field-by-field track copy (see `MirrorClipUtility`) must carry `sheet` or the picker silently vanishes on the copy.
+- `SpriteSheetAsset` lives in the Authoring assembly because `ClipAsset` references it. A clip that reaches a player build would drag the sheet and its array along.
+- The tab edits a `HideAndDontSave` working copy; Save is `CopySerialized` + `SaveAssetIfDirty`. Editing the loaded asset directly would let any project-wide save write unsaved sheet edits.
+- A `Texture2DArray` cannot be resized. Overwrite in place is `CopySerialized(newArray, existing)`, not the PNG write-bytes pattern; the overwrite path is proven only by the drive.
+- Unity generates each array layer's mips from level 0 (T0 probe), so `generateMips` needs no per-layer sources.
+- `SpriteSheetBakerTests` writes only under `Assets/A95TestScratch/` and deletes it in TearDown; it never calls `SaveAssets`.
+- Frame lookups are by `frame.index` (the layer), not list position. They agree only after a Bake renumbers, and a reorder renumbers immediately.
+
+**HANDOFF draft:** A95 (0.42.0) adds the Sprite Sheets tab (`Editor/SpriteSheets/`): a catalog of `SpriteSheetAsset`s over the Images catalog, a reorderable Frames list whose order is the layer order, and a contact sheet. Bake stacks the frames into one uncompressed RGBA32 `Texture2DArray` (`SpriteSheetBaker`, byte-exact decode with a blit fallback, overwrite in place by `CopySerialized`). The sheet is edited as a working copy and written only by Save. The Clip Editor's sprite inspector binds a sheet per track (`SpriteTrack.sheet`, never baked) and picks frames and the base frame by name, through `SpriteSheetFramePickerBuilder`. No atlas builder by owner call. Open: the owner checkpoint (compressed-array follow-up? the D10 game-side G-task retiring `TextureArrayBuilder.cs`?), and a drive that bakes twice to prove the overwrite path.

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
-using System;
+using System.IO;
+using UnityEditor;
+using UnityEngine;
 using DotsAnimationToolkit.Authoring;
 
 namespace DotsAnimationToolkit.Editor
@@ -11,45 +13,142 @@ namespace DotsAnimationToolkit.Editor
         public const string SheetFolderPrefsKey = "DotsAnimationToolkit.SpriteSheets.SheetFolder";
         public const string DefaultAssetName = "NewSpriteSheet";
 
+        // The last folder a sheet was created, saved or picked in, when it still exists; otherwise "Assets".
         public static string RecallSheetFolder()
         {
-            throw new NotImplementedException();
+            string storedFolder = EditorPrefs.GetString(SheetFolderPrefsKey, string.Empty);
+            return !string.IsNullOrEmpty(storedFolder) && AssetDatabase.IsValidFolder(storedFolder)
+                ? storedFolder
+                : "Assets";
         }
 
         public static void RememberSheetFolder(string projectRelativeFolder)
         {
-            throw new NotImplementedException();
+            EditorPrefs.SetString(SheetFolderPrefsKey, projectRelativeFolder);
         }
 
+        // Asks for a name and folder (starting in the remembered folder) and creates an empty sheet there. Null when the owner cancels.
         public static SpriteSheetAsset CreateSheetWithPrompt()
         {
-            throw new NotImplementedException();
+            string chosenPath = EditorUtility.SaveFilePanelInProject(
+                "New sprite sheet",
+                DefaultAssetName,
+                "asset",
+                "Choose the sprite sheet's name and folder.",
+                RecallSheetFolder());
+
+            return string.IsNullOrEmpty(chosenPath) ? null : CreateSheet(chosenPath);
         }
 
+        // Creates an empty sheet at exactly assetPath (must end in .asset, under the project). Null when the path is unusable. What the prompt and the drive both call.
         public static SpriteSheetAsset CreateSheet(string assetPath)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrEmpty(assetPath) ||
+                !assetPath.StartsWith("Assets/", System.StringComparison.Ordinal) ||
+                !assetPath.EndsWith(".asset", System.StringComparison.Ordinal))
+            {
+                Debug.LogWarning(
+                    "[DOTS Animation Toolkit] Sprite Sheets: Cannot create a sprite sheet at '" + assetPath + "'.");
+                return null;
+            }
+
+            SpriteSheetAsset newSheet = ScriptableObject.CreateInstance<SpriteSheetAsset>();
+
+            AssetDatabase.CreateAsset(newSheet, assetPath);
+
+            string containingFolder = Path.GetDirectoryName(assetPath);
+            RememberSheetFolder(containingFolder != null ? containingFolder.Replace('\\', '/') : "Assets");
+
+            return newSheet;
         }
 
         public static bool RenameSheet(SpriteSheetAsset sheet, string newName)
         {
-            throw new NotImplementedException();
+            if (sheet == null || string.IsNullOrWhiteSpace(newName))
+            {
+                return false;
+            }
+
+            string sanitizedName = ClipSetSaveLocation.SanitizeAssetName(newName);
+            if (sheet.name == sanitizedName)
+            {
+                return false;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(sheet);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            string failureReason = AssetDatabase.RenameAsset(assetPath, sanitizedName);
+            if (!string.IsNullOrEmpty(failureReason))
+            {
+                Debug.LogWarning(
+                    "[DOTS Animation Toolkit] Sprite Sheets: Could not rename sprite sheet to '" + sanitizedName +
+                    "': " + failureReason, sheet);
+                return false;
+            }
+
+            return true;
         }
 
         public static bool TrashSheet(SpriteSheetAsset sheet)
         {
-            throw new NotImplementedException();
+            if (sheet == null)
+            {
+                return false;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(sheet);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            if (!AssetDatabase.MoveAssetToTrash(assetPath))
+            {
+                Debug.LogWarning(
+                    "[DOTS Animation Toolkit] Sprite Sheets: Could not move sprite sheet '" + assetPath +
+                    "' to the trash.", sheet);
+                return false;
+            }
+
+            return true;
         }
 
         // The tab edits this in-memory copy so nothing reaches disk until Save (A81 D23 rule).
         public static SpriteSheetAsset CreateWorkingCopy(SpriteSheetAsset loadedSheet)
         {
-            throw new NotImplementedException();
+            if (loadedSheet == null)
+            {
+                return null;
+            }
+
+            SpriteSheetAsset workingCopy = Object.Instantiate(loadedSheet);
+            workingCopy.name = loadedSheet.name;
+            workingCopy.hideFlags = HideFlags.HideAndDontSave;
+            return workingCopy;
         }
 
         public static void SaveWorkingCopy(SpriteSheetAsset workingCopy, SpriteSheetAsset loadedSheet)
         {
-            throw new NotImplementedException();
+            if (workingCopy == null || loadedSheet == null)
+            {
+                return;
+            }
+
+            string keptName = loadedSheet.name;
+            EditorUtility.CopySerialized(workingCopy, loadedSheet);
+            loadedSheet.name = keptName;
+            loadedSheet.hideFlags = HideFlags.None;
+
+            EditorUtility.SetDirty(loadedSheet);
+            AssetDatabase.SaveAssetIfDirty(loadedSheet);
+
+            string assetPath = AssetDatabase.GetAssetPath(loadedSheet);
+            string containingFolder = Path.GetDirectoryName(assetPath);
+            RememberSheetFolder(containingFolder != null ? containingFolder.Replace('\\', '/') : "Assets");
         }
     }
 }

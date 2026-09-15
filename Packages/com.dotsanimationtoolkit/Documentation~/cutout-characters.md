@@ -99,6 +99,11 @@ values so game code references clips by name rather than by magic number.
 A sprite track keys an **integer index** into a texture array — frame-by-frame
 art on a part that a transform track may also be moving.
 
+Building that texture array by hand and keying it by number both get easier
+with the **Sprite Sheets** tab: it stacks same-size frames into one
+`Texture2DArray` and names every layer, so a key picks a frame by name
+instead of a magic index. See [Sprite Sheets](sprite-sheets.md).
+
 **Indices step on their key.** The key at or before the playhead is what shows,
 and it holds until the next key's own time. There is no interpolation and no
 midpoint crossover: a frame index has no meaningful in-between value, so the
