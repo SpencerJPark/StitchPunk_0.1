@@ -1,6 +1,7 @@
 # Amendment A92 — Project-wide refactor operations
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.39.0`.
+> **Status:** ✅ built 2026-09-14 as `0.39.0`; **T10 owner checkpoint open.** 13 T0 drifts in §7 (cutscene part
+> tracks included and merge payloads left raw are owner calls of 2026-09-14).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1, after A84.
 > **Predecessors:** A84 (the index says what each operation will touch), A86 (event lane context
 > menu is where "Change key everywhere" lives), A77 (rename in place — renames are display-only and
@@ -109,33 +110,33 @@ skip this file.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Check `Conformance_E`'s banned API list for
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Check `Conformance_E`'s banned API list for
   `EditorUtility.DisplayDialog` (decides whether T3 exists). Grep the four entry points.
-- [ ] **T1 — Surface (orchestrator).** `RefactorEditing.cs` with stubs; gate; commit `A92-T1`.
-- [ ] **T2 — Body + resolver + fixture [parallel-safe]** — Files: `RefactorEditing.cs`, new
+- [x] **T1 — Surface (orchestrator).** `RefactorEditing.cs` with stubs; gate; commit `A92-T1`.
+- [x] **T2 — Body + resolver + fixture [parallel-safe]** — Files: `RefactorEditing.cs`, new
   `RefactorTargetResolver.cs`. Fixture (orchestrator adds the third file from the report):
   `Tests/EditMode/RefactorTargetResolverTests.cs` — `RekeyTouchesOnlyMatchingMarkers` (clip with
   keys 16, 17, 16 → indices `[0, 2]` for `fromKey 16`) and `ReplaceTagLeavesUntaggedTracksAlone`
   (`tagId 0` never matches even when `fromTagId` is 0 — guard). Revert-to-fail: drop the `tagId != 0`
   guard.
-- [ ] **T3 — Confirm dialog [parallel-safe]** — Files: new `RefactorConfirmDialog.cs` (or skipped
+- [x] **T3 — Confirm dialog [parallel-safe]** — Files: new `RefactorConfirmDialog.cs` (or skipped
   per T0).
-- [ ] **T4 — Registry inspector entry points [parallel-safe]** — Files:
+- [x] **T4 — Registry inspector entry points [parallel-safe]** — Files:
   `AnimEventKeyRegistryEditor.cs` ("Merge into…"), `TargetTagRegistryEditor.cs` ("Replace in
   clips with…").
-- [ ] **T5 — Lane + Rigs entry points [parallel-safe]** — Files: the lane context menu file T0
+- [x] **T5 — Lane + Rigs entry points [parallel-safe]** — Files: the lane context menu file T0
   named ("Change key everywhere…"), `RigTargetRowBuilder.cs` (the Tag button menu).
-- [ ] **T6 — Docs + changelog [parallel-safe]** — Files: `Documentation~/animation-events.md`
+- [x] **T6 — Docs + changelog [parallel-safe]** — Files: `Documentation~/animation-events.md`
   ("Re-keying and merging events") and `Documentation~/sharing-clips.md` ("Moving tracks to another
   tag"); `CHANGELOG.md` `## [0.39.0]` is the orchestrator's (T7) to keep this at two files.
 - **Gate the wave.** `RefactorTargetResolverTests`. Commit `A92-T2..T6`.
-- [ ] **T7 — Orchestrator edits.** `CHANGELOG.md`; `package.json`; vault note "Refactor operations
+- [x] **T7 — Orchestrator edits.** `CHANGELOG.md`; `package.json`; vault note "Refactor operations
   (A92)" with D3's undo shape.
-- [ ] **T8 — Drive.** Full suites. On `Assets/A92Scratch` copies (two clips, one cutscene, one
+- [x] **T8 — Drive.** Full suites. On `Assets/A92Scratch` copies (two clips, one cutscene, one
   profile with a ragdoll trigger, all on key 16): Preview lists four assets; Apply re-keys to 17;
   reload all four from disk and confirm; Ctrl+Z once → all four back to 16 (reload again). Replace a
   tag across two clips likewise. Delete scratch; `git status` clean.
-- [ ] **T9 — Close.** HANDOFF §4, roadmap checkbox.
+- [x] **T9 — Close.** HANDOFF §4, roadmap checkbox.
 - [ ] **T10 — ⏸ owner checkpoint.** Message: "Right-click an event pin → Change key everywhere.
   The dialog lists what it will touch; Apply; Ctrl+Z reverts all of it. Same for Merge in the Event
   Keys settings and Replace-in-clips on Target Tags. ⚠ D4: on merge, should int payloads be remapped
@@ -189,4 +190,28 @@ skip this file.
     real asset uses, and previews before applying to prove only scratch assets are listed.
 13. **One wave of five**: T2 (operations + resolver), T3 (prompts), T4 (inspectors), T5 (Rigs tab),
     T6 (docs).
+
+### Close (2026-09-14)
+
+- **Commits:** `9b66dd17` (T0/T1 surface), `3437aee5` (T2..T6 wave), then the close commit.
+- **Wave shape (revises drift 13):** four workers (T2, T3, T4, T6) at 55–69k tokens each; T5 was ten lines in
+  `RigsPanel.cs`, so the orchestrator wrote it.
+- **Gate:** compile clean after T1, after the wave and after the restore. `RefactorTargetResolverTests` 2/2.
+  Revert-to-fail in one compile: the marker match widened to `!= 0u` failed `RekeyTouchesOnlyMatchingMarkers`,
+  and dropping both `tagId != 0u` guards failed `ReplaceTagLeavesUntaggedTracksAlone`; restored, sha256 matched.
+- **Suites:** EditMode 840 (838 + 2; the standing Conformance_A failure only), PlayMode 285.
+- **Drive** on `Assets/A92Scratch` (two clips, one cutscene with a part track, one profile with a Start ragdoll
+  trigger), key 4000001 → 4000002 and tag 0x7A920001 → 0x7A920002, both asserted unused project-wide first:
+  - Re-key: preview 4 rows, "Referenced by 2 clips, 1 cutscene, 1 profile."; touched 4; all four files on disk
+    carried the new key and were not dirty. One `Undo.PerformUndo` put all four back in memory (dirty);
+    saving them restored the old key on disk.
+  - Replace tag: preview 3 rows (both clips, the cutscene; no rig rows); touched 3; the untagged tracks and the
+    profile were untouched; one undo reverted all three.
+  - Merge against a `CreateInstance` registry: payload mismatch detected (int label on one side only); touched 4;
+    `A92From` removed; one undo restored the four assets and both entries.
+  - Scratch folder deleted with no stray `.meta`; both `ProjectSettings` registry files sha256-unchanged.
+- **Not driven:** the four UI entry points. `DisplayDialog` is modal and would block the Editor under MCP, the
+  Clip Editor window is the owner's docked copy, and no capture was taken. The owner checkpoint covers them.
+- **Commit slip:** `9b66dd17` also carries a deletion of `Assets/_Vault/Tasks/Claude/Cult-of-the-Lamb…jpg` that
+  was already staged by another session before A92 began (`git commit` takes the whole index).
 

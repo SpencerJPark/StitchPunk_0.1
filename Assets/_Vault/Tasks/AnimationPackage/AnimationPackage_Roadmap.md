@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` and accepted the same day. A88 built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; 13 T0 drifts settled in its §7); its T9 owner checkpoint is open. A92 is next.
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` and accepted the same day. A88 built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; 13 T0 drifts settled in its §7); its T9 owner checkpoint is open. A92 built 2026-09-14 as `0.39.0` (13 T0 drifts in its §7; cutscene part tracks included and merge payloads left raw, owner calls 2026-09-14); its T10 owner checkpoint is open. A93 is next.
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -17,6 +17,12 @@
 >   transport, the Layer Events strip has one row per layer; MeleeContinuous's `Attack` pin at 0.35
 >   flashes once per ▶ (silently, no preview clip), and being play-once its row dims by itself at the end.
 >   Two questions: does dimmed/hollow read as "will not fire"? Should the strip start collapsed?
+> - [ ] **A92 T10 (built 2026-09-14 as `0.39.0`, not yet seen):** MaleCitizen's `MeleeContinuous` clip ▸
+>   right-click the `Attack` pin ▸ Change key everywhere… ▸ pick any other event. The dialog names every
+>   clip, cutscene and profile using `Attack`; Cancel changes nothing. Apply rewrites them, and one Ctrl+Z puts
+>   them all back. The same flow is behind Merge into… on an Event Keys row, Replace in clips with… on a
+>   Target Tags row, and right-click on a Rigs tab Tag button. Merge also rewrites the event registry, which
+>   has uncommitted edits. Question: do the dialog wording and the four entry points read right?
 > - Answering any of these ticks its box below and updates the status line above.
 
 Tick a box only when the spec's own status line says built **and** its ⏸ owner checkpoint (if any)

@@ -8,6 +8,28 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.39.0] — A92 — project-wide refactor operations
+
+### Added
+
+- `RefactorEditing`: `RekeyEvent`, `MergeEventKeys` and `ReplaceTrackTag`, each with a `Preview…` built on the
+  Asset Reference Index. Each operation is one undo group across every clip, cutscene and profile it touches,
+  and saves only those assets (never the whole project).
+- Re-keying changes every clip marker, cutscene marker and ragdoll-trigger event (animations that have a ragdoll
+  trigger) from one event to another; merging also removes the old event from the list.
+- Replacing a tag moves every clip transform and sprite track and every cutscene part track from one tag to
+  another. Rig targets keep their tags; billboard and untagged tracks are never touched.
+- Entry points, all behind a confirm dialog listing what will change: event pin right-click "Change key
+  everywhere…" (clip and cutscene timelines), event registry row "Merge into…", tag registry row "Replace in
+  clips with…", and the Rigs tab Tag button right-click "Move clip tracks to another tag…".
+- `RefactorTargetResolver` (pure per-asset matching) and `RefactorPromptEditing` (shared pick and confirm flow).
+- A merge between events whose payloads are described differently warns in the dialog and leaves every marker's
+  int and float values as they are.
+
+### Changed
+
+- `EventMarkerContextMenu.Populate` takes a `changeKeyEverywhere` action after `openKeyPicker`.
+
 ## [0.38.0] — A88 — layered event preview in the Actor Editor
 
 ### Added

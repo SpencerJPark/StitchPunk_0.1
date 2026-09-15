@@ -120,6 +120,20 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-14): Amendment A92 — project-wide refactor operations — 0.39.0**, **T10 owner checkpoint
+open.** Spec: `Assets/_Vault/Tasks/AnimationPackage/A92_RefactorOperations_Spec.md`; its §7 logs thirteen T0
+drifts and the close. `RefactorEditing` re-keys an event (clip markers, cutscene markers, ragdoll triggers that
+have a trigger), merges one event into another (re-key, then remove the old registry entry), and moves clip
+transform/sprite tracks and cutscene part tracks from one tag to another (rig targets never retagged). Each is
+one collapsed undo group, saves only the touched assets with `SaveAssetIfDirty`, and is previewed from the
+Asset Reference Index. `RefactorPromptEditing` is the shared pick → `DisplayDialog` → run flow behind four
+entry points: event pin right-click "Change key everywhere…" (clip and cutscene timelines), event registry row
+"Merge into…", tag registry row "Replace in clips with…" (both project instance only), and the Rigs tab Tag
+button right-click "Move clip tracks to another tag…". Owner calls 2026-09-14: cutscene part tracks included;
+a merge leaves payloads raw and warns. Suites: EditMode 840 (838 + 2, standing Conformance_A only), PlayMode
+285. Operations drive-proven on scratch assets (apply, disk, one undo); the UI entry points were not driven
+(modal dialog, docked window) and not captured.
+
 **Built (2026-09-13): Amendment A88 — layered event preview in the Actor Editor — 0.38.0**, **T9 owner
 checkpoint open.** Spec: `Assets/_Vault/Tasks/AnimationPackage/A88_LayeredEventPreview_Spec.md`; its §7
 logs thirteen T0 drifts. A collapsible **Layer Events** strip (`LayerEventStripElement`) sits under the

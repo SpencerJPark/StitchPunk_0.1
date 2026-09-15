@@ -1184,3 +1184,33 @@ Traps only; the design is in the spec's §7 and HANDOFF §4.
   explicitly, as `ActorPreviewComposer.Layer(int)` does for an invalid index.
 - A fixture with two assertions in one test lets the first mutation mask the second, and Unity's
   NUnit has no `Assert.Multiple`. Give each rule its own test so one compile proves every mutation.
+
+## Refactor operations (A92, 0.39.0)
+
+`RefactorEditing` (`Editor/ClipEditor/Editing/`) re-keys events, merges keys and moves tracks to another tag
+across the whole project. `RefactorTargetResolver` is the pure per-asset matcher and `RefactorPromptEditing`
+is the shared pick → preview → `DisplayDialog` → run flow behind all four entry points.
+
+- **Undo shape.** `Undo.IncrementCurrentGroup` → `GetCurrentGroup` → `SetCurrentGroupName` →
+  `RecordObject` once per changed owner → write → `SetDirty` → `CollapseUndoOperations` → `SaveAssetIfDirty`
+  per touched owner → `AssetReferenceIndex.MarkDirty()`. Never `AssetDatabase.SaveAssets()`.
+- **Undo does not touch disk.** One `Undo.PerformUndo` reverts every asset in memory and leaves them dirty;
+  the files keep the new ids until something saves them (drive-proven: dirty=1, disk unchanged until
+  `SaveAssetIfDirty`).
+- **Merge undo and the project registry.** Undoing a merge restores the removed entry in memory only; the
+  `ProjectSettings` JSON is rewritten on the registry's next `Persist`. `MergeEventKeys(from, into, registry)`
+  exists so a drive can merge against a `CreateInstance` registry (`Persist` is a no-op for it).
+- **Drives are project-wide.** Every operation walks the whole index, so a drive must use an event key and a
+  tag id no real asset uses (A92 used keys 4000001/4000002, tags 0x7A920001/2) and assert the preview is empty
+  before creating scratch assets.
+- **Preview = what changes.** `PreviewReplaceTrackTag` drops `RigTargetTag` rows (rigs are never retagged);
+  ragdoll re-key only touches definitions with `ragdollTrigger != None`, the same filter the index uses.
+  Billboard tracks have no tag.
+- **`EventMarker` is a struct**: copy out, set `eventKey`, write back. Cutscene markers and tracks are classes.
+- **Writes behind a SerializedObject.** The cutscene panel's "Change key everywhere…" callback calls
+  `serializedObject.Update()` before rebuilding; any new host that edits through a SerializedObject needs the same.
+- **Registry inspector buttons** ("Merge into…", "Replace in clips with…") are disabled unless the inspected
+  registry is the project instance, because the prompts always act on `VocabularyRegistryProvider`'s.
+- **`EventMarkerContextMenu.Populate`** takes `changeKeyEverywhere` after `openKeyPicker`; pass null to disable.
+- **execute_code on 6.5**: `GetInstanceID()` fails CodeDom compilation too (obsolete-as-error), not just the
+  project build.
