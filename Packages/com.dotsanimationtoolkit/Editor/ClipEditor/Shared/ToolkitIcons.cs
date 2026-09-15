@@ -151,6 +151,156 @@ namespace DotsAnimationToolkit.Editor
             return outsideDistance + Mathf.Min(Mathf.Max(offsetX, offsetY), 0f);
         }
 
+        // The VAT Bake rail's part-visibility symbols, drawn with the same signed-distance-field
+        // recipe as GhostGlyph above.
+        private static Texture2D vatPartsGlyphTexture;
+        private static Texture2D cutoutPartsGlyphTexture;
+
+        public static Texture2D VatPartsGlyph
+        {
+            get
+            {
+                if (vatPartsGlyphTexture == null)
+                {
+                    vatPartsGlyphTexture = BuildVatPartsGlyph();
+                }
+                return vatPartsGlyphTexture;
+            }
+        }
+
+        public static Texture2D CutoutPartsGlyph
+        {
+            get
+            {
+                if (cutoutPartsGlyphTexture == null)
+                {
+                    cutoutPartsGlyphTexture = BuildCutoutPartsGlyph();
+                }
+                return cutoutPartsGlyphTexture;
+            }
+        }
+
+        private static Texture2D BuildVatPartsGlyph()
+        {
+            Texture2D glyph = new Texture2D(GhostGlyphSize, GhostGlyphSize, TextureFormat.RGBA32, false);
+            glyph.hideFlags = HideFlags.HideAndDontSave;
+            glyph.filterMode = FilterMode.Bilinear;
+            glyph.wrapMode = TextureWrapMode.Clamp;
+
+            Color glyphColor = new Color(0.77f, 0.77f, 0.77f, 1f);
+            float edgeSoftnessUv = 1.2f / GhostGlyphSize;
+            Color[] pixels = new Color[GhostGlyphSize * GhostGlyphSize];
+
+            for (int rowIndex = 0; rowIndex < GhostGlyphSize; rowIndex++)
+            {
+                for (int columnIndex = 0; columnIndex < GhostGlyphSize; columnIndex++)
+                {
+                    Vector2 samplePoint = new Vector2(
+                        (columnIndex + 0.5f) / GhostGlyphSize,
+                        (rowIndex + 0.5f) / GhostGlyphSize);
+
+                    float signedDistance = VatPartsSignedDistance(samplePoint);
+                    Color pixel = glyphColor;
+                    pixel.a = Mathf.Clamp01(0.5f - signedDistance / (2f * edgeSoftnessUv));
+                    pixels[rowIndex * GhostGlyphSize + columnIndex] = pixel;
+                }
+            }
+
+            glyph.SetPixels(pixels);
+            glyph.Apply(false, false);
+            return glyph;
+        }
+
+        // A rounded outer quad framing a 3x3 grid of divider lines, with one cell filled solid.
+        private static float VatPartsSignedDistance(Vector2 samplePoint)
+        {
+            Vector2 glyphCenter = new Vector2(0.5f, 0.5f);
+            float outerHalfExtent = 0.40f;
+            float outerCornerRadius = 0.07f;
+            float outlineHalfWidth = 0.022f;
+
+            float outerRoundedBoxDistance = BoxSignedDistance(
+                samplePoint, glyphCenter,
+                new Vector2(outerHalfExtent - outerCornerRadius, outerHalfExtent - outerCornerRadius)) - outerCornerRadius;
+            float outlineDistance = Mathf.Abs(outerRoundedBoxDistance) - outlineHalfWidth;
+
+            float interiorHalfExtent = 0.30f;
+            float gridLineOffset = interiorHalfExtent / 3f;
+            float gridLineHalfWidth = 0.016f;
+
+            float verticalLineOneDistance = BoxSignedDistance(
+                samplePoint, new Vector2(0.5f - gridLineOffset, 0.5f), new Vector2(gridLineHalfWidth, interiorHalfExtent));
+            float verticalLineTwoDistance = BoxSignedDistance(
+                samplePoint, new Vector2(0.5f + gridLineOffset, 0.5f), new Vector2(gridLineHalfWidth, interiorHalfExtent));
+            float horizontalLineOneDistance = BoxSignedDistance(
+                samplePoint, new Vector2(0.5f, 0.5f - gridLineOffset), new Vector2(interiorHalfExtent, gridLineHalfWidth));
+            float horizontalLineTwoDistance = BoxSignedDistance(
+                samplePoint, new Vector2(0.5f, 0.5f + gridLineOffset), new Vector2(interiorHalfExtent, gridLineHalfWidth));
+
+            float gridLinesDistance = Mathf.Min(
+                Mathf.Min(verticalLineOneDistance, verticalLineTwoDistance),
+                Mathf.Min(horizontalLineOneDistance, horizontalLineTwoDistance));
+
+            float cellCenterOffset = interiorHalfExtent * 2f / 3f;
+            float cellHalfExtent = interiorHalfExtent / 3f - 0.015f;
+            float filledCellDistance = BoxSignedDistance(
+                samplePoint, new Vector2(0.5f - cellCenterOffset, 0.5f + cellCenterOffset),
+                new Vector2(cellHalfExtent, cellHalfExtent));
+
+            return Mathf.Min(outlineDistance, Mathf.Min(gridLinesDistance, filledCellDistance));
+        }
+
+        private static Texture2D BuildCutoutPartsGlyph()
+        {
+            Texture2D glyph = new Texture2D(GhostGlyphSize, GhostGlyphSize, TextureFormat.RGBA32, false);
+            glyph.hideFlags = HideFlags.HideAndDontSave;
+            glyph.filterMode = FilterMode.Bilinear;
+            glyph.wrapMode = TextureWrapMode.Clamp;
+
+            Color glyphColor = new Color(0.77f, 0.77f, 0.77f, 1f);
+            float edgeSoftnessUv = 1.2f / GhostGlyphSize;
+            Color[] pixels = new Color[GhostGlyphSize * GhostGlyphSize];
+
+            for (int rowIndex = 0; rowIndex < GhostGlyphSize; rowIndex++)
+            {
+                for (int columnIndex = 0; columnIndex < GhostGlyphSize; columnIndex++)
+                {
+                    Vector2 samplePoint = new Vector2(
+                        (columnIndex + 0.5f) / GhostGlyphSize,
+                        (rowIndex + 0.5f) / GhostGlyphSize);
+
+                    float signedDistance = CutoutPartsSignedDistance(samplePoint);
+                    Color pixel = glyphColor;
+                    pixel.a = Mathf.Clamp01(0.5f - signedDistance / (2f * edgeSoftnessUv));
+                    pixels[rowIndex * GhostGlyphSize + columnIndex] = pixel;
+                }
+            }
+
+            glyph.SetPixels(pixels);
+            glyph.Apply(false, false);
+            return glyph;
+        }
+
+        // Two rounded bars with a gap between them and a small round pivot dot centred in that gap.
+        private static float CutoutPartsSignedDistance(Vector2 samplePoint)
+        {
+            float rectHalfWidth = 0.28f;
+            float rectHalfHeight = 0.14f;
+            float rectCornerRadius = 0.05f;
+            float verticalOffset = 0.19f;
+            float pivotDotRadius = 0.035f;
+
+            float topRectangleDistance = BoxSignedDistance(
+                samplePoint, new Vector2(0.5f, 0.5f + verticalOffset),
+                new Vector2(rectHalfWidth - rectCornerRadius, rectHalfHeight - rectCornerRadius)) - rectCornerRadius;
+            float bottomRectangleDistance = BoxSignedDistance(
+                samplePoint, new Vector2(0.5f, 0.5f - verticalOffset),
+                new Vector2(rectHalfWidth - rectCornerRadius, rectHalfHeight - rectCornerRadius)) - rectCornerRadius;
+            float pivotDotDistance = Vector2.Distance(samplePoint, new Vector2(0.5f, 0.5f)) - pivotDotRadius;
+
+            return Mathf.Min(topRectangleDistance, Mathf.Min(bottomRectangleDistance, pivotDotDistance));
+        }
+
         public static Button MakeIconButton(Action onClick, string iconName, string tooltip, string fallbackText)
         {
             Button iconButton = new Button(onClick) { tooltip = tooltip };

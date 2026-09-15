@@ -49,32 +49,119 @@ namespace DotsAnimationToolkit.Editor
 
         public RegistryBuildOutcome Rebuild(RigAsset rig, IReadOnlyList<ClipSetAsset> clipSets)
         {
+            Release();
+            FailureMessage = string.Empty;
+
+            if (rig == null)
+            {
+                LastOutcome = RegistryBuildOutcome.NoRig;
+                return LastOutcome;
+            }
+            if (clipSets == null || clipSets.Count == 0)
+            {
+                LastOutcome = RegistryBuildOutcome.NoClipSets;
+                return LastOutcome;
+            }
+
+            try
+            {
+                Unity.Entities.Hash128 contentHash;
+                ClipRegistryBuilder.Build(rig, clipSets, out registry, out contentHash);
+                LastOutcome = RegistryBuildOutcome.Built;
+            }
+            catch (ArgumentNullException)
+            {
+                registry = default(BlobAssetReference<ClipRegistryBlob>);
+                LastOutcome = RegistryBuildOutcome.NoRig;
+            }
+            catch (ClipValidationException)
+            {
+                registry = default(BlobAssetReference<ClipRegistryBlob>);
+                LastOutcome = RegistryBuildOutcome.ValidationErrors;
+            }
+            catch (Exception buildException)
+            {
+                registry = default(BlobAssetReference<ClipRegistryBlob>);
+                FailureMessage = buildException.Message;
+                LastOutcome = RegistryBuildOutcome.Failed;
+            }
+
             return LastOutcome;
         }
 
         public bool TryResolveClipIndex(ulong clipId, out int clipIndex)
         {
             clipIndex = -1;
+            if (!registry.IsCreated)
+            {
+                return false;
+            }
+
+            ref ClipRegistryBlob registryBlob = ref registry.Value;
+            for (int index = 0; index < registryBlob.sortedClipIds.Length; index++)
+            {
+                if (registryBlob.sortedClipIds[index] == clipId)
+                {
+                    clipIndex = index;
+                    return true;
+                }
+            }
             return false;
         }
 
         public bool IsClipInRegistry(ulong clipId)
         {
-            return false;
+            int clipIndex;
+            return TryResolveClipIndex(clipId, out clipIndex);
         }
 
         // False when no registry is built or the clip is not in it.
         public bool PoseTargets(ulong clipId, float normalizedTime, ITargetPoseWriter writer)
         {
-            return false;
+            if (!registry.IsCreated || writer == null)
+            {
+                return false;
+            }
+
+            int clipIndex;
+            if (!TryResolveClipIndex(clipId, out clipIndex))
+            {
+                return false;
+            }
+
+            ref ClipRegistryBlob registryBlob = ref registry.Value;
+            ref ClipBlob clipBlob = ref registryBlob.clips[clipIndex];
+
+            for (int targetIndex = 0; targetIndex < registryBlob.sortedTargetIds.Length; targetIndex++)
+            {
+                uint targetId = registryBlob.sortedTargetIds[targetIndex];
+
+                TargetRestPose restPose;
+                if (!writer.TryGetRestPose(targetId, out restPose))
+                {
+                    continue;
+                }
+
+                TargetPose pose;
+                ClipSampler.SamplePose(ref clipBlob, targetIndex, normalizedTime, in restPose, out pose);
+                writer.WritePose(targetId, in pose);
+            }
+
+            return true;
         }
 
         public void Release()
         {
+            if (registry.IsCreated)
+            {
+                registry.Dispose();
+            }
+            registry = default(BlobAssetReference<ClipRegistryBlob>);
         }
 
         public void Dispose()
         {
+            Release();
         }
     }
 }
