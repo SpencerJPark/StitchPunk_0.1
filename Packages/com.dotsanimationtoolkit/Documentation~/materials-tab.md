@@ -71,8 +71,9 @@ was pointed at a named sheet.
 
 ## Creating a material
 
-Pick a Target in the tab's header and press **Create**. The new material is
-built from the package's own shader graph for that target's kind:
+Pick a Target in the tab's header and press **Create and assign**. The new
+material is built from the package's own shader graph for that target's
+kind:
 
 - Quad → `ToolkitSpriteUnlit`
 - Flipbook Plane → `ToolkitSpriteUnlitArray`
@@ -82,8 +83,25 @@ GPU instancing is enabled on the new material. It saves beside the rig's
 Source Prefab as `M_<Rig>_<Target>.mat`, numbering the filename if one
 already exists there — Create never overwrites an existing material.
 
-Create does not assign the new material to any renderer. Drag it onto the
-part's renderer in the prefab yourself to put it to use.
+The new material is also written onto the renderer at the target's Source
+Node Path inside the rig's Source Prefab. This is a prefab **asset** edit,
+saved immediately, and it is **not undoable** — the same as every other
+rig structure edit the window makes.
+
+Which slot gets replaced depends on the renderer. A renderer with one
+material slot has that slot replaced. A renderer with several slots has
+the slot holding the material currently selected in the catalog replaced,
+if that material is on this renderer — otherwise slot 0 is replaced. The
+result line names the slot, reading like `Created M_NewRig_BaseHead.mat
+and assigned it to BaseHead (replaced BaseHead.mat).`
+
+Nothing is lost when the assignment cannot happen: a missing node, a node
+with no Renderer, or a Source Prefab that is not a saved asset still
+creates the material, and the result line says why, reading like `Created
+M_NewRig_BaseHead.mat; not assigned: node 'BaseHead' has no Renderer.`
+
+**To undo it**, assign the old material back — the replaced material is
+still on disk, untouched.
 
 ## At bake time
 

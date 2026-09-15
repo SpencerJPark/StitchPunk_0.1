@@ -103,3 +103,25 @@ public static bool TryAssignToTargetRenderer(RigAsset rig, RigTargetDefinition t
 ### Phase 0
 
 Phase 0 (stage, 2026-09-15, head `2d53ae6f`): doctor clean (git 2.43.0, hooks installed, broker alive, no stage blockers); compile clean; EditMode baseline 857 (856 passed, standing Conformance_A only); PlayMode baseline 285 (285 passed); CHANGELOG top section `## [0.48.1]`; registry sha256 AnimEventKey `3bdb420d…14701`, TargetTag `dbec3d5f…eb4f`. Lead opus, workers sonnet; merges authorized once ready with gates green (owner, 2026-09-14/15). Owner is away: checkpoints close by the standing rule (assume pass unless game breaking); this batch is followed by A101 on trunk.
+
+### T0 grounding (lead, 2026-09-15, worktree `spec/a96f`)
+
+Every §3 name resolves; the ranges drifted by a few lines only: `TryCreateForTarget` is
+`MaterialTemplateUtility.cs` 63–113, `CreateForTarget` is `MaterialsPanel.cs` 145–166, the
+`LoadPrefabContents` write is `RigStructureEditor.cs` 79–105, `ResolveByPath` is
+`PrefabAuthoringBridge.cs` 197–228, and the Create section of `materials-tab.md` is 72–90.
+
+`ResolveByPath` confirmed usable on a `LoadPrefabContents` root: it takes a plain `Transform`
+root and walks `sourceNodePath` segment by segment against `GetChild` names, with no
+`PrefabStage` or scene dependency, and `RigHierarchyPane.cs:351` already calls it with
+`target.sourceNodePath` against an ordinary prefab root — so the path is root-relative in both,
+and M-D3 needs no path rewriting. `RigStructureEditor` is also the proof that the
+`LoadPrefabContents` / `SaveAsPrefabAsset` / `UnloadPrefabContents` triple (M-D2) is the
+package's established non-undoable asset write, `UnloadPrefabContents` in a `finally`.
+
+**Drift 1 — the fixture's scratch folder is in the package, not under `Assets`.** T2 says "a
+GUID-named folder under Assets (read its path back)". The package's own convention
+(`DiskRoundTripTests.cs` 44–73) instead creates the GUID-named folder under
+`Packages/com.dotsanimationtoolkit/Tests/EditMode`, which is already a valid asset folder, so
+nothing has to walk and create intermediate parents. Followed that: same guarantee, and the
+fixture never names an `Assets/<Folder>` path, so Conformance_D cannot bite.

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -26,6 +27,7 @@ namespace DotsAnimationToolkit.Editor
         public ClipSetAsset BoundClipSet { get; private set; }
         public Material LastCreatedMaterial { get; private set; }
         public Material SelectedMaterial { get; private set; }
+        public string LastAssignedDescription { get; private set; }
 
         public IReadOnlyList<RigMaterialUsage> Usages
         {
@@ -55,8 +57,8 @@ namespace DotsAnimationToolkit.Editor
             Button createButton = ToolkitIcons.MakeIconTextButton(
                 OnCreateClicked,
                 "d_Toolbar Plus",
-                "Create a material for this target from the package's shader, saved beside the rig's prefab. It is not assigned to the renderer.",
-                "Create");
+                "Create a material for this target from the package's shader, saved beside the rig's prefab, and assigned to the part's renderer in the prefab.",
+                "Create and assign");
             createButton.name = "materials-create-button";
             header.Add(createButton);
 
@@ -151,12 +153,28 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
+            // Capture before Refresh(), which can change SelectedMaterial as the list rebinds.
+            Material previouslySelectedMaterial = SelectedMaterial;
+
             Material createdMaterial;
             bool created = MaterialTemplateUtility.TryCreateForTarget(BoundRig, target, out createdMaterial, out failureMessage);
             if (created)
             {
                 LastCreatedMaterial = createdMaterial;
-                resultLabel.text = "Created " + AssetDatabase.GetAssetPath(createdMaterial) + ". Assign it to the part's renderer in the Inspector.";
+
+                bool assigned = MaterialTemplateUtility.TryAssignToTargetRenderer(BoundRig, target, createdMaterial, previouslySelectedMaterial, out string assignedDescription, out string assignFailureMessage);
+                string createdFileName = Path.GetFileName(AssetDatabase.GetAssetPath(createdMaterial));
+                if (assigned)
+                {
+                    resultLabel.text = "Created " + createdFileName + " and assigned it to " + assignedDescription + ".";
+                    LastAssignedDescription = assignedDescription;
+                }
+                else
+                {
+                    resultLabel.text = "Created " + createdFileName + "; " + assignFailureMessage;
+                    LastAssignedDescription = string.Empty;
+                }
+
                 EditorGUIUtility.PingObject(createdMaterial);
                 Refresh();
                 return true;

@@ -110,19 +110,106 @@ namespace DotsAnimationToolkit.Editor
             AssetDatabase.CreateAsset(material, uniqueAssetPath);
             AssetDatabase.SaveAssetIfDirty(material);
 
-            // Assigning the material to a renderer is a prefab edit the author confirms in the Inspector, not done here.
+            // The caller assigns the created material to a renderer through TryAssignToTargetRenderer.
             createdMaterial = material;
             return true;
         }
 
-        // Stub for A96F: the real prefab-asset write lands in T2.
         public static bool TryAssignToTargetRenderer(
             RigAsset rig, RigTargetDefinition target, Material material,
             Material preferredSlotMaterial, out string assignedDescription, out string failureMessage)
         {
             assignedDescription = string.Empty;
-            failureMessage = "Assigning the material to the part's renderer is not implemented yet.";
-            return false;
+            failureMessage = string.Empty;
+
+            if (rig == null)
+            {
+                failureMessage = "No rig was supplied, so there is no renderer to assign the material to.";
+                return false;
+            }
+
+            if (target == null)
+            {
+                failureMessage = "No rig target was supplied, so there is no renderer to assign the material to.";
+                return false;
+            }
+
+            if (material == null)
+            {
+                failureMessage = "No material was supplied, so there is nothing to assign.";
+                return false;
+            }
+
+            string prefabAssetPath = AssetDatabase.GetAssetPath(rig.sourcePrefab);
+            if (rig.sourcePrefab == null || string.IsNullOrEmpty(prefabAssetPath))
+            {
+                failureMessage = "Rig '" + rig.name + "' has a source prefab that is not a saved asset.";
+                return false;
+            }
+
+            GameObject contents = PrefabUtility.LoadPrefabContents(prefabAssetPath);
+            if (contents == null)
+            {
+                failureMessage = "Could not open " + prefabAssetPath + " for editing.";
+                return false;
+            }
+
+            try
+            {
+                Transform node = PrefabAuthoringBridge.ResolveByPath(contents.transform, target.sourceNodePath);
+                if (node == null)
+                {
+                    failureMessage = "not assigned: node '" + target.sourceNodePath + "' is not in the prefab.";
+                    return false;
+                }
+
+                Renderer renderer = node.GetComponent<Renderer>();
+                if (renderer == null)
+                {
+                    failureMessage = "not assigned: node '" + node.name + "' has no Renderer.";
+                    return false;
+                }
+
+                Material[] slots = renderer.sharedMaterials;
+                if (slots.Length == 0)
+                {
+                    slots = new Material[1];
+                }
+
+                int slotIndex = 0;
+                if (slots.Length > 1 && preferredSlotMaterial != null)
+                {
+                    for (int candidateIndex = 0; candidateIndex < slots.Length; candidateIndex++)
+                    {
+                        if (slots[candidateIndex] == preferredSlotMaterial)
+                        {
+                            slotIndex = candidateIndex;
+                            break;
+                        }
+                    }
+                }
+
+                Material replacedMaterial = slots[slotIndex];
+                slots[slotIndex] = material;
+                renderer.sharedMaterials = slots;
+                PrefabUtility.SaveAsPrefabAsset(contents, prefabAssetPath);
+
+                string nodeName = node.name;
+                string replacedDescription = replacedMaterial == null
+                    ? "replaced nothing"
+                    : "replaced " + replacedMaterial.name + ".mat";
+                assignedDescription = slots.Length <= 1
+                    ? nodeName + " (" + replacedDescription + ")"
+                    : nodeName + " slot " + slotIndex + " (" + replacedDescription + ")";
+
+                failureMessage = string.Empty;
+                return true;
+            }
+            finally
+            {
+                // In a finally because the temporary scene leaks otherwise.
+                PrefabUtility.UnloadPrefabContents(contents);
+            }
         }
 
         private static string Sanitize(string rawName)
