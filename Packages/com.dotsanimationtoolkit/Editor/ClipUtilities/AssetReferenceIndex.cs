@@ -47,6 +47,9 @@ namespace DotsAnimationToolkit.Editor
     {
         public static event Action Rebuilt;
 
+        // Rebuilt fires only when a query rebuilds, so an import alone never raises it; listen here to react to imports.
+        public static event Action Dirtied;
+
         private static readonly List<ClipAsset> cachedClips = new List<ClipAsset>();
         private static readonly List<ClipSetAsset> cachedClipSets = new List<ClipSetAsset>();
         private static readonly List<RigAsset> cachedRigs = new List<RigAsset>();
@@ -55,9 +58,40 @@ namespace DotsAnimationToolkit.Editor
         private static readonly List<VatTextureSetAsset> cachedVatTextureSets = new List<VatTextureSetAsset>();
         private static bool isDirty = true;
 
+        public static IReadOnlyList<ClipAsset> Clips
+        {
+            get { RebuildIfDirty(); return cachedClips; }
+        }
+
+        public static IReadOnlyList<ClipSetAsset> ClipSets
+        {
+            get { RebuildIfDirty(); return cachedClipSets; }
+        }
+
+        public static IReadOnlyList<RigAsset> Rigs
+        {
+            get { RebuildIfDirty(); return cachedRigs; }
+        }
+
+        public static IReadOnlyList<ActorProfileAsset> Profiles
+        {
+            get { RebuildIfDirty(); return cachedProfiles; }
+        }
+
+        public static IReadOnlyList<CutsceneAsset> Cutscenes
+        {
+            get { RebuildIfDirty(); return cachedCutscenes; }
+        }
+
+        public static IReadOnlyList<VatTextureSetAsset> VatTextureSets
+        {
+            get { RebuildIfDirty(); return cachedVatTextureSets; }
+        }
+
         public static void MarkDirty()
         {
             isDirty = true;
+            Dirtied?.Invoke();
         }
 
         private static void RebuildIfDirty()

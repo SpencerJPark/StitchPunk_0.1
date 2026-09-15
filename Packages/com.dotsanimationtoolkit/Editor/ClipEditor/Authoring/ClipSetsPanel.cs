@@ -519,18 +519,7 @@ namespace DotsAnimationToolkit.Editor
                 return selectedRig;
             }
 
-            string[] rigGuids = AssetDatabase.FindAssets("t:" + nameof(RigAsset));
-            for (int rigIndex = 0; rigIndex < rigGuids.Length; rigIndex++)
-            {
-                string rigPath = AssetDatabase.GUIDToAssetPath(rigGuids[rigIndex]);
-                RigAsset candidateRig = AssetDatabase.LoadAssetAtPath<RigAsset>(rigPath);
-                if (candidateRig != null && candidateRig.StableId == textures.sourceRigKey)
-                {
-                    return candidateRig;
-                }
-            }
-
-            return null;
+            return VatSourceHashResolver.FindRigByStableId(AssetReferenceIndex.Rigs, textures.sourceRigKey);
         }
 
         /// Creates an empty clip set in the remembered folder and selects it, so the catalog gains an entry the user edits in place.

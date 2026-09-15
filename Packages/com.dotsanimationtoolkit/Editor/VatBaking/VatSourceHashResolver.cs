@@ -210,6 +210,24 @@ namespace DotsAnimationToolkit.Editor
             return VatBakeFreshness.Stale;
         }
 
+        // A texture set records only its rig's StableId, so the rig it was baked from is found by that key.
+        public static RigAsset FindRigByStableId(IReadOnlyList<RigAsset> rigs, ulong rigStableId)
+        {
+            if (rigs == null || rigStableId == 0UL)
+            {
+                return null;
+            }
+            for (int rigIndex = 0; rigIndex < rigs.Count; rigIndex++)
+            {
+                RigAsset candidateRig = rigs[rigIndex];
+                if (candidateRig != null && candidateRig.StableId == rigStableId)
+                {
+                    return candidateRig;
+                }
+            }
+            return null;
+        }
+
         private static ulong FoldVatClipSource(ulong hash, VatClipSource vatClipSource)
         {
             if (vatClipSource == null)
