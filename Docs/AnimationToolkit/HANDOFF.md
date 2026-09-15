@@ -747,9 +747,10 @@ it agrees with your code. That habit sank three earlier gates.
 
 ## 7. Known gaps and caveats
 
-- `ClipEditorWindow.CountTracksForTarget` matches by raw `targetId`, so it **undercounts tag-bound
-  tracks** in delete confirmations. `ClipSpriteEditing.CollectTracksForTarget` shares the flaw but
-  has no production callers.
+- ~~`ClipEditorWindow.CountTracksForTarget` matches by raw `targetId`, so it undercounts tag-bound
+  tracks in delete confirmations.~~ Fixed by A84 (0.31.0): `RigHierarchyPane.CountTracksForTarget`
+  calls `AssetReferenceIndex.CountTracksBoundToTarget`. `ClipSpriteEditing.CollectTracksForTarget`
+  still matches raw ids and still has no production callers (audit 2026-09-15).
 - The ragdoll preview derives `restRelativeRotation`/`parentAnchorOffset` from the on-screen pose,
   not the authored rest pose, so toggling it on mid-animation can show a first-frame limit
   correction the runtime would not produce.

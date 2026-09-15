@@ -38,7 +38,7 @@ see Notes for the checkpoints this skipped).
 
 - [ ] **Retime demo (the plan's headline case, §8):** open the Punch clip in the Clip Editor, move
   its authored `Attack` event marker, play a swing in `DOTSTestScene` — the damage moment should move
-  with **no `AttackSO` edit**. The `Attack` event doesn't exist on any clip yet (this session only
+  with **no `AttackSO` edit**. ~~The `Attack` event doesn't exist on any clip yet~~ (2026-09-15: `MeleeContinuous` and `MeleeContinuous_EastFacing` carry key 18 `Attack`; the check below is runnable) — originally (this session only
   confirmed the registry key — see Notes) — **author it on Claw and Punch first**, or the swing will
   just use the `hitTime` fallback (0.3s) and nothing will appear to change when you retime.
 - [ ] Pickup completes exactly when its clip ends, at 1× and 2× speed, and while off-screen (logic

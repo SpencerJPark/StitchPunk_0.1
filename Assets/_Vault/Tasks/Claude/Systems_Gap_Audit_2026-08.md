@@ -2,8 +2,10 @@
 tags: [task, claude, code, audit, roadmap, animation, ai]
 related: "[[Code_Audit_2026-07]], [[Structural_Review_2026-07]], [[Memories/Code/Systems]], [[Memories/Code/Systems_AI]], [[Memories/Code/Systems_Animation]], [[Tasks/Plans/README]]"
 created: 2026-08-29
-status: active
+status: superseded
 ---
+
+> **2026-09-15:** the facts in this doc rotted — see [[Code_Audit_2026-09]] §2 for the list. The build-queue order in §6 still holds.
 
 # Systems Gap Audit — August 2026
 
