@@ -126,7 +126,7 @@ fixtures without a scene):
    (expect further game-side player errors — fix what is mechanical, report the rest); a
    clean-project import via `Unity.exe -batchmode -createProject` with the package as a `file:`
    dependency and `-quit`, grepping its log for `error CS`. Closes the A91 check as a side effect.
-2. **Zombie Conversion → Despawn + Minion Order Robustness (parallel worktrees) → Ranged.** Pure
+2. **Zombie Conversion → Despawn + Minion Order Robustness (parallel worktrees) → Ranged.** ✅ Despawn and Minion Order Robustness built 2026-09-15 (verify files open, rebake first); Ranged is next. Pure
    DOTS systems with approved specs; `/worktree-run` is built and drive-proven for exactly this.
 3. **UA + A79 as one spec** (§3 item 2), with the three decisions recorded above.
 4. **HANDOFF and index truth pass** (§3 item 3).

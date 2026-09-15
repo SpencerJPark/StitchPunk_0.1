@@ -60,4 +60,4 @@ Keep this file current: add a row when you add a request component; delete the r
 
 ## Removed (2026-07-02 structural pass)
 
-`SocialValidationRequest`, `SpawnItemRequest`, `DespawnItemRequest`, `UseItemRequest`, `DropRequest`, `ReleaseRequest` — defined but produced/consumed by nothing. Deleted; git remembers if a future feature wants the name back.
+`SocialValidationRequest`, `SpawnItemRequest`, `UseItemRequest`, `DropRequest`, `ReleaseRequest` — defined but produced/consumed by nothing. Deleted; git remembers if a future feature wants the name back.

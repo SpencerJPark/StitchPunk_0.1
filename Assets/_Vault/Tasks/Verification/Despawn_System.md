@@ -1,6 +1,6 @@
 # Despawn System — Design Spec
 
-> **Status:** ✅ decisions locked 2026-09-15 (§12, under the standing delegation) — ready for a `spec-lead` worktree run as spec id `despawn`; §12 is the build plan, §1–§10 the design.
+> **Status:** 🔨 built 2026-09-15 (A102 / Despawn / Minion Orders parallel batch, spec id `despawn`) — spec retired here, checklist at [`verify-despawn.md`](verify-despawn.md). Needs a rebake before any look; §12.4 is the build log, §1–§10 the design.
 > **Raw source:** [`../futureneedsplan.md`](../futureneedsplan.md) → "soundsystemgroup / spawn-despawn" area (pooling of units & effects)
 
 ---
@@ -286,3 +286,10 @@ pinned by test 1 but was not separately mutated.
   into Play and the Entities window shows it gone; toggling `Despawn` on a spawned unit in the inspector gives it `Disabled` (not
   destroyed) with `Despawn` back off, and a `UnitSpawner` later reclaims it; walking far from a crowd leaves at most 64 dormant
   units per `UnitType`; watch whether pooled units' body parts still render (DS-D5 root-only choice).
+
+**Integration (stage, 2026-09-15).** Merged `despawn` first (fast-forward to `88910918`), then `minion-orders`; the three
+shared vault notes auto-merged with both leads' rows intact. Compile gate clean. Suites: `StitchPunk.Tests` **68 of 68**,
+`StitchPunk.Tests.PlayMode` **19 of 19** (floor 16 + `DespawnSystemTests` 3), `DotsAnimationToolkit.Tests.EditMode` 866
+(standing Conformance_A only, before A102's merge), `.PlayMode` 285 of 285; registry sha256s unchanged. The stage's hand
+gates: `DespawnSystemTests` 3 of 3 on `ec62b9b1`, 0 of 3 on the mutation `fa61e89d`. The Editor-generated `.cs.meta` files
+for the five new files are committed with this close. Spec moved to `Tasks/Verification/` with `verify-despawn.md`.

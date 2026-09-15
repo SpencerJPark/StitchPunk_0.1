@@ -1,6 +1,6 @@
 # Minion Order Robustness — Design Spec
 
-> **Status:** ✅ decisions locked 2026-09-15 (§12, under the standing delegation) — ready for a `spec-lead` worktree run as spec id `minion-orders`; §12 is the build plan, §1–§10 the design.
+> **Status:** 🔨 built 2026-09-15 (A102 / Despawn / Minion Orders parallel batch, spec id `minion-orders`) — spec retired here, checklist at [`verify-minion-orders.md`](verify-minion-orders.md). Needs a rebake before any look; §12.4 is the build log, §1–§10 the design.
 > **Raw source:** [`../Claude/Code_Audit_2026-07.md`](../Claude/Code_Audit_2026-07.md) item #6 — prerequisite for ordering ranged minions (RangedCombat plan)
 
 ---
@@ -184,3 +184,12 @@ X and R in the scene are unverified.
   4. Hold R while issuing a command from across the map: the unit paths to where the player stood that frame and
      stops there (it does not keep following).
   5. F still follows continuously.
+
+**Integration (stage, 2026-09-15).** Merged after `despawn` (`3985d330`); `Components.md` / `Contracts.md` auto-merged with
+both leads' rows. Compile gate clean. Suites: `StitchPunk.Tests` **68 of 68** (floor 65 + `AttackResolutionTests` 3),
+`StitchPunk.Tests.PlayMode` 19 of 19, package EditMode 866 (standing Conformance_A only, before A102's merge), PlayMode 285.
+Stage check of the lead's "melee orders may change" note: every unit asset carries one attack, `MeleeContinuous` (17);
+`PlayerZombieBrain` defines `MeleeContinuous` but not `MeleeSingle`, so the old hard-coded `MeleeSingle` lookup missed on
+zombie minions and dropped their attack orders — the resolver fixes that rather than changing melee. X and R are read
+inside `HandleCommand` (held while the command input fires), like F; the owner's key-feel question is in the verify file.
+Spec moved to `Tasks/Verification/` with `verify-minion-orders.md`.
