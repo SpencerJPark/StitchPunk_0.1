@@ -8,6 +8,34 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.0] — A98 — Capture tab
+
+### Added
+- **Capture tab** in the Clip Editor window: renders a clip (shared Clip Set and Rig), a profile animation (by name, at a chosen facing) or a cutscene (in its open scene) over a frame range to a PNG sequence (optionally transparent) or a looping GIF, framed with the preview orbit camera. Size presets 256, 512, 1024 square and 1920 x 1080; FPS 1–60; range as a fraction of the source with an exclusive end; output `<folder>/<name>_0001.png` or `<folder>/<name>.gif`, default folder `Assets/Generated/DotsAnimationToolkit/Captures/<name>`; one overwrite confirm; Cancel keeps written PNGs; PNGs import uncompressed without mipmaps. The camera pose is remembered per source.
+- `ICaptureSource`, `ClipCaptureSource`, `ProfileAnimationCaptureSource`, `CutsceneCaptureSource`, `FrameCaptureRunner` (one frame per editor update, usable without the panel), `PngSequenceWriter`, `GifEncoding` (self-contained GIF89a encoder, no dependency), `CaptureSettings`, `CaptureViewportElement`, `CapturePanel`.
+- `ClipPreviewController.RenderCaptureFrame` renders without grid, selection, bone handles or socket markers, cleared to a capture background.
+- Documentation: `capture-tab.md`.
+
+## [0.47.0] — A97 — Retarget tab
+
+### Added
+- Retarget tab: pick a clip set, a clip and a rig to see every track as a row — Bound (the part it lands on), Skipped (the rig has no part wearing the tag) or Dangling (the tag is gone from the project's tag list).
+- A row's remap menu rewrites that track's tag in this clip, with undo; a tag another track already uses merges the two. "Remap in every clip…" runs the project-wide replace.
+- Roster strip: bound/total coverage for the clip on every rig in the project; click a rig to switch to it.
+- Preview poses the clip on the picked rig, so skipped tracks show as holes.
+- `RetargetBindingResolver.Resolve(ClipAsset, RigAsset, TargetTagRegistry)` for the same answer from code.
+
+## [0.46.0] — A96 — Materials tab
+
+### Added
+- Clip Editor Materials tab (after Health). For the shared rig it lists every material on the source prefab's renderers, which parts use each, and which shader-contract properties each has and lacks per target kind, plus GPU instancing and a sprite-sheet check (a sheet-bound part whose material has no `_MainTexArray`). Read-only; Select in Inspector pings the material.
+- Create for target: a material from the package's shader graph for the target's kind (Quad → ToolkitSpriteUnlit, Flipbook Plane → ToolkitSpriteUnlitArray, VAT Mesh → ToolkitVatCrowdUnlit), instancing on, saved beside the rig's prefab as `M_<Rig>_<Target>.mat` without overwriting. It is not assigned to the renderer.
+- `MaterialContractValidation` (Authoring): the contract as data. A Flipbook Plane needs `_ImageIndex` or `_AtlasFrame`; a VAT Mesh needs `_VatFrameA`, `_VatFrameB`, `_VatBlend`; no kind requires `_BillboardParams`.
+- `RigMaterialResolver`, `MaterialTemplateUtility`, and the documentation page `materials-tab.md`.
+
+### Changed
+- Entity bake: a VAT Mesh part whose material has the VAT texture slot also logs one warning listing missing contract properties or instancing off.
+
 ## [0.45.0] — A95F — Sprite Sheets over existing arrays
 
 Owner checkpoint T10 accepted 2026-09-14 ("these look good for now").

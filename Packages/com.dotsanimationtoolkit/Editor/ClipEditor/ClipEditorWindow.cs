@@ -177,6 +177,12 @@ namespace DotsAnimationToolkit.Editor
         private HealthPanel healthPanel;
         private VisualElement spriteSheetsPane;
         private SpriteSheetsPanel spriteSheetsPanel;
+        private VisualElement materialsPane;
+        private MaterialsPanel materialsPanel;
+        private VisualElement retargetPane;
+        private RetargetPanel retargetPanel;
+        private VisualElement capturePane;
+        private CapturePanel capturePanel;
 
         /// <summary>The Actor Editor pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement actorEditorPane;
@@ -193,7 +199,7 @@ namespace DotsAnimationToolkit.Editor
         /// because every switch has to write the ones that did not change, and a lookup miss would
         /// leave one lit alongside the new one.
         /// </summary>
-        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[10];
+        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[13];
 
         /// <summary>The Cutscene Editor's cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement cutscenePane;
@@ -835,6 +841,14 @@ namespace DotsAnimationToolkit.Editor
                 spriteSheetsPanel.Dispose();
                 spriteSheetsPanel = null;
             }
+            materialsPanel?.Dispose();
+            materialsPanel = null;
+            // The Retarget preview owns a PreviewRenderUtility, which the GC never reclaims.
+            retargetPanel?.Dispose();
+            retargetPanel = null;
+            // Owns the source adapters' preview utilities and cancels a running capture.
+            capturePanel?.Dispose();
+            capturePanel = null;
 
             // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
             // which the GC reclaims. Leaking them survives domain reloads as a growing native
@@ -1017,6 +1031,9 @@ namespace DotsAnimationToolkit.Editor
             eventsPane = rootVisualElement.Q<VisualElement>("events-pane");
             healthPane = rootVisualElement.Q<VisualElement>("health-pane");
             spriteSheetsPane = rootVisualElement.Q<VisualElement>("sprite-sheets-pane");
+            materialsPane = rootVisualElement.Q<VisualElement>("materials-pane");
+            retargetPane = rootVisualElement.Q<VisualElement>("retarget-pane");
+            capturePane = rootVisualElement.Q<VisualElement>("capture-pane");
 
             // Before BindTabs, which hides the whole stack on any tab but Clip Editor.
             viewportOverlay = rootVisualElement.Q<VisualElement>("viewport-overlay");
@@ -1057,6 +1074,7 @@ namespace DotsAnimationToolkit.Editor
             // Built at window creation, not on first show, so the tab's error count is there before
             // the Health tab is ever opened.
             BuildHealthPanel();
+            BuildMaterialsPanel();
 
             rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
             if (rigEditToggle != null)
@@ -1320,6 +1338,15 @@ namespace DotsAnimationToolkit.Editor
             BindTab(ClipEditorTab.Health, "tab-health",
                 "Scan every toolkit asset for cross-asset problems, such as clips in no set, stale VAT "
                 + "bakes and unregistered tags or event keys, and apply the one-click fixes.");
+            BindTab(ClipEditorTab.Materials, "tab-materials",
+                "Every material on the shared rig's prefab against the shader contract: which parts use it, "
+                + "which properties it has and lacks, instancing, and a material made for a chosen target.");
+            BindTab(ClipEditorTab.Retarget, "tab-retarget",
+                "A clip against a rig, one row per track: where it binds, why it is skipped or dangling, "
+                + "a per-track tag remap, and coverage across every rig in the project.");
+            BindTab(ClipEditorTab.Capture, "tab-capture",
+                "Render a clip, profile animation or cutscene to a PNG sequence or GIF through the orbit "
+                + "preview camera, at a chosen size, rate and frame range.");
 
             ApplyActiveTab();
         }
@@ -1399,6 +1426,9 @@ namespace DotsAnimationToolkit.Editor
             ShowEventsTab(activeTab == ClipEditorTab.Events);
             ShowHealthTab(activeTab == ClipEditorTab.Health);
             ShowSpriteSheetsTab(activeTab == ClipEditorTab.SpriteSheets);
+            ShowMaterialsTab(activeTab == ClipEditorTab.Materials);
+            ShowRetargetTab(activeTab == ClipEditorTab.Retarget);
+            ShowCaptureTab(activeTab == ClipEditorTab.Capture);
 
             // The overlay's controls only mean anything while looking at the 3D area, and the cover
             // panes are drawn over the whole body — so on any other tab it is underneath one of them
@@ -1648,6 +1678,69 @@ namespace DotsAnimationToolkit.Editor
             }
 
             spriteSheetsPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        // Built with the window so it follows the shared rig from the start; prefab and material edits are
+        // not observed, so showing the tab refreshes.
+        private void BuildMaterialsPanel()
+        {
+            if (materialsPane == null || materialsPanel != null)
+            {
+                return;
+            }
+
+            materialsPanel = new MaterialsPanel();
+            materialsPane.Add(materialsPanel);
+            materialsPanel.Bind(selection);
+        }
+
+        private void ShowMaterialsTab(bool isShown)
+        {
+            if (materialsPane == null)
+            {
+                return;
+            }
+
+            if (isShown && materialsPanel != null)
+            {
+                materialsPanel.Refresh();
+            }
+
+            materialsPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        private void ShowRetargetTab(bool isShown)
+        {
+            if (retargetPane == null)
+            {
+                return;
+            }
+
+            if (isShown && retargetPanel == null)
+            {
+                retargetPanel = new RetargetPanel();
+                retargetPanel.Bind(selection);
+                retargetPane.Add(retargetPanel);
+            }
+
+            retargetPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        private void ShowCaptureTab(bool isShown)
+        {
+            if (capturePane == null)
+            {
+                return;
+            }
+
+            if (isShown && capturePanel == null)
+            {
+                capturePanel = new CapturePanel();
+                capturePanel.Bind(selection);
+                capturePane.Add(capturePanel);
+            }
+
+            capturePane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
         /// <summary>Answers the Rigs panel's Use in Clip Editor button: switches tabs — the rig is already the shared selection.</summary>

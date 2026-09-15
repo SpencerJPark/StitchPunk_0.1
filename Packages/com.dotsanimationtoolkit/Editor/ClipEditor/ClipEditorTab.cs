@@ -30,6 +30,12 @@ namespace DotsAnimationToolkit.Editor
 
         CutsceneEditor = 8,
 
-        Health = 9
+        Health = 9,
+
+        Materials = 10,
+
+        Retarget = 11,
+
+        Capture = 12
     }
 }

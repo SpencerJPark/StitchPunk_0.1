@@ -164,6 +164,14 @@ And the two references both of them lean on:
 - [`sprite-sheets.md`](sprite-sheets.md) — the Sprite Sheets tab: stacking
   same-size frames into one `Texture2DArray`, the contact sheet, and picking a
   sprite key's frame by name.
+- [`materials-tab.md`](materials-tab.md) — the Materials tab: every material on
+  a rig's prefab against the shader contract per target kind, instancing, the
+  sprite-sheet check, and Create for a target.
+- [`retarget-tab.md`](retarget-tab.md) — the Retarget tab: a clip's tracks on a
+  rig as Bound, Skipped or Dangling rows, per-track tag remap, and roster
+  coverage across every rig.
+- [`capture-tab.md`](capture-tab.md) — the Capture tab: PNG sequences and GIFs
+  of a clip, profile animation or cutscene from the orbit preview camera.
 - [`animation-events.md`](animation-events.md) — authoring event markers, the
   pulse-vs-window split, naming keys with a registry, and reading both channels
   from a Burst job.

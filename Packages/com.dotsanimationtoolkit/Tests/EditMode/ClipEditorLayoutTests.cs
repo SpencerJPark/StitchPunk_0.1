@@ -40,6 +40,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
             "tab-vat-bake",
             "tab-events", "tab-health", "tab-sprite-sheets",
+            "tab-materials", "tab-retarget", "tab-capture",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle",
             // The floating overlay over the viewport, and the row of viewport tools inside it —
@@ -90,7 +91,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // shape as the two above, so a rename here is a tab that lights and shows nothing.
             "actor-editor-pane", "cutscene-pane",
             // The Events, Health and Sprite Sheets slots, after Cutscene Director in the strip.
-            "events-pane", "health-pane", "sprite-sheets-pane"
+            "events-pane", "health-pane", "sprite-sheets-pane",
+            // Materials, Retarget and Capture, after Health at the end of the strip.
+            "materials-pane", "retarget-pane", "capture-pane"
         };
 
         [Test]
@@ -171,7 +174,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 "tab-texture-packer",
                 "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
                 "tab-vat-bake",
-                "tab-events", "tab-health", "tab-sprite-sheets"
+                "tab-events", "tab-health", "tab-sprite-sheets",
+                "tab-materials", "tab-retarget", "tab-capture"
             };
 
             List<string> litTabs = new List<string>();
