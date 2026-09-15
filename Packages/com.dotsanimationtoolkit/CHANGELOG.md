@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.48.0] — A98 — Capture tab
 
+Owner checkpoint T13 accepted 2026-09-14 ("uncompressed is fine").
+
 ### Added
 - **Capture tab** in the Clip Editor window: renders a clip (shared Clip Set and Rig), a profile animation (by name, at a chosen facing) or a cutscene (in its open scene) over a frame range to a PNG sequence (optionally transparent) or a looping GIF, framed with the preview orbit camera. Size presets 256, 512, 1024 square and 1920 x 1080; FPS 1–60; range as a fraction of the source with an exclusive end; output `<folder>/<name>_0001.png` or `<folder>/<name>.gif`, default folder `Assets/Generated/DotsAnimationToolkit/Captures/<name>`; one overwrite confirm; Cancel keeps written PNGs; PNGs import uncompressed without mipmaps. The camera pose is remembered per source.
 - `ICaptureSource`, `ClipCaptureSource`, `ProfileAnimationCaptureSource`, `CutsceneCaptureSource`, `FrameCaptureRunner` (one frame per editor update, usable without the panel), `PngSequenceWriter`, `GifEncoding` (self-contained GIF89a encoder, no dependency), `CaptureSettings`, `CaptureViewportElement`, `CapturePanel`.

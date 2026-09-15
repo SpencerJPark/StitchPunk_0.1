@@ -12,7 +12,6 @@
 > **⏸ Owner to-do (A96–A98, built 2026-09-14):**
 > - A96 T13: Materials with `NewRig` selected: 30 materials and their contract rows. Should Create also assign the new material to the part's renderer?
 > - A97 T11: Retarget, `NewClipSet` › `Walk` on `NewRig` reads 16/16 Bound. Should a ● Skipped row offer "add this tag to the rig"?
-> - A98 T13: Capture `Walk` on `NewRig` to PNGs or a GIF. Should captured PNGs import uncompressed (as now) or with project defaults?
 >
 > Earlier: on 2026-09-14 the owner accepted A93F T10, A94F T12 and A95F T10
 > ("these look good for now"). Earlier that day the owner accepted A87's follow-up, A88 T9 and A92 T10 without a hands-on look ("assume they
@@ -50,7 +49,7 @@ free minor and correct the spec's status line.
 - [x] **A95 — Sprite Sheets tab** (`0.42.0`) — [`A95_SpriteSheetsTab_Spec.md`](A95_SpriteSheetsTab_Spec.md). `Texture2DArray` flipbook builder with a contact-sheet preview, writing the layer indices sprite tracks already expect; frame-by-name picker on sprite keys. Atlas output dropped 2026-09-12 (spec D0).
 - [ ] **A96 — Materials tab** (`0.46.0`, built 2026-09-14, ⏸ T13 open) — [`A96_MaterialsTab_Spec.md`](A96_MaterialsTab_Spec.md). Every actor material against the shader contract; create-from-template.
 - [ ] **A97 — Retarget tab** (`0.47.0`, built 2026-09-14, ⏸ T11 open) — [`A97_RetargetTab_Spec.md`](A97_RetargetTab_Spec.md). Clip × rig binding table with per-row tag remap and roster coverage.
-- [ ] **A98 — Capture tab** (`0.48.0`, built 2026-09-14, ⏸ T13 open) — [`A98_CaptureTab_Spec.md`](A98_CaptureTab_Spec.md). PNG sequence (and optional GIF) from the preview camera for a clip, profile animation or cutscene.
+- [x] **A98 — Capture tab** (`0.48.0`, built 2026-09-14, T13 accepted 2026-09-14) — [`A98_CaptureTab_Spec.md`](A98_CaptureTab_Spec.md). PNG sequence (and optional GIF) from the preview camera for a clip, profile animation or cutscene.
 - [ ] **A99 — Ragdoll tab** (`0.49.0`) — [`A99_RagdollTab_Spec.md`](A99_RagdollTab_Spec.md). Bodies, limits and the drop simulation get their own three-column home; the Clip Editor keeps only the preview toggle.
 - [ ] **A100 — Stats tab** (`0.50.0`) — [`A100_StatsTab_Spec.md`](A100_StatsTab_Spec.md). Play-mode counts: actors, events per frame, LOD histogram, VAT texture memory, group timings.
 

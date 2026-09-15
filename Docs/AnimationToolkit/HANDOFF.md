@@ -121,7 +121,7 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-**A98 (0.48.0), built 2026-09-14, ⏸ T13 open.** The Capture tab renders a clip (shared Clip Set and Rig), a profile
+**A98 (0.48.0), built 2026-09-14, T13 accepted 2026-09-14.** The Capture tab renders a clip (shared Clip Set and Rig), a profile
 animation or a cutscene through the preview camera to a PNG sequence (optionally transparent) or a looping GIF, framed with the
 orbit camera. Three `ICaptureSource` adapters own their preview controllers and are disposed with `CapturePanel`;
 `ICaptureSource.RenderFrame` replaces the spec's `PreviewCamera` (the controller exposes none), and

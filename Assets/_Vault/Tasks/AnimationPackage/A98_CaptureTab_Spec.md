@@ -1,6 +1,6 @@
 # Amendment A98 — Capture tab: PNG sequences and GIFs from the preview camera
 
-> **Status:** ✅ built 2026-09-14 as `0.48.0` in the A96–A98 parallel worktree batch (merged `e07c91dd`, integrated `e7ae55f9`); ⏸ T13 owner checkpoint open. The specced `0.45.0` went to A95F; see §7.
+> **Status:** ✅ built 2026-09-14 as `0.48.0` in the A96–A98 parallel worktree batch (merged `e07c91dd`, integrated `e7ae55f9`); **T13 accepted 2026-09-14** (owner: "uncompressed is fine"). The specced `0.45.0` went to A95F; see §7.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** A74 (shared `PreviewCameraNavigation`, `IPreviewCameraRig`,
 > `PreviewCameraPose`), A71 (`ActorPreviewComposer` plays profile animations), the cutscene
@@ -138,7 +138,7 @@ allowlist.
 - [x] **T11 — Vault + HANDOFF.** Vault note "Capture tab (A98)": the render path from T0, the
   D3 timing.
 - [x] **T12 — Close.** Roadmap checkbox.
-- [ ] **T13 — ⏸ owner checkpoint.** Message: "Capture tab: frame Walk, press Capture, open the
+- [x] **T13 — ⏸ owner checkpoint.** Message: "Capture tab: frame Walk, press Capture, open the
   folder. A GIF is attached [or: GIF was dropped because encoding took N s — see §7]. ⚠ Should
   captured PNGs import uncompressed (as now) or with project defaults?"
 
@@ -261,3 +261,7 @@ allowlist.
     materials), not a capture fault; whether the owner's docked viewport shows the same is not known.
   - Capture source disposed; scratch deleted; registry sha256s unchanged; `NewClipSet`, `NewRig` and `Walk` untouched.
 - **Not seen by eye:** the drawn tab, the viewport element's styling, and the profile-animation and cutscene sources (not driven).
+
+### Owner checkpoint answer (2026-09-14)
+
+- **Accepted as built.** The owner: "uncompressed is fine". Captured PNGs keep importing uncompressed without mipmaps; no follow-up.
