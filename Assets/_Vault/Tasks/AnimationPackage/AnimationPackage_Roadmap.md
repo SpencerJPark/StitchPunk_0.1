@@ -52,6 +52,10 @@ free minor and correct the spec's status line.
 - [ ] **A99 — Ragdoll tab** (`0.51.0`) — [`A99_RagdollTab_Spec.md`](A99_RagdollTab_Spec.md). Bodies, limits and the drop simulation get their own three-column home; the Clip Editor keeps only the preview toggle.
 - [ ] **A100 — Stats tab** (`0.52.0`) — [`A100_StatsTab_Spec.md`](A100_StatsTab_Spec.md). Play-mode counts: actors, events per frame, LOD histogram, VAT texture memory, group timings.
 
+### Phase 3 — consistency (alone, after the A96F/A97F/A99 batch has merged; it edits files those specs edit)
+
+- [ ] **A101 — Editor chrome consistency** (`0.53.0`, specced 2026-09-15) — [`A101_EditorChromeConsistency_Spec.md`](A101_EditorChromeConsistency_Spec.md). Owner's 2026-09-15 ask: the Clip Editor and Texture Packer lead; every other tab adopts their spacing, headers, primary action, hints and status rows through four shared elements (`ToolkitChrome`, `ViewportFrameElement`, `CatalogSidebarElement`, `PathPickerRowElement`); a `Conformance_I` ratchet keeps inline visual styles out; the cutscene timeline draws ruler + ghost lanes when nothing is loaded. Two waves (7 then 21 Sonnet workers), three ⚠ interpretations at its checkpoint.
+
 ## 2. Standing owner calls these specs inherit (do not re-ask)
 
 - Names, never numbers, in game code and editor surfaces (HANDOFF §5).
