@@ -29,6 +29,8 @@ Owner checkpoint T13 accepted 2026-09-14 ("uncompressed is fine").
 
 ## [0.46.0] — A96 — Materials tab
 
+Owner checkpoint T13 answered 2026-09-14 ("assign yes"): Create should also assign the new material to the part's renderer; reworked as A96F (`0.49.0`).
+
 ### Added
 - Clip Editor Materials tab (after Health). For the shared rig it lists every material on the source prefab's renderers, which parts use each, and which shader-contract properties each has and lacks per target kind, plus GPU instancing and a sprite-sheet check (a sheet-bound part whose material has no `_MainTexArray`). Read-only; Select in Inspector pings the material.
 - Create for target: a material from the package's shader graph for the target's kind (Quad → ToolkitSpriteUnlit, Flipbook Plane → ToolkitSpriteUnlitArray, VAT Mesh → ToolkitVatCrowdUnlit), instancing on, saved beside the rig's prefab as `M_<Rig>_<Target>.mat` without overwriting. It is not assigned to the renderer.

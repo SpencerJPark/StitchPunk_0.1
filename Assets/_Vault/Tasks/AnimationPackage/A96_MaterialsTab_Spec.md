@@ -1,6 +1,6 @@
 # Amendment A96 — Materials tab: every actor material against the shader contract
 
-> **Status:** ✅ built 2026-09-14 as `0.46.0` in the A96–A98 parallel worktree batch (merged `62603be5`, integrated `e7ae55f9`); ⏸ T13 owner checkpoint open. The specced `0.43.0` went to A93F; see §7.
+> **Status:** ✅ built 2026-09-14 as `0.46.0` in the A96–A98 parallel worktree batch (merged `62603be5`, integrated `e7ae55f9`); **T13 answered 2026-09-14** (owner: "assign yes"); reworked as A96F (`0.49.0`). The specced `0.43.0` went to A93F; see §7.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** A78 (per-part `ValidateVatMaterial`), A82 (column, split view), the shader
 > contract (`Documentation~/shader-contract.md`). Optional: A95 (sheet-bound tracks need an array sampler — cross-check).
@@ -142,7 +142,7 @@ renderers and `VatBakeSourceResolver`'s node lookup.
   a Quad target → a `.mat` beside the prefab with instancing on (reload and check). Capture.
 - [x] **T11 — Vault + HANDOFF.**
 - [x] **T12 — Close.** Roadmap checkbox.
-- [ ] **T13 — ⏸ owner checkpoint.** Message: "Materials tab with your rig selected: each material,
+- [x] **T13 — ⏸ owner checkpoint.** Message: "Materials tab with your rig selected: each material,
   which parts use it, which contract properties it has. ⚠ Should Create also assign the new material
   to the part's renderer, or leave that to you?"
 
@@ -327,3 +327,8 @@ renderer?
     no keywords. Not assigned to any renderer.
   - Nothing under `Assets/Materials` or `Assets/Prefabs` changed; scratch deleted; registry sha256s unchanged.
 - **Not seen by eye:** the drawn tab (a detached panel has no window to capture), the ✓/✗ glyph rows and the Create dropdown.
+
+### Owner checkpoint answer (2026-09-14)
+
+- **Answered "assign yes":** Create should also assign the new material to the part's renderer. Specced as `A96F_CreateAssignsMaterial_Spec.md` (`0.49.0`),
+  not built; the rest of this section's drift stands.

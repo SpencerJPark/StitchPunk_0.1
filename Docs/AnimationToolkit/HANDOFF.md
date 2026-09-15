@@ -138,7 +138,7 @@ order. A row's remap writes that track's tag in this clip with undo, merging ont
 preview poses the clip on the picked rig. Drive: Walk on `NewRig` 16/16; a rig copy missing `UpperLeftLeg`'s tag gave one
 Skipped row and roster 15/16; the remap persisted in the scratch clip's YAML and undid.
 
-**A96 (0.46.0), built 2026-09-14, ⏸ T13 open.** The Materials tab lists every material on the shared rig's source
+**A96 (0.46.0), built 2026-09-14, T13 answered 2026-09-14: reworked as A96F (`0.49.0`, specced).** The Materials tab lists every material on the shared rig's source
 prefab, the targets each serves, and the shader contract as data (`MaterialContractValidation`): Flipbook Plane needs
 `_ImageIndex` or `_AtlasFrame`, VAT Mesh `_VatFrameA/B` and `_VatBlend`, every kind GPU instancing; plus a sheet check. There
 is no example `.shader`: Create makes a material from the kind's shader graph beside the prefab and does not assign it. The
