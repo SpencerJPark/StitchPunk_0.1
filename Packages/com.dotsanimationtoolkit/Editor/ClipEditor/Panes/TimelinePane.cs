@@ -827,6 +827,7 @@ namespace DotsAnimationToolkit.Editor
                 accessor,
                 ClipInspectorPane.ResolveEventKeyRegistry(),
                 () => OpenMarkerEventKeyPicker(flatIndex, anchor),
+                () => RefactorPromptEditing.PickKeyThenRekeyEverywhere(WindowRoot, anchor, accessor.Key, RebuildTimeline),
                 () => DuplicateEventMarker(flatIndex),
                 () => DeleteEventMarker(address),
                 editedField => AfterEventMarkerEditedFromMenu(flatIndex),

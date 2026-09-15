@@ -3160,6 +3160,16 @@ namespace DotsAnimationToolkit.Editor
                 accessor,
                 VocabularyRegistryProvider.AnimEventKeys,
                 () => OpenCutsceneEventKeyPicker(accessor, anchor),
+                () => RefactorPromptEditing.PickKeyThenRekeyEverywhere(
+                    this,
+                    anchor,
+                    accessor.Key,
+                    () =>
+                    {
+                        // The operation writes the asset directly, behind this panel's SerializedObject.
+                        serializedObject.Update();
+                        RequestTimelineRebuild();
+                    }),
                 () => DuplicateCutsceneEvent(eventsProperty, eventIndex),
                 () => DeleteArrayElement(eventsProperty, eventIndex),
                 OnCutsceneEventMarkerFieldEdited,

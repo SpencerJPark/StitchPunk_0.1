@@ -151,4 +151,42 @@ skip this file.
 
 ## 7. Build log
 
-_(empty)_
+### T0 drift (2026-09-14, head 2ad594a2; package unchanged since 1cad5221, CHANGELOG top still 0.38.0 so A92 takes 0.39.0)
+
+1. **No confirm window (T3 as specced is skipped).** `Conformance_E` bans only `OnGUI`, `GUILayout`
+   and `Handles.`; `EditorUtility.DisplayDialog` is allowed and already used by six package files.
+   T3 is re-purposed as `Editor/ClipEditor/Editing/RefactorPromptEditing.cs`: the shared
+   pick-a-target → preview → `DisplayDialog` → run step all four entry points call.
+2. **D3 `AssetDatabase.SaveAssets` is not used.** Standing rule: it flushes the owner's unsaved
+   editor state. Each touched asset is saved with `AssetDatabase.SaveAssetIfDirty(asset)` instead.
+   Ctrl+Z reverts every asset in memory (one collapsed group) and leaves them dirty; disk follows on
+   the next save, as for any Unity undo.
+3. **Billboard tracks carry no tag** (`BillboardTrack.rootStableId` only). `ReplaceTrackTag` moves
+   `TransformTrack` and `SpriteTrack`.
+4. **Cutscene part tracks are included** (owner call 2026-09-14, "use your recommendations"):
+   `CutsceneKeyedTrack.tagId` moves with the clip tracks. Rig targets are still never retagged.
+5. **Preview filters A84's list.** `ReferencesToTag` also returns `RigTargetTag` rows, which the
+   operation never touches; `PreviewReplaceTrackTag` drops them, so the dialog lists only what changes.
+6. **Ragdoll re-key matches the index**: only definitions with `ragdollTrigger != None` are re-keyed,
+   the same filter `ReferencesToEventKey` applies, so nothing is touched that the preview did not list.
+7. **D4 settled** (owner call 2026-09-14): merge leaves `intParam` raw; the dialog warns when the two
+   entries' payload schemas (int label, int value names, float label, float unit) differ. A85's schema
+   lives on `AnimEventKeyEntry`.
+8. **Lane menu is `EventMarkerContextMenu`**, shared by `TimelinePane` and `CutsceneEditorPanel`.
+   T1 added a `changeKeyEverywhere` parameter after `openKeyPicker` and wired both callers (the cutscene
+   one calls `serializedObject.Update()` before rebuilding, since the operation writes behind it), so T5
+   shrinks to the Rigs tab.
+9. **Rigs tab Tag button has no menu** (left-click opens the tag picker, in `RigsPanel.cs`, not
+   `RigTargetRowBuilder.cs`, which is data only). "Move clip tracks to another tag…" is a right-click
+   `ContextualMenuManipulator` item on the Tag button, enabled when the row has a tag.
+10. **Registry inspectors use a name menu, not the overlay picker.** `VocabularyPicker` needs a host
+    it can add itself to; the inspectors get a `GenericDropdownMenu` of the other entries' names via
+    `RefactorPromptEditing.ShowMergeIntoMenu` / `ShowReplaceTagMenu`.
+11. **`MergeEventKeys` gains a registry overload** `(fromKey, intoKey, AnimEventKeyRegistry)` so the
+    drive can merge against a scratch registry; `VocabularyRegistryProvider.Persist` is already a no-op
+    for anything but the project instance.
+12. **Drive keys.** The operations are project-wide, so the drive uses an event key and a tag id no
+    real asset uses, and previews before applying to prove only scratch assets are listed.
+13. **One wave of five**: T2 (operations + resolver), T3 (prompts), T4 (inspectors), T5 (Rigs tab),
+    T6 (docs).
+

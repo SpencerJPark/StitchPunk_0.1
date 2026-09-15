@@ -24,6 +24,7 @@ namespace DotsAnimationToolkit.Editor
             IEventMarkerAccessor accessor,
             AnimEventKeyRegistry registry,
             Action openKeyPicker,
+            Action changeKeyEverywhere,
             Action duplicateMarker,
             Action deleteMarker,
             Action<EventMarkerField> markerEdited,
@@ -52,6 +53,13 @@ namespace DotsAnimationToolkit.Editor
                 "Change key…",
                 menuAction => openKeyPicker(),
                 openKeyPicker != null ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+
+            menu.AppendAction(
+                "Change key everywhere…",
+                menuAction => changeKeyEverywhere(),
+                changeKeyEverywhere != null && accessor.Key != 0u
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
 
             menu.AppendAction(
                 "Duplicate marker",
