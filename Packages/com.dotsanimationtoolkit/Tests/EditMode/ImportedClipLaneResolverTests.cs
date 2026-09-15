@@ -46,7 +46,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             }
         }
 
-        private sealed class FloatToleranceComparer : IComparer<float>
+        private sealed class FloatToleranceComparer : IComparer<float>, System.Collections.IComparer
         {
             public int Compare(float firstValue, float secondValue)
             {
