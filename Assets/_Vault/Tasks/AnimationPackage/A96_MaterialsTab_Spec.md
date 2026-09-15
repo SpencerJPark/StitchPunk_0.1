@@ -203,3 +203,96 @@ renderers and `VatBakeSourceResolver`'s node lookup.
   `SaveAssets`.
 - **D4 home.** `RigMaterialResolver.CollectSheetBindingWarnings` (Editor) rather than the Authoring class, to reuse
   `TrackTargetMatchResolver`.
+
+### Wave build and gates (spec-lead, 2026-09-14)
+
+- **Commits on `spec/a96`:** `9e9b74b7` T1 stubs + metas; `cd81d886` T2–T8 wave (seven sonnet workers, one file each,
+  docs worker two); `bf90243c` lead's T9 part (baker contract call, probe shader, fixture instancing); `e37157bc`
+  section 7 grounding. Lead fixes before the wave commit: a second `<summary>` the panel worker added on `Bind`
+  (Conformance_F), and a null-target guard in the panel's target dropdown.
+- **EditMode gate at `e37157bc`:** `MaterialContractValidationTests` + `PackagingConformanceTests` — 14 run, 13 passed,
+  the one failure the standing `Conformance_A` (Editor asmdef lists `Unity.RenderPipelines.Universal.Runtime`).
+  Real: passed equals named minus the standing failure. The first attempt was refused "commit before gating" (dirty
+  tree), which is why the baker and section 7 were committed before any gate ran.
+- **PlayMode gate:** the broker refuses play-mode fixtures ("not supported by the broker yet"), so
+  `DotsAnimationToolkit.Tests.PlayMode.ActorBakingAcceptanceTests` at `e37157bc` was sent to the stage as
+  "gate needed". The verdict is recorded below once it replies.
+- **Revert-to-fail:** a mutation commit made `EvaluateProperties` treat every property as required for every kind
+  (`bool required = true;`). The gate ran 14: 12 passed, 2 failed — `Quad_MissingVatFrameA_IsNotReported` (five
+  errors, `_ImageIndex or _AtlasFrame` … `_BillboardParams`, on a Quad) plus the standing `Conformance_A`.
+  `git reset --hard HEAD~1` then put `MaterialContractValidation.cs` back to sha256
+  `E7D6BB39484CA83E02977437D065D3A9285B033A7AE51BC43253537E25DD245C`, the same as before. Two earlier mutation
+  attempts were reset without a verdict: no broker heartbeat (exit 3), then "Unity is compiling".
+- **Unverified here:** nothing was rendered or driven (no MCP in a worktree). Unchecked so far: panel layout, the ✓/✗
+  glyphs in the Editor font, `DropdownField` behaviour with an empty choice list, `Create` on a real prefab
+  (`GenerateUniqueAssetPath`, `SaveAssetIfDirty`), and whether `AssetDatabase.LoadAssetAtPath<Shader>` on a
+  `.shadergraph` returns the graph shader. That is all T10.
+
+### For integration
+
+**CHANGELOG** (`## [0.46.0]`):
+
+```
+## [0.46.0] - 2026-09-14
+### Added
+- Clip Editor Materials tab (after Sprite Sheets). For the shared rig it lists every material on the source prefab's
+  renderers, which parts use each, and which shader-contract properties each has and lacks per target kind, plus GPU
+  instancing and a sprite-sheet check (a sheet-bound part whose material has no `_MainTexArray`). Read-only; Select in
+  Inspector pings the material.
+- Create for target: a material from the package's shader graph for the target's kind (Quad → ToolkitSpriteUnlit,
+  Flipbook Plane → ToolkitSpriteUnlitArray, VAT Mesh → ToolkitVatCrowdUnlit), instancing on, saved beside the rig's
+  prefab as `M_<Rig>_<Target>.mat` without overwriting. It is not assigned to the renderer.
+- `MaterialContractValidation` (Authoring): the contract as data. A Flipbook Plane needs `_ImageIndex` or
+  `_AtlasFrame`; a VAT Mesh needs `_VatFrameA`, `_VatFrameB`, `_VatBlend`; no kind requires `_BillboardParams`.
+- `RigMaterialResolver`, `MaterialTemplateUtility`, documentation page `materials-tab.md`.
+### Changed
+- Entity bake: a VAT Mesh part whose material has the VAT texture slot also logs one warning listing missing contract
+  properties or instancing off.
+```
+
+**Conformance_G allowlist:** none needed (`MaterialContractValidation`, `RigMaterialResolver`,
+`MaterialTemplateUtility` in `Editor/ClipUtilities/`).
+
+**Wiring (stage-owned files):**
+- `ClipEditorTab.Materials` after `SpriteSheets`; UXML toggle `tab-materials` (text "Materials"), pane
+  `materials-pane`.
+- Build at window creation: `materialsPanel = new MaterialsPanel(); materialsPane.Add(materialsPanel);
+  materialsPanel.Bind(sharedSelection);`. The panel subscribes to `RigChanged` and `ClipSetChanged` and never
+  writes the selection.
+- On showing the tab call `materialsPanel.Refresh()`: prefab and material edits are not observed.
+- In teardown: `materialsPanel?.Dispose()` (unsubscribes both events).
+- `index.md`: link `materials-tab.md`.
+- Element names for layout tests and drives: `materials-rig-name`, `materials-create-target`,
+  `materials-create-button`, `materials-result`, catalog `material-catalog-column` (`materials-list`,
+  `materials-search`), inspector `material-inspector-title` / `-select` / `-hint` / `-shader` / `-used-by` /
+  `-property-<_Name>` / `-instancing` / `-sheet-warning`.
+- Split key `Materials.Catalog`.
+
+**Detached drive recipe (T10):**
+1. Copy MaleCitizen's rig and prefab into the scratch folder, pointing the copy's `sourcePrefab` at the prefab copy.
+2. `MaterialsPanel panel = new MaterialsPanel(); panel.SetRig(rigCopy);`, then read `panel.Usages` (each with
+   `Material`, `Targets`, `UnmappedNodePaths`) and `panel.SelectedMaterial`.
+3. Swap one material copy's shader to `Unlit/Color`, call `panel.Refresh()`, and check that
+   `MaterialContractValidation.Validate` reports errors.
+4. Call `panel.CreateForTarget(quadTarget, out string failure)` and read `panel.LastCreatedMaterial`, then its path
+   beside the prefab copy and `enableInstancing` after a reimport.
+5. `panel.Dispose()`. Delete the scratch folder, and check both registry sha256s are unchanged.
+
+**Vault-note traps:**
+- There is no example `.shader`. Create picks one of three shader graphs by kind, and `shader-contract.md` still cites
+  `ToolkitCompositeExample.shader` by line number.
+- Each sprite graph has only one frame property. The flipbook requirement is therefore an alternative group, never
+  both.
+- `ActorBakingAcceptanceTests` pins exact toolkit-warning counts. Any new baker warning needs the fixture material
+  made contract-correct: the probe shader has frame properties, and the capable material has instancing on.
+- The contract messages use `ValidationCode.None`, with no new V code, so the Health tab does not list them.
+- Create uses `SaveAssetIfDirty`, never `SaveAssets`.
+- The worktree broker refuses play-mode fixtures, and a dirty tree refuses any gate.
+
+**HANDOFF draft:** A96 (0.46.0) adds the Clip Editor Materials tab. It follows the shared rig and lists every
+material on the rig's source-prefab renderers, mapped to targets by source node path. For each material it shows the
+shader-contract property table per target kind, GPU instancing, and a sheet check against the shared clip set. It is
+read-only, and Create makes a material from the kind's shipped shader graph beside the prefab without assigning it.
+The contract lives in `MaterialContractValidation` (Authoring), which the entity baker also calls for VAT Mesh parts
+once the VAT slot exists. Owner checkpoint T13 is open: should Create also assign the new material to the part's
+renderer?
