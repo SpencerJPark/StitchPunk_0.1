@@ -32,11 +32,11 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Layer/animation authoring over a composited multi-layer preview.</summary>
         ActorEditor = 7,
 
+        Ragdoll = 13,
+
         CutsceneEditor = 8,
 
         Capture = 12,
-
-        Ragdoll = 13,
 
         /// <summary>Play-mode counts, LOD histogram, events per frame, VAT memory and group timings for the default world.</summary>
         Stats = 14,
