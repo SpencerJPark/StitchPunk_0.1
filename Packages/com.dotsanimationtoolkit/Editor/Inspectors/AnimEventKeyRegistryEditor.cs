@@ -146,7 +146,7 @@ namespace DotsAnimationToolkit.Editor
 
         // Builds the payload line appended to a generated constant's <summary>; null when the
         // entry has no intParam/floatParam schema to describe.
-        private static string DescribePayloadForConstants(AnimEventKeyEntry entry)
+        internal static string DescribePayloadForConstants(AnimEventKeyEntry entry)
         {
             if (entry == null)
             {

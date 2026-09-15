@@ -230,3 +230,56 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
   14. **Package `.meta` files are tracked.** The lead writes a meta for every new file and for `Editor/Events/`.
   15. **Batch contract:** T11 writes only `Documentation~/events-tab.md`; the CHANGELOG text lives in For integration.
 - **T1 (spec-lead).** Wrote the three shared types (4.1, singleton field `Value` as `ClipRegistry`). Committed stubs for every cross-worker surface: `AnimEventRoutingBuilder`, `AnimEventRoutingAssetUtility`, `AnimEventConsumerStubBuilder`, and the three `Editor/Events/` columns.
+
+### For integration
+
+**CHANGELOG `## [0.40.0]` text**
+
+```
+## [0.40.0]
+### Added
+- Events tab in the Clip Editor (after Cutscene Director), three columns:
+  - Keys: the project event registry as a searchable catalog with a 64-key maskable budget line (amber when full). New mints the next free maskable key, then pulse-only. Right-click for Rename, Delete (confirms quoting usage, asks twice when used), Generate Constants and Merge into….
+  - Middle: the event's fields, payload schema with a marker preview, preview clip, and "Used by" rows that ping each clip, cutscene or profile.
+  - Routes: the key's routes (kind, route id in hex, note, display asset), plus Generate consumer stub….
+- `AnimEventRoutingAsset` (Authoring) and `AnimEventRoute`: project routing data, created at `Assets/Settings/DotsAnimationToolkit/AnimEventRouting.asset` on the first added route; opening the tab never creates it.
+- `AnimEventRoutingAuthoring` + `AnimEventRoutingBaker` ("DOTS Animation Toolkit/Anim Event Routing"), baking through `AnimEventRoutingBuilder` into the `AnimEventRouting` singleton (`AnimEventRoutingBlob`: routes sorted by key, kind and route id, plus `keys` and `keyStarts`).
+- `AnimEventRoutingApi.TryGetRoutes(ref AnimEventRoutingBlob, uint, out int, out int)`: Burst binary search.
+- `AnimEventConsumerStubBuilder`: writes a host `partial struct <Name>AnimEventSystem : ISystem` with an IJobEntity over `AnimEventOutput` gated by `AnimEventsPending` and one `switch` case per used route kind.
+- `AnimEventRoutingAssetUtility` (FindDefault, GetOrCreateDefault, RoutesForKey, AddRoute, RemoveRoute, Persist, RoutingChanged).
+- Documentation: `events-tab.md`.
+### Notes
+- The package never handles a route. Routes are data; the stub is host code.
+```
+
+**`Conformance_G` allowlist: none needed.** Every new static class carries a role suffix: `AnimEventRoutingApi` (Runtime/Api), `AnimEventRoutingBuilder`, `AnimEventConsumerStubBuilder`, and `AnimEventRoutingAssetUtility` (in `Editor/ClipUtilities/`). The three columns and the panel are instance classes. There are no new asmdef references.
+
+**Wiring, as the `TexturePacker` pattern**
+
+- `ClipEditorTab.cs`: `Events = 7`.
+- `ClipEditorWindow.uxml`: after the Cutscene Director toggle, `<uie:ToolbarToggle name="tab-events" text="Events" class="clip-editor__tab"/>`. Beside the other cover panes, `<ui:VisualElement name="events-pane" class="clip-editor__cover-pane clip-editor--hidden"/>`.
+- `ClipEditorWindow*.cs`:
+  - fields `private VisualElement eventsPane; private EventsPanel eventsPanel;`;
+  - `eventsPane = rootVisualElement.Q<VisualElement>("events-pane");`;
+  - `BindTab(ClipEditorTab.Events, "tab-events", "<tooltip>")`;
+  - resize `tabToggles`;
+  - `ShowEventsTab(bool isShown)`: when shown and `eventsPanel == null`, do `eventsPanel = new EventsPanel(); eventsPanel.Bind(); eventsPane.Add(eventsPanel);` then `eventsPane.EnableInClassList(HiddenUssClassName, !isShown)`;
+  - in the window's OnDisable/teardown, `eventsPanel?.Dispose(); eventsPanel = null;`.
+- `Bind()` is re-bindable (it unsubscribes first) and binds `VocabularyRegistryProvider.AnimEventKeys`. `Bind(AnimEventKeyRegistry)` exists for a detached drive. D10: no shared selection.
+- `ClipEditorLayoutTests`: tab count + 1.
+- `index.md`: link `events-tab.md`.
+- Split prefs keys: `DotsAnimationToolkit.Split.Events.Keys` (default 260) and `DotsAnimationToolkit.Split.Events.Inspector` (default 420).
+
+**Vault-note traps**
+
+- **Blob parameters:** `TryGetRoutes` takes the blob by `ref`, never `in`. An `in` blob makes defensive `BlobArray` copies whose relative offsets read garbage.
+- **Sort order:** routes sort by `(eventKey, kind, routeId)`. Sorting by key alone keeps same-key order list-dependent and breaks bake determinism.
+- **Inspector edits:** `VocabularyRegistryProvider.Persist` raises `RegistryChanged` on every inspector edit. The fields are `isDelayed`, and the panel rebinds the inspector only when the selected entry object changes; rebinding the same entry rebuilds the fields under the cursor.
+- **Routing asset:** `FindDefault` never creates, so opening the tab writes nothing. The asset appears on the first `+ route`. `Persist` uses `SaveAssetIfDirty`, never `SaveAssets`.
+- **Generate Constants** is a detached `VocabularyConstantsSection(...).RegenerateIfConfigured()` with the registry inspector's arguments. There is no standalone registry action.
+- **Merge into…** always acts on the project registry (A92).
+- **Stub generator:** it refuses folders outside `Application.dataPath`, remembers the folder in `DotsAnimationToolkit.Events.StubFolder` and the name in `DotsAnimationToolkit.Events.StubName`, and writes through `ConstantsGenerator.WriteGeneratedFile` (deferred `AssetDatabase.Refresh`). The emitted system carries a `// Place after EventEmissionSystem` comment, not an ordering attribute.
+
+**HANDOFF draft**
+
+A93 (0.40.0) adds the Clip Editor's Events tab. Keys (left) is the project event registry as a catalog with the 64-key maskable budget, New, and a row menu: Rename, Delete, Generate Constants, Merge into…. The middle column edits the entry, its payload schema and preview clip, and lists every clip, cutscene and profile using the key, each row pinging its asset. Routes (right) edits the key's rows in the project `AnimEventRoutingAsset`, which is auto-created under `Assets/Settings/DotsAnimationToolkit/` on the first route. `AnimEventRoutingAuthoring` bakes that asset into the `AnimEventRouting` singleton, read by `AnimEventRoutingApi.TryGetRoutes`. Generate consumer stub… writes a host `ISystem` switching over route kinds. The package never handles a route. Owner checkpoint (T16) asks whether that asset location is right and whether the routes column should exist at all.
