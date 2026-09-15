@@ -168,3 +168,38 @@ renderers and `VatBakeSourceResolver`'s node lookup.
 - **Stage untracked files:** none. Nothing on the stage names a type this spec removes or renames.
 - **Runs as** a spec-lead (opus) with sonnet workers in a Worktree Toolkit batch beside the other two of A96–A98; the
   stage owns window wiring, `index.md`, CHANGELOG, `package.json`, the conformance pin, drives and the close.
+
+### T0 grounding (spec-lead, worktree `spec/a96`, 2026-09-14)
+
+- **Example shader (D5) — drift 1.** There is no `ToolkitCompositeExample.shader`: `Shaders/` holds only three Shader
+  Graphs (`shader-contract.md` still cites the old file by line). Create picks the graph by kind: Quad →
+  `ToolkitSpriteUnlit.shadergraph` (atlas: `_MainTex`, `_AtlasFrame`, `_BillboardParams`); FlipbookPlane →
+  `ToolkitSpriteUnlitArray.shadergraph` (`_MainTexArray`, `_ImageIndex`, `_BillboardParams`; sheets are arrays);
+  VatMesh → `ToolkitVatCrowdUnlit.shadergraph` (`_VatBoneTex`, `_VatTexelParams`, `_VatFrameA/B`, `_VatBlend`).
+  None of the three declares a keyword, so D5's "sets keywords" has nothing to set — drift 2.
+- **`_MainTexArray` (D4)** confirmed as the array sampler reference name in `ToolkitSpriteUnlitArray.shadergraph`.
+- **`TargetKind`** (`Runtime/Components/AnimationToolkitEnums.cs`, namespace `DotsAnimationToolkit`): `Quad = 0`,
+  `VatMesh = 1`, `FlipbookPlane = 2`. The spec's `FlipbookQuad` is `FlipbookPlane` — drift 3.
+- **Flipbook requirement — drift 4.** The two sprite graphs each carry only one of `_ImageIndex` / `_AtlasFrame`, and
+  the baker adds both components to every FlipbookPlane (the frame mode is per track). Requiring both would flag
+  both shipped graphs, so the table gives the pair an alternative group: either one satisfies FlipbookPlane.
+- **Billboard root — drift 5.** Nothing in the package writes `BillboardParamsProperty` (billboard roots turn
+  transforms on the CPU; the contract says "host/game"), so `_BillboardParams` is required for no kind and the
+  `isBillboardRoot` parameter of 4.1 was dropped. Quad requires nothing (baker: transform-only).
+- **Severity — drift 6.** `ValidationSeverity` has only Warning and Error; D3's "Note" is carried by
+  `ContractPropertyState.PresentButNotNeeded` in the status list, not by a message. No `ValidationCode` was added
+  (messages use `ValidationCode.None`), so the Health tab, validation docs and code enum are untouched.
+- **`ValidateVatMaterial` — drift 7.** It has no texture-size check: it checks the `_VatBoneTex`/`_VatPosTex` slot
+  exists and binds the baked texture. No fixture names `ValidateVatMaterial`; its coverage is PlayMode
+  `ActorBakingAcceptanceTests`, which pins exact toolkit-warning counts. The contract call therefore runs only after
+  the slot check passes, folded into one warning, and the fixture's VAT-capable material had to become
+  contract-correct: `VatMaterialProbe.shader` gains `_VatFrameA/_VatFrameB/_VatBlend`, `ActorBakeFixture.
+  CreateVatCapableMaterial` turns instancing on. Plain-material and no-material tests return before the call.
+- **D6 double-click — drift 8.** `ToolkitCatalogColumn` has no double-click hook; the inspector column's
+  "Select in Inspector" button selects and pings the material instead.
+- **4.3 signature — drift 9.** `CreateForTarget(rig, target) → Material` became
+  `TryCreateForTarget(rig, target, out Material, out string failureMessage)` so the panel can show why (no saved
+  prefab, missing graph). It never overwrites (`GenerateUniqueAssetPath`) and saves with `SaveAssetIfDirty`, never
+  `SaveAssets`.
+- **D4 home.** `RigMaterialResolver.CollectSheetBindingWarnings` (Editor) rather than the Authoring class, to reuse
+  `TrackTargetMatchResolver`.
