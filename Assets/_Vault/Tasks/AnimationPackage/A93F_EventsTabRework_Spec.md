@@ -154,4 +154,5 @@ Burst helper saves each consumer from writing the key-filter loop.
 
 ## 7. Build log
 
-_(empty)_
+- **2026-09-14 — Phase 0 (stage, parallel batch A93F-A95F).** Head `eb60b150`, package `0.42.0`, CHANGELOG top section `## [0.42.0]`. Baseline: compile clean; EditMode 850 (Conformance_A the one standing failure), PlayMode 285. Registry sha256: AnimEventKeyRegistry `3bdb420d…d14701`, TargetTagRegistry `dbec3d5f…eb4f`. Preflight: broker alive, hooks installed, stage blockers only the owner's five uncommitted files. Lead opus, worker sonnet.
+  The owner's untracked `DamageEventSystemAnimEventSystem.cs` exists on the stage (2,813 bytes); T7 converts it at integration.
