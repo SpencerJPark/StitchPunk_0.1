@@ -1,6 +1,6 @@
 # Amendment A99 — Ragdoll tab: bodies, limits and the drop test get a home
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.46.0`.
+> **Status:** 📝 specced 2026-09-10, not built. Takes `0.51.0` (corrected 2026-09-15; `0.46.0` went to A96).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** Phase D (ragdoll runtime and preview), A82 (column, split view), A83 (the
 > `RagdollHandles` partial was left in place for this amendment). **Three owner checkpoints on
@@ -158,4 +158,6 @@ per-body validity (a body whose node no longer resolves is flagged in the column
 
 ## 7. Build log
 
-_(empty)_
+### Phase 0
+
+Phase 0 (stage, 2026-09-15, head `2d53ae6f`): doctor clean (git 2.43.0, hooks installed, broker alive, no stage blockers); compile clean; EditMode baseline 857 (856 passed, standing Conformance_A only); PlayMode baseline 285 (285 passed); CHANGELOG top section `## [0.48.1]`; registry sha256 AnimEventKey `3bdb420d…14701`, TargetTag `dbec3d5f…eb4f`. Lead opus, workers sonnet; merges authorized once ready with gates green (owner, 2026-09-14/15). Owner is away: checkpoints close by the standing rule (assume pass unless game breaking); this batch is followed by A101 on trunk. A99 stage T0: `ClipEditorWindow.RagdollHandles.cs` is 447 lines (under 600: one move worker); `RagdollBodyDefinition` fields: displayName, address (RigNodeAddress), boxCenter, boxSize, boxEulerAngles, mass, linearDamping (-1 = rig default), angularDamping (-1 = rig default), restitution, friction, limitMinDegrees, limitMaxDegrees, swingLimitDegrees, twistLimitDegrees, selfGroup, selfCollidesWith, collidesWithWorld; `RagdollRigSettings` (a struct at RigAsset.cs:403): space (RagdollSpace), gravityScale, defaultLinearDamping, defaultAngularDamping, jointStiffness, jointDamping, solverIterations (byte), substepHz. No limit arc is drawn today (PreviewRagdollBoxHandles has no arc/limit code). Version corrected 0.46.0 → 0.51.0. The before-capture of the Clip Editor with the ragdoll toggle on is skipped: the owner's window is docked and the batch cautions forbid driving it. The lead owns `ClipEditorWindow.RagdollHandles.cs` exclusively for T7.
