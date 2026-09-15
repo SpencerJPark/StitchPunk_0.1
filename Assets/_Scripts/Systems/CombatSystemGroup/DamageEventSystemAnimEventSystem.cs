@@ -6,6 +6,7 @@ using Unity.Entities;
 using DotsAnimationToolkit;
 
 [BurstCompile]
+[UpdateInGroup(typeof(CombatSystemGroup))]
 // Place after EventEmissionSystem
 public partial struct DamageEventSystemAnimEventSystem : ISystem
 {
