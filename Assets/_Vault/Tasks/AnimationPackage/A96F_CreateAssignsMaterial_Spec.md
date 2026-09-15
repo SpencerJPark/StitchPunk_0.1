@@ -1,6 +1,6 @@
 # Amendment A96F — Materials tab: Create also assigns the material to the part
 
-> **Status:** 📝 specced 2026-09-14 from the owner's A96 T13 answer, not built. Takes `0.49.0`.
+> **Status:** ✅ built 2026-09-15 as `0.49.0` (spec/a96f, merged fast-forward; integration `9271b512`). T7 closed 2026-09-15 under the owner's standing rule (unseen checkpoints pass unless game breaking); the multi-slot ⚠ stays recorded below for whenever the owner looks.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A96.
 > **Predecessors:** A96 (`0.46.0`).
 > **Executor:** one lead; `worker` subagents in **one wave of three**, each ≤ 2 files; the stage does the drive and the close
@@ -82,12 +82,12 @@ public static bool TryAssignToTargetRenderer(RigAsset rig, RigTargetDefinition t
 - [x] **T4 — Docs [parallel-safe]** — Files: `Documentation~/materials-tab.md`. Create now assigns; what it replaces; how to undo
   (assign the old material back).
 - **Gate the wave.** `MaterialTemplateAssignTests`, `MaterialContractValidationTests`, `PackagingConformanceTests`.
-- [ ] **T5 — Drive (stage).** Full suites. Scratch copies of `NewRig.asset` and `MaleCitizen.prefab` in `Assets/A96FScratch/`
+- [x] **T5 — Drive (stage).** Full suites. Scratch copies of `NewRig.asset` and `MaleCitizen.prefab` in `Assets/A96FScratch/`
   (rig copy's `sourcePrefab` → prefab copy). Detached `MaterialsPanel`, `SetRig`, `CreateForTarget(BaseHead)`: the prefab copy's
   `BaseHead` renderer holds `M_A96FScratchRig_BaseHead` after a reload; the original prefab and `BaseHead.mat` untouched; scratch
   deleted; registry sha256s unchanged.
-- [ ] **T6 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and the conformance pin `0.49.0`.
-- [ ] **T7 — ⏸ owner checkpoint.** "Materials: pick a Quad part and press Create and assign. The part's renderer now uses the new
+- [x] **T6 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and the conformance pin `0.49.0`.
+- [x] **T7 — ⏸ owner checkpoint.** "Materials: pick a Quad part and press Create and assign. The part's renderer now uses the new
   material and the line says what it replaced. ⚠ For a renderer with several slots it replaces the selected material's slot, else
   slot 0: right?"
 
@@ -211,3 +211,7 @@ and a wave of three workers, gated at 15 tests with only the standing `Conforman
 and the fixture proven by skipping `SaveAsPrefabAsset` and watching it fail. Unverified here: the
 T5 drive (nothing real was written) and the multi-slot branch, which no fixture covers — it is
 the ⚠ interpretation the T7 checkpoint asks about.
+
+### Close (stage, 2026-09-15)
+
+T5 drive (detached `MaterialsPanel`, scratch `Assets/A96FScratch/` with copies of `NewRig.asset` and `MaleCitizen.prefab`, the rig copy's `sourcePrefab` pointed at the prefab copy): `CreateForTarget(BaseHead)` returned true, `LastAssignedDescription` = "BaseHead (replaced BaseHead.mat)", the material landed at `Assets/A96FScratch/M_A96FScratchRig_BaseHead.mat`, the reloaded prefab copy's `Visual/MaleUnitVisual/Pelvis/Torso/Neck/BaseHead` renderer holds it and the prefab YAML carries its GUID; the real `MaleCitizen.prefab` still has `BaseHead` on that node. Scratch deleted; both registry sha256s unchanged; full suites EditMode 863 (862 passed, standing Conformance_A only) and PlayMode 285. T6: CHANGELOG `## [0.49.0]`, `package.json` and the conformance pin moved with the batch to `0.51.0`, HANDOFF §4, AnimationToolkit.md. T7 (⚠ multi-slot renderer: the selected material's slot, else slot 0) is closed as accepted per the standing rule; not seen by the owner.

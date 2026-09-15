@@ -5,8 +5,8 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.48.0).
-**§4** is newest first: A98, A97 and A96 (built 2026-09-14, one ⏸ owner checkpoint each). The older editor checkpoints
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.51.0).
+**§4** is newest first: A99, A97F and A96F (built 2026-09-15 unattended; their checkpoints closed under the standing rule, the ⚠ questions kept in each paragraph), then A98, A97 and A96 (built 2026-09-14). The older editor checkpoints
 further down §4 (A71–A81 era) were closed as accepted on 2026-09-14 under the owner's "assume they pass unless something
 is game breaking" rule; the in-game G5-P10 and ragdoll RG-T4/T7/T10 checks stay open (A99 re-asks the ragdoll ones).
 
@@ -120,6 +120,12 @@ shape of a suite that silently stopped compiling. Counts must not drop.
 displays" is not proof. Delete scratch assets and confirm `git status` afterwards.
 
 ## 4. The queue
+
+**A99 (0.51.0), built 2026-09-15, T12 closed under the standing rule.** The Ragdoll tab landed: bodies, box handles, limits and the drop test have one screen - a bodies column over the rig's `ragdollBodies`, a viewport hosting its own `ClipPreviewController` with the box handles and a Drop / Reset transport over the scenery props, and an inspector for the selected body's collider, mass, damping and limits above the rig-wide settings - all following the window's shared Rig, with the rig asset's own inspector reduced to an "Edit in the Ragdoll tab" button (which focuses the tab) and its validation badges. The box-handle drag math moved verbatim out of the Clip Editor's window partial into `RagdollBoxDragSession`, which both viewports share, so the Clip Editor's ragdoll toggle behaves as before. Nothing about limit defaults, the solver or launch changed. Drive on a scratch copy of `NewRig`: 11 bodies · 8 joints, a hinge limit persisted to YAML and undone, Drop then Reset left the rig byte-identical. **Still for the owner's eyes (RG-T4/T7/T10, re-asked here):** (1) the ±45° default hinge limits - right or wrong? (`NewRig`'s Pelvis carries 0); (2) the drop from a mid-animation pose - the pose row is not wired from the window yet, so the drop uses the rest pose; (3) launch feel from an animation in Actor Profiles.
+
+**A97F (0.50.0), built 2026-09-15, T7 closed under the standing rule.** The Retarget tab's Skipped rows now fix in both directions: the row menu gains `Add tag to rig part…`, a second dropdown of the rig's parts that writes the track's tag onto the part you choose as one undo step, turning the row Bound without touching the clip; parts that already wear a tag are offered behind a confirm naming the tag they would lose and its clip-reference count, and the one-wearer rule is enforced in `RetargetRemapEditing.AddTagToRigPart` (`RigAssetUtility.SetTargetTag` never had it). `GenericDropdownMenu` has no submenus on 6000.5, hence the two-stage menu. Drive on scratch copies of `Walk` and `NewRig` with `LeftUpperLeg`'s tag cleared: 15/1 → 16/0 Bound, YAML carried the tag, undo cleared it. **⚠ for the owner:** should parts that already wear another tag be offered at all (today: yes, behind the confirm)?
+
+**A96F (0.49.0), built 2026-09-15, T7 closed under the standing rule.** The Materials tab's Create button became **Create and assign**: `MaterialTemplateUtility.TryAssignToTargetRenderer` opens the rig's Source Prefab with `LoadPrefabContents`, resolves the target's Source Node Path, takes the Renderer on that node only, replaces one material slot and saves the prefab asset - the package's non-undoable rig-structure write, never `AssetDatabase.SaveAssets()`. One slot is replaced outright; several slots mean the slot holding the catalog's selected material when it is on this renderer, else slot 0, named in the result line; when assignment cannot happen the material is still created and the line says why. Drive on scratch copies of `NewRig` and `MaleCitizen.prefab`: BaseHead's renderer took `M_A96FScratchRig_BaseHead`, the real prefab untouched. **⚠ for the owner:** the multi-slot rule (selected material's slot, else slot 0) has no fixture and was not driven.
 
 **A98 (0.48.0), built 2026-09-14, T13 accepted 2026-09-14.** The Capture tab renders a clip (shared Clip Set and Rig), a profile
 animation or a cutscene through the preview camera to a PNG sequence (optionally transparent) or a looping GIF, framed with the

@@ -1384,3 +1384,42 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
   (`stage-commit`, compile, the fixture, `restore-trunk`). WorktreeToolkit.md traps 25–26.
 - **A lead may commit no `.meta` files;** Unity generates them on the stage after the merge, and the integration commit takes them.
 - Merges went a96 → a97 → a98 with no conflicts, one integration commit and three scratch drives; registry sha256s never moved.
+
+## Materials: Create also assigns (A96F, 0.49.0)
+
+- A panel method that ends in `Refresh()` must capture any selection it wants to pass downstream *before* the create; `Refresh()` rebinds
+  `SelectedMaterial` from the rebuilt usage list and silently substitutes a different material.
+- An EditMode fixture that must prove a prefab **file** changed has to reload through `AssetDatabase.LoadAssetAtPath` after the call;
+  asserting against the `LoadPrefabContents` root or the pre-save instance passes even when `SaveAsPrefabAsset` is never reached.
+- `PrefabAuthoringBridge.ResolveByPath` is root-relative and scene-free: the same `sourceNodePath` resolves against a `LoadPrefabContents`
+  root, a loaded prefab asset root and a scene instance. `LastAssignedDescription` is `null`, not empty, before the first Create.
+- **This project, 2026-09-15:** `BaseHead` lives at `Visual/MaleUnitVisual/Pelvis/Torso/Neck/BaseHead` under `MaleCitizen.prefab`, one slot.
+
+## Retarget: Skipped rows add their tag to a rig part (A97F, 0.50.0)
+
+- **`GenericDropdownMenu` has no submenus on 6000.5** - only `DropdownMenu`/`DropdownMenuSeparator` carry `subMenuPath`; `"Parent/Child"`
+  renders as one literal item. Nesting means opening a second `GenericDropdownMenu` on the same anchor (`GenericMenu` is IMGUI, banned).
+- **`RigAssetUtility.SetTargetTag` does not enforce one wearer per tag**; only `ClipEditorWindow.WriteRigPartTag` and now
+  `RetargetRemapEditing.AddTagToRigPart` do. Any new caller checks `ClipComponentModel.FindTargetByTag` itself.
+- `SetTargetTag` ends in `AssetDatabase.SaveAssetIfDirty`, which warns on a `CreateInstance` rig; fixtures set `LogAssert.ignoreFailingMessages`.
+- A Skipped row can carry `tagId == 0` (an untagged track matching no target by raw id); a "fix by tag" affordance must exclude it.
+- **This project, 2026-09-15:** the rig target is `LeftUpperLeg` (stableId 3452626627, tag 1185793452); Walk's track is `UpperLeftLeg`.
+
+## Ragdoll tab (A99, 0.51.0)
+
+- **A window partial's private members are the window's API to its other partials.** Grep every `ClipEditorWindow*.cs` for a field before
+  deleting it; `activeRagdollBoxHandle` was read two files away, so the shrunken partial keeps a read-only proxy onto
+  `ragdollBoxDragSession.ActiveHandle`. The drag math itself lives in `RagdollBoxDragSession`, shared by both viewports.
+- `ClipPreviewController.TryEnableRagdollPreview` captures whatever pose is on screen and `Disable` restores it - that pair *is* the
+  Drop / Reset transport; there is no separate reset path, and a Drop + Reset leaves the rig asset byte-identical (verified on a scratch copy).
+- `RagdollInspectorColumn.SetRig` and `SetSelectedBodyId` both redraw, because `RagdollPanel` never calls `Refresh` on it.
+- `BodyPicked` is declared but never raised: `ClipPreviewController` can pick a handle on the selected body, never a body from a point.
+- `RagdollViewportElement.SetRestPoseSource` is not called from the window (the pose row reads "No clip bound"; the drop uses the rest pose).
+- **This project, 2026-09-15:** `NewRig` has 11 ragdoll bodies · 8 joints, 0 unresolved; Pelvis's hinge limit is 0/0, not the ±45° default.
+
+## Parallel batch A96F–A99 (Worktree Toolkit, 2026-09-15, unattended)
+
+- Three opus leads with sonnet workers, merged a96f → a97f → a99 (two fast-forwards, one merge), no conflicts, one integration commit
+  `9271b512`, three scratch drives, registry sha256s unchanged. EditMode 863, PlayMode 285.
+- A lead that runs out of turns skips its revert-to-fail; the stage ran A99's by hand (mutate, compile, fixture, `git checkout`, sha check).
+- An exclusive grant on one window partial worked: a99 edited `ClipEditorWindow.RagdollHandles.cs` alone and the stage did the rest of the wiring.

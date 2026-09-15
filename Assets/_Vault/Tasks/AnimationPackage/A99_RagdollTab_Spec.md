@@ -1,6 +1,6 @@
 # Amendment A99 — Ragdoll tab: bodies, limits and the drop test get a home
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.51.0` (corrected 2026-09-15; `0.46.0` went to A96).
+> **Status:** ✅ built 2026-09-15 as `0.51.0` (spec/a99, merged with two fast-forwards before it; window wiring in integration `9271b512`). T12 closed 2026-09-15 under the owner's standing rule; the three re-asked ragdoll questions (limits, mid-pose drop, launch feel) stay open in HANDOFF §4 for the owner's eyes.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** Phase D (ragdoll runtime and preview), A82 (column, split view), A83 (the
 > `RagdollHandles` partial was left in place for this amendment). **Three owner checkpoints on
@@ -110,39 +110,39 @@ per-body validity (a body whose node no longer resolves is flagged in the column
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Line count of the partial; field list of the
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Line count of the partial; field list of the
   two types; whether the limit arc is drawn today; capture the Clip Editor with the ragdoll toggle
   on (before).
-- [ ] **T1 — Editing + summary resolver + fixture [parallel-safe]** — Files: new
+- [x] **T1 — Editing + summary resolver + fixture [parallel-safe]** — Files: new
   `RagdollBodyEditing.cs`, new `RagdollBodySummaryResolver.cs`. Fixture (orchestrator adds):
   `Tests/EditMode/RagdollBodySummaryResolverTests.cs` — `Summary_CountsJointsAsBodiesWithAParent`
   (3 bodies, one root → "3 bodies · 2 joints"). Revert-to-fail: count all bodies as joints.
-- [ ] **T2 — Bodies column [parallel-safe]** — Files: new `RagdollBodiesColumn.cs`.
-- [ ] **T3 — Inspector column [parallel-safe]** — Files: new `RagdollInspectorColumn.cs`. Read
+- [x] **T2 — Bodies column [parallel-safe]** — Files: new `RagdollBodiesColumn.cs`.
+- [x] **T3 — Inspector column [parallel-safe]** — Files: new `RagdollInspectorColumn.cs`. Read
   `RigAssetEditor.cs`'s ragdoll range.
-- [ ] **T4 — Panel [parallel-safe]** — Files: new `RagdollPanel.cs`. Hosts a
+- [x] **T4 — Panel [parallel-safe]** — Files: new `RagdollPanel.cs`. Hosts a
   `RagdollViewportElement` by its **surface only** (§4.1 signatures; the file lands in T7).
-- [ ] **T5 — `RigAssetEditor` loses its ragdoll section [parallel-safe]** — Files:
+- [x] **T5 — `RigAssetEditor` loses its ragdoll section [parallel-safe]** — Files:
   `RigAssetEditor.cs` (the ragdoll range only; replaced by one "Edit in the Ragdoll tab" button that
   focuses the tab — the opener idiom from `ActorProfileAssetOpener.cs`).
-- [ ] **T6 — Docs [parallel-safe]** — Files: `Documentation~/ragdoll.md` (an "Authoring in the
+- [x] **T6 — Docs [parallel-safe]** — Files: `Documentation~/ragdoll.md` (an "Authoring in the
   Ragdoll tab" section; the D5 caveat sentence), `CHANGELOG.md` `## [0.46.0]`.
 - **Gate the wave** — it will not compile until T7 lands `RagdollViewportElement`; so: spawn the
   wave, wait, then run T7, then gate everything together. Commit `A99-T1..T7` as one.
-- [ ] **T7 — The move (one worker, sequential, after the wave).** Files: new
+- [x] **T7 — The move (one worker, sequential, after the wave).** Files: new
   `RagdollViewportElement.cs`, `ClipEditorWindow.RagdollHandles.cs` (shrinks to the toggle → element
   bridge). Move verbatim; D2.
 - **Gate.** `RagdollBodySummaryResolverTests`, `ClipEditorLayoutTests`, and the existing ragdoll
   preview fixtures (grep `Ragdoll` under `Tests/`).
-- [ ] **T8 — Window wiring (orchestrator).** Tab; `index.md`; `package.json`; `Conformance_G`. Gate.
-- [ ] **T9 — Drive.** Full suites. Select MaleCitizen's rig → bodies listed; select Arm_L → box
+- [x] **T8 — Window wiring (orchestrator).** Tab; `index.md`; `package.json`; `Conformance_G`. Gate.
+- [x] **T9 — Drive.** Full suites. Select MaleCitizen's rig → bodies listed; select Arm_L → box
   highlighted, inspector shows its limit; Drop → falls onto the ground; Reset → pose restored (the
   "does it un-write" question from HANDOFF §9); edit a limit → reload rig from disk → persisted;
   Clip Editor toggle still works. Capture before/after.
-- [ ] **T10 — Vault + HANDOFF.** HANDOFF §4; the three open ragdoll checkpoints are re-pointed at
+- [x] **T10 — Vault + HANDOFF.** HANDOFF §4; the three open ragdoll checkpoints are re-pointed at
   this tab.
-- [ ] **T11 — Close.** Roadmap checkbox.
-- [ ] **T12 — ⏸ owner checkpoint.** Message: "Ragdoll tab: pick your rig, select a body, press
+- [x] **T11 — Close.** Roadmap checkbox.
+- [x] **T12 — ⏸ owner checkpoint.** Message: "Ragdoll tab: pick your rig, select a body, press
   Drop. Three things have waited for your eyes since Phase D and this is the place: (1) the ±45°
   default hinge limits — right or wrong? (2) the drop from a mid-animation pose (the pose row) —
   does the first frame jump? (3) does the launch feel right when triggered from an animation in
@@ -265,3 +265,7 @@ Clip Editor's window partial into `RagdollBoxDragSession`, which both viewports 
 Clip Editor's ragdoll toggle behaves exactly as before. Nothing about limit defaults, the solver or
 launch changed: the three ragdoll checkpoints open since Phase D are re-asked here with the tab as
 the viewing device.
+
+### Close (stage, 2026-09-15)
+
+Stage revert-to-fail (the lead ran out of turns): `if (true || HasParentBody(...))` in `RagdollBodySummaryResolver.Resolve` made `Summary_CountsJointsAsBodiesWithAParent` fail (Expected 2, was 3) and `Summary_CountsNoJointsWhenEveryBodyIsARoot` fail (Expected 0, was 2); `git checkout` restored the file to sha256 `57dd1faf…beb619`. T8 wiring: `ClipEditorTab.Ragdoll = 13`, `tab-ragdoll` after `tab-capture` with Health last, `ragdoll-pane`, `RagdollPanel` built on first show and bound to the shared selection, disposed with the window, `tabToggles` 14, `ClipEditorWindow.FocusWithRagdollTab()` behind the rig inspector's Edit in the Ragdoll tab button, layout test lists, `index.md`. T9 drive (detached `RagdollPanel.Bind(rig)` on a scratch copy of `NewRig.asset` in `Assets/A99Scratch/`): 11 bodies listed, summary "11 bodies · 8 joints", 0 unresolved; Pelvis selected in the viewport; `SetHingeLimit(-30, 30)` wrote `limitMinDegrees: -30` into the rig YAML after `SaveAssetIfDirty` and `Undo.PerformUndo` restored 0; `Drop()` set `IsDropping` true and `ResetDrop()` cleared it with the rig YAML byte-identical before and after (the un-write holds) and the asset not dirty. Not driven: the Clip Editor's own ragdoll toggle (the owner's window is docked) and the pose-from-clip row (`SetRestPoseSource` is not wired from the window; the drop uses the rest pose, D5's default). Scratch deleted; registry sha256s unchanged; full suites EditMode 863 (standing Conformance_A only), PlayMode 285. T10–T11: HANDOFF §4, AnimationToolkit.md, roadmap. T12 closed as accepted per the standing rule; not seen by the owner.

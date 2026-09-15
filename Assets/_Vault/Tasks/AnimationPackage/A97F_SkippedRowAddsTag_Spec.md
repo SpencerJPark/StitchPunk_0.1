@@ -1,6 +1,6 @@
 # Amendment A97F — Retarget tab: a Skipped row can add its tag to a rig part
 
-> **Status:** 📝 specced 2026-09-14 from the owner's A97 T11 answer, not built. Takes `0.50.0`.
+> **Status:** ✅ built 2026-09-15 as `0.50.0` (spec/a97f, merged fast-forward; integration `9271b512`). T7 closed 2026-09-15 under the owner's standing rule; the ⚠ (offer already-tagged parts behind a confirm) stays recorded below.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A97.
 > **Predecessors:** A97 (`0.47.0`), A84 (`AssetReferenceIndex`).
 > **Executor:** one lead; `worker` subagents in **one wave of three**, each ≤ 2 files; the stage does the drive and the close
@@ -65,24 +65,24 @@ serves drives.
 
 ## 5. Tasks
 
-- [ ] **T0 — Grounding (lead).** Verify §3's names and ranges; confirm the menu type in `OnTrackRemapRequested` supports submenus
+- [x] **T0 — Grounding (lead).** Verify §3's names and ranges; confirm the menu type in `OnTrackRemapRequested` supports submenus
   (`GenericMenu` "A/B" paths or `DropdownMenu`); log drift in §7.
-- [ ] **T1 — Stub (lead).** The §4 signature returning false, committed before the wave.
-- [ ] **T2 — Editing + fixture [parallel-safe]** — Files: `Editor/Retarget/RetargetRemapEditing.cs`, new
+- [x] **T1 — Stub (lead).** The §4 signature returning false, committed before the wave.
+- [x] **T2 — Editing + fixture [parallel-safe]** — Files: `Editor/Retarget/RetargetRemapEditing.cs`, new
   `Tests/EditMode/RetargetAddTagToRigPartTests.cs`. `AddTagToUntaggedPart_SkippedTrackBecomesBound` (`CreateInstance` clip, rig and
   registry; `RetargetBindingResolver.Resolve` before and after) and `AddTagWornByAnotherPart_IsRefused`. Revert-to-fail: skip the
   `SetTargetTag` call.
-- [ ] **T3 — Panel menu [parallel-safe]** — Files: `Editor/Retarget/RetargetPanel.cs`. R-D1 submenu, R-D3 dialog, refresh, and the
+- [x] **T3 — Panel menu [parallel-safe]** — Files: `Editor/Retarget/RetargetPanel.cs`. R-D1 submenu, R-D3 dialog, refresh, and the
   drive method.
-- [ ] **T4 — Docs [parallel-safe]** — Files: `Documentation~/retarget-tab.md`. A Skipped row's two fixes: remap the track (clip
+- [x] **T4 — Docs [parallel-safe]** — Files: `Documentation~/retarget-tab.md`. A Skipped row's two fixes: remap the track (clip
   side) or add the tag to a part (rig side).
 - **Gate the wave.** `RetargetAddTagToRigPartTests`, `RetargetBindingResolverTests`, `PackagingConformanceTests`.
-- [ ] **T5 — Drive (stage).** Full suites. Scratch copies in `Assets/A97FScratch/`: `Walk.asset`, and `NewRig.asset` with
+- [x] **T5 — Drive (stage).** Full suites. Scratch copies in `Assets/A97FScratch/`: `Walk.asset`, and `NewRig.asset` with
   `UpperLeftLeg`'s tag cleared; a `CreateInstance` registry copy. Detached `RetargetPanel`: one Skipped row; `AddTagToRigPart` on
   the untagged `UpperLeftLeg` part → 16/16 Bound; the rig copy's YAML carries the tag; `Undo.PerformUndo` clears it; scratch deleted;
   registry sha256s unchanged.
-- [ ] **T6 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and the conformance pin `0.50.0`.
-- [ ] **T7 — ⏸ owner checkpoint.** "Retarget: on a rig missing a part's tag, open the ● row's menu, Add tag to rig part ▸ pick the
+- [x] **T6 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and the conformance pin `0.50.0`.
+- [x] **T7 — ⏸ owner checkpoint.** "Retarget: on a rig missing a part's tag, open the ● row's menu, Add tag to rig part ▸ pick the
   part; the row turns ✓ and the roster fills. ⚠ Should parts that already wear another tag be offered (with a confirm), or only
   untagged parts?"
 
@@ -200,3 +200,7 @@ behind a confirm that names the tag they would lose and its clip-reference count
 against a committed stub, gated at 15 of 16 with only the standing `Conformance_A` failing, with the fixture's revert-to-fail
 proven. No window wiring changed. The drive still owes the second menu, the dialog and the rig YAML round trip, and the T7
 checkpoint asks whether already-tagged parts should be offered at all.
+
+### Close (stage, 2026-09-15)
+
+T5 drive (detached `RetargetPanel` on the five-argument `Bind`, scratch `Assets/A97FScratch/` with copies of `Walk.asset` and `NewRig.asset`, a `CreateInstance` registry copy from `ProjectSettings/DotsAnimationToolkitTargetTagRegistry.asset` (20 entries), roster = the rig copy): the rig target is named `LeftUpperLeg` (stableId 3452626627, tag 1185793452; the clip's track is `UpperLeftLeg` - the spec's T5 wording named the track). With the tag cleared and saved: 16 bindings, 15 Bound, 1 Skipped (`UpperLeftLeg`). `AddTagToRigPart(binding, 3452626627)` returned true → 16 Bound, 0 Skipped; the rig copy's YAML carries `tagId: 1185793452`; roster 1 entry; `Undo.PerformUndo` put the tag back to 0 and a Refresh showed 15/1 again. Scratch deleted; both registry sha256s unchanged; full suites EditMode 863 (standing Conformance_A only), PlayMode 285. The second dropdown and the confirm dialog were not driven (modal, docked window). T7 closed as accepted per the standing rule; not seen by the owner.
