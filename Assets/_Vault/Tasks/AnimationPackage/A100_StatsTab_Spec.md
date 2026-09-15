@@ -1,6 +1,6 @@
 # Amendment A100 — Stats tab: what the toolkit is doing at run time
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.47.0`.
+> **Status:** 🔨 building 2026-09-15 on trunk. Takes `0.53.0` (after A101 0.52.0 and the 0.52.1 Flipbooks rename); `ClipEditorTab.Stats = 14`, after Ragdoll, before Health.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2, last.
 > **Predecessors:** none hard; A82 for the split view. Reads only runtime components that exist
 > today (`PlaybackLayer`, `AnimEventsPending`, `AnimEventOutput`, `AnimLod`, `VatPartTextureBinding`,
@@ -157,4 +157,12 @@ honest; allowlist it).
 
 ## 7. Build log
 
-_(empty — must hold the three T0 probe results before the wave, and the T9 snapshot)_
+### T0 — baseline and probes (2026-09-15, head `94dc6b4e`, 0.52.1)
+
+- **Baseline.** Compile clean. EditMode 865 (864 passed, the standing `Conformance_A` only); PlayMode 285/285. Registry sha256s: AnimEventKey `3bdb420d…d14701`, TargetTag `dbec3d5f…ebd1eb4f`.
+- **Concurrency note.** A peer session (`stitch-punk-ae`) was mid-way through the 0.52.1 Sprite Sheets → Flipbooks rename on trunk when T0 began; my first PlayMode baseline died on a stale Bee graph naming `SpriteSheetAsset.cs` (CS2001). Held all writes until it committed `94dc6b4e`, then re-ran both baselines clean.
+- **(a) D4 timings — works, by a different marker name.** `ProfilerRecorder.StartNew(ProfilerCategory.Scripts, "AnimationToolkitSystemGroup")` (and the namespaced name) is `Valid == false`. `ProfilerRecorderHandle.GetAvailable` shows system markers are named **`"<World.Name> <Type.FullName>"`**, category Scripts, unit nanoseconds — e.g. `Default World DotsAnimationToolkit.AnimationToolkitSystemGroup`. Started with that name, all five groups are valid and sample without the Profiler window open (count 5 after a few frames on an empty scene: toolkit 0.026 ms, binding 0.003, logic 0.007, presentation 0.014, ragdoll 0.005). The recorder name therefore depends on the world, so recorders are recreated on a world change. The spec's mock-up names (Playback/Sampling/Events) do not exist: the real child groups are **Binding, Logic, Presentation, Ragdoll** (Ragdoll nests inside Presentation).
+- **(b) D3 LOD histogram — no sampling needed.** `DOTSTestScene` has **no toolkit actors** (16 entities, 0 with `PlaybackLayer`). Probed instead by creating 1,000 temporary `AnimLod` entities in the Play world, then destroying them: `ToComponentDataArray<AnimLod>(Temp)` plus bucketing took 0.005 ms warm, 0.026 ms cold — far under 1 ms. The collector buckets every actor; `lodSampled` stays in the struct and the snapshot for a cap of 100,000 actors, above which it samples the first 1,024.
+- **(c) World accessor.** `ToolkitWorldApi` has only `SetEnabled`/`IsEnabled`; no accessor. D2 falls back to `World.DefaultGameObjectInjectionWorld` ("Default World"; the Play world also carries five Streaming loading worlds, which are ignored).
+- **Drift.** "Windows open" has no counter component; it is read as the count of actors with `AnimEventMask` enabled (`EventWindowSystem` enables it while any window is open), labelled "Actors with windows open". Because `DOTSTestScene` has no actors, T9's actor-count check compares against probe entities the drive creates in the Play world (never saved).
+
