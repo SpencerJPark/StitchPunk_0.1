@@ -26,8 +26,8 @@ Read, in order:
 1. `.claude/skills/worktree-run/SKILL.md`, `.claude/agents/spec-lead.md`, `Assets/_Vault/Memories/Code/WorktreeToolkit.md`.
 2. `Assets/_Vault/Tasks/AnimationPackage/AnimationPackage_Roadmap.md` §3.
 3. The three specs' §0, §2 and §5 only.
-4. The last three sections of `Assets/_Vault/Memories/Code/AnimationToolkit.md`, the A93, A94 and A95 tabs and
-   the "Parallel batch A93–A95" lessons.
+4. The newest sections of `Assets/_Vault/Memories/Code/AnimationToolkit.md`: the A93F, A94F and A95F reworks, and
+   both "Parallel batch" lessons (A93–A95 and A93F–A95F).
 
 **Models (pre-answered, skip the skill's Ask step):** lead `opus`, worker `sonnet` for all three.
 **Merge authorization:** I authorize `worktree.py merge` for a96, a97 and a98 once each reports `ready` with its
