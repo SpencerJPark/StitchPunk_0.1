@@ -44,7 +44,7 @@ When auditing this folder, the status line in each doc is the thing that rots, n
 | **Save System** (generic `IPersist` serializer, minion design, travel + manual save) | [Save_System.md](Save_System.md) | ◐ Phases 1–3 + bridge built; remap / travel-autosave / polish remain |
 | Building System (structures, storage) | — | ⬜ not started |
 | **Despawn System** (central `Despawn` funnel: pool-vs-destroy via `DespawnMode` + `PoolOwner`, per-type cap, `Lifetime` TTL producer) | [Despawn_System.md](../Verification/Despawn_System.md) | ◐ built 2026-09-15, awaiting play-test (rebake first) — [verify-despawn](../Verification/verify-despawn.md) |
-| **Player Resource System** (`ResourceStack` ledger + delta-buffer mutation + IPersist snapshot + HUD) | [PlayerResource_System.md](PlayerResource_System.md) | ✅ spec ready |
+| **Player Resource System + Summon Cost** (`ResourceStack` ledger + delta-buffer mutation + IPersist snapshot + Rive HUD; `UnitSO.summonCost` charged by `PlayerReviverSystem` — the first real spender) | [PlayerResource_System.md](PlayerResource_System.md) | ✅ spec ready — rewritten 2026-09-15, PR-D1–D12 settled, three HUD ← DECISION markers for the owner, §12 build plan |
 | Game UI — Health | — | ⬜ not started |
 | Minion Systems → new state machine | — | ⬜ not started |
 | **Behavior Bake Validation** (shared command catalog; bake warns on unimplemented BehaviorSO commands) | [BehaviorBakeValidation_System.md](../Completed/BehaviorBakeValidation_System.md) | ✔️ spec retired · [verify](../Verification/verify-behaviorbakevalidation.md) still open |
