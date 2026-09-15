@@ -182,4 +182,5 @@ calling every rule in code order; plain noun, allowlist.
 
 ## 7. Build log
 
-_(empty)_
+- **2026-09-14 — stage Phase 0 (parallel batch A93–A95, stage orchestrator).** Baseline at `bdd439b9`: compile clean; EditMode 840 (standing `Conformance_A` failure only), PlayMode 285. CHANGELOG top is `## [0.39.0]`. A88 T9 and A92 T10 were unanswered at batch start. Registry sha256: event keys `3bdb420d…d14701`, tags `dbec3d5f…d1eb4f`. T0 (no-Unity part), T1, the wave and the fixtures run under a `spec-lead` in its own worktree; window wiring, CHANGELOG, `package.json`, conformance pin, drive, vault, HANDOFF and close stay with the stage orchestrator.
+- **T0 scan timing (stage, `execute_code`).** The combined six-type `FindAssets` + `GUIDToAssetPath` + `LoadAllAssetsAtPath` over every hit, the same shape as `AssetReferenceIndex.RebuildIfDirty`: 24 assets (11 `ClipAsset`, 2 `ClipSetAsset`, 2 `RigAsset`, 2 `ActorProfileAsset`, 7 `CutsceneAsset`, **0 `VatTextureSetAsset`**); cold 78 ms (FindAssets 68 ms), warm 23–24 ms. Far under D4's one-second bar, so the debounced automatic rescan stays. With no VAT texture sets in the project, H06 has nothing to find on the real scan; its fixture carries the proof.

@@ -209,4 +209,4 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
 
 ## 7. Build log
 
-_(empty)_
+- **2026-09-14 — stage Phase 0 (parallel batch A93–A95, stage orchestrator).** Baseline at `bdd439b9`: compile clean; EditMode 840 (standing `Conformance_A` failure only), PlayMode 285. CHANGELOG top is `## [0.39.0]`. A88 T9 and A92 T10 were unanswered at batch start. Registry sha256: event keys `3bdb420d…d14701`, tags `dbec3d5f…d1eb4f`. T0 (no-Unity part), T1, the wave and the fixtures run under a `spec-lead` in its own worktree; window wiring, CHANGELOG, `package.json`, conformance pin, drive, vault, HANDOFF and close stay with the stage orchestrator.
