@@ -5,8 +5,8 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.52.0).
-**§4** is newest first: A101 (editor chrome consistency, built 2026-09-15 unattended, three ⚠ interpretations for the owner), then A99, A97F and A96F (built 2026-09-15 unattended; their checkpoints closed under the standing rule, the ⚠ questions kept in each paragraph), then A98, A97 and A96 (built 2026-09-14). The older editor checkpoints
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.53.0).
+**§4** is newest first: A100 (Stats tab, built 2026-09-15, T12 closed under the standing rule with its question kept; roadmap Phase 2 complete), the 0.52.1 Flipbooks rename, then A101 (editor chrome consistency, built 2026-09-15 unattended, three ⚠ interpretations for the owner), then A99, A97F and A96F (built 2026-09-15 unattended; their checkpoints closed under the standing rule, the ⚠ questions kept in each paragraph), then A98, A97 and A96 (built 2026-09-14). The older editor checkpoints
 further down §4 (A71–A81 era) were closed as accepted on 2026-09-14 under the owner's "assume they pass unless something
 is game breaking" rule; the in-game G5-P10 and ragdoll RG-T4/T7/T10 checks stay open (A99 re-asks the ragdoll ones).
 
@@ -120,6 +120,8 @@ shape of a suite that silently stopped compiling. Counts must not drop.
 displays" is not proof. Delete scratch assets and confirm `git status` afterwards.
 
 ## 4. The queue
+
+**A100 (0.53.0), built 2026-09-15, T12 closed under the standing rule.** The Clip Editor has a **Stats** tab (`ClipEditorTab.Stats = 14`, after Ragdoll, before Health) that reads `World.DefaultGameObjectInjectionWorld` four times a second in Play mode and only reads: actors, layers, ragdolling, cutscene players, a LOD 0–3 histogram, events this frame with a 60-poll sparkline, actors with pending events and with windows open (`AnimEventMask` enabled), VAT parts, distinct textures and their runtime memory, and the times of the toolkit group and its Binding/Logic/Presentation/Ragdoll groups; Snapshot copies the same rows as Markdown. Everything lives in `Editor/Stats/` (`ToolkitStatsCollector`, `ToolkitStatsSample`, `SparklineElement`, `StatsSnapshotFormatting`, `StatsPanel`). Probed in T0: a group's `ProfilerRecorder` must be named `"<World.Name> <Type.FullName>"` and then samples without the Profiler window; bucketing 1,000 actors' `AnimLod` costs 0.005 ms, so nothing is sampled below 100,000. Drive on a detached panel in `DOTSTestScene` (which has no toolkit actors, so 12 were created in the Play world): panel 12 = world query 12, toolkit group 0.059 ms, snapshot read back from the clipboard (in the spec's §7), dashes and no exceptions after exiting Play. This completes the roadmap's Phase 2. **Not seen by anyone:** the tab itself (no captures, by instruction), and VAT/ragdoll/cutscene numbers on real actors. **⚠ for the owner (T12):** enter Play and open Stats — which of these numbers do you actually want to watch, and which are noise? Should Snapshot also save a file under `Library/`?
 
 **0.52.1 rename, 2026-09-15.** Sprite Sheets is now **Flipbooks** in the tab, the data (`FlipbookAsset`, `FlipbookFrame`, `SpriteTrack.flipbook` with `[FormerlySerializedAs("sheet")]`, `ClipEditorTab.Flipbooks` = 1) and the code (`Editor/Flipbooks/`, `Flipbook*` classes and tests, `flipbooks.md`); script GUIDs kept. Cutscene Director is now **Cutscenes** (label only). Older paragraphs below keep the old names.
 

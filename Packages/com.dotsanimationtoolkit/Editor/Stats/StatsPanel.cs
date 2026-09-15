@@ -252,16 +252,17 @@ namespace DotsAnimationToolkit.Editor
                 available ? StatsSnapshotFormatting.FormatMegabytes(lastSample.vatTextureBytes) : noWorldText;
 
             bool timingsAvailable = lastSample.timingsAvailable;
+            string timingFallbackText = available ? "unavailable" : noWorldText;
             timeToolkitValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.toolkitGroupMilliseconds) : "unavailable";
+                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.toolkitGroupMilliseconds) : timingFallbackText;
             timeBindingValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.bindingGroupMilliseconds) : "unavailable";
+                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.bindingGroupMilliseconds) : timingFallbackText;
             timeLogicValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.logicGroupMilliseconds) : "unavailable";
+                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.logicGroupMilliseconds) : timingFallbackText;
             timePresentationValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.presentationGroupMilliseconds) : "unavailable";
+                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.presentationGroupMilliseconds) : timingFallbackText;
             timeRagdollValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.ragdollGroupMilliseconds) : "unavailable";
+                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.ragdollGroupMilliseconds) : timingFallbackText;
 
             if (!available)
             {

@@ -50,7 +50,7 @@ free minor and correct the spec's status line.
 - [x] **A97 — Retarget tab** (`0.47.0`, built 2026-09-14, T11 answered, reworked as A97F) — [`A97_RetargetTab_Spec.md`](A97_RetargetTab_Spec.md). Clip × rig binding table with per-row tag remap and roster coverage.
 - [x] **A98 — Capture tab** (`0.48.0`, built 2026-09-14, T13 accepted 2026-09-14) — [`A98_CaptureTab_Spec.md`](A98_CaptureTab_Spec.md). PNG sequence (and optional GIF) from the preview camera for a clip, profile animation or cutscene.
 - [x] **A99 — Ragdoll tab** (`0.51.0`, built 2026-09-15, T12 closed under the standing rule; RG-T4/T7/T10 still for the owner's eyes) — [`A99_RagdollTab_Spec.md`](A99_RagdollTab_Spec.md). Bodies, limits and the drop simulation get their own three-column home; the Clip Editor keeps only the preview toggle.
-- [ ] **A100 — Stats tab** (`0.52.0`) — [`A100_StatsTab_Spec.md`](A100_StatsTab_Spec.md). Play-mode counts: actors, events per frame, LOD histogram, VAT texture memory, group timings.
+- [x] **A100 — Stats tab** (`0.53.0`, built 2026-09-15; Phase 2 complete) — [`A100_StatsTab_Spec.md`](A100_StatsTab_Spec.md). Play-mode counts: actors, events per frame, LOD histogram, VAT texture memory, group timings.
 
 ### Phase 3 — consistency (alone, after the A96F/A97F/A99 batch has merged; it edits files those specs edit)
 

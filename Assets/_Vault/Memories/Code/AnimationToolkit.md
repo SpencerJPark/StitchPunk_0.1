@@ -1448,3 +1448,12 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
 - **Unattended wave lesson:** a session rate limit (429) kills every running worker at once; the edits are usually on disk
   (three of eight were complete, one partial), so diff each file before respawning, and respawn only the untouched scope.
 - Class renames are an orchestrator sed after the wave (`clip-editor__hint` → `toolkit-hint` etc.); workers write the new names.
+
+## Stats tab (A100, 0.53.0)
+
+- **A system's profiler marker is `"<World.Name> <Type.FullName>"`** (category Scripts, nanoseconds), e.g. `Default World DotsAnimationToolkit.AnimationToolkitSystemGroup`. `ProfilerRecorder.StartNew(ProfilerCategory.Scripts, "AnimationToolkitSystemGroup")` returns `Valid == false`; with the full name it samples with no Profiler window open. The name carries the world, so recorders are rebuilt on a world change. `ProfilerRecorderHandle.GetAvailable` lists every name when guessing fails (11,000+ handles; filter before returning them from `execute_code`).
+- **Queries on a destroyed world must be dropped, not disposed.** `ToolkitStatsCollector` disposes its `EntityQuery`s only while `trackedWorld.IsCreated`; after Play exits it just forgets them. Driven: `RefreshNow` after exiting Play and `Dispose` twice, no exception.
+- `ToolkitWorldApi` has no world accessor; editor tools read `World.DefaultGameObjectInjectionWorld`, and only while `EditorApplication.isPlaying` (an editor world exists in Edit mode too). `DOTSTestScene` has **no toolkit actors**: a Play-mode drive creates probe entities in the Play world instead of saving anything.
+- There is no event-window counter: "windows open" is the count of actors with `AnimEventMask` enabled (`EventWindowSystem` enables it while any window is open).
+- A hand-made `AnimEventsPending` + `AnimEventOutput` carrier is cleared by the toolkit after one frame even without a `PlaybackLayer`, so events injected by a drive show once in a poll and then drop to 0.
+- **Concurrency, 2026-09-15:** a peer session was mid-rename on trunk when this session began; the first PlayMode run died with CS2001 on a stale Bee graph naming the old path. A clean `git status` at session start is not enough when another session is live: `ListAgents` first, and hold writes until the peer commits.

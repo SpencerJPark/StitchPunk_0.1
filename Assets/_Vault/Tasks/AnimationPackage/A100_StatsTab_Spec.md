@@ -1,6 +1,6 @@
 # Amendment A100 — Stats tab: what the toolkit is doing at run time
 
-> **Status:** 🔨 building 2026-09-15 on trunk. Takes `0.53.0` (after A101 0.52.0 and the 0.52.1 Flipbooks rename); `ClipEditorTab.Stats = 14`, after Ragdoll, before Health.
+> **Status:** ✅ built 2026-09-15 as `0.53.0` on trunk (`ClipEditorTab.Stats = 14`, after Ragdoll, before Health). T12 closed under the owner's standing rule; its question is kept in HANDOFF §4.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2, last.
 > **Predecessors:** none hard; A82 for the split view. Reads only runtime components that exist
 > today (`PlaybackLayer`, `AnimEventsPending`, `AnimEventOutput`, `AnimLod`, `VatPartTextureBinding`,
@@ -116,34 +116,34 @@ honest; allowlist it).
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline + probes (orchestrator).** Gate; totals. In Play mode on `DOTSTestScene`
+- [x] **T0 — Baseline + probes (orchestrator).** Gate; totals. In Play mode on `DOTSTestScene`
   with `execute_code`: (a) D4 — does a `ProfilerRecorder` on `AnimationToolkitSystemGroup`'s name
   return samples? (b) D3 — time `ToComponentDataArray<AnimLod>` over all actors. (c) `ToolkitWorldApi`
   accessor name. Record all three; brief T2 with them.
-- [ ] **T1 — Sample struct (orchestrator).** §4.1. Gate. Commit `A100-T1`.
-- [ ] **T2 — Collector [parallel-safe]** — Files: new `ToolkitStatsCollector.cs`. Brief carries T0's
+- [x] **T1 — Sample struct (orchestrator).** §4.1. Gate. Commit `A100-T1`.
+- [x] **T2 — Collector [parallel-safe]** — Files: new `ToolkitStatsCollector.cs`. Brief carries T0's
   three findings verbatim. No fixture (needs a live world; the drive is the proof).
-- [ ] **T3 — Sparkline [parallel-safe]** — Files: new `SparklineElement.cs`.
-- [ ] **T4 — Snapshot formatting + fixture [parallel-safe]** — Files: new
+- [x] **T3 — Sparkline [parallel-safe]** — Files: new `SparklineElement.cs`.
+- [x] **T4 — Snapshot formatting + fixture [parallel-safe]** — Files: new
   `StatsSnapshotFormatting.cs`, new `Tests/EditMode/StatsSnapshotFormattingTests.cs`
   (`ToMarkdown_MarksSampledLod`: `lodSampled = true` → the LOD row ends in "(sampled)"; false →
   it does not). Revert-to-fail: drop the suffix.
-- [ ] **T5 — Panel [parallel-safe]** — Files: new `StatsPanel.cs`.
-- [ ] **T6 — Docs [parallel-safe]** — Files: new `Documentation~/stats-tab.md` (what each number
+- [x] **T5 — Panel [parallel-safe]** — Files: new `StatsPanel.cs`.
+- [x] **T6 — Docs [parallel-safe]** — Files: new `Documentation~/stats-tab.md` (what each number
   is, how it is measured, what "sampled" means), `README.md` (one bullet).
-- [ ] **T7 — Changelog [parallel-safe]** — Files: `CHANGELOG.md` `## [0.47.0]`.
+- [x] **T7 — Changelog [parallel-safe]** — Files: `CHANGELOG.md` `## [0.47.0]`.
 - **Gate the wave.** `StatsSnapshotFormattingTests`. Commit `A100-T2..T7`.
-- [ ] **T8 — Window wiring (orchestrator).** Tab; `index.md`; `package.json`; `Conformance_G`
+- [x] **T8 — Window wiring (orchestrator).** Tab; `index.md`; `package.json`; `Conformance_G`
   allowlist (`ToolkitStatsCollector`, `StatsSnapshotFormatting`). Gate.
-- [ ] **T9 — Drive.** Full suites. Enter Play on `DOTSTestScene`; the panel's actor count equals
+- [x] **T9 — Drive.** Full suites. Enter Play on `DOTSTestScene`; the panel's actor count equals
   an `execute_code` `CalculateEntityCount` over `PlaybackLayer`; trigger events (walk actors) and
   watch the sparkline move; Snapshot → paste the clipboard into §7. Exit Play → dashes return, no
   exceptions in the console (disposed queries on a dead world is the trap to watch). Capture.
-- [ ] **T10 — Vault + HANDOFF.** Vault note "Stats tab (A100)": the D4 probe outcome, the world
+- [x] **T10 — Vault + HANDOFF.** Vault note "Stats tab (A100)": the D4 probe outcome, the world
   accessor, the dead-world disposal order.
-- [ ] **T11 — Close.** Roadmap checkbox — and the roadmap's Phase 2 is complete; say so in
+- [x] **T11 — Close.** Roadmap checkbox — and the roadmap's Phase 2 is complete; say so in
   HANDOFF §4.
-- [ ] **T12 — ⏸ owner checkpoint.** Message: "Enter Play and open Stats. The numbers are real —
+- [x] **T12 — ⏸ owner checkpoint.** Message: "Enter Play and open Stats. The numbers are real —
   the snapshot from my run is in §7. Which of these do you actually want to watch, and which are
   noise? ⚠ Should Snapshot also save a file under Library/?"
 
@@ -166,3 +166,58 @@ honest; allowlist it).
 - **(c) World accessor.** `ToolkitWorldApi` has only `SetEnabled`/`IsEnabled`; no accessor. D2 falls back to `World.DefaultGameObjectInjectionWorld` ("Default World"; the Play world also carries five Streaming loading worlds, which are ignored).
 - **Drift.** "Windows open" has no counter component; it is read as the count of actors with `AnimEventMask` enabled (`EventWindowSystem` enables it while any window is open), labelled "Actors with windows open". Because `DOTSTestScene` has no actors, T9's actor-count check compares against probe entities the drive creates in the Play world (never saved).
 
+### T2–T8 — one wave of six workers, then the wiring (2026-09-15)
+
+- Six sonnet `worker`s in parallel (collector, sparkline, formatting + fixture, panel, docs, changelog), all complete, no caps, no respawns. T8 (tab enum, window, UXML, the three layout name lists, the plain-noun allowlist, index.md) was applied by the orchestrator while the panel worker ran, since no file overlapped, and gated with the wave.
+- **One compile gate, clean first time.** Touched fixtures: 22 run, 21 passed, the standing `Conformance_A` only (Conformance_G, Conformance_I, `ClipEditorLayoutTests`, `StatsSnapshotFormattingTests`).
+- **Revert-to-fail:** `FormatLodCounts` with the " (sampled)" suffix replaced by "" made `ToMarkdown_MarksSampledLod` red ("Expected: True But was: False"); restored, green. Kept.
+- Committed `ce1dfc51` (`A100-T2..T8`).
+- **Deviation from D3:** `layerCount` sums `PlaybackLayer` buffer lengths per chunk (a `BufferAccessor` walk), not a pure query count; the only other main-thread walk is the events sum over pending actors, as D3 allows.
+
+### T9 — full suites and the drive (2026-09-15)
+
+- **Full suites:** EditMode 866 (865 passed, standing `Conformance_A` only; +1 for `StatsSnapshotFormattingTests`), PlayMode 285/285.
+- **Drive, Play mode on `DOTSTestScene`, a detached `StatsPanel` (the owner's docked window untouched).** The scene has no toolkit actors, so the drive created 12 actors (two `PlaybackLayer`s each, `AnimLod` 6/3/2/1) and 4 event carriers (`AnimEventsPending` enabled, three `AnimEventOutput` each) in the Play world only; nothing saved.
+  - First poll: world "Default World", actors 12, layers 24, LOD 6/3/2/1 not sampled, events 12, pending 4, `timingsAvailable` false (recorders created on this poll, no samples yet).
+  - Second poll a few frames later: **panel actors 12 = world `CalculateEntityCount` over `PlaybackLayer` 12**; actors label "12", "playing"; timings available: toolkit group 0.059 ms, Logic 0.033, Presentation 0.015; sparkline count 3, peak 12, latest 0 (the toolkit cleared the hand-made carriers after a frame, so the sparkline moved; real walking actors were not available in this scene).
+  - Snapshot to `EditorGUIUtility.systemCopyBuffer`, read back (564 chars; the version line read 0.52.1 because the manifest bump is a close step):
+
+```
+## DOTS Animation Toolkit stats
+
+Version 0.52.1 · captured 2026-09-15 05:58:55 · world Default World
+
+| Stat | Value |
+| --- | --- |
+| Actors | 12 |
+| Layers | 24 |
+| Ragdolling | 0 |
+| In cutscene | 0 |
+| LOD 0 / 1 / 2 / 3 | 6 / 3 / 2 / 1 |
+| Events this frame | 0 |
+| Actors with pending events | 0 |
+| Actors with windows open | 0 |
+| VAT parts bound | 0 |
+| VAT textures | 0 |
+| VAT texture memory | 0.0 MB |
+| AnimationToolkit group | 0.06 ms |
+| Binding group | 0.00 ms |
+| Logic group | 0.03 ms |
+| Presentation group | 0.01 ms |
+| Ragdoll group | 0.00 ms |
+```
+
+  - **Exit Play, same panel:** `RefreshNow` against the destroyed world did not throw (the collector drops, rather than disposes, queries whose world is gone); actors "—", "not playing", snapshot "world — · not playing"; `Dispose` twice without throwing. Console: 0 errors, 0 warnings. `DOTSTestScene` not dirty; `TestArea` (the scene the owner had open) reloaded afterwards.
+  - **Drive-found fix:** in Edit mode the five timing cells read "unavailable" instead of the dash; now "unavailable" only for a Play world whose recorders have no samples, the dash otherwise.
+- Registry sha256s unchanged at close.
+
+### Not seen (owner away; visual checks skipped by instruction)
+
+- The tab was never captured or looked at: box layout, split widths, the LOD bars' fill and scale, the sparkline's stroke, the playing dot's colour, and whether `d_SaveAs` (reused from Flipbooks) reads as "Snapshot".
+- VAT memory and the VAT counts on real baked actors (`DOTSTestScene` has none; every VAT number was 0), non-zero ragdoll and cutscene counts, events from actors actually walking, and the `(sampled)` path above 100,000 actors.
+- The tab inside the docked window (only a detached panel was driven); the 4 Hz `EditorApplication.update` gate firing on its own (the drive called `RefreshNow`).
+
+### Close
+
+- `package.json` and the `PackagingConformanceTests` pin at `0.53.0`; CHANGELOG `## [0.53.0]`; `stats-tab.md`, `index.md`, README bullet; HANDOFF header and §4 paragraph; AnimationToolkit.md "Stats tab (A100, 0.53.0)"; roadmap box. Phase 2 of the roadmap is complete.
+- **T12 closed under the standing rule.** Question kept in HANDOFF §4: which numbers are worth watching and which are noise, and should Snapshot also save a file under `Library/`?
