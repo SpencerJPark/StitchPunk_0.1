@@ -166,3 +166,43 @@ Burst helper saves each consumer from writing the key-filter loop.
   6. The spec said the T1 removal cannot break worktree gates. It does: gates compile on the stage, where the untracked stub lives. See the T1 entry.
 - **2026-09-14 — T1 (lead).** `8c303d41`: 24 files `git rm`'d (9 sources + 3 fixtures, each with its `.meta`), stubs `EventUsageColumn` and `AnimEventBufferApi`, `EventsPanel` swapped. Gate `PackagingConformanceTests`: **compile-errors**, the one error `DamageEventSystemAnimEventSystem.cs(37,42) CS0246 AnimEventRoutingBlob` in the owner's untracked stage stub (F-D6). The lead may not touch `Assets/_Scripts`, so the stage was messaged.
   7. Stage converted the stub early (plain loop) so a93f gates compile; T7 swaps in the helper. The stub is now a plain `AnimEventOutput` loop comparing against `AnimEvents.Damage`, still untracked.
+- **2026-09-14 — Wave T2–T5 (four sonnet workers, one file pair each).** `052030c7`. Gate `AnimEventBufferApiTests` + `PackagingConformanceTests`: **12 passed, 1 failed of 13 named** (1 helper test + 12 conformance). The one failure is the standing Conformance_A (Editor asmdef's extra `Unity.RenderPipelines.Universal.Runtime`), and there were no compile errors. This gate also covers the T1 re-gate after the stage's early stub conversion. Revert-to-fail: mutation `e0980acb` (`searchIndex = index`) gated **11 passed, 2 failed**, `TryFindNextEvent_VisitsEverySameKeyEventInOrder` failing with "did not advance searchIndex past its match" (the guard fired, no hang). Then `git reset --hard HEAD~1`, and `AnimEventBufferApi.cs` sha256 `a4c2ceb8…96d2ec4e` matches the committed file. T5 note: the "Finding one key" example names the key through `GameEventKeys`, the class that doc's existing examples already use.
+  Unverified in the worktree (static review only): `EventUsageColumn` layout and behaviour (no drive; T8), the row-click/open-button split (the row ignores a `ClickEvent` whose target is the open button), and the `.toolkit-box` USS classes it reuses from `ClipEditorWindow.uss`, which may not be loaded when the panel is used detached.
+
+### For integration
+
+**CHANGELOG** (top, above `## [0.42.0]`):
+
+```
+## [0.43.0] — A93F — Events tab rework
+
+### Changed
+- Events tab right column is now **Used by** (`EventUsageColumn`): boxed Clips, Cutscenes and Profiles groups with counts, one two-line row per asset (name, then `@0.35, 0.60` for clips, seconds for cutscenes, `Layer ▸ animation` for profile ragdoll events). Click pings; the open button raises `EventsPanel.OpenOwnerRequested`, which the window routes to the Clip Editor, Cutscene tab or Actor Editor. Refreshes on key selection and 500 ms after `AssetReferenceIndex.Dirtied`.
+- `EventKeyInspectorColumn` keeps the entry fields, payload schema and preview clip; its usage list and `RefreshUsage` are gone.
+- `EventsPanel.Routes` is replaced by `EventsPanel.Usage`; the panel no longer listens to `AssetReferenceIndex.Rebuilt`.
+
+### Added
+- `AnimEventBufferApi` (Runtime, Burst-compatible): `ContainsEvent`, `TryFindEvent`, `TryFindNextEvent(in DynamicBuffer<AnimEventOutput>, uint, ref int, out AnimEventOutput)`; a `while` loop over `TryFindNextEvent` visits every same-key event in a frame.
+- `ClipEditorWindow.FocusClip(ClipAsset)`.
+
+### Removed
+- Event routing: `AnimEventRoutingAsset`, `AnimEventRoute`, `AnimEventRouteKind`, `AnimEventRoutingAuthoring` and `AnimEventRoutingBaker`, `AnimEventRoutingBuilder`, `AnimEventRoutingBlob`, `AnimEventRouteBlob`, `AnimEventRouting`, `AnimEventRoutingApi`, `AnimEventRoutingAssetUtility`, `AnimEventConsumerStubBuilder`, `EventRoutesColumn`, and the fixtures `AnimEventRoutingApiTests`, `AnimEventRoutingBuilderTests`, `AnimEventConsumerStubBuilderTests`. No migration: no routing asset or `AnimEventRoutingAuthoring` existed in the project. Events stay on the per-actor `AnimEventOutput` buffer; the package ships no handler.
+```
+
+**Conformance_G allowlist:** none needed. `AnimEventBufferApi` ends in `Api`; `EventUsageColumn` is not static. Removed names that were never on the allowlist need no deletion (grep of `PackagingConformanceTests.cs` for routing names: zero hits).
+
+**Wiring (T6):**
+- No new enum member, UXML toggle or pane: the Events tab and its pane already exist.
+- In `ShowEventsTab`: after `new EventsPanel()` and `Bind()`, add `eventsPanel.OpenOwnerRequested += OnEventsPanelOpenOwnerRequested;`. The handler routes `ClipAsset` to `FocusClip`, `CutsceneAsset` to `FocusCutsceneTab`, and `ActorProfileAsset` to `FocusWithActorEditorTab`.
+- In teardown: unsubscribe first, then `eventsPanel.Dispose()`. Dispose now also disposes `Usage`, which unhooks `Dirtied` and `EditorApplication.update`.
+- If the window references `eventsPanel.Routes` or `AnimEventRoutingAssetUtility` anywhere, delete those lines. The lead's grep found none outside `EventsPanel.cs`.
+- Drive handles (T8): `Usage.Refresh()`, `Usage.RequestOpenOwner(Object)`, and each `event-usage-open-button` carries its owner in `userData`. Element names: `event-usage-column`, `event-usage-group`, `event-usage-row`, `event-usage-open-button`.
+- `Documentation~/index.md` lines 159–161 still describe "the routing asset a host bakes and reads, and the consumer-stub generator … never handles a route". Replace them with: "catalog with its 64-key budget, each key's fields and payload, and a Used by column that opens the clips, cutscenes and profiles using the event."
+
+**Vault-note traps:**
+- Gates compile on the stage, so an untracked stage file that names a removed type breaks every worktree gate. The spec wrongly assumed otherwise; the stage converted the owner stub early.
+- `EventUsageColumn` must never listen to `AssetReferenceIndex.Rebuilt`: its own `ReferencesToEventKey` query can fire it (a refresh loop). Listen to `Dirtied`, debounced.
+- `ReferencesToEventKey` emits one reference per marker with a `marker @` prefix. The column groups by owner and reformats; other callers still see the raw per-marker details.
+- The helper takes `in DynamicBuffer` (a handle). Do not add `[BurstCompile]` to the class; it is called from inside the consumer's Burst job.
+
+**HANDOFF draft (section 4):** A93F (0.43.0) removes event routing from the package. The routing asset, authoring and baker, blob, API, asset utility, consumer-stub generator, Routes column and their three fixtures are gone, with no migration because no routing data existed. The Events tab's right column is now Used by (`EventUsageColumn`): boxed Clips, Cutscenes and Profiles groups whose rows ping on click and open the owner through `EventsPanel.OpenOwnerRequested`, wired by the window to `FocusClip`, `FocusCutsceneTab` and `FocusWithActorEditorTab`. The inspector column lost its usage list. Runtime delivery stays on the per-actor `AnimEventOutput` buffer. The new Burst-compatible `AnimEventBufferApi` (`ContainsEvent`, `TryFindEvent`, `TryFindNextEvent`) saves consumers the key-filter loop, and the owner's damage system reads through it after T7. Open: T10 owner checkpoint on whether the usage column shows what he needs.
