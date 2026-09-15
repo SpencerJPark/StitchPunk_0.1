@@ -14,7 +14,6 @@
                 <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscene Director" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-health" text="Health" class="clip-editor__tab"/>
             </ui:VisualElement>
-            <ui:VisualElement name="validation-badge-slot" class="clip-editor__badge-slot"/>
         </uie:Toolbar>
         <ui:VisualElement name="clip-editor-body" class="clip-editor__body">
             <ui:TwoPaneSplitView name="dock-vertical" orientation="Vertical" fixed-pane-index="1" fixed-pane-initial-dimension="220" class="clip-editor__dock">

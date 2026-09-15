@@ -90,9 +90,9 @@ The sets an actor names are merged into one registry:
 - **A rig missing the tag is not an error.** A blink clip tagging `EyeL`/`EyeR` plays on a character
   and is simply skipped, with a warning, on a barrel that has no eyes. One "reactions" clip can cover
   a roster of rigs that genuinely differ in what parts they have. The warning names the clip, the
-  track, the tag, and the rig — actionable without opening anything — and it surfaces in the Clip
-  Editor's validation badge, not only the bake console, because that's where you're already looking
-  while authoring.
+  track, the tag, and the rig — actionable without opening anything — and it surfaces in the Health
+  tab, not only the bake console, because the tab strip is where you're already looking while
+  authoring.
 - **A rig missing the target id is not an error either** (T6, above). The id-bound half of the same
   leniency, for the same reason: a set applied to a second rig legitimately carries tracks only its
   home rig declares.

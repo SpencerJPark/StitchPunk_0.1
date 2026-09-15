@@ -156,11 +156,11 @@ And the two references both of them lean on:
   the channels of one texture, the sidebar's Images and Recipes modes, and
   baking in place.
 - [`events-tab.md`](events-tab.md) — the Events tab: the event registry as a
-  catalog with its 64-key budget, each key's payload and usage, the routing
-  asset a host bakes and reads, and the consumer-stub generator. The package
-  never handles a route.
+  catalog with its 64-key budget, each key's fields and payload, and a Used by
+  column that opens the clips, cutscenes and profiles using the event.
 - [`health-tab.md`](health-tab.md) — the Health tab: the project-wide rules
-  H01–H10, what each finding means, and its one-click fixes.
+  H01–H12, the findings list and detail panel, each finding's fixes and
+  confirmed deletes, and the "Health (n)" error count on the tab.
 - [`sprite-sheets.md`](sprite-sheets.md) — the Sprite Sheets tab: stacking
   same-size frames into one `Texture2DArray`, the contact sheet, and picking a
   sprite key's frame by name.

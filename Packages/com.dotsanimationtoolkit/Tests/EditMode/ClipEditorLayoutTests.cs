@@ -31,7 +31,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             "clip-editor-root", "clip-editor-toolbar",
             "clip-set-field",
-            "skinned-source-field", "validation-badge-slot",
+            "skinned-source-field",
             // The tabs are the top bar's only controls now; the clip-set and skinned-source fields
             // they used to sit beside moved into their own panes (clip-list-pane, hierarchy-pane).
             // Exactly one tab is lit, and SetActiveTab is the only writer of that.

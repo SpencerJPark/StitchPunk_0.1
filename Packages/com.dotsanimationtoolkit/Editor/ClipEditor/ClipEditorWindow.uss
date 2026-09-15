@@ -540,13 +540,6 @@
     width: 44px;
 }
 
-/* Holds the validation summary button and nothing else. It was a column back when the findings list
-   stacked beneath the button inside the bar; the list is over the viewport now, so this is a row. */
-.clip-editor__badge-slot {
-    flex-direction: row;
-    align-items: center;
-}
-
 /* ------------------------------------------------------------------------------------------- */
 /* Dock and panes                                                                                */
 /* ------------------------------------------------------------------------------------------- */

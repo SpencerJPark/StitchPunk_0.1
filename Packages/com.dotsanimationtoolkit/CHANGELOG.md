@@ -8,6 +8,50 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.0] — A95F — Sprite Sheets over existing arrays
+
+### Changed
+- Sprite Sheets lists every Texture2DArray in the project beside the sprite sheets. A bare array's row reads "N frames · W×H · imported, unnamed", and a sheet that wraps an imported array reads "· imported". Rename and Delete appear on sheet rows only, through the new `CatalogColumnOptions.rowAllowsRenameAndDelete`.
+- Opening an array builds a names-only working copy: frames are named 0…n-1, the thumbnails are GPU layer copies (`SpriteSheetLayerThumbnailCache`, `Graphics.CopyTexture`), and Bake, the output path, adding images, reorder and removal are disabled. Filter, wrap, mips and linear show the array's own importer values, read-only.
+- Double-click a frame's name to rename it; names stay unique. For a bare array, Save is enabled once any name differs from its number. The first Save writes `<ArrayName>_Sheet.asset` beside the array (`SpriteSheetAssetUtility.GetOrCreateSheetForArray`).
+- Opening a names sheet whose array changed depth appends numeric frames, or drops the trailing ones with a warning.
+- The Clip Editor's sprite-track Sheet field accepts a Texture2DArray too. Dropping one reuses or creates its names sheet.
+- Bake writes a grid PNG, `T_<Sheet>_Array.png`, row-major from the top-left with transparent padding cells, and imports it as a Texture2DArray. New "Match import settings of" (`SpriteSheetAsset.importSettingsSource`) copies a reference array's importer settings and per-platform overrides, keeping the grid's rows and columns. With no reference, Bake uses the project arrays' shared defaults (Compressed, mips on, Point, Clamp, sRGB, max 2048, no crunch). Re-bakes keep the GUID. The uncompressed `.asset` array output is gone, and `SpriteSheetAsset.generateMips` now defaults to true.
+
+### Added
+- `SpriteSheetAsset.IsImportedArray`, `SpriteSheetAssetUtility.CreateWorkingCopyForArray` and `ReconcileFramesWithArrayDepth`, and `SpriteSheetArrayNamesTests`.
+
+## [0.44.0] — A94F — Health tab rework
+
+### Changed
+- Health tab reworked: a large "Scan project" button with last-scan status, three severity chips that count and filter, and a findings list beside a detail panel (title, explanation, affected assets with ping and Open, and one button per fix).
+- Findings carry several actions. H02 Remove missing, H06 Rebake and H09 Save are unchanged in behaviour; every finding gains Locate actions.
+- The Clip Editor tab strip reads "Health (n)" in red while there are Error findings; the panel is built at window creation so the count is there before the tab is opened. Committed clip edits request a debounced rescan.
+- H06 no longer reads "on rig 'no rig'" for a never-baked set.
+
+### Added
+- Delete actions behind a confirmation that names the asset path and what still references it: H01 Delete clip (`ClipAssetUtility.TrashClip`), H05 Delete rig, H06 Delete VAT textures (`VatTextureSetAssetUtility.TrashTextureSet`; part textures and runtime meshes no other VAT set uses go with it, decided by `VatTextureOwnershipResolver`).
+- H11: each actor profile's clip sets bind-validated against its rig (V08, V36 and V41 skipped, reported by H06, H07 and H08). H12: shared clips still bound by target id.
+- `HealthPanel.ErrorCount` and `HealthPanel.RequestRescan()`.
+
+### Removed
+- The Clip Editor toolbar's validation badge and its message panel (`validation-badge-slot`); Health reports everything it caught. The Actor Profiles badge stays.
+- `HealthFinding.fix` and `fixLabel` (replaced by actions).
+
+## [0.43.0] — A93F — Events tab rework
+
+### Changed
+- Events tab right column is now **Used by** (`EventUsageColumn`): boxed Clips, Cutscenes and Profiles groups with counts, one two-line row per asset (name, then `@0.35, 0.60` for clips, seconds for cutscenes, `Layer ▸ animation` for profile ragdoll events). Click pings; the open button raises `EventsPanel.OpenOwnerRequested`, which the window routes to the Clip Editor, Cutscene tab or Actor Editor. Refreshes on key selection and 500 ms after `AssetReferenceIndex.Dirtied`.
+- `EventKeyInspectorColumn` keeps the entry fields, payload schema and preview clip; its usage list and `RefreshUsage` are gone.
+- `EventsPanel.Routes` is replaced by `EventsPanel.Usage`; the panel no longer listens to `AssetReferenceIndex.Rebuilt`.
+
+### Added
+- `AnimEventBufferApi` (Runtime, Burst-compatible): `ContainsEvent`, `TryFindEvent`, `TryFindNextEvent(in DynamicBuffer<AnimEventOutput>, uint, ref int, out AnimEventOutput)`; a `while` loop over `TryFindNextEvent` visits every same-key event in a frame.
+- `ClipEditorWindow.FocusClip(ClipAsset)`.
+
+### Removed
+- Event routing: `AnimEventRoutingAsset`, `AnimEventRoute`, `AnimEventRouteKind`, `AnimEventRoutingAuthoring` and `AnimEventRoutingBaker`, `AnimEventRoutingBuilder`, `AnimEventRoutingBlob`, `AnimEventRouteBlob`, `AnimEventRouting`, `AnimEventRoutingApi`, `AnimEventRoutingAssetUtility`, `AnimEventConsumerStubBuilder`, `EventRoutesColumn`, and the fixtures `AnimEventRoutingApiTests`, `AnimEventRoutingBuilderTests`, `AnimEventConsumerStubBuilderTests`. No migration: no routing asset or `AnimEventRoutingAuthoring` existed in the project. Events stay on the per-actor `AnimEventOutput` buffer; the package ships no handler.
+
 ## [0.42.0] — A95 — Sprite Sheets tab
 
 ### Added

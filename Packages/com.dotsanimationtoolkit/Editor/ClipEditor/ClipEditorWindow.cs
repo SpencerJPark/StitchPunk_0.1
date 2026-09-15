@@ -216,7 +216,6 @@ namespace DotsAnimationToolkit.Editor
 
         private Image previewImage;
         private Label previewStatusLabel;
-        private ValidationBadgeElement validationBadge;
 
         private ClipPreviewController previewController;
         private bool previewRegistryDirty;
@@ -327,6 +326,74 @@ namespace DotsAnimationToolkit.Editor
                 // Setting Profile writes the shared rig selection from inside the panel — one
                 // writer, not two.
                 window.actorEditorPanel.Profile = profile;
+            }
+        }
+
+        /// <summary>Brings the Clip Editor forward with <paramref name="clip"/> selected, inside a clip set that lists it.</summary>
+        public static void FocusClip(ClipAsset clip)
+        {
+            ClipEditorWindow window = FocusTab(ClipEditorTab.ClipEditor);
+            if (window == null || clip == null)
+            {
+                return;
+            }
+
+            // The open set wins when it already lists the clip, so opening never swaps the set out
+            // from under the author for no reason.
+            ClipSetAsset owningSet = window.clipSet != null && window.clipSet.clips != null
+                && window.clipSet.clips.Contains(clip)
+                ? window.clipSet
+                : FindFirstClipSetListing(clip);
+            if (owningSet == null)
+            {
+                EditorGUIUtility.PingObject(clip);
+                return;
+            }
+
+            window.selection.SetClipSet(owningSet);
+            // Through the list, as RestoreView does, so the row is highlighted as well as loaded.
+            int clipIndex = owningSet.clips.IndexOf(clip);
+            if (window.clipListPane != null && clipIndex >= 0)
+            {
+                window.clipListPane.SelectClipRow(clipIndex);
+            }
+        }
+
+        private static ClipSetAsset FindFirstClipSetListing(ClipAsset clip)
+        {
+            List<AssetReference> references = AssetReferenceIndex.ReferencesToClip(clip);
+            for (int referenceIndex = 0; referenceIndex < references.Count; referenceIndex++)
+            {
+                if (references[referenceIndex].kind == AssetReferenceKind.ClipSetClip)
+                {
+                    ClipSetAsset listingSet = references[referenceIndex].owner as ClipSetAsset;
+                    if (listingSet != null)
+                    {
+                        return listingSet;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private void OnEventsPanelOpenOwnerRequested(UnityEngine.Object owner)
+        {
+            ClipAsset ownerClip = owner as ClipAsset;
+            if (ownerClip != null)
+            {
+                FocusClip(ownerClip);
+                return;
+            }
+            DotsAnimationToolkit.Authoring.CutsceneAsset ownerCutscene = owner as DotsAnimationToolkit.Authoring.CutsceneAsset;
+            if (ownerCutscene != null)
+            {
+                FocusCutsceneTab(ownerCutscene);
+                return;
+            }
+            ActorProfileAsset ownerProfile = owner as ActorProfileAsset;
+            if (ownerProfile != null)
+            {
+                FocusWithActorEditorTab(ownerProfile);
             }
         }
 
@@ -752,12 +819,14 @@ namespace DotsAnimationToolkit.Editor
             }
             if (eventsPanel != null)
             {
+                eventsPanel.OpenOwnerRequested -= OnEventsPanelOpenOwnerRequested;
                 eventsPanel.Dispose();
                 eventsPanel = null;
             }
             if (healthPanel != null)
             {
                 healthPanel.RebakeRequested -= OnClipSetRebakeRequested;
+                healthPanel.FindingsChanged -= RefreshHealthTabLabel;
                 healthPanel.Dispose();
                 healthPanel = null;
             }
@@ -872,10 +941,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 previewController.SetClipSet(clipSet);
             }
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(activeRig, clipSet);
-            }
+            healthPanel?.RequestRescan();
 
             clipListPane.RefreshClipActionButtons();
             hierarchyPane.RebuildHierarchy();
@@ -988,6 +1054,9 @@ namespace DotsAnimationToolkit.Editor
             }
 
             BindTabs();
+            // Built at window creation, not on first show, so the tab's error count is there before
+            // the Health tab is ever opened.
+            BuildHealthPanel();
 
             rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
             if (rigEditToggle != null)
@@ -1018,13 +1087,6 @@ namespace DotsAnimationToolkit.Editor
                     }
                     clipInspectorPane.RebuildInspector();
                 });
-            }
-
-            VisualElement badgeSlot = rootVisualElement.Q<VisualElement>("validation-badge-slot");
-            if (badgeSlot != null)
-            {
-                validationBadge = new ValidationBadgeElement();
-                badgeSlot.Add(validationBadge);
             }
         }
 
@@ -1518,6 +1580,7 @@ namespace DotsAnimationToolkit.Editor
             if (isShown && eventsPanel == null)
             {
                 eventsPanel = new EventsPanel();
+                eventsPanel.OpenOwnerRequested += OnEventsPanelOpenOwnerRequested;
                 eventsPanel.Bind();
                 eventsPane.Add(eventsPanel);
             }
@@ -1532,16 +1595,38 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            // Rebake reuses the Clip Sets tab's jump, so both tabs land on VAT Bake the same way.
-            if (isShown && healthPanel == null)
+            healthPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        private void BuildHealthPanel()
+        {
+            if (healthPane == null || healthPanel != null)
             {
-                healthPanel = new HealthPanel();
-                healthPanel.RebakeRequested += OnClipSetRebakeRequested;
-                healthPane.Add(healthPanel);
-                healthPanel.Bind();
+                return;
             }
 
-            healthPane.EnableInClassList(HiddenUssClassName, !isShown);
+            // Rebake reuses the Clip Sets tab's jump, so both tabs land on VAT Bake the same way.
+            healthPanel = new HealthPanel();
+            healthPanel.RebakeRequested += OnClipSetRebakeRequested;
+            // Before Bind: Bind runs the first scan, and that scan is what labels the tab.
+            healthPanel.FindingsChanged += RefreshHealthTabLabel;
+            healthPane.Add(healthPanel);
+            healthPanel.Bind();
+        }
+
+        private void RefreshHealthTabLabel()
+        {
+            ToolbarToggle healthToggle = tabToggles[(int)ClipEditorTab.Health];
+            if (healthToggle == null || healthPanel == null)
+            {
+                return;
+            }
+
+            int errorCount = healthPanel.ErrorCount;
+            healthToggle.text = errorCount > 0 ? "Health (" + errorCount + ")" : "Health";
+            healthToggle.style.color = errorCount > 0
+                ? new StyleColor(ToolkitPalette.Error)
+                : new StyleColor(StyleKeyword.Null);
         }
 
         private void ShowSpriteSheetsTab(bool isShown)
@@ -1610,10 +1695,7 @@ namespace DotsAnimationToolkit.Editor
             clipListPane?.RefreshClipList();
             clipListPane?.RefreshClipActionButtons();
             MarkPreviewDirty();
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(activeRig, clipSet);
-            }
+            healthPanel?.RequestRescan();
         }
 
         private void ApplyRigEditChrome()
@@ -2100,21 +2182,6 @@ namespace DotsAnimationToolkit.Editor
             previewStatusLabel = rootVisualElement.Q<Label>("viewport-status");
             viewportFrame = rootVisualElement.Q<VisualElement>("viewport-frame");
             rigEditBanner = rootVisualElement.Q<Label>("rig-edit-banner");
-
-            // The validation findings are shown over the preview, and only while the summary button
-            // asks for them. Attached from here rather than built here, because the panel and that
-            // button are two halves of one control — see ValidationBadgeElement. BindToolbar has
-            // already run, so the badge exists.
-            //
-            // Into the overlay column itself, as its third child below the two control rows, rather
-            // than into a layer of its own. The panel's max-width and max-height are percentages,
-            // and a percentage resolves against the parent — the column is frame-sized precisely so
-            // "60%" keeps meaning 60% of the 3D area, which is what stops a findings list from
-            // eating the space being posed in.
-            if (validationBadge != null)
-            {
-                validationBadge.AttachMessagePanel(viewportOverlay);
-            }
 
             reconcilePanel = rootVisualElement.Q<VisualElement>("reconcile-panel");
             reconcileList = rootVisualElement.Q<ScrollView>("reconcile-list");
@@ -3097,10 +3164,7 @@ namespace DotsAnimationToolkit.Editor
             hierarchyPane.RebuildHierarchy();
             timelinePane.RebuildTimeline();
             clipInspectorPane.RebuildInspector();
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(activeRig, clipSet);
-            }
+            healthPanel?.RequestRescan();
 
             // LoadedPrefab is what Edit Prefab's enabled state depends on, and a pick here is one
             // of the places it changes. Without this the button was disabled at bind time — when
@@ -3160,10 +3224,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 previewController.SetClipSet(clipSet);
             }
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(activeRig, clipSet);
-            }
+            healthPanel?.RequestRescan();
         }
 
         private void SelectClip(ClipAsset clip)
@@ -3309,10 +3370,7 @@ namespace DotsAnimationToolkit.Editor
         private void OnPaneRequestedRebuild()
         {
             MarkPreviewDirty();
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(activeRig, clipSet);
-            }
+            healthPanel?.RequestRescan();
         }
 
         // Every early exit below is about the pose, not the picture: with no clip, no registry, or
@@ -3338,13 +3396,9 @@ namespace DotsAnimationToolkit.Editor
                 previewLastRefreshedAt = now;
                 previewController.Refresh();
 
-                // Revalidated on the same debounced beat as the preview rebuild, for the same
-                // reason: a full set validation walks every key of every clip, so running it per
-                // repaint would make a large set's window crawl.
-                if (validationBadge != null)
-                {
-                    validationBadge.Refresh(activeRig, clipSet);
-                }
+                // On the preview's debounced beat, so an edit reaches the Health count without a
+                // project scan per repaint.
+                healthPanel?.RequestRescan();
             }
 
             string viewportStatus = previewController.StatusMessage;
@@ -3948,10 +4002,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             CommitClipEdit();
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(ActiveRig, clipSet);
-            }
+            healthPanel?.RequestRescan();
             timelinePane.RebuildTimeline();
         }
 
@@ -4101,10 +4152,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void FinishRigTagEdit(RigAsset rig)
         {
-            if (validationBadge != null)
-            {
-                validationBadge.Refresh(rig, clipSet);
-            }
+            healthPanel?.RequestRescan();
 
             // Rebuilds the inspector as its last act, so the button that was just picked re-reads
             // its own label from here rather than needing a second refresh call beside this one.
