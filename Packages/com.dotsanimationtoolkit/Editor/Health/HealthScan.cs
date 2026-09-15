@@ -58,6 +58,8 @@ namespace DotsAnimationToolkit.Editor
             TagAndKeyValidation.EvaluateEventKeysNotInRegistry(context, findings);
             StableIdValidation.EvaluateUnpersistedStableIds(context, findings);
             TagAndKeyValidation.EvaluateClipsPosingNothingOnRig(context, findings);
+            BindValidation.EvaluateProfileBinds(context, findings);
+            BindValidation.EvaluateSharedClipBindings(context, findings);
 
             OrderedFinding[] orderedFindings = new OrderedFinding[findings.Count];
             for (int findingIndex = 0; findingIndex < findings.Count; findingIndex++)

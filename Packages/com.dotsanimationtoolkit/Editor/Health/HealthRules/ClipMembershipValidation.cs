@@ -64,31 +64,12 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                ClipSetAsset capturedClipSet = clipSet;
                 output.Add(new HealthFinding
                 {
                     severity = HealthSeverity.Error,
                     code = HealthFinding.ClipSetListsNullClipCode,
                     message = $"Clip set '{clipSet.name}' lists {missingClipCount} missing clip(s).",
                     target = clipSet,
-                    fixLabel = "Remove missing",
-                    fix = () =>
-                    {
-                        Undo.IncrementCurrentGroup();
-                        int undoGroup = Undo.GetCurrentGroup();
-                        Undo.SetCurrentGroupName("Remove Missing Clips");
-
-                        for (int clipIndex = capturedClipSet.clips.Count - 1; clipIndex >= 0; clipIndex--)
-                        {
-                            if (capturedClipSet.clips[clipIndex] == null)
-                            {
-                                ClipAssetUtility.RemoveClipFromSet(capturedClipSet, clipIndex);
-                            }
-                        }
-
-                        Undo.CollapseUndoOperations(undoGroup);
-                        AssetDatabase.SaveAssetIfDirty(capturedClipSet);
-                    },
                 });
             }
         }

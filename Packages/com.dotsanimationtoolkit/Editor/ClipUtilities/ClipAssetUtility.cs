@@ -267,6 +267,29 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
+        // For a clip no set lists, so there is no entry to un-register. Never SaveAssets: that would flush unrelated unsaved edits.
+        public static bool TrashClip(ClipAsset clip)
+        {
+            if (clip == null)
+            {
+                return false;
+            }
+
+            string assetPath = AssetDatabase.GetAssetPath(clip);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return false;
+            }
+
+            if (!AssetDatabase.MoveAssetToTrash(assetPath))
+            {
+                Debug.LogWarning(LogPrefix + "Could not move clip '" + assetPath + "' to the trash.", clip);
+                return false;
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Renames a clip asset on disk, keeping the file and the object name in step.
         /// </summary>

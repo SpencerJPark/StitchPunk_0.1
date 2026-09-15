@@ -35,24 +35,11 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                Object capturedAsset = asset;
-                IStableIdMintReporter capturedReporter = reporter;
-
                 HealthFinding finding = new HealthFinding();
                 finding.severity = HealthSeverity.Warning;
                 finding.code = HealthFinding.UnpersistedStableIdCode;
                 finding.message = asset.GetType().Name + " '" + asset.name + "' has a stable id that is not saved yet; it re-mints on the next load.";
                 finding.target = asset;
-                finding.fixLabel = "Save";
-                finding.fix = () =>
-                {
-                    EditorUtility.SetDirty(capturedAsset);
-                    AssetDatabase.SaveAssetIfDirty(capturedAsset);
-                    if (!EditorUtility.IsDirty(capturedAsset))
-                    {
-                        capturedReporter.MarkStableIdPersisted();
-                    }
-                };
 
                 output.Add(finding);
             }

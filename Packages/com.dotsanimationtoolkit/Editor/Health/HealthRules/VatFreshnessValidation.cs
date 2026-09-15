@@ -42,14 +42,6 @@ namespace DotsAnimationToolkit.Editor
                 finding.target = textures != null ? (UnityEngine.Object)textures : clipSet;
                 finding.secondaryTarget = textures != null ? clipSet : null;
 
-                if (context.rebakeRequested != null)
-                {
-                    ClipSetAsset capturedClipSet = clipSet;
-                    RigAsset capturedRig = rig;
-                    finding.fixLabel = "Rebake";
-                    finding.fix = () => context.rebakeRequested(capturedClipSet, capturedRig);
-                }
-
                 output.Add(finding);
             }
         }

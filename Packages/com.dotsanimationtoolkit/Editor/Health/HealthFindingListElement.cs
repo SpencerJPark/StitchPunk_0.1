@@ -8,11 +8,9 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>Lists Health findings as rows: severity dot, code, message, an optional fix button, and a locate button naming the asset.</summary>
+    /// <summary>Lists Health findings as rows: severity dot, code, message, and a locate button naming the asset.</summary>
     public sealed class HealthFindingListElement : VisualElement
     {
-        public event Action<HealthFinding> FixApplied;
-
         private readonly List<HealthFinding> findings = new List<HealthFinding>();
         private readonly ListView findingListView;
         private readonly Label emptyLabel;
@@ -90,21 +88,6 @@ namespace DotsAnimationToolkit.Editor
             messageLabel.style.whiteSpace = WhiteSpace.NoWrap;
             row.Add(messageLabel);
 
-            Button fixButton = new Button();
-            fixButton.name = "health-finding-fix";
-            fixButton.clicked += () =>
-            {
-                HealthFinding rowFinding = row.userData as HealthFinding;
-                if (rowFinding == null || rowFinding.fix == null)
-                {
-                    return;
-                }
-
-                rowFinding.fix.Invoke();
-                FixApplied?.Invoke(rowFinding);
-            };
-            row.Add(fixButton);
-
             Button locateButton = new Button();
             locateButton.name = "health-finding-locate";
             locateButton.tooltip = "Select and ping this asset";
@@ -149,10 +132,6 @@ namespace DotsAnimationToolkit.Editor
             Label messageLabel = element.Q<Label>("health-finding-message");
             messageLabel.text = finding.message;
             messageLabel.tooltip = finding.message;
-
-            Button fixButton = element.Q<Button>("health-finding-fix");
-            fixButton.text = finding.fixLabel;
-            fixButton.style.display = finding.fix == null ? DisplayStyle.None : DisplayStyle.Flex;
 
             Button locateButton = element.Q<Button>("health-finding-locate");
             locateButton.text = finding.target != null ? "▸ " + finding.target.name : "▸ (missing)";

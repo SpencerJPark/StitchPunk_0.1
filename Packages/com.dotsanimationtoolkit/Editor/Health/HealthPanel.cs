@@ -43,6 +43,30 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        // Every Error finding, the pinned H06 included; the window shows it on the tab as "Health (n)".
+        public int ErrorCount
+        {
+            get
+            {
+                int errorCount = 0;
+                foreach (HealthFinding finding in latestFindings)
+                {
+                    if (finding.severity == HealthSeverity.Error)
+                    {
+                        errorCount++;
+                    }
+                }
+
+                return errorCount;
+            }
+        }
+
+        // Committed clip edits call this: AssetReferenceIndex.Dirtied only fires on asset changes.
+        public void RequestRescan()
+        {
+            OnAssetReferenceIndexDirtied();
+        }
+
         private readonly Label errorCountLabel;
         private readonly Label warningCountLabel;
         private readonly Label noteCountLabel;
@@ -110,7 +134,6 @@ namespace DotsAnimationToolkit.Editor
 
             findingListElement = new HealthFindingListElement();
             findingListElement.style.flexGrow = 1f;
-            findingListElement.FixApplied += onFixApplied => Scan();
             Add(findingListElement);
         }
 
