@@ -194,6 +194,20 @@ Drift and decisions (8):
    (one new static class, suffix Editing, no allowlist). "Remap in every clip…" calls `PickTagThenReplaceTrackTag`.
 8. A92 is built, so the "Remap in every clip…" item is present.
 
+### Wave T1-T6 (spec-lead)
+
+- Commits `35839077` (T1 resolver, remap write, fixture) and `cce7b6c9` (T2-T6 elements, panel, docs). T6 wrote
+  `retarget-tab.md` as its own page plus a "Seeing coverage" section in `sharing-clips.md`.
+- **Gate at `cce7b6c9`:** compile clean, no Burst errors; 14 named tests run (2 `RetargetBindingResolverTests` + 12
+  `PackagingConformanceTests`), 13 passed, the one failure the standing `Conformance_A`.
+- **Revert-to-fail:** mutation `d128511d` made Dangling return Skipped; the gate (after one "Unity is compiling" refusal)
+  failed `TagNotInRegistry_IsDangling` ("Expected: Dangling, But was: Skipped") beside the standing `Conformance_A`,
+  12 passed. `git reset --hard HEAD~1`; resolver sha256 `10f4101f82eee808ffc3f8624aab92c9488a765716e6fbafb47ab584499743af`
+  matches the committed blob. The opposite mutation (Skipped returning Dangling) was not run, so
+  `TagOnRegistryButNotRig_IsSkipped_NotDangling` has not been seen failing; its Assert on `Skipped` would catch it by reading.
+- Unverified: nothing in the UI has run (no drive); `PopupField<ClipAsset>` with a null first choice and the ListView row
+  recycling are compile-checked only.
+
 ### For integration
 
 **CHANGELOG `## [0.47.0]`:**
