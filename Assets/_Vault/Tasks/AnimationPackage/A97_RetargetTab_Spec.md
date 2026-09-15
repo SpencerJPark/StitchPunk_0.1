@@ -1,6 +1,6 @@
 # Amendment A97 — Retarget tab: clip × rig binding table and roster coverage
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.44.0`.
+> **Status:** 📝 specced 2026-09-10, not built. Takes `0.47.0` (the specced `0.44.0` went to A94F; see §7).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** Phase E (tag rules T2 lenient / T3 error), A82 (column, split view), A84
 > (`TrackTargetMatchResolver`), A92 (`ReplaceTrackTag` — used when the user remaps a whole tag).
@@ -141,4 +141,15 @@ public static class RetargetBindingResolver
 
 ## 7. Build log
 
-_(empty)_
+### Phase 0 (stage, 2026-09-14)
+
+- **Version:** the status line said `0.44.0`; A93F–A95F took `0.43.0`–`0.45.0`, so this spec takes `0.47.0`
+  (roadmap rule). CHANGELOG's top section is `## [0.45.0]` at `7d036585`.
+- **Baseline at `7d036585`:** compile clean; `DotsAnimationToolkit.Tests.EditMode` 851 run, 850 passed, the one failure
+  the standing `Conformance_A` (asmdef reference list); `DotsAnimationToolkit.Tests.PlayMode` 285 run, 285 passed.
+- **Registry sha256:** `DotsAnimationToolkitAnimEventKeyRegistry.asset`
+  `3bdb420d55b808ecfd9251ab144ac89645c4d6f903b4a8a3498a42aa76d14701`; `DotsAnimationToolkitTargetTagRegistry.asset`
+  `dbec3d5f6d31db02891682e7f88e6011f7317658f1d29753a0185ff2ebd1eb4f`. Drives must leave both unchanged.
+- **Stage untracked files:** none. Nothing on the stage names a type this spec removes or renames.
+- **Runs as** a spec-lead (opus) with sonnet workers in a Worktree Toolkit batch beside the other two of A96–A98; the
+  stage owns window wiring, `index.md`, CHANGELOG, `package.json`, the conformance pin, drives and the close.

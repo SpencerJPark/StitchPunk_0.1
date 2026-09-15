@@ -1,6 +1,6 @@
 # Amendment A98 — Capture tab: PNG sequences and GIFs from the preview camera
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.45.0`.
+> **Status:** 📝 specced 2026-09-10, not built. Takes `0.48.0` (the specced `0.45.0` went to A95F; see §7).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** A74 (shared `PreviewCameraNavigation`, `IPreviewCameraRig`,
 > `PreviewCameraPose`), A71 (`ActorPreviewComposer` plays profile animations), the cutscene
@@ -153,4 +153,31 @@ allowlist.
 
 ## 7. Build log
 
-_(empty — must contain the D3 timing and the T0 render-path finding before the wave)_
+### Phase 0 (stage, 2026-09-14)
+
+- **Version:** the status line said `0.45.0`; A93F–A95F took `0.43.0`–`0.45.0`, so this spec takes `0.48.0`
+  (roadmap rule). CHANGELOG's top section is `## [0.45.0]` at `7d036585`.
+- **Baseline at `7d036585`:** compile clean; `DotsAnimationToolkit.Tests.EditMode` 851 run, 850 passed, the one failure
+  the standing `Conformance_A` (asmdef reference list); `DotsAnimationToolkit.Tests.PlayMode` 285 run, 285 passed.
+- **Registry sha256:** `DotsAnimationToolkitAnimEventKeyRegistry.asset`
+  `3bdb420d55b808ecfd9251ab144ac89645c4d6f903b4a8a3498a42aa76d14701`; `DotsAnimationToolkitTargetTagRegistry.asset`
+  `dbec3d5f6d31db02891682e7f88e6011f7317658f1d29753a0185ff2ebd1eb4f`. Drives must leave both unchanged.
+- **Stage untracked files:** none. Nothing on the stage names a type this spec removes or renames.
+- **Runs as** a spec-lead (opus) with sonnet workers in a Worktree Toolkit batch beside the other two of A96–A98; the
+  stage owns window wiring, `index.md`, CHANGELOG, `package.json`, the conformance pin, drives and the close.
+- **T0 D3 GIF timing probe (execute_code, CodeDom C# 6, unoptimised):** 30 synthetic 512×512 frames (a gradient with a
+  moving shaded disc). The throwaway encoder built a global 256-colour median-cut palette from every 7th pixel of every
+  3rd frame, mapped pixels through an RGB555 lookup and LZW-encoded each frame (open-addressing hash, 12-bit codes, clear
+  at 4096). Total **1661 ms** (palette 1496 ms, mapping 36 ms, LZW the rest; 620,818 bytes); a replay took **1781 ms**.
+  Under the 3 s bar: **T5 (GIF) runs.** The median-cut sort dominates, so a shipped encoder should sample, not sort
+  every pixel. A per-pixel-noise worst case was not timed.
+- **T0 render path:** `ClipPreviewController` owns a private `PreviewRenderUtility`; `Render(int pixelWidth, int
+  pixelHeight)` (line ~1495) poses the scene, then `renderUtility.BeginPreview(new Rect(0, 0, w, h), GUIStyle.none)`,
+  `renderUtility.camera.Render()` and `return renderUtility.EndPreview()`. The utility owns the target, so a capture
+  calls `Render(captureWidth, captureHeight)`, blits the returned `Texture` (a RenderTexture) into a temporary
+  RenderTexture and `ReadPixels` from that. The controller exposes no `Camera`, so `ICaptureSource.PreviewCamera` (D2)
+  is drift: the lead decides between a `Texture RenderFrame(int, int)` member and exposing the camera, and logs it.
+  `CutsceneViewportElement.Render` uses its own `utilityCamera` with a URP `SingleCameraRequest` into `renderTarget`
+  (legacy `targetTexture` + `Render()` fallback); `VatPreviewElement` uses the `BeginPreview` path too.
+- **Conformance_D drift:** D5/§1 show `Assets/Captures/Walk/`. Package files may not name `Assets/<Folder>` except
+  `Assets/Generated`, so the default output folder is `Assets/Generated/DotsAnimationToolkit/Captures/<name>/`.
