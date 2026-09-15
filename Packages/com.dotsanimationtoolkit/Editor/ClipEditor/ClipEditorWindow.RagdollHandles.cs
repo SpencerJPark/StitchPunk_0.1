@@ -13,6 +13,13 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly RagdollBoxDragSession ragdollBoxDragSession = new RagdollBoxDragSession();
 
+        // The pointer routing in ClipEditorWindow reads this to tell a ragdoll box drag from every
+        // other viewport gesture; the state behind it now lives on the shared drag session.
+        private RagdollBoxHandle activeRagdollBoxHandle
+        {
+            get { return ragdollBoxDragSession.ActiveHandle; }
+        }
+
         // Points the component stack's active marking and the viewport handles at one ragdoll body.
         // Separate field from selectedSocketId/selectedTargetId: a Ragdoll selection does not move
         // the ordinary hierarchy selection or outline.
