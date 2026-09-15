@@ -84,3 +84,15 @@ Run the fixtures (temp repos only, never the real project):
     Painter2D vector glyphs (`WorktreeGlyphs`); built-in icons stay at their native 16 pt.
 16. **A C# `'\\'` literal written through a Bash heredoc into Python lost its escaping twice.** Build
     the characters with `chr(92)` and verify the byte count before trusting the edit.
+17. **Bare fixture names gated nothing and reported a pass** (A93–A95 batch, 2026-09-14). `TestCapture`
+    anchored `^<name>`, but Unity matches `groupNames` against the full name, namespace first; and the empty
+    root suite counted as "1 passed". Fixed at the batch close: the filter matches the name as a whole dotted
+    segment anywhere, an empty suite counts as nothing, and `GateBroker` refuses a gate whose named fixtures ran
+    zero tests. Leads still pass namespace-qualified names and compare the passed count with what they wrote.
+18. **Parallel leads' gates are refused with "Unity is compiling"** while another gate's compile runs. It is
+    a retry, not a failure; the lead gets `refused` and gates again.
+19. **Leads gate only their own fixtures, so package-wide conformance first runs on trunk.** In the A93–A95
+    batch Conformance_D (host asset paths) failed at integration on two branches. Put
+    `DotsAnimationToolkit.Tests.EditMode.PackagingConformanceTests` in every lead's wave gate.
+20. **The stage moves under you.** A lead's gate detaches the stage (`busyWith: gate <id>`). Check
+    `list --json` `stage.busyWith` is null before a merge, an execute_code, a refresh or a test run on the stage.

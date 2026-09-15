@@ -25,7 +25,9 @@ namespace WorktreeToolkit.Editor
                 filters[fixtureIndex] = new Filter
                 {
                     testMode = TestMode.EditMode,
-                    groupNames = new[] { "^" + Regex.Escape(fixtureNames[fixtureIndex]) + "(\\.|$)" },
+                    // Unity matches against the full name, namespace first, so a bare fixture name must match
+                    // as a whole dotted segment anywhere; an anchored "^Name" silently selected nothing.
+                    groupNames = new[] { "(^|\\.)" + Regex.Escape(fixtureNames[fixtureIndex]) + "(\\.|$)" },
                 };
             }
 
@@ -100,6 +102,12 @@ namespace WorktreeToolkit.Editor
                         CountLeafResults(childResult, ref passedCount, ref failedCount, failures);
                     }
 
+                    return;
+                }
+
+                // A suite with no children is a filter that matched nothing, not a passing test.
+                if (resultNode.Test.IsSuite)
+                {
                     return;
                 }
 

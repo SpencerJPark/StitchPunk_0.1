@@ -354,6 +354,13 @@ namespace WorktreeToolkit.Editor
             }
 
             SessionState.EraseBool(testsStartedSessionKey);
+            // Fixtures were named but nothing ran: a misspelt or unmatched fixture must never read as a pass.
+            if (request.editModeFixtures.Length > 0 && summary.passed + summary.failed == 0)
+            {
+                BeginReturning(requestStore, request, new GateResultDto { requestId = request.requestId, verdict = GateVerdicts.Refused, refusedReason = "no tests matched the requested fixtures: " + string.Join(", ", request.editModeFixtures) });
+                return;
+            }
+
             string verdict = summary.failed > 0 ? GateVerdicts.TestFailures : GateVerdicts.Pass;
             BeginReturning(requestStore, request, new GateResultDto { requestId = request.requestId, verdict = verdict, tests = summary });
         }
