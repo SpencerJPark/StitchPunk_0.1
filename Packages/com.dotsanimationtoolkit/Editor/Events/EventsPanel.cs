@@ -6,12 +6,14 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>Hosts the event key catalog, inspector, and routes columns and forwards their selection and change events between them.</summary>
+    /// <summary>Hosts the event key catalog, inspector, and usage columns and forwards their selection and open requests between them.</summary>
     public sealed class EventsPanel : VisualElement, IDisposable
     {
+        public event Action<UnityEngine.Object> OpenOwnerRequested;
+
         public EventKeyCatalogColumn Keys { get; }
         public EventKeyInspectorColumn Inspector { get; }
-        public EventRoutesColumn Routes { get; }
+        public EventUsageColumn Usage { get; }
 
         private AnimEventKeyRegistry boundRegistry;
 
@@ -22,13 +24,14 @@ namespace DotsAnimationToolkit.Editor
 
             Keys = new EventKeyCatalogColumn();
             Inspector = new EventKeyInspectorColumn();
-            Routes = new EventRoutesColumn();
+            Usage = new EventUsageColumn();
             Keys.EntrySelected += OnEntrySelected;
+            Usage.OpenOwnerRequested += OnUsageOpenOwnerRequested;
 
             CoverPaneSplitView detailSplit = new CoverPaneSplitView("Events.Inspector", 0, 420f, TwoPaneSplitViewOrientation.Horizontal);
             detailSplit.style.flexGrow = 1f;
             detailSplit.Add(Inspector);
-            detailSplit.Add(Routes);
+            detailSplit.Add(Usage);
 
             CoverPaneSplitView keysSplit = new CoverPaneSplitView("Events.Keys", 0, 260f, TwoPaneSplitViewOrientation.Horizontal);
             keysSplit.style.flexGrow = 1f;
@@ -45,14 +48,9 @@ namespace DotsAnimationToolkit.Editor
 
         public void Bind(AnimEventKeyRegistry registry)
         {
-            // Unsubscribe first so a re-dock of the panel does not double-subscribe to the static events.
+            // Unsubscribe first so a re-dock of the panel does not double-subscribe to the static event.
             VocabularyRegistryProvider.RegistryChanged -= OnRegistryChanged;
-            AssetReferenceIndex.Rebuilt -= OnReferenceIndexRebuilt;
-            AnimEventRoutingAssetUtility.RoutingChanged -= OnRoutingChanged;
-
             VocabularyRegistryProvider.RegistryChanged += OnRegistryChanged;
-            AssetReferenceIndex.Rebuilt += OnReferenceIndexRebuilt;
-            AnimEventRoutingAssetUtility.RoutingChanged += OnRoutingChanged;
 
             boundRegistry = registry;
             Keys.Bind(registry);
@@ -62,14 +60,13 @@ namespace DotsAnimationToolkit.Editor
         public void Dispose()
         {
             VocabularyRegistryProvider.RegistryChanged -= OnRegistryChanged;
-            AssetReferenceIndex.Rebuilt -= OnReferenceIndexRebuilt;
-            AnimEventRoutingAssetUtility.RoutingChanged -= OnRoutingChanged;
+            Usage.Dispose();
         }
 
         private void OnEntrySelected(AnimEventKeyEntry entry)
         {
             Inspector.Bind(boundRegistry, entry);
-            Routes.Bind(entry);
+            Usage.Bind(entry != null ? entry.eventKey : 0u);
         }
 
         private void OnRegistryChanged()
@@ -83,14 +80,9 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private void OnReferenceIndexRebuilt()
+        private void OnUsageOpenOwnerRequested(UnityEngine.Object owner)
         {
-            Inspector.RefreshUsage();
-        }
-
-        private void OnRoutingChanged()
-        {
-            Routes.RefreshRows();
+            OpenOwnerRequested?.Invoke(owner);
         }
     }
 }
