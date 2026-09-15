@@ -5,9 +5,10 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.27.0).
-**§4** carries Amendment A73 (built, one ⏸ owner checkpoint open), A74 (built, one ⏸ owner
-checkpoint open) and A75 (built, one ⏸ owner checkpoint open).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.48.0).
+**§4** is newest first: A98, A97 and A96 (built 2026-09-14, one ⏸ owner checkpoint each). The older editor checkpoints
+further down §4 (A71–A81 era) were closed as accepted on 2026-09-14 under the owner's "assume they pass unless something
+is game breaking" rule; the in-game G5-P10 and ragdoll RG-T4/T7/T10 checks stay open (A99 re-asks the ragdoll ones).
 
 ## 1. Read first, in this order
 
@@ -119,6 +120,34 @@ shape of a suite that silently stopped compiling. Counts must not drop.
 displays" is not proof. Delete scratch assets and confirm `git status` afterwards.
 
 ## 4. The queue
+
+**A98 (0.48.0), built 2026-09-14, ⏸ T13 open.** The Capture tab renders a clip (shared Clip Set and Rig), a profile
+animation or a cutscene through the preview camera to a PNG sequence (optionally transparent) or a looping GIF, framed with the
+orbit camera. Three `ICaptureSource` adapters own their preview controllers and are disposed with `CapturePanel`;
+`ICaptureSource.RenderFrame` replaces the spec's `PreviewCamera` (the controller exposes none), and
+`ClipPreviewController.RenderCaptureFrame` hides the grid, selection, bone handles and socket markers. `FrameCaptureRunner` takes
+one frame per editor update, with Cancel and one refresh at the end; `GifEncoding` is an in-package GIF89a encoder (T0 timing
+1661 ms for 30 frames at 512²). Output defaults to `Assets/Generated/DotsAnimationToolkit/Captures/<name>`; stills import
+uncompressed without mips. Drive: Walk gave 12 transparent PNGs and a 33,774-byte GIF; a cancel at frame 3 of 60 kept 3 files.
+In this project the preview draws `NewRig`'s part quads magenta (the viewport's own `Render` path gives the same image).
+
+**A97 (0.47.0), built 2026-09-14, ⏸ T11 open.** The Retarget tab shows a clip against a rig as one row per track:
+Bound, Skipped (no part wears the tag) or Dangling (the tag left the registry), in `ClipValidation.ValidateTrackBindingInto`'s
+order. A row's remap writes that track's tag in this clip with undo, merging onto a track that already carries the tag;
+"Remap in every clip…" runs A92's replace. A roster strip shows bound/total on every rig and switches the shared rig, and a
+preview poses the clip on the picked rig. Drive: Walk on `NewRig` 16/16; a rig copy missing `UpperLeftLeg`'s tag gave one
+Skipped row and roster 15/16; the remap persisted in the scratch clip's YAML and undid.
+
+**A96 (0.46.0), built 2026-09-14, ⏸ T13 open.** The Materials tab lists every material on the shared rig's source
+prefab, the targets each serves, and the shader contract as data (`MaterialContractValidation`): Flipbook Plane needs
+`_ImageIndex` or `_AtlasFrame`, VAT Mesh `_VatFrameA/B` and `_VatBlend`, every kind GPU instancing; plus a sheet check. There
+is no example `.shader`: Create makes a material from the kind's shader graph beside the prefab and does not assign it. The
+entity baker runs the contract on VAT Mesh parts once the VAT slot exists. Drive: `NewRig`'s prefab carries 30 materials (16
+mapped, 14 on unmapped nodes); Create wrote a `ToolkitSpriteUnlit` material with instancing on.
+
+**Batch totals (2026-09-14, integration `e7ae55f9`):** EditMode 857 (Conformance_A the standing failure), PlayMode 285. The
+same day the owner accepted A93F T10, A94F T12 and A95F T10 ("these look good for now"). Next: A99 and A100 at
+`0.49.0`–`0.50.0` (`Assets/_Vault/Spencer/next-session-parallel-a99-a100-prompt.md`).
 
 **A95F (0.45.0), built 2026-09-14, T10 accepted 2026-09-14.** Sprite Sheets is a names layer over the project's existing
 Texture2DArrays. Every array appears in the catalog; opening one shows GPU-copied layer thumbnails with frames numbered

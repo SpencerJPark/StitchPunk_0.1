@@ -109,3 +109,10 @@ Run the fixtures (temp repos only, never the real project):
     process still holds the empty worktree folder, and the branch is kept. `git branch -d` then refuses while the
     stage is detached for another gate (it compares with HEAD); confirm with `git merge-base --is-ancestor <branch> main`
     and use `-D`. The empty folder stays until the handle closes.
+
+25. **The broker refuses PlayMode fixtures** ("play-mode fixtures are not supported by the broker yet", A96 batch, 2026-09-14). A
+    lead that needs one sends "gate needed"; the stage runs `stage-commit`, the compile gate, the PlayMode fixture and
+    `restore-trunk`, then messages the verdict (which may resume a lead that already stopped, trap 22).
+26. **`restore-trunk` leaves the empty folders a lead's commit created,** and the Editor then writes a folder `.meta` onto the stage
+    as an untracked file (`Editor/Capture.meta`, twice in the A98 batch). Harmless for a branch that tracks no metas; a branch that
+    commits that `.meta` would be refused at its next stage move. Check `git status` after every hand gate.

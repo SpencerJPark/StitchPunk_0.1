@@ -1,6 +1,6 @@
 # Amendment A98 — Capture tab: PNG sequences and GIFs from the preview camera
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.48.0` (the specced `0.45.0` went to A95F; see §7).
+> **Status:** ✅ built 2026-09-14 as `0.48.0` in the A96–A98 parallel worktree batch (merged `e07c91dd`, integrated `e7ae55f9`); ⏸ T13 owner checkpoint open. The specced `0.45.0` went to A95F; see §7.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** A74 (shared `PreviewCameraNavigation`, `IPreviewCameraRig`,
 > `PreviewCameraPose`), A71 (`ActorPreviewComposer` plays profile animations), the cutscene
@@ -107,37 +107,37 @@ allowlist.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline + probe (orchestrator).** Gate; totals. D3 timing probe. Confirm how the
+- [x] **T0 — Baseline + probe (orchestrator).** Gate; totals. D3 timing probe. Confirm how the
   preview controller's camera can render to an arbitrary `RenderTexture` (grep `targetTexture`;
   if the `PreviewRenderUtility` owns it, `BeginPreview(rect)` with the capture size and
   `EndPreview` as a `Texture` is the path — record which).
-- [ ] **T1 — Interface + settings (orchestrator).** §4.1's interface, §4.2. Gate. Commit `A98-T1`.
-- [ ] **T2 — Three adapters [parallel-safe]** — Files: new `ClipCaptureSource.cs`, new
+- [x] **T1 — Interface + settings (orchestrator).** §4.1's interface, §4.2. Gate. Commit `A98-T1`.
+- [x] **T2 — Three adapters [parallel-safe]** — Files: new `ClipCaptureSource.cs`, new
   `ProfileAnimationCaptureSource.cs`; the cutscene adapter is a **second worker** (T2b) with new
   `CutsceneCaptureSource.cs` only.
-- [ ] **T3 — Runner [parallel-safe]** — Files: new `FrameCaptureRunner.cs`. Brief carries T0's
+- [x] **T3 — Runner [parallel-safe]** — Files: new `FrameCaptureRunner.cs`. Brief carries T0's
   render-path finding.
-- [ ] **T4 — PNG writer + fixture [parallel-safe]** — Files: new `PngSequenceWriter.cs`, new
+- [x] **T4 — PNG writer + fixture [parallel-safe]** — Files: new `PngSequenceWriter.cs`, new
   `Tests/EditMode/PngSequenceWriterTests.cs` (`FrameFileName_PadsToFourDigits`: frame 7 →
   `Walk_0007.png`; a pure naming function). Revert-to-fail: drop the padding.
-- [ ] **T5 — GIF encoder + fixture [parallel-safe, conditional on T0]** — Files: new
+- [x] **T5 — GIF encoder + fixture [parallel-safe, conditional on T0]** — Files: new
   `GifEncoding.cs`, new `Tests/EditMode/GifEncodingTests.cs` (`Encode_TwoFrames_HasHeaderAndTwoImageDescriptors`:
   bytes start `GIF89a`, contain two `0x2C` image-descriptor separators, end `0x3B`). Revert-to-fail:
   write one frame.
-- [ ] **T6 — Viewport element [parallel-safe]** — Files: new `CaptureViewportElement.cs`.
-- [ ] **T7 — Panel [parallel-safe]** — Files: new `CapturePanel.cs`.
-- [ ] **T8 — Docs [parallel-safe]** — Files: new `Documentation~/capture-tab.md`,
+- [x] **T6 — Viewport element [parallel-safe]** — Files: new `CaptureViewportElement.cs`.
+- [x] **T7 — Panel [parallel-safe]** — Files: new `CapturePanel.cs`.
+- [x] **T8 — Docs [parallel-safe]** — Files: new `Documentation~/capture-tab.md`,
   `README.md` (one bullet in the feature list).
 - **Gate the wave.** `PngSequenceWriterTests`, `GifEncodingTests` (if T5). Commit `A98-T2..T8`.
-- [ ] **T9 — Window wiring (orchestrator).** Tab; `index.md`; `CHANGELOG.md` `## [0.45.0]`;
+- [x] **T9 — Window wiring (orchestrator).** Tab; `index.md`; `CHANGELOG.md` `## [0.45.0]`;
   `package.json`; `Conformance_G`. Gate.
-- [ ] **T10 — Drive.** Full suites. Capture Walk at 256², 12 fps, full range → N PNGs exist with
+- [x] **T10 — Drive.** Full suites. Capture Walk at 256², 12 fps, full range → N PNGs exist with
   alpha where transparent was chosen (read one pixel off the actor with `execute_code`); GIF opens
   in a browser (SendUserFile it to the owner); Cancel mid-capture leaves the Editor responsive and
   the partial files present. Capture the tab itself.
-- [ ] **T11 — Vault + HANDOFF.** Vault note "Capture tab (A98)": the render path from T0, the
+- [x] **T11 — Vault + HANDOFF.** Vault note "Capture tab (A98)": the render path from T0, the
   D3 timing.
-- [ ] **T12 — Close.** Roadmap checkbox.
+- [x] **T12 — Close.** Roadmap checkbox.
 - [ ] **T13 — ⏸ owner checkpoint.** Message: "Capture tab: frame Walk, press Capture, open the
   folder. A GIF is attached [or: GIF was dropped because encoding took N s — see §7]. ⚠ Should
   captured PNGs import uncompressed (as now) or with project defaults?"
@@ -224,3 +224,40 @@ allowlist.
 
 - Wave gate 2 (same three fixtures, after the walker fix): compile clean, **12 of 14 passed** - `PngSequenceWriterTests` 1/1, `GifEncodingTests` 1/1, `PackagingConformanceTests` 10/12 with only the standing Conformance_A and the expected Conformance_G (allowlist above).
 - **Revert-to-fail:** one commit mutated both (writer dropped the `D4` padding; encoder wrote only the first frame) and gated: `FrameFileName_PadsToFourDigits` failed (`Walk_7.png`) and `Encode_TwoFrames_HasHeaderAndTwoImageDescriptors` failed (1 descriptor, expected 2). A hard reset to the previous commit restored both; sha256 matches the committed files (`PngSequenceWriter.cs` `283b9d294b61ef420dbe0c2b1cc1d2b0ae2163fb8ed489db10a2260667f099cb`, `GifEncoding.cs` `5ced203e55d4659b9e033af31ee517e65f1de3d19dade48eb69bddcbe3d429fa`).
+
+### Close (stage, 2026-09-14)
+
+- **Merge:** rebased onto trunk (head `e07c91dd`), pushed. `remove` failed WinError 32 on the finished lead's folder;
+  `spec/a98` deleted after `git merge-base --is-ancestor`. The branch tracked no `.meta` files: Unity generated the folder
+  and eleven script metas on the stage, committed at integration. `restore-trunk` after a98's gates left an empty
+  `Editor/Capture/` folder and a Unity-written `Capture.meta` on the stage twice; the first was deleted, the second
+  kept for the merge. `GifEncoding` and `PngSequenceWriter` went on the Conformance_G allowlist at integration.
+- **Integration `e7ae55f9`:** `ClipEditorTab` Materials 10, Retarget 11, Capture 12; toggles and cover panes after Health;
+  `tabToggles` sized 13; `MaterialsPanel` built with the window (`Bind(selection)`, `Refresh()` on show), `RetargetPanel`
+  and `CapturePanel` built lazily on first show with `Bind(selection)`; all three disposed in teardown; layout test lists,
+  `index.md`, CHANGELOG 0.46.0–0.48.0, `package.json` and the conformance pin at 0.48.0. Not driven in the real window (the
+  docked Clip Editor is the owner's).
+- **Gates:** integration fixtures 24 of 25 (`MaterialContractValidationTests`, `RetargetBindingResolverTests`,
+  `PngSequenceWriterTests`, `GifEncodingTests`, `ClipEditorLayoutTests`, `PackagingConformanceTests`; Conformance_A the only
+  failure); full EditMode 857 run, 856 passed (Conformance_A only; 851 + the batch's six new tests); PlayMode 285 of 285.
+- **T10 drive (scratch only, `Assets/A98Scratch/`, preview camera only, no Play mode):** one `ClipCaptureSource(NewClipSet, NewRig,
+  Walk)` (read-only on the real assets; Walk is 1.0 s) driven through `FrameCaptureRunner` from `execute_code`, the runner kept in
+  `AppDomain` data between calls and its `finished` callback logging to the console.
+  - **PNG sequence, 256×256, 12 fps, full range, transparent:** 12 frames (the exclusive-end range, as drifted) in about 11 s of
+    wall time including MCP polling; `Walk_0001.png` … `Walk_0012.png`, 7.0–7.7 KB each, finish message "Captured 12 frames to
+    Assets/A98Scratch/Walk.". Read back in a separate call by decoding the file bytes: 51,396 of 65,536 pixels alpha 0 (corner
+    `RGBA(0,0,0,0)`), 13,887 alpha 255, 253 partial; frames 1 and 6 differ. Importer: `textureCompression` Uncompressed, mips off,
+    `alphaIsTransparency` on.
+  - **GIF, 256×256, 12 fps, solid colour:** `Walk.gif` 33,774 bytes, starts `GIF89a`, ends `0x3B`; 12 of 12 frames. Sent to the
+    owner as `A98_Walk_capture.gif`.
+  - **Cancel:** a 1024² 60-frame run finished all 60 before a separate cancel call arrived (`Cancel()` was a no-op, `WasCancelled`
+    false). A 1920×1080 60-frame run cancelled from its progress callback at frame 3 stopped with `WasCancelled` true, 3 of 60
+    captured, `Walk_0001`–`0003.png` and their `.meta` files kept, "Cancelled after 3 of 60 frames; 3 files kept in
+    Assets/A98Scratch/Cancel2."; the Editor stayed idle (no compile, no asset update pending).
+  - **What the frames show:** the actor's part quads render solid magenta (11,474 of 14,140 opaque pixels exactly `255,0,255`) with
+    thin white rectangle outlines and a dark red bar above the head. The same `ClipPreviewController.Render(256, 256)` path the
+    viewport uses gives the same image (11,435 magenta pixels) plus the grid and floor line, so the capture matches the preview minus
+    its scenery. The magenta is how this detached preview draws `NewRig`/`NewClipSet` here (legacy `Shader Graphs/2DShader` part
+    materials), not a capture fault; whether the owner's docked viewport shows the same is not known.
+  - Capture source disposed; scratch deleted; registry sha256s unchanged; `NewClipSet`, `NewRig` and `Walk` untouched.
+- **Not seen by eye:** the drawn tab, the viewport element's styling, and the profile-animation and cutscene sources (not driven).

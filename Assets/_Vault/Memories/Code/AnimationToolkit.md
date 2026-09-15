@@ -1338,3 +1338,49 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
   named routing types failed a93f's T1 gate. Neutralise such files on the stage before spawning a removal spec.
 - **Merges went a93f → a94f → a95f with no conflicts**, one integration commit, and all three drives on scratch.
   WorktreeToolkit.md traps 21–24 hold the lifecycle lessons (resumed leads, heartbeat gaps, locked worktree folders).
+
+## Materials tab (A96, 0.46.0)
+
+- **There is no example `.shader`.** Create picks a shader graph by kind (Quad → `ToolkitSpriteUnlit`, Flipbook Plane →
+  `ToolkitSpriteUnlitArray`, VAT Mesh → `ToolkitVatCrowdUnlit`); `shader-contract.md` still cites `ToolkitCompositeExample.shader`.
+- **Each sprite graph has one frame property,** so Flipbook Plane's requirement is an alternative group (`_ImageIndex` or
+  `_AtlasFrame`). `_BillboardParams` is required for no kind: nothing writes it. A Quad requires no property, so any material with
+  instancing on passes as a Quad.
+- **`ActorBakingAcceptanceTests` pins exact toolkit-warning counts.** A new baker warning needs the fixture material made
+  contract-correct (the probe shader's frame properties, instancing on). It is a PlayMode fixture, which the gate broker refuses.
+- Contract messages use `ValidationCode.None`, so Health does not list them. Create saves with `SaveAssetIfDirty`.
+- **This project, 2026-09-14:** `NewRig`'s `MaleCitizen.prefab` carries 30 materials, 16 mapped to targets and 14 on unmapped nodes;
+  unit parts use the legacy `Shader Graphs/2DShader`, and `Faceware.mat` is on `Hidden/InternalErrorShader`.
+
+## Retarget tab (A97, 0.47.0)
+
+- **The tag rules live in `ClipValidation.ValidateTrackBindingInto`,** not `ValidateBind`: a registry-unknown tag is Dangling even
+  when a rig target still wears it, and a null registry never produces Dangling. Anything reporting coverage keeps that order.
+- **Retagging onto a tag another track in the clip carries must merge** (`ClipComponentModel.Merge*Tracks`); `RetargetRemapEditing`
+  and the timeline picker both do.
+- The resolver judges bone tracks against `rig.sourcePrefab` by first name, so table and roster agree with no live preview.
+- **Detached, the track `ListView` realises no rows** (no remap buttons) and the preview status stays empty; drive through
+  `ResolvedBindings`, `RosterEntries` and `RemapTrack`.
+- **This project, 2026-09-14:** Walk on `NewRig` is 16 of 16 Bound (16 transform tracks).
+
+## Capture tab (A98, 0.48.0)
+
+- **Render path:** `ClipPreviewController` owns its `PreviewRenderUtility`; a source renders its own frame
+  (`ICaptureSource.RenderFrame`), and the runner blits it out before the next render reuses the texture.
+- `SamplePose`'s parameter is normalised despite the window's `playheadTime` name; `PlayAnimation` starts a blend, so a scrubbed
+  profile capture must finish the blend first.
+- **GIF LZW widens the code size before the insert** (giflib order), or large frames corrupt silently. D3: 1661 ms for 30 frames at
+  512², the median-cut sort most of it.
+- A cutscene capture writes and restores the open scene's bound transforms: never while the Cutscene tab previews the same scene.
+- The range has an exclusive end: 1 s at 12 fps is 12 frames.
+- **Drive tricks:** the runner keeps ticking between `execute_code` calls, so keep it in `AppDomain.CurrentDomain.SetData`. A cancel
+  sent as a separate call lost the race (60 frames at 1024² were already done); cancel from the progress callback instead.
+- **This project, 2026-09-14:** the preview draws `NewRig`'s part quads magenta with thin white outlines and a red bar above the head,
+  through both `Render` and `RenderCaptureFrame`; captures faithfully show it.
+
+## Parallel batch A96–A98 (Worktree Toolkit, 2026-09-14)
+
+- **The broker refuses PlayMode fixtures.** a96's baker change needed `ActorBakingAcceptanceTests`; the stage ran it by hand
+  (`stage-commit`, compile, the fixture, `restore-trunk`). WorktreeToolkit.md traps 25–26.
+- **A lead may commit no `.meta` files;** Unity generates them on the stage after the merge, and the integration commit takes them.
+- Merges went a96 → a97 → a98 with no conflicts, one integration commit and three scratch drives; registry sha256s never moved.

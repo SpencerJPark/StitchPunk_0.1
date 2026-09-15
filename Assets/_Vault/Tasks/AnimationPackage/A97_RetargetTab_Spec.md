@@ -1,6 +1,6 @@
 # Amendment A97 — Retarget tab: clip × rig binding table and roster coverage
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.47.0` (the specced `0.44.0` went to A94F; see §7).
+> **Status:** ✅ built 2026-09-14 as `0.47.0` in the A96–A98 parallel worktree batch (merged `4b0c352e`, integrated `e7ae55f9`); ⏸ T11 owner checkpoint open. The specced `0.44.0` went to A94F; see §7.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** Phase E (tag rules T2 lenient / T3 error), A82 (column, split view), A84
 > (`TrackTargetMatchResolver`), A92 (`ReplaceTrackTag` — used when the user remaps a whole tag).
@@ -106,27 +106,27 @@ public static class RetargetBindingResolver
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Read `ValidateBind`'s T2/T3 conditions and
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Read `ValidateBind`'s T2/T3 conditions and
   paste them into T1's brief so the resolver matches the validator exactly.
-- [ ] **T1 — Resolver + fixture [parallel-safe]** — Files: new `RetargetBindingResolver.cs`, new
+- [x] **T1 — Resolver + fixture [parallel-safe]** — Files: new `RetargetBindingResolver.cs`, new
   `Tests/EditMode/RetargetBindingResolverTests.cs` (`TagOnRegistryButNotRig_IsSkipped_NotDangling`,
   `TagNotInRegistry_IsDangling`). Revert-to-fail: collapse the two states.
-- [ ] **T2 — Track table [parallel-safe]** — Files: new `RetargetTrackTableElement.cs`.
-- [ ] **T3 — Roster strip [parallel-safe]** — Files: new `RosterCoverageStripElement.cs`.
-- [ ] **T4 — Preview element [parallel-safe]** — Files: new `RetargetPreviewElement.cs`. Read
+- [x] **T2 — Track table [parallel-safe]** — Files: new `RetargetTrackTableElement.cs`.
+- [x] **T3 — Roster strip [parallel-safe]** — Files: new `RosterCoverageStripElement.cs`.
+- [x] **T4 — Preview element [parallel-safe]** — Files: new `RetargetPreviewElement.cs`. Read
   `VatBakePanel.cs`'s preview hosting range.
-- [ ] **T5 — Panel [parallel-safe]** — Files: new `RetargetPanel.cs`.
-- [ ] **T6 — Docs [parallel-safe]** — Files: `Documentation~/sharing-clips.md` (a "Seeing coverage"
+- [x] **T5 — Panel [parallel-safe]** — Files: new `RetargetPanel.cs`.
+- [x] **T6 — Docs [parallel-safe]** — Files: `Documentation~/sharing-clips.md` (a "Seeing coverage"
   section with the three states), new `Documentation~/retarget-tab.md` (short; may fold into the
   former — worker's call, say which).
 - **Gate the wave.** `RetargetBindingResolverTests`. Commit `A97-T1..T6`.
-- [ ] **T7 — Window wiring (orchestrator).** Tab; `index.md`; `CHANGELOG.md` `## [0.44.0]`;
+- [x] **T7 — Window wiring (orchestrator).** Tab; `index.md`; `CHANGELOG.md` `## [0.44.0]`;
   `package.json`; `Conformance_G`. Gate; `ClipEditorLayoutTests`.
-- [ ] **T8 — Drive.** Full suites. Walk on MaleCitizen → all Bound; on a scratch rig missing one
+- [x] **T8 — Drive.** Full suites. Walk on MaleCitizen → all Bound; on a scratch rig missing one
   tag → one Skipped, preview shows the hole; remap the row → Bound, clip on disk carries the new
   `tagId`; Ctrl+Z reverts. Roster shows both rigs. Capture.
-- [ ] **T9 — Vault + HANDOFF.**
-- [ ] **T10 — Close.** Roadmap checkbox.
+- [x] **T9 — Vault + HANDOFF.**
+- [x] **T10 — Close.** Roadmap checkbox.
 - [ ] **T11 — ⏸ owner checkpoint.** Message: "Retarget tab: pick a clip, switch rigs with the
   roster chips, watch rows go ✓/●/✗ and the preview lose parts. ⚠ Should a ● row offer 'add this
   tag to the rig' (edits the rig), or stay clip-side only?"
@@ -258,3 +258,32 @@ V35/V36/V38 order), `RetargetTrackTableElement` lists them with a per-row remap 
 every rig in `AssetReferenceIndex.Rigs`, and `RetargetPreviewElement` hosts its own `ClipPreviewController` posing the clip
 on the picked rig. `RetargetPanel` binds the shared Clip Set and Rig and disposes the preview. Owner checkpoint open:
 should a Skipped row offer "add this tag to the rig"?
+
+### Close (stage, 2026-09-14)
+
+- **Merge:** rebased onto trunk (head `4b0c352e`), pushed; worktree and branch removed cleanly. No allowlist names.
+- **Integration `e7ae55f9`:** `ClipEditorTab` Materials 10, Retarget 11, Capture 12; toggles and cover panes after Health;
+  `tabToggles` sized 13; `MaterialsPanel` built with the window (`Bind(selection)`, `Refresh()` on show), `RetargetPanel`
+  and `CapturePanel` built lazily on first show with `Bind(selection)`; all three disposed in teardown; layout test lists,
+  `index.md`, CHANGELOG 0.46.0–0.48.0, `package.json` and the conformance pin at 0.48.0. Not driven in the real window (the
+  docked Clip Editor is the owner's).
+- **Gates:** integration fixtures 24 of 25 (`MaterialContractValidationTests`, `RetargetBindingResolverTests`,
+  `PngSequenceWriterTests`, `GifEncodingTests`, `ClipEditorLayoutTests`, `PackagingConformanceTests`; Conformance_A the only
+  failure); full EditMode 857 run, 856 passed (Conformance_A only; 851 + the batch's six new tests); PlayMode 285 of 285.
+- **T8 drive (scratch only, `Assets/A97Scratch/`):** `Walk.asset` copied as `A97ScratchWalk`, `NewRig.asset` copied twice
+  (`A97ScratchRig`, `A97ScratchGuardRig`); the registry is an `EditorJsonUtility` copy of the project `TargetTagRegistry`
+  (20 entries) on a `CreateInstance`; the clip set is an in-memory `ClipSetAsset` listing the scratch clip.
+  - `RetargetBindingResolver.Resolve(Walk, full rig copy)`: **16 rows, all Bound** (Walk has 16 transform tracks).
+  - The guard rig copy lost the tag of the target `UpperLeftLeg` wears (`0x46ADC5AC`). Detached `RetargetPanel.Bind(set, clip,
+    guardRig, registryCopy, [fullRig, guardRig])`: 16 rows, **one Skipped**, `UpperLeftLeg` "no tagged part on A97ScratchGuardRig".
+    Roster: `A97ScratchGuardRig 15/16`, `A97ScratchRig 16/16`, two `retarget-roster-chip` elements.
+  - `RemapTrack(skipped row, 0x4C38DAB8)` (the `Eyes` tag, one no track in the clip used, so no merge): true; after `Refresh`
+    16 of 16 Bound; `Undo.GetCurrentGroupName()` "Remap Track Tag". Saved with `SaveAssetIfDirty` on the scratch clip only: its
+    YAML has `tagId: 1278794424` and no `tagId: 1185793452`, while the project's `Walk.asset` still has the old id.
+  - `Undo.PerformUndo()` put `0x46ADC5AC` back on the track in memory (and removed `0x4C38DAB8`).
+  - Dangling: with `UpperLeftLeg` removed from the in-memory registry copy (20 → 19), the full rig gives 15 Bound and
+    **one Dangling** row "tag not in registry" (its name reads "Missing tag"). The project registry kept 20 entries.
+  - Drift: detached, the track `ListView` realises no rows, so `retarget-remap-button` count was 0 and the preview status label
+    was empty (no panel, no layout, no render tick); both need the real window.
+  - Scratch deleted; registry sha256s unchanged; the project `Walk.asset` and `NewRig.asset` untouched.
+- **Not seen by eye:** the drawn table and its ✓/●/✗ glyphs, the remap menu, the chips' bars, and the preview's missing part.

@@ -1,6 +1,6 @@
 # Amendment A96 — Materials tab: every actor material against the shader contract
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.46.0` (the specced `0.43.0` went to A93F; see §7).
+> **Status:** ✅ built 2026-09-14 as `0.46.0` in the A96–A98 parallel worktree batch (merged `62603be5`, integrated `e7ae55f9`); ⏸ T13 owner checkpoint open. The specced `0.43.0` went to A93F; see §7.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** A78 (per-part `ValidateVatMaterial`), A82 (column, split view), the shader
 > contract (`Documentation~/shader-contract.md`). Optional: A95 (sheet-bound tracks need an array sampler — cross-check).
@@ -114,34 +114,34 @@ renderers and `VatBakeSourceResolver`'s node lookup.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Name the example shader file; confirm
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Name the example shader file; confirm
   `_MainTexArray` is the array sampler property in `ToolkitSpriteUnlitArray.shadergraph` (D4 keys
   on it). Record `TargetKind` values.
-- [ ] **T1 — Nothing to pre-write** beyond confirming names; proceed.
-- [ ] **T2 — Contract validation + fixture [parallel-safe]** — Files: new
+- [x] **T1 — Nothing to pre-write** beyond confirming names; proceed.
+- [x] **T2 — Contract validation + fixture [parallel-safe]** — Files: new
   `MaterialContractValidation.cs`, new `Tests/EditMode/MaterialContractValidationTests.cs`
   (`VatMesh_MissingVatFrameA_IsAnError` using a material on a shader that lacks it — `Shader.Find
   ("Unlit/Color")`; `Quad_MissingVatFrameA_IsNotReported`). Revert-to-fail: mark every property
   required for every kind.
-- [ ] **T3 — Rig material resolver [parallel-safe]** — Files: new `RigMaterialResolver.cs`. Read
+- [x] **T3 — Rig material resolver [parallel-safe]** — Files: new `RigMaterialResolver.cs`. Read
   `VatBakeSourceResolver.cs`.
-- [ ] **T4 — Template utility [parallel-safe]** — Files: new
+- [x] **T4 — Template utility [parallel-safe]** — Files: new
   `Editor/ClipUtilities/MaterialTemplateUtility.cs`.
-- [ ] **T5 — Catalog column [parallel-safe]** — Files: new `MaterialCatalogColumn.cs`.
-- [ ] **T6 — Inspector column [parallel-safe]** — Files: new `MaterialInspectorColumn.cs`.
-- [ ] **T7 — Panel [parallel-safe]** — Files: new `MaterialsPanel.cs`.
-- [ ] **T8 — Docs [parallel-safe]** — Files: new `Documentation~/materials-tab.md`,
+- [x] **T5 — Catalog column [parallel-safe]** — Files: new `MaterialCatalogColumn.cs`.
+- [x] **T6 — Inspector column [parallel-safe]** — Files: new `MaterialInspectorColumn.cs`.
+- [x] **T7 — Panel [parallel-safe]** — Files: new `MaterialsPanel.cs`.
+- [x] **T8 — Docs [parallel-safe]** — Files: new `Documentation~/materials-tab.md`,
   `Documentation~/shader-contract.md` (§6 Troubleshooting gains "open the Materials tab").
 - **Gate the wave.** `MaterialContractValidationTests`. Commit `A96-T2..T8`.
-- [ ] **T9 — Orchestrator edits.** `RigTargetBaker.ValidateVatMaterial` calls the new class (keep
+- [x] **T9 — Orchestrator edits.** `RigTargetBaker.ValidateVatMaterial` calls the new class (keep
   the texture-size check where it is); tab wiring; `index.md`; `CHANGELOG.md` `## [0.43.0]`;
   `package.json`; `Conformance_G`. Gate; the VAT authoring fixtures (grep `ValidateVatMaterial`
   under `Tests/`).
-- [ ] **T10 — Drive.** Full suites. Select MaleCitizen's rig → its materials list with ✓/✗ per
+- [x] **T10 — Drive.** Full suites. Select MaleCitizen's rig → its materials list with ✓/✗ per
   property; swap one material's shader to Unlit/Color in a scratch copy → errors appear; Create for
   a Quad target → a `.mat` beside the prefab with instancing on (reload and check). Capture.
-- [ ] **T11 — Vault + HANDOFF.**
-- [ ] **T12 — Close.** Roadmap checkbox.
+- [x] **T11 — Vault + HANDOFF.**
+- [x] **T12 — Close.** Roadmap checkbox.
 - [ ] **T13 — ⏸ owner checkpoint.** Message: "Materials tab with your rig selected: each material,
   which parts use it, which contract properties it has. ⚠ Should Create also assign the new material
   to the part's renderer, or leave that to you?"
@@ -296,3 +296,34 @@ read-only, and Create makes a material from the kind's shipped shader graph besi
 The contract lives in `MaterialContractValidation` (Authoring), which the entity baker also calls for VAT Mesh parts
 once the VAT slot exists. Owner checkpoint T13 is open: should Create also assign the new material to the part's
 renderer?
+
+### Close (stage, 2026-09-14)
+
+- **Merge:** fast-forward to `62603be5`, pushed; worktree and branch removed cleanly. The lead's PlayMode gate
+  (`ActorBakingAcceptanceTests`, which the broker refuses) ran on the stage by hand at `e37157bc`: `stage-commit`, compile
+  clean, 28 of 28, `restore-trunk`. The lead had stopped waiting; the verdict message resumed it and it marked ready.
+- **Integration `e7ae55f9`:** `ClipEditorTab` Materials 10, Retarget 11, Capture 12; toggles and cover panes after Health;
+  `tabToggles` sized 13; `MaterialsPanel` built with the window (`Bind(selection)`, `Refresh()` on show), `RetargetPanel`
+  and `CapturePanel` built lazily on first show with `Bind(selection)`; all three disposed in teardown; layout test lists,
+  `index.md`, CHANGELOG 0.46.0–0.48.0, `package.json` and the conformance pin at 0.48.0. Not driven in the real window (the
+  docked Clip Editor is the owner's).
+- **Gates:** integration fixtures 24 of 25 (`MaterialContractValidationTests`, `RetargetBindingResolverTests`,
+  `PngSequenceWriterTests`, `GifEncodingTests`, `ClipEditorLayoutTests`, `PackagingConformanceTests`; Conformance_A the only
+  failure); full EditMode 857 run, 856 passed (Conformance_A only; 851 + the batch's six new tests); PlayMode 285 of 285.
+- **T10 drive (scratch only, `Assets/A96Scratch/`):** `NewRig.asset` and its source prefab `Assets/Prefabs/Units/MaleCitizen.prefab`
+  copied with `AssetDatabase.CopyAsset`, the rig copy's `sourcePrefab` pointed at the prefab copy (34 renderers).
+  - Detached `MaterialsPanel` + `SetRig(rigCopy)`: **30 material usages**, 16 mapped to rig targets (e.g. `BaseHead → BaseHead:Quad`,
+    `Eyes → Eyes:Quad`) and 14 on nodes no target maps (`Belt`, `Bulge`, `Ear`, `FaceDetails`, `Faceware`, `Hair`, the three UI
+    materials, …). First material selected (`BaseHead`); the inspector read "Shader  Shader Graphs/2DShader", "Used by  BaseHead",
+    "✓ GPU instancing". The project's unit parts still use the legacy `Shader Graphs/2DShader` graphs, and `Faceware.mat` is on
+    `Hidden/InternalErrorShader` (a broken material in the project, not a toolkit bug).
+  - A scratch copy of `Torso.mat` switched to `Unlit/Color`: `Validate` as **Quad** returns nothing (a Quad requires no property, and the
+    copy kept instancing on); as **FlipbookPlane** one Error "declares no _ImageIndex or _AtlasFrame"; as **VatMesh** three Errors
+    (`_VatFrameA`, `_VatFrameB`, `_VatBlend`). With instancing turned off in memory, Quad gives one Error "has GPU instancing off;
+    Entities Graphics needs it on". Drift: the spec's "swap to Unlit/Color → errors appear" holds for Flipbook and VAT kinds only.
+  - `CreateForTarget(BaseHead, Quad)` wrote `Assets/A96Scratch/M_A96ScratchRig_BaseHead.mat` beside the prefab copy. After
+    `Resources.UnloadAsset` and a forced reimport: shader `DOTS Animation Toolkit/ToolkitSpriteUnlit` (YAML `m_Shader` guid resolves to
+    `Shaders/ToolkitSpriteUnlit.shadergraph`), `enableInstancing` true (`m_EnableInstancingVariants: 1`), `_AtlasFrame` present,
+    no keywords. Not assigned to any renderer.
+  - Nothing under `Assets/Materials` or `Assets/Prefabs` changed; scratch deleted; registry sha256s unchanged.
+- **Not seen by eye:** the drawn tab (a detached panel has no window to capture), the ✓/✗ glyph rows and the Create dropdown.
