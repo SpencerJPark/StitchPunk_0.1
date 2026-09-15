@@ -9,18 +9,31 @@ namespace DotsAnimationToolkit
     {
         public static bool ContainsEvent(in DynamicBuffer<AnimEventOutput> events, uint eventKey)
         {
-            return false;
+            int searchIndex = 0;
+            return TryFindNextEvent(events, eventKey, ref searchIndex, out AnimEventOutput foundEvent);
         }
 
         public static bool TryFindEvent(in DynamicBuffer<AnimEventOutput> events, uint eventKey, out AnimEventOutput foundEvent)
         {
-            foundEvent = default;
-            return false;
+            int searchIndex = 0;
+            return TryFindNextEvent(events, eventKey, ref searchIndex, out foundEvent);
         }
 
         public static bool TryFindNextEvent(in DynamicBuffer<AnimEventOutput> events, uint eventKey, ref int searchIndex, out AnimEventOutput foundEvent)
         {
+            int startIndex = searchIndex < 0 ? 0 : searchIndex;
+            for (int index = startIndex; index < events.Length; index++)
+            {
+                if (events[index].eventKey == eventKey)
+                {
+                    foundEvent = events[index];
+                    searchIndex = index + 1;
+                    return true;
+                }
+            }
+
             foundEvent = default;
+            searchIndex = events.Length;
             return false;
         }
     }

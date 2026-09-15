@@ -2,14 +2,13 @@
 
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
-using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Events tab's middle column: one event's fields, payload schema, preview clip and where it is used.</summary>
+    /// <summary>The Events tab's middle column: one event's fields, payload schema and preview clip.</summary>
     public sealed class EventKeyInspectorColumn : VisualElement
     {
         public AnimEventKeyRegistry Registry { get; private set; }
@@ -18,7 +17,6 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly VisualElement bodyContainer;
         private VisualElement payloadPreviewSection;
-        private VisualElement usageSection;
 
         public EventKeyInspectorColumn()
         {
@@ -38,7 +36,6 @@ namespace DotsAnimationToolkit.Editor
             Registry = registry;
             BoundEntry = entry;
             payloadPreviewSection = null;
-            usageSection = null;
             RebuildBody();
         }
 
@@ -154,10 +151,6 @@ namespace DotsAnimationToolkit.Editor
             payloadPreviewSection = new VisualElement { name = "events-inspector-payload-preview" };
             bodyContainer.Add(payloadPreviewSection);
             RebuildPayloadPreviewSection();
-
-            usageSection = new VisualElement { name = "events-inspector-usage" };
-            bodyContainer.Add(usageSection);
-            RefreshUsage();
         }
 
         private void RebuildPayloadPreviewSection()
@@ -188,109 +181,6 @@ namespace DotsAnimationToolkit.Editor
             if (floatPreviewField != null)
             {
                 payloadPreviewSection.Add(floatPreviewField);
-            }
-        }
-
-        public void RefreshUsage()
-        {
-            if (usageSection == null)
-            {
-                return;
-            }
-
-            usageSection.Clear();
-
-            if (BoundEntry == null)
-            {
-                return;
-            }
-
-            List<AssetReference> references = AssetReferenceIndex.ReferencesToEventKey(BoundEntry.eventKey);
-            if (references == null || references.Count == 0)
-            {
-                Label emptyLabel = new Label("Nothing uses this event yet.");
-                emptyLabel.AddToClassList("clip-editor__hint");
-                usageSection.Add(emptyLabel);
-                return;
-            }
-
-            Dictionary<UnityEngine.Object, List<string>> clipOwnerDetails = new Dictionary<UnityEngine.Object, List<string>>();
-            Dictionary<UnityEngine.Object, List<string>> cutsceneOwnerDetails = new Dictionary<UnityEngine.Object, List<string>>();
-            Dictionary<UnityEngine.Object, List<string>> profileOwnerDetails = new Dictionary<UnityEngine.Object, List<string>>();
-            Dictionary<UnityEngine.Object, List<string>> otherOwnerDetails = new Dictionary<UnityEngine.Object, List<string>>();
-
-            for (int referenceIndex = 0; referenceIndex < references.Count; referenceIndex++)
-            {
-                AssetReference reference = references[referenceIndex];
-                Dictionary<UnityEngine.Object, List<string>> targetGroup;
-                switch (reference.kind)
-                {
-                    case AssetReferenceKind.ClipEventMarker:
-                        targetGroup = clipOwnerDetails;
-                        break;
-                    case AssetReferenceKind.CutsceneEventMarker:
-                        targetGroup = cutsceneOwnerDetails;
-                        break;
-                    case AssetReferenceKind.ProfileRagdollEvent:
-                        targetGroup = profileOwnerDetails;
-                        break;
-                    default:
-                        targetGroup = otherOwnerDetails;
-                        break;
-                }
-
-                if (!targetGroup.TryGetValue(reference.owner, out List<string> detailList))
-                {
-                    detailList = new List<string>();
-                    targetGroup[reference.owner] = detailList;
-                }
-                if (!string.IsNullOrEmpty(reference.detail))
-                {
-                    detailList.Add(reference.detail);
-                }
-            }
-
-            Label headlineLabel = new Label(string.Format(
-                "Used by {0} clips · {1} cutscenes · {2} profiles",
-                clipOwnerDetails.Count,
-                cutsceneOwnerDetails.Count,
-                profileOwnerDetails.Count));
-            usageSection.Add(headlineLabel);
-
-            AddUsageGroup(usageSection, "Clip markers", clipOwnerDetails);
-            AddUsageGroup(usageSection, "Cutscene markers", cutsceneOwnerDetails);
-            AddUsageGroup(usageSection, "Profile ragdoll events", profileOwnerDetails);
-            AddUsageGroup(usageSection, "Other", otherOwnerDetails);
-        }
-
-        private static void AddUsageGroup(
-            VisualElement container, string headerText, Dictionary<UnityEngine.Object, List<string>> ownerDetails)
-        {
-            if (ownerDetails.Count == 0)
-            {
-                return;
-            }
-
-            Label groupHeaderLabel = new Label(headerText);
-            groupHeaderLabel.AddToClassList("clip-editor__hint");
-            container.Add(groupHeaderLabel);
-
-            foreach (KeyValuePair<UnityEngine.Object, List<string>> ownerEntry in ownerDetails)
-            {
-                UnityEngine.Object owner = ownerEntry.Key;
-                List<string> details = ownerEntry.Value;
-                int markerCount = details.Count > 0 ? details.Count : 1;
-                string ownerName = owner != null ? owner.name : "(missing)";
-                string buttonText = markerCount == 1
-                    ? ownerName
-                    : string.Format("{0} ({1} markers)", ownerName, markerCount);
-
-                Button ownerButton = new Button(() => EditorGUIUtility.PingObject(owner)) { text = buttonText };
-                if (details.Count > 0)
-                {
-                    ownerButton.tooltip = string.Join("\n", details);
-                }
-                container.Add(ownerButton);
             }
         }
 

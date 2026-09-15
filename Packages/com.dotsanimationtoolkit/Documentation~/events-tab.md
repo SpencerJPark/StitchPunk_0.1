@@ -2,7 +2,8 @@
 
 **Window ▸ DOTS Animation Toolkit ▸ DOTS Animator ▸ Events** — after Cutscene
 Director in the tab strip. Three columns: the project's event registry on the
-left, the selected event's fields in the middle, and its routes on the right.
+left, the selected event's fields in the middle, and where that event is used
+on the right.
 
 ---
 
@@ -31,7 +32,7 @@ m pulse-only" and turns amber once the maskable range is full.
   - **Merge into…** — moves every marker using this key onto another key and
     removes this one. This acts on the project registry, not one clip.
 
-## Event fields and usage
+## Event fields
 
 The middle column describes whichever key is selected:
 
@@ -43,124 +44,31 @@ The middle column describes whichever key is selected:
 - A **marker preview** showing how a marker carrying this key's payload
   fields will actually look on a track.
 - A **preview clip**, played while you scrub the field values.
-- **Used by** — counts of clips, cutscenes and profiles referencing the key,
-  each with a button that pings the asset in the Project window.
 
-## Routes and the routing asset
+## Used by
 
-The right column lists the routes on the selected key. A route has:
+The right column shows every place the selected key is actually used, as
+three boxed groups: **Clips**, **Cutscenes** and **Profiles**, each labelled
+with a count.
 
-- **Kind** — `Sound`, `Vfx`, `Ragdoll`, `ShaderView` or `Custom`.
-- **Route id** — the host's own id for whatever the kind points at, shown in
-  hex: a sound enum value, a prefab hash, a material view index.
-- **Note** and **Display asset** — editor convenience only, never baked.
+Each group lists one row per asset, two lines each:
 
-**Route** adds one. Below the list sit a **System name** field and
-**Generate consumer stub…**, covered below.
+- The asset's name.
+- Where the key fires on it — `@0.35, 0.60` (normalized time) for a clip,
+  seconds for a cutscene, `Layer ▸ animation` for a profile's ragdoll
+  events.
 
-Routes live in `AnimEventRoutingAsset`, a `ScriptableObject` holding a single
-`List<AnimEventRoute> routes`. Opening the Events tab never creates this
-asset. The first route you add creates it at
-`Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset`, the folder the
-package already writes generated constants into; if one already exists
-anywhere under Assets, that one is used instead, so you can move it wherever
-you like. It lives in Assets, not ProjectSettings, because it gets baked —
-there is one per project.
+Click a row to ping the asset in the Project window. Its **Open** button (the
+link icon) jumps straight to the key: the clip opens in the Clip Editor, the
+cutscene opens in the Cutscene tab, the profile opens in the Actor Editor.
 
-## Baking routes
+This column refreshes when you select a different key, and again shortly
+after clips, cutscenes or profiles change elsewhere in the toolkit.
 
-Add **DOTS Animation Toolkit/Anim Event Routing** to one GameObject in a
-subscene. The authoring component, `AnimEventRoutingAuthoring`, has a single
-field, `routing`, pointing at the `AnimEventRoutingAsset`.
-`AnimEventRoutingBaker` bakes it through `AnimEventRoutingBuilder` into a
-singleton:
+## Reading events in your systems
 
-```csharp
-public struct AnimEventRouting : IComponentData
-{
-    public BlobAssetReference<AnimEventRoutingBlob> Value;
-}
-```
-
-The blob holds `routes` (a `BlobArray<AnimEventRouteBlob>`, each entry
-`{eventKey, kind, routeId}`), plus `keys` and `keyStarts` for lookup. Entries
-are sorted by key, then kind, then route id at bake time, so the same routes
-authored in any order produce an identical blob.
-
-## Reading routes from a system
-
-```csharp
-[BurstCompile]
-public static bool TryGetRoutes(
-    ref AnimEventRoutingBlob routing,
-    uint eventKey,
-    out int routeStart,
-    out int routeCount)
-```
-
-`AnimEventRoutingApi.TryGetRoutes` is a Burst-compiled binary search over
-`keys`/`keyStarts`. Pass the blob by `ref`, not by value:
-
-```csharp
-ref AnimEventRoutingBlob routingBlob = ref routing.Value.Value;
-if (AnimEventRoutingApi.TryGetRoutes(ref routingBlob, eventKey, out int routeStart, out int routeCount))
-{
-    for (int routeIndex = routeStart; routeIndex < routeStart + routeCount; routeIndex++)
-    {
-        AnimEventRouteBlob route = routingBlob.routes[routeIndex];
-        // route.kind, route.routeId
-    }
-}
-```
-
-A short sample, over pending events rather than one known key:
-
-```csharp
-[BurstCompile]
-[WithAll(typeof(AnimEventsPending))]
-public partial struct DispatchRoutedEventsJob : IJobEntity
-{
-    [ReadOnly]
-    public BlobAssetReference<AnimEventRoutingBlob> RoutingReference;
-
-    private void Execute(in DynamicBuffer<AnimEventOutput> animEvents)
-    {
-        ref AnimEventRoutingBlob routingBlob = ref RoutingReference.Value;
-        for (int eventIndex = 0; eventIndex < animEvents.Length; eventIndex++)
-        {
-            AnimEventOutput animEvent = animEvents[eventIndex];
-            if (!AnimEventRoutingApi.TryGetRoutes(ref routingBlob, animEvent.eventKey, out int routeStart, out int routeCount))
-            {
-                continue;
-            }
-            for (int routeIndex = routeStart; routeIndex < routeStart + routeCount; routeIndex++)
-            {
-                AnimEventRouteBlob route = routingBlob.routes[routeIndex];
-                // dispatch on route.kind
-            }
-        }
-    }
-}
-```
-
-## Generating a consumer stub
-
-**Generate consumer stub…** asks for a folder inside Assets — it remembers
-the last one you picked — then writes `<Name>AnimEventSystem.cs`: a
-`partial struct <Name>AnimEventSystem : ISystem` that schedules an
-`IJobEntity` over `AnimEventOutput`, gated on `AnimEventsPending`, with a
-`switch` over `AnimEventRouteKind` covering the kinds your routes actually
-use (all five kinds when the key has none yet). Each case gets a `// TODO`.
-
-The stub is your code from the moment it's written: edit it freely.
-Regenerating it overwrites it, so move anything you want to keep out of that
-file before you press the button again. Explicit types, no `var`, same as
-everywhere else in the package.
-
-## The package never handles a route
-
-The package plays no sound, spawns no VFX, launches no ragdoll and switches
-no shader view from a route. A route is data — kind, id, note — and nothing
-in this package ever acts on it. Making a route do something is the whole
-point of the consumer stub: that's host code, and it's the only place a
-route turns into a sound, a particle, a ragdoll launch or a shader swap.
+The Events tab only edits data — it never delivers events to gameplay code.
+Delivery happens through the per-actor `AnimEventOutput` buffer and the
+`AnimEventBufferApi` helper; see `animation-events.md` for the full read
+pattern, including how to scan a buffer for every occurrence of one key in a
+frame.

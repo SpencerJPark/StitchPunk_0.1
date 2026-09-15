@@ -316,6 +316,44 @@ private void Execute(
 Gate on the `AnimEventsPending` enableable the same way, so actors that emitted
 nothing cost nothing.
 
+### Finding one key
+
+`AnimEventBufferApi` (namespace `DotsAnimationToolkit`) wraps the buffer scan
+above into three Burst-compatible calls:
+
+```csharp
+public static bool ContainsEvent(in DynamicBuffer<AnimEventOutput> events, uint eventKey)
+public static bool TryFindEvent(in DynamicBuffer<AnimEventOutput> events, uint eventKey, out AnimEventOutput foundEvent)
+public static bool TryFindNextEvent(in DynamicBuffer<AnimEventOutput> events, uint eventKey, ref int searchIndex, out AnimEventOutput foundEvent)
+```
+
+`TryFindEvent` returns the first match. `TryFindNextEvent` scans forward from
+`searchIndex`; on a match it leaves `searchIndex` one past the event it
+found, so a `while` loop visits every event carrying that key — two layers
+can emit the same key in one frame:
+
+```csharp
+[BurstCompile]
+[WithAll(typeof(AnimEventsPending))]
+public partial struct DamageEventJob : IJobEntity
+{
+    public uint damageEventKey;
+
+    public void Execute(in DynamicBuffer<AnimEventOutput> events)
+    {
+        int searchIndex = 0;
+        while (AnimEventBufferApi.TryFindNextEvent(events, damageEventKey, ref searchIndex, out AnimEventOutput damageEvent))
+        {
+            // apply damage from damageEvent.intParam
+        }
+    }
+}
+```
+
+`damageEventKey` comes from the generated event constants class
+(`GameEventKeys` in this doc's examples). Schedule the job with
+`.ScheduleParallel()` into `state.Dependency` — never `.Run()`.
+
 ## Timing and ordering
 
 Both channels are produced inside `AnimationToolkitLogicSystemGroup`:
