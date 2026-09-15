@@ -229,6 +229,32 @@ the low range and its one-shots above it, rather than running out of events at
 64. Validation rule **V20** warns if you author a window on a key that has no
 bit, since that is the one combination that silently does nothing.
 
+### Re-keying and merging events
+
+Renaming an event is free — markers store the key, not the name. Changing *which* key a marker
+uses is a different operation: a re-key.
+
+Right-click an event pin on a clip's or a cutscene's timeline and choose **Change key
+everywhere…**. Pick the replacement event and a dialog lists every clip, cutscene and profile the
+change will touch — a summary line plus the asset names — before anything happens. **Change**
+runs it; **Cancel** does nothing.
+
+The operation re-keys every clip marker and every cutscene marker at the old event, plus every
+actor profile animation whose ragdoll trigger fires at that event — only animations that actually
+have a ragdoll trigger, not every animation that uses the event. The old event stays in the
+registry's list; once nothing references it, delete it there.
+
+If the two events describe their payloads differently — different `intParam` value names, or a
+different label or unit on either param — the dialog says so. Markers keep their `intParam` and
+`floatParam` values exactly as they were; nothing is remapped by name.
+
+Each touched asset is saved the moment the operation runs. One Ctrl+Z reverts every asset it
+touched, but until you save again those assets sit modified rather than matching disk.
+
+The registry inspector (**Project Settings → DOTS Animation Toolkit → Event Names**) offers the
+same re-key from a row's **Merge into…** button, and also removes the old event from the list —
+both in one undo step. **Merge into…** only works against the project's own event list.
+
 ## Reading events from a system
 
 ### Windows

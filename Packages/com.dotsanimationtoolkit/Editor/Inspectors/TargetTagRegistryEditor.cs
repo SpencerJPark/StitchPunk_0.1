@@ -175,6 +175,14 @@ namespace DotsAnimationToolkit.Editor
                 "store - renaming the row above never touches this value.";
             rowContainer.Add(idLabel);
 
+            Button replaceButton = new Button { text = "Replace in clips with…" };
+            replaceButton.tooltip =
+                "Move every clip and cutscene track bound to this tag onto another tag. Rig targets keep "
+                + "their tags. Shows what it will change first; one undo step reverts it.";
+            replaceButton.clicked += () => ReplaceEntryInClips(entryIndex, replaceButton);
+            replaceButton.SetEnabled(target == VocabularyRegistryProvider.TargetTags);
+            rowContainer.Add(replaceButton);
+
             Button removeButton = new Button(() => RemoveEntry(entryIndex)) { text = "Remove" };
             rowContainer.Add(removeButton);
 
@@ -238,6 +246,24 @@ namespace DotsAnimationToolkit.Editor
             RefreshRows();
             RefreshFindings();
             constantsSection?.RegenerateIfConfigured();
+        }
+
+        // Hands off to the shared replace-tag prompt; only findings need refreshing afterward.
+        private void ReplaceEntryInClips(int entryIndex, VisualElement anchor)
+        {
+            TargetTagRegistry registry = (TargetTagRegistry)target;
+            if (registry.entries == null || entryIndex < 0 || entryIndex >= registry.entries.Count)
+            {
+                return;
+            }
+
+            TargetTagEntry entry = registry.entries[entryIndex];
+            if (entry == null || entry.stableId == 0u)
+            {
+                return;
+            }
+
+            RefactorPromptEditing.ShowReplaceTagMenu(anchor, entry.stableId, () => RefreshFindings());
         }
 
         // -----------------------------------------------------------------------------------

@@ -266,6 +266,14 @@ namespace DotsAnimationToolkit.Editor
                 + "marker for this event starts with this window; 0 leaves it pulse-only.";
             rowContainer.Add(windowFramesField);
 
+            Button mergeButton = new Button { text = "Merge into…" };
+            mergeButton.tooltip =
+                "Move every marker and ragdoll trigger that uses this event onto another event, then "
+                + "remove this one. Shows what it will change first; one undo step reverts it.";
+            mergeButton.clicked += () => MergeEntryInto(entryIndex, mergeButton);
+            mergeButton.SetEnabled(target == VocabularyRegistryProvider.AnimEventKeys);
+            rowContainer.Add(mergeButton);
+
             Button removeButton = new Button(() => RemoveEntry(entryIndex)) { text = "Remove" };
             rowContainer.Add(removeButton);
 
@@ -362,6 +370,30 @@ namespace DotsAnimationToolkit.Editor
             RefreshRows();
             RefreshFindings();
             constantsSection?.RegenerateIfConfigured();
+        }
+
+        // Hands off to the shared merge prompt, then refreshes exactly as a remove would.
+        private void MergeEntryInto(int entryIndex, VisualElement anchor)
+        {
+            AnimEventKeyRegistry registry = (AnimEventKeyRegistry)target;
+            if (registry.entries == null || entryIndex < 0 || entryIndex >= registry.entries.Count)
+            {
+                return;
+            }
+
+            AnimEventKeyEntry entry = registry.entries[entryIndex];
+            if (entry == null || entry.eventKey == 0u)
+            {
+                return;
+            }
+
+            RefactorPromptEditing.ShowMergeIntoMenu(anchor, entry.eventKey, () =>
+            {
+                serializedObject.Update();
+                RefreshRows();
+                RefreshFindings();
+                constantsSection?.RegenerateIfConfigured();
+            });
         }
 
         // -----------------------------------------------------------------------------------

@@ -127,6 +127,25 @@ deleted tag's dangling bindings show as errors (see above) and render as `(unres
 wherever a name would otherwise appear — the one place a raw number is ever shown, because it's the
 only thing left that makes the broken binding findable.
 
+## Moving tracks to another tag
+
+Renaming a tag is free — tracks store the tag's id, not its name. Moving tracks from one tag to
+another is a different operation, e.g. every track authored against `Hand_L` onto `Hand`.
+
+Open the tag registry inspector (Target Tags settings) and use a row's **Replace in clips
+with…**, or, in the Clip Editor's Rigs tab, right-click a target's Tag button and choose **Move
+clip tracks to another tag…**. A dialog lists what will change before anything happens;
+**Cancel** does nothing.
+
+The move applies to every clip transform track and sprite track, and every cutscene part track,
+bound to the old tag. Rig targets keep the tags they had — a rig's tags describe what the rig
+has, so it's the animation that moves, not the rig. Billboard tracks are bound by billboard root
+rather than by tag, so they're unaffected. Tracks bound by target id instead of a tag — untagged
+tracks — are never touched.
+
+One Ctrl+Z reverts every asset the move touched. The old tag stays in the registry's list; once
+nothing binds it anymore, the **Remove** confirmation says so.
+
 ## Generated constants for game code
 
 Downstream code should never carry a hardcoded tag id or type a string at runtime — Burst jobs can't

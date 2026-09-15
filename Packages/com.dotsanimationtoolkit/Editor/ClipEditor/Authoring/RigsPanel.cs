@@ -426,6 +426,15 @@ namespace DotsAnimationToolkit.Editor
                 : "Tag: (unresolved 0x" + row.TagId.ToString("X8") + ")";
         }
 
+        // Moves clip and cutscene tracks off this row's tag; the rig target itself keeps the tag.
+        private void PopulateTagButtonContextMenu(ContextualMenuPopulateEvent menuEvent, CandidateRow row, Button anchor)
+        {
+            menuEvent.menu.AppendAction(
+                "Move clip tracks to another tag…",
+                menuAction => RefactorPromptEditing.PickTagThenReplaceTrackTag(this, anchor, row.TagId, RescanProject),
+                row.TagId != 0u ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+        }
+
         private void OpenRowKindPicker(CandidateRow row, Button anchor)
         {
             GenericDropdownMenu menu = new GenericDropdownMenu();
@@ -577,6 +586,8 @@ namespace DotsAnimationToolkit.Editor
             RefreshTagButtonText(row);
             RefreshKindButtonText(row);
             tagButton.clicked += () => OpenRowTagPicker(row, tagButton);
+            tagButton.AddManipulator(new ContextualMenuManipulator(
+                menuEvent => PopulateTagButtonContextMenu(menuEvent, row, tagButton)));
             kindButton.clicked += () => OpenRowKindPicker(row, kindButton);
             rowToggle.RegisterValueChangedCallback(
                 changeEvent => OnRowToggleChanged(row, rowToggle, tagButton, kindButton, changeEvent.newValue));
