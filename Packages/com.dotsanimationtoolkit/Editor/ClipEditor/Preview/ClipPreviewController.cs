@@ -18,7 +18,8 @@ namespace DotsAnimationToolkit.Editor
     /// <see cref="Render"/> never depends on selection: it draws whatever the scene holds, at
     /// minimum the reference grid, whether or not a clip is selected.
     /// </summary>
-    public sealed class ClipPreviewController : IDisposable, IActorPosePresenter, IPreviewCameraRig
+    public sealed class ClipPreviewController :
+        IDisposable, IActorPosePresenter, IPreviewCameraRig, RegistryTargetPoser.ITargetPoseWriter
     {
         /// <summary>Used only when there is no geometry to frame, so nothing tells us how far back to be.</summary>
         private const float DefaultOrbitDistance = 6f;
@@ -124,7 +125,7 @@ namespace DotsAnimationToolkit.Editor
 
         // The one manually-owned blob in the toolkit, and only in the editor: built Persistent
         // because it must outlive the call that made it, so Dispose is not optional.
-        private BlobAssetReference<ClipRegistryBlob> registry;
+        private readonly RegistryTargetPoser targetPoser = new RegistryTargetPoser();
 
         // The one open set in the Clip Editor, or a profile's whole bind in the Actor Editor.
         // ClipRegistryBuilder.Build dedupes and canonically sorts this itself, so callers never
@@ -264,30 +265,17 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Whether a registry is currently built and sampleable.</summary>
-        BlobAssetReference<ClipRegistryBlob> IActorPosePresenter.Registry => registry;
+        BlobAssetReference<ClipRegistryBlob> IActorPosePresenter.Registry => targetPoser.Registry;
 
         public bool HasRegistry
         {
-            get { return registry.IsCreated; }
+            get { return targetPoser.HasRegistry; }
         }
 
-        // Whether the built registry holds a clip id — "would SamplePose find this". The same
-        // linear scan SamplePose runs, against the same array, so the two cannot disagree.
+        // Whether the built registry holds a clip id — "would SamplePose find this".
         public bool IsClipInRegistry(ulong clipId)
         {
-            if (!registry.IsCreated)
-            {
-                return false;
-            }
-            ref ClipRegistryBlob registryBlob = ref registry.Value;
-            for (int index = 0; index < registryBlob.sortedClipIds.Length; index++)
-            {
-                if (registryBlob.sortedClipIds[index] == clipId)
-                {
-                    return true;
-                }
-            }
-            return false;
+            return targetPoser.IsClipInRegistry(clipId);
         }
 
         // Rebuilds the transient registry for clipSet and the mirror for its rig. Validation
@@ -380,26 +368,43 @@ namespace DotsAnimationToolkit.Editor
         // full, since an unexpected build failure has no other surface here.
         private void RebuildRegistry(IReadOnlyList<ClipSetAsset> clipSets)
         {
-            try
+            RegistryBuildOutcome outcome = targetPoser.Rebuild(boundRig, clipSets);
+            switch (outcome)
             {
-                Unity.Entities.Hash128 contentHash;
-                ClipRegistryBuilder.Build(boundRig, clipSets, out registry, out contentHash);
+                case RegistryBuildOutcome.NoRig:
+                    statusMessage = "Pick a rig above the hierarchy.";
+                    break;
+                case RegistryBuildOutcome.NoClipSets:
+                    statusMessage = "No clip set assigned.";
+                    break;
+                case RegistryBuildOutcome.ValidationErrors:
+                    statusMessage = "Clip set has validation errors — open the error list in the top bar.";
+                    break;
+                case RegistryBuildOutcome.Failed:
+                    statusMessage = targetPoser.FailureMessage;
+                    break;
+                case RegistryBuildOutcome.Built:
+                default:
+                    break;
             }
-            catch (ArgumentNullException)
+        }
+
+        // ITargetPoseWriter: only a target the mirror actually holds a quad for can take a pose —
+        // a registry can name targets (bone-only rigs, VAT-only rigs) the mirror never built quads for.
+        bool RegistryTargetPoser.ITargetPoseWriter.TryGetRestPose(uint targetId, out TargetRestPose restPose)
+        {
+            if (rigMirror.GetPartTransform(targetId) == null)
             {
-                registry = default(BlobAssetReference<ClipRegistryBlob>);
-                statusMessage = "Pick a rig above the hierarchy.";
+                restPose = default(TargetRestPose);
+                return false;
             }
-            catch (ClipValidationException)
-            {
-                registry = default(BlobAssetReference<ClipRegistryBlob>);
-                statusMessage = "Clip set has validation errors — open the error list in the top bar.";
-            }
-            catch (Exception buildException)
-            {
-                registry = default(BlobAssetReference<ClipRegistryBlob>);
-                statusMessage = buildException.Message;
-            }
+            restPose = ResolveRestPose(targetId);
+            return true;
+        }
+
+        void RegistryTargetPoser.ITargetPoseWriter.WritePose(uint targetId, in TargetPose pose)
+        {
+            rigMirror.ApplyPose(targetId, in pose);
         }
 
         // Assigns the rigged prefab whose skeleton authored bone tracks pose. Optional: null
@@ -938,11 +943,6 @@ namespace DotsAnimationToolkit.Editor
             }
 
             RebuildMirrorIfRigChanged(boundRig);
-            if (rigMirror.PartCount == 0)
-            {
-                statusMessage = "Rig '" + boundRig.name + "' declares no targets.";
-                return;
-            }
             if (boundClipSets == null || boundClipSets.Count == 0)
             {
                 // A rig with no set is a legitimate half-state, and a useful one: the hierarchy and
@@ -953,6 +953,14 @@ namespace DotsAnimationToolkit.Editor
             }
 
             RebuildRegistry(boundClipSets);
+            if (targetPoser.LastOutcome == RegistryBuildOutcome.Built
+                && rigMirror.PartCount == 0
+                && !ClipSetContentResolver.HasBoneOrVatContent(boundClipSets))
+            {
+                statusMessage = "Rig '" + boundRig.name
+                    + "' has no parts, and nothing in this set keys bones or names a VAT source"
+                    + " — nothing here will move.";
+            }
         }
 
         private void DisposeMirrors()
@@ -996,42 +1004,18 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            if (!registry.IsCreated)
+            if (!targetPoser.IsClipInRegistry(clipId))
             {
                 return posedBones;
             }
 
-            ref ClipRegistryBlob registryBlob = ref registry.Value;
-            int clipIndex = -1;
-            for (int index = 0; index < registryBlob.sortedClipIds.Length; index++)
-            {
-                if (registryBlob.sortedClipIds[index] == clipId)
-                {
-                    clipIndex = index;
-                    break;
-                }
-            }
-            if (clipIndex < 0)
-            {
-                return posedBones;
-            }
-
-            ref ClipBlob clipBlob = ref registryBlob.clips[clipIndex];
             RebuildRestPosesIfNeeded();
 
             lastSampledClipId = clipId;
             lastSampledNormalizedTime = normalizedTime;
             hasSampledClip = true;
 
-            for (int targetIndex = 0; targetIndex < registryBlob.sortedTargetIds.Length; targetIndex++)
-            {
-                uint targetId = registryBlob.sortedTargetIds[targetIndex];
-                TargetRestPose rest = ResolveRestPose(targetId);
-
-                TargetPose pose;
-                ClipSampler.SamplePose(ref clipBlob, targetIndex, normalizedTime, in rest, out pose);
-                rigMirror.ApplyPose(targetId, in pose);
-            }
+            targetPoser.PoseTargets(clipId, normalizedTime, this);
 
             // After the whole pose, never inside the loop: a marker placed before its part is posed
             // shows the previous frame and reads as the socket lagging the rig.
@@ -1048,12 +1032,12 @@ namespace DotsAnimationToolkit.Editor
         {
             RestoreBillboardedNodes();
 
-            if (!registry.IsCreated)
+            if (!targetPoser.HasRegistry)
             {
                 return false;
             }
 
-            ref ClipRegistryBlob registryBlob = ref registry.Value;
+            ref ClipRegistryBlob registryBlob = ref targetPoser.Registry.Value;
             RebuildRestPosesIfNeeded();
 
             hasSampledClip = true;
@@ -1774,12 +1758,12 @@ namespace DotsAnimationToolkit.Editor
                     : -1f
             };
 
-            if (!hasSampledClip || !registry.IsCreated)
+            if (!hasSampledClip || !targetPoser.HasRegistry)
             {
                 return settings;
             }
 
-            ref ClipRegistryBlob registryBlob = ref registry.Value;
+            ref ClipRegistryBlob registryBlob = ref targetPoser.Registry.Value;
             for (int clipIndex = 0; clipIndex < registryBlob.sortedClipIds.Length; clipIndex++)
             {
                 if (registryBlob.sortedClipIds[clipIndex] != lastSampledClipId)
@@ -2025,16 +2009,13 @@ namespace DotsAnimationToolkit.Editor
 
         private void ReleaseRegistry()
         {
-            if (registry.IsCreated)
-            {
-                registry.Dispose();
-            }
-            registry = default(BlobAssetReference<ClipRegistryBlob>);
+            targetPoser.Release();
         }
 
         public void Dispose()
         {
             ReleaseRegistry();
+            targetPoser.Dispose();
             rigMirror.Dispose();
             socketMarkers.Dispose();
             skeletonMirror.Dispose();

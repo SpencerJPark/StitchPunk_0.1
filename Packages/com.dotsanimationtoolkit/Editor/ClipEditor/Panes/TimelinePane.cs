@@ -44,6 +44,9 @@ namespace DotsAnimationToolkit.Editor
         private const string TrackFoldoutUssClassName = "clip-editor__track-foldout";
         private const string ChannelHeaderUssClassName = "clip-editor__channel-header";
 
+        // Modifier on a read-only imported-clip row's header, alongside the ordinary track header classes.
+        private const string ImportedTrackHeaderUssClassName = "clip-editor__track-header--imported";
+
         // Box selection. Armed on a press in empty lane space and only becomes a band once the
         // pointer has travelled, so a plain click still just moves the playhead.
         private const float BoxSelectStartToleranceSquared = 16f;
@@ -61,6 +64,10 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement laneColumn;
         private VisualElement laneStack;
         private GhostLaneStripElement ghostLanes;
+
+        // Cleared and refilled on every timeline rebuild, so the view pusher below can push
+        // zoom/pan into these rows the same way it does the authored lanes without a type query.
+        private readonly List<ImportedClipLaneElement> importedClipLaneElements = new List<ImportedClipLaneElement>();
 
         // The name column, its drag strip, and the width the user last asked that column to be.
         // Kept unclamped by the window's own size, so narrowing and widening the window again
@@ -423,6 +430,7 @@ namespace DotsAnimationToolkit.Editor
 
             trackHeaderColumn.Clear();
             laneColumn.Clear();
+            importedClipLaneElements.Clear();
 
             // The hierarchy's bold marks track which clip is selected, so it is refreshed with the
             // timeline rather than only when the rig changes.
@@ -577,6 +585,8 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
+            AddImportedClipRows(isFocused, ref hiddenTrackCount, ref rowIndex);
+
             if (isFocused)
             {
                 statusLabel.text += "   ·   focused on " + DescribeSelection()
@@ -596,6 +606,116 @@ namespace DotsAnimationToolkit.Editor
 
             SetPlayheadTime(session.PlayheadNormalized);
             RebuildInspector();
+        }
+
+        // Read-only rows for the clip's imported sources (vatSource plus every bound vatTracks
+        // entry), one row per animated node path. These never carry a track kind/index, so the key
+        // selection, drag and box-select paths — every one of which filters laneColumn children by
+        // querying or casting to TrackLaneElement — see straight through them without needing an
+        // explicit exclusion of their own.
+        private void AddImportedClipRows(bool isFocused, ref int hiddenTrackCount, ref int rowIndex)
+        {
+            ClipAsset selectedClip = session.SelectedClip;
+
+            if (selectedClip.vatSource != null && selectedClip.vatSource.sourceClip != null)
+            {
+                AddImportedClipRowsForSource(
+                    selectedClip.vatSource.sourceClip, string.Empty, true, 0u,
+                    isFocused, ref hiddenTrackCount, ref rowIndex);
+            }
+
+            List<VatTrack> vatTracks = selectedClip.vatTracks;
+            for (int trackIndex = 0; vatTracks != null && trackIndex < vatTracks.Count; trackIndex++)
+            {
+                VatTrack vatTrack = vatTracks[trackIndex];
+                if (vatTrack == null || vatTrack.sourceClip == null)
+                {
+                    continue;
+                }
+                AddImportedClipRowsForSource(
+                    vatTrack.sourceClip, ResolveImportedTargetDisplayName(vatTrack.targetId), false,
+                    vatTrack.targetId, isFocused, ref hiddenTrackCount, ref rowIndex);
+            }
+        }
+
+        // The bound target's own name — never its numeric id, which means nothing to the person
+        // reading the row.
+        private string ResolveImportedTargetDisplayName(uint targetId)
+        {
+            RigAsset activeRig = ActiveRig;
+            List<RigTargetDefinition> targets = activeRig != null ? activeRig.targets : null;
+            for (int targetIndex = 0; targets != null && targetIndex < targets.Count; targetIndex++)
+            {
+                RigTargetDefinition target = targets[targetIndex];
+                if (target != null && target.Id.Value == targetId)
+                {
+                    return string.IsNullOrEmpty(target.displayName) ? "unbound part" : target.displayName;
+                }
+            }
+            return "unbound part";
+        }
+
+        private void AddImportedClipRowsForSource(
+            AnimationClip sourceClip, string ownerName, bool isUntargeted, uint targetId,
+            bool isFocused, ref int hiddenTrackCount, ref int rowIndex)
+        {
+            List<ImportedClipLane> lanes =
+                ImportedClipLaneResolver.Resolve(sourceClip, session.SelectedClip.duration);
+            if (lanes.Count == 0)
+            {
+                return;
+            }
+
+            // An untargeted source (vatSource) has no single part to match against a focus
+            // selection, so it hides under any focus rather than guessing which selected part it
+            // belongs to.
+            if (isFocused && (isUntargeted || !IsTargetSelected(targetId)))
+            {
+                hiddenTrackCount += lanes.Count;
+                return;
+            }
+
+            for (int laneIndex = 0; laneIndex < lanes.Count; laneIndex++)
+            {
+                ImportedClipLane lane = lanes[laneIndex];
+
+                VisualElement headerRow = new VisualElement();
+                headerRow.AddToClassList(TrackHeaderUssClassName);
+                headerRow.AddToClassList(ImportedTrackHeaderUssClassName);
+
+                Label headerLabel = new Label(
+                    string.IsNullOrEmpty(ownerName) ? lane.displayName : lane.displayName + "  ·  " + ownerName);
+                headerLabel.AddToClassList(TrackHeaderLabelUssClassName);
+                headerLabel.tooltip = "Imported from '" + sourceClip.name + "' — read only."
+                    + (lane.keysPastClipEnd > 0
+                        ? "\n" + lane.keysPastClipEnd.ToString() + " key(s) past the clip's duration never play."
+                        : string.Empty);
+                headerRow.Add(headerLabel);
+                trackHeaderColumn.Add(headerRow);
+
+                ImportedClipLaneElement laneElement = new ImportedClipLaneElement();
+                laneElement.SetKeyTimes(lane.normalizedKeyTimes);
+                laneColumn.Add(laneElement);
+                importedClipLaneElements.Add(laneElement);
+
+                rowIndex++;
+            }
+
+            PushViewToImportedClipLanes();
+        }
+
+        // The window pushes zoom/pan into every authored TrackLaneElement and the ghost lanes from
+        // ApplyTimelineView (Panes/TimelinePane.View.cs) whenever the view changes without a full
+        // rebuild; imported rows need the same push so their keys do not drift from the ruler. That
+        // call site lives outside this file's edit scope for this pass, so today this only covers the
+        // push made at rebuild time here — a follow-up must also call this from ApplyTimelineView.
+        private void PushViewToImportedClipLanes()
+        {
+            float laneWidth = LaneWidth;
+            for (int laneIndex = 0; laneIndex < importedClipLaneElements.Count; laneIndex++)
+            {
+                importedClipLaneElements[laneIndex].PushView(laneWidth, viewZoom, viewPan);
+            }
         }
 
         // Channel rows show the same keys as their track, not keys of their own: one TransformKey

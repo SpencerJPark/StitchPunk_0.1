@@ -32,7 +32,13 @@ namespace DotsAnimationToolkit.Editor
         /// <c>RagdollBodyDefinition</c> on the rig. Works on an authored guiding part and an
         /// imported skinned-mesh bone alike.
         /// </summary>
-        Ragdoll = 5
+        Ragdoll = 5,
+
+        /// <summary>
+        /// This node's baked VAT source for the clip — a <c>VatTrack</c> row, or the clip's
+        /// <c>VatClipSource</c> for the untargeted single-mesh part.
+        /// </summary>
+        VatBinding = 6
     }
 
     /// <summary>
