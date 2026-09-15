@@ -53,6 +53,21 @@ MonoBehaviour:
     intParam: 15
     floatParam: 0
     windowSeconds: 0.016666668
+  - normalizedTime: 0.46666667
+    eventKey: 16
+    intParam: 0
+    floatParam: 0
+    windowSeconds: 0
+  - normalizedTime: 0.56666666
+    eventKey: 17
+    intParam: 0
+    floatParam: 0
+    windowSeconds: 0
+  - normalizedTime: 0.26666668
+    eventKey: 18
+    intParam: 0
+    floatParam: 0
+    windowSeconds: 0
   vatSource:
     sourceClip: {fileID: 0}
     sampleFps: 30

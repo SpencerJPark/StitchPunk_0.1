@@ -14,7 +14,12 @@
                 "intParamLabel": "",
                 "intParamValueNames": [],
                 "floatParamLabel": "",
-                "floatParamUnit": ""
+                "floatParamUnit": "",
+                "previewClip": {
+                    "fileID": 8300000,
+                    "guid": "61b5aab3da409f7408057e548e40cf13",
+                    "type": 3
+                }
             },
             {
                 "name": "Damage",
@@ -24,7 +29,10 @@
                 "intParamLabel": "",
                 "intParamValueNames": [],
                 "floatParamLabel": "",
-                "floatParamUnit": ""
+                "floatParamUnit": "",
+                "previewClip": {
+                    "instanceID": 0
+                }
             },
             {
                 "name": "Attack",
@@ -34,7 +42,10 @@
                 "intParamLabel": "",
                 "intParamValueNames": [],
                 "floatParamLabel": "",
-                "floatParamUnit": ""
+                "floatParamUnit": "",
+                "previewClip": {
+                    "instanceID": 0
+                }
             },
             {
                 "name": "Dialogue",
@@ -44,7 +55,10 @@
                 "intParamLabel": "",
                 "intParamValueNames": [],
                 "floatParamLabel": "",
-                "floatParamUnit": ""
+                "floatParamUnit": "",
+                "previewClip": {
+                    "instanceID": 0
+                }
             }
         ],
         "generatedConstantsPath": "Assets/Generated/DotsAnimationToolkit/AnimEvents.cs"

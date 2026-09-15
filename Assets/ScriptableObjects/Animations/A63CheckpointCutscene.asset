@@ -38,6 +38,12 @@ MonoBehaviour:
       loop: 1
       speed: 1
       clipStartOffsetSeconds: 0
+    - animationKey: 2343174561
+      start: 0
+      duration: 1
+      loop: 0
+      speed: 1
+      clipStartOffsetSeconds: 0
     transformKeys:
     - time: 0
       position:
