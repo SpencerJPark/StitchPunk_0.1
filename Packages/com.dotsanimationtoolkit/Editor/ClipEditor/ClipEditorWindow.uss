@@ -1351,6 +1351,12 @@
     height: var(--clip-editor-lane-height-wrapped);
 }
 
+/* A read-only row sampled from an imported AnimationClip: dimmed so it never reads as authored keys. */
+.clip-editor__track-header--imported {
+    opacity: 0.6;
+    -unity-font-style: italic;
+}
+
 /* Every direct child of a header is exactly one lane tall, so a wrapped row's two lines land on the
    two lanes beside them rather than floating between them. */
 .clip-editor__track-foldout {

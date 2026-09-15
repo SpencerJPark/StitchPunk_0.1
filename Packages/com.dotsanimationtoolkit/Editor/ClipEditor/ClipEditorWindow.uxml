@@ -74,6 +74,9 @@
                                         <uie:ToolbarToggle name="ragdoll-preview-toggle" class="clip-editor__overlay-tool-button">
                                             <ui:Image name="ragdoll-preview-icon" picking-mode="Ignore" class="clip-editor__overlay-tool-icon"/>
                                         </uie:ToolbarToggle>
+                                        <uie:ToolbarToggle name="baked-vat-preview-toggle" class="clip-editor__overlay-tool-button">
+                                            <ui:Image name="baked-vat-preview-icon" picking-mode="Ignore" class="clip-editor__overlay-tool-icon"/>
+                                        </uie:ToolbarToggle>
                                     </ui:VisualElement>
                                 </ui:VisualElement>
                             </ui:VisualElement>

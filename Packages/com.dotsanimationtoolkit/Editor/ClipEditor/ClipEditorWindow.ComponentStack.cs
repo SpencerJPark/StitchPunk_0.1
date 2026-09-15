@@ -101,6 +101,15 @@ namespace DotsAnimationToolkit.Editor
                 clipInspectorPane.ContentPane.Add(BuildComponentBlock(objectRef, instance));
             }
 
+            // Not collected through the model: it keys the binding by target id alone, which would put
+            // an untargeted mesh's binding on every node. Shown on the node the bake resolves, always.
+            VatBakeSource vatBakeSource;
+            if (selectedClip != null && TryResolveVatBakeSource(objectRef, out vatBakeSource))
+            {
+                clipInspectorPane.ContentPane.Add(BuildComponentBlock(
+                    objectRef, new ClipComponentInstance(ClipComponentKind.VatBinding, 0)));
+            }
+
             // Said on the absence of a clip rather than on an empty stack, which no longer happens:
             // every object has a transform, so the stack is never empty and "nothing here" stopped
             // being able to mean "nothing to read it from".
@@ -326,7 +335,10 @@ namespace DotsAnimationToolkit.Editor
             // panel could not then show — and the thing it would really delete is the keys, which
             // the timeline is where you delete. A bone track stranded on a node that has since
             // become a part is not that, and removing it is the reason it is shown at all.
-            if (!ClipComponentModel.IsPrimaryTransform(instance.kind, objectRef))
+            // Nor on a VAT binding, which is on its node for as long as the bake resolves that node:
+            // clearing its Source field is how a binding goes.
+            if (!ClipComponentModel.IsPrimaryTransform(instance.kind, objectRef)
+                && instance.kind != ClipComponentKind.VatBinding)
             {
                 Button removeButton = new Button(() => ConfirmRemoveComponent(objectRef, instance));
                 removeButton.text = "✕";
@@ -390,6 +402,15 @@ namespace DotsAnimationToolkit.Editor
                 return name;
             }
 
+            if (instance.kind == ClipComponentKind.VatBinding)
+            {
+                VatBakeSource describedSource;
+                return TryResolveVatBakeSource(objectRef, out describedSource)
+                    && !string.IsNullOrEmpty(describedSource.DisplayName)
+                    ? name + "  ·  " + describedSource.DisplayName
+                    : name;
+            }
+
             // "Not keyed" rather than "0 key(s)": for an intrinsic component the track does not
             // exist yet, and a count implies a thing there is a count of.
             if (!instance.HasTrack)
@@ -441,6 +462,16 @@ namespace DotsAnimationToolkit.Editor
                     AddBillboardFields(body, objectRef);
                     return;
 
+                case ClipComponentKind.VatBinding:
+                {
+                    VatBakeSource bodySource;
+                    if (selectedClip != null && TryResolveVatBakeSource(objectRef, out bodySource))
+                    {
+                        body.Add(new VatBindingComponentElement(selectedClip, bodySource, OnVatBindingEdited));
+                    }
+                    return;
+                }
+
                 case ClipComponentKind.Ragdoll:
                 {
                     RagdollBodyDefinition ragdollBody = ResolveRagdollBody(instance);
@@ -461,6 +492,41 @@ namespace DotsAnimationToolkit.Editor
                     return;
                 }
             }
+        }
+
+        // The baked VAT source this object is: by target for a rig-declared part, by node path for the
+        // rig's one untargeted mesh — the same two ways the bake resolves a source.
+        private bool TryResolveVatBakeSource(ClipObjectRef objectRef, out VatBakeSource matchingSource)
+        {
+            matchingSource = null;
+            List<VatBakeSource> sources;
+            string failureMessage;
+            if (ActiveRig == null || !VatBakeSourceResolver.TryResolve(ActiveRig, out sources, out failureMessage))
+            {
+                return false;
+            }
+            for (int sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
+            {
+                VatBakeSource source = sources[sourceIndex];
+                bool matchesTarget = source.TargetId != 0u && source.TargetId == objectRef.targetId;
+                bool matchesUntargetedNode = source.TargetId == 0u
+                    && objectRef.targetId == 0u
+                    && objectRef.kind != ClipObjectKind.RigTarget
+                    && string.Equals(source.SourceNodePath ?? string.Empty, objectRef.nodePath ?? string.Empty);
+                if (matchesTarget || matchesUntargetedNode)
+                {
+                    matchingSource = source;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // A new source changes what the Baked VAT overlay and the imported lanes show.
+        private void OnVatBindingEdited()
+        {
+            MarkPreviewDirty();
+            timelinePane.RebuildTimeline();
         }
 
         private SpriteTrack ResolveSpriteTrack(ClipComponentInstance instance)

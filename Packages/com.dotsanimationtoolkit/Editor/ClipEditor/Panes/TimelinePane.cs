@@ -704,11 +704,8 @@ namespace DotsAnimationToolkit.Editor
             PushViewToImportedClipLanes();
         }
 
-        // The window pushes zoom/pan into every authored TrackLaneElement and the ghost lanes from
-        // ApplyTimelineView (Panes/TimelinePane.View.cs) whenever the view changes without a full
-        // rebuild; imported rows need the same push so their keys do not drift from the ruler. That
-        // call site lives outside this file's edit scope for this pass, so today this only covers the
-        // push made at rebuild time here — a follow-up must also call this from ApplyTimelineView.
+        // Called at rebuild and from ApplyTimelineView (TimelinePane.View.cs), which pushes zoom/pan
+        // without a rebuild; missing either call leaves imported keys drifting from the ruler.
         private void PushViewToImportedClipLanes()
         {
             float laneWidth = LaneWidth;

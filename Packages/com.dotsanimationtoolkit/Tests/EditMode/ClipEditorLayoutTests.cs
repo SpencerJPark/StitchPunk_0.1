@@ -48,7 +48,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "viewport-overlay", "overlay-tool-row",
             "gizmo-move-toggle", "gizmo-rotate-toggle", "gizmo-scale-toggle",
             "reset-camera-button",
-            "billboard-preview-toggle", "ragdoll-preview-toggle",
+            "billboard-preview-toggle", "ragdoll-preview-toggle", "baked-vat-preview-toggle",
             // Transport bar: every control that answers "when", docked above the timeline. The
             // playback controls themselves live inside transport-core-slot (TransportCoreElement).
             "transport-bar", "transport-core-slot",

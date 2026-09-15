@@ -279,6 +279,7 @@ namespace DotsAnimationToolkit.Editor
 
         private ToolbarToggle rigEditToggle;
         private ToolbarToggle ragdollPreviewToggle;
+        private ToolbarToggle bakedVatPreviewToggle;
         private VisualElement reconcilePanel;
         private ScrollView reconcileList;
         private Label reconcileTitle;
@@ -1036,6 +1037,34 @@ namespace DotsAnimationToolkit.Editor
                 SetOverlayToolIcon(
                     ragdollPreviewToggle, ragdollPreviewToggle.Q<Image>("ragdoll-preview-icon"),
                     "d_Avatar Icon", "Ragdoll");
+            }
+
+            bakedVatPreviewToggle = rootVisualElement.Q<ToolbarToggle>("baked-vat-preview-toggle");
+            if (bakedVatPreviewToggle != null)
+            {
+                bakedVatPreviewToggle.RegisterValueChangedCallback(changeEvent =>
+                {
+                    if (previewController != null)
+                    {
+                        previewController.BakedVatPreviewEnabled = changeEvent.newValue;
+                    }
+                    if (previewImage != null)
+                    {
+                        previewImage.MarkDirtyRepaint();
+                    }
+                    Repaint();
+                });
+                Image bakedVatPreviewIcon = bakedVatPreviewToggle.Q<Image>("baked-vat-preview-icon");
+                if (bakedVatPreviewIcon != null && ToolkitIcons.VatPartsGlyph != null)
+                {
+                    bakedVatPreviewIcon.image = ToolkitIcons.VatPartsGlyph;
+                }
+                else
+                {
+                    bakedVatPreviewIcon?.RemoveFromHierarchy();
+                    bakedVatPreviewToggle.text = "VAT";
+                }
+                RefreshBakedVatPreviewToggle();
             }
 
             actorEditorPane = rootVisualElement.Q<VisualElement>("actor-editor-pane");
@@ -3378,6 +3407,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 previewController.SetClipSet(clipSet);
             }
+            RefreshBakedVatPreviewToggle();
             healthPanel?.RequestRescan();
         }
 
@@ -3470,6 +3500,29 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        // Available only while the open set has baked textures, since there is nothing to draw
+        // otherwise. Forcing it off here also hands back any skinned mesh the overlay had hidden.
+        private void RefreshBakedVatPreviewToggle()
+        {
+            if (bakedVatPreviewToggle == null)
+            {
+                return;
+            }
+            bool hasBakedTextures = clipSet != null && clipSet.vatTextures != null;
+            bakedVatPreviewToggle.SetEnabled(hasBakedTextures);
+            bakedVatPreviewToggle.tooltip = hasBakedTextures
+                ? "Baked VAT — draw each baked part from its VAT texture at the playhead, in place of the live skinned mesh."
+                : "Baked VAT — this clip set has no VAT texture set. Bake one in the VAT Bake tab.";
+            if (!hasBakedTextures && bakedVatPreviewToggle.value)
+            {
+                bakedVatPreviewToggle.SetValueWithoutNotify(false);
+                if (previewController != null)
+                {
+                    previewController.BakedVatPreviewEnabled = false;
+                }
+            }
+        }
+
         /// <summary>Marks the preview's registry stale; the tick rebuilds it after a short delay.</summary>
         private void MarkPreviewDirty()
         {
@@ -3549,6 +3602,10 @@ namespace DotsAnimationToolkit.Editor
                 previewRegistryDirty = false;
                 previewLastRefreshedAt = now;
                 previewController.Refresh();
+
+                // A bake on the VAT Bake tab assigns the set's textures without a set change, so the
+                // toggle's availability is re-read on the same beat as the registry.
+                RefreshBakedVatPreviewToggle();
 
                 // On the preview's debounced beat, so an edit reaches the Health count without a
                 // project scan per repaint.
