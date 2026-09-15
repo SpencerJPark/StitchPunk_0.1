@@ -1,6 +1,7 @@
 # Unified Clip Authoring — Design Spec (UA)
 
-> **Status:** 🟡 **P0 built 2026-09-08, P1–P5 specced not built.** P0 (bone tracks pose without a
+> **Status:** ⛔ **Superseded by A103** ([`A103_UnifiedAuthoringAndVatPreview_Spec.md`](../AnimationPackage/A103_UnifiedAuthoringAndVatPreview_Spec.md), specced 2026-09-15): P1–P5 are built there, merged with A79, and this file's three ← DECISION markers are settled as A103-D1 (P1 option b), A103-D2 (empty-target registry) and A103-D4 (read-only lanes, no import). Kept for history; do not execute from it.
+> **Former status:** 🟡 **P0 built 2026-09-08, P1–P5 specced not built.** P0 (bone tracks pose without a
 > baked registry) landed and is verified by capture — scrubbing a bone-only clip now moves the rig.
 > Everything below it is written and unstarted.
 > **Owner directive that created this spec (2026-09-08, verbatim):** *"I should be animating

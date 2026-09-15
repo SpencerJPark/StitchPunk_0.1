@@ -1,6 +1,7 @@
 # Amendment A79 — the VAT preview shows the whole animation, not just the baked half
 
-> **Status:** 📝 outline specced 2026-09-08, **not ready to execute** — §6 T0 is a grounding pass that
+> **Status:** ⛔ **Superseded by A103** ([`A103_UnifiedAuthoringAndVatPreview_Spec.md`](../../Assets/_Vault/Tasks/AnimationPackage/A103_UnifiedAuthoringAndVatPreview_Spec.md), specced 2026-09-15, `0.55.0`): this amendment is built there together with Unified Clip Authoring P1–P5. Its T0 question is answered in A103-D7 (a registry builds outside `ClipPreviewController`, as `CutsceneSlotClipPreview` already does), A79-D4 is corrected there (local-space rest poses on real nodes), and the A78 prerequisite closes under the standing rule (A103-D5). Kept for history; do not execute from it.
+> **Former status:** 📝 outline specced 2026-09-08, **not ready to execute** — §6 T0 is a grounding pass that
 > must land before T1 is briefed. Its decisions are settled; its §5.2 design is a route, not verified
 > code. Takes `0.27.0` unless `CHANGELOG.md` has moved.
 > **Predecessor:** [`Amendment_A78_VatBakeSourceFromRig_Spec.md`](Amendment_A78_VatBakeSourceFromRig_Spec.md)
