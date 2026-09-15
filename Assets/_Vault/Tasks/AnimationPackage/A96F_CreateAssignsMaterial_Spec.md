@@ -69,17 +69,17 @@ public static bool TryAssignToTargetRenderer(RigAsset rig, RigTargetDefinition t
 
 ## 5. Tasks
 
-- [ ] **T0 — Grounding (lead).** Verify §3's names and ranges; confirm `ResolveByPath` works on `LoadPrefabContents` roots
+- [x] **T0 — Grounding (lead).** Verify §3's names and ranges; confirm `ResolveByPath` works on `LoadPrefabContents` roots
   (paths are relative to the prefab root in both); log drift in §7.
-- [ ] **T1 — Stub (lead).** The §4 signature returning false, committed before the wave.
-- [ ] **T2 — Assign utility + fixture [parallel-safe]** — Files: `Editor/ClipUtilities/MaterialTemplateUtility.cs`, new
+- [x] **T1 — Stub (lead).** The §4 signature returning false, committed before the wave.
+- [x] **T2 — Assign utility + fixture [parallel-safe]** — Files: `Editor/ClipUtilities/MaterialTemplateUtility.cs`, new
   `Tests/EditMode/MaterialTemplateAssignTests.cs`. `AssignToSingleSlotRenderer_ReplacesMaterialInPrefabAsset`: a GUID-named folder
   under Assets (read its path back), a two-node prefab saved with `SaveAsPrefabAsset`, a `CreateInstance` rig whose target points
   at the child node; after the call, reload the prefab and assert the child's `sharedMaterial` is the new material; delete the
   folder in TearDown. Revert-to-fail: skip `SaveAsPrefabAsset`.
-- [ ] **T3 — Panel [parallel-safe]** — Files: `Editor/Materials/MaterialsPanel.cs`. Button text, M-D4/M-D5 result line,
+- [x] **T3 — Panel [parallel-safe]** — Files: `Editor/Materials/MaterialsPanel.cs`. Button text, M-D4/M-D5 result line,
   `Refresh()`, `LastAssignedDescription`.
-- [ ] **T4 — Docs [parallel-safe]** — Files: `Documentation~/materials-tab.md`. Create now assigns; what it replaces; how to undo
+- [x] **T4 — Docs [parallel-safe]** — Files: `Documentation~/materials-tab.md`. Create now assigns; what it replaces; how to undo
   (assign the old material back).
 - **Gate the wave.** `MaterialTemplateAssignTests`, `MaterialContractValidationTests`, `PackagingConformanceTests`.
 - [ ] **T5 — Drive (stage).** Full suites. Scratch copies of `NewRig.asset` and `MaleCitizen.prefab` in `Assets/A96FScratch/`
@@ -125,3 +125,89 @@ GUID-named folder under Assets (read its path back)". The package's own conventi
 `Packages/com.dotsanimationtoolkit/Tests/EditMode`, which is already a valid asset folder, so
 nothing has to walk and create intermediate parents. Followed that: same guarantee, and the
 fixture never names an `Assets/<Folder>` path, so Conformance_D cannot bite.
+
+### Build (lead + one wave of three, 2026-09-15)
+
+`65f3c96e` T1 committed the stub alone so the wave shared a settled signature. `8ffe4a3f` landed
+T2–T4 together: `TryAssignToTargetRenderer` in `MaterialTemplateUtility`, the panel's button and
+result line, `MaterialTemplateAssignTests`, and the `materials-tab.md` Create section.
+
+The slot rule (M-D3) reads `renderer.sharedMaterials` once: an empty array becomes length 1, a
+single-slot renderer takes index 0, and only a multi-slot renderer consults
+`preferredSlotMaterial`, taking its first occurrence and otherwise index 0. `assignedDescription`
+names the slot only in the multi-slot case, and a slot that held nothing reads "(replaced
+nothing)" rather than a dangling name. Every failure path returns before the write with a
+message that already begins "not assigned:", so the panel can concatenate it after the created
+file name without re-wording it, and the created material is never lost (M-D4).
+
+`CreateForTarget` captures `SelectedMaterial` into `previouslySelectedMaterial` **before** the
+create, because `Refresh()` at the end of the method rebinds the selection — passing the live
+property would have handed the assignment whatever the rebuilt list happened to select. The
+method still returns true when only the assignment was skipped: its own `failureMessage` stays
+empty, since a skipped assignment is not a create failure.
+
+**Gate (`8ffe4a3f`):** `MaterialTemplateAssignTests` + `MaterialContractValidationTests` +
+`PackagingConformanceTests` = 15 tests, 14 passed, the one standing
+`Conformance_A_AsmdefReferenceLists_MatchSection13Exactly` failure. Compile and Burst clean.
+
+**Revert-to-fail:** probe commit `909305a8` replaced the single
+`PrefabUtility.SaveAsPrefabAsset(contents, prefabAssetPath)` line with a comment and gated;
+`AssignToSingleSlotRenderer_ReplacesMaterialInPrefabAsset` failed with "Expected: <NewPart …> But
+was: <OldPart …>", proving the fixture reads the prefab back off disk rather than the in-memory
+contents. `git reset --hard HEAD~1` restored `MaterialTemplateUtility.cs` to sha256
+`7306d0ebb7ed96dbd6b178a7bfb979a73dbeb5605894fe9583a9b92f30ee0c74`, unchanged from before the
+probe.
+
+Drift: one (the fixture's scratch folder, logged in the T0 grounding block above).
+
+### For integration
+
+**CHANGELOG — `## [0.49.0]`:**
+
+> ### Changed
+> - Materials tab: the header button is now **Create and assign**. After writing
+>   `M_<Rig>_<Target>.mat` beside the rig's prefab it also puts the new material on the renderer
+>   at the target's Source Node Path inside the rig's Source Prefab, through
+>   `PrefabUtility.LoadPrefabContents` / `SaveAsPrefabAsset` — an immediate, non-undoable asset
+>   write, the same one every rig structure edit makes. A single-slot renderer has its slot
+>   replaced; a multi-slot renderer has the slot holding the catalog's selected material replaced
+>   when that material is on this renderer, otherwise slot 0, and the result line names the slot:
+>   "Created M_NewRig_BaseHead.mat and assigned it to BaseHead (replaced BaseHead.mat)."
+> - A missing node, a node with no Renderer, or a Source Prefab that is not a saved asset skips
+>   the assignment without losing the material — the line reads "Created M_NewRig_BaseHead.mat;
+>   not assigned: node 'BaseHead' has no Renderer." The replaced material stays on disk, so the
+>   edit is undone by assigning it back.
+>
+> ### Added
+> - `MaterialTemplateUtility.TryAssignToTargetRenderer` and `MaterialsPanel.LastAssignedDescription`.
+
+**`Conformance_G` allowlist:** nothing new. The method joined the existing
+`MaterialTemplateUtility`, which already sits in `Editor/ClipUtilities` where the `Utility`
+suffix is permitted. No new static class, no new file outside `Tests/EditMode`.
+
+**Vault-note traps** (for `Assets/_Vault/Memories/Code/AnimationToolkit.md`):
+
+- A panel method that ends in `Refresh()` must capture any selection it wants to pass downstream
+  *before* the create, not read the property at the point of use — `Refresh()` rebinds
+  `SelectedMaterial` from the rebuilt usage list and silently substitutes a different material.
+- An EditMode fixture that must prove a prefab **file** changed has to reload through
+  `AssetDatabase.LoadAssetAtPath` after the call; asserting against the `LoadPrefabContents` root
+  or the pre-save instance passes even when `SaveAsPrefabAsset` is never reached — that is exactly
+  the mutation this spec's revert-to-fail used.
+- `PrefabAuthoringBridge.ResolveByPath` is root-relative and scene-free, so the same
+  `sourceNodePath` resolves against a `LoadPrefabContents` root, a loaded prefab asset root and a
+  scene instance with no rewriting.
+
+**HANDOFF draft:** A96F (`0.49.0`) answers the owner's A96 T13 call: the Materials tab's Create
+button became **Create and assign** and now finishes the job it used to hand back to the
+Inspector. `MaterialTemplateUtility.TryAssignToTargetRenderer` opens the rig's Source Prefab with
+`LoadPrefabContents`, resolves the target's Source Node Path, takes the Renderer on that node
+only, replaces one material slot and saves the prefab asset — the package's established
+non-undoable rig-structure write, never `AssetDatabase.SaveAssets()`. One slot is replaced
+outright; several slots mean the slot holding the catalog's selected material when it is on this
+renderer, else slot 0, with the slot named in the result line. Nothing is lost when the
+assignment cannot happen: the material is still created and the line says why. Built by one lead
+and a wave of three workers, gated at 15 tests with only the standing `Conformance_A` failure,
+and the fixture proven by skipping `SaveAsPrefabAsset` and watching it fail. Unverified here: the
+T5 drive (nothing real was written) and the multi-slot branch, which no fixture covers — it is
+the ⚠ interpretation the T7 checkpoint asks about.
