@@ -1,0 +1,53 @@
+// Copyright (c) 2026 Spencer Park. All rights reserved.
+
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace DotsAnimationToolkit.Authoring
+{
+    [Serializable]
+    public sealed class SpriteSheetFrame
+    {
+        public string name;
+
+        // The Texture2DArray layer this frame bakes to; always equal to its position in the frame list after a Bake.
+        public int index;
+
+        public Texture2D source;
+    }
+
+    /// <summary>A named stack of same-size frames baked into one Texture2DArray; authoring-only, never baked into a clip blob.</summary>
+    [CreateAssetMenu(fileName = "NewSpriteSheet", menuName = "DOTS Animation Toolkit/Sprite Sheet", order = 41)]
+    public sealed class SpriteSheetAsset : ScriptableObject
+    {
+        public Texture2DArray texture;
+
+        // Taken from the first frame at Bake; read-only in the tab.
+        public Vector2Int layerSize;
+
+        public FilterMode filterMode = FilterMode.Point;
+        public TextureWrapMode wrapMode = TextureWrapMode.Clamp;
+        public bool generateMips;
+        public bool linear;
+        public List<SpriteSheetFrame> frames = new List<SpriteSheetFrame>();
+        public string outputPath = string.Empty;
+
+        public SpriteSheetFrame FindFrameByLayerIndex(int layerIndex)
+        {
+            if (frames == null)
+            {
+                return null;
+            }
+            for (int listPosition = 0; listPosition < frames.Count; listPosition++)
+            {
+                SpriteSheetFrame frame = frames[listPosition];
+                if (frame != null && frame.index == layerIndex)
+                {
+                    return frame;
+                }
+            }
+            return null;
+        }
+    }
+}

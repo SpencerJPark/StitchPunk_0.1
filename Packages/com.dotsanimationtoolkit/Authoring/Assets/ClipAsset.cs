@@ -286,6 +286,10 @@ namespace DotsAnimationToolkit.Authoring
         /// <summary>The array index every <see cref="SpriteIndexMode.RelativeToBase"/> key on this track offsets from. Ignored by absolute keys.</summary>
         public int baseIndex;
 
+        // Authoring-only and never baked: ClipRegistryBuilder copies mode, sliceSpace, baseIndex and
+        // keys by name, so this only feeds the Clip Editor's frame-by-name picker. Null = no sheet.
+        public SpriteSheetAsset sheet;
+
         /// <summary>Keys in strictly ascending <c>normalizedTime</c> order.</summary>
         public List<SpriteKey> keys = new List<SpriteKey>();
     }
