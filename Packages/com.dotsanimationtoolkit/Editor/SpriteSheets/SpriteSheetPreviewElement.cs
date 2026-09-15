@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>The contact sheet: every frame of a sheet as a thumbnail in layer order, the only way to see a Texture2DArray's layers.</summary>
-    public sealed class SpriteSheetPreviewElement : VisualElement
+    public sealed class SpriteSheetPreviewElement : VisualElement, IDisposable
     {
         public const float DefaultThumbnailSize = 64f;
         public const float MinimumThumbnailSize = 24f;
@@ -59,6 +59,10 @@ namespace DotsAnimationToolkit.Editor
         {
             this.sheetAsset = sheet;
             this.Refresh();
+        }
+
+        public void Dispose()
+        {
         }
 
         public void SetThumbnailSize(float thumbnailPixels)

@@ -24,6 +24,9 @@ namespace DotsAnimationToolkit.Editor
         public Func<TAsset, string> tooltip;
         public bool allowRename;
         public bool allowDelete;
+
+        // Null offers Rename/Delete on every row; otherwise only on rows it returns true for.
+        public Func<TAsset, bool> rowAllowsRenameAndDelete;
     }
 
     /// <summary>Shared catalog column: search, New/Refresh, boxed two-line rows with right-click Rename/Delete. The host supplies the asset list and owns every write; the column only raises events.</summary>
@@ -247,6 +250,11 @@ namespace DotsAnimationToolkit.Editor
         {
             TAsset targetAsset = row.userData as TAsset;
             if (targetAsset == null)
+            {
+                return;
+            }
+
+            if (options.rowAllowsRenameAndDelete != null && !options.rowAllowsRenameAndDelete(targetAsset))
             {
                 return;
             }

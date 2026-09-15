@@ -117,6 +117,24 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
+        // The sheet that already wraps array, else a new "<ArrayName>_Sheet.asset" beside it with frames named by layer number.
+        public static SpriteSheetAsset GetOrCreateSheetForArray(Texture2DArray array)
+        {
+            return null;
+        }
+
+        // A HideAndDontSave sheet over array with one numeric frame per layer; nothing touches disk.
+        public static SpriteSheetAsset CreateWorkingCopyForArray(Texture2DArray array)
+        {
+            return null;
+        }
+
+        // Appends numeric frames or drops trailing ones so an imported sheet matches its array's depth; returns how many were dropped.
+        public static int ReconcileFramesWithArrayDepth(SpriteSheetAsset sheet)
+        {
+            return 0;
+        }
+
         // The tab edits this in-memory copy so nothing reaches disk until Save (A81 D23 rule).
         public static SpriteSheetAsset CreateWorkingCopy(SpriteSheetAsset loadedSheet)
         {

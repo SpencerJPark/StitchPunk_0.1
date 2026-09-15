@@ -26,12 +26,18 @@ namespace DotsAnimationToolkit.Authoring
         // Taken from the first frame at Bake; read-only in the tab.
         public Vector2Int layerSize;
 
+        // Bake copies every import setting except rows and columns from this array's importer; null uses the fields below.
+        public Texture2DArray importSettingsSource;
+
         public FilterMode filterMode = FilterMode.Point;
         public TextureWrapMode wrapMode = TextureWrapMode.Clamp;
-        public bool generateMips;
+        public bool generateMips = true;
         public bool linear;
         public List<SpriteSheetFrame> frames = new List<SpriteSheetFrame>();
         public string outputPath = string.Empty;
+
+        // Names only: the importer owns the layers, so Bake, reorder and frame removal do not apply.
+        public bool IsImportedArray => texture != null && frames != null && frames.TrueForAll(frame => frame == null || frame.source == null);
 
         public SpriteSheetFrame FindFrameByLayerIndex(int layerIndex)
         {
