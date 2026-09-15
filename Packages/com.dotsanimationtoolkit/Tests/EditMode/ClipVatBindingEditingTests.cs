@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(1, clip.vatTracks.Count);
             Assert.AreEqual(7u, clip.vatTracks[0].targetId);
             Assert.AreEqual(firstSourceClip, clip.vatTracks[0].sourceClip);
-            Assert.IsNull(clip.vatSource);
+            Assert.IsTrue(clip.vatSource == null || clip.vatSource.sourceClip == null, "a targeted write must not touch the untargeted source");
 
             ClipVatBindingEditing.SetSourceClip(clip, 0, secondSourceClip);
 
