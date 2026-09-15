@@ -101,25 +101,25 @@ Every ← DECISION above is settled here. Names re-verified against `2464e854` o
 
 ### 12.3 Tasks
 
-- [ ] **T0 — Ground (lead).** Claim; grep every name in 12.1; baseline gate as the Despawn plan's T0.
-- [ ] **T1 — Helper + fixture (one worker, two files).** `AIUtils.ResolveOrderedAttack` (MO-D4) and
+- [x] **T0 — Ground (lead).** Claim; grep every name in 12.1; baseline gate as the Despawn plan's T0.
+- [x] **T1 — Helper + fixture (one worker, two files).** `AIUtils.ResolveOrderedAttack` (MO-D4) and
   `Tests/AttackResolutionTests.cs` (namespace `StitchPunk.Tests`, EditMode): `FirstEntryWithADef_Wins`,
   `EntryWithoutADef_IsSkipped`, `EmptyBuffer_ReturnsFalse`. Revert-to-fail by returning the last match instead of
   the first. Gate: `StitchPunk.Tests.AttackResolutionTests` + the conformance pair.
-- [ ] **T2 — Order arm uses it (one worker, one file)** `[parallel-safe with T3]`:
+- [x] **T2 — Order arm uses it (one worker, one file)** `[parallel-safe with T3]`:
   `MinionActionSelectionSystem.cs:117-131` replaces both `MeleeSingle` literals with the helper's outputs; the
   refusal path per MO-D3. The job needs a `BufferLookup<AvailableAttack>` (read-only) — add it beside the
   existing lookups.
-- [ ] **T3 — Components + bake (one worker, two files)** `[parallel-safe]`: `PlayerMinionCommandComponents.cs` gains
+- [x] **T3 — Components + bake (one worker, two files)** `[parallel-safe]`: `PlayerMinionCommandComponents.cs` gains
   `OnMinionStopCommand` and `OnMinionReturnCommand` (empty enableable structs with the one-line comment style of
   the file); `UnitBakingUtil.AddPlayerControlled` bakes both disabled. **Archetype change: needs a rebake** — say
   so in the report.
-- [ ] **T4 — Arms + input (one worker, two files, after T2 and T3).** `MinionActionSelectionSystem.cs` gains the
+- [x] **T4 — Arms + input (one worker, two files, after T2 and T3).** `MinionActionSelectionSystem.cs` gains the
   Stop and Return arms (MO-D5, MO-D6; the `Player` singleton position is read once in `OnUpdate` and passed into
   the job); `UnitSelectionManager.HandleCommand` gains the X and R branches mirroring the F branch (MO-D7).
-- [ ] **T5 — Vault (docs worker)** `[parallel-safe]`: `Systems_AI.md` (order-time resolution, the two verbs, the
+- [x] **T5 — Vault (docs worker)** `[parallel-safe]`: `Systems_AI.md` (order-time resolution, the two verbs, the
   refusal log), `Contracts.md` (two new command rows), `Components.md`.
-- [ ] **T6 — Close (lead).** Log, `status minion-orders ready`. Unverified until the owner plays: a ranged minion
+- [x] **T6 — Close (lead).** Log, `status minion-orders ready`. Unverified until the owner plays: a ranged minion
   taking an attack order (no ranged unit exists yet — the fixture is the proof), X and R in the scene. The stage
   moves this file to `Tasks/Verification/` with a `verify-minion-orders.md` built from §10.
 
@@ -150,3 +150,37 @@ X and R are unbound in every `.cs` and `.inputactions` file.
 removed the second pass on the same file); T3 components + bake; X/R input + `Components.md`; `Systems_AI.md` +
 `Contracts.md`. Arm order in the job: Move, Attack, Interact, Follow, Return, **Stop last** so a cancel beats
 anything emitted the same frame.
+
+**Gates.** Wave 1 committed as `3a0e7fa1` (explicit paths). Gate `AttackResolutionTests` + the conformance pair:
+first run refused "Unity is compiling", retry **pass 12 of 12** (9 conformance + 3 fixture), no compiler or Burst
+errors. **Revert-to-fail:** the mutation (loop walks backwards, so the last match wins) committed alone; its gate
+refused "compiling" once, then **test-failures 11 passed / 1 failed**: `FirstEntryWithADef_Wins` expected
+MeleeSingle, got ProjectileSingle. `git reset --hard HEAD~1`; `AIUtils.cs` sha256 `2bf6ad07…33e0` identical before
+and after. Post-reset re-gate (one exit 3 heartbeat gap, retried): **pass 12 of 12**.
+
+**Unverified (no Play mode this batch).** Compile of the non-test assemblies is proven only as far as the gate's
+recompile reaches (it compiled clean). Burst compilation of `MinionActionWriteJob` with the new FixedString
+interpolations (`orderedAttackType.Name()`, `brain.unitType.Name()`) is unproven until the job runs. The melee
+characterization: a melee minion's attack order now uses its **first** `AvailableAttack` entry that has a def. It
+behaves as before only if that entry is `MeleeSingle`; a unit whose SO lists `MeleeContinuous` first will now order
+MeleeContinuous. The unit SO data was not inspected. No ranged minion exists, so the fixture is the proof.
+X and R in the scene are unverified.
+
+### For integration
+
+- **Vault truths to check:** `Systems_AI.md` "Player / minion command pipeline" says seven `OnMinion*Command`,
+  X = Stop / R = ReturnToPlayer with the `OnCommandPlayerInput` trap, `ResolveOrderedAttack` + the refusal Warning,
+  and Stop last in arm order. `Contracts.md` has `OnMinionStopCommand` / `OnMinionReturnCommand` rows.
+  `Components.md` lists all seven commands, consumed by `MinionActionSelectionSystem`, not the parked
+  `MinionCommandSystem`. The other game lead also edits `Contracts.md` / `Components.md`; take both sides.
+- **Rebake:** `UnitBakingUtil.AddPlayerControlled` bakes two new enableable components, so every
+  player-controllable unit's archetype changes. Reopen the subscene or enter Play before judging anything.
+- **Play checks for `verify-minion-orders.md`:**
+  1. Attack-order a melee minion: it attacks as before. Check the log line
+     `[MinionOrder] Unit N -> Attack T with <ActionType>` and confirm which attack it picked.
+  2. Remove every `AvailableAttack` entry with a brain def from a test minion (or give it only an unmapped one) and
+     order an attack: expect the Warning `refused Attack … for <UnitType>` and a minion that keeps its prior behavior.
+  3. Hold X while issuing a command mid-approach: the unit interrupts to Idle.
+  4. Hold R while issuing a command from across the map: the unit paths to where the player stood that frame and
+     stops there (it does not keep following).
+  5. F still follows continuously.
