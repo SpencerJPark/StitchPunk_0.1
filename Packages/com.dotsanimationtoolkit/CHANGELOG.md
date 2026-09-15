@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.43.0] — A93F — Events tab rework
 
+Owner checkpoint T10 accepted 2026-09-14 ("these look good for now").
+
 ### Changed
 - Events tab right column is now **Used by** (`EventUsageColumn`): boxed Clips, Cutscenes and Profiles groups with counts, one two-line row per asset (name, then `@0.35, 0.60` for clips, seconds for cutscenes, `Layer ▸ animation` for profile ragdoll events). Click pings; the open button raises `EventsPanel.OpenOwnerRequested`, which the window routes to the Clip Editor, Cutscene tab or Actor Editor. Refreshes on key selection and 500 ms after `AssetReferenceIndex.Dirtied`.
 - `EventKeyInspectorColumn` keeps the entry fields, payload schema and preview clip; its usage list and `RefreshUsage` are gone.

@@ -136,7 +136,7 @@ validation, V08/V36/V41 skipped) and H12 (shared clip binding) replace the Clip 
 the tab reads "Health (n)" in red from window open, and all eight former badge refresh sites request a debounced
 rescan. Deletes were exercised on scratch copies only.
 
-**A93F (0.43.0), built 2026-09-14, ⏸ T10 open.** Event routing is removed from the package (asset, authoring and
+**A93F (0.43.0), built 2026-09-14, T10 accepted 2026-09-14.** Event routing is removed from the package (asset, authoring and
 baker, blob, API, asset utility, stub generator, Routes column and three fixtures), with no migration because no
 routing data existed. The Events tab's right column is Used by: boxed Clips, Cutscenes and Profiles groups whose rows
 ping on click and open the owner through `EventsPanel.OpenOwnerRequested`, which the window routes to

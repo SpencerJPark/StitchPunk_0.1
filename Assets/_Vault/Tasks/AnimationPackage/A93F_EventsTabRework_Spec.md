@@ -1,6 +1,6 @@
 # Amendment A93F — Events tab rework: routing removed, usage column, buffer helper
 
-> **Status:** ✅ built 2026-09-14 as `0.43.0` in the A93F–A95F parallel worktree batch (merged `6b515793`, integrated `f67b47e3`); ⏸ T10 owner checkpoint open. Specced the same day from the owner's A93 T16 answer.
+> **Status:** ✅ built 2026-09-14 as `0.43.0` in the A93F–A95F parallel worktree batch (merged `6b515793`, integrated `f67b47e3`); **T10 accepted 2026-09-14** (owner: "these look good for now"). Specced the same day from the owner's A93 T16 answer.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A93.
 > **Predecessors:** A93 (`0.40.0`), A94 (`AssetReferenceIndex.Dirtied`).
 > **Executor:** one lead; `worker` subagents in **one wave of four**, each ≤ 2 files; the stage does the window
@@ -140,7 +140,7 @@ Burst helper saves each consumer from writing the key-filter loop.
   `Attack`; the usage column lists `MeleeContinuous` with its marker time; invoking a row's open button raises
   `OpenOwnerRequested` with that clip. Confirm no routing type remains in any loaded assembly.
 - [x] **T9 — Vault + HANDOFF + close (stage).** Vault "Events tab rework (A93F, 0.43.0)"; HANDOFF §4; roadmap.
-- [ ] **T10 — ⏸ owner checkpoint.** "Events: pick Attack; the right column lists MeleeContinuous @0.35 — press its
+- [x] **T10 — ⏸ owner checkpoint.** "Events: pick Attack; the right column lists MeleeContinuous @0.35 — press its
   open button and the Clip Editor opens on it. Routing and the stub button are gone; your damage system now reads the
   buffer through AnimEventBufferApi. Does the usage column show what you need?"
 
@@ -237,3 +237,8 @@ Burst helper saves each consumer from writing the key-filter loop.
   `MeleeContinuous`'s button's own `clicked` delegate raised `OpenOwnerRequested(MeleeContinuous)`. Routing types
   loaded in any assembly: 0. Registry sha256s unchanged.
 - **Not seen by eye:** the column's layout and its `.toolkit-box` styles, and `FocusClip` end to end in the real window.
+
+### Owner checkpoint answer (2026-09-14)
+
+- **Accepted as built.** The owner, on T10: "these look good for now". Nothing in this section's drift is overturned,
+  so the checkpoint closes with no follow-up.
