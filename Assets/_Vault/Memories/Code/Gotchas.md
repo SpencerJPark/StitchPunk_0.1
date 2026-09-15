@@ -61,6 +61,29 @@ this trap is gone — `NeedsAction` only survives in `Core/Unused/`.)
 
 ---
 
+### Pooling disables the unit root only — body-part children keep their components
+`DespawnSystem` and `UnitPoolReturnSystem` add `Disabled` to the root entity only when returning a
+unit to its pool. `Disabled` is not propagated through `LinkedEntityGroup`, so dormant body parts
+may still render/simulate while the root sits pooled. Deliberate v1 choice, matching the existing
+pooling behaviour; if dormant parts misbehave in play, disable the whole `LinkedEntityGroup`
+instead of just the root. `DestroyEntity` already follows the group, so the destroy path is fine.
+
+**Consequence:** don't assume a pooled unit's children are inert — check for a root-only `Disabled`
+before trusting a dormant unit is fully off.
+
+---
+
+### A unit distance-pooled the same frame its `Despawn` was enabled stays dormant with `Despawn` ON
+`UnitPoolReturnSystem` plays back its `Disabled` before `DespawnSystem` gathers, and the gather
+query skips `Disabled` entities, so the enabled `Despawn` bit survives into the pool untouched.
+`SpawnStateInitSystem` does not reset `Despawn` yet, so the unit despawns again the very frame
+`UnitSpawnerSystem` reclaims it from the pool.
+
+**Consequence:** if reclaimed units vanish immediately, add `Despawn` → off to
+`SpawnStateInitSystem` (the single reset point, see the enableable-bits entry above).
+
+---
+
 ## Component Lookups
 
 ### UnitPrefabEntry is not a true singleton — do not use GetSingleton<>

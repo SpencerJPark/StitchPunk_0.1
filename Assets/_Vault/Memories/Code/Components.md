@@ -38,7 +38,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `HordeOrderMarker.cs` | `Components/Units/` | `HordeOrderMarker` — game-only order-marker GameObject ref, split off the package's `Horde` (see [[Systems_Movement]]) |
 | `NavigationWaypoint.cs` | `Components/Units/` | `NavigationWaypoint` — stayed in game (AI-spine/waypoint-registration consumers only, no package system reads it) |
 | `UnitSpeedBakingData.cs` | `Components/Units/` | `UnitSpeedBakingData` — bake-only, stayed in game (`UnitSO` coupling) |
-| `SpawnerComponents.cs` | `Components/Spawners/` | `UnitSpawner`, `PoolOwner`, `NeedsAnimatorInit` |
+| `SpawnerComponents.cs` | `Components/Spawners/` | `Despawn` (enableable — `mode: DespawnMode`, teardown request), `Lifetime` (enableable — `secondsRemaining`, ticks down to enabling `Despawn`), `UnitSpawner`, `PoolOwner`, `NewlySpawned` |
 | `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef`, `CombatTarget` (enableable — player combat target, distinct from interaction `Target`), `AttackCooldown` (enableable — player per-swing cadence gate; replaces the deleted `ActionTimer`) |
 | `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
 | `PlayerMinionCommandComponents.cs` | `Components/Player/` | `OnMinionMoveCommand` (enableable, float3 destination), `OnMinionInteractCommand` (enableable, Entity targetEntity) — written by `UnitSelectionManager`, consumed by `MinionCommandSystem` |
@@ -210,7 +210,9 @@ UnitSpawner (enableable)
     float       range
 
 PoolOwner                   UnitType unitType — on every pooled entity (body + brain), active or dormant
-NeedsAnimatorInit           tag — added by UnitSpawnerSystem; consumed and removed by AnimatorTargetInitSystem same frame
+NewlySpawned (enableable)   tag — baked off by UnitAuthoring; on for the spawn/reclaim frame, off again at SpawnInitCleanupSystem
+Despawn (enableable)        DespawnMode mode (Auto / ReturnToPool / ForceDestroy) — baked off; enable to request teardown (DespawnSystem)
+Lifetime (enableable)       float secondsRemaining — LifetimeSystem ticks it; at zero enables Despawn and switches itself off
 ```
 
 ---

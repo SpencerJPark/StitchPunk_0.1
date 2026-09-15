@@ -50,7 +50,7 @@ LateSimulationSystemGroup
   ├── SpawnInitSystemGroup   — all spawn-frame init systems filter on [WithAll<NewlySpawned>]
   ├── RagdollSystemGroup     — Ragdoll2DSystem: corpse flight/flail/settle (after all transform writes, before Sound for future landing SFX)
   ├── SoundSystemGroup       — gather/cull requested sounds → ResolvedVoices/WorldMood/MusicState (AudioManager reads them in LateUpdate)
-  ├── DespawnSystemGroup     — UnitPoolReturnSystem
+  ├── DespawnSystemGroup     — LifetimeSystem → UnitPoolReturnSystem → DespawnSystem
   ├── (raw members)          — OrderMarkerSystem, SelectedVisualSystem (documented conformance exemptions)
   └── SaveSystemGroup        — play time tracking, auto-save timer, save/load (OrderLast)
 PresentationSystemGroup      — InteractionHighlightSystem (outline systems parked in Core/Unused/)
@@ -326,7 +326,11 @@ One-shot SFX are emitted via `SoundUtil.Play/PlayOn` (ECB; the LogMessage patter
 
 | System | File | Purpose |
 |---|---|---|
+| `LifetimeSystem` | `LifetimeSystem.cs` | `OrderFirst`, Burst, `ScheduleParallel`. Ticks `Lifetime.secondsRemaining` by DeltaTime; at <= 0 enables `Despawn` and disables `Lifetime` |
 | `UnitPoolReturnSystem` | `UnitPoolReturnSystem.cs` | Adds `Disabled` to units > 200 units from the player; returns them to the pool |
+| `DespawnSystem` | `DespawnSystem.cs` | `[UpdateAfter(UnitPoolReturnSystem)]`. Burst gather job over `Despawn`-enabled entities into pool/destroy lists, then one main-thread Temp ECB pass: trims dormant `PoolOwner`+`Disabled` entities per `UnitType` down to `PoolCapPerType = 64`, destroys destroy-bound entities (follows `LinkedEntityGroup`), pools under-cap entities (`Disabled` on root + `Despawn` re-disabled) |
+
+New teardown should enable `Despawn` rather than `DestroyEntity` or add `Disabled` ad hoc (the existing self-consumed paths — `PlaySound` one-shots in `VoiceSelectionSystem`, `PersistentLoadSystem`'s minion clear-out — stay as they are). `PoolCapPerType = 64` bounds every `UnitType`'s dormant pool, trimmed every frame. See [[Contracts]] and [[Gotchas]].
 
 #### RagdollSystemGroup (`Systems/RagdollSystemGroup/`)
 

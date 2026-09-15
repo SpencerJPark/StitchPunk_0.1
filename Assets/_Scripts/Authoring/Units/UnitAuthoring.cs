@@ -20,6 +20,9 @@ public class UnitAuthoring : MonoBehaviour {
 
             AddComponent<NewlySpawned>(entity);
             SetComponentEnabled<NewlySpawned>(entity, false);
+
+            AddComponent(entity, new Despawn { mode = DespawnMode.Auto });
+            SetComponentEnabled<Despawn>(entity, false);
         }
     }
 }
