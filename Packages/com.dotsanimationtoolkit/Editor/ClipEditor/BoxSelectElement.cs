@@ -14,8 +14,8 @@ namespace DotsAnimationToolkit.Editor
     {
         public const string UssClassName = "clip-editor__box-select";
 
-        private static readonly Color FillColor = new Color(0.30f, 0.62f, 0.95f, 0.18f);
-        private static readonly Color OutlineColor = new Color(0.45f, 0.72f, 1f, 0.9f);
+        private static readonly Color FillColor = ToolkitPalette.BoxSelectFill;
+        private static readonly Color OutlineColor = ToolkitPalette.BoxSelectOutline;
 
         private Rect selectionRect;
         private bool isActive;

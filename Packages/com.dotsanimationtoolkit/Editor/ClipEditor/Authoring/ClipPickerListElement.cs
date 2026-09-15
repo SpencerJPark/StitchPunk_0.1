@@ -89,7 +89,7 @@ namespace DotsAnimationToolkit.Editor
 
             countLabel = new Label();
             countLabel.name = "clip-picker-count";
-            countLabel.AddToClassList("clip-editor__hint");
+            countLabel.AddToClassList("toolkit-hint");
             countLabel.style.marginLeft = 6f;
             countLabel.style.marginTop = 4f;
             Add(countLabel);
@@ -179,7 +179,7 @@ namespace DotsAnimationToolkit.Editor
 
             Label folderLabel = new Label();
             folderLabel.name = "clip-picker-row-folder";
-            folderLabel.AddToClassList("clip-editor__hint");
+            folderLabel.AddToClassList("toolkit-hint");
             row.Add(folderLabel);
 
             row.AddManipulator(new ContextualMenuManipulator(

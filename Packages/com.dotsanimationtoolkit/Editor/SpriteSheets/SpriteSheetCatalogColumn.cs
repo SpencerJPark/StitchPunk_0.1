@@ -47,7 +47,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 elementName = "sprite-sheet-catalog-column",
                 namePrefix = "sprite-sheets",
-                title = "Sheets",
+                // No title: the Sprite Sheets sidebar owns the header and hoists HeaderActions into it.
+                title = string.Empty,
                 newButtonIconName = "d_Toolbar Plus",
                 newButtonTooltip = "Create a sprite sheet: choose its name and folder",
                 refreshButtonIconName = "d_Refresh",

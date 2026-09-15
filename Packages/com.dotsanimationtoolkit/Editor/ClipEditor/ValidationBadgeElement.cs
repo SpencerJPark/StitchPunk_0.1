@@ -15,9 +15,9 @@ namespace DotsAnimationToolkit.Editor
     /// </summary>
     public sealed class ValidationBadgeElement : VisualElement
     {
-        private static readonly Color ErrorColor = new Color(0.90f, 0.35f, 0.32f);
-        private static readonly Color WarningColor = new Color(0.92f, 0.72f, 0.32f);
-        private static readonly Color CleanColor = new Color(0.45f, 0.78f, 0.48f);
+        private static readonly Color ErrorColor = ToolkitPalette.Error;
+        private static readonly Color WarningColor = ToolkitPalette.Warning;
+        private static readonly Color CleanColor = ToolkitPalette.Clean;
 
         private readonly Button summaryButton;
         private readonly VisualElement messagePanel;
@@ -95,7 +95,7 @@ namespace DotsAnimationToolkit.Editor
             if (clipSet == null)
             {
                 summaryButton.text = "No clip set";
-                summaryButton.style.color = CleanColor;
+                summaryButton.style.color = CleanColor; // colour from data
                 messagePanelTitle.text = "Validation";
                 RebuildMessageList();
                 return;
@@ -182,7 +182,7 @@ namespace DotsAnimationToolkit.Editor
                 currentMessages.Clear();
                 HasErrors = false;
                 summaryButton.text = emptyLabel;
-                summaryButton.style.color = CleanColor;
+                summaryButton.style.color = CleanColor; // colour from data
                 messagePanelTitle.text = "Validation";
                 RebuildMessageList();
                 return;
@@ -233,12 +233,12 @@ namespace DotsAnimationToolkit.Editor
             if (errorCount == 0 && warningCount == 0)
             {
                 summaryButton.text = "Valid";
-                summaryButton.style.color = CleanColor;
+                summaryButton.style.color = CleanColor; // colour from data
             }
             else
             {
                 summaryButton.text = errorCount.ToString() + " err  " + warningCount.ToString() + " warn";
-                summaryButton.style.color = errorCount > 0 ? ErrorColor : WarningColor;
+                summaryButton.style.color = errorCount > 0 ? ErrorColor : WarningColor; // colour from data
             }
 
             if (hasStaleVatBake)
@@ -281,8 +281,7 @@ namespace DotsAnimationToolkit.Editor
                     text = message.code.ToString() + "  " + message.text
                 };
                 messageButton.AddToClassList(MessageUssClassName);
-                messageButton.style.color =
-                    message.severity == ValidationSeverity.Error ? ErrorColor : WarningColor;
+                messageButton.style.color = message.severity == ValidationSeverity.Error ? ErrorColor : WarningColor; // colour from data
                 messageList.Add(messageButton);
             }
         }

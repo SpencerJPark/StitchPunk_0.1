@@ -325,6 +325,7 @@ namespace DotsAnimationToolkit.Editor
         {
             layersColumn = new VisualElement { name = "layers-column" };
             layersColumn.AddToClassList(LayersColumnUssClassName);
+            layersColumn.AddToClassList("toolkit-column");
             // Floored rather than fixed: a layer box header carries seven controls, and dragging
             // this pane narrower than that would ellipsize every layer name to one letter.
             layersColumn.style.minWidth = 220f;
@@ -355,6 +356,8 @@ namespace DotsAnimationToolkit.Editor
 
             viewportColumn = new VisualElement { name = "viewport-column" };
             viewportColumn.AddToClassList(ViewportColumnUssClassName);
+            viewportColumn.AddToClassList("toolkit-column");
+            viewportColumn.AddToClassList("toolkit-column--flush");
             viewportColumn.style.flexGrow = 1f;
             viewportColumn.style.minWidth = 200f;
 
@@ -372,55 +375,26 @@ namespace DotsAnimationToolkit.Editor
 
             viewportColumn.Add(viewportHeader);
 
-            viewportStatusLabel = new Label();
-            viewportStatusLabel.style.whiteSpace = WhiteSpace.Normal;
+            viewportStatusLabel = ToolkitChrome.MakeHint(string.Empty);
             viewportColumn.Add(viewportStatusLabel);
 
-            VisualElement viewportFrame = new VisualElement { name = "viewport-frame" };
-            viewportFrame.AddToClassList("clip-editor__viewport-frame");
-            viewportFrame.style.flexGrow = 1f;
+            ViewportFrameElement viewportFrame = new ViewportFrameElement { name = "viewport-frame" };
+            viewportFrame.Overlay.name = "viewport-overlay";
+            viewportFrame.OverlayColumn.name = "overlay-column";
             viewportColumn.Add(viewportFrame);
 
-            viewportImage = new Image();
-            viewportImage.style.flexGrow = 1f;
+            viewportImage = viewportFrame.ViewportImage;
             viewportImage.AddToClassList("actor-editor__viewport-image");
-            viewportFrame.Add(viewportImage);
 
-            VisualElement viewportOverlay = new VisualElement { name = "viewport-overlay" };
-            viewportOverlay.AddToClassList("clip-editor__viewport-overlay");
-            viewportOverlay.pickingMode = PickingMode.Ignore;
-            viewportFrame.Add(viewportOverlay);
+            ToolbarButton resetCameraButton = viewportFrame.AddResetCameraButton(() => cameraNavigation.ResetView());
+            resetCameraButton.name = "actor-reset-camera-button";
 
-            VisualElement overlayColumn = new VisualElement { name = "overlay-column" };
-            overlayColumn.AddToClassList("clip-editor__overlay-column");
-            viewportOverlay.Add(overlayColumn);
-
-            ToolbarButton resetCameraButton = new ToolbarButton(() => cameraNavigation.ResetView())
-            {
-                name = "actor-reset-camera-button"
-            };
-            resetCameraButton.AddToClassList("clip-editor__overlay-tool-button");
-            resetCameraButton.tooltip =
-                "Put the camera back where the window opened it: head-on, centred on this rig "
-                + "and backed off to fit it. Undoes any orbit, pan or flight. Same as "
-                + "double-clicking the viewport.\n\n"
-                + "Viewport camera: drag to orbit, middle-drag to pan, right-drag to look "
-                + "around, right-drag + W/A/S/D and Q/E to fly (Shift for faster), "
-                + "Alt + right-drag or the wheel to zoom, F to frame the selection.";
-            Image resetCameraIcon = new Image { pickingMode = PickingMode.Ignore };
-            resetCameraIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            resetCameraButton.Insert(0, resetCameraIcon);
-            ToolkitIcons.SetButtonIcon(resetCameraButton, resetCameraIcon, "d_FrameCapture", "Reset Camera");
-            overlayColumn.Add(resetCameraButton);
-
-            billboardToggle = new ToolbarToggle { name = "actor-billboard-preview-toggle" };
-            billboardToggle.AddToClassList("clip-editor__overlay-tool-button");
-            billboardToggle.AddToClassList("clip-editor__overlay-run-break");
-            billboardToggle.tooltip = "Preview this actor's screen-aligned billboard parts, if it has any.";
-            Image billboardIcon = new Image { pickingMode = PickingMode.Ignore };
-            billboardIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            billboardToggle.Add(billboardIcon);
-            ToolkitIcons.SetToggleIcon(billboardToggle, billboardIcon, "d_BillboardRenderer Icon", "Billboard");
+            billboardToggle = viewportFrame.AddRailToggle(
+                "d_BillboardRenderer Icon",
+                "Preview this actor's screen-aligned billboard parts, if it has any.",
+                "Billboard",
+                true);
+            billboardToggle.name = "actor-billboard-preview-toggle";
             billboardToggle.RegisterValueChangedCallback(changeEvent =>
             {
                 if (previewController != null)
@@ -428,19 +402,14 @@ namespace DotsAnimationToolkit.Editor
                     previewController.BillboardPreviewEnabled = changeEvent.newValue;
                 }
             });
-            overlayColumn.Add(billboardToggle);
 
-            ragdollToggle = new ToolbarToggle { name = "actor-ragdoll-preview-toggle" };
-            ragdollToggle.AddToClassList("clip-editor__overlay-tool-button");
-            ragdollToggle.tooltip =
+            ragdollToggle = viewportFrame.AddRailToggle(
+                "d_Avatar Icon",
                 "Drop the previewed rig as an active ragdoll to see whether a pose still reads on impact. "
-                + "Turning it off restores the pose exactly.";
-            Image ragdollIcon = new Image { pickingMode = PickingMode.Ignore };
-            ragdollIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            ragdollToggle.Add(ragdollIcon);
-            ToolkitIcons.SetToggleIcon(ragdollToggle, ragdollIcon, "d_Avatar Icon", "Ragdoll");
+                + "Turning it off restores the pose exactly.",
+                "Ragdoll");
+            ragdollToggle.name = "actor-ragdoll-preview-toggle";
             ragdollToggle.RegisterValueChangedCallback(OnRagdollToggleChanged);
-            overlayColumn.Add(ragdollToggle);
 
             cameraNavigation.AttachTo(viewportImage);
 
@@ -455,6 +424,7 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorColumn = new VisualElement { name = "inspector-column" };
             inspectorColumn.AddToClassList(InspectorColumnUssClassName);
+            inspectorColumn.AddToClassList("toolkit-column");
             inspectorColumn.style.minWidth = 260f;
 
             VisualElement inspectorHeader = new VisualElement();

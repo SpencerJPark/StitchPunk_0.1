@@ -17,18 +17,11 @@ namespace DotsAnimationToolkit.Editor
         public VatFreshnessBadgeElement()
         {
             name = "vat-freshness-badge";
-            style.flexDirection = FlexDirection.Row;
-            style.alignItems = Align.Center;
+            AddToClassList("toolkit-chip");
             style.flexShrink = 0f;
 
-            dot = new VisualElement { name = "vat-freshness-dot" };
-            dot.style.width = 10f;
-            dot.style.height = 10f;
-            dot.style.borderTopLeftRadius = 5f;
-            dot.style.borderTopRightRadius = 5f;
-            dot.style.borderBottomLeftRadius = 5f;
-            dot.style.borderBottomRightRadius = 5f;
-            dot.style.marginRight = 4f;
+            dot = ToolkitChrome.MakeSeverityDot(ToolkitPalette.Clean);
+            dot.name = "vat-freshness-dot";
             Add(dot);
 
             label = new Label { name = "vat-freshness-label" };
@@ -37,25 +30,28 @@ namespace DotsAnimationToolkit.Editor
 
         public void Refresh(VatBakeFreshness freshness, string reason)
         {
+            bool isStale = freshness == VatBakeFreshness.Stale;
+            bool isBroken = freshness != VatBakeFreshness.Fresh && freshness != VatBakeFreshness.Stale;
+
             switch (freshness)
             {
                 case VatBakeFreshness.Fresh:
                     label.text = "Fresh";
-                    dot.style.backgroundColor = ToolkitPalette.Clean;
-                    label.style.color = ToolkitPalette.Clean;
+                    dot.style.backgroundColor = ToolkitPalette.Clean; // colour from data
                     break;
                 case VatBakeFreshness.Stale:
                     label.text = "Stale";
-                    dot.style.backgroundColor = ToolkitPalette.Warning;
-                    label.style.color = ToolkitPalette.Warning;
+                    dot.style.backgroundColor = ToolkitPalette.Warning; // colour from data
                     break;
                 case VatBakeFreshness.Unbaked:
                 default:
                     label.text = "Unbaked";
-                    dot.style.backgroundColor = ToolkitPalette.Error;
-                    label.style.color = ToolkitPalette.Error;
+                    dot.style.backgroundColor = ToolkitPalette.Error; // colour from data
                     break;
             }
+
+            label.EnableInClassList("toolkit-text--warning", isStale);
+            label.EnableInClassList("toolkit-text--error", isBroken);
 
             tooltip = reason ?? string.Empty;
         }

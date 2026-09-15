@@ -34,6 +34,7 @@ namespace DotsAnimationToolkit.Editor
         private Label frameReadoutLabel;
         private TransportCoreElement transportCore;
         private ToolbarToggle ghostToggle;
+        private ToolbarButton resetCameraButton;
 
         private readonly PreviewSceneGizmos sceneGizmos = new PreviewSceneGizmos();
         private bool sceneGizmosAdded;
@@ -68,53 +69,23 @@ namespace DotsAnimationToolkit.Editor
         {
             playback.Loop = true;
 
-            VisualElement viewportFrame = new VisualElement();
-            viewportFrame.AddToClassList("clip-editor__viewport-frame");
-            viewportFrame.style.flexGrow = 1f;
+            ViewportFrameElement viewportFrame = new ViewportFrameElement();
 
-            viewportImage = new Image();
-            viewportImage.style.flexGrow = 1f;
-            viewportFrame.Add(viewportImage);
-
-            VisualElement viewportOverlay = new VisualElement();
-            viewportOverlay.AddToClassList("clip-editor__viewport-overlay");
-            viewportOverlay.pickingMode = PickingMode.Ignore;
-
-            VisualElement overlayColumn = new VisualElement();
-            overlayColumn.AddToClassList("clip-editor__overlay-column");
-
-            ToolbarButton resetCameraButton = new ToolbarButton(() => cameraNavigation.ResetView());
+            resetCameraButton = viewportFrame.AddResetCameraButton(() => cameraNavigation.ResetView());
             resetCameraButton.name = "vat-reset-camera-button";
-            resetCameraButton.AddToClassList("clip-editor__overlay-tool-button");
             resetCameraButton.tooltip = "Put the camera back head-on, framing the baked mesh.";
-            Image resetCameraIcon = new Image();
-            resetCameraIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            resetCameraIcon.pickingMode = PickingMode.Ignore;
-            // The four-argument SetButtonIcon only swaps the image; parenting the icon is the
-            // caller's job, and skipping it leaves a button with neither glyph nor word.
-            resetCameraButton.Insert(0, resetCameraIcon);
-            ToolkitIcons.SetButtonIcon(resetCameraButton, resetCameraIcon, "d_FrameCapture", "Reset Camera");
-            overlayColumn.Add(resetCameraButton);
 
-            ghostToggle = new ToolbarToggle();
-            ghostToggle.name = "vat-ghost-toggle";
-            ghostToggle.value = false;
-            ghostToggle.AddToClassList("clip-editor__overlay-tool-button");
-            ghostToggle.AddToClassList("clip-editor__overlay-run-break");
-            ghostToggle.tooltip =
+            ghostToggle = viewportFrame.AddRailToggle(
+                ToolkitIcons.GhostGlyph,
                 "Lay the source mesh at rest over the playing bake, so how far the bake moves is "
-                + "visible against a pose that does not.";
-            Image ghostIcon = new Image();
-            ghostIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            ghostIcon.pickingMode = PickingMode.Ignore;
-            ghostToggle.Add(ghostIcon);
-            ToolkitIcons.SetToggleIcon(ghostToggle, ghostIcon, ToolkitIcons.GhostGlyph, "Ghost");
+                + "visible against a pose that does not.",
+                "Ghost",
+                true);
+            ghostToggle.name = "vat-ghost-toggle";
             ghostToggle.RegisterValueChangedCallback(changeEvent => SetGhostEnabled(changeEvent.newValue));
             ghostToggle.SetEnabled(false);
-            overlayColumn.Add(ghostToggle);
 
-            viewportOverlay.Add(overlayColumn);
-            viewportFrame.Add(viewportOverlay);
+            viewportImage = viewportFrame.ViewportImage;
             Add(viewportFrame);
 
             statusLabel = new Label("No VAT texture set to preview.");

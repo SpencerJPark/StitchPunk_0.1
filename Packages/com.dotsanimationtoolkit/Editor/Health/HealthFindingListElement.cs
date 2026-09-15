@@ -14,6 +14,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<HealthFinding> findings = new List<HealthFinding>();
         private readonly ListView findingListView;
         private readonly Label emptyLabel;
+        private readonly Label titleLabel;
         private HealthFinding selectedFinding;
 
         public event Action<HealthFinding> FindingSelected;
@@ -23,7 +24,10 @@ namespace DotsAnimationToolkit.Editor
         public HealthFindingListElement()
         {
             name = "health-finding-list";
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
+
+            Add(ToolkitChrome.MakePaneHeader("Findings", out titleLabel, out _));
 
             findingListView = new ListView();
             findingListView.name = "health-finding-list-view";
@@ -36,7 +40,7 @@ namespace DotsAnimationToolkit.Editor
             findingListView.selectionChanged += OnFindingSelectionChanged;
             Add(findingListView);
 
-            emptyLabel = new Label("No findings.");
+            emptyLabel = ToolkitChrome.MakeHint("No findings.");
             emptyLabel.name = "health-finding-empty";
             Add(emptyLabel);
 
@@ -50,6 +54,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 this.findings.AddRange(findings);
             }
+
+            titleLabel.text = "Findings (" + this.findings.Count + ")";
 
             // The panel re-selects immediately after calling this, so the old selection is cleared
             // silently here rather than through ClearSelection, which would fire FindingSelected(null)
@@ -101,63 +107,32 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement MakeFindingRow()
         {
-            // ListView tags whatever makeItem returns with its own internal item classes and forces
-            // this outer slot's margin to zero, so the boxed row that wants the row-to-row gap has to
-            // live one level deeper, as a plain child Unity's pooling never touches (see
-            // ToolkitCatalogColumn.MakeRow for the same trap, verified there).
-            VisualElement itemSlot = new VisualElement();
-            itemSlot.style.backgroundColor = new StyleColor(Color.clear);
-
-            VisualElement row = new VisualElement();
-            row.name = "health-finding-row";
-            row.AddToClassList("toolkit-box");
-            row.style.marginTop = 4f;
-            row.style.marginBottom = 4f;
-            row.style.marginLeft = 0f;
-            row.style.marginRight = 0f;
+            VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("health-finding-row", out VisualElement row);
 
             VisualElement firstLine = new VisualElement();
             firstLine.name = "health-finding-line-1";
+            firstLine.AddToClassList("toolkit-box__header");
             firstLine.style.flexDirection = FlexDirection.Row;
             firstLine.style.alignItems = Align.Center;
 
-            VisualElement dot = new VisualElement();
+            VisualElement dot = ToolkitChrome.MakeSeverityDot(Color.clear);
             dot.name = "health-finding-dot";
-            dot.style.width = 8f;
-            dot.style.height = 8f;
-            dot.style.borderTopLeftRadius = 4f;
-            dot.style.borderTopRightRadius = 4f;
-            dot.style.borderBottomLeftRadius = 4f;
-            dot.style.borderBottomRightRadius = 4f;
             dot.style.marginRight = 6f;
             firstLine.Add(dot);
 
-            Label codeLabel = new Label();
-            codeLabel.name = "health-finding-code";
-            codeLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            codeLabel.style.marginRight = 6f;
-            firstLine.Add(codeLabel);
-
             Label titleLabel = new Label();
             titleLabel.name = "health-finding-title";
-            titleLabel.style.flexGrow = 1f;
-            titleLabel.style.flexShrink = 1f;
-            titleLabel.style.overflow = Overflow.Hidden;
-            titleLabel.style.textOverflow = TextOverflow.Ellipsis;
-            titleLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            titleLabel.AddToClassList("toolkit-box__title");
             firstLine.Add(titleLabel);
 
             row.Add(firstLine);
 
             Label assetLabel = new Label();
             assetLabel.name = "health-finding-asset";
-            assetLabel.style.opacity = 0.6f;
-            assetLabel.style.overflow = Overflow.Hidden;
-            assetLabel.style.textOverflow = TextOverflow.Ellipsis;
-            assetLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            assetLabel.AddToClassList("toolkit-box__label");
+            assetLabel.AddToClassList("toolkit-text--dim");
             row.Add(assetLabel);
 
-            itemSlot.Add(row);
             return itemSlot;
         }
 
@@ -169,13 +144,11 @@ namespace DotsAnimationToolkit.Editor
             row.tooltip = finding.message;
 
             VisualElement dot = row.Q<VisualElement>("health-finding-dot");
-            dot.style.backgroundColor = SeverityColor(finding.severity);
-
-            Label codeLabel = row.Q<Label>("health-finding-code");
-            codeLabel.text = finding.code;
+            dot.style.backgroundColor = SeverityColor(finding.severity); // colour from data
 
             Label titleLabel = row.Q<Label>("health-finding-title");
-            titleLabel.text = string.IsNullOrEmpty(finding.title) ? finding.message : finding.title;
+            string title = string.IsNullOrEmpty(finding.title) ? finding.message : finding.title;
+            titleLabel.text = finding.code + "  " + title;
 
             Label assetLabel = row.Q<Label>("health-finding-asset");
             assetLabel.text = finding.target != null ? finding.target.name : "(missing)";

@@ -42,6 +42,7 @@ namespace DotsAnimationToolkit.Editor
         private Image viewportImage;
         private Label statusLabel;
         private ToolbarToggle showExcludedToggle;
+        private ToolbarButton resetCameraButton;
 
         private GameObject prefabCopyRoot;
         private readonly Dictionary<string, PreviewNode> nodesBySourcePath =
@@ -56,61 +57,29 @@ namespace DotsAnimationToolkit.Editor
         {
             style.flexGrow = 1f;
 
-            VisualElement viewportFrame = new VisualElement();
-            viewportFrame.AddToClassList("clip-editor__viewport-frame");
-            viewportFrame.style.flexGrow = 1f;
+            ViewportFrameElement frame = new ViewportFrameElement();
 
-            viewportImage = new Image();
-            viewportImage.style.flexGrow = 1f;
-            viewportFrame.Add(viewportImage);
-
-            VisualElement viewportOverlay = new VisualElement();
-            viewportOverlay.AddToClassList("clip-editor__viewport-overlay");
-            viewportOverlay.pickingMode = PickingMode.Ignore;
-
-            VisualElement overlayColumn = new VisualElement();
-            overlayColumn.AddToClassList("clip-editor__overlay-column");
-
-            ToolbarButton resetCameraButton = new ToolbarButton(() => cameraNavigation.ResetView());
+            resetCameraButton = frame.AddResetCameraButton(() => cameraNavigation.ResetView());
             resetCameraButton.name = "new-rig-reset-camera-button";
-            resetCameraButton.AddToClassList("clip-editor__overlay-tool-button");
             resetCameraButton.tooltip = "Put the camera back head-on, framing the whole prefab.";
-            Image resetCameraIcon = new Image();
-            resetCameraIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            resetCameraIcon.pickingMode = PickingMode.Ignore;
-            // The four-argument SetButtonIcon only swaps the image; parenting the icon is the
-            // caller's job, and skipping it leaves a button with neither glyph nor word.
-            resetCameraButton.Insert(0, resetCameraIcon);
-            ToolkitIcons.SetButtonIcon(resetCameraButton, resetCameraIcon, "d_FrameCapture", "Reset Camera");
-            overlayColumn.Add(resetCameraButton);
 
-            showExcludedToggle = new ToolbarToggle();
-            showExcludedToggle.name = "new-rig-show-excluded-toggle";
-            showExcludedToggle.value = true;
-            showExcludedToggle.AddToClassList("clip-editor__overlay-tool-button");
-            showExcludedToggle.AddToClassList("clip-editor__overlay-run-break");
-            showExcludedToggle.tooltip =
+            showExcludedToggle = frame.AddRailToggle(
+                "d_scenevis_visible",
                 "Keep the nodes you have not ticked on screen, greyed out. Turn it off to see only "
-                + "what the new rig will actually carry.";
-            Image showExcludedIcon = new Image();
-            showExcludedIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            showExcludedIcon.pickingMode = PickingMode.Ignore;
-            showExcludedToggle.Add(showExcludedIcon);
-            ToolkitIcons.SetToggleIcon(showExcludedToggle, showExcludedIcon, "d_scenevis_visible", "Untargeted");
+                + "what the new rig will actually carry.",
+                "Untargeted",
+                true);
+            showExcludedToggle.name = "new-rig-show-excluded-toggle";
             showExcludedToggle.RegisterValueChangedCallback(changeEvent =>
             {
                 showExcludedNodes = changeEvent.newValue;
                 RefreshNodeAppearance();
             });
-            overlayColumn.Add(showExcludedToggle);
 
-            viewportOverlay.Add(overlayColumn);
-            viewportFrame.Add(viewportOverlay);
-            Add(viewportFrame);
+            viewportImage = frame.ViewportImage;
+            Add(frame);
 
-            statusLabel = new Label("Assign a source prefab to see it here.");
-            statusLabel.style.whiteSpace = WhiteSpace.Normal;
-            statusLabel.style.marginTop = 4f;
+            statusLabel = ToolkitChrome.MakeHint("Assign a source prefab to see it here.");
             Add(statusLabel);
 
             cameraNavigation.Rig = cameraRig;

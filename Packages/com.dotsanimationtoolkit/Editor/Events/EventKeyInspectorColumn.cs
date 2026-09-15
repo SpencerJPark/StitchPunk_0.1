@@ -46,7 +46,7 @@ namespace DotsAnimationToolkit.Editor
             if (BoundEntry == null)
             {
                 Label hintLabel = new Label("Select an event on the left.");
-                hintLabel.AddToClassList("clip-editor__hint");
+                hintLabel.AddToClassList("toolkit-hint");
                 bodyContainer.Add(hintLabel);
                 return;
             }

@@ -89,48 +89,43 @@ namespace DotsAnimationToolkit.Editor
             name = "health-panel";
             style.flexGrow = 1f;
 
-            Toolbar toolbar = new Toolbar();
-            toolbar.style.height = StyleKeyword.Auto;
-            toolbar.style.minHeight = 36f;
+            VisualElement toolbar = ToolkitChrome.MakeAssetBar("health-asset-bar");
 
-            scanButton = new Button(Scan);
+            scanButton = ToolkitChrome.MakePrimaryAction(Scan, "d_Refresh", "Scan every toolkit asset", "Scan project");
             scanButton.name = "health-scan-button";
-            scanButton.tooltip = "Scan every toolkit asset";
-            scanButton.style.height = 32f;
-            scanButton.style.minWidth = 150f;
-            scanButton.style.backgroundColor = ToolkitPalette.Accent;
-            ToolkitIcons.SetButtonIconAndText(scanButton, "d_Refresh", "Scan project");
             toolbar.Add(scanButton);
 
             scanStatusLabel = new Label("not scanned yet");
             scanStatusLabel.name = "health-scan-status";
+            scanStatusLabel.AddToClassList("toolkit-text--dim");
             scanStatusLabel.style.marginLeft = 8f;
             scanStatusLabel.style.marginRight = 8f;
             toolbar.Add(scanStatusLabel);
 
             errorsToggle = new ToolbarToggle();
             errorsToggle.name = "health-filter-errors";
+            errorsToggle.AddToClassList("clip-editor__bar-action");
             errorsToggle.value = true;
             errorsToggle.RegisterValueChangedCallback(OnFilterChanged);
             toolbar.Add(errorsToggle);
 
             warningsToggle = new ToolbarToggle();
             warningsToggle.name = "health-filter-warnings";
+            warningsToggle.AddToClassList("clip-editor__bar-action");
             warningsToggle.value = true;
             warningsToggle.RegisterValueChangedCallback(OnFilterChanged);
             toolbar.Add(warningsToggle);
 
             notesToggle = new ToolbarToggle();
             notesToggle.name = "health-filter-notes";
+            notesToggle.AddToClassList("clip-editor__bar-action");
             notesToggle.value = true;
             notesToggle.RegisterValueChangedCallback(OnFilterChanged);
             toolbar.Add(notesToggle);
 
             UpdateCounts();
 
-            VisualElement spacer = new VisualElement();
-            spacer.style.flexGrow = 1f;
-            toolbar.Add(spacer);
+            toolbar.Add(ToolkitChrome.MakeAssetBarSpacer());
 
             filterField = new ToolbarSearchField();
             filterField.name = "health-filter-field";

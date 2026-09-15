@@ -13,8 +13,6 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>The Ragdoll tab's left column: every body on the rig, with add and delete.</summary>
     public sealed class RagdollBodiesColumn : VisualElement
     {
-        private static readonly StyleColor UnresolvedRowColor = new StyleColor(new Color(0.85f, 0.45f, 0.4f));
-
         private readonly List<RagdollBodyDefinition> bodyEntries = new List<RagdollBodyDefinition>();
         private readonly List<RigTargetDefinition> availableTargetChoices = new List<RigTargetDefinition>();
         private readonly ListView bodiesListView;
@@ -36,15 +34,21 @@ namespace DotsAnimationToolkit.Editor
         public RagdollBodiesColumn()
         {
             name = "ragdoll-bodies-column";
-            style.flexGrow = 1f;
-            style.flexDirection = FlexDirection.Column;
+            AddToClassList("toolkit-column");
 
-            VisualElement headerRow = new VisualElement();
-            headerRow.AddToClassList("toolkit-pane-header");
-            Label titleLabel = new Label("Bodies");
-            titleLabel.AddToClassList("toolkit-pane-title");
-            headerRow.Add(titleLabel);
+            VisualElement headerRow = ToolkitChrome.MakePaneHeader(
+                "Bodies", out Label titleLabel, out VisualElement headerActions);
             Add(headerRow);
+
+            addBodyButton = ToolkitIcons.MakeIconTextButton(
+                OnAddBodyButtonClicked, "d_Toolbar Plus", "Add a body to the rig", "Add");
+            addBodyButton.name = "ragdoll-add-body-button";
+            headerActions.Add(addBodyButton);
+
+            deleteBodyButton = ToolkitIcons.MakeIconTextButton(
+                OnDeleteBodyButtonClicked, "TreeEditor.Trash", "Delete the selected body", "Delete");
+            deleteBodyButton.name = "ragdoll-delete-body-button";
+            headerActions.Add(deleteBodyButton);
 
             availableTargetChoices.Add(null);
             addTargetPopupField = new PopupField<RigTargetDefinition>(
@@ -52,21 +56,6 @@ namespace DotsAnimationToolkit.Editor
             addTargetPopupField.name = "ragdoll-add-body-target-field";
             addTargetPopupField.style.flexGrow = 1f;
             Add(addTargetPopupField);
-
-            VisualElement buttonsRow = new VisualElement();
-            buttonsRow.style.flexDirection = FlexDirection.Row;
-
-            addBodyButton = new Button(OnAddBodyButtonClicked) { text = "Add Body" };
-            addBodyButton.name = "ragdoll-add-body-button";
-            addBodyButton.style.flexGrow = 1f;
-            buttonsRow.Add(addBodyButton);
-
-            deleteBodyButton = new Button(OnDeleteBodyButtonClicked) { text = "Delete" };
-            deleteBodyButton.name = "ragdoll-delete-body-button";
-            deleteBodyButton.style.flexGrow = 1f;
-            buttonsRow.Add(deleteBodyButton);
-
-            Add(buttonsRow);
 
             bodiesListView = new ListView();
             bodiesListView.name = "ragdoll-bodies-list";
@@ -276,15 +265,16 @@ namespace DotsAnimationToolkit.Editor
 
         private static VisualElement MakeBodyRow()
         {
+            VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("ragdoll-body-row", out VisualElement row);
             Label rowLabel = new Label();
-            rowLabel.style.paddingLeft = 6f;
-            rowLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
-            return rowLabel;
+            rowLabel.AddToClassList("toolkit-box__title");
+            row.Add(rowLabel);
+            return itemSlot;
         }
 
         private void BindBodyRow(VisualElement element, int index)
         {
-            Label rowLabel = element as Label;
+            Label rowLabel = element?.Q<Label>(className: "toolkit-box__title");
             if (rowLabel == null || index < 0 || index >= bodyEntries.Count)
             {
                 return;
@@ -297,16 +287,8 @@ namespace DotsAnimationToolkit.Editor
                 : (!string.IsNullOrEmpty(resolvedNodeName) ? resolvedNodeName : "(unnamed body)");
 
             bool isBodyResolved = RagdollBodySummaryResolver.IsBodyResolved(currentRig, bodyDefinition);
-            if (!isBodyResolved)
-            {
-                rowLabel.text = rowText + "  (unresolved)";
-                rowLabel.style.color = UnresolvedRowColor;
-            }
-            else
-            {
-                rowLabel.text = rowText;
-                rowLabel.style.color = StyleKeyword.Null;
-            }
+            rowLabel.text = isBodyResolved ? rowText : rowText + "  (unresolved)";
+            rowLabel.EnableInClassList("toolkit-text--warning", !isBodyResolved);
         }
     }
 }

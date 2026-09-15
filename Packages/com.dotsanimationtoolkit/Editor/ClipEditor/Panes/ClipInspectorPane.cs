@@ -18,8 +18,8 @@ namespace DotsAnimationToolkit.Editor
         internal delegate void ReadRigEditPoseHandler(
             uint targetId, out float3 position, out float3 rotationDegrees, out float3 scale);
 
-        private const string HintUssClassName = "clip-editor__hint";
-        private const string HeadingUssClassName = "clip-editor__heading";
+        private const string HintUssClassName = "toolkit-hint";
+        private const string HeadingUssClassName = "toolkit-heading";
         private const string FlipbookTrackUssClassName = "clip-editor__flipbook-track";
         private const string FlipbookKeyUssClassName = "clip-editor__flipbook-key";
         private const string FlipbookResolvedUssClassName = "clip-editor__flipbook-resolved";

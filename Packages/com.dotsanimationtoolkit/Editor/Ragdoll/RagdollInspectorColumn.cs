@@ -38,37 +38,29 @@ namespace DotsAnimationToolkit.Editor
         public RagdollInspectorColumn()
         {
             name = "ragdoll-inspector-column";
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
             style.flexDirection = FlexDirection.Column;
 
-            VisualElement headerRow = new VisualElement { name = "ragdoll-inspector-header" };
-            headerRow.AddToClassList("toolkit-pane-header");
-            titleLabel = new Label("Inspector") { name = "ragdoll-inspector-title" };
-            titleLabel.AddToClassList("toolkit-pane-title");
-            headerRow.Add(titleLabel);
+            VisualElement headerRow = ToolkitChrome.MakePaneHeader("Inspector", out titleLabel, out _);
+            headerRow.name = "ragdoll-inspector-header";
+            titleLabel.name = "ragdoll-inspector-title";
             Add(headerRow);
 
             ScrollView scrollView = new ScrollView { name = "ragdoll-inspector-scroll" };
             scrollView.style.flexGrow = 1f;
             Add(scrollView);
 
-            selectBodyHintLabel = new Label("Select a body.") { name = "ragdoll-inspector-hint" };
-            selectBodyHintLabel.AddToClassList("clip-editor__hint");
+            selectBodyHintLabel = ToolkitChrome.MakeHint("Select a body.");
+            selectBodyHintLabel.name = "ragdoll-inspector-hint";
             scrollView.Add(selectBodyHintLabel);
 
             bodySection = new VisualElement { name = "ragdoll-inspector-body-section" };
             scrollView.Add(bodySection);
 
-            VisualElement divider = new VisualElement { name = "ragdoll-inspector-divider" };
-            divider.style.height = 1f;
-            divider.style.marginTop = 8f;
-            divider.style.marginBottom = 8f;
-            divider.style.backgroundColor = ToolkitPalette.BoxBorder;
-            scrollView.Add(divider);
-
             rigSettingsSection = new VisualElement { name = "ragdoll-inspector-rig-settings" };
-            Label rigSettingsTitleLabel = new Label("Rig settings") { name = "ragdoll-inspector-rig-settings-title" };
-            rigSettingsTitleLabel.AddToClassList("toolkit-pane-title");
+            Label rigSettingsTitleLabel = ToolkitChrome.MakeHeading("Rig settings");
+            rigSettingsTitleLabel.name = "ragdoll-inspector-rig-settings-title";
             rigSettingsSection.Add(rigSettingsTitleLabel);
 
             spaceField = new EnumField("Space", RagdollSpace.Planar2D) { name = "ragdoll-inspector-space" };

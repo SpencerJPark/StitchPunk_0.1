@@ -16,7 +16,8 @@ namespace DotsAnimationToolkit.Editor
     {
         private readonly List<RigMaterialUsage> usages = new List<RigMaterialUsage>();
         private readonly List<RigTargetDefinition> dropdownTargets = new List<RigTargetDefinition>();
-        private readonly Label rigNameLabel;
+        private readonly ObjectField rigField;
+        private readonly ObjectField clipSetField;
         private readonly DropdownField createTargetDropdown;
         private readonly Label resultLabel;
         private readonly MaterialCatalogColumn catalog;
@@ -38,23 +39,47 @@ namespace DotsAnimationToolkit.Editor
         {
             style.flexGrow = 1f;
 
-            VisualElement header = new VisualElement();
-            header.AddToClassList("toolkit-pane-header");
-            header.style.flexDirection = FlexDirection.Row;
-            header.style.flexWrap = Wrap.Wrap;
+            VisualElement header = ToolkitChrome.MakeAssetBar("materials-asset-bar");
 
-            Label rigLabel = new Label("Rig");
-            header.Add(rigLabel);
+            header.Add(ToolkitChrome.MakeAssetBarLabel("Rig"));
 
-            rigNameLabel = new Label("No rig selected. Pick one in the Rigs tab.");
-            rigNameLabel.name = "materials-rig-name";
-            header.Add(rigNameLabel);
+            rigField = new ObjectField
+            {
+                objectType = typeof(RigAsset),
+                allowSceneObjects = false,
+                name = "materials-rig-field"
+            };
+            rigField.AddToClassList("toolkit-asset-bar__field");
+            rigField.RegisterValueChangedCallback(changeEvent =>
+            {
+                RigAsset newRig = changeEvent.newValue as RigAsset;
+                if (selection != null) { selection.SetRig(newRig); } else { SetRig(newRig); }
+            });
+            header.Add(rigField);
+
+            header.Add(ToolkitChrome.MakeAssetBarLabel("Clip Set"));
+
+            clipSetField = new ObjectField
+            {
+                objectType = typeof(ClipSetAsset),
+                allowSceneObjects = false,
+                name = "materials-clip-set-field"
+            };
+            clipSetField.AddToClassList("toolkit-asset-bar__field");
+            clipSetField.RegisterValueChangedCallback(changeEvent =>
+            {
+                ClipSetAsset newClipSet = changeEvent.newValue as ClipSetAsset;
+                if (selection != null) { selection.SetClipSet(newClipSet); } else { SetClipSet(newClipSet); }
+            });
+            header.Add(clipSetField);
+
+            header.Add(ToolkitChrome.MakeAssetBarSpacer());
 
             createTargetDropdown = new DropdownField("Target", new List<string>(), 0);
             createTargetDropdown.name = "materials-create-target";
             header.Add(createTargetDropdown);
 
-            Button createButton = ToolkitIcons.MakeIconTextButton(
+            Button createButton = ToolkitChrome.MakePrimaryAction(
                 OnCreateClicked,
                 "d_Toolbar Plus",
                 "Create a material for this target from the package's shader, saved beside the rig's prefab, and assigned to the part's renderer in the prefab.",
@@ -62,9 +87,8 @@ namespace DotsAnimationToolkit.Editor
             createButton.name = "materials-create-button";
             header.Add(createButton);
 
-            resultLabel = new Label(string.Empty);
+            VisualElement statusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
             resultLabel.name = "materials-result";
-            resultLabel.AddToClassList("clip-editor__hint");
 
             catalog = new MaterialCatalogColumn();
             catalog.MaterialSelected += SelectMaterial;
@@ -79,8 +103,8 @@ namespace DotsAnimationToolkit.Editor
             split.Add(inspector);
 
             Add(header);
-            Add(resultLabel);
             Add(split);
+            Add(statusRow);
         }
 
         public void Bind(ActiveAssetSelection sharedSelection)
@@ -101,6 +125,7 @@ namespace DotsAnimationToolkit.Editor
         public void SetRig(RigAsset rig)
         {
             BoundRig = rig;
+            rigField.SetValueWithoutNotify(rig);
             RebuildCreateTargetDropdown();
             Refresh();
         }
@@ -108,6 +133,7 @@ namespace DotsAnimationToolkit.Editor
         public void SetClipSet(ClipSetAsset clipSet)
         {
             BoundClipSet = clipSet;
+            clipSetField.SetValueWithoutNotify(clipSet);
             RebindInspectorForSelection();
         }
 
@@ -120,7 +146,6 @@ namespace DotsAnimationToolkit.Editor
             }
 
             catalog.SetUsages(usages);
-            rigNameLabel.text = BoundRig != null ? BoundRig.name : "No rig selected. Pick one in the Rigs tab.";
 
             Material nextSelected = null;
             if (SelectedMaterial != null && IsMaterialInUsages(SelectedMaterial))
@@ -149,7 +174,7 @@ namespace DotsAnimationToolkit.Editor
             if (BoundRig == null)
             {
                 failureMessage = "Pick a rig first.";
-                resultLabel.text = failureMessage;
+                ToolkitChrome.SetStatus(resultLabel, failureMessage, ToolkitStatusTone.Error);
                 return false;
             }
 
@@ -166,12 +191,12 @@ namespace DotsAnimationToolkit.Editor
                 string createdFileName = Path.GetFileName(AssetDatabase.GetAssetPath(createdMaterial));
                 if (assigned)
                 {
-                    resultLabel.text = "Created " + createdFileName + " and assigned it to " + assignedDescription + ".";
+                    ToolkitChrome.SetStatus(resultLabel, "Created " + createdFileName + " and assigned it to " + assignedDescription + ".", ToolkitStatusTone.Neutral);
                     LastAssignedDescription = assignedDescription;
                 }
                 else
                 {
-                    resultLabel.text = "Created " + createdFileName + "; " + assignFailureMessage;
+                    ToolkitChrome.SetStatus(resultLabel, "Created " + createdFileName + "; " + assignFailureMessage, ToolkitStatusTone.Neutral);
                     LastAssignedDescription = string.Empty;
                 }
 
@@ -180,7 +205,7 @@ namespace DotsAnimationToolkit.Editor
                 return true;
             }
 
-            resultLabel.text = failureMessage;
+            ToolkitChrome.SetStatus(resultLabel, failureMessage, ToolkitStatusTone.Error);
             return false;
         }
 
@@ -277,7 +302,7 @@ namespace DotsAnimationToolkit.Editor
             int selectedIndex = createTargetDropdown.index;
             if (selectedIndex < 0 || selectedIndex >= dropdownTargets.Count)
             {
-                resultLabel.text = "Pick a target first.";
+                ToolkitChrome.SetStatus(resultLabel, "Pick a target first.", ToolkitStatusTone.Error);
                 return;
             }
 

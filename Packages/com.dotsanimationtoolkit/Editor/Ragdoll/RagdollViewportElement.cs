@@ -49,11 +49,7 @@ namespace DotsAnimationToolkit.Editor
             cameraNavigation = new PreviewCameraNavigation();
             dragSession = new RagdollBoxDragSession();
 
-            VisualElement headerRow = new VisualElement();
-            headerRow.AddToClassList("toolkit-pane-header");
-            Label titleLabel = new Label("Viewport");
-            titleLabel.AddToClassList("toolkit-pane-title");
-            headerRow.Add(titleLabel);
+            VisualElement headerRow = ToolkitChrome.MakePaneHeader("Viewport", out _, out _);
             Add(headerRow);
 
             VisualElement toolbarRow = new VisualElement();
@@ -62,8 +58,6 @@ namespace DotsAnimationToolkit.Editor
             transport.name = "ragdoll-transport";
             transport.Bind(this);
             toolbarRow.Add(transport);
-            Button resetViewButton = new Button(() => cameraNavigation.ResetView()) { text = "Reset View" };
-            toolbarRow.Add(resetViewButton);
             groundField = new PopupField<string>(BuildGroundChoices(), 0);
             groundField.name = "ragdoll-ground-field";
             groundField.RegisterValueChangedCallback(OnGroundFieldChanged);
@@ -87,20 +81,18 @@ namespace DotsAnimationToolkit.Editor
             poseRow.Add(poseTimeSlider);
             Add(poseRow);
 
-            VisualElement viewportFrame = new VisualElement();
-            viewportFrame.style.flexGrow = 1f;
-            viewportImage = new Image();
+            ViewportFrameElement viewportFrame = new ViewportFrameElement();
+            viewportFrame.AddResetCameraButton(() => cameraNavigation.ResetView());
+
+            viewportImage = viewportFrame.ViewportImage;
             viewportImage.name = "ragdoll-viewport-image";
-            viewportImage.style.flexGrow = 1f;
             viewportImage.RegisterCallback<PointerDownEvent>(OnViewportPointerDown);
             viewportImage.RegisterCallback<PointerMoveEvent>(OnViewportPointerMove);
             viewportImage.RegisterCallback<PointerUpEvent>(OnViewportPointerUp);
-            viewportFrame.Add(viewportImage);
             Add(viewportFrame);
 
-            statusLabel = new Label();
+            statusLabel = ToolkitChrome.MakeHint(string.Empty);
             statusLabel.name = "ragdoll-viewport-status";
-            statusLabel.AddToClassList("clip-editor__hint");
             Add(statusLabel);
 
             cameraNavigation.Rig = previewController;

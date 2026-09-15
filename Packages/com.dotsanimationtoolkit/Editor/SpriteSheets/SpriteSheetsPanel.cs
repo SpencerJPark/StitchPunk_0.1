@@ -25,7 +25,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly Label sheetLabel;
         private readonly Label infoLabel;
-        private readonly Label outputPathLabel;
+        private readonly PathPickerRowElement outputPathRow;
         private readonly Label importedHintLabel;
         private readonly Label depthWarningLabel;
         private readonly EnumField filterModeField;
@@ -35,7 +35,6 @@ namespace DotsAnimationToolkit.Editor
         private readonly ObjectField importSettingsSourceField;
         private readonly Button bakeButton;
         private readonly Button saveButton;
-        private readonly VisualElement outputRow;
         private readonly VisualElement headerActions;
         private readonly VisualElement bodyHost;
 
@@ -55,9 +54,13 @@ namespace DotsAnimationToolkit.Editor
             images = new ImageCatalogColumn();
             images.ImagesActivated += OnImagesActivated;
 
-            CoverPaneSplitView catalogsSplit = new CoverPaneSplitView("SpriteSheets.Catalogs", 0, 260f, TwoPaneSplitViewOrientation.Vertical);
-            catalogsSplit.Add(catalog);
-            catalogsSplit.Add(images);
+            // SpriteSheetCatalogColumn's own options.title is non-empty ("Sheets"), so its
+            // internal header already carries HeaderActions once; the sidebar mode header renders
+            // the same HeaderActions a second time above it.
+            CatalogSidebarElement sidebar = new CatalogSidebarElement { name = "sprite-sheets-sidebar" };
+            sidebar.AddMode("sheets", "Sheets", catalog, catalog.HeaderActions);
+            sidebar.AddMode("images", "Images", images, images.HeaderActions);
+            sidebar.SetMode("sheets");
 
             frames = new SpriteSheetFramesColumn();
             frames.FramesChanged += OnFramesChanged;
@@ -83,9 +86,6 @@ namespace DotsAnimationToolkit.Editor
 
             bodyHost = framesSplit;
 
-            sheetLabel = new Label();
-            infoLabel = new Label();
-
             filterModeField = new EnumField("Filter", FilterMode.Bilinear);
             filterModeField.RegisterValueChangedCallback(OnFilterModeChanged);
 
@@ -107,56 +107,68 @@ namespace DotsAnimationToolkit.Editor
             importSettingsSourceField.name = "sprite-sheet-import-settings-source";
             importSettingsSourceField.RegisterValueChangedCallback(OnImportSettingsSourceChanged);
 
-            bakeButton = ToolkitIcons.MakeIconTextButton(
+            bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB",
                 "Compose the frames into a grid PNG at the output path and import it as a Texture2DArray.", "Bake");
 
             saveButton = ToolkitIcons.MakeIconTextButton(Save, "d_SaveAs", "Write this sheet to its asset.", "Save");
 
-            headerActions = new VisualElement();
-            headerActions.AddToClassList("toolkit-pane-actions");
-            headerActions.Add(filterModeField);
-            headerActions.Add(wrapModeField);
-            headerActions.Add(generateMipsToggle);
-            headerActions.Add(linearToggle);
-            headerActions.Add(importSettingsSourceField);
+            VisualElement header = ToolkitChrome.MakePaneHeader(string.Empty, out sheetLabel, out headerActions);
+            infoLabel = new Label();
+            infoLabel.AddToClassList("toolkit-text--dim");
+            header.Insert(1, infoLabel);
             headerActions.Add(bakeButton);
             headerActions.Add(saveButton);
 
-            VisualElement header = new VisualElement();
-            header.AddToClassList("toolkit-pane-header");
-            header.Add(sheetLabel);
-            header.Add(infoLabel);
-            header.Add(headerActions);
-
-            importedHintLabel = new Label("The importer owns the layer order: rename frames, then Save to keep the names.");
+            importedHintLabel = ToolkitChrome.MakeHint("The importer owns the layer order: rename frames, then Save to keep the names.");
             importedHintLabel.name = "sprite-sheet-imported-hint";
-            importedHintLabel.AddToClassList("clip-editor__hint");
             importedHintLabel.style.display = DisplayStyle.None;
 
             depthWarningLabel = new Label();
             depthWarningLabel.name = "sprite-sheet-depth-warning";
+            depthWarningLabel.AddToClassList("toolkit-hint");
+            depthWarningLabel.AddToClassList("toolkit-text--warning");
             depthWarningLabel.style.display = DisplayStyle.None;
 
-            outputPathLabel = new Label();
-            Button chooseOutputButton = new Button(OnChooseOutputPathClicked) { text = "…" };
+            VisualElement importSettingsBox = new VisualElement();
+            importSettingsBox.AddToClassList("toolkit-box");
 
-            outputRow = new VisualElement();
-            outputRow.style.flexDirection = FlexDirection.Row;
-            outputRow.Add(outputPathLabel);
-            outputRow.Add(chooseOutputButton);
+            VisualElement importSettingsBoxHeader = new VisualElement();
+            importSettingsBoxHeader.AddToClassList("toolkit-box__header");
+            Label importSettingsBoxTitle = new Label("Import settings");
+            importSettingsBoxTitle.AddToClassList("toolkit-box__title");
+            importSettingsBoxHeader.Add(importSettingsBoxTitle);
+            importSettingsBox.Add(importSettingsBoxHeader);
+
+            VisualElement importSettingsBoxBody = new VisualElement();
+            importSettingsBoxBody.AddToClassList("toolkit-box__body");
+            importSettingsBox.Add(importSettingsBoxBody);
+
+            VisualElement importSettingsControlsRow = new VisualElement();
+            importSettingsControlsRow.style.flexDirection = FlexDirection.Row;
+            importSettingsControlsRow.style.flexWrap = Wrap.Wrap;
+            importSettingsControlsRow.Add(filterModeField);
+            importSettingsControlsRow.Add(wrapModeField);
+            importSettingsControlsRow.Add(generateMipsToggle);
+            importSettingsControlsRow.Add(linearToggle);
+            importSettingsBoxBody.Add(importSettingsControlsRow);
+            importSettingsBoxBody.Add(importSettingsSourceField);
+
+            outputPathRow = new PathPickerRowElement("Output", "Choose where the baked sheet is written.");
+            outputPathRow.BrowseRequested += OnChooseOutputPathClicked;
 
             VisualElement sheetColumn = new VisualElement();
-            sheetColumn.style.flexGrow = 1f;
+            sheetColumn.AddToClassList("toolkit-column");
             sheetColumn.Add(header);
             sheetColumn.Add(importedHintLabel);
             sheetColumn.Add(depthWarningLabel);
+            sheetColumn.Add(importSettingsBox);
             sheetColumn.Add(bodyHost);
-            sheetColumn.Add(outputRow);
+            sheetColumn.Add(outputPathRow);
 
             CoverPaneSplitView sidebarSplit = new CoverPaneSplitView("SpriteSheets.Sidebar", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
             sidebarSplit.style.flexGrow = 1f;
-            sidebarSplit.Add(catalogsSplit);
+            sidebarSplit.Add(sidebar);
             sidebarSplit.Add(sheetColumn);
             Add(sidebarSplit);
 
@@ -196,7 +208,7 @@ namespace DotsAnimationToolkit.Editor
             generateMipsToggle.SetValueWithoutNotify(workingCopy.generateMips);
             linearToggle.SetValueWithoutNotify(workingCopy.linear);
             importSettingsSourceField.SetValueWithoutNotify(workingCopy.importSettingsSource);
-            outputPathLabel.text = "out: " + workingCopy.outputPath;
+            outputPathRow.Path = workingCopy.outputPath;
 
             HasUnsavedChanges = false;
 
@@ -262,7 +274,7 @@ namespace DotsAnimationToolkit.Editor
             generateMipsToggle.SetValueWithoutNotify(workingCopy.generateMips);
             linearToggle.SetValueWithoutNotify(workingCopy.linear);
             importSettingsSourceField.SetValueWithoutNotify(workingCopy.importSettingsSource);
-            outputPathLabel.text = "out: " + workingCopy.outputPath;
+            outputPathRow.Path = workingCopy.outputPath;
 
             HasUnsavedChanges = false;
             SetControlsEnabled(true);
@@ -513,7 +525,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             workingCopy.outputPath = chosenPath;
-            outputPathLabel.text = "out: " + workingCopy.outputPath;
+            outputPathRow.Path = workingCopy.outputPath;
             MarkUnsaved();
         }
 
@@ -527,7 +539,7 @@ namespace DotsAnimationToolkit.Editor
             if (string.IsNullOrEmpty(workingCopy.outputPath))
             {
                 workingCopy.outputPath = SpriteSheetBaker.DefaultOutputPathFor(AssetDatabase.GetAssetPath(LoadedSheet));
-                outputPathLabel.text = "out: " + workingCopy.outputPath;
+                outputPathRow.Path = workingCopy.outputPath;
             }
 
             if (!baker.Bake(workingCopy, out string error))
@@ -622,7 +634,7 @@ namespace DotsAnimationToolkit.Editor
             generateMipsToggle.SetEnabled(!importedMode);
             linearToggle.SetEnabled(!importedMode);
 
-            outputRow.style.display = importedMode ? DisplayStyle.None : DisplayStyle.Flex;
+            outputPathRow.style.display = importedMode ? DisplayStyle.None : DisplayStyle.Flex;
             importedHintLabel.style.display = importedMode ? DisplayStyle.Flex : DisplayStyle.None;
 
             if (importedMode)

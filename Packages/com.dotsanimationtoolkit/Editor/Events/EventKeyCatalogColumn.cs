@@ -13,8 +13,6 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>The Events tab's Keys column: the event registry as a searchable catalog with New, Refresh and a row context menu.</summary>
     public sealed class EventKeyCatalogColumn : VisualElement
     {
-        private static readonly Color BudgetWarningColor = new Color(0.92f, 0.72f, 0.32f);
-
         private readonly List<AnimEventKeyEntry> filteredEntries = new List<AnimEventKeyEntry>();
         private readonly ToolbarSearchField searchField;
         private readonly ListView keysListView;
@@ -32,11 +30,9 @@ namespace DotsAnimationToolkit.Editor
         public EventKeyCatalogColumn()
         {
             name = "events-keys-column";
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
             style.minWidth = 200f;
-            style.paddingTop = 8f;
-            style.paddingLeft = 10f;
-            style.paddingRight = 10f;
 
             VisualElement headerActions = new VisualElement();
             headerActions.AddToClassList("toolkit-pane-actions");
@@ -81,12 +77,12 @@ namespace DotsAnimationToolkit.Editor
             Add(keysListView);
 
             emptyLabel = new Label();
-            emptyLabel.AddToClassList("clip-editor__hint");
+            emptyLabel.AddToClassList("toolkit-hint");
             Add(emptyLabel);
 
             budgetLabel = new Label();
             budgetLabel.name = "events-keys-budget";
-            budgetLabel.AddToClassList("clip-editor__hint");
+            budgetLabel.AddToClassList("toolkit-hint");
             Add(budgetLabel);
 
             RefreshEmptyState();
@@ -209,18 +205,7 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement MakeRow()
         {
-            // See ToolkitCatalogColumn.MakeRow: the item slot's own margin is zeroed by ListView's
-            // FixedHeight virtualization, so the visible gap has to live on a boxed child instead.
-            VisualElement itemSlot = new VisualElement();
-            itemSlot.style.backgroundColor = new StyleColor(Color.clear);
-
-            VisualElement row = new VisualElement();
-            row.name = "events-keys-row-box";
-            row.AddToClassList("toolkit-box");
-            row.style.marginTop = 4f;
-            row.style.marginBottom = 4f;
-            row.style.marginLeft = 0f;
-            row.style.marginRight = 0f;
+            VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("events-keys-row-box", out VisualElement row);
 
             VisualElement headerRow = new VisualElement();
             headerRow.AddToClassList("toolkit-box__header");
@@ -234,13 +219,12 @@ namespace DotsAnimationToolkit.Editor
             Label infoLabel = new Label();
             infoLabel.name = "events-keys-row-info";
             infoLabel.AddToClassList("toolkit-box__label");
-            infoLabel.AddToClassList("clip-editor__hint");
+            infoLabel.AddToClassList("toolkit-hint");
             row.Add(infoLabel);
 
             row.AddManipulator(new ContextualMenuManipulator(
                 populateEvent => PopulateRowContextMenu(populateEvent, row)));
 
-            itemSlot.Add(row);
             return itemSlot;
         }
 
@@ -326,9 +310,7 @@ namespace DotsAnimationToolkit.Editor
 
             budgetLabel.text = maskableUsedCount + " of " + AnimEventMaskKeys.MaskKeyCount
                 + " maskable keys used · " + pulseOnlyUsedCount + " pulse-only";
-            budgetLabel.style.color = maskableUsedCount >= AnimEventMaskKeys.MaskKeyCount
-                ? new StyleColor(BudgetWarningColor)
-                : new StyleColor(StyleKeyword.Null);
+            budgetLabel.EnableInClassList("toolkit-text--warning", maskableUsedCount >= AnimEventMaskKeys.MaskKeyCount);
         }
 
         private void PopulateRowContextMenu(ContextualMenuPopulateEvent populateEvent, VisualElement row)

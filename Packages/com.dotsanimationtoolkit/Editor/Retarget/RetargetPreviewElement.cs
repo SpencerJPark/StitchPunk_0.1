@@ -8,12 +8,12 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>Hosts a live pose preview for a retarget pick, playing the picked clip on the picked rig.</summary>
-    public sealed class RetargetPreviewElement : VisualElement, IDisposable
+    public sealed class RetargetPreviewElement : VisualElement, IDisposable, ITransportTarget
     {
         private readonly ClipPreviewController previewController;
         private readonly PreviewCameraNavigation cameraNavigation;
         private readonly Image viewportImage;
-        private readonly Button playButton;
+        private readonly TransportCoreElement transportCore;
         private readonly Label statusLabel;
 
         private ClipSetAsset boundClipSet;
@@ -32,6 +32,7 @@ namespace DotsAnimationToolkit.Editor
 
             previewController = new ClipPreviewController();
             cameraNavigation = new PreviewCameraNavigation();
+            isPlaying = true;
 
             VisualElement headerRow = new VisualElement();
             headerRow.AddToClassList("toolkit-pane-header");
@@ -40,31 +41,30 @@ namespace DotsAnimationToolkit.Editor
             headerRow.Add(titleLabel);
             Add(headerRow);
 
-            VisualElement toolbarRow = new VisualElement();
-            toolbarRow.style.flexDirection = FlexDirection.Row;
-            playButton = new Button(TogglePlayback) { text = "Pause" };
-            playButton.name = "retarget-preview-play-button";
-            toolbarRow.Add(playButton);
-            Button resetViewButton = new Button(() => cameraNavigation.ResetView()) { text = "Reset View" };
-            toolbarRow.Add(resetViewButton);
-            Add(toolbarRow);
+            ViewportFrameElement frame = new ViewportFrameElement();
+            Button resetCameraButton = frame.AddResetCameraButton(() => cameraNavigation.ResetView());
+            resetCameraButton.name = "retarget-preview-reset-camera-button";
+            viewportImage = frame.ViewportImage;
+            Add(frame);
 
-            VisualElement viewportFrame = new VisualElement();
-            viewportFrame.style.flexGrow = 1f;
-            viewportImage = new Image();
-            viewportImage.style.flexGrow = 1f;
-            viewportFrame.Add(viewportImage);
-            Add(viewportFrame);
+            VisualElement transportRow = new VisualElement();
+            transportRow.AddToClassList("toolkit-transport");
+            VisualElement transportGroup = new VisualElement();
+            transportGroup.AddToClassList("toolkit-transport__group");
+            transportCore = new TransportCoreElement();
+            transportCore.Bind(this);
+            transportGroup.Add(transportCore);
+            transportRow.Add(transportGroup);
+            Add(transportRow);
 
             statusLabel = new Label();
-            statusLabel.AddToClassList("clip-editor__hint");
+            statusLabel.AddToClassList("toolkit-hint");
             statusLabel.name = "retarget-preview-status";
             Add(statusLabel);
 
             cameraNavigation.Rig = previewController;
             cameraNavigation.AttachTo(viewportImage);
 
-            isPlaying = true;
             lastTickTimeSeconds = EditorApplication.timeSinceStartup;
 
             RegisterCallback<AttachToPanelEvent>(attachEvent => EditorApplication.update += Tick);
@@ -72,6 +72,12 @@ namespace DotsAnimationToolkit.Editor
         }
 
         public bool IsPlaying => isPlaying;
+
+        public bool IsLooping { get; set; }
+
+        public TransportCapabilities Capabilities => TransportCapabilities.None;
+
+        public ITransportTarget TransportTarget { get { return this; } }
 
         public void Show(ClipSetAsset clipSet, ClipAsset clip, RigAsset rig)
         {
@@ -100,10 +106,26 @@ namespace DotsAnimationToolkit.Editor
             return previewController.FindHierarchyIndexByName(boneName);
         }
 
-        private void TogglePlayback()
+        public void TogglePlay()
         {
             isPlaying = !isPlaying;
-            playButton.text = isPlaying ? "Pause" : "Play";
+            transportCore.RefreshState();
+        }
+
+        public void Stop()
+        {
+        }
+
+        public void JumpToStart()
+        {
+        }
+
+        public void JumpToEnd()
+        {
+        }
+
+        public void Step(int frameDelta)
+        {
         }
 
         private void Tick()

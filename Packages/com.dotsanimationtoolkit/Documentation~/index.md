@@ -94,6 +94,17 @@ The clip inspector and clip-set inspector share the same `ClipValidation` rule
 set the bake enforces, so a problem you see in the editor is the same one that
 would fail the bake.
 
+**The window's look.** Every tab of the Clip Editor window is built from the
+same chrome: a bar across the top names the tab's subject — a clip set, a
+rig, a clip, a cutscene — and its columns share the same padding and a
+titled header each, with one accent-filled primary action per tab, dim
+hints, and a status line at the foot of a column. These pieces are shared
+elements in the package's Editor code rather than being copied per tab.
+Colours, fonts and borders live only in the window's stylesheet as
+`toolkit-*` classes, and a conformance test in the package's EditMode suite
+fails when an editor source sets one inline instead — a colour that
+genuinely comes from data is marked as such on its line.
+
 ## Runtime API surface
 
 - **`PlaybackApi`** (Runtime/Api) — one class, both directions. The write

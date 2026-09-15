@@ -120,8 +120,7 @@ namespace DotsAnimationToolkit.Editor
 
             Label servesLabel = new Label(DescribeCoverageOfSlot(slot));
             servesLabel.style.marginLeft = 2f;
-            servesLabel.style.unityFontStyleAndWeight = FontStyle.Italic;
-            servesLabel.style.color = new Color(0.65f, 0.65f, 0.68f);
+            servesLabel.AddToClassList("toolkit-text--dim");
             row.Add(servesLabel);
 
             string clipWarning;
@@ -130,7 +129,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 Label warningLabel = new Label(clipWarning);
                 warningLabel.style.whiteSpace = WhiteSpace.Normal;
-                warningLabel.style.color = new Color(1f, 0.55f, 0.2f);
+                warningLabel.AddToClassList("toolkit-text--warning");
                 row.Add(warningLabel);
             }
 

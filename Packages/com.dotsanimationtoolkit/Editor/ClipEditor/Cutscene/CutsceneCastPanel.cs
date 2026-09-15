@@ -53,10 +53,8 @@ namespace DotsAnimationToolkit.Editor
 
         public CutsceneCastPanel()
         {
+            AddToClassList("toolkit-column");
             style.minWidth = 200f;
-            style.paddingLeft = 6f;
-            style.paddingTop = 6f;
-            style.paddingRight = 4f;
 
             VisualElement headerRow = new VisualElement();
             headerRow.AddToClassList("toolkit-pane-header");
@@ -86,11 +84,12 @@ namespace DotsAnimationToolkit.Editor
             addPropButton.AddToClassList("toolkit-pane-action");
             actionsRow.Add(addPropButton);
 
-            syncToStageButton = new Button(() => SyncToStageRequested?.Invoke()) { text = "Sync" };
-            syncToStageButton.tooltip =
+            syncToStageButton = ToolkitIcons.MakeIconTextButton(
+                () => SyncToStageRequested?.Invoke(), "d_Refresh",
                 "Writes every bound slot into this scene's CutsceneStageAuthoring component, baking "
                 + "one CutsceneStage entity that plays this cutscene at runtime. Explicit, never "
-                + "automatic — press it after the cast is the way you want it.";
+                + "automatic — press it after the cast is the way you want it.",
+                "Sync");
             syncToStageButton.AddToClassList("toolkit-pane-action");
             actionsRow.Add(syncToStageButton);
 

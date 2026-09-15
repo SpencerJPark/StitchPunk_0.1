@@ -11,7 +11,7 @@ namespace DotsAnimationToolkit.Editor
     /// </summary>
     public sealed class PlayheadElement : VisualElement
     {
-        private static readonly Color PlayheadColor = new Color(0.95f, 0.36f, 0.30f);
+        private static readonly Color PlayheadColor = ToolkitPalette.Playhead;
 
         private float currentTime;
 

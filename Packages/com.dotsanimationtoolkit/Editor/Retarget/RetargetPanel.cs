@@ -21,6 +21,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly RosterCoverageStripElement rosterStrip;
         private readonly RetargetPreviewElement preview;
 
+        public ITransportTarget TransportTarget { get { return preview; } }
+
         private ActiveAssetSelection selection;
         private ClipSetAsset localClipSet;
         private ClipAsset localClip;
@@ -72,22 +74,17 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.flexDirection = FlexDirection.Column;
 
-            VisualElement headerRow = new VisualElement { name = "retarget-header-row" };
-            headerRow.style.flexDirection = FlexDirection.Row;
-            headerRow.style.paddingLeft = 6f;
-            headerRow.style.paddingRight = 6f;
-            headerRow.style.paddingTop = 6f;
-            headerRow.style.paddingBottom = 6f;
+            VisualElement headerRow = ToolkitChrome.MakeAssetBar("retarget-header-row");
             Add(headerRow);
 
-            clipSetField = new ObjectField("Clip Set")
+            headerRow.Add(ToolkitChrome.MakeAssetBarLabel("Clip Set"));
+            clipSetField = new ObjectField
             {
                 name = "retarget-clip-set-field",
                 objectType = typeof(ClipSetAsset),
                 allowSceneObjects = false
             };
-            clipSetField.style.flexGrow = 1f;
-            clipSetField.style.marginRight = 6f;
+            clipSetField.AddToClassList("toolkit-asset-bar__field");
             clipSetField.RegisterValueChangedCallback(changeEvent =>
             {
                 ClipSetAsset newClipSet = changeEvent.newValue as ClipSetAsset;
@@ -102,22 +99,23 @@ namespace DotsAnimationToolkit.Editor
             });
             headerRow.Add(clipSetField);
 
-            clipField = new PopupField<ClipAsset>("Clip", BuildClipChoices(null), 0, FormatClipChoice, FormatClipChoice)
+            headerRow.Add(ToolkitChrome.MakeAssetBarLabel("Clip"));
+            clipField = new PopupField<ClipAsset>(string.Empty, BuildClipChoices(null), 0, FormatClipChoice, FormatClipChoice)
             {
                 name = "retarget-clip-field"
             };
-            clipField.style.flexGrow = 1f;
-            clipField.style.marginRight = 6f;
+            clipField.AddToClassList("toolkit-asset-bar__field");
             clipField.RegisterValueChangedCallback(changeEvent => SelectClip(changeEvent.newValue));
             headerRow.Add(clipField);
 
-            rigField = new ObjectField("Rig")
+            headerRow.Add(ToolkitChrome.MakeAssetBarLabel("Rig"));
+            rigField = new ObjectField
             {
                 name = "retarget-rig-field",
                 objectType = typeof(RigAsset),
                 allowSceneObjects = false
             };
-            rigField.style.flexGrow = 1f;
+            rigField.AddToClassList("toolkit-asset-bar__field");
             rigField.RegisterValueChangedCallback(changeEvent =>
             {
                 RigAsset newRig = changeEvent.newValue as RigAsset;

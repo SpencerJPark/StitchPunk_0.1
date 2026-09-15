@@ -26,7 +26,7 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement editorContent;
 
         private TextField nameField;
-        private Label folderLabel;
+        private PathPickerRowElement folderRow;
 
         private VisualElement vatTexturesRow;
         private Label vatTexturesNameLabel;
@@ -145,11 +145,9 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildEditorColumn()
         {
             VisualElement editorColumn = new VisualElement { name = "clip-sets-editor-column" };
+            editorColumn.AddToClassList("toolkit-column");
             editorColumn.style.flexGrow = 1f;
             editorColumn.style.minWidth = 360f;
-            editorColumn.style.paddingTop = 8f;
-            editorColumn.style.paddingLeft = 10f;
-            editorColumn.style.paddingRight = 10f;
 
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
@@ -159,19 +157,15 @@ namespace DotsAnimationToolkit.Editor
             editorTitleLabel.AddToClassList("toolkit-pane-title");
             header.Add(editorTitleLabel);
 
-            openInEditorButton = ToolkitIcons.MakeIconTextButton(
-                OnOpenInEditorClicked, "editicon.sml", null, "Open in Clip Editor");
+            openInEditorButton = ToolkitChrome.MakePrimaryAction(
+                OnOpenInEditorClicked, "editicon.sml", "Open this clip set in the Clip Editor", "Open in Clip Editor");
             openInEditorButton.name = "clip-set-open-button";
             header.Add(openInEditorButton);
 
             editorColumn.Add(header);
 
-            noSelectionHintLabel = new Label("Select a clip set, or press New to make one.")
-            {
-                name = "clip-set-no-selection-hint"
-            };
-            noSelectionHintLabel.style.whiteSpace = WhiteSpace.Normal;
-            noSelectionHintLabel.style.marginTop = 8f;
+            noSelectionHintLabel = ToolkitChrome.MakeHint("Select a clip set, or press New to make one.");
+            noSelectionHintLabel.name = "clip-set-no-selection-hint";
             editorColumn.Add(noSelectionHintLabel);
 
             editorContent = new VisualElement { name = "clip-set-editor-content" };
@@ -189,26 +183,13 @@ namespace DotsAnimationToolkit.Editor
             });
             editorContent.Add(nameField);
 
-            VisualElement folderRow = new VisualElement { name = "clip-set-folder-row" };
-            folderRow.style.flexDirection = FlexDirection.Row;
-            folderRow.style.alignItems = Align.Center;
-            folderRow.style.marginBottom = 4f;
-
-            folderLabel = new Label(saveLocation.Recall()) { name = "clip-set-folder-label" };
-            folderLabel.style.flexGrow = 1f;
-            folderLabel.style.overflow = Overflow.Hidden;
-            folderLabel.style.textOverflow = TextOverflow.Ellipsis;
-            folderLabel.style.whiteSpace = WhiteSpace.NoWrap;
-            folderRow.Add(folderLabel);
-
-            Button folderButton = new Button(OnFolderButtonClicked)
+            folderRow = new PathPickerRowElement(
+                "Folder", "Where the next New clip set is created. Does not move the selected clip set.")
             {
-                text = "…",
-                name = "clip-set-folder-button",
-                tooltip = "Where the next New clip set is created. Does not move the selected clip set."
+                name = "clip-set-folder-row"
             };
-            folderButton.style.marginLeft = 4f;
-            folderRow.Add(folderButton);
+            folderRow.Path = saveLocation.Recall();
+            folderRow.BrowseRequested += OnFolderButtonClicked;
 
             editorContent.Add(folderRow);
 
@@ -252,16 +233,14 @@ namespace DotsAnimationToolkit.Editor
             editorContent.Add(picker);
 
             editHintLabel = new Label("Ticks apply to the set immediately. Ctrl+Z undoes.");
-            editHintLabel.AddToClassList("clip-editor__hint");
+            editHintLabel.AddToClassList("toolkit-hint");
             editorContent.Add(editHintLabel);
 
             editorColumn.Add(editorContent);
 
-            resultLabel = new Label();
+            VisualElement resultStatusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
             resultLabel.name = "clip-sets-result-label";
-            resultLabel.style.whiteSpace = WhiteSpace.Normal;
-            resultLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            editorColumn.Add(resultLabel);
+            editorColumn.Add(resultStatusRow);
 
             return editorColumn;
         }
@@ -283,7 +262,7 @@ namespace DotsAnimationToolkit.Editor
             if (ClipSetSaveLocation.TryMakeProjectRelative(pickedAbsoluteFolder, projectAssetsAbsolutePath, out projectRelativeFolder))
             {
                 saveLocation.Remember(projectRelativeFolder);
-                folderLabel.text = projectRelativeFolder;
+                folderRow.Path = projectRelativeFolder;
             }
             else
             {
@@ -414,7 +393,7 @@ namespace DotsAnimationToolkit.Editor
             clips.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.name, right.name));
 
             LoadCatalog(clipSets, clips);
-            folderLabel.text = saveLocation.Recall();
+            folderRow.Path = saveLocation.Recall();
         }
 
         public void LoadCatalog(IReadOnlyList<ClipSetAsset> clipSets, IReadOnlyList<ClipAsset> clips)
@@ -613,8 +592,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void ReportFailure(string message)
         {
-            resultLabel.style.color = new StyleColor(ToolkitPalette.Error);
-            resultLabel.text = message;
+            ToolkitChrome.SetStatus(resultLabel, message, ToolkitStatusTone.Error);
             Debug.LogWarning(LogPrefix + message);
         }
 

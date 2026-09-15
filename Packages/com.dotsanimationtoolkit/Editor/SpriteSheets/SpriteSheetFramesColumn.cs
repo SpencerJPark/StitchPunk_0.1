@@ -30,24 +30,19 @@ namespace DotsAnimationToolkit.Editor
         public SpriteSheetFramesColumn()
         {
             name = "sprite-sheet-frames-column";
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
             style.minWidth = 220f;
-            style.paddingTop = 8f;
-            style.paddingLeft = 10f;
-            style.paddingRight = 10f;
 
-            titleLabel = new Label("Frames (0)");
+            VisualElement paneHeader = ToolkitChrome.MakePaneHeader(
+                "Frames (0)", out titleLabel, out VisualElement actionsRow);
             titleLabel.name = "sprite-sheet-frames-title";
-            Add(titleLabel);
-
-            VisualElement actionsRow = new VisualElement();
-            actionsRow.AddToClassList("toolkit-pane-actions");
+            Add(paneHeader);
 
             removeButton = ToolkitIcons.MakeIconTextButton(
                 RemoveSelectedFrames, ToolkitIcons.Trash, "Remove the selected frames", "Remove");
             removeButton.name = "sprite-sheet-frames-remove-button";
             actionsRow.Add(removeButton);
-            Add(actionsRow);
 
             framesListView = new ListView();
             framesListView.name = "sprite-sheet-frames-list";
@@ -65,8 +60,7 @@ namespace DotsAnimationToolkit.Editor
             framesListView.RegisterCallback<KeyDownEvent>(OnFramesListKeyDown);
             Add(framesListView);
 
-            emptyLabel = new Label("Select or create a sheet.");
-            emptyLabel.AddToClassList("clip-editor__hint");
+            emptyLabel = ToolkitChrome.MakeHint("Select or create a sheet.");
             Add(emptyLabel);
 
             RegisterCallback<DragUpdatedEvent>(OnDragUpdated);
@@ -159,8 +153,7 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement MakeFrameRow()
         {
-            VisualElement row = new VisualElement();
-            row.AddToClassList("sprite-sheet-frame-row");
+            VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("sprite-sheet-frame-row", out VisualElement row);
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
 
@@ -173,6 +166,7 @@ namespace DotsAnimationToolkit.Editor
 
             Label nameLabel = new Label();
             nameLabel.name = "sprite-sheet-frame-name";
+            nameLabel.AddToClassList("toolkit-box__title");
             nameLabel.style.flexGrow = 1f;
             nameLabel.tooltip = "Double-click to rename";
             nameLabel.RegisterCallback<MouseDownEvent>(mouseDownEvent =>
@@ -196,16 +190,18 @@ namespace DotsAnimationToolkit.Editor
 
             Label indexLabel = new Label();
             indexLabel.name = "sprite-sheet-frame-index";
+            indexLabel.AddToClassList("toolkit-text--dim");
             row.Add(indexLabel);
 
             Label sizeLabel = new Label();
             sizeLabel.name = "sprite-sheet-frame-size";
+            sizeLabel.AddToClassList("toolkit-text--dim");
             row.Add(sizeLabel);
 
-            return row;
+            return itemSlot;
         }
 
-        private void BindFrameRow(VisualElement row, int listPosition)
+        private void BindFrameRow(VisualElement element, int listPosition)
         {
             if (sheet == null || listPosition < 0 || listPosition >= sheet.frames.Count)
             {
@@ -213,6 +209,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             SpriteSheetFrame frame = sheet.frames[listPosition];
+            VisualElement row = element.Q<VisualElement>("sprite-sheet-frame-row");
             row.userData = frame;
 
             Image thumbnailImage = row.Q<Image>("sprite-sheet-frame-thumbnail");
@@ -232,12 +229,12 @@ namespace DotsAnimationToolkit.Editor
                 if (sheet.texture != null)
                 {
                     sizeLabel.text = sheet.layerSize.x.ToString() + "x" + sheet.layerSize.y.ToString();
-                    sizeLabel.style.color = StyleKeyword.Null;
+                    sizeLabel.EnableInClassList("toolkit-text--error", false);
                     return;
                 }
 
                 sizeLabel.text = "missing";
-                sizeLabel.style.color = StyleKeyword.Null;
+                sizeLabel.EnableInClassList("toolkit-text--error", false);
                 return;
             }
 
@@ -246,7 +243,7 @@ namespace DotsAnimationToolkit.Editor
             Texture2D firstSource = sheet.frames[0].source;
             bool mismatched = firstSource != null
                 && (frame.source.width != firstSource.width || frame.source.height != firstSource.height);
-            sizeLabel.style.color = mismatched ? new Color(0.85f, 0.25f, 0.2f) : StyleKeyword.Null;
+            sizeLabel.EnableInClassList("toolkit-text--error", mismatched);
         }
 
         private void OnFrameIndexChanged(int oldListPosition, int newListPosition)

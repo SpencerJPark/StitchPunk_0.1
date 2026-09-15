@@ -8,6 +8,23 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.52.0] — Editor chrome consistency
+
+### Changed
+- Every Clip Editor tab now shares one chrome: a subject bar across the top (Retarget, Capture, VAT Bake, Materials, Cutscene Director, Ragdoll, Health), columns with the same padding and a titled header each (Health's findings and finding, Events' Used by, Capture's Preview and Settings, VAT Bake, Sprite Sheets' frames), one accent-filled primary action per tab (Scan, Capture, Bake, Create and assign, Open in Clip Editor, Use in Clip Editor), dim hints, and results in a status line at the foot of the column. The Clip Editor and Texture Packer tabs, the reference look, are unchanged apart from the Texture Packer's Bake button taking the primary fill and its recipe name taking the pane-title weight.
+- Cutscene Director: with no cutscene loaded the timeline draws its ruler and striped empty lanes like the Clip Editor, with the message in the status line; empty lanes also fill below the last row. Its three pane dividers are remembered across sessions. The transport reads Length · transport · Time · Speed · Zoom, Continue and New carry icons, and "+ Part Track" is an icon button.
+- Materials gained Rig and Clip Set pickers in its bar (writing the shared selection), so the subject changes without leaving the tab. Retarget's preview is a real viewport with the shared camera rail and a play/pause transport; Space toggles it. Sprite Sheets' two catalogs are Sheets | Images modes of one sidebar, like the Texture Packer's, and its import settings sit in a box under the header.
+- Health's toolbar is the shared subject bar; a finding's list row is one boxed line (code and title) over the asset, its detail panel is a titled header, a large title and boxed Affected / How to fix sections.
+- Every viewport (Actor Profiles, Capture, VAT Bake, Rigs, Retarget, Ragdoll) is one shared frame-and-rail element; every "…" path button is one shared path row with a folder icon; every catalog and list row uses one shared boxed-row slot.
+- Colour literals in chrome are gone: the playhead, the box-select band and the validation badge read the palette; warnings, errors and dim text are classes.
+
+### Added
+- `ToolkitChrome`, `ViewportFrameElement`, `CatalogSidebarElement`, `PathPickerRowElement` in `Editor/ClipEditor/Shared/`; palette tokens `playhead`, `box-select-fill`, `box-select-outline`; stylesheet classes for columns, the subject bar, the primary action, status footers, text tones, list rows, chips, severity dots, path rows and sidebar modes.
+- `EditorStyleConformanceTests` (`Conformance_I`): an editor source may not set a colour, opacity, font, border or radius inline unless the line ends with `// colour from data`; files not yet converted sit in a shrink-only allowlist that the test also checks for stale entries.
+
+### Removed
+- The `clip-editor__hint`, `clip-editor__heading`, `clip-editor__toolbar`, `clip-editor__toolbar-label` and `clip-editor__object-field` classes, renamed `toolkit-hint`, `toolkit-heading`, `toolkit-asset-bar`, `toolkit-asset-bar__label` and `toolkit-asset-bar__field`. The `SpriteSheets.Catalogs` split key.
+
 ## [0.51.0] — A99 — Ragdoll tab
 
 ### Added

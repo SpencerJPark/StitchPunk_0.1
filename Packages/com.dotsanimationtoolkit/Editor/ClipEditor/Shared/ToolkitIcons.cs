@@ -57,6 +57,12 @@ namespace DotsAnimationToolkit.Editor
                 return null;
             }
 
+            // Callers may pass the dark-skin name already; the prefix is decided here, once.
+            if (iconName.StartsWith("d_", System.StringComparison.Ordinal))
+            {
+                iconName = iconName.Substring(2);
+            }
+
             string primaryIconName = EditorGUIUtility.isProSkin ? "d_" + iconName : iconName;
             string fallbackIconName = EditorGUIUtility.isProSkin ? iconName : "d_" + iconName;
 

@@ -28,6 +28,9 @@ namespace DotsAnimationToolkit.Editor
         public float viewPan;
         public float viewLaneWidth;
 
+        /// <summary>Whether ghost rows paint the out-of-clip range shading — off for a strip standing in for an unloaded timeline, which has no range to shade.</summary>
+        public bool paintRangeShading = true;
+
         /// <summary>Raised when the pointer presses a ghost row, with the normalized time under it.</summary>
         public event Action<float, PointerDownEvent> ghostPointerDown;
 
@@ -218,7 +221,10 @@ namespace DotsAnimationToolkit.Editor
 
                 // Shared with the ruler and the lanes, so where the clip ends is one line down the
                 // whole timeline rather than a line that stops at the last track.
-                TimelineRangeShading.Paint(painter, strip.Geometry, rect);
+                if (strip.paintRangeShading)
+                {
+                    TimelineRangeShading.Paint(painter, strip.Geometry, rect);
+                }
             }
         }
     }

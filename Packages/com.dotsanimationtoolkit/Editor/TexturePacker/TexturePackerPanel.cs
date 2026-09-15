@@ -36,6 +36,7 @@ namespace DotsAnimationToolkit.Editor
 
             recipeLabel = new Label();
             recipeLabel.name = "texture-packer-recipe-label";
+            recipeLabel.AddToClassList("toolkit-pane-title");
 
             Sidebar = new TexturePackerSidebar();
             Sidebar.Images.ImagesActivated += textures => Graph.AddSourcesAtVisibleCenter(textures);
@@ -85,7 +86,7 @@ namespace DotsAnimationToolkit.Editor
             VisualElement actions = new VisualElement();
             actions.AddToClassList("toolkit-pane-actions");
 
-            Button bakeButton = ToolkitIcons.MakeIconTextButton(
+            Button bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB", "Write the packed PNG to disk, overwriting the output asset in place.", "Bake");
             bakeButton.name = "texture-packer-bake-button";
             actions.Add(bakeButton);

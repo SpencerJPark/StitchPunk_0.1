@@ -29,40 +29,18 @@ namespace DotsAnimationToolkit.Editor
 
         public CaptureViewportElement()
         {
-            VisualElement viewportFrame = new VisualElement();
-            viewportFrame.AddToClassList("clip-editor__viewport-frame");
-            viewportFrame.style.flexGrow = 1f;
-            viewportFrame.style.backgroundColor = new Color(0.12f, 0.12f, 0.12f);
+            ViewportFrameElement frame = new ViewportFrameElement();
+            frame.style.backgroundColor = new Color(0.12f, 0.12f, 0.12f); // colour from data
 
-            viewportImage = new Image();
-            viewportImage.scaleMode = ScaleMode.ScaleToFit;
-            viewportImage.style.flexGrow = 1f;
-            viewportFrame.Add(viewportImage);
-
-            VisualElement viewportOverlay = new VisualElement();
-            viewportOverlay.AddToClassList("clip-editor__viewport-overlay");
-            viewportOverlay.pickingMode = PickingMode.Ignore;
-
-            VisualElement overlayColumn = new VisualElement();
-            overlayColumn.AddToClassList("clip-editor__overlay-column");
-
-            ToolbarButton resetCameraButton = new ToolbarButton(() => cameraNavigation.ResetView());
+            ToolbarButton resetCameraButton = frame.AddResetCameraButton(() => cameraNavigation.ResetView());
             resetCameraButton.name = "capture-reset-camera-button";
-            resetCameraButton.AddToClassList("clip-editor__overlay-tool-button");
             resetCameraButton.tooltip = "Put the camera back head-on, framing the capture.";
-            Image resetCameraIcon = new Image();
-            resetCameraIcon.AddToClassList("clip-editor__overlay-tool-icon");
-            resetCameraIcon.pickingMode = PickingMode.Ignore;
-            resetCameraButton.Insert(0, resetCameraIcon);
-            ToolkitIcons.SetButtonIcon(resetCameraButton, resetCameraIcon, "d_FrameCapture", "Reset Camera");
-            overlayColumn.Add(resetCameraButton);
 
-            viewportOverlay.Add(overlayColumn);
-            viewportFrame.Add(viewportOverlay);
-            Add(viewportFrame);
+            viewportImage = frame.ViewportImage;
+            viewportImage.scaleMode = ScaleMode.ScaleToFit;
+            Add(frame);
 
-            statusLabel = new Label("Choose something to capture.");
-            statusLabel.style.whiteSpace = WhiteSpace.Normal;
+            statusLabel = ToolkitChrome.MakeHint("Choose something to capture.");
             Add(statusLabel);
 
             cameraNavigation.AttachTo(viewportImage);

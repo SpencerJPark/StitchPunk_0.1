@@ -24,7 +24,10 @@ namespace DotsAnimationToolkit.Editor
         public EventUsageColumn()
         {
             name = "event-usage-column";
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
+
+            Add(ToolkitChrome.MakePaneHeader("Used by", out _, out _));
 
             usageScrollView = new ScrollView(ScrollViewMode.Vertical);
             usageScrollView.style.flexGrow = 1f;
@@ -48,7 +51,7 @@ namespace DotsAnimationToolkit.Editor
             if (BoundEventKey == 0u)
             {
                 Label hintLabel = new Label("Select an event on the left.");
-                hintLabel.AddToClassList("clip-editor__hint");
+                hintLabel.AddToClassList("toolkit-hint");
                 usageScrollView.Add(hintLabel);
                 return;
             }
@@ -156,7 +159,7 @@ namespace DotsAnimationToolkit.Editor
             textColumn.Add(nameLabel);
 
             Label detailLabel = new Label(formatDetailLine(details));
-            detailLabel.AddToClassList("clip-editor__hint");
+            detailLabel.AddToClassList("toolkit-hint");
             textColumn.Add(detailLabel);
 
             row.Add(textColumn);

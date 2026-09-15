@@ -54,28 +54,19 @@ namespace DotsAnimationToolkit.Editor
         {
             style.flexGrow = 1f;
 
-            // The form is the fixed pane; its divider is remembered across a tab hide/show.
-            CoverPaneSplitView splitView = new CoverPaneSplitView("VatBake.Form", 0, 420f, TwoPaneSplitViewOrientation.Horizontal);
-            splitView.style.flexGrow = 1f;
-            Add(splitView);
+            VisualElement assetBar = ToolkitChrome.MakeAssetBar("vat-bake-asset-bar");
+            Add(assetBar);
 
-            VisualElement formColumn = new VisualElement { name = "vat-bake-form-column" };
-            formColumn.style.minWidth = 320f;
-            formColumn.style.paddingLeft = 10f;
-            formColumn.style.paddingRight = 10f;
-            formColumn.style.paddingTop = 8f;
-            splitView.Add(formColumn);
+            assetBar.Add(ToolkitChrome.MakeAssetBarLabel("Clip Set"));
 
-            VisualElement root = formColumn;
-            root.Add(BuildHeading("Source"));
-
-            clipSetField = new ObjectField("Clip Set")
+            clipSetField = new ObjectField
             {
                 name = "vat-bake-clip-set-field",
                 objectType = typeof(ClipSetAsset),
                 allowSceneObjects = false,
                 tooltip = "Clips whose ClipAsset names a VAT source clip are baked. Others are skipped."
             };
+            clipSetField.AddToClassList("toolkit-asset-bar__field");
             clipSetField.RegisterValueChangedCallback(changeEvent =>
             {
                 ClipSetAsset newClipSet = changeEvent.newValue as ClipSetAsset;
@@ -88,11 +79,13 @@ namespace DotsAnimationToolkit.Editor
                     OnSharedClipSetChanged(newClipSet);
                 }
             });
-            root.Add(clipSetField);
+            assetBar.Add(clipSetField);
+
+            assetBar.Add(ToolkitChrome.MakeAssetBarLabel("Rig"));
 
             // The bake needs the rig twice over: to read the socket rows it samples, and to stamp
             // sourceRigKey so a later bind cannot pair these textures with another character's mesh.
-            rigField = new ObjectField("Rig")
+            rigField = new ObjectField
             {
                 name = "vat-bake-rig-field",
                 objectType = typeof(RigAsset),
@@ -100,6 +93,7 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "The rig these textures are baked for. Socket rows come from it, and it " +
                     "is stamped into the texture set so the wrong rig cannot bind them."
             };
+            rigField.AddToClassList("toolkit-asset-bar__field");
             rigField.RegisterValueChangedCallback(changeEvent =>
             {
                 RigAsset newRig = changeEvent.newValue as RigAsset;
@@ -112,13 +106,15 @@ namespace DotsAnimationToolkit.Editor
                     OnSharedRigChanged(newRig);
                 }
             });
-            root.Add(rigField);
+            assetBar.Add(rigField);
+
+            assetBar.Add(ToolkitChrome.MakeAssetBarSpacer());
 
             // Not a field: which meshes a bake covers is a fact about the rig, not a fourth thing to keep in
             // step with it. This line is the receipt — what the rig resolved to, or why it did not.
             resolvedSourceLabel = new Label(string.Empty);
             resolvedSourceLabel.name = "vat-resolved-source-label";
-            resolvedSourceLabel.AddToClassList("clip-editor__hint");
+            resolvedSourceLabel.AddToClassList("toolkit-hint");
             resolvedSourceLabel.RegisterCallback<ClickEvent>(clickEvent => PingSourcePrefab());
             resolvedSourceLabel.style.flexGrow = 1;
             resolvedSourceLabel.style.flexShrink = 1;
@@ -133,11 +129,24 @@ namespace DotsAnimationToolkit.Editor
             resolvedSourceRow.style.alignItems = Align.FlexStart;
             resolvedSourceRow.Add(resolvedSourceLabel);
             resolvedSourceRow.Add(freshnessBadge);
-            root.Add(resolvedSourceRow);
+            assetBar.Add(resolvedSourceRow);
 
             VatSourceImportWatcher.AssetsImported += OnSourcesImported;
 
-            root.Add(BuildHeading("Settings"));
+            // The form is the fixed pane; its divider is remembered across a tab hide/show.
+            CoverPaneSplitView splitView = new CoverPaneSplitView("VatBake.Form", 0, 420f, TwoPaneSplitViewOrientation.Horizontal);
+            splitView.style.flexGrow = 1f;
+            Add(splitView);
+
+            VisualElement formColumn = new VisualElement { name = "vat-bake-form-column" };
+            formColumn.AddToClassList("toolkit-column");
+            formColumn.style.minWidth = 320f;
+            splitView.Add(formColumn);
+
+            VisualElement root = formColumn;
+            root.Add(ToolkitChrome.MakePaneHeader("Bake", out _, out _));
+
+            root.Add(ToolkitChrome.MakeHeading("Settings"));
 
             flavorField = new EnumField("Flavor", VatFlavor.BoneMatrix)
             {
@@ -159,7 +168,7 @@ namespace DotsAnimationToolkit.Editor
                 + "precision quantisation becomes visible as stepping.";
             root.Add(fullPrecisionField);
 
-            root.Add(BuildHeading("Output"));
+            root.Add(ToolkitChrome.MakeHeading("Output"));
 
             // Left empty on purpose: a package must not hardcode a host's project folders, since
             // that would be wrong in every project organised differently.
@@ -180,26 +189,23 @@ namespace DotsAnimationToolkit.Editor
             previewSetField.RegisterValueChangedCallback(OnPreviewSetFieldChanged);
             root.Add(previewSetField);
 
-            root.Add(BuildHeading("Bake"));
+            root.Add(ToolkitChrome.MakeHeading("Bake"));
 
-            Button bakeButton = new Button(Bake) { text = "Bake VAT Textures" };
-            bakeButton.style.height = 28f;
+            Button bakeButton = ToolkitChrome.MakePrimaryAction(
+                Bake, "d_PreTextureRGB", "Bake every VAT-bound clip in the set to textures.", "Bake");
             bakeButton.style.marginTop = 4f;
             root.Add(bakeButton);
-
-            summaryLabel = new Label(string.Empty);
-            summaryLabel.style.whiteSpace = WhiteSpace.Normal;
-            summaryLabel.style.marginTop = 8f;
-            summaryLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            root.Add(summaryLabel);
 
             logView = new ScrollView();
             logView.style.flexGrow = 1f;
             logView.style.marginTop = 4f;
             root.Add(logView);
 
+            root.Add(ToolkitChrome.MakeStatusRow(out summaryLabel, out _, true));
+
             VisualElement previewPane = new VisualElement { name = "vat-bake-preview-pane" };
-            previewPane.style.flexGrow = 1f;
+            previewPane.AddToClassList("toolkit-column");
+            previewPane.AddToClassList("toolkit-column--flush");
             previewPane.style.minWidth = 320f;
             splitView.Add(previewPane);
 
@@ -294,15 +300,6 @@ namespace DotsAnimationToolkit.Editor
             VatBakeFreshness freshness = VatSourceHashResolver.Resolve(badgeClipSet, badgeRig, badgeClipSet.vatTextures, out reason);
             freshnessBadge.style.display = DisplayStyle.Flex;
             freshnessBadge.Refresh(freshness, reason);
-        }
-
-        private static Label BuildHeading(string text)
-        {
-            Label heading = new Label(text);
-            heading.style.unityFontStyleAndWeight = FontStyle.Bold;
-            heading.style.marginTop = 10f;
-            heading.style.marginBottom = 2f;
-            return heading;
         }
 
         private void Bake()
@@ -488,7 +485,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 resolvedSources = null;
                 resolvedSourceLabel.text = failureMessage;
-                resolvedSourceLabel.style.color = new StyleColor(ToolkitPalette.Warning);
+                resolvedSourceLabel.EnableInClassList("toolkit-text--warning", true);
                 if (rebuildPreview)
                 {
                     RefreshPreview();
@@ -497,7 +494,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             resolvedSources = sources;
-            resolvedSourceLabel.style.color = StyleKeyword.Null;
+            resolvedSourceLabel.EnableInClassList("toolkit-text--warning", false);
 
             if (sources.Count == 1)
             {
@@ -582,9 +579,11 @@ namespace DotsAnimationToolkit.Editor
                 totalClipRangeCount += partRanges == null ? 0 : partRanges.Count;
             }
 
-            summaryLabel.text = "Baked " + partResults.Count.ToString() + " VAT part(s), "
-                + totalClipRangeCount.ToString() + " clip range(s).";
-            summaryLabel.style.color = new StyleColor(new Color(0.45f, 0.8f, 0.5f));
+            ToolkitChrome.SetStatus(
+                summaryLabel,
+                "Baked " + partResults.Count.ToString() + " VAT part(s), "
+                    + totalClipRangeCount.ToString() + " clip range(s).",
+                ToolkitStatusTone.Neutral);
 
             StringBuilder detail = new StringBuilder();
             detail.AppendLine("Texture set: " + setPath);
@@ -642,8 +641,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void ReportFailure(string message)
         {
-            summaryLabel.text = "Bake failed.";
-            summaryLabel.style.color = new StyleColor(new Color(0.9f, 0.45f, 0.4f));
+            ToolkitChrome.SetStatus(summaryLabel, "Bake failed.", ToolkitStatusTone.Error);
             AppendLog(message);
         }
 

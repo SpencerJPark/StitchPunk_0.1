@@ -97,6 +97,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<RegisteredLane> registeredLanes = new List<RegisteredLane>();
 
         private VisualElement timelineContent;
+        private GhostLaneStripElement ghostLanes;
         private BoxSelectElement boxSelectElement;
         private VisualElement boxSelectLane;
 
@@ -180,7 +181,7 @@ namespace DotsAnimationToolkit.Editor
             // A nested TwoPaneSplitView inside a cover pane needs its own minWidth or a hide/show
             // cycle collapses it to its flexible pane alone (see AnimationToolkit.md) — floored at
             // the sum of the viewport's minWidth (160) and the inspector's (220).
-            TwoPaneSplitView centerColumn = new TwoPaneSplitView(1, 300f, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView centerColumn = new CoverPaneSplitView("Cutscene.Inspector", 1, 300f, TwoPaneSplitViewOrientation.Horizontal);
             centerColumn.style.flexGrow = 1f;
             centerColumn.style.minWidth = 380f;
             centerColumn.Add(BuildViewportArea());
@@ -203,7 +204,7 @@ namespace DotsAnimationToolkit.Editor
 
             centerColumn.Add(inspectorPane);
 
-            TwoPaneSplitView castSplit = new TwoPaneSplitView(0, 220f, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView castSplit = new CoverPaneSplitView("Cutscene.Cast", 0, 220f, TwoPaneSplitViewOrientation.Horizontal);
             castSplit.style.flexGrow = 1f;
             castSplit.Add(castPanel);
             castSplit.Add(centerColumn);
@@ -213,7 +214,7 @@ namespace DotsAnimationToolkit.Editor
             upperArea.style.minHeight = 160f;
             upperArea.Add(castSplit);
 
-            TwoPaneSplitView verticalSplit = new TwoPaneSplitView(1, 240f, TwoPaneSplitViewOrientation.Vertical);
+            CoverPaneSplitView verticalSplit = new CoverPaneSplitView("Cutscene.Timeline", 1, 240f, TwoPaneSplitViewOrientation.Vertical);
             verticalSplit.style.flexGrow = 1f;
             verticalSplit.Add(upperArea);
             verticalSplit.Add(timelineArea);
@@ -350,6 +351,7 @@ namespace DotsAnimationToolkit.Editor
             timelineLaneScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             timelineLaneScroll.style.flexGrow = 1f;
             timelineLaneScroll.RegisterCallback<WheelEvent>(OnTimelineWheel, TrickleDown.TrickleDown);
+            timelineLaneScroll.RegisterCallback<GeometryChangedEvent>(geometryEvent => SyncGhostLanes());
             columns.Add(timelineLaneScroll);
 
             // Guarded with a flag rather than by unsubscribing: each assignment raises the other
@@ -385,13 +387,9 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement BuildToolbar()
         {
-            VisualElement toolbar = new VisualElement();
-            toolbar.AddToClassList("clip-editor__toolbar");
-            toolbar.style.flexDirection = FlexDirection.Row;
-            toolbar.style.alignItems = Align.Center;
+            VisualElement toolbar = ToolkitChrome.MakeAssetBar("cutscene-editor-asset-bar");
 
-            Label cutsceneLabel = new Label("Cutscene");
-            cutsceneLabel.AddToClassList("clip-editor__toolbar-label");
+            Label cutsceneLabel = ToolkitChrome.MakeAssetBarLabel("Cutscene");
             toolbar.Add(cutsceneLabel);
 
             cutsceneField = new ObjectField
@@ -399,23 +397,19 @@ namespace DotsAnimationToolkit.Editor
                 objectType = typeof(CutsceneAsset),
                 allowSceneObjects = false
             };
-            cutsceneField.AddToClassList("clip-editor__object-field");
+            cutsceneField.AddToClassList("toolkit-asset-bar__field");
             cutsceneField.RegisterValueChangedCallback(
                 changeEvent => LoadCutscene(changeEvent.newValue as CutsceneAsset));
             toolbar.Add(cutsceneField);
 
-            ToolbarButton newCutsceneButton = new ToolbarButton(CreateCutsceneAsset)
-            {
-                text = "New",
-                tooltip = "Creates a new Cutscene asset wherever you choose, and loads it."
-            };
-            newCutsceneButton.AddToClassList("clip-editor__bar-action");
+            Button newCutsceneButton = ToolkitIcons.MakeIconTextButton(CreateCutsceneAsset, "d_Toolbar Plus",
+                "Creates a new Cutscene asset wherever you choose, and loads it.", "New");
             newCutsceneButton.style.marginLeft = 4f;
             toolbar.Add(newCutsceneButton);
 
             sceneStatusLabel = new Label(string.Empty);
+            sceneStatusLabel.AddToClassList("toolkit-text--dim");
             sceneStatusLabel.style.marginLeft = 12f;
-            sceneStatusLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
             toolbar.Add(sceneStatusLabel);
 
             sceneActionButton = new Button { text = string.Empty };
@@ -473,8 +467,21 @@ namespace DotsAnimationToolkit.Editor
             VisualElement row = new VisualElement { name = "cutscene-editor-transport" };
             row.AddToClassList("toolkit-transport");
 
+            VisualElement lengthGroup = new VisualElement();
+            lengthGroup.AddToClassList("toolkit-transport__group");
+            Label lengthCaption = new Label("Length");
+            lengthCaption.AddToClassList("toolkit-transport__caption");
+            lengthGroup.Add(lengthCaption);
+            timeEndLabel = new Label("/ 0.00 s");
+            timeEndLabel.AddToClassList("toolkit-transport__derived");
+            lengthGroup.Add(timeEndLabel);
+            row.Add(lengthGroup);
+
+            VisualElement transportCoreGroup = new VisualElement();
+            transportCoreGroup.AddToClassList("toolkit-transport__group");
             transportCore = new TransportCoreElement();
-            row.Add(transportCore);
+            transportCoreGroup.Add(transportCore);
+            row.Add(transportCoreGroup);
             transportCore.Bind(this);
 
             VisualElement timeGroup = new VisualElement();
@@ -488,9 +495,6 @@ namespace DotsAnimationToolkit.Editor
                 changeEvent => SetPlayhead(Mathf.Max(0f, changeEvent.newValue)));
             timeGroup.Add(timeField);
             CaptionDragHandle.Attach(timeCaption, timeField);
-            timeEndLabel = new Label("/ 0.00 s");
-            timeEndLabel.AddToClassList("toolkit-transport__derived");
-            timeGroup.Add(timeEndLabel);
             row.Add(timeGroup);
 
             VisualElement speedGroup = new VisualElement();
@@ -527,20 +531,25 @@ namespace DotsAnimationToolkit.Editor
                 text = "All",
                 tooltip = "Frame the whole timeline. Shortcut: Shift+F."
             };
+            frameAllButton.AddToClassList("toolkit-icon-button");
+            frameAllButton.AddToClassList("toolkit-icon-button--text");
             zoomGroup.Add(frameAllButton);
             Button framePlayheadButton = new Button(CentreTimelineOnPlayhead)
             {
                 text = "Playhead",
                 tooltip = "Centre the timeline on the playhead. Shortcut: Alt+P."
             };
+            framePlayheadButton.AddToClassList("toolkit-icon-button");
+            framePlayheadButton.AddToClassList("toolkit-icon-button--text");
             zoomGroup.Add(framePlayheadButton);
             row.Add(zoomGroup);
 
             VisualElement statusGroup = new VisualElement();
             statusGroup.AddToClassList("toolkit-transport__group");
-            continueButton = new Button(ReleaseHold) { text = "Continue" };
-            continueButton.tooltip = "Releases the hold the transport is waiting on, the way a host "
-                + "releases it at run time.";
+            continueButton = ToolkitIcons.MakeIconTextButton(
+                ReleaseHold, "d_PlayButton",
+                "Releases the hold the transport is waiting on, the way a host releases it at run time.",
+                "Continue");
             continueButton.style.display = DisplayStyle.None;
             statusGroup.Add(continueButton);
             transportStatusLabel = new Label(string.Empty);
@@ -1088,7 +1097,7 @@ namespace DotsAnimationToolkit.Editor
             viewportOverlay.style.display = DisplayStyle.None;
 
             viewportMessageLabel = new Label(string.Empty);
-            viewportMessageLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+            viewportMessageLabel.AddToClassList("toolkit-hint");
             viewportMessageLabel.style.marginBottom = 6f;
             viewportOverlay.Add(viewportMessageLabel);
 
@@ -1968,16 +1977,36 @@ namespace DotsAnimationToolkit.Editor
 
             if (cutscene == null || serializedObject == null)
             {
-                Label emptyHint = new Label(
-                    "No cutscene loaded.\n\n"
-                    + "Pick a Cutscene asset in the toolbar (or press New), then add Actor and Prop "
-                    + "slots.\nDouble-click any lane to add a clip block or key at that time.");
-                emptyHint.style.unityTextAlign = TextAnchor.MiddleCenter;
-                emptyHint.style.whiteSpace = WhiteSpace.Normal;
-                emptyHint.style.marginTop = 24f;
-                emptyHint.style.color = new Color(0.62f, 0.62f, 0.66f);
-                emptyHint.style.alignSelf = Align.Center;
-                timelineLaneScroll.Add(emptyHint);
+                VisualElement emptyHeaderContent = new VisualElement();
+                emptyHeaderContent.style.flexDirection = FlexDirection.Column;
+                timelineHeaderContent = emptyHeaderContent;
+
+                VisualElement emptyContent = new VisualElement();
+                emptyContent.style.flexDirection = FlexDirection.Column;
+                emptyContent.style.position = Position.Relative;
+                timelineContent = emptyContent;
+
+                float emptyContentWidth = timelineLaneScroll.contentViewport.resolvedStyle.width;
+                if (float.IsNaN(emptyContentWidth) || emptyContentWidth <= 0f)
+                {
+                    emptyContentWidth = 600f;
+                }
+
+                CutsceneTimelineRulerElement emptyRuler = new CutsceneTimelineRulerElement
+                {
+                    pixelsPerSecond = pixelsPerSecond,
+                    contentEndSeconds = 0f,
+                    trailingSeconds = TrailingSeconds
+                };
+                emptyRuler.style.width = emptyContentWidth;
+                emptyRuler.style.height = RulerHeight;
+                AddTimelineRow(emptyContent, null, emptyRuler, null, RulerHeight);
+
+                AppendGhostLanes(emptyContent, emptyContentWidth);
+
+                timelineHeaderScroll.Add(emptyHeaderContent);
+                timelineLaneScroll.Add(emptyContent);
+                timelineStatusLabel.text = "No cutscene loaded. Pick one in the bar above, or press New.";
                 return;
             }
 
@@ -2027,6 +2056,7 @@ namespace DotsAnimationToolkit.Editor
             BuildCameraRows(content, contentWidth);
             BuildEventRows(content, contentWidth);
             BuildHoldRows(content, contentWidth);
+            AppendGhostLanes(content, contentWidth);
 
             playheadElement = new CutsceneTimelinePlayheadElement
             {
@@ -2053,6 +2083,30 @@ namespace DotsAnimationToolkit.Editor
             timelineHeaderScroll.Add(headerContent);
             timelineLaneScroll.Add(content);
             timelineLaneScroll.scrollOffset = preservedScroll;
+        }
+
+        private void AppendGhostLanes(VisualElement content, float contentWidth)
+        {
+            ghostLanes = new GhostLaneStripElement { paintRangeShading = false };
+            ghostLanes.style.width = contentWidth;
+            content.Add(ghostLanes);
+            SyncGhostLanes();
+        }
+
+        // Fills whatever the viewport has left under the last row; header-only rows count as lane rows.
+        private void SyncGhostLanes()
+        {
+            if (ghostLanes == null || timelineLaneScroll == null)
+            {
+                return;
+            }
+            float viewportHeight = timelineLaneScroll.contentViewport.contentRect.height;
+            if (!(viewportHeight > 1f))
+            {
+                return;
+            }
+            float usedHeight = RulerHeight + timelineLaneRowCount * LaneRowHeight;
+            ghostLanes.SyncRows(viewportHeight - usedHeight, (timelineLaneRowCount & 1) == 1);
         }
 
         private float ComputeContentEndSeconds()
@@ -2334,16 +2388,14 @@ namespace DotsAnimationToolkit.Editor
                             "Remove Part Track", _ => DeleteArrayElement(partTracksProperty, capturedTrackIndex))));
                 }
 
-                Button addPartTrackButton = new Button(() => OpenAddPartTrackPicker(slotIndex))
-                {
-                    text = "+ Part Track",
-                    tooltip = "Adds a keyed override track for one rig part (picked by tag)."
-                };
+                Button addPartTrackButton = ToolkitIcons.MakeIconTextButton(
+                    () => OpenAddPartTrackPicker(slotIndex), "d_Toolbar Plus",
+                    "Adds a keyed override track for one rig part (picked by tag).", "Part Track");
+                addPartTrackButton.AddToClassList("toolkit-pane-action");
                 addPartTrackButton.style.marginLeft = 8f;
                 addPartTrackButton.style.width = HeaderColumnWidth - 16f;
                 addPartTrackButton.style.marginTop = 2f;
                 addPartTrackButton.style.marginBottom = 2f;
-                addPartTrackButton.style.fontSize = 10f;
                 AddHeaderOnlyRow(content, addPartTrackButton, LaneRowHeight);
             }
         }
@@ -2551,7 +2603,7 @@ namespace DotsAnimationToolkit.Editor
             Label warningLabel = headerCell.Q<Label>(className: "cutscene-editor__track-header-label");
             if (warningLabel != null)
             {
-                warningLabel.style.color = ToolkitPalette.Warning;
+                warningLabel.AddToClassList("toolkit-text--warning");
             }
             headerCell.tooltip = "Blocks naming an animation key this slot's profile does not carry.";
         }
@@ -2985,7 +3037,7 @@ namespace DotsAnimationToolkit.Editor
                 configureHeaderCell: headerCell =>
                 {
                     // One colour per name, so the strip is set inline rather than through an accent class.
-                    headerCell.style.borderLeftColor = laneColor;
+                    headerCell.style.borderLeftColor = laneColor; // colour from data
                     headerCell.AddManipulator(new ContextualMenuManipulator(menuEvent =>
                         BuildEventNameRowMenu(menuEvent.menu, laneKey, headerCell)));
                 });
@@ -4397,7 +4449,7 @@ namespace DotsAnimationToolkit.Editor
                     "+ " + (selectedItems.Count - 1).ToString() + " more selected — editing the last "
                     + "one clicked. Drag, Delete and copy act on all of them.");
                 multiSelectionNote.style.whiteSpace = WhiteSpace.Normal;
-                multiSelectionNote.style.opacity = 0.8f;
+                multiSelectionNote.AddToClassList("toolkit-text--dim");
                 inspectorScroll.Add(multiSelectionNote);
             }
 
@@ -4457,7 +4509,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void BuildCutsceneLevelInspector()
         {
-            inspectorScroll.Add(BuildHeading("Cutscene"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Cutscene"));
             inspectorScroll.Add(new Label(
                 "Select a slot header, or a marker in the timeline, to edit it.")
             { style = { whiteSpace = WhiteSpace.Normal } });
@@ -4469,7 +4521,7 @@ namespace DotsAnimationToolkit.Editor
                 serializedObject.FindProperty("slots").GetArrayElementAtIndex(slotIndex);
             CutsceneSlot slot = cutscene.slots[slotIndex];
 
-            inspectorScroll.Add(BuildHeading("Slot"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Slot"));
 
             PropertyField nameField = new PropertyField(slotProperty.FindPropertyRelative("name"));
             nameField.Bind(serializedObject);
@@ -4523,7 +4575,7 @@ namespace DotsAnimationToolkit.Editor
                     Label clipStatusLabel = new Label(clipPreviewStatus);
                     clipStatusLabel.style.marginTop = 4f;
                     clipStatusLabel.style.whiteSpace = WhiteSpace.Normal;
-                    clipStatusLabel.style.color = new Color(0.95f, 0.8f, 0.35f);
+                    clipStatusLabel.AddToClassList("toolkit-text--warning");
                     inspectorScroll.Add(clipStatusLabel);
                 }
 
@@ -4774,7 +4826,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 Label warningLabel = new Label("⚠ " + warnings[index]);
                 warningLabel.style.whiteSpace = WhiteSpace.Normal;
-                warningLabel.style.color = ToolkitPalette.Warning;
+                warningLabel.AddToClassList("toolkit-text--warning");
                 warningBox.Add(warningLabel);
             }
             inspectorScroll.Add(warningBox);
@@ -4826,7 +4878,7 @@ namespace DotsAnimationToolkit.Editor
                 .GetArrayElementAtIndex(blockIndex);
             CutsceneClipBlock block = slot.clipBlocks[blockIndex];
 
-            inspectorScroll.Add(BuildHeading("Clip Block"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Clip Block"));
 
             Button animationButton = new Button { text = ResolveAnimationDisplayName(block.animationKey) };
             animationButton.clicked += () =>
@@ -4893,7 +4945,7 @@ namespace DotsAnimationToolkit.Editor
             SerializedProperty listProperty = serializedObject.FindProperty(listPropertyPath);
             SerializedProperty keyProperty = listProperty.GetArrayElementAtIndex(keyIndex);
 
-            inspectorScroll.Add(BuildHeading("Key"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Key"));
             AddBoundField(keyProperty, "time", "Time (s)");
             AddBoundField(keyProperty, "position", "Position");
             AddBoundField(keyProperty, "rotation", "Rotation");
@@ -4913,7 +4965,7 @@ namespace DotsAnimationToolkit.Editor
                 .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("facingKeys")
                 .GetArrayElementAtIndex(keyIndex);
 
-            inspectorScroll.Add(BuildHeading("Facing Override"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Facing Override"));
             AddBoundField(keyProperty, "time", "Time (s)");
 
             PropertyField modeField = AddBoundField(keyProperty, "mode", "Mode");
@@ -4944,7 +4996,7 @@ namespace DotsAnimationToolkit.Editor
                 .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("layerStops")
                 .GetArrayElementAtIndex(stopIndex);
 
-            inspectorScroll.Add(BuildHeading("Layer Stop"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Layer Stop"));
             AddBoundField(stopProperty, "time", "Time (s)");
 
             TextField layerField = new TextField("Layer")
@@ -4965,7 +5017,7 @@ namespace DotsAnimationToolkit.Editor
                 .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("partTracks")
                 .GetArrayElementAtIndex(trackIndex);
 
-            inspectorScroll.Add(BuildHeading("Part Track"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Part Track"));
 
             uint tagId = slot.partTracks[trackIndex].tagId;
             string tagName = VocabularyRegistryProvider.TargetTags.FindName(tagId);
@@ -5002,7 +5054,7 @@ namespace DotsAnimationToolkit.Editor
                 .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("attachMarkers")
                 .GetArrayElementAtIndex(markerIndex);
 
-            inspectorScroll.Add(BuildHeading("Attach"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Attach"));
             AddBoundField(markerProperty, "time", "Time (s)");
 
             PropertyField kindField = new PropertyField(markerProperty.FindPropertyRelative("kind"), "Kind");
@@ -5052,7 +5104,7 @@ namespace DotsAnimationToolkit.Editor
                 .GetArrayElementAtIndex(slotIndex).FindPropertyRelative("markKeys")
                 .GetArrayElementAtIndex(markIndex);
 
-            inspectorScroll.Add(BuildHeading("Mark"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Mark"));
             AddBoundField(markProperty, "time", "Time (s)");
             AddBoundField(markProperty, "position", "Position (world)");
 
@@ -5262,7 +5314,7 @@ namespace DotsAnimationToolkit.Editor
             Label note = new Label(text);
             note.style.whiteSpace = WhiteSpace.Normal;
             note.style.marginTop = 4f;
-            note.style.opacity = 0.75f;
+            note.AddToClassList("toolkit-text--dim");
             return note;
         }
 
@@ -5275,7 +5327,7 @@ namespace DotsAnimationToolkit.Editor
             SerializedProperty keyProperty = serializedObject.FindProperty("cameraLane")
                 .FindPropertyRelative("keys").GetArrayElementAtIndex(keyIndex);
 
-            inspectorScroll.Add(BuildHeading("Camera Key"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Camera Key"));
             AddBoundField(keyProperty, "time", "Time (s)");
             AddBoundField(keyProperty, "position", "Position");
             AddBoundField(keyProperty, "rotation", "Rotation");
@@ -5315,7 +5367,7 @@ namespace DotsAnimationToolkit.Editor
             SerializedProperty eventProperty =
                 serializedObject.FindProperty("events").GetArrayElementAtIndex(eventIndex);
 
-            inspectorScroll.Add(BuildHeading("Event"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Event"));
 
             AnimEventKeyRegistry registry = VocabularyRegistryProvider.AnimEventKeys;
             CutsceneEventMarkerAccessor accessor = new CutsceneEventMarkerAccessor(cutscene, eventIndex);
@@ -5358,7 +5410,7 @@ namespace DotsAnimationToolkit.Editor
             SerializedProperty holdProperty =
                 serializedObject.FindProperty("holdMarkers").GetArrayElementAtIndex(holdIndex);
 
-            inspectorScroll.Add(BuildHeading("Hold Marker"));
+            inspectorScroll.Add(ToolkitChrome.MakeHeading("Hold Marker"));
             AddBoundField(holdProperty, "time", "Time (s)");
             AddBoundField(holdProperty, "holdId", "Hold Id");
         }
@@ -5433,13 +5485,6 @@ namespace DotsAnimationToolkit.Editor
             curveEditor.pickingMode = interpolation == Interpolation.Bezier
                 ? PickingMode.Position
                 : PickingMode.Ignore;
-        }
-
-        private static Label BuildHeading(string text)
-        {
-            Label heading = new Label(text);
-            heading.AddToClassList("clip-editor__heading");
-            return heading;
         }
     }
 }

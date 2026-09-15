@@ -22,6 +22,7 @@ namespace DotsAnimationToolkit.Editor
         public MaterialInspectorColumn()
         {
             style.flexGrow = 1f;
+            AddToClassList("toolkit-column");
 
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
@@ -31,13 +32,18 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement actions = new VisualElement();
             actions.AddToClassList("toolkit-pane-actions");
-            selectButton = new Button(SelectBoundMaterial) { text = "Select in Inspector", name = "material-inspector-select" };
+            selectButton = ToolkitIcons.MakeIconTextButton(
+                SelectBoundMaterial,
+                "d_UnityEditor.InspectorWindow",
+                "Select this material in the Inspector",
+                "Inspector");
+            selectButton.name = "material-inspector-select";
             actions.Add(selectButton);
             header.Add(actions);
             Add(header);
 
             hintLabel = new Label("Pick a material on the left.") { name = "material-inspector-hint" };
-            hintLabel.AddToClassList("clip-editor__hint");
+            hintLabel.AddToClassList("toolkit-hint");
             Add(hintLabel);
 
             bodyScrollView = new ScrollView();
@@ -95,12 +101,12 @@ namespace DotsAnimationToolkit.Editor
                 if (BoundUsage.UnmappedNodePaths != null && BoundUsage.UnmappedNodePaths.Count > 0)
                 {
                     Label unmappedHint = new Label("Unmapped: " + string.Join(", ", BoundUsage.UnmappedNodePaths));
-                    unmappedHint.AddToClassList("clip-editor__hint");
+                    unmappedHint.AddToClassList("toolkit-hint");
                     bodyScrollView.Add(unmappedHint);
                 }
 
                 Label noTargetHint = new Label("No rig target uses this material, so no contract applies.");
-                noTargetHint.AddToClassList("clip-editor__hint");
+                noTargetHint.AddToClassList("toolkit-hint");
                 bodyScrollView.Add(noTargetHint);
             }
             else
@@ -130,7 +136,7 @@ namespace DotsAnimationToolkit.Editor
                 : "✗ GPU instancing off (Entities Graphics needs it on)") { name = "material-inspector-instancing" };
             if (!isInstancingEnabled)
             {
-                instancingRow.style.color = ToolkitPalette.Error;
+                instancingRow.AddToClassList("toolkit-text--error");
             }
 
             bodyScrollView.Add(instancingRow);
@@ -140,7 +146,7 @@ namespace DotsAnimationToolkit.Editor
             foreach (ValidationMessage warning in sheetWarnings)
             {
                 Label warningRow = new Label("● " + warning.text) { name = "material-inspector-sheet-warning" };
-                warningRow.style.color = ToolkitPalette.Warning;
+                warningRow.AddToClassList("toolkit-text--warning");
                 bodyScrollView.Add(warningRow);
             }
         }
@@ -157,7 +163,7 @@ namespace DotsAnimationToolkit.Editor
                     break;
                 case ContractPropertyState.Missing:
                     propertyRow = new Label("✗ " + propertyName + " (missing: a " + DisplayNameForTargetKind(kind) + " part needs it)");
-                    propertyRow.style.color = ToolkitPalette.Error;
+                    propertyRow.AddToClassList("toolkit-text--error");
                     break;
                 case ContractPropertyState.CoveredByAlternative:
                     propertyRow = new Label("– " + propertyName + " (not in this shader; the other frame property covers it)");

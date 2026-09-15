@@ -21,6 +21,7 @@ namespace DotsAnimationToolkit.Editor
         public RetargetTrackTableElement()
         {
             name = "retarget-track-table";
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
             style.flexDirection = FlexDirection.Column;
 
@@ -42,7 +43,7 @@ namespace DotsAnimationToolkit.Editor
             Add(trackListView);
 
             emptyHintLabel = new Label("Pick a clip and a rig to see where its tracks land.");
-            emptyHintLabel.AddToClassList("clip-editor__hint");
+            emptyHintLabel.AddToClassList("toolkit-hint");
             Add(emptyHintLabel);
 
             RefreshEmptyState();
@@ -72,9 +73,9 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement row = new VisualElement();
             row.name = "retarget-track-row";
+            row.AddToClassList("toolkit-box__row");
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
-            row.style.paddingLeft = 4f;
 
             Label glyphLabel = new Label();
             glyphLabel.name = "retarget-track-glyph";
@@ -84,7 +85,7 @@ namespace DotsAnimationToolkit.Editor
             Label nameLabel = new Label();
             nameLabel.name = "retarget-track-name";
             nameLabel.style.width = 140f;
-            nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            nameLabel.AddToClassList("toolkit-box__title");
             row.Add(nameLabel);
 
             Label detailLabel = new Label();
@@ -92,18 +93,16 @@ namespace DotsAnimationToolkit.Editor
             detailLabel.style.flexGrow = 1f;
             row.Add(detailLabel);
 
-            Button remapButton = new Button();
-            remapButton.name = "retarget-remap-button";
-            remapButton.text = "remap ▾";
-            remapButton.tooltip = "Point this track at one of the rig's tags";
-            remapButton.clicked += () =>
+            Button remapButton = null;
+            remapButton = ToolkitIcons.MakeIconTextButton(() =>
             {
                 int boundIndex = (int)remapButton.userData;
                 if (boundIndex >= 0 && boundIndex < bindings.Count)
                 {
                     RemapRequested?.Invoke(bindings[boundIndex], remapButton);
                 }
-            };
+            }, "d_Linked", "Point this track at one of the rig's tags", "Remap");
+            remapButton.name = "retarget-remap-button";
             row.Add(remapButton);
 
             return row;
@@ -121,17 +120,17 @@ namespace DotsAnimationToolkit.Editor
             {
                 case TrackBindingState.Bound:
                     glyphLabel.text = "✓";
-                    glyphLabel.style.color = ToolkitPalette.Clean;
+                    glyphLabel.style.color = ToolkitPalette.Clean; // colour from data
                     glyphLabel.tooltip = "Bound";
                     break;
                 case TrackBindingState.Skipped:
                     glyphLabel.text = "●";
-                    glyphLabel.style.color = ToolkitPalette.Warning;
+                    glyphLabel.style.color = ToolkitPalette.Warning; // colour from data
                     glyphLabel.tooltip = "Skipped: this rig has no part for this track";
                     break;
                 default:
                     glyphLabel.text = "✗";
-                    glyphLabel.style.color = ToolkitPalette.Error;
+                    glyphLabel.style.color = ToolkitPalette.Error; // colour from data
                     glyphLabel.tooltip = "Dangling: the tag is not in the registry";
                     break;
             }
@@ -141,14 +140,14 @@ namespace DotsAnimationToolkit.Editor
             if (binding.state == TrackBindingState.Bound)
             {
                 detailLabel.text = "→ " + binding.targetDisplayName;
-                detailLabel.style.color = StyleKeyword.Null;
+                detailLabel.EnableInClassList("toolkit-text--warning", false);
+                detailLabel.EnableInClassList("toolkit-text--error", false);
             }
             else
             {
                 detailLabel.text = "(" + binding.reason + ")";
-                detailLabel.style.color = binding.state == TrackBindingState.Skipped
-                    ? ToolkitPalette.Warning
-                    : ToolkitPalette.Error;
+                detailLabel.EnableInClassList("toolkit-text--warning", binding.state == TrackBindingState.Skipped);
+                detailLabel.EnableInClassList("toolkit-text--error", binding.state != TrackBindingState.Skipped);
             }
 
             bool showRemapButton = binding.state != TrackBindingState.Bound && binding.CanRemapTag;

@@ -20,17 +20,15 @@ namespace DotsAnimationToolkit.Editor
         public HealthFindingDetailElement()
         {
             name = "health-finding-detail";
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
 
             scrollView = new ScrollView(ScrollViewMode.Vertical);
             scrollView.style.flexGrow = 1f;
             Add(scrollView);
 
-            emptyLabel = new Label("Select a finding to see what's wrong and how to fix it.");
+            emptyLabel = ToolkitChrome.MakeHint("Select a finding to see what's wrong and how to fix it.");
             emptyLabel.name = "health-finding-detail-empty";
-            emptyLabel.style.whiteSpace = WhiteSpace.Normal;
-            emptyLabel.style.marginTop = 12f;
-            emptyLabel.style.marginLeft = 12f;
             Add(emptyLabel);
         }
 
@@ -50,12 +48,10 @@ namespace DotsAnimationToolkit.Editor
 
             scrollView.Add(BuildHeaderRow(finding));
 
-            Label titleLabel = new Label(finding.title);
-            titleLabel.style.fontSize = 14f;
-            titleLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            titleLabel.style.whiteSpace = WhiteSpace.Normal;
-            titleLabel.style.marginBottom = 6f;
-            scrollView.Add(titleLabel);
+            Label findingTitleLabel = ToolkitChrome.MakeDetailTitle(finding.title);
+            findingTitleLabel.style.whiteSpace = WhiteSpace.Normal;
+            findingTitleLabel.style.marginBottom = 6f;
+            scrollView.Add(findingTitleLabel);
 
             Label messageLabel = new Label(finding.message);
             messageLabel.style.whiteSpace = WhiteSpace.Normal;
@@ -73,18 +69,11 @@ namespace DotsAnimationToolkit.Editor
 
         private static VisualElement BuildHeaderRow(HealthFinding finding)
         {
-            VisualElement headerRow = new VisualElement();
-            headerRow.style.flexDirection = FlexDirection.Row;
-            headerRow.style.marginBottom = 4f;
-
-            Label codeLabel = new Label(finding.code);
-            codeLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            codeLabel.style.marginRight = 8f;
-            headerRow.Add(codeLabel);
+            VisualElement headerRow = ToolkitChrome.MakePaneHeader(finding.code, out _, out VisualElement actions);
 
             Label severityLabel = new Label(SeverityWord(finding.severity));
-            severityLabel.style.color = SeverityColor(finding.severity);
-            headerRow.Add(severityLabel);
+            severityLabel.AddToClassList(SeverityClassName(finding.severity));
+            actions.Add(severityLabel);
 
             return headerRow;
         }
@@ -94,10 +83,14 @@ namespace DotsAnimationToolkit.Editor
             VisualElement section = MakeSectionBox();
             section.Add(MakeSectionHeader("Affected"));
 
+            VisualElement body = new VisualElement();
+            body.AddToClassList("toolkit-box__body");
+            section.Add(body);
+
             List<UnityEngine.Object> distinctAssets = CollectDistinctAssets(finding);
             foreach (UnityEngine.Object asset in distinctAssets)
             {
-                section.Add(BuildAffectedAssetRow(asset));
+                body.Add(BuildAffectedAssetRow(asset));
             }
 
             return section;
@@ -140,9 +133,7 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildAffectedAssetRow(UnityEngine.Object asset)
         {
             VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.marginBottom = 2f;
+            row.AddToClassList("toolkit-box__row");
 
             Button locateButton = new Button();
             locateButton.text = "▸ " + asset.name;
@@ -157,10 +148,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (asset is ClipAsset || asset is CutsceneAsset || asset is ActorProfileAsset)
             {
-                Button openButton = new Button();
-                openButton.text = "Open";
+                Button openButton = ToolkitIcons.MakeIconTextButton(() => AssetDatabase.OpenAsset(asset), "editicon.sml", "Open", "Open");
                 openButton.style.marginLeft = 4f;
-                openButton.clicked += () => AssetDatabase.OpenAsset(asset);
                 row.Add(openButton);
             }
 
@@ -172,17 +161,21 @@ namespace DotsAnimationToolkit.Editor
             VisualElement section = MakeSectionBox();
             section.Add(MakeSectionHeader("How to fix"));
 
+            VisualElement body = new VisualElement();
+            body.AddToClassList("toolkit-box__body");
+            section.Add(body);
+
             if (finding.actions == null || finding.actions.Count == 0)
             {
                 Label noFixLabel = new Label("No automatic fix; locate the asset and edit it.");
                 noFixLabel.style.whiteSpace = WhiteSpace.Normal;
-                section.Add(noFixLabel);
+                body.Add(noFixLabel);
                 return section;
             }
 
             for (int actionIndex = 0; actionIndex < finding.actions.Count; actionIndex++)
             {
-                section.Add(BuildActionRow(finding, finding.actions[actionIndex]));
+                body.Add(BuildActionRow(finding, finding.actions[actionIndex]));
             }
 
             return section;
@@ -193,25 +186,52 @@ namespace DotsAnimationToolkit.Editor
             VisualElement rowContainer = new VisualElement();
             rowContainer.style.marginBottom = 6f;
 
-            Button actionButton = new Button();
+            string actionIconName = ResolveActionIconName(action.label);
+            Button actionButton = actionIconName == null
+                ? new Button { text = action.label }
+                : ToolkitIcons.MakeIconTextButton(() => RunAction(finding, action), actionIconName, action.description, action.label);
             actionButton.name = "health-finding-action";
-            actionButton.text = action.label;
             actionButton.style.flexGrow = 1f;
             if (action.isDestructive)
             {
-                actionButton.style.backgroundColor = ToolkitPalette.Error;
+                actionButton.style.backgroundColor = ToolkitPalette.Error; // colour from data
             }
 
-            actionButton.clicked += () => RunAction(finding, action);
+            if (actionIconName == null)
+            {
+                actionButton.clicked += () => RunAction(finding, action);
+            }
+
             rowContainer.Add(actionButton);
 
             Label descriptionLabel = new Label(action.description);
             descriptionLabel.style.whiteSpace = WhiteSpace.Normal;
-            descriptionLabel.style.opacity = 0.7f;
-            descriptionLabel.style.fontSize = 11f;
+            descriptionLabel.AddToClassList("toolkit-text--dim");
             rowContainer.Add(descriptionLabel);
 
             return rowContainer;
+        }
+
+        // Action labels are data-driven (baked into each HealthRule), so only the verbs that show
+        // up verbatim today get an icon; anything else stays a bare-word button.
+        private static string ResolveActionIconName(string actionLabel)
+        {
+            if (string.IsNullOrEmpty(actionLabel))
+            {
+                return null;
+            }
+
+            if (actionLabel.StartsWith("Rebake", StringComparison.Ordinal))
+            {
+                return "d_Refresh";
+            }
+
+            if (actionLabel.StartsWith("Delete", StringComparison.Ordinal))
+            {
+                return ToolkitIcons.Trash;
+            }
+
+            return null;
         }
 
         private void RunAction(HealthFinding finding, HealthFindingAction action)
@@ -233,32 +253,20 @@ namespace DotsAnimationToolkit.Editor
         private static VisualElement MakeSectionBox()
         {
             VisualElement section = new VisualElement();
-            section.style.borderTopWidth = 1f;
-            section.style.borderBottomWidth = 1f;
-            section.style.borderLeftWidth = 1f;
-            section.style.borderRightWidth = 1f;
-            section.style.borderTopColor = ToolkitPalette.BoxBorder;
-            section.style.borderBottomColor = ToolkitPalette.BoxBorder;
-            section.style.borderLeftColor = ToolkitPalette.BoxBorder;
-            section.style.borderRightColor = ToolkitPalette.BoxBorder;
-            section.style.backgroundColor = ToolkitPalette.BoxFill;
-            section.style.borderTopLeftRadius = 3f;
-            section.style.borderTopRightRadius = 3f;
-            section.style.borderBottomLeftRadius = 3f;
-            section.style.borderBottomRightRadius = 3f;
-            section.style.paddingTop = 6f;
-            section.style.paddingBottom = 6f;
-            section.style.paddingLeft = 6f;
-            section.style.paddingRight = 6f;
+            section.AddToClassList("toolkit-box");
             section.style.marginBottom = 6f;
             return section;
         }
 
-        private static Label MakeSectionHeader(string headerText)
+        private static VisualElement MakeSectionHeader(string headerText)
         {
-            Label header = new Label(headerText);
-            header.style.unityFontStyleAndWeight = FontStyle.Bold;
-            header.style.marginBottom = 4f;
+            VisualElement header = new VisualElement();
+            header.AddToClassList("toolkit-box__header");
+
+            Label title = new Label(headerText);
+            title.AddToClassList("toolkit-box__title");
+            header.Add(title);
+
             return header;
         }
 
@@ -275,16 +283,16 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private static Color SeverityColor(HealthSeverity severity)
+        private static string SeverityClassName(HealthSeverity severity)
         {
             switch (severity)
             {
                 case HealthSeverity.Error:
-                    return ToolkitPalette.Error;
+                    return "toolkit-text--error";
                 case HealthSeverity.Warning:
-                    return ToolkitPalette.Warning;
+                    return "toolkit-text--warning";
                 default:
-                    return ToolkitPalette.Accent;
+                    return "toolkit-text--dim";
             }
         }
     }

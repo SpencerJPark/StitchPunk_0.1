@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Editor
         private Label noSelectionHintLabel;
         private VisualElement editorContent;
         private TextField rigNameField;
-        private Label rigFolderLabel;
+        private PathPickerRowElement rigFolderRow;
         private ObjectField sourcePrefabField;
         private Label candidateSummaryLabel;
         private VisualElement candidateContainer;
@@ -230,7 +230,7 @@ namespace DotsAnimationToolkit.Editor
             saveLocation.FallbackFolder = rigs.Count > 0
                 ? System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(rigs[0])).Replace('\\', '/')
                 : "Assets";
-            rigFolderLabel.text = saveLocation.Recall();
+            rigFolderRow.Path = saveLocation.Recall();
 
             catalog.SetRigs(rigs);
         }
@@ -238,11 +238,8 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildTargetsColumn()
         {
             VisualElement targetsColumn = new VisualElement { name = "rig-targets-column" };
-            targetsColumn.style.flexGrow = 1f;
+            targetsColumn.AddToClassList("toolkit-column");
             targetsColumn.style.minWidth = TargetsMinimumWidth;
-            targetsColumn.style.paddingTop = 8f;
-            targetsColumn.style.paddingLeft = 10f;
-            targetsColumn.style.paddingRight = 10f;
 
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
@@ -250,19 +247,15 @@ namespace DotsAnimationToolkit.Editor
             targetsTitleLabel.AddToClassList("toolkit-pane-title");
             header.Add(targetsTitleLabel);
 
-            useInEditorButton = ToolkitIcons.MakeIconTextButton(
-                OnUseInEditorClicked, "editicon.sml", null, "Use in Clip Editor");
+            useInEditorButton = ToolkitChrome.MakePrimaryAction(
+                OnUseInEditorClicked, "editicon.sml", "Make this the Clip Editor's rig", "Use in Clip Editor");
             useInEditorButton.name = "rig-use-in-editor-button";
             header.Add(useInEditorButton);
 
             targetsColumn.Add(header);
 
-            noSelectionHintLabel = new Label("Select a rig, or press New to make one.")
-            {
-                name = "rig-no-selection-hint"
-            };
-            noSelectionHintLabel.style.whiteSpace = WhiteSpace.Normal;
-            noSelectionHintLabel.style.marginTop = 8f;
+            noSelectionHintLabel = ToolkitChrome.MakeHint("Select a rig, or press New to make one.");
+            noSelectionHintLabel.name = "rig-no-selection-hint";
             targetsColumn.Add(noSelectionHintLabel);
 
             editorContent = new VisualElement { name = "rig-editor-content" };
@@ -280,28 +273,14 @@ namespace DotsAnimationToolkit.Editor
             });
             editorContent.Add(rigNameField);
 
-            VisualElement folderRow = new VisualElement { name = "rig-folder-row" };
-            folderRow.style.flexDirection = FlexDirection.Row;
-            folderRow.style.alignItems = Align.Center;
-            folderRow.style.marginBottom = 4f;
-
-            rigFolderLabel = new Label(saveLocation.Recall()) { name = "rig-folder-label" };
-            rigFolderLabel.style.flexGrow = 1f;
-            rigFolderLabel.style.overflow = Overflow.Hidden;
-            rigFolderLabel.style.textOverflow = TextOverflow.Ellipsis;
-            rigFolderLabel.style.whiteSpace = WhiteSpace.NoWrap;
-            folderRow.Add(rigFolderLabel);
-
-            Button rigFolderButton = new Button(OnRigFolderButtonClicked)
+            rigFolderRow = new PathPickerRowElement(
+                "Folder", "Where the next New rig is created. Does not move the selected rig.")
             {
-                text = "…",
-                name = "rig-folder-button",
-                tooltip = "Where the next New rig is created. Does not move the selected rig."
+                name = "rig-folder-row",
+                Path = saveLocation.Recall()
             };
-            rigFolderButton.style.marginLeft = 4f;
-            folderRow.Add(rigFolderButton);
-
-            editorContent.Add(folderRow);
+            rigFolderRow.BrowseRequested += OnRigFolderButtonClicked;
+            editorContent.Add(rigFolderRow);
 
             sourcePrefabField = new ObjectField("Source Prefab")
             {
@@ -329,11 +308,10 @@ namespace DotsAnimationToolkit.Editor
             });
             editorContent.Add(sourcePrefabField);
 
-            editorContent.Add(BuildHeading("Targets"));
+            editorContent.Add(ToolkitChrome.MakeHeading("Targets"));
 
-            candidateSummaryLabel = new Label(
+            candidateSummaryLabel = ToolkitChrome.MakeHint(
                 "Assign a source prefab to scan its hierarchy for renderer-bearing nodes.");
-            candidateSummaryLabel.style.whiteSpace = WhiteSpace.Normal;
             editorContent.Add(candidateSummaryLabel);
 
             ScrollView candidateScroll = new ScrollView();
@@ -344,11 +322,7 @@ namespace DotsAnimationToolkit.Editor
 
             targetsColumn.Add(editorContent);
 
-            resultLabel = new Label(string.Empty);
-            resultLabel.style.whiteSpace = WhiteSpace.Normal;
-            resultLabel.style.marginTop = 8f;
-            resultLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            targetsColumn.Add(resultLabel);
+            targetsColumn.Add(ToolkitChrome.MakeStatusRow(out resultLabel, out _, true));
 
             return targetsColumn;
         }
@@ -356,7 +330,8 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildPreviewPane()
         {
             VisualElement previewPane = new VisualElement { name = "new-rig-preview-pane" };
-            previewPane.style.flexGrow = 1f;
+            previewPane.AddToClassList("toolkit-column");
+            previewPane.AddToClassList("toolkit-column--flush");
             previewPane.style.minWidth = 320f;
 
             VisualElement previewHeader = new VisualElement();
@@ -476,15 +451,6 @@ namespace DotsAnimationToolkit.Editor
                     row.KindButton.text = "Kind: Quad";
                     return;
             }
-        }
-
-        private static Label BuildHeading(string text)
-        {
-            Label heading = new Label(text);
-            heading.style.unityFontStyleAndWeight = FontStyle.Bold;
-            heading.style.marginTop = 10f;
-            heading.style.marginBottom = 2f;
-            return heading;
         }
 
         // Lists what BuildForRig reports for the selected rig, ticking the ones already a rig
@@ -799,7 +765,7 @@ namespace DotsAnimationToolkit.Editor
                 pickedAbsoluteFolder, projectAssetsAbsolutePath, out projectRelativeFolder))
             {
                 saveLocation.Remember(projectRelativeFolder);
-                rigFolderLabel.text = projectRelativeFolder;
+                rigFolderRow.Path = projectRelativeFolder;
             }
             else
             {
@@ -809,8 +775,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void ReportFailure(string message)
         {
-            resultLabel.style.color = new StyleColor(new Color(0.95f, 0.55f, 0.55f));
-            resultLabel.text = message;
+            ToolkitChrome.SetStatus(resultLabel, message, ToolkitStatusTone.Error);
             Debug.LogWarning("[DOTS Animation Toolkit] Rigs: " + message);
         }
     }

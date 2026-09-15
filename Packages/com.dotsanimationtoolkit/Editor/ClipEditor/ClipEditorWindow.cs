@@ -54,7 +54,7 @@ namespace DotsAnimationToolkit.Editor
         private const string HiddenUssClassName = "clip-editor--hidden";
         private const string TabActiveUssClassName = "clip-editor__tab--active";
 
-        private const string HintUssClassName = "clip-editor__hint";
+        private const string HintUssClassName = "toolkit-hint";
         private const string ReconcileRowUssClassName = "clip-editor__reconcile-row";
         private const string ReconcileRowLabelUssClassName = "clip-editor__reconcile-row-label";
         private const string ReconcileRemapUssClassName = "clip-editor__reconcile-remap";
@@ -1409,6 +1409,8 @@ namespace DotsAnimationToolkit.Editor
                     return actorEditorPanel as ITransportTarget;
                 case ClipEditorTab.VatBake:
                     return vatBakePanel != null ? vatBakePanel.TransportTarget : null;
+                case ClipEditorTab.Retarget:
+                    return retargetPanel != null ? retargetPanel.TransportTarget : null;
                 default:
                     return null;
             }

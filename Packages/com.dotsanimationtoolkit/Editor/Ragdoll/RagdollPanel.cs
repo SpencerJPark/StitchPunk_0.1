@@ -40,21 +40,18 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.flexDirection = FlexDirection.Column;
 
-            VisualElement headerRow = new VisualElement { name = "ragdoll-header-row" };
-            headerRow.style.flexDirection = FlexDirection.Row;
-            headerRow.style.paddingLeft = 6f;
-            headerRow.style.paddingRight = 6f;
-            headerRow.style.paddingTop = 6f;
-            headerRow.style.paddingBottom = 6f;
+            VisualElement headerRow = ToolkitChrome.MakeAssetBar("ragdoll-header-row");
             Add(headerRow);
 
-            rigField = new ObjectField("Rig")
+            headerRow.Add(ToolkitChrome.MakeAssetBarLabel("Rig"));
+
+            rigField = new ObjectField
             {
                 name = "ragdoll-rig-field",
                 objectType = typeof(RigAsset),
                 allowSceneObjects = false
             };
-            rigField.style.flexGrow = 1f;
+            rigField.AddToClassList("toolkit-asset-bar__field");
             rigField.RegisterValueChangedCallback(changeEvent =>
             {
                 RigAsset newRig = changeEvent.newValue as RigAsset;
@@ -71,6 +68,7 @@ namespace DotsAnimationToolkit.Editor
 
             summaryLabel = new Label { name = "ragdoll-summary-label" };
             summaryLabel.style.marginLeft = 6f;
+            summaryLabel.AddToClassList("toolkit-text--dim");
             headerRow.Add(summaryLabel);
 
             bodiesColumn = new RagdollBodiesColumn();

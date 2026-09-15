@@ -391,7 +391,7 @@ namespace DotsAnimationToolkit.Editor
 
             Label ragdollSummaryLabel = new Label(RagdollBodySummaryResolver.Resolve(target as RigAsset).text);
             ragdollSummaryLabel.name = "rig-ragdoll-summary-label";
-            ragdollSummaryLabel.AddToClassList("clip-editor__hint");
+            ragdollSummaryLabel.AddToClassList("toolkit-hint");
             section.Add(ragdollSummaryLabel);
 
             ragdollBadgeContainer = new VisualElement();

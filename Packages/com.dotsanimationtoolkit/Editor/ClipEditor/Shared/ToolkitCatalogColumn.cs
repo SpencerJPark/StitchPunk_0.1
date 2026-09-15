@@ -56,11 +56,9 @@ namespace DotsAnimationToolkit.Editor
             this.options = options;
 
             name = options.elementName;
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
             style.minWidth = 200f;
-            style.paddingTop = 8f;
-            style.paddingLeft = 10f;
-            style.paddingRight = 10f;
 
             HeaderActions = new VisualElement();
             HeaderActions.AddToClassList("toolkit-pane-actions");
@@ -126,7 +124,7 @@ namespace DotsAnimationToolkit.Editor
             Add(assetsListView);
 
             emptyLabel = new Label();
-            emptyLabel.AddToClassList("clip-editor__hint");
+            emptyLabel.AddToClassList("toolkit-hint");
             Add(emptyLabel);
 
             RefreshEmptyState();
@@ -192,30 +190,8 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement MakeRow()
         {
-            // ListView (FixedHeight virtualization) tags whatever makeItem returns with its own
-            // internal item classes and forcibly zeroes ITS margin to keep the fixed-slot math
-            // exact (verified live: an 8px inline margin set directly on that root read back as 0).
-            // A margin on this outer slot is a no-op, so the boxed row that actually wants the gap
-            // has to live one level deeper, as a plain child Unity's pooling never touches.
-            VisualElement itemSlot = new VisualElement();
-            // Unity also paints its own hover/selected background straight onto this slot (verified
-            // live: unity-collection-view__item--selected resolves a solid grey fill across the
-            // WHOLE slot, gap margin included) -- an inline override beats that USS state styling
-            // unconditionally, so the slot itself never shades and only the boxed row below reacts.
-            itemSlot.style.backgroundColor = new StyleColor(Color.clear);
-
-            VisualElement row = new VisualElement();
-            row.name = options.namePrefix + "-row-box";
-            row.AddToClassList("toolkit-box");
-            // Enough to read as separated instead of touching, without the gap dominating a
-            // 56px-tall row -- fixedItemHeight is sized to match (content height + this margin).
-            row.style.marginTop = 4f;
-            row.style.marginBottom = 4f;
-            // No horizontal margin: the row is left flush with the ListView's own bounds, which
-            // stretch to the same catalog-column width the search field's 100% width fills --
-            // an inset here would leave the row short of the search field's right edge.
-            row.style.marginLeft = 0f;
-            row.style.marginRight = 0f;
+            // Why a slot around a row: ToolkitChrome.MakeListRowSlot.
+            VisualElement itemSlot = ToolkitChrome.MakeListRowSlot(options.namePrefix + "-row-box", out VisualElement row);
 
             VisualElement headerRow = new VisualElement();
             headerRow.AddToClassList("toolkit-box__header");
@@ -230,7 +206,7 @@ namespace DotsAnimationToolkit.Editor
             Label infoLabel = new Label();
             infoLabel.name = options.namePrefix + "-row-info";
             infoLabel.AddToClassList("toolkit-box__label");
-            infoLabel.AddToClassList("clip-editor__hint");
+            infoLabel.AddToClassList("toolkit-hint");
             row.Add(infoLabel);
 
             if (options.allowRename || options.allowDelete)
@@ -242,7 +218,6 @@ namespace DotsAnimationToolkit.Editor
                     populateEvent => PopulateRowContextMenu(populateEvent, row)));
             }
 
-            itemSlot.Add(row);
             return itemSlot;
         }
 

@@ -23,16 +23,14 @@ namespace DotsAnimationToolkit.Editor
         public RosterCoverageStripElement()
         {
             name = "retarget-roster-strip";
+            AddToClassList("toolkit-status-row");
+            AddToClassList("toolkit-status-row--footer");
             style.flexDirection = FlexDirection.Row;
             style.alignItems = Align.Center;
             style.flexWrap = Wrap.Wrap;
-            style.paddingTop = 4f;
-            style.paddingBottom = 4f;
-            style.paddingLeft = 4f;
-            style.paddingRight = 4f;
 
             headingLabel = new Label("Roster:") { name = "retarget-roster-heading" };
-            headingLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            headingLabel.AddToClassList("toolkit-status");
             headingLabel.style.marginRight = 6f;
             Add(headingLabel);
         }
@@ -47,7 +45,7 @@ namespace DotsAnimationToolkit.Editor
             if (entries == null || entries.Count == 0)
             {
                 Label hintLabel = new Label("No rigs found in the project.") { name = "retarget-roster-hint" };
-                hintLabel.AddToClassList("clip-editor__hint");
+                hintLabel.AddToClassList("toolkit-hint");
                 Add(hintLabel);
                 return;
             }
@@ -88,29 +86,14 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildChip(RosterCoverageEntry entry, RigAsset selectedRig)
         {
             RosterCoverageEntry capturedEntry = entry;
+            bool isSelected = entry.rig == selectedRig;
 
             VisualElement chip = new VisualElement { name = "retarget-roster-chip" };
+            chip.AddToClassList("toolkit-chip");
+            chip.EnableInClassList("toolkit-chip--selected", isSelected);
             chip.style.flexDirection = FlexDirection.Row;
             chip.style.alignItems = Align.Center;
             chip.style.marginRight = 10f;
-            chip.style.paddingTop = 2f;
-            chip.style.paddingBottom = 2f;
-            chip.style.paddingLeft = 6f;
-            chip.style.paddingRight = 6f;
-            chip.style.borderTopLeftRadius = 3f;
-            chip.style.borderTopRightRadius = 3f;
-            chip.style.borderBottomLeftRadius = 3f;
-            chip.style.borderBottomRightRadius = 3f;
-            chip.style.borderTopWidth = 1f;
-            chip.style.borderBottomWidth = 1f;
-            chip.style.borderLeftWidth = 1f;
-            chip.style.borderRightWidth = 1f;
-
-            Color borderColor = entry.rig == selectedRig ? ToolkitPalette.Selected : ToolkitPalette.BoxBorder;
-            chip.style.borderTopColor = borderColor;
-            chip.style.borderBottomColor = borderColor;
-            chip.style.borderLeftColor = borderColor;
-            chip.style.borderRightColor = borderColor;
 
             string rigName = entry.rig != null ? entry.rig.name : "(missing rig)";
 
@@ -122,24 +105,28 @@ namespace DotsAnimationToolkit.Editor
             {
                 name = "retarget-roster-chip-count"
             };
+            countLabel.AddToClassList("toolkit-text--dim");
             countLabel.style.marginRight = 4f;
             if (entry.boundCount == 0 && entry.totalCount > 0)
             {
-                countLabel.style.color = ToolkitPalette.Error;
+                countLabel.style.color = ToolkitPalette.Error; // colour from data
             }
             chip.Add(countLabel);
 
             int filledBlockCount = FilledBlockCount(entry.boundCount, entry.totalCount);
-            Color filledBlockColor = entry.boundCount == entry.totalCount ? ToolkitPalette.Clean : ToolkitPalette.Warning;
+
+            VisualElement blocksContainer = new VisualElement { name = "retarget-roster-chip-blocks" };
+            blocksContainer.AddToClassList("toolkit-chip__blocks");
+            blocksContainer.style.flexDirection = FlexDirection.Row;
+            chip.Add(blocksContainer);
 
             for (int blockIndex = 0; blockIndex < TotalBlockCount; blockIndex++)
             {
+                bool isFilled = blockIndex < filledBlockCount;
                 VisualElement block = new VisualElement { name = "retarget-roster-chip-block" };
-                block.style.width = 6f;
-                block.style.height = 10f;
-                block.style.marginLeft = 1f;
-                block.style.backgroundColor = blockIndex < filledBlockCount ? filledBlockColor : ToolkitPalette.BoxBorder;
-                chip.Add(block);
+                block.AddToClassList("toolkit-chip__block");
+                block.EnableInClassList("toolkit-chip__block--filled", isFilled);
+                blocksContainer.Add(block);
             }
 
             chip.tooltip = "Show this clip on " + rigName;

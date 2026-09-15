@@ -8,7 +8,7 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>The current-time line drawn over a cutscene's ruler and lanes.</summary>
     public sealed class CutsceneTimelinePlayheadElement : VisualElement
     {
-        private static readonly Color PlayheadColor = new Color(0.95f, 0.36f, 0.30f);
+        private static readonly Color PlayheadColor = ToolkitPalette.Playhead;
 
         public const string UssClassName = "cutscene-editor__playhead";
 

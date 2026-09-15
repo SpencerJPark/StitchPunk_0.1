@@ -49,11 +49,9 @@ namespace DotsAnimationToolkit.Editor
         public ImageCatalogColumn()
         {
             name = "image-catalog-column";
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
             style.minWidth = 200f;
-            style.paddingTop = 8f;
-            style.paddingLeft = 10f;
-            style.paddingRight = 10f;
 
             headerActions = new VisualElement();
             headerActions.AddToClassList("toolkit-pane-actions");
@@ -97,7 +95,7 @@ namespace DotsAnimationToolkit.Editor
             Add(imagesListView);
 
             emptyLabel = new Label("No textures under Assets/ yet.");
-            emptyLabel.AddToClassList("clip-editor__hint");
+            emptyLabel.AddToClassList("toolkit-hint");
             Add(emptyLabel);
 
             RefreshEmptyState();
@@ -155,20 +153,8 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement MakeImageRow()
         {
-            // Same slot/box split as RigCatalogColumn.MakeRigRow: ListView forcibly zeroes any
-            // margin on the item slot it hands out, so the boxed row that wants the gap lives one
-            // level deeper, and the slot itself is painted transparent to dodge Unity's own
-            // hover/selected fill on the whole slot.
-            VisualElement itemSlot = new VisualElement();
-            itemSlot.style.backgroundColor = new StyleColor(Color.clear);
-
-            VisualElement row = new VisualElement();
-            row.name = "image-row-box";
-            row.AddToClassList("toolkit-box");
-            row.style.marginTop = 4f;
-            row.style.marginBottom = 4f;
-            row.style.marginLeft = 0f;
-            row.style.marginRight = 0f;
+            // Why a slot around a row: ToolkitChrome.MakeListRowSlot.
+            VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("image-row-box", out VisualElement row);
             row.style.flexDirection = FlexDirection.Row;
 
             Image thumbnail = new Image();
@@ -203,7 +189,7 @@ namespace DotsAnimationToolkit.Editor
             Label infoLabel = new Label();
             infoLabel.name = "image-row-info";
             infoLabel.AddToClassList("toolkit-box__label");
-            infoLabel.AddToClassList("clip-editor__hint");
+            infoLabel.AddToClassList("toolkit-hint");
             textColumn.Add(infoLabel);
 
             row.Add(textColumn);
@@ -213,7 +199,6 @@ namespace DotsAnimationToolkit.Editor
             row.RegisterCallback<PointerMoveEvent>(pointerEvent => OnImageRowPointerMove(pointerEvent, row));
             row.RegisterCallback<ClickEvent>(clickEvent => OnImageRowClicked(clickEvent, row));
 
-            itemSlot.Add(row);
             return itemSlot;
         }
 
@@ -238,7 +223,7 @@ namespace DotsAnimationToolkit.Editor
             titleLabel.text = entry != null ? entry.Name : string.Empty;
 
             Label onCanvasMark = row.Q<Label>("image-row-on-canvas-mark");
-            onCanvasMark.style.display = entry != null && entry.IsOnCanvas ? DisplayStyle.Flex : DisplayStyle.None;
+            onCanvasMark.style.display = entry != null && entry.IsOnCanvas ? DisplayStyle.Flex : DisplayStyle.None; // colour from data
 
             Label infoLabel = row.Q<Label>("image-row-info");
             int textureWidth = texture != null ? texture.width : 0;

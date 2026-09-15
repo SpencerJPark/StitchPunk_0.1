@@ -84,16 +84,14 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement BuildSourceRow()
         {
-            VisualElement container = new VisualElement { name = "capture-source-container" };
-            container.style.paddingLeft = 8f;
-            container.style.paddingRight = 8f;
-            container.style.paddingTop = 6f;
+            VisualElement container = ToolkitChrome.MakeAssetBar("capture-source-container");
 
             VisualElement kindRow = new VisualElement();
             kindRow.style.flexDirection = FlexDirection.Row;
             kindRow.style.flexWrap = Wrap.Wrap;
             List<string> sourceKindChoices = new List<string> { "Clip", "Profile Animation", "Cutscene" };
             sourceKindField = new DropdownField("Source", sourceKindChoices, sourceKindIndex);
+            sourceKindField.AddToClassList("toolkit-asset-bar__field");
             sourceKindField.style.minWidth = 260f;
             sourceKindField.RegisterValueChangedCallback(changeEvent =>
             {
@@ -122,6 +120,7 @@ namespace DotsAnimationToolkit.Editor
             row.style.flexWrap = Wrap.Wrap;
 
             clipSetField = new ObjectField("Clip Set") { objectType = typeof(ClipSetAsset), allowSceneObjects = false };
+            clipSetField.AddToClassList("toolkit-asset-bar__field");
             clipSetField.style.minWidth = 260f;
             clipSetField.RegisterValueChangedCallback(changeEvent =>
             {
@@ -138,11 +137,13 @@ namespace DotsAnimationToolkit.Editor
             row.Add(clipSetField);
 
             clipField = new DropdownField("Clip", new List<string> { "(no clips)" }, 0);
+            clipField.AddToClassList("toolkit-asset-bar__field");
             clipField.style.minWidth = 200f;
             clipField.RegisterValueChangedCallback(changeEvent => RebuildSource());
             row.Add(clipField);
 
             rigField = new ObjectField("Rig") { objectType = typeof(RigAsset), allowSceneObjects = false };
+            rigField.AddToClassList("toolkit-asset-bar__field");
             rigField.style.minWidth = 220f;
             rigField.RegisterValueChangedCallback(changeEvent =>
             {
@@ -168,6 +169,7 @@ namespace DotsAnimationToolkit.Editor
             row.style.flexWrap = Wrap.Wrap;
 
             profileField = new ObjectField("Profile") { objectType = typeof(ActorProfileAsset), allowSceneObjects = false };
+            profileField.AddToClassList("toolkit-asset-bar__field");
             profileField.style.minWidth = 260f;
             profileField.RegisterValueChangedCallback(changeEvent =>
             {
@@ -178,11 +180,13 @@ namespace DotsAnimationToolkit.Editor
             row.Add(profileField);
 
             animationField = new DropdownField("Animation", new List<string> { "(no animations)" }, 0);
+            animationField.AddToClassList("toolkit-asset-bar__field");
             animationField.style.minWidth = 220f;
             animationField.RegisterValueChangedCallback(changeEvent => RebuildSource());
             row.Add(animationField);
 
             facingField = new EnumField("Facing", Direction.SouthEast);
+            facingField.AddToClassList("toolkit-asset-bar__field");
             facingField.style.minWidth = 180f;
             facingField.RegisterValueChangedCallback(changeEvent => RebuildSource());
             row.Add(facingField);
@@ -197,6 +201,7 @@ namespace DotsAnimationToolkit.Editor
             row.style.flexWrap = Wrap.Wrap;
 
             cutsceneField = new ObjectField("Cutscene") { objectType = typeof(CutsceneAsset), allowSceneObjects = false };
+            cutsceneField.AddToClassList("toolkit-asset-bar__field");
             cutsceneField.style.minWidth = 260f;
             cutsceneField.RegisterValueChangedCallback(changeEvent => RebuildSource());
             row.Add(cutsceneField);
@@ -214,19 +219,29 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildViewportColumn()
         {
             VisualElement column = new VisualElement { name = "capture-viewport-column" };
+            column.AddToClassList("toolkit-column");
+            column.AddToClassList("toolkit-column--flush");
             column.style.flexGrow = 1f;
             column.style.minWidth = 260f;
+
+            column.Add(ToolkitChrome.MakePaneHeader("Preview", out _, out _));
 
             viewport = new CaptureViewportElement();
             viewport.style.flexGrow = 1f;
             column.Add(viewport);
 
-            previewTimeSlider = new Slider("Preview Time", 0f, 1f);
-            previewTimeSlider.style.marginLeft = 8f;
-            previewTimeSlider.style.marginRight = 8f;
-            previewTimeSlider.style.marginBottom = 6f;
+            VisualElement transportRow = new VisualElement();
+            transportRow.AddToClassList("toolkit-transport");
+            VisualElement timeGroup = new VisualElement();
+            timeGroup.AddToClassList("toolkit-transport__group");
+            Label timeCaption = new Label("Time");
+            timeCaption.AddToClassList("toolkit-transport__caption");
+            timeGroup.Add(timeCaption);
+            previewTimeSlider = new Slider(0f, 1f);
             previewTimeSlider.RegisterValueChangedCallback(changeEvent => { viewport.PreviewSeconds = changeEvent.newValue; });
-            column.Add(previewTimeSlider);
+            timeGroup.Add(previewTimeSlider);
+            transportRow.Add(timeGroup);
+            column.Add(transportRow);
 
             return column;
         }
@@ -234,12 +249,12 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildSettingsColumn()
         {
             VisualElement column = new VisualElement { name = "capture-settings-column" };
+            column.AddToClassList("toolkit-column");
             column.style.minWidth = 340f;
-            column.style.paddingLeft = 10f;
-            column.style.paddingRight = 10f;
-            column.style.paddingTop = 8f;
 
-            column.Add(BuildHeading("Size"));
+            column.Add(ToolkitChrome.MakePaneHeader("Settings", out _, out _));
+
+            column.Add(ToolkitChrome.MakeHeading("Size"));
             VisualElement sizeRow = new VisualElement();
             sizeRow.style.flexDirection = FlexDirection.Row;
             widthField = new IntegerField("Width") { value = settings.width };
@@ -271,7 +286,7 @@ namespace DotsAnimationToolkit.Editor
             });
             column.Add(presetField);
 
-            column.Add(BuildHeading("Timing"));
+            column.Add(ToolkitChrome.MakeHeading("Timing"));
             fpsField = new IntegerField("FPS") { value = settings.framesPerSecond };
             fpsField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             column.Add(fpsField);
@@ -281,10 +296,10 @@ namespace DotsAnimationToolkit.Editor
             column.Add(rangeSlider);
 
             rangeSummaryLabel = new Label(string.Empty);
-            rangeSummaryLabel.AddToClassList("clip-editor__hint");
+            rangeSummaryLabel.AddToClassList("toolkit-hint");
             column.Add(rangeSummaryLabel);
 
-            column.Add(BuildHeading("Background"));
+            column.Add(ToolkitChrome.MakeHeading("Background"));
             backgroundGroup = new RadioButtonGroup(string.Empty, new List<string> { "Transparent", "Colour" });
             backgroundGroup.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             column.Add(backgroundGroup);
@@ -293,18 +308,18 @@ namespace DotsAnimationToolkit.Editor
             backgroundColourField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             column.Add(backgroundColourField);
 
-            column.Add(BuildHeading("Format"));
+            column.Add(ToolkitChrome.MakeHeading("Format"));
             formatGroup = new RadioButtonGroup(string.Empty, new List<string> { "PNG Sequence", "GIF" });
             formatGroup.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             column.Add(formatGroup);
 
-            column.Add(BuildHeading("Output"));
+            column.Add(ToolkitChrome.MakeHeading("Output"));
             nameField = new TextField("Name") { value = settings.captureName };
             nameField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             column.Add(nameField);
 
             effectiveNameLabel = new Label(string.Empty);
-            effectiveNameLabel.AddToClassList("clip-editor__hint");
+            effectiveNameLabel.AddToClassList("toolkit-hint");
             column.Add(effectiveNameLabel);
 
             outputFolderField = new TextField("Output Folder") { value = settings.outputFolder };
@@ -313,13 +328,11 @@ namespace DotsAnimationToolkit.Editor
 
             resolvedFolderLabel = new Label(string.Empty);
             resolvedFolderLabel.style.whiteSpace = WhiteSpace.Normal;
-            resolvedFolderLabel.AddToClassList("clip-editor__hint");
+            resolvedFolderLabel.AddToClassList("toolkit-hint");
             column.Add(resolvedFolderLabel);
 
-            captureButton = new Button(OnCaptureButtonClicked) { text = "Capture" };
-            captureButton.style.height = 36f;
+            captureButton = ToolkitChrome.MakePrimaryAction(OnCaptureButtonClicked, "d_Animation.Record", "Render the frame range to disk", "Capture");
             captureButton.style.marginTop = 10f;
-            captureButton.style.unityFontStyleAndWeight = FontStyle.Bold;
             column.Add(captureButton);
 
             progressBar = new ProgressBar();
@@ -327,26 +340,14 @@ namespace DotsAnimationToolkit.Editor
             progressBar.style.display = DisplayStyle.None;
             column.Add(progressBar);
 
-            cancelButton = new Button(OnCancelButtonClicked) { text = "Cancel" };
+            cancelButton = ToolkitIcons.MakeIconTextButton(OnCancelButtonClicked, "d_winbtn_win_close", "Stop after the current frame; written files are kept.", "Cancel");
             cancelButton.style.marginTop = 4f;
             cancelButton.style.display = DisplayStyle.None;
             column.Add(cancelButton);
 
-            resultLabel = new Label(string.Empty);
-            resultLabel.style.whiteSpace = WhiteSpace.Normal;
-            resultLabel.style.marginTop = 8f;
-            column.Add(resultLabel);
+            column.Add(ToolkitChrome.MakeStatusRow(out resultLabel, out _, true));
 
             return column;
-        }
-
-        private static Label BuildHeading(string text)
-        {
-            Label heading = new Label(text);
-            heading.style.unityFontStyleAndWeight = FontStyle.Bold;
-            heading.style.marginTop = 10f;
-            heading.style.marginBottom = 2f;
-            return heading;
         }
 
         public void Bind(ActiveAssetSelection sharedSelection)
@@ -605,12 +606,12 @@ namespace DotsAnimationToolkit.Editor
             }
             if (activeSource == null)
             {
-                resultLabel.text = "No capture source selected.";
+                ToolkitChrome.SetStatus(resultLabel, "No capture source selected.", ToolkitStatusTone.Error);
                 return;
             }
             if (activeSource.NotReadyReason != null)
             {
-                resultLabel.text = activeSource.NotReadyReason;
+                ToolkitChrome.SetStatus(resultLabel, activeSource.NotReadyReason, ToolkitStatusTone.Error);
                 return;
             }
 
@@ -645,7 +646,7 @@ namespace DotsAnimationToolkit.Editor
             progressBar.style.display = DisplayStyle.Flex;
             progressBar.value = 0f;
             progressBar.title = "Starting capture...";
-            resultLabel.text = string.Empty;
+            ToolkitChrome.SetStatus(resultLabel, string.Empty, ToolkitStatusTone.Neutral);
 
             runner.Start(
                 activeSource,
@@ -661,7 +662,8 @@ namespace DotsAnimationToolkit.Editor
                     captureButton.SetEnabled(true);
                     cancelButton.style.display = DisplayStyle.None;
                     progressBar.style.display = DisplayStyle.None;
-                    resultLabel.text = finishedMessage;
+                    ToolkitStatusTone finishedTone = finishedMessage.StartsWith("Capture failed:") ? ToolkitStatusTone.Error : ToolkitStatusTone.Neutral;
+                    ToolkitChrome.SetStatus(resultLabel, finishedMessage, finishedTone);
                 });
         }
 
