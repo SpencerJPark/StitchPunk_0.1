@@ -76,7 +76,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 if (blockIntroducer == 0x2C)
                 {
                     imageDescriptorCount++;
-                    readOffset += 9;
+                    readOffset += 10;
                     byte packedImageFields = gifBytes[readOffset - 1];
                     if ((packedImageFields & 0x80) != 0)
                     {
