@@ -2,18 +2,23 @@
 
 using System;
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>Lists Health findings as rows: severity dot, code, message, and a locate button naming the asset.</summary>
+    /// <summary>Lists Health findings as two-line boxed rows (severity dot, code, title on line one;
+    /// the target asset name on line two) and reports selection for a detail panel to act on.</summary>
     public sealed class HealthFindingListElement : VisualElement
     {
         private readonly List<HealthFinding> findings = new List<HealthFinding>();
         private readonly ListView findingListView;
         private readonly Label emptyLabel;
+        private HealthFinding selectedFinding;
+
+        public event Action<HealthFinding> FindingSelected;
+
+        public HealthFinding SelectedFinding => selectedFinding;
 
         public HealthFindingListElement()
         {
@@ -23,11 +28,12 @@ namespace DotsAnimationToolkit.Editor
             findingListView = new ListView();
             findingListView.name = "health-finding-list-view";
             findingListView.style.flexGrow = 1f;
-            findingListView.fixedItemHeight = 22f;
-            findingListView.selectionType = SelectionType.None;
+            findingListView.fixedItemHeight = 42f;
+            findingListView.selectionType = SelectionType.Single;
             findingListView.makeItem = MakeFindingRow;
             findingListView.bindItem = BindFindingRow;
             findingListView.itemsSource = findings;
+            findingListView.selectionChanged += OnFindingSelectionChanged;
             Add(findingListView);
 
             emptyLabel = new Label("No findings.");
@@ -45,8 +51,46 @@ namespace DotsAnimationToolkit.Editor
                 this.findings.AddRange(findings);
             }
 
+            // The panel re-selects immediately after calling this, so the old selection is cleared
+            // silently here rather than through ClearSelection, which would fire FindingSelected(null)
+            // for a frame before the panel's own re-selection lands.
+            findingListView.SetSelectionWithoutNotify(Array.Empty<int>());
+            selectedFinding = null;
+
             findingListView.Rebuild();
             RefreshEmptyState();
+        }
+
+        public void SelectFinding(HealthFinding finding)
+        {
+            if (finding == null)
+            {
+                findingListView.ClearSelection();
+                return;
+            }
+
+            int index = findings.IndexOf(finding);
+            if (index < 0)
+            {
+                findingListView.ClearSelection();
+                return;
+            }
+
+            findingListView.SetSelection(index);
+            findingListView.ScrollToItem(index);
+        }
+
+        private void OnFindingSelectionChanged(IEnumerable<object> selectedItems)
+        {
+            HealthFinding selected = null;
+            foreach (object selectedItem in selectedItems)
+            {
+                selected = selectedItem as HealthFinding;
+                break;
+            }
+
+            selectedFinding = selected;
+            FindingSelected?.Invoke(selected);
         }
 
         private void RefreshEmptyState()
@@ -57,9 +101,25 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement MakeFindingRow()
         {
+            // ListView tags whatever makeItem returns with its own internal item classes and forces
+            // this outer slot's margin to zero, so the boxed row that wants the row-to-row gap has to
+            // live one level deeper, as a plain child Unity's pooling never touches (see
+            // ToolkitCatalogColumn.MakeRow for the same trap, verified there).
+            VisualElement itemSlot = new VisualElement();
+            itemSlot.style.backgroundColor = new StyleColor(Color.clear);
+
             VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
+            row.name = "health-finding-row";
+            row.AddToClassList("toolkit-box");
+            row.style.marginTop = 4f;
+            row.style.marginBottom = 4f;
+            row.style.marginLeft = 0f;
+            row.style.marginRight = 0f;
+
+            VisualElement firstLine = new VisualElement();
+            firstLine.name = "health-finding-line-1";
+            firstLine.style.flexDirection = FlexDirection.Row;
+            firstLine.style.alignItems = Align.Center;
 
             VisualElement dot = new VisualElement();
             dot.name = "health-finding-dot";
@@ -69,72 +129,56 @@ namespace DotsAnimationToolkit.Editor
             dot.style.borderTopRightRadius = 4f;
             dot.style.borderBottomLeftRadius = 4f;
             dot.style.borderBottomRightRadius = 4f;
-            dot.style.marginLeft = 4f;
             dot.style.marginRight = 6f;
-            row.Add(dot);
+            firstLine.Add(dot);
 
             Label codeLabel = new Label();
             codeLabel.name = "health-finding-code";
-            codeLabel.style.width = 34f;
             codeLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            row.Add(codeLabel);
+            codeLabel.style.marginRight = 6f;
+            firstLine.Add(codeLabel);
 
-            Label messageLabel = new Label();
-            messageLabel.name = "health-finding-message";
-            messageLabel.style.flexGrow = 1f;
-            messageLabel.style.flexShrink = 1f;
-            messageLabel.style.overflow = Overflow.Hidden;
-            messageLabel.style.textOverflow = TextOverflow.Ellipsis;
-            messageLabel.style.whiteSpace = WhiteSpace.NoWrap;
-            row.Add(messageLabel);
+            Label titleLabel = new Label();
+            titleLabel.name = "health-finding-title";
+            titleLabel.style.flexGrow = 1f;
+            titleLabel.style.flexShrink = 1f;
+            titleLabel.style.overflow = Overflow.Hidden;
+            titleLabel.style.textOverflow = TextOverflow.Ellipsis;
+            titleLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            firstLine.Add(titleLabel);
 
-            Button locateButton = new Button();
-            locateButton.name = "health-finding-locate";
-            locateButton.tooltip = "Select and ping this asset";
-            locateButton.clicked += () =>
-            {
-                HealthFinding rowFinding = row.userData as HealthFinding;
-                if (rowFinding == null)
-                {
-                    return;
-                }
+            row.Add(firstLine);
 
-                if (rowFinding.target != null)
-                {
-                    Selection.activeObject = rowFinding.target;
-                    EditorGUIUtility.PingObject(rowFinding.target);
-                }
+            Label assetLabel = new Label();
+            assetLabel.name = "health-finding-asset";
+            assetLabel.style.opacity = 0.6f;
+            assetLabel.style.overflow = Overflow.Hidden;
+            assetLabel.style.textOverflow = TextOverflow.Ellipsis;
+            assetLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            row.Add(assetLabel);
 
-                UnityEngine.Object secondaryTarget = rowFinding.secondaryTarget;
-                if (secondaryTarget != null)
-                {
-                    // Pinging both at once shows only the second flash, so the first is delayed
-                    // long enough for the target ping to register before it starts.
-                    row.schedule.Execute(() => EditorGUIUtility.PingObject(secondaryTarget)).StartingIn(800);
-                }
-            };
-            row.Add(locateButton);
-
-            return row;
+            itemSlot.Add(row);
+            return itemSlot;
         }
 
         private void BindFindingRow(VisualElement element, int index)
         {
             HealthFinding finding = findings[index];
-            element.userData = finding;
 
-            VisualElement dot = element.Q<VisualElement>("health-finding-dot");
+            VisualElement row = element.Q<VisualElement>("health-finding-row");
+            row.tooltip = finding.message;
+
+            VisualElement dot = row.Q<VisualElement>("health-finding-dot");
             dot.style.backgroundColor = SeverityColor(finding.severity);
 
-            Label codeLabel = element.Q<Label>("health-finding-code");
+            Label codeLabel = row.Q<Label>("health-finding-code");
             codeLabel.text = finding.code;
 
-            Label messageLabel = element.Q<Label>("health-finding-message");
-            messageLabel.text = finding.message;
-            messageLabel.tooltip = finding.message;
+            Label titleLabel = row.Q<Label>("health-finding-title");
+            titleLabel.text = string.IsNullOrEmpty(finding.title) ? finding.message : finding.title;
 
-            Button locateButton = element.Q<Button>("health-finding-locate");
-            locateButton.text = finding.target != null ? "▸ " + finding.target.name : "▸ (missing)";
+            Label assetLabel = row.Q<Label>("health-finding-asset");
+            assetLabel.text = finding.target != null ? finding.target.name : "(missing)";
         }
 
         private static Color SeverityColor(HealthSeverity severity)

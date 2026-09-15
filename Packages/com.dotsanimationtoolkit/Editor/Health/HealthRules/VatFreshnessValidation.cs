@@ -32,15 +32,62 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                string freshnessWord = freshness == VatBakeFreshness.Unbaked ? "unbaked" : "stale";
-                string rigName = rig != null ? rig.name : "no rig";
+                bool isUnbaked = freshness == VatBakeFreshness.Unbaked;
+                string freshnessWord = isUnbaked ? "unbaked" : "stale";
+                string message = rig != null
+                    ? "VAT set for clip set '" + clipSet.name + "' on rig '" + rig.name + "' is " + freshnessWord + ": " + reason
+                    : "VAT set for clip set '" + clipSet.name + "' has no baked rig yet and is " + freshnessWord + ": " + reason;
+
+                ClipSetAsset capturedClipSet = clipSet;
+                RigAsset capturedRig = rig;
+                VatTextureSetAsset capturedTextures = textures;
 
                 HealthFinding finding = new HealthFinding();
                 finding.severity = HealthSeverity.Error;
                 finding.code = HealthFinding.StaleOrUnbakedVatSetCode;
-                finding.message = "VAT set for clip set '" + clipSet.name + "' on rig '" + rigName + "' is " + freshnessWord + ": " + reason;
+                finding.message = message;
+                finding.title = isUnbaked ? "VAT bake is not baked yet" : "VAT bake is stale";
+                finding.detail = isUnbaked
+                    ? "Actors using this clip set play no motion at runtime, with no run-time error."
+                    : "Actors using this clip set play old motion at runtime, with no run-time error. Rebake after editing clips or the rig.";
                 finding.target = textures != null ? (UnityEngine.Object)textures : clipSet;
                 finding.secondaryTarget = textures != null ? clipSet : null;
+                finding.relatedAssets.Add(clipSet);
+                if (textures != null)
+                {
+                    finding.relatedAssets.Add(textures);
+                }
+                if (rig != null)
+                {
+                    finding.relatedAssets.Add(rig);
+                }
+
+                if (context.rebakeRequested != null)
+                {
+                    finding.actions.Add(new HealthFindingAction
+                    {
+                        label = "Rebake",
+                        description = "Opens VAT Bake with this clip set and its rig.",
+                        run = () => context.rebakeRequested(capturedClipSet, capturedRig)
+                    });
+                }
+
+                finding.actions.Add(HealthFindingAction.Locate("Locate", "Selects and pings the clip set.", capturedClipSet));
+
+                if (capturedTextures != null)
+                {
+                    finding.actions.Add(new HealthFindingAction
+                    {
+                        label = "Delete VAT textures…",
+                        description = "Moves the texture set and the part files only it uses to the OS trash; the clip set becomes unbaked.",
+                        isDestructive = true,
+                        buildConfirmation = () => HealthFindingAction.BuildDeleteConfirmation(
+                            UnityEditor.AssetDatabase.GetAssetPath(capturedTextures),
+                            AssetReferenceIndex.ReferencesToVatTextures(capturedTextures)) +
+                            "\n\nPart textures and runtime meshes no other VAT set uses go to the trash with it.",
+                        run = () => VatTextureSetAssetUtility.TrashTextureSet(capturedTextures)
+                    });
+                }
 
                 output.Add(finding);
             }

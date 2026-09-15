@@ -35,7 +35,11 @@ namespace DotsAnimationToolkit.Editor
                     finding.severity = HealthSeverity.Error;
                     finding.code = HealthFinding.TrackTagNotInRegistryCode;
                     finding.message = clipMessage.text;
+                    finding.title = "Track tag is not registered";
+                    finding.detail = "The track binds to nothing on every rig.";
                     finding.target = clip;
+                    finding.relatedAssets.Add(clip);
+                    finding.actions.Add(HealthFindingAction.Locate("Locate clip", "Selects and pings the clip.", clip));
                     output.Add(finding);
                 }
             }
@@ -96,7 +100,15 @@ namespace DotsAnimationToolkit.Editor
                 finding.code = HealthFinding.EventKeyNotInRegistryCode;
                 finding.message = "Event key 0x" + eventKey.ToString("X8") + " is used by " + clipsForKey.Count +
                     " clip(s) but is not in the event keys registry: " + string.Join(", ", quotedClipNames);
+                finding.title = "Event key is not registered";
+                finding.detail = "Markers fire a key no system names.";
                 finding.target = clipsForKey[0];
+                finding.actions.Add(HealthFindingAction.Locate("Locate clip", "Selects and pings the clip.", clipsForKey[0]));
+                foreach (ClipAsset clipForKey in clipsForKey)
+                {
+                    finding.relatedAssets.Add(clipForKey);
+                }
+
                 output.Add(finding);
             }
         }
@@ -198,8 +210,15 @@ namespace DotsAnimationToolkit.Editor
                         finding.message = "Clip '" + clip.name + "' in clip set '" + clipSet.name +
                             "' uses only tags that rig '" + rig.name + "' has no target for, so it poses " +
                             "nothing on profile '" + profile.name + "'.";
+                        finding.title = "Clip poses nothing on this rig";
+                        finding.detail = "None of its tags exist on the rig.";
                         finding.target = clip;
                         finding.secondaryTarget = rig;
+                        finding.actions.Add(HealthFindingAction.Locate("Locate clip", "Selects and pings the clip.", clip));
+                        finding.actions.Add(HealthFindingAction.Locate("Locate rig", "Selects and pings the rig.", rig));
+                        finding.relatedAssets.Add(rig);
+                        finding.relatedAssets.Add(profile);
+                        finding.relatedAssets.Add(clipSet);
                         output.Add(finding);
                     }
                 }

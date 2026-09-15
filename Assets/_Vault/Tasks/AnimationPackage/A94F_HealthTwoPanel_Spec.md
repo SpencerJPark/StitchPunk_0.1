@@ -225,3 +225,50 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
 ## 7. Build log
 
 - **2026-09-14 — Phase 0 (stage, parallel batch A93F-A95F).** Head `eb60b150`, package `0.42.0`, CHANGELOG top section `## [0.42.0]`. Baseline: compile clean; EditMode 850 (Conformance_A the one standing failure), PlayMode 285. Registry sha256: AnimEventKeyRegistry `3bdb420d…d14701`, TargetTagRegistry `dbec3d5f…eb4f`. Preflight: broker alive, hooks installed, stage blockers only the owner's five uncommitted files. Lead opus, worker sonnet.
+- **2026-09-14 — T0 grounding (lead, worktree `spec/a94f`).** Names in §2–§3 all exist. Nothing outside `Editor/Health/` read `fix`/`fixLabel` (grep clean). `DeleteRig` never calls `SaveAssets` (RigAssetUtility 214–234). Drift:
+  - **D1 — part files are separate assets, not sub-assets.** `VatTextureSetBuilder` calls `CreateAsset` per part at `<set>Vat<Part>Bone|Position|Normal.asset` and `<…>RuntimeMesh.asset`, so the resolver matters. It also covers `runtimeMesh` (a leftover mesh would be junk too); name kept as `FindTexturesSafeToTrash`, returns `List<UnityEngine.Object>`.
+  - **D2 — the H11 skip list is `V08`, `V36`, `V41`.** H07 reports `V36` only (via `ValidateClip`); H08 is the `V41` condition (unregistered event key). H10 has no V-code of its own (`V35` is per track and stays in H11).
+  - **D3 — `V08` can never fire in H11.** `ValidateBind` emits `V08` only when `vatSourceHashRecomputed` is true, and H11 passes the spec's arguments only. The skip is defensive; the fixture asserts `IsCodeReportedByAnotherRule(V08)` directly and provokes `V36` (a transform track bound to a tag missing from an empty in-memory `TargetTagRegistry`) plus `V01` (clip duration 0) as the "other" message.
+  - **D4 — H12 uses the pure overload** `ValidateSharedClipBinding(clip, context.clipSets)`; the one-argument overload scans the project and would break fixture purity.
+  - **D5 — `HealthFinding.message` stays.** It is the specific one-line sentence (search matches it, the detail panel shows it under the title); `title` and `detail` are added beside it.
+  - **D6 — `ClipAssetUtility.TrashClip` written by the lead in T1** (file is 317 lines, over the worker read guard). `VatTextureSetAssetUtility.TrashTextureSet` also written by the lead (keeps T8 at two files); per-path `MoveAssetToTrash`, no `SaveAssets`.
+  - **D7 — shared helpers on `HealthFindingAction`:** `static Locate(label, description, asset)` and `static BuildDeleteConfirmation(assetPath, List<AssetReference>)` (lists up to 12 owners), so the three rule workers phrase Locate and Delete the same way.
+  - **D8 — H11 dedupes across profiles:** an identical (code, assetContext, text) message from a second profile sharing the same clip set and rig is emitted once.
+- **2026-09-14 — T1 (lead).** Commit `4e6af49a`. Gate `HealthScanTests`, `HealthRulesTests`, `PackagingConformanceTests`: compile clean, 15 passed / 1 failed of 16, the failure the standing Conformance_A.
+- **2026-09-14 — Wave T2–T9a (nine sonnet workers, disjoint files).** T2 detail element, T3 list, T4 panel, T5 H01/H02/H05, T6 H03/H04/H06, T7 H07–H10, T8 resolver + `VatTextureOwnershipResolverTests`, T9 `Documentation~/health-tab.md`, T9a `BindValidation` + `BindValidationTests`. Lead fix after T7: removed a `using System;` that made the bare `Object` in StableIdValidation ambiguous with `UnityEngine.Object` (CS0104).
+
+### For integration
+
+**CHANGELOG `## [0.44.0]`**
+```
+### Changed
+- Health tab reworked: a large "Scan project" button with last-scan status, three severity chips that count and filter, and a findings list beside a detail panel (title, explanation, affected assets with ping and Open, and one button per fix).
+- Findings carry several actions. H02 Remove missing, H06 Rebake and H09 Save are unchanged in behaviour; every finding gains Locate actions.
+- The Clip Editor tab reads "Health (n)" in red while there are Error findings; the panel is built at window creation so the count is there before the tab is opened.
+- H06 no longer reads "on rig 'no rig'" for a never-baked set.
+### Added
+- Delete actions behind a confirmation that names the asset path and what still references it: H01 Delete clip (ClipAssetUtility.TrashClip), H05 Delete rig, H06 Delete VAT textures (VatTextureSetAssetUtility.TrashTextureSet; part textures and runtime meshes no other VAT set uses go with it, decided by VatTextureOwnershipResolver).
+- H11: each actor profile's clip sets bind-validated against its rig (V08, V36 and V41 skipped, reported by H06, H07 and H08). H12: shared clips still bound by target id.
+- HealthPanel.ErrorCount and HealthPanel.RequestRescan().
+### Removed
+- The Clip Editor toolbar's validation badge and its message panel; Health reports everything it caught. The Actor Profiles badge stays.
+- HealthFinding.fix and fixLabel (replaced by actions).
+```
+
+**Conformance_G allowlist:** none. New static classes `BindValidation` (Validation), `VatTextureOwnershipResolver` (Resolver), `VatTextureSetAssetUtility` (Utility, in `Editor/ClipUtilities/`). `HealthFindingAction` is not static.
+
+**Wiring (T9b; no enum, UXML toggle or pane changes — the Health slot exists):**
+- Members as built on `HealthPanel`: `public int ErrorCount { get; }` (every `HealthSeverity.Error` finding, pinned H06 included); `public event Action FindingsChanged` (raised at the end of every `Scan()`, including the one `Bind()` runs); `public void RequestRescan()` (the existing 500 ms debounce). Unchanged: `new HealthPanel()`, `Bind()`, `Dispose()`, `RebakeRequested`, `LatestFindings`, `StaleVatBakeCount`.
+- `HealthPanel` needs **no change** to be built eagerly: move `new HealthPanel()`, `RebakeRequested +=`, `healthPane.Add`, `Bind()` from `ShowHealthTab` (~1536–1541) into window creation; subscribe `FindingsChanged` **before** `Bind()` so the first scan sets the tab text; unsubscribe beside the existing `Dispose` (~758–762).
+- Tab text: `errorCount > 0 ? "Health (" + errorCount + ")" : "Health"`, colour `ToolkitPalette.Error` while `> 0`, else clear the inline colour (`StyleKeyword.Null`).
+- Replace the four `validationBadge.Refresh` calls with `healthPanel?.RequestRescan()`.
+
+**Vault-note traps (AnimationToolkit.md):**
+- Health rules stay pure: `AssetReferenceIndex` and `AssetDatabase.GetAssetPath` are called only inside an action's `buildConfirmation`/`run` lambdas, never while a rule evaluates, so fixtures run on `CreateInstance` assets.
+- `ValidateBind` emits V08 only when a recomputed hash is passed; H11 never passes one, H06 owns staleness.
+- `SharedClipBindingUtility.ValidateSharedClipBinding(clip)` (one argument) scans the project; Health uses the `(clip, clipSets)` overload.
+- VAT bake output is separate `.asset` files per part (Bone/Position/Normal/RuntimeMesh), not sub-assets; trashing the set alone leaves them behind.
+- Trash utilities never `SaveAssets` (it would flush the owner's unrelated unsaved edits); `DeleteClipFromSet` still does.
+- A detail panel action runs, then the panel rescans immediately; selection survives when the same code + target still exists, otherwise the row at the old index.
+
+**HANDOFF draft (0.44.0):** A94F reworked the Health tab into a readable two-panel layout: a big Scan project button with last-scan status, severity chips that count and filter, a findings list of two-line rows with no buttons, and a detail panel that explains the selected finding, lists every affected asset and offers one button per fix. Findings now carry several actions; H01, H05 and H06 gain Delete behind a confirmation that names the path and its remaining references (VAT deletes take only part files no other set uses). Two new rules, H11 (profile bind validation, V08/V36/V41 skipped) and H12 (shared clip binding), absorb the Clip Editor's toolbar badge, which is gone; the tab reads "Health (n)" in red from window open, and committed clip edits trigger a debounced rescan. Real deletes were exercised only on the stage's scratch copies.

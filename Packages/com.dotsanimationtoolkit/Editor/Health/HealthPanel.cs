@@ -10,7 +10,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Health tab: Scan, per-severity counts and filters, a text filter and the findings list; rescans shortly after toolkit assets change.</summary>
+    /// <summary>The Health tab: a Scan button and status, per-severity toggle filters, a search field, and a findings list paired with a detail panel; rescans shortly after toolkit assets change.</summary>
     public sealed class HealthPanel : VisualElement, IDisposable
     {
         private const double DebounceSeconds = 0.5;
@@ -67,17 +67,22 @@ namespace DotsAnimationToolkit.Editor
             OnAssetReferenceIndexDirtied();
         }
 
-        private readonly Label errorCountLabel;
-        private readonly Label warningCountLabel;
-        private readonly Label noteCountLabel;
+        private readonly Button scanButton;
+        private readonly Label scanStatusLabel;
         private readonly ToolbarSearchField filterField;
         private readonly ToolbarToggle errorsToggle;
         private readonly ToolbarToggle warningsToggle;
         private readonly ToolbarToggle notesToggle;
         private readonly HealthFindingListElement findingListElement;
+        private readonly HealthFindingDetailElement findingDetailElement;
 
         private bool isBound;
         private double dueTimeSinceStartup = -1.0;
+
+        // Selection survives a rescan by identity (code + target); falls back to the row index when the finding is gone.
+        private string rememberedSelectedCode;
+        private UnityEngine.Object rememberedSelectedTarget;
+        private int rememberedSelectedIndex = -1;
 
         public HealthPanel()
         {
@@ -85,79 +90,69 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
 
             Toolbar toolbar = new Toolbar();
+            toolbar.style.height = StyleKeyword.Auto;
+            toolbar.style.minHeight = 36f;
 
-            Button scanButton = new Button(Scan);
+            scanButton = new Button(Scan);
             scanButton.name = "health-scan-button";
             scanButton.tooltip = "Scan every toolkit asset";
-            scanButton.text = "Scan";
+            scanButton.style.height = 32f;
+            scanButton.style.minWidth = 150f;
+            scanButton.style.backgroundColor = ToolkitPalette.Accent;
+            ToolkitIcons.SetButtonIconAndText(scanButton, "d_Refresh", "Scan project");
             toolbar.Add(scanButton);
 
-            errorCountLabel = new Label();
-            errorCountLabel.name = "health-count-errors";
-            toolbar.Add(BuildCountRow(errorCountLabel, ToolkitPalette.Error));
-
-            warningCountLabel = new Label();
-            warningCountLabel.name = "health-count-warnings";
-            toolbar.Add(BuildCountRow(warningCountLabel, ToolkitPalette.Warning));
-
-            noteCountLabel = new Label();
-            noteCountLabel.name = "health-count-notes";
-            toolbar.Add(BuildCountRow(noteCountLabel, ToolkitPalette.Accent));
-
-            filterField = new ToolbarSearchField();
-            filterField.name = "health-filter-field";
-            filterField.RegisterValueChangedCallback(OnFilterChanged);
-            toolbar.Add(filterField);
+            scanStatusLabel = new Label("not scanned yet");
+            scanStatusLabel.name = "health-scan-status";
+            scanStatusLabel.style.marginLeft = 8f;
+            scanStatusLabel.style.marginRight = 8f;
+            toolbar.Add(scanStatusLabel);
 
             errorsToggle = new ToolbarToggle();
             errorsToggle.name = "health-filter-errors";
-            errorsToggle.text = "Errors";
             errorsToggle.value = true;
             errorsToggle.RegisterValueChangedCallback(OnFilterChanged);
             toolbar.Add(errorsToggle);
 
             warningsToggle = new ToolbarToggle();
             warningsToggle.name = "health-filter-warnings";
-            warningsToggle.text = "Warnings";
             warningsToggle.value = true;
             warningsToggle.RegisterValueChangedCallback(OnFilterChanged);
             toolbar.Add(warningsToggle);
 
             notesToggle = new ToolbarToggle();
             notesToggle.name = "health-filter-notes";
-            notesToggle.text = "Notes";
             notesToggle.value = true;
             notesToggle.RegisterValueChangedCallback(OnFilterChanged);
             toolbar.Add(notesToggle);
 
+            UpdateCounts();
+
+            VisualElement spacer = new VisualElement();
+            spacer.style.flexGrow = 1f;
+            toolbar.Add(spacer);
+
+            filterField = new ToolbarSearchField();
+            filterField.name = "health-filter-field";
+            filterField.RegisterValueChangedCallback(OnFilterChanged);
+            toolbar.Add(filterField);
+
             Add(toolbar);
+
+            CoverPaneSplitView bodySplitView = new CoverPaneSplitView("Health.Findings", 0, 360f, TwoPaneSplitViewOrientation.Horizontal);
+            bodySplitView.style.flexGrow = 1f;
 
             findingListElement = new HealthFindingListElement();
             findingListElement.style.flexGrow = 1f;
-            Add(findingListElement);
-        }
+            findingListElement.FindingSelected += OnFindingSelected;
+            bodySplitView.Add(findingListElement);
 
-        private static VisualElement BuildCountRow(Label countLabel, Color dotColor)
-        {
-            VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
-            row.style.marginLeft = 4f;
-            row.style.marginRight = 4f;
+            findingDetailElement = new HealthFindingDetailElement();
+            findingDetailElement.style.flexGrow = 1f;
+            findingDetailElement.ActionRan += OnFindingActionRan;
+            bodySplitView.Add(findingDetailElement);
 
-            VisualElement dot = new VisualElement();
-            dot.style.width = 8f;
-            dot.style.height = 8f;
-            dot.style.borderTopLeftRadius = 4f;
-            dot.style.borderTopRightRadius = 4f;
-            dot.style.borderBottomLeftRadius = 4f;
-            dot.style.borderBottomRightRadius = 4f;
-            dot.style.backgroundColor = dotColor;
-            dot.style.marginRight = 4f;
-            row.Add(dot);
-
-            row.Add(countLabel);
-            return row;
+            Add(bodySplitView);
         }
 
         public void Bind()
@@ -178,6 +173,7 @@ namespace DotsAnimationToolkit.Editor
             latestFindings.Clear();
             latestFindings.AddRange(HealthScan.Run(context));
             UpdateCounts();
+            UpdateScanStatusLabel();
             ApplyFilter();
             FindingsChanged?.Invoke();
         }
@@ -203,9 +199,23 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            errorCountLabel.text = errorCount + " errors";
-            warningCountLabel.text = warningCount + " warnings";
-            noteCountLabel.text = noteCount + " notes";
+            errorsToggle.text = BuildSeverityToggleText(errorCount, ToolkitPalette.Error, "Error", "Errors");
+            warningsToggle.text = BuildSeverityToggleText(warningCount, ToolkitPalette.Warning, "Warning", "Warnings");
+            notesToggle.text = BuildSeverityToggleText(noteCount, ToolkitPalette.Accent, "Note", "Notes");
+        }
+
+        private static string BuildSeverityToggleText(int count, Color dotColor, string singularLabel, string pluralLabel)
+        {
+            string hexColor = ColorUtility.ToHtmlStringRGB(dotColor);
+            string countLabel = count == 1 ? singularLabel : pluralLabel;
+            return "<color=#" + hexColor + ">●</color> " + count + " " + countLabel;
+        }
+
+        private void UpdateScanStatusLabel()
+        {
+            int findingCount = latestFindings.Count;
+            string countLabel = findingCount == 1 ? "finding" : "findings";
+            scanStatusLabel.text = "last scan " + DateTime.Now.ToString("HH:mm") + " · " + findingCount + " " + countLabel;
         }
 
         private void ApplyFilter()
@@ -230,6 +240,62 @@ namespace DotsAnimationToolkit.Editor
             }
 
             findingListElement.SetFindings(filteredFindings);
+            RestoreSelection();
+        }
+
+        private void RestoreSelection()
+        {
+            if (filteredFindings.Count == 0)
+            {
+                rememberedSelectedIndex = -1;
+                findingDetailElement.SetFinding(null);
+                return;
+            }
+
+            HealthFinding matchByIdentity = null;
+            if (rememberedSelectedCode != null)
+            {
+                foreach (HealthFinding finding in filteredFindings)
+                {
+                    if (finding.code == rememberedSelectedCode && finding.target == rememberedSelectedTarget)
+                    {
+                        matchByIdentity = finding;
+                        break;
+                    }
+                }
+            }
+
+            if (matchByIdentity != null)
+            {
+                findingListElement.SelectFinding(matchByIdentity);
+                return;
+            }
+
+            int clampedIndex = rememberedSelectedIndex < 0 ? 0 : rememberedSelectedIndex;
+            if (clampedIndex >= filteredFindings.Count)
+            {
+                clampedIndex = filteredFindings.Count - 1;
+            }
+
+            findingListElement.SelectFinding(filteredFindings[clampedIndex]);
+        }
+
+        private void OnFindingSelected(HealthFinding finding)
+        {
+            findingDetailElement.SetFinding(finding);
+            if (finding == null)
+            {
+                return;
+            }
+
+            rememberedSelectedCode = finding.code;
+            rememberedSelectedTarget = finding.target;
+            rememberedSelectedIndex = filteredFindings.IndexOf(finding);
+        }
+
+        private void OnFindingActionRan(HealthFinding finding, HealthFindingAction action)
+        {
+            Scan();
         }
 
         private bool IsSeverityEnabled(HealthSeverity severity)
@@ -248,6 +314,11 @@ namespace DotsAnimationToolkit.Editor
         private static bool MatchesSearch(HealthFinding finding, string searchText)
         {
             if (finding.message.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            if (finding.title.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return true;
             }

@@ -22,6 +22,7 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
+                ActorProfileAsset capturedProfile = profile;
                 List<ValidationMessage> unregisteredMessages = ProfileP2Scan.ScanProfile(profile, context.animationNames);
                 foreach (ValidationMessage unregisteredMessage in unregisteredMessages)
                 {
@@ -29,7 +30,11 @@ namespace DotsAnimationToolkit.Editor
                     finding.severity = HealthSeverity.Error;
                     finding.code = HealthFinding.ProfileNamesUnregisteredAnimationCode;
                     finding.message = "Profile '" + profile.name + "': " + unregisteredMessage.text;
+                    finding.title = "Profile names an unregistered animation";
+                    finding.detail = "Play-by-name fails silently for this name: nothing plays and no error is logged.";
                     finding.target = profile;
+                    finding.relatedAssets.Add(profile);
+                    finding.actions.Add(HealthFindingAction.Locate("Locate profile", "Selects and pings the actor profile.", capturedProfile));
                     output.Add(finding);
                 }
             }
@@ -63,13 +68,27 @@ namespace DotsAnimationToolkit.Editor
                         ? "rig '" + bakedRig.name + "'."
                         : "a rig that is not in the project.";
 
+                    ActorProfileAsset capturedProfile = profile;
+                    ClipSetAsset capturedClipSet = clipSet;
+
                     HealthFinding finding = new HealthFinding();
                     finding.severity = HealthSeverity.Error;
                     finding.code = HealthFinding.ProfileRigDiffersFromClipSetRigCode;
                     finding.message = "Profile '" + profile.name + "' uses rig '" + profile.rig.name +
                         "', but clip set '" + clipSet.name + "' was baked for " + bakedRigDescription;
+                    finding.title = "Profile rig differs from its clip set's baked rig";
+                    finding.detail = "VAT textures were baked for another rig, so the actor deforms wrongly at runtime.";
                     finding.target = profile;
                     finding.secondaryTarget = clipSet;
+                    finding.relatedAssets.Add(clipSet);
+                    finding.relatedAssets.Add(clipSet.vatTextures);
+                    finding.relatedAssets.Add(profile.rig);
+                    if (bakedRig != null)
+                    {
+                        finding.relatedAssets.Add(bakedRig);
+                    }
+                    finding.actions.Add(HealthFindingAction.Locate("Locate profile", "Selects and pings the actor profile.", capturedProfile));
+                    finding.actions.Add(HealthFindingAction.Locate("Locate clip set", "Selects and pings the clip set.", capturedClipSet));
                     output.Add(finding);
                 }
             }

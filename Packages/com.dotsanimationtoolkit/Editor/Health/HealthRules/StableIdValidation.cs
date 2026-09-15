@@ -39,7 +39,26 @@ namespace DotsAnimationToolkit.Editor
                 finding.severity = HealthSeverity.Warning;
                 finding.code = HealthFinding.UnpersistedStableIdCode;
                 finding.message = asset.GetType().Name + " '" + asset.name + "' has a stable id that is not saved yet; it re-mints on the next load.";
+                finding.title = "Stable id not saved";
+                finding.detail = "The id re-mints on the next load and breaks references to it.";
                 finding.target = asset;
+
+                Object capturedAsset = asset;
+                IStableIdMintReporter capturedReporter = reporter;
+                HealthFindingAction saveAction = new HealthFindingAction();
+                saveAction.label = "Save";
+                saveAction.description = "Saves the asset so its stable id persists.";
+                saveAction.run = delegate
+                {
+                    EditorUtility.SetDirty(capturedAsset);
+                    AssetDatabase.SaveAssetIfDirty(capturedAsset);
+                    if (!EditorUtility.IsDirty(capturedAsset))
+                    {
+                        capturedReporter.MarkStableIdPersisted();
+                    }
+                };
+                finding.actions.Add(saveAction);
+                finding.actions.Add(HealthFindingAction.Locate("Locate", "Selects and pings the asset.", asset));
 
                 output.Add(finding);
             }

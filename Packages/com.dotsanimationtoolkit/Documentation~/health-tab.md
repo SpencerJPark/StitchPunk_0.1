@@ -4,49 +4,96 @@
 
 One project-wide list of cross-asset problems: a clip that names a rig its
 clip set was never baked for, a profile pointing at an unregistered
-animation name, an event key nobody registered. These are problems that only
-show up once you compare two or more assets against each other, so they
-cannot live as a per-clip inspector warning. The per-clip validation badge
-you already know from the Clip Editor stays exactly where it is — the Health
-tab does not replace it, it covers the ground between assets that badge
-cannot see.
+animation name, an event key nobody registered, a clip set that doesn't bind
+cleanly to a profile's rig. These are problems that only show up once you
+compare two or more assets against each other, so they cannot live as a
+per-clip inspector warning. The Clip Editor's toolbar used to carry its own
+error badge for bind problems — that badge is gone. Health now reports
+everything it used to catch, plus everything else. The Actor Profiles panel
+still shows its own badge for profile-specific rules; that one stays.
 
----
+## Layout
 
-## What the tab gives you
+- **Scan project** is the big button on the left of the toolbar — you can't
+  miss it. Beside it, a status label reads the time of the last scan and how
+  many findings it produced, or "not scanned yet" before the first scan.
+- **Three chips** sit next to the button, one per severity: a coloured dot
+  and a live count, for example "● 2 Errors". Click a chip to hide or show
+  that severity while you work through the list. A search field on the right
+  narrows the list by code, title or asset name.
+- **Two panels** fill the rest of the tab. The left panel is the findings
+  list: each row is two lines — a severity dot, the code and a short title
+  on the first line, the affected asset's name on the second. Rows carry no
+  buttons; clicking a row selects it and drives the panel on the right.
+  Scanning again keeps the same row selected when its code and asset still
+  match a finding; otherwise the next row down is selected.
+- **The detail panel** on the right shows the selected finding in full: the
+  code and severity, the title, a wrapped explanation of what's wrong and
+  why it matters at run time, an **Affected assets** section (a ping button
+  per related asset, and an open button where the window that fixes it can
+  be opened directly), and **How to fix** — one full-width button per
+  available action, each with a one-line description underneath it.
 
-- **Scan** re-runs every rule against the project's clips, clip sets, rigs,
-  profiles and VAT texture sets, and rebuilds the list. You do not have to
-  press it after every edit — the tab also rescans on its own about half a
-  second after any toolkit asset changes, so the list catches up shortly
-  after you save.
-- **Each row** shows a severity dot, the finding's code, and a one-line
-  message. Some rows carry a **fix** button that applies the repair directly;
-  most do not, because the fix is a judgment call only you can make. Every
-  row carries a **locate** button that selects the asset and pings it in the
-  Project window, so you can jump straight to the thing that needs attention.
-- **Per-severity toggles** let you hide Notes, Warnings or Errors while you
-  work through the list, and a **text filter** narrows rows by code or
-  message.
-- **Stale or unbaked VAT bakes are always listed first**, ahead of every
-  error, regardless of severity — the actor built against a stale bake still
-  plays, it just silently plays old motion with no run-time error to catch
-  it, so the list puts it where you cannot miss it.
+## The tab label
+
+The tab reads **Health (n)**, where `n` is the number of Error-severity
+findings — stale or unbaked VAT bakes count toward `n` too. At zero the tab
+just reads "Health". While `n > 0` the label is drawn in the toolkit's error
+colour. This count is already correct the moment the Clip Editor window
+opens: the Health panel is built and scanned at window creation, not the
+first time you open the tab, so opening the window costs one scan up front.
+The list also rescans on its own about half a second after any toolkit
+asset changes on disk, and again after you commit an edit in the Clip
+Editor — you don't have to press Scan project after every change to see the
+count catch up.
 
 ## Codes
 
-| Code | Severity | Means | Fix |
+| Code | Title | What it means | Actions |
 | --- | --- | --- | --- |
-| H01 | Warning | A clip is in no clip set. | none |
-| H02 | Error | A clip set lists a clip that no longer exists. | Remove missing. |
-| H03 | Error | A profile names an animation that is not in the Animation Names registry. | none |
-| H04 | Error | A profile's rig differs from the rig a listed clip set's VAT textures were baked for. | none |
-| H05 | Note | A rig that no profile uses. | none |
-| H06 | Error | A VAT texture set is stale or unbaked. The row names the set, its rig and the reason; Locate pings the texture set, then the clip set behind it. | Rebake (opens VAT Bake with the set and its rig). |
-| H07 | Error | A clip track's tag is not in the Target Tags registry. | none |
-| H08 | Error | An event key used by clips is not in the Event Keys registry. | none |
-| H09 | Warning | An asset's stable id was never saved, so it would re-mint on the next load. | Save (saves that one asset). |
-| H10 | Warning | A clip in a profile's clip set uses only tags that profile's rig has no target for, so the clip poses nothing on that rig. | none |
+| H01 | Clip is in no clip set | No set registers this clip, so no actor can play it. | Locate; Delete clip… |
+| H02 | Clip set lists missing clips | The set has empty slots; baking skips them and remaining indices shift. | Remove missing; Locate |
+| H03 | Profile names an unregistered animation | Play-by-name fails silently for that name at run time. | Locate profile |
+| H04 | Profile rig differs from its clip set's baked rig | VAT textures were baked for a different rig; the actor deforms wrongly. | Locate profile; Locate clip set |
+| H05 | Rig is used by no profile | Probably a leftover rig. | Locate; Delete rig… |
+| H06 | VAT bake is stale or not baked | Actors play old motion, or none, with no run-time error to catch it. | Rebake; Locate; Delete VAT textures… (only when a texture set exists) |
+| H07 | Track tag is not registered | The track binds to nothing on every rig. | Locate clip |
+| H08 | Event key is not registered | Markers fire a key no system names. | Locate clip |
+| H09 | Stable id not saved | The id re-mints on next load and breaks anything referencing it. | Save |
+| H10 | Clip poses nothing on this rig | None of the clip's tags exist on the set's rig. | Locate clip; Locate rig |
+| H11 | Clip set doesn't bind to its profile's rig | One finding per bind-validation message, with that message's own code (for example V03) in the title and its text as the detail. | Locate clip; Locate profile |
+| H12 | Shared clip binding problem | One finding per message from the shared-clip binding check. | Locate clip |
+
+H11 runs the profile's normal bind validation for each actor profile against
+its own clip sets and rig, and turns every message the validator produces
+into one finding. It skips a few validator codes on purpose — the ones for
+a stale bake and for unregistered tags or event keys — because H06, H07 and
+H08 already report those; nothing shows twice. A clip set that no profile
+uses has no rig to validate against, so H11 says nothing about it — H01 and
+H05 already cover orphaned assets. H12 checks clips that are shared between
+profiles or rigs, keyed by their bound target, independently of H11.
+
+## Deletes
+
+Delete is available where it makes unambiguous sense, and it is always
+behind a confirmation dialog. The dialog names the asset's path and quotes
+what still references it, pulled from the project's asset reference index;
+Cancel does nothing.
+
+- **Delete clip…** (H01) moves only the clip asset to the OS trash. It does
+  not touch any set, cutscene or profile that still names the clip — the
+  confirmation lists those so you know before you delete.
+- **Delete rig…** (H05) moves only the rig asset to the trash. Any profile
+  or track still pointing at it will break; the confirmation lists them.
+- **Delete VAT textures…** (H06) only appears when a baked texture set
+  actually exists — a set that was never baked has nothing to delete. It
+  trashes the texture set asset, its part textures, and any runtime meshes
+  that no other VAT texture set references; textures shared with another
+  set are left alone. Afterward the clip set counts as unbaked again, so H06
+  stays in the list, now offering only Rebake.
+
+None of these deletes are undoable except by recovering the file from the
+OS recycle bin. Deleting never saves any other asset in the project.
 
 ## Not checked
 
