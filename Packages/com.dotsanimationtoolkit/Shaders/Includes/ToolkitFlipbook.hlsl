@@ -4,7 +4,7 @@
 // =====================================================================================
 // DOTS Animation Toolkit — flipbook addressing (architecture sections 6.1, 5.7)
 //
-// Two ways to show a frame from a sheet of them:
+// Two ways to show one frame of a flipbook:
 //
 //   SLICE — the frames are layers of a Texture2DArray, and the frame index is the third
 //           UV coordinate. No UV maths at all; the sampler does the work.
@@ -31,7 +31,7 @@ float3 SliceUV(float2 uv, float imageIndex)
 }
 
 // -------------------------------------------------------------------------------------
-// Atlas mode: map a mesh UV into one cell of the sheet.
+// Atlas mode: map a mesh UV into one cell of the atlas.
 //
 //   atlasRect — xy = scale, zw = offset. This is `_AtlasFrame` from section 6.2, and it
 //               matches ClipSampler.IdentityAtlasRect = (1, 1, 0, 0), i.e. "the whole
