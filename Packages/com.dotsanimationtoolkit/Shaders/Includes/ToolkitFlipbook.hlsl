@@ -43,11 +43,11 @@ float2 AtlasFrameUV(float2 uv, float4 atlasRect)
 }
 
 // -------------------------------------------------------------------------------------
-// Atlas mode from a grid description, for callers who would rather say "4x4 sheet,
+// Atlas mode from a grid description, for callers who would rather say "4x4 atlas,
 // frame 7" than compute a rect.
 //
-// Row 0 is the TOP row, because that is how sprite sheets are read and authored, whereas
-// UV space runs upward from the bottom. Getting this backwards is a whole-sheet vertical
+// Row 0 is the TOP row, because that is how atlas grids are read and authored, whereas
+// UV space runs upward from the bottom. Getting this backwards is a whole-atlas vertical
 // flip that looks like the art was exported wrong.
 // -------------------------------------------------------------------------------------
 float4 AtlasRectFromGrid(float frameIndex, float columns, float rows)
