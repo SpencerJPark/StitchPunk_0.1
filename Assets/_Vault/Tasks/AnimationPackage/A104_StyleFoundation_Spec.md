@@ -269,3 +269,39 @@ mutation commit with F1–F3's reverts; exactly those three fail.
 ## 7. Build log
 
 *(S0 probe verdict, T0 grounding, gate verdicts, revert-to-fail, drift, For integration, S3 audit table, close.)*
+
+### S0 — Phase 0 (stage, 2026-09-15, against `d009eecd`)
+
+- **Preflight:** `ListAgents` shows one peer (`stitch-punk-ae`, idle, 5 days old); `doctor` reports git 2.43.0, long
+  paths on, `brokerAlive` true, hooks installed, no stage blockers; `list --json` shows no worktrees and
+  `busyWith` null; `git status` is clean.
+- **Baseline:** compile clean with zero console errors. `DotsAnimationToolkit.Tests.EditMode` passed 873 of 873;
+  `.PlayMode` passed 285 of 285. CHANGELOG top is `## [0.55.0]` and `package.json` is `0.55.0`.
+- **Registry sha256s:** `DotsAnimationToolkitAnimEventKeyRegistry.asset` is
+  `3bdb420d55b808ecfd9251ab144ac89645c4d6f903b4a8a3498a42aa76d14701`; `DotsAnimationToolkitTargetTagRegistry.asset`
+  is `dbec3d5f6d31db02891682e7f88e6011f7317658f1d29753a0185ff2ebd1eb4f`.
+- **Before captures:** the 15 `Library/UIAudit/01…15_*.png` files were copied to `Library/UIAudit/before/`.
+- **Window-sheet baseline (for T5's F3 pins):** `ClipEditorWindow.uss` is 1,984 lines with **151** colour literals
+  (`rgb(`, `rgba(` and `#hex`). Its font sizes are 9px ×2, 10px ×2, 11px ×2, 12px ×1 and 14px ×1, so there are
+  **5** non-scale sizes.
+- **Probe verdict: YES, `var()` inside a custom property resolves.** It was defined as
+  `--a104-probe: var(--unity-colors-window-background)` and read through `background-color: var(--a104-probe)`. It
+  resolved to `56,56,56,255` (`#383838`), identical to a control element that referenced
+  `var(--unity-colors-window-background)` directly. D2's tokens can therefore alias the Unity variables.
+  - **First attempt, inconclusive:** it read `0,0,0,0` with width NaN for both elements. The docked Clip Editor sits
+    behind the Game View tab, so its `rootVisualElement.panel` was null and nothing was styled.
+  - **Second attempt:** the probe ran in a temporary floating utility `EditorWindow`, which was closed afterwards.
+    The probe elements and sheet were removed from the Clip Editor root, and `A104Probe.uss` and its `.meta` were
+    deleted.
+- **Drift found while grounding (for the lead's T0):**
+  - **(1) Status tones:** `ToolkitStatusTone` is `{ Neutral, Warning, Error }`. It already has `Neutral`, but D7's
+    badge wants an `--ok` tone and there is no Ok/Clean member.
+  - **(2) Capture trap:** the Clip Editor is currently a background dock tab behind the Game View. S3's capture chain
+    must bring it to the front (or capture while it is the visible view) and then restore the Game View.
+  - **(3) Sheet loading:** `ClipEditorWindow.cs` has no `styleSheets.Add`. The window sheet loads through
+    `ClipEditorWindow.uxml:2` (`<Style src="project://database/…ClipEditorWindow.uss?…guid=9f9579bb…"/>`), and
+    `StyleSheetPath` is used only by `VatBakeWindow.cs:37`. T8a has two options:
+    - add the two sheets in C# after the UXML clones (by path, GUID-free); or
+    - add two `<Style>` lines in the UXML. That option needs the new sheets' `.meta` GUIDs from T1/T2.
+
+    The lead picks one and logs it here.
