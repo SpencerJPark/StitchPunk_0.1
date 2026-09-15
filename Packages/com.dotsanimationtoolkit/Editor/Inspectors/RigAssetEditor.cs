@@ -29,8 +29,6 @@ namespace DotsAnimationToolkit.Editor
         private SerializedProperty mirrorPairsProperty;
         private SerializedProperty socketsProperty;
         private SerializedProperty billboardRootsProperty;
-        private SerializedProperty ragdollSettingsProperty;
-        private SerializedProperty ragdollBodiesProperty;
 
         private VisualElement inspectorRoot;
         private VisualElement socketRowContainer;
@@ -74,8 +72,6 @@ namespace DotsAnimationToolkit.Editor
             mirrorPairsProperty = serializedObject.FindProperty("mirrorPairs");
             socketsProperty = serializedObject.FindProperty("sockets");
             billboardRootsProperty = serializedObject.FindProperty("billboardRoots");
-            ragdollSettingsProperty = serializedObject.FindProperty("ragdollSettings");
-            ragdollBodiesProperty = serializedObject.FindProperty("ragdollBodies");
 
             inspectorRoot = new VisualElement();
             inspectorRoot.style.paddingTop = 4f;
@@ -364,8 +360,8 @@ namespace DotsAnimationToolkit.Editor
         // Ragdoll section.
         // -----------------------------------------------------------------------------------
 
-        // Same PropertyField shape as BuildBillboardSection, plus a badge list: a ragdoll body
-        // carries a rig-wide rule (no per-row home) that the default inspector's error icons cannot show.
+        // Editing moved to the Clip Editor's Ragdoll tab; this stays a pointer plus a badge list, since
+        // a ragdoll body carries a rig-wide rule (no per-row home) that the default inspector's error icons cannot show.
         private VisualElement BuildRagdollSection()
         {
             VisualElement section = new VisualElement();
@@ -381,14 +377,23 @@ namespace DotsAnimationToolkit.Editor
             explanation.style.marginBottom = 4f;
             section.Add(explanation);
 
-            if (ragdollSettingsProperty != null)
+            // Ragdoll tab focus is wired with the tab itself; for now this only raises the window.
+            Button openRagdollTabButton = new Button(ClipEditorWindow.ShowWindow)
             {
-                section.Add(new PropertyField(ragdollSettingsProperty, "Ragdoll Settings"));
-            }
-            if (ragdollBodiesProperty != null)
-            {
-                section.Add(new PropertyField(ragdollBodiesProperty, "Ragdoll Bodies"));
-            }
+                text = "Edit in the Ragdoll tab",
+            };
+            openRagdollTabButton.name = "rig-open-ragdoll-tab-button";
+            openRagdollTabButton.style.height = 26f;
+            openRagdollTabButton.style.marginTop = 4f;
+            openRagdollTabButton.style.marginBottom = 4f;
+            openRagdollTabButton.tooltip =
+                "Bodies, box handles, limits and the drop test are authored in the Clip Editor's Ragdoll tab.";
+            section.Add(openRagdollTabButton);
+
+            Label ragdollSummaryLabel = new Label(RagdollBodySummaryResolver.Resolve(target as RigAsset).text);
+            ragdollSummaryLabel.name = "rig-ragdoll-summary-label";
+            ragdollSummaryLabel.AddToClassList("clip-editor__hint");
+            section.Add(ragdollSummaryLabel);
 
             ragdollBadgeContainer = new VisualElement();
             ragdollBadgeContainer.style.marginTop = 4f;

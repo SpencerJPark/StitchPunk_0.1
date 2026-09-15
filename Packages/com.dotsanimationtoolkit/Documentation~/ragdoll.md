@@ -95,6 +95,43 @@ it; storing a flag would be a second statement that could disagree with the hier
 
 ---
 
+## Authoring in the Ragdoll tab
+
+Body placement and rig-wide tuning live in the Clip Editor's own **Ragdoll** tab, laid out in three
+columns.
+
+The left column is a **Bodies** list — every ragdoll body on the selected rig, with buttons to add one
+on the current node and delete the selected one. Its header summarises the articulation as something
+like `6 bodies · 5 joints`: a joint is any body that has another body above it in the hierarchy, so the
+root body — the one with no ragdolled ancestor — never counts as one. A body whose node no longer
+resolves is flagged right there in the list.
+
+The middle column is the viewport, showing the previewed rig with every body's box drawn over it.
+Selecting a body gives its box the same face, centre and rotation handles described above; they live in
+the tab now rather than the rig inspector.
+
+The right column is the inspector for whichever body is selected — collider, mass, damping, friction
+and joint limits — followed underneath by the rig-wide ragdoll settings: space, gravity scale, the
+default damping a body inherits, joint stiffness and damping, solver iterations, and the substep rate.
+
+The tab edits the window's shared rig selection, the same one every other tab follows. The rig asset's
+own inspector keeps only an **Edit in the Ragdoll tab** button and the ragdoll validation badges; the
+body list and its fields no longer live there.
+
+The tab's viewport carries its own transport: **Play** drops the ragdoll, **Stop** resets the rig back
+to the pose it was dropped from, and a ground dropdown picks which scenery the drop lands on. The drop
+starts from the rig's rest pose by default, with an optional row for dropping from a clip's pose
+instead — and dropping from a clip carries the same honesty as above: the preview derives each joint's
+limit from whatever pose is on screen when the drop starts, so dropping from a mid-animation pose
+measures the limits against that pose rather than against the rest pose.
+
+The Clip Editor's own **Ragdoll** toggle is unchanged by any of this: it still drops the rig you are
+animating, in place, on the same playhead-freezing terms, and still draws no body boxes unless it is
+switched on. Limit defaults, the solver, and the launch behaviour below are unchanged too — the tab is
+a place to look at what is already there, not a second system.
+
+---
+
 ## Self-collision
 
 Each body carries a **group** (one of eight) and a **mask** of the groups it collides with.
