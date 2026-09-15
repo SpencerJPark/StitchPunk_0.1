@@ -72,17 +72,17 @@ throwaway project under `%TEMP%`, the build output under `%TEMP%`.
 
 ## 5. Tasks — lead
 
-- [ ] **T0 — Ground.** `git rev-parse --show-toplevel`; claim `a102`; grep the names in §2 and §3; read the stage's
+- [x] **T0 — Ground.** `git rev-parse --show-toplevel`; claim `a102`; grep the names in §2 and §3; read the stage's
   S1 report pasted into your prompt. Log drift in §7.
-- [ ] **T1 — Conformance_A green** `[parallel-safe]` (one worker, two files): the expectation row and the §1.3
+- [x] **T1 — Conformance_A green** `[parallel-safe]` (one worker, two files): the expectation row and the §1.3
   amendment. Gate: `PackagingConformanceTests`. This is the first gate in months where Conformance_A must pass.
-- [ ] **T2 — SamplesCompileConformanceTests** `[parallel-safe]` (one worker, one new file). Build the allowed-assembly
+- [x] **T2 — SamplesCompileConformanceTests** `[parallel-safe]` (one worker, one new file). Build the allowed-assembly
   list from the package's four asmdefs (Runtime, Runtime.Physics, Authoring, Editor) plus their references; the
   namespace list from a regex over `namespace ` lines in `Runtime/`, `Authoring/`, `Editor/`. Gate it with its
   two revert-to-fail mutations.
-- [ ] **T3 — Sample rot** (after T0; one worker per sample that the S1 report names, at most two files each). Fix
+- [x] **T3 — Sample rot** (after T0; one worker per sample that the S1 report names, at most two files each). Fix
   only what the compile error says. If S1 reported clean, tick this and say so.
-- [ ] **T4 — getting-started paragraph** `[parallel-safe]` (docs worker, one file).
+- [x] **T4 — getting-started paragraph** `[parallel-safe]` (docs worker, one file).
 - [ ] **T5 — Close text.** Wait for the stage's message that S1–S3 are green (or its list of what is not), then one
   worker edits `package.json` description and `README.md` (D5). Write §7's `### For integration` block: the
   0.54.0 CHANGELOG text, a HANDOFF paragraph, the vault trap(s). `status a102 ready`.
@@ -149,3 +149,57 @@ A91 check (`verify-a91-player-build.md`) stays the owner's, but its old blocker 
 3. D2 names three invariants, §4 names two fixtures: the exactly-one-asmdef check is folded into `EverySampleAsmdef_ReferencesOnlyKnownAssemblies` so the fixture stays two tests with two mutations.
 4. T2's namespace regex list names `Runtime/`, `Authoring/`, `Editor/`; `Runtime.Physics/` declares `DotsAnimationToolkit.Physics` and is scanned too (it is one of the four asmdefs the allowed-assembly list is built from).
 5. `README.md` "Not shipped yet" still says "Two samples ship" and that no `VatCrowd` sample is packaged; four ship today (Camera Sync and Cutscene were added). Outside D5's three-line block — left for the stage (noted under For integration).
+
+**T1/T2/T4 wave (lead).** Workers: T1 (expectation row + §1.3 row, Amendment A102 paragraph, samples sentence), T2
+(new fixture + `.meta`), T4 (getting-started section). Lead review caught one T2 defect before the gate: the
+known-assembly list held only the four package assembly *names*, not their references, so every sample's
+`Unity.Entities` reference would have failed; fixed with `BuildKnownAssemblyNames()`. Commit `9d8ed2d8`.
+- **Gate 1 (`9d8ed2d8`): pass, 14 of 14** (PackagingConformanceTests 12, SamplesCompileConformanceTests 2).
+  Conformance_A green for the first time since July.
+- **Revert-to-fail:** mutation commit (fake `DotsAnimationToolkit.FakeMutationReference` in the CameraSync asmdef;
+  `using DotsAnimationToolkit.DoesNotExist;` in `CutsceneSampleHost.cs`). First gate refused ("Unity is compiling"),
+  retry: **test-failures, 12 passed, exactly the two new tests failed**, each naming its mutation. Hard-reset one
+  commit; sha256 of both files matched the pre-mutation values (CameraSync asmdef `51f26aba...`, CutsceneSampleHost
+  `e270c161...`). Conformance_A's own revert-to-fail is the Phase 0 baseline (it failed on exactly this row).
+- **T3:** S1 clean, nothing to fix.
+
+### For integration
+
+**CHANGELOG `## [0.54.0] — Release readiness`:**
+- Conformance_A is green: the Editor assembly's `Unity.RenderPipelines.Universal.Runtime` reference (used by the
+  cutscene viewport and capture source; `package.json` has always depended on URP) is now in the expected reference
+  list and the architecture record. The EditMode suite has no standing failure.
+- New `SamplesCompileConformanceTests`: `Samples~` is excluded from Unity compilation, so the suite now checks on disk
+  that every sample has exactly one asmdef referencing only assemblies the package defines or references, and that
+  every sample `using` directive resolves in the assemblies its asmdef references (package namespaces matched
+  exactly).
+- Release checks run 2026-09-15 on Unity 6000.5.0f1: all four samples compiled as copied assemblies with zero errors;
+  a Windows64 development player build of the host game finished with zero errors; a clean project referencing the
+  package by `file:` path resolved its dependencies and compiled Runtime, Authoring and Editor with zero errors.
+- `package.json` description: the "remaining before 1.0" sentence is replaced by the checks above; `README.md` gains a
+  Verified section; getting-started gains "Importing into another project" (`file:` and git `?path=` forms, the URP
+  pipeline-asset requirement, the Camera Sync sample).
+
+**Conformance_G allowlist:** none (no static classes added). **Wiring:** none (no tab, panel, enum member or UXML).
+**Pin/version:** the stage bumps `package.json` `version`, the conformance pin and CHANGELOG to 0.54.0.
+
+**Vault traps (`AnimationToolkit.md`, next to the `Samples~` compile-check line):**
+- `SamplesCompileConformanceTests` catches asmdef-reference and `using` rot only, never an API signature change inside
+  a resolvable namespace. The copy-and-compile check (S1) is still the real compile; run it before any release.
+- Package namespaces are matched exactly, Unity namespaces by prefix. A new package sub-namespace is picked up from
+  `namespace` declarations automatically, but a sample referencing a Unity assembly whose namespace differs from its
+  name (like `Unity.Entities.Graphics` -> `Unity.Rendering`) needs a row in `MapNonPackageAssemblyToNamespacePrefix`.
+- A new sample must keep exactly one asmdef somewhere under its folder, or the fixture flags it.
+
+**Drift for the stage:** `README.md` "Not shipped yet" still says two samples ship; four do (drift 5 above) — a
+one-line README fix at integration.
+
+**HANDOFF §4 paragraph (draft):** A102 Release readiness (0.54.0, 2026-09-15). The three "before 1.0" checks the
+package description carried since 0.9.0 are done: the four `Samples~` compiled clean as copied assemblies, the game's
+Windows64 development player build finished with zero errors, and a batch-mode clean project importing the package by
+`file:` path compiled Runtime, Authoring and Editor with zero errors. Conformance_A is green (the Editor row now lists
+URP, recorded as Amendment A102 in the architecture doc), so a package EditMode run reports zero failures for the first
+time since July, and any red conformance test is now real. `SamplesCompileConformanceTests` guards sample asmdef
+references and `using` directives on disk (revert-to-fail proven for both); it does not replace a real sample compile.
+Getting-started documents importing into another project. Unverified: the owner's A91 player-build check stays his;
+no Play mode was run.

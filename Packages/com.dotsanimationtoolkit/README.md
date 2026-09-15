@@ -155,6 +155,12 @@ repository. To use it in another project:
 Per `LICENSE.md`, this package is proprietary and not yet licensed for
 redistribution.
 
+## Verified
+
+- **Clean-project import:** a fresh Unity 6000.5.0f1 project referencing the package by `file:` path resolves its dependencies and compiles Runtime, Authoring and Editor with zero errors (2026-09-15).
+- **Player build:** a Windows64 development build of the host game with the package embedded finished with zero errors (2026-09-15).
+- **Samples:** all four `Samples~` compile with zero errors when copied into a project; `SamplesCompileConformanceTests` guards their asmdef references and `using` directives on disk (2026-09-15).
+
 ## 60-second quick start
 
 See [`Documentation~/getting-started.md`](Documentation~/getting-started.md)
