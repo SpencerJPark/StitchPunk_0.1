@@ -216,7 +216,7 @@ renderers and `VatBakeSourceResolver`'s node lookup.
   tree), which is why the baker and section 7 were committed before any gate ran.
 - **PlayMode gate:** the broker refuses play-mode fixtures ("not supported by the broker yet"), so
   `DotsAnimationToolkit.Tests.PlayMode.ActorBakingAcceptanceTests` at `e37157bc` was sent to the stage as
-  "gate needed". The verdict is recorded below once it replies.
+  "gate needed". **Stage verdict: PASS** - the stage checked out `e37157bc`, compile gate 0 errors, then ran the fixture: 28 run, 28 passed, 0 failed (28 `[Test]`/`[UnityTest]` in the file, so the count is real).
 - **Revert-to-fail:** a mutation commit made `EvaluateProperties` treat every property as required for every kind
   (`bool required = true;`). The gate ran 14: 12 passed, 2 failed — `Quad_MissingVatFrameA_IsNotReported` (five
   errors, `_ImageIndex or _AtlasFrame` … `_BillboardParams`, on a Quad) plus the standing `Conformance_A`.
