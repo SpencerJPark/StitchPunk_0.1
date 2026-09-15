@@ -94,6 +94,7 @@ namespace DotsAnimationToolkit.Editor
                 "VAT",
                 true);
             vatPartsToggle.name = "vat-parts-toggle";
+            vatPartsToggle.SetValueWithoutNotify(true);
             vatPartsToggle.SetEnabled(false);
 
             otherPartsToggle = viewportFrame.AddRailToggle(
@@ -102,6 +103,10 @@ namespace DotsAnimationToolkit.Editor
                 "Parts",
                 true);
             otherPartsToggle.name = "other-parts-toggle";
+            otherPartsToggle.SetValueWithoutNotify(true);
+            // Visibility is decided per renderer in RefreshSourceCopyAppearance, which nothing else
+            // re-runs on this toggle; without it the posed half stays hidden until Ghost is touched.
+            otherPartsToggle.RegisterValueChangedCallback(changeEvent => RefreshSourceCopyAppearance());
             otherPartsToggle.SetEnabled(false);
 
             ghostToggle = viewportFrame.AddRailToggle(
