@@ -235,6 +235,7 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
   - Drift 16: the baker is the sibling class `AnimEventRoutingBaker` in the same file, the package idiom from `CutsceneStageAuthoring`, not a nested `Baker`.
   - Drift 17: the stub emits a `// Place after EventEmissionSystem` comment instead of an `[UpdateAfter]` attribute, because `EventEmissionSystem` sits in `AnimationToolkitLogicSystemGroup` and the host picks its own group.
   - Gate 1 (wave commit `b9e49dff`): compile-errors, `EventsPanel.cs` missing `using DotsAnimationToolkit.Authoring;` (CS0246 ×3). Fixed by a fresh worker.
+  - Gate 2 (fix commit): compile-errors, `EventKeyInspectorColumn.cs` missing `using UnityEditor.UIElements;` for `ObjectField` (CS0246 ×2, surfaced only once the panel compiled). Fixed by a fresh worker. The lead read the three fixtures for test-assembly errors before gate 3 and found none.
   - Stage trap (message 2026-09-14): gate fixture names must be namespace-qualified (`DotsAnimationToolkit.Tests.EditMode.<Fixture>`). A bare name matches zero tests and still reports pass. The T1 gate was compile-only, so nothing needed re-gating.
 
 ### For integration
