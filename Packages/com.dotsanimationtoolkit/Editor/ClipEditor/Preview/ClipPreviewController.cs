@@ -1528,6 +1528,12 @@ namespace DotsAnimationToolkit.Editor
 
             UpdateRagdollBoxHandles();
 
+            // Last word before the render: the handle updates above may have re-shown what a capture hides.
+            if (captureOverlaysHidden)
+            {
+                HideOverlaysForCapture();
+            }
+
             ApplyCameraPose();
 
             // After the camera, because billboarding is defined against it; after the pose, because
@@ -1555,6 +1561,58 @@ namespace DotsAnimationToolkit.Editor
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
             renderUtility.camera.Render();
             return renderUtility.EndPreview();
+        }
+
+        private bool captureOverlaysHidden;
+        private readonly List<GameObject> overlaysHiddenForCapture = new List<GameObject>();
+
+        // A Capture tab frame: no grid, selection box, bone handles or socket markers, cleared to the capture background.
+        // Transparent holds only while the render utility's target keeps alpha through the pipeline.
+        public Texture RenderCaptureFrame(int pixelWidth, int pixelHeight, bool transparentBackground, Color backgroundColour)
+        {
+            if (pixelWidth <= 0 || pixelHeight <= 0)
+            {
+                return null;
+            }
+
+            EnsureRenderUtility();
+            Color previousBackgroundColour = renderUtility.camera.backgroundColor;
+            renderUtility.camera.backgroundColor = transparentBackground ? new Color(0f, 0f, 0f, 0f) : backgroundColour;
+            captureOverlaysHidden = true;
+            try
+            {
+                return Render(pixelWidth, pixelHeight);
+            }
+            finally
+            {
+                captureOverlaysHidden = false;
+                renderUtility.camera.backgroundColor = previousBackgroundColour;
+                for (int overlayIndex = 0; overlayIndex < overlaysHiddenForCapture.Count; overlayIndex++)
+                {
+                    if (overlaysHiddenForCapture[overlayIndex] != null)
+                    {
+                        overlaysHiddenForCapture[overlayIndex].SetActive(true);
+                    }
+                }
+                overlaysHiddenForCapture.Clear();
+            }
+        }
+
+        private void HideOverlaysForCapture()
+        {
+            HideOverlayForCapture(sceneGizmos.GridObject);
+            HideOverlayForCapture(sceneGizmos.SelectionObject);
+            HideOverlayForCapture(boneHandles.HandlesObject);
+            HideOverlayForCapture(socketMarkers.RootObject);
+        }
+
+        private void HideOverlayForCapture(GameObject overlay)
+        {
+            if (overlay != null && overlay.activeSelf)
+            {
+                overlay.SetActive(false);
+                overlaysHiddenForCapture.Add(overlay);
+            }
         }
 
         // Nodes this preview has billboarded, and the local rotation (and position) each had
