@@ -181,3 +181,17 @@ allowlist.
   (legacy `targetTexture` + `Render()` fallback); `VatPreviewElement` uses the `BeginPreview` path too.
 - **Conformance_D drift:** D5/§1 show `Assets/Captures/Walk/`. Package files may not name `Assets/<Folder>` except
   `Assets/Generated`, so the default output folder is `Assets/Generated/DotsAnimationToolkit/Captures/<name>/`.
+
+### Spec-lead (opus, worktree `spec/a98`, 2026-09-14)
+
+**T0 grounding (grep only, no Unity):**
+- **Drift 1 — D2 `Camera PreviewCamera` is replaced by `Texture RenderFrame(int pixelWidth, int pixelHeight, CaptureBackgroundMode background, Color backgroundColour)`** on `ICaptureSource`. `ClipPreviewController` keeps its `PreviewRenderUtility` private and exposes no camera; each source renders its own frame, and the runner blits the returned texture into a temporary sRGB RenderTexture and `ReadPixels` from that. The interface also carries `CaptureName`, `CameraPoseKey`, `NotReadyReason` (null = ready), `CameraRig` (`IPreviewCameraRig`), `CaptureCameraPose()` / `RestoreCameraPose(in PreviewCameraPose)` and `IDisposable`.
+- **Drift 2 — `ClipPreviewController` gained `RenderCaptureFrame(int, int, bool transparentBackground, Color backgroundColour)`**: sets the clear colour (alpha 0 when transparent) and, as the last step before the camera pose in `Render`, deactivates the grid, selection box, bone handles and socket markers (D7), restoring them after the render. One hunk inside `Render` plus the new members after it; the stage should expect a textual neighbour if A96/A97 touch `Render`.
+- **Drift 3 — the range is normalised with an exclusive end.** `CaptureSettings.rangeStartNormalized` / `rangeEndNormalized` are fractions of the source duration (they survive a source switch); `FrameCountFor` = `ceil(span * fps)`, so a 1 s Walk at 12 fps is 12 frames and a looping GIF never repeats its first pose. T10's "N PNGs" is 12 for a 1 s clip.
+- **Drift 4 — the cutscene source has no fixed duration** (`CutsceneAsset` has none, by design). The adapter copies `CutsceneEditorPanel.ComputeContentEndSeconds` (minimum 1 s). A cutscene capture poses the open scene's bound objects through `CutscenePreviewController.EnterPreview` / `ExitPreview` and renders through a hidden utility camera on a `PreviewOrbitCameraRig` (URP `SingleCameraRequest`, legacy fallback); Transparent clears only the sky.
+- **Drift 5 — output folder** `Assets/Generated/DotsAnimationToolkit/Captures/<name>` (Phase 0's Conformance_D note), held as `CaptureSettings.DefaultOutputRoot`; an explicit `outputFolder` wins.
+- **Drift 6 — GIF fixture counts descriptors by walking blocks**, not raw `0x2C` bytes (that byte occurs in palettes and LZW data).
+- **Drift 7 — `GifEncoding` and `PngSequenceWriter` are static classes without a role suffix** and need the Conformance_G plain-noun allowlist (see For integration).
+- **D6 pose storage:** `CaptureSettings.TryLoadCameraPose` / `SaveCameraPose` keyed by `ICaptureSource.CameraPoseKey` (`Clip.<clip guid>.<rig guid>`, `Profile.<profile guid>.<key X8>`, `Cutscene.<guid>`).
+
+**T1** (`A98-T1`): `ICaptureSource`, `CaptureSettings` (EditorPrefs JSON, presets, frame math, GIF delay = max(2, round(100 / fps)) centiseconds), `RenderCaptureFrame`, and API-pinned stubs for every wave file. Gate (`PackagingConformanceTests`): compile clean, 10 of 12 passed; failures the standing Conformance_A and the expected Conformance_G allowlist.
