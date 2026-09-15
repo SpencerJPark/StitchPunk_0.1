@@ -258,6 +258,19 @@ Drift found beyond 12.1 (6):
 
 **Commits.** `e996c7db` T1 (lead) · `27c5c1e1` T2+T3 (lead) + T4 (worker) + T6 (two docs workers, lead fixes) · `8709f6fd` T5 fixture (worker).
 
+**Gates.** Conformance pair (`SystemPlacementConformanceTests` + `SystemGroupOrderTests`): T0 baseline 9 of 9; `ec62b9b1` 9 of 9,
+compile and Burst clean. `StitchPunk.Tests.PlayMode.DespawnSystemTests` on `ec62b9b1` (stage, by hand): **3 of 3**.
+
+**Revert-to-fail (batched, one mutation commit `fa61e89d`, each test failing for its own reason).** The mutation: `LifetimeSystem`
+writes `despawnEnabled` false; `DespawnSystem` drops the `Despawn` re-disable and the dormant-trim `DestroyEntity`. Conformance
+pair 9 of 9 on it (so failures are assertions, not compile). Stage verdict: **0 of 3**. Test 1 "should enable Despawn" expected True
+was False; test 2 "should re-disable Despawn" expected False was True; test 3 "trim ... to the pool cap" expected 64 was 67.
+Hard reset one commit back to `ec62b9b1`; sha256 of both system files matches the pre-mutation hashes.
+
+**Unverified.** The rebake (units' new `Despawn` archetype) and everything in-scene: Lifetime cube vanishing, inspector pooling and
+reclaim, dormant cap under distance pooling, and whether root-only `Disabled` leaves body parts visible. The `[WithPresent]` fix is
+pinned by test 1 but was not separately mutated.
+
 ### For integration
 
 - **Vault truths to check at merge** (the minion-orders lead edits the same notes; take both sides): `Systems.md` tree line and
