@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
