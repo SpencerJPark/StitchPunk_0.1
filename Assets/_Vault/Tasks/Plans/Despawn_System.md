@@ -1,6 +1,6 @@
 # Despawn System — Design Spec
 
-> **Status:** ✅ spec ready · edit the inline **← DECISION** markers, then hand back to start the build.
+> **Status:** ✅ decisions locked 2026-09-15 (§12, under the standing delegation) — ready for a `spec-lead` worktree run as spec id `despawn`; §12 is the build plan, §1–§10 the design.
 > **Raw source:** [`../futureneedsplan.md`](../futureneedsplan.md) → "soundsystemgroup / spawn-despawn" area (pooling of units & effects)
 
 ---
@@ -160,3 +160,75 @@ Play `DOTSTestScene` and use the **Entities Hierarchy / Inspector** window:
 - [ ] §5 — LinkedEntityGroup on pool: parent-only `Disabled` (match existing) vs. disable the whole group. Default: parent-only for v1 + Gotchas note.
 - [ ] §7 — fold `DespawnItemRequest` into this funnel now or later. Default: later.
 - [ ] §1/§8 — also ship a debug-key trigger alongside `Lifetime`? Default: no (Lifetime + inspector toggle suffice for v1 verification).
+
+---
+
+## 12. Worktree build plan (2026-09-15) — spec id `despawn`
+
+Every ← DECISION above is settled here; §1–§10 stay as the design record. Names were re-verified against
+`2464e854` on 2026-09-15; drift is listed first so nobody follows the older paragraphs into a wrong folder.
+
+### 12.1 Drift from the tree
+
+- **Folder:** the group's folder is `Assets/_Scripts/Systems/DespawnSystemGroup/` (top level, folder mirrors group
+  — `SystemPlacementConformanceTests` enforces it), **not** `Systems/SpawnSystemGroup/DespawnSystemGroup/`.
+  `UnitPoolReturnSystem.cs` already lives there. Both new systems go beside it.
+- **`DespawnItemRequest` no longer exists** — §7's fold-in question is void.
+- **Nothing enables `Despawn` today** (no `SetComponentEnabled<Despawn>`, `EnabledRefRW<Despawn>` or
+  `WithAll<Despawn>` anywhere), so the enum field and the bake are purely additive.
+- `Despawn` is declared at `Components/Spawners/SpawnerComponents.cs:3`, `PoolOwner` at `:17`, `NewlySpawned` at
+  `:28`; `UnitAuthoring.Baker` bakes `NewlySpawned` disabled at `Authoring/Units/UnitAuthoring.cs:21-22`;
+  `Data/Enums/` exists; `UnitSpawnerSystem._poolQuery` uses `EntityQueryOptions.IncludeDisabledEntities`.
+- `UnitPoolReturnSystem` uses `var` and a main-thread `foreach` — pre-existing; **leave it untouched**.
+
+### 12.2 Decisions
+
+- **DS-D1** `LifetimeSystem` lives in `DespawnSystemGroup`, `OrderFirst = true`. One-frame TTL latency is fine.
+- **DS-D2** `DespawnMode.ReturnToPool` on an entity without `PoolOwner` destroys it (you cannot pool what is not
+  poolable). No warning.
+- **DS-D3** Pool cap is `private const int PoolCapPerType = 64;` on `DespawnSystem`, with a one-line comment that a
+  per-type blob replaces it when two types need different caps.
+- **DS-D4** Overflow trim runs every frame and destroys only the amount over cap.
+- **DS-D5** Pooling adds `Disabled` to the parent only, matching `UnitPoolReturnSystem`; `Gotchas.md` gains the
+  entry. `DestroyEntity` follows `LinkedEntityGroup` on its own.
+- **DS-D6** No debug key. `Lifetime` plus a PlayMode fixture is the verification.
+- **DS-D7** `DespawnSystem` is not `[BurstCompile]` at the system level (main-thread structural pass); the gather
+  job is. `.ScheduleParallel()` into `state.Dependency`, then `state.Dependency.Complete()` before the ECB pass.
+
+### 12.3 Tasks
+
+- [ ] **T0 — Ground (lead).** `git rev-parse --show-toplevel`; claim; grep every name in 12.1; run the game's
+  EditMode conformance pair once through the gate to learn the baseline:
+  `gate --edit-mode StitchPunk.Tests.SystemPlacementConformanceTests --edit-mode StitchPunk.Tests.SystemGroupOrderTests`.
+- [ ] **T1 — Data (one worker, two files).** `Data/Enums/DespawnMode.cs` (Auto / ReturnToPool / ForceDestroy);
+  `SpawnerComponents.cs`: `Despawn` gains `public DespawnMode mode;`, new
+  `Lifetime : IComponentData, IEnableableComponent { public float secondsRemaining; }`. Commit; T2–T4 gate it.
+- [ ] **T2 — Bake (one worker, two files)** `[parallel-safe with T3, T4]`: `UnitAuthoring.Baker` adds `Despawn`
+  disabled beside `NewlySpawned` (default `mode = Auto`); new `Authoring/LifetimeAuthoring.cs` (MonoBehaviour with
+  `public float seconds = 3f;` + nested `Baker`, `TransformUsageFlags.Dynamic`, adds `Lifetime` enabled and
+  `Despawn` disabled). Follow `dots-authoring-baker`.
+- [ ] **T3 — `LifetimeSystem` (one worker, one file)** `[parallel-safe]`: `Systems/DespawnSystemGroup/LifetimeSystem.cs`,
+  `[UpdateInGroup(typeof(DespawnSystemGroup), OrderFirst = true)]`, `[BurstCompile]`, an `IJobEntity` over
+  `RefRW<Lifetime>`, `EnabledRefRW<Lifetime> lifetimeEnabled`, `EnabledRefRW<Despawn> despawnEnabled`; decrements by
+  `deltaTime`; at `<= 0` sets `despawnEnabled.ValueRW = true; lifetimeEnabled.ValueRW = false;`. `ScheduleParallel`.
+- [ ] **T4 — `DespawnSystem` (one worker, one file)** `[parallel-safe]`: `Systems/DespawnSystemGroup/DespawnSystem.cs`,
+  `[UpdateInGroup(typeof(DespawnSystemGroup))] [UpdateAfter(typeof(UnitPoolReturnSystem))]`. Gather job
+  (`[WithAll<Despawn>]`, `ComponentLookup<PoolOwner>` read-only, two `NativeList` parallel writers,
+  `Allocator.TempJob`), complete, main-thread `EntityCommandBuffer(Allocator.Temp)`: destroy list; pool list under
+  cap → `AddComponent<Disabled>` + `SetComponentEnabled<Despawn>(entity, false)`; over cap → destroy; then the
+  dormant overflow trim per `UnitType` using a query with `IncludeDisabledEntities`. Playback, dispose everything.
+- [ ] **T5 — Fixture (one worker, one new file)** — `Tests/PlayMode/DespawnSystemTests.cs`, namespace
+  `StitchPunk.Tests.PlayMode`, manual `World`, systems fetched with `GetOrCreateSystem<T>()` and updated by hand
+  (see `DeathAnimationTests.cs` for the pattern). Three tests:
+  `Lifetime_ReachingZero_EnablesDespawn_ThenEntityIsDestroyed`;
+  `PooledEntity_WithDespawn_GainsDisabled_AndDespawnIsReDisabled`; `PooledEntities_OverCap_AreDestroyed` (cap
+  reached by creating 64 + 3 dormant `PoolOwner` entities of one `UnitType`). Revert-to-fail each against the
+  branch it pins. **PlayMode: the broker refuses it** — send the stage
+  "gate needed: despawn <sha> StitchPunk.Tests.PlayMode.DespawnSystemTests".
+- [ ] **T6 — Vault (docs worker)** `[parallel-safe]`: `Systems.md` (a Despawn paragraph under the LateSim order),
+  `Components.md` (`Despawn.mode`, `Lifetime`), `Contracts.md` (`Despawn` row: writers = any system /
+  `LifetimeSystem`; reader = `DespawnSystem`), `Gotchas.md` (DS-D5). No status in CLAUDE.md files.
+- [ ] **T7 — Close (lead).** Every wave gated (`SystemPlacementConformanceTests` + `SystemGroupOrderTests` in each
+  gate); a log at the end of this section: commits, gate verdicts, drift, what is unverified (the rebake and the
+  in-scene look), then `status despawn ready`. The stage moves this file to `Tasks/Verification/` with a
+  `verify-despawn.md` built from §10.
