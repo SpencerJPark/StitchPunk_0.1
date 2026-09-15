@@ -79,6 +79,10 @@ entity.
   Toolkit ▸ Clip Editor**) — track lanes, transport, a live preview pane
   driven by the runtime's own sampling code (not a divergent editor copy), and
   per-gesture undo.
+- **Capture tab:** renders a clip, profile animation or cutscene from the
+  preview camera to a PNG sequence (optionally transparent) or a looping
+  GIF — see
+  [`Documentation~/capture-tab.md`](Documentation~/capture-tab.md).
 - A large automated test suite backs the above: 340+ EditMode tests
   (validation, identity stability, bake determinism, sampling/event math,
   VAT baking, shader-source conformance) and 200+ PlayMode tests (entity
