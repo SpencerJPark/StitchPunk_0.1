@@ -161,3 +161,107 @@ per-body validity (a body whose node no longer resolves is flagged in the column
 ### Phase 0
 
 Phase 0 (stage, 2026-09-15, head `2d53ae6f`): doctor clean (git 2.43.0, hooks installed, broker alive, no stage blockers); compile clean; EditMode baseline 857 (856 passed, standing Conformance_A only); PlayMode baseline 285 (285 passed); CHANGELOG top section `## [0.48.1]`; registry sha256 AnimEventKey `3bdb420d…14701`, TargetTag `dbec3d5f…eb4f`. Lead opus, workers sonnet; merges authorized once ready with gates green (owner, 2026-09-14/15). Owner is away: checkpoints close by the standing rule (assume pass unless game breaking); this batch is followed by A101 on trunk. A99 stage T0: `ClipEditorWindow.RagdollHandles.cs` is 447 lines (under 600: one move worker); `RagdollBodyDefinition` fields: displayName, address (RigNodeAddress), boxCenter, boxSize, boxEulerAngles, mass, linearDamping (-1 = rig default), angularDamping (-1 = rig default), restitution, friction, limitMinDegrees, limitMaxDegrees, swingLimitDegrees, twistLimitDegrees, selfGroup, selfCollidesWith, collidesWithWorld; `RagdollRigSettings` (a struct at RigAsset.cs:403): space (RagdollSpace), gravityScale, defaultLinearDamping, defaultAngularDamping, jointStiffness, jointDamping, solverIterations (byte), substepHz. No limit arc is drawn today (PreviewRagdollBoxHandles has no arc/limit code). Version corrected 0.46.0 → 0.51.0. The before-capture of the Clip Editor with the ragdoll toggle on is skipped: the owner's window is docked and the batch cautions forbid driving it. The lead owns `ClipEditorWindow.RagdollHandles.cs` exclusively for T7.
+
+### Build (worktree `spec/a99`, 2026-09-15)
+
+Commits: `cd6b3c84` T0 stubs (seven shared types, so the six-worker wave compiled against one fixed
+surface); `ca9c2792` T1-T7a; `37c012ed` T7b plus the compile fix below. Gate on `37c012ed`:
+61 passed, 1 failed — `Conformance_A` only, the standing failure. Fixtures gated:
+`RagdollBodySummaryResolverTests`, `PackagingConformanceTests`, `RagdollAuthoringTests`,
+`RagdollPlanarConstraintTests`, `RagdollPreviewParityTests`, `RagdollSolverDeterminismTests`,
+`RagdollSolverTests`. No PlayMode fixture names the moved editor code.
+
+Drift, decided here and logged rather than asked:
+
+1. **The move is a session, not a lift.** `ClipEditorWindow.cs` and `ClipEditorWindow.ComponentStack.cs`
+   call five members of the partial and both files belong to the stage, so the drag state could not
+   simply leave. `Editor/Ragdoll/RagdollBoxDragSession.cs` (a sealed class, no suffix rule) now holds
+   every field and every geometry helper verbatim; the partial shrank 447 → 85 lines and keeps
+   `selectedRagdollBodyId`, `FocusRagdollBody`, `TryBeginRagdollBoxDrag`, `ContinueRagdollBoxDrag`,
+   `EndRagdollBoxDrag` as a bridge. The first gate caught what static review had not:
+   `ClipEditorWindow.cs:2723` and `:3110` also read `activeRagdollBoxHandle`, so the partial carries a
+   read-only property of that name proxying `ragdollBoxDragSession.ActiveHandle`.
+2. **`BodyPicked` is declared and never raised.** `ClipPreviewController` can pick a *handle* on the
+   already-selected body (`PickRagdollBoxHandle`) but has no "which body is under this point" call,
+   and inventing one is out of D2's scope. Selection is the bodies column's job for now.
+3. **Add Body uses an inline `PopupField<RigTargetDefinition>`, not `RigTargetPicker`.** That picker
+   takes a `TargetTagRegistry` and a moving tag id — it exists to move a tag onto a rig part, not to
+   name a node for a new body.
+4. **Self-collision mask is an `IntegerField` clamped 0-255**, not a `MaskField`: the eight groups have
+   no authored names to fill a choice list with.
+5. **The rig inspector's button only raises the window** (`ClipEditorWindow.ShowWindow`). Focusing the
+   new tab needs the enum member, which is the stage's T8; wire it there.
+6. **T6 wrote `Documentation~/ragdoll.md` only.** CHANGELOG, `package.json` and `index.md` are the
+   stage's; the section text is below.
+7. **Unverified:** the revert-to-fail on the new fixture was not run (turn budget). The mutation is
+   named in T1 — count every body as a joint in `RagdollBodySummaryResolver.Resolve` and
+   `Summary_CountsJointsAsBodiesWithAParent` must fail on "3 bodies · 3 joints". Nothing has been
+   driven in the Editor: T9's drive still owes the Drop, the Reset un-write and the persistence check.
+
+### For integration
+
+**CHANGELOG section for 0.51.0:**
+
+```
+## [0.51.0] - 2026-09-15
+### Added
+- Ragdoll tab in the Clip Editor: a bodies column over the selected rig's `ragdollBodies` with add
+  and delete, a viewport with the box handles and a Drop / Reset transport over the scenery props,
+  and an inspector for the selected body's collider, mass, damping, friction and joint limits
+  followed by the rig-wide ragdoll settings. The tab follows the window's shared Rig selection.
+- `RagdollBodySummaryResolver` reports "6 bodies · 5 joints" and flags a body whose node no longer
+  resolves; a joint is a body with another body above it in the addressed hierarchy.
+- The viewport's pose row drops from the rig's rest pose by default, or from a bound clip at a time,
+  with the caveat stated in the tooltip: the preview measures each joint's limit against the pose on
+  screen when the drop starts.
+### Changed
+- The ragdoll box-handle drag math moved out of `ClipEditorWindow.RagdollHandles.cs` (447 → 85 lines)
+  into `RagdollBoxDragSession`, shared by the Clip Editor's viewport and the new tab. No behaviour
+  change: the same undo group per gesture, the same clamping, the same handles.
+- `RigAssetEditor`'s ragdoll section is now an "Edit in the Ragdoll tab" button plus the body summary.
+  The ragdoll validation badges stay on the inspector.
+- Nothing about limit defaults, solver parameters or launch behaviour changed.
+```
+
+**`Conformance_G` allowlist names needed: none.** `RagdollBodyEditing` ends in `Editing`,
+`RagdollBodySummaryResolver` in `Resolver`; every other new type is a sealed instance class.
+
+**Window wiring (T8), all of it outside this worktree:**
+
+- `ClipEditorTab.cs`: add `Ragdoll = 13` after `Capture`.
+- `ClipEditorWindow.uxml`: a toolbar toggle named `tab-ragdoll`, text "Ragdoll", placed per the
+  owner's strip order, and a pane `VisualElement` named `ragdoll-pane`.
+- `ClipEditorWindow.cs`, beside the other panels:
+  `private RagdollPanel ragdollPanel;` → in the pane build,
+  `ragdollPanel = new RagdollPanel(); ragdollPanel.Bind(activeAssetSelection); ragdollPane.Add(ragdollPanel);`
+  and in `OnDisable`/`Dispose`, `ragdollPanel?.Dispose();`.
+- Rest pose source (optional, D5's clip row): when the window's clip selection changes, call
+  `ragdollPanel`'s viewport through the panel — the panel tracks the shared `ClipSet`; the clip and
+  time are handed in with `RagdollViewportElement.SetRestPoseSource(clipSet, clip, normalizedTime)`.
+  Until that is wired the row shows "No clip bound" and the drop uses the rest pose, which is D5's
+  default anyway.
+- The Clip Editor's own ragdoll toggle is untouched: it still drives `previewController` directly and
+  its drags now route through `ragdollBoxDragSession` inside the same partial.
+- `RigAssetEditor`'s button should become a tab focus once `ClipEditorTab.Ragdoll` exists (the idiom is
+  `ActorProfileAssetOpener`'s `ClipEditorWindow.FocusWithActorEditorTab`).
+
+**Vault-note traps:**
+
+- A window partial's private members are the window's public API to its other partials. Grep every
+  `ClipEditorWindow*.cs` for each field name before deleting one — the compiler is the only check, and
+  `activeRagdollBoxHandle` was read two files away from where it was declared.
+- `ClipPreviewController.TryEnableRagdollPreview` captures whatever pose is on screen; `Disable`
+  restores it. That pair is the whole Drop / Reset transport — no separate reset path exists.
+- A panel that only stores what it is handed shows nothing: `RagdollInspectorColumn.SetRig` and
+  `SetSelectedBodyId` both redraw, because `RagdollPanel` never calls `Refresh` on it.
+
+**HANDOFF draft:** The Ragdoll tab landed at 0.51.0. Bodies, box handles, limits and the drop test
+now have one screen: a bodies column over the rig's `ragdollBodies`, a viewport hosting its own
+`ClipPreviewController` with the box handles and a Drop / Reset transport over the scenery props, and
+an inspector for the selected body's collider, mass, damping and limits above the rig-wide settings —
+all following the window's shared Rig, with the rig asset's own inspector reduced to an "Edit in the
+Ragdoll tab" button and its validation badges. The box-handle drag math moved verbatim out of the
+Clip Editor's window partial into `RagdollBoxDragSession`, which both viewports now share, so the
+Clip Editor's ragdoll toggle behaves exactly as before. Nothing about limit defaults, the solver or
+launch changed: the three ragdoll checkpoints open since Phase D are re-asked here with the tab as
+the viewing device.
