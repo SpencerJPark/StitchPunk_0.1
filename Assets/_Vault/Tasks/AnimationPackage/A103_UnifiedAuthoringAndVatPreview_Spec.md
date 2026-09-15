@@ -261,7 +261,7 @@ The rest were recorded 2026-09-15 under the standing delegation.
 
 ## 5. Tasks — lead
 
-- [ ] **T0 — Ground.**
+- [x] **T0 — Ground.**
   - `git rev-parse --show-toplevel`; claim `a103`.
   - Grep every name in §1–§3; confirm the §1.1 drifts still hold.
   - Check whether `AuthoringTestAssets` has a bone-track helper (F1) and whether `TestBlobFactory` can write
@@ -271,31 +271,31 @@ The rest were recorded 2026-09-15 under the standing delegation.
 **Wave 1 — six workers, disjoint files, no cross-dependency.** Commit stubs for `RegistryTargetPoser` (its
 public surface from D3, empty bodies) before spawning, so wave 2's briefs can paste real signatures.
 
-- [ ] **T1 — `RegistryTargetPoser` + F2** `[parallel-safe]` (2 files).
+- [x] **T1 — `RegistryTargetPoser` + F2** `[parallel-safe]` (2 files).
   - **Build:** D3's surface, plus `Registry` (the raw reference, for `IActorPosePresenter` and
     `SampleCompositedPose`), `Release()` and `Dispose()`.
   - `Rebuild` disposes the previous blob before building and catches exactly what `RebuildRegistry` catches today.
   - The nested interface carries no `<summary>` (Conformance_F: one per file).
-- [ ] **T2 — Two glyphs** `[parallel-safe]` (`ToolkitIcons.cs`). D6/A79-D3; one comment on the pair. No fixture.
-- [ ] **T3 — `VatPreviewFrameResolver` + F3** `[parallel-safe]` (2 files). Two methods:
+- [x] **T2 — Two glyphs** `[parallel-safe]` (`ToolkitIcons.cs`). D6/A79-D3; one comment on the pair. No fixture.
+- [x] **T3 — `VatPreviewFrameResolver` + F3** `[parallel-safe]` (2 files). Two methods:
   - `TryResolveGlobalFrame(ref ClipBlob clip, int targetIndex, float normalizedTime, out float globalFrame)`, where
     `targetIndex` −1 means untargeted;
   - `GlobalFrameForRange(in VatClipRange range, float timeSeconds)`.
 
   Paste `VatMaterialSystem.cs:166-199` into the brief.
-- [ ] **T4 — `ImportedClipLaneResolver` + F4** `[parallel-safe]` (2 files).
+- [x] **T4 — `ImportedClipLaneResolver` + F4** `[parallel-safe]` (2 files).
   - `Resolve(AnimationClip sourceClip, float clipDurationSeconds)` → a list of `ImportedClipLane`, a readonly struct:
     - `nodePath`;
     - `displayName` (last path segment, or the clip's root name for an empty path);
     - `normalizedKeyTimes`, deduplicated within 1e-4;
     - `keysPastClipEnd`.
   - Paste D4's mapping paragraph into the brief.
-- [ ] **T5 — `ClipVatBindingEditing` + F5** `[parallel-safe]` (2 files). `GetSourceClip`, `SetSourceClip`,
+- [x] **T5 — `ClipVatBindingEditing` + F5** `[parallel-safe]` (2 files). `GetSourceClip`, `SetSourceClip`,
   `GetLoopSafe`, `SetLoopSafe` (each `(ClipAsset clip, uint targetId, …)`), plus
   `DescribeLengthMismatch(ClipAsset clip, AnimationClip sourceClip)`.
   - Every write is one `Undo.RecordObject(clip, …)` plus `EditorUtility.SetDirty(clip)`.
   - `SetSourceClip(null)` on a targeted row removes the row.
-- [ ] **T6 — `ClipSetContentResolver`** `[parallel-safe]` (1 file):
+- [x] **T6 — `ClipSetContentResolver`** `[parallel-safe]` (1 file):
   - `HasBoneOrVatContent(IReadOnlyList<ClipSetAsset> clipSets)` — D1's predicate;
   - `HasNonVatContent(IReadOnlyList<ClipSetAsset> clipSets)` — any keyed transform, sprite or billboard track (A79-D8).
 
@@ -307,7 +307,7 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
 
 **Wave 2 — five workers, after W1 is green.**
 
-- [ ] **T7 — Controller on the poser, P1 + P2 + F1** `[parallel-safe]` (`ClipPreviewController.cs`,
+- [x] **T7 — Controller on the poser, P1 + P2 + F1** `[parallel-safe]` (`ClipPreviewController.cs`,
   `ClipPreviewRegistryTests.cs`).
   - **Replace:** the `registry` field becomes a `RegistryTargetPoser`. The controller implements the writer
     explicitly: `TryGetRestPose` succeeds only for a target `rigMirror` holds, via `ResolveRestPose`; `WritePose`
@@ -316,7 +316,7 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
     reading `targetPoser.Registry`. Map `RegistryBuildOutcome` to today's three status strings.
   - **Drop:** the `PartCount == 0` return (D2). Add D1's status line after the build.
   - **`SamplePose` return:** true when bones posed or the clip is in the registry.
-- [ ] **T8 — `VatPreviewPartPoser`** `[parallel-safe]` (1 new file). Implements the writer (D7):
+- [x] **T8 — `VatPreviewPartPoser`** `[parallel-safe]` (1 new file). Implements the writer (D7):
   - `Rebuild(RigAsset rig, ClipSetAsset clipSet, VatTextureSetAsset textureSet, GameObject sourceCopyRoot)` →
     `bool`: builds the path → `Transform` map and the local rest table, and excludes VAT-part target ids;
   - `HasNonVatParts`;
@@ -326,20 +326,20 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
   - `Dispose()`.
 
   Paste `CutscenePreviewController.WritePose` into the brief.
-- [ ] **T9 — `ClipEditorVatOverlay`** `[parallel-safe]` (1 new file). D10:
+- [x] **T9 — `ClipEditorVatOverlay`** `[parallel-safe]` (1 new file). D10:
   - `Enabled`;
   - `Rebind(RigAsset rig, ClipSetAsset clipSet, GameObject skeletonInstanceRoot)` — one material per part, live
     renderer per part;
   - `Sync(BlobAssetReference<ClipRegistryBlob> registry, ulong clipId, float normalizedTime)`;
   - `Draw(PreviewRenderUtility renderUtility)`;
   - `Dispose()`, which re-enables every renderer it disabled and disposes the materials.
-- [ ] **T10 — The binding row** `[parallel-safe]` (`VatBindingComponentElement.cs` new, `ClipComponentKind.cs`).
+- [x] **T10 — The binding row** `[parallel-safe]` (`VatBindingComponentElement.cs` new, `ClipComponentKind.cs`).
   - **Enum:** `VatBinding = 6`, documented like its siblings.
   - **Element:** built as `VatBindingComponentElement(ClipAsset clip, VatBakeSource source, System.Action onEdited)`,
     with D11's two fields, the length line and the part's `DisplayName`. It uses existing `toolkit-` USS classes
     only (Conformance_I bans inline visual styles).
   - **Detached:** construct → set fields → read the clip back.
-- [ ] **T11 — Imported read-only lanes, P4 + P5** `[parallel-safe]` (`TimelinePane.cs`, `ImportedClipLaneElement.cs` new).
+- [x] **T11 — Imported read-only lanes, P4 + P5** `[parallel-safe]` (`TimelinePane.cs`, `ImportedClipLaneElement.cs` new).
   - **Rows:** for the selected clip, resolve `vatSource.sourceClip` and each `vatTracks[i].sourceClip` (rows named
     by the rig target's `displayName`) through T4. Add read-only rows after the authored rows, before
     `SyncGhostLanes`.
@@ -353,7 +353,7 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
 
 **Wave 3 — three workers.**
 
-- [ ] **T12 — The whole-animation VAT Bake preview** `[parallel-safe]` (`VatPreviewElement.cs`, `VatBakePanel.cs`).
+- [x] **T12 — The whole-animation VAT Bake preview** `[parallel-safe]` (`VatPreviewElement.cs`, `VatBakePanel.cs`).
   - **`Show`:** gains `RigAsset rig` as its third parameter; `RefreshPreview` passes `rigField.value as RigAsset`.
   - **Rail:** *VAT parts* and *Other parts* toggles are created **before** `ghostToggle`, through
     `viewportFrame.AddRailToggle(Texture, …)`, named `vat-parts-toggle` and `other-parts-toggle`, defaulting on
@@ -363,13 +363,13 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
   - **Off states:** *VAT parts* off skips the part draws; *Other parts* off calls `RestoreRestPose` and hides the
     non-VAT renderers. Neither touches `playback`, `isPlaying` or the frame readout.
   - **`Dispose`:** disposes the poser and every material.
-- [ ] **T13 — Baked VAT in the Clip Editor controller** `[parallel-safe]` (`ClipPreviewController.cs`).
+- [x] **T13 — Baked VAT in the Clip Editor controller** `[parallel-safe]` (`ClipPreviewController.cs`).
   - **Property:** `public bool BakedVatPreviewEnabled` (default false) forwards to a `ClipEditorVatOverlay`.
   - **`Rebind`:** after each registry build and in `SetSkinnedSource`.
   - **`Sync`:** in `SamplePose` right after the bone pose.
   - **`Draw`:** in `Render` and `RenderCaptureFrame`, between `BeginPreview` and `camera.Render`.
   - **`Dispose`:** in `Dispose`.
-- [ ] **T14 — Docs** `[parallel-safe]` (`clip-editor.md`, `rigged-characters.md`). Cover:
+- [x] **T14 — Docs** `[parallel-safe]` (`clip-editor.md`, `rigged-characters.md`). Cover:
   - the binding row;
   - the *Baked VAT* toggle;
   - read-only imported lanes and their time rule;
@@ -380,7 +380,7 @@ reverts. Gate it: exactly those four tests fail. Hard reset, then check each fil
 
 **Gate W3:** the W2 set plus `PackagingConformanceTests`.
 
-- [ ] **T15 — Close text.** `### For integration` in §7:
+- [x] **T15 — Close text.** `### For integration` in §7:
   - the CHANGELOG `## [0.55.0] — Unified authoring and VAT preview` text;
   - `Conformance_G` names (expected none: `ClipSetContentResolver`, `ImportedClipLaneResolver`,
     `VatPreviewFrameResolver` and `ClipVatBindingEditing` carry allowed suffixes);
@@ -488,7 +488,9 @@ Gate 3 (`f07e8366`): **pass, 16 of 16** (4 new fixtures + 12 `PackagingConforman
 T11's first worker capped at 40 turns mid-edit; a fresh worker finished from the diff (never resumed). Gate 1: compile error CS0246 in `VatBindingComponentElement.cs` (missing `using DotsAnimationToolkit.Authoring;`); fixed by a fresh worker.
 Gate 2 (`72749f4c`): **pass, 49 of 49** (`ClipPreviewRegistryTests` + `ClipPreviewCompositeTests`, `ClipPreviewControllerPoseTests`, `SocketPreviewParityTests`, `ActorPreviewComposerTests`, `ActorPreviewParityTests`, `ClipRegistryBuilderTests`, `PackagingConformanceTests`). Revert-to-fail: mutation `c8a9554a` (reinstates the `PartCount == 0` return) gated **48 passed, 1 failed — exactly F1** (`HasRegistry` expected True, was False). `git reset --hard HEAD~1` to `72749f4c`; `git hash-object` equals the HEAD blob; `ClipPreviewController.cs` sha256 `2d9f21a5…7e140b`.
 
-**W3 (T12–T14 + T10b)** — T10b added for drift 18/19 (`ClipComponentModel.cs`, `Panes/TimelinePane.View.cs`; neither is stage-owned).
+**W3 (T12–T14 + T10b)** — T10b added for drift 18/19 (`ClipComponentModel.cs`, `Panes/TimelinePane.View.cs`; neither is stage-owned). Wave `527290af`, gate 1: **pass, 49 of 49** (the W2 set plus `PackagingConformanceTests`). No W3 revert-to-fail: no W3 fixture exists (spec §4 pins F1–F5 only).
+
+**Unverified (lead):** nothing on screen was seen. The stage's S4 drives own that: the VAT Bake preview's four toggle states and every-part playback, Baked VAT pixel hashes and renderer re-enable, imported lanes at zoom/pan, and the binding row writing YAML. Glyph legibility at 16 px has not been checked. `VatPreviewPartPoser`, `ClipEditorVatOverlay`, `VatBindingComponentElement`, `ImportedClipLaneElement` and the `VatPreviewElement` rewrite are compile-proven only; they have no fixture by design. T12's fallback clock is a clip's first range when it has no untargeted range; T12's disabled-state tooltip strings are in `VatPreviewElement.Show`. No PlayMode gate was run, because no runtime or `Authoring/` file changed.
 
 ### For integration
 
