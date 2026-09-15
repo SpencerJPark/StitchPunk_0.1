@@ -1,7 +1,7 @@
 # Amendment A94F — Health tab rework: a big Scan, a findings list and a detail panel
 
-> **Status:** 📝 specced 2026-09-14 from the owner's A94 T14 answer; widened the same evening (the "Health (n)"
-> tab count, and the Clip Editor's error badge removed in Health's favour, H-D8 to H-D10). Takes `0.44.0`.
+> **Status:** ✅ built 2026-09-14 as `0.44.0` in the A93F–A95F parallel worktree batch (merged `19ec21f7`, integrated `f67b47e3`); ⏸ T12 owner checkpoint open. Specced the same day from the owner's A94 T14 answer and widened with
+> the "Health (n)" count and the badge removal (H-D8 to H-D10).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A94.
 > **Predecessors:** A94 (`0.41.0`), A82 (`CoverPaneSplitView`), A84 (reference index).
 > **Executor:** one lead; `worker` subagents in **one wave of eight**, each ≤ 2 files; the stage does the drive and
@@ -148,29 +148,29 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
 
 ## 5. Tasks
 
-- [ ] **T0 — Grounding (lead).** Grep every name in §2–§3; confirm nothing outside `Editor/Health/` reads `fix` or
+- [x] **T0 — Grounding (lead).** Grep every name in §2–§3; confirm nothing outside `Editor/Health/` reads `fix` or
   `fixLabel`; confirm how `VatTextureSetBuilder` stores part textures (sub-assets of the set, or separate files) and
   write the answer into H-D5's resolver brief. A sub-asset texture is trashed with its set, so the resolver still
   matters only for separate files. Confirm `DeleteRig` never calls `SaveAssets`. Log drift in §7.
-- [ ] **T1 — Shared types (lead).** `HealthFindingAction`; the `HealthFinding` field change (remove `fix`, `fixLabel`);
+- [x] **T1 — Shared types (lead).** `HealthFindingAction`; the `HealthFinding` field change (remove `fix`, `fixLabel`);
   `HealthPanel.ErrorCount` and `HealthPanel.RequestRescan()` as stubs; the `BindValidation` stub and its call in
   `HealthScan`; committed stubs for `HealthFindingDetailElement` (`SetFinding(HealthFinding)`), `ClipAssetUtility.TrashClip`,
   `VatTextureSetAssetUtility.TrashTextureSet`, `VatTextureOwnershipResolver.FindTexturesSafeToTrash`. Temporarily
   delete the three rules' `fix` assignments and the row's fix button so T1 compiles (the wave rewrites them). Gate
   `HealthScanTests`, `HealthRulesTests`, `PackagingConformanceTests`. Commit `A94F-T1`.
-- [ ] **T2 — Detail element [parallel-safe]** — Files: new `Editor/Health/HealthFindingDetailElement.cs`. H-D3 detail
+- [x] **T2 — Detail element [parallel-safe]** — Files: new `Editor/Health/HealthFindingDetailElement.cs`. H-D3 detail
   panel and H-D5 confirmation flow (the element runs `buildConfirmation`; a null builder runs `run` directly).
-- [ ] **T3 — List element [parallel-safe]** — Files: `Editor/Health/HealthFindingListElement.cs`. Two-line rows, no
+- [x] **T3 — List element [parallel-safe]** — Files: `Editor/Health/HealthFindingListElement.cs`. Two-line rows, no
   buttons, `public event Action<HealthFinding> FindingSelected`, `SelectFinding(HealthFinding)`.
-- [ ] **T4 — Panel [parallel-safe]** — Files: `Editor/Health/HealthPanel.cs`. H-D1, H-D2, H-D3 split, selection
+- [x] **T4 — Panel [parallel-safe]** — Files: `Editor/Health/HealthPanel.cs`. H-D1, H-D2, H-D3 split, selection
   survival across rescans, rescan after an action runs.
-- [ ] **T5 — Rules H01, H02, H05 [parallel-safe]** — Files: `HealthRules/ClipMembershipValidation.cs`,
+- [x] **T5 — Rules H01, H02, H05 [parallel-safe]** — Files: `HealthRules/ClipMembershipValidation.cs`,
   `HealthRules/RigUsageValidation.cs`. Titles, details, related assets, actions (including both deletes).
-- [ ] **T6 — Rules H03, H04, H06 [parallel-safe]** — Files: `HealthRules/ProfileHealthValidation.cs`,
+- [x] **T6 — Rules H03, H04, H06 [parallel-safe]** — Files: `HealthRules/ProfileHealthValidation.cs`,
   `HealthRules/VatFreshnessValidation.cs`. H-D7 wording; H06's delete only for an existing set.
-- [ ] **T7 — Rules H07, H08, H10, H09 [parallel-safe]** — Files: `HealthRules/TagAndKeyValidation.cs`,
+- [x] **T7 — Rules H07, H08, H10, H09 [parallel-safe]** — Files: `HealthRules/TagAndKeyValidation.cs`,
   `HealthRules/StableIdValidation.cs`.
-- [ ] **T8 — Trash utilities + ownership fixture [parallel-safe]** — Files: new
+- [x] **T8 — Trash utilities + ownership fixture [parallel-safe]** — Files: new
   `Editor/ClipUtilities/VatTextureSetAssetUtility.cs` (holding `TrashTextureSet` and the static class
   `VatTextureOwnershipResolver` in its own new file `Editor/ClipUtilities/VatTextureOwnershipResolver.cs`), new
   `Tests/EditMode/VatTextureOwnershipResolverTests.cs`:
@@ -179,10 +179,10 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
   - Revert-to-fail: return every texture of the target.
   - `ClipAssetUtility.TrashClip` goes in this worker's brief as a third, tiny edit only if T0 finds the file under
     300 lines of change context; otherwise the lead adds it in T1 as a real body.
-- [ ] **T9 — Docs [parallel-safe]** — Files: `Documentation~/health-tab.md` (the new layout, the actions per code,
+- [x] **T9 — Docs [parallel-safe]** — Files: `Documentation~/health-tab.md` (the new layout, the actions per code,
   what each Delete removes and what it leaves, the tab count, H11 and H12, and a line that the Clip Editor's error
   badge is gone). The badge mentions in `Documentation~/clip-editor.md` and `index.md` are the stage's (T9b).
-- [ ] **T9a — Bind rules H11, H12 + fixture [parallel-safe]** — Files: new `Editor/Health/HealthRules/BindValidation.cs`,
+- [x] **T9a — Bind rules H11, H12 + fixture [parallel-safe]** — Files: new `Editor/Health/HealthRules/BindValidation.cs`,
   new `Tests/EditMode/BindValidationTests.cs`:
   - `H11_SkipsStaleVatBakeAndCodesOtherRulesReport`: an in-memory profile, rig and clip set that produce a `V08`, a
     tag message H07 already reports, and one other binding message. Only the other message becomes an H11. (T0 names
@@ -190,7 +190,7 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
   - Revert-to-fail: drop the skip list.
   - `HealthScan` calls `BindValidation` after the existing rules; the one-line call goes in the T1 stub so this
     worker touches no other file.
-- [ ] **T9b — Window: tab count and badge removal (stage, at integration).** In `ClipEditorWindow.cs`:
+- [x] **T9b — Window: tab count and badge removal (stage, at integration).** In `ClipEditorWindow.cs`:
   - delete the `validationBadge` field, its creation (~1023–1027), `AttachMessagePanel` (~2114) and the four
     `Refresh` calls, replacing each with `healthPanel?.RequestRescan()`;
   - build and bind `healthPanel` at window creation, not in `ShowHealthTab`;
@@ -205,10 +205,10 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
 - **Gate the wave.** `HealthScanTests`, `HealthRulesTests`, `VatTextureOwnershipResolverTests`, `BindValidationTests`,
   `PackagingConformanceTests` (all namespace-qualified). Revert-to-fail. Commit `A94F-T2..T9`. For-integration block
   (CHANGELOG `## [0.44.0]`, traps, HANDOFF draft; no wiring change expected). `worktree.py status a94f ready`.
-- [ ] **T10 — Drive (stage).** Full suites. Detached `HealthPanel` scan: three findings, first selected, detail shows
+- [x] **T10 — Drive (stage).** Full suites. Detached `HealthPanel` scan: three findings, first selected, detail shows
   H06's title, detail and actions. On scratch copies only: an orphan scratch clip shows H01 with "Delete clip…";
   run `TrashClip` beneath the dialog and confirm the file left and the rescan dropped H01. Never press a real Delete.
-- [ ] **T11 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and conformance pin `0.44.0`.
+- [x] **T11 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and conformance pin `0.44.0`.
 - [ ] **T12 — ⏸ owner checkpoint.** "The tab reads Health (2) in red before you open it, and the error badge beside
   the tabs is gone. Press Scan project and pick each finding: the right panel explains it and lists the fixes, and
   deletes ask first and name what uses the asset. Break a clip's binding in the Clip Editor: within a second Health
@@ -274,3 +274,37 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
 - A detail panel action runs, then the panel rescans immediately; selection survives when the same code + target still exists, otherwise the row at the old index.
 
 **HANDOFF draft (0.44.0):** A94F reworked the Health tab into a readable two-panel layout: a big Scan project button with last-scan status, severity chips that count and filter, a findings list of two-line rows with no buttons, and a detail panel that explains the selected finding, lists every affected asset and offers one button per fix. Findings now carry several actions; H01, H05 and H06 gain Delete behind a confirmation that names the path and its remaining references (VAT deletes take only part files no other set uses). Two new rules, H11 (profile bind validation, V08/V36/V41 skipped) and H12 (shared clip binding), absorb the Clip Editor's toolbar badge, which is gone; the tab reads "Health (n)" in red from window open, and committed clip edits trigger a debounced rescan. Real deletes were exercised only on the stage's scratch copies.
+
+### Close (stage, 2026-09-14)
+
+- **Lead:** stopped at 69 turns waiting on its wave gate (the gate had exited 3 on a transient broker heartbeat gap).
+  The stage's earlier "retry" message resumed it; it gated the wave (17/18), ran revert-to-fail and marked ready.
+  A gate the stage started by hand in the meantime was refused ("commit before gating"), so nothing collided.
+- **Merge:** rebased onto trunk as `997725d6`, `8b3512f6`, `19ec21f7`; pushed; worktree and branch removed cleanly.
+- **T9b (integration `f67b47e3`):** the `validationBadge` field, its creation and `AttachMessagePanel` are gone.
+  Drift: there were **eight** `validationBadge.Refresh` sites, not four. Besides ~875, ~1613, ~3100 and ~3163 there
+  were `OnPaneRequestedRebuild`, the debounced preview refresh, the event-edit commit and `FinishRigTagEdit`; all
+  eight now call `healthPanel?.RequestRescan()`. `BuildHealthPanel` runs right after `BindTabs` in `BindToolbar`: it
+  subscribes `FindingsChanged` before `Bind`, so the first scan labels the tab. `RefreshHealthTabLabel` writes
+  "Health (n)" and `ToolkitPalette.Error`, or "Health" and `StyleKeyword.Null`. Teardown unsubscribes. The UXML
+  slot, the USS `.clip-editor__badge-slot` block and the `ClipEditorLayoutTests` name are removed. Badge mentions are
+  fixed in `clip-editor.md`, `index.md` (which also reads H01–H12 now), `rigged-characters.md` and
+  `sharing-clips.md`. `ValidationBadgeElement` stays for Actor Profiles.
+- **Gates:** as A93F's close (fixtures 32/33, EditMode 850/851, PlayMode 285/285, Conformance_A the only failure).
+- **T10 drive:** detached `HealthPanel.Bind` scan in 22 ms, `ErrorCount` 2:
+  - H06 Error "VAT bake is not baked yet", `VatSampleTentacleClips`, actions Rebake and Locate;
+  - H02 Error "Clip set lists missing clips", `NewClipSet`, Remove missing and Locate;
+  - three H11 Warnings "V38: clip set doesn't bind to its profile's rig" on `NewClip 1` against rig `NewRig` (tracks
+    0–2 target ids the rig does not declare; `NewClip 1.asset` carries the owner's uncommitted edits);
+  - H05 Note "Rig is used by no profile", `VatSampleTentacleRig`, Locate and "Delete rig…" (destructive).
+
+  Drift: the spec's "three findings" is six now that H11 exists. H06 is selected first; the detail panel read H06,
+  Error, the title, the explanation, the runtime consequence, Affected (`▸ VatSampleTentacleClips`) and How to fix
+  (Rebake, Locate, each with its one-line description). On scratch only: `Assets/A94FScratch/A94FScratchOrphanClip.asset`
+  raised H01 (Warning, "Clip is in no clip set", Locate and "Delete clip…"). Its confirmation read "This moves
+  'Assets/A94FScratch/A94FScratchOrphanClip.asset' to the OS trash. Nothing in the project references it." Running
+  the action beneath the dialog removed the asset from the AssetDatabase and the disk, the rescan dropped to six
+  findings with no H01, and the scratch folder was deleted. No real Delete, Remove missing or Rebake was run. Registry
+  sha256s unchanged.
+- **Not seen by eye:** the drawn layout, the rich-text dots on the chips, the tab label's colour in the real window,
+  and a clip edit reaching H11 within a second.

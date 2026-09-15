@@ -96,3 +96,16 @@ Run the fixtures (temp repos only, never the real project):
     `DotsAnimationToolkit.Tests.EditMode.PackagingConformanceTests` in every lead's wave gate.
 20. **The stage moves under you.** A lead's gate detaches the stage (`busyWith: gate <id>`). Check
     `list --json` `stage.busyWith` is null before a merge, an execute_code, a refresh or a test run on the stage.
+21. **Gates compile the stage, untracked files included** (A93F–A95F batch, 2026-09-14). A spec that removes types
+    fails every one of its gates if an untracked stage file still names them. The worktree cannot see that file; the
+    stage has to convert or neutralise it.
+22. **A message to a lead that stopped while waiting resumes it.** a94f's lead ended its turn at 69 of 80 turns
+    waiting on a gate; the stage's earlier SendMessage woke it and it finished on its own. Before gating a lead's
+    worktree by hand, check `list --json` for `dirty` and a moving `headSha`: the stage's own attempt was refused
+    ("commit before gating") only because the resumed lead had uncommitted edits.
+23. **`gate` exit 3 can be a heartbeat gap, not a dead broker.** It happened while another gate's domain reload ran;
+    `doctor` seconds later reported `brokerAlive` true. Retry before running gates by hand.
+24. **`remove` can fail WinError 32 right after a lead exits.** Git's record is already gone, but the finished agent's
+    process still holds the empty worktree folder, and the branch is kept. `git branch -d` then refuses while the
+    stage is detached for another gate (it compares with HEAD); confirm with `git merge-base --is-ancestor <branch> main`
+    and use `-D`. The empty folder stays until the handle closes.

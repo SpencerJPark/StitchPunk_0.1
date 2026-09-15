@@ -45,8 +45,8 @@ gates green. No review swap is needed. Delete this line to require my word per m
    - Stop if git fails, hooks aren't installed, or `brokerAlive` is false.
    - `stageBlockers` listing only the owner's uncommitted files is expected (trap 13).
 3. **Baseline:** compile gate, then full suites (`DotsAnimationToolkit.Tests.EditMode`, then `.PlayMode`).
-   - Expected: the totals the A93F–A95F close recorded (A93–A95 closed at EditMode 850, standing Conformance_A
-     only, and PlayMode 285; A93F removes three fixtures and adds one).
+   - Expected: the totals the A93F–A95F close recorded: EditMode 851 (standing Conformance_A only) and
+     PlayMode 285, at integration `f67b47e3`.
 4. **Unity-bound T0 work** (leads cannot do it); paste the results into that lead's prompt:
    - **A98 T0:** the D3 GIF timing probe (read A98 §2 D3 and §5 T0 in full; `execute_code` is CodeDom C# 6, no
      local functions). Also record whether `PreviewRenderUtility` owns the camera's target (grep `targetTexture`

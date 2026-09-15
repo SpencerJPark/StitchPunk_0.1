@@ -120,6 +120,33 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**A95F (0.45.0), built 2026-09-14, ⏸ T10 open.** Sprite Sheets is a names layer over the project's existing
+Texture2DArrays. Every array appears in the catalog; opening one shows GPU-copied layer thumbnails with frames numbered
+0…n-1, and renaming then Save writes `<Array>_Sheet.asset` beside it. The Clip Editor's Sheet field takes an array
+directly and reuses that sheet. Baking separate images now composes a grid PNG imported as a Texture2DArray with a
+chosen reference array's importer settings (or the project arrays' shared defaults), replacing A95's uncompressed
+`.asset`; re-bakes keep the GUID. The catalog column gained a per-row rename/delete predicate. Drive: a baked grid of
+opaque swatches imports as DXT1 where `EyeArray` is DXT5, because AutomaticCompressed follows the source's alpha.
+
+**A94F (0.44.0), built 2026-09-14, ⏸ T12 open.** Health is two panels: a big Scan project button with last-scan
+status, severity chips that count and filter, a findings list of two-line rows, and a detail panel with the
+explanation, every affected asset and one button per fix. H01, H05 and H06 gain Delete behind a confirmation that
+names the path and what still references it (VAT deletes take only part files no other set uses). H11 (profile bind
+validation, V08/V36/V41 skipped) and H12 (shared clip binding) replace the Clip Editor's toolbar badge, which is gone;
+the tab reads "Health (n)" in red from window open, and all eight former badge refresh sites request a debounced
+rescan. Deletes were exercised on scratch copies only.
+
+**A93F (0.43.0), built 2026-09-14, ⏸ T10 open.** Event routing is removed from the package (asset, authoring and
+baker, blob, API, asset utility, stub generator, Routes column and three fixtures), with no migration because no
+routing data existed. The Events tab's right column is Used by: boxed Clips, Cutscenes and Profiles groups whose rows
+ping on click and open the owner through `EventsPanel.OpenOwnerRequested`, which the window routes to
+`FocusClip`, `FocusCutsceneTab` and `FocusWithActorEditorTab`. Runtime delivery stays on the per-actor
+`AnimEventOutput` buffer; `AnimEventBufferApi` (`ContainsEvent`, `TryFindEvent`, `TryFindNextEvent`) saves consumers
+the key-filter loop, and the owner's untracked damage system now reads `AnimEvents.Damage` through it.
+
+**Batch totals (2026-09-14, integration `f67b47e3`):** EditMode 851 (Conformance_A the standing failure), PlayMode
+285. Next: A96, A97 and A98 at `0.46.0`–`0.48.0` (`Assets/_Vault/Spencer/next-session-parallel-a96-a98-prompt.md`).
+
 **Owner answers (2026-09-14, later).** A87's follow-up, A88 T9 and A92 T10 are accepted without a look ("assume they
 pass unless something is really game breaking"). A94F now also gives the tab a "Health (n)" error count and removes the
 Clip Editor's error badge, with rules H11/H12 covering its checks. A95F's baked sheets become grid PNGs imported with a

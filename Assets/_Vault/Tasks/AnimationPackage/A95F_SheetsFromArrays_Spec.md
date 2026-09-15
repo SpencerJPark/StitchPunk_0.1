@@ -1,7 +1,7 @@
 # Amendment A95F — Sprite Sheets over existing arrays: every Texture2DArray listed, frames named by number
 
-> **Status:** 📝 specced 2026-09-14 from the owner's A95 T15 answer; widened the same evening so baked sheets import
-> exactly like the project's arrays (S-D8, S-D9). Takes `0.45.0`.
+> **Status:** ✅ built 2026-09-14 as `0.45.0` in the A93F–A95F parallel worktree batch (merged `f30bbd62`, integrated `f67b47e3`); ⏸ T10 owner checkpoint open. Specced the same day from the owner's A95 T15 answer and widened with
+> importer-made baked sheets (S-D8, S-D9).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A95.
 > **Predecessors:** A95 (`0.42.0`), A82 (catalog column).
 > **Executor:** one lead; `worker` subagents in **one wave of six**, each ≤ 2 files; the stage does the drive and
@@ -122,31 +122,31 @@ asset beside the array, which the sprite key picker uses.
 
 ## 5. Tasks
 
-- [ ] **T0 — Grounding (lead).** Verify every §3 name and line range; make S-D1's catalog call; confirm the frames
+- [x] **T0 — Grounding (lead).** Verify every §3 name and line range; make S-D1's catalog call; confirm the frames
   column's rename cell (or add the inline text field in T4); confirm `BuildSheetField`'s callers in
   `ClipInspectorPane.cs` (two sites, ~670 and ~1422). Log drift in §7.
-- [ ] **T1 — Shared types (lead).** `IsImportedArray`; stubs for `SpriteSheetLayerThumbnailCache`,
+- [x] **T1 — Shared types (lead).** `IsImportedArray`; stubs for `SpriteSheetLayerThumbnailCache`,
   `SpriteSheetAssetUtility.GetOrCreateSheetForArray`. Gate `SpriteSheetValidationTests`,
   `PackagingConformanceTests`. Commit `A95F-T1`.
-- [ ] **T2 — Thumbnails [parallel-safe]** — Files: new `Editor/SpriteSheets/SpriteSheetLayerThumbnailCache.cs`,
+- [x] **T2 — Thumbnails [parallel-safe]** — Files: new `Editor/SpriteSheets/SpriteSheetLayerThumbnailCache.cs`,
   `Editor/SpriteSheets/SpriteSheetPreviewElement.cs`. S-D4.
-- [ ] **T3 — Catalog [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetCatalogColumn.cs`. S-D1.
-- [ ] **T4 — Panel + frames column, imported mode [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetsPanel.cs`,
+- [x] **T3 — Catalog [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetCatalogColumn.cs`. S-D1.
+- [x] **T4 — Panel + frames column, imported mode [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetsPanel.cs`,
   `Editor/SpriteSheets/SpriteSheetFramesColumn.cs`. S-D2, S-D3 (Save gating), S-D5, S-D7. Add NO `<summary>` blocks.
-- [ ] **T5 — Names asset utility + fixture [parallel-safe]** — Files: `Editor/ClipUtilities/SpriteSheetAssetUtility.cs`,
+- [x] **T5 — Names asset utility + fixture [parallel-safe]** — Files: `Editor/ClipUtilities/SpriteSheetAssetUtility.cs`,
   new `Tests/EditMode/SpriteSheetArrayNamesTests.cs`:
   - `GetOrCreateSheetForArray_NamesByIndex_AndReusesTheExistingSheet`: create a 3-layer `Texture2DArray` asset in a
     GUID-named scratch folder (Conformance_D: no `Assets/<Folder>` literal; resolve the path from the folder GUID, as
     `SpriteSheetBakerTests` does); the first call writes a sheet with names `0`, `1`, `2` and `texture` set; the second
     call returns the same asset. TearDown deletes the folder.
   - Revert-to-fail: skip the "already wrapped" lookup (the second call creates a second asset).
-- [ ] **T6 — Sheet field takes arrays [parallel-safe]** — Files: `Editor/ClipEditor/Panes/SpriteSheetFramePickerBuilder.cs`
+- [x] **T6 — Sheet field takes arrays [parallel-safe]** — Files: `Editor/ClipEditor/Panes/SpriteSheetFramePickerBuilder.cs`
   (`BuildSheetField` objectType and the array branch), `Editor/ClipEditor/Panes/ClipInspectorPane.cs` only if the
   callers need a signature change (T0 decides; otherwise one file).
-- [ ] **T7 — Docs [parallel-safe]** — Files: `Documentation~/sprite-sheets.md`. Existing arrays come first: they
+- [x] **T7 — Docs [parallel-safe]** — Files: `Documentation~/sprite-sheets.md`. Existing arrays come first: they
   appear on their own, frames are numbered, rename and Save to keep names. Stacking separate images comes second, as a
   grid PNG imported with the same settings as a chosen array, with no uncompressed option.
-- [ ] **T7a — Baker: grid PNG + copied import settings [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetBaker.cs`,
+- [x] **T7a — Baker: grid PNG + copied import settings [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetBaker.cs`,
   `Tests/EditMode/SpriteSheetBakerTests.cs`. S-D8. The fixture keeps `Bake_LayerOrderIsListOrder`:
   - It bakes three 2×2 solid-colour frames in a GUID-named scratch folder, then sets the resulting PNG's importer to
     Uncompressed and readable (a test-only override after the bake) and reimports.
@@ -157,7 +157,7 @@ asset beside the array, which the sprite key picker uses.
 - **Gate the wave.** `SpriteSheetArrayNamesTests`, `SpriteSheetValidationTests`, `SpriteSheetBakerTests`,
   `ClipEditorAddEventTests`, `PackagingConformanceTests` (namespace-qualified). Revert-to-fail. Commit `A95F-T2..T7`.
   For-integration block (CHANGELOG `## [0.45.0]`, traps, HANDOFF draft). `worktree.py status a95f ready`.
-- [ ] **T8 — Drive (stage).** Full suites. `AssetDatabase.CopyAsset` `EyeArray.png` (+ its import settings) into a
+- [x] **T8 — Drive (stage).** Full suites. `AssetDatabase.CopyAsset` `EyeArray.png` (+ its import settings) into a
   scratch folder. The detached panel's catalog lists it (and the ten project arrays); open it: 64 frames named
   `0`…`63`, 64 thumbnails from the GPU path, Bake disabled. Rename frame 5 to `blink_half`, Save: `EyeArray_Sheet.asset`
   appears beside the scratch copy with that name and 63 numeric names; reopening shows it as a sheet row. Bind the
@@ -171,7 +171,7 @@ asset beside the array, which the sprite key picker uses.
   - Re-bake with two frames swapped: same GUID.
 
   Delete scratch. Never write beside the real arrays.
-- [ ] **T9 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and conformance pin `0.45.0`.
+- [x] **T9 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and conformance pin `0.45.0`.
 - [ ] **T10 — ⏸ owner checkpoint.** "Sprite Sheets: your eight Units arrays (and two legacy hair arrays) are in the
   list. Open EyeArray: every frame shows, numbered 0–63. Rename a few and press Save; a small EyeArray_Sheet asset
   appears beside the PNG. In a clip, drop EyeArray onto a sprite track's Sheet field and pick frames by those names.
@@ -242,3 +242,32 @@ asset beside the array, which the sprite key picker uses.
 
 **HANDOFF draft**
 > A95F (0.45.0) makes Sprite Sheets a names layer over the project's existing Texture2DArrays. Every array appears in the catalog. Opening one shows GPU-copied layer thumbnails with frames numbered 0…n-1. Renaming and pressing Save writes `<Array>_Sheet.asset` beside it, and the Clip Editor's Sheet field takes an array directly. Baking separate images now composes a grid PNG imported as a Texture2DArray with a chosen reference array's importer settings (or the shared project defaults), replacing A95's uncompressed `.asset`. The catalog column gained a per-row rename/delete predicate. Stage drive T8 and owner checkpoint T10 remain.
+
+### Close (stage, 2026-09-14)
+
+- **Merge:** rebased onto trunk (head `f30bbd62`), pushed; worktree and branch removed cleanly. No window wiring.
+- **Gates:** as A93F's close (fixtures 32/33, EditMode 850/851, PlayMode 285/285, Conformance_A the only failure).
+- **T8 drive (scratch only, `Assets/A95FScratch/`):**
+  - `EyeArray.png` copied with `AssetDatabase.CopyAsset` in its own call: 64×64, depth 64, `RGBA_DXT5_SRGB`, 7 mips.
+    `FindAssets("t:Texture2DArray")` returned 11 (the ten project arrays plus the copy), and the catalog held 11
+    array rows including the copy.
+  - `LoadArray`: 64 frames named `0`…`63`, `IsImportedArray` true, Bake and Save disabled, the hint "The importer owns
+    the layer order: rename frames, then Save to keep the names." shown, and 64 of 64 GPU thumbnails.
+  - Frame 5 renamed to `blink_half` through the frames column's rename commit: unsaved, Save enabled. Save wrote
+    `EyeArray_Sheet.asset` beside the copy: 64 frames, `blink_half` at 5, 63 numeric names, `texture` = the copy.
+  - Reopened: the catalog showed 10 bare arrays plus the sheet row `EyeArray_Sheet`, and `LoadSheet` kept `blink_half`.
+  - `BuildSheetField` hosted in a temporary utility window (closed after): `objectType` Object; setting the copy raised
+    one pick that reused `EyeArray_Sheet` (still one names sheet) and set `track.sheet`. `BuildFramePopup` at layer 5
+    showed `blink_half` (65 choices with "(no frame)").
+  - Bake: `Bonewalker`, `ChromeWraith`, `CloudNomad`, `CoastalBreeze` (4×16 each) with `importSettingsSource` =
+    `EyeArray`, in one call (352 ms), read back in the next. `T_A95FBakeSheet_Array.png`: a 2×2 grid, depth 4, 4×16,
+    5 mips. `TextureImporterSettings` identical to `EyeArray.png`'s except rows and columns; default platform
+    Compressed, max 2048, no crunch, AutomaticCompressed; Point, mips, sRGB, Clamp, aniso 1, alpha-is-transparency off.
+  - **Drift:** the format is `RGBA_DXT1_SRGB`, not `EyeArray`'s DXT5. The swatches have no alpha
+    (`DoesSourceTextureHaveAlpha` false; `EyeArray`'s source true), so AutomaticCompressed picks DXT1. The settings
+    match; the format follows the source image.
+  - Re-bake with frames 0 and 1 swapped: GUID `1f237c069d8cd494f9571acaca08f78d` unchanged; the decoded PNG's top-left
+    cell matched `ChromeWraith` 64/64 and its top-right `Bonewalker` 64/64.
+  - Scratch deleted; the project is back to 10 arrays and 0 sprite sheets. Nothing under `Assets/Textures/` changed;
+    registry sha256s unchanged.
+- **Not seen by eye:** the contact sheet, the inline rename and the header's "Match import settings of" field.

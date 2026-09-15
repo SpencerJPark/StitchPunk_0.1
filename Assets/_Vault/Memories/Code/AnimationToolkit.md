@@ -1233,6 +1233,9 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
   behind would run in every Play world. Delete it and recompile.
 - **Drive trick:** `EditorJsonUtility` round trips a `CreateInstance` copy of the project registry, so minting
   and payload edits need no persist; its JSON has no space after the colon.
+- **Removed in A93F (0.43.0):** the routing asset, `AnimEventRoutingApi` and the stub generator no longer exist, so
+  the routing-asset, route-handling and blob-by-`ref` bullets above describe removed code. Events stay on the
+  `AnimEventOutput` buffer; read them with `AnimEventBufferApi`.
 
 ## Health tab (A94, 0.41.0)
 
@@ -1259,7 +1262,8 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
   sprite fields by name, so the blob and content hash ignore it; a new field-by-field track copy (see
   `MirrorClipUtility`) must carry `sheet`. `SpriteSheetAsset` sits in Authoring because `ClipAsset` references it.
 - **Working copy.** The tab edits a `HideAndDontSave` copy; Save is `CopySerialized` + `SaveAssetIfDirty`.
-- **Re-bake keeps the GUID.** A `Texture2DArray` cannot be resized; the overwrite is
+- **Re-bake keeps the GUID.** (Superseded by A95F: the baker now rewrites a grid PNG and reimports it.) A
+  `Texture2DArray` cannot be resized; the overwrite was
   `CopySerialized(newArray, existing)` (drive-proven: same GUID, swapped layers).
 - **Frame lookups are by `frame.index` (the layer), not list position.** A reorder renumbers immediately.
 - **RelativeToBase is per key** (`SpriteIndexMode`); the track's `SpriteSliceSpace` is `Absolute`/`RelativeToRest`,
@@ -1276,3 +1280,61 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
   `DotsAnimationToolkit.Tests.EditMode.PackagingConformanceTests` (the standing Conformance_A failure is expected).
 - **Merges went in tab order** (a93, a94, a95) with no conflicts; the window, UXML, layout test, CHANGELOG,
   `package.json` and conformance pin stayed with the stage and went in one integration commit.
+
+## Events tab rework (A93F, 0.43.0)
+
+- **Routing is gone** (F-D1); see the A93 section's last bullet. The right column is `EventUsageColumn`.
+- **`EventUsageColumn` never listens to `AssetReferenceIndex.Rebuilt`:** its own `ReferencesToEventKey` query can fire
+  it, which loops. It listens to `Dirtied`, debounced 500 ms.
+- **`ReferencesToEventKey` returns one reference per marker** with a `marker @` prefix; the column groups by owner and
+  reformats to `@0.35, 0.60`. Other callers still see the raw details.
+- **`AnimEventBufferApi` takes `in DynamicBuffer`** (a handle) and has no `[BurstCompile]` on the class; it is called
+  from inside the consumer's Burst job. `TryFindNextEvent` leaves `searchIndex` one past the match, so a `while` loop
+  visits every same-key event (two layers can emit one key).
+- **`FocusClip` selects through `clipListPane.SelectClipRow`** (the `RestoreView` path), so the row highlights. It keeps
+  the open set when that set lists the clip, and pings a clip no set lists.
+- **Drive handles:** `Usage.Refresh()`, `Usage.RequestOpenOwner(Object)`, `userData` on `event-usage-open-button`, and
+  a Button's own handler is reachable as `Clickable`'s private `clicked` field.
+- **This project, 2026-09-14:** `Attack` (`0x12`) is used by `MeleeContinuous @0.35`, `MeleeContinuous_EastFacing @0.35`
+  and `NewClip @0.27`; the generated `AnimEvents` class also has `Damage` (`0x11`).
+
+## Health tab rework (A94F, 0.44.0)
+
+- **Rules stay pure:** `AssetReferenceIndex` and `AssetDatabase.GetAssetPath` run only inside an action's
+  `buildConfirmation` or `run` lambda, never while a rule evaluates, so fixtures run on `CreateInstance` assets.
+- **`HealthFindingDetailElement` owns the only `DisplayDialog`.** A drive calls an action's `run` directly beneath it.
+- **`ValidateBind` emits V08 only when a recomputed hash is passed;** H11 never passes one, and H06 owns staleness.
+- **`SharedClipBindingUtility.ValidateSharedClipBinding(clip)` (one argument) scans the project;** Health uses the
+  `(clip, clipSets)` overload.
+- **VAT bake output is separate `.asset` files per part** (Bone, Position, Normal, RuntimeMesh), not sub-assets; trashing
+  the set alone leaves them behind, hence `VatTextureOwnershipResolver`.
+- **Trash utilities never `SaveAssets`** (it would flush the owner's unrelated unsaved edits); `DeleteClipFromSet` still
+  does.
+- **The Clip Editor's badge had eight refresh sites, not four.** All eight are `healthPanel?.RequestRescan()` now; the
+  panel is built in `BuildHealthPanel` right after `BindTabs`, with `FindingsChanged` subscribed before `Bind`.
+- **This project, 2026-09-14:** `ErrorCount` 2 (H06 `VatSampleTentacleClips` unbaked, H02 `NewClipSet`), three H11 V38
+  warnings on `NewClip 1` against `NewRig`, H05 `VatSampleTentacleRig`.
+
+## Sprite Sheets over arrays (A95F, 0.45.0)
+
+- **The Sheet `ObjectField` has `objectType = UnityEngine.Object`** (a UI Toolkit ObjectField takes one type), so its
+  picker lists every asset and anything that is neither a sheet nor an array reverts. Don't narrow it back.
+- **Arrays match their names sheet by asset path,** not reference. `FindAssets("t:Texture2DArray")` returns the
+  importer-made PNG arrays (drive-proven: 10 plus a copy).
+- **`IsImportedArray` is derived** (texture set, no frame source): a sheet whose sources all go missing flips into
+  names-only mode.
+- **Bake imports twice on first write** (`ImportAsset` makes a default importer, `SaveAndReimport` applies the array
+  settings). Drives bake in one `execute_code` call and read back in the next.
+- **The format follows the source's alpha, not the reference.** Identical importer settings gave DXT1 for opaque
+  swatches where `EyeArray` (with alpha) is DXT5. Compare settings, not `graphicsFormat`.
+- **Per-platform overrides are copied over a fixed platform-name list** in `SpriteSheetBaker`; a new build target needs
+  adding there.
+- **Drive trick:** a baked grid PNG's layer order can be checked without a GPU readback by decoding the PNG file bytes
+  with `Texture2D.LoadImage` and comparing cells (row `r` sits at `y = (rows - 1 - r) × height`).
+
+## Parallel batch A93F–A95F (Worktree Toolkit, 2026-09-14)
+
+- **An untracked stage file breaks worktree gates.** Gates compile on the stage, so the owner's untracked stub that
+  named routing types failed a93f's T1 gate. Neutralise such files on the stage before spawning a removal spec.
+- **Merges went a93f → a94f → a95f with no conflicts**, one integration commit, and all three drives on scratch.
+  WorktreeToolkit.md traps 21–24 hold the lifecycle lessons (resumed leads, heartbeat gaps, locked worktree folders).

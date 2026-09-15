@@ -1,6 +1,6 @@
 # Amendment A93F — Events tab rework: routing removed, usage column, buffer helper
 
-> **Status:** 📝 specced 2026-09-14 from the owner's A93 T16 answer. Takes `0.43.0`.
+> **Status:** ✅ built 2026-09-14 as `0.43.0` in the A93F–A95F parallel worktree batch (merged `6b515793`, integrated `f67b47e3`); ⏸ T10 owner checkpoint open. Specced the same day from the owner's A93 T16 answer.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A93.
 > **Predecessors:** A93 (`0.40.0`), A94 (`AssetReferenceIndex.Dirtied`).
 > **Executor:** one lead; `worker` subagents in **one wave of four**, each ≤ 2 files; the stage does the window
@@ -98,29 +98,29 @@ Burst helper saves each consumer from writing the key-filter loop.
 
 ## 5. Tasks
 
-- [ ] **T0 — Grounding (lead).** Grep every F-D1 name across `Packages/` and `Assets/_Scripts/`: the only game hit
+- [x] **T0 — Grounding (lead).** Grep every F-D1 name across `Packages/` and `Assets/_Scripts/`: the only game hit
   should be the owner's stub (F-D6, stage's). Confirm where `AnimEventRouteKind` and `AnimEventRouteBlob` live.
   Confirm `AssetReferenceIndex.Dirtied`'s exact signature. Confirm an EditMode fixture can create a `World`
   (grep `new World(` under `Tests/EditMode/`); if none does, the helper fixture uses `World` creation copied from
   `Tests/PlayMode/` into EditMode and says so in §7. Log drift in §7.
-- [ ] **T1 — Removal + stubs (lead).** `git rm` every F-D1 file and `.meta`. Remove the `Routes` member from
+- [x] **T1 — Removal + stubs (lead).** `git rm` every F-D1 file and `.meta`. Remove the `Routes` member from
   `EventsPanel.cs` (lead edit, minimal, so the removal compiles). Add committed stubs: `EventUsageColumn` with
   `Bind(uint)`, `Dispose()`, `OpenOwnerRequested`; `AnimEventBufferApi` with the three signatures returning false.
   Stage the owner's stub conflict honestly: the removal breaks `DamageEventSystemAnimEventSystem.cs` on the stage,
   not in the worktree (untracked files don't exist there). Gate `PackagingConformanceTests` (compile). Commit
   `A93F-T1`.
-- [ ] **T2 — Buffer helper + fixture [parallel-safe]** — Files: `Runtime/Api/AnimEventBufferApi.cs`, new
+- [x] **T2 — Buffer helper + fixture [parallel-safe]** — Files: `Runtime/Api/AnimEventBufferApi.cs`, new
   `Tests/EditMode/AnimEventBufferApiTests.cs`:
   - `TryFindNextEvent_VisitsEverySameKeyEventInOrder`: a buffer of keys 20, 21, 20 (distinct `intParam`s); the loop
     yields two events, `intParam` in buffer order; key 22 yields none; `ContainsEvent(21)` true.
   - Revert-to-fail: do not advance `searchIndex` past the match (the loop must be bounded by a test-side guard of
     10 iterations and fail, never hang).
-- [ ] **T3 — Usage column [parallel-safe]** — Files: `Editor/Events/EventUsageColumn.cs`. F-D3 in full; the grouping
+- [x] **T3 — Usage column [parallel-safe]** — Files: `Editor/Events/EventUsageColumn.cs`. F-D3 in full; the grouping
   logic moves from the inspector column (copy, then T4 deletes the original).
-- [ ] **T4 — Inspector trim + panel swap [parallel-safe]** — Files: `Editor/Events/EventKeyInspectorColumn.cs`
+- [x] **T4 — Inspector trim + panel swap [parallel-safe]** — Files: `Editor/Events/EventKeyInspectorColumn.cs`
   (delete `usageSection`, `RefreshUsage`, `AddUsageGroup` and their call sites; add NO `<summary>` blocks),
   `Editor/Events/EventsPanel.cs` (construct `Usage`, bind it on key selection, forward `OpenOwnerRequested`).
-- [ ] **T5 — Docs [parallel-safe]** — Files: `Documentation~/events-tab.md` (rewrite: Keys, fields, Used by; no
+- [x] **T5 — Docs [parallel-safe]** — Files: `Documentation~/events-tab.md` (rewrite: Keys, fields, Used by; no
   routing, no stub generator; one paragraph "reading events in your systems" pointing at `AnimEventBufferApi`),
   `Documentation~/animation-events.md` (a short "Finding one key" example with `TryFindNextEvent` inside an
   `IJobEntity` gated by `AnimEventsPending`).
@@ -128,18 +128,18 @@ Burst helper saves each consumer from writing the key-filter loop.
   `DotsAnimationToolkit.Tests.EditMode.PackagingConformanceTests` (Conformance_A the only expected failure). Revert-
   to-fail. Commit `A93F-T2..T5`. Section 7 `### For integration`: CHANGELOG `## [0.43.0]` with a **Removed** list,
   wiring, traps, HANDOFF draft. Then `worktree.py status a93f ready`.
-- [ ] **T6 — Window wiring (stage).** New `public static void FocusClip(ClipAsset clip)` in `ClipEditorWindow.cs`:
+- [x] **T6 — Window wiring (stage).** New `public static void FocusClip(ClipAsset clip)` in `ClipEditorWindow.cs`:
   focus the Clip Editor tab, load a clip set that lists the clip (`AssetReferenceIndex.ReferencesToClip`, kind
   `ClipSetClip`), then the private `SelectClip`. In `ShowEventsTab`, subscribe `eventsPanel.OpenOwnerRequested` to
   route `ClipAsset` → `FocusClip`, `CutsceneAsset` → `FocusCutsceneTab`, `ActorProfileAsset` →
   `FocusWithActorEditorTab`; unsubscribe in teardown. CHANGELOG, `package.json`, conformance pin `0.43.0`.
-- [ ] **T7 — Owner stub conversion (stage).** F-D6. Read `Assets/Generated/DotsAnimationToolkit/AnimEvents.cs` for
+- [x] **T7 — Owner stub conversion (stage).** F-D6. Read `Assets/Generated/DotsAnimationToolkit/AnimEvents.cs` for
   the damage key constant (ask nothing: if there is no damage-named key, use the name `Attack` and say so). Compile
   gate; the file stays untracked.
-- [ ] **T8 — Drive (stage).** Full suites. Detached `EventsPanel` bound to a `CreateInstance` registry copy: select
+- [x] **T8 — Drive (stage).** Full suites. Detached `EventsPanel` bound to a `CreateInstance` registry copy: select
   `Attack`; the usage column lists `MeleeContinuous` with its marker time; invoking a row's open button raises
   `OpenOwnerRequested` with that clip. Confirm no routing type remains in any loaded assembly.
-- [ ] **T9 — Vault + HANDOFF + close (stage).** Vault "Events tab rework (A93F, 0.43.0)"; HANDOFF §4; roadmap.
+- [x] **T9 — Vault + HANDOFF + close (stage).** Vault "Events tab rework (A93F, 0.43.0)"; HANDOFF §4; roadmap.
 - [ ] **T10 — ⏸ owner checkpoint.** "Events: pick Attack; the right column lists MeleeContinuous @0.35 — press its
   open button and the Clip Editor opens on it. Routing and the stub button are gone; your damage system now reads the
   buffer through AnimEventBufferApi. Does the usage column show what you need?"
@@ -206,3 +206,34 @@ Burst helper saves each consumer from writing the key-filter loop.
 - The helper takes `in DynamicBuffer` (a handle). Do not add `[BurstCompile]` to the class; it is called from inside the consumer's Burst job.
 
 **HANDOFF draft (section 4):** A93F (0.43.0) removes event routing from the package. The routing asset, authoring and baker, blob, API, asset utility, consumer-stub generator, Routes column and their three fixtures are gone, with no migration because no routing data existed. The Events tab's right column is now Used by (`EventUsageColumn`): boxed Clips, Cutscenes and Profiles groups whose rows ping on click and open the owner through `EventsPanel.OpenOwnerRequested`, wired by the window to `FocusClip`, `FocusCutsceneTab` and `FocusWithActorEditorTab`. The inspector column lost its usage list. Runtime delivery stays on the per-actor `AnimEventOutput` buffer. The new Burst-compatible `AnimEventBufferApi` (`ContainsEvent`, `TryFindEvent`, `TryFindNextEvent`) saves consumers the key-filter loop, and the owner's damage system reads through it after T7. Open: T10 owner checkpoint on whether the usage column shows what he needs.
+
+### Close (stage, 2026-09-14)
+
+- **Merge:** fast-forward to `6b515793`, pushed. `worktree.py remove` dropped git's record but failed WinError 32 on the
+  empty worktree folder (the finished lead's process still held it); `spec/a93f` was deleted after
+  `git merge-base --is-ancestor spec/a93f main` (a plain `branch -d` refused because the stage HEAD was detached for
+  another lead's gate).
+- **T6 (integration `f67b47e3`):** `ClipEditorWindow.FocusClip(ClipAsset)` and `OnEventsPanelOpenOwnerRequested`
+  (clip → `FocusClip`, `CutsceneAsset` → `FocusCutsceneTab`, `ActorProfileAsset` → `FocusWithActorEditorTab`),
+  subscribed in `ShowEventsTab` and unsubscribed before `Dispose`. Drift: the clip is selected through
+  `clipListPane.SelectClipRow`, the path `RestoreView` uses, instead of the private `SelectClip`, so the row is
+  highlighted as well as loaded. The open set is kept when it already lists the clip, and a clip that no set lists is
+  pinged. `index.md` lines 158–161 no longer describe routing. Compile clean; not driven (the docked window is the
+  owner's).
+- **T7:** the owner's stub was converted in two steps. The T1 gate compiled on the stage, where the untracked file
+  lives, and failed on `AnimEventRoutingBlob`, so the stage first rewrote it as a plain `AnimEventOutput` loop
+  (compiles on trunk and every branch). At integration it moved to
+  `AnimEventBufferApi.TryFindNextEvent(events, AnimEvents.Damage, ref searchIndex, out damageEvent)` inside a
+  `while`, with `// TODO: apply damage`. A `Damage` key exists (`0x11`), so the `Attack` fallback was not needed. The
+  routing `RequireForUpdate` and job fields are gone; the owner's "Place after EventEmissionSystem" note stays. Still
+  untracked; the original is backed up in the session scratchpad. C# compile clean. One Burst hash error in
+  `StitchPunk.Systems` sits before the integration reload in the Editor log and lists the whole assembly's systems:
+  the standing Burst cache corruption, not this file.
+- **Gates:** integration fixtures 32 passed of 33 (Conformance_A only); full EditMode 850 of 851 (Conformance_A only;
+  851 = 850 − the three routing fixtures + the three batches' new fixtures); PlayMode 285 of 285.
+- **T8 drive:** detached `EventsPanel` bound to an `EditorJsonUtility` copy of the registry. `Attack` is `0x12`. Used
+  by: **Clips (3)** `MeleeContinuous @0.35`, `MeleeContinuous_EastFacing @0.35`, `NewClip @0.27`; Cutscenes (0);
+  Profiles (0). Three open buttons, tooltip "Open", each carrying its `ClipAsset` in `userData`. Invoking
+  `MeleeContinuous`'s button's own `clicked` delegate raised `OpenOwnerRequested(MeleeContinuous)`. Routing types
+  loaded in any assembly: 0. Registry sha256s unchanged.
+- **Not seen by eye:** the column's layout and its `.toolkit-box` styles, and `FocusClip` end to end in the real window.
