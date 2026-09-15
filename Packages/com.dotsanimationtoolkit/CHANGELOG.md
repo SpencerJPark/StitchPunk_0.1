@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.45.0] — A95F — Sprite Sheets over existing arrays
 
+Owner checkpoint T10 accepted 2026-09-14 ("these look good for now").
+
 ### Changed
 - Sprite Sheets lists every Texture2DArray in the project beside the sprite sheets. A bare array's row reads "N frames · W×H · imported, unnamed", and a sheet that wraps an imported array reads "· imported". Rename and Delete appear on sheet rows only, through the new `CatalogColumnOptions.rowAllowsRenameAndDelete`.
 - Opening an array builds a names-only working copy: frames are named 0…n-1, the thumbnails are GPU layer copies (`SpriteSheetLayerThumbnailCache`, `Graphics.CopyTexture`), and Bake, the output path, adding images, reorder and removal are disabled. Filter, wrap, mips and linear show the array's own importer values, read-only.

@@ -1,6 +1,6 @@
 # Amendment A95F — Sprite Sheets over existing arrays: every Texture2DArray listed, frames named by number
 
-> **Status:** ✅ built 2026-09-14 as `0.45.0` in the A93F–A95F parallel worktree batch (merged `f30bbd62`, integrated `f67b47e3`); ⏸ T10 owner checkpoint open. Specced the same day from the owner's A95 T15 answer and widened with
+> **Status:** ✅ built 2026-09-14 as `0.45.0` in the A93F–A95F parallel worktree batch (merged `f30bbd62`, integrated `f67b47e3`); **T10 accepted 2026-09-14** (owner: "these look good for now"). Specced the same day from the owner's A95 T15 answer and widened with
 > importer-made baked sheets (S-D8, S-D9).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A95.
 > **Predecessors:** A95 (`0.42.0`), A82 (catalog column).
@@ -172,7 +172,7 @@ asset beside the array, which the sprite key picker uses.
 
   Delete scratch. Never write beside the real arrays.
 - [x] **T9 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and conformance pin `0.45.0`.
-- [ ] **T10 — ⏸ owner checkpoint.** "Sprite Sheets: your eight Units arrays (and two legacy hair arrays) are in the
+- [x] **T10 — ⏸ owner checkpoint.** "Sprite Sheets: your eight Units arrays (and two legacy hair arrays) are in the
   list. Open EyeArray: every frame shows, numbered 0–63. Rename a few and press Save; a small EyeArray_Sheet asset
   appears beside the PNG. In a clip, drop EyeArray onto a sprite track's Sheet field and pick frames by those names.
   Does this match how you want to name frames?"
@@ -271,3 +271,8 @@ asset beside the array, which the sprite key picker uses.
   - Scratch deleted; the project is back to 10 arrays and 0 sprite sheets. Nothing under `Assets/Textures/` changed;
     registry sha256s unchanged.
 - **Not seen by eye:** the contact sheet, the inline rename and the header's "Match import settings of" field.
+
+### Owner checkpoint answer (2026-09-14)
+
+- **Accepted as built.** The owner, on T10: "these look good for now". Nothing in this section's drift is overturned,
+  so the checkpoint closes with no follow-up.

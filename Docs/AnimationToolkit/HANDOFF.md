@@ -120,7 +120,7 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
-**A95F (0.45.0), built 2026-09-14, ⏸ T10 open.** Sprite Sheets is a names layer over the project's existing
+**A95F (0.45.0), built 2026-09-14, T10 accepted 2026-09-14.** Sprite Sheets is a names layer over the project's existing
 Texture2DArrays. Every array appears in the catalog; opening one shows GPU-copied layer thumbnails with frames numbered
 0…n-1, and renaming then Save writes `<Array>_Sheet.asset` beside it. The Clip Editor's Sheet field takes an array
 directly and reuses that sheet. Baking separate images now composes a grid PNG imported as a Texture2DArray with a
