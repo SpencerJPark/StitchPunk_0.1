@@ -1,6 +1,6 @@
 # A102 — Release readiness: the three "before 1.0" checks and a green Conformance_A
 
-> **Status:** 📝 specced 2026-09-15 from `Code_Audit_2026-09.md` §3.1. Takes `0.54.0` (CHANGELOG top is `0.53.1`).
+> **Status:** ✅ built 2026-09-15 as `0.54.0` (A102 / Despawn / Minion Orders parallel batch); no owner checkpoint. Specced from `Code_Audit_2026-09.md` §3.1.
 > **Executor:** a `spec-lead` in its own worktree for the code half (§5 T1–T5); the **stage orchestrator** for the
 > Editor-bound half (§6 S1–S4), because a player build and a batch-mode import cannot run through the broker.
 > **Why now:** every roadmap box A82–A101 is ticked; `package.json` has said "remaining before 1.0: a clean-project
@@ -89,23 +89,23 @@ throwaway project under `%TEMP%`, the build output under `%TEMP%`.
 
 ## 6. Tasks — stage orchestrator (Editor-bound, never a lead)
 
-- [ ] **S1 — Samples~ compile.** Before spawning the lead: copy each `Samples~/<Name>/` into
+- [x] **S1 — Samples~ compile.** Before spawning the lead: copy each `Samples~/<Name>/` into
   `Assets/Generated/DotsAnimationToolkit/SamplesCompileCheck/<Name>/` (asmdef included, `name` field suffixed
   `.Check`), `refresh_unity` with compile, `read_console` for `error CS`/`DC`, record every line in this spec's §7
   and in the lead's prompt, then delete the folder and its `.meta`, refresh again, `git status` clean.
-- [ ] **S2 — Player build.** Phase 0, stage on trunk, before any lead gates (a gate swaps the stage under a running
+- [x] **S2 — Player build.** Phase 0, stage on trunk, before any lead gates (a gate swaps the stage under a running
   build): `manage_build` action `build`, target `windows64`, development `true`, output
   `%TEMP%\A102Build\StitchPunk.exe`. Poll `status`. Record the result and every error line in §7. Fix mechanical
   game-side errors on the stage with a `worker` (commit with an `A102-S2:` prefix); send package-side ones to the
   lead as a T3-style wave.
-- [ ] **S3 — Clean-project import**, in the background while leads run (it is a separate project and process):
+- [x] **S3 — Clean-project import**, in the background while leads run (it is a separate project and process):
   `"C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe" -batchmode -nographics -createProject
   %TEMP%\A102Import -quit -logFile %TEMP%\A102Import-create.log`; then write its `Packages/manifest.json` with
   `"com.dotsanimationtoolkit": "file:<absolute repo path>/Packages/com.dotsanimationtoolkit"` beside the
   default manifest entries; run again with `-projectPath %TEMP%\A102Import -quit -logFile
   %TEMP%\A102Import-open.log`; grep the open log for `error CS`, `Failed to resolve` and the three assembly
   names. Record in §7. Delete both folders after.
-- [ ] **S4 — Integration and close.** Merge `a102` after `despawn` and `minion-orders` (it touches no game file, so
+- [x] **S4 — Integration and close.** Merge `a102` after `despawn` and `minion-orders` (it touches no game file, so
   order is free; last keeps its `package.json` bump on top). CHANGELOG `## [0.54.0] — Release readiness` from the
   lead's block; `package.json` and the conformance pin at `0.54.0`; HANDOFF §4 paragraph on top; the roadmap gains
   a "Phase 4 — release readiness" box, ticked; `AnimationToolkit.md` traps; `Code_Audit_2026-09.md` §3.1 marked
@@ -203,3 +203,12 @@ time since July, and any red conformance test is now real. `SamplesCompileConfor
 references and `using` directives on disk (revert-to-fail proven for both); it does not replace a real sample compile.
 Getting-started documents importing into another project. Unverified: the owner's A91 player-build check stays his;
 no Play mode was run.
+
+**S4 — Integration and close (stage, 2026-09-15).** Merged `despawn` → `minion-orders` (integration `f3dc6619`) → `a102`
+(`75909632`), each pushed and its worktree removed. CHANGELOG `## [0.54.0] — Release readiness` from the lead's block;
+`package.json` and the conformance pin at `0.54.0`; README's sample list now names all four shipped samples (lead drift
+5); HANDOFF §4 paragraph on top; roadmap Phase 4 box ticked and status line brought past A100; `AnimationToolkit.md`
+gains a Release readiness section (the lead's three traps plus the build and import mechanics); `Code_Audit_2026-09.md`
+§3.1 marked done. Compile gate clean. Full suites: **`DotsAnimationToolkit.Tests.EditMode` 868 of 868 — zero failures**
+(Conformance_A green; +2 `SamplesCompileConformanceTests`), `.PlayMode` 285 of 285, `StitchPunk.Tests` 68 of 68,
+`StitchPunk.Tests.PlayMode` 19 of 19. Registry sha256s unchanged; `%TEMP%\A102Build` and `%TEMP%\A102Import` deleted.

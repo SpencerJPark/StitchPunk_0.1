@@ -1457,3 +1457,19 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
 - There is no event-window counter: "windows open" is the count of actors with `AnimEventMask` enabled (`EventWindowSystem` enables it while any window is open).
 - A hand-made `AnimEventsPending` + `AnimEventOutput` carrier is cleared by the toolkit after one frame even without a `PlaybackLayer`, so events injected by a drive show once in a poll and then drop to 0.
 - **Concurrency, 2026-09-15:** a peer session was mid-rename on trunk when this session began; the first PlayMode run died with CS2001 on a stale Bee graph naming the old path. A clean `git status` at session start is not enough when another session is live: `ListAgents` first, and hold writes until the peer commits.
+
+## Release readiness (A102, 0.54.0)
+
+Traps only; the record is A102's §7 and HANDOFF §4.
+- `SamplesCompileConformanceTests` catches asmdef-reference and `using` rot only, never an API signature change inside
+  a resolvable namespace. The copy-and-compile check (A102 S1) is still the real compile; run it before any release.
+- Package namespaces are matched exactly, Unity namespaces by prefix. A new package sub-namespace is picked up from
+  `namespace` declarations automatically, but a sample referencing a Unity assembly whose namespace differs from its
+  name (like `Unity.Entities.Graphics` -> `Unity.Rendering`) needs a row in `MapNonPackageAssemblyToNamespacePrefix`.
+- A new sample must keep exactly one asmdef somewhere under its folder, or the fixture flags it.
+- Player build through `manage_build`: the project's Build Settings list has no enabled scene, so pass `scenes`
+  on the `build` action itself (one-off `BuildPlayerOptions`); the `scenes` *action* rewrites `EditorBuildSettings`.
+  The Burst player compile peaks near 9 GB and starves background shell watchers; poll `status` instead. The
+  Performance Testing package writes `Assets/Resources/PerformanceTestRun*.json` during a build and deletes them after.
+- Clean-project import: `-createProject` then a manifest `file:` entry then `-projectPath … -quit`; the package's own
+  `dependencies` pull Entities and URP with nothing added by hand, and the only first-import writes are URP's defaults.

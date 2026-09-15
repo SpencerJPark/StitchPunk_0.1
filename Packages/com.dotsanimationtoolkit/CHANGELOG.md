@@ -8,6 +8,20 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.54.0] — Release readiness
+
+### Changed
+- **Conformance_A is green.** The Editor assembly's `Unity.RenderPipelines.Universal.Runtime` reference (used by the cutscene viewport and capture source; `package.json` has always depended on URP) is now in the expected reference list and the architecture record. A package EditMode run has no standing failure, so any red conformance test is real.
+- `package.json` description: the "remaining before 1.0" sentence is replaced by the release checks below.
+
+### Added
+- **`SamplesCompileConformanceTests`.** `Samples~` is excluded from Unity compilation, so the suite now checks on disk that every sample has exactly one asmdef referencing only assemblies the package defines or references, and that every sample `using` directive resolves in the assemblies its asmdef references (package namespaces matched exactly).
+- getting-started gains **Importing into another project**: the `file:` and git `?path=` manifest forms, the URP pipeline-asset requirement, and the Camera Sync sample.
+- `README.md` gains a **Verified** section; its sample list now names all four shipped samples.
+
+### Verified
+- Release checks run 2026-09-15 on Unity 6000.5.0f1: all four samples compiled as copied assemblies with zero errors; a Windows64 development player build of the host game finished with zero errors; a clean project referencing the package by `file:` path resolved its dependencies and compiled Runtime, Authoring and Editor with zero errors.
+
 ## [0.53.1] — Ragdoll after Actor Profiles
 
 ### Changed

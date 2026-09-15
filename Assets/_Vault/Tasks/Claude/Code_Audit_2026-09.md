@@ -69,7 +69,8 @@ owner's product calls are recorded in the roadmap §2. Adding tabs now is scope 
 
 **What is genuinely left, in order of value:**
 
-1. **Release readiness — the package's own "remaining before 1.0" list, unchanged since 0.9.0.**
+1. ✅ **Done 2026-09-15 as A102 (`0.54.0`)** — Conformance_A green, `SamplesCompileConformanceTests`, and the Samples~ compile, player build and clean-project import all passed.
+   **Release readiness — the package's own "remaining before 1.0" list, unchanged since 0.9.0.**
    `package.json` names three: a clean-project import check, a player build, a compile pass over
    `Samples~` (Unity never compiles it; the vault already records that it rots). Plus the standing
    red `Conformance_A`: the Editor asmdef references `Unity.RenderPipelines.Universal.Runtime`

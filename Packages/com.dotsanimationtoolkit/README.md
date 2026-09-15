@@ -118,8 +118,8 @@ than for assertions.
 
 ## Not shipped yet
 
-- **Two samples ship**, `Quick Start Actor` and `Composite Actor`, both of which
-  *generate* their assets rather than shipping `.asset` files — committed assets
+- **Four samples ship**: `Camera Sync` and `Cutscene` are small runtime scripts, and
+  `Quick Start Actor` and `Composite Actor` *generate* their assets rather than shipping `.asset` files — committed assets
   carry baked-in stable ids that could collide with a project already using this
   package. The `VatCrowd` sample the design doc calls for is not packaged yet.
 - No package-shipped sample drives a **bone socket** end to end; bone sockets
