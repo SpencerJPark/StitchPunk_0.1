@@ -22,6 +22,8 @@ namespace WorktreeToolkit.Editor
         private readonly Label aheadBehindValueLabel;
         private readonly Label uncommittedValueLabel;
         private readonly Label pathValueLabel;
+        // The label shows a short project-relative path; Copy and the tooltip use the full one.
+        private string currentFullPath = string.Empty;
 
         private readonly Button putOnStageButton;
         private readonly Label putOnStageDescriptionLabel;
@@ -78,12 +80,18 @@ namespace WorktreeToolkit.Editor
             VisualElement uncommittedRow = this.CreateKeyValueRow("Uncommitted", this.uncommittedValueLabel);
 
             this.pathValueLabel = new Label();
-            this.pathValueLabel.style.whiteSpace = WhiteSpace.Normal;
+            // A path has no spaces to wrap at, so it ellipsizes instead of shoving Copy off the pane.
+            this.pathValueLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            this.pathValueLabel.style.overflow = Overflow.Hidden;
+            this.pathValueLabel.style.textOverflow = TextOverflow.Ellipsis;
+            this.pathValueLabel.style.flexShrink = 1f;
+            this.pathValueLabel.style.minWidth = 0f;
             this.pathValueLabel.RegisterCallback<ClickEvent>(this.OnPathValueClicked);
             VisualElement pathRow = this.CreateKeyValueRow("Path", this.pathValueLabel);
 
             Button copyPathButton = new Button(this.OnCopyPathClicked) { text = "Copy" };
             copyPathButton.AddToClassList("worktree-kv__copy");
+            copyPathButton.style.flexShrink = 0f;
             pathRow.Add(copyPathButton);
 
             keyValueContainer.Add(this.specRow);
@@ -237,8 +245,7 @@ namespace WorktreeToolkit.Editor
             this.aheadBehindRow.style.display = DisplayStyle.None;
 
             this.uncommittedValueLabel.text = stage.dirtyTracked.ToString();
-            this.pathValueLabel.text = stage.path;
-            this.pathValueLabel.tooltip = stage.path;
+            this.SetPathValue(stage.path);
 
             // Trunk is already the stage; the only stage-move offered here is returning to it when
             // the stage currently sits on some other worktree.
@@ -271,7 +278,7 @@ namespace WorktreeToolkit.Editor
             string normalizedLeadStatus = string.IsNullOrEmpty(leadStatusRaw) ? string.Empty : leadStatusRaw.ToLowerInvariant();
 
             string leadStatusSentence;
-            if (node.lead == null)
+            if (!leadIsBound)
             {
                 leadStatusSentence = "Created by hand — no spec lead is attached.";
             }
@@ -327,9 +334,14 @@ namespace WorktreeToolkit.Editor
             this.modelsRow.style.display = DisplayStyle.Flex;
             this.aheadBehindRow.style.display = DisplayStyle.Flex;
 
-            this.specValueLabel.text = leadIsBound && !string.IsNullOrEmpty(node.lead.spec)
-                ? Path.GetFileName(node.lead.spec)
-                : "unclaimed";
+            if (leadIsBound && !string.IsNullOrEmpty(node.lead.spec))
+            {
+                this.specValueLabel.text = Path.GetFileName(node.lead.spec);
+            }
+            else
+            {
+                this.specValueLabel.text = leadIsBound ? "unclaimed" : "—";
+            }
 
             this.modelsValueLabel.text = leadIsBound && !string.IsNullOrEmpty(node.lead.leadModel)
                 ? node.lead.leadModel + " ▸ " + node.lead.workerModel
@@ -337,8 +349,7 @@ namespace WorktreeToolkit.Editor
 
             this.aheadBehindValueLabel.text = node.ahead + " · " + node.behind;
             this.uncommittedValueLabel.text = node.dirty.ToString();
-            this.pathValueLabel.text = node.path;
-            this.pathValueLabel.tooltip = node.path;
+            this.SetPathValue(node.path);
 
             this.putOnStageButton.style.display = isOnStage ? DisplayStyle.None : DisplayStyle.Flex;
             this.returnToTrunkButton.style.display = isOnStage ? DisplayStyle.Flex : DisplayStyle.None;
@@ -412,7 +423,23 @@ namespace WorktreeToolkit.Editor
 
         private void OnCopyPathClicked()
         {
-            EditorGUIUtility.systemCopyBuffer = this.pathValueLabel.text ?? string.Empty;
+            EditorGUIUtility.systemCopyBuffer = this.currentFullPath;
+        }
+
+        private void SetPathValue(string fullPath)
+        {
+            this.currentFullPath = fullPath ?? string.Empty;
+            string projectRootPath = WorktreeCliClient.ProjectRootPath;
+            string displayPath = this.currentFullPath;
+            if (!string.IsNullOrEmpty(projectRootPath)
+                && displayPath.StartsWith(projectRootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                string relativePath = displayPath.Substring(projectRootPath.Length).TrimStart('\\', '/').Replace('\\', '/');
+                displayPath = string.IsNullOrEmpty(relativePath) ? "(this project folder)" : relativePath;
+            }
+
+            this.pathValueLabel.text = displayPath;
+            this.pathValueLabel.tooltip = this.currentFullPath + "  (click to show in Explorer)";
         }
 
         private void RaiseActionRequested(WorktreeNodeAction action)
