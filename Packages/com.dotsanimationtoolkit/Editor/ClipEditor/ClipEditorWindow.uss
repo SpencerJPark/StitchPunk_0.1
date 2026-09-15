@@ -117,7 +117,7 @@
     padding-top: 2px;
     padding-bottom: 2px;
     border-bottom-width: 1px;
-    border-bottom-color: rgba(0, 0, 0, 0.35);
+    border-bottom-color: var(--toolkit-divider);
 }
 
 .toolkit-transport__group {
@@ -451,7 +451,7 @@
     padding-bottom: 4px;
     padding-right: 6px;
     border-bottom-width: 1px;
-    border-bottom-color: rgba(0, 0, 0, 0.35);
+    border-bottom-color: var(--toolkit-divider);
 }
 
 .toolkit-asset-bar__label {
@@ -481,7 +481,7 @@
 }
 
 .toolkit-detail-title {
-    font-size: 14px;
+    font-size: 16px;
     -unity-font-style: bold;
     white-space: normal;
     margin-bottom: 6px;
@@ -492,38 +492,11 @@
     flex-grow: 1;
 }
 
-/* The one button in a panel that does the thing -- Create, Bake, Assign -- tinted so it reads
-   as the default action rather than one option among equals. */
-.toolkit-primary-action {
-    min-height: 28px;
-    padding-left: 14px;
-    padding-right: 14px;
-    background-color: var(--toolkit-color-accent);
-    color: rgb(245, 248, 252);
-    border-color: rgba(0, 0, 0, 0.4);
-}
-
-.toolkit-primary-action:hover {
-    background-color: rgb(104, 162, 228);
-}
-
-.toolkit-primary-action:disabled {
-    opacity: 0.5;
-}
-
-.toolkit-primary-action .toolkit-icon-button__label {
-    -unity-font-style: bold;
-}
-
-.toolkit-primary-action .toolkit-icon-button__icon {
-    opacity: 1;
-}
-
 /* A status row pinned to the bottom of its pane rather than sitting wherever it falls in flow. */
 .toolkit-status-row--footer {
     margin-top: auto;
     border-top-width: 1px;
-    border-top-color: rgba(0, 0, 0, 0.35);
+    border-top-color: var(--toolkit-divider);
 }
 
 .toolkit-text--dim {
@@ -536,15 +509,6 @@
 
 .toolkit-text--error {
     color: var(--toolkit-color-error);
-}
-
-/* A box standing in a plain list rather than a component stack -- same shape, tighter margins so
-   rows pack closer. */
-.toolkit-box.toolkit-list-row {
-    margin-top: 4px;
-    margin-bottom: 4px;
-    margin-left: 0;
-    margin-right: 0;
 }
 
 /* A small tag in a wrapping run -- a rig target, a filter, a picked entry. */
@@ -613,74 +577,12 @@
     white-space: nowrap;
 }
 
-.toolkit-sidebar__modes {
-    flex-direction: row;
-    flex-shrink: 0;
-}
-
 /* ------------------------------------------------------------------------------------------- */
 /* Toolbar                                                                                       */
 /* ------------------------------------------------------------------------------------------- */
 
 /* .toolkit-asset-bar and .toolkit-asset-bar__label live in the Shared section now -- every tab's
    asset bar draws from the same rule. */
-
-/* The tab strip now starts the bar — the clip set and rig pickers moved into their own panes — so
-   there is no group to its left and no gap to hold open. */
-.clip-editor__tab-strip {
-    flex-direction: row;
-    align-items: stretch;
-    margin-left: 0;
-    /* The strip is the toolbar's only child: growing it, and every tab inside it, fills the whole bar. */
-    flex-grow: 1;
-}
-
-/*
- * The tab run. Deliberately NOT .clip-editor__bar-action: that rule's own comment says it styles
- * runs of *independent* controls, and these are a radio group — exactly one is on, and clicking the
- * one that is on does nothing. A held-down state is the whole difference, and bar-action has no
- * business defining one for the controls it does style.
- *
- * Wider padding than a bar action, because a tab is a destination rather than a switch and reads as
- * one at a glance only if it is bigger than the switches.
- */
-.clip-editor__tab {
-    /* Each tab starts from its own text width and takes an equal share of what is left, so the run
-       fills the bar at any window width without squeezing a long name below a short one. */
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: auto;
-    padding-left: 14px;
-    padding-right: 14px;
-    margin-left: -1px;
-    margin-right: 0;
-    border-top-width: 0;
-    border-bottom-width: 2px;
-    border-left-width: 1px;
-    border-right-width: 1px;
-    border-left-color: rgb(32, 32, 32);
-    border-right-color: rgb(32, 32, 32);
-    /* Reserved, not drawn: the 2px stays so the active tab's underline never shifts the row's
-       height, but an inactive tab has nothing to show for it. See .clip-editor__tab--active. */
-    border-bottom-color: rgba(0, 0, 0, 0);
-}
-
-/*
- * The active tab. Two signals rather than one: a lighter ground says "this is the one", and the
- * accent underline says which content below belongs to it. Applied by SetActiveTab and by nothing
- * else — the toggle's own checked styling is left alone, because a ToolbarToggle drawn checked and
- * a tab drawn active are different enough that having both would read as two different states.
- */
-/* A grown tab is wider than its text. The label grows with it, so centring needs the text alignment, not just the input's
-   justify: without it the text sits at the grown label's left edge. */
-.clip-editor__tab .unity-toggle__input {
-    flex-grow: 1;
-    justify-content: center;
-}
-
-.clip-editor__tab .unity-toggle__text {
-    -unity-text-align: middle-center;
-}
 
 /* Health's label gains a count ("Health (12)") as findings come and go. A basis sized for the longest
    likely label, instead of its text, keeps that change from resizing it and nudging every other tab. 104px is "Health (999)"
@@ -689,12 +591,6 @@
     flex-basis: 104px;
     flex-shrink: 0;
 }
-
-.clip-editor__tab--active {
-    background-color: rgb(76, 76, 76);
-    border-bottom-color: rgb(88, 148, 216);
-}
-
 
 /*
  * Every button and toggle that joins a run of them — the top bar, and the Snap / Auto Key group at
@@ -733,7 +629,7 @@
     border-bottom-width: 0;
     border-left-width: 1px;
     border-right-width: 1px;
-    border-color: rgb(32, 32, 32);
+    border-color: var(--toolkit-divider);
 }
 
 .clip-editor__time-label {
@@ -1103,7 +999,7 @@
 
 /* Says an edit here reaches every clip in the set, not just this one. */
 .clip-editor__component-badge {
-    font-size: 10px;
+    font-size: 11px;
     opacity: 0.65;
     margin-right: 4px;
     padding-left: 4px;
@@ -1789,7 +1685,7 @@
 }
 
 .cutscene-editor__clip-block-label {
-    font-size: 10px;
+    font-size: 11px;
     color: rgb(238, 242, 248);
     -unity-text-align: middle-left;
     padding-left: 4px;
@@ -1896,7 +1792,7 @@
 
 /* Actor or Prop, in the same accent the row's group header wears in the timeline. */
 .cutscene-editor__cast-chip {
-    font-size: 9px;
+    font-size: 11px;
     -unity-text-align: middle-center;
     flex-shrink: 0;
     margin-left: 4px;
@@ -1933,7 +1829,7 @@
     width: auto;
     min-width: 0;
     padding: 0 4px;
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .cutscene-editor__cast-icon {

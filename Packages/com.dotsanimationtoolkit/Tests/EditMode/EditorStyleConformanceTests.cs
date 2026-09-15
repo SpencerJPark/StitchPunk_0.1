@@ -156,8 +156,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private static readonly HashSet<int> TypeScalePixelSizes = new HashSet<int> { 11, 12, 13, 16 };
 
         // Shrink-only: lower both when a cleanup removes literals, never raise.
-        private const int WindowSheetColourLiteralPin = 151;
-        private const int WindowSheetNonScaleFontSizePin = 5;
+        private const int WindowSheetColourLiteralPin = 139;
+        private const int WindowSheetNonScaleFontSizePin = 0;
 
         private static readonly string[] RequiredTokenNames =
         {

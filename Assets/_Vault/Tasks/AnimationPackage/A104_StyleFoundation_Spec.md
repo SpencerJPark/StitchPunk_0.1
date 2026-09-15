@@ -334,3 +334,86 @@ mutation commit with F1–F3's reverts; exactly those three fail.
       only checks that the tabs are `ToolbarToggle`s, and names and types stay.
   11. **`.meta` GUIDs:** the new sheets' `.meta` files are hand-written with GUIDs `ToolkitTokens.uss` `b11b87cc62b64271a239464bf21c7eb6`
       and `ToolkitComponents.uss` `c8a51b7876164e5bae099a516cf9dcb0`. The new `.cs.meta` files are left to the Editor, as in A103.
+
+### Gates and revert-to-fail (lead)
+
+- **W1 `9d761e3f` — pass, 17 of 17**, no compiler or Burst errors (`PreviewSurfaceMaterialResolverTests`,
+  `EditorStyleConformanceTests`, `PackagingConformanceTests`).
+- **Revert-to-fail — proven.** One mutation commit carried all three probes: the resolver returning the built-in
+  `Default-Diffuse.mat`, a `font-size: 9px` / `rgb(1, 2, 3)` rule in `ToolkitComponents.uss`, and a literal grey rule in
+  `ClipEditorWindow.uss`. Verdict `test-failures`, 14 passed and **exactly 3 failed** — F1 (shader read
+  `Legacy Shaders/Diffuse`), F2 (`rgb(` in the component sheet) and F3 (152 literals against the pin of 151). Then
+  `git reset --hard HEAD~1`, and all three sha256s match their pre-mutation values
+  (`d481fb7f…` resolver, `df58a1aa…` components sheet, `609492c0…` window sheet).
+- **W2 `74a149aa` — pass, 28 of 28**, adding `ClipEditorLayoutTests`, `ClipPreviewCompositeTests` and
+  `SocketPreviewParityTests`. The tab-list classes did not disturb the layout fixture.
+- **T9 window-sheet cleanup:** the superseded rules are gone (`.clip-editor__tab*` visuals and the strip, the old blue
+  `.toolkit-primary-action` family, `.toolkit-sidebar__modes`, `.toolkit-box.toolkit-list-row`), `.clip-editor__tab--health`
+  and the `.toolkit-box*` component rules stay. Four opaque row dividers became `var(--toolkit-divider)`; the
+  `--toolkit-color-*` block is untouched, because `ToolkitPaletteTests` mirrors those literals in C#. Font sizes now sit
+  on the scale (detail title 14 → 16px, two 10px and two 9px → 11px). **Counts: colour literals 151 → 139, non-scale
+  font sizes 5 → 0**, and F3's pins were lowered to 139 and 0 in the same commit. Left as judgement calls, listed here
+  rather than forced: `.toolkit-icon-button--playing`, `.toolkit-transport__status`, `.toolkit-box--active`'s blue and
+  `.toolkit-chip__block`'s white alpha are state, accent or data colours, not greys.
+- **Stage trap, not a spec failure:** the first W1 gate hung for sixteen minutes and two later attempts returned
+  `refused: Unity is compiling`. The cause was stage-side — vault `.md.meta` files committed to trunk after this
+  worktree forked, which the detached Editor regenerated as untracked files, so restoring trunk failed. The
+  orchestrator cleared it (trunk revert `494fc5fd`). A compile refusal is a retry, never a verdict.
+
+### For integration
+
+**CHANGELOG text for `## [0.56.0] — Style foundation`:**
+
+> **Added** — `Editor/ClipEditor/Shared/ToolkitTokens.uss` and `ToolkitComponents.uss`, the shared style layer every
+> tab draws from, loaded after the window sheet by both `ClipEditorWindow` and `VatBakeWindow`. Tokens alias Unity's
+> theme variables (`--unity-colors-*`), so the light skin follows. New `ToolkitChrome` builders: `MakeSegmentedControl`,
+> `SetSegmentedSelection`, `StyleButton` with `ToolkitButtonVariant`, `MakeCard`, `MakeBadge`, `MakeEmptyState`,
+> `MakePropertyRow` and `AddToolkitStyleSheets`. New `PreviewSurfaceMaterialResolver`.
+> **Changed** — the window tab strip is a shadcn-style tab list (a field-coloured track, a raised active pill, no
+> clipped descenders); in-pane modes are a segmented control instead of the tab class; the primary button is a neutral
+> light fill rather than saturated blue, with secondary, ghost and destructive variants and a visible disabled state;
+> catalog and slot rows are flat 22px lines with a right-aligned meta column and the full title in the tooltip;
+> preview proxy quads and socket markers draw a neutral grey material instead of the built-in Standard material that
+> URP renders magenta.
+> **Tests** — `PreviewSurfaceMaterialResolverTests`, and `Conformance_J` guarding the component sheet's tokens and type
+> scale plus a shrink-only literal ratchet on the window sheet.
+
+**`Conformance_G` allowlist:** nothing needed. The one new static class is `PreviewSurfaceMaterialResolver`, and
+`Resolver` is already an allowed suffix.
+
+**Wiring:** none. A104 adds no tab, no enum member, no UXML toggle or pane and no panel, so there is no constructor,
+`Bind` or `Dispose` call to add. The only window-file changes are the ones A104-D10 grants: tab-list classes in
+`ClipEditorWindow.uxml`, `ToolkitChrome.AddToolkitStyleSheets(rootVisualElement)` right after `CloneTree` in
+`ClipEditorWindow.cs` plus a second `EnableInClassList` for `toolkit-tablist__tab--active`, the same one-line call in
+`VatBakeWindow.CreateGUI`, and the superseded rules removed from `ClipEditorWindow.uss`.
+
+**The shared layer, for A105–A107 briefs.** Classes: `toolkit-tablist`, `__tab`, `__tab--active`, `toolkit-tablist-bar`;
+`toolkit-segmented`, `__item`, `__item--on`; `toolkit-primary-action`, `toolkit-button--secondary`, `--ghost`,
+`--destructive`; `toolkit-list-row`, `__title`, `__meta`, `--selected`; `toolkit-card`, `__header`, `__title`,
+`__actions`, `__body`; `toolkit-badge` with `--ok/--warning/--error/--neutral`; `toolkit-empty`, `__title`, `__why`,
+`__action`; `toolkit-property-row`, `__label`, `__field`. Builders: the `ToolkitChrome` members listed above.
+Tokens: the 28 `--toolkit-*` names of A104-D2, in `ToolkitTokens.uss`.
+
+**Traps for the vault note.**
+- A `var()` inside a custom property **does** resolve in an editor panel, so tokens can alias `--unity-colors-*`; a
+  detached element has no panel and no theme, so a detached test can never assert a colour.
+- Component rules must carry the toolkit class **plus** the Unity class (`.toolkit-tablist__tab.unity-toolbar-toggle`),
+  or Unity's own theme wins the tie and the toolbar height clips the descenders again.
+- USS has no numeric font weights, no `gap` and no `:first-child`: 500 is `normal`, 600 is `bold`, and spacing is a
+  right margin.
+- `ClipPreviewController.cs` imports both `System` and `UnityEngine`, so an unqualified `Object.DestroyImmediate` is
+  CS0104 there; it must be `UnityEngine.Object`.
+- Materials from `PreviewSurfaceMaterialResolver` are owned by their creator. The mirror destroys its own in `Dispose`;
+  the controller destroys the socket-marker material in `Dispose` only, never in `DisposeMirrors`, because markers are
+  rebuilt while the controller lives.
+- `MakeListRowSlot` rows no longer carry `toolkit-box`. Five callers still set `toolkit-box--selected`, so the shared
+  sheet paints that class too; new code should use `toolkit-list-row--selected`.
+
+**HANDOFF paragraph (draft).** A104 landed the style foundation at 0.56.0: two new stylesheets under
+`Editor/ClipEditor/Shared/` hold the tokens and the component classes, loaded after the window sheet by the Clip Editor
+and the VAT Bake window, so every tab changes at once. The tab strip is now a tab list that no longer clips its
+descenders, in-pane modes are a segmented control, the primary button is a neutral light fill with secondary, ghost and
+destructive variants, list rows are flat 22px lines, and preview proxies draw neutral grey instead of URP magenta.
+`Conformance_J` keeps the component sheet on tokens and the type scale and ratchets the window sheet's literal count
+downward. A104 is deliberately the shared layer only: per-tab layout bugs belong to A105–A107, and a tab that looks
+worse under the new rows is a finding for them rather than a fix here.
