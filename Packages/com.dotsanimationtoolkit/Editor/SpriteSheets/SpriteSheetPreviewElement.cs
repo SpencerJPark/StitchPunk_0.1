@@ -30,6 +30,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly VisualElement frameContainer;
         private readonly List<VisualElement> cellElements = new List<VisualElement>();
 
+        private readonly SpriteSheetLayerThumbnailCache layerThumbnailCache = new SpriteSheetLayerThumbnailCache();
+
         private SpriteSheetAsset sheetAsset;
         private float thumbnailSize = DefaultThumbnailSize;
         private int highlightedListPosition = -1;
@@ -57,12 +59,14 @@ namespace DotsAnimationToolkit.Editor
 
         public void SetSheet(SpriteSheetAsset sheet)
         {
+            this.layerThumbnailCache.Clear();
             this.sheetAsset = sheet;
             this.Refresh();
         }
 
         public void Dispose()
         {
+            this.layerThumbnailCache.Dispose();
         }
 
         public void SetThumbnailSize(float thumbnailPixels)
@@ -148,11 +152,17 @@ namespace DotsAnimationToolkit.Editor
             this.SetCellBorderColor(cellElement, CellBorderColor);
             cellElement.style.backgroundColor = CellBackgroundColor;
 
-            if (frame.source != null)
+            Texture2D cellTexture = frame.source;
+            if (cellTexture == null && this.sheetAsset != null && this.sheetAsset.texture != null)
+            {
+                cellTexture = this.layerThumbnailCache.GetLayerThumbnail(this.sheetAsset.texture, frame.index);
+            }
+
+            if (cellTexture != null)
             {
                 Image thumbnailImage = new Image
                 {
-                    image = frame.source,
+                    image = cellTexture,
                     scaleMode = ScaleMode.ScaleToFit,
                 };
                 thumbnailImage.style.width = new Length(100f, LengthUnit.Percent);

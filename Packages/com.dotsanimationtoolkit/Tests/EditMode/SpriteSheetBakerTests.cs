@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
 using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
 using DotsAnimationToolkit.Authoring;
 using DotsAnimationToolkit.Editor;
@@ -61,9 +62,38 @@ namespace DotsAnimationToolkit.Tests.EditMode
             return texture;
         }
 
+        private Texture2DArray CreateReferenceArray()
+        {
+            Texture2D referenceSource = CreateSolidTexture(new Color32(128, 64, 200, 255));
+            byte[] referenceBytes = referenceSource.EncodeToPNG();
+            string referencePath = scratchFolderPath + "/ReferenceArray.png";
+            File.WriteAllBytes(Path.GetFullPath(referencePath), referenceBytes);
+            AssetDatabase.ImportAsset(referencePath, ImportAssetOptions.ForceSynchronousImport);
+
+            TextureImporter referenceImporter = AssetImporter.GetAtPath(referencePath) as TextureImporter;
+            Assert.IsNotNull(referenceImporter, "The reference PNG did not import as a texture.");
+
+            TextureImporterSettings referenceSettings = new TextureImporterSettings();
+            referenceImporter.ReadTextureSettings(referenceSettings);
+            referenceSettings.textureShape = TextureImporterShape.Texture2DArray;
+            referenceSettings.flipbookRows = 1;
+            referenceSettings.flipbookColumns = 1;
+            referenceSettings.filterMode = FilterMode.Trilinear;
+            referenceSettings.mipmapEnabled = false;
+            referenceImporter.SetTextureSettings(referenceSettings);
+            referenceImporter.textureCompression = TextureImporterCompression.CompressedHQ;
+            referenceImporter.SaveAndReimport();
+
+            Texture2DArray referenceArray = AssetDatabase.LoadAssetAtPath<Texture2DArray>(referencePath);
+            Assert.IsNotNull(referenceArray, "The reference PNG did not import as a Texture2DArray.");
+            return referenceArray;
+        }
+
         [Test]
         public void Bake_LayerOrderIsListOrder()
         {
+            Texture2DArray referenceArray = CreateReferenceArray();
+
             Color32 red = new Color32(255, 0, 0, 255);
             Color32 green = new Color32(0, 255, 0, 255);
             Color32 blue = new Color32(0, 0, 255, 255);
@@ -79,16 +109,29 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 new SpriteSheetFrame { name = "green", source = greenSource, index = 3 },
                 new SpriteSheetFrame { name = "blue", source = blueSource, index = 5 }
             };
-            createdSheet.outputPath = scratchFolderPath + "/T_A95Test_Array.asset";
+            createdSheet.outputPath = scratchFolderPath + "/T_A95FTest_Array.png";
+            createdSheet.importSettingsSource = referenceArray;
 
             SpriteSheetBaker baker = new SpriteSheetBaker();
             bool bakeSucceeded = baker.Bake(createdSheet, out string error);
 
             Assert.IsTrue(bakeSucceeded, error);
 
+            TextureImporter outputImporter = AssetImporter.GetAtPath(createdSheet.outputPath) as TextureImporter;
+            Assert.IsNotNull(outputImporter);
+            Assert.AreEqual(TextureImporterShape.Texture2DArray, outputImporter.textureShape);
+            Assert.AreEqual(FilterMode.Trilinear, outputImporter.filterMode);
+            Assert.IsFalse(outputImporter.mipmapEnabled);
+            Assert.AreEqual(TextureImporterCompression.CompressedHQ, outputImporter.textureCompression);
+
+            // Force uncompressed + readable so the pixel checks below read exact layer colours.
+            outputImporter.textureCompression = TextureImporterCompression.Uncompressed;
+            outputImporter.isReadable = true;
+            outputImporter.SaveAndReimport();
+
             Texture2DArray loadedArray = AssetDatabase.LoadAssetAtPath<Texture2DArray>(createdSheet.outputPath);
             Assert.IsNotNull(loadedArray);
-            Assert.AreEqual(3, loadedArray.depth);
+            Assert.AreEqual(4, loadedArray.depth);
 
             Color32[] sourceColors = { red, green, blue };
             for (int layerIndex = 0; layerIndex < sourceColors.Length; layerIndex++)
@@ -101,12 +144,16 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Assert.AreEqual(expectedColor.a, layerPixel.a);
             }
 
+            Color32 paddingPixel = loadedArray.GetPixels32(3, 0)[0];
+            Assert.AreEqual(0, paddingPixel.a);
+
             for (int frameIndex = 0; frameIndex < createdSheet.frames.Count; frameIndex++)
             {
                 Assert.AreEqual(frameIndex, createdSheet.frames[frameIndex].index);
             }
 
             Assert.AreEqual(loadedArray, createdSheet.texture);
+            Assert.AreEqual(createdSheet.outputPath, AssetDatabase.GetAssetPath(createdSheet.texture));
         }
     }
 }

@@ -8,11 +8,17 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>Bakes a SpriteSheetAsset's frames, in list order, into one Texture2DArray asset at its outputPath.</summary>
+    /// <summary>Bakes a SpriteSheetAsset's frames, in list order, into one grid PNG imported as a Texture2DArray at its outputPath.</summary>
     public sealed class SpriteSheetBaker
     {
         public const string OutputFilePrefix = "T_";
-        public const string OutputFileSuffix = "_Array.asset";
+        public const string OutputFileSuffix = "_Array.png";
+
+        private static readonly string[] OverridablePlatformNames =
+        {
+            "Standalone", "iPhone", "Android", "WebGL", "Windows Store Apps", "PS4", "PS5",
+            "XboxOne", "GameCoreXboxOne", "GameCoreScarlett", "Nintendo Switch", "tvOS", "VisionOS", "Server"
+        };
 
         private sealed class DecodedSourcePixels
         {
@@ -22,7 +28,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly Dictionary<string, DecodedSourcePixels> sourceCache = new Dictionary<string, DecodedSourcePixels>();
 
-        // "<folder>/CitizenHead.asset" -> "<folder>/T_CitizenHead_Array.asset", the existing array naming convention.
+        // "<folder>/CitizenHead.asset" -> "<folder>/T_CitizenHead_Array.png", the existing array naming convention.
         public static string DefaultOutputPathFor(string sheetAssetPath)
         {
             string directory = Path.GetDirectoryName(sheetAssetPath);
@@ -82,9 +88,9 @@ namespace DotsAnimationToolkit.Editor
             }
 
             string outputPath = sheet.outputPath;
-            if (string.IsNullOrEmpty(outputPath) || !outputPath.StartsWith("Assets/") || !outputPath.EndsWith(".asset"))
+            if (string.IsNullOrEmpty(outputPath) || !outputPath.StartsWith("Assets/") || !outputPath.EndsWith(".png"))
             {
-                error = "The output path must be under Assets/ and end with .asset.";
+                error = "The output path must be under Assets/ and end with .png.";
                 return false;
             }
 
@@ -107,48 +113,133 @@ namespace DotsAnimationToolkit.Editor
                 frameLayerPixels[frameIndex] = framePixels;
             }
 
-            Texture2DArray textureArray = new Texture2DArray(
-                expectedSize.x, expectedSize.y, sheet.frames.Count, TextureFormat.RGBA32, sheet.generateMips, sheet.linear)
-            {
-                filterMode = sheet.filterMode,
-                wrapMode = sheet.wrapMode
-            };
+            int frameCount = sheet.frames.Count;
+            int columns = Mathf.CeilToInt(Mathf.Sqrt(frameCount));
+            int rows = Mathf.CeilToInt(frameCount / (float)columns);
 
-            for (int layerIndex = 0; layerIndex < frameLayerPixels.Length; layerIndex++)
-            {
-                textureArray.SetPixels32(frameLayerPixels[layerIndex], layerIndex, 0);
-            }
-            textureArray.Apply(sheet.generateMips, false);
-            textureArray.name = Path.GetFileNameWithoutExtension(outputPath);
+            Texture2D gridTexture = new Texture2D(columns * expectedSize.x, rows * expectedSize.y, TextureFormat.RGBA32, false, true);
+            Color32[] transparentPixels = new Color32[gridTexture.width * gridTexture.height];
+            gridTexture.SetPixels32(transparentPixels);
 
-            Texture2DArray existingArray = AssetDatabase.LoadAssetAtPath<Texture2DArray>(outputPath);
-            if (existingArray != null)
+            for (int frameIndex = 0; frameIndex < frameCount; frameIndex++)
             {
-                EditorUtility.CopySerialized(textureArray, existingArray);
-                Object.DestroyImmediate(textureArray);
-                EditorUtility.SetDirty(existingArray);
-                AssetDatabase.SaveAssetIfDirty(existingArray);
-                sheet.texture = existingArray;
-            }
-            else
-            {
-                Object existingMainAsset = AssetDatabase.LoadMainAssetAtPath(outputPath);
-                if (existingMainAsset != null)
-                {
-                    Object.DestroyImmediate(textureArray);
-                    error = "\"" + outputPath + "\" already holds a " + existingMainAsset.GetType().Name + ", not a Texture2DArray.";
-                    return false;
-                }
-
-                AssetDatabase.CreateAsset(textureArray, outputPath);
-                sheet.texture = textureArray;
+                int column = frameIndex % columns;
+                int row = frameIndex / columns;
+                // Texture2D rows count from the bottom, so row r sits at y = (rows - 1 - r) * height.
+                gridTexture.SetPixels32(
+                    column * expectedSize.x, (rows - 1 - row) * expectedSize.y, expectedSize.x, expectedSize.y, frameLayerPixels[frameIndex]);
             }
 
+            byte[] pngBytes = gridTexture.EncodeToPNG();
+            Object.DestroyImmediate(gridTexture);
+
+            Object existingMainAsset = AssetDatabase.LoadMainAssetAtPath(outputPath);
+            if (existingMainAsset != null && !(AssetImporter.GetAtPath(outputPath) is TextureImporter))
+            {
+                error = "\"" + outputPath + "\" already holds a " + existingMainAsset.GetType().Name + ", not a texture.";
+                return false;
+            }
+
+            // Re-bakes rewrite the same PNG, so the GUID never changes.
+            File.WriteAllBytes(Path.GetFullPath(outputPath), pngBytes);
+            AssetDatabase.ImportAsset(outputPath, ImportAssetOptions.ForceSynchronousImport);
+
+            TextureImporter outputImporter = AssetImporter.GetAtPath(outputPath) as TextureImporter;
+            if (outputImporter == null)
+            {
+                error = "\"" + outputPath + "\" did not import as a texture.";
+                return false;
+            }
+
+            if (!ApplyImportSettings(outputImporter, sheet, rows, columns, out string importSettingsError))
+            {
+                error = importSettingsError;
+                return false;
+            }
+
+            outputImporter.SaveAndReimport();
+
+            Texture2DArray importedArray = AssetDatabase.LoadAssetAtPath<Texture2DArray>(outputPath);
+            if (importedArray == null)
+            {
+                error = "\"" + outputPath + "\" did not import as a Texture2DArray.";
+                return false;
+            }
+
+            sheet.texture = importedArray;
             sheet.layerSize = expectedSize;
             for (int frameIndex = 0; frameIndex < sheet.frames.Count; frameIndex++)
             {
                 sheet.frames[frameIndex].index = frameIndex;
             }
+
+            return true;
+        }
+
+        private static bool ApplyImportSettings(
+            TextureImporter outputImporter, SpriteSheetAsset sheet, int rows, int columns, out string error)
+        {
+            error = string.Empty;
+
+            if (sheet.importSettingsSource != null)
+            {
+                string referencePath = AssetDatabase.GetAssetPath(sheet.importSettingsSource);
+                TextureImporter referenceImporter = AssetImporter.GetAtPath(referencePath) as TextureImporter;
+                if (referenceImporter == null)
+                {
+                    error = "\"" + sheet.importSettingsSource.name +
+                            "\" is not an imported texture; pick an array made from a PNG or clear Match import settings of.";
+                    return false;
+                }
+
+                TextureImporterSettings importSettings = new TextureImporterSettings();
+                referenceImporter.ReadTextureSettings(importSettings);
+                importSettings.textureShape = TextureImporterShape.Texture2DArray;
+                importSettings.flipbookRows = rows;
+                importSettings.flipbookColumns = columns;
+                outputImporter.SetTextureSettings(importSettings);
+
+                outputImporter.maxTextureSize = referenceImporter.maxTextureSize;
+                outputImporter.textureCompression = referenceImporter.textureCompression;
+                outputImporter.crunchedCompression = referenceImporter.crunchedCompression;
+                outputImporter.compressionQuality = referenceImporter.compressionQuality;
+
+                for (int platformIndex = 0; platformIndex < OverridablePlatformNames.Length; platformIndex++)
+                {
+                    string platformName = OverridablePlatformNames[platformIndex];
+                    TextureImporterPlatformSettings referencePlatform = referenceImporter.GetPlatformTextureSettings(platformName);
+                    if (referencePlatform.overridden)
+                    {
+                        outputImporter.SetPlatformTextureSettings(referencePlatform);
+                    }
+                    else
+                    {
+                        outputImporter.ClearPlatformTextureSettings(platformName);
+                    }
+                }
+
+                return true;
+            }
+
+            TextureImporterSettings defaultSettings = new TextureImporterSettings();
+            outputImporter.ReadTextureSettings(defaultSettings);
+            defaultSettings.textureType = TextureImporterType.Default;
+            defaultSettings.textureShape = TextureImporterShape.Texture2DArray;
+            defaultSettings.flipbookRows = rows;
+            defaultSettings.flipbookColumns = columns;
+            defaultSettings.filterMode = sheet.filterMode;
+            defaultSettings.wrapMode = sheet.wrapMode;
+            defaultSettings.mipmapEnabled = sheet.generateMips;
+            defaultSettings.sRGBTexture = !sheet.linear;
+            defaultSettings.aniso = 1;
+            defaultSettings.alphaIsTransparency = false;
+            defaultSettings.readable = false;
+            outputImporter.SetTextureSettings(defaultSettings);
+
+            outputImporter.maxTextureSize = 2048;
+            outputImporter.textureCompression = TextureImporterCompression.Compressed;
+            outputImporter.crunchedCompression = false;
+            outputImporter.compressionQuality = 50;
 
             return true;
         }

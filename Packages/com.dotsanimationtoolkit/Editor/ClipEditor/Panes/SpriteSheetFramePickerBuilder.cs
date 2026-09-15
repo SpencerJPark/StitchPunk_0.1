@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor.UIElements;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
@@ -20,18 +21,37 @@ namespace DotsAnimationToolkit.Editor
         public static ObjectField BuildSheetField(SpriteTrack track, Action<SpriteSheetAsset> sheetPicked)
         {
             ObjectField sheetField = new ObjectField("Sheet");
-            sheetField.objectType = typeof(SpriteSheetAsset);
+            sheetField.objectType = typeof(UnityEngine.Object);
             sheetField.allowSceneObjects = false;
             sheetField.SetValueWithoutNotify(track.sheet);
             sheetField.tooltip =
-                "The sprite sheet this track's frames are picked from. Authoring-only; never baked.";
+                "The sprite sheet or Texture2DArray this track's frames are picked from. Dropping an array reuses or creates its names sheet. Authoring-only; never baked.";
             if (track.mode == SpriteFrameMode.AtlasRect)
             {
                 sheetField.SetEnabled(false);
             }
             sheetField.RegisterValueChangedCallback(changeEvent =>
             {
-                sheetPicked(changeEvent.newValue as SpriteSheetAsset);
+                if (changeEvent.newValue == null)
+                {
+                    sheetPicked(null);
+                    return;
+                }
+                SpriteSheetAsset pickedSheet = changeEvent.newValue as SpriteSheetAsset;
+                if (pickedSheet == null && changeEvent.newValue is Texture2DArray droppedArray)
+                {
+                    pickedSheet = SpriteSheetAssetUtility.GetOrCreateSheetForArray(droppedArray);
+                }
+                if (pickedSheet == null)
+                {
+                    sheetField.SetValueWithoutNotify(track.sheet);
+                    return;
+                }
+                if (sheetField.value != pickedSheet)
+                {
+                    sheetField.SetValueWithoutNotify(pickedSheet);
+                    sheetPicked(pickedSheet);
+                }
             });
             return sheetField;
         }

@@ -189,3 +189,49 @@ asset beside the array, which the sprite key picker uses.
 
 - **2026-09-14 — T0 probe run by the stage** (S-D4): recorded above.
 - **2026-09-14 — Phase 0 (stage, parallel batch A93F-A95F).** Head `eb60b150`, package `0.42.0`, CHANGELOG top section `## [0.42.0]`. Baseline: compile clean; EditMode 850 (Conformance_A the one standing failure), PlayMode 285. Registry sha256: AnimEventKeyRegistry `3bdb420d…d14701`, TargetTagRegistry `dbec3d5f…eb4f`. Preflight: broker alive, hooks installed, stage blockers only the owner's five uncommitted files. Lead opus, worker sonnet.
+- **2026-09-14 — T0 grounding (lead, worktree `spec/a95f`).** Every §3 name and range verified: `SpriteSheetsPanel` 37–210 / 383–479, `SpriteSheetFramesColumn` 28–80 / 147–215 / 265–300, `SpriteSheetPreviewElement` 37–160, `BuildSheetField` 20–37, baker write path 84–145, `ClipInspectorPane` callers at exactly 670 and 1422. No `SpriteSheetAsset` asset exists under `Assets` (script GUID grep), so S-D8 needs no migration. Drift and calls:
+  - **Drift 1: the S-D1 call.** The column stays the shared `ToolkitCatalogColumn`, now `<UnityEngine.Object>`. Its context menu gated Rename/Delete per column, so `CatalogColumnOptions` gains an additive `rowAllowsRenameAndDelete` (`Func<TAsset,bool>`; null keeps every other catalog unchanged). `SpriteSheetCatalogColumn` raises `SheetSelected` or a new `ArraySelected(Texture2DArray)`, and adds `SelectedArray` and `SetSelectedArray`. Arrays are matched to sheets by asset path.
+  - **Drift 2: task split.** The lead built T3 (catalog) and `SpriteSheetLayerThumbnailCache` in full in T1, not as stubs, because every other file compiles against them. The wave was T2+T6 (one worker), T4a panel, T4b frames column, T5, T7a and T7.
+  - **Drift 3: T6 is one file.** A UI Toolkit `ObjectField` takes one `objectType`, so the Sheet field uses `UnityEngine.Object` and the callback keeps sheets, turns arrays into sheets and reverts anything else. `ClipInspectorPane` is untouched. The object picker now lists every asset type (trap below).
+  - **Drift 4: frame rename.** The frames column had no rename cell. Double-clicking a frame's name runs `InlineRenameEditing.Begin`, deduped through `SpriteSheetValidation.DedupeFrameName`, in every mode.
+  - **Drift 5: Save gating and depth changes.** S-D3's gating applies to bare arrays only; sheet rows keep the always-enabled Save. A depth reconcile that changes the frame count marks the sheet unsaved, so Save persists it.
+  - **Drift 6: two extra utility helpers,** `CreateWorkingCopyForArray` and `ReconcileFramesWithArrayDepth`, so the panel and the fixture share one numeric-frame rule.
+  - **Drift 7: an unusable reference fails the bake.** Bake with an `importSettingsSource` that no `TextureImporter` made (a `.asset` array) stops with a message; it does not fall back to the defaults.
+  - **Drift 8: how settings are copied.** Default-platform settings go through the importer's own `maxTextureSize` / `textureCompression` / `crunchedCompression` / `compressionQuality`. Per-platform overrides are copied over a fixed platform-name list, because no API enumerates overrides.
+  - **Drift 9: `generateMips` defaults to true** (S-D8's defaults).
+- **2026-09-14 — T1** committed `7fa86f08`. Gate SpriteSheetValidationTests + PackagingConformanceTests: compile clean, 13 passed, 1 failed (Conformance_A, the standing failure).
+
+### For integration
+
+**CHANGELOG `## [0.45.0]`**
+```
+## [0.45.0]
+
+### Changed
+- Sprite Sheets lists every Texture2DArray in the project beside the sprite sheets. A bare array's row reads "N frames · W×H · imported, unnamed", and a sheet that wraps an imported array reads "· imported". Rename and Delete appear on sheet rows only, through the new `CatalogColumnOptions.rowAllowsRenameAndDelete`.
+- Opening an array builds a names-only working copy: frames are named 0…n-1, the thumbnails are GPU layer copies (`SpriteSheetLayerThumbnailCache`, `Graphics.CopyTexture`), and Bake, the output path, adding images, reorder and removal are disabled. Filter, wrap, mips and linear show the array's own importer values, read-only.
+- Double-click a frame's name to rename it; names stay unique. For a bare array, Save is enabled once any name differs from its number. The first Save writes `<ArrayName>_Sheet.asset` beside the array (`SpriteSheetAssetUtility.GetOrCreateSheetForArray`).
+- Opening a names sheet whose array changed depth appends numeric frames, or drops the trailing ones with a warning.
+- The Clip Editor's sprite-track Sheet field accepts a Texture2DArray too. Dropping one reuses or creates its names sheet.
+- Bake writes a grid PNG, `T_<Sheet>_Array.png`, row-major from the top-left with transparent padding cells, and imports it as a Texture2DArray. New "Match import settings of" (`SpriteSheetAsset.importSettingsSource`) copies a reference array's importer settings and per-platform overrides, keeping the grid's rows and columns. With no reference, Bake uses the project arrays' shared defaults (Compressed, mips on, Point, Clamp, sRGB, max 2048, no crunch). Re-bakes keep the GUID. The uncompressed `.asset` array output is gone, and `SpriteSheetAsset.generateMips` now defaults to true.
+
+### Added
+- `SpriteSheetAsset.IsImportedArray`, `SpriteSheetAssetUtility.CreateWorkingCopyForArray` and `ReconcileFramesWithArrayDepth`, and `SpriteSheetArrayNamesTests`.
+```
+
+**Conformance_G allowlist:** none needed. The only new type, `SpriteSheetLayerThumbnailCache`, is a sealed non-static class; the existing `SpriteSheetAssetUtility` gained members only.
+
+**Wiring:** none. `ClipEditorTab`, the UXML and the `ClipEditorWindow*` files are unchanged. The panel is still `new SpriteSheetsPanel()` plus `Dispose()`, which now also disposes the preview and frames column caches. New public surface for drives:
+- `SpriteSheetsPanel.LoadArray(Texture2DArray)` and `LoadedArray`.
+- `SpriteSheetCatalogColumn.ArraySelected`, `SelectedArray` and `SetSelectedArray`.
+- Element names `sprite-sheet-imported-hint`, `sprite-sheet-depth-warning` and `sprite-sheet-import-settings-source`.
+
+**Vault-note traps (AnimationToolkit.md)**
+- The Sheet `ObjectField` has `objectType = UnityEngine.Object` (a UI Toolkit ObjectField takes one type), so its picker lists every asset. Anything that is not a sheet or an array reverts in the callback. Do not "fix" it back to `SpriteSheetAsset`; arrays would stop dropping.
+- Arrays are matched to their names sheet by asset path, not reference. `FindAssets("t:Texture2DArray")` returns importer-made PNG arrays, and a sheet's `texture` loads the same main object.
+- `IsImportedArray` is derived (texture set, no frame source). A sheet that loses all its sources to missing files flips into names-only mode.
+- Bake imports twice on first write: `ImportAsset` creates a default importer, then `SaveAndReimport` applies the array settings. A drive must bake in one `execute_code` call and read back in the next (S-D9).
+- Per-platform overrides are copied over a fixed platform-name list in `SpriteSheetBaker`; a new build target needs adding there.
+
+**HANDOFF draft**
+> A95F (0.45.0) makes Sprite Sheets a names layer over the project's existing Texture2DArrays. Every array appears in the catalog. Opening one shows GPU-copied layer thumbnails with frames numbered 0…n-1. Renaming and pressing Save writes `<Array>_Sheet.asset` beside it, and the Clip Editor's Sheet field takes an array directly. Baking separate images now composes a grid PNG imported as a Texture2DArray with a chosen reference array's importer settings (or the shared project defaults), replacing A95's uncompressed `.asset`. The catalog column gained a per-row rename/delete predicate. Stage drive T8 and owner checkpoint T10 remain.

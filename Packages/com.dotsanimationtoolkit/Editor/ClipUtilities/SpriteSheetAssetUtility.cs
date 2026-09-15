@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -120,19 +121,110 @@ namespace DotsAnimationToolkit.Editor
         // The sheet that already wraps array, else a new "<ArrayName>_Sheet.asset" beside it with frames named by layer number.
         public static SpriteSheetAsset GetOrCreateSheetForArray(Texture2DArray array)
         {
-            return null;
+            if (array == null)
+            {
+                return null;
+            }
+
+            string arrayAssetPath = AssetDatabase.GetAssetPath(array);
+            if (string.IsNullOrEmpty(arrayAssetPath))
+            {
+                return null;
+            }
+
+            string[] existingSheetGuids = AssetDatabase.FindAssets("t:SpriteSheetAsset");
+            for (int guidIndex = 0; guidIndex < existingSheetGuids.Length; guidIndex++)
+            {
+                string existingSheetPath = AssetDatabase.GUIDToAssetPath(existingSheetGuids[guidIndex]);
+                SpriteSheetAsset existingSheet = AssetDatabase.LoadAssetAtPath<SpriteSheetAsset>(existingSheetPath);
+                if (existingSheet != null && existingSheet.texture != null &&
+                    AssetDatabase.GetAssetPath(existingSheet.texture) == arrayAssetPath)
+                {
+                    return existingSheet;
+                }
+            }
+
+            SpriteSheetAsset sheet = ScriptableObject.CreateInstance<SpriteSheetAsset>();
+            sheet.texture = array;
+            sheet.layerSize = new Vector2Int(array.width, array.height);
+            sheet.frames = BuildNumericFramesForDepth(array.depth);
+
+            string containingFolder = Path.GetDirectoryName(arrayAssetPath);
+            string normalizedFolder = containingFolder != null ? containingFolder.Replace('\\', '/') : "Assets";
+            string desiredPath = normalizedFolder + "/" + array.name + "_Sheet.asset";
+            string uniquePath = AssetDatabase.GenerateUniqueAssetPath(desiredPath);
+
+            AssetDatabase.CreateAsset(sheet, uniquePath);
+            AssetDatabase.SaveAssetIfDirty(sheet);
+
+            return sheet;
         }
 
         // A HideAndDontSave sheet over array with one numeric frame per layer; nothing touches disk.
         public static SpriteSheetAsset CreateWorkingCopyForArray(Texture2DArray array)
         {
-            return null;
+            if (array == null)
+            {
+                return null;
+            }
+
+            SpriteSheetAsset workingCopy = ScriptableObject.CreateInstance<SpriteSheetAsset>();
+            workingCopy.name = array.name;
+            workingCopy.hideFlags = HideFlags.HideAndDontSave;
+            workingCopy.texture = array;
+            workingCopy.layerSize = new Vector2Int(array.width, array.height);
+            workingCopy.frames = BuildNumericFramesForDepth(array.depth);
+
+            return workingCopy;
         }
 
         // Appends numeric frames or drops trailing ones so an imported sheet matches its array's depth; returns how many were dropped.
         public static int ReconcileFramesWithArrayDepth(SpriteSheetAsset sheet)
         {
+            if (sheet == null || sheet.texture == null)
+            {
+                return 0;
+            }
+
+            int arrayDepth = ((Texture2DArray)sheet.texture).depth;
+            if (sheet.frames == null)
+            {
+                sheet.frames = new List<SpriteSheetFrame>();
+            }
+
+            if (sheet.frames.Count > arrayDepth)
+            {
+                int removedFrameCount = sheet.frames.Count - arrayDepth;
+                sheet.frames.RemoveRange(arrayDepth, removedFrameCount);
+                return removedFrameCount;
+            }
+
+            HashSet<string> takenNames = new HashSet<string>();
+            for (int frameIndex = 0; frameIndex < sheet.frames.Count; frameIndex++)
+            {
+                takenNames.Add(sheet.frames[frameIndex].name);
+            }
+
+            for (int layerPosition = sheet.frames.Count; layerPosition < arrayDepth; layerPosition++)
+            {
+                string dedupedName = SpriteSheetValidation.DedupeFrameName(layerPosition.ToString(), takenNames);
+                takenNames.Add(dedupedName);
+                sheet.frames.Add(new SpriteSheetFrame { name = dedupedName, index = layerPosition, source = null });
+            }
+
             return 0;
+        }
+
+        // One numeric frame per array layer, named by its layer index.
+        private static List<SpriteSheetFrame> BuildNumericFramesForDepth(int layerCount)
+        {
+            List<SpriteSheetFrame> frames = new List<SpriteSheetFrame>();
+            for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
+            {
+                frames.Add(new SpriteSheetFrame { name = layerIndex.ToString(), index = layerIndex, source = null });
+            }
+
+            return frames;
         }
 
         // The tab edits this in-memory copy so nothing reaches disk until Save (A81 D23 rule).

@@ -14,6 +14,7 @@ namespace DotsAnimationToolkit.Editor
     public sealed class SpriteSheetsPanel : VisualElement, IDisposable
     {
         public SpriteSheetAsset LoadedSheet { get; private set; }
+        public Texture2DArray LoadedArray { get; private set; }
         public bool HasUnsavedChanges { get; private set; }
 
         private readonly SpriteSheetCatalogColumn catalog;
@@ -25,10 +26,16 @@ namespace DotsAnimationToolkit.Editor
         private readonly Label sheetLabel;
         private readonly Label infoLabel;
         private readonly Label outputPathLabel;
+        private readonly Label importedHintLabel;
+        private readonly Label depthWarningLabel;
         private readonly EnumField filterModeField;
         private readonly EnumField wrapModeField;
         private readonly Toggle generateMipsToggle;
         private readonly Toggle linearToggle;
+        private readonly ObjectField importSettingsSourceField;
+        private readonly Button bakeButton;
+        private readonly Button saveButton;
+        private readonly VisualElement outputRow;
         private readonly VisualElement headerActions;
         private readonly VisualElement bodyHost;
 
@@ -40,6 +47,7 @@ namespace DotsAnimationToolkit.Editor
 
             catalog = new SpriteSheetCatalogColumn();
             catalog.SheetSelected += OnSheetSelected;
+            catalog.ArraySelected += OnArraySelected;
             catalog.NewRequested += OnNewRequested;
             catalog.SheetRenameRequested += OnSheetRenameRequested;
             catalog.SheetDeleteRequested += OnSheetDeleteRequested;
@@ -90,11 +98,20 @@ namespace DotsAnimationToolkit.Editor
             linearToggle = new Toggle("Linear");
             linearToggle.RegisterValueChangedCallback(OnLinearChanged);
 
-            Button bakeButton = ToolkitIcons.MakeIconTextButton(
-                Bake, "d_PreTextureRGB",
-                "Stack the frames into the Texture2DArray at the output path, overwriting it in place.", "Bake");
+            importSettingsSourceField = new ObjectField("Match import settings of")
+            {
+                objectType = typeof(Texture2DArray),
+                allowSceneObjects = false,
+                tooltip = "Bake copies this array's import settings (compression, filter, mips, sRGB). Empty uses the project defaults."
+            };
+            importSettingsSourceField.name = "sprite-sheet-import-settings-source";
+            importSettingsSourceField.RegisterValueChangedCallback(OnImportSettingsSourceChanged);
 
-            Button saveButton = ToolkitIcons.MakeIconTextButton(Save, "d_SaveAs", "Write this sheet to its asset.", "Save");
+            bakeButton = ToolkitIcons.MakeIconTextButton(
+                Bake, "d_PreTextureRGB",
+                "Compose the frames into a grid PNG at the output path and import it as a Texture2DArray.", "Bake");
+
+            saveButton = ToolkitIcons.MakeIconTextButton(Save, "d_SaveAs", "Write this sheet to its asset.", "Save");
 
             headerActions = new VisualElement();
             headerActions.AddToClassList("toolkit-pane-actions");
@@ -102,6 +119,7 @@ namespace DotsAnimationToolkit.Editor
             headerActions.Add(wrapModeField);
             headerActions.Add(generateMipsToggle);
             headerActions.Add(linearToggle);
+            headerActions.Add(importSettingsSourceField);
             headerActions.Add(bakeButton);
             headerActions.Add(saveButton);
 
@@ -111,10 +129,19 @@ namespace DotsAnimationToolkit.Editor
             header.Add(infoLabel);
             header.Add(headerActions);
 
+            importedHintLabel = new Label("The importer owns the layer order: rename frames, then Save to keep the names.");
+            importedHintLabel.name = "sprite-sheet-imported-hint";
+            importedHintLabel.AddToClassList("clip-editor__hint");
+            importedHintLabel.style.display = DisplayStyle.None;
+
+            depthWarningLabel = new Label();
+            depthWarningLabel.name = "sprite-sheet-depth-warning";
+            depthWarningLabel.style.display = DisplayStyle.None;
+
             outputPathLabel = new Label();
             Button chooseOutputButton = new Button(OnChooseOutputPathClicked) { text = "…" };
 
-            VisualElement outputRow = new VisualElement();
+            outputRow = new VisualElement();
             outputRow.style.flexDirection = FlexDirection.Row;
             outputRow.Add(outputPathLabel);
             outputRow.Add(chooseOutputButton);
@@ -122,6 +149,8 @@ namespace DotsAnimationToolkit.Editor
             VisualElement sheetColumn = new VisualElement();
             sheetColumn.style.flexGrow = 1f;
             sheetColumn.Add(header);
+            sheetColumn.Add(importedHintLabel);
+            sheetColumn.Add(depthWarningLabel);
             sheetColumn.Add(bodyHost);
             sheetColumn.Add(outputRow);
 
@@ -150,9 +179,10 @@ namespace DotsAnimationToolkit.Editor
             }
 
             LoadedSheet = sheet;
+            LoadedArray = null;
             workingCopy = SpriteSheetAssetUtility.CreateWorkingCopy(sheet);
 
-            if (string.IsNullOrEmpty(workingCopy.outputPath))
+            if (!workingCopy.IsImportedArray && string.IsNullOrEmpty(workingCopy.outputPath))
             {
                 // A default, not an edit: does not mark the sheet unsaved.
                 workingCopy.outputPath = SpriteSheetBaker.DefaultOutputPathFor(AssetDatabase.GetAssetPath(sheet));
@@ -165,12 +195,29 @@ namespace DotsAnimationToolkit.Editor
             wrapModeField.SetValueWithoutNotify(workingCopy.wrapMode);
             generateMipsToggle.SetValueWithoutNotify(workingCopy.generateMips);
             linearToggle.SetValueWithoutNotify(workingCopy.linear);
+            importSettingsSourceField.SetValueWithoutNotify(workingCopy.importSettingsSource);
             outputPathLabel.text = "out: " + workingCopy.outputPath;
 
             HasUnsavedChanges = false;
+
+            int droppedFrameCount = 0;
+            if (workingCopy.IsImportedArray)
+            {
+                int frameCountBefore = workingCopy.frames.Count;
+                droppedFrameCount = SpriteSheetAssetUtility.ReconcileFramesWithArrayDepth(workingCopy);
+                if (workingCopy.frames.Count != frameCountBefore)
+                {
+                    HasUnsavedChanges = true;
+                }
+            }
+
             SetControlsEnabled(true);
             RefreshSheetLabel();
             RefreshInfoLabel();
+            RefreshModeControls();
+
+            depthWarningLabel.text = droppedFrameCount + " frame names dropped: the array has fewer layers now.";
+            depthWarningLabel.style.display = droppedFrameCount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
 
             catalog.SetSelectedSheet(sheet);
 
@@ -182,6 +229,51 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        public void LoadArray(Texture2DArray array)
+        {
+            if (workingCopy != null)
+            {
+                UnityEngine.Object.DestroyImmediate(workingCopy);
+                workingCopy = null;
+            }
+
+            LoadedSheet = null;
+            LoadedArray = array;
+            workingCopy = SpriteSheetAssetUtility.CreateWorkingCopyForArray(array);
+
+            if (workingCopy == null)
+            {
+                LoadedArray = null;
+                frames.SetSheet(null);
+                preview.SetSheet(null);
+                SetControlsEnabled(false);
+                RefreshSheetLabel();
+                RefreshInfoLabel();
+                RefreshModeControls();
+                depthWarningLabel.style.display = DisplayStyle.None;
+                return;
+            }
+
+            frames.SetSheet(workingCopy);
+            preview.SetSheet(workingCopy);
+
+            filterModeField.SetValueWithoutNotify(workingCopy.filterMode);
+            wrapModeField.SetValueWithoutNotify(workingCopy.wrapMode);
+            generateMipsToggle.SetValueWithoutNotify(workingCopy.generateMips);
+            linearToggle.SetValueWithoutNotify(workingCopy.linear);
+            importSettingsSourceField.SetValueWithoutNotify(workingCopy.importSettingsSource);
+            outputPathLabel.text = "out: " + workingCopy.outputPath;
+
+            HasUnsavedChanges = false;
+            SetControlsEnabled(true);
+            RefreshSheetLabel();
+            RefreshInfoLabel();
+            RefreshModeControls();
+            depthWarningLabel.style.display = DisplayStyle.None;
+
+            catalog.SetSelectedArray(array);
+        }
+
         public void Dispose()
         {
             baker.ClearSourceCache();
@@ -190,6 +282,9 @@ namespace DotsAnimationToolkit.Editor
                 UnityEngine.Object.DestroyImmediate(workingCopy);
                 workingCopy = null;
             }
+
+            preview.Dispose();
+            frames.Dispose();
         }
 
         private void OnSheetSelected(SpriteSheetAsset sheet)
@@ -201,11 +296,39 @@ namespace DotsAnimationToolkit.Editor
 
             if (!ConfirmDiscardIfUnsaved())
             {
-                catalog.SetSelectedSheet(LoadedSheet);
+                RestoreCatalogSelection();
                 return;
             }
 
             LoadSheet(sheet);
+        }
+
+        private void OnArraySelected(Texture2DArray array)
+        {
+            if (ReferenceEquals(array, LoadedArray))
+            {
+                return;
+            }
+
+            if (!ConfirmDiscardIfUnsaved())
+            {
+                RestoreCatalogSelection();
+                return;
+            }
+
+            LoadArray(array);
+        }
+
+        private void RestoreCatalogSelection()
+        {
+            if (LoadedSheet != null)
+            {
+                catalog.SetSelectedSheet(LoadedSheet);
+            }
+            else
+            {
+                catalog.SetSelectedArray(LoadedArray);
+            }
         }
 
         private void OnNewRequested()
@@ -263,11 +386,14 @@ namespace DotsAnimationToolkit.Editor
                 }
 
                 LoadedSheet = null;
+                LoadedArray = null;
                 frames.SetSheet(null);
                 preview.SetSheet(null);
                 SetControlsEnabled(false);
                 RefreshSheetLabel();
                 RefreshInfoLabel();
+                RefreshModeControls();
+                depthWarningLabel.style.display = DisplayStyle.None;
             }
 
             SpriteSheetAssetUtility.TrashSheet(sheet);
@@ -276,7 +402,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnImagesActivated(IReadOnlyList<Texture2D> activatedTextures)
         {
-            if (workingCopy == null)
+            if (workingCopy == null || workingCopy.IsImportedArray)
             {
                 return;
             }
@@ -345,6 +471,17 @@ namespace DotsAnimationToolkit.Editor
             MarkUnsaved();
         }
 
+        private void OnImportSettingsSourceChanged(ChangeEvent<UnityEngine.Object> changeEvent)
+        {
+            if (workingCopy == null)
+            {
+                return;
+            }
+
+            workingCopy.importSettingsSource = changeEvent.newValue as Texture2DArray;
+            MarkUnsaved();
+        }
+
         private void OnChooseOutputPathClicked()
         {
             if (workingCopy == null)
@@ -354,7 +491,7 @@ namespace DotsAnimationToolkit.Editor
 
             string startDirectory = "Assets";
             string startName = string.IsNullOrEmpty(workingCopy.outputPath)
-                ? "T_SpriteSheet"
+                ? "T_SpriteSheet_Array"
                 : System.IO.Path.GetFileNameWithoutExtension(workingCopy.outputPath);
 
             if (!string.IsNullOrEmpty(workingCopy.outputPath))
@@ -367,8 +504,8 @@ namespace DotsAnimationToolkit.Editor
             }
 
             string chosenPath = EditorUtility.SaveFilePanelInProject(
-                "Sprite sheet output", startName, "asset",
-                "Choose where the packed Texture2DArray is written.", startDirectory);
+                "Sprite sheet output", startName, "png",
+                "Choose where the grid PNG is written; it imports as a Texture2DArray.", startDirectory);
 
             if (string.IsNullOrEmpty(chosenPath))
             {
@@ -382,7 +519,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void Bake()
         {
-            if (workingCopy == null)
+            if (workingCopy == null || workingCopy.IsImportedArray)
             {
                 return;
             }
@@ -403,6 +540,7 @@ namespace DotsAnimationToolkit.Editor
             frames.RefreshRows();
             preview.Refresh();
             RefreshInfoLabel();
+            RefreshModeControls();
             EditorGUIUtility.PingObject(workingCopy.texture);
         }
 
@@ -413,10 +551,34 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            SpriteSheetAssetUtility.SaveWorkingCopy(workingCopy, LoadedSheet);
+            if (LoadedArray != null)
+            {
+                SpriteSheetAsset namesSheet = SpriteSheetAssetUtility.GetOrCreateSheetForArray(LoadedArray);
+                if (namesSheet == null)
+                {
+                    EditorUtility.DisplayDialog(
+                        "Save failed",
+                        "Could not create a names asset beside '" + LoadedArray.name + "'.",
+                        "OK");
+                    return;
+                }
+
+                workingCopy.name = namesSheet.name;
+                SpriteSheetAssetUtility.SaveWorkingCopy(workingCopy, namesSheet);
+                LoadedSheet = namesSheet;
+                LoadedArray = null;
+                catalog.RescanProject();
+                catalog.SetSelectedSheet(namesSheet);
+            }
+            else
+            {
+                SpriteSheetAssetUtility.SaveWorkingCopy(workingCopy, LoadedSheet);
+            }
+
             HasUnsavedChanges = false;
             RefreshSheetLabel();
             RefreshInfoLabel();
+            RefreshModeControls();
             catalog.RefreshRows();
         }
 
@@ -438,12 +600,68 @@ namespace DotsAnimationToolkit.Editor
         {
             HasUnsavedChanges = true;
             RefreshSheetLabel();
+            RefreshModeControls();
         }
 
         private void RefreshSheetLabel()
         {
-            string baseText = LoadedSheet != null ? LoadedSheet.name : "No sheet";
+            string baseText = LoadedSheet != null
+                ? LoadedSheet.name
+                : LoadedArray != null ? LoadedArray.name : "No sheet";
             sheetLabel.text = HasUnsavedChanges ? baseText + "  ●" : baseText;
+        }
+
+        private void RefreshModeControls()
+        {
+            bool importedMode = workingCopy != null && workingCopy.IsImportedArray;
+
+            bakeButton.SetEnabled(!importedMode);
+            importSettingsSourceField.SetEnabled(!importedMode);
+            filterModeField.SetEnabled(!importedMode);
+            wrapModeField.SetEnabled(!importedMode);
+            generateMipsToggle.SetEnabled(!importedMode);
+            linearToggle.SetEnabled(!importedMode);
+
+            outputRow.style.display = importedMode ? DisplayStyle.None : DisplayStyle.Flex;
+            importedHintLabel.style.display = importedMode ? DisplayStyle.Flex : DisplayStyle.None;
+
+            if (importedMode)
+            {
+                TextureImporter arrayImporter =
+                    AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(workingCopy.texture)) as TextureImporter;
+
+                if (arrayImporter != null)
+                {
+                    filterModeField.SetValueWithoutNotify(arrayImporter.filterMode);
+                    wrapModeField.SetValueWithoutNotify(arrayImporter.wrapMode);
+                    generateMipsToggle.SetValueWithoutNotify(arrayImporter.mipmapEnabled);
+                    linearToggle.SetValueWithoutNotify(!arrayImporter.sRGBTexture);
+                }
+                else if (workingCopy.texture != null)
+                {
+                    filterModeField.SetValueWithoutNotify(workingCopy.texture.filterMode);
+                    wrapModeField.SetValueWithoutNotify(workingCopy.texture.wrapMode);
+                    generateMipsToggle.SetValueWithoutNotify(workingCopy.texture.mipmapCount > 1);
+                    linearToggle.SetValueWithoutNotify(false);
+                }
+            }
+
+            saveButton.SetEnabled(workingCopy != null
+                && (LoadedArray == null || AnyFrameNameDiffersFromLayerIndex(workingCopy)));
+        }
+
+        private static bool AnyFrameNameDiffersFromLayerIndex(SpriteSheetAsset sheet)
+        {
+            for (int frameListPosition = 0; frameListPosition < sheet.frames.Count; frameListPosition++)
+            {
+                SpriteSheetFrame frame = sheet.frames[frameListPosition];
+                if (frame.name != frame.index.ToString())
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void RefreshInfoLabel()

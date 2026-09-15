@@ -10,9 +10,9 @@ using UnityEngine.UIElements;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>The Sprite Sheets tab's frame list: the layer order, a drop target for images, and drag-to-reorder.</summary>
-    public sealed class SpriteSheetFramesColumn : VisualElement
+    public sealed class SpriteSheetFramesColumn : VisualElement, IDisposable
     {
-        // Raised after any add, remove or reorder; the frames' index fields are already renumbered.
+        // Raised after any add, remove, reorder or rename; the frames' index fields are already renumbered.
         public event Action FramesChanged;
 
         // The list position of the newly selected frame.
@@ -21,7 +21,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly Label titleLabel;
         private readonly ListView framesListView;
         private readonly Label emptyLabel;
+        private readonly Button removeButton;
         private readonly List<SpriteSheetFrame> emptyFrames = new List<SpriteSheetFrame>();
+        private readonly SpriteSheetLayerThumbnailCache layerThumbnailCache = new SpriteSheetLayerThumbnailCache();
 
         private SpriteSheetAsset sheet;
 
@@ -41,7 +43,7 @@ namespace DotsAnimationToolkit.Editor
             VisualElement actionsRow = new VisualElement();
             actionsRow.AddToClassList("toolkit-pane-actions");
 
-            Button removeButton = ToolkitIcons.MakeIconTextButton(
+            removeButton = ToolkitIcons.MakeIconTextButton(
                 RemoveSelectedFrames, ToolkitIcons.Trash, "Remove the selected frames", "Remove");
             removeButton.name = "sprite-sheet-frames-remove-button";
             actionsRow.Add(removeButton);
@@ -73,16 +75,22 @@ namespace DotsAnimationToolkit.Editor
             RefreshRows();
         }
 
+        public void Dispose()
+        {
+            layerThumbnailCache.Dispose();
+        }
+
         // The sheet is edited in place (the panel passes its working copy); null clears the list.
         public void SetSheet(SpriteSheetAsset targetSheet)
         {
+            layerThumbnailCache.Clear();
             sheet = targetSheet;
             RefreshRows();
         }
 
         public void AddSources(IReadOnlyList<Texture2D> sourceTextures)
         {
-            if (sheet == null || sourceTextures == null)
+            if (IsImportedMode || sheet == null || sourceTextures == null)
             {
                 return;
             }
@@ -126,11 +134,16 @@ namespace DotsAnimationToolkit.Editor
             framesListView.ScrollToItem(listPosition);
         }
 
+        // The importer owns the layer order and layer identity for an imported array: no reorder, add or remove.
+        private bool IsImportedMode => sheet != null && sheet.IsImportedArray;
+
         public void RefreshRows()
         {
             int frameCount = sheet != null ? sheet.frames.Count : 0;
             titleLabel.text = "Frames (" + frameCount.ToString() + ")";
             framesListView.itemsSource = sheet != null ? sheet.frames : emptyFrames;
+            framesListView.reorderable = !IsImportedMode;
+            removeButton.SetEnabled(!IsImportedMode);
             framesListView.RefreshItems();
 
             bool isEmpty = frameCount == 0;
@@ -161,6 +174,24 @@ namespace DotsAnimationToolkit.Editor
             Label nameLabel = new Label();
             nameLabel.name = "sprite-sheet-frame-name";
             nameLabel.style.flexGrow = 1f;
+            nameLabel.tooltip = "Double-click to rename";
+            nameLabel.RegisterCallback<MouseDownEvent>(mouseDownEvent =>
+            {
+                if (mouseDownEvent.clickCount != 2)
+                {
+                    return;
+                }
+
+                mouseDownEvent.StopPropagation();
+                SpriteSheetFrame boundFrame = row.userData as SpriteSheetFrame;
+                if (boundFrame == null)
+                {
+                    return;
+                }
+
+                InlineRenameEditing.Begin(
+                    nameLabel, boundFrame.name, committedName => CommitFrameRename(boundFrame, committedName));
+            });
             row.Add(nameLabel);
 
             Label indexLabel = new Label();
@@ -185,7 +216,9 @@ namespace DotsAnimationToolkit.Editor
             row.userData = frame;
 
             Image thumbnailImage = row.Q<Image>("sprite-sheet-frame-thumbnail");
-            thumbnailImage.image = frame.source;
+            thumbnailImage.image = frame.source != null
+                ? frame.source
+                : (sheet.texture != null ? layerThumbnailCache.GetLayerThumbnail(sheet.texture, frame.index) : null);
 
             Label nameLabel = row.Q<Label>("sprite-sheet-frame-name");
             nameLabel.text = frame.name;
@@ -196,6 +229,13 @@ namespace DotsAnimationToolkit.Editor
             Label sizeLabel = row.Q<Label>("sprite-sheet-frame-size");
             if (frame.source == null)
             {
+                if (sheet.texture != null)
+                {
+                    sizeLabel.text = sheet.layerSize.x.ToString() + "x" + sheet.layerSize.y.ToString();
+                    sizeLabel.style.color = StyleKeyword.Null;
+                    return;
+                }
+
                 sizeLabel.text = "missing";
                 sizeLabel.style.color = StyleKeyword.Null;
                 return;
@@ -227,6 +267,11 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnFramesListKeyDown(KeyDownEvent keyDownEvent)
         {
+            if (IsImportedMode)
+            {
+                return;
+            }
+
             if (keyDownEvent.keyCode == KeyCode.Delete || keyDownEvent.keyCode == KeyCode.Backspace)
             {
                 RemoveSelectedFrames();
@@ -234,9 +279,33 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        private void CommitFrameRename(SpriteSheetFrame frame, string committedName)
+        {
+            string trimmedName = committedName != null ? committedName.Trim() : string.Empty;
+            if (trimmedName.Length == 0 || trimmedName == frame.name)
+            {
+                RefreshRows();
+                return;
+            }
+
+            HashSet<string> takenNames = new HashSet<string>();
+            for (int frameIndex = 0; frameIndex < sheet.frames.Count; frameIndex++)
+            {
+                SpriteSheetFrame otherFrame = sheet.frames[frameIndex];
+                if (otherFrame != frame)
+                {
+                    takenNames.Add(otherFrame.name);
+                }
+            }
+
+            frame.name = SpriteSheetValidation.DedupeFrameName(trimmedName, takenNames);
+            RefreshRows();
+            FramesChanged?.Invoke();
+        }
+
         private void RemoveSelectedFrames()
         {
-            if (sheet == null)
+            if (IsImportedMode || sheet == null)
             {
                 return;
             }
@@ -277,7 +346,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnDragUpdated(DragUpdatedEvent dragUpdatedEvent)
         {
-            if (ContainsDraggedTexture())
+            if (!IsImportedMode && ContainsDraggedTexture())
             {
                 DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
             }
@@ -285,7 +354,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnDragPerformed(DragPerformEvent dragPerformEvent)
         {
-            if (!ContainsDraggedTexture())
+            if (IsImportedMode || !ContainsDraggedTexture())
             {
                 return;
             }
