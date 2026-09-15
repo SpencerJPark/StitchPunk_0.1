@@ -131,7 +131,7 @@ one frame per editor update, with Cancel and one refresh at the end; `GifEncodin
 uncompressed without mips. Drive: Walk gave 12 transparent PNGs and a 33,774-byte GIF; a cancel at frame 3 of 60 kept 3 files.
 In this project the preview draws `NewRig`'s part quads magenta (the viewport's own `Render` path gives the same image).
 
-**A97 (0.47.0), built 2026-09-14, ⏸ T11 open.** The Retarget tab shows a clip against a rig as one row per track:
+**A97 (0.47.0), built 2026-09-14, T11 answered 2026-09-14: reworked as A97F (`0.50.0`, specced).** The Retarget tab shows a clip against a rig as one row per track:
 Bound, Skipped (no part wears the tag) or Dangling (the tag left the registry), in `ClipValidation.ValidateTrackBindingInto`'s
 order. A row's remap writes that track's tag in this clip with undo, merging onto a track that already carries the tag;
 "Remap in every clip…" runs A92's replace. A roster strip shows bound/total on every rig and switches the shared rig, and a
@@ -146,8 +146,9 @@ entity baker runs the contract on VAT Mesh parts once the VAT slot exists. Drive
 mapped, 14 on unmapped nodes); Create wrote a `ToolkitSpriteUnlit` material with instancing on.
 
 **Batch totals (2026-09-14, integration `e7ae55f9`):** EditMode 857 (Conformance_A the standing failure), PlayMode 285. The
-same day the owner accepted A93F T10, A94F T12 and A95F T10 ("these look good for now"). Next: A99 and A100 at
-`0.49.0`–`0.50.0` (`Assets/_Vault/Spencer/next-session-parallel-a99-a100-prompt.md`).
+same day the owner accepted A93F T10, A94F T12 and A95F T10 ("these look good for now"). Answers the same day: A98 T13 accepted; A96 T13 and A97
+T11 "yes", reworked as A96F (`0.49.0`) and A97F (`0.50.0`). Next: A96F, A97F and A99 (`0.51.0`) in parallel, then A100 (`0.52.0`)
+(`Assets/_Vault/Spencer/next-session-parallel-a96f-a97f-a99-prompt.md`).
 
 **A95F (0.45.0), built 2026-09-14, T10 accepted 2026-09-14.** Sprite Sheets is a names layer over the project's existing
 Texture2DArrays. Every array appears in the catalog; opening one shows GPU-copied layer thumbnails with frames numbered

@@ -1,6 +1,6 @@
 # Amendment A97 — Retarget tab: clip × rig binding table and roster coverage
 
-> **Status:** ✅ built 2026-09-14 as `0.47.0` in the A96–A98 parallel worktree batch (merged `4b0c352e`, integrated `e7ae55f9`); ⏸ T11 owner checkpoint open. The specced `0.44.0` went to A94F; see §7.
+> **Status:** ✅ built 2026-09-14 as `0.47.0` in the A96–A98 parallel worktree batch (merged `4b0c352e`, integrated `e7ae55f9`); **T11 answered 2026-09-14** (owner: "yes"); reworked as A97F (`0.50.0`). The specced `0.44.0` went to A94F; see §7.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** Phase E (tag rules T2 lenient / T3 error), A82 (column, split view), A84
 > (`TrackTargetMatchResolver`), A92 (`ReplaceTrackTag` — used when the user remaps a whole tag).
@@ -127,7 +127,7 @@ public static class RetargetBindingResolver
   `tagId`; Ctrl+Z reverts. Roster shows both rigs. Capture.
 - [x] **T9 — Vault + HANDOFF.**
 - [x] **T10 — Close.** Roadmap checkbox.
-- [ ] **T11 — ⏸ owner checkpoint.** Message: "Retarget tab: pick a clip, switch rigs with the
+- [x] **T11 — ⏸ owner checkpoint.** Message: "Retarget tab: pick a clip, switch rigs with the
   roster chips, watch rows go ✓/●/✗ and the preview lose parts. ⚠ Should a ● row offer 'add this
   tag to the rig' (edits the rig), or stay clip-side only?"
 
@@ -287,3 +287,8 @@ should a Skipped row offer "add this tag to the rig"?
     was empty (no panel, no layout, no render tick); both need the real window.
   - Scratch deleted; registry sha256s unchanged; the project `Walk.asset` and `NewRig.asset` untouched.
 - **Not seen by eye:** the drawn table and its ✓/●/✗ glyphs, the remap menu, the chips' bars, and the preview's missing part.
+
+### Owner checkpoint answer (2026-09-14)
+
+- **Answered "yes":** a Skipped row should offer "add this tag to the rig". Specced as `A97F_SkippedRowAddsTag_Spec.md` (`0.50.0`),
+  not built; the rest of this section's drift stands.

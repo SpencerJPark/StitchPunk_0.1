@@ -20,6 +20,8 @@ Owner checkpoint T13 accepted 2026-09-14 ("uncompressed is fine").
 
 ## [0.47.0] — A97 — Retarget tab
 
+Owner checkpoint T11 answered 2026-09-14 ("yes"): a Skipped row should offer "add this tag to the rig"; reworked as A97F (`0.50.0`).
+
 ### Added
 - Retarget tab: pick a clip set, a clip and a rig to see every track as a row — Bound (the part it lands on), Skipped (the rig has no part wearing the tag) or Dangling (the tag is gone from the project's tag list).
 - A row's remap menu rewrites that track's tag in this clip, with undo; a tag another track already uses merges the two. "Remap in every clip…" runs the project-wide replace.
