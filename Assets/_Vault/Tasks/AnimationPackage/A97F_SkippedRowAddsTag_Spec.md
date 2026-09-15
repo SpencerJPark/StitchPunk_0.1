@@ -126,3 +126,77 @@ Every §3 name resolves. `OnTrackRemapRequested` sits at `Editor/Retarget/Retarg
 Unchanged: `AddTagToRigPart` keeps §4's signature, `RigTargetDefinition.Id.Value` is the stable id the write keys on, and because
 `TrackTargetMatchResolver.TrackBindsTarget` lets a non-zero track tag win over its raw target id, tagging the part is enough to turn
 the row `Bound`.
+
+### T1-T4 build (lead, 2026-09-15, worktree `spec/a97f`)
+
+Two commits. `bac6c237` (T0/T1) carries the grounding above and the section 4 signature as a stub returning false, so the wave's
+three workers compiled against one shape. `bddf8257` (T2/T3/T4) is the wave, three sonnet workers in parallel, each on its own
+files: the editing method plus its fixture, the panel menu, and the tab doc.
+
+`RetargetRemapEditing.AddTagToRigPart(RigAsset, uint targetStableId, uint tagId, out string failureMessage)` refuses in order - no
+rig, no targets list, `tagId == 0u`, a different target already wearing the tag (D-2's own check), the target no longer in the rig -
+then opens an undo group named `Add Tag To Rig Part`, calls `RigAssetUtility.SetTargetTag` and marks the reference index dirty.
+
+`RetargetPanel.OnTrackRemapRequested` adds `Add tag to rig part…` last in the row menu, gated on
+`state == Skipped && CanRemapTag && tagId != 0u`. It calls `ShowAddTagToRigPartMenu`, the D-1 second menu: untagged parts first,
+then tagged ones as `Torso (wears Chest)`, with `(unnamed part)` for a blank display name and `(wears another tag)` when the
+registry cannot name the worn tag. A tagged part goes through `EditorUtility.DisplayDialog("Replace this part's tag", …, "Replace",
+"Cancel")` naming the rig, the part, the tag it loses and `AssetReferenceIndex.ReferencesToTag(existingTagId).Count`. The public
+`RetargetPanel.AddTagToRigPart(TrackBinding binding, uint targetStableId)` beneath it carries no dialog, logs the failure message
+as a warning and calls `Refresh()` - R-D4's table, roster and preview in one call, no new event.
+
+`Tests/EditMode/RetargetAddTagToRigPartTests.cs` builds clip, rig and registry with `CreateInstance` only.
+`AddTagToUntaggedPart_SkippedTrackBecomesBound` resolves Skipped, adds the tag to the untagged part and resolves Bound with
+`CountBound == 1`; `AddTagWornByAnotherPart_IsRefused` gets false, a non-empty message and both targets untouched. The fixture sets
+`LogAssert.ignoreFailingMessages` in setup for the same reason `RigAssetUtilityTests` does: `SetTargetTag` ends in
+`AssetDatabase.SaveAssetIfDirty`, which warns on a rig instance that has no asset path.
+
+**Gate** (`bddf8257`): 16 tests across the three named fixtures, 15 passed, one failure - the standing
+`Conformance_A_AsmdefReferenceLists_MatchSection13Exactly`. Compile and Burst clean.
+
+**Revert-to-fail.** Commit `e49f2c13` alone replaced `RigAssetUtility.SetTargetTag(rig, targetStableId, tagId)` with `true`;
+the gate came back 14 passed, 2 failed, the new one being
+`AddTagToUntaggedPart_SkippedTrackBecomesBound` - `Expected: Bound But was: Skipped`. `git reset --hard HEAD~1` restored
+`RetargetRemapEditing.cs` to sha256 `472cc1a593411ce3a60bd1075b0be9d39bbc8cddfe530e171c75839e288d8285`. The refusal test keeps
+passing under that mutation by design: it returns before the write.
+
+Unverified by this worktree: nothing in the panel was run, since the menu, the dialog and the refresh need an Editor. T5's drive
+still owns the second menu opening on the anchor, the dialog text, the rig YAML carrying the tag and `Undo.PerformUndo` clearing it.
+
+### For integration
+
+**CHANGELOG, `## [0.50.0]`:**
+
+> **Retarget: a Skipped row can add its tag to a rig part.** A Skipped row means the rig has no part wearing that track's tag, and
+> until now the only fix was clip-side. The row's menu now also offers `Add tag to rig part…`, which opens a second menu of the
+> rig's parts - untagged first, then parts that already wear a tag shown as `Torso (wears Chest)` - and writes the track's tag onto
+> the part you pick, turning the row Bound. The rig changes, the clip does not, and it is one undo step. Picking a part that already
+> wears another tag confirms first, naming the tag it would lose and how many clip references use it; a tag another part already
+> wears is refused, so a rig never holds two wearers of one tag. The item appears only on Skipped rows carrying a tag - Dangling
+> rows and bone tracks, which bind by name, do not get it. New `RetargetRemapEditing.AddTagToRigPart` and
+> `RetargetPanel.AddTagToRigPart`, the latter free of the modal dialog so a drive can call it.
+
+**`Conformance_G` allowlist:** nothing new. The write lives on the existing `RetargetRemapEditing` (the `Editing` suffix), and no
+new static class was added.
+
+**Vault-note traps:**
+
+- `GenericDropdownMenu` has no submenu support in Unity 6000.5 - only `DropdownMenu` and `DropdownMenuSeparator` carry
+  `subMenuPath`, and a `"Parent/Child"` name renders as one literal item. Nesting a UI Toolkit dropdown means opening a second
+  `GenericDropdownMenu` on the same anchor. `GenericMenu` would work but is IMGUI, which `Conformance_E` bans in this package.
+- `RigAssetUtility.SetTargetTag` does **not** enforce one wearer per tag; only `ClipEditorWindow.WriteRigPartTag` does. Any new
+  caller must check `ClipComponentModel.FindTargetByTag` itself or the rig quietly ends up with two parts wearing one tag.
+- `SetTargetTag` ends in `AssetDatabase.SaveAssetIfDirty`, which warns on a `CreateInstance` rig with no asset path. An EditMode
+  fixture that calls it needs `LogAssert.ignoreFailingMessages = true`, as `RigAssetUtilityTests` already sets.
+- A Skipped row can carry `tagId == 0`: `ResolveTaggedTrack` returns Skipped for an untagged track matching no target by raw id.
+  Any "fix this row by its tag" affordance has to exclude that case.
+
+**HANDOFF draft.** A97F closes the A97 T11 answer: the Retarget tab's Skipped rows now fix in both directions. The clip-side remap
+is unchanged, and the row menu gains `Add tag to rig part…`, a second dropdown of the rig's parts that writes the track's tag onto
+the part you choose as one undo step, turning the row Bound without touching the clip; parts that already wear a tag are offered
+behind a confirm that names the tag they would lose and its clip-reference count, and the one-wearer rule is enforced in the new
+`RetargetRemapEditing.AddTagToRigPart` rather than in `RigAssetUtility.SetTargetTag`, which never had it. The panel's public
+`AddTagToRigPart(TrackBinding, uint)` keeps the modal dialog out of the drive path. Built by one lead and three parallel workers
+against a committed stub, gated at 15 of 16 with only the standing `Conformance_A` failing, with the fixture's revert-to-fail
+proven. No window wiring changed. The drive still owes the second menu, the dialog and the rig YAML round trip, and the T7
+checkpoint asks whether already-tagged parts should be offered at all.
