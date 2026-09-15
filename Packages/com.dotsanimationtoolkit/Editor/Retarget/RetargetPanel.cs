@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor;
 using UnityEditor.UIElements;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
@@ -359,7 +360,88 @@ namespace DotsAnimationToolkit.Editor
                     RefactorPromptEditing.PickTagThenReplaceTrackTag(this, anchor, binding.tagId, Refresh);
                 });
             }
+            if (binding.state == TrackBindingState.Skipped && binding.CanRemapTag && binding.tagId != 0u
+                && localRig != null && localRig.targets != null)
+            {
+                menu.AddItem("Add tag to rig part…", false, () => ShowAddTagToRigPartMenu(binding, anchor));
+            }
             menu.DropDown(anchor.worldBound, anchor, DropdownMenuSizeMode.Auto);
+        }
+
+        // GenericDropdownMenu has no submenu support in Unity 6000.5 (a "/" in a label renders as one literal
+        // item), so nesting the rig-part picker means opening a second menu on the same anchor.
+        private void ShowAddTagToRigPartMenu(TrackBinding binding, VisualElement anchor)
+        {
+            GenericDropdownMenu menu = new GenericDropdownMenu();
+            TargetTagRegistry registry = ActiveTagRegistry;
+            string newTagName = registry != null ? registry.FindName(binding.tagId) : string.Empty;
+            if (string.IsNullOrEmpty(newTagName))
+            {
+                newTagName = "this tag";
+            }
+            bool hasAnyTarget = localRig != null && localRig.targets != null && localRig.targets.Count > 0;
+            if (hasAnyTarget)
+            {
+                for (int targetIndex = 0; targetIndex < localRig.targets.Count; targetIndex++)
+                {
+                    RigTargetDefinition targetDefinition = localRig.targets[targetIndex];
+                    if (targetDefinition == null || targetDefinition.tagId != 0u)
+                    {
+                        continue;
+                    }
+                    string partLabel = string.IsNullOrEmpty(targetDefinition.displayName) ? "(unnamed part)" : targetDefinition.displayName;
+                    uint targetStableId = targetDefinition.Id.Value;
+                    menu.AddItem(partLabel, false, () => AddTagToRigPart(binding, targetStableId));
+                }
+                for (int targetIndex = 0; targetIndex < localRig.targets.Count; targetIndex++)
+                {
+                    RigTargetDefinition targetDefinition = localRig.targets[targetIndex];
+                    if (targetDefinition == null || targetDefinition.tagId == 0u)
+                    {
+                        continue;
+                    }
+                    string partLabel = string.IsNullOrEmpty(targetDefinition.displayName) ? "(unnamed part)" : targetDefinition.displayName;
+                    string wornTagName = registry != null ? registry.FindName(targetDefinition.tagId) : string.Empty;
+                    string menuLabel = !string.IsNullOrEmpty(wornTagName)
+                        ? partLabel + " (wears " + wornTagName + ")"
+                        : partLabel + " (wears another tag)";
+                    string currentTagName = !string.IsNullOrEmpty(wornTagName) ? wornTagName : "another tag";
+                    uint targetStableId = targetDefinition.Id.Value;
+                    uint existingTagId = targetDefinition.tagId;
+                    menu.AddItem(menuLabel, false, () =>
+                    {
+                        int clipCount = AssetReferenceIndex.ReferencesToTag(existingTagId).Count;
+                        bool confirmed = EditorUtility.DisplayDialog(
+                            "Replace this part's tag",
+                            "\"" + partLabel + "\" on \"" + localRig.name + "\" already wears \"" + currentTagName
+                                + "\", used by " + clipCount + " clip reference(s). Give it \"" + newTagName + "\" instead?",
+                            "Replace", "Cancel");
+                        if (confirmed)
+                        {
+                            AddTagToRigPart(binding, targetStableId);
+                        }
+                    });
+                }
+            }
+            else
+            {
+                menu.AddItem("This rig has no parts", false, () => { });
+            }
+            menu.DropDown(anchor.worldBound, anchor, DropdownMenuSizeMode.Auto);
+        }
+
+        // Drive entry point: no modal dialog here so a headless drive can call it directly; the
+        // confirmation dialog lives only in the menu callback above.
+        public bool AddTagToRigPart(TrackBinding binding, uint targetStableId)
+        {
+            string failureMessage;
+            bool didAdd = RetargetRemapEditing.AddTagToRigPart(localRig, targetStableId, binding.tagId, out failureMessage);
+            if (!didAdd && !string.IsNullOrEmpty(failureMessage))
+            {
+                Debug.LogWarning(failureMessage);
+            }
+            Refresh();
+            return didAdd;
         }
     }
 }

@@ -103,11 +103,63 @@ namespace DotsAnimationToolkit.Editor
 
         public const string AddTagToRigPartUndoName = "Add Tag To Rig Part";
 
-        // Stub for A97F-T2: the real write lands on RigAssetUtility.SetTargetTag.
         public static bool AddTagToRigPart(RigAsset rig, uint targetStableId, uint tagId, out string failureMessage)
         {
             failureMessage = string.Empty;
-            return false;
+
+            if (rig == null)
+            {
+                failureMessage = "No rig selected.";
+                return false;
+            }
+
+            if (rig.targets == null)
+            {
+                failureMessage = "No rig selected.";
+                return false;
+            }
+
+            if (tagId == 0u)
+            {
+                failureMessage = "That track carries no tag.";
+                return false;
+            }
+
+            // Only one target may wear a given tag; SetTargetTag does not enforce that, so it lives here.
+            RigTargetDefinition existingWearer = ClipComponentModel.FindTargetByTag(rig, tagId);
+            if (existingWearer != null && existingWearer.Id.Value != targetStableId)
+            {
+                failureMessage = "\"" + existingWearer.displayName + "\" already wears this tag.";
+                return false;
+            }
+
+            bool targetStillInRig = false;
+            foreach (RigTargetDefinition candidateTarget in rig.targets)
+            {
+                if (candidateTarget != null && candidateTarget.Id.Value == targetStableId)
+                {
+                    targetStillInRig = true;
+                    break;
+                }
+            }
+
+            if (!targetStillInRig)
+            {
+                failureMessage = "That rig part is no longer in the rig.";
+                return false;
+            }
+
+            Undo.IncrementCurrentGroup();
+            Undo.SetCurrentGroupName(AddTagToRigPartUndoName);
+            bool didWrite = RigAssetUtility.SetTargetTag(rig, targetStableId, tagId);
+            if (!didWrite)
+            {
+                failureMessage = "Could not write the tag to the rig part.";
+                return false;
+            }
+
+            AssetReferenceIndex.MarkDirty();
+            return true;
         }
 
         private static void RecordClip(ClipAsset clip)

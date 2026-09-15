@@ -41,6 +41,19 @@ For a fix that should apply everywhere a tag is used, the same menu's **Remap in
 item runs the project-wide tag replace: every clip track, cutscene part track, and rig target
 still carrying the old tag moves to the new one in a single undoable step.
 
+A Skipped row's menu also offers the opposite fix: **Add tag to rig part…** opens a second menu
+listing this rig's parts — untagged parts first, then parts that already wear a tag, shown as
+`Torso (wears Chest)`. Picking one writes the track's tag onto that rig part instead of changing
+the track, and the row turns ✓ Bound. It's a single undoable step, and it's the rig asset that
+changes, not the clip. Picking a part that already wears another tag asks for confirmation first,
+naming the tag it would lose and how many clip references use that tag. A tag can only be worn by
+one part of a rig, so a genuinely Skipped row can always take it this way — if some other part
+already wears the tag, the write is refused with a message instead.
+
+**Add tag to rig part…** only shows up on Skipped rows that carry a tag. Dangling rows don't get
+it, since the tag isn't in the project's tag list at all, and neither do Bone tracks, since they
+bind by name rather than by tag — a Dangling row's fix lives elsewhere, in the tag list itself.
+
 ## Preview
 
 The panel poses the selected clip on the selected rig, live. A Skipped track poses nothing — that
@@ -58,8 +71,8 @@ comes up short.
 
 ## What this tab doesn't do
 
-- It doesn't edit rigs. Adding a missing part or tag to a rig happens in the Rigs tab; this tab
-  only tells you the gap exists.
+- It doesn't edit rigs beyond that one Skipped-row shortcut. Adding a missing part, or changing a
+  tag some other way, still happens in the Rigs tab; this tab only tells you the gap exists.
 - It doesn't guess a match by name similarity. A Skipped or Dangling row stays that way until you
   pick a real tag from the menu — nothing here infers that `Hand_L` probably means `HandLeft`.
 - It doesn't remap VAT bone names. VAT is baked per source rig and can't retarget at all (see
