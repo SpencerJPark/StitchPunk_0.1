@@ -115,3 +115,28 @@ throwaway project under `%TEMP%`, the build output under `%TEMP%`.
 ## 7. Build log
 
 *(T0 grounding, S1–S3 results, drift, the For-integration block — written by the sessions that run this.)*
+
+**Phase 0 (stage, 2026-09-15).** Trunk `faebc8eb`; `doctor` clean, `brokerAlive` true, no worktrees. CHANGELOG top
+`## [0.53.1]`, `package.json` `0.53.1`. Registry sha256: `DotsAnimationToolkitAnimEventKeyRegistry.asset`
+`3bdb420d55b808ecfd9251ab144ac89645c4d6f903b4a8a3498a42aa76d14701`; `DotsAnimationToolkitTargetTagRegistry.asset`
+`dbec3d5f6d31db02891682e7f88e6011f7317658f1d29753a0185ff2ebd1eb4f`. Baseline: EditMode 866 (865 passed, Conformance_A
+the only failure: Editor row expected 7 references, actual 8, extra `Unity.RenderPipelines.Universal.Runtime`), PlayMode
+285 of 285. Game baseline in the Despawn and Minion Order specs' §12.4 (the owner's damage stub needed an
+`[UpdateInGroup]`, `529e8bcc`).
+
+**S1 — Samples~ compile: clean.** All four samples (`CameraSync`, `CompositeActor`, `Cutscene`, `QuickStartActor`) copied
+to `Assets/Generated/DotsAnimationToolkit/SamplesCompileCheck/<Name>/` with asmdef names suffixed `.Check`; forced
+refresh with compile; zero `error CS` / `DC` lines; all four `.Check` assemblies loaded in the AppDomain (9, 6, 9, 6
+types) and present in `Library/ScriptAssemblies`. Folder and `.meta` deleted, refreshed, `git status` clean. T3 has no
+rot to fix.
+
+**S2 — Player build: succeeded, first round, no fixes.** `manage_build` build, `windows64`, development, output
+`%TEMP%\A102Build\StitchPunk.exe`, scenes passed as build options only (`["Assets/Scenes/Game.unity"]`: the Build
+Settings list holds just `Main.unity`, disabled, and was not changed). 392 s, **0 errors**, 488 warnings, 257.1 MB. No
+`error CS`, no Burst `BC` errors; the Burst player compile peaked near 9 GB and left the machine with ~200 MB free (two
+background log watchers were killed for memory — nothing else was). The A91 build preprocessor raised nothing
+(`MaleCitizen.profile` untouched). Warnings worth the owner's eyes, not package-side: `Game.unity`'s `GameInitiator`
+has a missing script; `Core/BaseClasses/RegulatorSingleton.cs(41)` uses the obsolete
+`FindObjectsByType<T>(FindObjectsSortMode)` (CS0618). The Performance Testing package writes
+`Assets/Resources/PerformanceTestRun*.json` during a build and removes them after; the tree was clean afterwards. The
+A91 check (`verify-a91-player-build.md`) stays the owner's, but its old blocker is gone. Nothing for T3.

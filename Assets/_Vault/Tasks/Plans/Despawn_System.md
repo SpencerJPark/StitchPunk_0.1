@@ -232,3 +232,14 @@ Every ← DECISION above is settled here; §1–§10 stay as the design record. 
   gate); a log at the end of this section: commits, gate verdicts, drift, what is unverified (the rebake and the
   in-scene look), then `status despawn ready`. The stage moves this file to `Tasks/Verification/` with a
   `verify-despawn.md` built from §10.
+
+### 12.4 Log
+
+**Phase 0 (stage, 2026-09-15).** Trunk `faebc8eb`; `doctor` clean (git 2.43.0, hooks installed, `brokerAlive` true, no
+stage blockers); no worktrees. Compile gate clean. Baseline: `DotsAnimationToolkit.Tests.EditMode` 866 (865 passed,
+standing Conformance_A), `.PlayMode` 285 of 285; `StitchPunk.Tests` **65** (63 passed: `SystemPlacementConformanceTests`
+`EverySystemFileDeclaresAnUpdateGroup` and `EverySystemTypeCarriesAnExplicitGroupAttribute` failed on the owner's
+converted damage stub `Systems/CombatSystemGroup/DamageEventSystemAnimEventSystem.cs`, which had no `[UpdateInGroup]`).
+Fixed on the stage in `529e8bcc` (`[UpdateInGroup(typeof(CombatSystemGroup))]`), re-run 65 of 65.
+`StitchPunk.Tests.PlayMode` **16** of 16. Floor for this batch: `StitchPunk.Tests` 65 (+ `AttackResolutionTests` from
+minion-orders), `StitchPunk.Tests.PlayMode` 16 (+ `DespawnSystemTests`), both with zero failures.

@@ -122,3 +122,14 @@ Every ← DECISION above is settled here. Names re-verified against `2464e854` o
 - [ ] **T6 — Close (lead).** Log, `status minion-orders ready`. Unverified until the owner plays: a ranged minion
   taking an attack order (no ranged unit exists yet — the fixture is the proof), X and R in the scene. The stage
   moves this file to `Tasks/Verification/` with a `verify-minion-orders.md` built from §10.
+
+### 12.4 Log
+
+**Phase 0 (stage, 2026-09-15).** Trunk `faebc8eb`; `doctor` clean (git 2.43.0, hooks installed, `brokerAlive` true, no
+stage blockers); no worktrees. Compile gate clean. Baseline: `DotsAnimationToolkit.Tests.EditMode` 866 (865 passed,
+standing Conformance_A), `.PlayMode` 285 of 285; `StitchPunk.Tests` **65** (63 passed: `SystemPlacementConformanceTests`
+`EverySystemFileDeclaresAnUpdateGroup` and `EverySystemTypeCarriesAnExplicitGroupAttribute` failed on the owner's
+converted damage stub `Systems/CombatSystemGroup/DamageEventSystemAnimEventSystem.cs`, which had no `[UpdateInGroup]`).
+Fixed on the stage in `529e8bcc` (`[UpdateInGroup(typeof(CombatSystemGroup))]`), re-run 65 of 65.
+`StitchPunk.Tests.PlayMode` **16** of 16. Floor for this batch: `StitchPunk.Tests` 65 (+ `AttackResolutionTests`),
+`StitchPunk.Tests.PlayMode` 16 (+ despawn's `DespawnSystemTests`), both with zero failures.
