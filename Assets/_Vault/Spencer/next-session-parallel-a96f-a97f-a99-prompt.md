@@ -51,8 +51,8 @@ As the A96–A98 prompt, with these differences:
   PlayMode fixture (a96f's prefab write may reach `ActorBakingAcceptanceTests`; a99 touches ragdoll code, so likely). Gate it by
   hand (`stage-commit`, compile, fixture, `restore-trunk`) only while `stage.busyWith` is null, then `git status` for stray folder
   metas (trap 26).
-- **Merge order:** a96f → a97f → a99. Integration: only a99 adds a tab (enum 13, toggle and pane after Capture, `tabToggles` sized
-  14, layout test lists, `index.md`); CHANGELOG 0.51.0, 0.50.0 and 0.49.0 newest on top; `package.json` and the conformance pin at
+- **Merge order:** a96f → a97f → a99. Integration: only a99 adds a tab (enum 13, toggle and pane after Capture and before Health, which stays
+  last per the owner's 2026-09-14 strip order; `tabToggles` sized 14; layout test lists, `index.md`); CHANGELOG 0.51.0, 0.50.0 and 0.49.0 newest on top; `package.json` and the conformance pin at
   0.51.0; allowlist.
 - **Drives:** each spec's drive task, one at a time, scratch only: `Assets/A96FScratch/` (rig and prefab copies; never
   `MaleCitizen.prefab` or `NewRig.asset`), `Assets/A97FScratch/` (clip and rig copies, a `CreateInstance` registry copy),

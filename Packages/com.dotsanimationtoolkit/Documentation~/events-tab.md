@@ -1,7 +1,7 @@
 # The Events Tab
 
-**Window ▸ DOTS Animation Toolkit ▸ DOTS Animator ▸ Events** — after Cutscene
-Director in the tab strip. Three columns: the project's event registry on the
+**Window ▸ DOTS Animation Toolkit ▸ DOTS Animator ▸ Events** — between Materials
+and Clip Editor in the tab strip. Three columns: the project's event registry on the
 left, the selected event's fields in the middle, and where that event is used
 on the right.
 

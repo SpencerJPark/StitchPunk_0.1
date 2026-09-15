@@ -442,6 +442,8 @@
     flex-direction: row;
     align-items: stretch;
     margin-left: 0;
+    /* The strip is the toolbar's only child: growing it, and every tab inside it, fills the whole bar. */
+    flex-grow: 1;
 }
 
 /*
@@ -454,6 +456,11 @@
  * one at a glance only if it is bigger than the switches.
  */
 .clip-editor__tab {
+    /* Each tab starts from its own text width and takes an equal share of what is left, so the run
+       fills the bar at any window width without squeezing a long name below a short one. */
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: auto;
     padding-left: 14px;
     padding-right: 14px;
     margin-left: -1px;
@@ -475,6 +482,25 @@
  * else — the toggle's own checked styling is left alone, because a ToolbarToggle drawn checked and
  * a tab drawn active are different enough that having both would read as two different states.
  */
+/* A grown tab is wider than its text. The label grows with it, so centring needs the text alignment, not just the input's
+   justify: without it the text sits at the grown label's left edge. */
+.clip-editor__tab .unity-toggle__input {
+    flex-grow: 1;
+    justify-content: center;
+}
+
+.clip-editor__tab .unity-toggle__text {
+    -unity-text-align: middle-center;
+}
+
+/* Health's label gains a count ("Health (12)") as findings come and go. A basis sized for the longest
+   likely label, instead of its text, keeps that change from resizing it and nudging every other tab. 104px is "Health (999)"
+   (72px of text at 12px) plus padding and borders, with a little to spare. */
+.clip-editor__tab--health {
+    flex-basis: 104px;
+    flex-shrink: 0;
+}
+
 .clip-editor__tab--active {
     background-color: rgb(76, 76, 76);
     border-bottom-color: rgb(88, 148, 216);

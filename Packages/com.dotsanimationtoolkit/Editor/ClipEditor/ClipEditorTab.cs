@@ -3,8 +3,8 @@
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Which of the Clip Editor's views is showing. Values are display order — the tab bar is
-    /// bound in this order, and nothing persists these numbers beyond one session.
+    /// Which of the Clip Editor's views is showing, declared in tab-strip order. The numbers are stable ids, not
+    /// positions: a docked or reloaded window carries the active tab as its number, so a reorder never renumbers.
     /// </summary>
     public enum ClipEditorTab
     {
@@ -18,10 +18,14 @@ namespace DotsAnimationToolkit.Editor
 
         Rigs = 3,
 
+        Materials = 10,
+
         Events = 4,
 
         /// <summary>The dock — clip list, hierarchy, viewport, inspector and timeline.</summary>
         ClipEditor = 5,
+
+        Retarget = 11,
 
         VatBake = 6,
 
@@ -30,12 +34,8 @@ namespace DotsAnimationToolkit.Editor
 
         CutsceneEditor = 8,
 
-        Health = 9,
+        Capture = 12,
 
-        Materials = 10,
-
-        Retarget = 11,
-
-        Capture = 12
+        Health = 9
     }
 }

@@ -8,6 +8,12 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.1] — Tab strip order and fill
+
+### Changed
+- Clip Editor tab strip order: Texture Packer, Sprite Sheets, Clip Sets, Rigs, Materials, Events, Clip Editor, Retarget, VAT Bake, Actor Profiles, Cutscene Director, Capture, Health. `ClipEditorTab` numbers are unchanged; only the declaration order follows the strip.
+- The tabs fill the whole bar: each starts from its text width and shares the remaining space equally, with its label centred. Health has a fixed basis wide enough for "Health (999)", so its error count coming and going never shifts the other tabs.
+
 ## [0.48.0] — A98 — Capture tab
 
 Owner checkpoint T13 accepted 2026-09-14 ("uncompressed is fine").

@@ -92,7 +92,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "actor-editor-pane", "cutscene-pane",
             // The Events, Health and Sprite Sheets slots, after Cutscene Director in the strip.
             "events-pane", "health-pane", "sprite-sheets-pane",
-            // Materials, Retarget and Capture, after Health at the end of the strip.
+            // Materials (after Rigs), Retarget (after Clip Editor) and Capture (after Cutscene Director); Health is last.
             "materials-pane", "retarget-pane", "capture-pane"
         };
 

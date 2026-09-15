@@ -74,8 +74,10 @@ free minor and correct the spec's status line.
 - Every new tab: a `ClipEditorTab` value, a `ToolbarToggle` in `tab-strip`, a cover pane in the
   UXML, a `BindTab` line, a `Show…Tab` call, and a `ClipEditorLayoutTests` update. Each tab spec
   lists these six edits as one orchestrator task ("window wiring"), done after the wave so the
-  wave never touches `ClipEditorWindow.cs`. Tab order in the strip: new tabs go **after** Cutscene
-  Director unless a spec says otherwise.
+  wave never touches `ClipEditorWindow.cs`. Tab order in the strip (owner, 2026-09-14): Texture Packer, Sprite Sheets, Clip Sets, Rigs,
+  Materials, Events, Clip Editor, Retarget, VAT Bake, Actor Profiles, Cutscene Director, Capture, **Health last**; a new
+  tab goes beside the tab its work belongs with, never after Health, and takes the next free `ClipEditorTab` number
+  (numbers are ids, not positions).
 
 ## 3. Execution protocol (binding for every session running a spec here)
 
