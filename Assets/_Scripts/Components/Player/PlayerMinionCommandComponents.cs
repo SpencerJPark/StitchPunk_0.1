@@ -27,3 +27,9 @@ public struct OnMinionDefendCommand : IComponentData, IEnableableComponent
 
 // F key — shadow the player entity continuously.
 public struct OnMinionFollowCommand : IComponentData, IEnableableComponent { }
+
+// X key — cancel the current behavior and idle.
+public struct OnMinionStopCommand : IComponentData, IEnableableComponent { }
+
+// R key — one-shot move to the player's current position.
+public struct OnMinionReturnCommand : IComponentData, IEnableableComponent { }

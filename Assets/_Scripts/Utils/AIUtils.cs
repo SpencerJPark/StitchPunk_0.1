@@ -116,6 +116,31 @@ public static class AIUtils
         return ActionType.Idle;
     }
 
+    // Order-time attack resolution: first baked AvailableAttack whose action has a def in this brain wins (designer order is priority).
+    public static bool ResolveOrderedAttack(
+        ref BrainLibraryBlob blob,
+        UnitType unitType,
+        in NativeArray<AvailableAttack> attacks,
+        out ActionType actionType,
+        out int actionDefIndex)
+    {
+        for (int attackIndex = 0; attackIndex < attacks.Length; attackIndex++)
+        {
+            ActionType candidateActionType = attacks[attackIndex].actionType;
+            int candidateDefIndex = BrainBlobUtils.GetActionDefIndex(ref blob, unitType, candidateActionType);
+            if (candidateDefIndex == -1)
+                continue;
+
+            actionType     = candidateActionType;
+            actionDefIndex = candidateDefIndex;
+            return true;
+        }
+
+        actionType     = ActionType.Idle;
+        actionDefIndex = -1;
+        return false;
+    }
+
     // Animation-name-convention binding (G5 D1): the key was resolved at bake time from the enum
     // name through the toolkit's AnimationNameRegistry. 0 = unresolved/none.
     public static uint GetAnimationKeyByAction(ref UnitDataBlob unitBlob, ActionType actionType)

@@ -41,7 +41,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `SpawnerComponents.cs` | `Components/Spawners/` | `Despawn` (enableable — `mode: DespawnMode`, teardown request), `Lifetime` (enableable — `secondsRemaining`, ticks down to enabling `Despawn`), `UnitSpawner`, `PoolOwner`, `NewlySpawned` |
 | `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef`, `CombatTarget` (enableable — player combat target, distinct from interaction `Target`), `AttackCooldown` (enableable — player per-swing cadence gate; replaces the deleted `ActionTimer`) |
 | `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
-| `PlayerMinionCommandComponents.cs` | `Components/Player/` | `OnMinionMoveCommand` (enableable, float3 destination), `OnMinionInteractCommand` (enableable, Entity targetEntity) — written by `UnitSelectionManager`, consumed by `MinionCommandSystem` |
+| `PlayerMinionCommandComponents.cs` | `Components/Player/` | Seven enableable one-shot commands — `OnMinionMoveCommand` (float3 destination), `OnMinionInteractCommand` (Entity targetEntity), `OnMinionAttackCommand` (Entity targetEntity), `OnMinionDefendCommand` (float3 position, float radius), `OnMinionFollowCommand`, `OnMinionStopCommand`, `OnMinionReturnCommand` (no payload) — written by `UnitSelectionManager`, baked disabled by `UnitBakingUtil.AddPlayerControlled`, consumed by `MinionActionSelectionSystem` |
 | `Ragdoll2DComponents.cs` | `Components/Units/` | `Ragdoll2D` (enableable, visual root child — tilt/spin/flail), `Ragdoll2DJoint` (enableable, joint pivots — baked settle/segment/weight + pendulum flail state), `RagdollLandingZone` buffer (authored zones on each joint, from `RagdollJointSO` via `RagdollJointAuthoring`), `Ragdoll2DConfig` (static config on root body), `Ragdoll2DLaunch` (enableable — float3 flight velocity, restitution, airborne/sleeping), `RagdollSimConfig` (flat singleton, global tuning), `CorpseCells` (singleton corpse-stacking hash). ⚠ joints come from the `BodyPart` buffer (`RagdollJoint` flag); ragdoll config is fully separate from the design `PartLibrary` blob |
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipAction`, `AttachItemRequest`, `SpawnItemRequest`, `DespawnItemRequest`, `ThrownItemRequest`. A **loose** (pickable) item has `EquiptBy.owner == Entity.Null` |
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `ColorPaletteLibrary` (+`ColorPaletteLibraryReference`), `UnitPrefabEntry` |
@@ -259,9 +259,14 @@ AimPlayerInput          float aimValue (0–1 trigger axis)
 PlayerEquipmentSlots    ItemType itemSlot1/2/3/4
 OnPlayerReviverEquipt (enableable)  ItemType itemType — fired by PlayerEquipmentInputSystem
 
--- Minion commands (written by UnitSelectionManager, consumed by MinionCommandSystem) --
-OnMinionMoveCommand (enableable)    float3 destination
+-- Minion commands (written by UnitSelectionManager, baked disabled by UnitBakingUtil.AddPlayerControlled, consumed by MinionActionSelectionSystem) --
+OnMinionMoveCommand (enableable)     float3 destination
 OnMinionInteractCommand (enableable) Entity targetEntity
+OnMinionAttackCommand (enableable)   Entity targetEntity
+OnMinionDefendCommand (enableable)   float3 position, float radius
+OnMinionFollowCommand (enableable)   no payload
+OnMinionStopCommand (enableable)     no payload
+OnMinionReturnCommand (enableable)   no payload
 
 -- Aim --
 AimDirection            float3 direction — current XZ aim direction, updated by PlayerAimSystem

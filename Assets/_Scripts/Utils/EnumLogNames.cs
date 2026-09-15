@@ -97,4 +97,24 @@ public static class EnumLogNames
             }
         }
     }
+
+    public static FixedString32Bytes Name(this UnitType value)
+    {
+        switch (value)
+        {
+            case UnitType.None:          return "None";
+            case UnitType.Player:        return "Player";
+            case UnitType.MaleCitizen:   return "MaleCitizen";
+            case UnitType.FemaleCitizen: return "FemaleCitizen";
+            case UnitType.MaleRotter:    return "MaleRotter";
+            case UnitType.FemaleZombie:  return "FemaleZombie";
+            case UnitType.PlayerZombie:  return "PlayerZombie";
+            default:
+            {
+                FixedString32Bytes fallback = default;
+                fallback.Append((int)value);
+                return fallback;
+            }
+        }
+    }
 }

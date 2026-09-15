@@ -24,6 +24,8 @@ Keep this file current: add a row when you add a request component; delete the r
 | `ActionRequest` | MotivationDecaySystem, UnitSpawnerSystem, PersistentLoadSystem | `UtilityAISystemGroup` — gate tag that triggers the awareness/scoring pass |
 | `MotivationChangeRequest` (buffer) | ItemConsumeSystem, BehaviorExecution (ModifyMotivation), DeathSystem, BehaviorInterrupt | `UtilityAISystemGroup` — MotivationChangeRequestSystem |
 | `SocialInvite` | BehaviorExecutionSystem (RequestSocialResponse) | `UtilityAISystemGroup` — SocialResponseSystem |
+| `OnMinionStopCommand` | `UnitSelectionManager` (Mono, X held) | `MinionActionSelectionSystemGroup` — MinionActionSelectionSystem. Clears this frame's `UtilityActions`, enables `ActionInterruptRequest`; arm runs last so Stop beats same-frame options |
+| `OnMinionReturnCommand` | `UnitSelectionManager` (Mono, R held) | `MinionActionSelectionSystemGroup` — MinionActionSelectionSystem. One-shot Wander to the Player's `LocalTransform.Position` (read once in `OnUpdate`), `isPlayerOrdered = true` |
 | `PickupRequest` | BehaviorExecutionSystem (RequestPickup), PlayerPickupSystem | `ItemSystemGroup` — ItemConsumeSystem (consumables) / ItemEquipSystem (weapons) |
 | `AttachItemRequest` | BehaviorExecution, PlayerPickupSystem, ItemConsumeSystem | `ItemSystemGroup` — ItemAttachSystem |
 | `ThrownItemRequest` | PlayerUnequipSystem, CutsceneDetachSystem | `ItemSystemGroup` — ThrownItemSystem + ThrownItemHitSystem |

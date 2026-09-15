@@ -149,16 +149,28 @@ clear the position fields.
 
 ## Player / minion command pipeline (Phase 4, current)
 
-- `UnitBakingUtil.AddPlayerControlled` bakes `PlayerUnitBrain` (disabled) + all five
-  `OnMinion*Command` components (disabled) onto any unit with `unitSo.canBePlayerControlled`.
+- `UnitBakingUtil.AddPlayerControlled` bakes `PlayerUnitBrain` (disabled) + all seven
+  `OnMinion*Command` components (disabled) onto any unit with `unitSo.canBePlayerControlled` —
+  archetype change, needs a rebake.
 - `UnitSelectionManager.HandleCommand()` (MonoBehaviour) fans the command out to **each selected
   minion** (`Selected`+`Minion` query): sets data, enables the command, enables `PlayerUnitBrain`.
   Right-click hostile = Attack; interactable = Interact; ground = Move; Shift+ground = Defend
-  (fanned out but not yet consumed); F (held) = Follow.
+  (fanned out but not yet consumed); F (held) = Follow; X (held) = Stop; R (held) = ReturnToPlayer.
+  Trap: `HandleCommand` only runs on a frame where `OnCommandPlayerInput` is enabled, so F/X/R are
+  "key held while issuing a command", not standalone key presses.
 - `MinionActionSelectionSystem` translates enabled commands into `isPlayerOrdered` options and
   **consumes them one-shot** (`SetComponentEnabled(unit, false)` — lookups are read-write).
   Move = `ActionType.Wander` + `targetEntity Null` + `targetPosition`; Follow = Wander targeting
-  the player entity (re-enabled every frame while F held).
+  the player entity (re-enabled every frame while F held). Attack resolves via
+  `AIUtils.ResolveOrderedAttack` — first `AvailableAttack` entry (baked priority order, no range
+  fit) with an action def in this brain; no match/no buffer refuses the order (command disabled,
+  no option emitted) and logs a Warning `[MinionOrder] Unit <index> refused Attack <target>: no
+  AvailableAttack entry has an action def for <UnitType name>`.
+- Stop (`OnMinionStopCommand`) clears this frame's `UtilityActions` and enables
+  `ActionInterruptRequest`; runs last in the arm order so it beats anything emitted the same
+  frame. ReturnToPlayer (`OnMinionReturnCommand`) is a one-shot Wander to the Player's
+  `LocalTransform.Position` read once in `OnUpdate`, `hasTargetPosition = true`,
+  `isPlayerOrdered = true`.
 
 ## Brain control split — UtilityBrain = decision, StateMachine = execution
 

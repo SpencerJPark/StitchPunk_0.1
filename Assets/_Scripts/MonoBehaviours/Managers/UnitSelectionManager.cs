@@ -283,6 +283,32 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             return;
         }
 
+        // X key → stop: cancel the current behavior and idle.
+        if (Keyboard.current[Key.X].isPressed)
+        {
+            for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
+            {
+                if (!entityManager.HasComponent<OnMinionStopCommand>(minions[minionIndex])) continue;
+                entityManager.SetComponentEnabled<OnMinionStopCommand>(minions[minionIndex], true);
+                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[minionIndex], true);
+            }
+            minions.Dispose();
+            return;
+        }
+
+        // R key → return: one-shot move to the player's current position.
+        if (Keyboard.current[Key.R].isPressed)
+        {
+            for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
+            {
+                if (!entityManager.HasComponent<OnMinionReturnCommand>(minions[minionIndex])) continue;
+                entityManager.SetComponentEnabled<OnMinionReturnCommand>(minions[minionIndex], true);
+                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[minionIndex], true);
+            }
+            minions.Dispose();
+            return;
+        }
+
         if (physicsQuery.IsEmpty)
         {
             minions.Dispose();

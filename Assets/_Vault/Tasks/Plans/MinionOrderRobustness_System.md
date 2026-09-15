@@ -133,3 +133,20 @@ converted damage stub `Systems/CombatSystemGroup/DamageEventSystemAnimEventSyste
 Fixed on the stage in `529e8bcc` (`[UpdateInGroup(typeof(CombatSystemGroup))]`), re-run 65 of 65.
 `StitchPunk.Tests.PlayMode` **16** of 16. Floor for this batch: `StitchPunk.Tests` 65 (+ `AttackResolutionTests`),
 `StitchPunk.Tests.PlayMode` 16 (+ despawn's `DespawnSystemTests`), both with zero failures.
+
+**T0 (lead, worktree `spec/minion-orders`, 2026-09-15).** Claimed (opus lead, sonnet workers). Every 12.1 name
+re-grepped and matched. Baseline gate on the conformance pair: pass, 9 of 9. Drift found (3):
+- `EnumLogNames` had **no `UnitType` overload**, so MO-D3's log could not name the unit type. Added
+  `Name(this UnitType)` beside the `ActionType` one (numeric default like the rest).
+- `UnitSelectionManager.HandleCommand` runs only on a frame where `OnCommandPlayerInput` is enabled on the player
+  (the command input), so the F precedent is "F held while issuing a command". X and R mirror it as MO-D7 says;
+  they are **not** standalone key presses. Recorded as a trap in `Systems_AI.md`.
+- `Contracts.md` had no minion-command rows and `Components.md` listed only Move/Interact (and named the parked
+  `MinionCommandSystem`); both brought current.
+X and R are unbound in every `.cs` and `.inputactions` file.
+
+**Wave 1 (five parallel workers, one gate).** T1 helper + fixture; T2 + T4 arms folded into one worker on
+`MinionActionSelectionSystem.cs` + `EnumLogNames.cs` (the T2/T4 split existed only for ordering; one worker
+removed the second pass on the same file); T3 components + bake; X/R input + `Components.md`; `Systems_AI.md` +
+`Contracts.md`. Arm order in the job: Move, Attack, Interact, Follow, Return, **Stop last** so a cancel beats
+anything emitted the same frame.

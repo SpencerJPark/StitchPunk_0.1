@@ -217,6 +217,10 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<OnMinionFollowCommand>(entity, false);
         baker.AddComponent<OnMinionDefendCommand>(entity);
         baker.SetComponentEnabled<OnMinionDefendCommand>(entity, false);
+        baker.AddComponent<OnMinionStopCommand>(entity);
+        baker.SetComponentEnabled<OnMinionStopCommand>(entity, false);
+        baker.AddComponent<OnMinionReturnCommand>(entity);
+        baker.SetComponentEnabled<OnMinionReturnCommand>(entity, false);
     }
 
     public static Motivation DefaultBehaviour(NeedType type)
