@@ -8,6 +8,43 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] — A95 — Sprite Sheets tab
+
+### Added
+- Sprite Sheets tab: stacks same-size frames from the Images catalog into one Texture2DArray (uncompressed RGBA32, optional mips, Point/Clamp defaults) and names every layer in a new `SpriteSheetAsset`. Drag or double-click images into Frames, drag rows to reorder (list order is layer order); Bake writes `T_<Sheet>_Array.asset` beside the sheet or overwrites the chosen array in place; the sheet is written only by Save, with the unsaved marker and discard prompt. The contact sheet shows every layer as a thumbnail, names it on hover and selects its row on click.
+- Clip Editor sprite key inspector: a Sheet field per sprite track and Frame / Base Frame dropdowns that pick by name. Absolute keys store the frame's layer, RelativeToBase keys the layer minus the base; the raw index stays visible but read-only while a sheet is bound. AtlasRect tracks show the Sheet field disabled ("sheets bind Slice tracks").
+- `SpriteTrack.sheet` (authoring-only, never baked: the clip blob and content hash are unchanged; a missing field deserializes to null).
+- Documentation: `sprite-sheets.md`; `cutout-characters.md` points at the tab.
+
+### Notes
+- No atlas or grid PNG builder: slice keys address Texture2DArray layers, and an atlas rect only remaps UVs on a fixed quad.
+
+## [0.41.0] — A94 — Health tab
+
+### Added
+- Health tab: one project-wide list of cross-asset problems, sorted by severity, each row locating its asset and, where the fix is one click, offering it. Scan on demand; rescans about half a second after toolkit assets change.
+- Ten rules: H01 clip in no set, H02 clip set lists a missing clip (Remove missing), H03 profile animation not in the Animation Names registry, H04 profile rig differs from the rig a listed set's VAT textures were baked for, H05 rig used by no profile, H06 VAT texture set stale or unbaked (always listed first; Rebake, Locate), H07 track tag not in the Target Tags registry, H08 event key not in the Event Keys registry, H09 unsaved stable id (Save), H10 clip whose tags the profile's rig has no target for.
+- `AssetReferenceIndex` exposes its six cached asset lists read-only and raises `Dirtied` whenever the index is marked dirty.
+- `VatSourceHashResolver.FindRigByStableId`; the Clip Sets tab's baked-rig lookup now uses it.
+- Documentation: `health-tab.md`.
+
+## [0.40.0] — A93 — Events tab
+
+### Added
+- Events tab in the Clip Editor (after Cutscene Director), three columns:
+  - Keys: the project event registry as a searchable catalog with a 64-key maskable budget line (amber when full). New mints the next free maskable key, then pulse-only. Right-click for Rename, Delete (confirms quoting usage, asks twice when used), Generate Constants and Merge into….
+  - Middle: the event's fields, payload schema with a marker preview, preview clip, and "Used by" rows that ping each clip, cutscene or profile.
+  - Routes: the key's routes (kind, route id in hex, note, display asset), plus Generate consumer stub….
+- `AnimEventRoutingAsset` (Authoring) and `AnimEventRoute`: project routing data, created at `Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset` (the one project folder the package owns, beside the generated vocabulary constants) on the first added route; opening the tab never creates it.
+- `AnimEventRoutingAuthoring` + `AnimEventRoutingBaker` ("DOTS Animation Toolkit/Anim Event Routing"), baking through `AnimEventRoutingBuilder` into the `AnimEventRouting` singleton (`AnimEventRoutingBlob`: routes sorted by key, kind and route id, plus `keys` and `keyStarts`).
+- `AnimEventRoutingApi.TryGetRoutes(ref AnimEventRoutingBlob, uint, out int, out int)`: Burst binary search.
+- `AnimEventConsumerStubBuilder`: writes a host `partial struct <Name>AnimEventSystem : ISystem` with an IJobEntity over `AnimEventOutput` gated by `AnimEventsPending` and one `switch` case per used route kind.
+- `AnimEventRoutingAssetUtility` (FindDefault, GetOrCreateDefault, RoutesForKey, AddRoute, RemoveRoute, Persist, RoutingChanged).
+- Documentation: `events-tab.md`.
+
+### Notes
+- The package never handles a route. Routes are data; the stub is host code.
+
 ## [0.39.0] — A92 — project-wide refactor operations
 
 ### Added

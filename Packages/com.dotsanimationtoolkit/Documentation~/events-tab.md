@@ -61,9 +61,11 @@ The right column lists the routes on the selected key. A route has:
 Routes live in `AnimEventRoutingAsset`, a `ScriptableObject` holding a single
 `List<AnimEventRoute> routes`. Opening the Events tab never creates this
 asset. The first route you add creates it at
-`Assets/Settings/DotsAnimationToolkit/AnimEventRouting.asset`; if one already
-exists anywhere under Assets, that one is used instead. It lives in Assets,
-not ProjectSettings, because it gets baked — there is one per project.
+`Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset`, the folder the
+package already writes generated constants into; if one already exists
+anywhere under Assets, that one is used instead, so you can move it wherever
+you like. It lives in Assets, not ProjectSettings, because it gets baked —
+there is one per project.
 
 ## Baking routes
 

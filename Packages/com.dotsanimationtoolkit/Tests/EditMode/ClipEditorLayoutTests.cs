@@ -39,6 +39,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "tab-texture-packer",
             "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
             "tab-vat-bake",
+            "tab-events", "tab-health", "tab-sprite-sheets",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle",
             // The floating overlay over the viewport, and the row of viewport tools inside it —
@@ -87,7 +88,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "clip-sets-pane",
             // The Actor Editor pane, and the Cutscene Editor's placeholder. Same lazily-filled
             // shape as the two above, so a rename here is a tab that lights and shows nothing.
-            "actor-editor-pane", "cutscene-pane"
+            "actor-editor-pane", "cutscene-pane",
+            // The Events, Health and Sprite Sheets slots, after Cutscene Director in the strip.
+            "events-pane", "health-pane", "sprite-sheets-pane"
         };
 
         [Test]
@@ -167,7 +170,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
             {
                 "tab-texture-packer",
                 "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
-                "tab-vat-bake"
+                "tab-vat-bake",
+                "tab-events", "tab-health", "tab-sprite-sheets"
             };
 
             List<string> litTabs = new List<string>();

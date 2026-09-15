@@ -22,7 +22,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly Dictionary<string, DecodedSourcePixels> sourceCache = new Dictionary<string, DecodedSourcePixels>();
 
-        // "Assets/Heads/CitizenHead.asset" -> "Assets/Heads/T_CitizenHead_Array.asset", the game's existing array naming.
+        // "<folder>/CitizenHead.asset" -> "<folder>/T_CitizenHead_Array.asset", the existing array naming convention.
         public static string DefaultOutputPathFor(string sheetAssetPath)
         {
             string directory = Path.GetDirectoryName(sheetAssetPath);

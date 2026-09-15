@@ -24,6 +24,12 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Layer/animation authoring over a composited multi-layer preview.</summary>
         ActorEditor = 5,
 
-        CutsceneEditor = 6
+        CutsceneEditor = 6,
+
+        Events = 7,
+
+        Health = 8,
+
+        SpriteSheets = 9
     }
 }

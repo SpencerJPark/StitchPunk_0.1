@@ -12,7 +12,8 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>Finds, creates and writes the project's <see cref="AnimEventRoutingAsset"/>, the write path behind the Events tab's routes column.</summary>
     public static class AnimEventRoutingAssetUtility
     {
-        public const string DefaultAssetPath = "Assets/Settings/DotsAnimationToolkit/AnimEventRouting.asset";
+        // The one project folder the package may name (Conformance_D), beside the generated vocabulary constants.
+        public const string DefaultAssetPath = "Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset";
 
         public static event Action RoutingChanged;
 
@@ -40,14 +41,14 @@ namespace DotsAnimationToolkit.Editor
                 return existingAsset;
             }
 
-            if (!AssetDatabase.IsValidFolder("Assets/Settings"))
+            if (!AssetDatabase.IsValidFolder("Assets/Generated"))
             {
-                AssetDatabase.CreateFolder("Assets", "Settings");
+                AssetDatabase.CreateFolder("Assets", "Generated");
             }
 
-            if (!AssetDatabase.IsValidFolder("Assets/Settings/DotsAnimationToolkit"))
+            if (!AssetDatabase.IsValidFolder("Assets/Generated/DotsAnimationToolkit"))
             {
-                AssetDatabase.CreateFolder("Assets/Settings", "DotsAnimationToolkit");
+                AssetDatabase.CreateFolder("Assets/Generated", "DotsAnimationToolkit");
             }
 
             AnimEventRoutingAsset newAsset = ScriptableObject.CreateInstance<AnimEventRoutingAsset>();

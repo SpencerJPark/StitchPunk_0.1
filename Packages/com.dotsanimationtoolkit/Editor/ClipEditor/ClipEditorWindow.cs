@@ -171,6 +171,13 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement texturePackerPane;
         private TexturePackerPanel texturePackerPanel;
 
+        private VisualElement eventsPane;
+        private EventsPanel eventsPanel;
+        private VisualElement healthPane;
+        private HealthPanel healthPanel;
+        private VisualElement spriteSheetsPane;
+        private SpriteSheetsPanel spriteSheetsPanel;
+
         /// <summary>The Actor Editor pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement actorEditorPane;
         private ActorEditorPanel actorEditorPanel;
@@ -186,7 +193,7 @@ namespace DotsAnimationToolkit.Editor
         /// because every switch has to write the ones that did not change, and a lookup miss would
         /// leave one lit alongside the new one.
         /// </summary>
-        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[7];
+        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[10];
 
         /// <summary>The Cutscene Editor's cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement cutscenePane;
@@ -743,6 +750,22 @@ namespace DotsAnimationToolkit.Editor
                 vatBakePanel.Dispose();
                 vatBakePanel = null;
             }
+            if (eventsPanel != null)
+            {
+                eventsPanel.Dispose();
+                eventsPanel = null;
+            }
+            if (healthPanel != null)
+            {
+                healthPanel.RebakeRequested -= OnClipSetRebakeRequested;
+                healthPanel.Dispose();
+                healthPanel = null;
+            }
+            if (spriteSheetsPanel != null)
+            {
+                spriteSheetsPanel.Dispose();
+                spriteSheetsPanel = null;
+            }
 
             // The preview owns a Persistent-allocator blob and a PreviewRenderUtility, neither of
             // which the GC reclaims. Leaking them survives domain reloads as a growing native
@@ -925,6 +948,9 @@ namespace DotsAnimationToolkit.Editor
             clipSetsPane = rootVisualElement.Q<VisualElement>("clip-sets-pane");
             texturePackerPane = rootVisualElement.Q<VisualElement>("texture-packer-pane");
             cutscenePane = rootVisualElement.Q<VisualElement>("cutscene-pane");
+            eventsPane = rootVisualElement.Q<VisualElement>("events-pane");
+            healthPane = rootVisualElement.Q<VisualElement>("health-pane");
+            spriteSheetsPane = rootVisualElement.Q<VisualElement>("sprite-sheets-pane");
 
             // Before BindTabs, which hides the whole stack on any tab but Clip Editor.
             viewportOverlay = rootVisualElement.Q<VisualElement>("viewport-overlay");
@@ -1223,6 +1249,15 @@ namespace DotsAnimationToolkit.Editor
             BindTab(ClipEditorTab.CutsceneEditor, "tab-cutscene-editor",
                 "Stage a multi-actor cutscene: clip blocks and keys on a timeline, scene-view "
                 + "posing, a camera lane, and an event/hold lane.");
+            BindTab(ClipEditorTab.Events, "tab-events",
+                "Edit the project's event keys: each key's payload and preview clip, where it is "
+                + "used, and the routes a host bakes and reads. Generate a consumer system to start from.");
+            BindTab(ClipEditorTab.Health, "tab-health",
+                "Scan every toolkit asset for cross-asset problems, such as clips in no set, stale VAT "
+                + "bakes and unregistered tags or event keys, and apply the one-click fixes.");
+            BindTab(ClipEditorTab.SpriteSheets, "tab-sprite-sheets",
+                "Stack same-size frames into one Texture2DArray, see every layer as a contact sheet, "
+                + "and name each frame so sprite keys pick it by name.");
 
             ApplyActiveTab();
         }
@@ -1299,6 +1334,9 @@ namespace DotsAnimationToolkit.Editor
             ShowActorEditorTab(activeTab == ClipEditorTab.ActorEditor);
             ShowVatBakeTab(activeTab == ClipEditorTab.VatBake);
             ShowCutsceneTab(activeTab == ClipEditorTab.CutsceneEditor);
+            ShowEventsTab(activeTab == ClipEditorTab.Events);
+            ShowHealthTab(activeTab == ClipEditorTab.Health);
+            ShowSpriteSheetsTab(activeTab == ClipEditorTab.SpriteSheets);
 
             // The overlay's controls only mean anything while looking at the 3D area, and the cover
             // panes are drawn over the whole body — so on any other tab it is underneath one of them
@@ -1467,6 +1505,64 @@ namespace DotsAnimationToolkit.Editor
             {
                 actorEditorPanel.SetTicking(isShown);
             }
+        }
+
+        private void ShowEventsTab(bool isShown)
+        {
+            if (eventsPane == null)
+            {
+                return;
+            }
+
+            // Not joined to the shared selection: nothing on this tab is a clip set or a rig.
+            if (isShown && eventsPanel == null)
+            {
+                eventsPanel = new EventsPanel();
+                eventsPanel.Bind();
+                eventsPane.Add(eventsPanel);
+            }
+
+            eventsPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        private void ShowHealthTab(bool isShown)
+        {
+            if (healthPane == null)
+            {
+                return;
+            }
+
+            // Rebake reuses the Clip Sets tab's jump, so both tabs land on VAT Bake the same way.
+            if (isShown && healthPanel == null)
+            {
+                healthPanel = new HealthPanel();
+                healthPanel.RebakeRequested += OnClipSetRebakeRequested;
+                healthPane.Add(healthPanel);
+                healthPanel.Bind();
+            }
+
+            healthPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        private void ShowSpriteSheetsTab(bool isShown)
+        {
+            if (spriteSheetsPane == null)
+            {
+                return;
+            }
+
+            if (isShown && spriteSheetsPanel == null)
+            {
+                spriteSheetsPanel = new SpriteSheetsPanel();
+                spriteSheetsPane.Add(spriteSheetsPanel);
+            }
+
+            if (isShown)
+            {
+                spriteSheetsPanel.RescanProject();
+            }
+
+            spriteSheetsPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
         /// <summary>Answers the Rigs panel's Use in Clip Editor button: switches tabs — the rig is already the shared selection.</summary>

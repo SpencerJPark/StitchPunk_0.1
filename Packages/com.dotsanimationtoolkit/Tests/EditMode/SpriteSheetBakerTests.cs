@@ -11,7 +11,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
 {
     public sealed class SpriteSheetBakerTests
     {
-        private const string ScratchFolder = "Assets/A95TestScratch";
+        // A fresh root-level folder per run: the baker only writes under the project root, and a
+        // package file may not name a project folder (Conformance_D), so the path comes back from its GUID.
+        private string scratchFolderPath;
 
         private readonly List<Texture2D> createdTextures = new List<Texture2D>();
         private SpriteSheetAsset createdSheet;
@@ -19,10 +21,12 @@ namespace DotsAnimationToolkit.Tests.EditMode
         [SetUp]
         public void SetUp()
         {
-            if (!AssetDatabase.IsValidFolder(ScratchFolder))
-            {
-                AssetDatabase.CreateFolder("Assets", "A95TestScratch");
-            }
+            string scratchFolderName = "SpriteSheetBakerScratch_" + System.Guid.NewGuid().ToString("N");
+            string createdFolderGuid = AssetDatabase.CreateFolder("Assets", scratchFolderName);
+            Assert.IsFalse(
+                string.IsNullOrEmpty(createdFolderGuid),
+                "Failed to create the scratch folder the baker fixture writes into.");
+            scratchFolderPath = AssetDatabase.GUIDToAssetPath(createdFolderGuid);
         }
 
         [TearDown]
@@ -40,7 +44,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 createdSheet = null;
             }
 
-            AssetDatabase.DeleteAsset(ScratchFolder);
+            if (!string.IsNullOrEmpty(scratchFolderPath))
+            {
+                AssetDatabase.DeleteAsset(scratchFolderPath);
+                scratchFolderPath = null;
+            }
         }
 
         private Texture2D CreateSolidTexture(Color32 fillColor)
@@ -71,7 +79,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 new SpriteSheetFrame { name = "green", source = greenSource, index = 3 },
                 new SpriteSheetFrame { name = "blue", source = blueSource, index = 5 }
             };
-            createdSheet.outputPath = ScratchFolder + "/T_A95Test_Array.asset";
+            createdSheet.outputPath = scratchFolderPath + "/T_A95Test_Array.asset";
 
             SpriteSheetBaker baker = new SpriteSheetBaker();
             bool bakeSucceeded = baker.Bake(createdSheet, out string error);

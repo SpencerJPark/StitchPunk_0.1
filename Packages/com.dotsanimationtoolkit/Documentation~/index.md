@@ -155,6 +155,15 @@ And the two references both of them lean on:
 - [`texture-packer.md`](texture-packer.md) — packing greyscale images into
   the channels of one texture, the sidebar's Images and Recipes modes, and
   baking in place.
+- [`events-tab.md`](events-tab.md) — the Events tab: the event registry as a
+  catalog with its 64-key budget, each key's payload and usage, the routing
+  asset a host bakes and reads, and the consumer-stub generator. The package
+  never handles a route.
+- [`health-tab.md`](health-tab.md) — the Health tab: the project-wide rules
+  H01–H10, what each finding means, and its one-click fixes.
+- [`sprite-sheets.md`](sprite-sheets.md) — the Sprite Sheets tab: stacking
+  same-size frames into one `Texture2DArray`, the contact sheet, and picking a
+  sprite key's frame by name.
 - [`animation-events.md`](animation-events.md) — authoring event markers, the
   pulse-vs-window split, naming keys with a registry, and reading both channels
   from a Burst job.
