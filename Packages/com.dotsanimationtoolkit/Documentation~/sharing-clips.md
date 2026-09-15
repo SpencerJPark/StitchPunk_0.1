@@ -104,6 +104,37 @@ The sets an actor names are merged into one registry:
   the "my shared clip does nothing on the second character" mistake turned into a message at
   authoring time instead of a silent no-op discovered later.
 
+## Seeing coverage
+
+Everything above is a set of rules the bake enforces; the **Retarget tab** in the Clip Editor is
+where you go to actually see them applied to one clip against one rig, instead of reading about a
+skip in a warning message after the fact.
+
+The tab shows a clip against a rig as a table, one row per track, in three states:
+
+- **✓ Bound** — the track lands on a named part of this rig (`Torso`, `Hand_L`, whatever the part
+  is called).
+- **● Skipped** — a warning. The tag exists in the project, but this particular rig has no part
+  wearing it, so the track does nothing here. This is the T2 rule above made visible per row instead
+  of buried in a message list.
+- **✗ Dangling** — an error, on every rig. The tag the track points at is no longer in the
+  project's tag list at all.
+
+Untagged tracks (the `tagId == 0` sentinel, above) bind by their stored part id and show Skipped
+when this rig doesn't declare that id. Bone tracks bind by bone name against the rig's source
+prefab rather than by tag. Billboard tracks bind by the rig's billboard root. All three still show
+in the same table, in the same three states.
+
+Underneath the table, a roster strip lists every rig in the project with a bound/total count for
+this clip — click a rig to switch the tab to it, the same way switching rigs anywhere else in the
+Clip Editor does.
+
+A row's remap menu rewrites *that one track's* tag in *this clip only* — undoable, and nothing else
+changes. For a rig-wide fix, use "Remap in every clip…" on the same menu, which is the project-wide
+tag replace described above under "Moving tracks to another tag."
+
+Full walkthrough: [`retarget-tab.md`](retarget-tab.md).
+
 ## VAT is the exception
 
 A VAT texture encodes one skinned mesh's vertex motion. It **cannot retarget**, and no rule can make

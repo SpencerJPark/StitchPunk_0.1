@@ -193,3 +193,54 @@ Drift and decisions (8):
    `ClipComponentModel.Merge*Tracks`, the timeline picker's rule; the write is `RetargetRemapEditing.RemapTrackTag`
    (one new static class, suffix Editing, no allowlist). "Remap in every clip…" calls `PickTagThenReplaceTrackTag`.
 8. A92 is built, so the "Remap in every clip…" item is present.
+
+### For integration
+
+**CHANGELOG `## [0.47.0]`:**
+
+```
+## [0.47.0]
+### Added
+- Retarget tab: pick a clip set, a clip and a rig to see every track as a row — Bound (the part it lands on),
+  Skipped (the rig has no part wearing the tag) or Dangling (the tag is gone from the project's tag list).
+- A row's remap menu rewrites that track's tag in this clip, with undo; a tag another track already uses merges the
+  two. "Remap in every clip…" runs the project-wide replace.
+- Roster strip: bound/total coverage for the clip on every rig in the project; click a rig to switch to it.
+- Preview poses the clip on the picked rig, so skipped tracks show as holes.
+- `RetargetBindingResolver.Resolve(ClipAsset, RigAsset, TargetTagRegistry)` for the same answer from code.
+```
+
+**Conformance_G allowlist:** none. New static classes are `RetargetBindingResolver` (Resolver) and
+`RetargetRemapEditing` (Editing).
+
+**Wiring (stage):**
+- `ClipEditorTab.Retarget`, the member after A96's `Materials` (A96 takes the next number; Retarget the one after).
+- UXML: `<uie:ToolbarToggle name="tab-retarget" text="Retarget" class="clip-editor__tab"/>` after the Materials toggle;
+  `<ui:VisualElement name="retarget-pane" class="clip-editor__cover-pane clip-editor--hidden"/>` after the Materials pane.
+- Show path, lazily as VAT Bake does: `retargetPanel = new RetargetPanel(); retargetPanel.Bind(selection); retargetPane.Add(retargetPanel);`
+- Teardown beside `vatBakePanel.Dispose()`: `retargetPanel?.Dispose(); retargetPanel = null;` (the preview owns a
+  `ClipPreviewController` and so a `PreviewRenderUtility`; the panel's Dispose disposes it).
+- No transport target: the preview has its own play button.
+
+**Drive surface (detached):** `new RetargetPanel()`, then `Bind(ClipSetAsset, ClipAsset, RigAsset, TargetTagRegistry,
+IReadOnlyList<RigAsset>)`; read `ResolvedBindings` and `RosterEntries`; `RemapTrack(TrackBinding, uint newTagId)`; `SelectClip`;
+`Refresh`; `Dispose`. Element names: `retarget-panel`, `retarget-clip-set-field`, `retarget-clip-field`, `retarget-rig-field`,
+`retarget-track-table`, `retarget-track-list`, `retarget-remap-button`, `retarget-roster-strip`, `retarget-roster-chip`,
+`retarget-preview`, `retarget-preview-status`, `retarget-preview-play-button`. Split divider pref suffix `Retarget.Tracks`.
+Use scratch clips and a scratch rig with a `CreateInstance` registry, never the project registry.
+
+**Vault traps (AnimationToolkit.md):**
+- The tag rules live in `ClipValidation.ValidateTrackBindingInto`: a registry-unknown tag is Dangling even if a rig
+  target still wears it, and a null registry can never produce Dangling. Anything that reports coverage must keep that order.
+- Retagging a track onto a tag another track in the same clip carries must merge (`ClipComponentModel.Merge*Tracks`),
+  never leave two tracks with one tag; `RetargetRemapEditing` and the timeline picker both follow this.
+- The resolver judges bone tracks against `rig.sourcePrefab` by first name, not the preview's skeleton mirror, so table
+  and roster agree without a live preview.
+
+**HANDOFF draft:** A97 (0.47.0) adds the Retarget tab under `Editor/Retarget/`: `RetargetBindingResolver` turns a clip and
+a rig into one `TrackBinding` per transform, sprite, bone and billboard track (Bound / Skipped / Dangling, the validator's
+V35/V36/V38 order), `RetargetTrackTableElement` lists them with a per-row remap menu writing through
+`RetargetRemapEditing.RemapTrackTag` (undo, merge on a duplicate tag), `RosterCoverageStripElement` shows bound/total for
+every rig in `AssetReferenceIndex.Rigs`, and `RetargetPreviewElement` hosts its own `ClipPreviewController` posing the clip
+on the picked rig. `RetargetPanel` binds the shared Clip Set and Rig and disposes the preview. Owner checkpoint open:
+should a Skipped row offer "add this tag to the rig"?
