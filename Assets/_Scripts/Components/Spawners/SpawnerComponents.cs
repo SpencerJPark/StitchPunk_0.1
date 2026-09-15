@@ -1,8 +1,15 @@
 ﻿using Unity.Entities;
 
+// Enable to request teardown; DespawnSystem pools (PoolOwner present) or destroys, then re-disables it on pooled entities.
 public struct Despawn : IComponentData, IEnableableComponent
 {
-    
+    public DespawnMode mode;
+}
+
+// Ticked down by LifetimeSystem, which enables Despawn and disables this at zero.
+public struct Lifetime : IComponentData, IEnableableComponent
+{
+    public float secondsRemaining;
 }
 
 public struct UnitSpawner : IComponentData, IEnableableComponent
