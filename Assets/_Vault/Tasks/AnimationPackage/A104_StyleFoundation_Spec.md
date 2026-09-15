@@ -347,6 +347,8 @@ mutation commit with F1–F3's reverts; exactly those three fail.
   (`d481fb7f…` resolver, `df58a1aa…` components sheet, `609492c0…` window sheet).
 - **W2 `74a149aa` — pass, 28 of 28**, adding `ClipEditorLayoutTests`, `ClipPreviewCompositeTests` and
   `SocketPreviewParityTests`. The tab-list classes did not disturb the layout fixture.
+- **W3 `b4782de2` — pass, 30 of 30**, adding `ToolkitPaletteTests` because T9 edited the sheet that fixture parses.
+  `Conformance_J` passes against the lowered pins, so the ratchet is honest at 139 and 0.
 - **T9 window-sheet cleanup:** the superseded rules are gone (`.clip-editor__tab*` visuals and the strip, the old blue
   `.toolkit-primary-action` family, `.toolkit-sidebar__modes`, `.toolkit-box.toolkit-list-row`), `.clip-editor__tab--health`
   and the `.toolkit-box*` component rules stay. Four opaque row dividers became `var(--toolkit-divider)`; the
