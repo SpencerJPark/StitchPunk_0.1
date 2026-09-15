@@ -115,6 +115,16 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
+        // Stub for A96F: the real prefab-asset write lands in T2.
+        public static bool TryAssignToTargetRenderer(
+            RigAsset rig, RigTargetDefinition target, Material material,
+            Material preferredSlotMaterial, out string assignedDescription, out string failureMessage)
+        {
+            assignedDescription = string.Empty;
+            failureMessage = "Assigning the material to the part's renderer is not implemented yet.";
+            return false;
+        }
+
         private static string Sanitize(string rawName)
         {
             char[] invalidFileNameChars = Path.GetInvalidFileNameChars();
