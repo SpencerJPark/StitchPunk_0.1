@@ -377,8 +377,7 @@ namespace DotsAnimationToolkit.Editor
             explanation.style.marginBottom = 4f;
             section.Add(explanation);
 
-            // Ragdoll tab focus is wired with the tab itself; for now this only raises the window.
-            Button openRagdollTabButton = new Button(ClipEditorWindow.ShowWindow)
+            Button openRagdollTabButton = new Button(ClipEditorWindow.FocusWithRagdollTab)
             {
                 text = "Edit in the Ragdoll tab",
             };

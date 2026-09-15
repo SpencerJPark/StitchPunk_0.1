@@ -8,6 +8,32 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.0] — A99 — Ragdoll tab
+
+### Added
+- **Ragdoll tab** in the Clip Editor: a bodies column over the selected rig's `ragdollBodies` with add and delete, a viewport with the box handles and a Drop / Reset transport over the scenery props, and an inspector for the selected body's collider, mass, damping, friction and joint limits followed by the rig-wide ragdoll settings. The tab follows the window's shared Rig selection.
+- `RagdollBodySummaryResolver` reports "6 bodies · 5 joints" and flags a body whose node no longer resolves; a joint is a body with another body above it in the addressed hierarchy.
+- The viewport's pose row drops from the rig's rest pose by default, or from a bound clip at a time, with the caveat stated in the tooltip: the preview measures each joint's limit against the pose on screen when the drop starts.
+
+### Changed
+- The ragdoll box-handle drag math moved out of `ClipEditorWindow.RagdollHandles.cs` (447 → 85 lines) into `RagdollBoxDragSession`, shared by the Clip Editor's viewport and the new tab. No behaviour change: the same undo group per gesture, the same clamping, the same handles.
+- `RigAssetEditor`'s ragdoll section is now an "Edit in the Ragdoll tab" button (which focuses the tab) plus the body summary. The ragdoll validation badges stay on the inspector.
+- Nothing about limit defaults, solver parameters or launch behaviour changed.
+
+## [0.50.0] — A97F — Retarget: a Skipped row can add its tag to a rig part
+
+### Added
+- **Retarget: a Skipped row can add its tag to a rig part.** A Skipped row means the rig has no part wearing that track's tag, and until now the only fix was clip-side. The row's menu now also offers `Add tag to rig part…`, which opens a second menu of the rig's parts — untagged first, then parts that already wear a tag shown as `Torso (wears Chest)` — and writes the track's tag onto the part you pick, turning the row Bound. The rig changes, the clip does not, and it is one undo step. Picking a part that already wears another tag confirms first, naming the tag it would lose and how many clip references use it; a tag another part already wears is refused, so a rig never holds two wearers of one tag. The item appears only on Skipped rows carrying a tag — Dangling rows and bone tracks, which bind by name, do not get it. New `RetargetRemapEditing.AddTagToRigPart` and `RetargetPanel.AddTagToRigPart`, the latter free of the modal dialog so a drive can call it.
+
+## [0.49.0] — A96F — Materials: Create also assigns
+
+### Changed
+- Materials tab: the header button is now **Create and assign**. After writing `M_<Rig>_<Target>.mat` beside the rig's prefab it also puts the new material on the renderer at the target's Source Node Path inside the rig's Source Prefab, through `PrefabUtility.LoadPrefabContents` / `SaveAsPrefabAsset` — an immediate, non-undoable asset write, the same one every rig structure edit makes. A single-slot renderer has its slot replaced; a multi-slot renderer has the slot holding the catalog's selected material replaced when that material is on this renderer, otherwise slot 0, and the result line names the slot: "Created M_NewRig_BaseHead.mat and assigned it to BaseHead (replaced BaseHead.mat)."
+- A missing node, a node with no Renderer, or a Source Prefab that is not a saved asset skips the assignment without losing the material — the line reads "Created M_NewRig_BaseHead.mat; not assigned: node 'BaseHead' has no Renderer." The replaced material stays on disk, so the edit is undone by assigning it back.
+
+### Added
+- `MaterialTemplateUtility.TryAssignToTargetRenderer` and `MaterialsPanel.LastAssignedDescription`.
+
 ## [0.48.1] — Tab strip order and fill
 
 ### Changed

@@ -36,6 +36,8 @@ namespace DotsAnimationToolkit.Editor
 
         Capture = 12,
 
+        Ragdoll = 13,
+
         Health = 9
     }
 }
