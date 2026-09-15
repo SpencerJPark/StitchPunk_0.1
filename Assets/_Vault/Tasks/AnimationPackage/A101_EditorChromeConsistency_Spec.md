@@ -1,6 +1,6 @@
 # Amendment A101 — Editor chrome consistency: one look, one code path, across every tab
 
-> **Status:** 📝 specced 2026-09-15, not built. Takes the next free minor after A100 (expected `0.53.0`).
+> **Status:** 🔨 building 2026-09-15 (unattended, after the A96F/A97F/A99 batch). Takes `0.52.0` (A100 is unbuilt; it takes the next free minor when it runs).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 3.
 > **Predecessors:** A72 (the design system: `ToolkitPalette`, `ToolkitIcons`, `TransportCoreElement`, the
 > `toolkit-*` classes), A82 (`ToolkitCatalogColumn`, `CoverPaneSplitView`), A83 (window decomposition),
@@ -653,4 +653,11 @@ Each task: "Apply §4.10 to the files below" plus the specifics. Files are disjo
 
 ## 7. Build log
 
-_(empty)_
+### T0 (stage, 2026-09-15, head `b7bafeee`)
+
+- A96F/A97F/A99 merged (`9271b512` integration, `b7bafeee` close). `Editor/Ragdoll/` exists (six files, 1,846 lines): **T28b** added = `RagdollPanel.cs` + `RagdollBodiesColumn.cs`, **T28c** = `RagdollInspectorColumn.cs` + `RagdollViewportElement.cs`, both by the recipe (the panel's header row is an inline-padded asset bar with a Rig field: recipe steps 1, 3, 5; the bodies column and inspector carry three and one inline visual writes). And **T28d** = `ToolkitCatalogColumn.cs` + `ImageCatalogColumn.cs` (the slot trap moves to `ToolkitChrome.MakeListRowSlot`; T22 shrinks to `TexturePackerPanel.cs` alone).
+- Baseline: compile clean; EditMode 863 (862 passed, standing Conformance_A only); PlayMode 285. CHANGELOG head `## [0.51.0]`; `package.json` 0.51.0. A101 takes `0.52.0` after all (A100 is unbuilt and takes the next free minor when it runs); the status line is corrected.
+- Inline visual scan (§4.7 regex, comments stripped, `Editor/Inspectors/` excluded): 36 files, 166 lines, no `// colour from data` markers yet. Top: HealthFindingDetailElement 21, SpriteSheetPreviewElement 17, RosterCoverageStripElement 15, CutsceneEditorPanel 11, VatFreshnessBadgeElement 10. `InlineStyleAllowlist` for T7 (files no wave-2 task converts; shrink only): `Editor/ClipEditor/Components/EventPayloadFieldBuilder.cs`, `Editor/ClipEditor/Cutscene/CutsceneMomentLaneElement.cs`, `Editor/ClipEditor/ActorEditor/LayerEventStripElement.cs`, `Editor/ClipEditor/Components/EventMarkerInspectorElement.cs`, `Editor/ClipEditor/Cutscene/CutsceneTimeRulerElement.cs`, `Editor/ClipEditor/Panes/TimelinePane.cs`, `Editor/ClipEditor/TimeRulerElement.cs`, `Editor/SpriteSheets/SpriteSheetPreviewElement.cs`, `Editor/TexturePacker/PackOutputNodeView.cs`, `Editor/TexturePacker/SourceImageNodeView.cs`, `Editor/ClipEditor/Preview/RagdollPreviewSceneryProvider.cs`, `Editor/TexturePacker/TexturePackerGraphView.cs`, `Editor/TexturePacker/TexturePackPortBuilder.cs`, `Editor/ClipEditor/ActorEditor/ActorEditorInspectorColumn.cs`, `Editor/ClipEditor/ClipEditorWindow.cs` (15 files).
+- Icon probes (6000.5): every §4.9 name resolves, plus `d_FolderOpened Icon` (256², scaled by the class), `d_SceneAsset Icon`, `d_UnityEditor.InspectorWindow`; nothing falls back to a word.
+- Cutscene status: there is no status-setter method; `ReportTransportAction` (`:3772`) writes `timelineStatusLabel.text` directly, so T26 writes the empty-state sentence into `timelineStatusLabel` the same way. `timelineLaneRowCount` counts every lane row **including** header-only spacers (`AddHeaderOnlyRow` calls `MarkAsLaneRow`) and resets to 0 at the ruler, so §4.8's `usedHeight = RulerHeight + timelineLaneRowCount * LaneRowHeight` holds.
+- Before-captures: Editor focused (pixelsPerPoint 2.5); `Library/A101Captures/before-<Tab>.png` for all fourteen tabs through the docked window's `SetActiveTab`, original tab restored afterwards.
