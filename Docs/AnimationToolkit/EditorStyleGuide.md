@@ -118,6 +118,11 @@ A screen passes only when it breaks none. Cite rules by id in specs, logs and ca
 
 - UI Toolkit resolves `var(--unity-colors-*)` inside editor panels (verified); a detached element outside a panel has
   no theme, so a detached-panel test cannot check colours.
+- **A `var()` inside a custom property resolves** (A104 probe, 2026-09-15): `--toolkit-window: var(--unity-colors-window-background)`
+  read back as `#383838` in a live editor panel, identical to referencing the Unity variable directly. The tokens
+  therefore alias the theme rather than copying its values. A probe element in a docked window that is **not** the
+  visible tab of its dock has no panel at all: `resolvedStyle` is transparent and the width is NaN, which reads as a
+  false negative. Probe in a floating utility window instead.
 - `Conformance_I` already keeps visual styles out of C#. R15 extends it to the stylesheet: a literal `rgb(` grey in
   `ClipEditorWindow.uss` outside the data and status palettes is a violation.
 - Capture recipe and focus trap: `Assets/_Vault/Memories/Code/AnimationToolkit.md`, "A session CAN see the editor UI".

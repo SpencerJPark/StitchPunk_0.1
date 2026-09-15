@@ -441,6 +441,33 @@ re-dock's `AdoptCarriedState`.
   `BindToolbar`, before that, so all three registrations were skipped every single time behind their
   own null guards.
 
+## A104 — the shared style layer (0.56.0, 2026-09-15)
+
+Every tab draws from `Editor/ClipEditor/Shared/ToolkitTokens.uss` (tokens) and `ToolkitComponents.uss` (component
+classes), added after the window sheet by `ToolkitChrome.AddToolkitStyleSheets(root)`. The binding reference is
+`Docs/AnimationToolkit/EditorStyleGuide.md`; A104 §7 holds the audit.
+
+- **A `var()` inside a custom property resolves in an editor panel**, so a token can alias `var(--unity-colors-*)`
+  and the light skin follows. A detached element has no theme, so a detached test can never assert a colour — and a
+  docked window that is not its dock's visible tab has no panel either: the probe reads transparent with a NaN
+  width, a false negative. Probe in a floating utility window.
+- **A component rule must carry the toolkit class *and* the Unity class** (`.toolkit-tablist__tab.unity-toolbar-toggle`),
+  or Unity's own theme wins the tie and the toolbar height clips the descenders again.
+- **USS has no numeric font weights, no `gap` and no `:first-child`:** 500 is `normal`, 600 is `bold`, spacing is a
+  right margin. It also cannot lighten a `var()` colour, so the primary button's hover is `opacity: 0.9`.
+- **`Default-Diffuse.mat` is the built-in Standard material and renders magenta under URP.** Proxies go through
+  `PreviewSurfaceMaterialResolver`, and whoever creates the material destroys it: the mirror in `Dispose`, the
+  controller's socket-marker material in `Dispose` only (markers are rebuilt while the controller lives). A static
+  cache would leak the object across a domain reload.
+- **`ClipPreviewController.cs` imports both `System` and `UnityEngine`,** so an unqualified `Object.DestroyImmediate`
+  there is CS0104.
+- **`MakeListRowSlot` rows no longer carry `toolkit-box`.** Five callers still set `toolkit-box--selected`, so the
+  shared sheet paints that class too; new code uses `toolkit-list-row--selected`. Those callers still stack their
+  content, which is why Events' rows are four times too tall (A104 §7 F3).
+- **`Conformance_J` is a shrink-only ratchet** on `ClipEditorWindow.uss` (139 literals, 0 off-scale font sizes).
+  Do not raise a pin to make a change fit. The `--toolkit-color-*` block stays literal on purpose:
+  `ToolkitPaletteTests` mirrors it channel-for-channel against `ToolkitPalette.Tokens` in C#.
+
 ## A session CAN see the editor UI — capture the window, don't guess (2026-08-30)
 
 "Anything on-screen needs the owner to look" is now only half true: an agent session can capture

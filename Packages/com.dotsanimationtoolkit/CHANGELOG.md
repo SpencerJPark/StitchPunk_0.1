@@ -8,6 +8,38 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.0] — Style foundation
+
+The shared layer every Clip Editor tab draws from, built to the owner-approved editor style guide
+(`Docs/AnimationToolkit/EditorStyleGuide.md`).
+
+### Added
+- `Editor/ClipEditor/Shared/ToolkitTokens.uss` and `Editor/ClipEditor/Shared/ToolkitComponents.uss`, loaded after the
+  window sheet by both `ClipEditorWindow` and `VatBakeWindow`. The tokens alias Unity's theme variables
+  (`--unity-colors-*`), so the light skin follows without a second palette.
+- `ToolkitChrome` builders: `MakeSegmentedControl`, `SetSegmentedSelection`, `StyleButton` with
+  `ToolkitButtonVariant`, `MakeCard`, `MakeBadge`, `MakeEmptyState`, `MakePropertyRow` and `AddToolkitStyleSheets`.
+  `ToolkitStatusTone` gains `Ok`.
+- `Editor/ClipEditor/Preview/PreviewSurfaceMaterialResolver.cs`, a neutral grey preview material from the first
+  available pipeline shader (URP Unlit, then URP Lit, then Sprites/Default).
+- `PreviewSurfaceMaterialResolverTests`, and `Conformance_J`: the component sheet draws only from tokens and the
+  11/12/13/16px type scale, the token sheet defines every token name, and the window sheet's colour-literal and
+  off-scale font-size counts are a shrink-only ratchet.
+
+### Changed
+- The window tab strip is a tab list: a muted track with a raised active pill, and tabs tall enough for their own
+  descenders, so "Rigs" no longer reads as "Rias".
+- In-pane modes (Flipbooks \| Images, Images \| Recipes) are a segmented control, so navigation and modes no longer
+  look alike.
+- The primary button is a light neutral fill with secondary, ghost and destructive variants and a 40% disabled
+  state; Unity's blue is now selection and focus only.
+- Catalog and slot rows are flat 22px lines, name left and muted meta right, with the full name and path in the
+  tooltip instead of a truncated second line.
+- Preview proxy quads and socket markers draw the neutral material instead of the built-in Standard material, which
+  URP renders magenta. Whoever creates such a material destroys it.
+- The window stylesheet drops the rules the shared layer supersedes: 151 → 139 colour literals and 5 → 0 font sizes
+  off the type scale.
+
 ## [0.55.0] — Unified authoring and VAT preview
 
 ### Added

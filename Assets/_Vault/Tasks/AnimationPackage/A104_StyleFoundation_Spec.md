@@ -1,6 +1,6 @@
 # A104 — Style foundation: the shared layer every tab draws with
 
-> **Status:** 📝 specced 2026-09-15 against `18a4039a` (package `0.55.0`), takes `0.56.0`; not built. First of four
+> **Status:** ✅ **built 2026-09-15 as `0.56.0`** (merged `dbaf12c8`; EditMode 876, PlayMode 285; S5 is the owner's, open). First of four
 > specs (A104 → A105 + A106 in parallel → A107) that bring every Clip Editor tab to the approved style guide.
 > **Style guide (owner-approved 2026-09-15, binding):** [`Docs/AnimationToolkit/EditorStyleGuide.md`](../../../../Docs/AnimationToolkit/EditorStyleGuide.md)
 > and its rendered page `EditorStyleGuide.html`. Rules are cited as R01–R22; owner decisions as SG-D1–SG-D8.
@@ -172,15 +172,15 @@ See `Assets/_Vault/Spencer/next-session-a104-prompt.md`.
 
 ## 5. Tasks — lead
 
-- [ ] **T0 — Ground.**
+- [x] **T0 — Ground.**
   - `git rev-parse --show-toplevel`; claim `a104`; grep every name in §1–§3.
   - Read the S0 probe verdict from the stage (in your prompt): does `var()` inside a custom property resolve?
   - Log drift in §7.
 
 **Wave 1 — five workers, disjoint files.**
-- [ ] **T1 — `ToolkitTokens.uss`** `[parallel-safe]` (1 new file): a `:root` block with D2's names, per the probe
+- [x] **T1 — `ToolkitTokens.uss`** `[parallel-safe]` (1 new file): a `:root` block with D2's names, per the probe
   verdict; a header comment naming the style guide.
-- [ ] **T2 — `ToolkitComponents.uss`** `[parallel-safe]` (1 new file):
+- [x] **T2 — `ToolkitComponents.uss`** `[parallel-safe]` (1 new file):
   - `toolkit-tablist`, `__tab`, `__tab--active` (D3);
   - `toolkit-segmented`, `__item`, `__item--on` (D4);
   - `.toolkit-primary-action` and `toolkit-button--*` (D5);
@@ -190,30 +190,30 @@ See `Assets/_Vault/Spencer/next-session-a104-prompt.md`.
 
   Tokens only, no literals. Selectors must beat `.unity-toolbar-toggle` and `.unity-button` (use the class plus the
   Unity class).
-- [ ] **T3 — `ToolkitChrome` builders** `[parallel-safe]` (1 file): D4, D5 and D7 signatures verbatim; one `<summary>`
+- [x] **T3 — `ToolkitChrome` builders** `[parallel-safe]` (1 file): D4, D5 and D7 signatures verbatim; one `<summary>`
   per file, so none on the new members; no inline visual styles (`Conformance_I`).
-- [ ] **T4 — `PreviewSurfaceMaterialResolver` + F1** `[parallel-safe]` (2 new files): D8.
-- [ ] **T5 — `Conformance_J` (F2, F3)** `[parallel-safe]` (1 file): D9. The window-sheet pins start at today's
+- [x] **T4 — `PreviewSurfaceMaterialResolver` + F1** `[parallel-safe]` (2 new files): D8.
+- [x] **T5 — `Conformance_J` (F2, F3)** `[parallel-safe]` (1 file): D9. The window-sheet pins start at today's
   counts (151 literals; count the non-scale font sizes) and T9 lowers them.
 
 **Gate W1:** `PreviewSurfaceMaterialResolverTests`, `EditorStyleConformanceTests`, `PackagingConformanceTests`. One
 mutation commit with F1–F3's reverts; exactly those three fail.
 
 **Wave 2 — four workers.**
-- [ ] **T6 — Material swap** `[parallel-safe]` (`PreviewRigMirror.cs`, `ClipPreviewController.cs`): D8. Every
+- [x] **T6 — Material swap** `[parallel-safe]` (`PreviewRigMirror.cs`, `ClipPreviewController.cs`): D8. Every
   created material is destroyed where the mirror or markers are disposed.
-- [ ] **T7 — Catalog rows and sidebar modes** `[parallel-safe]` (`ToolkitCatalogColumn.cs`, `CatalogSidebarElement.cs`): D6, D4.
-- [ ] **T8a — Tab list + sheet loading** `[parallel-safe]` (`ClipEditorWindow.uxml`, `ClipEditorWindow.cs`):
+- [x] **T7 — Catalog rows and sidebar modes** `[parallel-safe]` (`ToolkitCatalogColumn.cs`, `CatalogSidebarElement.cs`): D6, D4.
+- [x] **T8a — Tab list + sheet loading** `[parallel-safe]` (`ClipEditorWindow.uxml`, `ClipEditorWindow.cs`):
   - UXML: strip → `toolkit-tablist`; every tab → `toolkit-tablist__tab` (keep `clip-editor__tab` until T9 removes its rules).
   - C#: load `ToolkitTokens.uss` then `ToolkitComponents.uss` after `StyleSheetPath`.
   - Active-tab code: add and remove `toolkit-tablist__tab--active` beside the existing class. Grep
     `TabActiveUssClassName` / `clip-editor__tab--active`.
-- [ ] **T8b — Standalone window** `[parallel-safe]` (`VatBakeWindow.cs`): load the same two sheets after the window sheet.
+- [x] **T8b — Standalone window** `[parallel-safe]` (`VatBakeWindow.cs`): load the same two sheets after the window sheet.
 
 **Gate W2:** W1's fixtures + `ClipEditorLayoutTests`, `ClipPreviewCompositeTests`, `SocketPreviewParityTests`.
 
 **Wave 3 — one worker, then close.**
-- [ ] **T9 — Window sheet cleanup** (`ClipEditorWindow.uss`):
+- [x] **T9 — Window sheet cleanup** (`ClipEditorWindow.uss`):
   - delete the `.clip-editor__tab*` visual rules and the sidebar-mode rules D3/D4 replace;
   - delete the old blue `.toolkit-primary-action` colours;
   - delete the `toolkit-box__header` band as used by list rows (not by component boxes);
@@ -221,7 +221,7 @@ mutation commit with F1–F3's reverts; exactly those three fail.
   - fix the 9/10/14px sizes to the scale.
 
   Then lower F3's pins to the new counts in the same commit.
-- [ ] **T10 — Close text.** §7 `### For integration`:
+- [x] **T10 — Close text.** §7 `### For integration`:
   - the CHANGELOG `## [0.56.0] — Style foundation` text;
   - allowlist names (expect none: `PreviewSurfaceMaterialResolver` is a Resolver);
   - the new classes and builders list, for A105–A107's briefs;
@@ -233,7 +233,7 @@ mutation commit with F1–F3's reverts; exactly those three fail.
 
 ## 6. Tasks — stage orchestrator
 
-- [ ] **S0 — Phase 0.**
+- [x] **S0 — Phase 0.**
   - **Preflight:** `ListAgents`; `doctor`.
   - **Baseline:** compile, EditMode 873, PlayMode 285; CHANGELOG top `## [0.55.0]`; registry sha256s.
   - **Before captures:** already in `Library/UIAudit/01…15_*.png` (2026-09-15, 3206×1655). Copy them to
@@ -245,15 +245,15 @@ mutation commit with F1–F3's reverts; exactly those three fail.
     - **Read:** `resolvedStyle.backgroundColor` in a **second** call.
     - **Clean up:** delete the file and refresh.
   - Put the verdict in the lead's prompt and §7.
-- [ ] **S1 — Hand gates.** None expected.
-- [ ] **S2 — Merge** `a104`; compile gate; full suites (EditMode ≥ 873 + 3, PlayMode 285).
-- [ ] **S3 — After captures.**
+- [x] **S1 — Hand gates.** None expected.
+- [x] **S2 — Merge** `a104`; compile gate; full suites (EditMode ≥ 873 + 3, PlayMode 285).
+- [x] **S3 — After captures.**
   - Re-run the capture chain (the Editor must be focused; if it is not, ask the owner to click into Unity and wait).
     Save all 15 tabs to `Library/UIAudit/after-a104/` and restore the active tab.
   - Look at every capture. In §7, mark each G1–G8 row pass or fail per tab, citing the capture.
   - Add a new finding row for anything the shared change made worse, e.g. a tab whose layout depended on the old
     row height.
-- [ ] **S4 — Close.**
+- [x] **S4 — Close.**
   - **Versions:** CHANGELOG `0.56.0`; `package.json` and pin `0.56.0`.
   - **Docs:** HANDOFF §4 paragraph; `AnimationToolkit.md` traps; the style guide §5 "implementation notes" gains the
     probe verdict.
@@ -419,3 +419,50 @@ destructive variants, list rows are flat 22px lines, and preview proxies draw ne
 `Conformance_J` keeps the component sheet on tokens and the type scale and ratchets the window sheet's literal count
 downward. A104 is deliberately the shared layer only: per-tab layout bugs belong to A105–A107, and a tab that looks
 worse under the new rows is a finding for them rather than a fix here.
+
+### S3 — After captures and the audit (stage, 2026-09-15, merged `dbaf12c8`)
+
+All 15 tabs were captured to `Library/UIAudit/after-a104/`, the Editor focused throughout, every file a distinct
+MD5 (so no stale frame). The docked Clip Editor was a background tab behind the Game View, so it was brought to the
+front for the run and the Game View restored after; the window's own active tab (Events) was restored too. The
+captures are 3137×1588 against the before set's 3206×1655 — the window is slightly smaller now, so a pair is not
+pixel-aligned.
+
+| Id | Verdict | Evidence |
+|---|---|---|
+| G1 tab strip clips descenders | **pass, all 15** | "Rigs" reads as Rigs in every capture; Flipbooks, Retarget, Capture and Cutscenes keep their descenders; the active tab is a raised pill on a muted track, no dividers or underline |
+| G2 in-pane modes read as a second strip | **pass** | `01_TexturePacker` Images \| Recipes and `02_Flipbooks` Flipbooks \| Images are a small segmented control, visibly not the tab list |
+| G3 catalog rows are 100px boxed cards | **pass where the shared column is used; one fail** | Flat one-line rows in `03_ClipSets`, `04_Rigs` (left), `05_Materials`, `06_Events`, `10_ActorEditor`. **Fail:** `01_TexturePacker`'s image list still draws a boxed two-line row with a thumbnail — it is `ImageCatalogColumn`, not `ToolkitCatalogColumn`, so A104's row never reached it |
+| G4 primary buttons are saturated blue | **pass** | Neutral light fills on Save (`02`), Open in Clip Editor (`03`), Use in Clip Editor (`04`), Create and assign (`05`), Bake (`09`), Capture (`13`), Snapshot (`14`), Scan project (`15`). Blue now appears only as row selection (`03`, `05`) |
+| G5 proxies render magenta | **not clean — see the finding** | No magenta in the Clip Editor, Retarget, Actor Profiles, Ragdoll or VAT Bake viewports, but all of them were empty, so the replaced proxy material is **unproven by eye**. `12_CutsceneEditor` still shows magenta faces and two magenta quads |
+| G6 list rows in 22px slots clip text | **pass** | `11_Ragdoll` reads Pelvis … RightLowerLeg in full; the Clip Editor's clip list rows are whole |
+| G7 disabled buttons barely differ | **pass** | `02_Flipbooks` Bake (disabled) against Save is an obvious difference; `09_VatBake`'s enabled Bake is plainly brighter |
+| G8 literals and off-scale font sizes | **pass** | Window sheet 151 → 139 colour literals and 5 → 0 off-scale sizes, both pinned by `Conformance_J` |
+
+**New findings — for A105–A107, not fixed here (A104-D11).** None of these is a regression the shared layer caused
+except F3, which the shared row height exposed.
+
+| Id | Tab | Finding | Rules | Owner |
+|---|---|---|---|---|
+| F1 | Texture Packer | The image list keeps the boxed two-line row with a thumbnail; `ImageCatalogColumn` needs the shared row | R09, R01 | A105 |
+| F2 | Flipbooks | The name column is so narrow that every name truncates ("EarA…", "FacialHai…") while the meta takes most of the row | R01 | A105 |
+| F3 | Events | Key rows sit roughly four row-heights apart, so four keys fill the column; the shared row sets `min-height`, and this caller still stacks its content | R04, R07 | A105 |
+| F4 | Clip Sets | The full asset path repeats on all eleven clip rows | R03 | A105 |
+| F5 | Rigs | Target rows are still individually boxed with truncated node paths | SG-D6, R09 | A105 |
+| F6 | Events, Actor Profiles, Cutscenes, Capture | Empty panes are a plain sentence ("Select an event on the left.", "No profile assigned.") rather than a designed empty state | R13 | A105/A106/A107 |
+| F7 | VAT Bake, Capture, Health | The primary (and the Rebake/Locate pair inside Health's cards) stretch the full column width, so they read as bars rather than buttons | R10, R12 | A106 |
+| F8 | Ragdoll | The body picker above the bodies list is a tall empty box | R10 | A106 |
+| F9 | Cutscenes | The scene viewport renders magenta faces and two magenta quads. The viewport draws the **open scene** (`TestArea`) through a hidden camera, so the likely cause is scene materials rather than a toolkit proxy — A107 confirms the source before assuming A104 missed a case | R19 | A107 |
+
+### S4 — Close (stage, 2026-09-15)
+
+Version `0.56.0` in `CHANGELOG.md`, `package.json` and the `PackagingConformanceTests` pin. HANDOFF §4 carries the
+A104 paragraph, the roadmap's Phase 6 A104 box is ticked, `AnimationToolkit.md` gains the A104 trap section, and the
+style guide §5 records the probe verdict. Suites after the merge: **EditMode 876 of 876** (873 + F1–F3),
+**PlayMode 285 of 285**, compile clean.
+
+**One stage trap, recorded in `WorktreeToolkit.md` as trap 27 (`d63ceddd`).** Five vault `.md.meta` files committed
+to trunk after the worktree forked deadlocked the W1 gate's return for sixteen minutes: the gate detaches the stage
+to the fork point where those files do not exist, the Editor regenerates them untracked, and `git switch main` then
+refuses to overwrite them. `GateBroker` retried 180+ times while the CLI only ever said `gating`. The metas were
+deleted, the commit reverted for the run (`494fc5fd`) and re-landed at this close.
