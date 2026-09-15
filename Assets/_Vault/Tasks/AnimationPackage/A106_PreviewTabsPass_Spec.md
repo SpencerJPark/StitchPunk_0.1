@@ -6,7 +6,7 @@
 > Rules R01–R22; owner decisions SG-D1–SG-D8.
 > **Executor:** `spec-lead` for §5; stage orchestrator for §6.
 > **Before captures:** `Library/UIAudit/before/08_Retarget.png`, `09_VatBake.png`, `11_Ragdoll.png`,
-> `13_Capture.png`, `14_Stats.png`, `15_Health.png`, plus the owner's `Assets/_Vault/Tasks/Claude/Screenshot 2026-09-15 145216.png` (Ragdoll).
+> `13_Capture.png`, `14_Stats.png`, `15_Health.png`.
 
 ## 0. Session prompt
 
@@ -68,7 +68,7 @@ Written by the stage after A104's checkpoint: `Assets/_Vault/Spencer/next-sessio
 - CP6 — The output hints "Saved as NewClip" and "Writes to Assets/Generated/…" become muted meta inside the Output
   card rows (R05).
 
-**Ragdoll** (`11_Ragdoll.png`, owner screenshot)
+**Ragdoll** (`11_Ragdoll.png`)
 - RD1 — The add-body `PopupField` has `style.flexGrow = 1` (`RagdollBodiesColumn.cs:57`) and fills 400px as a grey box
   (R10). It becomes a ghost "+" in the Bodies pane header that opens the target picker as a menu; the ListView is the
   only growing child.
