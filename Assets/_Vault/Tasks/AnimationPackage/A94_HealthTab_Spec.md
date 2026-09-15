@@ -184,3 +184,61 @@ calling every rule in code order; plain noun, allowlist.
 
 - **2026-09-14 — stage Phase 0 (parallel batch A93–A95, stage orchestrator).** Baseline at `bdd439b9`: compile clean; EditMode 840 (standing `Conformance_A` failure only), PlayMode 285. CHANGELOG top is `## [0.39.0]`. A88 T9 and A92 T10 were unanswered at batch start. Registry sha256: event keys `3bdb420d…d14701`, tags `dbec3d5f…d1eb4f`. T0 (no-Unity part), T1, the wave and the fixtures run under a `spec-lead` in its own worktree; window wiring, CHANGELOG, `package.json`, conformance pin, drive, vault, HANDOFF and close stay with the stage orchestrator.
 - **T0 scan timing (stage, `execute_code`).** The combined six-type `FindAssets` + `GUIDToAssetPath` + `LoadAllAssetsAtPath` over every hit, the same shape as `AssetReferenceIndex.RebuildIfDirty`: 24 assets (11 `ClipAsset`, 2 `ClipSetAsset`, 2 `RigAsset`, 2 `ActorProfileAsset`, 7 `CutsceneAsset`, **0 `VatTextureSetAsset`**); cold 78 ms (FindAssets 68 ms), warm 23–24 ms. Far under D4's one-second bar, so the debounced automatic rescan stays. With no VAT texture sets in the project, H06 has nothing to find on the real scan; its fixture carries the proof.
+- **2026-09-14 — spec-lead (opus lead, sonnet workers, worktree `spec/a94`).** T0 no-Unity grounding, T1 and the one wave (T2–T9, eight parallel workers) built and gated; T10–T14 stay with the stage.
+  - **D4 decision:** the stage's T0 timing (78 ms cold, 23 ms warm over 24 assets) is far under one second, so the debounced automatic rescan stays alongside the Scan button.
+  - **Commits:** `7182a89b` A94-T1 (shared types, every stub, index accessors, rig lookup lift); `1df86bda` A94-T2..T9 (rules, scan, list, panel, fixtures, `health-tab.md`).
+  - **Gates:** T1's bare gate exited 3 (heartbeat gap), folded into the wave gate per the stage. Wave gate with bare names `HealthScanTests`/`HealthRulesTests` said pass with 1 test — a false green (see trap below); re-gated with namespace-qualified names: **pass, 4/4, compile clean**.
+  - **Revert-to-fail:** M1 (`f952a45b`: pin dropped, H04 and H10 comparisons disabled) gated test-failures, 3 failed (`Run_PinsStaleVatBakesAboveOtherErrors` got H02 first; `H04_FlagsProfileWhoseClipSetHasAnotherRig` and `H10_FlagsClipWithNoTagOnRoster` expected 1, was 0) while `Run_OrdersErrorsFirst` still passed, so each failure has one cause. M2 (`b36ecb11`: sort dropped) gated test-failures, `Run_OrdersErrorsFirst` failed (first error at index 2, after the note) along with the pin test. Both were removed with `git reset --hard HEAD~1`; after each reset `HealthScan.cs` (c8978c96...), `ProfileHealthValidation.cs` (fdffdbae...) and `TagAndKeyValidation.cs` (931a7d1a...) sha256 match the `1df86bda` blobs. Several gate attempts were refused with "Unity is compiling" (other leads' gates) and retried; refusals are not verdicts.
+- **T0/T1 drifts (15):**
+  1. **D6:** `ClipSetAssetUtility` does not exist. H02's Remove missing uses `ClipAssetUtility.RemoveClipFromSet(ClipSetAsset, int)` for every null index (highest first) inside one collapsed undo group, then `AssetDatabase.SaveAssetIfDirty(set)`. A null element takes one `DeleteArrayElementAtIndex` there (`RemoveClipEntry`).
+  2. **D3 H09:** Save is `EditorUtility.SetDirty` + `AssetDatabase.SaveAssetIfDirty(asset)` on that one asset, and `MarkStableIdPersisted` only once the asset is no longer dirty — never `SaveAssets` (batch rule: it flushes the owner's unsaved editor state).
+  3. **D3 H04:** a clip set names no rig (`ClipSetAsset.cs` says so outright), so "a listed clip set's rig" is the rig its VAT textures were baked for: H04 fires when `vatTextures.sourceRigKey` is non-zero and differs from `profile.rig.StableId`. Sets without VAT textures, or with key 0, are not judged.
+  4. **D3 H10:** "a set whose rig" is the rig of each profile that lists the set. One finding per (rig, clip). Only transform and sprite tracks carry `tagId`; a clip with no tagged track is skipped (it binds by target id).
+  5. **D2:** one static class per rule became six classes with one `Evaluate…` method per code (ten methods), so `HealthScan` calls them strictly H01..H10. Class names end in `Validation` (T0's Conformance_G call, one way for all): `ClipMembershipValidation` (H01, H02), `ProfileHealthValidation` (H03, H04), `RigUsageValidation` (H05), `VatFreshnessValidation` (H06), `TagAndKeyValidation` (H07, H08, H10), `StableIdValidation` (H09). Only `HealthScan` needs the plain-noun allowlist.
+  6. **D4 wiring:** `AssetReferenceIndex.Rebuilt` fires only when a query rebuilds, never on an import alone, so T1 added `AssetReferenceIndex.Dirtied` (raised by `MarkDirty`, which `AssetReferenceIndexPostprocessor` calls on import, delete and move). The panel debounces 500 ms on `EditorApplication.update`, not the element scheduler, so it rescans while detached.
+  7. **D2 exposure:** `AssetReferenceIndex` gained read-only `Clips`, `ClipSets`, `Rigs`, `Profiles`, `Cutscenes`, `VatTextureSets` (each runs `RebuildIfDirty`); `HealthScanContext.FromProject` copies them and takes the three project registries from `VocabularyRegistryProvider`.
+  8. **D8 rig lookup:** lifted into `VatSourceHashResolver.FindRigByStableId(IReadOnlyList<RigAsset>, ulong)`; `ClipSetsPanel.FindRigTheSetWasBakedFrom` now calls it with `AssetReferenceIndex.Rigs` (its own per-call `FindAssets` scan is gone). H06 falls back, when the set has no texture set or key 0, to the rig of the first profile listing the set (the tab falls back to its shared selection instead).
+  9. **D8 Locate:** `HealthFinding` gained `secondaryTarget`. Every row's locate button (`▸ <asset>`) is Locate: select + ping `target`, then ping `secondaryTarget` 800 ms later. H06: target the texture set, secondary the clip set; unbaked: target the clip set. No separate Locate button.
+  10. **§4.1 shape:** `HealthFinding` also carries the ten code constants (`ClipInNoSetCode` … `ClipPosesNothingOnRigCode`) and `IsPinnedFirst` (code H06).
+  11. **Null registries skip their rule** (H03, H07, H08) instead of falling back to the project registry — `ProfileP2Scan.ScanProfile` does fall back on null, so H03 returns early first. `FromProject` always supplies them.
+  12. **H07/H08 sources:** H07 re-reports `ClipValidation.ValidateClip`'s V36 messages; H08 walks clip event markers only (cutscene markers not included), skips keys below `ReservedEventKeys.FirstUserKey`, and emits one finding per unregistered key naming every clip using it.
+  13. **H01/H05 scope as written:** H01 counts set membership only (a clip used only by a cutscene still reports); H05 counts profiles only (a rig used only by a cutscene slot still reports as a Note).
+  14. **Panel surface:** `HealthPanel` gained `Bind()` (the spec named only `Dispose`), `Scan()`, `LatestFindings`, `StaleVatBakeCount` and `FindingsChanged` — the last two exist only so the stage can answer D8's ⚠ tab-count question without reopening the panel.
+  15. **Gate trap:** `worktree.py gate --edit-mode <BareFixtureName>` matches nothing: `TestCapture.cs` line 28 anchors `^<name>(\.|$)` against the full name, which starts with the namespace, and the childless root result counts as 1 passed. Use `--edit-mode DotsAnimationToolkit.Tests.EditMode.<Fixture>`. Reported to the stage; the toolkit fix is the stage's.
+- **Unverified:** no drive — the panel and list have never been rendered or clicked; the H02 Remove missing, H06 Rebake and H09 Save fixes have never run; H03, H07 and H09 have no fixture (H02, H05, H06, H08 are exercised through `HealthScanTests`, H04 and H10 through `HealthRulesTests`); the real-project counts are T11's.
+
+### For integration
+
+**CHANGELOG `## [0.41.0]`:**
+
+```
+## [0.41.0]
+
+### Added
+- Health tab: one project-wide list of cross-asset problems, sorted by severity, each row locating its asset and, where the fix is one click, offering it. Scan on demand; rescans about half a second after toolkit assets change.
+- Ten rules: H01 clip in no set, H02 clip set lists a missing clip (Remove missing), H03 profile animation not in the Animation Names registry, H04 profile rig differs from the rig a listed set's VAT textures were baked for, H05 rig used by no profile, H06 VAT texture set stale or unbaked (always listed first; Rebake, Locate), H07 track tag not in the Target Tags registry, H08 event key not in the Event Keys registry, H09 unsaved stable id (Save), H10 clip whose tags the profile's rig has no target for.
+- `AssetReferenceIndex` exposes its six cached asset lists read-only and raises `Dirtied` whenever the index is marked dirty.
+- `VatSourceHashResolver.FindRigByStableId`; the Clip Sets tab's baked-rig lookup now uses it.
+- Documentation: `health-tab.md`.
+```
+
+**Conformance_G:** add `"HealthScan"` to `PlainNounStaticClasses`. Nothing else — the six rule classes end in `Validation`.
+
+**Wiring (all names final):**
+- `ClipEditorTab.Health = 8`.
+- UXML: tab toggle `name="tab-health"` text `Health`; pane `<ui:VisualElement name="health-pane" class="clip-editor__cover-pane clip-editor--hidden"/>` beside `texture-packer-pane`.
+- Construct lazily like the Texture Packer (ClipEditorWindow.cs ~1432): `healthPanel = new HealthPanel(); healthPanel.RebakeRequested += OnClipSetRebakeRequested; healthPane.Add(healthPanel); healthPanel.Bind();` — `OnClipSetRebakeRequested(ClipSetAsset, RigAsset)` (ClipEditorWindow.cs:1496) already has the right signature and is the Clip Sets tab's Rebake jump, so Health's Rebake is the same jump.
+- Dispose beside `texturePackerPanel.Dispose()` (~738): `healthPanel.RebakeRequested -= OnClipSetRebakeRequested; healthPanel.Dispose(); healthPanel = null;`
+- Optional, only if the owner answers yes to the tab count: subscribe `healthPanel.FindingsChanged` and set the toggle text to `"Health (" + healthPanel.StaleVatBakeCount + ")"` when it is above zero. The panel only feeds it once built, so a count before first open would need an eager `new HealthPanel()` + `Bind()`.
+- `index.md`: one link line to `health-tab.md`.
+- **Merge note:** this branch also edits `ClipSetsPanel.cs` (the lookup body only), `AssetReferenceIndex.cs` and `VatSourceHashResolver.cs` (additions only).
+
+**Vault-note traps ("Health tab (A94)"):**
+- D4 timing: six-type scan 78 ms cold / 23 ms warm over 24 assets, so the automatic rescan stays.
+- Layout: `Editor/Health/` holds `HealthFinding`, `HealthScanContext`, `HealthScan`, `HealthFindingListElement`, `HealthPanel`; `Editor/Health/HealthRules/` holds six `…Validation` classes, one `Evaluate…` per code, called in code order by `HealthScan`.
+- `AssetReferenceIndex.Rebuilt` never fires on an import by itself — listen to `Dirtied`.
+- Every `CreateInstance`'d toolkit asset reports an unpersisted stable id (H09); a fixture that runs `HealthScan.Run` must `MarkStableIdPersisted()` on what it creates.
+- Rules are pure over `HealthScanContext`; a null registry skips its rule, whereas `ProfileP2Scan` alone falls back to the project registry on null.
+- Gate fixture names must be namespace-qualified (bare names report a false 1-passed).
+
+**HANDOFF §4 draft:** A94 adds the Health tab (0.41.0): one project-wide findings list over every toolkit asset, ten rules H01–H10 in `Editor/Health/HealthRules/`, run by `HealthScan` with stale or unbaked VAT bakes pinned above everything else. Rows ping their asset; H02 (Remove missing), H06 (Rebake, the Clip Sets tab's own jump) and H09 (Save, `SaveAssetIfDirty` on that one asset) offer one-click fixes. The panel rescans 500 ms after `AssetReferenceIndex.Dirtied`, a new event, because `Rebuilt` never fires on an import alone. Owner checkpoint open: which rules are noise, whether H01 should offer Delete, and whether the tab shows a count while an H06 exists.
