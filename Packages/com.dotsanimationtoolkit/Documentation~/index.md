@@ -172,12 +172,12 @@ And the two references both of them lean on:
 - [`health-tab.md`](health-tab.md) — the Health tab: the project-wide rules
   H01–H12, the findings list and detail panel, each finding's fixes and
   confirmed deletes, and the "Health (n)" error count on the tab.
-- [`sprite-sheets.md`](sprite-sheets.md) — the Sprite Sheets tab: stacking
+- [`flipbooks.md`](flipbooks.md) — the Flipbooks tab: stacking
   same-size frames into one `Texture2DArray`, the contact sheet, and picking a
   sprite key's frame by name.
 - [`materials-tab.md`](materials-tab.md) — the Materials tab: every material on
   a rig's prefab against the shader contract per target kind, instancing, the
-  sprite-sheet check, and Create for a target.
+  flipbook check, and Create for a target.
 - [`retarget-tab.md`](retarget-tab.md) — the Retarget tab: a clip's tracks on a
   rig as Bound, Skipped or Dangling rows, per-track tag remap, and roster
   coverage across every rig.

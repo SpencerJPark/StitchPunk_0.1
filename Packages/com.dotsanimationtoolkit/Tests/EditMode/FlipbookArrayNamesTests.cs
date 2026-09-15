@@ -8,15 +8,15 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
-    /// <summary>Covers GetOrCreateSheetForArray naming and reuse over a Texture2DArray.</summary>
-    public sealed class SpriteSheetArrayNamesTests
+    /// <summary>Covers GetOrCreateFlipbookForArray naming and reuse over a Texture2DArray.</summary>
+    public sealed class FlipbookArrayNamesTests
     {
         private string scratchFolderPath;
 
         [SetUp]
         public void SetUp()
         {
-            string scratchFolderName = "SpriteSheetArrayNamesScratch_" + System.Guid.NewGuid().ToString("N");
+            string scratchFolderName = "FlipbookArrayNamesScratch_" + System.Guid.NewGuid().ToString("N");
             string createdFolderGuid = AssetDatabase.CreateFolder("Assets", scratchFolderName);
             Assert.IsFalse(string.IsNullOrEmpty(createdFolderGuid), "Failed to create the scratch folder.");
             scratchFolderPath = AssetDatabase.GUIDToAssetPath(createdFolderGuid);
@@ -34,15 +34,15 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void GetOrCreateSheetForArray_NamesByIndex_AndReusesTheExistingSheet()
+        public void GetOrCreateFlipbookForArray_NamesByIndex_AndReusesTheExistingFlipbook()
         {
             Texture2DArray array = new Texture2DArray(2, 2, 3, TextureFormat.RGBA32, false);
             AssetDatabase.CreateAsset(array, scratchFolderPath + "/NamesTestArray.asset");
 
-            SpriteSheetAsset first = SpriteSheetAssetUtility.GetOrCreateSheetForArray(array);
+            FlipbookAsset first = FlipbookAssetUtility.GetOrCreateFlipbookForArray(array);
 
             Assert.IsNotNull(first);
-            Assert.AreEqual(scratchFolderPath + "/NamesTestArray_Sheet.asset", AssetDatabase.GetAssetPath(first));
+            Assert.AreEqual(scratchFolderPath + "/NamesTestArray_Flipbook.asset", AssetDatabase.GetAssetPath(first));
             Assert.AreSame(array, first.texture);
             Assert.AreEqual(3, first.frames.Count);
 
@@ -53,10 +53,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Assert.IsNull(first.frames[frameIndex].source);
             }
 
-            SpriteSheetAsset second = SpriteSheetAssetUtility.GetOrCreateSheetForArray(array);
+            FlipbookAsset second = FlipbookAssetUtility.GetOrCreateFlipbookForArray(array);
 
             Assert.AreSame(first, second);
-            Assert.AreEqual(1, AssetDatabase.FindAssets("t:SpriteSheetAsset", new[] { scratchFolderPath }).Length);
+            Assert.AreEqual(1, AssetDatabase.FindAssets("t:FlipbookAsset", new[] { scratchFolderPath }).Length);
         }
     }
 }

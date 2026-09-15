@@ -39,7 +39,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "tab-texture-packer",
             "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
             "tab-vat-bake",
-            "tab-events", "tab-health", "tab-sprite-sheets",
+            "tab-events", "tab-health", "tab-flipbooks",
             "tab-materials", "tab-retarget", "tab-capture", "tab-ragdoll",
             "snap-toggle", "auto-key-toggle",
             "rig-edit-toggle",
@@ -90,9 +90,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             // The Actor Editor pane, and the Cutscene Editor's placeholder. Same lazily-filled
             // shape as the two above, so a rename here is a tab that lights and shows nothing.
             "actor-editor-pane", "cutscene-pane",
-            // The Events, Health and Sprite Sheets slots, after Cutscene Director in the strip.
-            "events-pane", "health-pane", "sprite-sheets-pane",
-            // Materials (after Rigs), Retarget (after Clip Editor) and Capture (after Cutscene Director); Health is last.
+            // The Events, Health and Flipbooks slots, after Cutscenes in the strip.
+            "events-pane", "health-pane", "flipbooks-pane",
+            // Materials (after Rigs), Retarget (after Clip Editor) and Capture (after Cutscenes); Health is last.
             "materials-pane", "retarget-pane", "capture-pane",
             // Ragdoll, after Capture and before Health.
             "ragdoll-pane"
@@ -176,7 +176,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 "tab-texture-packer",
                 "tab-clip-editor", "tab-cutscene-editor", "tab-new-rig", "tab-clip-sets", "tab-actor-editor",
                 "tab-vat-bake",
-                "tab-events", "tab-health", "tab-sprite-sheets",
+                "tab-events", "tab-health", "tab-flipbooks",
                 "tab-materials", "tab-retarget", "tab-capture", "tab-ragdoll"
             };
 

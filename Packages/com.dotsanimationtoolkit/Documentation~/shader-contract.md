@@ -191,8 +191,8 @@ Two independent addressing modes, either of which can be used alone:
   whole texture" for an actor with no atlas track. `AtlasRectFromGrid` derives that rect from a
   `columns × rows` grid description and a frame index instead of requiring the caller to compute
   one; it treats **row 0 as the top row** (`ToolkitFlipbook.hlsl:50-51`), because that is how sprite
-  sheets are authored and read, even though UV space itself runs upward from the bottom — getting
-  this backwards produces a whole-sheet vertical flip.
+  flipbooks are authored and read, even though UV space itself runs upward from the bottom — getting
+  this backwards produces a whole-flipbook vertical flip.
 
 **Requires of the host:** nothing beyond the parameters — no textures, no globals. Sampling itself
 (`SAMPLE_TEXTURE2D` / `SAMPLE_TEXTURE2D_ARRAY`) is the caller's job.
@@ -523,7 +523,7 @@ these settings will get the exact "renders as noise" failure mode in §6.
 | Normals buffer looks wrong under a billboarded/skinned mesh (bad SSAO, wrong lighting response in `DepthNormals`) | The `DepthNormals` pass displaces position but forgets to displace the normal by the same transform (position-of-displaced-normal minus displaced-origin, per §3.3/§3.4). |
 | Screen-aligned billboard mode looks spherical instead of flat/uniform | Host never wrote `_ToolkitCameraForward` per frame; the include intentionally degrades screen-aligned to spherical rather than collapsing the quad when the forward is zero (`ToolkitBillboard.hlsl:79-83`). Write the global once per frame from the active camera. |
 | Billboard flips/snaps for one frame near a specific camera angle | Camera passed through (or very near) the billboard's own pivot, or (upright mode) the camera looked near-straight-down; both are the near-zero-facing-vector degenerate case the `TOOLKIT_BILLBOARD_EPSILON` guard leaves unrotated rather than rotating by a near-zero vector (`ToolkitBillboard.hlsl:36-39`, `:123-137`). |
-| Whole sprite sheet appears vertically mirrored | `AtlasRectFromGrid` treats row 0 as the sheet's top row by design (`ToolkitFlipbook.hlsl:50-51`); a caller computing its own rect by hand and getting the row/UV direction backwards produces exactly this symptom. |
+| Whole flipbook appears vertically mirrored | `AtlasRectFromGrid` treats row 0 as the flipbook's top row by design (`ToolkitFlipbook.hlsl:50-51`); a caller computing its own rect by hand and getting the row/UV direction backwards produces exactly this symptom. |
 | One-frame flicker between two adjacent flipbook frames near a frame boundary | `_ImageIndex` arrives as a float that lands just under an integer (e.g. `2.9999`) from packing/precision; `SliceUV` rounds rather than truncates specifically to avoid this (`ToolkitFlipbook.hlsl:22-26`) — if a *custom* caller re-implements slice addressing with `floor`/cast-to-int instead of `round`, this symptom reappears. |
 | Shader Graph fails to compile with a duplicate-property/duplicate-declaration error around DOTS instancing | `ToolkitInstancing.hlsl` was `#include`d from inside a Shader Graph custom function/subgraph. It is for hand-written shaders only — Shader Graph already emits its own instancing block from Hybrid Per Instance properties (§1, `ToolkitInstancing.hlsl:12-17`). |
 | Toolkit shader compiles and previews fine in the Material Inspector but never animates once entities render it (or vice versa) | The non-instanced fallback branch (`#else` in `ToolkitInstancing.hlsl:57-68`) and the instanced branch must both exist and must alias to the same names; if you hand-rolled a partial copy of this file, check both branches are present — `ShaderConformanceTests.TheInstancingBlock_GuardsTheNonInstancedPath` (`ShaderConformanceTests.cs:218-228`) is the check the shipped file passes. |

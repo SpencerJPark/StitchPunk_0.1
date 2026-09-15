@@ -8,8 +8,8 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>Bakes a SpriteSheetAsset's frames, in list order, into one grid PNG imported as a Texture2DArray at its outputPath.</summary>
-    public sealed class SpriteSheetBaker
+    /// <summary>Bakes a FlipbookAsset's frames, in list order, into one grid PNG imported as a Texture2DArray at its outputPath.</summary>
+    public sealed class FlipbookBaker
     {
         public const string OutputFilePrefix = "T_";
         public const string OutputFileSuffix = "_Array.png";
@@ -29,11 +29,11 @@ namespace DotsAnimationToolkit.Editor
         private readonly Dictionary<string, DecodedSourcePixels> sourceCache = new Dictionary<string, DecodedSourcePixels>();
 
         // "<folder>/CitizenHead.asset" -> "<folder>/T_CitizenHead_Array.png", the existing array naming convention.
-        public static string DefaultOutputPathFor(string sheetAssetPath)
+        public static string DefaultOutputPathFor(string flipbookAssetPath)
         {
-            string directory = Path.GetDirectoryName(sheetAssetPath);
+            string directory = Path.GetDirectoryName(flipbookAssetPath);
             string folder = string.IsNullOrEmpty(directory) ? "Assets" : directory.Replace('\\', '/');
-            return folder + "/" + OutputFilePrefix + Path.GetFileNameWithoutExtension(sheetAssetPath) + OutputFileSuffix;
+            return folder + "/" + OutputFilePrefix + Path.GetFileNameWithoutExtension(flipbookAssetPath) + OutputFileSuffix;
         }
 
         public void ClearSourceCache()
@@ -41,20 +41,20 @@ namespace DotsAnimationToolkit.Editor
             sourceCache.Clear();
         }
 
-        public bool Bake(SpriteSheetAsset sheet, out string error)
+        public bool Bake(FlipbookAsset flipbook, out string error)
         {
             error = string.Empty;
 
-            if (sheet == null || sheet.frames == null || sheet.frames.Count == 0)
+            if (flipbook == null || flipbook.frames == null || flipbook.frames.Count == 0)
             {
-                error = "The sheet has no frames.";
+                error = "The flipbook has no frames.";
                 return false;
             }
 
             List<string> incompleteFrameNames = new List<string>();
-            for (int frameIndex = 0; frameIndex < sheet.frames.Count; frameIndex++)
+            for (int frameIndex = 0; frameIndex < flipbook.frames.Count; frameIndex++)
             {
-                SpriteSheetFrame frame = sheet.frames[frameIndex];
+                FlipbookFrame frame = flipbook.frames[frameIndex];
                 if (frame == null)
                 {
                     incompleteFrameNames.Add("(null frame at index " + frameIndex + ")");
@@ -70,16 +70,16 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            Vector2Int expectedSize = new Vector2Int(sheet.frames[0].source.width, sheet.frames[0].source.height);
+            Vector2Int expectedSize = new Vector2Int(flipbook.frames[0].source.width, flipbook.frames[0].source.height);
 
-            List<(string name, Vector2Int size)> frameSizes = new List<(string name, Vector2Int size)>(sheet.frames.Count);
-            for (int frameIndex = 0; frameIndex < sheet.frames.Count; frameIndex++)
+            List<(string name, Vector2Int size)> frameSizes = new List<(string name, Vector2Int size)>(flipbook.frames.Count);
+            for (int frameIndex = 0; frameIndex < flipbook.frames.Count; frameIndex++)
             {
-                SpriteSheetFrame frame = sheet.frames[frameIndex];
+                FlipbookFrame frame = flipbook.frames[frameIndex];
                 frameSizes.Add((frame.name, new Vector2Int(frame.source.width, frame.source.height)));
             }
 
-            List<string> mismatchedFrameNames = SpriteSheetValidation.FindSizeMismatches(frameSizes, expectedSize);
+            List<string> mismatchedFrameNames = FlipbookValidation.FindSizeMismatches(frameSizes, expectedSize);
             if (mismatchedFrameNames.Count > 0)
             {
                 error = "These frames are not " + expectedSize.x + "x" + expectedSize.y + ": " +
@@ -87,7 +87,7 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            string outputPath = sheet.outputPath;
+            string outputPath = flipbook.outputPath;
             if (string.IsNullOrEmpty(outputPath) || !outputPath.StartsWith("Assets/") || !outputPath.EndsWith(".png"))
             {
                 error = "The output path must be under Assets/ and end with .png.";
@@ -101,10 +101,10 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            Color32[][] frameLayerPixels = new Color32[sheet.frames.Count][];
-            for (int frameIndex = 0; frameIndex < sheet.frames.Count; frameIndex++)
+            Color32[][] frameLayerPixels = new Color32[flipbook.frames.Count][];
+            for (int frameIndex = 0; frameIndex < flipbook.frames.Count; frameIndex++)
             {
-                Color32[] framePixels = GetFramePixels(sheet.frames[frameIndex].source, expectedSize, out string pixelError);
+                Color32[] framePixels = GetFramePixels(flipbook.frames[frameIndex].source, expectedSize, out string pixelError);
                 if (framePixels == null)
                 {
                     error = pixelError;
@@ -113,7 +113,7 @@ namespace DotsAnimationToolkit.Editor
                 frameLayerPixels[frameIndex] = framePixels;
             }
 
-            int frameCount = sheet.frames.Count;
+            int frameCount = flipbook.frames.Count;
             int columns = Mathf.CeilToInt(Mathf.Sqrt(frameCount));
             int rows = Mathf.CeilToInt(frameCount / (float)columns);
 
@@ -151,7 +151,7 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            if (!ApplyImportSettings(outputImporter, sheet, rows, columns, out string importSettingsError))
+            if (!ApplyImportSettings(outputImporter, flipbook, rows, columns, out string importSettingsError))
             {
                 error = importSettingsError;
                 return false;
@@ -166,28 +166,28 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            sheet.texture = importedArray;
-            sheet.layerSize = expectedSize;
-            for (int frameIndex = 0; frameIndex < sheet.frames.Count; frameIndex++)
+            flipbook.texture = importedArray;
+            flipbook.layerSize = expectedSize;
+            for (int frameIndex = 0; frameIndex < flipbook.frames.Count; frameIndex++)
             {
-                sheet.frames[frameIndex].index = frameIndex;
+                flipbook.frames[frameIndex].index = frameIndex;
             }
 
             return true;
         }
 
         private static bool ApplyImportSettings(
-            TextureImporter outputImporter, SpriteSheetAsset sheet, int rows, int columns, out string error)
+            TextureImporter outputImporter, FlipbookAsset flipbook, int rows, int columns, out string error)
         {
             error = string.Empty;
 
-            if (sheet.importSettingsSource != null)
+            if (flipbook.importSettingsSource != null)
             {
-                string referencePath = AssetDatabase.GetAssetPath(sheet.importSettingsSource);
+                string referencePath = AssetDatabase.GetAssetPath(flipbook.importSettingsSource);
                 TextureImporter referenceImporter = AssetImporter.GetAtPath(referencePath) as TextureImporter;
                 if (referenceImporter == null)
                 {
-                    error = "\"" + sheet.importSettingsSource.name +
+                    error = "\"" + flipbook.importSettingsSource.name +
                             "\" is not an imported texture; pick an array made from a PNG or clear Match import settings of.";
                     return false;
                 }
@@ -227,10 +227,10 @@ namespace DotsAnimationToolkit.Editor
             defaultSettings.textureShape = TextureImporterShape.Texture2DArray;
             defaultSettings.flipbookRows = rows;
             defaultSettings.flipbookColumns = columns;
-            defaultSettings.filterMode = sheet.filterMode;
-            defaultSettings.wrapMode = sheet.wrapMode;
-            defaultSettings.mipmapEnabled = sheet.generateMips;
-            defaultSettings.sRGBTexture = !sheet.linear;
+            defaultSettings.filterMode = flipbook.filterMode;
+            defaultSettings.wrapMode = flipbook.wrapMode;
+            defaultSettings.mipmapEnabled = flipbook.generateMips;
+            defaultSettings.sRGBTexture = !flipbook.linear;
             defaultSettings.aniso = 1;
             defaultSettings.alphaIsTransparency = false;
             defaultSettings.readable = false;

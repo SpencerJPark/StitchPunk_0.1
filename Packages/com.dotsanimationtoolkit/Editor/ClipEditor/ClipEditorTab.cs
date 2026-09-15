@@ -11,7 +11,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Pack greyscale images into one texture's channels over a node graph, with an image and recipe sidebar.</summary>
         TexturePacker = 0,
 
-        SpriteSheets = 1,
+        Flipbooks = 1,
 
         /// <summary>Browse, create and edit clip sets — which clips each one registers.</summary>
         ClipSets = 2,

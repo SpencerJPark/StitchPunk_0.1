@@ -8,6 +8,15 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.52.1] — Flipbooks and Cutscenes
+
+### Changed
+- The Sprite Sheets tab is now **Flipbooks**, and its data follows: `SpriteSheetAsset` → `FlipbookAsset`, `SpriteSheetFrame` → `FlipbookFrame`, `SpriteTrack.sheet` → `SpriteTrack.flipbook` (`[FormerlySerializedAs("sheet")]`, so saved clips keep their binding), `ClipEditorTab.SpriteSheets` → `ClipEditorTab.Flipbooks` (still id 1), and every `SpriteSheet*` editor class, test and the `Editor/SpriteSheets/` folder. Script GUIDs are unchanged, so existing assets load as flipbooks. The create menu reads **DOTS Animation Toolkit ▸ Flipbook**, new assets default to `NewFlipbook`, and saving names over a bare array writes `<ArrayName>_Flipbook.asset`. Documentation: `sprite-sheets.md` is `flipbooks.md`.
+- The Cutscene Director tab is now **Cutscenes**.
+
+### Removed
+- The `DotsAnimationToolkit.SpriteSheets.SheetFolder` preference and the `SpriteSheets.Frames` / `SpriteSheets.Sidebar` split keys, renamed under `Flipbooks`; the remembered folder and dividers reset once.
+
 ## [0.52.0] — Editor chrome consistency
 
 ### Changed

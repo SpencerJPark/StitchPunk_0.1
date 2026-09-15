@@ -4,7 +4,7 @@
         <uie:Toolbar name="clip-editor-toolbar" class="toolkit-asset-bar">
             <ui:VisualElement name="tab-strip" class="clip-editor__tab-strip">
                 <uie:ToolbarToggle name="tab-texture-packer" text="Texture Packer" class="clip-editor__tab"/>
-                <uie:ToolbarToggle name="tab-sprite-sheets" text="Sprite Sheets" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-flipbooks" text="Flipbooks" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-clip-sets" text="Clip Sets" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-new-rig" text="Rigs" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-materials" text="Materials" class="clip-editor__tab"/>
@@ -13,7 +13,7 @@
                 <uie:ToolbarToggle name="tab-retarget" text="Retarget" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-vat-bake" text="VAT Bake" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-actor-editor" text="Actor Profiles" class="clip-editor__tab"/>
-                <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscene Director" class="clip-editor__tab"/>
+                <uie:ToolbarToggle name="tab-cutscene-editor" text="Cutscenes" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-capture" text="Capture" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-ragdoll" text="Ragdoll" class="clip-editor__tab"/>
                 <uie:ToolbarToggle name="tab-health" text="Health" class="clip-editor__tab clip-editor__tab--health"/>
@@ -148,7 +148,7 @@
             <ui:VisualElement name="cutscene-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="events-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="health-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
-            <ui:VisualElement name="sprite-sheets-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
+            <ui:VisualElement name="flipbooks-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="materials-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="retarget-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="capture-pane" class="clip-editor__cover-pane clip-editor--hidden"/>

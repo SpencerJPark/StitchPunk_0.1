@@ -1,7 +1,7 @@
 # The Materials tab
 
 **Window ▸ DOTS Animation Toolkit ▸ DOTS Animator** — the Materials tab, after
-Sprite Sheets.
+Flipbooks.
 
 Checks every material a rig actually uses against the per-instance property
 contract in [shader-contract.md](shader-contract.md), so a broken material
@@ -9,7 +9,7 @@ shows up as a list of missing properties instead of a silent frame-0 part.
 
 The tab follows the window's shared Rig, picked in the Rigs tab, and never
 changes that selection itself. It also reads the window's shared clip set for
-the sheet check below.
+the flipbook check below.
 
 ---
 
@@ -45,7 +45,7 @@ this tab exists to surface.
     below).
 - GPU instancing: `✓` or `✗`. Off is always an error — Entities Graphics
   requires it.
-- Any sheet warnings (see below).
+- Any flipbook warnings (see below).
 
 **Select in Inspector** pings the material asset. The tab itself is
 read-only — properties are edited on the material in the Inspector, not here.
@@ -61,13 +61,13 @@ read-only — properties are edited on the material in the Inspector, not here.
 `_BillboardParams` is never required on any kind: the host game writes it at
 runtime, not the material. Every kind also needs GPU instancing enabled.
 
-## Sheet check
+## Flipbook check
 
-If a sprite track on any clip in the window's shared clip set has a Sheet
+If a sprite track on any clip in the window's shared clip set has a Flipbook
 assigned and binds a part that uses this material, but the material has no
-`_MainTexArray` property, the tab warns, naming the sheet, the part, and the
+`_MainTexArray` property, the tab warns, naming the flipbook, the part, and the
 material. This catches a flipbook material that was set up before its part
-was pointed at a named sheet.
+was pointed at a named flipbook.
 
 ## Creating a material
 

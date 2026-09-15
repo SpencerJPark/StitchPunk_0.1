@@ -10,19 +10,19 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
-    public sealed class SpriteSheetBakerTests
+    public sealed class FlipbookBakerTests
     {
         // A fresh root-level folder per run: the baker only writes under the project root, and a
         // package file may not name a project folder (Conformance_D), so the path comes back from its GUID.
         private string scratchFolderPath;
 
         private readonly List<Texture2D> createdTextures = new List<Texture2D>();
-        private SpriteSheetAsset createdSheet;
+        private FlipbookAsset createdFlipbook;
 
         [SetUp]
         public void SetUp()
         {
-            string scratchFolderName = "SpriteSheetBakerScratch_" + System.Guid.NewGuid().ToString("N");
+            string scratchFolderName = "FlipbookBakerScratch_" + System.Guid.NewGuid().ToString("N");
             string createdFolderGuid = AssetDatabase.CreateFolder("Assets", scratchFolderName);
             Assert.IsFalse(
                 string.IsNullOrEmpty(createdFolderGuid),
@@ -39,10 +39,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
             }
             createdTextures.Clear();
 
-            if (createdSheet != null)
+            if (createdFlipbook != null)
             {
-                Object.DestroyImmediate(createdSheet);
-                createdSheet = null;
+                Object.DestroyImmediate(createdFlipbook);
+                createdFlipbook = null;
             }
 
             if (!string.IsNullOrEmpty(scratchFolderPath))
@@ -102,22 +102,22 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Texture2D greenSource = CreateSolidTexture(green);
             Texture2D blueSource = CreateSolidTexture(blue);
 
-            createdSheet = ScriptableObject.CreateInstance<SpriteSheetAsset>();
-            createdSheet.frames = new List<SpriteSheetFrame>
+            createdFlipbook = ScriptableObject.CreateInstance<FlipbookAsset>();
+            createdFlipbook.frames = new List<FlipbookFrame>
             {
-                new SpriteSheetFrame { name = "red", source = redSource, index = 7 },
-                new SpriteSheetFrame { name = "green", source = greenSource, index = 3 },
-                new SpriteSheetFrame { name = "blue", source = blueSource, index = 5 }
+                new FlipbookFrame { name = "red", source = redSource, index = 7 },
+                new FlipbookFrame { name = "green", source = greenSource, index = 3 },
+                new FlipbookFrame { name = "blue", source = blueSource, index = 5 }
             };
-            createdSheet.outputPath = scratchFolderPath + "/T_A95FTest_Array.png";
-            createdSheet.importSettingsSource = referenceArray;
+            createdFlipbook.outputPath = scratchFolderPath + "/T_A95FTest_Array.png";
+            createdFlipbook.importSettingsSource = referenceArray;
 
-            SpriteSheetBaker baker = new SpriteSheetBaker();
-            bool bakeSucceeded = baker.Bake(createdSheet, out string error);
+            FlipbookBaker baker = new FlipbookBaker();
+            bool bakeSucceeded = baker.Bake(createdFlipbook, out string error);
 
             Assert.IsTrue(bakeSucceeded, error);
 
-            TextureImporter outputImporter = AssetImporter.GetAtPath(createdSheet.outputPath) as TextureImporter;
+            TextureImporter outputImporter = AssetImporter.GetAtPath(createdFlipbook.outputPath) as TextureImporter;
             Assert.IsNotNull(outputImporter);
             Assert.AreEqual(TextureImporterShape.Texture2DArray, outputImporter.textureShape);
             Assert.AreEqual(FilterMode.Trilinear, outputImporter.filterMode);
@@ -129,7 +129,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             outputImporter.isReadable = true;
             outputImporter.SaveAndReimport();
 
-            Texture2DArray loadedArray = AssetDatabase.LoadAssetAtPath<Texture2DArray>(createdSheet.outputPath);
+            Texture2DArray loadedArray = AssetDatabase.LoadAssetAtPath<Texture2DArray>(createdFlipbook.outputPath);
             Assert.IsNotNull(loadedArray);
             Assert.AreEqual(4, loadedArray.depth);
 
@@ -147,13 +147,13 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Color32 paddingPixel = loadedArray.GetPixels32(3, 0)[0];
             Assert.AreEqual(0, paddingPixel.a);
 
-            for (int frameIndex = 0; frameIndex < createdSheet.frames.Count; frameIndex++)
+            for (int frameIndex = 0; frameIndex < createdFlipbook.frames.Count; frameIndex++)
             {
-                Assert.AreEqual(frameIndex, createdSheet.frames[frameIndex].index);
+                Assert.AreEqual(frameIndex, createdFlipbook.frames[frameIndex].index);
             }
 
-            Assert.AreEqual(loadedArray, createdSheet.texture);
-            Assert.AreEqual(createdSheet.outputPath, AssetDatabase.GetAssetPath(createdSheet.texture));
+            Assert.AreEqual(loadedArray, createdFlipbook.texture);
+            Assert.AreEqual(createdFlipbook.outputPath, AssetDatabase.GetAssetPath(createdFlipbook.texture));
         }
     }
 }

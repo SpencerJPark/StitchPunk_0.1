@@ -436,7 +436,7 @@ namespace DotsAnimationToolkit.Editor
                     // the same base, and the keys copied below hold offsets against it. Dropping it
                     // would silently rebase every relative key of the mirror onto zero.
                     baseIndex = sourceTrack.baseIndex,
-                    sheet = sourceTrack.sheet,
+                    flipbook = sourceTrack.flipbook,
                     keys = sourceTrack.keys != null
                         ? new List<SpriteKey>(sourceTrack.keys)
                         : new List<SpriteKey>()

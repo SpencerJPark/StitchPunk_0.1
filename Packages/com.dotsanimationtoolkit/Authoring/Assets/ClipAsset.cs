@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace DotsAnimationToolkit.Authoring
 {
@@ -287,8 +288,9 @@ namespace DotsAnimationToolkit.Authoring
         public int baseIndex;
 
         // Authoring-only and never baked: ClipRegistryBuilder copies mode, sliceSpace, baseIndex and
-        // keys by name, so this only feeds the Clip Editor's frame-by-name picker. Null = no sheet.
-        public SpriteSheetAsset sheet;
+        // keys by name, so this only feeds the Clip Editor's frame-by-name picker. Null = no flipbook.
+        [FormerlySerializedAs("sheet")]
+        public FlipbookAsset flipbook;
 
         /// <summary>Keys in strictly ascending <c>normalizedTime</c> order.</summary>
         public List<SpriteKey> keys = new List<SpriteKey>();

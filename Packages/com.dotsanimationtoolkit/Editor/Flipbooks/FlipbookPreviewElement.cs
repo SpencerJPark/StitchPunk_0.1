@@ -8,15 +8,15 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The contact sheet: every frame of a sheet as a thumbnail in layer order, the only way to see a Texture2DArray's layers.</summary>
-    public sealed class SpriteSheetPreviewElement : VisualElement, IDisposable
+    /// <summary>The contact sheet: every frame of a flipbook as a thumbnail in layer order, the only way to see a Texture2DArray's layers.</summary>
+    public sealed class FlipbookPreviewElement : VisualElement, IDisposable
     {
         public const float DefaultThumbnailSize = 64f;
         public const float MinimumThumbnailSize = 24f;
         public const float MaximumThumbnailSize = 256f;
 
         private const string HoverDefaultText = "Hover a frame to name it.";
-        private const string SelectedCellClassName = "sprite-sheet-preview-cell--selected";
+        private const string SelectedCellClassName = "flipbook-preview-cell--selected";
 
         private static readonly Color SelectedBorderColor = new Color(0.24f, 0.70f, 0.68f);
         private static readonly Color CellBorderColor = new Color(0.35f, 0.35f, 0.35f);
@@ -30,20 +30,20 @@ namespace DotsAnimationToolkit.Editor
         private readonly VisualElement frameContainer;
         private readonly List<VisualElement> cellElements = new List<VisualElement>();
 
-        private readonly SpriteSheetLayerThumbnailCache layerThumbnailCache = new SpriteSheetLayerThumbnailCache();
+        private readonly FlipbookLayerThumbnailCache layerThumbnailCache = new FlipbookLayerThumbnailCache();
 
-        private SpriteSheetAsset sheetAsset;
+        private FlipbookAsset flipbookAsset;
         private float thumbnailSize = DefaultThumbnailSize;
         private int highlightedListPosition = -1;
 
-        public SpriteSheetPreviewElement()
+        public FlipbookPreviewElement()
         {
-            this.name = "sprite-sheet-preview";
+            this.name = "flipbook-preview";
             this.style.flexGrow = 1f;
 
             this.hoverLabel = new Label(HoverDefaultText)
             {
-                name = "sprite-sheet-preview-hover",
+                name = "flipbook-preview-hover",
             };
             this.Add(this.hoverLabel);
 
@@ -57,10 +57,10 @@ namespace DotsAnimationToolkit.Editor
             this.Add(this.scrollView);
         }
 
-        public void SetSheet(SpriteSheetAsset sheet)
+        public void SetFlipbook(FlipbookAsset flipbook)
         {
             this.layerThumbnailCache.Clear();
-            this.sheetAsset = sheet;
+            this.flipbookAsset = flipbook;
             this.Refresh();
         }
 
@@ -86,21 +86,21 @@ namespace DotsAnimationToolkit.Editor
             this.cellElements.Clear();
             this.hoverLabel.text = HoverDefaultText;
 
-            if (this.sheetAsset == null)
+            if (this.flipbookAsset == null)
             {
-                this.frameContainer.Add(new Label("No sheet selected."));
+                this.frameContainer.Add(new Label("No flipbook selected."));
                 return;
             }
 
-            if (this.sheetAsset.frames == null || this.sheetAsset.frames.Count == 0)
+            if (this.flipbookAsset.frames == null || this.flipbookAsset.frames.Count == 0)
             {
                 this.frameContainer.Add(new Label("No frames yet."));
                 return;
             }
 
-            for (int listPosition = 0; listPosition < this.sheetAsset.frames.Count; listPosition++)
+            for (int listPosition = 0; listPosition < this.flipbookAsset.frames.Count; listPosition++)
             {
-                SpriteSheetFrame frame = this.sheetAsset.frames[listPosition];
+                FlipbookFrame frame = this.flipbookAsset.frames[listPosition];
                 VisualElement cellElement = this.BuildCellElement(frame, listPosition);
                 this.cellElements.Add(cellElement);
                 this.frameContainer.Add(cellElement);
@@ -133,7 +133,7 @@ namespace DotsAnimationToolkit.Editor
             this.ApplyHighlightBorder(this.cellElements[listPosition]);
         }
 
-        private VisualElement BuildCellElement(SpriteSheetFrame frame, int listPosition)
+        private VisualElement BuildCellElement(FlipbookFrame frame, int listPosition)
         {
             VisualElement cellElement = new VisualElement
             {
@@ -153,9 +153,9 @@ namespace DotsAnimationToolkit.Editor
             cellElement.style.backgroundColor = CellBackgroundColor;
 
             Texture2D cellTexture = frame.source;
-            if (cellTexture == null && this.sheetAsset != null && this.sheetAsset.texture != null)
+            if (cellTexture == null && this.flipbookAsset != null && this.flipbookAsset.texture != null)
             {
-                cellTexture = this.layerThumbnailCache.GetLayerThumbnail(this.sheetAsset.texture, frame.index);
+                cellTexture = this.layerThumbnailCache.GetLayerThumbnail(this.flipbookAsset.texture, frame.index);
             }
 
             if (cellTexture != null)

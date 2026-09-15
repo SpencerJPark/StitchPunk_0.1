@@ -100,9 +100,9 @@ A sprite track keys an **integer index** into a texture array — frame-by-frame
 art on a part that a transform track may also be moving.
 
 Building that texture array by hand and keying it by number both get easier
-with the **Sprite Sheets** tab: it stacks same-size frames into one
+with the **Flipbooks** tab: it stacks same-size frames into one
 `Texture2DArray` and names every layer, so a key picks a frame by name
-instead of a magic index. See [Sprite Sheets](sprite-sheets.md).
+instead of a magic index. See [Flipbooks](flipbooks.md).
 
 **Indices step on their key.** The key at or before the playhead is what shows,
 and it holds until the next key's own time. There is no interpolation and no

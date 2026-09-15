@@ -223,7 +223,7 @@ Editor tooling can run the same check through `ProfileP2Scan.ScanProfile` (one p
 ## Authoring in the Actor Editor
 
 Double-click an `ActorProfileAsset` (or open the Clip Editor and pick the **Actor Profiles** tab,
-alongside Clip Sets · Rigs · Clip Editor · VAT Bake · Cutscene Director) to author and test one live. Unlike
+alongside Clip Sets · Rigs · Clip Editor · VAT Bake · Cutscenes) to author and test one live. Unlike
 the Clip Editor, which previews one clip, this tab previews the whole profile: every layer
 composited, triggered the way the game triggers them, turning through the profile's directions,
 dropping and restoring ragdoll on the entries that say so.

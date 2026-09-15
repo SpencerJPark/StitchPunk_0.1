@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Materials tab's detail column: one material's shader, users, contract properties, instancing and sheet findings.</summary>
+    /// <summary>The Materials tab's detail column: one material's shader, users, contract properties, instancing and flipbook findings.</summary>
     public sealed class MaterialInspectorColumn : VisualElement
     {
         public RigMaterialUsage BoundUsage { get; private set; }
@@ -141,11 +141,11 @@ namespace DotsAnimationToolkit.Editor
 
             bodyScrollView.Add(instancingRow);
 
-            List<ValidationMessage> sheetWarnings = new List<ValidationMessage>();
-            RigMaterialResolver.CollectSheetBindingWarnings(BoundUsage, BoundClipSet, sheetWarnings);
-            foreach (ValidationMessage warning in sheetWarnings)
+            List<ValidationMessage> flipbookWarnings = new List<ValidationMessage>();
+            RigMaterialResolver.CollectFlipbookBindingWarnings(BoundUsage, BoundClipSet, flipbookWarnings);
+            foreach (ValidationMessage warning in flipbookWarnings)
             {
-                Label warningRow = new Label("● " + warning.text) { name = "material-inspector-sheet-warning" };
+                Label warningRow = new Label("● " + warning.text) { name = "material-inspector-flipbook-warning" };
                 warningRow.AddToClassList("toolkit-text--warning");
                 bodyScrollView.Add(warningRow);
             }

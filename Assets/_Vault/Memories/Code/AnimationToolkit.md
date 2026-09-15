@@ -1255,6 +1255,8 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
 
 ## Sprite Sheets tab (A95, 0.42.0)
 
+> **Renamed 0.52.1 (2026-09-15):** Sprite Sheets → **Flipbooks** everywhere (tab, `FlipbookAsset`/`FlipbookFrame`, `SpriteTrack.flipbook` with `[FormerlySerializedAs("sheet")]`, `Editor/Flipbooks/`, `Flipbook*` classes and tests); Cutscene Director tab → **Cutscenes** (label only, `ClipEditorTab.CutsceneEditor` unchanged). The A95/A95F notes below keep the old names as history. Shader comments saying "sprite sheet" mean an atlas grid, not the asset.
+
 - **Arrays, never atlases (D0).** A grid PNG cannot render from a slice key, and an atlas rect only remaps UVs on
   a fixed quad, so every frame of a part shares one canvas anyway.
 - **Unity builds each array layer's mips from level 0** (T0 probe): `generateMips` needs no per-layer sources.

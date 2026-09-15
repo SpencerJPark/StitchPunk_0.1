@@ -175,8 +175,8 @@ namespace DotsAnimationToolkit.Editor
         private EventsPanel eventsPanel;
         private VisualElement healthPane;
         private HealthPanel healthPanel;
-        private VisualElement spriteSheetsPane;
-        private SpriteSheetsPanel spriteSheetsPanel;
+        private VisualElement flipbooksPane;
+        private FlipbooksPanel flipbooksPanel;
         private VisualElement materialsPane;
         private MaterialsPanel materialsPanel;
         private VisualElement retargetPane;
@@ -844,10 +844,10 @@ namespace DotsAnimationToolkit.Editor
                 healthPanel.Dispose();
                 healthPanel = null;
             }
-            if (spriteSheetsPanel != null)
+            if (flipbooksPanel != null)
             {
-                spriteSheetsPanel.Dispose();
-                spriteSheetsPanel = null;
+                flipbooksPanel.Dispose();
+                flipbooksPanel = null;
             }
             materialsPanel?.Dispose();
             materialsPanel = null;
@@ -1041,7 +1041,7 @@ namespace DotsAnimationToolkit.Editor
             cutscenePane = rootVisualElement.Q<VisualElement>("cutscene-pane");
             eventsPane = rootVisualElement.Q<VisualElement>("events-pane");
             healthPane = rootVisualElement.Q<VisualElement>("health-pane");
-            spriteSheetsPane = rootVisualElement.Q<VisualElement>("sprite-sheets-pane");
+            flipbooksPane = rootVisualElement.Q<VisualElement>("flipbooks-pane");
             materialsPane = rootVisualElement.Q<VisualElement>("materials-pane");
             retargetPane = rootVisualElement.Q<VisualElement>("retarget-pane");
             capturePane = rootVisualElement.Q<VisualElement>("capture-pane");
@@ -1322,7 +1322,7 @@ namespace DotsAnimationToolkit.Editor
                 "Pack greyscale images into the channels of one texture: drag images from the "
                 + "sidebar or the Project window onto the canvas, wire their channels into the "
                 + "Pack Output node, and bake over the output in place.");
-            BindTab(ClipEditorTab.SpriteSheets, "tab-sprite-sheets",
+            BindTab(ClipEditorTab.Flipbooks, "tab-flipbooks",
                 "Stack same-size frames into one Texture2DArray, see every layer as a contact sheet, "
                 + "and name each frame so sprite keys pick it by name.");
             BindTab(ClipEditorTab.ClipSets, "tab-clip-sets",
@@ -1442,7 +1442,7 @@ namespace DotsAnimationToolkit.Editor
             ShowCutsceneTab(activeTab == ClipEditorTab.CutsceneEditor);
             ShowEventsTab(activeTab == ClipEditorTab.Events);
             ShowHealthTab(activeTab == ClipEditorTab.Health);
-            ShowSpriteSheetsTab(activeTab == ClipEditorTab.SpriteSheets);
+            ShowFlipbooksTab(activeTab == ClipEditorTab.Flipbooks);
             ShowMaterialsTab(activeTab == ClipEditorTab.Materials);
             ShowRetargetTab(activeTab == ClipEditorTab.Retarget);
             ShowCaptureTab(activeTab == ClipEditorTab.Capture);
@@ -1677,25 +1677,25 @@ namespace DotsAnimationToolkit.Editor
                 : new StyleColor(StyleKeyword.Null);
         }
 
-        private void ShowSpriteSheetsTab(bool isShown)
+        private void ShowFlipbooksTab(bool isShown)
         {
-            if (spriteSheetsPane == null)
+            if (flipbooksPane == null)
             {
                 return;
             }
 
-            if (isShown && spriteSheetsPanel == null)
+            if (isShown && flipbooksPanel == null)
             {
-                spriteSheetsPanel = new SpriteSheetsPanel();
-                spriteSheetsPane.Add(spriteSheetsPanel);
+                flipbooksPanel = new FlipbooksPanel();
+                flipbooksPane.Add(flipbooksPanel);
             }
 
             if (isShown)
             {
-                spriteSheetsPanel.RescanProject();
+                flipbooksPanel.RescanProject();
             }
 
-            spriteSheetsPane.EnableInClassList(HiddenUssClassName, !isShown);
+            flipbooksPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
         // Built with the window so it follows the shared rig from the start; prefab and material edits are

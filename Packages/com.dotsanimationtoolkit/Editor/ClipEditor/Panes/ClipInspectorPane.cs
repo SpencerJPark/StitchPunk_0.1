@@ -346,9 +346,9 @@ namespace DotsAnimationToolkit.Editor
             }
             if (binding.framePopup != null && !IsBeingEdited(binding.framePopup))
             {
-                SpriteSheetFramePickerBuilder.SetFramePopupLayerIndex(
+                FlipbookFramePickerBuilder.SetFramePopupLayerIndex(
                     binding.framePopup,
-                    track.sheet,
+                    track.flipbook,
                     SpriteIndexResolver.Resolve(currentKey.sliceIndex, currentKey.indexMode, track.baseIndex));
             }
             if (binding.resolvedLabel != null)
@@ -665,26 +665,26 @@ namespace DotsAnimationToolkit.Editor
             }
 
             SpriteKey key = track.keys[address.keyIndex];
-            bool sheetIsBound = track.sheet != null && track.mode == SpriteFrameMode.Slice;
+            bool flipbookIsBound = track.flipbook != null && track.mode == SpriteFrameMode.Slice;
 
-            ObjectField sheetField = SpriteSheetFramePickerBuilder.BuildSheetField(track, pickedSheet =>
+            ObjectField flipbookField = FlipbookFramePickerBuilder.BuildFlipbookField(track, pickedFlipbook =>
             {
-                RecordClipEdit("Bind Sprite Sheet");
-                track.sheet = pickedSheet;
+                RecordClipEdit("Bind Flipbook");
+                track.flipbook = pickedFlipbook;
                 CommitClipEdit();
                 RequestInspectorRebuild();
             });
-            inspectorPane.Add(sheetField);
+            inspectorPane.Add(flipbookField);
             if (track.mode == SpriteFrameMode.AtlasRect)
             {
-                inspectorPane.Add(MakeHint(SpriteSheetFramePickerBuilder.AtlasTrackHint));
+                inspectorPane.Add(MakeHint(FlipbookFramePickerBuilder.AtlasTrackHint));
             }
 
-            if (sheetIsBound)
+            if (flipbookIsBound)
             {
-                PopupField<string> framePopup = SpriteSheetFramePickerBuilder.BuildFramePopup(
+                PopupField<string> framePopup = FlipbookFramePickerBuilder.BuildFramePopup(
                     "Frame",
-                    track.sheet,
+                    track.flipbook,
                     SpriteIndexResolver.Resolve(key.sliceIndex, key.indexMode, track.baseIndex),
                     pickedLayerIndex =>
                     {
@@ -710,7 +710,7 @@ namespace DotsAnimationToolkit.Editor
                 CommitClipEdit();
                 RequestInspectorRebuild();
             });
-            valueField.SetEnabled(!sheetIsBound);
+            valueField.SetEnabled(!flipbookIsBound);
             inspectorPane.Add(valueField);
 
             EnumField indexModeField = new EnumField("Index Mode", key.indexMode);
@@ -723,11 +723,11 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorPane.Add(MakeFlipbookResolvedLabel(key, track.baseIndex));
 
-            if (sheetIsBound)
+            if (flipbookIsBound)
             {
-                PopupField<string> baseFramePopup = SpriteSheetFramePickerBuilder.BuildFramePopup(
+                PopupField<string> baseFramePopup = FlipbookFramePickerBuilder.BuildFramePopup(
                     "Base Frame",
-                    track.sheet,
+                    track.flipbook,
                     track.baseIndex,
                     pickedLayerIndex =>
                     {
@@ -749,7 +749,7 @@ namespace DotsAnimationToolkit.Editor
                 CommitClipEdit();
                 RequestInspectorRebuild();
             });
-            baseIndexField.SetEnabled(!sheetIsBound);
+            baseIndexField.SetEnabled(!flipbookIsBound);
             inspectorPane.Add(baseIndexField);
         }
 
@@ -1417,30 +1417,30 @@ namespace DotsAnimationToolkit.Editor
             };
             liveFlipbookBindings.Add(binding);
 
-            bool sheetIsBound = track.sheet != null && track.mode == SpriteFrameMode.Slice;
+            bool flipbookIsBound = track.flipbook != null && track.mode == SpriteFrameMode.Slice;
 
-            ObjectField sheetField = SpriteSheetFramePickerBuilder.BuildSheetField(track, pickedSheet =>
+            ObjectField flipbookField = FlipbookFramePickerBuilder.BuildFlipbookField(track, pickedFlipbook =>
             {
-                RecordClipEdit("Bind Sprite Sheet");
-                track.sheet = pickedSheet;
+                RecordClipEdit("Bind Flipbook");
+                track.flipbook = pickedFlipbook;
                 CommitClipEdit();
                 RequestInspectorRebuild();
             });
-            trackBlock.Add(sheetField);
+            trackBlock.Add(flipbookField);
             if (track.mode == SpriteFrameMode.AtlasRect)
             {
-                trackBlock.Add(MakeHint(SpriteSheetFramePickerBuilder.AtlasTrackHint));
+                trackBlock.Add(MakeHint(FlipbookFramePickerBuilder.AtlasTrackHint));
             }
 
             if (keyCount > 0 && effectiveKeyIndex >= 0)
             {
                 SpriteKey currentKey = track.keys[effectiveKeyIndex];
 
-                if (sheetIsBound)
+                if (flipbookIsBound)
                 {
-                    PopupField<string> framePopup = SpriteSheetFramePickerBuilder.BuildFramePopup(
+                    PopupField<string> framePopup = FlipbookFramePickerBuilder.BuildFramePopup(
                         "Frame",
-                        track.sheet,
+                        track.flipbook,
                         SpriteIndexResolver.Resolve(
                             currentKey.sliceIndex, currentKey.indexMode, track.baseIndex),
                         pickedLayerIndex =>
@@ -1464,7 +1464,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     ApplyFlipbookEdit(track, changeEvent.newValue, currentKey.indexMode);
                 });
-                valueField.SetEnabled(!sheetIsBound);
+                valueField.SetEnabled(!flipbookIsBound);
                 binding.valueField = valueField;
                 trackBlock.Add(valueField);
 
@@ -1486,11 +1486,11 @@ namespace DotsAnimationToolkit.Editor
             }
             else
             {
-                if (sheetIsBound)
+                if (flipbookIsBound)
                 {
-                    PopupField<string> framePopup = SpriteSheetFramePickerBuilder.BuildFramePopup(
+                    PopupField<string> framePopup = FlipbookFramePickerBuilder.BuildFramePopup(
                         "Frame",
-                        track.sheet,
+                        track.flipbook,
                         -1,
                         pickedLayerIndex =>
                         {
@@ -1506,15 +1506,15 @@ namespace DotsAnimationToolkit.Editor
                 {
                     ApplyFlipbookEdit(track, changeEvent.newValue, SpriteIndexMode.Absolute);
                 });
-                emptyValueField.SetEnabled(!sheetIsBound);
+                emptyValueField.SetEnabled(!flipbookIsBound);
                 trackBlock.Add(emptyValueField);
             }
 
-            if (sheetIsBound)
+            if (flipbookIsBound)
             {
-                PopupField<string> baseFramePopup = SpriteSheetFramePickerBuilder.BuildFramePopup(
+                PopupField<string> baseFramePopup = FlipbookFramePickerBuilder.BuildFramePopup(
                     "Base Frame",
-                    track.sheet,
+                    track.flipbook,
                     track.baseIndex,
                     pickedLayerIndex =>
                     {
@@ -1545,7 +1545,7 @@ namespace DotsAnimationToolkit.Editor
                 RefreshLiveInspectorValues();
                 RequestInspectorRebuild();
             });
-            baseIndexField.SetEnabled(!sheetIsBound);
+            baseIndexField.SetEnabled(!flipbookIsBound);
             trackBlock.Add(baseIndexField);
 
             EnumField frameModeField = new EnumField("Frame Mode", track.mode);

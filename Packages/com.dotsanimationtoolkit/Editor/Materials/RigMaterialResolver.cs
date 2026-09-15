@@ -86,7 +86,7 @@ namespace DotsAnimationToolkit.Editor
             return orderedUsages;
         }
 
-        public static void CollectSheetBindingWarnings(
+        public static void CollectFlipbookBindingWarnings(
             RigMaterialUsage usage, ClipSetAsset clipSet, List<ValidationMessage> output)
         {
             if (usage == null || usage.Material == null || clipSet == null)
@@ -98,8 +98,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            List<(SpriteSheetAsset Sheet, RigTargetDefinition Target)> reportedPairs =
-                new List<(SpriteSheetAsset Sheet, RigTargetDefinition Target)>();
+            List<(FlipbookAsset Flipbook, RigTargetDefinition Target)> reportedPairs =
+                new List<(FlipbookAsset Flipbook, RigTargetDefinition Target)>();
 
             for (int clipIndex = 0; clipIndex < clipSet.clips.Count; clipIndex++)
             {
@@ -112,7 +112,7 @@ namespace DotsAnimationToolkit.Editor
                 for (int trackIndex = 0; trackIndex < clip.spriteTracks.Count; trackIndex++)
                 {
                     SpriteTrack track = clip.spriteTracks[trackIndex];
-                    if (track == null || track.sheet == null)
+                    if (track == null || track.flipbook == null)
                     {
                         continue;
                     }
@@ -128,7 +128,7 @@ namespace DotsAnimationToolkit.Editor
                         bool alreadyReported = false;
                         for (int pairIndex = 0; pairIndex < reportedPairs.Count; pairIndex++)
                         {
-                            if (ReferenceEquals(reportedPairs[pairIndex].Sheet, track.sheet) &&
+                            if (ReferenceEquals(reportedPairs[pairIndex].Flipbook, track.flipbook) &&
                                 ReferenceEquals(reportedPairs[pairIndex].Target, target))
                             {
                                 alreadyReported = true;
@@ -139,10 +139,10 @@ namespace DotsAnimationToolkit.Editor
                         {
                             continue;
                         }
-                        reportedPairs.Add((track.sheet, target));
+                        reportedPairs.Add((track.flipbook, target));
 
                         string partName = string.IsNullOrEmpty(target.displayName) ? target.sourceNodePath : target.displayName;
-                        string text = $"Sheet '{track.sheet.name}' binds part '{partName}', but material '{usage.Material.name}' has no _MainTexArray, so the sheet's frames never reach the screen.";
+                        string text = $"Flipbook '{track.flipbook.name}' binds part '{partName}', but material '{usage.Material.name}' has no _MainTexArray, so the flipbook's frames never reach the screen.";
                         output.Add(new ValidationMessage(ValidationSeverity.Warning, ValidationCode.None, usage.Material, text));
                     }
                 }

@@ -8,7 +8,7 @@ using UnityEngine.Experimental.Rendering;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>Per-layer Texture2D thumbnails of Texture2DArrays, copied on the GPU so unreadable compressed arrays still preview.</summary>
-    public sealed class SpriteSheetLayerThumbnailCache : IDisposable
+    public sealed class FlipbookLayerThumbnailCache : IDisposable
     {
         private readonly Dictionary<Texture2DArray, Texture2D[]> layerThumbnailsByArray = new Dictionary<Texture2DArray, Texture2D[]>();
 

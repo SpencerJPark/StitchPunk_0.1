@@ -21,7 +21,7 @@ namespace DotsAnimationToolkit.Editor
                 case TargetKind.VatMesh:
                     return VatTemplateShaderPath;
                 case TargetKind.FlipbookPlane:
-                    // Sprite sheets are Texture2DArrays, so a flipbook plane gets the array graph.
+                    // Flipbooks are Texture2DArrays, so a flipbook plane gets the array graph.
                     return FlipbookTemplateShaderPath;
                 case TargetKind.Quad:
                 default:

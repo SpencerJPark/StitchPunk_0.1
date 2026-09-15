@@ -8,22 +8,22 @@ using DotsAnimationToolkit.Authoring;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Sprite Sheets tab's catalog: every SpriteSheetAsset plus every Texture2DArray no sheet wraps yet.</summary>
-    public sealed class SpriteSheetCatalogColumn : ToolkitCatalogColumn<UnityEngine.Object>
+    /// <summary>The Flipbooks tab's catalog: every FlipbookAsset plus every Texture2DArray no flipbook wraps yet.</summary>
+    public sealed class FlipbookCatalogColumn : ToolkitCatalogColumn<UnityEngine.Object>
     {
-        public event Action<SpriteSheetAsset> SheetSelected;
+        public event Action<FlipbookAsset> FlipbookSelected;
         public event Action<Texture2DArray> ArraySelected;
-        public event Action<SpriteSheetAsset, string> SheetRenameRequested;
-        public event Action<SpriteSheetAsset> SheetDeleteRequested;
+        public event Action<FlipbookAsset, string> FlipbookRenameRequested;
+        public event Action<FlipbookAsset> FlipbookDeleteRequested;
 
-        public SpriteSheetAsset SelectedSheet => SelectedAsset as SpriteSheetAsset;
+        public FlipbookAsset SelectedFlipbook => SelectedAsset as FlipbookAsset;
         public Texture2DArray SelectedArray => SelectedAsset as Texture2DArray;
 
-        public SpriteSheetCatalogColumn() : base(BuildOptions())
+        public FlipbookCatalogColumn() : base(BuildOptions())
         {
             AssetSelected += RaiseRowSelected;
-            RenameRequested += RaiseSheetRenameRequested;
-            DeleteRequested += RaiseSheetDeleteRequested;
+            RenameRequested += RaiseFlipbookRenameRequested;
+            DeleteRequested += RaiseFlipbookDeleteRequested;
         }
 
         public void RescanProject()
@@ -31,9 +31,9 @@ namespace DotsAnimationToolkit.Editor
             Rescan();
         }
 
-        public void SetSelectedSheet(SpriteSheetAsset sheet)
+        public void SetSelectedFlipbook(FlipbookAsset flipbook)
         {
-            Select(sheet);
+            Select(flipbook);
         }
 
         public void SetSelectedArray(Texture2DArray array)
@@ -45,45 +45,45 @@ namespace DotsAnimationToolkit.Editor
         {
             return new CatalogColumnOptions<UnityEngine.Object>
             {
-                elementName = "sprite-sheet-catalog-column",
-                namePrefix = "sprite-sheets",
-                // No title: the Sprite Sheets sidebar owns the header and hoists HeaderActions into it.
+                elementName = "flipbook-catalog-column",
+                namePrefix = "flipbooks",
+                // No title: the Flipbooks sidebar owns the header and hoists HeaderActions into it.
                 title = string.Empty,
                 newButtonIconName = "d_Toolbar Plus",
-                newButtonTooltip = "Create a sprite sheet: choose its name and folder",
+                newButtonTooltip = "Create a flipbook: choose its name and folder",
                 refreshButtonIconName = "d_Refresh",
-                refreshButtonTooltip = "Rescan the project for sprite sheets and texture arrays",
-                emptyProjectMessage = "No sprite sheets or texture arrays in this project yet. Press New.",
-                emptySearchMessage = "No sprite sheets match your search.",
+                refreshButtonTooltip = "Rescan the project for flipbooks and texture arrays",
+                emptyProjectMessage = "No flipbooks or texture arrays in this project yet. Press New.",
+                emptySearchMessage = "No flipbooks match your search.",
                 scan = ScanProjectRows,
                 secondLine = DescribeRow,
                 tooltip = DescribeRowPath,
                 allowRename = true,
                 allowDelete = true,
-                rowAllowsRenameAndDelete = row => row is SpriteSheetAsset,
+                rowAllowsRenameAndDelete = row => row is FlipbookAsset,
             };
         }
 
-        // Sheets first found, then every array whose path no sheet's texture points at; one name-sorted list.
+        // Flipbooks first found, then every array whose path no flipbook's texture points at; one name-sorted list.
         private static IReadOnlyList<UnityEngine.Object> ScanProjectRows()
         {
             List<UnityEngine.Object> foundRows = new List<UnityEngine.Object>();
             HashSet<string> wrappedArrayPaths = new HashSet<string>(StringComparer.Ordinal);
 
-            string[] sheetGuids = AssetDatabase.FindAssets("t:SpriteSheetAsset");
-            for (int guidIndex = 0; guidIndex < sheetGuids.Length; guidIndex++)
+            string[] flipbookGuids = AssetDatabase.FindAssets("t:FlipbookAsset");
+            for (int guidIndex = 0; guidIndex < flipbookGuids.Length; guidIndex++)
             {
-                string assetPath = AssetDatabase.GUIDToAssetPath(sheetGuids[guidIndex]);
-                SpriteSheetAsset sheet = AssetDatabase.LoadAssetAtPath<SpriteSheetAsset>(assetPath);
-                if (sheet == null)
+                string assetPath = AssetDatabase.GUIDToAssetPath(flipbookGuids[guidIndex]);
+                FlipbookAsset flipbook = AssetDatabase.LoadAssetAtPath<FlipbookAsset>(assetPath);
+                if (flipbook == null)
                 {
                     continue;
                 }
 
-                foundRows.Add(sheet);
-                if (sheet.texture != null)
+                foundRows.Add(flipbook);
+                if (flipbook.texture != null)
                 {
-                    wrappedArrayPaths.Add(AssetDatabase.GetAssetPath(sheet.texture));
+                    wrappedArrayPaths.Add(AssetDatabase.GetAssetPath(flipbook.texture));
                 }
             }
 
@@ -118,18 +118,18 @@ namespace DotsAnimationToolkit.Editor
                     + bareArray.width.ToString() + "×" + bareArray.height.ToString() + " · imported, unnamed";
             }
 
-            SpriteSheetAsset sheet = row as SpriteSheetAsset;
-            int frameCount = sheet != null && sheet.frames != null ? sheet.frames.Count : 0;
-            if (sheet != null && sheet.IsImportedArray)
+            FlipbookAsset flipbook = row as FlipbookAsset;
+            int frameCount = flipbook != null && flipbook.frames != null ? flipbook.frames.Count : 0;
+            if (flipbook != null && flipbook.IsImportedArray)
             {
                 return frameCount.ToString() + " frames · "
-                    + sheet.texture.width.ToString() + "×" + sheet.texture.height.ToString() + " · imported";
+                    + flipbook.texture.width.ToString() + "×" + flipbook.texture.height.ToString() + " · imported";
             }
 
-            if (sheet != null && sheet.texture != null)
+            if (flipbook != null && flipbook.texture != null)
             {
                 return frameCount.ToString() + " frames · "
-                    + sheet.layerSize.x.ToString() + "x" + sheet.layerSize.y.ToString();
+                    + flipbook.layerSize.x.ToString() + "x" + flipbook.layerSize.y.ToString();
             }
 
             return frameCount.ToString() + " frames · not baked";
@@ -137,13 +137,13 @@ namespace DotsAnimationToolkit.Editor
 
         private static string DescribeRowPath(UnityEngine.Object row)
         {
-            SpriteSheetAsset sheet = row as SpriteSheetAsset;
-            if (sheet != null && !sheet.IsImportedArray)
+            FlipbookAsset flipbook = row as FlipbookAsset;
+            if (flipbook != null && !flipbook.IsImportedArray)
             {
-                return sheet.outputPath;
+                return flipbook.outputPath;
             }
 
-            UnityEngine.Object describedAsset = sheet != null ? sheet.texture : row;
+            UnityEngine.Object describedAsset = flipbook != null ? flipbook.texture : row;
             return describedAsset != null ? AssetDatabase.GetAssetPath(describedAsset) : string.Empty;
         }
 
@@ -156,24 +156,24 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            SheetSelected?.Invoke(row as SpriteSheetAsset);
+            FlipbookSelected?.Invoke(row as FlipbookAsset);
         }
 
-        private void RaiseSheetRenameRequested(UnityEngine.Object row, string newName)
+        private void RaiseFlipbookRenameRequested(UnityEngine.Object row, string newName)
         {
-            SpriteSheetAsset sheet = row as SpriteSheetAsset;
-            if (sheet != null)
+            FlipbookAsset flipbook = row as FlipbookAsset;
+            if (flipbook != null)
             {
-                SheetRenameRequested?.Invoke(sheet, newName);
+                FlipbookRenameRequested?.Invoke(flipbook, newName);
             }
         }
 
-        private void RaiseSheetDeleteRequested(UnityEngine.Object row)
+        private void RaiseFlipbookDeleteRequested(UnityEngine.Object row)
         {
-            SpriteSheetAsset sheet = row as SpriteSheetAsset;
-            if (sheet != null)
+            FlipbookAsset flipbook = row as FlipbookAsset;
+            if (flipbook != null)
             {
-                SheetDeleteRequested?.Invoke(sheet);
+                FlipbookDeleteRequested?.Invoke(flipbook);
             }
         }
     }

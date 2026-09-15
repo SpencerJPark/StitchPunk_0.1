@@ -7,7 +7,7 @@ using UnityEngine;
 namespace DotsAnimationToolkit.Authoring
 {
     [Serializable]
-    public sealed class SpriteSheetFrame
+    public sealed class FlipbookFrame
     {
         public string name;
 
@@ -18,8 +18,8 @@ namespace DotsAnimationToolkit.Authoring
     }
 
     /// <summary>A named stack of same-size frames baked into one Texture2DArray; authoring-only, never baked into a clip blob.</summary>
-    [CreateAssetMenu(fileName = "NewSpriteSheet", menuName = "DOTS Animation Toolkit/Sprite Sheet", order = 41)]
-    public sealed class SpriteSheetAsset : ScriptableObject
+    [CreateAssetMenu(fileName = "NewFlipbook", menuName = "DOTS Animation Toolkit/Flipbook", order = 41)]
+    public sealed class FlipbookAsset : ScriptableObject
     {
         public Texture2DArray texture;
 
@@ -33,13 +33,13 @@ namespace DotsAnimationToolkit.Authoring
         public TextureWrapMode wrapMode = TextureWrapMode.Clamp;
         public bool generateMips = true;
         public bool linear;
-        public List<SpriteSheetFrame> frames = new List<SpriteSheetFrame>();
+        public List<FlipbookFrame> frames = new List<FlipbookFrame>();
         public string outputPath = string.Empty;
 
         // Names only: the importer owns the layers, so Bake, reorder and frame removal do not apply.
         public bool IsImportedArray => texture != null && frames != null && frames.TrueForAll(frame => frame == null || frame.source == null);
 
-        public SpriteSheetFrame FindFrameByLayerIndex(int layerIndex)
+        public FlipbookFrame FindFrameByLayerIndex(int layerIndex)
         {
             if (frames == null)
             {
@@ -47,7 +47,7 @@ namespace DotsAnimationToolkit.Authoring
             }
             for (int listPosition = 0; listPosition < frames.Count; listPosition++)
             {
-                SpriteSheetFrame frame = frames[listPosition];
+                FlipbookFrame frame = frames[listPosition];
                 if (frame != null && frame.index == layerIndex)
                 {
                     return frame;

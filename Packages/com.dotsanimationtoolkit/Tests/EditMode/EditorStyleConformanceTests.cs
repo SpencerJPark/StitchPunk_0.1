@@ -30,7 +30,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "Editor/ClipEditor/Cutscene/CutsceneTimeRulerElement.cs",
             "Editor/ClipEditor/Panes/TimelinePane.cs",
             "Editor/ClipEditor/TimeRulerElement.cs",
-            "Editor/SpriteSheets/SpriteSheetPreviewElement.cs",
+            "Editor/Flipbooks/FlipbookPreviewElement.cs",
             "Editor/TexturePacker/PackOutputNodeView.cs",
             "Editor/TexturePacker/SourceImageNodeView.cs",
             "Editor/ClipEditor/Preview/RagdollPreviewSceneryProvider.cs",

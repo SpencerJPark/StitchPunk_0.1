@@ -9,7 +9,7 @@ laid out against the rig they're being checked on.
 ## Header
 
 **Clip Set** and **Rig** are the same shared selection every other tab in the window uses — picking
-either here changes it everywhere, exactly like Materials or Sprite Sheets. **Clip** is local to
+either here changes it everywhere, exactly like Materials or Flipbooks. **Clip** is local to
 this tab: it lists the clips in the selected set, and choosing one doesn't touch the shared
 selection.
 

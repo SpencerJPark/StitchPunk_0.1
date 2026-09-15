@@ -10,20 +10,20 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Sprite Sheets tab: catalogs, frame list and contact sheet around one sheet's working copy, with Bake, Save and discard.</summary>
-    public sealed class SpriteSheetsPanel : VisualElement, IDisposable
+    /// <summary>The Flipbooks tab: catalogs, frame list and contact sheet around one flipbook's working copy, with Bake, Save and discard.</summary>
+    public sealed class FlipbooksPanel : VisualElement, IDisposable
     {
-        public SpriteSheetAsset LoadedSheet { get; private set; }
+        public FlipbookAsset LoadedFlipbook { get; private set; }
         public Texture2DArray LoadedArray { get; private set; }
         public bool HasUnsavedChanges { get; private set; }
 
-        private readonly SpriteSheetCatalogColumn catalog;
+        private readonly FlipbookCatalogColumn catalog;
         private readonly ImageCatalogColumn images;
-        private readonly SpriteSheetFramesColumn frames;
-        private readonly SpriteSheetPreviewElement preview;
-        private readonly SpriteSheetBaker baker = new SpriteSheetBaker();
+        private readonly FlipbookFramesColumn frames;
+        private readonly FlipbookPreviewElement preview;
+        private readonly FlipbookBaker baker = new FlipbookBaker();
 
-        private readonly Label sheetLabel;
+        private readonly Label flipbookLabel;
         private readonly Label infoLabel;
         private readonly PathPickerRowElement outputPathRow;
         private readonly Label importedHintLabel;
@@ -38,40 +38,40 @@ namespace DotsAnimationToolkit.Editor
         private readonly VisualElement headerActions;
         private readonly VisualElement bodyHost;
 
-        private SpriteSheetAsset workingCopy;
+        private FlipbookAsset workingCopy;
 
-        public SpriteSheetsPanel()
+        public FlipbooksPanel()
         {
             style.flexGrow = 1f;
 
-            catalog = new SpriteSheetCatalogColumn();
-            catalog.SheetSelected += OnSheetSelected;
+            catalog = new FlipbookCatalogColumn();
+            catalog.FlipbookSelected += OnFlipbookSelected;
             catalog.ArraySelected += OnArraySelected;
             catalog.NewRequested += OnNewRequested;
-            catalog.SheetRenameRequested += OnSheetRenameRequested;
-            catalog.SheetDeleteRequested += OnSheetDeleteRequested;
+            catalog.FlipbookRenameRequested += OnFlipbookRenameRequested;
+            catalog.FlipbookDeleteRequested += OnFlipbookDeleteRequested;
 
             images = new ImageCatalogColumn();
             images.ImagesActivated += OnImagesActivated;
 
-            // SpriteSheetCatalogColumn's own options.title is non-empty ("Sheets"), so its
+            // FlipbookCatalogColumn's own options.title is non-empty ("Flipbooks"), so its
             // internal header already carries HeaderActions once; the sidebar mode header renders
             // the same HeaderActions a second time above it.
-            CatalogSidebarElement sidebar = new CatalogSidebarElement { name = "sprite-sheets-sidebar" };
-            sidebar.AddMode("sheets", "Sheets", catalog, catalog.HeaderActions);
+            CatalogSidebarElement sidebar = new CatalogSidebarElement { name = "flipbooks-sidebar" };
+            sidebar.AddMode("flipbooks", "Flipbooks", catalog, catalog.HeaderActions);
             sidebar.AddMode("images", "Images", images, images.HeaderActions);
-            sidebar.SetMode("sheets");
+            sidebar.SetMode("flipbooks");
 
-            frames = new SpriteSheetFramesColumn();
+            frames = new FlipbookFramesColumn();
             frames.FramesChanged += OnFramesChanged;
             frames.FrameSelected += OnFrameSelected;
 
-            preview = new SpriteSheetPreviewElement();
+            preview = new FlipbookPreviewElement();
             preview.FrameClicked += OnFrameClicked;
 
             Slider zoomSlider = new Slider(
-                "Zoom", SpriteSheetPreviewElement.MinimumThumbnailSize, SpriteSheetPreviewElement.MaximumThumbnailSize);
-            zoomSlider.value = SpriteSheetPreviewElement.DefaultThumbnailSize;
+                "Zoom", FlipbookPreviewElement.MinimumThumbnailSize, FlipbookPreviewElement.MaximumThumbnailSize);
+            zoomSlider.value = FlipbookPreviewElement.DefaultThumbnailSize;
             zoomSlider.RegisterValueChangedCallback(evt => preview.SetThumbnailSize(evt.newValue));
 
             VisualElement previewColumn = new VisualElement();
@@ -79,7 +79,7 @@ namespace DotsAnimationToolkit.Editor
             previewColumn.Add(zoomSlider);
             previewColumn.Add(preview);
 
-            CoverPaneSplitView framesSplit = new CoverPaneSplitView("SpriteSheets.Frames", 0, 300f, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView framesSplit = new CoverPaneSplitView("Flipbooks.Frames", 0, 300f, TwoPaneSplitViewOrientation.Horizontal);
             framesSplit.style.flexGrow = 1f;
             framesSplit.Add(frames);
             framesSplit.Add(previewColumn);
@@ -104,16 +104,16 @@ namespace DotsAnimationToolkit.Editor
                 allowSceneObjects = false,
                 tooltip = "Bake copies this array's import settings (compression, filter, mips, sRGB). Empty uses the project defaults."
             };
-            importSettingsSourceField.name = "sprite-sheet-import-settings-source";
+            importSettingsSourceField.name = "flipbook-import-settings-source";
             importSettingsSourceField.RegisterValueChangedCallback(OnImportSettingsSourceChanged);
 
             bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB",
                 "Compose the frames into a grid PNG at the output path and import it as a Texture2DArray.", "Bake");
 
-            saveButton = ToolkitIcons.MakeIconTextButton(Save, "d_SaveAs", "Write this sheet to its asset.", "Save");
+            saveButton = ToolkitIcons.MakeIconTextButton(Save, "d_SaveAs", "Write this flipbook to its asset.", "Save");
 
-            VisualElement header = ToolkitChrome.MakePaneHeader(string.Empty, out sheetLabel, out headerActions);
+            VisualElement header = ToolkitChrome.MakePaneHeader(string.Empty, out flipbookLabel, out headerActions);
             infoLabel = new Label();
             infoLabel.AddToClassList("toolkit-text--dim");
             header.Insert(1, infoLabel);
@@ -121,11 +121,11 @@ namespace DotsAnimationToolkit.Editor
             headerActions.Add(saveButton);
 
             importedHintLabel = ToolkitChrome.MakeHint("The importer owns the layer order: rename frames, then Save to keep the names.");
-            importedHintLabel.name = "sprite-sheet-imported-hint";
+            importedHintLabel.name = "flipbook-imported-hint";
             importedHintLabel.style.display = DisplayStyle.None;
 
             depthWarningLabel = new Label();
-            depthWarningLabel.name = "sprite-sheet-depth-warning";
+            depthWarningLabel.name = "flipbook-depth-warning";
             depthWarningLabel.AddToClassList("toolkit-hint");
             depthWarningLabel.AddToClassList("toolkit-text--warning");
             depthWarningLabel.style.display = DisplayStyle.None;
@@ -154,25 +154,25 @@ namespace DotsAnimationToolkit.Editor
             importSettingsBoxBody.Add(importSettingsControlsRow);
             importSettingsBoxBody.Add(importSettingsSourceField);
 
-            outputPathRow = new PathPickerRowElement("Output", "Choose where the baked sheet is written.");
+            outputPathRow = new PathPickerRowElement("Output", "Choose where the baked flipbook is written.");
             outputPathRow.BrowseRequested += OnChooseOutputPathClicked;
 
-            VisualElement sheetColumn = new VisualElement();
-            sheetColumn.AddToClassList("toolkit-column");
-            sheetColumn.Add(header);
-            sheetColumn.Add(importedHintLabel);
-            sheetColumn.Add(depthWarningLabel);
-            sheetColumn.Add(importSettingsBox);
-            sheetColumn.Add(bodyHost);
-            sheetColumn.Add(outputPathRow);
+            VisualElement flipbookColumn = new VisualElement();
+            flipbookColumn.AddToClassList("toolkit-column");
+            flipbookColumn.Add(header);
+            flipbookColumn.Add(importedHintLabel);
+            flipbookColumn.Add(depthWarningLabel);
+            flipbookColumn.Add(importSettingsBox);
+            flipbookColumn.Add(bodyHost);
+            flipbookColumn.Add(outputPathRow);
 
-            CoverPaneSplitView sidebarSplit = new CoverPaneSplitView("SpriteSheets.Sidebar", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
+            CoverPaneSplitView sidebarSplit = new CoverPaneSplitView("Flipbooks.Sidebar", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
             sidebarSplit.style.flexGrow = 1f;
             sidebarSplit.Add(sidebar);
-            sidebarSplit.Add(sheetColumn);
+            sidebarSplit.Add(flipbookColumn);
             Add(sidebarSplit);
 
-            RefreshSheetLabel();
+            RefreshFlipbookLabel();
             RefreshInfoLabel();
             SetControlsEnabled(false);
         }
@@ -183,25 +183,25 @@ namespace DotsAnimationToolkit.Editor
             images.RescanProject();
         }
 
-        public void LoadSheet(SpriteSheetAsset sheet)
+        public void LoadFlipbook(FlipbookAsset flipbook)
         {
             if (workingCopy != null)
             {
                 UnityEngine.Object.DestroyImmediate(workingCopy);
             }
 
-            LoadedSheet = sheet;
+            LoadedFlipbook = flipbook;
             LoadedArray = null;
-            workingCopy = SpriteSheetAssetUtility.CreateWorkingCopy(sheet);
+            workingCopy = FlipbookAssetUtility.CreateWorkingCopy(flipbook);
 
             if (!workingCopy.IsImportedArray && string.IsNullOrEmpty(workingCopy.outputPath))
             {
-                // A default, not an edit: does not mark the sheet unsaved.
-                workingCopy.outputPath = SpriteSheetBaker.DefaultOutputPathFor(AssetDatabase.GetAssetPath(sheet));
+                // A default, not an edit: does not mark the flipbook unsaved.
+                workingCopy.outputPath = FlipbookBaker.DefaultOutputPathFor(AssetDatabase.GetAssetPath(flipbook));
             }
 
-            frames.SetSheet(workingCopy);
-            preview.SetSheet(workingCopy);
+            frames.SetFlipbook(workingCopy);
+            preview.SetFlipbook(workingCopy);
 
             filterModeField.SetValueWithoutNotify(workingCopy.filterMode);
             wrapModeField.SetValueWithoutNotify(workingCopy.wrapMode);
@@ -216,7 +216,7 @@ namespace DotsAnimationToolkit.Editor
             if (workingCopy.IsImportedArray)
             {
                 int frameCountBefore = workingCopy.frames.Count;
-                droppedFrameCount = SpriteSheetAssetUtility.ReconcileFramesWithArrayDepth(workingCopy);
+                droppedFrameCount = FlipbookAssetUtility.ReconcileFramesWithArrayDepth(workingCopy);
                 if (workingCopy.frames.Count != frameCountBefore)
                 {
                     HasUnsavedChanges = true;
@@ -224,20 +224,20 @@ namespace DotsAnimationToolkit.Editor
             }
 
             SetControlsEnabled(true);
-            RefreshSheetLabel();
+            RefreshFlipbookLabel();
             RefreshInfoLabel();
             RefreshModeControls();
 
             depthWarningLabel.text = droppedFrameCount + " frame names dropped: the array has fewer layers now.";
             depthWarningLabel.style.display = droppedFrameCount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
 
-            catalog.SetSelectedSheet(sheet);
+            catalog.SetSelectedFlipbook(flipbook);
 
-            string sheetAssetPath = AssetDatabase.GetAssetPath(sheet);
-            string sheetFolder = System.IO.Path.GetDirectoryName(sheetAssetPath);
-            if (!string.IsNullOrEmpty(sheetFolder))
+            string flipbookAssetPath = AssetDatabase.GetAssetPath(flipbook);
+            string flipbookFolder = System.IO.Path.GetDirectoryName(flipbookAssetPath);
+            if (!string.IsNullOrEmpty(flipbookFolder))
             {
-                SpriteSheetAssetUtility.RememberSheetFolder(sheetFolder.Replace('\\', '/'));
+                FlipbookAssetUtility.RememberFlipbookFolder(flipbookFolder.Replace('\\', '/'));
             }
         }
 
@@ -249,25 +249,25 @@ namespace DotsAnimationToolkit.Editor
                 workingCopy = null;
             }
 
-            LoadedSheet = null;
+            LoadedFlipbook = null;
             LoadedArray = array;
-            workingCopy = SpriteSheetAssetUtility.CreateWorkingCopyForArray(array);
+            workingCopy = FlipbookAssetUtility.CreateWorkingCopyForArray(array);
 
             if (workingCopy == null)
             {
                 LoadedArray = null;
-                frames.SetSheet(null);
-                preview.SetSheet(null);
+                frames.SetFlipbook(null);
+                preview.SetFlipbook(null);
                 SetControlsEnabled(false);
-                RefreshSheetLabel();
+                RefreshFlipbookLabel();
                 RefreshInfoLabel();
                 RefreshModeControls();
                 depthWarningLabel.style.display = DisplayStyle.None;
                 return;
             }
 
-            frames.SetSheet(workingCopy);
-            preview.SetSheet(workingCopy);
+            frames.SetFlipbook(workingCopy);
+            preview.SetFlipbook(workingCopy);
 
             filterModeField.SetValueWithoutNotify(workingCopy.filterMode);
             wrapModeField.SetValueWithoutNotify(workingCopy.wrapMode);
@@ -278,7 +278,7 @@ namespace DotsAnimationToolkit.Editor
 
             HasUnsavedChanges = false;
             SetControlsEnabled(true);
-            RefreshSheetLabel();
+            RefreshFlipbookLabel();
             RefreshInfoLabel();
             RefreshModeControls();
             depthWarningLabel.style.display = DisplayStyle.None;
@@ -299,9 +299,9 @@ namespace DotsAnimationToolkit.Editor
             frames.Dispose();
         }
 
-        private void OnSheetSelected(SpriteSheetAsset sheet)
+        private void OnFlipbookSelected(FlipbookAsset flipbook)
         {
-            if (ReferenceEquals(sheet, LoadedSheet))
+            if (ReferenceEquals(flipbook, LoadedFlipbook))
             {
                 return;
             }
@@ -312,7 +312,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            LoadSheet(sheet);
+            LoadFlipbook(flipbook);
         }
 
         private void OnArraySelected(Texture2DArray array)
@@ -333,9 +333,9 @@ namespace DotsAnimationToolkit.Editor
 
         private void RestoreCatalogSelection()
         {
-            if (LoadedSheet != null)
+            if (LoadedFlipbook != null)
             {
-                catalog.SetSelectedSheet(LoadedSheet);
+                catalog.SetSelectedFlipbook(LoadedFlipbook);
             }
             else
             {
@@ -350,19 +350,19 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            SpriteSheetAsset createdSheet = SpriteSheetAssetUtility.CreateSheetWithPrompt();
-            if (createdSheet == null)
+            FlipbookAsset createdFlipbook = FlipbookAssetUtility.CreateFlipbookWithPrompt();
+            if (createdFlipbook == null)
             {
                 return;
             }
 
             catalog.RescanProject();
-            LoadSheet(createdSheet);
+            LoadFlipbook(createdFlipbook);
         }
 
-        private void OnSheetRenameRequested(SpriteSheetAsset sheet, string newName)
+        private void OnFlipbookRenameRequested(FlipbookAsset flipbook, string newName)
         {
-            bool renamed = SpriteSheetAssetUtility.RenameSheet(sheet, newName);
+            bool renamed = FlipbookAssetUtility.RenameFlipbook(flipbook, newName);
             if (!renamed)
             {
                 return;
@@ -370,18 +370,18 @@ namespace DotsAnimationToolkit.Editor
 
             catalog.RescanProject();
 
-            if (ReferenceEquals(sheet, LoadedSheet))
+            if (ReferenceEquals(flipbook, LoadedFlipbook))
             {
-                workingCopy.name = LoadedSheet.name;
-                RefreshSheetLabel();
+                workingCopy.name = LoadedFlipbook.name;
+                RefreshFlipbookLabel();
             }
         }
 
-        private void OnSheetDeleteRequested(SpriteSheetAsset sheet)
+        private void OnFlipbookDeleteRequested(FlipbookAsset flipbook)
         {
             bool confirmedDelete = EditorUtility.DisplayDialog(
-                "Delete Sprite Sheet",
-                "Delete '" + sheet.name + "'? This cannot be undone.",
+                "Delete Flipbook",
+                "Delete '" + flipbook.name + "'? This cannot be undone.",
                 "Delete", "Cancel");
 
             if (!confirmedDelete)
@@ -389,7 +389,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            if (ReferenceEquals(sheet, LoadedSheet))
+            if (ReferenceEquals(flipbook, LoadedFlipbook))
             {
                 if (workingCopy != null)
                 {
@@ -397,18 +397,18 @@ namespace DotsAnimationToolkit.Editor
                     workingCopy = null;
                 }
 
-                LoadedSheet = null;
+                LoadedFlipbook = null;
                 LoadedArray = null;
-                frames.SetSheet(null);
-                preview.SetSheet(null);
+                frames.SetFlipbook(null);
+                preview.SetFlipbook(null);
                 SetControlsEnabled(false);
-                RefreshSheetLabel();
+                RefreshFlipbookLabel();
                 RefreshInfoLabel();
                 RefreshModeControls();
                 depthWarningLabel.style.display = DisplayStyle.None;
             }
 
-            SpriteSheetAssetUtility.TrashSheet(sheet);
+            FlipbookAssetUtility.TrashFlipbook(flipbook);
             catalog.RescanProject();
         }
 
@@ -503,7 +503,7 @@ namespace DotsAnimationToolkit.Editor
 
             string startDirectory = "Assets";
             string startName = string.IsNullOrEmpty(workingCopy.outputPath)
-                ? "T_SpriteSheet_Array"
+                ? "T_Flipbook_Array"
                 : System.IO.Path.GetFileNameWithoutExtension(workingCopy.outputPath);
 
             if (!string.IsNullOrEmpty(workingCopy.outputPath))
@@ -516,7 +516,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             string chosenPath = EditorUtility.SaveFilePanelInProject(
-                "Sprite sheet output", startName, "png",
+                "Flipbook output", startName, "png",
                 "Choose where the grid PNG is written; it imports as a Texture2DArray.", startDirectory);
 
             if (string.IsNullOrEmpty(chosenPath))
@@ -538,7 +538,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (string.IsNullOrEmpty(workingCopy.outputPath))
             {
-                workingCopy.outputPath = SpriteSheetBaker.DefaultOutputPathFor(AssetDatabase.GetAssetPath(LoadedSheet));
+                workingCopy.outputPath = FlipbookBaker.DefaultOutputPathFor(AssetDatabase.GetAssetPath(LoadedFlipbook));
                 outputPathRow.Path = workingCopy.outputPath;
             }
 
@@ -565,8 +565,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (LoadedArray != null)
             {
-                SpriteSheetAsset namesSheet = SpriteSheetAssetUtility.GetOrCreateSheetForArray(LoadedArray);
-                if (namesSheet == null)
+                FlipbookAsset namesFlipbook = FlipbookAssetUtility.GetOrCreateFlipbookForArray(LoadedArray);
+                if (namesFlipbook == null)
                 {
                     EditorUtility.DisplayDialog(
                         "Save failed",
@@ -575,20 +575,20 @@ namespace DotsAnimationToolkit.Editor
                     return;
                 }
 
-                workingCopy.name = namesSheet.name;
-                SpriteSheetAssetUtility.SaveWorkingCopy(workingCopy, namesSheet);
-                LoadedSheet = namesSheet;
+                workingCopy.name = namesFlipbook.name;
+                FlipbookAssetUtility.SaveWorkingCopy(workingCopy, namesFlipbook);
+                LoadedFlipbook = namesFlipbook;
                 LoadedArray = null;
                 catalog.RescanProject();
-                catalog.SetSelectedSheet(namesSheet);
+                catalog.SetSelectedFlipbook(namesFlipbook);
             }
             else
             {
-                SpriteSheetAssetUtility.SaveWorkingCopy(workingCopy, LoadedSheet);
+                FlipbookAssetUtility.SaveWorkingCopy(workingCopy, LoadedFlipbook);
             }
 
             HasUnsavedChanges = false;
-            RefreshSheetLabel();
+            RefreshFlipbookLabel();
             RefreshInfoLabel();
             RefreshModeControls();
             catalog.RefreshRows();
@@ -601,9 +601,9 @@ namespace DotsAnimationToolkit.Editor
                 return true;
             }
 
-            string message = LoadedSheet != null
-                ? "'" + LoadedSheet.name + "' has unsaved changes. Discard them?"
-                : "The sheet has unsaved changes.";
+            string message = LoadedFlipbook != null
+                ? "'" + LoadedFlipbook.name + "' has unsaved changes. Discard them?"
+                : "The flipbook has unsaved changes.";
 
             return EditorUtility.DisplayDialog("Unsaved changes", message, "Discard", "Cancel");
         }
@@ -611,16 +611,16 @@ namespace DotsAnimationToolkit.Editor
         private void MarkUnsaved()
         {
             HasUnsavedChanges = true;
-            RefreshSheetLabel();
+            RefreshFlipbookLabel();
             RefreshModeControls();
         }
 
-        private void RefreshSheetLabel()
+        private void RefreshFlipbookLabel()
         {
-            string baseText = LoadedSheet != null
-                ? LoadedSheet.name
-                : LoadedArray != null ? LoadedArray.name : "No sheet";
-            sheetLabel.text = HasUnsavedChanges ? baseText + "  ●" : baseText;
+            string baseText = LoadedFlipbook != null
+                ? LoadedFlipbook.name
+                : LoadedArray != null ? LoadedArray.name : "No flipbook";
+            flipbookLabel.text = HasUnsavedChanges ? baseText + "  ●" : baseText;
         }
 
         private void RefreshModeControls()
@@ -662,11 +662,11 @@ namespace DotsAnimationToolkit.Editor
                 && (LoadedArray == null || AnyFrameNameDiffersFromLayerIndex(workingCopy)));
         }
 
-        private static bool AnyFrameNameDiffersFromLayerIndex(SpriteSheetAsset sheet)
+        private static bool AnyFrameNameDiffersFromLayerIndex(FlipbookAsset flipbook)
         {
-            for (int frameListPosition = 0; frameListPosition < sheet.frames.Count; frameListPosition++)
+            for (int frameListPosition = 0; frameListPosition < flipbook.frames.Count; frameListPosition++)
             {
-                SpriteSheetFrame frame = sheet.frames[frameListPosition];
+                FlipbookFrame frame = flipbook.frames[frameListPosition];
                 if (frame.name != frame.index.ToString())
                 {
                     return true;

@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {
-    public sealed class SpriteSheetValidationTests
+    public sealed class FlipbookValidationTests
     {
         [Test]
         public void SizeMismatches_NameEveryOffender()
@@ -18,7 +18,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 ("d", new Vector2Int(2, 2)),
             };
 
-            List<string> mismatchedFrameNames = SpriteSheetValidation.FindSizeMismatches(frames, new Vector2Int(4, 4));
+            List<string> mismatchedFrameNames = FlipbookValidation.FindSizeMismatches(frames, new Vector2Int(4, 4));
 
             Assert.AreEqual(2, mismatchedFrameNames.Count);
             Assert.AreEqual("b", mismatchedFrameNames[0]);
@@ -30,11 +30,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
         {
             List<string> takenNames = new List<string>();
 
-            string firstName = SpriteSheetValidation.DedupeFrameName("head", takenNames);
+            string firstName = FlipbookValidation.DedupeFrameName("head", takenNames);
             takenNames.Add(firstName);
-            string secondName = SpriteSheetValidation.DedupeFrameName("head", takenNames);
+            string secondName = FlipbookValidation.DedupeFrameName("head", takenNames);
             takenNames.Add(secondName);
-            string thirdName = SpriteSheetValidation.DedupeFrameName("head", takenNames);
+            string thirdName = FlipbookValidation.DedupeFrameName("head", takenNames);
             takenNames.Add(thirdName);
 
             Assert.AreEqual("head", firstName);
