@@ -84,6 +84,10 @@
     --toolkit-color-event-lime: rgb(160, 205, 80);
     --toolkit-color-event-pink: rgb(240, 150, 170);
     --toolkit-color-event-mint: rgb(120, 220, 170);
+
+    --toolkit-color-playhead: rgb(242, 92, 77);
+    --toolkit-color-box-select-fill: rgba(77, 158, 242, 0.18);
+    --toolkit-color-box-select-outline: rgba(115, 184, 255, 0.9);
 }
 
 .clip-editor--hidden {
@@ -419,22 +423,207 @@
     opacity: 0.5;
 }
 
+/* A run of prose sitting under a control that needs one more line of explanation than its label
+   can carry. */
+.toolkit-hint {
+    white-space: normal;
+    margin-left: 6px;
+    margin-right: 6px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    opacity: 0.7;
+}
+
+.toolkit-heading {
+    -unity-font-style: bold;
+    margin-top: 6px;
+    margin-bottom: 4px;
+}
+
+/* Every tab's asset bar -- a label plus the object field it picks an asset into -- is this one
+   row, so the picker at the top of a tab looks like the picker at the top of any other. */
+.toolkit-asset-bar {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-right: 6px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(0, 0, 0, 0.35);
+}
+
+.toolkit-asset-bar__label {
+    -unity-text-align: middle-left;
+    margin-left: 10px;
+    margin-right: 4px;
+}
+
+.toolkit-asset-bar__field {
+    width: 200px;
+}
+
+/* A column of a multi-column layout -- shared spacing so a tab's columns line up with every
+   other tab's columns. */
+.toolkit-column {
+    flex-grow: 1;
+    min-width: 200px;
+    padding-top: 8px;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+/* The first column against the pane edge has nothing to its left, so it drops the side padding. */
+.toolkit-column--flush {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.toolkit-detail-title {
+    font-size: 14px;
+    -unity-font-style: bold;
+    white-space: normal;
+    margin-bottom: 6px;
+}
+
+/* Pushes whatever follows it to the far edge of an asset bar without a fixed-width spacer. */
+.toolkit-asset-bar__spacer {
+    flex-grow: 1;
+}
+
+/* The one button in a panel that does the thing -- Create, Bake, Assign -- tinted so it reads
+   as the default action rather than one option among equals. */
+.toolkit-primary-action {
+    min-height: 28px;
+    padding-left: 14px;
+    padding-right: 14px;
+    background-color: var(--toolkit-color-accent);
+    color: rgb(245, 248, 252);
+    border-color: rgba(0, 0, 0, 0.4);
+}
+
+.toolkit-primary-action:hover {
+    background-color: rgb(104, 162, 228);
+}
+
+.toolkit-primary-action:disabled {
+    opacity: 0.5;
+}
+
+.toolkit-primary-action .toolkit-icon-button__label {
+    -unity-font-style: bold;
+}
+
+.toolkit-primary-action .toolkit-icon-button__icon {
+    opacity: 1;
+}
+
+/* A status row pinned to the bottom of its pane rather than sitting wherever it falls in flow. */
+.toolkit-status-row--footer {
+    margin-top: auto;
+    border-top-width: 1px;
+    border-top-color: rgba(0, 0, 0, 0.35);
+}
+
+.toolkit-text--dim {
+    opacity: 0.6;
+}
+
+.toolkit-text--warning {
+    color: var(--toolkit-color-warning);
+}
+
+.toolkit-text--error {
+    color: var(--toolkit-color-error);
+}
+
+/* A box standing in a plain list rather than a component stack -- same shape, tighter margins so
+   rows pack closer. */
+.toolkit-box.toolkit-list-row {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* A small tag in a wrapping run -- a rig target, a filter, a picked entry. */
+.toolkit-chip {
+    flex-direction: row;
+    align-items: center;
+    margin-right: 6px;
+    margin-bottom: 4px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 6px;
+    padding-right: 6px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-box-border);
+    border-radius: 3px;
+    background-color: var(--toolkit-color-box-fill);
+}
+
+.toolkit-chip--selected {
+    border-color: var(--toolkit-color-selected);
+}
+
+.toolkit-chip__blocks {
+    flex-direction: row;
+    margin-left: 6px;
+}
+
+.toolkit-chip__block {
+    width: 6px;
+    height: 8px;
+    margin-right: 1px;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.toolkit-chip__block--filled {
+    background-color: var(--toolkit-color-clean);
+}
+
+/* A coloured dot standing in for a severity level, beside the row it describes rather than a
+   full icon. */
+.toolkit-severity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+/* A caption plus a path that can run longer than the row -- the caption holds its width, the
+   path ellipsizes rather than wrapping the row taller. */
+.toolkit-path-row {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.toolkit-path-row__caption {
+    min-width: 120px;
+}
+
+.toolkit-path-row__path {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.toolkit-sidebar__modes {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
 /* ------------------------------------------------------------------------------------------- */
 /* Toolbar                                                                                       */
 /* ------------------------------------------------------------------------------------------- */
 
-.clip-editor__toolbar {
-    flex-shrink: 0;
-}
-
-/* Heads the Cutscene Director's own asset bar (its label + object field pair), so its left margin
-   is the gap between that bar and whatever sits to its left. Kept inline-adjacent rather than on the
-   field so the label cannot drift apart from it. */
-.clip-editor__toolbar-label {
-    -unity-text-align: middle-left;
-    margin-left: 16px;
-    margin-right: 4px;
-}
+/* .toolkit-asset-bar and .toolkit-asset-bar__label live in the Shared section now -- every tab's
+   asset bar draws from the same rule. */
 
 /* The tab strip now starts the bar — the clip set and rig pickers moved into their own panes — so
    there is no group to its left and no gap to hold open. */
@@ -551,9 +740,7 @@
     width: 66px;
 }
 
-.clip-editor__object-field {
-    width: 200px;
-}
+/* .toolkit-asset-bar__field lives in the Shared section now. */
 
 /* The clip set and rig pickers, one per pane, under the pane's own header. Full width because the
    pane title is the label; the field's own empty text says the type. */
@@ -618,14 +805,7 @@
     min-height: 48px;
 }
 
-.clip-editor__hint {
-    white-space: normal;
-    margin-left: 6px;
-    margin-right: 6px;
-    margin-top: 2px;
-    margin-bottom: 2px;
-    opacity: 0.7;
-}
+/* .toolkit-hint lives in the Shared section now. */
 
 /* ------------------------------------------------------------------------------------------- */
 /* Clip list and prefab hierarchy                                                                */
@@ -1046,11 +1226,7 @@
     color: rgb(230, 90, 82);
 }
 
-.clip-editor__heading {
-    -unity-font-style: bold;
-    margin-top: 6px;
-    margin-bottom: 4px;
-}
+/* .toolkit-heading lives in the Shared section now. */
 
 /* Names the object a block of fields belongs to, and — at the far edge of the same row — the
    part's rig-level tag button. With several parts selected the inspector is a stack of

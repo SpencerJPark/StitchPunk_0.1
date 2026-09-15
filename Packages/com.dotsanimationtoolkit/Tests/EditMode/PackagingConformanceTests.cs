@@ -21,7 +21,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
     {
         private const string PackageId = "com.dotsanimationtoolkit";
 
-        private static string PackageRootPath
+        internal static string PackageRootPath
         {
             get { return Path.GetFullPath("Packages/" + PackageId); }
         }
@@ -402,7 +402,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "ClipComponentModel", "GizmoDragRouting", "EventLaneAddressing", "PreviewLineMaterial",
             "PreviewScenePicker", "RagdollPreviewProbe", "VatMeshPreparer", "VatTentacleRigBuilder",
             "VatTextureBaker", "ClipKeyConversion", "CutsceneSceneBinding", "RagdollSolver", "StableIdMinting",
-            "ToolkitPalette", "ToolkitIcons", "CaptionDragHandle",
+            "ToolkitPalette", "ToolkitIcons", "CaptionDragHandle", "ToolkitChrome",
             "PackChannelIndex", "TexturePackRecipeAssetOpener", "AssetReferenceIndex", "EventLaneStyle", "EventMarkerContextMenu", "ProfileP2Scan",
             "HealthScan"
         };
@@ -713,7 +713,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         /// are not modelled — for a ban on API identifiers that is immaterial, since a false
         /// negative would require the banned call to sit inside a string that this misreads.
         /// </remarks>
-        private static string StripComments(string sourceText)
+        internal static string StripComments(string sourceText)
         {
             char[] characters = sourceText.ToCharArray();
             bool inLineComment = false;
@@ -782,7 +782,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             return new string(characters);
         }
 
-        private static string ToPackageRelativePath(string absolutePath)
+        internal static string ToPackageRelativePath(string absolutePath)
         {
             string normalizedAbsolutePath = absolutePath.Replace('\\', '/');
             string normalizedRootPath = PackageRootPath.Replace('\\', '/').TrimEnd('/');

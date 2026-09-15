@@ -25,6 +25,11 @@ namespace DotsAnimationToolkit.Editor
         public static readonly Color BoxBorder = new Color32(255, 255, 255, 20);
         public static readonly Color BoxFill = new Color32(255, 255, 255, 5);
         public static readonly Color BoxHeader = new Color32(255, 255, 255, 10);
+        public static readonly Color Playhead = new Color32(242, 92, 77, 255);
+        // The box-select band's fill.
+        public static readonly Color BoxSelectFill = new Color32(77, 158, 242, 46);
+        // The box-select band's outline.
+        public static readonly Color BoxSelectOutline = new Color32(115, 184, 255, 230);
 
         public static readonly Color LaneActor = new Color32(88, 148, 216, 255);
         public static readonly Color LaneProp = new Color32(120, 190, 120, 255);
@@ -71,6 +76,9 @@ namespace DotsAnimationToolkit.Editor
             { "box-border", BoxBorder },
             { "box-fill", BoxFill },
             { "box-header", BoxHeader },
+            { "playhead", Playhead },
+            { "box-select-fill", BoxSelectFill },
+            { "box-select-outline", BoxSelectOutline },
             { "lane-actor", LaneActor },
             { "lane-prop", LaneProp },
             { "lane-camera", LaneCamera },
