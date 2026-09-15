@@ -236,6 +236,14 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
   - Drift 17: the stub emits a `// Place after EventEmissionSystem` comment instead of an `[UpdateAfter]` attribute, because `EventEmissionSystem` sits in `AnimationToolkitLogicSystemGroup` and the host picks its own group.
   - Gate 1 (wave commit `b9e49dff`): compile-errors, `EventsPanel.cs` missing `using DotsAnimationToolkit.Authoring;` (CS0246 ×3). Fixed by a fresh worker.
   - Gate 2 (fix commit): compile-errors, `EventKeyInspectorColumn.cs` missing `using UnityEditor.UIElements;` for `ObjectField` (CS0246 ×2, surfaced only once the panel compiled). Fixed by a fresh worker. The lead read the three fixtures for test-assembly errors before gate 3 and found none.
+  - Gate 3 (`b3d22efe`): **pass**, EditMode 3/3 passing, which equals the three tests written. Fixtures, namespace-qualified: `AnimEventRoutingApiTests`, `AnimEventRoutingBuilderTests`, `AnimEventConsumerStubBuilderTests`.
+  - **Revert-to-fail**, one mutation commit, gated and then reset:
+    - the Api returns the first key's range unconditionally;
+    - the builder's sort is dropped;
+    - the stub emits `var animEvent`.
+    - Result: `test-failures`, 0 passed / 3 failed, each for its own mutation: "Expected 2 but was 0" (key 20's range), "Expected 20 but was 16" (unsorted route order), and "Emitted source must never declare a var."
+    - `git reset --hard HEAD~1`: all three files' sha256 match their pre-mutation hashes.
+  - Unverified: no drive; the panel is not wired into the window (the stage's T12). EventsPanel, the three columns, the baker and the asset utility are compile-proven only.
   - Stage trap (message 2026-09-14): gate fixture names must be namespace-qualified (`DotsAnimationToolkit.Tests.EditMode.<Fixture>`). A bare name matches zero tests and still reports pass. The T1 gate was compile-only, so nothing needed re-gating.
 
 ### For integration
