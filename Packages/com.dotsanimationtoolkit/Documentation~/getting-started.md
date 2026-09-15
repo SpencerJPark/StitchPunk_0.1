@@ -20,6 +20,38 @@ resolved (see the project `README.md`).
 > made and why. The sample generates rather than shipping `.asset` files, so it
 > mints fresh stable ids and cannot collide with assets you already have.
 
+## Importing into another project
+
+To use this package from another project, add it as a dependency in that
+project's `Packages/manifest.json`. Two forms work: a `file:` reference to a
+local copy of the package folder, or a git URL using Unity's `?path=` syntax
+for a package that lives in a subfolder of a repository.
+
+```json
+"com.dotsanimationtoolkit": "file:C:/path/to/com.dotsanimationtoolkit"
+```
+
+```json
+"com.dotsanimationtoolkit": "https://<git-host>/<owner>/<repo>.git?path=/Packages/com.dotsanimationtoolkit#<tag-or-commit>"
+```
+
+The `file:` path can be absolute, or relative to the project's `Packages`
+folder; the git form's optional `#<tag-or-commit>` pins a revision. Either
+way, the Package Manager resolves the package's own dependencies (Entities,
+Entities Graphics, Burst, Collections, Mathematics, URP) from its
+`package.json`, so there's nothing else to install by hand.
+
+The project must also render with the Universal Render Pipeline — a URP
+pipeline asset assigned in both Graphics and Quality settings — since the
+shader components and the Cutscene Editor's viewport are URP-only; installing
+the URP package alone is not enough.
+
+Import the **Camera Sync** sample from the Package Manager's Samples list and
+add its `ToolkitCameraSync` component to a scene object. It writes the
+`AnimationToolkitCameraData` singleton from `Camera.main` (or an assigned
+camera) every frame — without it, billboarded rigs never turn and distance
+LOD never runs.
+
 ## 1. Create a rig
 
 A `RigAsset` is the skeleton of *slots* your clips will animate — not bones,

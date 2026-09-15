@@ -136,7 +136,10 @@ namespace DotsAnimationToolkit.Tests.EditMode
                     "Unity.Entities.Hybrid",
                     "Unity.Burst",
                     "Unity.Collections",
-                    "Unity.Mathematics"
+                    "Unity.Mathematics",
+                    // Amendment A102: the cutscene viewport and capture source render through URP's
+                    // camera data, and package.json already depends on URP. See §1.3.
+                    "Unity.RenderPipelines.Universal.Runtime"
                 },
                 expectedIncludePlatforms = new string[] { "Editor" },
                 expectedAllowUnsafeCode = false
