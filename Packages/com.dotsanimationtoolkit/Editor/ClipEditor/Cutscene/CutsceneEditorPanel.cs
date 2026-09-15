@@ -98,6 +98,7 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement timelineContent;
         private GhostLaneStripElement ghostLanes;
+        private float ghostLanesContentWidth;
         private BoxSelectElement boxSelectElement;
         private VisualElement boxSelectLane;
 
@@ -472,7 +473,7 @@ namespace DotsAnimationToolkit.Editor
             Label lengthCaption = new Label("Length");
             lengthCaption.AddToClassList("toolkit-transport__caption");
             lengthGroup.Add(lengthCaption);
-            timeEndLabel = new Label("/ 0.00 s");
+            timeEndLabel = new Label("0.00 s");
             timeEndLabel.AddToClassList("toolkit-transport__derived");
             lengthGroup.Add(timeEndLabel);
             row.Add(lengthGroup);
@@ -607,7 +608,7 @@ namespace DotsAnimationToolkit.Editor
             }
             float contentEnd = ComputeContentEndSecondsSafe();
             timeField.SetValueWithoutNotify(playheadSeconds);
-            timeEndLabel.text = "/ " + contentEnd.ToString("0.00") + " s";
+            timeEndLabel.text = contentEnd.ToString("0.00") + " s";
         }
 
         private void TogglePlayback()
@@ -2088,22 +2089,41 @@ namespace DotsAnimationToolkit.Editor
         private void AppendGhostLanes(VisualElement content, float contentWidth)
         {
             ghostLanes = new GhostLaneStripElement { paintRangeShading = false };
+            ghostLanesContentWidth = contentWidth;
             ghostLanes.style.width = contentWidth;
             content.Add(ghostLanes);
             SyncGhostLanes();
         }
 
         // Fills whatever the viewport has left under the last row; header-only rows count as lane rows.
+        // Measured from the scroll view itself: with both scrollers on, its content viewport reports the
+        // content's height rather than the visible one, which is nothing to fill.
         private void SyncGhostLanes()
         {
             if (ghostLanes == null || timelineLaneScroll == null)
             {
                 return;
             }
-            float viewportHeight = timelineLaneScroll.contentViewport.contentRect.height;
+            float viewportHeight = timelineLaneScroll.layout.height;
+            Scroller horizontalScroller = timelineLaneScroll.horizontalScroller;
+            if (horizontalScroller != null && horizontalScroller.resolvedStyle.display != DisplayStyle.None)
+            {
+                viewportHeight -= horizontalScroller.layout.height;
+            }
             if (!(viewportHeight > 1f))
             {
                 return;
+            }
+            float viewportWidth = timelineLaneScroll.layout.width;
+            if (viewportWidth > 1f)
+            {
+                float stripWidth = Mathf.Max(ghostLanesContentWidth, viewportWidth);
+                ghostLanes.style.width = stripWidth;
+                // With nothing loaded the ruler was sized before layout; it follows the strip so the two agree.
+                if (cutscene == null && timelineContent != null && timelineContent.childCount > 0 && timelineContent[0].childCount > 0)
+                {
+                    timelineContent[0][0].style.width = stripWidth;
+                }
             }
             float usedHeight = RulerHeight + timelineLaneRowCount * LaneRowHeight;
             ghostLanes.SyncRows(viewportHeight - usedHeight, (timelineLaneRowCount & 1) == 1);

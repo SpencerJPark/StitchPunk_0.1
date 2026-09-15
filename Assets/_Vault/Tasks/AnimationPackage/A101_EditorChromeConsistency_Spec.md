@@ -1,6 +1,6 @@
 # Amendment A101 — Editor chrome consistency: one look, one code path, across every tab
 
-> **Status:** 🔨 building 2026-09-15 (unattended, after the A96F/A97F/A99 batch). Takes `0.52.0` (A100 is unbuilt; it takes the next free minor when it runs).
+> **Status:** ✅ built 2026-09-15 as `0.52.0`, unattended (two waves: 7 foundation workers, then 24 per-tab workers; 8 of them were killed by a session rate limit mid-task and their remaining scope finished by fresh workers or the orchestrator). T33 closed 2026-09-15 under the owner's standing rule; the three ⚠ interpretations (D7, D11, D13) stay recorded in HANDOFF §4 for the owner's eyes. Before/after captures of all fourteen tabs in `Library/A101Captures/`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 3.
 > **Predecessors:** A72 (the design system: `ToolkitPalette`, `ToolkitIcons`, `TransportCoreElement`, the
 > `toolkit-*` classes), A82 (`ToolkitCatalogColumn`, `CoverPaneSplitView`), A83 (window decomposition),
@@ -454,7 +454,7 @@ and any that fails falls back to the word — the `MakeIconButton` contract, so 
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; record EditMode/PlayMode totals and the CHANGELOG head.
+- [x] **T0 — Baseline (orchestrator).** Gate; record EditMode/PlayMode totals and the CHANGELOG head.
   Confirm A96F/A97F/A99 are merged (if A99's `Editor/Ragdoll/` exists, add task **T28b** = its panel +
   bodies column by the §4.10 recipe, same wave). Run the §4.7 regex over `Editor/` (Bash, comments not
   stripped is fine for the list) and write `InlineStyleAllowlist` = violating files minus every file a
@@ -466,24 +466,24 @@ and any that fails falls back to the word — the `MakeIconButton` contract, so 
 
 ### Wave 1 — foundations (seven workers in parallel; one gate)
 
-- [ ] **T1 — Stylesheet [parallel-safe]** — Files: `Editor/ClipEditor/ClipEditorWindow.uss`. §4.1
+- [x] **T1 — Stylesheet [parallel-safe]** — Files: `Editor/ClipEditor/ClipEditorWindow.uss`. §4.1
   verbatim: three tokens, the new rules, the five selector renames. Read: lines 20–92, 93–421, 426–437,
   538–556, 600–628, 1049–1053 only.
-- [ ] **T2 — `ToolkitChrome` [parallel-safe]** — Files: new `Editor/ClipEditor/Shared/ToolkitChrome.cs`,
+- [x] **T2 — `ToolkitChrome` [parallel-safe]** — Files: new `Editor/ClipEditor/Shared/ToolkitChrome.cs`,
   `Tests/EditMode/PackagingConformanceTests.cs` (the `PlainNounStaticClasses` set only, lines ~391–411).
   §4.2. Read: `ToolkitIcons.cs` 148–192, `ToolkitCatalogColumn.cs` 193–245.
-- [ ] **T3 — `ViewportFrameElement` [parallel-safe]** — Files: new
+- [x] **T3 — `ViewportFrameElement` [parallel-safe]** — Files: new
   `Editor/ClipEditor/Shared/ViewportFrameElement.cs`. §4.3. Read: `ActorEditorPanel.cs` 376–420 (the
   copy to lift, tooltip text included), `ToolkitIcons.cs` 215–245.
-- [ ] **T4 — `CatalogSidebarElement` [parallel-safe]** — Files: new
+- [x] **T4 — `CatalogSidebarElement` [parallel-safe]** — Files: new
   `Editor/ClipEditor/Shared/CatalogSidebarElement.cs`, `Editor/TexturePacker/TexturePackerSidebar.cs`.
   §4.4. `TexturePackerPanel` must compile unchanged.
-- [ ] **T5 — `PathPickerRowElement` [parallel-safe]** — Files: new
+- [x] **T5 — `PathPickerRowElement` [parallel-safe]** — Files: new
   `Editor/ClipEditor/Shared/PathPickerRowElement.cs`. §4.5. Read: `ClipSetsPanel.cs` 180–212 (the row
   being replaced).
-- [ ] **T6 — Palette tokens [parallel-safe]** — Files: `Editor/ClipEditor/Shared/ToolkitPalette.cs`.
+- [x] **T6 — Palette tokens [parallel-safe]** — Files: `Editor/ClipEditor/Shared/ToolkitPalette.cs`.
   §4.6. Read: grep `Tokens` and `public static readonly Color` in that file.
-- [ ] **T7 — Conformance_I [parallel-safe]** — Files: new `Tests/EditMode/EditorStyleConformanceTests.cs`.
+- [x] **T7 — Conformance_I [parallel-safe]** — Files: new `Tests/EditMode/EditorStyleConformanceTests.cs`.
   §4.7 with T0's allowlist pasted in. Read: `PackagingConformanceTests.cs` 340–370 (`StripComments`,
   `PackageRootPath`, `ToPackageRelativePath` — reuse by making them `internal static` if they are
   private; that is the only other-file edit allowed, and it counts as this task's second file).
@@ -495,94 +495,94 @@ and any that fails falls back to the word — the `MakeIconButton` contract, so 
 
 Each task: "Apply §4.10 to the files below" plus the specifics. Files are disjoint across tasks.
 
-- [ ] **T8 — Health panel + list [parallel-safe]** — Files: `Editor/Health/HealthPanel.cs` (84–156),
+- [x] **T8 — Health panel + list [parallel-safe]** — Files: `Editor/Health/HealthPanel.cs` (84–156),
   `Editor/Health/HealthFindingListElement.cs` (ctor + `MakeFindingRow`/`BindFindingRow`). D12: the
   `Toolbar` becomes an asset bar; Scan is the primary action (element name `health-scan-button` stays);
   the three toggles keep `clip-editor__bar-action`; list column gets a "Findings (n)" header (count
   from `SetFindings`); rows through `MakeListRowSlot` + `MakeSeverityDot`.
-- [ ] **T9 — Health detail [parallel-safe]** — Files: `Editor/Health/HealthFindingDetailElement.cs`.
+- [x] **T9 — Health detail [parallel-safe]** — Files: `Editor/Health/HealthFindingDetailElement.cs`.
   D17; `MakeSectionBox`/`MakeSectionHeader` → `toolkit-box` with `__header`/`__title`/`__body`; the
   column is a `toolkit-column`; the empty label is a `MakeHint`.
-- [ ] **T10 — Events columns [parallel-safe]** — Files: `Editor/Events/EventKeyCatalogColumn.cs`
+- [x] **T10 — Events columns [parallel-safe]** — Files: `Editor/Events/EventKeyCatalogColumn.cs`
   (32–95, 210–266), `Editor/Events/EventUsageColumn.cs` (24–40). Keys: column class, `MakeListRowSlot`,
   `BudgetWarningColor` → `toolkit-text--warning` on the budget label. Usage: column class + "Used by"
   header.
-- [ ] **T11 — Materials [parallel-safe]** — Files: `Editor/Materials/MaterialsPanel.cs` (36–77),
+- [x] **T11 — Materials [parallel-safe]** — Files: `Editor/Materials/MaterialsPanel.cs` (36–77),
   `Editor/Materials/MaterialInspectorColumn.cs` (22–45). D13 asset bar (Rig + Clip Set fields writing
   `selection.SetRig`/`SetClipSet`, the pattern at `RetargetPanel.cs:78-131`); Target dropdown + Create
   (primary) at the bar's right; the "Rig" caption/name labels go (the catalog header title becomes
   "Materials · <rig name>"); result label → footer status; 4.9 Inspector button.
-- [ ] **T12 — Retarget panel + preview [parallel-safe]** — Files: `Editor/Retarget/RetargetPanel.cs`
+- [x] **T12 — Retarget panel + preview [parallel-safe]** — Files: `Editor/Retarget/RetargetPanel.cs`
   (66–160), `Editor/Retarget/RetargetPreviewElement.cs` (28–120). Asset bar for Clip Set / Clip / Rig
   (callbacks verbatim); D14: `ViewportFrameElement`, `TransportCoreElement` in a `toolkit-transport`
   row, `ITransportTarget` (`IsPlaying`, `TogglePlay`; `Capabilities = None`; `Step`/`JumpToStart`/
   `JumpToEnd`/`Stop` no-ops; `IsLooping` get/set stored, unused); expose `public ITransportTarget
   TransportTarget`.
-- [ ] **T13 — Retarget table + roster [parallel-safe]** — Files:
+- [x] **T13 — Retarget table + roster [parallel-safe]** — Files:
   `Editor/Retarget/RetargetTrackTableElement.cs` (rows: `MakeListRowSlot`, glyph colours marked as
   data), `Editor/Retarget/RosterCoverageStripElement.cs` (chips → `toolkit-chip*`; the strip becomes a
   footer `toolkit-status-row--footer` host with the heading as `toolkit-status`).
-- [ ] **T14 — Capture panel [parallel-safe]** — Files: `Editor/Capture/CapturePanel.cs` (68–120,
+- [x] **T14 — Capture panel [parallel-safe]** — Files: `Editor/Capture/CapturePanel.cs` (68–120,
   214–350). Asset bar = source kind + the per-kind rows (they wrap inside the bar; callbacks verbatim);
   Preview and Settings headers; headings via `ToolkitChrome`; Capture primary; progress/cancel/result
   as today but result → footer status; preview-time slider stays under the viewport inside a
   `toolkit-transport` row with a "Time" caption.
-- [ ] **T15 — Capture viewport [parallel-safe]** — Files: `Editor/Capture/CaptureViewportElement.cs`
+- [x] **T15 — Capture viewport [parallel-safe]** — Files: `Editor/Capture/CaptureViewportElement.cs`
   (29–70). `ViewportFrameElement`; the frame's dark fill (`:35`) is the capture background preview —
   keep it inline with the D4 marker; status label → `MakeHint`.
-- [ ] **T16 — VAT Bake panel [parallel-safe]** — Files: `Editor/VatBaking/VatBakePanel.cs` (55–215,
+- [x] **T16 — VAT Bake panel [parallel-safe]** — Files: `Editor/VatBaking/VatBakePanel.cs` (55–215,
   299–306). Asset bar for Clip Set / Rig (+ the freshness badge and resolved-source line stay under the
   bar as a hint row); form column class + "Bake" header; headings via `ToolkitChrome`; Bake primary
   (icon `d_PreTextureRGB`, word "Bake"); `summaryLabel` → footer status; the log stays.
-- [ ] **T17 — VAT preview [parallel-safe]** — Files: `Editor/VatBaking/VatPreviewElement.cs` (60–150),
+- [x] **T17 — VAT preview [parallel-safe]** — Files: `Editor/VatBaking/VatPreviewElement.cs` (60–150),
   `Editor/VatBaking/VatFreshnessBadgeElement.cs` (its 11 inline writes → `toolkit-text--*` /
   `toolkit-box` classes; the freshness colours are state, not data — tokens). Viewport →
   `ViewportFrameElement` (ghost toggle via `AddRailToggle(Texture …)`, `startsRun: true`).
-- [ ] **T18 — Sprite Sheets panel [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetsPanel.cs`
+- [x] **T18 — Sprite Sheets panel [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetsPanel.cs`
   (44–170). D11 sidebar (`CatalogSidebarElement`: "sheets" | "images", each catalog's `HeaderActions`
   hoisted); working column: header title = sheet name, `infoLabel` as `toolkit-text--dim` beside it,
   actions = Bake (primary) + Save; Filter/Wrap/Mips/Linear/Match fields move into a `toolkit-box`
   titled "Import settings" under the header; output row → `PathPickerRowElement("Output", …)`;
   imported-hint and depth-warning → `MakeHint` + `toolkit-text--warning`.
-- [ ] **T19 — Sprite Sheets frames [parallel-safe]** — Files:
+- [x] **T19 — Sprite Sheets frames [parallel-safe]** — Files:
   `Editor/SpriteSheets/SpriteSheetFramesColumn.cs` (30–70 + `MakeFrameRow`). Column class; a real pane
   header ("Frames (n)" title, Remove in actions); rows through `MakeListRowSlot`.
-- [ ] **T20 — Clip Sets [parallel-safe]** — Files: `Editor/ClipEditor/Authoring/ClipSetsPanel.cs`
+- [x] **T20 — Clip Sets [parallel-safe]** — Files: `Editor/ClipEditor/Authoring/ClipSetsPanel.cs`
   (145–260 + `ReportFailure`/result writes). Column class; hint → `MakeHint`; folder row →
   `PathPickerRowElement("Folder", tooltip)` (`BrowseRequested` → `OnFolderButtonClicked`); Open in Clip
   Editor → primary; result label → footer status with `Error` tone on failure.
-- [ ] **T21 — Rigs [parallel-safe]** — Files: `Editor/ClipEditor/Authoring/RigsPanel.cs` (238–372,
+- [x] **T21 — Rigs [parallel-safe]** — Files: `Editor/ClipEditor/Authoring/RigsPanel.cs` (238–372,
   481–488, 812). Same recipe as T20 (Use in Clip Editor → primary; `BuildHeading` → `ToolkitChrome`;
   `:812` colour → `Error` tone).
-- [ ] **T22 — Texture Packer [parallel-safe]** — Files: `Editor/TexturePacker/TexturePackerPanel.cs`
+- [x] **T22 — Texture Packer [parallel-safe]** — Files: `Editor/TexturePacker/TexturePackerPanel.cs`
   (33–105), `Editor/TexturePacker/ImageCatalogColumn.cs` (48–120 + `MakeRow`). Recipe label →
   `toolkit-pane-title`; Bake → primary (Bake As… and Clear unchanged); graph column unchanged;
   image column class + `MakeListRowSlot`.
-- [ ] **T23 — Actor Profiles [parallel-safe]** — Files:
+- [x] **T23 — Actor Profiles [parallel-safe]** — Files:
   `Editor/ClipEditor/ActorEditor/ActorEditorPanel.cs` (323–480),
   `Editor/ClipEditor/ActorEditor/DirectionSetClipQueueView.cs` (115–140). Viewport → `ViewportFrameElement`
   (billboard/ragdoll toggles via `AddRailToggle`, callbacks verbatim; `cameraNavigation.AttachTo(frame.ViewportImage)`);
   `viewportStatusLabel` → `MakeHint`; the two colour literals → `toolkit-text--dim` / `--warning`.
-- [ ] **T24 — Rigs preview [parallel-safe]** — Files:
+- [x] **T24 — Rigs preview [parallel-safe]** — Files:
   `Editor/ClipEditor/Authoring/RigSourcePreviewElement.cs` (55–110). Viewport → `ViewportFrameElement`
   (show-excluded toggle via `AddRailToggle`, `startsRun: true`).
-- [ ] **T25 — Cutscene chrome (first of a sequential pair)** — Files:
+- [x] **T25 — Cutscene chrome (first of a sequential pair)** — Files:
   `Editor/ClipEditor/Cutscene/CutsceneEditorPanel.cs` lines 131–233 and 386–585 **only**. D8 (three
   `CoverPaneSplitView`s), D16 (transport order; "Length" caption + `timeEndLabel` as a leading derived
   group — no counter class, it changes only on edit), 4.9 rows for All/Playhead/Continue/New; the
   toolbar → `MakeAssetBar("cutscene-editor-asset-bar")` with `MakeAssetBarLabel("Cutscene")`;
   `sceneStatusLabel` → `toolkit-text--dim`; `sceneActionButton` → `MakeIconTextButton(…, "d_SceneAsset Icon", …)`
   keeping its dynamic text through `SetButtonIconAndText`.
-- [ ] **T26 — Cutscene timeline empty state + rows (after T25 reports)** — Files:
+- [x] **T26 — Cutscene timeline empty state + rows (after T25 reports)** — Files:
   `Editor/ClipEditor/Cutscene/CutsceneEditorPanel.cs` lines 337–360 and 1959–2350, plus the inline
   visual lines at 2554, 2988 (mark `// colour from data`), 4400, 4526, 4777, 5265 and `BuildHeading`
   at 5438; `Editor/ClipEditor/GhostLaneStripElement.cs`. §4.8; "+ Part Track" per 4.9; `BuildHeading`
   → `ToolkitChrome.MakeHeading`; `:4526` → `toolkit-text--warning`; `:4400`/`:5265` → `toolkit-text--dim`.
-- [ ] **T27 — Cast panel + validation badge [parallel-safe]** — Files:
+- [x] **T27 — Cast panel + validation badge [parallel-safe]** — Files:
   `Editor/ClipEditor/Cutscene/CutsceneCastPanel.cs` (54–108), `Editor/ClipEditor/ValidationBadgeElement.cs`
   (18–20 + any `style.color` writes). Cast: column class (drop the inline padding), Sync per 4.9; badge:
   the three statics → `ToolkitPalette.Error/Warning/Clean`.
-- [ ] **T28 — Playheads + box select [parallel-safe]** — Files: `Editor/ClipEditor/PlayheadElement.cs`,
+- [x] **T28 — Playheads + box select [parallel-safe]** — Files: `Editor/ClipEditor/PlayheadElement.cs`,
   `Editor/ClipEditor/Cutscene/CutsceneTimelinePlayheadElement.cs` → `ToolkitPalette.Playhead`; and
   (a second worker, T28b if A99 is absent) `Editor/ClipEditor/BoxSelectElement.cs` → `BoxSelectFill` /
   `BoxSelectOutline`.
@@ -593,13 +593,13 @@ Each task: "Apply §4.10 to the files below" plus the specifics. Files are disjo
 
 ### Orchestrator steps
 
-- [ ] **T29 — Rename sweep + window routing.** sed over `Editor/**/*.cs`, `ClipEditorWindow.uxml`,
+- [x] **T29 — Rename sweep + window routing.** sed over `Editor/**/*.cs`, `ClipEditorWindow.uxml`,
   `Tests/**/*.cs` for the five D5 renames (whole-token, so `clip-editor__hint` does not also hit a
   longer name — check with `grep -rn "clip-editor__hint\|clip-editor__heading\|clip-editor__toolbar\|clip-editor__object-field"`
   afterwards: zero hits). In `ClipEditorWindow.cs`, `ResolveActiveTransportTarget` gains
   `ClipEditorTab.Retarget → retargetPanel.TransportTarget` (D14), and the Rigs / Clip Sets primary
   buttons' handlers are unchanged. Gate; `ClipEditorLayoutTests`. Commit `A101-T29`.
-- [ ] **T30 — Docs + changelog (one worker, [parallel-safe] with T29)** — Files:
+- [x] **T30 — Docs + changelog (one worker, [parallel-safe] with T29)** — Files:
   `Documentation~/index.md` ("Windows and inspectors": one paragraph, "The window's look", naming the
   asset bar / column / pane header / primary action / status footer families and that a conformance
   test keeps inline visual styles out — no list of classes, the stylesheet is the list),
@@ -609,7 +609,7 @@ Each task: "Apply §4.10 to the files below" plus the specifics. Files are disjo
   Optional: `ViewportFrameElementTests.RailButton_ParentsItsIconBeforeResolving` — build the element,
   `AddRailButton("d_FrameCapture", …)`, assert `button.Q<Image>() != null` and either an image or the
   fallback word; keep only if removing the `Insert(0, icon)` line in T3's file makes it fail.
-- [ ] **T31 — Drive.** Full suites (totals must not drop). Then, per tab, on the docked window with the
+- [x] **T31 — Drive.** Full suites (totals must not drop). Then, per tab, on the docked window with the
   Editor focused: switch to it, capture `Library/A101Captures/after-<tab>.png`, and check the eight
   things by eye in each capture: column padding equal across columns; a titled header on every column;
   one primary action, accent-filled; hints dim and wrapping; result in a footer status row; no plain-word
@@ -618,11 +618,11 @@ Each task: "Apply §4.10 to the files below" plus the specifics. Files are disjo
   Retarget: Space toggles the preview. Cutscene: drag every divider, hide and show the tab, dividers
   remembered. Sprite Sheets: Images mode → drag an image onto Frames still adds a frame. Scratch assets
   only (`Assets/A101Scratch/`), deleted after; registry sha256s unchanged.
-- [ ] **T32 — Close.** Status line; `package.json` and the conformance version pin; HANDOFF §4 (one
+- [x] **T32 — Close.** Status line; `package.json` and the conformance version pin; HANDOFF §4 (one
   paragraph); `AnimationToolkit.md` (a "Chrome is shared (A101)" section: the four elements, the
   conformance marker, the ratchet allowlist rule, and any trap the waves found); roadmap checkbox;
   commit and push.
-- [ ] **T33 — ⏸ owner checkpoint.** Message: "A101 — every tab now builds from the same chrome.
+- [x] **T33 — ⏸ owner checkpoint.** Message: "A101 — every tab now builds from the same chrome.
   Open `Library/A101Captures/` (before/after per tab) or flip through the tabs. Three interpretations
   to confirm: (1) Cutscene Director with nothing loaded now shows the ruler and striped rows with the
   message in the status line — is that what 'key rows visible even when nothing is selected' meant,
@@ -661,3 +661,35 @@ Each task: "Apply §4.10 to the files below" plus the specifics. Files are disjo
 - Icon probes (6000.5): every §4.9 name resolves, plus `d_FolderOpened Icon` (256², scaled by the class), `d_SceneAsset Icon`, `d_UnityEditor.InspectorWindow`; nothing falls back to a word.
 - Cutscene status: there is no status-setter method; `ReportTransportAction` (`:3772`) writes `timelineStatusLabel.text` directly, so T26 writes the empty-state sentence into `timelineStatusLabel` the same way. `timelineLaneRowCount` counts every lane row **including** header-only spacers (`AddHeaderOnlyRow` calls `MarkAsLaneRow`) and resets to 0 at the ruler, so §4.8's `usedHeight = RulerHeight + timelineLaneRowCount * LaneRowHeight` holds.
 - Before-captures: Editor focused (pixelsPerPoint 2.5); `Library/A101Captures/before-<Tab>.png` for all fourteen tabs through the docked window's `SetActiveTab`, original tab restored afterwards.
+
+### Build log (stage, 2026-09-15)
+
+- **Wave 1** (T1–T7, seven workers, one gate, commit `97e8fc4b`): compile clean; `ToolkitPaletteTests`, `ClipEditorLayoutTests`,
+  `PackagingConformanceTests` green (standing Conformance_A only); `EditorStyleConformanceTests` **red as designed**: 29 files
+  outside the allowlist. One orchestrator fix: the test's `Editor/Inspectors/` exclusion matched `"/Editor/Inspectors/"` against a
+  package-relative path with no leading slash.
+- **Wave 2** (T8–T28d, 24 workers + T30 docs, commit `fa2f2b03`): 8 workers hit a session rate limit (HTTP 429) mid-task; the
+  Rigs, frames-column and Sprite Sheets edits were complete on disk, the cutscene chrome worker had finished all but the Continue
+  button, the cast panel was done but the badge untouched, and T28b/T28c/T28d had not started. Fresh workers took the untouched
+  files; the orchestrator finished the loose ends (Continue → icon button; five stragglers where a state colour had been marked
+  `// colour from data` instead of becoming a class; `SpriteSheetCatalogColumn` title emptied so the sidebar owns the header).
+  Compile clean first time across the wave. Full suites: EditMode 865 (864 passed, standing Conformance_A only) — **Conformance_I
+  green**, the red→green pair being its revert-to-fail proof — and PlayMode 285.
+- **Drive-found fixes (after the after-captures):** (1) the cutscene's ghost strip sized to zero — a `ScrollView` in
+  `VerticalAndHorizontal` mode reports its content's height on `contentViewport.contentRect`, not the visible height; the strip
+  now measures the scroll view's own layout minus the horizontal scroller, and the empty ruler follows the strip's width;
+  (2) `ToolkitIcons.Resolve` doubled a `d_` prefix a caller had already written (`d_d_PreTextureRGB`, surfaced by
+  `VatBakePanelTests` once VAT Bake's primary action was built through the factory) — the resolver now strips a leading `d_`;
+  (3) Health's list rows clipped their second line at `fixedItemHeight` 42 → 56; (4) the cutscene Length readout kept a "/ "
+  prefix from its old place beside the Time field. Not driven (needs a hand on the mouse): Retarget's Space toggle, the
+  cutscene dividers surviving a hide/show, dragging an image onto Frames in Sprite Sheets' Images mode.
+- **Captures** (`Library/A101Captures/before-*.png`, `after-*.png`, fourteen tabs, docked window, Editor focused, 2.5
+  pixels-per-point): the Texture Packer and Clip Editor look as before apart from the accent Bake and the pane-title weight on
+  the recipe name; Health, Materials, Retarget and the empty Cutscene Director read as one chrome.
+- **Drift:** the `Toolbar` on the tab strip in the UXML carried `clip-editor__toolbar` and now carries `toolkit-asset-bar`
+  (padding and a bottom rule it did not have; the strip fills it, so nothing moved). `RagdollInspectorColumn` lost a hand-drawn
+  divider (no class for it; the heading margin separates the rig settings now). `ValidationBadgeElement`'s summary button keeps
+  its dynamic word (no icon fits validation counts). Health detail fix actions: Rebake and Delete verbs carry icons; "Remove
+  missing" stays a word.
+- **Allowlist at close** (15 files, unchanged from T0): the canvas and inspector-style elements listed in T0; every wave-2
+  file left it.

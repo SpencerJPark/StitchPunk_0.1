@@ -32,7 +32,8 @@ namespace DotsAnimationToolkit.Editor
             findingListView = new ListView();
             findingListView.name = "health-finding-list-view";
             findingListView.style.flexGrow = 1f;
-            findingListView.fixedItemHeight = 42f;
+            // A boxed two-line row plus its list-row margins.
+            findingListView.fixedItemHeight = 56f;
             findingListView.selectionType = SelectionType.Single;
             findingListView.makeItem = MakeFindingRow;
             findingListView.bindItem = BindFindingRow;

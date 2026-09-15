@@ -1423,3 +1423,26 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
   `9271b512`, three scratch drives, registry sha256s unchanged. EditMode 863, PlayMode 285.
 - A lead that runs out of turns skips its revert-to-fail; the stage ran A99's by hand (mutate, compile, fixture, `git checkout`, sha check).
 - An exclusive grant on one window partial worked: a99 edited `ClipEditorWindow.RagdollHandles.cs` alone and the stage did the rest of the wiring.
+
+## Chrome is shared (A101, 0.52.0)
+
+- **Build editor controls through `ToolkitChrome`** (column, pane header, heading, hint, detail title, asset bar, primary action,
+  status row, the one ListView slot trap, severity dot), **viewports through `ViewportFrameElement`** (it parents the rail icon
+  before resolving it — the blank-button trap lives in one place now), **mode sidebars through `CatalogSidebarElement`** and
+  **path rows through `PathPickerRowElement`**. A catalog column whose `options.title` is empty builds no header and hands its
+  `HeaderActions` to the sidebar; leave a title in and the header doubles.
+- **`Conformance_I` is a ratchet.** `EditorStyleConformanceTests` scans `Editor/**/*.cs` (not `Editor/Inspectors/`) for inline
+  `style.` colour/opacity/font/border/radius/text-align writes. A line whose colour is data ends with `// colour from data`; the
+  marker must sit on the line the regex matches (a multi-line assignment needs joining). `InlineStyleAllowlist` only shrinks, and a
+  listed file with no violation left fails the second fixture. Package-relative paths carry no leading slash — compare against
+  `"Editor/Inspectors/"`, not `"/Editor/Inspectors/"`.
+- **`ToolkitIcons.Resolve` strips a leading `d_`** since 0.52.0: the factories decide the skin prefix, and `d_d_…` was logging an
+  error that `VatBakePanelTests` caught as a failure the moment VAT Bake's Bake went through `MakePrimaryAction`.
+- **A `ScrollView` in `VerticalAndHorizontal` mode reports its content height on `contentViewport.contentRect`**, not the visible
+  height (verified live: 24 px for a 187 px scroll view holding one ruler row). Anything that fills "what is left" measures
+  `scrollView.layout.height` minus the horizontal scroller. The Clip Editor's vertical-only timeline scroll never hit this.
+- **GhostLaneStripElement.paintRangeShading = false** for a seconds-based timeline; the Clip Editor's 0–1 range shading is wrong
+  there. The cutscene's `timelineLaneRowCount` counts header-only spacer rows too, and resets at the ruler.
+- **Unattended wave lesson:** a session rate limit (429) kills every running worker at once; the edits are usually on disk
+  (three of eight were complete, one partial), so diff each file before respawning, and respawn only the untouched scope.
+- Class renames are an orchestrator sed after the wave (`clip-editor__hint` → `toolkit-hint` etc.); workers write the new names.
