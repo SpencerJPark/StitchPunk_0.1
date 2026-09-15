@@ -98,3 +98,31 @@ serves drives.
 ### Phase 0
 
 Phase 0 (stage, 2026-09-15, head `2d53ae6f`): doctor clean (git 2.43.0, hooks installed, broker alive, no stage blockers); compile clean; EditMode baseline 857 (856 passed, standing Conformance_A only); PlayMode baseline 285 (285 passed); CHANGELOG top section `## [0.48.1]`; registry sha256 AnimEventKey `3bdb420d…14701`, TargetTag `dbec3d5f…eb4f`. Lead opus, workers sonnet; merges authorized once ready with gates green (owner, 2026-09-14/15). Owner is away: checkpoints close by the standing rule (assume pass unless game breaking); this batch is followed by A101 on trunk.
+
+### T0 — Grounding (lead, 2026-09-15)
+
+Every §3 name resolves. `OnTrackRemapRequested` sits at `Editor/Retarget/RetargetPanel.cs` 326-364 (the file ends at 365);
+`RigAssetUtility.SetTargetTag` at 116-139; `ClipEditorWindow.WriteRigPartTag` at 4148-4167; `TrackBinding`/`CanRemapTag` and
+`TrackBindingState` at the head of `RetargetBindingResolver.cs`; `AssetReferenceIndex.ReferencesToTag(uint)` at 449. Five drifts:
+
+- **D-1 (menu type).** The row menu is a `GenericDropdownMenu`, not `GenericMenu`, and `GenericDropdownMenu` has no submenu
+  machinery in 6000.5: its only `AddItem` overloads take a flat name, and `subMenuPath` exists solely on `DropdownMenu` and
+  `DropdownMenuSeparator` (checked against the shipped `UnityEngine.UIElementsModule` metadata and XML docs). A `"A/B"` name would
+  render as one literal item. R-D1's "▸" therefore becomes a **two-stage menu**: the row menu gains one item
+  `Add tag to rig part…` that opens a second `GenericDropdownMenu` on the same anchor listing the rig's parts, untagged first, then
+  `Torso (wears Chest)`. This is the package's existing second-stage pattern (`RefactorPromptEditing.PickTagThenReplaceTrackTag`)
+  and keeps Conformance_E (UI Toolkit only; `GenericMenu` is IMGUI and would break it).
+- **D-2 (the one-wearer rule is not in `SetTargetTag`).** `RigAssetUtility.SetTargetTag` writes the tag unconditionally; only
+  `ClipEditorWindow.WriteRigPartTag` clears a previous wearer. R-D2's refusal is therefore `AddTagToRigPart`'s own check through
+  `ClipComponentModel.FindTargetByTag(rig, tagId)` before the write, so the rig can never hold two wearers of one tag.
+- **D-3 (`SetTargetTag` saves).** It ends in `EditorUtility.SetDirty` + `AssetDatabase.SaveAssetIfDirty(rig)` — one asset, not
+  `SaveAssets`, so it stays inside the lead contract; noted because a fixture's `CreateInstance` rig has no path and is unaffected.
+- **D-4 (a Skipped row can be untagged).** `ResolveTaggedTrack` returns `Skipped` with `tagId == 0` for a track that matches no
+  target by raw id. There is no tag to add, so the new item is offered only when `binding.tagId != 0u` alongside
+  `binding.CanRemapTag` and `TrackBindingState.Skipped`.
+- **D-5 (no target id on the row).** `TrackBinding` carries no rig-target stable id, which is what makes R-D1's second stage — and
+  the panel's `AddTagToRigPart(TrackBinding, uint targetStableId)` drive signature — the shape the data allows.
+
+Unchanged: `AddTagToRigPart` keeps §4's signature, `RigTargetDefinition.Id.Value` is the stable id the write keys on, and because
+`TrackTargetMatchResolver.TrackBindsTarget` lets a non-zero track tag win over its raw target id, tagging the part is enough to turn
+the row `Bound`.

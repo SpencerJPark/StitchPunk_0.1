@@ -101,6 +101,15 @@ namespace DotsAnimationToolkit.Editor
             return false;
         }
 
+        public const string AddTagToRigPartUndoName = "Add Tag To Rig Part";
+
+        // Stub for A97F-T2: the real write lands on RigAssetUtility.SetTargetTag.
+        public static bool AddTagToRigPart(RigAsset rig, uint targetStableId, uint tagId, out string failureMessage)
+        {
+            failureMessage = string.Empty;
+            return false;
+        }
+
         private static void RecordClip(ClipAsset clip)
         {
             Undo.IncrementCurrentGroup();
