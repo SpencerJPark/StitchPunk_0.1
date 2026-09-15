@@ -11,25 +11,25 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Pack greyscale images into one texture's channels over a node graph, with an image and recipe sidebar.</summary>
         TexturePacker = 0,
 
-        Rigs = 1,
+        SpriteSheets = 1,
 
         /// <summary>Browse, create and edit clip sets — which clips each one registers.</summary>
         ClipSets = 2,
 
-        /// <summary>The dock — clip list, hierarchy, viewport, inspector and timeline.</summary>
-        ClipEditor = 3,
+        Rigs = 3,
 
-        VatBake = 4,
+        Events = 4,
+
+        /// <summary>The dock — clip list, hierarchy, viewport, inspector and timeline.</summary>
+        ClipEditor = 5,
+
+        VatBake = 6,
 
         /// <summary>Layer/animation authoring over a composited multi-layer preview.</summary>
-        ActorEditor = 5,
+        ActorEditor = 7,
 
-        CutsceneEditor = 6,
+        CutsceneEditor = 8,
 
-        Events = 7,
-
-        Health = 8,
-
-        SpriteSheets = 9
+        Health = 9
     }
 }

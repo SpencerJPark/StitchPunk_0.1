@@ -1230,12 +1230,18 @@ namespace DotsAnimationToolkit.Editor
                 "Pack greyscale images into the channels of one texture: drag images from the "
                 + "sidebar or the Project window onto the canvas, wire their channels into the "
                 + "Pack Output node, and bake over the output in place.");
-            BindTab(ClipEditorTab.Rigs, "tab-new-rig",
-                "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
-                + "targets, and optionally point this clip set at the result.");
+            BindTab(ClipEditorTab.SpriteSheets, "tab-sprite-sheets",
+                "Stack same-size frames into one Texture2DArray, see every layer as a contact sheet, "
+                + "and name each frame so sprite keys pick it by name.");
             BindTab(ClipEditorTab.ClipSets, "tab-clip-sets",
                 "Browse every clip set in the project, create one — name, folder, starting clips — or "
                 + "add and remove clips on an existing one.");
+            BindTab(ClipEditorTab.Rigs, "tab-new-rig",
+                "Scan a prefab's hierarchy for renderer-bearing nodes, choose which become rig "
+                + "targets, and optionally point this clip set at the result.");
+            BindTab(ClipEditorTab.Events, "tab-events",
+                "Edit the project's event keys: each key's payload and preview clip, where it is "
+                + "used, and the routes a host bakes and reads. Generate a consumer system to start from.");
             BindTab(ClipEditorTab.ClipEditor, "tab-clip-editor",
                 "The clip list, rig hierarchy, viewport, inspector and timeline. What the window "
                 + "opens on, and what every other tab is drawn over.");
@@ -1249,15 +1255,9 @@ namespace DotsAnimationToolkit.Editor
             BindTab(ClipEditorTab.CutsceneEditor, "tab-cutscene-editor",
                 "Stage a multi-actor cutscene: clip blocks and keys on a timeline, scene-view "
                 + "posing, a camera lane, and an event/hold lane.");
-            BindTab(ClipEditorTab.Events, "tab-events",
-                "Edit the project's event keys: each key's payload and preview clip, where it is "
-                + "used, and the routes a host bakes and reads. Generate a consumer system to start from.");
             BindTab(ClipEditorTab.Health, "tab-health",
                 "Scan every toolkit asset for cross-asset problems, such as clips in no set, stale VAT "
                 + "bakes and unregistered tags or event keys, and apply the one-click fixes.");
-            BindTab(ClipEditorTab.SpriteSheets, "tab-sprite-sheets",
-                "Stack same-size frames into one Texture2DArray, see every layer as a contact sheet, "
-                + "and name each frame so sprite keys pick it by name.");
 
             ApplyActiveTab();
         }
