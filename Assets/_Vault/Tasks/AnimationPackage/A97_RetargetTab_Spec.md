@@ -153,3 +153,43 @@ public static class RetargetBindingResolver
 - **Stage untracked files:** none. Nothing on the stage names a type this spec removes or renames.
 - **Runs as** a spec-lead (opus) with sonnet workers in a Worktree Toolkit batch beside the other two of A96–A98; the
   stage owns window wiring, `index.md`, CHANGELOG, `package.json`, the conformance pin, drives and the close.
+
+### T0 grounding (spec-lead, worktree `spec/a97`, 2026-09-14)
+
+Names confirmed by grep: `ClipValidation.ValidateBind` (line 73), `TrackTargetMatchResolver.TrackBindsTarget`,
+`RefactorEditing.ReplaceTrackTag(uint, uint)` plus `RefactorPromptEditing.PickTagThenReplaceTrackTag(host, anchor,
+fromTagId, onApplied)`, `VocabularyPicker.Open` / `VocabularyPickerConfig.ForTrackTagRebind`,
+`ClipPreviewController.FindHierarchyIndexByName` (returns -1 on a miss), `AssetReferenceIndex.Rigs`,
+`ActiveAssetSelection`, `CoverPaneSplitView`, `PreviewCameraNavigation.AttachTo(Image)`.
+
+T2/T3 as the validator emits them (`ValidateTrackBindingInto`, not `ValidateBind` itself, which only calls it):
+
+```csharp
+if (tagId == 0u) { /* V38 Warning */ if (resolutionRig != null && !RigContainsTarget(resolutionRig, targetId)) ...; return; }
+if (tagRegistry != null && !tagRegistry.ContainsId(tagId)) { /* V36 Error, dangling */ return; }
+if (resolutionRig == null) { return; }
+if (RigContainsTagTarget(resolutionRig, tagId)) { return; }
+/* V35 Warning: the tag exists but this rig has no target carrying it, skipped */
+```
+
+Drift and decisions (8):
+
+1. The T2/T3 checks live in `ValidateTrackBindingInto` (ClipValidation.cs ~1150-1220), reached from `ValidateClipInto`,
+   not in lines 73-120. The resolver follows it: a registry-unknown tag is Dangling even when a rig target still wears it;
+   a null registry never yields Dangling; an untagged track binds by raw id (V38 maps to Skipped).
+2. `TrackBinding` carries three fields beyond section 4.1: `kind` (`RetargetTrackKind` Transform/Sprite/Bone/Billboard),
+   `trackIndex` and `reason`, since a per-row remap needs to address the track. `RosterCoverageEntry` and
+   `RetargetBindingResolver.BuildRoster` added for D4.
+3. D5 says reuse `ClipPreviewController` "exactly as the VAT Bake tab does": the VAT Bake tab hosts a `VatPreviewElement`
+   with its own `PreviewRenderUtility`, not the controller. The Actor Editor panel is the controller-hosting model
+   (`Render(w, h)` into an `Image`, `cameraNavigation.Rig = controller`); T4 follows that.
+4. D2 bone tracks: the pure resolver cannot hold a preview, so `Resolve` takes an optional `Func<string, bool>`; null
+   searches the rig's `sourcePrefab` by first name (the rule `FindHierarchyIndexByName` uses). The panel passes null
+   for both table and roster so the two never disagree; the preview element exposes `FindHierarchyIndexByName` for the drive.
+5. Billboard tracks bind by `rootStableId` against `rig.billboardRoots[].Id.Value`; no tag, so no remap.
+6. D4 "the clip set's own rig is listed first": `ClipSetAsset` has no rig field. The shared selection's Rig is listed first.
+7. D3 remap: a `GenericDropdownMenu` of the rig's tagged targets (names from the registry), not a `VocabularyPicker`
+   overlay. A remap onto a tag another track in the clip already carries merges into it via
+   `ClipComponentModel.Merge*Tracks`, the timeline picker's rule; the write is `RetargetRemapEditing.RemapTrackTag`
+   (one new static class, suffix Editing, no allowlist). "Remap in every clip…" calls `PickTagThenReplaceTrackTag`.
+8. A92 is built, so the "Remap in every clip…" item is present.
