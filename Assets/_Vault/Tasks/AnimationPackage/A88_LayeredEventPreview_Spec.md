@@ -1,6 +1,6 @@
 # Amendment A88 — Layered event preview in the Actor Editor
 
-> **Status:** ✅ built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; see §7). T9 owner checkpoint open.
+> **Status:** ✅ built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; see §7). T9 accepted 2026-09-14 (owner: assume pass).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1.
 > **Predecessors:** A70/A71 (profiles, Actor Editor), A86 (`EventLaneStyle`), A87 (the crossing
 > resolver and preview player, reused here for the composited preview).
@@ -116,7 +116,7 @@ one testable function.
   Capture. _(Full suites run. No window drive and no capture: §7 drifts 12–13; rule proven by fixture,
   mount by a detached panel query.)_
 - [x] **T8 — Close.** HANDOFF §4, roadmap checkbox. _(Box stays unticked until T9 is answered; to-do line added.)_
-- [ ] **T9 — ⏸ owner checkpoint.** Message: "Actor Profiles ▸ pick MaleCitizen ▸ play Walk on
+- [x] **T9 — ⏸ owner checkpoint.** Message: "Actor Profiles ▸ pick MaleCitizen ▸ play Walk on
   Base and an Override animation. Under the preview: one row per layer with its event pins. Does
   the dimmed/hollow language read as 'will not fire'? Should the strip start collapsed?"
 
@@ -209,3 +209,9 @@ call made on each (escalated at T9, not silently re-specced):
 **Questions for the owner (T9):** the drifts above are settled as logged; do any need a different call?
 Especially drift 9 (strip below the transport, not between viewport and transport) and drift 8
 (a paused step counts as playing for crossings).
+
+### Owner checkpoint answer (2026-09-14)
+
+- **Accepted without a hands-on look.** The owner's instruction for the open checkpoints: "let's just assume they
+  pass unless there's something really game breaking I need to check". Nothing in this amendment's §7 is game
+  breaking, so the checkpoint is closed as built with no follow-up.

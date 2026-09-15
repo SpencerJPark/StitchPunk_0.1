@@ -1,6 +1,7 @@
 # Amendment A95F — Sprite Sheets over existing arrays: every Texture2DArray listed, frames named by number
 
-> **Status:** 📝 specced 2026-09-14 from the owner's A95 T15 answer. Takes `0.45.0`.
+> **Status:** 📝 specced 2026-09-14 from the owner's A95 T15 answer; widened the same evening so baked sheets import
+> exactly like the project's arrays (S-D8, S-D9). Takes `0.45.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A95.
 > **Predecessors:** A95 (`0.42.0`), A82 (catalog column).
 > **Executor:** one lead; `worker` subagents in **one wave of six**, each ≤ 2 files; the stage does the drive and
@@ -63,6 +64,33 @@ asset beside the array, which the sprite key picker uses.
   unchanged).
 - **S-D7 — Names stay unique** through the existing `SpriteSheetValidation` dedupe ("mouth", "mouth" → "mouth",
   "mouth 1").
+- **S-D8 — A baked sheet is a grid PNG imported like the project's arrays** (owner, 2026-09-14: "copy what the arrays
+  are now … other methods make them look bad"). A95's baker wrote an uncompressed RGBA32 `Texture2DArray` `.asset`;
+  that path is replaced.
+  - **The image:** `SpriteSheetBaker.Bake` composes the frames into one PNG, `T_<Sheet>_Array.png` beside the sheet,
+    row-major from the top-left. The grid is `columns = ceil(sqrt(n))`, `rows = ceil(n / columns)`, one cell =
+    `layerSize`.
+  - **Padding:** unused trailing cells are transparent, so the array's depth is `rows × columns`. The extra layers are
+    padding, never listed as frames.
+  - **Y is flipped:** `Texture2D` pixel rows count from the bottom, so row `r` is written at
+    `y = (rows - 1 - r) × height`.
+  - **The import:** the importer is set to `textureShape = Texture2DArray` with `flipbookRows`/`flipbookColumns`, and
+    **every other import setting is copied from a reference array's `TextureImporter`**: `TextureImporterSettings`
+    via `ReadTextureSettings`/`SetTextureSettings` (then rows and columns restored), the default-platform settings
+    (compression, max size, crunch) and any per-platform overrides.
+  - **The reference:** new field `SpriteSheetAsset.importSettingsSource` (`Texture2DArray`), shown in the panel header
+    as "Match import settings of".
+  - **Defaults with no reference:** the settings every project array shares today. That's Compressed (Normal quality),
+    mipmaps on, Point, Clamp, sRGB on, aniso 1, alpha-is-transparency off, max 2048, no crunch (all ten arrays read
+    2026-09-14; `HeadArray` alone is linear). The sheet's `filterMode`, `wrapMode`, `generateMips` and `linear` fields
+    are now these defaults, written into the importer.
+  - **Re-bake** rewrites the PNG and reimports, so the GUID never changes; the `CopySerialized` overwrite goes.
+  - **No migration:** no baked sheet exists in the project (A95's drive scratch was deleted); T0 confirms.
+- **S-D9 — Probe, 2026-09-14 (stage).** A 4×4 PNG with a red, green, blue and white 2×2 grid, imported as
+  `Texture2DArray` with rows and columns 2: depth 4, layer 0 = top-left (red), 1 = top-right, 2 = bottom-left,
+  3 = bottom-right. The same PNG re-imported Compressed with mipmaps succeeded, and the GUID stayed stable. A reimport
+  of a new PNG inside one `execute_code` call can outlast the MCP response timeout, so drives split the import and the
+  readback into separate calls.
 
 ---
 
@@ -77,6 +105,9 @@ asset beside the array, which the sprite key picker uses.
 - `Editor/ClipUtilities/SpriteSheetAssetUtility.cs` (whole, small).
 - `Editor/ClipEditor/Panes/SpriteSheetFramePickerBuilder.cs` 20–40 (`BuildSheetField`).
 - `Authoring/Assets/SpriteSheetAsset.cs` (whole).
+- `Editor/SpriteSheets/SpriteSheetBaker.cs` lines 26–160 (the output path, the size check and the array write that
+  S-D8 replaces) and `Tests/EditMode/SpriteSheetBakerTests.cs` (whole).
+- One project array's import settings, for S-D8's defaults: `Assets/Textures/Units/Arrays/EyeArray.png.meta`.
 
 ---
 
@@ -112,8 +143,17 @@ asset beside the array, which the sprite key picker uses.
 - [ ] **T6 — Sheet field takes arrays [parallel-safe]** — Files: `Editor/ClipEditor/Panes/SpriteSheetFramePickerBuilder.cs`
   (`BuildSheetField` objectType and the array branch), `Editor/ClipEditor/Panes/ClipInspectorPane.cs` only if the
   callers need a signature change (T0 decides; otherwise one file).
-- [ ] **T7 — Docs [parallel-safe]** — Files: `Documentation~/sprite-sheets.md` (existing arrays first: they appear on
-  their own, frames are numbered, rename and Save to keep names; stacking separate images second).
+- [ ] **T7 — Docs [parallel-safe]** — Files: `Documentation~/sprite-sheets.md`. Existing arrays come first: they
+  appear on their own, frames are numbered, rename and Save to keep names. Stacking separate images comes second, as a
+  grid PNG imported with the same settings as a chosen array, with no uncompressed option.
+- [ ] **T7a — Baker: grid PNG + copied import settings [parallel-safe]** — Files: `Editor/SpriteSheets/SpriteSheetBaker.cs`,
+  `Tests/EditMode/SpriteSheetBakerTests.cs`. S-D8. The fixture keeps `Bake_LayerOrderIsListOrder`:
+  - It bakes three 2×2 solid-colour frames in a GUID-named scratch folder, then sets the resulting PNG's importer to
+    Uncompressed and readable (a test-only override after the bake) and reimports.
+  - It asserts each layer's colour equals its frame's colour in list order, and that the importer's `filterMode`,
+    `mipmapEnabled` and `textureCompression` came from the reference array it passed.
+  - Revert-to-fail: compose the grid bottom-up (skip the y flip).
+- (T4 also adds the header's "Match import settings of" `ObjectField`, bound to `importSettingsSource`.)
 - **Gate the wave.** `SpriteSheetArrayNamesTests`, `SpriteSheetValidationTests`, `SpriteSheetBakerTests`,
   `ClipEditorAddEventTests`, `PackagingConformanceTests` (namespace-qualified). Revert-to-fail. Commit `A95F-T2..T7`.
   For-integration block (CHANGELOG `## [0.45.0]`, traps, HANDOFF draft). `worktree.py status a95f ready`.
@@ -122,8 +162,15 @@ asset beside the array, which the sprite key picker uses.
   `0`…`63`, 64 thumbnails from the GPU path, Bake disabled. Rename frame 5 to `blink_half`, Save: `EyeArray_Sheet.asset`
   appears beside the scratch copy with that name and 63 numeric names; reopening shows it as a sheet row. Bind the
   scratch sheet on a scratch clip's sprite track through `BuildSheetField` hosted in a temporary utility window (a
-  detached field dispatches no events); the Frame dropdown lists `blink_half` at 5. Delete scratch. Never write beside
-  the real arrays.
+  detached field dispatches no events); the Frame dropdown lists `blink_half` at 5.
+
+  Then a baked sheet: four `CaravanCustomColors` PNGs with `importSettingsSource = EyeArray`.
+  - Bake in one call and read back in the next (S-D9 timeout note).
+  - The output `T_<Sheet>_Array.png` imports as an array of depth 4 whose importer settings match `EyeArray.png`'s
+    except rows and columns, and whose format matches `EyeArray`'s (DXT5 sRGB on this machine).
+  - Re-bake with two frames swapped: same GUID.
+
+  Delete scratch. Never write beside the real arrays.
 - [ ] **T9 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and conformance pin `0.45.0`.
 - [ ] **T10 — ⏸ owner checkpoint.** "Sprite Sheets: your eight Units arrays (and two legacy hair arrays) are in the
   list. Open EyeArray: every frame shows, numbered 0–63. Rename a few and press Save; a small EyeArray_Sheet asset

@@ -14,7 +14,8 @@ Why parallel:
   and clip trash, `Editor/SpriteSheets/` + the sheet picker).
 - None adds a tab, so the window, UXML and layout test change only for A93F's `FocusClip` and `OpenOwnerRequested`
   wiring, which is yours.
-- The only Unity probe (A95F S-D4, layer thumbnails) was run on 2026-09-14 and is recorded in that spec.
+- The Unity probes A95F needs (S-D4 layer thumbnails, S-D9 grid import order and compressed import) were run on
+  2026-09-14 and are recorded in that spec.
 
 **This file gives what differs from `Assets/_Vault/Spencer/next-session-parallel-a96-a98-prompt.md`.** Use that
 file's **Lead contract** (verbatim, including the gate syntax with namespace-qualified names and
@@ -34,11 +35,8 @@ gates green. Delete this line to require my word per merge.
 
 ## Phase 0 — stage prep
 
-1. **Owner answers** (own commit each; delete a line if unanswered):
-   - Owner's A88 T9 answer: <PASTE HERE> (details in the A96–A98 prompt's Phase 0).
-   - Owner's A92 T10 answer: <PASTE HERE> (details in the A96–A98 prompt's Phase 0).
-   - Owner's A95 leftovers (compressed arrays? retire `TextureArrayBuilder.cs`?): <PASTE HERE>. Each "yes" is a new
-     task note in `Assets/_Vault/Tasks/`, not code in this batch.
+1. **Owner answers:** none open. A88 T9 and A92 T10 were accepted on 2026-09-14, and the A95 leftovers were
+   folded into A95F (S-D8) and the `TextureArrayBuilder.cs` retirement.
 2. **Preflight:** `worktree.py doctor --json`. Stop if git fails, hooks are missing or `brokerAlive` is false.
 3. **Baseline:** compile gate, full suites. Expected: EditMode 850 (standing Conformance_A only), PlayMode 285.
 4. **Unity-bound T0:** none beyond A95F's recorded probe. Confirm CHANGELOG's top section is `## [0.42.0]`.
@@ -60,7 +58,7 @@ Add per lead:
 - **a93f:** "Your T1 `git rm` removes types the owner's untracked stub uses; that file exists only on the stage, so
   your gates cannot see it. Do not create or edit anything under `Assets/_Scripts/`."
 - **a94f:** "The only real project deletes are the stage's drive, on scratch copies. Your fixtures never trash a
-  real asset."
+  real asset. T9b (window: tab count, badge removal) is the stage's."
 - **a95f:** "The ten project arrays live under `Assets/Textures/Units/`. Nothing in your code or fixtures writes
   beside them, and fixtures build arrays in a GUID-named scratch folder."
 
@@ -70,6 +68,10 @@ Add per lead:
 2. **One integration commit** "A93F-A95F integration":
    - A93F T6: `ClipEditorWindow.FocusClip(ClipAsset)`, and the `OpenOwnerRequested` routing in `ShowEventsTab`,
      unsubscribed in teardown.
+   - A94F T9b: the Health panel is built at window creation; the `tab-health` count and colour come from
+     `FindingsChanged`; the toolbar `ValidationBadgeElement` and `validation-badge-slot` go; the four badge
+     refreshes become `healthPanel?.RequestRescan()`; the UXML, `ClipEditorLayoutTests` and the badge mentions
+     in the docs are updated.
    - CHANGELOG `## [0.45.0]`, `## [0.44.0]` and `## [0.43.0]`, newest on top, from the three For-integration blocks
      (A93F's has a **Removed** list).
    - `package.json` 0.45.0; the conformance pin (comment gains 0.43.0–0.45.0, Assert at 0.45.0).
@@ -77,7 +79,7 @@ Add per lead:
    - `ClipEditorLayoutTests` only if a block names new UXML elements (none expected).
 3. **A93F T7**, the owner's stub conversion. Stage only, not committed.
 4. **Compile gate**, then:
-   - the fixtures `AnimEventBufferApiTests`, `HealthScanTests`, `HealthRulesTests`, `VatTextureOwnershipResolverTests`,
+   - the fixtures `AnimEventBufferApiTests`, `HealthScanTests`, `HealthRulesTests`, `VatTextureOwnershipResolverTests`, `BindValidationTests`,
      `SpriteSheetArrayNamesTests`, `SpriteSheetValidationTests`, `SpriteSheetBakerTests`, `ClipEditorAddEventTests`,
      `ClipEditorLayoutTests`, `PackagingConformanceTests`;
    - full suites once. EditMode should be 850 − 3 (removed routing fixtures) + the new fixtures; PlayMode 285.
@@ -98,6 +100,7 @@ Add per lead:
 - **Health drive:** never press a real Delete, Remove missing or Rebake. Run each action's `run` beneath its dialog,
   on scratch copies only.
 - **Sprite Sheets drive:** copy `EyeArray.png` into a scratch folder with `AssetDatabase.CopyAsset`, never write
-  `_Sheet.asset` beside a real array, and delete scratch after.
+  `_Sheet.asset` beside a real array, and delete scratch after. Split every PNG import from its readback into
+  separate `execute_code` calls: one reimport outlasted the MCP timeout on 2026-09-14.
 - **Events drive:** the usage column reads the real project (read-only). Invoke open requests on a detached panel
   only; the docked window stays untouched.

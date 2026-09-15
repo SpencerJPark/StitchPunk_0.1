@@ -9,23 +9,9 @@
 
 ## 1. The order, with checkboxes
 
-> **⏸ Owner to-do (left 2026-09-13, answer in any session):**
-> - [ ] **A87 follow-up (built 2026-09-13, not yet seen):** select an event pin in a clip, then scrub across
->   it. It should swell for about a tenth of a second, then show its selection outline again.
-> - [ ] **A88 T9 (built 2026-09-13 as `0.38.0`, not yet seen):** Actor Profiles ▸ MaleCitizen ▸ ▶ Walk
->   on Base, then ▶ MeleeContinuous on Action (Blink already runs on Eyes). Under the preview's
->   transport, the Layer Events strip has one row per layer; MeleeContinuous's `Attack` pin at 0.35
->   flashes once per ▶ (silently, no preview clip), and being play-once its row dims by itself at the end.
->   Two questions: does dimmed/hollow read as "will not fire"? Should the strip start collapsed?
-> - [ ] **A92 T10 (built 2026-09-14 as `0.39.0`, not yet seen):** MaleCitizen's `MeleeContinuous` clip ▸
->   right-click the `Attack` pin ▸ Change key everywhere… ▸ pick any other event. The dialog names every
->   clip, cutscene and profile using `Attack`; Cancel changes nothing. Apply rewrites them, and one Ctrl+Z puts
->   them all back. The same flow is behind Merge into… on an Event Keys row, Replace in clips with… on a
->   Target Tags row, and right-click on a Rigs tab Tag button. Merge also rewrites the event registry, which
->   has uncommitted edits. Question: do the dialog wording and the four entry points read right?
-> - [ ] **A95 leftovers (asked 2026-09-14, not answered):** want a compressed-array follow-up (sheets bake
->   uncompressed RGBA32)? Schedule the game-side task retiring `TextureArrayBuilder.cs`?
-> - Answering any of these ticks its box below and updates the status line above.
+> **⏸ Owner to-do:** none open. On 2026-09-14 the owner accepted A87's follow-up, A88 T9 and A92 T10 without a
+> hands-on look ("assume they pass unless there's something really game breaking I need to check"), and answered
+> A93–A95 plus their leftovers (A93F–A95F).
 
 Tick a box only when the spec's own status line says built **and** its ⏸ owner checkpoint (if any)
 has been answered. A spec's session ticks its own tasks inside the spec; this list is the owner's
@@ -43,25 +29,25 @@ free minor and correct the spec's status line.
 - [x] **A85 — Event payload schema** (`0.32.0`) — [`A85_EventPayloadSchema_Spec.md`](A85_EventPayloadSchema_Spec.md). A registry entry says what `intParam` / `floatParam` mean; the Clip Editor shows a dropdown instead of a raw integer; generated constants carry the meaning.
 - [x] **A86 — One event editing surface for clips and cutscenes** (`0.33.0`) — [`A86_UnifiedEventEditing_Spec.md`](A86_UnifiedEventEditing_Spec.md). Same inspector, lane drawing and validation for `EventMarker` and `CutsceneEventMarker`; serialized types untouched.
 - [x] **A87 — Scrub crossings and sound on scrub** (`0.34.0`) — [`A87_ScrubEventCrossings_Spec.md`](A87_ScrubEventCrossings_Spec.md). Playhead-before / playhead-after crossing detection in the editor, an editor-only preview `AudioClip` per registry entry. Lifts the standing "do not start it" (HANDOFF §5) on the owner's 2026-09-10 instruction.
-- [ ] **A88 — Layered event preview in the Actor Editor** (`0.38.0`) — [`A88_LayeredEventPreview_Spec.md`](A88_LayeredEventPreview_Spec.md). Per-layer marker strip under the composited preview; inactive and crossfade-source layers drawn as non-emitting.
+- [x] **A88 — Layered event preview in the Actor Editor** (`0.38.0`) — [`A88_LayeredEventPreview_Spec.md`](A88_LayeredEventPreview_Spec.md). Per-layer marker strip under the composited preview; inactive and crossfade-source layers drawn as non-emitting.
 - [x] **A89 — Stale VAT bake detection** (`0.35.0`) — [`A89_StaleVatBakeDetection_Spec.md`](A89_StaleVatBakeDetection_Spec.md). Compute the source hash without baking; badge the VAT Bake tab and the clip set when it differs from `VatTextureSetAsset.sourceHash`.
 - [x] **A90 — Camera-data fallback warning** (`0.37.0`) — [`A90_CameraDataWarning_Spec.md`](A90_CameraDataWarning_Spec.md). A project with no `AnimationToolkitCameraData` writer gets one warning naming the sample, not silent spherical billboarding.
 - [x] **A91 — Profile P2 at save and at build** (`0.36.0`) — [`A91_ProfileP2AtBuild_Spec.md`](A91_ProfileP2AtBuild_Spec.md). Animation-name membership checked on asset save and as a build preprocessor; the bake still cannot do it and the spec says why.
-- [ ] **A92 — Project-wide refactor operations** (`0.39.0`) — [`A92_RefactorOperations_Spec.md`](A92_RefactorOperations_Spec.md). Re-key an event, merge two keys, replace a tag across every clip, set, profile and cutscene in one undo step. Needs A84.
+- [x] **A92 — Project-wide refactor operations** (`0.39.0`) — [`A92_RefactorOperations_Spec.md`](A92_RefactorOperations_Spec.md). Re-key an event, merge two keys, replace a tag across every clip, set, profile and cutscene in one undo step. Needs A84.
 
 ### Phase 2 — tabs (A93 and A94 first; the rest in any order)
 
 - [ ] **A93F — Events tab rework** (`0.43.0`) — [`A93F_EventsTabRework_Spec.md`](A93F_EventsTabRework_Spec.md). Owner's A93 answer: routing removed, the right column lists the animations using the event, `AnimEventBufferApi` helper, no event entities.
-- [ ] **A94F — Health tab rework** (`0.44.0`) — [`A94F_HealthTwoPanel_Spec.md`](A94F_HealthTwoPanel_Spec.md). Owner's A94 answer: big Scan, list + detail panel, Delete behind confirmations.
-- [ ] **A95F — Sprite Sheets over existing arrays** (`0.45.0`) — [`A95F_SheetsFromArrays_Spec.md`](A95F_SheetsFromArrays_Spec.md). Owner's A95 answer: every project `Texture2DArray` listed, frames named by number until renamed.
+- [ ] **A94F — Health tab rework** (`0.44.0`) — [`A94F_HealthTwoPanel_Spec.md`](A94F_HealthTwoPanel_Spec.md). Owner's A94 answer: big Scan, list + detail panel, Delete behind confirmations, a "Health (n)" count, and the Clip Editor's error badge removed in Health's favour.
+- [ ] **A95F — Sprite Sheets over existing arrays** (`0.45.0`) — [`A95F_SheetsFromArrays_Spec.md`](A95F_SheetsFromArrays_Spec.md). Owner's A95 answer: every project `Texture2DArray` listed, frames named by number until renamed; baked sheets import as grid PNGs with the project arrays' own settings.
 - [x] **A93 — Events tab** (`0.40.0`) — [`A93_EventsTab_Spec.md`](A93_EventsTab_Spec.md). Registry catalog, payload + usage, a routing table baked to a blob hosts read, a consumer-stub generator. Needs A84, A85.
 - [x] **A94 — Health tab** (`0.41.0`) — [`A94_HealthTab_Spec.md`](A94_HealthTab_Spec.md). One project-wide findings list replacing the per-clip badge for cross-asset problems. Needs A84, A89.
 - [x] **A95 — Sprite Sheets tab** (`0.42.0`) — [`A95_SpriteSheetsTab_Spec.md`](A95_SpriteSheetsTab_Spec.md). `Texture2DArray` flipbook builder with a contact-sheet preview, writing the layer indices sprite tracks already expect; frame-by-name picker on sprite keys. Atlas output dropped 2026-09-12 (spec D0).
-- [ ] **A96 — Materials tab** (`0.43.0`) — [`A96_MaterialsTab_Spec.md`](A96_MaterialsTab_Spec.md). Every actor material against the shader contract; create-from-template.
-- [ ] **A97 — Retarget tab** (`0.44.0`) — [`A97_RetargetTab_Spec.md`](A97_RetargetTab_Spec.md). Clip × rig binding table with per-row tag remap and roster coverage.
-- [ ] **A98 — Capture tab** (`0.45.0`) — [`A98_CaptureTab_Spec.md`](A98_CaptureTab_Spec.md). PNG sequence (and optional GIF) from the preview camera for a clip, profile animation or cutscene.
-- [ ] **A99 — Ragdoll tab** (`0.46.0`) — [`A99_RagdollTab_Spec.md`](A99_RagdollTab_Spec.md). Bodies, limits and the drop simulation get their own three-column home; the Clip Editor keeps only the preview toggle.
-- [ ] **A100 — Stats tab** (`0.47.0`) — [`A100_StatsTab_Spec.md`](A100_StatsTab_Spec.md). Play-mode counts: actors, events per frame, LOD histogram, VAT texture memory, group timings.
+- [ ] **A96 — Materials tab** (`0.46.0`) — [`A96_MaterialsTab_Spec.md`](A96_MaterialsTab_Spec.md). Every actor material against the shader contract; create-from-template.
+- [ ] **A97 — Retarget tab** (`0.47.0`) — [`A97_RetargetTab_Spec.md`](A97_RetargetTab_Spec.md). Clip × rig binding table with per-row tag remap and roster coverage.
+- [ ] **A98 — Capture tab** (`0.48.0`) — [`A98_CaptureTab_Spec.md`](A98_CaptureTab_Spec.md). PNG sequence (and optional GIF) from the preview camera for a clip, profile animation or cutscene.
+- [ ] **A99 — Ragdoll tab** (`0.49.0`) — [`A99_RagdollTab_Spec.md`](A99_RagdollTab_Spec.md). Bodies, limits and the drop simulation get their own three-column home; the Clip Editor keeps only the preview toggle.
+- [ ] **A100 — Stats tab** (`0.50.0`) — [`A100_StatsTab_Spec.md`](A100_StatsTab_Spec.md). Play-mode counts: actors, events per frame, LOD histogram, VAT texture memory, group timings.
 
 ## 2. Standing owner calls these specs inherit (do not re-ask)
 
@@ -70,6 +56,13 @@ free minor and correct the spec's status line.
 - Events are authored loosely; downstream systems read and redirect. **The package ships no
   handler** — A93's routing table is data a host reads, and the stub generator writes into the
   host's project, not the package.
+- Runtime events stay on the per-actor `AnimEventOutput` buffer; the package creates no event entities (owner,
+  2026-09-14, after the structural-cost trade-off). Routing was removed with A93F.
+- Editor tabs: one big, obvious primary action; a list beside a detail panel instead of buttons packed into rows;
+  destructive actions only behind a confirmation naming the asset and its usage (owner, 2026-09-14).
+- Texture arrays are made by Unity's importer from grid PNGs; toolkit bakes copy an existing array's import
+  settings rather than choosing formats (owner, 2026-09-14).
+- Unseen owner checkpoints may be closed as accepted unless something is game breaking (owner, 2026-09-14).
 - Sound mixing is not this package. A87 plays a preview clip in the editor and nothing else.
 - New rigs are created fresh; build no migration paths. A86 therefore leaves both marker types'
   serialized fields alone.

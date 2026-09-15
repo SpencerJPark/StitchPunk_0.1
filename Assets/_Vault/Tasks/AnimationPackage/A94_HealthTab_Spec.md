@@ -266,3 +266,9 @@ calling every rule in code order; plain noun, allowlist.
   rig) and a stale H06's existing VAT textures.
 - **Still open:** the "Health (n)" tab-strip count was not answered; A94F's checkpoint asks again.
 - **Rework:** [`A94F_HealthTwoPanel_Spec.md`](A94F_HealthTwoPanel_Spec.md) (`0.44.0`).
+
+### Owner follow-up answer (2026-09-14, later)
+
+- **Tab count:** yes to "Health (n)". Then remove the error badge next to the tabs, since Health now carries that
+  information. Folded into A94F as H-D8 to H-D10: the count of errors, the badge removed, and rules H11/H12 absorbing
+  the badge's bind and shared-clip checks, with a rescan on every committed clip edit.

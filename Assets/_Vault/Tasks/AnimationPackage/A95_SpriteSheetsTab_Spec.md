@@ -321,3 +321,13 @@ Bake, unsaved marker, output path), three columns, `Dispose`.
 - **Rework:** [`A95F_SheetsFromArrays_Spec.md`](A95F_SheetsFromArrays_Spec.md) (`0.45.0`). A spec gap worth
   remembering: A95 assumed nothing in the project built arrays, and D0 missed that the importer already turns a grid
   PNG into an array.
+
+### Owner follow-up answer (2026-09-14, later)
+
+- **Compression:** unsure; "just copy what the arrays are now". The project's arrays were made through the importer
+  partly because other methods look bad. Folded into A95F as S-D8: a baked sheet becomes a grid PNG imported with a
+  reference array's importer settings (default: the settings all ten project arrays share). Uncompressed RGBA32
+  output is dropped.
+- **`TextureArrayBuilder.cs`:** "if it makes sense to retire, sure". Retired on 2026-09-14. It was a custom inspector
+  for `TexturePackerConfig` (in `TextureArrayConfig.cs`) that no asset used. `TextureArrayPreview` (on
+  `MaleHead.prefab`) is unrelated and stays.

@@ -1,6 +1,6 @@
 # Amendment A92 — Project-wide refactor operations
 
-> **Status:** ✅ built 2026-09-14 as `0.39.0`; **T10 owner checkpoint open.** 13 T0 drifts in §7 (cutscene part
+> **Status:** ✅ built 2026-09-14 as `0.39.0`; **T10 accepted 2026-09-14 (owner: assume pass).** 13 T0 drifts in §7 (cutscene part
 > tracks included and merge payloads left raw are owner calls of 2026-09-14).
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 1, after A84.
 > **Predecessors:** A84 (the index says what each operation will touch), A86 (event lane context
@@ -137,7 +137,7 @@ skip this file.
   reload all four from disk and confirm; Ctrl+Z once → all four back to 16 (reload again). Replace a
   tag across two clips likewise. Delete scratch; `git status` clean.
 - [x] **T9 — Close.** HANDOFF §4, roadmap checkbox.
-- [ ] **T10 — ⏸ owner checkpoint.** Message: "Right-click an event pin → Change key everywhere.
+- [x] **T10 — ⏸ owner checkpoint.** Message: "Right-click an event pin → Change key everywhere.
   The dialog lists what it will touch; Apply; Ctrl+Z reverts all of it. Same for Merge in the Event
   Keys settings and Replace-in-clips on Target Tags. ⚠ D4: on merge, should int payloads be remapped
   by matching value names, or left raw as now?"
@@ -215,3 +215,8 @@ skip this file.
 - **Commit slip:** `9b66dd17` also carries a deletion of `Assets/_Vault/Tasks/Claude/Cult-of-the-Lamb…jpg` that
   was already staged by another session before A92 began (`git commit` takes the whole index).
 
+### Owner checkpoint answer (2026-09-14)
+
+- **Accepted without a hands-on look.** The owner's instruction for the open checkpoints: "let's just assume they
+  pass unless there's something really game breaking I need to check". Nothing in this amendment's §7 is game
+  breaking, so the checkpoint is closed as built with no follow-up.

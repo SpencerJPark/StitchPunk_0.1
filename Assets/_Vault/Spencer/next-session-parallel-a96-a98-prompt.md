@@ -38,14 +38,7 @@ gates green. No review swap is needed. Delete this line to require my word per m
 1. **Owner answers.** Apply each answer as its own commit, and delete any line left unanswered.
    - **For each answer:** add it to that version's CHANGELOG section; record it in the spec's status line and §7;
      update HANDOFF §4; tick the roadmap box and remove its to-do line.
-   - Owner's A88 T9 answer: <PASTE HERE>
-     - Covers the Layer Events strip. "Start collapsed" is `EditorPrefs.GetBool(ExpandedPrefKey, true)` → false
-       in `Editor/ClipEditor/ActorEditor/LayerEventStripElement.cs`; the dim is `InactiveAlpha` in
-       `LayerEventRowElement.DrawLane`.
-     - Gate: `LayerEventRowResolverTests`, `ActorEditorPanelTests`. Commit A88-T10.
-   - Owner's A92 T10 answer: <PASTE HERE>
-     - Strings are in `Editor/ClipEditor/Editing/RefactorPromptEditing.cs`.
-     - Gate: `RefactorTargetResolverTests`. Commit A92-T11.
+   - A88 T9 and A92 T10 were accepted on 2026-09-14 (owner: assume pass unless game breaking).
    - A93 T16, A94 T14 and A95 T15 were answered 2026-09-14 and reworked as A93F–A95F. If the follow-up
      batch left its own checkpoint answers unrecorded, add slots for A93F T10, A94F T12 and A95F T10 here.
 2. **Preflight:** `python Packages/com.worktreetoolkit/Tools~/worktree.py doctor --json`.

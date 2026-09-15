@@ -120,6 +120,12 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Owner answers (2026-09-14, later).** A87's follow-up, A88 T9 and A92 T10 are accepted without a look ("assume they
+pass unless something is really game breaking"). A94F now also gives the tab a "Health (n)" error count and removes the
+Clip Editor's error badge, with rules H11/H12 covering its checks. A95F's baked sheets become grid PNGs imported with a
+reference array's settings (the project's arrays look right that way; other methods look bad). The game's unused
+`TextureArrayBuilder.cs`/`TextureArrayConfig.cs` were retired.
+
 **Owner answers (2026-09-14) to A93 T16, A94 T14 and A95 T15, reworks specced, not built.** Events: routing is removed
 from the package and the right column becomes the usage list; no event entities (runtime events stay on the
 `AnimEventOutput` buffer, plus an `AnimEventBufferApi` helper); the owner's generated damage stub is converted, not

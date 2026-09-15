@@ -1,6 +1,7 @@
 # Amendment A94F — Health tab rework: a big Scan, a findings list and a detail panel
 
-> **Status:** 📝 specced 2026-09-14 from the owner's A94 T14 answer. Takes `0.44.0`.
+> **Status:** 📝 specced 2026-09-14 from the owner's A94 T14 answer; widened the same evening (the "Health (n)"
+> tab count, and the Clip Editor's error badge removed in Health's favour, H-D8 to H-D10). Takes `0.44.0`.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md), Phase 2 follow-up to A94.
 > **Predecessors:** A94 (`0.41.0`), A82 (`CoverPaneSplitView`), A84 (reference index).
 > **Executor:** one lead; `worker` subagents in **one wave of eight**, each ≤ 2 files; the stage does the drive and
@@ -81,7 +82,31 @@ detail and the ways to deal with the issue.
   unchanged in behaviour.
 - **H-D7 — Wording.** Every rule writes a short `title` and a `detail` paragraph (§4 gives the gist). An unbaked set no
   longer reads "on rig 'no rig'"; it reads "no baked rig yet".
-- **Still open (not in this amendment):** the "Health (n)" tab-strip count, which the owner has not answered.
+- **H-D8 — The tab reads "Health (n)"** (owner: yes). `n` is the number of **Error** findings, including the
+  pinned H06; at zero the tab reads "Health". The tab text is drawn in `ToolkitPalette.Error` while `n > 0`. So the
+  count exists before the tab is first opened, the window builds and binds `HealthPanel` at window creation (not
+  lazily). That costs one scan at open (~130 ms on this project, A94 §7). `HealthPanel` gains `public int ErrorCount`
+  and raises the existing `FindingsChanged` after every scan.
+- **H-D9 — The Clip Editor's error badge goes** (owner: "remove the error part next to it since Health will now
+  handle all that info"). That means the `ValidationBadgeElement` in the toolbar's `validation-badge-slot` and its
+  message panel on the viewport overlay. The Actor Profiles panel's own badge (profile rules P1–P7, inside that
+  panel) stays.
+  - **Nothing it caught may disappear:** the badge ran `ClipValidation.ValidateBind(rig, { clipSet }, …)` and
+    `SharedClipBindingUtility.ValidateSharedClipBinding(clip)`, so Health gains H-D10's two rules.
+  - **Edits must still re-validate:** the badge refreshed on every committed clip edit, and `AssetReferenceIndex.Dirtied`
+    only fires on asset changes. So `HealthPanel` gains `public void RequestRescan()` (the existing 500 ms debounce).
+    The window calls it at the four places it called `validationBadge.Refresh` (`ClipEditorWindow.cs` ~875, ~1613,
+    ~3100, ~3163 at `f51cad62`).
+- **H-D10 — Two rules absorb the badge.**
+  - **H11 "Clip set doesn't bind cleanly to its profile's rig":** for each `ActorProfileAsset`, run
+    `ClipValidation.ValidateBind(profile rig, profile clip sets, tagRegistry: context.targetTags, eventKeyRegistry:
+    context.eventKeys)`. Emit one finding per `ValidationMessage`: severity mapped one to one, the message's code
+    (for example `V03`) shown in the title, its text as the detail, `assetContext` as the target. It **skips** `V08`
+    (H06 owns stale bakes) and every `ValidationCode` that H07 or H08 already reports (T0 lists them), so nothing
+    shows twice.
+  - **H12 "Shared clip binding problem":** `SharedClipBindingUtility.ValidateSharedClipBinding(clip)` for every clip,
+    one finding per message.
+  - A clip set no profile uses has no rig to validate against; H01 and H05 already speak for orphans.
 
 ---
 
@@ -113,6 +138,8 @@ detail and the ways to deal with the issue.
 | H08 | Event key is not registered | Markers fire a key no system names. | Locate clip |
 | H09 | Stable id not saved | The id re-mints on next load and breaks references. | Save |
 | H10 | Clip poses nothing on this rig | None of its tags exist on the set's rig. | Locate clip; Locate rig |
+| H11 | `<V-code>`: clip set doesn't bind to its profile's rig | The validator's own message, verbatim. | Locate clip; Locate profile |
+| H12 | Shared clip binding problem | The shared-binding validator's message, verbatim. | Locate clip |
 
 Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors|warnings|notes`,
 `health-finding-row`, `health-finding-detail`, `health-finding-action`.
@@ -126,7 +153,8 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
   write the answer into H-D5's resolver brief. A sub-asset texture is trashed with its set, so the resolver still
   matters only for separate files. Confirm `DeleteRig` never calls `SaveAssets`. Log drift in §7.
 - [ ] **T1 — Shared types (lead).** `HealthFindingAction`; the `HealthFinding` field change (remove `fix`, `fixLabel`);
-  committed stubs for `HealthFindingDetailElement` (`SetFinding(HealthFinding)`), `ClipAssetUtility.TrashClip`,
+  `HealthPanel.ErrorCount` and `HealthPanel.RequestRescan()` as stubs; the `BindValidation` stub and its call in
+  `HealthScan`; committed stubs for `HealthFindingDetailElement` (`SetFinding(HealthFinding)`), `ClipAssetUtility.TrashClip`,
   `VatTextureSetAssetUtility.TrashTextureSet`, `VatTextureOwnershipResolver.FindTexturesSafeToTrash`. Temporarily
   delete the three rules' `fix` assignments and the row's fix button so T1 compiles (the wave rewrites them). Gate
   `HealthScanTests`, `HealthRulesTests`, `PackagingConformanceTests`. Commit `A94F-T1`.
@@ -152,24 +180,46 @@ Element names: `health-scan-button`, `health-scan-status`, `health-filter-errors
   - `ClipAssetUtility.TrashClip` goes in this worker's brief as a third, tiny edit only if T0 finds the file under
     300 lines of change context; otherwise the lead adds it in T1 as a real body.
 - [ ] **T9 — Docs [parallel-safe]** — Files: `Documentation~/health-tab.md` (the new layout, the actions per code,
-  what each Delete removes and what it leaves).
-- **Gate the wave.** `HealthScanTests`, `HealthRulesTests`, `VatTextureOwnershipResolverTests`,
+  what each Delete removes and what it leaves, the tab count, H11 and H12, and a line that the Clip Editor's error
+  badge is gone). The badge mentions in `Documentation~/clip-editor.md` and `index.md` are the stage's (T9b).
+- [ ] **T9a — Bind rules H11, H12 + fixture [parallel-safe]** — Files: new `Editor/Health/HealthRules/BindValidation.cs`,
+  new `Tests/EditMode/BindValidationTests.cs`:
+  - `H11_SkipsStaleVatBakeAndCodesOtherRulesReport`: an in-memory profile, rig and clip set that produce a `V08`, a
+    tag message H07 already reports, and one other binding message. Only the other message becomes an H11. (T0 names
+    a message code that is cheap to provoke in memory.)
+  - Revert-to-fail: drop the skip list.
+  - `HealthScan` calls `BindValidation` after the existing rules; the one-line call goes in the T1 stub so this
+    worker touches no other file.
+- [ ] **T9b — Window: tab count and badge removal (stage, at integration).** In `ClipEditorWindow.cs`:
+  - delete the `validationBadge` field, its creation (~1023–1027), `AttachMessagePanel` (~2114) and the four
+    `Refresh` calls, replacing each with `healthPanel?.RequestRescan()`;
+  - build and bind `healthPanel` at window creation, not in `ShowHealthTab`;
+  - subscribe `FindingsChanged` to set `tab-health`'s text and colour (H-D8), unsubscribed in teardown.
+
+  Also:
+  - delete `validation-badge-slot` from the UXML and from `ClipEditorLayoutTests.RequiredElementNames`;
+  - fix the badge mentions in `Documentation~/clip-editor.md` and `index.md` (grep "validation badge");
+  - keep `ValidationBadgeElement` itself (Actor Profiles uses it).
+
+  Gate `ClipEditorLayoutTests`.
+- **Gate the wave.** `HealthScanTests`, `HealthRulesTests`, `VatTextureOwnershipResolverTests`, `BindValidationTests`,
   `PackagingConformanceTests` (all namespace-qualified). Revert-to-fail. Commit `A94F-T2..T9`. For-integration block
   (CHANGELOG `## [0.44.0]`, traps, HANDOFF draft; no wiring change expected). `worktree.py status a94f ready`.
 - [ ] **T10 — Drive (stage).** Full suites. Detached `HealthPanel` scan: three findings, first selected, detail shows
   H06's title, detail and actions. On scratch copies only: an orphan scratch clip shows H01 with "Delete clip…";
   run `TrashClip` beneath the dialog and confirm the file left and the rescan dropped H01. Never press a real Delete.
 - [ ] **T11 — Vault + HANDOFF + close (stage).** CHANGELOG, `package.json` and conformance pin `0.44.0`.
-- [ ] **T12 — ⏸ owner checkpoint.** "Health: press Scan project. Pick each finding: the right panel explains it and
-  lists the fixes; deletes ask first and name what uses the asset. Readable now? And the open question: should the tab
-  read Health (1) while a VAT bake is stale?"
+- [ ] **T12 — ⏸ owner checkpoint.** "The tab reads Health (2) in red before you open it, and the error badge beside
+  the tabs is gone. Press Scan project and pick each finding: the right panel explains it and lists the fixes, and
+  deletes ask first and name what uses the asset. Break a clip's binding in the Clip Editor: within a second Health
+  shows it as H11. Readable now?"
 
 ---
 
 ## 6. Out of scope
 
-- The tab-strip count (unanswered).
-- New rules.
+- New rules beyond H11 and H12.
+- The Actor Profiles panel's own badge (P1–P7) — it stays.
 - Undo for trashed assets (the OS trash is the undo, as everywhere else in the package).
 
 ## 7. Build log
