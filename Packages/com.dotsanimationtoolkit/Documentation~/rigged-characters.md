@@ -103,6 +103,8 @@ Set `duration`, `defaultLoop`, and `loopSafe` (which appends a duplicate of fram
 
 Assign the clip set and the **Rig** the textures are being baked for; choose **Bone Matrix** flavour, set your sample rate, and bake. There is no skinned-mesh field: the bake samples the rig's **Source Prefab**, and the line under the Rig tells you what it resolved to — the part it will cover, or how many of the rig's VAT parts have something to bake. Click that line to ping the prefab. Your character never has to be dragged into an open scene, and the bake never poses the prefab asset; it samples a throwaway copy. The rig is stamped into the texture set, so binding those textures to a different rig later is an error rather than a silently wrong mesh.
 
+The tab's viewport previews the bake live. It plays every baked part, not only the first, picking clips by name — each part runs its own clock and reads its own frame range. Three rail toggles control what's shown: **VAT parts** (the baked meshes), **Other parts** (the clip set's quads and flipbooks, posed and drawn with their own authored materials — disabled when the set keys none), and **Ghost**. All three only change what's visible; none of them move the playhead. Before you bake, **VAT parts** and **Other parts** are both disabled, because there is nothing yet to play.
+
 It produces the textures, a `VatTextureSetAsset` holding the per-clip frame ranges, **a runtime mesh** with bone influences packed into `UV1`, and — if your rig declares bone sockets — their baked motion.
 
 **A rig with several VAT parts bakes them all in one run.** Every rig target that resolves to a skinned mesh in the Source Prefab is one part, and each gets its own texture and its own runtime mesh, numbered from its own frame 0. Mark those targets **Kind: VAT Mesh** on the Rigs tab — a VAT part left as `Quad` renders at run time as a motionless clump with no error. A part that no clip in the set animates is skipped by name with a warning, and a clip set that animates no part at all creates nothing rather than an empty texture.
@@ -147,7 +149,7 @@ things there are worth calling out for a rigged character in particular:
 ---
 
 
-> **Preview limitation, stated plainly:** the Clip Editor poses the real GameObject skeleton with the rig's Source Prefab's actual `SkinnedMeshRenderer` attached, so the deformed mesh *is* what you see while scrubbing bone tracks — it is not left at rest. What the preview does **not** exercise is the run-time technique itself: it never samples a baked VAT texture through the actor's shader, so it cannot catch a bake-only defect (a stale bake, a texture-format mismatch, a rig that changed after the last bake). Confirm those by baking and looking at the actor in Play mode, not by trusting the preview alone.
+> **Preview limitation, stated plainly:** the Clip Editor poses the real GameObject skeleton with the rig's Source Prefab's actual `SkinnedMeshRenderer` attached, so the deformed mesh *is* what you see while scrubbing bone tracks — it is not left at rest. Turn on the viewport rail's **Baked VAT** toggle and the preview can sample the baked VAT textures too, so a stale bake or a rig that changed since the last bake shows up right there instead of waiting for Play mode. What the preview still does not exercise is the game's own shader and material setup, or Play mode itself — confirm those by looking at the actor in Play mode, not by trusting the preview alone.
 
 ---
 

@@ -58,6 +58,7 @@ namespace DotsAnimationToolkit.Editor
                 case ClipComponentKind.Flipbook: return "Flipbook";
                 case ClipComponentKind.Billboard: return "Billboard";
                 case ClipComponentKind.Ragdoll: return "Ragdoll";
+                case ClipComponentKind.VatBinding: return "VAT binding";
                 default: return "Socket";
             }
         }
@@ -89,6 +90,10 @@ namespace DotsAnimationToolkit.Editor
                         + "sized and placed in the viewport, and welded to whatever body is nearest "
                         + "above it. Works on a guiding part or a skinned bone alike, and holds for "
                         + "every clip since it is stored on the rig.";
+
+                case ClipComponentKind.VatBinding:
+                    return "The imported clip this part's VAT bake samples, and whether it is loop "
+                        + "safe.";
 
                 default:
                     return "An attachment point that follows this object — a hand's grip, a muzzle, "
@@ -308,6 +313,8 @@ namespace DotsAnimationToolkit.Editor
                     }
                     return billboardKeyCount;
                 }
+                case ClipComponentKind.VatBinding:
+                    return 0;
                 default:
                     return 0;
             }
@@ -809,6 +816,9 @@ namespace DotsAnimationToolkit.Editor
                     // when it has one, since the model has no viewport to measure against.
                     return new ClipComponentInstance(kind, rig.ragdollBodies.Count - 1);
                 }
+                case ClipComponentKind.VatBinding:
+                    // The binding exists once a Source clip is picked in its row, not through Add.
+                    return new ClipComponentInstance(kind, ClipComponentInstance.NoTrackIndex);
                 default:
                 {
                     if (rig.sockets == null)
@@ -869,6 +879,11 @@ namespace DotsAnimationToolkit.Editor
                     }
                     return RemoveAt(rig.billboardRoots, instance.index);
                 }
+                case ClipComponentKind.VatBinding:
+                    // No target id reaches this method — unlike Add, Remove carries no ClipObjectRef
+                    // to resolve one from, so the caller clears a binding through
+                    // ClipVatBindingEditing.SetSourceClip directly instead of through here.
+                    return false;
                 case ClipComponentKind.Ragdoll:
                     // No clip-side data to take with it — a ragdoll body carries no keys at all, so
                     // unlike Billboard there is nothing here for the caller to warn about.
@@ -1071,6 +1086,15 @@ namespace DotsAnimationToolkit.Editor
                             return;
                         }
                     }
+                    return;
+                }
+                case ClipComponentKind.VatBinding:
+                {
+                    if (clip == null || ClipVatBindingEditing.GetSourceClip(clip, objectRef.targetId) == null)
+                    {
+                        return;
+                    }
+                    instances.Add(new ClipComponentInstance(kind, 0));
                     return;
                 }
                 default:

@@ -464,6 +464,7 @@ namespace DotsAnimationToolkit.Editor
             preview.Show(
                 previewSetField.value as VatTextureSetAsset,
                 clipSetField.value as ClipSetAsset,
+                rigField.value as RigAsset,
                 FirstResolvedRenderer());
         }
 

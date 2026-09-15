@@ -486,3 +486,48 @@ Gate 3 (`f07e8366`): **pass, 16 of 16** (4 new fixtures + 12 `PackagingConforman
 18. `ClipComponentModel` switches (`DisplayName`, `Describe`, `Add`, `Remove`) fall to their Socket `default:` for an unknown kind — a wired `VatBinding` would have appended a `SocketDefinition` to the rig. Fixed in W3 (T10b) so the stage's ComponentStack case is safe.
 19. The live zoom/pan push (`ApplyTimelineView`) lives in the partial `Panes/TimelinePane.View.cs`, not `TimelinePane.cs`; T11 pushed the view on rebuild only; W3 (T10b) adds the live push.
 T11's first worker capped at 40 turns mid-edit; a fresh worker finished from the diff (never resumed). Gate 1: compile error CS0246 in `VatBindingComponentElement.cs` (missing `using DotsAnimationToolkit.Authoring;`); fixed by a fresh worker.
+Gate 2 (`72749f4c`): **pass, 49 of 49** (`ClipPreviewRegistryTests` + `ClipPreviewCompositeTests`, `ClipPreviewControllerPoseTests`, `SocketPreviewParityTests`, `ActorPreviewComposerTests`, `ActorPreviewParityTests`, `ClipRegistryBuilderTests`, `PackagingConformanceTests`). Revert-to-fail: mutation `c8a9554a` (reinstates the `PartCount == 0` return) gated **48 passed, 1 failed — exactly F1** (`HasRegistry` expected True, was False). `git reset --hard HEAD~1` to `72749f4c`; `git hash-object` equals the HEAD blob; `ClipPreviewController.cs` sha256 `2d9f21a5…7e140b`.
+
+**W3 (T12–T14 + T10b)** — T10b added for drift 18/19 (`ClipComponentModel.cs`, `Panes/TimelinePane.View.cs`; neither is stage-owned).
+
+### For integration
+
+**CHANGELOG** (the stage bumps `package.json` and the conformance pin):
+
+```
+## [0.55.0] — Unified authoring and VAT preview
+
+### Added
+- Clip Editor viewport: Baked VAT rail toggle (off by default). Draws each baked VAT part from its textures at the playhead, at the skeleton root, in place of the live skinned mesh; turning it off restores the skinned meshes.
+- VAT binding inspector component (VatBindingComponentElement, ClipComponentKind.VatBinding): Source clip and Loop safe per baked part, with a length-mismatch line. Writes the part's vatTracks row, or vatSource for a one-mesh rig.
+- Timeline: read-only imported-clip rows (one per animated node, hollow dimmed keys) for vatSource and every vatTracks source, placed by the clip's duration; keys past the duration are counted in the tooltip.
+- VAT Bake preview plays every baked part, lists clips by name, and gains VAT parts and Other parts rail toggles beside Ghost; Other parts poses quads and flipbooks from the clip set in local space.
+- RegistryTargetPoser: the preview registry build and per-target pose loop shared by the Clip Editor and the VAT Bake preview. VatPreviewFrameResolver mirrors the runtime VAT frame rule for editor previews.
+- ToolkitIcons.VatPartsGlyph and ToolkitIcons.CutoutPartsGlyph.
+
+### Changed
+- A rig with no targets now builds a preview registry like any other; the "declares no targets" status is gone. When nothing in the set keys bones or names a VAT source the status line says so, as information.
+- VatPreviewElement.Show takes the rig as its third parameter.
+```
+
+**Conformance_G allowlist:** none. New static classes are `VatPreviewFrameResolver`, `ClipSetContentResolver`, `ImportedClipLaneResolver` (Resolver) and `ClipVatBindingEditing` (Editing); every other new type is an instance class.
+
+**S2 wiring:**
+- **UXML:** `ToolbarToggle name="baked-vat-preview-toggle"` holding `Image name="baked-vat-preview-icon"` in `overlay-tool-row`, after `ragdoll-preview-toggle`.
+- **ClipEditorWindow.cs:** icon via the same `ToolkitIcons.SetToggleIcon(…)` overload the ragdoll toggle uses, with `ToolkitIcons.VatPartsGlyph` and fallback `"VAT"` (check that overload takes a `Texture`; if not, use the `Texture` rail pattern). Value callback: `previewController.BakedVatPreviewEnabled = changeEvent.newValue; RequestPreviewRender…`. On every clip-set change: `toggle.SetEnabled(clipSet != null && clipSet.vatTextures != null)`, and when disabled force the value off with `SetValueWithoutNotify(false)` and `previewController.BakedVatPreviewEnabled = false`. Tooltips: enabled `"Baked VAT — draw each baked part from its VAT texture at the playhead, in place of the live skinned mesh."`; disabled `"Baked VAT — this clip set has no VAT texture set. Bake one in the VAT Bake tab."`
+- **ClipEditorWindow.ComponentStack.cs:** a `ClipComponentKind.VatBinding` case offered only when `VatBakeSourceResolver.TryResolve(activeRig, out List<VatBakeSource> sources, out string failure)` yields a source whose `SourceNodePath` equals the selected hierarchy item's node path. Build `new VatBindingComponentElement(selectedClip, matchingSource, () => { previewController.Refresh(); RebuildTimeline…; })` inside the block body; `DescribeComponent` should append `matchingSource.DisplayName`. Picker entry: add `VatBinding` to ClipComponentModel's stack-order/addable arrays (see T10b below). The element needs no Bind/Dispose; call `Refresh()` after an undo. `ClipComponentModel` now has explicit `VatBinding` cases (T10b): DisplayName "VAT binding", Describe, KeyCount 0, `Add` a no-op returning `NoTrackIndex`, `CollectInstancesOfKindInto` yields `(VatBinding, 0)` when `ClipVatBindingEditing.GetSourceClip(clip, objectRef.targetId) != null`. **`Remove` is a no-op returning false** (it receives no target id): the stack's remove action must call `ClipVatBindingEditing.SetSourceClip(selectedClip, matchingSource.TargetId, null)` itself. `VatBinding` is NOT yet in `stackOrder` (`ClipComponentModel.cs:17-25`) or `addableKinds` (`:28-34`) — the stage adds it with the case. The comment above `PushViewToImportedClipLanes` in `TimelinePane.cs` (~708-711) still says the live push is a follow-up; T10b made that call in `TimelinePane.View.cs` `ApplyTimelineView`, so the stage may trim the comment.
+- **ClipEditorWindow.uss:** `.clip-editor__track-header--imported` (dim the label, e.g. `opacity: 0.6;` plus `-unity-font-style: italic;`). `ImportedClipLaneElement` also carries `clip-editor__lane` for its height and its own `clip-editor__imported-lane`, which needs no rule.
+- **ClipEditorLayoutTests:** add `baked-vat-preview-toggle`.
+
+**Vault traps (AnimationToolkit.md):**
+- Imported key time *k* plays at clip time *k*. The bake samples `sourceClip.length` at `clip.frameRate`, and the runtime maps over `clip.duration`, so lanes normalise by the ClipAsset's duration, never the imported clip's length.
+- There are two rest conventions:
+  - The Clip Editor mirror is root-relative, because its quads are flat siblings.
+  - Real nested nodes need local rest from `RestPoseCapture.FromTransform`. The rest slice comes from `RigTargetAuthoring.restSliceIndex`; `RigTargetDefinition` has none.
+- The Baked VAT draw uses the skeleton instance root's `localToWorldMatrix`, because the bake writes root space. The overlay replaces the skinned mesh, and turning it off must re-enable the renderers.
+- `VatTrack.sampleFps` and `VatClipSource.sampleFps` are dead: the bake uses `clip.frameRate`.
+- `ScriptableObject.CreateInstance` fills `[Serializable]` class fields, so `clip.vatSource` is never null. Test `vatSource.sourceClip`.
+- `ClipComponentModel` switches default to Socket. A new kind needs an explicit case in every switch, or `Add` writes a rig socket.
+- Live zoom/pan goes through the partial `TimelinePane.View.cs` `ApplyTimelineView`. A rebuild-only push looks right until the first zoom.
+
+**HANDOFF draft:** A103 (0.55.0) joins UA P1–P5 and A79 around one poser split. `RegistryTargetPoser` owns the preview registry blob and the per-target pose loop. `ClipPreviewController` writes it into the flat mirror with root-relative rest; `VatPreviewPartPoser` writes it into the VAT Bake source copy's real nodes with local rest, and excludes VAT-part targets. Targetless rigs now build registries (the `PartCount == 0` gate is gone), with an informational line when nothing will move. The Clip Editor gains a default-off Baked VAT toggle that draws baked parts at the skeleton root in place of the skinned mesh, a VAT binding inspector row that writes `vatTracks`/`vatSource`, and read-only imported-clip lanes placed by the clip's duration. The VAT Bake preview now plays every part, names clips, and splits VAT parts / Other parts / Ghost. Five new EditMode fixtures (F1–F5) each failed on their revert. The owner checkpoint is S6: Q1 default-off and replace-not-overlay, Q2 glyph legibility and the "Other parts" name, Q3 one row per bone.

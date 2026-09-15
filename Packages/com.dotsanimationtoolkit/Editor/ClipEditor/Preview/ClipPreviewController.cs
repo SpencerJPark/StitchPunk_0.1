@@ -127,6 +127,10 @@ namespace DotsAnimationToolkit.Editor
         // because it must outlive the call that made it, so Dispose is not optional.
         private readonly RegistryTargetPoser targetPoser = new RegistryTargetPoser();
 
+        // Baked VAT preview: replaces the live SkinnedMeshRenderer outright rather than drawing
+        // over it, so turning this off must re-enable exactly the renderers it disabled.
+        private readonly ClipEditorVatOverlay bakedVatOverlay = new ClipEditorVatOverlay();
+
         // The one open set in the Clip Editor, or a profile's whole bind in the Actor Editor.
         // ClipRegistryBuilder.Build dedupes and canonically sorts this itself, so callers never
         // have to pre-sort it.
@@ -146,6 +150,12 @@ namespace DotsAnimationToolkit.Editor
         // differs from the game is worse than no preview; switchable because a billboarded rig
         // always faces the camera, making the authored pose impossible to inspect from any other angle.
         public bool BillboardPreviewEnabled { get; set; } = true;
+
+        public bool BakedVatPreviewEnabled
+        {
+            get { return bakedVatOverlay.Enabled; }
+            set { bakedVatOverlay.Enabled = value; framePending = true; }
+        }
         private string statusMessage = "No clip set assigned.";
 
         /// <summary>Whether the ragdoll toggle is currently dropping the previewed rig.</summary>
@@ -387,6 +397,29 @@ namespace DotsAnimationToolkit.Editor
                 default:
                     break;
             }
+
+            RebindBakedVatOverlay();
+        }
+
+        // The first bound clip set that actually carries baked VAT textures; null rebinds the
+        // overlay to no-op so it never masks a live renderer with nothing to show in its place.
+        private void RebindBakedVatOverlay()
+        {
+            ClipSetAsset vatClipSet = null;
+            if (boundClipSets != null)
+            {
+                for (int clipSetIndex = 0; clipSetIndex < boundClipSets.Count; clipSetIndex++)
+                {
+                    ClipSetAsset candidateClipSet = boundClipSets[clipSetIndex];
+                    if (candidateClipSet != null && candidateClipSet.vatTextures != null)
+                    {
+                        vatClipSet = candidateClipSet;
+                        break;
+                    }
+                }
+            }
+
+            bakedVatOverlay.Rebind(boundRig, vatClipSet, skeletonMirror.InstanceRoot);
         }
 
         // ITargetPoseWriter: only a target the mirror actually holds a quad for can take a pose —
@@ -423,6 +456,7 @@ namespace DotsAnimationToolkit.Editor
             skinnedSourcePrefab = prefab;
             skeletonMirror.Rebuild(prefab);
             skeletonRootAdded = false;
+            RebindBakedVatOverlay();
 
             // The names the rest poses were bound to belong to the old instance, so they are rebound
             // and re-applied here rather than waiting for the next clip sample — with no clip
@@ -1004,6 +1038,8 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
+            bakedVatOverlay.Sync(targetPoser.Registry, clipId, normalizedTime);
+
             if (!targetPoser.IsClipInRegistry(clipId))
             {
                 return posedBones;
@@ -1543,6 +1579,7 @@ namespace DotsAnimationToolkit.Editor
             // so buttons stopped opening their pickers; a slider dragger lost the pointer the moment
             // it grabbed it, so drags died on the spot.
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
+            bakedVatOverlay.Draw(renderUtility);
             renderUtility.camera.Render();
             return renderUtility.EndPreview();
         }
@@ -2018,6 +2055,7 @@ namespace DotsAnimationToolkit.Editor
             targetPoser.Dispose();
             rigMirror.Dispose();
             socketMarkers.Dispose();
+            bakedVatOverlay.Dispose();
             skeletonMirror.Dispose();
             ragdollSimulation.Dispose();
             ragdollPreviewEnabled = false;

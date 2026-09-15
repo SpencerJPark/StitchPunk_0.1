@@ -304,6 +304,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 ghostLanes.PushView(laneWidth, viewZoom, viewPan);
             }
+
+            PushViewToImportedClipLanes();
         }
 
         /// <summary>Resizes the ghost rows to whatever the timeline has left under its last track.</summary>

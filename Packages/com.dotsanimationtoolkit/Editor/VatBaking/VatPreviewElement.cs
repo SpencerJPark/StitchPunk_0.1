@@ -18,13 +18,24 @@ namespace DotsAnimationToolkit.Editor
         private readonly PreviewOrbitCameraRig cameraRig = new PreviewOrbitCameraRig();
         private readonly PreviewCameraNavigation cameraNavigation = new PreviewCameraNavigation();
         private readonly VatPreviewPlayback playback = new VatPreviewPlayback();
-        private VatPreviewMaterial material;
+        private readonly VatPreviewPartPoser partPoser = new VatPreviewPartPoser();
+
+        private sealed class PartPreview
+        {
+            public VatPartTextures Part;
+            public VatPreviewMaterial Material;
+        }
+
+        private readonly List<PartPreview> partPreviews = new List<PartPreview>();
+        private readonly List<ulong> clipIds = new List<ulong>();
+        private int selectedClipIndex = -1;
+        private ulong selectedClipId;
+        private bool hasSelectedClip;
+        private VatClipRange selectedClockRange;
+        private bool otherPartsRestoredToRestPose;
 
         private VatTextureSetAsset textureSet;
-
-        // The one part shown by this preview: the first entry in textureSet.parts, or null. Part
-        // switching is a later amendment's work - this preview has only ever shown one part.
-        private VatPartTextures previewedPart;
+        private RigAsset rig;
         private ClipSetAsset clipSetForNames;
         private SkinnedMeshRenderer sourceRenderer;
 
@@ -33,6 +44,8 @@ namespace DotsAnimationToolkit.Editor
         private DropdownField clipDropdown;
         private Label frameReadoutLabel;
         private TransportCoreElement transportCore;
+        private ToolbarToggle vatPartsToggle;
+        private ToolbarToggle otherPartsToggle;
         private ToolbarToggle ghostToggle;
         private ToolbarButton resetCameraButton;
 
@@ -74,6 +87,22 @@ namespace DotsAnimationToolkit.Editor
             resetCameraButton = viewportFrame.AddResetCameraButton(() => cameraNavigation.ResetView());
             resetCameraButton.name = "vat-reset-camera-button";
             resetCameraButton.tooltip = "Put the camera back head-on, framing the baked mesh.";
+
+            vatPartsToggle = viewportFrame.AddRailToggle(
+                ToolkitIcons.VatPartsGlyph,
+                "VAT parts — show the baked meshes playing.",
+                "VAT",
+                true);
+            vatPartsToggle.name = "vat-parts-toggle";
+            vatPartsToggle.SetEnabled(false);
+
+            otherPartsToggle = viewportFrame.AddRailToggle(
+                ToolkitIcons.CutoutPartsGlyph,
+                "Other parts — pose the quads and flipbooks from the clip set.",
+                "Parts",
+                true);
+            otherPartsToggle.name = "other-parts-toggle";
+            otherPartsToggle.SetEnabled(false);
 
             ghostToggle = viewportFrame.AddRailToggle(
                 ToolkitIcons.GhostGlyph,
@@ -127,16 +156,13 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>Re-points the preview at a source renderer, a baked set, or both; either may be null.</summary>
-        public void Show(VatTextureSetAsset textureSet, ClipSetAsset clipSetForNames, SkinnedMeshRenderer sourceRenderer)
+        public void Show(VatTextureSetAsset textureSet, ClipSetAsset clipSetForNames, RigAsset rig, SkinnedMeshRenderer sourceRenderer)
         {
             bool subjectChanged = textureSet != lastFramedTextureSet || sourceRenderer != lastFramedSourceRenderer;
 
-            material?.Dispose();
-            material = null;
+            DisposePartPreviews();
             this.textureSet = textureSet;
-            previewedPart = textureSet != null && textureSet.parts != null && textureSet.parts.Count > 0
-                ? textureSet.parts[0]
-                : null;
+            this.rig = rig;
             this.clipSetForNames = clipSetForNames;
             this.sourceRenderer = sourceRenderer;
             lastFramedTextureSet = textureSet;
@@ -146,6 +172,8 @@ namespace DotsAnimationToolkit.Editor
             // snapshot of the source's current pose, and re-posing the rig between bakes would
             // otherwise leave a rest-pose reference that is no longer the rest pose.
             RebuildSourceCopy();
+            partPoser.Rebuild(rig, clipSetForNames, textureSet, sourceCopyRoot);
+            otherPartsRestoredToRestPose = false;
 
             // The overlay only means anything once there is a bake to lay it over - before that the
             // same copy IS the subject, already on screen.
@@ -163,10 +191,13 @@ namespace DotsAnimationToolkit.Editor
                     : "Lay the source mesh at rest over the playing bake, so how far the bake moves "
                         + "is visible against a pose that does not.";
             }
-            RefreshSourceCopyAppearance();
 
             if (textureSet == null || textureSet.clipRanges == null || textureSet.clipRanges.Count == 0)
             {
+                vatPartsToggle?.SetEnabled(false);
+                otherPartsToggle?.SetEnabled(false);
+                RefreshSourceCopyAppearance();
+
                 // The clock has to be cleared too, not just the picture: Tick runs with no set
                 // loaded, so a leftover range would keep counting frames for a set that is gone.
                 isPlaying = false;
@@ -174,6 +205,9 @@ namespace DotsAnimationToolkit.Editor
                 transportCore?.RefreshState();
                 clipDropdown.choices = new List<string>();
                 clipDropdown.SetValueWithoutNotify(string.Empty);
+                clipIds.Clear();
+                selectedClipIndex = -1;
+                hasSelectedClip = false;
 
                 if (sourceRenderer != null && sourceRenderer.sharedMesh != null)
                 {
@@ -192,59 +226,186 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            List<string> choices = new List<string>();
+            Texture mainTexture = sourceRenderer != null && sourceRenderer.sharedMaterial != null
+                ? sourceRenderer.sharedMaterial.mainTexture
+                : null;
+            string firstFailureMessage = null;
+            if (textureSet.parts != null)
+            {
+                for (int partIndex = 0; partIndex < textureSet.parts.Count; partIndex++)
+                {
+                    VatPartTextures part = textureSet.parts[partIndex];
+                    if (part == null)
+                    {
+                        continue;
+                    }
+                    bool created = VatPreviewMaterial.TryCreate(textureSet, part, mainTexture, out VatPreviewMaterial partMaterial, out string partFailureMessage);
+                    if (created)
+                    {
+                        partPreviews.Add(new PartPreview { Part = part, Material = partMaterial });
+                    }
+                    else if (firstFailureMessage == null)
+                    {
+                        firstFailureMessage = partFailureMessage;
+                    }
+                }
+            }
+
+            bool hasBake = partPreviews.Count > 0;
+            vatPartsToggle?.SetEnabled(hasBake);
+            bool otherPartsAvailable = hasBake
+                && ClipSetContentResolver.HasNonVatContent(new ClipSetAsset[] { clipSetForNames })
+                && partPoser.HasNonVatParts;
+            if (otherPartsToggle != null)
+            {
+                otherPartsToggle.SetEnabled(otherPartsAvailable);
+                otherPartsToggle.tooltip = hasBake && !otherPartsAvailable
+                    ? "Other parts — this clip set keys no quads, flipbooks or billboards."
+                    : "Other parts — pose the quads and flipbooks from the clip set.";
+            }
+
+            RefreshSourceCopyAppearance();
+
+            clipIds.Clear();
             for (int rangeIndex = 0; rangeIndex < textureSet.clipRanges.Count; rangeIndex++)
             {
-                choices.Add(DescribeRange(textureSet.clipRanges[rangeIndex]));
+                ulong clipId = textureSet.clipRanges[rangeIndex].clipId;
+                if (!clipIds.Contains(clipId))
+                {
+                    clipIds.Add(clipId);
+                }
+            }
+            List<string> choices = new List<string>();
+            for (int clipIndex = 0; clipIndex < clipIds.Count; clipIndex++)
+            {
+                choices.Add(DescribeClip(clipIds[clipIndex]));
             }
             clipDropdown.choices = choices;
-            clipDropdown.SetValueWithoutNotify(choices[0]);
+            clipDropdown.SetValueWithoutNotify(choices.Count > 0 ? choices[0] : string.Empty);
 
-            SelectRange(0);
+            SelectClip(0);
             if (subjectChanged)
             {
                 cameraRig.ResetView();
             }
 
-            Texture mainTexture = sourceRenderer != null && sourceRenderer.sharedMaterial != null
-                ? sourceRenderer.sharedMaterial.mainTexture
-                : null;
-            bool created = VatPreviewMaterial.TryCreate(textureSet, previewedPart, mainTexture, out material, out string failureMessage);
-            statusLabel.text = created
-                ? "bones " + previewedPart.boneCount.ToString() + " · frames " + textureSet.clipRanges[0].frameCount.ToString()
-                    + " · " + previewedPart.textureWidth.ToString() + "x" + previewedPart.boneTexture.height.ToString()
-                : failureMessage;
+            statusLabel.text = hasBake
+                ? "parts " + partPreviews.Count.ToString() + " · frames " + selectedClockRange.frameCount.ToString()
+                : (firstFailureMessage ?? "No VAT parts to preview.");
         }
 
-        private string DescribeRange(VatClipRange range)
+        private string DescribeClip(ulong clipId)
         {
-            string clipLabel = "clip 0x" + range.clipId.ToString("X16");
             if (clipSetForNames != null && clipSetForNames.clips != null)
             {
                 for (int clipIndex = 0; clipIndex < clipSetForNames.clips.Count; clipIndex++)
                 {
                     ClipAsset clip = clipSetForNames.clips[clipIndex];
-                    if (clip != null && clip.Id.Value == range.clipId)
+                    if (clip != null && clip.Id.Value == clipId)
                     {
-                        clipLabel = clip.name;
-                        break;
+                        return clip.name;
                     }
                 }
             }
-            return range.targetId == 0u ? clipLabel : clipLabel + " · target 0x" + range.targetId.ToString("X8");
+            return "unnamed clip";
         }
 
-        private void SelectRange(int rangeIndex)
+        private void SelectClip(int clipIndex)
         {
-            if (textureSet == null || textureSet.clipRanges == null || rangeIndex < 0 || rangeIndex >= textureSet.clipRanges.Count)
+            if (textureSet == null || textureSet.clipRanges == null || clipIndex < 0 || clipIndex >= clipIds.Count)
             {
                 return;
             }
-            VatClipRange range = textureSet.clipRanges[rangeIndex];
-            playback.SetRange(range);
+            selectedClipIndex = clipIndex;
+            selectedClipId = clipIds[clipIndex];
+            hasSelectedClip = true;
+            otherPartsRestoredToRestPose = false;
+
+            VatClipRange untargetedRange = default;
+            bool foundUntargetedRange = false;
+            VatClipRange firstRange = default;
+            bool foundFirstRange = false;
+            for (int rangeIndex = 0; rangeIndex < textureSet.clipRanges.Count; rangeIndex++)
+            {
+                VatClipRange candidate = textureSet.clipRanges[rangeIndex];
+                if (candidate.clipId != selectedClipId)
+                {
+                    continue;
+                }
+                if (!foundFirstRange)
+                {
+                    firstRange = candidate;
+                    foundFirstRange = true;
+                }
+                if (candidate.targetId == 0u)
+                {
+                    untargetedRange = candidate;
+                    foundUntargetedRange = true;
+                    break;
+                }
+            }
+            if (!foundFirstRange && !foundUntargetedRange)
+            {
+                return;
+            }
+            selectedClockRange = foundUntargetedRange ? untargetedRange : firstRange;
+            playback.SetRange(selectedClockRange);
             // Only the frame target moves here. Re-framing on every dropdown change would yank the
             // camera back from wherever the user had just orbited to compare two clips.
-            cameraRig.SetFrameTarget(ResolveFrameBounds(range));
+            cameraRig.SetFrameTarget(ResolveFrameBounds(selectedClockRange));
+        }
+
+        // Per part per frame: the part's own targeted range for the selected clip wins, and the
+        // clip's untargeted range is the fallback for a part that was not baked its own range.
+        private bool TryResolvePartRange(uint targetId, out VatClipRange range)
+        {
+            range = default;
+            if (!hasSelectedClip || textureSet == null || textureSet.clipRanges == null)
+            {
+                return false;
+            }
+            VatClipRange untargetedRange = default;
+            bool foundUntargetedRange = false;
+            for (int rangeIndex = 0; rangeIndex < textureSet.clipRanges.Count; rangeIndex++)
+            {
+                VatClipRange candidate = textureSet.clipRanges[rangeIndex];
+                if (candidate.clipId != selectedClipId)
+                {
+                    continue;
+                }
+                if (candidate.targetId == targetId)
+                {
+                    range = candidate;
+                    return true;
+                }
+                if (candidate.targetId == 0u)
+                {
+                    untargetedRange = candidate;
+                    foundUntargetedRange = true;
+                }
+            }
+            if (foundUntargetedRange)
+            {
+                range = untargetedRange;
+                return true;
+            }
+            return false;
+        }
+
+        private float SelectedClipDuration()
+        {
+            if (hasSelectedClip && clipSetForNames != null && clipSetForNames.clips != null)
+            {
+                for (int clipIndex = 0; clipIndex < clipSetForNames.clips.Count; clipIndex++)
+                {
+                    ClipAsset clip = clipSetForNames.clips[clipIndex];
+                    if (clip != null && clip.Id.Value == selectedClipId)
+                    {
+                        return clip.duration;
+                    }
+                }
+            }
+            return playback.Duration;
         }
 
         // No bake has ever written VatClipRange.bounds, so a zero-sized box means "not measured",
@@ -256,11 +417,20 @@ namespace DotsAnimationToolkit.Editor
             {
                 return range.bounds;
             }
-            if (previewedPart != null && previewedPart.runtimeMesh != null)
+            if (partPreviews.Count > 0 && partPreviews[0].Part != null && partPreviews[0].Part.runtimeMesh != null)
             {
-                return previewedPart.runtimeMesh.bounds;
+                return partPreviews[0].Part.runtimeMesh.bounds;
             }
             return new Bounds(Vector3.zero, Vector3.one);
+        }
+
+        private void DisposePartPreviews()
+        {
+            for (int partIndex = 0; partIndex < partPreviews.Count; partIndex++)
+            {
+                partPreviews[partIndex].Material?.Dispose();
+            }
+            partPreviews.Clear();
         }
 
         private void OnClipDropdownChanged(ChangeEvent<string> changeEvent)
@@ -272,7 +442,7 @@ namespace DotsAnimationToolkit.Editor
             int index = clipDropdown.choices.IndexOf(changeEvent.newValue);
             if (index >= 0)
             {
-                SelectRange(index);
+                SelectClip(index);
             }
         }
 
@@ -292,10 +462,35 @@ namespace DotsAnimationToolkit.Editor
             }
             cameraNavigation.StepFly(deltaSeconds);
 
-            if (material != null)
+            for (int partIndex = 0; partIndex < partPreviews.Count; partIndex++)
             {
-                material.SetFrame(playback.GlobalFrame, playback.GlobalFrame, 0f);
+                PartPreview partPreview = partPreviews[partIndex];
+                if (partPreview.Material == null || partPreview.Part == null)
+                {
+                    continue;
+                }
+                if (TryResolvePartRange(partPreview.Part.targetId, out VatClipRange partRange))
+                {
+                    float frame = VatPreviewFrameResolver.GlobalFrameForRange(in partRange, playback.Time);
+                    partPreview.Material.SetFrame(frame, frame, 0f);
+                }
             }
+
+            if (otherPartsToggle != null && otherPartsToggle.value && hasSelectedClip
+                && partPoser.HasNonVatParts && partPreviews.Count > 0)
+            {
+                otherPartsRestoredToRestPose = false;
+                float duration = SelectedClipDuration();
+                float normalizedTime = duration > 0f ? playback.Time / duration : 0f;
+                partPoser.PoseAt(selectedClipId, normalizedTime);
+            }
+            else if (!otherPartsRestoredToRestPose)
+            {
+                partPoser.RestoreRestPose();
+                RefreshSourceCopyAppearance();
+                otherPartsRestoredToRestPose = true;
+            }
+
             RenderViewport();
             RefreshFrameReadout();
         }
@@ -343,9 +538,16 @@ namespace DotsAnimationToolkit.Editor
             renderUtility.BeginPreview(viewportRect, GUIStyle.none);
             cameraRig.ApplyTo(renderUtility.camera);
 
-            if (material != null && previewedPart != null && previewedPart.runtimeMesh != null)
+            if (vatPartsToggle == null || vatPartsToggle.value)
             {
-                renderUtility.DrawMesh(previewedPart.runtimeMesh, Matrix4x4.identity, material.Material, 0);
+                for (int partIndex = 0; partIndex < partPreviews.Count; partIndex++)
+                {
+                    PartPreview partPreview = partPreviews[partIndex];
+                    if (partPreview.Material != null && partPreview.Part != null && partPreview.Part.runtimeMesh != null)
+                    {
+                        renderUtility.DrawMesh(partPreview.Part.runtimeMesh, Matrix4x4.identity, partPreview.Material.Material, 0);
+                    }
+                }
             }
 
             renderUtility.camera.Render();
@@ -459,7 +661,8 @@ namespace DotsAnimationToolkit.Editor
         }
 
         // Three states, and the texture set is what separates them: with nothing baked the copy is
-        // the subject itself, shown as authored; once a bake exists it is only the Ghost overlay.
+        // the subject itself, shown as authored; once a bake exists the VAT-part renderers become
+        // only the Ghost overlay, while every other renderer follows the Other Parts toggle.
         private void RefreshSourceCopyAppearance()
         {
             if (sourceCopyRoot == null)
@@ -468,12 +671,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             bool nothingBakedYet = textureSet == null;
-            bool shouldBeVisible = nothingBakedYet || isGhostOn;
-            sourceCopyRoot.SetActive(shouldBeVisible);
-            if (!shouldBeVisible)
-            {
-                return;
-            }
+            bool otherPartsVisible = otherPartsToggle != null && otherPartsToggle.value;
 
             for (int rendererIndex = 0; rendererIndex < sourceCopyRenderers.Count; rendererIndex++)
             {
@@ -482,7 +680,19 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-                if (nothingBakedYet)
+
+                bool isVatPartRenderer = partPoser.IsVatPartRenderer(copiedRenderer);
+                bool shouldBeVisible = isVatPartRenderer
+                    ? (nothingBakedYet || isGhostOn)
+                    : (nothingBakedYet || otherPartsVisible);
+
+                copiedRenderer.enabled = shouldBeVisible;
+                if (!shouldBeVisible)
+                {
+                    continue;
+                }
+
+                if (!isVatPartRenderer || nothingBakedYet)
                 {
                     copiedRenderer.sharedMaterials = sourceCopyAuthoredMaterials[rendererIndex];
                     continue;
@@ -514,6 +724,12 @@ namespace DotsAnimationToolkit.Editor
 
         private void DestroySourceCopy()
         {
+            // The copy is being destroyed regardless, so this only clears the poser's bindings
+            // before its transforms go with it - not a real restore, no point posing a corpse.
+            if (sourceCopyRoot != null)
+            {
+                partPoser.RestoreRestPose();
+            }
             sourceCopyRenderers.Clear();
             sourceCopyAuthoredMaterials.Clear();
             if (sourceCopyRoot != null)
@@ -547,9 +763,9 @@ namespace DotsAnimationToolkit.Editor
             // Without this a tick after disposal would call EnsureRenderUtility and build a second
             // PreviewRenderUtility nothing owns.
             EditorApplication.update -= Tick;
-            material?.Dispose();
-            material = null;
+            DisposePartPreviews();
             DestroySourceCopy();
+            partPoser.Dispose();
             if (ghostOverlayMaterial != null)
             {
                 UnityEngine.Object.DestroyImmediate(ghostOverlayMaterial);
