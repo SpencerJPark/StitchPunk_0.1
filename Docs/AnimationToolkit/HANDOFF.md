@@ -120,6 +120,42 @@ displays" is not proof. Delete scratch assets and confirm `git status` afterward
 
 ## 4. The queue
 
+**Built (2026-09-14): Amendment A95 — Sprite Sheets tab — 0.42.0**, **T15 owner checkpoint open.** Spec:
+`Assets/_Vault/Tasks/AnimationPackage/A95_SpriteSheetsTab_Spec.md` (§7: drifts, integration, drive). Built in a
+parallel worktree batch with A93 and A94, integrated in `ffdc6754`. The tab (`Editor/SpriteSheets/`) lists
+`SpriteSheetAsset`s over the Images catalog; Frames is a reorderable list whose order is the layer order; the
+contact sheet shows every layer. Bake (`SpriteSheetBaker`) stacks same-size frames into one uncompressed RGBA32
+`Texture2DArray`, decoding sources without Read/Write, and re-bakes over an existing array in place
+(`CopySerialized`, same GUID). The sheet is edited as a working copy and written only by Save. The Clip
+Editor's sprite inspector binds a sheet per track (`SpriteTrack.sheet`, authoring-only, never baked) and picks
+Frame and Base Frame by name. No atlas builder (owner call). Drive-proven on scratch: bake, reload, byte-equal
+layers, a reordered re-bake, and name picks stored as `sliceIndex` on disk for Absolute and RelativeToBase keys.
+Not run: the Play-mode material step and any capture (batch cautions). No double-click opener.
+
+**Built (2026-09-14): Amendment A94 — Health tab — 0.41.0**, **T14 owner checkpoint open.** Spec:
+`Assets/_Vault/Tasks/AnimationPackage/A94_HealthTab_Spec.md`. One project-wide findings list: ten rules H01–H10
+in `Editor/Health/HealthRules/` (six `…Validation` classes) run by `HealthScan` (plain noun, allowlisted), stale
+or unbaked VAT bakes pinned above everything. Rows ping their asset; H02 Remove missing
+(`ClipAssetUtility.RemoveClipFromSet`), H06 Rebake (the Clip Sets tab's jump, `OnClipSetRebakeRequested`) and
+H09 Save (`SaveAssetIfDirty` on that asset) are the one-click fixes. The panel rescans 500 ms after the new
+`AssetReferenceIndex.Dirtied` (`Rebuilt` never fires on an import alone). `VatSourceHashResolver.FindRigByStableId`
+replaces the Clip Sets tab's private rig lookup. This project scans to 3 findings: H06 `VatSampleTentacleClips`
+unbaked, H02 `NewClipSet` lists 3 missing clips, H05 `VatSampleTentacleRig` unused. H09's Save was proven
+through a reload on a scratch clip; Remove missing and Rebake were not clicked.
+
+**Built (2026-09-14): Amendment A93 — Events tab — 0.40.0**, **T16 owner checkpoint open.** Spec:
+`Assets/_Vault/Tasks/AnimationPackage/A93_EventsTab_Spec.md`. Keys (`EventKeyCatalogColumn`) is the project
+event registry with its 64-key maskable budget, New (`CreateVocabularyEntry`), Rename, Delete, Generate
+Constants and Merge into…; the middle column edits the entry, payload schema and preview clip and lists usage
+from the Asset Reference Index; Routes edits the key's rows in the project `AnimEventRoutingAsset`, created on
+the first route at `Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset` (moved from the spec's
+`Assets/Settings/…` by Conformance_D at integration). `AnimEventRoutingAuthoring` bakes it to the
+`AnimEventRouting` singleton (`AnimEventRoutingBlob`, routes sorted by key, kind and route id); hosts read it
+with `AnimEventRoutingApi.TryGetRoutes(ref blob, …)`, `ref` and never `in`. Generate consumer stub… writes a
+host `ISystem`. The package never handles a route. Drive-proven on a registry copy and scratch assets (mint,
+routes on disk, blob build, stub compiled as an `ISystem`); the Play-mode singleton read was not run. Batch
+suites: EditMode 850 (standing Conformance_A only), PlayMode 285.
+
 **Built (2026-09-14): Amendment A92 — project-wide refactor operations — 0.39.0**, **T10 owner checkpoint
 open.** Spec: `Assets/_Vault/Tasks/AnimationPackage/A92_RefactorOperations_Spec.md`; its §7 logs thirteen T0
 drifts and the close. `RefactorEditing` re-keys an event (clip markers, cutscene markers, ragdoll triggers that

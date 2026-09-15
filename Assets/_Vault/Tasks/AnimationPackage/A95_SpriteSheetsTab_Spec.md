@@ -1,7 +1,6 @@
 # Amendment A95 — Sprite Sheets tab: Texture2DArray flipbook builder
 
-> **Status:** 📝 specced 2026-09-10, **rewritten 2026-09-12** (atlas layout dropped — see §2 D0), not
-> built. Takes `0.42.0`.
+> **Status:** ✅ built 2026-09-14 as `0.42.0` in the parallel worktree batch A93–A95 (spec rewritten 2026-09-12, atlas dropped, §2 D0; T12 drive partial, see §7); ⏸ T15 owner checkpoint open.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2.
 > **Predecessors:** A81 (the Images catalog and `TexturePackBaker`'s readable-copy pattern), A82
 > (column, split view). The Texture Packer packs **channels**; this tab stacks **frames** — they are
@@ -168,53 +167,53 @@ Bake, unsaved marker, output path), three columns, `Dispose`.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. One `execute_code` probe: create a 2-layer
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. One `execute_code` probe: create a 2-layer
   `Texture2DArray(4, 4, 2, RGBA32, mipChain: true)`, `SetPixels32` both layers, `Apply(true)`,
   read back `GetPixels32(layer: 1, mip: 1)` — confirms Unity generates array mips from level 0 so
   D5's `generateMips` needs no per-layer mip sources. Record the result in the build log. Grep
   the sprite key inspector range.
-- [ ] **T1 — Types (orchestrator).** §4.1. Gate. Commit `A95-T1`.
-- [ ] **T2 — Validation + fixture [parallel-safe]** — Files: new `SpriteSheetValidation.cs`, new
+- [x] **T1 — Types (orchestrator).** §4.1. Gate. Commit `A95-T1`.
+- [x] **T2 — Validation + fixture [parallel-safe]** — Files: new `SpriteSheetValidation.cs`, new
   `Tests/EditMode/SpriteSheetValidationTests.cs` (`SizeMismatches_NameEveryOffender`: four frames,
   two wrong → both names, in list order; `DedupeFrameName_AppendsCounter`: "head", "head",
   "head" → "head", "head 1", "head 2"). Revert-to-fail: return on first mismatch; drop the counter.
-- [ ] **T3 — Baker + fixture [parallel-safe]** — Files: new `SpriteSheetBaker.cs`, new
+- [x] **T3 — Baker + fixture [parallel-safe]** — Files: new `SpriteSheetBaker.cs`, new
   `Tests/EditMode/SpriteSheetBakerTests.cs` (`Bake_LayerOrderIsListOrder`: three in-memory 2×2
   solid-colour `Texture2D`s in a temp sheet under `Assets/A95TestScratch/`, bake, `GetPixels32(layer)`
   of the written array equals the source colour per layer, `frames[i].index == i`; `TearDown`
   deletes the folder). Revert-to-fail: write layers in reverse. Read `TexturePackBaker.cs`.
-- [ ] **T4 — Asset utility [parallel-safe]** — Files: new `SpriteSheetAssetUtility.cs`. Read
+- [x] **T4 — Asset utility [parallel-safe]** — Files: new `SpriteSheetAssetUtility.cs`. Read
   `TexturePackRecipeAssetUtility.cs`.
-- [ ] **T5 — Catalog column [parallel-safe]** — Files: new `SpriteSheetCatalogColumn.cs`.
-- [ ] **T6 — Frames column [parallel-safe]** — Files: new `SpriteSheetFramesColumn.cs`. Read the
+- [x] **T5 — Catalog column [parallel-safe]** — Files: new `SpriteSheetCatalogColumn.cs`.
+- [x] **T6 — Frames column [parallel-safe]** — Files: new `SpriteSheetFramesColumn.cs`. Read the
   Images catalog's drag-start code (grep `DragAndDrop` in the A81 column). Drag-reorder within the
   list renumbers indices (D3).
-- [ ] **T7 — Contact sheet element [parallel-safe]** — Files: new `SpriteSheetPreviewElement.cs`.
+- [x] **T7 — Contact sheet element [parallel-safe]** — Files: new `SpriteSheetPreviewElement.cs`.
   Thumbnails come from the frame's `source` (already a `Texture2D`) so the sheet previews before
   the first Bake; after Bake they still read the sources, never the array (no readback needed).
-- [ ] **T8 — Panel [parallel-safe]** — Files: new `SpriteSheetsPanel.cs`. Read `TexturePackerPanel.cs`.
-- [ ] **T9 — Sprite key inspector: sheet + frame picker [parallel-safe]** — Files:
+- [x] **T8 — Panel [parallel-safe]** — Files: new `SpriteSheetsPanel.cs`. Read `TexturePackerPanel.cs`.
+- [x] **T9 — Sprite key inspector: sheet + frame picker [parallel-safe]** — Files:
   `ClipInspectorPane.cs` (the sprite key range only). D6, including the `baseIndex` dropdown and
   the disabled state for `AtlasRect` tracks.
-- [ ] **T10 — Docs [parallel-safe]** — Files: new `Documentation~/sprite-sheets.md` (workflow, D0
+- [x] **T10 — Docs [parallel-safe]** — Files: new `Documentation~/sprite-sheets.md` (workflow, D0
   in two sentences so a reader knows why there is no atlas builder, D7's material rule),
   `Documentation~/cutout-characters.md` (a paragraph pointing at the tab).
 - **Gate the wave.** `SpriteSheetValidationTests`, `SpriteSheetBakerTests`, `ClipEditorAddEventTests`
   (inspector pane regression). Commit `A95-T2..T10`.
-- [ ] **T11 — Window wiring (orchestrator).** Tab enum/UXML/`BindTab`/`Show…Tab`/layout test;
+- [x] **T11 — Window wiring (orchestrator).** Tab enum/UXML/`BindTab`/`Show…Tab`/layout test;
   `index.md`; `CHANGELOG.md` `## [0.42.0]`; `package.json`; `Conformance_G` (`SpriteSheetValidation`
   is static with the `Validation` suffix on the allowlist if absent; `SpriteSheetBaker` is an
   instance). Gate.
-- [ ] **T12 — Drive.** Full suites. Build a 4-frame sheet from four same-size project PNGs into
+- [x] **T12 — Drive.** Full suites. Build a 4-frame sheet from four same-size project PNGs into
   `Assets/A95Scratch/`; reload the asset; the array's `depth == 4` and layer 2's pixels equal
   source 2; open a clip with a sprite track, bind the sheet, pick frame 2 → `sliceIndex == 2` on
   disk after save; set a track to `RelativeToBase`, base = frame 1, key = frame 3 → `sliceIndex ==
   2`. Drag the array into a `ToolkitSpriteUnlitArray` material's `_MainTexArray` and enter Play
   with the composite sample actor: the part steps through the four frames. Capture the contact
   sheet. Delete scratch.
-- [ ] **T13 — Vault + HANDOFF.** Vault note "Sprite Sheets tab (A95)": D0's two facts and the T0
+- [x] **T13 — Vault + HANDOFF.** Vault note "Sprite Sheets tab (A95)": D0's two facts and the T0
   mip probe result.
-- [ ] **T14 — Close.** Roadmap checkbox.
+- [x] **T14 — Close.** Roadmap checkbox.
 - [ ] **T15 — ⏸ owner checkpoint.** Message: "Sprite Sheets tab: New, drag frames in from Images,
   reorder, Bake, Save, drag the array into the part material. Then in the Clip Editor pick a frame
   by name on a sprite key. ⚠ Arrays bake as uncompressed RGBA32 — want a compressed-format
@@ -292,3 +291,19 @@ Bake, unsaved marker, output path), three columns, `Dispose`.
 - Frame lookups are by `frame.index` (the layer), not list position. They agree only after a Bake renumbers, and a reorder renumbers immediately.
 
 **HANDOFF draft:** A95 (0.42.0) adds the Sprite Sheets tab (`Editor/SpriteSheets/`): a catalog of `SpriteSheetAsset`s over the Images catalog, a reorderable Frames list whose order is the layer order, and a contact sheet. Bake stacks the frames into one uncompressed RGBA32 `Texture2DArray` (`SpriteSheetBaker`, byte-exact decode with a blit fallback, overwrite in place by `CopySerialized`). The sheet is edited as a working copy and written only by Save. The Clip Editor's sprite inspector binds a sheet per track (`SpriteTrack.sheet`, never baked) and picks frames and the base frame by name, through `SpriteSheetFramePickerBuilder`. No atlas builder by owner call. Open: the owner checkpoint (compressed-array follow-up? the D10 game-side G-task retiring `TextureArrayBuilder.cs`?), and a drive that bakes twice to prove the overwrite path.
+
+### Close (stage orchestrator, 2026-09-14)
+
+- **Merged** `spec/a95` (4 commits, `7a7ed570`), third; worktree removed.
+- **Integration** `ffdc6754`: `ClipEditorTab.SpriteSheets = 9`, `tab-sprite-sheets` / `sprite-sheets-pane`, `ShowSpriteSheetsTab` (lazy `new SpriteSheetsPanel()`, `RescanProject()` on every show, disposed with the window), CHANGELOG `## [0.42.0]`, `package.json` and the conformance pin at `0.42.0`.
+- **Drift — Conformance_D at integration.** `SpriteSheetBakerTests` named `Assets/A95TestScratch` and a `SpriteSheetBaker` comment named a host folder; a package file may name only `Assets/Generated`. The fixture now creates a GUID-named root folder and resolves its path from the GUID (the baker refuses output outside Assets, so the `DiskRoundTripTests` package-folder pattern could not be copied); the comment is folder-neutral. Fixture still 1/1.
+- **Not built:** double-clicking a `SpriteSheetAsset` to open the tab (a window-side opener); left out of the integration commit, a follow-up if wanted.
+- **Suites (T12):** EditMode 850 (standing Conformance_A only), PlayMode 285.
+- **Drive (T12)**, scratch only (`Assets/A95Scratch/`, deleted):
+  - Sources: `Assets/Textures/CaravanCustomColors/` Bonewalker, ChromeWraith, CloudNomad, CoastalBreeze (4×16, not Read/Write on import).
+  - Bake 1 to `T_A95DriveSheet_Array.asset`; after unload + reload: depth 4, 4×16, RGBA32, Point, Clamp; layer 2 byte-equal to a fresh decode of CloudNomad and not equal to ChromeWraith. The sheet reloaded with frames #0–#3 and its texture bound.
+  - Bake 2 with frames 0 and 3 swapped: same GUID (overwrite in place by `CopySerialized`), layer 0 = CoastalBreeze, layer 3 = Bonewalker, frames renumbered.
+  - Picker, on a scratch clip with two sprite tracks bound to the sheet: the real `SpriteSheetFramePickerBuilder` popups, hosted in a temporary utility window (trap below), picked CloudNomad = 2, Base Frame ChromeWraith = 1, Bonewalker = 3, written with the pane's `SpriteIndexResolver.StoredValueFor`. On disk after save + reload: the Absolute key holds `sliceIndex 2`; the RelativeToBase key holds `sliceIndex 2` with `baseIndex 1`, resolving to layer 3 (Bonewalker).
+  - Panel: detached `new SpriteSheetsPanel()`, `RescanProject()`, `LoadSheet` built (190 elements, one contact sheet) without dirtying the loaded sheet; disposed.
+- **Traps found:** a detached `PopupField` never dispatches its `ChangeEvent` (no panel), so a drive must host popups in a window; `SpriteSliceSpace` is `Absolute`/`RelativeToRest` on the track, while RelativeToBase is the per-key `SpriteIndexMode` the picker reads.
+- **Not verified:** the Play-mode step (the array in a `ToolkitSpriteUnlitArray` material on the composite sample actor), because the batch's owner cautions forbid Play mode; `ClipInspectorPane` itself was not rendered (its write expression was called directly); drag-reorder in the Frames ListView; no capture (docked window).

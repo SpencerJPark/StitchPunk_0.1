@@ -1214,3 +1214,65 @@ is the shared pick → preview → `DisplayDialog` → run flow behind all four 
 - **`EventMarkerContextMenu.Populate`** takes `changeKeyEverywhere` after `openKeyPicker`; pass null to disable.
 - **execute_code on 6.5**: `GetInstanceID()` fails CodeDom compilation too (obsolete-as-error), not just the
   project build.
+
+## Events tab (A93, 0.40.0)
+
+- **Keys column is its own `EventKeyCatalogColumn`** (D2): reusing A82's `ToolkitCatalogColumn` meant editing it
+  while two other tabs were built against it. It copies the row styling only.
+- **Routing asset location.** Created on the first `+ route`, never on opening the tab (`FindDefault` never
+  creates), at `Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset`. Conformance_D lets a package file
+  name only `Assets/Generated`; the spec's `Assets/Settings/…` failed it at integration. Any routing asset under
+  Assets is found, so a host may move it.
+- **The package never handles a route.** Routes are data; the consumer stub is host code written into Assets.
+- **Blob by `ref`.** `AnimEventRoutingApi.TryGetRoutes(ref AnimEventRoutingBlob, …)`: an `in` blob makes
+  defensive copies whose `BlobArray` offsets read garbage. Routes sort by `(eventKey, kind, routeId)`; key alone
+  leaves same-key order list-dependent and breaks bake determinism.
+- **Inspector fields are `isDelayed`** and the panel rebinds only when the selected entry object changes:
+  `Persist` raises `RegistryChanged` on every edit, and rebinding the same entry rebuilds fields under the cursor.
+- **A generated stub is a live `ISystem`.** The drive's stub compiled into Assembly-CSharp; a scratch stub left
+  behind would run in every Play world. Delete it and recompile.
+- **Drive trick:** `EditorJsonUtility` round trips a `CreateInstance` copy of the project registry, so minting
+  and payload edits need no persist; its JSON has no space after the colon.
+
+## Health tab (A94, 0.41.0)
+
+- **Timing (D4):** the six-type scan is 78 ms cold / 23 ms warm over 24 assets; context + run on this project is
+  about 130 ms. The debounced automatic rescan stays.
+- **Layout:** `Editor/Health/` holds `HealthFinding`, `HealthScanContext`, `HealthScan`,
+  `HealthFindingListElement`, `HealthPanel`; `Editor/Health/HealthRules/` holds six `…Validation` classes, one
+  `Evaluate…` per code, called in code order by `HealthScan`. Rules are pure over the context; a null registry
+  skips its rule.
+- **`AssetReferenceIndex.Rebuilt` never fires on an import by itself.** Listen to `Dirtied`.
+- **Every `CreateInstance`'d toolkit asset reports an unpersisted stable id** (H09). A fixture that runs
+  `HealthScan.Run` must `MarkStableIdPersisted()` on what it creates.
+- **H06 fires for unbaked sets even with zero VAT texture sets** (the Phase 0 guess that it would be silent was
+  wrong); an unbaked set's row reads "on rig 'no rig'".
+- **This project, 2026-09-14:** H06 `VatSampleTentacleClips` unbaked, H02 `NewClipSet` lists 3 missing clips,
+  H05 `VatSampleTentacleRig` unused.
+
+## Sprite Sheets tab (A95, 0.42.0)
+
+- **Arrays, never atlases (D0).** A grid PNG cannot render from a slice key, and an atlas rect only remaps UVs on
+  a fixed quad, so every frame of a part shares one canvas anyway.
+- **Unity builds each array layer's mips from level 0** (T0 probe): `generateMips` needs no per-layer sources.
+- **`SpriteTrack.sheet` is a serialized field on `ClipAsset`, authoring-only.** `ClipRegistryBuilder` copies
+  sprite fields by name, so the blob and content hash ignore it; a new field-by-field track copy (see
+  `MirrorClipUtility`) must carry `sheet`. `SpriteSheetAsset` sits in Authoring because `ClipAsset` references it.
+- **Working copy.** The tab edits a `HideAndDontSave` copy; Save is `CopySerialized` + `SaveAssetIfDirty`.
+- **Re-bake keeps the GUID.** A `Texture2DArray` cannot be resized; the overwrite is
+  `CopySerialized(newArray, existing)` (drive-proven: same GUID, swapped layers).
+- **Frame lookups are by `frame.index` (the layer), not list position.** A reorder renumbers immediately.
+- **RelativeToBase is per key** (`SpriteIndexMode`); the track's `SpriteSliceSpace` is `Absolute`/`RelativeToRest`,
+  a different thing.
+- **A detached `PopupField` never dispatches `ChangeEvent`** (no panel). A drive that needs a popup's callback
+  hosts it in a temporary utility window.
+- **Package tests may not name `Assets/<Folder>`** (Conformance_D). A fixture that must write under Assets
+  creates a GUID-named folder and reads its path back from the GUID.
+
+## Parallel batch A93–A95 (Worktree Toolkit, 2026-09-14)
+
+- **Leads gate only their spec's fixtures, so package-wide conformance first ran on trunk.** Conformance_D failed
+  at integration on two branches. Every lead's wave gate must also name
+  `DotsAnimationToolkit.Tests.EditMode.PackagingConformanceTests` (the standing Conformance_A failure is expected).
+- **Merges went in tab order** (a93, a94, a95) with no conflicts; the window, UXML, layout test, CHANGELOG,
+  `package.json` and conformance pin stayed with the stage and went in one integration commit.

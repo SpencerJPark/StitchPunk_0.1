@@ -1,6 +1,6 @@
 # Amendment A94 — Health tab: one project-wide findings list
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.41.0`.
+> **Status:** ✅ built 2026-09-14 as `0.41.0` in the parallel worktree batch A93–A95; ⏸ T14 owner checkpoint open.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2, second.
 > **Predecessors:** A82 (split view), A84 (reference index), A89 (VAT freshness), A91
 > (`ProfileP2Scan`), A86 (`AnimEventValidation`).
@@ -132,42 +132,42 @@ calling every rule in code order; plain noun, allowlist.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Time a full six-type `FindAssets` + load;
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Time a full six-type `FindAssets` + load;
   D4 call. Grep `ClipSetAssetUtility` for D6's method names.
-- [ ] **T1 — Shared types (orchestrator).** §4.1; expose A84's cached asset lists if needed. Gate.
+- [x] **T1 — Shared types (orchestrator).** §4.1; expose A84's cached asset lists if needed. Gate.
   Commit `A94-T1`.
-- [ ] **T2 — `HealthScan` + fixture [parallel-safe]** — Files: new `HealthScan.cs`, new
+- [x] **T2 — `HealthScan` + fixture [parallel-safe]** — Files: new `HealthScan.cs`, new
   `Tests/EditMode/HealthScanTests.cs`:
   - `Run_OrdersErrorsFirst`: a context producing one Note and one Error → the Error comes first.
   - `Run_PinsStaleVatBakesAboveOtherErrors` (D8): an H02 Error and an H06 → H06 comes first.
   - Revert-to-fail: drop the sort, then drop the H06 pin.
-- [ ] **T3 — Rules H01, H02, H05 [parallel-safe]** — Files: new `HealthRules/ClipMembershipRules.cs`
+- [x] **T3 — Rules H01, H02, H05 [parallel-safe]** — Files: new `HealthRules/ClipMembershipRules.cs`
   (H01, H02), new `HealthRules/RigUsageRule.cs` (H05). Fixture is T9's.
-- [ ] **T4 — Rules H03, H04 [parallel-safe]** — Files: new `HealthRules/ProfileRules.cs`.
-- [ ] **T5 — Rules H06, H09 [parallel-safe]** — Files: new `HealthRules/VatFreshnessRule.cs`, new
+- [x] **T4 — Rules H03, H04 [parallel-safe]** — Files: new `HealthRules/ProfileRules.cs`.
+- [x] **T5 — Rules H06, H09 [parallel-safe]** — Files: new `HealthRules/VatFreshnessRule.cs`, new
   `HealthRules/StableIdRule.cs`.
   - H06 follows D8: an Error for stale and for unbaked, the row text names set + rig + reason, and
     the row carries Locate.
   - The rig lookup is lifted from `ClipSetsPanel` at T1 (orchestrator) so this worker only calls
     it.
-- [ ] **T6 — Rules H07, H08, H10 [parallel-safe]** — Files: new `HealthRules/TagAndKeyRules.cs`.
-- [ ] **T7 — List element [parallel-safe]** — Files: new `HealthFindingListElement.cs`.
-- [ ] **T8 — Panel [parallel-safe]** — Files: new `HealthPanel.cs`.
-- [ ] **T9 — Rule fixture + docs [parallel-safe]** — Files: new `Tests/EditMode/HealthRulesTests.cs`
+- [x] **T6 — Rules H07, H08, H10 [parallel-safe]** — Files: new `HealthRules/TagAndKeyRules.cs`.
+- [x] **T7 — List element [parallel-safe]** — Files: new `HealthFindingListElement.cs`.
+- [x] **T8 — Panel [parallel-safe]** — Files: new `HealthPanel.cs`.
+- [x] **T9 — Rule fixture + docs [parallel-safe]** — Files: new `Tests/EditMode/HealthRulesTests.cs`
   (two tests: `H04_FlagsProfileWhoseClipSetHasAnotherRig`, `H10_FlagsClipWithNoTagOnRoster`; both on
   in-memory assets; revert-to-fail by disabling each rule's comparison), new
   `Documentation~/health-tab.md` (the rule table with codes and what each means).
 - **Gate the wave.** `HealthScanTests`, `HealthRulesTests`. Commit `A94-T2..T9`.
-- [ ] **T10 — Window wiring (orchestrator).** `ClipEditorTab.Health`; UXML; `BindTab`;
+- [x] **T10 — Window wiring (orchestrator).** `ClipEditorTab.Health`; UXML; `BindTab`;
   `ShowHealthTab`; `ClipEditorLayoutTests`; `index.md`; `CHANGELOG.md` `## [0.41.0]`;
   `package.json`; `Conformance_G` allowlist (`HealthScan`, rule classes end in `Rule`/`Rules` —
   plain nouns, allowlist them or rename to `…Validation`; T0 decides one way for all). Gate.
-- [ ] **T11 — Drive.** Full suites. Scan this project; record the counts in §7 (they are real
+- [x] **T11 — Drive.** Full suites. Scan this project; record the counts in §7 (they are real
   findings — list them for the owner). Trigger H09 by touching a scratch clip's stable id and
   confirm the Save fix clears it on reload.
-- [ ] **T12 — Vault + HANDOFF.** Vault note "Health tab (A94)": D4's timing, the rule-file layout.
+- [x] **T12 — Vault + HANDOFF.** Vault note "Health tab (A94)": D4's timing, the rule-file layout.
   HANDOFF §4; §7 loses any bullet a rule now covers.
-- [ ] **T13 — Close.** Roadmap checkbox.
+- [x] **T13 — Close.** Roadmap checkbox.
 - [ ] **T14 — ⏸ owner checkpoint.** Message: "Open Health and press Scan. The findings on your
   project are: [paste §7's list]. Click a row to ping. Say which rules are noise and whether H01
   should offer Delete."
@@ -242,3 +242,17 @@ calling every rule in code order; plain noun, allowlist.
 - Gate fixture names must be namespace-qualified (bare names report a false 1-passed).
 
 **HANDOFF §4 draft:** A94 adds the Health tab (0.41.0): one project-wide findings list over every toolkit asset, ten rules H01–H10 in `Editor/Health/HealthRules/`, run by `HealthScan` with stale or unbaked VAT bakes pinned above everything else. Rows ping their asset; H02 (Remove missing), H06 (Rebake, the Clip Sets tab's own jump) and H09 (Save, `SaveAssetIfDirty` on that one asset) offer one-click fixes. The panel rescans 500 ms after `AssetReferenceIndex.Dirtied`, a new event, because `Rebuilt` never fires on an import alone. Owner checkpoint open: which rules are noise, whether H01 should offer Delete, and whether the tab shows a count while an H06 exists.
+
+### Close (stage orchestrator, 2026-09-14)
+
+- **Merged** `spec/a94` (3 commits, `daf000c5`), second; worktree removed.
+- **Integration** `ffdc6754`: `ClipEditorTab.Health = 8`, `tab-health` / `health-pane`, `ShowHealthTab` (lazy `new HealthPanel()`, `RebakeRequested += OnClipSetRebakeRequested`, `Bind()`; unsubscribed and disposed with the window), `HealthScan` on the Conformance_G plain-noun allowlist, CHANGELOG `## [0.41.0]`. The optional "Health (n)" tab count is not wired; it stays a checkpoint question.
+- **Correction to the Phase 0 entry above:** H06 is not silent here. With zero `VatTextureSetAsset`s, an unbaked clip set still reports.
+- **Suites (T11):** EditMode 850 (standing Conformance_A only), PlayMode 285.
+- **Real project scan (T11)**, `HealthScanContext.FromProject` + `HealthScan.Run`, 132 ms: **3 findings, 2 errors, 0 warnings, 1 note**, in this order:
+  1. **Error H06**: VAT set for clip set `VatSampleTentacleClips` on rig "no rig" is unbaked (`Assets/ScriptableObjects/Animations/VatSampleTentacle/VatSampleTentacleClips.asset`).
+  2. **Error H02**: clip set `NewClipSet` lists 3 missing clips; fix "Remove missing" (`Assets/ScriptableObjects/Animations/NewClipSet.asset`).
+  3. **Note H05**: rig `VatSampleTentacleRig` is used by no actor profile.
+- **H09 fix (T11)** on `Assets/A94Scratch/A94DriveClip.asset`: created with an unpersisted id, H09 found with fix "Save", fix run, 0 H09 in memory and the asset not dirty; after `Resources.UnloadAsset` + reload still 0 H09, `HasUnpersistedStableId` false, serialized JSON identical across the reload. Scratch deleted.
+- **Panel:** detached `new HealthPanel()` + `Bind()` built (55 elements), reported `StaleVatBakeCount` 1, disposed.
+- **Not verified:** Remove missing (it would edit the real `NewClipSet`) and Rebake (it jumps the docked window) were not clicked; H03, H07 and H08 have no fixture and find nothing on this project. Wording for the checkpoint: an unbaked set reads "on rig 'no rig'". No capture (docked window).

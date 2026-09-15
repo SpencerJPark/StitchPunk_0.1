@@ -1,6 +1,6 @@
 # DOTS Animation Toolkit — package roadmap after A81 (written 2026-09-10)
 
-> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` and accepted the same day. A88 built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; 13 T0 drifts settled in its §7); its T9 owner checkpoint is open. A92 built 2026-09-14 as `0.39.0` (13 T0 drifts in its §7; cutscene part tracks included and merge payloads left raw, owner calls 2026-09-14); its T10 owner checkpoint is open. Next: A93, A94 and A95 in parallel worktrees (`Assets/_Vault/Spencer/next-session-parallel-a93-a95-prompt.md`).
+> **Status:** 📝 nineteen specs written 2026-09-10; A82 and A83 built and accepted 2026-09-12; A84 built 2026-09-12 as `0.31.0` and A85 built 2026-09-13 as `0.32.0`, both accepted 2026-09-13. A86 (`0.33.0`) built 2026-09-13 and accepted the same day. A87 (`0.34.0`) built 2026-09-13 and accepted the same day (D1: a seek fires nothing, as built; D5: the flash stays, and now also shows on a selected pin). A89 built 2026-09-13 as `0.35.0` (A88 unbuilt; it takes the next free minor) and accepted the same day. T8 was answered, and its three follow-ups (T9–T12) are built. A91 built 2026-09-13 as `0.36.0` and accepted the same day (a real player build was attempted 2026-09-13 but blocked by unrelated game compile errors; accepted as working for now, check tracked in `Assets/_Vault/Spencer/verify-a91-player-build.md`); every A94 prerequisite is now built. A90 built 2026-09-13 as `0.37.0` and accepted the same day. A88 built 2026-09-13 as `0.38.0` (the specced `0.35.0` went to A89; 13 T0 drifts settled in its §7); its T9 owner checkpoint is open. A92 built 2026-09-14 as `0.39.0` (13 T0 drifts in its §7; cutscene part tracks included and merge payloads left raw, owner calls 2026-09-14); its T10 owner checkpoint is open. A93 (`0.40.0`), A94 (`0.41.0`) and A95 (`0.42.0`) built 2026-09-14 in one parallel worktree batch, integrated in `ffdc6754` (A93's routing asset default moved to `Assets/Generated/DotsAnimationToolkit/` by Conformance_D); their T16, T14 and T15 owner checkpoints are open. Next: A96, A97 and A98 (`Assets/_Vault/Spencer/next-session-parallel-a96-a98-prompt.md`).
 > **Where:** every spec lives beside this file in `Assets/_Vault/Tasks/AnimationPackage/`. Each
 > spec's §0 is its session prompt — paste it into a fresh Sonnet session.
 > **What this replaces:** `Docs/AnimationToolkit/Handoff_NextFive_2026-09-09.md` items 1 and 2 are
@@ -23,6 +23,20 @@
 >   them all back. The same flow is behind Merge into… on an Event Keys row, Replace in clips with… on a
 >   Target Tags row, and right-click on a Rigs tab Tag button. Merge also rewrites the event registry, which
 >   has uncommitted edits. Question: do the dialog wording and the four entry points read right?
+> - [ ] **A93 T16 (built 2026-09-14 as `0.40.0`, not yet seen):** Clip Editor ▸ Events. Left: your event keys
+>   with the 64-key budget line. Middle: the selected key's fields and every clip, cutscene and profile using it
+>   (click a row to ping it). Right: its routes, and Generate consumer stub…. Two questions: the routing asset now
+>   auto-creates at `Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset` (the spec said
+>   `Assets/Settings/…`; the package may only name `Assets/Generated`) — right place? Should the Routes column
+>   exist at all, or is the stub alone enough?
+> - [ ] **A94 T14 (built 2026-09-14 as `0.41.0`, not yet seen):** Clip Editor ▸ Health ▸ Scan. Expect three
+>   rows: H06 `VatSampleTentacleClips` unbaked (pinned first, Rebake + Locate), H02 `NewClipSet` lists 3 missing
+>   clips (Remove missing), H05 `VatSampleTentacleRig` used by no profile. Questions: which rules are noise? Should
+>   H01 offer Delete? Should the tab read "Health (1)" while a stale or unbaked VAT finding exists?
+> - [ ] **A95 T15 (built 2026-09-14 as `0.42.0`, not yet seen):** Clip Editor ▸ Sprite Sheets ▸ New, drag four
+>   same-size images in from Images, reorder, Bake, Save; drag the array into a `ToolkitSpriteUnlitArray`
+>   material's `_MainTexArray`. Then on a sprite key pick a Frame by name. Questions: want a compressed-array
+>   follow-up (arrays bake uncompressed RGBA32)? Schedule the game-side task retiring `TextureArrayBuilder.cs`?
 > - Answering any of these ticks its box below and updates the status line above.
 
 Tick a box only when the spec's own status line says built **and** its ⏸ owner checkpoint (if any)

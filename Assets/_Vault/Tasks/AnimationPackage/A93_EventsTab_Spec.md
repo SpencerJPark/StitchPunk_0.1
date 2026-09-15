@@ -1,6 +1,6 @@
 # Amendment A93 — Events tab: registry, payload, usage, routing table, consumer stubs
 
-> **Status:** 📝 specced 2026-09-10, not built. Takes `0.40.0`.
+> **Status:** ✅ built 2026-09-14 as `0.40.0` in the parallel worktree batch A93–A95 (T13 drive partial, see §7); ⏸ T16 owner checkpoint open.
 > **Roadmap:** [`AnimationPackage_Roadmap.md`](AnimationPackage_Roadmap.md) Phase 2, first.
 > **Predecessors:** A82 (catalog column, split view), A84 (usage index), A85 (payload schema),
 > A87 (preview clip). Optional: A92 (Merge lands on the row menu if built).
@@ -146,53 +146,53 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
 
 ## 5. Tasks
 
-- [ ] **T0 — Baseline (orchestrator).** Gate; totals. Read A82's column and decide D2. Confirm
+- [x] **T0 — Baseline (orchestrator).** Gate; totals. Read A82's column and decide D2. Confirm
   `IVocabularyRegistry`'s minting method name. Record.
-- [ ] **T1 — Shared types (orchestrator).** §4.1 by hand. Gate. Commit `A93-T1`.
-- [ ] **T2 — Api + fixture [parallel-safe]** — Files: new `AnimEventRoutingApi.cs`, new
+- [x] **T1 — Shared types (orchestrator).** §4.1 by hand. Gate. Commit `A93-T1`.
+- [x] **T2 — Api + fixture [parallel-safe]** — Files: new `AnimEventRoutingApi.cs`, new
   `Tests/EditMode/AnimEventRoutingApiTests.cs` (build a blob by hand with `BlobBuilder`; keys
   16, 16, 20 → `TryGetRoutes(16)` gives start 0 count 2; `TryGetRoutes(17)` false; dispose via
   `BlobAssetReferenceScope`). Revert-to-fail: return the first index unconditionally.
-- [ ] **T3 — Builder + determinism fixture [parallel-safe]** — Files: new
+- [x] **T3 — Builder + determinism fixture [parallel-safe]** — Files: new
   `AnimEventRoutingBuilder.cs`, new `Tests/EditMode/AnimEventRoutingBuilderTests.cs` (two SOs with
   the same routes in different list order → identical `BlobSignature`; the `BlobSignature` helper
   exists under `Tests/EditMode/`). Revert-to-fail: drop the sort.
-- [ ] **T4 — Authoring + Baker [parallel-safe]** — Files: new `AnimEventRoutingAuthoring.cs`.
+- [x] **T4 — Authoring + Baker [parallel-safe]** — Files: new `AnimEventRoutingAuthoring.cs`.
   Read `Authoring/Baking/` for the nearest existing baker (grep `AddBlobAsset`). No `UnityEditor`.
-- [ ] **T5 — Asset utility [parallel-safe]** — Files: new `AnimEventRoutingAssetUtility.cs`. Read
+- [x] **T5 — Asset utility [parallel-safe]** — Files: new `AnimEventRoutingAssetUtility.cs`. Read
   `ActorProfileAssetUtility.cs`.
-- [ ] **T6 — Stub builder + fixture [parallel-safe]** — Files: new `AnimEventConsumerStubBuilder.cs`,
+- [x] **T6 — Stub builder + fixture [parallel-safe]** — Files: new `AnimEventConsumerStubBuilder.cs`,
   new `Tests/EditMode/AnimEventConsumerStubBuilderTests.cs` (`EmittedSource_HasNoVarAndOneCasePerKind`:
   output contains no `" var "` token and one `case AnimEventRouteKind.Sound:` when Sound is the
   only kind). Revert-to-fail: emit `var`.
-- [ ] **T7 — Keys column [parallel-safe]** — Files: new `EventKeyCatalogColumn.cs`. D2, D3, D9.
-- [ ] **T8 — Inspector column [parallel-safe]** — Files: new `EventKeyInspectorColumn.cs`. D8; A85
+- [x] **T7 — Keys column [parallel-safe]** — Files: new `EventKeyCatalogColumn.cs`. D2, D3, D9.
+- [x] **T8 — Inspector column [parallel-safe]** — Files: new `EventKeyInspectorColumn.cs`. D8; A85
   fields via `EventPayloadFieldBuilder`; A87 preview clip field.
-- [ ] **T9 — Routes column [parallel-safe]** — Files: new `EventRoutesColumn.cs`. D5 rows (kind
+- [x] **T9 — Routes column [parallel-safe]** — Files: new `EventRoutesColumn.cs`. D5 rows (kind
   dropdown, `routeId` hex field, note, display asset), stub button opening a folder picker.
-- [ ] **T10 — Panel [parallel-safe]** — Files: new `EventsPanel.cs`, new
+- [x] **T10 — Panel [parallel-safe]** — Files: new `EventsPanel.cs`, new
   `Tests/EditMode/EventsPanelTests.cs` (only if a non-trivial invariant exists — e.g. selecting a
   key updates the inspector column's bound entry; otherwise no fixture, say so).
-- [ ] **T11 — Docs + changelog [parallel-safe]** — Files: new `Documentation~/events-tab.md`
+- [x] **T11 — Docs + changelog [parallel-safe]** — Files: new `Documentation~/events-tab.md`
   (the tab, the routing asset, the baker to drop in, the stub, and — one paragraph, no hedging —
   "the package never handles a route"), `CHANGELOG.md` `## [0.40.0]`. Also add the page to
   `index.md` — that is the orchestrator's (T12).
 - **Gate the wave.** Compile; `AnimEventRoutingApiTests`, `AnimEventRoutingBuilderTests`,
   `AnimEventConsumerStubBuilderTests`. Commit `A93-T2..T11`.
-- [ ] **T12 — Window wiring (orchestrator).** `ClipEditorTab.Events = 7`; UXML toggle + pane;
+- [x] **T12 — Window wiring (orchestrator).** `ClipEditorTab.Events = 7`; UXML toggle + pane;
   `BindTab`; `ShowEventsTab`; `tabToggles` size; `ClipEditorLayoutTests` (the tab count assertion);
   `index.md`; `package.json`; `Conformance_G` allowlist (`AnimEventRoutingAssetUtility` is a
   `Utility` in `ClipUtilities/` — fine; `…StubBuilder` is a `Builder` — check the Builder rule's
   folder restriction, if any); `Conformance_A` if a new asmdef reference appeared (none expected).
   Gate; `ClipEditorLayoutTests`.
-- [ ] **T13 — Drive.** Full suites. New key → appears with the next free number; give it a payload
+- [x] **T13 — Drive.** Full suites. New key → appears with the next free number; give it a payload
   and a route; reload the registry and the routing asset from disk; add
   `AnimEventRoutingAuthoring` to `DOTSTestScene`'s subscene, enter Play, `execute_code` reads the
   singleton and `TryGetRoutes` for the key; generate a stub into `Assets/A93Scratch/`, confirm it
   compiles, delete it. Capture the tab.
-- [ ] **T14 — Vault + HANDOFF.** Vault note "Events tab (A93)": D2's call, D4's location, the
+- [x] **T14 — Vault + HANDOFF.** Vault note "Events tab (A93)": D2's call, D4's location, the
   "never handles" rule restated. HANDOFF §4.
-- [ ] **T15 — Close.** Roadmap checkbox.
+- [x] **T15 — Close.** Roadmap checkbox.
 - [ ] **T16 — ⏸ owner checkpoint.** Message: "Open the Events tab. Left: your keys with the
   64-key budget. Middle: fields and where each key is used — click a row to ping it. Right: routes;
   press Generate consumer stub and read the file it wrote. Two ⚠: the routing asset auto-creates
@@ -298,3 +298,18 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
 **HANDOFF draft**
 
 A93 (0.40.0) adds the Clip Editor's Events tab. Keys (left) is the project event registry as a catalog with the 64-key maskable budget, New, and a row menu: Rename, Delete, Generate Constants, Merge into…. The middle column edits the entry, its payload schema and preview clip, and lists every clip, cutscene and profile using the key, each row pinging its asset. Routes (right) edits the key's rows in the project `AnimEventRoutingAsset`, which is auto-created under `Assets/Settings/DotsAnimationToolkit/` on the first route. `AnimEventRoutingAuthoring` bakes that asset into the `AnimEventRouting` singleton, read by `AnimEventRoutingApi.TryGetRoutes`. Generate consumer stub… writes a host `ISystem` switching over route kinds. The package never handles a route. Owner checkpoint (T16) asks whether that asset location is right and whether the routes column should exist at all.
+
+### Close (stage orchestrator, 2026-09-14)
+
+- **Merged** `spec/a93` (5 commits, fast-forward to `9516e6d2`), first of the batch; worktree removed.
+- **Integration** `ffdc6754` "A93-A95 integration": `ClipEditorTab.Events = 7`, `tab-events` / `events-pane`, `BindTab`, `ShowEventsTab` (lazy `new EventsPanel()` then `Bind()`, disposed with the window), layout test names, `index.md`, CHANGELOG `## [0.40.0]`.
+- **Drift 18 — Conformance_D, found at integration.** No lead gate ran `PackagingConformanceTests`; on trunk it flagged `Assets/Settings/…` in `AnimEventRoutingAssetUtility`, the CHANGELOG text and `events-tab.md`. A package file may name only `Assets/Generated` (the generated-constants folder). The default routing asset therefore moved to `Assets/Generated/DotsAnimationToolkit/AnimEventRouting.asset`, beside the generated constants; `FindDefault` still takes any routing asset under Assets, so it can be moved. This changes D4's ⚠ location and is the checkpoint's first question.
+- **Suites (T13):** EditMode 850 (840 + 10 new across the batch, standing Conformance_A only), PlayMode 285.
+- **Drive (T13)**, on a registry copy and scratch assets only:
+  - New key: a `CreateInstance` copy of the project registry (4 entries) minted **20**, its first free maskable key.
+  - Payload: `intParamLabel` Foot, value names Left/Right, `floatParamLabel` Volume survived a serialized round trip of the copy. The project registry was never written (sha256 unchanged after every step).
+  - Routes: three routes through `AnimEventRoutingAssetUtility.AddRoute` into `Assets/A93Scratch/A93DriveRouting.asset`; the YAML on disk carried `routeId: 42`, the key and the note; after `Resources.UnloadAsset` the reload had 3 routes. The default asset was not created.
+  - Bake: `AnimEventRoutingBuilder.Build` over the reloaded asset produced a created blob (disposed).
+  - Stub: `WriteToFolder` wrote `A93DriveAnimEventSystem.cs` (3 kinds, 3 `case`s, no `var`); a compile gate built it into Assembly-CSharp as an `ISystem`, console clean. Deleted and recompiled.
+  - Panel: detached `new EventsPanel()` + `Bind(copy)` built (71 elements, one ListView) and disposed.
+- **Not verified:** the subscene + Play-mode singleton read (`AnimEventRoutingAuthoring` in `DOTSTestScene`); the batch's owner cautions forbid opening scenes and entering Play, so `TryGetRoutes` is proven by its fixture only. The Keys column's New, Rename, Delete and Merge were not clicked (they persist the project registry or open modal dialogs). No capture: the tab lives only in the owner's docked window, which the batch must not drive.
