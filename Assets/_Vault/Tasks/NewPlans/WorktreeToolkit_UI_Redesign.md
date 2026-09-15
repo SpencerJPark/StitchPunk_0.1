@@ -1,6 +1,7 @@
 # Worktree Toolkit — UI redesign (node window, Cult of the Lamb skill-tree style)
 
-> **Status:** 🔨 built 2026-09-14.
+> **Status:** ✅ accepted 2026-09-14 (round 3, owner: "Looks good"). Rounds 1–2 below are history;
+> §8 is what shipped (commits 5b53abf5, 2481ad29, 07f96670).
 > - Nine Sonnet workers in one wave (T1–T8); compile clean; `WorktreeTreeLayoutTests` 2/2.
 > - Reflection drive: header, status line, split view, inspector and footer render; the trunk tile is
 >   crimson on stage; a hand-made demo worktree draws as a teal unlocked tile.

@@ -5,9 +5,12 @@
 > - Probes P1–P5 and P7 done; P6 deferred to Phase 5.
 > - Broker gates proven: compile-errors and pass, surviving the domain reload.
 > - ✅ C2 dry run: two parallel spec-leads through review, merge and remove.
-> - C1 round 1 rejected ("ugly and unprofessional"). The window was rebuilt in the owner's Cult of the
->   Lamb skill-tree style ([`WorktreeToolkit_UI_Redesign.md`](WorktreeToolkit_UI_Redesign.md)). ⏸ C1
->   round 2 open.
+> - ✅ C1 accepted 2026-09-14 after three rounds:
+>   - round 1 rejected ("ugly and unprofessional");
+>   - round 2 in the owner's Cult of the Lamb style was "close, needs tweaks" (pixelated icons,
+>     unintuitive controls);
+>   - round 3 accepted "Looks good": vector glyphs, legend, labeled plain-language controls
+>     ([`WorktreeToolkit_UI_Redesign.md`](WorktreeToolkit_UI_Redesign.md)).
 > - Phase 5 (own-Editor mode) not started.
 >
 > Package `Packages/com.worktreetoolkit`, `0.1.0`.

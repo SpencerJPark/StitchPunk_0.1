@@ -76,3 +76,11 @@ Run the fixtures (temp repos only, never the real project):
     merge) refuses only on uncommitted edits to files the move changes (D9b). A blanket "no tracked
     modifications" rule blocked the whole workflow in practice. git itself still refuses real
     overwrites.
+14. **Window captures in this Linear-colour project need a linear RenderTexture.** A default
+    `new RenderTexture(w, h, 24, ARGB32)` for `GUIView.GrabPixels` brightens everything (a 22/255
+    canvas came out mid-grey), which would have sent the redesign chasing wrong colours. Use
+    `RenderTextureReadWrite.Linear` and a linear `Texture2D`.
+15. **Built-in 16 px icons stretched to tile size look pixelated** (owner, round 2). Tile symbols are
+    Painter2D vector glyphs (`WorktreeGlyphs`); built-in icons stay at their native 16 pt.
+16. **A C# `'\\'` literal written through a Bash heredoc into Python lost its escaping twice.** Build
+    the characters with `chr(92)` and verify the byte count before trusting the edit.
