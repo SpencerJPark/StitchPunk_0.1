@@ -110,10 +110,9 @@ namespace DotsAnimationToolkit.Editor
             // itemsSource.Count == 2 but the ListView's own childCount == 0) -- stick with
             // FixedHeight. ListView positions each slot at a fixed index * fixedItemHeight
             // regardless of the row's actual content height, so any slack left over here adds
-            // straight onto the visual gap on top of the row's own margin -- sized tight to the
-            // row's measured content (56px) + its 4px top/bottom margin, not generously, so the
-            // margin is the only thing producing the gap.
-            assetsListView.fixedItemHeight = 64f;
+            // straight onto the visual gap on top of the row's own margin -- a row is now a
+            // single flat 22px line with no margin, so fixedItemHeight matches it exactly.
+            assetsListView.fixedItemHeight = 22f;
             assetsListView.selectionType = SelectionType.Single;
             assetsListView.style.flexGrow = 1f;
             assetsListView.style.marginTop = 4f;
@@ -193,20 +192,14 @@ namespace DotsAnimationToolkit.Editor
             // Why a slot around a row: ToolkitChrome.MakeListRowSlot.
             VisualElement itemSlot = ToolkitChrome.MakeListRowSlot(options.namePrefix + "-row-box", out VisualElement row);
 
-            VisualElement headerRow = new VisualElement();
-            headerRow.AddToClassList("toolkit-box__header");
-
             Label titleLabel = new Label();
             titleLabel.name = options.namePrefix + "-row-title";
-            titleLabel.AddToClassList("toolkit-box__title");
-            headerRow.Add(titleLabel);
-
-            row.Add(headerRow);
+            titleLabel.AddToClassList("toolkit-list-row__title");
+            row.Add(titleLabel);
 
             Label infoLabel = new Label();
             infoLabel.name = options.namePrefix + "-row-info";
-            infoLabel.AddToClassList("toolkit-box__label");
-            infoLabel.AddToClassList("toolkit-hint");
+            infoLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(infoLabel);
 
             if (options.allowRename || options.allowDelete)
@@ -275,9 +268,26 @@ namespace DotsAnimationToolkit.Editor
             Label infoLabel = row.Q<Label>(options.namePrefix + "-row-info");
             infoLabel.text = asset != null ? options.secondLine(asset) : string.Empty;
 
-            row.tooltip = asset != null && options.tooltip != null ? options.tooltip(asset) : string.Empty;
+            // Both the title and meta ellipsize on a 22px line, so the tooltip carries the full text.
+            string tooltipText = asset != null ? asset.name : string.Empty;
+            string infoText = infoLabel.text;
+            if (!string.IsNullOrEmpty(infoText))
+            {
+                tooltipText += "\n" + infoText;
+            }
 
-            row.EnableInClassList("toolkit-box--selected", asset == SelectedAsset);
+            if (asset != null && options.tooltip != null)
+            {
+                string extraTooltipText = options.tooltip(asset);
+                if (!string.IsNullOrEmpty(extraTooltipText))
+                {
+                    tooltipText += "\n" + extraTooltipText;
+                }
+            }
+
+            row.tooltip = tooltipText;
+
+            row.EnableInClassList("toolkit-list-row--selected", asset == SelectedAsset);
         }
 
         private void OnListSelectionChanged(IEnumerable<object> selectedItems)

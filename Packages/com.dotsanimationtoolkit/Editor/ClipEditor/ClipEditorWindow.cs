@@ -53,6 +53,7 @@ namespace DotsAnimationToolkit.Editor
 
         private const string HiddenUssClassName = "clip-editor--hidden";
         private const string TabActiveUssClassName = "clip-editor__tab--active";
+        private const string TablistTabActiveUssClassName = "toolkit-tablist__tab--active";
 
         private const string HintUssClassName = "toolkit-hint";
         private const string ReconcileRowUssClassName = "clip-editor__reconcile-row";
@@ -950,6 +951,9 @@ namespace DotsAnimationToolkit.Editor
 
             layoutAsset.CloneTree(rootVisualElement);
 
+            // After the UXML's own sheet, so the shared token and component rules come later and win at equal specificity.
+            ToolkitChrome.AddToolkitStyleSheets(rootVisualElement);
+
             // Before BindToolbar, so RestoreView's writes to the selection at the end of this method
             // land on live handlers instead of firing into nothing.
             selection.ClipSetChanged += ApplyClipSetSelection;
@@ -1469,6 +1473,7 @@ namespace DotsAnimationToolkit.Editor
                 bool isActive = tabIndex == (int)activeTab;
                 toggle.SetValueWithoutNotify(isActive);
                 toggle.EnableInClassList(TabActiveUssClassName, isActive);
+                toggle.EnableInClassList(TablistTabActiveUssClassName, isActive);
             }
             isApplyingTab = false;
 

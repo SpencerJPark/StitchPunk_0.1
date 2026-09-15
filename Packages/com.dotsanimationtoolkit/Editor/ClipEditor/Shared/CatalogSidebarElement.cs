@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
@@ -10,21 +9,19 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>Sidebar host that switches between named catalog columns, sharing one header and actions slot.</summary>
     public class CatalogSidebarElement : VisualElement
     {
-        private const string TabUssClassName = "clip-editor__tab";
-        private const string TabActiveUssClassName = "clip-editor__tab--active";
-
         private sealed class ModeEntry
         {
-            public ToolbarToggle Toggle;
+            public string Label;
             public VisualElement Column;
             public VisualElement HeaderActions;
         }
 
-        private readonly VisualElement modeToggles;
+        private readonly VisualElement modesHost;
         private readonly VisualElement actionsSlot;
         private readonly Dictionary<string, ModeEntry> modeEntriesByName = new Dictionary<string, ModeEntry>();
+        private readonly List<string> modeNamesInOrder = new List<string>();
 
-        private bool isApplyingMode;
+        private VisualElement segmentedControl;
 
         public string Mode { get; private set; }
 
@@ -41,9 +38,8 @@ namespace DotsAnimationToolkit.Editor
 
             // One group, not two loose children: the header spreads its children with
             // space-between, which would push the toggles to opposite edges.
-            modeToggles = new VisualElement { name = "sidebar-mode-toggles" };
-            modeToggles.AddToClassList("toolkit-sidebar__modes");
-            header.Add(modeToggles);
+            modesHost = new VisualElement { name = "sidebar-mode-toggles-host" };
+            header.Add(modesHost);
 
             actionsSlot = new VisualElement { name = "sidebar-actions" };
             actionsSlot.AddToClassList("toolkit-pane-actions");
@@ -56,14 +52,30 @@ namespace DotsAnimationToolkit.Editor
 
         public void AddMode(string modeName, string toggleText, VisualElement column, VisualElement headerActions)
         {
-            ToolbarToggle toggle = new ToolbarToggle { name = "sidebar-" + modeName + "-toggle", text = toggleText };
-            toggle.AddToClassList(TabUssClassName);
-            toggle.RegisterValueChangedCallback(changeEvent => OnToggleChanged(modeName, changeEvent));
-            modeToggles.Add(toggle);
-
-            ModeEntry modeEntry = new ModeEntry { Toggle = toggle, Column = column, HeaderActions = headerActions };
+            ModeEntry modeEntry = new ModeEntry { Label = toggleText, Column = column, HeaderActions = headerActions };
             modeEntriesByName[modeName] = modeEntry;
+            modeNamesInOrder.Add(modeName);
             Add(column);
+
+            modesHost.Clear();
+            List<string> modeLabels = new List<string>();
+            foreach (string existingModeName in modeNamesInOrder)
+            {
+                modeLabels.Add(modeEntriesByName[existingModeName].Label);
+            }
+
+            int selectedIndex = Mode != null ? modeNamesInOrder.IndexOf(Mode) : 0;
+            if (selectedIndex < 0)
+            {
+                selectedIndex = 0;
+            }
+
+            segmentedControl = ToolkitChrome.MakeSegmentedControl(
+                "sidebar-mode-toggles",
+                modeLabels,
+                selectedIndex,
+                index => SetMode(modeNamesInOrder[index]));
+            modesHost.Add(segmentedControl);
 
             if (Mode == null)
             {
@@ -78,19 +90,14 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            // The assignments below raise change callbacks on the toggles; the guard stops SetMode
-            // from re-entering itself, and also lets a click on the already-lit toggle snap back to true.
-            isApplyingMode = true;
-            foreach (KeyValuePair<string, ModeEntry> modeEntryPair in modeEntriesByName)
+            if (segmentedControl != null)
             {
-                modeEntryPair.Value.Toggle.SetValueWithoutNotify(modeEntryPair.Key == modeName);
+                ToolkitChrome.SetSegmentedSelection(segmentedControl, modeNamesInOrder.IndexOf(modeName));
             }
-            isApplyingMode = false;
 
             foreach (KeyValuePair<string, ModeEntry> modeEntryPair in modeEntriesByName)
             {
                 bool modeEntryIsActive = modeEntryPair.Key == modeName;
-                modeEntryPair.Value.Toggle.EnableInClassList(TabActiveUssClassName, modeEntryIsActive);
                 modeEntryPair.Value.Column.style.display = modeEntryIsActive ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
@@ -102,17 +109,8 @@ namespace DotsAnimationToolkit.Editor
                 actionsSlot.Add(activeModeEntry.HeaderActions);
             }
 
+            // No re-entry guard needed: SetSegmentedSelection only moves a class and raises nothing.
             ModeChanged?.Invoke(modeName);
-        }
-
-        private void OnToggleChanged(string modeName, ChangeEvent<bool> changeEvent)
-        {
-            if (isApplyingMode)
-            {
-                return;
-            }
-
-            SetMode(modeName);
         }
     }
 }

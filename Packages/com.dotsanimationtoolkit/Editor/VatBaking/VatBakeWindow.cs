@@ -39,6 +39,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 rootVisualElement.styleSheets.Add(styleSheet);
             }
+            // After the window sheet, so the shared token and component rules come later and win at equal specificity.
+            ToolkitChrome.AddToolkitStyleSheets(rootVisualElement);
             rootVisualElement.AddToClassList("clip-editor__root");
 
             panel = new VatBakePanel();

@@ -21,6 +21,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<MeshRenderer> partRenderers = new List<MeshRenderer>();
         private readonly Dictionary<uint, int> targetIdToMirrorIndex = new Dictionary<uint, int>();
         private MaterialPropertyBlock propertyBlock;
+        // Owned by this mirror: created fresh on every Rebuild, destroyed in Dispose.
+        private Material neutralSurfaceMaterial;
 
 
         /// <summary>The mirror's root, or null when nothing is built.</summary>
@@ -85,8 +87,7 @@ namespace DotsAnimationToolkit.Editor
             // the rig off the point the camera orbits and the floor grid centres on.
             rootObject.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
 
-            Material previewMaterial = UnityEditor.AssetDatabase
-                .GetBuiltinExtraResource<Material>("Default-Diffuse.mat");
+            neutralSurfaceMaterial = PreviewSurfaceMaterialResolver.CreateNeutralSurfaceMaterial();
 
             for (int targetIndex = 0; targetIndex < rig.targets.Count; targetIndex++)
             {
@@ -117,7 +118,7 @@ namespace DotsAnimationToolkit.Editor
                 MeshRenderer partRenderer = partObject.GetComponent<MeshRenderer>();
                 if (partRenderer != null)
                 {
-                    partRenderer.sharedMaterial = previewMaterial;
+                    partRenderer.sharedMaterial = neutralSurfaceMaterial;
                     partRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
                     partRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
                     partRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -178,6 +179,12 @@ namespace DotsAnimationToolkit.Editor
             // The marker GameObjects were children of rootObject, so destroying it took them with
             // it; only the bookkeeping needs clearing here.
             propertyBlock = null;
+
+            if (neutralSurfaceMaterial != null)
+            {
+                Object.DestroyImmediate(neutralSurfaceMaterial);
+                neutralSurfaceMaterial = null;
+            }
         }
     }
 }

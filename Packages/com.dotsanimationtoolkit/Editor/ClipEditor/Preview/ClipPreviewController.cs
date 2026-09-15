@@ -64,6 +64,10 @@ namespace DotsAnimationToolkit.Editor
         private readonly PreviewSocketMarkers socketMarkers = new PreviewSocketMarkers();
         private bool socketRootAdded;
 
+        // One material for every socket marker, owned here rather than by the markers themselves,
+        // since markers rebuild far more often than this controller's own lifetime.
+        private Material socketMarkerSurfaceMaterial;
+
         /// <summary>The rig the part quads were built from, so an edit does not rebuild them.</summary>
         private RigAsset mirrorRig;
 
@@ -331,8 +335,7 @@ namespace DotsAnimationToolkit.Editor
             mirrorRig = rig;
             rigMirror.Rebuild(rig);
             mirrorRootAdded = false;
-            socketMarkers.Rebuild(rig, UnityEditor.AssetDatabase
-                .GetBuiltinExtraResource<Material>("Default-Diffuse.mat"));
+            socketMarkers.Rebuild(rig, EnsureSocketMarkerSurfaceMaterial());
             socketRootAdded = false;
             restPosesDirty = true;
             framePending = true;
@@ -605,10 +608,20 @@ namespace DotsAnimationToolkit.Editor
         // socket added to the rig it already holds.
         public void RebuildSockets()
         {
-            socketMarkers.Rebuild(mirrorRig, AssetDatabase
-                .GetBuiltinExtraResource<Material>("Default-Diffuse.mat"));
+            socketMarkers.Rebuild(mirrorRig, EnsureSocketMarkerSurfaceMaterial());
             socketRootAdded = false;
             socketMarkers.UpdateMarkers(rigMirror, skeletonMirror);
+        }
+
+        // One material for every socket marker, owned here: the markers are rebuilt often and a
+        // per-rebuild material would leak one object each time.
+        private Material EnsureSocketMarkerSurfaceMaterial()
+        {
+            if (socketMarkerSurfaceMaterial == null)
+            {
+                socketMarkerSurfaceMaterial = PreviewSurfaceMaterialResolver.CreateNeutralSurfaceMaterial();
+            }
+            return socketMarkerSurfaceMaterial;
         }
 
         // Every transform name in the loaded prefab, for checking which bindings still resolve. An
@@ -2055,6 +2068,11 @@ namespace DotsAnimationToolkit.Editor
             targetPoser.Dispose();
             rigMirror.Dispose();
             socketMarkers.Dispose();
+            if (socketMarkerSurfaceMaterial != null)
+            {
+                UnityEngine.Object.DestroyImmediate(socketMarkerSurfaceMaterial);
+                socketMarkerSurfaceMaterial = null;
+            }
             bakedVatOverlay.Dispose();
             skeletonMirror.Dispose();
             ragdollSimulation.Dispose();
