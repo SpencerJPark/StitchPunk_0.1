@@ -305,3 +305,32 @@ mutation commit with F1–F3's reverts; exactly those three fail.
     - add two `<Style>` lines in the UXML. That option needs the new sheets' `.meta` GUIDs from T1/T2.
 
     The lead picks one and logs it here.
+
+### T0 — Grounding (lead, 2026-09-15, `spec/a104` from `eb6d8abd`)
+
+- **Names confirmed by grep:** every §2/§3 file exists at its path. `Default-Diffuse` is still at `PreviewRigMirror.cs:89`
+  and `ClipPreviewController.cs:335,609`; `TabActiveUssClassName` at `ClipEditorWindow.cs:55/1471` and
+  `CatalogSidebarElement.cs:14/93`; `ToolkitCatalogColumn.MakeRow` at 191 with `fixedItemHeight = 64f` at 116.
+- **Decisions and drift (11):**
+  1. **Status tone:** `ToolkitStatusTone` gains `Ok` last, for D7's `--ok` badge. No caller switches over the enum.
+  2. **Sheet loading, S0 drift (3):** the C# route, GUID-free. T3 adds `ToolkitChrome.AddToolkitStyleSheets(VisualElement root)`
+     with two public path constants. `ClipEditorWindow` calls it right after `CloneTree`, and `VatBakeWindow` calls it after the window
+     sheet, so T8a and T8b are one call each. Every T2 selector carries two classes, so it wins whatever the sheet order.
+  3. **Window bar:** the Toolbar's `toolkit-asset-bar` class is shared by every tab's asset bar. D3's surface colour and
+     6px/8px padding therefore go on a new class, `toolkit-tablist-bar`, which T8a adds in the UXML.
+  4. **List row height:** `min-height` 22px rather than `height`. Five other `MakeListRowSlot` callers (EventKeyCatalogColumn,
+     FlipbookFramesColumn, RagdollBodiesColumn, HealthFindingListElement and ImageCatalogColumn) still stack content.
+     Their look is a finding for A105–A107 (D11).
+  5. **Row selection:** those callers set `toolkit-box--selected`, which draws nothing once `toolkit-box` is gone. T2
+     paints both `.toolkit-list-row--selected` and `.toolkit-list-row.toolkit-box--selected` with `--toolkit-selection`.
+  6. **USS limits:** USS has no numeric font weights, so 500 → normal and 600 → bold. It has no `gap` and no
+     `:first-child`, so tabs and segments are spaced with a 2px right margin.
+  7. **Hover and borders:** USS cannot lighten a `var()`, so the primary hover is `opacity: 0.9` (shadcn `primary/90`). The
+     secondary button's "lightened divider" border is `--toolkit-color-hairline`.
+  8. **Status dot:** D7 names no signature for it, and `MakeSeverityDot` already exists, so no new builder.
+  9. **Button variants:** `StyleButton(Primary)` adds the existing `toolkit-primary-action` class, so primary has one rule.
+     Destructive adds both the ghost and destructive classes.
+  10. **Tests:** no test pins the sidebar mode toggles, the catalog row classes or the tab classes. `ClipEditorLayoutTests`
+      only checks that the tabs are `ToolbarToggle`s, and names and types stay.
+  11. **`.meta` GUIDs:** the new sheets' `.meta` files are hand-written with GUIDs `ToolkitTokens.uss` `b11b87cc62b64271a239464bf21c7eb6`
+      and `ToolkitComponents.uss` `c8a51b7876164e5bae099a516cf9dcb0`. The new `.cs.meta` files are left to the Editor, as in A103.

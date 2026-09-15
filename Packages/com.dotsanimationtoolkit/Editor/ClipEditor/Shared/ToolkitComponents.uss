@@ -1,0 +1,408 @@
+/* Copyright (c) 2026 Spencer Park. All rights reserved. */
+
+/*
+ * Component classes only, tokens live in ToolkitTokens.uss.
+ * Style guide: Docs/AnimationToolkit/EditorStyleGuide.md.
+ */
+
+/* A. Tab list */
+.toolkit-tablist-bar.unity-toolbar {
+    background-color: var(--toolkit-surface);
+    height: auto;
+    min-height: 0;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--toolkit-divider);
+    flex-direction: row;
+    align-items: center;
+}
+
+.toolkit-tablist {
+    flex-direction: row;
+    flex-grow: 0;
+    flex-shrink: 1;
+    align-items: center;
+    background-color: var(--toolkit-field);
+    border-width: 1px;
+    border-color: var(--toolkit-divider);
+    border-radius: var(--toolkit-radius-track);
+    padding: 3px;
+    margin: 0;
+}
+
+.toolkit-tablist__tab.unity-toolbar-toggle,
+.toolkit-tablist__tab.unity-toolbar-toggle:hover,
+.toolkit-tablist__tab.unity-toolbar-toggle:checked {
+    flex-grow: 0;
+    flex-shrink: 0;
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0 10px;
+    margin: 0 2px 0 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-radius: var(--toolkit-radius-button);
+    background-color: transparent;
+    color: var(--toolkit-color-muted);
+    font-size: var(--toolkit-text-body);
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+}
+
+.toolkit-tablist__tab.unity-toolbar-toggle:hover {
+    color: var(--toolkit-text);
+}
+
+.toolkit-tablist__tab .unity-toggle__input {
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+}
+
+.toolkit-tablist__tab .unity-toggle__checkmark {
+    display: none;
+}
+
+.toolkit-tablist__tab .unity-toggle__text {
+    margin: 0;
+    padding: 0;
+    color: var(--toolkit-color-muted);
+    font-size: var(--toolkit-text-body);
+    -unity-text-align: middle-center;
+}
+
+.toolkit-tablist__tab.toolkit-tablist__tab--active.unity-toolbar-toggle,
+.toolkit-tablist__tab.toolkit-tablist__tab--active.unity-toolbar-toggle:hover,
+.toolkit-tablist__tab.toolkit-tablist__tab--active.unity-toolbar-toggle:checked,
+.toolkit-tablist__tab.toolkit-tablist__tab--active.unity-toolbar-toggle:checked:hover {
+    background-color: var(--toolkit-raised);
+    color: var(--toolkit-text);
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+}
+
+.toolkit-tablist__tab.toolkit-tablist__tab--active .unity-toggle__text {
+    color: var(--toolkit-text);
+}
+
+/* B. Segmented control */
+.toolkit-segmented {
+    flex-direction: row;
+    flex-grow: 0;
+    flex-shrink: 0;
+    align-self: center;
+    background-color: var(--toolkit-field);
+    border-width: 1px;
+    border-color: var(--toolkit-divider);
+    border-radius: var(--toolkit-radius-card);
+    padding: 2px;
+}
+
+.toolkit-segmented__item.unity-button,
+.toolkit-segmented__item.unity-button:hover {
+    height: var(--toolkit-height-field);
+    min-height: var(--toolkit-height-field);
+    margin: 0 2px 0 0;
+    padding: 0 8px;
+    border-width: 0;
+    border-radius: var(--toolkit-radius-field);
+    background-color: transparent;
+    color: var(--toolkit-color-muted);
+    font-size: var(--toolkit-text-meta);
+    -unity-font-style: normal;
+}
+
+.toolkit-segmented__item.unity-button:hover {
+    background-color: var(--toolkit-hover);
+    color: var(--toolkit-text);
+}
+
+.toolkit-segmented__item.toolkit-segmented__item--on.unity-button,
+.toolkit-segmented__item.toolkit-segmented__item--on.unity-button:hover {
+    background-color: var(--toolkit-raised);
+    color: var(--toolkit-text);
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+}
+
+/* C. Buttons */
+.toolkit-primary-action.unity-button {
+    background-color: var(--unity-colors-default-text);
+    color: var(--unity-colors-default-background);
+    height: var(--toolkit-height-primary);
+    min-height: var(--toolkit-height-primary);
+    padding: 0 12px;
+    border-width: 0;
+    border-radius: var(--toolkit-radius-button);
+    font-size: var(--toolkit-text-body);
+    -unity-font-style: bold;
+}
+
+.toolkit-primary-action.unity-button .toolkit-icon-button__label {
+    color: var(--unity-colors-default-background);
+    -unity-font-style: bold;
+}
+
+.toolkit-primary-action.unity-button .toolkit-icon-button__icon {
+    -unity-background-image-tint-color: var(--unity-colors-default-background);
+    opacity: 1;
+}
+
+.toolkit-primary-action.unity-button:hover {
+    opacity: 0.9;
+}
+
+.toolkit-primary-action.unity-button:disabled,
+.toolkit-primary-action.unity-button:disabled:hover {
+    opacity: 0.4;
+}
+
+.toolkit-button--secondary.unity-button {
+    background-color: transparent;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    color: var(--toolkit-text);
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0 10px;
+    border-radius: var(--toolkit-radius-button);
+    font-size: var(--toolkit-text-body);
+}
+
+.toolkit-button--secondary.unity-button:hover {
+    background-color: var(--toolkit-hover);
+}
+
+.toolkit-button--secondary.unity-button:disabled,
+.toolkit-button--secondary.unity-button:disabled:hover {
+    opacity: 0.4;
+}
+
+.toolkit-button--ghost.unity-button {
+    background-color: transparent;
+    border-width: 0;
+    color: var(--toolkit-label);
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0 8px;
+    border-radius: var(--toolkit-radius-button);
+    font-size: var(--toolkit-text-body);
+}
+
+.toolkit-button--ghost.unity-button:hover {
+    background-color: var(--toolkit-hover);
+    color: var(--toolkit-text);
+}
+
+.toolkit-button--ghost.unity-button:disabled,
+.toolkit-button--ghost.unity-button:disabled:hover {
+    opacity: 0.4;
+}
+
+.toolkit-button--destructive.unity-button,
+.toolkit-button--destructive.unity-button:hover {
+    color: var(--toolkit-color-error);
+}
+
+.toolkit-button--destructive.unity-button .toolkit-icon-button__label {
+    color: var(--toolkit-color-error);
+}
+
+.toolkit-button--destructive.unity-button:disabled,
+.toolkit-button--destructive.unity-button:disabled:hover {
+    opacity: 0.4;
+}
+
+/* D. List rows */
+.toolkit-list-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: var(--toolkit-height-row);
+    padding: 0 var(--toolkit-inset);
+    margin: 0;
+    border-width: 0;
+    border-radius: 0;
+    background-color: transparent;
+}
+
+.toolkit-list-row:hover {
+    background-color: var(--toolkit-hover);
+}
+
+.toolkit-list-row.toolkit-list-row--selected,
+.toolkit-list-row.toolkit-list-row--selected:hover,
+.toolkit-list-row.toolkit-box--selected,
+.toolkit-list-row.toolkit-box--selected:hover {
+    background-color: var(--toolkit-selection);
+}
+
+.toolkit-list-row__title.unity-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0;
+    padding: 0;
+    font-size: var(--toolkit-text-body);
+    color: var(--toolkit-text);
+    -unity-text-align: middle-left;
+}
+
+.toolkit-list-row__meta.unity-label {
+    flex-grow: 0;
+    flex-shrink: 1;
+    margin: 0 0 0 8px;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--toolkit-text-meta);
+    color: var(--toolkit-color-muted);
+    -unity-text-align: middle-right;
+}
+
+/* E. Card */
+.toolkit-card {
+    flex-direction: column;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-card);
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.toolkit-card__header {
+    flex-direction: row;
+    align-items: center;
+    height: var(--toolkit-height-primary);
+    min-height: var(--toolkit-height-primary);
+    padding: 0 10px;
+    background-color: var(--toolkit-raised);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--toolkit-color-hairline);
+}
+
+.toolkit-card__title.unity-label {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--toolkit-text-title);
+    -unity-font-style: bold;
+    color: var(--toolkit-text);
+    margin: 0;
+    padding: 0;
+}
+
+.toolkit-card__actions {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.toolkit-card__body {
+    flex-direction: column;
+    padding: 8px 10px;
+}
+
+.toolkit-card__body > * {
+    margin-bottom: 4px;
+}
+
+/* F. Badge */
+.toolkit-badge.unity-label {
+    align-self: flex-start;
+    height: 18px;
+    min-height: 18px;
+    padding: 0 6px;
+    margin: 0;
+    border-width: 1px;
+    border-radius: 9px;
+    font-size: var(--toolkit-text-meta);
+    -unity-text-align: middle-center;
+}
+
+.toolkit-badge.toolkit-badge--neutral {
+    border-color: var(--toolkit-color-hairline);
+    color: var(--toolkit-label);
+}
+
+.toolkit-badge.toolkit-badge--ok {
+    border-color: var(--toolkit-color-clean);
+    color: var(--toolkit-color-clean);
+}
+
+.toolkit-badge.toolkit-badge--warning {
+    border-color: var(--toolkit-color-warning);
+    color: var(--toolkit-color-warning);
+}
+
+.toolkit-badge.toolkit-badge--error {
+    border-color: var(--toolkit-color-error);
+    color: var(--toolkit-color-error);
+}
+
+/* G. Empty state */
+.toolkit-empty {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    padding: 24px;
+}
+
+.toolkit-empty__title.unity-label {
+    font-size: var(--toolkit-text-title);
+    -unity-font-style: bold;
+    color: var(--toolkit-text);
+    margin: 0 0 4px 0;
+    -unity-text-align: middle-center;
+}
+
+.toolkit-empty__why.unity-label {
+    font-size: var(--toolkit-text-body);
+    color: var(--toolkit-color-muted);
+    white-space: normal;
+    -unity-text-align: middle-center;
+    margin: 0 0 12px 0;
+}
+
+.toolkit-empty__action {
+    margin: 0;
+}
+
+/* H. Property row */
+.toolkit-property-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: var(--toolkit-height-field);
+    margin: 0 0 2px 0;
+}
+
+.toolkit-property-row__label.unity-label {
+    width: 112px;
+    min-width: 112px;
+    max-width: 112px;
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0 8px 0 0;
+    padding: 0;
+    font-size: var(--toolkit-text-body);
+    color: var(--toolkit-label);
+    -unity-text-align: middle-left;
+}
+
+.toolkit-property-row__field {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0;
+}

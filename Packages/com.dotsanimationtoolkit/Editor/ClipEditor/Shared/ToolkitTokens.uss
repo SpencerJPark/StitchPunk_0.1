@@ -1,0 +1,44 @@
+/* Copyright (c) 2026 Spencer Park. All rights reserved. */
+
+/*
+ * Design tokens only, no component rules. Values and roles: Docs/AnimationToolkit/EditorStyleGuide.md, section 2.
+ * Neutrals alias Unity's theme variables so the light skin follows; a var() inside a custom property
+ * resolves in an editor panel (probed 2026-09-15), but a detached element outside a panel has no theme.
+ */
+:root {
+    --toolkit-surface: var(--unity-colors-default-background);
+    --toolkit-window: var(--unity-colors-window-background);
+    --toolkit-raised: var(--unity-colors-inspector_titlebar-background);
+
+    --toolkit-divider: var(--unity-colors-default-border);
+    --toolkit-field: var(--unity-colors-input_field-background);
+    --toolkit-field-border: var(--unity-colors-input_field-border);
+
+    --toolkit-text: var(--unity-colors-default-text);
+    --toolkit-label: var(--unity-colors-label-text);
+    --toolkit-color-muted: rgb(143, 143, 143);
+
+    --toolkit-selection: var(--unity-colors-highlight-background);
+    --toolkit-hover: var(--unity-colors-highlight-background-hover);
+    --toolkit-color-hairline: rgba(255, 255, 255, 0.08);
+    --toolkit-color-focus: rgb(77, 158, 242);
+
+    --toolkit-text-meta: 11px;
+    --toolkit-text-body: 12px;
+    --toolkit-text-title: 13px;
+    --toolkit-text-detail: 16px;
+
+    --toolkit-height-field: 20px;
+    --toolkit-height-row: 22px;
+    --toolkit-height-control: 24px;
+    --toolkit-height-primary: 28px;
+    --toolkit-height-pane-header: 32px;
+    --toolkit-height-asset-bar: 36px;
+
+    --toolkit-inset: 12px;
+
+    --toolkit-radius-field: 4px;
+    --toolkit-radius-button: 5px;
+    --toolkit-radius-card: 6px;
+    --toolkit-radius-track: 7px;
+}
