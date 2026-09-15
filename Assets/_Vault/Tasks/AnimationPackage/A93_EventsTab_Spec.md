@@ -210,3 +210,23 @@ and `AssetReferenceIndex.Rebuilt`, `Dispose`.
 ## 7. Build log
 
 - **2026-09-14 — stage Phase 0 (parallel batch A93–A95, stage orchestrator).** Baseline at `bdd439b9`: compile clean; EditMode 840 (standing `Conformance_A` failure only), PlayMode 285. CHANGELOG top is `## [0.39.0]`. A88 T9 and A92 T10 were unanswered at batch start. Registry sha256: event keys `3bdb420d…d14701`, tags `dbec3d5f…d1eb4f`. T0 (no-Unity part), T1, the wave and the fixtures run under a `spec-lead` in its own worktree; window wiring, CHANGELOG, `package.json`, conformance pin, drive, vault, HANDOFF and close stay with the stage orchestrator.
+- **2026-09-14 — T0 (spec-lead, worktree `spec/a93`, grep only).** Drifts, each settled here:
+  1. **Minting call is `IVocabularyRegistry.CreateVocabularyEntry(string name)`**, not a `Mint*` name, and it already falls back to the lowest free pulse-only key above 79. D3 is that one call plus `VocabularyRegistryProvider.Persist`. The registry editor names new rows `"NewEvent"`; the column does the same.
+  2. **D2 → new `EventKeyCatalogColumn`.** `ToolkitCatalogColumn<TAsset>` is constrained to `UnityEngine.Object` (`SelectedAsset`, `Select(TAsset)`, `AssetSelected`). Widening it would edit A82's shared column mid-batch while A94/A95 consume it, so the Events column copies its styling instead.
+  3. **4.2's `in` blob parameter is `ref`,** matching `ClipRegistryApi`. Reading a `BlobArray` through an `in` reference makes defensive copies whose relative offsets point at garbage. `ref` still satisfies BC1064.
+  4. **Blob layout:** `keyStarts` holds `keys.Length + 1` entries, ending with `routes.Length`, so count = `keyStarts[i+1] - keyStarts[i]`. Routes sort by `(eventKey, kind, routeId)`. Sorting by key alone would leave same-key order list-dependent and fail T3's determinism fixture.
+  5. **T3:** `BlobSignature.Describe` only takes `ClipRegistryBlob`. The fixture compares the two routing blobs field by field inside its own file; the shared helper is not edited.
+  6. **T2:** `BlobAssetReferenceScope` is `ClipRegistryBlob`-only. The fixture disposes in `try/finally`.
+  7. **T5:** `ActorProfileAssetUtility` calls `AssetDatabase.SaveAssets`. The routing utility uses `SetDirty` + `SaveAssetIfDirty` instead, because `SaveAssets` flushes the owner's unsaved editor state (A84/A92 trap).
+  8. **D4 surface grew:**
+     - `FindDefault()` finds an existing `AnimEventRoutingAsset` anywhere by `FindAssets` and never creates one, so opening the tab writes nothing.
+     - `GetOrCreateDefault()` runs only on the first `+ route`.
+     - Added `RoutesForKey`, and `RoutingChanged` raised by `Persist`.
+  9. **4.8 uses two `CoverPaneSplitView`s, not three:** outer `Events.Keys` (keys | rest), inner `Events.Inspector` (inspector | routes). Three columns need two dividers.
+  10. **D9 "Generate Constants" is not a standalone action** in the registry editor. It is `VocabularyConstantsSection.RegenerateIfConfigured()`. The column builds a detached section with the editor's own arguments (`registry, registry, "AnimEvents", "Event", "Event", persist`).
+  11. **T6 surface grew:** `SystemTypeName`, `CollectKindsUsed` and `FolderPrefsKey` added. `WriteToFolder(folder, systemName, kinds)` returns the written path and writes through `ConstantsGenerator.WriteGeneratedFile`.
+  12. **`EventPayloadFieldBuilder` builds a marker's value field, not a schema editor.** The inspector edits the schema with plain fields and shows a marker preview built by `BuildIntField`/`BuildFloatField`.
+  13. **T10 gets no fixture.** Selection-to-inspector is plain event forwarding, and `Bind()` reads the project registry, which fixtures may not touch.
+  14. **Package `.meta` files are tracked.** The lead writes a meta for every new file and for `Editor/Events/`.
+  15. **Batch contract:** T11 writes only `Documentation~/events-tab.md`; the CHANGELOG text lives in For integration.
+- **T1 (spec-lead).** Wrote the three shared types (4.1, singleton field `Value` as `ClipRegistry`). Committed stubs for every cross-worker surface: `AnimEventRoutingBuilder`, `AnimEventRoutingAssetUtility`, `AnimEventConsumerStubBuilder`, and the three `Editor/Events/` columns.
