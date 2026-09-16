@@ -745,6 +745,12 @@
     margin-left: 6px;
 }
 
+/* With no clip there are no lanes to read, so the empty state covers the playhead and range lines
+   rather than letting them strike through its text. */
+.clip-editor__timeline-empty {
+    background-color: var(--toolkit-surface);
+}
+
 .clip-editor__hierarchy {
     flex-grow: 1;
 }

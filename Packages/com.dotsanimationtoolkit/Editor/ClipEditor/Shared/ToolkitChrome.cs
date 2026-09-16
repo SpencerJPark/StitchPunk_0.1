@@ -381,11 +381,11 @@ namespace DotsAnimationToolkit.Editor
 
             Label label = new Label(labelText);
             label.AddToClassList(PropertyRowLabelClassName);
-            // R01: the label column is a fixed 112px, so a long label ellipsizes -- "Default Linear
-            // Da...", "Full Precision (RG...". An ellipsis is only allowed to hide text that a
-            // tooltip can still recover, and most call sites have no tooltip of their own to give,
-            // so the label's own words are the fallback rather than nothing.
+            // R01: an ellipsis may only hide text a tooltip can recover. The column now widens to
+            // its longest label, but past the cap a label still ellipsizes, so the fallback stays.
             label.tooltip = string.IsNullOrEmpty(tooltip) ? labelText : tooltip;
+            label.RegisterCallback<AttachToPanelEvent>(attachEvent =>
+                label.schedule.Execute(() => AlignPropertyLabelColumn(label)));
 
             if (field != null)
             {
@@ -395,6 +395,54 @@ namespace DotsAnimationToolkit.Editor
             row.Add(label);
             row.Add(field);
             return row;
+        }
+
+        // One label column per stack of cards (or per parent, outside a card), sized to its longest label
+        // between the USS floor and a cap, so "Default Linear Damping" reads whole instead of
+        // every tab sharing one 112px column sized for the shortest words.
+        private const float PropertyLabelColumnMinimumWidth = 112f;
+        private const float PropertyLabelColumnMaximumWidth = 176f;
+
+        private static void AlignPropertyLabelColumn(Label attachedLabel)
+        {
+            VisualElement row = attachedLabel.parent;
+            if (row == null || attachedLabel.panel == null)
+            {
+                return;
+            }
+
+            // Cards stacked in one column share a column, so their fields line up card to card.
+            VisualElement labelGroup = row.parent;
+            for (VisualElement ancestor = row.parent; ancestor != null; ancestor = ancestor.parent)
+            {
+                if (ancestor.ClassListContains(CardClassName))
+                {
+                    labelGroup = ancestor.parent ?? ancestor;
+                    break;
+                }
+            }
+
+            if (labelGroup == null)
+            {
+                return;
+            }
+
+            List<Label> groupLabels = labelGroup.Query<Label>(className: PropertyRowLabelClassName).ToList();
+            float widestLabelWidth = PropertyLabelColumnMinimumWidth;
+            foreach (Label groupLabel in groupLabels)
+            {
+                Vector2 measuredSize = groupLabel.MeasureTextSize(groupLabel.text, 0f, VisualElement.MeasureMode.Undefined, 0f, VisualElement.MeasureMode.Undefined);
+                // A ceiling, not a round: a fractional measure truncated down ellipsizes the last glyph.
+                widestLabelWidth = Mathf.Max(widestLabelWidth, Mathf.Ceil(measuredSize.x) + 2f);
+            }
+
+            float columnWidth = Mathf.Min(widestLabelWidth, PropertyLabelColumnMaximumWidth);
+            foreach (Label groupLabel in groupLabels)
+            {
+                groupLabel.style.width = columnWidth;
+                groupLabel.style.minWidth = columnWidth;
+                groupLabel.style.maxWidth = columnWidth;
+            }
         }
     }
 }

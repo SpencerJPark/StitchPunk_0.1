@@ -1055,20 +1055,30 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement BuildSocketDirectoryRow(RigAsset rig, SocketDefinition socket)
         {
-            VisualElement row = new VisualElement();
-            row.AddToClassList(ComponentBlockUssClassName);
-            row.Add(ClipInspectorPane.MakeHeading(hierarchyPane.DescribeSocketLabel(socket)));
-
             int sourceItemId;
             if (hierarchyPane.TryFindSocketSourceItemId(socket.Id.Value, out sourceItemId))
             {
-                row.Add(new Button(() => SelectSocketSource(socket))
+                // A resolved socket is one line, name and a small action, like any list row; the
+                // boxed block with a full-width button is kept for the unresolved case that edits.
+                VisualElement resolvedRow = new VisualElement();
+                resolvedRow.AddToClassList("toolkit-list-row");
+                Label socketLabel = new Label(hierarchyPane.DescribeSocketLabel(socket));
+                socketLabel.AddToClassList("toolkit-list-row__title");
+                resolvedRow.Add(socketLabel);
+                Button selectSourceButton = new Button(() => SelectSocketSource(socket))
                 {
-                    text = "Select Source",
+                    text = "Select",
                     tooltip = "Selects the object this socket follows and opens it here."
-                });
-                return row;
+                };
+                ToolkitChrome.StyleButton(selectSourceButton, ToolkitButtonVariant.Secondary);
+                selectSourceButton.style.flexShrink = 0f;
+                resolvedRow.Add(selectSourceButton);
+                return resolvedRow;
             }
+
+            VisualElement row = new VisualElement();
+            row.AddToClassList(ComponentBlockUssClassName);
+            row.Add(ClipInspectorPane.MakeHeading(hierarchyPane.DescribeSocketLabel(socket)));
 
             row.Add(ClipInspectorPane.MakeHint(
                 "Follows nothing this rig has, so it has no object to be edited on. Rebind it "

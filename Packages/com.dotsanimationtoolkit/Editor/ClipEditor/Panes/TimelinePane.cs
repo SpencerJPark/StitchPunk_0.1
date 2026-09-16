@@ -85,6 +85,8 @@ namespace DotsAnimationToolkit.Editor
         private TimeRulerElement ruler;
         private PlayheadElement playhead;
         private Label statusLabel;
+        private VisualElement timelineEmptyState;
+        private const float TimelineEmptyStateRulerClearance = 24f;
 
         /// <summary>Rebuilt per paste, which is once per keystroke and not per frame.</summary>
         private readonly List<ClipObjectRef> pasteDestinations = new List<ClipObjectRef>();
@@ -266,9 +268,49 @@ namespace DotsAnimationToolkit.Editor
             get { return selection != null ? selection.Rig : null; }
         }
 
+        // An overlay rather than a child of the lanes: the lane stack scrolls horizontally, so a
+        // message inside it could centre off-screen. Pinned under the ruler, never catching a click.
+        private void BindTimelineEmptyState(VisualElement paneRoot)
+        {
+            ScrollView timelineScroll = paneRoot.Q<ScrollView>("timeline-scroll");
+            if (timelineScroll == null || timelineScroll.parent == null)
+            {
+                return;
+            }
+
+            timelineEmptyState = ToolkitChrome.MakeEmptyState(
+                "timeline-empty-state",
+                "No clip selected",
+                "Pick a clip in the Clips list to see its tracks, or press New to make one.",
+                null,
+                null);
+            timelineEmptyState.style.position = Position.Absolute;
+            timelineEmptyState.style.left = 0f;
+            timelineEmptyState.style.right = 0f;
+            timelineEmptyState.style.bottom = 0f;
+            timelineEmptyState.AddToClassList("clip-editor__timeline-empty");
+            timelineEmptyState.pickingMode = PickingMode.Ignore;
+            foreach (VisualElement emptyStateChild in timelineEmptyState.Children())
+            {
+                emptyStateChild.pickingMode = PickingMode.Ignore;
+            }
+            timelineScroll.parent.Add(timelineEmptyState);
+            timelineScroll.RegisterCallback<GeometryChangedEvent>(geometryEvent =>
+                timelineEmptyState.style.top = timelineScroll.layout.y + TimelineEmptyStateRulerClearance);
+        }
+
+        private void ShowTimelineEmptyState(bool isShown)
+        {
+            if (timelineEmptyState != null)
+            {
+                timelineEmptyState.style.display = isShown ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+        }
+
         private void BindTimeline(VisualElement paneRoot)
         {
             statusLabel = paneRoot.Q<Label>("timeline-status");
+            BindTimelineEmptyState(paneRoot);
             trackHeaderColumn = paneRoot.Q<VisualElement>("track-header-column");
             laneColumn = paneRoot.Q<VisualElement>("lane-column");
             BindTrackHeaderResizer(paneRoot);
@@ -439,11 +481,14 @@ namespace DotsAnimationToolkit.Editor
             if (session.SelectedClip == null)
             {
                 statusLabel.text = selection.ClipSet == null ? "Assign a clip set." : "Select a clip.";
+                ShowTimelineEmptyState(true);
                 timelineRowCount = 0;
                 SyncGhostLanes();
                 RebuildInspector();
                 return;
             }
+
+            ShowTimelineEmptyState(false);
 
             // Focus mode: with a selection, the timeline shows only that selection's tracks. It is
             // what makes a busy clip readable — but a row that has silently vanished is worse than a

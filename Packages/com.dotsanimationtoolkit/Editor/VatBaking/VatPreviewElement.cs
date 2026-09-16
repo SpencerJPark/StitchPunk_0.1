@@ -124,6 +124,9 @@ namespace DotsAnimationToolkit.Editor
 
             statusLabel = new Label("No VAT texture set to preview.");
             statusLabel.style.whiteSpace = WhiteSpace.Normal;
+            statusLabel.AddToClassList("toolkit-hint");
+            statusLabel.style.marginLeft = 8f;
+            statusLabel.style.marginTop = 4f;
             Add(statusLabel);
 
             VisualElement transportRow = new VisualElement();

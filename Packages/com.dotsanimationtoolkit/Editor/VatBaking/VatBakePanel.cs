@@ -192,11 +192,10 @@ namespace DotsAnimationToolkit.Editor
                 previewSetField,
                 "The baked set shown in the preview on the right. Filled automatically after a bake, or pick one by hand."));
 
-            root.Add(ToolkitChrome.MakeHeading("Bake"));
-
+            // No second "Bake" heading: the pane title and the button already say it twice.
             Button bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB", "Bake every VAT-bound clip in the set to textures.", "Bake");
-            bakeButton.style.marginTop = 4f;
+            bakeButton.style.marginTop = 8f;
             root.Add(bakeButton);
 
             logView = new ScrollView();

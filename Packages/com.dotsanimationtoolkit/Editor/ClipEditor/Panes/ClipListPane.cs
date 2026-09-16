@@ -13,7 +13,9 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>The Clips pane: the Clip Set field, the clip list and its New/Delete buttons; it selects clips through the shared session and never touches another pane.</summary>
     public sealed class ClipListPane : VisualElement, IDisposable
     {
-        private const string ClipRowUssClassName = "clip-editor__clip-row";
+        private const string ClipRowBoxName = "clip-row-box";
+        private const string ClipRowTitleName = "clip-row-title";
+        private const string ClipRowInfoName = "clip-row-info";
 
         private ObjectField clipSetField;
         private ListView clipListView;
@@ -46,6 +48,7 @@ namespace DotsAnimationToolkit.Editor
                 if (newClipButton != null)
                 {
                     newClipButton.clicked += CreateClip;
+                    ToolkitIcons.SetButtonIconAndText(newClipButton, ToolkitIcons.Plus, "New");
                     newClipButton.tooltip =
                         "Create a clip beside the clip set on disk, using the set's rig, and add it to "
                         + "the set.";
@@ -55,6 +58,7 @@ namespace DotsAnimationToolkit.Editor
                 if (deleteClipButton != null)
                 {
                     deleteClipButton.clicked += DeleteSelectedClip;
+                    ToolkitIcons.SetButtonIconAndText(deleteClipButton, ToolkitIcons.Trash, "Delete");
                     deleteClipButton.tooltip =
                         "Remove the selected clip from the set, and optionally send its asset to the "
                         + "trash. Asks first.";
@@ -63,7 +67,8 @@ namespace DotsAnimationToolkit.Editor
                 clipListView = paneRoot.Q<ListView>("clip-list");
                 if (clipListView != null)
                 {
-                    clipListView.fixedItemHeight = 20f;
+                    // Matches the shared list row, a flat 22px line (see ToolkitCatalogColumn).
+                    clipListView.fixedItemHeight = 22f;
                     clipListView.selectionType = SelectionType.Single;
                     clipListView.makeItem = MakeClipRow;
                     clipListView.bindItem = BindClipRow;
@@ -129,6 +134,8 @@ namespace DotsAnimationToolkit.Editor
         private void OnSelectedClipChanged(ClipAsset clip)
         {
             RefreshClipActionButtons();
+            // The selected tone is a class on the row, so rows re-bind to move it.
+            clipListView?.RefreshItems();
         }
 
         // Creates a clip in the assigned set and selects it, ready to author. Shared with the clip
@@ -256,21 +263,49 @@ namespace DotsAnimationToolkit.Editor
 
         private static VisualElement MakeClipRow()
         {
-            Label label = new Label();
-            label.AddToClassList(ClipRowUssClassName);
-            return label;
+            // Why a slot around a row: ToolkitChrome.MakeListRowSlot.
+            VisualElement itemSlot = ToolkitChrome.MakeListRowSlot(ClipRowBoxName, out VisualElement row);
+
+            Label titleLabel = new Label { name = ClipRowTitleName };
+            titleLabel.AddToClassList("toolkit-list-row__title");
+            row.Add(titleLabel);
+
+            Label infoLabel = new Label { name = ClipRowInfoName };
+            infoLabel.AddToClassList("toolkit-list-row__meta");
+            row.Add(infoLabel);
+
+            return itemSlot;
         }
 
         private void BindClipRow(VisualElement element, int index)
         {
-            Label label = element as Label;
-            if (label == null || selection.ClipSet == null || selection.ClipSet.clips == null
+            VisualElement row = element.Q<VisualElement>(ClipRowBoxName);
+            if (row == null || selection.ClipSet == null || selection.ClipSet.clips == null
                 || index >= selection.ClipSet.clips.Count)
             {
                 return;
             }
+
             ClipAsset clip = selection.ClipSet.clips[index];
-            label.text = clip != null ? clip.name : "<missing>";
+            Label titleLabel = row.Q<Label>(ClipRowTitleName);
+            Label infoLabel = row.Q<Label>(ClipRowInfoName);
+            titleLabel.text = clip != null ? clip.name : "<missing>";
+            infoLabel.text = clip != null ? DescribeClip(clip) : "missing asset";
+            row.tooltip = clip != null ? clip.name + System.Environment.NewLine + infoLabel.text : "This slot's clip asset is missing.";
+            row.EnableInClassList("toolkit-list-row--selected", clip != null && clip == session.SelectedClip);
+        }
+
+        private static string DescribeClip(ClipAsset clip)
+        {
+            int trackCount = CountOrZero(clip.transformTracks) + CountOrZero(clip.spriteTracks)
+                + CountOrZero(clip.boneTracks) + CountOrZero(clip.vatTracks) + CountOrZero(clip.billboardTracks);
+            string trackWord = trackCount == 1 ? "track" : "tracks";
+            return clip.duration.ToString("0.##") + " s · " + trackCount + " " + trackWord;
+        }
+
+        private static int CountOrZero(System.Collections.ICollection collection)
+        {
+            return collection != null ? collection.Count : 0;
         }
 
         private void OnClipSelectionChanged(IEnumerable<object> selection)

@@ -49,32 +49,34 @@ namespace DotsAnimationToolkit.Editor
             cameraNavigation = new PreviewCameraNavigation();
             dragSession = new RagdollBoxDragSession();
 
-            VisualElement headerRow = ToolkitChrome.MakePaneHeader("Viewport", out _, out _);
-            Add(headerRow);
-
-            VisualElement toolbarRow = new VisualElement();
-            toolbarRow.style.flexDirection = FlexDirection.Row;
-            transport = new TransportCoreElement();
-            transport.name = "ragdoll-transport";
-            transport.Bind(this);
-            toolbarRow.Add(transport);
+            // Transport sits under the viewport as on every other tab that plays; the ground choice is
+            // a viewport setting, so it rides the pane header.
+            VisualElement headerRow = ToolkitChrome.MakePaneHeader("Viewport", out _, out VisualElement headerActions);
             groundField = new PopupField<string>(BuildGroundChoices(), 0);
             groundField.name = "ragdoll-ground-field";
             groundField.RegisterValueChangedCallback(OnGroundFieldChanged);
-            toolbarRow.Add(groundField);
-            Add(toolbarRow);
+            headerActions.Add(groundField);
+            Add(headerRow);
 
             VisualElement poseRow = new VisualElement();
             poseRow.name = "ragdoll-pose-row";
             poseRow.style.flexDirection = FlexDirection.Row;
+            poseRow.style.alignItems = Align.Center;
+            poseRow.style.paddingLeft = 6f;
+            poseRow.style.paddingRight = 8f;
+            poseRow.style.paddingBottom = 4f;
             poseFromClipToggle = new Toggle("Pose from clip");
             poseFromClipToggle.name = "ragdoll-pose-from-clip-toggle";
             poseFromClipToggle.tooltip = DropTooltip;
             poseRow.Add(poseFromClipToggle);
             poseClipLabel = new Label("No clip bound");
             poseClipLabel.tooltip = DropTooltip;
+            poseClipLabel.AddToClassList("toolkit-hint");
+            poseClipLabel.style.marginLeft = 8f;
+            poseClipLabel.style.marginRight = 8f;
             poseRow.Add(poseClipLabel);
             poseTimeSlider = new Slider(0f, 1f);
+            poseTimeSlider.style.flexGrow = 1f;
             poseTimeSlider.name = "ragdoll-pose-time-slider";
             poseTimeSlider.tooltip = DropTooltip;
             poseTimeSlider.RegisterValueChangedCallback(OnPoseTimeSliderChanged);
@@ -90,6 +92,17 @@ namespace DotsAnimationToolkit.Editor
             viewportImage.RegisterCallback<PointerMoveEvent>(OnViewportPointerMove);
             viewportImage.RegisterCallback<PointerUpEvent>(OnViewportPointerUp);
             Add(viewportFrame);
+
+            VisualElement transportRow = new VisualElement();
+            transportRow.AddToClassList("toolkit-transport");
+            VisualElement transportGroup = new VisualElement();
+            transportGroup.AddToClassList("toolkit-transport__group");
+            transport = new TransportCoreElement();
+            transport.name = "ragdoll-transport";
+            transport.Bind(this);
+            transportGroup.Add(transport);
+            transportRow.Add(transportGroup);
+            Add(transportRow);
 
             statusLabel = ToolkitChrome.MakeHint(string.Empty);
             statusLabel.name = "ragdoll-viewport-status";
