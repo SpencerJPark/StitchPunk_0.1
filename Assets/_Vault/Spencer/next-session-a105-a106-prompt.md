@@ -126,3 +126,32 @@ own findings list, and these **batch additions**:
 - **Style guide:** SG-D1 tab list; SG-D2 hybrid surfaces; SG-D3 Unity-theme neutrals, blue for selection only;
   SG-D4 mixed density; SG-D5 judge hard; SG-D6 Rigs chips + detail card; SG-D7 Actor Profiles hover play;
   SG-D8 Texture Packer never requires a recipe.
+
+## Already done, 2026-09-15, in the A104 follow-up passes (do not repeat)
+
+The owner reviewed the built editor live and directed a restyle pass on top of A104
+(`a3c55acd`, `d8965d80`, `f4c726c0`). These are **done and committed** — read the code before
+planning, and spend A105/A106 on what is still missing rather than redoing this:
+
+- **Flat rows in six lists** — Texture Packer images, Flipbook frames, Events keys, Health
+  findings, Ragdoll bodies, Clip Sets clips. No `toolkit-box__header` band inside a row; one line,
+  name left, muted meta right, thumbnails kept at 24px on a 28px media row.
+- **Two-tone columns.** A list body carries `toolkit-list-surface`: the darker surface, a divider
+  above, and −10px side margins so it reaches the pane edge while the header and search keep their
+  inset. `CatalogSidebarElement` carries `toolkit-column--host` (no side padding) because two
+  stacked insets were what left the dark sitting in a grey gutter.
+- **A raised middle column.** `toolkit-column--raised` (`var(--toolkit-raised)`) on the Flipbooks
+  Frames column, so a tab reads as three zones: dark catalog, raised middle, window pane. **Extend
+  this deliberately** to the tabs you own — the owner asked for it by name.
+- **Say it once.** Clip Sets and Texture Packer show a folder only when it differs from the list's
+  common folder, and only that folder's own name; the full path is in the tooltip.
+- **Status reads as status.** Health's tab count takes the error colour alone (the old code tinted
+  the whole word); Ragdoll's counts are outline pill badges; Health's actions are content-sized
+  buttons, not full-width bars.
+- **Empty states.** `MakeEmptyState` now carries the Events panes, both Actor Profiles panes, the
+  Ragdoll inspector and the Capture viewport (which keeps its `NotReadyReason` separate).
+- **Flipbooks detail pane** rebuilt on `MakeCard`, with the shrink fix that stopped it overlapping.
+
+**Still open from the A104 §7 audit:** F5 (Rigs target rows → SG-D6 chips and a detail card),
+F9 (Cutscenes magenta — A107 proves the source first), Texture Packer's Recipes mode and SG-D8,
+Actor Profiles' hover play (SG-D7), and the Events footer that wraps onto two lines.

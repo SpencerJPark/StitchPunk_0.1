@@ -464,6 +464,22 @@ classes), added after the window sheet by `ToolkitChrome.AddToolkitStyleSheets(r
 - **`MakeListRowSlot` rows no longer carry `toolkit-box`.** Five callers still set `toolkit-box--selected`, so the
   shared sheet paints that class too; new code uses `toolkit-list-row--selected`. Those callers still stack their
   content, which is why Events' rows are four times too tall (A104 §7 F3).
+- **A darker list in a column needs the inset cancelled twice.** `toolkit-list-surface` paints the
+  surface tone and pulls back −10px over `toolkit-column`'s side padding, but a catalog usually sits
+  in a *second* column (`CatalogSidebarElement`), whose own padding put the dark back in a grey
+  gutter. That host carries `toolkit-column--host` (no side padding); the header and search keep
+  their own inset instead. Measure it rather than eyeballing a capture: the list's `worldBound.x`
+  and width must equal the sidebar's (0 and 364.4 in the Flipbooks pane at the owner's width).
+- **A tab reads as three zones, not two.** Dark catalog (`toolkit-list-surface`), raised middle
+  column (`toolkit-column--raised`), window-coloured working pane. The owner asked for the middle
+  tone by name on 2026-09-15; it is `var(--toolkit-raised)`, never a new colour.
+- **Default `flex-shrink: 1` is what makes a detail pane overlap itself.** In `FlipbooksPanel` the
+  hint, the object field and the settings card all shrank when the column ran short, until the
+  card's top row rendered past its own bounds. Fixed-content siblings beside a `flexGrow` region
+  take `style.flexShrink = 0f` — the repo idiom, also in `RagdollBodiesColumn` and
+  `CutsceneEditorPanel`.
+- **A dropdown with `flexGrow = 1` in a column becomes a tall empty box.** That was the Ragdoll
+  body picker the owner kept seeing above the bodies list; a control is not content.
 - **`Conformance_J` is a shrink-only ratchet** on `ClipEditorWindow.uss` (139 literals, 0 off-scale font sizes).
   Do not raise a pin to make a change fit. The `--toolkit-color-*` block stays literal on purpose:
   `ToolkitPaletteTests` mirrors it channel-for-channel against `ToolkitPalette.Tokens` in C#.
