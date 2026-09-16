@@ -518,6 +518,20 @@ route around this either — that steals input focus from whatever the owner is 
 When unfocused, report that no capture is possible rather than saving a stale image under the
 capture's filename; a stale frame with an unrelated result label is more misleading than no image.
 
+**Two more traps the A105 capture pass cost time on (2026-09-15).**
+
+- **`GrabPixels` takes its Rect in PIXELS, not points.** The owner's editor runs at
+  `EditorGUIUtility.pixelsPerPoint == 2.5`, so the view's own `position` (1382×718 points) against a
+  pixel-sized RenderTexture (3456×1795) fills only the bottom-left corner of the target and the saved
+  PNG is the bottom of the window blown up 2.5×. Size the RT in pixels **and** pass
+  `new Rect(0, 0, pixelWidth, pixelHeight)`.
+- **A synchronous `RepaintImmediately` loop does not run `EditorApplication.update`.** Every viewport
+  in this window renders on that tick (`ClipPreviewController`, `CaptureViewportElement.Tick`,
+  `ActorEditorPanel.Tick`), and their empty-state toggles ride the same tick — so a tab switched and
+  grabbed inside ONE `execute_code` call photographs an unrendered viewport and a stale overlay. It
+  reads exactly like a regression that isn't there. Switch the tab in one MCP call and grab in the
+  **next** one: the gap between calls is real wall-clock time in which the editor ticks.
+
 ## Cutscenes — traps only (shipped 0.15.0)
 
 Full reference lives in the package, not here:
