@@ -149,10 +149,18 @@ namespace DotsAnimationToolkit.Editor
             }
             else
             {
+                bool hasSeveralKinds = distinctKindsInEnumOrder.Count > 1;
                 foreach (TargetKind kind in distinctKindsInEnumOrder)
                 {
-                    Label sectionLabel = new Label(DisplayNameForTargetKind(kind));
-                    bodyScrollView.Add(sectionLabel);
+                    // With one kind the card's Kind row already names it, and a header here would
+                    // just repeat the word. With several, each property group needs to say which
+                    // kind it belongs to, because the rows below never name it themselves.
+                    if (hasSeveralKinds)
+                    {
+                        Label kindSectionLabel = new Label(DisplayNameForTargetKind(kind));
+                        kindSectionLabel.AddToClassList("toolkit-heading");
+                        bodyScrollView.Add(kindSectionLabel);
+                    }
 
                     List<ContractPropertyStatus> propertyStatuses = new List<ContractPropertyStatus>();
                     MaterialContractValidation.EvaluateProperties(material, kind, propertyStatuses);

@@ -498,8 +498,11 @@ namespace DotsAnimationToolkit.Editor
 
             Toggle rowToggle = new Toggle(rowTitleText) { value = ticked };
             rowToggle.tooltip = sourceRow.SourceNodePath;
-            rowToggle.style.flexGrow = 1f;
-            rowToggle.style.flexShrink = 1f;
+            // Fixed width, not flexGrow, so the name column lands at the same x on every row and
+            // the Kind/Tag chips line up in straight columns instead of zig-zagging down the list.
+            rowToggle.style.width = 200f;
+            rowToggle.style.flexGrow = 0f;
+            rowToggle.style.flexShrink = 0f;
             rowToggle.style.overflow = Overflow.Hidden;
             // A deep node path is longer than the column is wide. Left to grow it pushes the tag
             // button out of the row and puts a horizontal scrollbar under the whole list.
