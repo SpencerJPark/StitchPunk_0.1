@@ -155,3 +155,25 @@ planning, and spend A105/A106 on what is still missing rather than redoing this:
 **Still open from the A104 §7 audit:** F5 (Rigs target rows → SG-D6 chips and a detail card),
 F9 (Cutscenes magenta — A107 proves the source first), Texture Packer's Recipes mode and SG-D8,
 Actor Profiles' hover play (SG-D7), and the Events footer that wraps onto two lines.
+
+### F5 (Rigs rows) — what was tried, and why it needs the detail card
+
+Three width passes were tried on 2026-09-15 and **all three were reverted or superseded**; do not
+spend a fourth on widths. The committed state (`0f5d3c6c`) is flat rows with ghost chips that show
+only on ticked rows, a fixed 200px name column, and chips at `minWidth` 100/90.
+
+Measured in the live panel at the owner's window size: **a target row is 330px wide.** A checkbox,
+a readable node name and two chips do not fit in it.
+
+- **Name fixed at 200px, chips fixed:** columns align, but the chips overflow the row — the Tag chip
+  is pushed out of sight and the list grows a horizontal scrollbar.
+- **Name flexible with `minWidth: 0`, chips fixed:** chips align, but the name collapses to an
+  ellipsis stub on exactly the ticked rows, so the thing you scan for disappears.
+- **Name floored at 120px, chips shrinkable:** nothing overflows, but the chips shrink by different
+  amounts per row (56/79 on one row, 47/66 on the next), so the columns go ragged again and the chip
+  text clips mid-word ("Kind: Quac", "ag: LeftFoo").
+
+The style guide already answers this and A105 should build **its** answer, not a width: SG-D6 is
+chips **plus a Target card** — the selected target's Kind and Tag move into a detail card beside the
+list, and the row keeps the checkbox, the name and at most a compact state chip. That is the only
+shape that fits 330px without losing the name or clipping a chip.
