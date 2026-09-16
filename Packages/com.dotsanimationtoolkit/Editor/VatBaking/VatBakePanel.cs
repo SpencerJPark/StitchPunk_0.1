@@ -146,48 +146,51 @@ namespace DotsAnimationToolkit.Editor
             VisualElement root = formColumn;
             root.Add(ToolkitChrome.MakePaneHeader("Bake", out _, out _));
 
-            root.Add(ToolkitChrome.MakeHeading("Settings"));
+            VisualElement settingsCardBody;
+            root.Add(ToolkitChrome.MakeCard("vat-bake-settings-card", "Settings", out settingsCardBody, out _));
 
-            flavorField = new EnumField("Flavor", VatFlavor.BoneMatrix)
-            {
-                tooltip = "Bone matrices are small and exact for skinned rigs. "
-                    + "Vertex positions reproduce anything, including cloth and blendshapes."
-            };
-            root.Add(flavorField);
+            flavorField = new EnumField(VatFlavor.BoneMatrix);
+            settingsCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Flavor",
+                flavorField,
+                "Bone matrices are small and exact for skinned rigs. "
+                    + "Vertex positions reproduce anything, including cloth and blendshapes."));
 
-            sampleRateField = new FloatField("Fallback Samples / Second") { value = 30f };
-            sampleRateField.tooltip =
+            sampleRateField = new FloatField { value = 30f };
+            settingsCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Fallback Samples / Second",
+                sampleRateField,
                 "Used only for a clip that carries no frame rate of its own. Every clip in a set "
-                + "bakes at its own FPS — the field in the Clip Editor's transport bar — so a set "
-                + "can hold a 12fps clip beside a 60fps one and each keeps its own row count.";
-            root.Add(sampleRateField);
+                    + "bakes at its own FPS — the field in the Clip Editor's transport bar — so a set "
+                    + "can hold a 12fps clip beside a 60fps one and each keeps its own row count."));
 
-            fullPrecisionField = new Toggle("Full Precision (RGBAFloat)");
-            fullPrecisionField.tooltip =
+            fullPrecisionField = new Toggle();
+            settingsCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Full Precision (RGBAFloat)",
+                fullPrecisionField,
                 "Doubles memory. Needed for rigs much larger than a couple of metres, where half "
-                + "precision quantisation becomes visible as stepping.";
-            root.Add(fullPrecisionField);
+                    + "precision quantisation becomes visible as stepping."));
 
-            root.Add(ToolkitChrome.MakeHeading("Output"));
+            VisualElement outputCardBody;
+            root.Add(ToolkitChrome.MakeCard("vat-bake-output-card", "Output", out outputCardBody, out _));
 
             // Left empty on purpose: a package must not hardcode a host's project folders, since
             // that would be wrong in every project organised differently.
-            outputFolderField = new TextField("Output Folder")
-            {
-                value = string.Empty,
-                tooltip = "Leave empty to write beside the clip set."
-            };
-            root.Add(outputFolderField);
+            outputFolderField = new TextField { value = string.Empty };
+            outputCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Output Folder", outputFolderField, "Leave empty to write beside the clip set."));
 
-            previewSetField = new ObjectField("Preview Set")
+            previewSetField = new ObjectField
             {
                 objectType = typeof(VatTextureSetAsset),
-                allowSceneObjects = false,
-                tooltip = "The baked set shown in the preview on the right. Filled automatically after a bake, or pick one by hand."
+                allowSceneObjects = false
             };
             previewSetField.name = "vat-preview-set-field";
             previewSetField.RegisterValueChangedCallback(OnPreviewSetFieldChanged);
-            root.Add(previewSetField);
+            outputCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Preview Set",
+                previewSetField,
+                "The baked set shown in the preview on the right. Filled automatically after a bake, or pick one by hand."));
 
             root.Add(ToolkitChrome.MakeHeading("Bake"));
 

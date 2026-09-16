@@ -381,7 +381,11 @@ namespace DotsAnimationToolkit.Editor
 
             Label label = new Label(labelText);
             label.AddToClassList(PropertyRowLabelClassName);
-            label.tooltip = tooltip;
+            // R01: the label column is a fixed 112px, so a long label ellipsizes -- "Default Linear
+            // Da...", "Full Precision (RG...". An ellipsis is only allowed to hide text that a
+            // tooltip can still recover, and most call sites have no tooltip of their own to give,
+            // so the label's own words are the fallback rather than nothing.
+            label.tooltip = string.IsNullOrEmpty(tooltip) ? labelText : tooltip;
 
             if (field != null)
             {

@@ -19,6 +19,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
     {
         private const string PackageId = "com.dotsanimationtoolkit";
         private const string StylesheetRelativePath = "Editor/ClipEditor/ClipEditorWindow.uss";
+        private const string TokensStylesheetRelativePath = "Editor/ClipEditor/Shared/ToolkitTokens.uss";
 
         private static readonly Regex TokenPattern = new Regex(
             @"--toolkit-color-([a-z-]+):\s*rgba?\(([^)]*)\)",
@@ -74,6 +75,50 @@ namespace DotsAnimationToolkit.Tests.EditMode
                     ToolkitPalette.Tokens.ContainsKey(parsedTokenName),
                     "Stylesheet declares unexpected token --toolkit-color-" + parsedTokenName);
             }
+        }
+
+        // The status hues are declared twice on purpose. ToolkitComponents.uss paints badges and the
+        // warning/error text classes from them but declares none of them, and AddToolkitStyleSheets
+        // loads only the tokens and components sheets -- so the shared layer did not stand on its
+        // own. Both current windows load ClipEditorWindow.uss first, so nothing was broken; the risk
+        // was the next window that did not. Two declarations can drift, which is what this pins.
+        [Test]
+        public void SharedTokenSheet_StatusHues_MatchToolkitPalette()
+        {
+            string tokensSheetPath = Path.Combine(
+                Path.GetFullPath("Packages/" + PackageId), TokensStylesheetRelativePath);
+            Assert.IsTrue(File.Exists(tokensSheetPath), "Missing stylesheet: " + tokensSheetPath);
+
+            string tokensSheetText = File.ReadAllText(tokensSheetPath);
+            int comparedTokenCount = 0;
+            foreach (Match tokenMatch in TokenPattern.Matches(tokensSheetText))
+            {
+                string tokenName = tokenMatch.Groups[1].Value;
+                Color32 paletteColor;
+                if (!ToolkitPalette.Tokens.TryGetValue(tokenName, out Color paletteColorValue))
+                {
+                    // The sheet also carries tokens the C# palette has no opinion about
+                    // (muted, hairline, focus); only the shared ones are mirrored.
+                    continue;
+                }
+                paletteColor = paletteColorValue;
+
+                string[] channelParts = tokenMatch.Groups[2].Value.Split(',');
+                int redChannel = Mathf.RoundToInt(float.Parse(channelParts[0].Trim(), CultureInfo.InvariantCulture));
+                int greenChannel = Mathf.RoundToInt(float.Parse(channelParts[1].Trim(), CultureInfo.InvariantCulture));
+                int blueChannel = Mathf.RoundToInt(float.Parse(channelParts[2].Trim(), CultureInfo.InvariantCulture));
+
+                Assert.AreEqual(paletteColor.r, redChannel, "ToolkitTokens.uss token " + tokenName + " red channel drifted");
+                Assert.AreEqual(paletteColor.g, greenChannel, "ToolkitTokens.uss token " + tokenName + " green channel drifted");
+                Assert.AreEqual(paletteColor.b, blueChannel, "ToolkitTokens.uss token " + tokenName + " blue channel drifted");
+                comparedTokenCount++;
+            }
+
+            Assert.GreaterOrEqual(
+                comparedTokenCount,
+                3,
+                "ToolkitTokens.uss should declare the status hues ToolkitComponents.uss paints from "
+                + "(warning, error, clean); if they were removed, the shared layer no longer stands alone.");
         }
 
         [Test]

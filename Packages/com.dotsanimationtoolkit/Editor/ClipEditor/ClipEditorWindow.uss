@@ -686,7 +686,7 @@
     right: 0;
     top: 0;
     bottom: 0;
-    background-color: rgb(56, 56, 56);
+    background-color: var(--toolkit-window);
 }
 
 /*
@@ -825,7 +825,7 @@
    buttons in the pane above. They stay Toolbar types rather than becoming Buttons so the toggle's
    :checked state still reads at a glance and the existing bindings are untouched. */
 .clip-editor__pane-chrome {
-    background-color: rgb(88, 88, 88);
+    background-color: var(--unity-colors-button-background);
     border-left-width: 1px;
     border-right-width: 1px;
     border-top-width: 1px;
@@ -841,7 +841,7 @@
 }
 
 .clip-editor__pane-chrome:hover {
-    background-color: rgb(103, 103, 103);
+    background-color: var(--unity-colors-button-hover-background);
 }
 
 /* Disabled still has to read as disabled: the chrome above paints an opaque background that would
@@ -1474,7 +1474,7 @@
     padding-right: 2px;
     padding-top: 2px;
     padding-bottom: 2px;
-    background-color: rgb(56, 56, 56);
+    background-color: var(--toolkit-window);
     border-left-width: 1px;
     border-right-width: 1px;
     border-top-width: 1px;

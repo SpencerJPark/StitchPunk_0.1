@@ -19,6 +19,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly Label titleLabel;
         private readonly VisualElement selectBodyEmptyState;
+        private readonly VisualElement bodyCard;
         private readonly VisualElement bodySection;
         private readonly VisualElement rigSettingsSection;
 
@@ -59,15 +60,13 @@ namespace DotsAnimationToolkit.Editor
                 null);
             scrollView.Add(selectBodyEmptyState);
 
-            bodySection = new VisualElement { name = "ragdoll-inspector-body-section" };
-            scrollView.Add(bodySection);
+            bodyCard = ToolkitChrome.MakeCard("ragdoll-body-card", "Body", out bodySection, out _);
+            scrollView.Add(bodyCard);
 
-            rigSettingsSection = new VisualElement { name = "ragdoll-inspector-rig-settings" };
-            Label rigSettingsTitleLabel = ToolkitChrome.MakeHeading("Rig settings");
-            rigSettingsTitleLabel.name = "ragdoll-inspector-rig-settings-title";
-            rigSettingsSection.Add(rigSettingsTitleLabel);
+            VisualElement rigSettingsCardBody;
+            rigSettingsSection = ToolkitChrome.MakeCard("ragdoll-rig-settings-card", "Rig settings", out rigSettingsCardBody, out _);
 
-            spaceField = new EnumField("Space", RagdollSpace.Planar2D) { name = "ragdoll-inspector-space" };
+            spaceField = new EnumField(RagdollSpace.Planar2D) { name = "ragdoll-inspector-space" };
             spaceField.RegisterValueChangedCallback(changeEvent =>
             {
                 if (isRefreshing)
@@ -77,35 +76,35 @@ namespace DotsAnimationToolkit.Editor
 
                 CommitRigSettings((ref RagdollRigSettings settings) => settings.space = (RagdollSpace)spaceField.value);
             });
-            rigSettingsSection.Add(spaceField);
+            rigSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Space", spaceField, string.Empty));
 
-            gravityScaleField = new FloatField("Gravity Scale") { name = "ragdoll-inspector-gravity-scale" };
+            gravityScaleField = new FloatField { name = "ragdoll-inspector-gravity-scale" };
             RegisterCommit(gravityScaleField, () => CommitRigSettings((ref RagdollRigSettings settings) => settings.gravityScale = gravityScaleField.value));
-            rigSettingsSection.Add(gravityScaleField);
+            rigSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Gravity Scale", gravityScaleField, string.Empty));
 
-            defaultLinearDampingField = new FloatField("Default Linear Damping") { name = "ragdoll-inspector-default-linear-damping" };
+            defaultLinearDampingField = new FloatField { name = "ragdoll-inspector-default-linear-damping" };
             RegisterCommit(defaultLinearDampingField, () => CommitRigSettings((ref RagdollRigSettings settings) => settings.defaultLinearDamping = defaultLinearDampingField.value));
-            rigSettingsSection.Add(defaultLinearDampingField);
+            rigSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Default Linear Damping", defaultLinearDampingField, string.Empty));
 
-            defaultAngularDampingField = new FloatField("Default Angular Damping") { name = "ragdoll-inspector-default-angular-damping" };
+            defaultAngularDampingField = new FloatField { name = "ragdoll-inspector-default-angular-damping" };
             RegisterCommit(defaultAngularDampingField, () => CommitRigSettings((ref RagdollRigSettings settings) => settings.defaultAngularDamping = defaultAngularDampingField.value));
-            rigSettingsSection.Add(defaultAngularDampingField);
+            rigSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Default Angular Damping", defaultAngularDampingField, string.Empty));
 
-            jointStiffnessField = new FloatField("Joint Stiffness") { name = "ragdoll-inspector-joint-stiffness" };
+            jointStiffnessField = new FloatField { name = "ragdoll-inspector-joint-stiffness" };
             RegisterCommit(jointStiffnessField, () => CommitRigSettings((ref RagdollRigSettings settings) => settings.jointStiffness = jointStiffnessField.value));
-            rigSettingsSection.Add(jointStiffnessField);
+            rigSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Joint Stiffness", jointStiffnessField, string.Empty));
 
-            jointDampingField = new FloatField("Joint Damping") { name = "ragdoll-inspector-joint-damping" };
+            jointDampingField = new FloatField { name = "ragdoll-inspector-joint-damping" };
             RegisterCommit(jointDampingField, () => CommitRigSettings((ref RagdollRigSettings settings) => settings.jointDamping = jointDampingField.value));
-            rigSettingsSection.Add(jointDampingField);
+            rigSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Joint Damping", jointDampingField, string.Empty));
 
-            solverIterationsField = new IntegerField("Solver Iterations") { name = "ragdoll-inspector-solver-iterations" };
+            solverIterationsField = new IntegerField { name = "ragdoll-inspector-solver-iterations" };
             RegisterCommit(solverIterationsField, () => CommitRigSettings((ref RagdollRigSettings settings) => settings.solverIterations = (byte)Mathf.Clamp(solverIterationsField.value, 1, 32)));
-            rigSettingsSection.Add(solverIterationsField);
+            rigSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Solver Iterations", solverIterationsField, string.Empty));
 
-            substepHzField = new FloatField("Substep Hz") { name = "ragdoll-inspector-substep-hz" };
+            substepHzField = new FloatField { name = "ragdoll-inspector-substep-hz" };
             RegisterCommit(substepHzField, () => CommitRigSettings((ref RagdollRigSettings settings) => settings.substepHz = substepHzField.value));
-            rigSettingsSection.Add(substepHzField);
+            rigSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Substep Hz", substepHzField, string.Empty));
 
             scrollView.Add(rigSettingsSection);
         }
@@ -160,14 +159,14 @@ namespace DotsAnimationToolkit.Editor
 
             titleLabel.text = "Inspector: " + selectedBodyDefinition.displayName;
             selectBodyEmptyState.style.display = DisplayStyle.None;
-            bodySection.style.display = DisplayStyle.Flex;
+            bodyCard.style.display = DisplayStyle.Flex;
             RebuildBodySection(selectedBodyDefinition);
         }
 
         private void ShowHintOnly()
         {
             selectBodyEmptyState.style.display = DisplayStyle.Flex;
-            bodySection.style.display = DisplayStyle.None;
+            bodyCard.style.display = DisplayStyle.None;
             bodySection.Clear();
         }
 
@@ -192,75 +191,73 @@ namespace DotsAnimationToolkit.Editor
             Label nodeLabel = new Label(DescribeAddress(bodyDefinition.address)) { name = "ragdoll-inspector-node" };
             bodySection.Add(nodeLabel);
 
-            TextField nameField = new TextField("Name") { value = bodyDefinition.displayName, name = "ragdoll-inspector-name" };
+            TextField nameField = new TextField { value = bodyDefinition.displayName, name = "ragdoll-inspector-name" };
             RegisterCommit(nameField, () => CommitBodyField(body => body.displayName = nameField.value));
-            bodySection.Add(nameField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Name", nameField, string.Empty));
 
-            Vector3Field sizeField = new Vector3Field("Size") { value = ToVector3(bodyDefinition.boxSize), name = "ragdoll-inspector-size" };
+            Vector3Field sizeField = new Vector3Field { value = ToVector3(bodyDefinition.boxSize), name = "ragdoll-inspector-size" };
             RegisterCommit(sizeField, () => CommitBodyField(body => body.boxSize = ToFloat3(sizeField.value)));
-            bodySection.Add(sizeField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Size", sizeField, string.Empty));
 
-            Vector3Field centerField = new Vector3Field("Center") { value = ToVector3(bodyDefinition.boxCenter), name = "ragdoll-inspector-center" };
+            Vector3Field centerField = new Vector3Field { value = ToVector3(bodyDefinition.boxCenter), name = "ragdoll-inspector-center" };
             RegisterCommit(centerField, () => CommitBodyField(body => body.boxCenter = ToFloat3(centerField.value)));
-            bodySection.Add(centerField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Center", centerField, string.Empty));
 
-            Vector3Field rotationField = new Vector3Field("Rotation") { value = ToVector3(bodyDefinition.boxEulerAngles), name = "ragdoll-inspector-rotation" };
+            Vector3Field rotationField = new Vector3Field { value = ToVector3(bodyDefinition.boxEulerAngles), name = "ragdoll-inspector-rotation" };
             RegisterCommit(rotationField, () => CommitBodyField(body => body.boxEulerAngles = ToFloat3(rotationField.value)));
-            bodySection.Add(rotationField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Rotation", rotationField, string.Empty));
 
-            FloatField massField = new FloatField("Mass") { value = bodyDefinition.mass, name = "ragdoll-inspector-mass" };
+            FloatField massField = new FloatField { value = bodyDefinition.mass, name = "ragdoll-inspector-mass" };
             RegisterCommit(massField, () => CommitBodyField(body => body.mass = massField.value));
-            bodySection.Add(massField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Mass", massField, string.Empty));
 
-            FloatField linearDampingField = new FloatField("Linear Damping")
+            FloatField linearDampingField = new FloatField
             {
                 value = bodyDefinition.linearDamping,
-                name = "ragdoll-inspector-linear-damping",
-                tooltip = "-1 inherits the rig default below."
+                name = "ragdoll-inspector-linear-damping"
             };
             RegisterCommit(linearDampingField, () => CommitBodyField(body => body.linearDamping = linearDampingField.value));
-            bodySection.Add(linearDampingField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Linear Damping", linearDampingField, "-1 inherits the rig default below."));
 
-            FloatField angularDampingField = new FloatField("Angular Damping")
+            FloatField angularDampingField = new FloatField
             {
                 value = bodyDefinition.angularDamping,
-                name = "ragdoll-inspector-angular-damping",
-                tooltip = "-1 inherits the rig default below."
+                name = "ragdoll-inspector-angular-damping"
             };
             RegisterCommit(angularDampingField, () => CommitBodyField(body => body.angularDamping = angularDampingField.value));
-            bodySection.Add(angularDampingField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Angular Damping", angularDampingField, "-1 inherits the rig default below."));
 
-            FloatField restitutionField = new FloatField("Restitution") { value = bodyDefinition.restitution, name = "ragdoll-inspector-restitution" };
+            FloatField restitutionField = new FloatField { value = bodyDefinition.restitution, name = "ragdoll-inspector-restitution" };
             RegisterCommit(restitutionField, () => CommitBodyField(body => body.restitution = restitutionField.value));
-            bodySection.Add(restitutionField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Restitution", restitutionField, string.Empty));
 
-            FloatField frictionField = new FloatField("Friction") { value = bodyDefinition.friction, name = "ragdoll-inspector-friction" };
+            FloatField frictionField = new FloatField { value = bodyDefinition.friction, name = "ragdoll-inspector-friction" };
             RegisterCommit(frictionField, () => CommitBodyField(body => body.friction = frictionField.value));
-            bodySection.Add(frictionField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Friction", frictionField, string.Empty));
 
-            FloatField hingeMinField = new FloatField("Hinge Min") { value = bodyDefinition.limitMinDegrees, name = "ragdoll-inspector-hinge-min" };
-            FloatField hingeMaxField = new FloatField("Hinge Max") { value = bodyDefinition.limitMaxDegrees, name = "ragdoll-inspector-hinge-max" };
+            FloatField hingeMinField = new FloatField { value = bodyDefinition.limitMinDegrees, name = "ragdoll-inspector-hinge-min" };
+            FloatField hingeMaxField = new FloatField { value = bodyDefinition.limitMaxDegrees, name = "ragdoll-inspector-hinge-max" };
             RegisterCommit(hingeMinField, () => CommitHingeLimit(hingeMinField.value, hingeMaxField.value));
             RegisterCommit(hingeMaxField, () => CommitHingeLimit(hingeMinField.value, hingeMaxField.value));
-            bodySection.Add(hingeMinField);
-            bodySection.Add(hingeMaxField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Hinge Min", hingeMinField, string.Empty));
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Hinge Max", hingeMaxField, string.Empty));
 
-            FloatField swingField = new FloatField("Swing") { value = bodyDefinition.swingLimitDegrees, name = "ragdoll-inspector-swing" };
-            FloatField twistField = new FloatField("Twist") { value = bodyDefinition.twistLimitDegrees, name = "ragdoll-inspector-twist" };
+            FloatField swingField = new FloatField { value = bodyDefinition.swingLimitDegrees, name = "ragdoll-inspector-swing" };
+            FloatField twistField = new FloatField { value = bodyDefinition.twistLimitDegrees, name = "ragdoll-inspector-twist" };
             RegisterCommit(swingField, () => CommitConeLimit(swingField.value, twistField.value));
             RegisterCommit(twistField, () => CommitConeLimit(swingField.value, twistField.value));
-            bodySection.Add(swingField);
-            bodySection.Add(twistField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Swing", swingField, string.Empty));
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Twist", twistField, string.Empty));
 
-            IntegerField selfGroupField = new IntegerField("Self Group") { value = bodyDefinition.selfGroup, name = "ragdoll-inspector-self-group" };
+            IntegerField selfGroupField = new IntegerField { value = bodyDefinition.selfGroup, name = "ragdoll-inspector-self-group" };
             RegisterCommit(selfGroupField, () => CommitBodyField(body => body.selfGroup = (byte)Mathf.Clamp(selfGroupField.value, 0, 7)));
-            bodySection.Add(selfGroupField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Self Group", selfGroupField, string.Empty));
 
-            IntegerField selfCollidesWithField = new IntegerField("Self Collides With") { value = bodyDefinition.selfCollidesWith, name = "ragdoll-inspector-self-collides-with" };
+            IntegerField selfCollidesWithField = new IntegerField { value = bodyDefinition.selfCollidesWith, name = "ragdoll-inspector-self-collides-with" };
             RegisterCommit(selfCollidesWithField, () => CommitBodyField(body => body.selfCollidesWith = (byte)Mathf.Clamp(selfCollidesWithField.value, 0, 255)));
-            bodySection.Add(selfCollidesWithField);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Self Collides With", selfCollidesWithField, string.Empty));
 
-            Toggle collidesWithWorldToggle = new Toggle("Collides With World") { value = bodyDefinition.collidesWithWorld, name = "ragdoll-inspector-collides-with-world" };
+            Toggle collidesWithWorldToggle = new Toggle { value = bodyDefinition.collidesWithWorld, name = "ragdoll-inspector-collides-with-world" };
             collidesWithWorldToggle.RegisterValueChangedCallback(changeEvent =>
             {
                 if (isRefreshing)
@@ -270,7 +267,7 @@ namespace DotsAnimationToolkit.Editor
 
                 CommitBodyField(body => body.collidesWithWorld = changeEvent.newValue);
             });
-            bodySection.Add(collidesWithWorldToggle);
+            bodySection.Add(ToolkitChrome.MakePropertyRow("Collides With World", collidesWithWorldToggle, string.Empty));
         }
 
         private void RegisterCommit(VisualElement field, Action commit)

@@ -86,23 +86,25 @@ namespace DotsAnimationToolkit.Editor
 
             bodyHost = framesSplit;
 
-            filterModeField = new EnumField("Filter", FilterMode.Bilinear);
+            filterModeField = new EnumField(FilterMode.Bilinear);
             filterModeField.RegisterValueChangedCallback(OnFilterModeChanged);
 
-            wrapModeField = new EnumField("Wrap", TextureWrapMode.Clamp);
+            wrapModeField = new EnumField(TextureWrapMode.Clamp);
             wrapModeField.RegisterValueChangedCallback(OnWrapModeChanged);
 
-            generateMipsToggle = new Toggle("Mips");
+            generateMipsToggle = new Toggle();
             generateMipsToggle.RegisterValueChangedCallback(OnGenerateMipsChanged);
 
-            linearToggle = new Toggle("Linear");
+            linearToggle = new Toggle();
             linearToggle.RegisterValueChangedCallback(OnLinearChanged);
 
-            importSettingsSourceField = new ObjectField("Match import settings of")
+            const string importSettingsSourceTooltip =
+                "Bake copies this array's import settings (compression, filter, mips, sRGB). Empty uses the project defaults.";
+            importSettingsSourceField = new ObjectField
             {
                 objectType = typeof(Texture2DArray),
                 allowSceneObjects = false,
-                tooltip = "Bake copies this array's import settings (compression, filter, mips, sRGB). Empty uses the project defaults."
+                tooltip = importSettingsSourceTooltip
             };
             importSettingsSourceField.name = "flipbook-import-settings-source";
             importSettingsSourceField.RegisterValueChangedCallback(OnImportSettingsSourceChanged);
@@ -137,15 +139,12 @@ namespace DotsAnimationToolkit.Editor
                 out VisualElement importSettingsCardBody, out VisualElement importSettingsCardHeaderActions);
             importSettingsCard.style.flexShrink = 0f;
 
-            VisualElement importSettingsControlsRow = new VisualElement();
-            importSettingsControlsRow.style.flexDirection = FlexDirection.Row;
-            importSettingsControlsRow.style.flexWrap = Wrap.Wrap;
-            importSettingsControlsRow.Add(filterModeField);
-            importSettingsControlsRow.Add(wrapModeField);
-            importSettingsControlsRow.Add(generateMipsToggle);
-            importSettingsControlsRow.Add(linearToggle);
-            importSettingsCardBody.Add(importSettingsControlsRow);
-            importSettingsCardBody.Add(importSettingsSourceField);
+            importSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Filter", filterModeField, null));
+            importSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Wrap", wrapModeField, null));
+            importSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Mips", generateMipsToggle, null));
+            importSettingsCardBody.Add(ToolkitChrome.MakePropertyRow("Linear", linearToggle, null));
+            importSettingsCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Match import settings of", importSettingsSourceField, importSettingsSourceTooltip));
 
             outputPathRow = new PathPickerRowElement("Output", "Choose where the baked flipbook is written.");
             outputPathRow.BrowseRequested += OnChooseOutputPathClicked;

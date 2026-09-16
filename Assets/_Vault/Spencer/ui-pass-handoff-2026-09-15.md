@@ -79,6 +79,47 @@ After-captures in `Library/UIAudit/after/`; `now/` is what they replaced.
 Still open from A104's own audit: Texture Packer's Recipes mode (SG-D8: never require a recipe) and Actor Profiles'
 hover play (SG-D7).
 
+## 3b. The strict R01–R22 audit (2026-09-15, all fifteen tabs)
+
+SG-D5 asks every tab to be captured and audited, so all fifteen were — `Library/UIAudit/audit/`. Four read-only
+verifiers checked the rules that can be read out of code; the rest were judged from the captures.
+
+**Fixed in this pass**
+
+- **R08, three tabs.** VAT Bake ("Settings"/"Output" were bare headings over ragged fields), Ragdoll ("Rig settings"
+  likewise — and its own reference image shows it as a card), and Flipbooks, whose import row read
+  `Filter [Bilinear] Wrap [Clamp] Mips ☐ Linear ☐` so that which word labelled which control was genuinely
+  ambiguous. All three are cards over `MakePropertyRow`'s single 112px label column now.
+- **R01, everywhere at once.** A 112px label column ellipsizes a long label ("Default Linear Da…", "Full Precision
+  (RG…"), and R01 only permits an ellipsis that a tooltip can recover. Rather than patch three call sites,
+  `MakePropertyRow` now falls back to the label's own words when a caller passes no tooltip — every property row in
+  every tab, including ones not written yet.
+- **R15, four literals.** `rgb(56,56,56)` → `var(--toolkit-window)` ×2, `rgb(88,88,88)` and `rgb(103,103,103)` →
+  the Unity button variables. `Conformance_J`'s pin moved 139 → 135, which is the shrink-only direction it allows.
+  The remaining literals have no exact token — a near-match would silently change a colour, so they stay.
+- **A latent break in the shared layer.** `ToolkitComponents.uss` painted badges and warning/error text from
+  `--toolkit-color-warning/-error/-clean` but declared none of them; they lived only in `ClipEditorWindow.uss`,
+  while `AddToolkitStyleSheets` loads just the tokens and components sheets. Nothing was visibly wrong — both
+  windows load the window sheet first — but the shared layer did not stand alone, so the next window that forgot
+  it would have lost every badge tone with no error. Declared in `ToolkitTokens.uss`, with
+  `ToolkitPaletteTests.SharedTokenSheet_StatusHues_MatchToolkitPalette` pinning the two copies against the C#
+  palette (proven to fail: drifting one channel reports "warning green channel drifted, expected 170, was 171").
+
+**Found and deliberately NOT changed — these are yours to call**
+
+- **Texture Packer breaks R12 and R16.** Two primary actions on one tab: "Bake" in the asset bar *and* a second
+  "Bake" inside the Pack Output node. The node's header is also solid violet, which is neither a status hue nor a
+  documented data colour — SG-D3 says colour otherwise means status. Both sit inside the node-graph view, which is
+  its own spec's territory, and SG-D8 ("the tab opens on a working unsaved setup, Pack Output centred, a recipe
+  never required") is still open — the tab still shows "No recipe" with the node parked bottom-right. One spec,
+  not a restyle.
+- **R04 off-scale spacing.** `padding: 3px` on the segmented track, `8px 10px` card bodies, assorted 6px margins in
+  the window sheet. All are on approved-looking surfaces; moving them onto 0/2/4/8/12/16/24 would nudge visuals you
+  have already signed off, so it wants your eye rather than my judgement.
+- **R10 flexGrow hits are mostly false positives.** A verifier flagged seven controls with `flexGrow = 1f`; on
+  inspection all but the known ragdoll-picker case are in horizontal rows, where filling the remaining width is
+  correct. R10's real target is a control stretching *vertically* in a column. Not changed.
+
 ## 4. The loop that worked
 
 1. Read the reference image and the guide. Pick one defect you can see in a capture.

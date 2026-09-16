@@ -23,6 +23,20 @@
     --toolkit-color-hairline: rgba(255, 255, 255, 0.08);
     --toolkit-color-focus: rgb(77, 158, 242);
 
+    /* Status hues. ToolkitComponents.uss paints badges, the destructive button and the warning and
+       error text classes from these, but it defined none of them -- they lived only in
+       ClipEditorWindow.uss, while AddToolkitStyleSheets loads just this file and the components one.
+       Nothing was visibly broken: both windows that take the shared layer load the window sheet
+       first (ClipEditorWindow and VatBakeWindow), so the tokens always resolved. The point is that
+       the shared layer did not stand on its own, and the next window that forgot the window sheet
+       would have lost every badge tone with no error. Declared here so it does stand alone.
+       These three mirror the --toolkit-color-* block in ClipEditorWindow.uss channel for channel;
+       ToolkitPaletteTests pins both copies against ToolkitPalette.Tokens in C#, so change all three
+       places together or the fixture fails. */
+    --toolkit-color-warning: rgb(235, 170, 60);
+    --toolkit-color-error: rgb(230, 90, 82);
+    --toolkit-color-clean: rgb(115, 200, 122);
+
     --toolkit-text-meta: 11px;
     --toolkit-text-body: 12px;
     --toolkit-text-title: 13px;
