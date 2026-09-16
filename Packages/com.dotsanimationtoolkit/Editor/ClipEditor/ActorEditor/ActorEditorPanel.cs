@@ -68,11 +68,12 @@ namespace DotsAnimationToolkit.Editor
         {
             composer = new ActorPreviewComposer();
 
-            // Inline styles rather than a stylesheet, matching DirectionSetsPanel/VatBakePanel:
-            // this element carries no sheet of its own.
+            // This element only hosts the profiles/layers/viewport/inspector columns, each of
+            // which owns its own side inset — adding a second one here would gutter the
+            // profiles catalog away from the pane edge.
             style.flexGrow = 1f;
-            style.paddingLeft = 8f;
-            style.paddingRight = 8f;
+            style.paddingLeft = 0f;
+            style.paddingRight = 0f;
             style.paddingTop = 6f;
             style.paddingBottom = 6f;
 
@@ -326,6 +327,7 @@ namespace DotsAnimationToolkit.Editor
             layersColumn = new VisualElement { name = "layers-column" };
             layersColumn.AddToClassList(LayersColumnUssClassName);
             layersColumn.AddToClassList("toolkit-column");
+            layersColumn.AddToClassList("toolkit-column--raised");
             // Floored rather than fixed: a layer box header carries seven controls, and dragging
             // this pane narrower than that would ellipsize every layer name to one letter.
             layersColumn.style.minWidth = 220f;
@@ -350,6 +352,7 @@ namespace DotsAnimationToolkit.Editor
 
             layersColumnView = new ActorEditorLayersColumn();
             layersColumnView.style.flexGrow = 1f;
+            layersColumnView.AddToClassList("toolkit-list-surface");
             layersColumnView.SelectionChanged += OnTreeSelectionChanged;
             layersColumnView.ProfileEdited += OnAnyColumnProfileEdited;
             layersColumn.Add(layersColumnView);
@@ -436,6 +439,7 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorColumnView = new ActorEditorInspectorColumn();
             inspectorColumnView.style.flexGrow = 1f;
+            inspectorColumnView.AddToClassList("toolkit-list-surface");
             inspectorColumnView.ProfileEdited += OnAnyColumnProfileEdited;
             inspectorColumn.Add(inspectorColumnView);
 

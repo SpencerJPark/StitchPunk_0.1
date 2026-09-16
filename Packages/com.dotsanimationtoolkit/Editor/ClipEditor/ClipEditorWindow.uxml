@@ -33,7 +33,7 @@
                                 </ui:VisualElement>
                             </ui:VisualElement>
                             <uie:ObjectField name="clip-set-field" class="clip-editor__pane-field"/>
-                            <ui:ListView name="clip-list" class="clip-editor__clip-list"/>
+                            <ui:ListView name="clip-list" class="clip-editor__clip-list toolkit-list-surface toolkit-list-surface--flush"/>
                         </ui:VisualElement>
                         <ui:VisualElement name="hierarchy-pane" class="clip-editor__pane">
                             <ui:VisualElement class="toolkit-pane-header">
@@ -45,7 +45,7 @@
                             </ui:VisualElement>
                             <uie:ObjectField name="skinned-source-field" class="clip-editor__pane-field"/>
                             <ui:Label name="hierarchy-empty-label" text="Pick a rig above to list its transforms." class="toolkit-hint"/>
-                            <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy"/>
+                            <ui:TreeView name="hierarchy-tree" class="clip-editor__hierarchy toolkit-list-surface toolkit-list-surface--flush"/>
                         </ui:VisualElement>
                     </ui:TwoPaneSplitView>
                     <ui:TwoPaneSplitView name="dock-right" orientation="Horizontal" fixed-pane-index="1" fixed-pane-initial-dimension="280">
@@ -89,7 +89,9 @@
                             </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:VisualElement name="inspector-pane" class="clip-editor__pane">
-                            <ui:Label text="Clip Inspector" class="toolkit-pane-title"/>
+                            <ui:VisualElement class="toolkit-pane-header">
+                                <ui:Label text="Clip Inspector" class="toolkit-pane-title"/>
+                            </ui:VisualElement>
                             <ui:ScrollView name="inspector-content" class="clip-editor__inspector"/>
                         </ui:VisualElement>
                     </ui:TwoPaneSplitView>

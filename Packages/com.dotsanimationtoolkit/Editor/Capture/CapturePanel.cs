@@ -254,25 +254,29 @@ namespace DotsAnimationToolkit.Editor
 
             column.Add(ToolkitChrome.MakePaneHeader("Settings", out _, out _));
 
-            column.Add(ToolkitChrome.MakeHeading("Size"));
+            VisualElement sizeCardBody;
+            column.Add(ToolkitChrome.MakeCard("capture-size-card", "Size", out sizeCardBody, out _));
+
             VisualElement sizeRow = new VisualElement();
             sizeRow.style.flexDirection = FlexDirection.Row;
-            widthField = new IntegerField("Width") { value = settings.width };
-            widthField.style.flexGrow = 1f;
+            widthField = new IntegerField { value = settings.width };
             widthField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            heightField = new IntegerField("Height") { value = settings.height };
-            heightField.style.flexGrow = 1f;
+            heightField = new IntegerField { value = settings.height };
             heightField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            sizeRow.Add(widthField);
-            sizeRow.Add(heightField);
-            column.Add(sizeRow);
+            VisualElement widthRow = ToolkitChrome.MakePropertyRow("Width", widthField, null);
+            widthRow.style.flexGrow = 1f;
+            VisualElement heightRow = ToolkitChrome.MakePropertyRow("Height", heightField, null);
+            heightRow.style.flexGrow = 1f;
+            sizeRow.Add(widthRow);
+            sizeRow.Add(heightRow);
+            sizeCardBody.Add(sizeRow);
 
             List<string> presetLabels = new List<string>();
             foreach (CaptureSizePreset preset in CaptureSettings.SizePresets)
             {
                 presetLabels.Add(preset.label);
             }
-            presetField = new DropdownField("Preset", presetLabels, 0);
+            presetField = new DropdownField(presetLabels, 0);
             presetField.RegisterValueChangedCallback(changeEvent =>
             {
                 int presetIndex = presetField.index;
@@ -284,52 +288,60 @@ namespace DotsAnimationToolkit.Editor
                     OnSettingsFieldChanged();
                 }
             });
-            column.Add(presetField);
+            sizeCardBody.Add(ToolkitChrome.MakePropertyRow("Preset", presetField, null));
 
-            column.Add(ToolkitChrome.MakeHeading("Timing"));
-            fpsField = new IntegerField("FPS") { value = settings.framesPerSecond };
+            VisualElement timingCardBody;
+            column.Add(ToolkitChrome.MakeCard("capture-timing-card", "Timing", out timingCardBody, out _));
+
+            fpsField = new IntegerField { value = settings.framesPerSecond };
             fpsField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            column.Add(fpsField);
+            timingCardBody.Add(ToolkitChrome.MakePropertyRow("FPS", fpsField, null));
 
-            rangeSlider = new MinMaxSlider("Range", settings.rangeStartNormalized, settings.rangeEndNormalized, 0f, 1f);
+            rangeSlider = new MinMaxSlider(settings.rangeStartNormalized, settings.rangeEndNormalized, 0f, 1f);
             rangeSlider.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            column.Add(rangeSlider);
+            timingCardBody.Add(ToolkitChrome.MakePropertyRow("Range", rangeSlider, null));
 
             rangeSummaryLabel = new Label(string.Empty);
             rangeSummaryLabel.AddToClassList("toolkit-hint");
-            column.Add(rangeSummaryLabel);
+            timingCardBody.Add(rangeSummaryLabel);
 
-            column.Add(ToolkitChrome.MakeHeading("Background"));
+            VisualElement backgroundCardBody;
+            column.Add(ToolkitChrome.MakeCard("capture-background-card", "Background", out backgroundCardBody, out _));
+
             backgroundGroup = new RadioButtonGroup(string.Empty, new List<string> { "Transparent", "Colour" });
             backgroundGroup.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            column.Add(backgroundGroup);
+            backgroundCardBody.Add(backgroundGroup);
 
-            backgroundColourField = new ColorField("Colour") { value = settings.backgroundColour };
+            backgroundColourField = new ColorField { value = settings.backgroundColour };
             backgroundColourField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            column.Add(backgroundColourField);
+            backgroundCardBody.Add(ToolkitChrome.MakePropertyRow("Colour", backgroundColourField, null));
 
-            column.Add(ToolkitChrome.MakeHeading("Format"));
+            VisualElement formatCardBody;
+            column.Add(ToolkitChrome.MakeCard("capture-format-card", "Format", out formatCardBody, out _));
+
             formatGroup = new RadioButtonGroup(string.Empty, new List<string> { "PNG Sequence", "GIF" });
             formatGroup.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            column.Add(formatGroup);
+            formatCardBody.Add(formatGroup);
 
-            column.Add(ToolkitChrome.MakeHeading("Output"));
-            nameField = new TextField("Name") { value = settings.captureName };
+            VisualElement outputCardBody;
+            column.Add(ToolkitChrome.MakeCard("capture-output-card", "Output", out outputCardBody, out _));
+
+            nameField = new TextField { value = settings.captureName };
             nameField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            column.Add(nameField);
+            outputCardBody.Add(ToolkitChrome.MakePropertyRow("Name", nameField, null));
 
             effectiveNameLabel = new Label(string.Empty);
             effectiveNameLabel.AddToClassList("toolkit-hint");
-            column.Add(effectiveNameLabel);
+            outputCardBody.Add(effectiveNameLabel);
 
-            outputFolderField = new TextField("Output Folder") { value = settings.outputFolder };
+            outputFolderField = new TextField { value = settings.outputFolder };
             outputFolderField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            column.Add(outputFolderField);
+            outputCardBody.Add(ToolkitChrome.MakePropertyRow("Output Folder", outputFolderField, null));
 
             resolvedFolderLabel = new Label(string.Empty);
             resolvedFolderLabel.style.whiteSpace = WhiteSpace.Normal;
             resolvedFolderLabel.AddToClassList("toolkit-hint");
-            column.Add(resolvedFolderLabel);
+            outputCardBody.Add(resolvedFolderLabel);
 
             captureButton = ToolkitChrome.MakePrimaryAction(OnCaptureButtonClicked, "d_Animation.Record", "Render the frame range to disk", "Capture");
             captureButton.style.marginTop = 10f;

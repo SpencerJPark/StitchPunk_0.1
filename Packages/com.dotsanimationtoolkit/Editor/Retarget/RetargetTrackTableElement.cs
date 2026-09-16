@@ -14,7 +14,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<TrackBinding> bindings = new List<TrackBinding>();
         private readonly ListView trackListView;
         private readonly Label headerTitleLabel;
-        private readonly Label emptyHintLabel;
+        private readonly VisualElement emptyHintLabel;
 
         public event Action<TrackBinding, VisualElement> RemapRequested;
 
@@ -32,6 +32,11 @@ namespace DotsAnimationToolkit.Editor
             header.Add(headerTitleLabel);
             Add(header);
 
+            VisualElement listBody = new VisualElement { name = "retarget-track-body" };
+            listBody.AddToClassList("toolkit-list-surface");
+            listBody.style.flexGrow = 1f;
+            Add(listBody);
+
             trackListView = new ListView();
             trackListView.name = "retarget-track-list";
             trackListView.style.flexGrow = 1f;
@@ -40,11 +45,15 @@ namespace DotsAnimationToolkit.Editor
             trackListView.makeItem = MakeTrackRow;
             trackListView.bindItem = BindTrackRow;
             trackListView.itemsSource = bindings;
-            Add(trackListView);
+            listBody.Add(trackListView);
 
-            emptyHintLabel = new Label("Pick a clip and a rig to see where its tracks land.");
-            emptyHintLabel.AddToClassList("toolkit-hint");
-            Add(emptyHintLabel);
+            emptyHintLabel = ToolkitChrome.MakeEmptyState(
+                "retarget-track-empty",
+                "No tracks to show",
+                "Pick a clip and a rig in the bar above to see where each of its tracks lands on that rig.",
+                null,
+                null);
+            listBody.Add(emptyHintLabel);
 
             RefreshEmptyState();
         }
@@ -73,7 +82,7 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement row = new VisualElement();
             row.name = "retarget-track-row";
-            row.AddToClassList("toolkit-box__row");
+            row.AddToClassList("toolkit-list-row");
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
 
@@ -84,13 +93,12 @@ namespace DotsAnimationToolkit.Editor
 
             Label nameLabel = new Label();
             nameLabel.name = "retarget-track-name";
-            nameLabel.style.width = 140f;
-            nameLabel.AddToClassList("toolkit-box__title");
+            nameLabel.AddToClassList("toolkit-list-row__title");
             row.Add(nameLabel);
 
             Label detailLabel = new Label();
             detailLabel.name = "retarget-track-detail";
-            detailLabel.style.flexGrow = 1f;
+            detailLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(detailLabel);
 
             Button remapButton = null;
@@ -103,6 +111,7 @@ namespace DotsAnimationToolkit.Editor
                 }
             }, "d_Linked", "Point this track at one of the rig's tags", "Remap");
             remapButton.name = "retarget-remap-button";
+            ToolkitChrome.StyleButton(remapButton, ToolkitButtonVariant.Ghost);
             row.Add(remapButton);
 
             return row;

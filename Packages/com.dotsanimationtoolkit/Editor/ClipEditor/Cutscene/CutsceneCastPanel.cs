@@ -97,8 +97,9 @@ namespace DotsAnimationToolkit.Editor
 
             Add(headerRow);
 
-            ScrollView rowsScroll = new ScrollView(ScrollViewMode.Vertical);
+            ScrollView rowsScroll = new ScrollView(ScrollViewMode.Vertical) { name = "cutscene-cast-rows-scroll" };
             rowsScroll.style.flexGrow = 1f;
+            rowsScroll.AddToClassList("toolkit-list-surface");
             rowsScroll.Add(rowsContainer);
             Add(rowsScroll);
         }
@@ -118,8 +119,9 @@ namespace DotsAnimationToolkit.Editor
             if (cutscene == null || cutscene.slots == null || cutscene.slots.Count == 0)
             {
                 slotIndicesShowingBindField.Clear();
-                rowsContainer.Add(new Label("No slots yet — add an Actor or Prop slot.")
-                { style = { whiteSpace = WhiteSpace.Normal } });
+                rowsContainer.Add(ToolkitChrome.MakeEmptyState(
+                    "cutscene-cast-empty", "No cast yet",
+                    "Add an Actor or Prop slot, then place or bind it in the open scene.", null, null));
                 return;
             }
 
@@ -130,9 +132,11 @@ namespace DotsAnimationToolkit.Editor
                 && currentSceneGuid == cutscene.sceneGuid;
             if (!sceneMatches)
             {
-                rowsContainer.Add(new Label(
+                Label sceneMismatchNotice = new Label(
                     "Open the remembered scene to place or bind the cast. Timing edits still work.")
-                { style = { whiteSpace = WhiteSpace.Normal, marginBottom = 6f } });
+                { style = { whiteSpace = WhiteSpace.Normal, marginBottom = 6f } };
+                sceneMismatchNotice.AddToClassList("toolkit-hint");
+                rowsContainer.Add(sceneMismatchNotice);
             }
 
             for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)

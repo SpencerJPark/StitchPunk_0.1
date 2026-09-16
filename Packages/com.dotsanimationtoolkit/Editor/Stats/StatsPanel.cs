@@ -14,6 +14,10 @@ namespace DotsAnimationToolkit.Editor
     {
         private const int PollIntervalMilliseconds = 250;
         private const int LodBucketCount = 4;
+        private const string NoWorldTooltip =
+            "No world yet — enter Play mode and this samples the running game.";
+        private const string TimingUnavailableTooltip =
+            "This world has no toolkit system timings; the profiler recorder found no samples.";
 
         private readonly ToolkitStatsCollector collector;
         private readonly Stopwatch pollStopwatch;
@@ -88,7 +92,8 @@ namespace DotsAnimationToolkit.Editor
             VisualElement eventsColumn = ToolkitChrome.MakeColumn("stats-events-column");
             VisualElement timingColumn = ToolkitChrome.MakeColumn("stats-timing-column");
 
-            VisualElement actorsBox = MakeBox("Actors", out VisualElement actorsBody);
+            VisualElement actorsBox = ToolkitChrome.MakeCard(
+                "stats-actors-card", "Actors", out VisualElement actorsBody, out _);
             actorsValueLabel = MakeValueRow(actorsBody, "Actors", "stats-actors-value");
             layersValueLabel = MakeValueRow(actorsBody, "Layers", "stats-layers-value");
             ragdollingValueLabel = MakeValueRow(actorsBody, "Ragdolling", "stats-ragdolling-value");
@@ -105,7 +110,8 @@ namespace DotsAnimationToolkit.Editor
             actorsBody.Add(lodSampledLabel);
             actorsColumn.Add(actorsBox);
 
-            VisualElement eventsBox = MakeBox("Events / frame", out VisualElement eventsBody);
+            VisualElement eventsBox = ToolkitChrome.MakeCard(
+                "stats-events-card", "Events / frame", out VisualElement eventsBody, out _);
             sparkline = new SparklineElement();
             eventsBody.Add(sparkline);
             eventsSummaryLabel = new Label { name = "stats-events-summary" };
@@ -114,13 +120,15 @@ namespace DotsAnimationToolkit.Editor
             windowsValueLabel = MakeValueRow(eventsBody, "Actors with windows open", "stats-windows-value");
             eventsColumn.Add(eventsBox);
 
-            VisualElement vatBox = MakeBox("VAT", out VisualElement vatBody);
+            VisualElement vatBox = ToolkitChrome.MakeCard(
+                "stats-vat-card", "VAT", out VisualElement vatBody, out _);
             vatPartsValueLabel = MakeValueRow(vatBody, "Parts bound", "stats-vat-parts-value");
             vatTexturesValueLabel = MakeValueRow(vatBody, "Textures", "stats-vat-textures-value");
             vatMemoryValueLabel = MakeValueRow(vatBody, "Texture memory", "stats-vat-memory-value");
             eventsColumn.Add(vatBox);
 
-            VisualElement timingBox = MakeBox("Timing (ms)", out VisualElement timingBody);
+            VisualElement timingBox = ToolkitChrome.MakeCard(
+                "stats-timing-card", "Timing (ms)", out VisualElement timingBody, out _);
             timeToolkitValueLabel = MakeValueRow(timingBody, "AnimationToolkit", "stats-time-toolkit-value");
             timeBindingValueLabel = MakeValueRow(timingBody, "Binding", "stats-time-binding-value");
             timeLogicValueLabel = MakeValueRow(timingBody, "Logic", "stats-time-logic-value");
@@ -216,10 +224,14 @@ namespace DotsAnimationToolkit.Editor
             playingLabel.text = isPlaying ? "playing" : "not playing";
             playingDot.style.backgroundColor = isPlaying ? ToolkitPalette.Playing : ToolkitPalette.BoxBorder; // colour from data
 
-            actorsValueLabel.text = available ? lastSample.actorCount.ToString() : noWorldText;
-            layersValueLabel.text = available ? lastSample.layerCount.ToString() : noWorldText;
-            ragdollingValueLabel.text = available ? lastSample.ragdollingActorCount.ToString() : noWorldText;
-            cutsceneValueLabel.text = available ? lastSample.cutscenePlayerCount.ToString() : noWorldText;
+            SetValue(actorsValueLabel, available ? lastSample.actorCount.ToString() : noWorldText, available);
+            SetValue(layersValueLabel, available ? lastSample.layerCount.ToString() : noWorldText, available);
+            SetValue(
+                ragdollingValueLabel,
+                available ? lastSample.ragdollingActorCount.ToString() : noWorldText,
+                available);
+            SetValue(
+                cutsceneValueLabel, available ? lastSample.cutscenePlayerCount.ToString() : noWorldText, available);
 
             int[] lodCounts =
             {
@@ -235,7 +247,7 @@ namespace DotsAnimationToolkit.Editor
             }
             for (int lodIndex = 0; lodIndex < LodBucketCount; lodIndex++)
             {
-                lodValueLabels[lodIndex].text = available ? lodCounts[lodIndex].ToString() : noWorldText;
+                SetValue(lodValueLabels[lodIndex], available ? lodCounts[lodIndex].ToString() : noWorldText, available);
                 float share = available ? (float)lodCounts[lodIndex] / maxLodCount : 0f;
                 lodBarFills[lodIndex].style.width = Length.Percent(share * 100f);
             }
@@ -243,26 +255,63 @@ namespace DotsAnimationToolkit.Editor
                 available && lastSample.lodSampled ? DisplayStyle.Flex : DisplayStyle.None;
 
             eventsSummaryLabel.text = string.Format("now {0}   peak {1}", sparkline.Latest, sparkline.Peak);
-            pendingValueLabel.text = available ? lastSample.pendingEventActorCount.ToString() : noWorldText;
-            windowsValueLabel.text = available ? lastSample.actorsWithOpenWindowsCount.ToString() : noWorldText;
+            SetValue(
+                pendingValueLabel, available ? lastSample.pendingEventActorCount.ToString() : noWorldText, available);
+            SetValue(
+                windowsValueLabel,
+                available ? lastSample.actorsWithOpenWindowsCount.ToString() : noWorldText,
+                available);
 
-            vatPartsValueLabel.text = available ? lastSample.vatBoundPartCount.ToString() : noWorldText;
-            vatTexturesValueLabel.text = available ? lastSample.vatDistinctTextureCount.ToString() : noWorldText;
-            vatMemoryValueLabel.text =
-                available ? StatsSnapshotFormatting.FormatMegabytes(lastSample.vatTextureBytes) : noWorldText;
+            SetValue(vatPartsValueLabel, available ? lastSample.vatBoundPartCount.ToString() : noWorldText, available);
+            SetValue(
+                vatTexturesValueLabel,
+                available ? lastSample.vatDistinctTextureCount.ToString() : noWorldText,
+                available);
+            SetValue(
+                vatMemoryValueLabel,
+                available ? StatsSnapshotFormatting.FormatMegabytes(lastSample.vatTextureBytes) : noWorldText,
+                available);
 
             bool timingsAvailable = lastSample.timingsAvailable;
             string timingFallbackText = available ? "unavailable" : noWorldText;
-            timeToolkitValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.toolkitGroupMilliseconds) : timingFallbackText;
-            timeBindingValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.bindingGroupMilliseconds) : timingFallbackText;
-            timeLogicValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.logicGroupMilliseconds) : timingFallbackText;
-            timePresentationValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.presentationGroupMilliseconds) : timingFallbackText;
-            timeRagdollValueLabel.text = timingsAvailable
-                ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.ragdollGroupMilliseconds) : timingFallbackText;
+            SetValue(
+                timeToolkitValueLabel,
+                timingsAvailable
+                    ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.toolkitGroupMilliseconds)
+                    : timingFallbackText,
+                available);
+            SetValue(
+                timeBindingValueLabel,
+                timingsAvailable
+                    ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.bindingGroupMilliseconds)
+                    : timingFallbackText,
+                available);
+            SetValue(
+                timeLogicValueLabel,
+                timingsAvailable
+                    ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.logicGroupMilliseconds)
+                    : timingFallbackText,
+                available);
+            SetValue(
+                timePresentationValueLabel,
+                timingsAvailable
+                    ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.presentationGroupMilliseconds)
+                    : timingFallbackText,
+                available);
+            SetValue(
+                timeRagdollValueLabel,
+                timingsAvailable
+                    ? StatsSnapshotFormatting.FormatMilliseconds(lastSample.ragdollGroupMilliseconds)
+                    : timingFallbackText,
+                available);
+            if (available && !timingsAvailable)
+            {
+                timeToolkitValueLabel.tooltip = TimingUnavailableTooltip;
+                timeBindingValueLabel.tooltip = TimingUnavailableTooltip;
+                timeLogicValueLabel.tooltip = TimingUnavailableTooltip;
+                timePresentationValueLabel.tooltip = TimingUnavailableTooltip;
+                timeRagdollValueLabel.tooltip = TimingUnavailableTooltip;
+            }
 
             if (!available)
             {
@@ -277,35 +326,17 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private static VisualElement MakeBox(string title, out VisualElement body)
-        {
-            VisualElement box = new VisualElement();
-            box.AddToClassList("toolkit-box");
-
-            VisualElement header = new VisualElement();
-            header.AddToClassList("toolkit-box__header");
-            Label titleLabel = new Label(title);
-            titleLabel.AddToClassList("toolkit-box__title");
-            header.Add(titleLabel);
-            box.Add(header);
-
-            body = new VisualElement();
-            body.AddToClassList("toolkit-box__body");
-            box.Add(body);
-
-            return box;
-        }
-
         private static Label MakeValueRow(VisualElement body, string caption, string valueElementName)
         {
             VisualElement row = new VisualElement();
-            row.AddToClassList("toolkit-box__row");
+            row.AddToClassList("toolkit-list-row");
 
             Label captionLabel = new Label(caption);
-            captionLabel.AddToClassList("toolkit-box__label");
+            captionLabel.AddToClassList("toolkit-list-row__title");
             row.Add(captionLabel);
 
             Label valueLabel = new Label { name = valueElementName };
+            valueLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(valueLabel);
 
             body.Add(row);
@@ -316,10 +347,10 @@ namespace DotsAnimationToolkit.Editor
             VisualElement body, string caption, string valueElementName, out VisualElement barFill)
         {
             VisualElement row = new VisualElement();
-            row.AddToClassList("toolkit-box__row");
+            row.AddToClassList("toolkit-list-row");
 
             Label captionLabel = new Label(caption);
-            captionLabel.AddToClassList("toolkit-box__label");
+            captionLabel.AddToClassList("toolkit-list-row__title");
             row.Add(captionLabel);
 
             VisualElement track = new VisualElement();
@@ -335,10 +366,17 @@ namespace DotsAnimationToolkit.Editor
             track.Add(barFill);
 
             Label valueLabel = new Label { name = valueElementName };
+            valueLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(valueLabel);
 
             body.Add(row);
             return valueLabel;
+        }
+
+        private static void SetValue(Label valueLabel, string text, bool available)
+        {
+            valueLabel.text = text;
+            valueLabel.tooltip = available ? string.Empty : NoWorldTooltip;
         }
 
         private static string ResolvePackageVersion()

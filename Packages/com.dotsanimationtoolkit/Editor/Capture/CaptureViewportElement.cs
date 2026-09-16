@@ -47,7 +47,12 @@ namespace DotsAnimationToolkit.Editor
                 "Pick a clip, a profile animation or a cutscene in the bar above.",
                 null,
                 null);
-            Add(emptyState);
+            emptyState.style.position = Position.Absolute;
+            emptyState.style.left = 0f;
+            emptyState.style.right = 0f;
+            emptyState.style.top = 0f;
+            emptyState.style.bottom = 0f;
+            frame.Add(emptyState); // overlays the viewport image; shown only while there is no ready source
 
             statusLabel = ToolkitChrome.MakeHint(string.Empty);
             statusLabel.style.display = DisplayStyle.None;

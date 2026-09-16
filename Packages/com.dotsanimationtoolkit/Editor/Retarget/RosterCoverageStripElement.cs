@@ -9,13 +9,11 @@ using DotsAnimationToolkit.Authoring;
 namespace DotsAnimationToolkit.Editor
 {
     /// <summary>
-    /// Shows one chip per rig in the roster with a bound/total count and a five-block coverage
-    /// bar; clicking a chip requests that rig become the shared selection.
+    /// Shows one chip per rig in the roster with a bound/total count badge; clicking a chip
+    /// requests that rig become the shared selection.
     /// </summary>
     public sealed class RosterCoverageStripElement : VisualElement
     {
-        private const int TotalBlockCount = 5;
-
         private readonly Label headingLabel;
 
         public event Action<RigAsset> RigChipClicked;
@@ -56,33 +54,6 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        public static int FilledBlockCount(int boundCount, int totalCount)
-        {
-            if (totalCount <= 0)
-            {
-                return 0;
-            }
-
-            int roundedBlockCount = Mathf.RoundToInt(TotalBlockCount * (float)boundCount / totalCount);
-
-            if (boundCount > 0 && roundedBlockCount < 1)
-            {
-                roundedBlockCount = 1;
-            }
-
-            if (boundCount < totalCount && roundedBlockCount > TotalBlockCount - 1)
-            {
-                roundedBlockCount = TotalBlockCount - 1;
-            }
-
-            if (roundedBlockCount > TotalBlockCount)
-            {
-                roundedBlockCount = TotalBlockCount;
-            }
-
-            return roundedBlockCount;
-        }
-
         private VisualElement BuildChip(RosterCoverageEntry entry, RigAsset selectedRig)
         {
             RosterCoverageEntry capturedEntry = entry;
@@ -101,33 +72,28 @@ namespace DotsAnimationToolkit.Editor
             nameLabel.style.marginRight = 4f;
             chip.Add(nameLabel);
 
-            Label countLabel = new Label(entry.boundCount + "/" + entry.totalCount)
+            ToolkitStatusTone countTone;
+            if (entry.totalCount == 0)
             {
-                name = "retarget-roster-chip-count"
-            };
-            countLabel.AddToClassList("toolkit-text--dim");
+                countTone = ToolkitStatusTone.Neutral;
+            }
+            else if (entry.boundCount == 0)
+            {
+                countTone = ToolkitStatusTone.Error;
+            }
+            else if (entry.boundCount == entry.totalCount)
+            {
+                countTone = ToolkitStatusTone.Ok;
+            }
+            else
+            {
+                countTone = ToolkitStatusTone.Warning;
+            }
+
+            Label countLabel = ToolkitChrome.MakeBadge(entry.boundCount + "/" + entry.totalCount, countTone);
+            countLabel.name = "retarget-roster-chip-count";
             countLabel.style.marginRight = 4f;
-            if (entry.boundCount == 0 && entry.totalCount > 0)
-            {
-                countLabel.style.color = ToolkitPalette.Error; // colour from data
-            }
             chip.Add(countLabel);
-
-            int filledBlockCount = FilledBlockCount(entry.boundCount, entry.totalCount);
-
-            VisualElement blocksContainer = new VisualElement { name = "retarget-roster-chip-blocks" };
-            blocksContainer.AddToClassList("toolkit-chip__blocks");
-            blocksContainer.style.flexDirection = FlexDirection.Row;
-            chip.Add(blocksContainer);
-
-            for (int blockIndex = 0; blockIndex < TotalBlockCount; blockIndex++)
-            {
-                bool isFilled = blockIndex < filledBlockCount;
-                VisualElement block = new VisualElement { name = "retarget-roster-chip-block" };
-                block.AddToClassList("toolkit-chip__block");
-                block.EnableInClassList("toolkit-chip__block--filled", isFilled);
-                blocksContainer.Add(block);
-            }
 
             chip.tooltip = "Show this clip on " + rigName;
             chip.RegisterCallback<ClickEvent>(clickEvent => RigChipClicked?.Invoke(capturedEntry.rig));

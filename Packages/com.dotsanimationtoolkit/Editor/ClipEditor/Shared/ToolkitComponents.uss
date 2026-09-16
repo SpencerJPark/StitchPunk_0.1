@@ -421,6 +421,13 @@
     margin-right: -10px;
 }
 
+/* A pane that never insets its children (the Clip Editor's own panes) needs the tone without the
+   pull-back: the -10px would hang the list past the pane edge instead of reaching it. */
+.toolkit-list-surface.toolkit-list-surface--flush {
+    margin-left: 0;
+    margin-right: 0;
+}
+
 /* J. Compact tab list */
 /* Fifteen words do not fit a narrow window, and a clipped or scrolled tab stops communicating.
    The window swaps the strip to icons below its measured width; the word stays in the tooltip. */
