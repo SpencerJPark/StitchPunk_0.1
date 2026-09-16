@@ -414,6 +414,11 @@
     background-color: var(--toolkit-surface);
     border-top-width: 1px;
     border-top-color: var(--toolkit-divider);
+    /* The column pads its header and search by 10px; the list reaches back over exactly that
+       padding so the darker tone runs edge to edge, while the header and search keep their inset
+       and their lighter tone, as the style guide's reference composition shows. */
+    margin-left: -10px;
+    margin-right: -10px;
 }
 
 /* J. Compact tab list */
@@ -451,4 +456,53 @@
 
 .toolkit-tablist--compact .toolkit-tablist__tab--icon-unresolved .unity-toggle__text {
     display: flex;
+}
+
+/* K. Media list row */
+/* A row that carries a thumbnail still reads as one flat line, but needs the height its image
+   wants. Everything else about it is the plain list row: no band, no border, no card. */
+.toolkit-list-row--media {
+    min-height: 28px;
+}
+
+/* A row's trailing mark -- a tick, a count, a state glyph -- sits after the meta, never in a band. */
+.toolkit-list-row__mark.unity-label {
+    flex-grow: 0;
+    flex-shrink: 0;
+    margin: 0 0 0 6px;
+    padding: 0;
+    font-size: var(--toolkit-text-meta);
+    color: var(--toolkit-color-muted);
+    -unity-text-align: middle-center;
+}
+
+/* L. Row text balance */
+/* The name is what the row is; the meta is what it happens to carry. When the two compete for a
+   narrow column the meta gives way first, and the name keeps a floor it never shrinks below. */
+.toolkit-list-row__title.unity-label {
+    min-width: 64px;
+}
+
+.toolkit-list-row__meta.unity-label {
+    flex-shrink: 3;
+    max-width: 65%;
+}
+
+
+/* N. Column host */
+/* A column that only hosts other columns must not inset them: two stacked insets is what left the
+   darker list sitting in a grey gutter instead of reaching the pane edge. */
+.toolkit-column--host {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* The host column itself no longer pads, so the controls above the list carry their own inset:
+   the list stays edge to edge, while the mode toggles, the actions and the search keep their
+   margin from the pane edge. */
+.toolkit-column--host > .toolkit-pane-header,
+.toolkit-column--host > .unity-base-field,
+.toolkit-column--host > .unity-text-field {
+    padding-left: 10px;
+    padding-right: 10px;
 }

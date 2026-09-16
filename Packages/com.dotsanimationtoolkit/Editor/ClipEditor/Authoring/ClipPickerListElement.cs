@@ -20,6 +20,11 @@ namespace DotsAnimationToolkit.Editor
         private readonly Label countLabel;
         private readonly ListView clipListView;
 
+        // R03: a value shown on every row is noise once most rows share it. There is no
+        // authored "home" folder to compare against, so it is the most common folder among
+        // the clips themselves -- only a row whose clip sits somewhere else shows a path.
+        private string homeFolderPath = string.Empty;
+
         public event Action<ClipAsset, bool> ClipCheckedChanged;
 
         /// Raised when a row's context menu asks to rename a clip. The host performs the rename.
@@ -127,8 +132,31 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
+            homeFolderPath = ComputeHomeFolderPath(entries);
             model.SetEntries(entries);
             RefreshList();
+        }
+
+        // Most common FolderPath among the clips -- ties resolve to whichever folder is seen
+        // first, which is stable for a given SetClips call since entries preserve input order.
+        private static string ComputeHomeFolderPath(List<ClipPickerEntry> entries)
+        {
+            Dictionary<string, int> folderCounts = new Dictionary<string, int>();
+            string mostCommonFolderPath = string.Empty;
+            int mostCommonFolderCount = 0;
+            for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
+            {
+                string folderPath = entries[entryIndex].FolderPath ?? string.Empty;
+                int folderCount = folderCounts.TryGetValue(folderPath, out int existingCount) ? existingCount + 1 : 1;
+                folderCounts[folderPath] = folderCount;
+                if (folderCount > mostCommonFolderCount)
+                {
+                    mostCommonFolderCount = folderCount;
+                    mostCommonFolderPath = folderPath;
+                }
+            }
+
+            return mostCommonFolderPath;
         }
 
         public void SetCheckedClips(IEnumerable<ClipAsset> clips)
@@ -174,12 +202,12 @@ namespace DotsAnimationToolkit.Editor
 
             Label nameLabel = new Label();
             nameLabel.name = "clip-picker-row-name";
-            nameLabel.AddToClassList("toolkit-box__title");
+            nameLabel.AddToClassList("toolkit-list-row__title");
             row.Add(nameLabel);
 
             Label folderLabel = new Label();
             folderLabel.name = "clip-picker-row-folder";
-            folderLabel.AddToClassList("toolkit-hint");
+            folderLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(folderLabel);
 
             row.AddManipulator(new ContextualMenuManipulator(
@@ -257,8 +285,12 @@ namespace DotsAnimationToolkit.Editor
             Label nameLabel = element.Q<Label>("clip-picker-row-name");
             nameLabel.text = entry.Name;
 
+            // R03: only a clip outside the shared home folder gets a visible path, and only its
+            // own folder name -- the full chain stays in the tooltip so nothing is lost.
             Label folderLabel = element.Q<Label>("clip-picker-row-folder");
-            folderLabel.text = entry.FolderPath;
+            bool clipIsOutsideHomeFolder = !string.Equals(entry.FolderPath, homeFolderPath, StringComparison.Ordinal);
+            folderLabel.text = clipIsOutsideHomeFolder ? Path.GetFileName(entry.FolderPath) : string.Empty;
+            element.tooltip = entry.FolderPath;
         }
 
         /// <summary>Per-row state stashed in a recycled row's userData so the toggle callback reads the live index, not a captured one.</summary>

@@ -1890,10 +1890,9 @@ namespace DotsAnimationToolkit.Editor
             }
 
             int errorCount = healthPanel.ErrorCount;
-            healthToggle.text = errorCount > 0 ? "Health (" + errorCount + ")" : "Health";
-            healthToggle.style.color = errorCount > 0
-                ? new StyleColor(ToolkitPalette.Error)
-                : new StyleColor(StyleKeyword.Null);
+            healthToggle.text = errorCount > 0
+                ? "Health (<color=#" + ColorUtility.ToHtmlStringRGB(ToolkitPalette.Error) + ">" + errorCount + "</color>)"
+                : "Health";
         }
 
         private void ShowFlipbooksTab(bool isShown)

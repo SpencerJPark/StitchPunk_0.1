@@ -15,6 +15,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly PreviewCameraNavigation cameraNavigation = new PreviewCameraNavigation();
         private readonly Image viewportImage;
+        private readonly VisualElement emptyState;
         private readonly Label statusLabel;
 
         private ICaptureSource source;
@@ -40,7 +41,16 @@ namespace DotsAnimationToolkit.Editor
             viewportImage.scaleMode = ScaleMode.ScaleToFit;
             Add(frame);
 
-            statusLabel = ToolkitChrome.MakeHint("Choose something to capture.");
+            emptyState = ToolkitChrome.MakeEmptyState(
+                "capture-viewport-empty",
+                "Nothing to capture",
+                "Pick a clip, a profile animation or a cutscene in the bar above.",
+                null,
+                null);
+            Add(emptyState);
+
+            statusLabel = ToolkitChrome.MakeHint(string.Empty);
+            statusLabel.style.display = DisplayStyle.None;
             Add(statusLabel);
 
             cameraNavigation.AttachTo(viewportImage);
@@ -91,11 +101,17 @@ namespace DotsAnimationToolkit.Editor
 
             if (panel == null || renderingSuspended || source == null || source.NotReadyReason != null)
             {
-                statusLabel.text = source == null ? "Choose something to capture." : source.NotReadyReason;
-                statusLabel.style.display = DisplayStyle.Flex;
+                bool sourceMissing = source == null;
+                emptyState.style.display = sourceMissing ? DisplayStyle.Flex : DisplayStyle.None;
+                if (!sourceMissing)
+                {
+                    statusLabel.text = source.NotReadyReason;
+                }
+                statusLabel.style.display = sourceMissing ? DisplayStyle.None : DisplayStyle.Flex;
                 viewportImage.image = null;
                 return;
             }
+            emptyState.style.display = DisplayStyle.None;
             statusLabel.style.display = DisplayStyle.None;
 
             cameraNavigation.StepFly(deltaSeconds);

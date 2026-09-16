@@ -163,6 +163,8 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement body = new VisualElement();
             body.AddToClassList("toolkit-box__body");
+            body.style.flexDirection = FlexDirection.Row;
+            body.style.flexWrap = Wrap.Wrap;
             section.Add(body);
 
             if (finding.actions == null || finding.actions.Count == 0)
@@ -184,6 +186,9 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildActionRow(HealthFinding finding, HealthFindingAction action)
         {
             VisualElement rowContainer = new VisualElement();
+            rowContainer.style.flexGrow = 0f;
+            rowContainer.style.alignSelf = Align.FlexStart;
+            rowContainer.style.marginRight = 8f;
             rowContainer.style.marginBottom = 6f;
 
             string actionIconName = ResolveActionIconName(action.label);
@@ -191,11 +196,9 @@ namespace DotsAnimationToolkit.Editor
                 ? new Button { text = action.label }
                 : ToolkitIcons.MakeIconTextButton(() => RunAction(finding, action), actionIconName, action.description, action.label);
             actionButton.name = "health-finding-action";
-            actionButton.style.flexGrow = 1f;
-            if (action.isDestructive)
-            {
-                actionButton.style.backgroundColor = ToolkitPalette.Error; // colour from data
-            }
+            actionButton.style.flexGrow = 0f;
+            actionButton.style.alignSelf = Align.FlexStart;
+            ToolkitChrome.StyleButton(actionButton, ResolveActionVariant(action));
 
             if (actionIconName == null)
             {
@@ -232,6 +235,23 @@ namespace DotsAnimationToolkit.Editor
             }
 
             return null;
+        }
+
+        // Rebake is the fix the finding is asking for, so it gets the primary treatment;
+        // destructive actions (Delete) stay visually distinct; everything else (e.g. Locate) is secondary navigation.
+        private static ToolkitButtonVariant ResolveActionVariant(HealthFindingAction action)
+        {
+            if (action.isDestructive)
+            {
+                return ToolkitButtonVariant.Destructive;
+            }
+
+            if (!string.IsNullOrEmpty(action.label) && action.label.StartsWith("Rebake", StringComparison.Ordinal))
+            {
+                return ToolkitButtonVariant.Primary;
+            }
+
+            return ToolkitButtonVariant.Secondary;
         }
 
         private void RunAction(HealthFinding finding, HealthFindingAction action)

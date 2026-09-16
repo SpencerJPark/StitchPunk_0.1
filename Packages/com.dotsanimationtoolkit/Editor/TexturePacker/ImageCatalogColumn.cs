@@ -37,6 +37,12 @@ namespace DotsAnimationToolkit.Editor
 
         private string searchText = string.Empty;
         private bool hideImagesAlreadyOnCanvas;
+
+        // R03: a folder shown on every row is noise once most rows share it. There is no
+        // authored "home" folder to compare against, so it is the most common folder among
+        // the currently visible entries -- recomputed on every ApplyFilter so a search that
+        // narrows the list still measures "most common" against what is actually on screen.
+        private string homeFolderPath = string.Empty;
         private readonly ToolbarSearchField searchField;
         private readonly ListView imagesListView;
         private readonly Label emptyLabel;
@@ -84,7 +90,7 @@ namespace DotsAnimationToolkit.Editor
 
             imagesListView = new ListView();
             imagesListView.name = "images-list";
-            imagesListView.fixedItemHeight = 64f;
+            imagesListView.fixedItemHeight = 28f;
             imagesListView.selectionType = SelectionType.Multiple;
             imagesListView.style.flexGrow = 1f;
             imagesListView.style.marginTop = 4f;
@@ -156,43 +162,32 @@ namespace DotsAnimationToolkit.Editor
             // Why a slot around a row: ToolkitChrome.MakeListRowSlot.
             VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("image-row-box", out VisualElement row);
             row.style.flexDirection = FlexDirection.Row;
+            row.AddToClassList("toolkit-list-row--media");
 
             Image thumbnail = new Image();
             thumbnail.name = "image-row-thumbnail";
             thumbnail.scaleMode = ScaleMode.ScaleToFit;
             thumbnail.pickingMode = PickingMode.Ignore;
-            thumbnail.style.width = 48f;
-            thumbnail.style.height = 48f;
+            thumbnail.style.width = 24f;
+            thumbnail.style.height = 24f;
             row.Add(thumbnail);
-
-            VisualElement textColumn = new VisualElement();
-            textColumn.style.flexGrow = 1f;
-            textColumn.style.marginLeft = 8f;
-
-            VisualElement headerRow = new VisualElement();
-            headerRow.AddToClassList("toolkit-box__header");
-            headerRow.style.flexDirection = FlexDirection.Row;
 
             Label titleLabel = new Label();
             titleLabel.name = "image-row-title";
-            titleLabel.AddToClassList("toolkit-box__title");
+            titleLabel.AddToClassList("toolkit-list-row__title");
             titleLabel.style.flexGrow = 1f;
-            headerRow.Add(titleLabel);
-
-            Label onCanvasMark = new Label("✓");
-            onCanvasMark.name = "image-row-on-canvas-mark";
-            onCanvasMark.style.display = DisplayStyle.None;
-            headerRow.Add(onCanvasMark);
-
-            textColumn.Add(headerRow);
+            row.Add(titleLabel);
 
             Label infoLabel = new Label();
             infoLabel.name = "image-row-info";
-            infoLabel.AddToClassList("toolkit-box__label");
-            infoLabel.AddToClassList("toolkit-hint");
-            textColumn.Add(infoLabel);
+            infoLabel.AddToClassList("toolkit-list-row__meta");
+            row.Add(infoLabel);
 
-            row.Add(textColumn);
+            Label onCanvasMark = new Label("✓");
+            onCanvasMark.name = "image-row-on-canvas-mark";
+            onCanvasMark.AddToClassList("toolkit-list-row__mark");
+            onCanvasMark.style.display = DisplayStyle.None;
+            row.Add(onCanvasMark);
 
             // Closes over the row element itself (stable identity), never per-bind data -- the
             // handlers read row.userData live so a recycled row always acts on what it shows now.
@@ -229,8 +224,12 @@ namespace DotsAnimationToolkit.Editor
             int textureWidth = texture != null ? texture.width : 0;
             int textureHeight = texture != null ? texture.height : 0;
             string folder = entry != null ? entry.Folder : string.Empty;
+            // R03: only an entry outside the shared home folder gets a visible folder segment,
+            // and only its own folder name -- the full chain stays in the row's tooltip.
+            bool entryIsOutsideHomeFolder = !string.Equals(folder, homeFolderPath, StringComparison.Ordinal);
+            string visibleFolderName = entryIsOutsideHomeFolder ? System.IO.Path.GetFileName(folder) : string.Empty;
             infoLabel.text = textureWidth.ToString() + " x " + textureHeight.ToString()
-                + (string.IsNullOrEmpty(folder) ? string.Empty : " · " + folder);
+                + (string.IsNullOrEmpty(visibleFolderName) ? string.Empty : " · " + visibleFolderName);
 
             row.tooltip = entry != null ? entry.AssetPath : string.Empty;
         }
@@ -267,8 +266,31 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
+            homeFolderPath = ComputeHomeFolderPath(filteredImages);
             imagesListView.Rebuild();
             RefreshEmptyState();
+        }
+
+        // Most common Folder among the currently filtered entries -- ties resolve to whichever
+        // folder is seen first, which is stable since filteredImages preserves catalog order.
+        private static string ComputeHomeFolderPath(List<ImageCatalogEntry> entries)
+        {
+            Dictionary<string, int> folderCounts = new Dictionary<string, int>();
+            string mostCommonFolderPath = string.Empty;
+            int mostCommonFolderCount = 0;
+            for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
+            {
+                string folderPath = entries[entryIndex].Folder ?? string.Empty;
+                int folderCount = folderCounts.TryGetValue(folderPath, out int existingCount) ? existingCount + 1 : 1;
+                folderCounts[folderPath] = folderCount;
+                if (folderCount > mostCommonFolderCount)
+                {
+                    mostCommonFolderCount = folderCount;
+                    mostCommonFolderPath = folderPath;
+                }
+            }
+
+            return mostCommonFolderPath;
         }
 
         private void RefreshEmptyState()

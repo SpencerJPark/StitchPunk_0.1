@@ -157,9 +157,12 @@ namespace DotsAnimationToolkit.Editor
 
             if (profile == null || profile.layers == null)
             {
-                Label emptyLabel = new Label("No profile assigned.");
-                emptyLabel.style.whiteSpace = WhiteSpace.Normal;
-                rowScroll.Add(emptyLabel);
+                rowScroll.Add(ToolkitChrome.MakeEmptyState(
+                    "actor-editor-layers-empty",
+                    "No profile assigned",
+                    "A profile holds the layers this actor plays.",
+                    null,
+                    null));
                 return;
             }
 

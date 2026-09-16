@@ -37,7 +37,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "Editor/TexturePacker/TexturePackerGraphView.cs",
             "Editor/TexturePacker/TexturePackPortBuilder.cs",
             "Editor/ClipEditor/ActorEditor/ActorEditorInspectorColumn.cs",
-            "Editor/ClipEditor/ClipEditorWindow.cs",
         };
 
         // Maps package-relative path to its non-exempt inline-style match count. Only files with

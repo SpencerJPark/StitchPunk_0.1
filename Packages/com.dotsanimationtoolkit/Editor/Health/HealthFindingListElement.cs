@@ -7,8 +7,8 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>Lists Health findings as two-line boxed rows (severity dot, code, title on line one;
-    /// the target asset name on line two) and reports selection for a detail panel to act on.</summary>
+    /// <summary>Lists Health findings as flat single-line rows (severity dot, code, title on the left;
+    /// the target asset name muted and right-aligned) and reports selection for a detail panel to act on.</summary>
     public sealed class HealthFindingListElement : VisualElement
     {
         private readonly List<HealthFinding> findings = new List<HealthFinding>();
@@ -32,13 +32,14 @@ namespace DotsAnimationToolkit.Editor
             findingListView = new ListView();
             findingListView.name = "health-finding-list-view";
             findingListView.style.flexGrow = 1f;
-            // A boxed two-line row plus its list-row margins.
-            findingListView.fixedItemHeight = 56f;
+            // A flat single-line row.
+            findingListView.fixedItemHeight = 22f;
             findingListView.selectionType = SelectionType.Single;
             findingListView.makeItem = MakeFindingRow;
             findingListView.bindItem = BindFindingRow;
             findingListView.itemsSource = findings;
             findingListView.selectionChanged += OnFindingSelectionChanged;
+            findingListView.AddToClassList("toolkit-list-surface");
             Add(findingListView);
 
             emptyLabel = ToolkitChrome.MakeHint("No findings.");
@@ -110,28 +111,19 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("health-finding-row", out VisualElement row);
 
-            VisualElement firstLine = new VisualElement();
-            firstLine.name = "health-finding-line-1";
-            firstLine.AddToClassList("toolkit-box__header");
-            firstLine.style.flexDirection = FlexDirection.Row;
-            firstLine.style.alignItems = Align.Center;
-
             VisualElement dot = ToolkitChrome.MakeSeverityDot(Color.clear);
             dot.name = "health-finding-dot";
             dot.style.marginRight = 6f;
-            firstLine.Add(dot);
+            row.Add(dot);
 
             Label titleLabel = new Label();
             titleLabel.name = "health-finding-title";
-            titleLabel.AddToClassList("toolkit-box__title");
-            firstLine.Add(titleLabel);
-
-            row.Add(firstLine);
+            titleLabel.AddToClassList("toolkit-list-row__title");
+            row.Add(titleLabel);
 
             Label assetLabel = new Label();
             assetLabel.name = "health-finding-asset";
-            assetLabel.AddToClassList("toolkit-box__label");
-            assetLabel.AddToClassList("toolkit-text--dim");
+            assetLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(assetLabel);
 
             return itemSlot;

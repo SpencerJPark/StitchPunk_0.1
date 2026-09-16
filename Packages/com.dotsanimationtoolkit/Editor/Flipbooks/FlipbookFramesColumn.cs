@@ -46,7 +46,7 @@ namespace DotsAnimationToolkit.Editor
 
             framesListView = new ListView();
             framesListView.name = "flipbook-frames-list";
-            framesListView.fixedItemHeight = 40f;
+            framesListView.fixedItemHeight = 28f;
             framesListView.selectionType = SelectionType.Multiple;
             framesListView.reorderable = true;
             framesListView.reorderMode = ListViewReorderMode.Simple;
@@ -58,6 +58,7 @@ namespace DotsAnimationToolkit.Editor
             framesListView.itemIndexChanged += OnFrameIndexChanged;
             framesListView.selectionChanged += OnFrameSelectionChanged;
             framesListView.RegisterCallback<KeyDownEvent>(OnFramesListKeyDown);
+            framesListView.AddToClassList("toolkit-list-surface");
             Add(framesListView);
 
             emptyLabel = ToolkitChrome.MakeHint("Select or create a flipbook.");
@@ -156,17 +157,18 @@ namespace DotsAnimationToolkit.Editor
             VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("flipbook-frame-row", out VisualElement row);
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
+            row.AddToClassList("toolkit-list-row--media");
 
             Image thumbnailImage = new Image();
             thumbnailImage.name = "flipbook-frame-thumbnail";
             thumbnailImage.scaleMode = ScaleMode.ScaleToFit;
-            thumbnailImage.style.width = 32f;
-            thumbnailImage.style.height = 32f;
+            thumbnailImage.style.width = 24f;
+            thumbnailImage.style.height = 24f;
             row.Add(thumbnailImage);
 
             Label nameLabel = new Label();
             nameLabel.name = "flipbook-frame-name";
-            nameLabel.AddToClassList("toolkit-box__title");
+            nameLabel.AddToClassList("toolkit-list-row__title");
             nameLabel.style.flexGrow = 1f;
             nameLabel.tooltip = "Double-click to rename";
             nameLabel.RegisterCallback<MouseDownEvent>(mouseDownEvent =>
@@ -190,12 +192,12 @@ namespace DotsAnimationToolkit.Editor
 
             Label indexLabel = new Label();
             indexLabel.name = "flipbook-frame-index";
-            indexLabel.AddToClassList("toolkit-text--dim");
+            indexLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(indexLabel);
 
             Label sizeLabel = new Label();
             sizeLabel.name = "flipbook-frame-size";
-            sizeLabel.AddToClassList("toolkit-text--dim");
+            sizeLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(sizeLabel);
 
             return itemSlot;

@@ -18,7 +18,7 @@ namespace DotsAnimationToolkit.Editor
         private delegate void RagdollRigSettingsMutator(ref RagdollRigSettings settings);
 
         private readonly Label titleLabel;
-        private readonly Label selectBodyHintLabel;
+        private readonly VisualElement selectBodyEmptyState;
         private readonly VisualElement bodySection;
         private readonly VisualElement rigSettingsSection;
 
@@ -51,9 +51,13 @@ namespace DotsAnimationToolkit.Editor
             scrollView.style.flexGrow = 1f;
             Add(scrollView);
 
-            selectBodyHintLabel = ToolkitChrome.MakeHint("Select a body.");
-            selectBodyHintLabel.name = "ragdoll-inspector-hint";
-            scrollView.Add(selectBodyHintLabel);
+            selectBodyEmptyState = ToolkitChrome.MakeEmptyState(
+                "ragdoll-inspector-hint",
+                "No body selected",
+                "A selected body's collider, mass and joint limits appear here.",
+                null,
+                null);
+            scrollView.Add(selectBodyEmptyState);
 
             bodySection = new VisualElement { name = "ragdoll-inspector-body-section" };
             scrollView.Add(bodySection);
@@ -155,14 +159,14 @@ namespace DotsAnimationToolkit.Editor
             }
 
             titleLabel.text = "Inspector: " + selectedBodyDefinition.displayName;
-            selectBodyHintLabel.style.display = DisplayStyle.None;
+            selectBodyEmptyState.style.display = DisplayStyle.None;
             bodySection.style.display = DisplayStyle.Flex;
             RebuildBodySection(selectedBodyDefinition);
         }
 
         private void ShowHintOnly()
         {
-            selectBodyHintLabel.style.display = DisplayStyle.Flex;
+            selectBodyEmptyState.style.display = DisplayStyle.Flex;
             bodySection.style.display = DisplayStyle.None;
             bodySection.Clear();
         }

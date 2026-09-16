@@ -30,6 +30,7 @@ namespace DotsAnimationToolkit.Editor
         public CatalogSidebarElement()
         {
             AddToClassList("toolkit-column");
+            AddToClassList("toolkit-column--host");
             style.flexGrow = 1f;
             style.minWidth = 200f;
 

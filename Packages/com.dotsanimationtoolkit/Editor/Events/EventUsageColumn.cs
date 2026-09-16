@@ -50,9 +50,12 @@ namespace DotsAnimationToolkit.Editor
 
             if (BoundEventKey == 0u)
             {
-                Label hintLabel = new Label("Select an event on the left.");
-                hintLabel.AddToClassList("toolkit-hint");
-                usageScrollView.Add(hintLabel);
+                usageScrollView.Add(ToolkitChrome.MakeEmptyState(
+                    "event-usage-empty",
+                    "No event selected",
+                    "Selecting a key lists the clips and cutscenes that fire it.",
+                    null,
+                    null));
                 return;
             }
 

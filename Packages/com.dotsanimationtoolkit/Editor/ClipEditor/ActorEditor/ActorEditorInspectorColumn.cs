@@ -151,7 +151,12 @@ namespace DotsAnimationToolkit.Editor
 
             if (profile == null)
             {
-                Add(new HelpBox("No profile assigned.", HelpBoxMessageType.Info));
+                Add(ToolkitChrome.MakeEmptyState(
+                    "actor-editor-inspector-empty",
+                    "No profile assigned",
+                    "The selected profile's layers and animations appear here.",
+                    null,
+                    null));
                 return;
             }
 

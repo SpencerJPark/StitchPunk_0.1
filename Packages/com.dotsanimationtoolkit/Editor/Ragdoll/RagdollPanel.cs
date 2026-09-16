@@ -13,7 +13,8 @@ namespace DotsAnimationToolkit.Editor
     public sealed class RagdollPanel : VisualElement, IDisposable
     {
         private readonly ObjectField rigField;
-        private readonly Label summaryLabel;
+        private readonly Label summaryBodiesBadge;
+        private readonly Label summaryJointsBadge;
         private readonly RagdollBodiesColumn bodiesColumn;
         private readonly RagdollViewportElement viewport;
         private readonly RagdollInspectorColumn inspectorColumn;
@@ -66,10 +67,15 @@ namespace DotsAnimationToolkit.Editor
             });
             headerRow.Add(rigField);
 
-            summaryLabel = new Label { name = "ragdoll-summary-label" };
-            summaryLabel.style.marginLeft = 6f;
-            summaryLabel.AddToClassList("toolkit-text--dim");
-            headerRow.Add(summaryLabel);
+            summaryBodiesBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            summaryBodiesBadge.name = "ragdoll-summary-label";
+            summaryBodiesBadge.style.marginLeft = 6f;
+            headerRow.Add(summaryBodiesBadge);
+
+            summaryJointsBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            summaryJointsBadge.name = "ragdoll-joints-badge";
+            summaryJointsBadge.style.marginLeft = 4f;
+            headerRow.Add(summaryJointsBadge);
 
             bodiesColumn = new RagdollBodiesColumn();
             bodiesColumn.BodySelected += OnBodySelected;
@@ -170,7 +176,10 @@ namespace DotsAnimationToolkit.Editor
         private void RefreshSummary()
         {
             RagdollBodySummary summary = RagdollBodySummaryResolver.Resolve(localRig);
-            summaryLabel.text = summary.text;
+            summaryBodiesBadge.text = summary.bodyCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + (summary.bodyCount == 1 ? " body" : " bodies");
+            summaryJointsBadge.text = summary.jointCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                + (summary.jointCount == 1 ? " joint" : " joints");
         }
 
         private void OnBodySelected(uint bodyId)

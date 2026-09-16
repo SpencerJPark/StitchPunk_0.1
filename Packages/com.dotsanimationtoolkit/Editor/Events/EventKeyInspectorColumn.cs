@@ -45,9 +45,12 @@ namespace DotsAnimationToolkit.Editor
 
             if (BoundEntry == null)
             {
-                Label hintLabel = new Label("Select an event on the left.");
-                hintLabel.AddToClassList("toolkit-hint");
-                bodyContainer.Add(hintLabel);
+                bodyContainer.Add(ToolkitChrome.MakeEmptyState(
+                    "events-inspector-empty",
+                    "No event selected",
+                    "Pick a key on the left and its name, mask and usage show up here.",
+                    null,
+                    null));
                 return;
             }
 

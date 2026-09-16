@@ -54,7 +54,10 @@ namespace DotsAnimationToolkit.Editor
             addTargetPopupField = new PopupField<RigTargetDefinition>(
                 availableTargetChoices, 0, FormatTargetChoice, FormatTargetChoice);
             addTargetPopupField.name = "ragdoll-add-body-target-field";
-            addTargetPopupField.style.flexGrow = 1f;
+            // A dropdown in a column stretches to fill it when it grows; this one is a control,
+            // not content, so it keeps its own height and the bodies list takes the space.
+            addTargetPopupField.style.flexGrow = 0f;
+            addTargetPopupField.style.flexShrink = 0f;
             Add(addTargetPopupField);
 
             bodiesListView = new ListView();
@@ -66,6 +69,7 @@ namespace DotsAnimationToolkit.Editor
             bodiesListView.bindItem = BindBodyRow;
             bodiesListView.itemsSource = bodyEntries;
             bodiesListView.selectionChanged += OnBodiesListSelectionChanged;
+            bodiesListView.AddToClassList("toolkit-list-surface");
             Add(bodiesListView);
 
             UpdateButtonStates();
@@ -267,14 +271,14 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("ragdoll-body-row", out VisualElement row);
             Label rowLabel = new Label();
-            rowLabel.AddToClassList("toolkit-box__title");
+            rowLabel.AddToClassList("toolkit-list-row__title");
             row.Add(rowLabel);
             return itemSlot;
         }
 
         private void BindBodyRow(VisualElement element, int index)
         {
-            Label rowLabel = element?.Q<Label>(className: "toolkit-box__title");
+            Label rowLabel = element?.Q<Label>(className: "toolkit-list-row__title");
             if (rowLabel == null || index < 0 || index >= bodyEntries.Count)
             {
                 return;

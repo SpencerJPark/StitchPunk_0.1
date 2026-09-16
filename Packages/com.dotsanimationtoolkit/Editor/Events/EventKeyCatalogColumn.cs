@@ -66,7 +66,7 @@ namespace DotsAnimationToolkit.Editor
 
             keysListView = new ListView();
             keysListView.name = "events-keys-list";
-            keysListView.fixedItemHeight = 64f;
+            keysListView.fixedItemHeight = 22f;
             keysListView.selectionType = SelectionType.Single;
             keysListView.style.flexGrow = 1f;
             keysListView.style.marginTop = 4f;
@@ -74,6 +74,7 @@ namespace DotsAnimationToolkit.Editor
             keysListView.bindItem = BindRow;
             keysListView.itemsSource = filteredEntries;
             keysListView.selectionChanged += OnListSelectionChanged;
+            keysListView.AddToClassList("toolkit-list-surface");
             Add(keysListView);
 
             emptyLabel = new Label();
@@ -207,19 +208,14 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement itemSlot = ToolkitChrome.MakeListRowSlot("events-keys-row-box", out VisualElement row);
 
-            VisualElement headerRow = new VisualElement();
-            headerRow.AddToClassList("toolkit-box__header");
-
             Label titleLabel = new Label();
             titleLabel.name = "events-keys-row-title";
-            titleLabel.AddToClassList("toolkit-box__title");
-            headerRow.Add(titleLabel);
-            row.Add(headerRow);
+            titleLabel.AddToClassList("toolkit-list-row__title");
+            row.Add(titleLabel);
 
             Label infoLabel = new Label();
             infoLabel.name = "events-keys-row-info";
-            infoLabel.AddToClassList("toolkit-box__label");
-            infoLabel.AddToClassList("toolkit-hint");
+            infoLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(infoLabel);
 
             row.AddManipulator(new ContextualMenuManipulator(
@@ -246,7 +242,7 @@ namespace DotsAnimationToolkit.Editor
             Label infoLabel = row.Q<Label>("events-keys-row-info");
             infoLabel.text = entry != null ? DescribeKeyLine(entry) : string.Empty;
 
-            row.EnableInClassList("toolkit-box--selected", entry == SelectedEntry);
+            row.EnableInClassList("toolkit-list-row--selected", entry == SelectedEntry);
         }
 
         private static string DescribeKeyLine(AnimEventKeyEntry entry)
