@@ -90,7 +90,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 VisualElement targetsColumn = panel.Q<VisualElement>("rig-targets-column");
                 List<Toggle> candidateToggles = targetsColumn.Query<Toggle>().ToList()
                     .Where(toggle => toggle.parent != null
-                        && toggle.parent.ClassListContains("toolkit-box__header"))
+                        && toggle.parent.ClassListContains("toolkit-list-row"))
                     .ToList();
 
                 Assert.AreEqual(2, candidateToggles.Count);
@@ -170,7 +170,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 VisualElement targetsColumn = panel.Q<VisualElement>("rig-targets-column");
                 List<Toggle> candidateToggles = targetsColumn.Query<Toggle>().ToList()
                     .Where(toggle => toggle.parent != null
-                        && toggle.parent.ClassListContains("toolkit-box__header"))
+                        && toggle.parent.ClassListContains("toolkit-list-row"))
                     .ToList();
 
                 Assert.AreEqual(0, candidateToggles.Count);

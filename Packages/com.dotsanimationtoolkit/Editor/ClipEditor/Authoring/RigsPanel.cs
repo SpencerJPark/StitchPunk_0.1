@@ -28,7 +28,7 @@ namespace DotsAnimationToolkit.Editor
             public VisualElement Box;
         }
 
-        private const string SelectedBoxUssClassName = "toolkit-box--selected";
+        private const string SelectedRowUssClassName = "toolkit-list-row--selected";
 
         /// <summary>Mirrors the floor <see cref="RigCatalogColumn"/> sets on itself; the inner split needs to know it.</summary>
         private const float CatalogMinimumWidth = 200f;
@@ -513,28 +513,27 @@ namespace DotsAnimationToolkit.Editor
             tagButton.style.flexShrink = 0f;
             tagButton.style.minWidth = 90f;
             tagButton.style.marginLeft = 4f;
-            // An unticked node is not becoming a target, so its tag would go nowhere. Greying
-            // the button is what separates the animated parts from the ones just listed.
-            tagButton.SetEnabled(ticked);
+            ToolkitChrome.StyleButton(tagButton, ToolkitButtonVariant.Ghost);
 
             Button kindButton = new Button { text = "Kind: Quad" };
             kindButton.style.flexShrink = 0f;
             kindButton.style.minWidth = 100f;
             kindButton.style.marginLeft = 4f;
-            // An unticked node is not becoming a target, so its kind would go nowhere. Greying
-            // the button is what separates the animated parts from the ones just listed.
-            kindButton.SetEnabled(ticked);
+            ToolkitChrome.StyleButton(kindButton, ToolkitButtonVariant.Ghost);
 
-            VisualElement candidateBox = new VisualElement();
-            candidateBox.AddToClassList("toolkit-box");
+            // An unticked node is not becoming a target, so its tag/kind would go nowhere; the
+            // chips only earn their place on the row once the checkbox ticks it as a target.
+            SetCandidateChipVisible(tagButton, ticked);
+            SetCandidateChipVisible(kindButton, ticked);
 
-            VisualElement rowContainer = new VisualElement();
-            rowContainer.AddToClassList("toolkit-box__header");
-            rowContainer.Add(rowToggle);
-            rowContainer.Add(kindButton);
-            rowContainer.Add(tagButton);
-            candidateBox.Add(rowContainer);
-            candidateContainer.Add(candidateBox);
+            VisualElement candidateRow = new VisualElement();
+            candidateRow.AddToClassList("toolkit-list-row");
+            // The visible label ellipsizes a deep node path; the tooltip carries the full path.
+            candidateRow.tooltip = sourceRow.SourceNodePath;
+            candidateRow.Add(rowToggle);
+            candidateRow.Add(kindButton);
+            candidateRow.Add(tagButton);
+            candidateContainer.Add(candidateRow);
 
             CandidateRow row = new CandidateRow
             {
@@ -547,7 +546,7 @@ namespace DotsAnimationToolkit.Editor
                 ToggleControl = rowToggle,
                 TagButton = tagButton,
                 KindButton = kindButton,
-                Box = candidateBox
+                Box = candidateRow
             };
             RefreshTagButtonText(row);
             RefreshKindButtonText(row);
@@ -559,7 +558,7 @@ namespace DotsAnimationToolkit.Editor
                 changeEvent => OnRowToggleChanged(row, rowToggle, tagButton, kindButton, changeEvent.newValue));
             // TrickleDown, so clicking the toggle or the tag button still shows which node the
             // row means rather than being swallowed by the control that was hit.
-            candidateBox.RegisterCallback<PointerDownEvent>(
+            candidateRow.RegisterCallback<PointerDownEvent>(
                 pointerEvent => FocusRow(row), TrickleDown.TrickleDown);
             candidateRows.Add(row);
             // The preview has no copy of a missing node, so it is never told about one.
@@ -569,13 +568,21 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        // The Kind/Tag chips only show on ticked rows (SG-D6); enabled state and visibility move
+        // together so a hidden chip is never left clickable underneath.
+        private static void SetCandidateChipVisible(Button chipButton, bool visible)
+        {
+            chipButton.SetEnabled(visible);
+            chipButton.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
         // Edit mode writes the rig asset the moment a row is ticked or unticked; create mode keeps
         // the tick in memory until Create Rig runs.
         private void OnRowToggleChanged(
             CandidateRow row, Toggle rowToggle, Button tagButton, Button kindButton, bool isChecked)
         {
-            tagButton.SetEnabled(isChecked);
-            kindButton.SetEnabled(isChecked);
+            SetCandidateChipVisible(tagButton, isChecked);
+            SetCandidateChipVisible(kindButton, isChecked);
             if (!row.IsMissingNode)
             {
                 preview.SetNodeIncluded(row.SourceNodePath, isChecked);
@@ -613,8 +620,8 @@ namespace DotsAnimationToolkit.Editor
                     // SetValueWithoutNotify, not value = true: a plain set re-enters this same
                     // callback and asks the owner the same question forever.
                     rowToggle.SetValueWithoutNotify(true);
-                    tagButton.SetEnabled(true);
-                    kindButton.SetEnabled(true);
+                    SetCandidateChipVisible(tagButton, true);
+                    SetCandidateChipVisible(kindButton, true);
                     if (!row.IsMissingNode)
                     {
                         preview.SetNodeIncluded(row.SourceNodePath, true);
@@ -651,7 +658,7 @@ namespace DotsAnimationToolkit.Editor
         {
             if (focusedRow != null && focusedRow.Box != null)
             {
-                focusedRow.Box.RemoveFromClassList(SelectedBoxUssClassName);
+                focusedRow.Box.RemoveFromClassList(SelectedRowUssClassName);
             }
             focusedRow = row;
             if (row == null)
@@ -661,7 +668,7 @@ namespace DotsAnimationToolkit.Editor
             }
             if (row.Box != null)
             {
-                row.Box.AddToClassList(SelectedBoxUssClassName);
+                row.Box.AddToClassList(SelectedRowUssClassName);
             }
             // The preview has no copy of a missing node's transform to focus on.
             if (!row.IsMissingNode)

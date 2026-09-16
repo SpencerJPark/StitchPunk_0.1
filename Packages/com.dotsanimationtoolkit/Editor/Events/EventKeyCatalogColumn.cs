@@ -81,10 +81,9 @@ namespace DotsAnimationToolkit.Editor
             emptyLabel.AddToClassList("toolkit-hint");
             Add(emptyLabel);
 
-            budgetLabel = new Label();
+            VisualElement budgetStatusRow = ToolkitChrome.MakeStatusRow(out budgetLabel, out _, true);
             budgetLabel.name = "events-keys-budget";
-            budgetLabel.AddToClassList("toolkit-hint");
-            Add(budgetLabel);
+            Add(budgetStatusRow);
 
             RefreshEmptyState();
             UpdateBudgetLabel();
@@ -304,9 +303,13 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            budgetLabel.text = maskableUsedCount + " of " + AnimEventMaskKeys.MaskKeyCount
+            string budgetStatusText = maskableUsedCount + " of " + AnimEventMaskKeys.MaskKeyCount
                 + " maskable keys used · " + pulseOnlyUsedCount + " pulse-only";
-            budgetLabel.EnableInClassList("toolkit-text--warning", maskableUsedCount >= AnimEventMaskKeys.MaskKeyCount);
+            ToolkitStatusTone budgetStatusTone = maskableUsedCount >= AnimEventMaskKeys.MaskKeyCount
+                ? ToolkitStatusTone.Warning
+                : ToolkitStatusTone.Neutral;
+            ToolkitChrome.SetStatus(budgetLabel, budgetStatusText, budgetStatusTone);
+            budgetLabel.tooltip = budgetStatusText;
         }
 
         private void PopulateRowContextMenu(ContextualMenuPopulateEvent populateEvent, VisualElement row)

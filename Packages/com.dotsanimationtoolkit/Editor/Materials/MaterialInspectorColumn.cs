@@ -86,17 +86,55 @@ namespace DotsAnimationToolkit.Editor
             bodyScrollView.style.display = DisplayStyle.Flex;
             selectButton.SetEnabled(true);
 
-            Label shaderRow = new Label("Shader  " + (material.shader != null ? material.shader.name : "no shader")) { name = "material-inspector-shader" };
-            bodyScrollView.Add(shaderRow);
+            VisualElement materialCardBody;
+            VisualElement materialCardHeaderActions;
+            VisualElement materialCard = ToolkitChrome.MakeCard(
+                "material-inspector-card",
+                "Material",
+                out materialCardBody,
+                out materialCardHeaderActions);
+
+            Label shaderValueLabel = new Label(material.shader != null ? material.shader.name : "no shader") { name = "material-inspector-shader" };
+            materialCardBody.Add(ToolkitChrome.MakePropertyRow("Shader", shaderValueLabel, null));
 
             List<RigTargetDefinition> targets = BoundUsage.Targets;
             string usedByText = targets != null && targets.Count > 0
                 ? string.Join(", ", targets.Select(target => target.displayName))
                 : "no rig target";
-            Label usedByRow = new Label("Used by  " + usedByText) { name = "material-inspector-used-by" };
-            bodyScrollView.Add(usedByRow);
+            Label usedByValueLabel = new Label(usedByText) { name = "material-inspector-used-by" };
+            materialCardBody.Add(ToolkitChrome.MakePropertyRow("Used by", usedByValueLabel, null));
 
-            if (targets == null || targets.Count == 0)
+            List<TargetKind> distinctKindsInEnumOrder = targets != null && targets.Count > 0
+                ? targets.Select(target => target.kind).Distinct().OrderBy(kind => (int)kind).ToList()
+                : new List<TargetKind>();
+
+            string kindText = distinctKindsInEnumOrder.Count > 0
+                ? string.Join(", ", distinctKindsInEnumOrder.Select(DisplayNameForTargetKind))
+                : "no rig target";
+            Label kindValueLabel = new Label(kindText) { name = "material-inspector-kind" };
+            materialCardBody.Add(ToolkitChrome.MakePropertyRow("Kind", kindValueLabel, null));
+
+            bool isInstancingEnabled = material.enableInstancing;
+            Label instancingBadge = ToolkitChrome.MakeBadge(
+                "GPU instancing",
+                isInstancingEnabled ? ToolkitStatusTone.Ok : ToolkitStatusTone.Error);
+            instancingBadge.name = "material-inspector-instancing";
+            if (!isInstancingEnabled)
+            {
+                instancingBadge.tooltip = "Entities Graphics needs it on";
+            }
+
+            materialCardBody.Add(instancingBadge);
+            if (!isInstancingEnabled)
+            {
+                Label instancingHint = new Label("Entities Graphics needs it on");
+                instancingHint.AddToClassList("toolkit-hint");
+                materialCardBody.Add(instancingHint);
+            }
+
+            bodyScrollView.Add(materialCard);
+
+            if (distinctKindsInEnumOrder.Count == 0)
             {
                 if (BoundUsage.UnmappedNodePaths != null && BoundUsage.UnmappedNodePaths.Count > 0)
                 {
@@ -111,11 +149,6 @@ namespace DotsAnimationToolkit.Editor
             }
             else
             {
-                IEnumerable<TargetKind> distinctKindsInEnumOrder = targets
-                    .Select(target => target.kind)
-                    .Distinct()
-                    .OrderBy(kind => (int)kind);
-
                 foreach (TargetKind kind in distinctKindsInEnumOrder)
                 {
                     Label sectionLabel = new Label(DisplayNameForTargetKind(kind));
@@ -129,17 +162,6 @@ namespace DotsAnimationToolkit.Editor
                     }
                 }
             }
-
-            bool isInstancingEnabled = material.enableInstancing;
-            Label instancingRow = new Label(isInstancingEnabled
-                ? "✓ GPU instancing"
-                : "✗ GPU instancing off (Entities Graphics needs it on)") { name = "material-inspector-instancing" };
-            if (!isInstancingEnabled)
-            {
-                instancingRow.AddToClassList("toolkit-text--error");
-            }
-
-            bodyScrollView.Add(instancingRow);
 
             List<ValidationMessage> flipbookWarnings = new List<ValidationMessage>();
             RigMaterialResolver.CollectFlipbookBindingWarnings(BoundUsage, BoundClipSet, flipbookWarnings);
