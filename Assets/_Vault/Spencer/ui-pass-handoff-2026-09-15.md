@@ -52,23 +52,31 @@ In `Packages/com.dotsanimationtoolkit/Editor/ClipEditor/Shared/`:
 - the **header and search keep their inset** — the owner asked for that explicitly after the first attempt;
 - a **middle** column between a catalog and a working pane takes `toolkit-column--raised`.
 
-## 3. What is still to do, ranked (from the 15 captures in `Library/UIAudit/now/`)
+## 3. The ranked list — all seven closed 2026-09-15 (A105)
 
-1. **Two-tone the six flat tabs.** Clip Editor, Retarget, Actor Profiles, Stats, Capture, Cutscenes are still one
-   grey wall. Retarget is the worst: a huge empty expanse with one line in it. Biggest win, lowest risk, the class
-   already exists.
-2. **Viewport empty states.** Clip Editor, Retarget, Actor Profiles and Capture show a large black rectangle with a
-   tiny icon rail. `MakeEmptyState` exists and is already used in five places.
-3. **Inspectors become cards.** Clip Editor's Clip Inspector and Actor Profiles' Actor Inspector are stacked labels
-   and loose fields. `MakeCard` + `MakePropertyRow`, as Materials and Health now do.
-4. **Stats** is bordered boxes rather than flat cards, and every number is an em dash with no explanation beyond the
-   footer.
-5. **Rigs target rows** — see §5. The answer is SG-D6's **Target detail card**, not another width tweak.
-6. **Cutscenes magenta** — the viewport renders the open scene through a hidden camera, so **prove the source
-   first**: scene materials, or a toolkit proxy. Do not "fix" it blind.
-7. **Retarget's roster chips** read as debug UI rather than badges.
+Commits `eb8869e3`, `2d841291`, `e46f7926`, `A105-4`. Compile clean and EditMode 876 of 876 at every gate.
+After-captures in `Library/UIAudit/after/`; `now/` is what they replaced.
 
-Also open from A104's own audit: Texture Packer's Recipes mode (SG-D8: never require a recipe) and Actor Profiles'
+1. ~~Two-tone the six flat tabs.~~ Done. The Clip Editor's panes do not inset their children, so its lists needed a
+   new `toolkit-list-surface--flush` (the tone without the −10px pull-back) rather than the plain class.
+2. ~~Viewport empty states.~~ Done. `ViewportFrameElement.SetEmptyState` / `ShowEmptyState` is the one way now
+   (R20), used by Retarget, Actor Profiles and Capture; the Clip Editor's viewport is uxml, so its overlay is
+   inserted at index 1 of `viewport-frame` — above the image, under the rail, picking ignored.
+3. ~~Inspectors become cards.~~ Done for the Clip Inspector and the Actor Inspector. `BuildAnimationBlock` is
+   deliberately **not** converted — left whole rather than half-done; it is the obvious next piece.
+4. ~~Stats.~~ Flat cards, aligned rows, and the em dash explains itself in a tooltip where it is read.
+5. ~~Rigs target rows.~~ SG-D6's Target card, built. See §5 — the row constraint is unchanged, the chips simply
+   left the row.
+6. ~~Cutscenes magenta.~~ **Proven, and it is not the toolkit's.** The viewport renders the open scene faithfully;
+   the scene is broken. `Assets/Materials/UnitsLegacy/Faceware.mat` names shader guid
+   `e5e6305bdbeddc649b56d342dc41c652`, which no `.meta` in the project claims — the shader asset is gone, so Unity
+   substitutes `Hidden/InternalErrorShader`. Two `Quad` renderers in `TestArea` also carry a null material. R19
+   governs materials the toolkit creates; substituting one into the owner's scene would be lying about it. **Owner
+   call: which shader those faces should use.**
+7. ~~Retarget's roster chips.~~ Real badges now, toned ok/warning/error. The five coverage blocks went with them:
+   they encoded the ratio the count already states (R03), and the badge's tone carries the at-a-glance signal.
+
+Still open from A104's own audit: Texture Packer's Recipes mode (SG-D8: never require a recipe) and Actor Profiles'
 hover play (SG-D7).
 
 ## 4. The loop that worked
