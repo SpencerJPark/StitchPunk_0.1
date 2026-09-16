@@ -19,6 +19,8 @@ namespace DotsAnimationToolkit.Editor
 
         public VisualElement OverlayColumn { get; }
 
+        private VisualElement emptyState;
+
         public ViewportFrameElement()
         {
             AddToClassList("clip-editor__viewport-frame");
@@ -36,6 +38,37 @@ namespace DotsAnimationToolkit.Editor
             OverlayColumn = new VisualElement { name = "overlay-column" };
             OverlayColumn.AddToClassList("clip-editor__overlay-column");
             Overlay.Add(OverlayColumn);
+        }
+
+        /// <summary>Builds the shared designed-empty overlay the first time, or updates its text on later calls.</summary>
+        public void SetEmptyState(string elementName, string title, string why)
+        {
+            if (emptyState == null)
+            {
+                emptyState = ToolkitChrome.MakeEmptyState(elementName, title, why, null, null);
+                emptyState.style.position = Position.Absolute;
+                emptyState.style.left = 0f;
+                emptyState.style.right = 0f;
+                emptyState.style.top = 0f;
+                emptyState.style.bottom = 0f;
+                emptyState.pickingMode = PickingMode.Ignore;
+                Insert(IndexOf(Overlay), emptyState);
+                return;
+            }
+
+            emptyState.Q<Label>(className: "toolkit-empty__title").text = title;
+            emptyState.Q<Label>(className: "toolkit-empty__why").text = why;
+        }
+
+        /// <summary>No-op until <see cref="SetEmptyState"/> has built the overlay.</summary>
+        public void ShowEmptyState(bool isShown)
+        {
+            if (emptyState == null)
+            {
+                return;
+            }
+
+            emptyState.style.display = isShown ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         public ToolbarButton AddRailButton(string exactIconName, string tooltip, string fallbackText, Action onClick, bool startsRun = false)

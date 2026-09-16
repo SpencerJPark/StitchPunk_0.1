@@ -217,7 +217,10 @@ namespace DotsAnimationToolkit.Editor
         {
             VisualElement container = new VisualElement();
 
-            rigField = new ObjectField("Rig")
+            VisualElement profileCard = ToolkitChrome.MakeCard(
+                "actor-editor-inspector-profile-card", "Profile", out VisualElement profileBody, out _);
+
+            rigField = new ObjectField
             {
                 objectType = typeof(RigAsset),
                 name = "actor-editor-inspector-rig-field"
@@ -225,32 +228,35 @@ namespace DotsAnimationToolkit.Editor
             rigField.SetValueWithoutNotify(profile.rig);
             rigField.RegisterValueChangedCallback(
                 changeEvent => ApplyRigChange(changeEvent.newValue as RigAsset));
-            container.Add(rigField);
+            profileBody.Add(ToolkitChrome.MakePropertyRow("Rig", rigField, null));
 
-            Label clipSetsHeading = new Label("Clip Sets");
-            clipSetsHeading.style.unityFontStyleAndWeight = FontStyle.Bold;
-            clipSetsHeading.style.marginTop = 6f;
-            container.Add(clipSetsHeading);
+            turnDirectionsField = new EnumField(profile.turnDirections)
+            {
+                name = "actor-editor-inspector-turn-directions-field"
+            };
+            turnDirectionsField.RegisterValueChangedCallback(
+                changeEvent => ApplyTurnDirectionsChange((AnimationDirections)changeEvent.newValue));
+            profileBody.Add(ToolkitChrome.MakePropertyRow("Turn Directions", turnDirectionsField, null));
 
-            clipSetListContainer = new VisualElement { name = "actor-editor-inspector-clipset-list" };
-            container.Add(clipSetListContainer);
-            RebuildClipSetRows();
+            container.Add(profileCard);
+
+            VisualElement clipSetsCard = ToolkitChrome.MakeCard(
+                "actor-editor-inspector-clipsets-card", "Clip Sets", out VisualElement clipSetsBody,
+                out VisualElement clipSetsActions);
 
             Button addClipSetButton = new Button(AddClipSetRow)
             {
                 text = "+ Clip Set",
                 name = "actor-editor-inspector-add-clipset-button"
             };
-            container.Add(addClipSetButton);
+            ToolkitChrome.StyleButton(addClipSetButton, ToolkitButtonVariant.Ghost);
+            clipSetsActions.Add(addClipSetButton);
 
-            turnDirectionsField = new EnumField("Turn Directions", profile.turnDirections)
-            {
-                name = "actor-editor-inspector-turn-directions-field"
-            };
-            turnDirectionsField.style.marginTop = 6f;
-            turnDirectionsField.RegisterValueChangedCallback(
-                changeEvent => ApplyTurnDirectionsChange((AnimationDirections)changeEvent.newValue));
-            container.Add(turnDirectionsField);
+            clipSetListContainer = new VisualElement { name = "actor-editor-inspector-clipset-list" };
+            clipSetsBody.Add(clipSetListContainer);
+            RebuildClipSetRows();
+
+            container.Add(clipSetsCard);
 
             return container;
         }
@@ -373,7 +379,10 @@ namespace DotsAnimationToolkit.Editor
             bool isOverrideBookend = profile.layers != null && selection.layerIndex == profile.layers.Count - 1;
             bool isBookend = isBaseBookend || isOverrideBookend;
 
-            layerNameField = new TextField("Name") { name = "actor-editor-inspector-layer-name-field" };
+            VisualElement layerCard = ToolkitChrome.MakeCard(
+                "actor-editor-inspector-layer-card", layer.displayName, out VisualElement layerBody, out _);
+
+            layerNameField = new TextField { name = "actor-editor-inspector-layer-name-field" };
             layerNameField.SetValueWithoutNotify(layer.displayName);
             layerNameField.isReadOnly = isBookend;
             if (!isBookend)
@@ -381,7 +390,7 @@ namespace DotsAnimationToolkit.Editor
                 layerNameField.RegisterValueChangedCallback(
                     changeEvent => ApplyLayerNameChange(changeEvent.newValue));
             }
-            container.Add(layerNameField);
+            layerBody.Add(ToolkitChrome.MakePropertyRow("Name", layerNameField, null));
 
             if (isBookend)
             {
@@ -393,17 +402,17 @@ namespace DotsAnimationToolkit.Editor
                 {
                     name = "actor-editor-inspector-layer-bookend-helpbox"
                 };
-                container.Add(bookendHelpBox);
+                layerBody.Add(bookendHelpBox);
             }
 
-            layerDefaultActiveToggle = new Toggle("Default Active")
+            layerDefaultActiveToggle = new Toggle
             {
                 name = "actor-editor-inspector-layer-default-active-toggle"
             };
             layerDefaultActiveToggle.SetValueWithoutNotify(layer.defaultActive);
             layerDefaultActiveToggle.RegisterValueChangedCallback(
                 changeEvent => ApplyLayerDefaultActiveChange(changeEvent.newValue));
-            container.Add(layerDefaultActiveToggle);
+            layerBody.Add(ToolkitChrome.MakePropertyRow("Default Active", layerDefaultActiveToggle, null));
 
             layerStarterButton = new Button
             {
@@ -418,7 +427,9 @@ namespace DotsAnimationToolkit.Editor
                     OpenStarterDropdown(layerStarterButton, selectedLayer);
                 }
             };
-            container.Add(layerStarterButton);
+            layerBody.Add(layerStarterButton);
+
+            container.Add(layerCard);
 
             return container;
         }

@@ -948,7 +948,7 @@ namespace DotsAnimationToolkit.Editor
             transformBlock.EnableInClassList(TransformInterpolatedUssClassName, hasKeys && !isOnKey);
             binding.block = transformBlock;
 
-            Vector3Field positionField = new Vector3Field("Position");
+            Vector3Field positionField = new Vector3Field();
             positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
             positionField.SetEnabled(!isRigEdit);
             positionField.RegisterValueChangedCallback(changeEvent =>
@@ -956,23 +956,24 @@ namespace DotsAnimationToolkit.Editor
                 ApplyBoneEditFromFields(binding);
             });
             binding.positionField = positionField;
-            transformBlock.Add(positionField);
+            transformBlock.Add(ToolkitChrome.MakePropertyRow("Position", positionField, string.Empty));
 
-            Vector3Field rotationField = new Vector3Field("Rotation");
+            Vector3Field rotationField = new Vector3Field();
             rotationField.SetValueWithoutNotify(
                 new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
             rotationField.SetEnabled(!isRigEdit);
-            rotationField.tooltip =
-                "Euler degrees. The authored key stores a quaternion; this is the readable form of "
-                + "it, converted at the boundary.";
             rotationField.RegisterValueChangedCallback(changeEvent =>
             {
                 ApplyBoneEditFromFields(binding);
             });
             binding.rotationField = rotationField;
-            transformBlock.Add(rotationField);
+            transformBlock.Add(ToolkitChrome.MakePropertyRow(
+                "Rotation",
+                rotationField,
+                "Euler degrees. The authored key stores a quaternion; this is the readable form of "
+                    + "it, converted at the boundary."));
 
-            Vector3Field scaleField = new Vector3Field("Scale");
+            Vector3Field scaleField = new Vector3Field();
             scaleField.SetValueWithoutNotify(new Vector3(scale.x, scale.y, scale.z));
             scaleField.SetEnabled(!isRigEdit);
             scaleField.RegisterValueChangedCallback(changeEvent =>
@@ -980,7 +981,7 @@ namespace DotsAnimationToolkit.Editor
                 ApplyBoneEditFromFields(binding);
             });
             binding.scaleField = scaleField;
-            transformBlock.Add(scaleField);
+            transformBlock.Add(ToolkitChrome.MakePropertyRow("Scale", scaleField, string.Empty));
 
             parent.Add(transformBlock);
 
@@ -1722,7 +1723,7 @@ namespace DotsAnimationToolkit.Editor
             transformBlock.EnableInClassList(
                 TransformModifiedUssClassName, !isRigEdit && valueState == TransformValueState.Modified);
 
-            Vector3Field positionField = new Vector3Field("Position");
+            Vector3Field positionField = new Vector3Field();
             positionField.SetValueWithoutNotify(new Vector3(position.x, position.y, position.z));
             positionField.SetEnabled(!isRigEdit);
             positionField.RegisterValueChangedCallback(changeEvent =>
@@ -1730,23 +1731,24 @@ namespace DotsAnimationToolkit.Editor
                 ApplyTransformEditFromFields(binding);
             });
             binding.positionField = positionField;
-            transformBlock.Add(positionField);
+            transformBlock.Add(ToolkitChrome.MakePropertyRow("Position", positionField, string.Empty));
 
-            Vector3Field rotationField = new Vector3Field("Rotation");
+            Vector3Field rotationField = new Vector3Field();
             rotationField.SetValueWithoutNotify(
                 new Vector3(rotationDegrees.x, rotationDegrees.y, rotationDegrees.z));
             rotationField.SetEnabled(!isRigEdit);
-            rotationField.tooltip =
-                "Euler degrees in Unity's ZXY order. The bake converts to radians once. "
-                + "A flat rig leaves x and y at zero.";
             rotationField.RegisterValueChangedCallback(changeEvent =>
             {
                 ApplyTransformEditFromFields(binding);
             });
             binding.rotationField = rotationField;
-            transformBlock.Add(rotationField);
+            transformBlock.Add(ToolkitChrome.MakePropertyRow(
+                "Rotation",
+                rotationField,
+                "Euler degrees in Unity's ZXY order. The bake converts to radians once. "
+                    + "A flat rig leaves x and y at zero."));
 
-            Vector3Field scaleField = new Vector3Field("Scale");
+            Vector3Field scaleField = new Vector3Field();
             scaleField.SetValueWithoutNotify(new Vector3(scale.x, scale.y, scale.z));
             scaleField.SetEnabled(!isRigEdit);
             scaleField.RegisterValueChangedCallback(changeEvent =>
@@ -1754,7 +1756,7 @@ namespace DotsAnimationToolkit.Editor
                 ApplyTransformEditFromFields(binding);
             });
             binding.scaleField = scaleField;
-            transformBlock.Add(scaleField);
+            transformBlock.Add(ToolkitChrome.MakePropertyRow("Scale", scaleField, string.Empty));
 
             parent.Add(transformBlock);
 
@@ -1829,11 +1831,12 @@ namespace DotsAnimationToolkit.Editor
             }
             clipSerializedObject.Update();
 
-            inspectorPane.Add(MakeHeading("Clip"));
-            inspectorPane.Add(MakeClipNameField());
-            AddBoundField("duration");
-            AddBoundField("defaultLoop");
-            AddBoundField("rig");
+            VisualElement clipBody;
+            inspectorPane.Add(ToolkitChrome.MakeCard("clip-inspector-clip-card", "Clip", out clipBody, out _));
+            clipBody.Add(ToolkitChrome.MakePropertyRow("Name", MakeClipNameField(), string.Empty));
+            AddBoundField("duration", clipBody);
+            AddBoundField("defaultLoop", clipBody);
+            AddBoundField("rig", clipBody);
             AddBoneTrackControls();
             AddSocketDirectory();
             inspectorPane.Bind(clipSerializedObject);
@@ -1842,26 +1845,29 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Clip-level bone-track summary, plus the by-name fallback for a set with no rig assigned.</summary>
         private void AddBoneTrackControls()
         {
-            inspectorPane.Add(MakeHeading("Bone Tracks"));
+            VisualElement boneTracksBody;
+            inspectorPane.Add(ToolkitChrome.MakeCard(
+                "clip-inspector-bone-tracks-card", "Bone Tracks", out boneTracksBody, out _));
 
             int boneTrackCount = session.SelectedClip.boneTracks != null ? session.SelectedClip.boneTracks.Count : 0;
-            inspectorPane.Add(new Label(boneTrackCount.ToString() + " track(s)"));
+            boneTracksBody.Add(new Label(boneTrackCount.ToString() + " track(s)"));
 
             // LoadedPrefab, not just whether a rig is assigned: a rig with no sourcePrefab yet has
             // no hierarchy to pick a bone from either, and the typed fallback covers that state.
             bool hasHierarchy = LoadedPrefab != null;
             if (hasHierarchy)
             {
-                inspectorPane.Add(MakeHint("Pick a bone in the Hierarchy pane to add or edit its track."));
+                boneTracksBody.Add(MakeHint("Pick a bone in the Hierarchy pane to add or edit its track."));
                 return;
             }
 
-            TextField boneNameField = new TextField("Bone Name");
-            boneNameField.tooltip =
+            TextField boneNameField = new TextField();
+            boneTracksBody.Add(ToolkitChrome.MakePropertyRow(
+                "Bone Name",
+                boneNameField,
                 "Pick a rig with a Source Prefab above the hierarchy to pick from it "
-                + "instead. Case sensitive — the bake reports a name it cannot resolve.";
-            inspectorPane.Add(boneNameField);
-            inspectorPane.Add(new Button(() => AddBoneTrack(boneNameField.value))
+                    + "instead. Case sensitive — the bake reports a name it cannot resolve."));
+            boneTracksBody.Add(new Button(() => AddBoneTrack(boneNameField.value))
             {
                 text = "Add Bone Track"
             });
@@ -1906,7 +1912,7 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>The clip's asset name, editable in place.</summary>
         private TextField MakeClipNameField()
         {
-            TextField nameField = new TextField("Name");
+            TextField nameField = new TextField();
             nameField.isDelayed = true;
             nameField.SetValueWithoutNotify(session.SelectedClip.name);
             nameField.RegisterValueChangedCallback(changeEvent =>
@@ -1937,12 +1943,15 @@ namespace DotsAnimationToolkit.Editor
             return label;
         }
 
-        private void AddBoundField(string propertyPath)
+        private void AddBoundField(string propertyPath, VisualElement cardBody)
         {
             SerializedProperty property = clipSerializedObject.FindProperty(propertyPath);
             if (property != null)
             {
-                inspectorPane.Add(new PropertyField(property));
+                // PropertyField carries its own label; string.Empty suppresses it so
+                // MakePropertyRow's label is the only one drawn.
+                PropertyField propertyField = new PropertyField(property, string.Empty);
+                cardBody.Add(ToolkitChrome.MakePropertyRow(property.displayName, propertyField, string.Empty));
             }
         }
 

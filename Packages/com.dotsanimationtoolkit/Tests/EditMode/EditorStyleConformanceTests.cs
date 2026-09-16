@@ -36,7 +36,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "Editor/ClipEditor/Preview/RagdollPreviewSceneryProvider.cs",
             "Editor/TexturePacker/TexturePackerGraphView.cs",
             "Editor/TexturePacker/TexturePackPortBuilder.cs",
-            "Editor/ClipEditor/ActorEditor/ActorEditorInspectorColumn.cs",
         };
 
         // Maps package-relative path to its non-exempt inline-style match count. Only files with

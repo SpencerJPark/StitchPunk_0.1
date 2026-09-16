@@ -52,7 +52,10 @@ namespace DotsAnimationToolkit.Editor
             emptyState.style.right = 0f;
             emptyState.style.top = 0f;
             emptyState.style.bottom = 0f;
-            frame.Add(emptyState); // overlays the viewport image; shown only while there is no ready source
+            // Ignores picking and sits under the rail: an overlay that covers the whole frame would
+            // otherwise swallow a camera drag, and the rail's buttons with it.
+            emptyState.pickingMode = PickingMode.Ignore;
+            frame.Insert(1, emptyState); // after the image, before the overlay rail
 
             statusLabel = ToolkitChrome.MakeHint(string.Empty);
             statusLabel.style.display = DisplayStyle.None;

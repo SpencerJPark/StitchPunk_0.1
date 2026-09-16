@@ -13,6 +13,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly ClipPreviewController previewController;
         private readonly PreviewCameraNavigation cameraNavigation;
         private readonly Image viewportImage;
+        private readonly ViewportFrameElement viewportFrame;
         private readonly TransportCoreElement transportCore;
         private readonly Label statusLabel;
 
@@ -41,11 +42,15 @@ namespace DotsAnimationToolkit.Editor
             headerRow.Add(titleLabel);
             Add(headerRow);
 
-            ViewportFrameElement frame = new ViewportFrameElement();
-            Button resetCameraButton = frame.AddResetCameraButton(() => cameraNavigation.ResetView());
+            viewportFrame = new ViewportFrameElement();
+            Button resetCameraButton = viewportFrame.AddResetCameraButton(() => cameraNavigation.ResetView());
             resetCameraButton.name = "retarget-preview-reset-camera-button";
-            viewportImage = frame.ViewportImage;
-            Add(frame);
+            viewportImage = viewportFrame.ViewportImage;
+            viewportFrame.SetEmptyState(
+                "retarget-preview-empty",
+                "No pose to preview",
+                "Pick a clip set, a clip and a rig in the bar above to see the clip play on that rig.");
+            Add(viewportFrame);
 
             VisualElement transportRow = new VisualElement();
             transportRow.AddToClassList("toolkit-transport");
@@ -138,6 +143,8 @@ namespace DotsAnimationToolkit.Editor
             double currentTimeSeconds = EditorApplication.timeSinceStartup;
             float elapsedSeconds = (float)(currentTimeSeconds - lastTickTimeSeconds);
             lastTickTimeSeconds = currentTimeSeconds;
+
+            viewportFrame.ShowEmptyState(boundClip == null || boundRig == null);
 
             Rect viewportRect = viewportImage.contentRect;
             if (float.IsNaN(viewportRect.width) || viewportRect.width < 1f || viewportRect.height < 1f)
