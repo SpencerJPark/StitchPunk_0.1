@@ -75,8 +75,8 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.paddingLeft = 0f;
             style.paddingRight = 0f;
-            style.paddingTop = 6f;
-            style.paddingBottom = 6f;
+            style.paddingTop = 0f;
+            style.paddingBottom = 0f;
 
             Add(BuildBody());
         }

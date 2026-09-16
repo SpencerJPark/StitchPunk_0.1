@@ -276,6 +276,9 @@
     border-radius: var(--toolkit-radius-card);
     margin-bottom: 8px;
     overflow: hidden;
+    /* A card never gives up height to a crowded column: shrinking it hides its own rows behind
+       overflow:hidden, which is how Capture's settings came out overlapped and cut off. */
+    flex-shrink: 0;
 }
 
 .toolkit-card__header {

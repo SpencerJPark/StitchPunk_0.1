@@ -171,6 +171,8 @@ namespace DotsAnimationToolkit.Editor
             thumbnail.pickingMode = PickingMode.Ignore;
             thumbnail.style.width = 24f;
             thumbnail.style.height = 24f;
+            thumbnail.style.flexShrink = 0f;
+            thumbnail.style.marginRight = 8f;
             row.Add(thumbnail);
 
             Label titleLabel = new Label();

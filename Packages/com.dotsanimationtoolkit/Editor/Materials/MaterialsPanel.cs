@@ -75,7 +75,10 @@ namespace DotsAnimationToolkit.Editor
 
             header.Add(ToolkitChrome.MakeAssetBarSpacer());
 
-            createTargetDropdown = new DropdownField("Target", new List<string>(), 0);
+            // Its own bar label, not the field's inline one: Unity's label column left "Target" stranded
+            // far from its dropdown.
+            header.Add(ToolkitChrome.MakeAssetBarLabel("Target"));
+            createTargetDropdown = new DropdownField(new List<string>(), 0);
             createTargetDropdown.name = "materials-create-target";
             header.Add(createTargetDropdown);
 

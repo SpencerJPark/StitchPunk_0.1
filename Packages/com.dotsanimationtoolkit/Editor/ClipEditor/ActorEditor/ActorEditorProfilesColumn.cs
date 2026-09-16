@@ -27,9 +27,11 @@ namespace DotsAnimationToolkit.Editor
         {
             name = "profiles-column";
             style.minWidth = 200f;
+            // The catalog below is itself a padded toolkit-column; a second inset here is what left its
+            // list in a grey gutter. The two pickers carry their own inset instead.
             style.paddingTop = 8f;
-            style.paddingLeft = 10f;
-            style.paddingRight = 10f;
+            style.paddingLeft = 0f;
+            style.paddingRight = 0f;
 
             clipSetField = new ObjectField
             {
@@ -39,6 +41,8 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "The clip set every tab is working on. Not what this profile plays — a profile lists its own clip sets."
             };
             clipSetField.AddToClassList("clip-editor__pane-field");
+            clipSetField.style.marginLeft = 10f;
+            clipSetField.style.marginRight = 10f;
             clipSetField.RegisterValueChangedCallback(OnClipSetFieldChanged);
             Add(clipSetField);
 
@@ -50,6 +54,8 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "The rig every tab is working on. Picking a profile sets it to the profile's rig."
             };
             rigField.AddToClassList("clip-editor__pane-field");
+            rigField.style.marginLeft = 10f;
+            rigField.style.marginRight = 10f;
             rigField.RegisterValueChangedCallback(OnRigFieldChanged);
             Add(rigField);
 

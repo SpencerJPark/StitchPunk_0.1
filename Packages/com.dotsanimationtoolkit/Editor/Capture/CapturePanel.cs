@@ -89,10 +89,10 @@ namespace DotsAnimationToolkit.Editor
             VisualElement kindRow = new VisualElement();
             kindRow.style.flexDirection = FlexDirection.Row;
             kindRow.style.flexWrap = Wrap.Wrap;
+            kindRow.style.alignItems = Align.Center;
             List<string> sourceKindChoices = new List<string> { "Clip", "Profile Animation", "Cutscene" };
-            sourceKindField = new DropdownField("Source", sourceKindChoices, sourceKindIndex);
+            sourceKindField = new DropdownField(sourceKindChoices, sourceKindIndex);
             sourceKindField.AddToClassList("toolkit-asset-bar__field");
-            sourceKindField.style.minWidth = 260f;
             sourceKindField.RegisterValueChangedCallback(changeEvent =>
             {
                 sourceKindIndex = sourceKindField.index;
@@ -100,7 +100,7 @@ namespace DotsAnimationToolkit.Editor
                 UpdateSourceRowVisibility();
                 RebuildSource();
             });
-            kindRow.Add(sourceKindField);
+            kindRow.Add(MakeSourceFieldPair("Source", sourceKindField));
             container.Add(kindRow);
 
             clipSourceRow = BuildClipSourceRow();
@@ -118,10 +118,10 @@ namespace DotsAnimationToolkit.Editor
             VisualElement row = new VisualElement();
             row.style.flexDirection = FlexDirection.Row;
             row.style.flexWrap = Wrap.Wrap;
+            row.style.alignItems = Align.Center;
 
-            clipSetField = new ObjectField("Clip Set") { objectType = typeof(ClipSetAsset), allowSceneObjects = false };
+            clipSetField = new ObjectField { objectType = typeof(ClipSetAsset), allowSceneObjects = false };
             clipSetField.AddToClassList("toolkit-asset-bar__field");
-            clipSetField.style.minWidth = 260f;
             clipSetField.RegisterValueChangedCallback(changeEvent =>
             {
                 ClipSetAsset newClipSet = changeEvent.newValue as ClipSetAsset;
@@ -134,17 +134,15 @@ namespace DotsAnimationToolkit.Editor
                     OnSharedClipSetChanged(newClipSet);
                 }
             });
-            row.Add(clipSetField);
+            row.Add(MakeSourceFieldPair("Clip Set", clipSetField));
 
-            clipField = new DropdownField("Clip", new List<string> { "(no clips)" }, 0);
+            clipField = new DropdownField(new List<string> { "(no clips)" }, 0);
             clipField.AddToClassList("toolkit-asset-bar__field");
-            clipField.style.minWidth = 200f;
             clipField.RegisterValueChangedCallback(changeEvent => RebuildSource());
-            row.Add(clipField);
+            row.Add(MakeSourceFieldPair("Clip", clipField));
 
-            rigField = new ObjectField("Rig") { objectType = typeof(RigAsset), allowSceneObjects = false };
+            rigField = new ObjectField { objectType = typeof(RigAsset), allowSceneObjects = false };
             rigField.AddToClassList("toolkit-asset-bar__field");
-            rigField.style.minWidth = 220f;
             rigField.RegisterValueChangedCallback(changeEvent =>
             {
                 RigAsset newRig = changeEvent.newValue as RigAsset;
@@ -157,7 +155,7 @@ namespace DotsAnimationToolkit.Editor
                     OnSharedRigChanged(newRig);
                 }
             });
-            row.Add(rigField);
+            row.Add(MakeSourceFieldPair("Rig", rigField));
 
             return row;
         }
@@ -167,29 +165,27 @@ namespace DotsAnimationToolkit.Editor
             VisualElement row = new VisualElement();
             row.style.flexDirection = FlexDirection.Row;
             row.style.flexWrap = Wrap.Wrap;
+            row.style.alignItems = Align.Center;
 
-            profileField = new ObjectField("Profile") { objectType = typeof(ActorProfileAsset), allowSceneObjects = false };
+            profileField = new ObjectField { objectType = typeof(ActorProfileAsset), allowSceneObjects = false };
             profileField.AddToClassList("toolkit-asset-bar__field");
-            profileField.style.minWidth = 260f;
             profileField.RegisterValueChangedCallback(changeEvent =>
             {
                 ActorProfileAsset newProfile = changeEvent.newValue as ActorProfileAsset;
                 RefreshAnimationChoices(newProfile);
                 RebuildSource();
             });
-            row.Add(profileField);
+            row.Add(MakeSourceFieldPair("Profile", profileField));
 
-            animationField = new DropdownField("Animation", new List<string> { "(no animations)" }, 0);
+            animationField = new DropdownField(new List<string> { "(no animations)" }, 0);
             animationField.AddToClassList("toolkit-asset-bar__field");
-            animationField.style.minWidth = 220f;
             animationField.RegisterValueChangedCallback(changeEvent => RebuildSource());
-            row.Add(animationField);
+            row.Add(MakeSourceFieldPair("Animation", animationField));
 
-            facingField = new EnumField("Facing", Direction.SouthEast);
+            facingField = new EnumField(Direction.SouthEast);
             facingField.AddToClassList("toolkit-asset-bar__field");
-            facingField.style.minWidth = 180f;
             facingField.RegisterValueChangedCallback(changeEvent => RebuildSource());
-            row.Add(facingField);
+            row.Add(MakeSourceFieldPair("Facing", facingField));
 
             return row;
         }
@@ -199,14 +195,27 @@ namespace DotsAnimationToolkit.Editor
             VisualElement row = new VisualElement();
             row.style.flexDirection = FlexDirection.Row;
             row.style.flexWrap = Wrap.Wrap;
+            row.style.alignItems = Align.Center;
 
-            cutsceneField = new ObjectField("Cutscene") { objectType = typeof(CutsceneAsset), allowSceneObjects = false };
+            cutsceneField = new ObjectField { objectType = typeof(CutsceneAsset), allowSceneObjects = false };
             cutsceneField.AddToClassList("toolkit-asset-bar__field");
-            cutsceneField.style.minWidth = 260f;
             cutsceneField.RegisterValueChangedCallback(changeEvent => RebuildSource());
-            row.Add(cutsceneField);
+            row.Add(MakeSourceFieldPair("Cutscene", cutsceneField));
 
             return row;
+        }
+
+        // A label and its field wrap as one unit; wrapped separately, a label could end one line
+        // with its field starting the next.
+        private static VisualElement MakeSourceFieldPair(string labelText, VisualElement field)
+        {
+            VisualElement pair = new VisualElement();
+            pair.style.flexDirection = FlexDirection.Row;
+            pair.style.alignItems = Align.Center;
+            pair.style.flexShrink = 0f;
+            pair.Add(ToolkitChrome.MakeAssetBarLabel(labelText));
+            pair.Add(field);
+            return pair;
         }
 
         private void UpdateSourceRowVisibility()
@@ -238,6 +247,7 @@ namespace DotsAnimationToolkit.Editor
             timeCaption.AddToClassList("toolkit-transport__caption");
             timeGroup.Add(timeCaption);
             previewTimeSlider = new Slider(0f, 1f);
+            previewTimeSlider.style.width = 280f;
             previewTimeSlider.RegisterValueChangedCallback(changeEvent => { viewport.PreviewSeconds = changeEvent.newValue; });
             timeGroup.Add(previewTimeSlider);
             transportRow.Add(timeGroup);
@@ -254,22 +264,23 @@ namespace DotsAnimationToolkit.Editor
 
             column.Add(ToolkitChrome.MakePaneHeader("Settings", out _, out _));
 
-            VisualElement sizeCardBody;
-            column.Add(ToolkitChrome.MakeCard("capture-size-card", "Size", out sizeCardBody, out _));
+            // The cards scroll and the Capture button stays pinned below them, so a short window
+            // never squeezes the cards into each other.
+            ScrollView cardsScrollView = new ScrollView(ScrollViewMode.Vertical) { name = "capture-settings-scroll" };
+            cardsScrollView.style.flexGrow = 1f;
+            cardsScrollView.style.flexShrink = 1f;
+            column.Add(cardsScrollView);
 
-            VisualElement sizeRow = new VisualElement();
-            sizeRow.style.flexDirection = FlexDirection.Row;
+            VisualElement sizeCardBody;
+            cardsScrollView.Add(ToolkitChrome.MakeCard("capture-size-card", "Size", out sizeCardBody, out _));
+
+            // Stacked, not side by side: two 112px label columns in one row left the fields no width.
             widthField = new IntegerField { value = settings.width };
             widthField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             heightField = new IntegerField { value = settings.height };
             heightField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            VisualElement widthRow = ToolkitChrome.MakePropertyRow("Width", widthField, null);
-            widthRow.style.flexGrow = 1f;
-            VisualElement heightRow = ToolkitChrome.MakePropertyRow("Height", heightField, null);
-            heightRow.style.flexGrow = 1f;
-            sizeRow.Add(widthRow);
-            sizeRow.Add(heightRow);
-            sizeCardBody.Add(sizeRow);
+            sizeCardBody.Add(ToolkitChrome.MakePropertyRow("Width", widthField, null));
+            sizeCardBody.Add(ToolkitChrome.MakePropertyRow("Height", heightField, null));
 
             List<string> presetLabels = new List<string>();
             foreach (CaptureSizePreset preset in CaptureSettings.SizePresets)
@@ -291,7 +302,7 @@ namespace DotsAnimationToolkit.Editor
             sizeCardBody.Add(ToolkitChrome.MakePropertyRow("Preset", presetField, null));
 
             VisualElement timingCardBody;
-            column.Add(ToolkitChrome.MakeCard("capture-timing-card", "Timing", out timingCardBody, out _));
+            cardsScrollView.Add(ToolkitChrome.MakeCard("capture-timing-card", "Timing", out timingCardBody, out _));
 
             fpsField = new IntegerField { value = settings.framesPerSecond };
             fpsField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
@@ -306,7 +317,7 @@ namespace DotsAnimationToolkit.Editor
             timingCardBody.Add(rangeSummaryLabel);
 
             VisualElement backgroundCardBody;
-            column.Add(ToolkitChrome.MakeCard("capture-background-card", "Background", out backgroundCardBody, out _));
+            cardsScrollView.Add(ToolkitChrome.MakeCard("capture-background-card", "Background", out backgroundCardBody, out _));
 
             backgroundGroup = new RadioButtonGroup(string.Empty, new List<string> { "Transparent", "Colour" });
             backgroundGroup.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
@@ -317,14 +328,14 @@ namespace DotsAnimationToolkit.Editor
             backgroundCardBody.Add(ToolkitChrome.MakePropertyRow("Colour", backgroundColourField, null));
 
             VisualElement formatCardBody;
-            column.Add(ToolkitChrome.MakeCard("capture-format-card", "Format", out formatCardBody, out _));
+            cardsScrollView.Add(ToolkitChrome.MakeCard("capture-format-card", "Format", out formatCardBody, out _));
 
             formatGroup = new RadioButtonGroup(string.Empty, new List<string> { "PNG Sequence", "GIF" });
             formatGroup.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             formatCardBody.Add(formatGroup);
 
             VisualElement outputCardBody;
-            column.Add(ToolkitChrome.MakeCard("capture-output-card", "Output", out outputCardBody, out _));
+            cardsScrollView.Add(ToolkitChrome.MakeCard("capture-output-card", "Output", out outputCardBody, out _));
 
             nameField = new TextField { value = settings.captureName };
             nameField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());

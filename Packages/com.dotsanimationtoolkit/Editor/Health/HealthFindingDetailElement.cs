@@ -163,8 +163,6 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement body = new VisualElement();
             body.AddToClassList("toolkit-box__body");
-            body.style.flexDirection = FlexDirection.Row;
-            body.style.flexWrap = Wrap.Wrap;
             section.Add(body);
 
             if (finding.actions == null || finding.actions.Count == 0)
@@ -185,10 +183,11 @@ namespace DotsAnimationToolkit.Editor
 
         private VisualElement BuildActionRow(HealthFinding finding, HealthFindingAction action)
         {
+            // One action per line, its description beside it: side-by-side columns sized to each
+            // description left the second button floating mid-panel.
             VisualElement rowContainer = new VisualElement();
-            rowContainer.style.flexGrow = 0f;
-            rowContainer.style.alignSelf = Align.FlexStart;
-            rowContainer.style.marginRight = 8f;
+            rowContainer.style.flexDirection = FlexDirection.Row;
+            rowContainer.style.alignItems = Align.Center;
             rowContainer.style.marginBottom = 6f;
 
             string actionIconName = ResolveActionIconName(action.label);
@@ -197,7 +196,9 @@ namespace DotsAnimationToolkit.Editor
                 : ToolkitIcons.MakeIconTextButton(() => RunAction(finding, action), actionIconName, action.description, action.label);
             actionButton.name = "health-finding-action";
             actionButton.style.flexGrow = 0f;
-            actionButton.style.alignSelf = Align.FlexStart;
+            actionButton.style.flexShrink = 0f;
+            actionButton.style.minWidth = 120f;
+            actionButton.style.marginLeft = 0f;
             ToolkitChrome.StyleButton(actionButton, ResolveActionVariant(action));
 
             if (actionIconName == null)
@@ -209,6 +210,8 @@ namespace DotsAnimationToolkit.Editor
 
             Label descriptionLabel = new Label(action.description);
             descriptionLabel.style.whiteSpace = WhiteSpace.Normal;
+            descriptionLabel.style.flexShrink = 1f;
+            descriptionLabel.style.marginLeft = 10f;
             descriptionLabel.AddToClassList("toolkit-text--dim");
             rowContainer.Add(descriptionLabel);
 
