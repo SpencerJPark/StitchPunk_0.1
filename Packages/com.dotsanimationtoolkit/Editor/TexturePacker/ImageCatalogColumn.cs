@@ -96,6 +96,7 @@ namespace DotsAnimationToolkit.Editor
             imagesListView.style.marginTop = 4f;
             imagesListView.makeItem = MakeImageRow;
             imagesListView.bindItem = BindImageRow;
+            imagesListView.AddToClassList("toolkit-list-surface");
             imagesListView.itemsSource = filteredImages;
             imagesListView.RegisterCallback<KeyDownEvent>(OnImagesListKeyDown);
             Add(imagesListView);

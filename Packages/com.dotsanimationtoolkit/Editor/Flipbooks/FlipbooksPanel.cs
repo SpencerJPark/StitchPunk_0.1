@@ -123,26 +123,19 @@ namespace DotsAnimationToolkit.Editor
             importedHintLabel = ToolkitChrome.MakeHint("The importer owns the layer order: rename frames, then Save to keep the names.");
             importedHintLabel.name = "flipbook-imported-hint";
             importedHintLabel.style.display = DisplayStyle.None;
+            importedHintLabel.style.flexShrink = 0f;
 
             depthWarningLabel = new Label();
             depthWarningLabel.name = "flipbook-depth-warning";
             depthWarningLabel.AddToClassList("toolkit-hint");
             depthWarningLabel.AddToClassList("toolkit-text--warning");
             depthWarningLabel.style.display = DisplayStyle.None;
+            depthWarningLabel.style.flexShrink = 0f;
 
-            VisualElement importSettingsBox = new VisualElement();
-            importSettingsBox.AddToClassList("toolkit-box");
-
-            VisualElement importSettingsBoxHeader = new VisualElement();
-            importSettingsBoxHeader.AddToClassList("toolkit-box__header");
-            Label importSettingsBoxTitle = new Label("Import settings");
-            importSettingsBoxTitle.AddToClassList("toolkit-box__title");
-            importSettingsBoxHeader.Add(importSettingsBoxTitle);
-            importSettingsBox.Add(importSettingsBoxHeader);
-
-            VisualElement importSettingsBoxBody = new VisualElement();
-            importSettingsBoxBody.AddToClassList("toolkit-box__body");
-            importSettingsBox.Add(importSettingsBoxBody);
+            VisualElement importSettingsCard = ToolkitChrome.MakeCard(
+                "flipbook-import-settings-card", "Import settings",
+                out VisualElement importSettingsCardBody, out VisualElement importSettingsCardHeaderActions);
+            importSettingsCard.style.flexShrink = 0f;
 
             VisualElement importSettingsControlsRow = new VisualElement();
             importSettingsControlsRow.style.flexDirection = FlexDirection.Row;
@@ -151,8 +144,8 @@ namespace DotsAnimationToolkit.Editor
             importSettingsControlsRow.Add(wrapModeField);
             importSettingsControlsRow.Add(generateMipsToggle);
             importSettingsControlsRow.Add(linearToggle);
-            importSettingsBoxBody.Add(importSettingsControlsRow);
-            importSettingsBoxBody.Add(importSettingsSourceField);
+            importSettingsCardBody.Add(importSettingsControlsRow);
+            importSettingsCardBody.Add(importSettingsSourceField);
 
             outputPathRow = new PathPickerRowElement("Output", "Choose where the baked flipbook is written.");
             outputPathRow.BrowseRequested += OnChooseOutputPathClicked;
@@ -162,7 +155,7 @@ namespace DotsAnimationToolkit.Editor
             flipbookColumn.Add(header);
             flipbookColumn.Add(importedHintLabel);
             flipbookColumn.Add(depthWarningLabel);
-            flipbookColumn.Add(importSettingsBox);
+            flipbookColumn.Add(importSettingsCard);
             flipbookColumn.Add(bodyHost);
             flipbookColumn.Add(outputPathRow);
 

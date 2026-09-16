@@ -31,6 +31,7 @@ namespace DotsAnimationToolkit.Editor
         {
             name = "flipbook-frames-column";
             AddToClassList("toolkit-column");
+            AddToClassList("toolkit-column--raised");
             style.flexGrow = 1f;
             style.minWidth = 220f;
 

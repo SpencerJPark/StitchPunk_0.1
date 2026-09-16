@@ -506,3 +506,11 @@
     padding-left: 10px;
     padding-right: 10px;
 }
+
+/* O. Raised column */
+/* The middle column between a catalog and a working pane reads as its own zone: the catalog is the
+   darker surface, this is the raised tone, the pane beside it stays the window colour. Three
+   depths, so the eye separates them without a border. */
+.toolkit-column--raised {
+    background-color: var(--toolkit-raised);
+}
