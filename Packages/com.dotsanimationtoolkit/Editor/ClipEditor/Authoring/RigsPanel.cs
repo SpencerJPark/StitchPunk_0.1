@@ -48,6 +48,12 @@ namespace DotsAnimationToolkit.Editor
         private Label resultLabel;
         private RigSourcePreviewElement preview;
         private CandidateRow focusedRow;
+        private VisualElement targetCard;
+        private Label targetNameLabel;
+        private Label targetNodeLabel;
+        private Button targetKindButton;
+        private Button targetTagButton;
+        private Label targetUntickedHint;
 
         private readonly List<CandidateRow> candidateRows = new List<CandidateRow>();
         private readonly List<ClipAsset> catalogClips = new List<ClipAsset>();
@@ -320,6 +326,58 @@ namespace DotsAnimationToolkit.Editor
             candidateContainer = candidateScroll.contentContainer;
             editorContent.Add(candidateScroll);
 
+            // Fixed-content card beside the flexGrow scroll region above; flexShrink 0 keeps it
+            // from being squashed into an overlap when the column runs short (recorded trap).
+            targetCard = ToolkitChrome.MakeCard("rig-target-card", "Target", out VisualElement targetCardBody, out _);
+            targetCard.style.flexShrink = 0f;
+
+            targetNameLabel = new Label();
+            targetCardBody.Add(ToolkitChrome.MakePropertyRow("Name", targetNameLabel, "The rig target's display name."));
+
+            targetNodeLabel = new Label();
+            targetNodeLabel.style.overflow = Overflow.Hidden;
+            targetNodeLabel.style.textOverflow = TextOverflow.Ellipsis;
+            targetNodeLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            targetCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Node", targetNodeLabel, "The source prefab node this target reads from; full path in the tooltip."));
+
+            targetKindButton = new Button { text = "Kind: Quad", name = "rig-target-kind-button" };
+            ToolkitChrome.StyleButton(targetKindButton, ToolkitButtonVariant.Secondary);
+            targetKindButton.clicked += () =>
+            {
+                if (focusedRow != null)
+                {
+                    OpenRowKindPicker(focusedRow, targetKindButton);
+                }
+            };
+            targetCardBody.Add(ToolkitChrome.MakePropertyRow("Kind", targetKindButton, "How this target is drawn at runtime."));
+
+            targetTagButton = new Button { text = "Tag: (none)", name = "rig-target-tag-button" };
+            ToolkitChrome.StyleButton(targetTagButton, ToolkitButtonVariant.Secondary);
+            targetTagButton.clicked += () =>
+            {
+                if (focusedRow != null)
+                {
+                    OpenRowTagPicker(focusedRow, targetTagButton);
+                }
+            };
+            targetTagButton.AddManipulator(new ContextualMenuManipulator(
+                menuEvent =>
+                {
+                    if (focusedRow != null)
+                    {
+                        PopulateTagButtonContextMenu(menuEvent, focusedRow, targetTagButton);
+                    }
+                }));
+            targetCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Tag", targetTagButton, "The vocabulary tag clips bind to on this target."));
+
+            targetUntickedHint = ToolkitChrome.MakeHint("Tick the node in the list above to make it a target.");
+            targetCardBody.Add(targetUntickedHint);
+
+            targetCard.style.display = DisplayStyle.None;
+            editorContent.Add(targetCard);
+
             targetsColumn.Add(editorContent);
 
             targetsColumn.Add(ToolkitChrome.MakeStatusRow(out resultLabel, out _, true));
@@ -371,6 +429,7 @@ namespace DotsAnimationToolkit.Editor
                         RigAssetUtility.SetTargetTag(SelectedRig, row.TargetStableId, chosenTagId);
                         RaiseRigTargetsChanged();
                     }
+                    RefreshTargetCard();
                 },
                 () =>
                 {
@@ -380,6 +439,7 @@ namespace DotsAnimationToolkit.Editor
                     {
                         RefreshTagButtonText(candidateRows[rowIndex]);
                     }
+                    RefreshTargetCard();
                 });
         }
 
@@ -389,16 +449,20 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            if (row.TagId == 0u)
+            row.TagButton.text = DescribeTag(row.TagId);
+        }
+
+        private static string DescribeTag(uint tagId)
+        {
+            if (tagId == 0u)
             {
-                row.TagButton.text = "Tag: (none)";
-                return;
+                return "Tag: (none)";
             }
             TargetTagRegistry tagRegistry = VocabularyRegistryProvider.TargetTags;
-            string tagName = tagRegistry != null ? tagRegistry.FindName(row.TagId) : null;
-            row.TagButton.text = tagName != null
+            string tagName = tagRegistry != null ? tagRegistry.FindName(tagId) : null;
+            return tagName != null
                 ? "Tag: " + tagName
-                : "Tag: (unresolved 0x" + row.TagId.ToString("X8") + ")";
+                : "Tag: (unresolved 0x" + tagId.ToString("X8") + ")";
         }
 
         // Moves clip and cutscene tracks off this row's tag; the rig target itself keeps the tag.
@@ -431,6 +495,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 RigAssetUtility.SetTargetKind(SelectedRig, row.TargetStableId, kind);
             }
+            RefreshTargetCard();
         }
 
         private void RefreshKindButtonText(CandidateRow row)
@@ -439,18 +504,47 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            switch (row.Kind)
+            row.KindButton.text = DescribeKind(row.Kind);
+        }
+
+        private static string DescribeKind(TargetKind kind)
+        {
+            switch (kind)
             {
                 case TargetKind.VatMesh:
-                    row.KindButton.text = "Kind: VAT Mesh";
-                    return;
+                    return "Kind: VAT Mesh";
                 case TargetKind.FlipbookPlane:
-                    row.KindButton.text = "Kind: Flipbook";
-                    return;
+                    return "Kind: Flipbook";
                 default:
-                    row.KindButton.text = "Kind: Quad";
-                    return;
+                    return "Kind: Quad";
             }
+        }
+
+        // The Target card (SG-D6) always mirrors the focused row; every write path that changes a
+        // row's ticked state, tag or kind calls this rather than touching a button directly.
+        private void RefreshTargetCard()
+        {
+            if (focusedRow == null)
+            {
+                targetCard.style.display = DisplayStyle.None;
+                return;
+            }
+
+            targetCard.style.display = DisplayStyle.Flex;
+            targetNameLabel.text = focusedRow.DisplayName;
+            targetNodeLabel.text = focusedRow.IsMissingNode
+                ? (string.IsNullOrEmpty(focusedRow.SourceNodePath)
+                    ? "⚠ " + focusedRow.DisplayName + " (no node)"
+                    : "⚠ " + focusedRow.SourceNodePath + " (missing from prefab)")
+                : focusedRow.SourceNodePath;
+            targetNodeLabel.tooltip = focusedRow.SourceNodePath;
+            targetKindButton.text = DescribeKind(focusedRow.Kind);
+            targetTagButton.text = DescribeTag(focusedRow.TagId);
+
+            bool isTicked = focusedRow.ToggleControl != null && focusedRow.ToggleControl.value;
+            targetKindButton.SetEnabled(isTicked);
+            targetTagButton.SetEnabled(isTicked);
+            targetUntickedHint.style.display = isTicked ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         // Lists what BuildForRig reports for the selected rig, ticking the ones already a rig
@@ -460,6 +554,7 @@ namespace DotsAnimationToolkit.Editor
             candidateContainer.Clear();
             candidateRows.Clear();
             focusedRow = null;
+            RefreshTargetCard();
 
             preview.ShowPrefab(rig != null ? rig.sourcePrefab : null);
 
@@ -496,46 +591,23 @@ namespace DotsAnimationToolkit.Editor
                     : "⚠ " + sourceRow.SourceNodePath + " (missing from prefab)";
             }
 
-            Toggle rowToggle = new Toggle(rowTitleText) { value = ticked };
+            // SG-D6's order is checkbox first, then the node name. A Toggle built WITH label text
+            // draws its label before its checkmark, which put the tick at a different x on every
+            // row -- a ragged column that is harder to scan than the chips it replaced. The name is
+            // a sibling Label instead, so every tick lands on one x.
+            Toggle rowToggle = new Toggle { value = ticked };
             rowToggle.tooltip = sourceRow.SourceNodePath;
-            // Fixed width, not flexGrow, so the name column lands at the same x on every row and
-            // the Kind/Tag chips line up in straight columns instead of zig-zagging down the list.
-            rowToggle.style.width = 200f;
-            rowToggle.style.flexGrow = 0f;
             rowToggle.style.flexShrink = 0f;
-            rowToggle.style.overflow = Overflow.Hidden;
-            // A deep node path is longer than the column is wide. Left to grow it pushes the tag
-            // button out of the row and puts a horizontal scrollbar under the whole list.
-            rowToggle.labelElement.style.minWidth = 0f;
-            rowToggle.labelElement.style.flexShrink = 1f;
-            rowToggle.labelElement.style.overflow = Overflow.Hidden;
-            rowToggle.labelElement.style.textOverflow = TextOverflow.Ellipsis;
-            rowToggle.labelElement.style.whiteSpace = WhiteSpace.NoWrap;
 
-            Button tagButton = new Button { text = "Tag: (none)" };
-            tagButton.style.flexShrink = 0f;
-            tagButton.style.minWidth = 90f;
-            tagButton.style.marginLeft = 4f;
-            ToolkitChrome.StyleButton(tagButton, ToolkitButtonVariant.Ghost);
-
-            Button kindButton = new Button { text = "Kind: Quad" };
-            kindButton.style.flexShrink = 0f;
-            kindButton.style.minWidth = 100f;
-            kindButton.style.marginLeft = 4f;
-            ToolkitChrome.StyleButton(kindButton, ToolkitButtonVariant.Ghost);
-
-            // An unticked node is not becoming a target, so its tag/kind would go nowhere; the
-            // chips only earn their place on the row once the checkbox ticks it as a target.
-            SetCandidateChipVisible(tagButton, ticked);
-            SetCandidateChipVisible(kindButton, ticked);
+            Label rowPathLabel = new Label(rowTitleText);
+            rowPathLabel.AddToClassList("toolkit-list-row__title");
 
             VisualElement candidateRow = new VisualElement();
             candidateRow.AddToClassList("toolkit-list-row");
             // The visible label ellipsizes a deep node path; the tooltip carries the full path.
             candidateRow.tooltip = sourceRow.SourceNodePath;
             candidateRow.Add(rowToggle);
-            candidateRow.Add(kindButton);
-            candidateRow.Add(tagButton);
+            candidateRow.Add(rowPathLabel);
             candidateContainer.Add(candidateRow);
 
             CandidateRow row = new CandidateRow
@@ -547,20 +619,14 @@ namespace DotsAnimationToolkit.Editor
                 Kind = sourceRow.Kind,
                 IsMissingNode = sourceRow.IsMissingNode,
                 ToggleControl = rowToggle,
-                TagButton = tagButton,
-                KindButton = kindButton,
+                TagButton = null,
+                KindButton = null,
                 Box = candidateRow
             };
-            RefreshTagButtonText(row);
-            RefreshKindButtonText(row);
-            tagButton.clicked += () => OpenRowTagPicker(row, tagButton);
-            tagButton.AddManipulator(new ContextualMenuManipulator(
-                menuEvent => PopulateTagButtonContextMenu(menuEvent, row, tagButton)));
-            kindButton.clicked += () => OpenRowKindPicker(row, kindButton);
             rowToggle.RegisterValueChangedCallback(
-                changeEvent => OnRowToggleChanged(row, rowToggle, tagButton, kindButton, changeEvent.newValue));
-            // TrickleDown, so clicking the toggle or the tag button still shows which node the
-            // row means rather than being swallowed by the control that was hit.
+                changeEvent => OnRowToggleChanged(row, rowToggle, changeEvent.newValue));
+            // TrickleDown, so clicking the toggle still shows which node the row means rather than
+            // being swallowed by the control that was hit.
             candidateRow.RegisterCallback<PointerDownEvent>(
                 pointerEvent => FocusRow(row), TrickleDown.TrickleDown);
             candidateRows.Add(row);
@@ -571,21 +637,11 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        // The Kind/Tag chips only show on ticked rows (SG-D6); enabled state and visibility move
-        // together so a hidden chip is never left clickable underneath.
-        private static void SetCandidateChipVisible(Button chipButton, bool visible)
-        {
-            chipButton.SetEnabled(visible);
-            chipButton.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
-        }
-
         // Edit mode writes the rig asset the moment a row is ticked or unticked; create mode keeps
         // the tick in memory until Create Rig runs.
-        private void OnRowToggleChanged(
-            CandidateRow row, Toggle rowToggle, Button tagButton, Button kindButton, bool isChecked)
+        private void OnRowToggleChanged(CandidateRow row, Toggle rowToggle, bool isChecked)
         {
-            SetCandidateChipVisible(tagButton, isChecked);
-            SetCandidateChipVisible(kindButton, isChecked);
+            RefreshTargetCard();
             if (!row.IsMissingNode)
             {
                 preview.SetNodeIncluded(row.SourceNodePath, isChecked);
@@ -623,8 +679,7 @@ namespace DotsAnimationToolkit.Editor
                     // SetValueWithoutNotify, not value = true: a plain set re-enters this same
                     // callback and asks the owner the same question forever.
                     rowToggle.SetValueWithoutNotify(true);
-                    SetCandidateChipVisible(tagButton, true);
-                    SetCandidateChipVisible(kindButton, true);
+                    RefreshTargetCard();
                     if (!row.IsMissingNode)
                     {
                         preview.SetNodeIncluded(row.SourceNodePath, true);
@@ -657,6 +712,14 @@ namespace DotsAnimationToolkit.Editor
             catalog.SetSelectedRig(SelectedRig);
         }
 
+        /// <summary>Focuses the target row at this index exactly as clicking it does, so the Target card mirrors that row; an index outside the list clears the focus.</summary>
+        // A row is focused by a pointer event on the row itself, which a detached panel has no
+        // dispatcher for -- so a fixture or a drive has no other way to ask for the card's contents.
+        public void FocusTargetRow(int rowIndex)
+        {
+            FocusRow(rowIndex >= 0 && rowIndex < candidateRows.Count ? candidateRows[rowIndex] : null);
+        }
+
         private void FocusRow(CandidateRow row)
         {
             if (focusedRow != null && focusedRow.Box != null)
@@ -667,6 +730,7 @@ namespace DotsAnimationToolkit.Editor
             if (row == null)
             {
                 preview.ClearFocus();
+                RefreshTargetCard();
                 return;
             }
             if (row.Box != null)
@@ -678,6 +742,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 preview.FocusNode(row.SourceNodePath);
             }
+            RefreshTargetCard();
         }
 
         private void CommitRigNameChange()

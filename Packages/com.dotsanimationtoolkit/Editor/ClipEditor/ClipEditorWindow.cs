@@ -339,6 +339,7 @@ namespace DotsAnimationToolkit.Editor
         private ScrollView reconcileList;
         private Label reconcileTitle;
         private VisualElement viewportFrame;
+        private VisualElement viewportEmptyState;
         private Label rigEditBanner;
 
         // Reused per inspector rebuild rather than allocated, since a rebuild happens on every
@@ -2545,6 +2546,26 @@ namespace DotsAnimationToolkit.Editor
             viewportFrame = rootVisualElement.Q<VisualElement>("viewport-frame");
             rigEditBanner = rootVisualElement.Q<Label>("rig-edit-banner");
 
+            if (viewportFrame != null)
+            {
+                viewportEmptyState = ToolkitChrome.MakeEmptyState(
+                    "clip-editor-viewport-empty",
+                    "No rig to preview",
+                    "Pick a rig in the Rig Hierarchy pane on the left, and the clip you select plays on it here.",
+                    null,
+                    null);
+                viewportEmptyState.style.position = Position.Absolute;
+                viewportEmptyState.style.left = 0;
+                viewportEmptyState.style.right = 0;
+                viewportEmptyState.style.top = 0;
+                viewportEmptyState.style.bottom = 0;
+
+                // The overlay sits over the whole frame; without Ignore it eats camera drags and
+                // the gizmo rail's clicks that land on top of it.
+                viewportEmptyState.pickingMode = PickingMode.Ignore;
+                viewportFrame.Insert(1, viewportEmptyState);
+            }
+
             reconcilePanel = rootVisualElement.Q<VisualElement>("reconcile-panel");
             reconcileList = rootVisualElement.Q<ScrollView>("reconcile-list");
             reconcileTitle = rootVisualElement.Q<Label>("reconcile-title");
@@ -3841,6 +3862,11 @@ namespace DotsAnimationToolkit.Editor
                 // the whole point of what changed around it is that the viewport keeps its room.
                 previewStatusLabel.EnableInClassList(
                     HiddenUssClassName, string.IsNullOrEmpty(viewportStatus));
+            }
+
+            if (viewportEmptyState != null)
+            {
+                viewportEmptyState.EnableInClassList(HiddenUssClassName, LoadedPrefab != null);
             }
 
             Rect previewRect = previewImage.contentRect;

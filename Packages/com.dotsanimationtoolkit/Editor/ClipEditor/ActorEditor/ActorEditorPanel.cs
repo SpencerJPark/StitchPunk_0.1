@@ -60,6 +60,7 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement inspectorColumn;
         private Image viewportImage;
         private Label viewportStatusLabel;
+        private ViewportFrameElement viewportFrame;
         private ActorEditorLayersColumn layersColumnView;
         private ActorEditorInspectorColumn inspectorColumnView;
         private LayerEventStripElement layerEventStrip;
@@ -381,9 +382,13 @@ namespace DotsAnimationToolkit.Editor
             viewportStatusLabel = ToolkitChrome.MakeHint(string.Empty);
             viewportColumn.Add(viewportStatusLabel);
 
-            ViewportFrameElement viewportFrame = new ViewportFrameElement { name = "viewport-frame" };
+            viewportFrame = new ViewportFrameElement { name = "viewport-frame" };
             viewportFrame.Overlay.name = "viewport-overlay";
             viewportFrame.OverlayColumn.name = "overlay-column";
+            viewportFrame.SetEmptyState(
+                "actor-editor-viewport-empty",
+                "No actor to preview",
+                "Pick a profile in the catalog on the left, and its layers play here.");
             viewportColumn.Add(viewportFrame);
 
             viewportImage = viewportFrame.ViewportImage;
@@ -706,6 +711,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
+
+            viewportFrame?.ShowEmptyState(activeRig == null || profile == null);
+
             Rect viewportRect = viewportImage.contentRect;
             if (float.IsNaN(viewportRect.width) || viewportRect.width < 1f || viewportRect.height < 1f)
             {

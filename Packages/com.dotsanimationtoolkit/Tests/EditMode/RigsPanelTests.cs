@@ -127,7 +127,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void SelectRig_CarriesEachTargetsKindOntoItsRow()
+        public void FocusingEachTargetRow_CarriesThatTargetsKindIntoTheTargetCard()
         {
             rigAsset.targets[0].kind = TargetKind.Quad;
             rigAsset.targets.Add(new RigTargetDefinition
@@ -144,13 +144,18 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 panel.SelectRig(rigAsset);
 
                 VisualElement targetsColumn = panel.Q<VisualElement>("rig-targets-column");
-                List<Button> kindButtons = targetsColumn.Query<Button>().ToList()
-                    .Where(button => button.text.StartsWith("Kind: "))
-                    .ToList();
+                Button kindButton = targetsColumn.Q<Button>("rig-target-kind-button");
 
-                Assert.AreEqual(2, kindButtons.Count);
-                Assert.AreEqual("Kind: Quad", kindButtons[0].text);
-                Assert.AreEqual("Kind: VAT Mesh", kindButtons[1].text);
+                // The subject moved with SG-D6, so this asserts the new one. Kind and Tag used to
+                // sit on every row -- a 330px row could not hold a node name and two chips -- and
+                // now live in one Target card mirroring the focused row, so the kinds are read one
+                // at a time rather than side by side. What is still guarded is the fact that
+                // mattered: each target's kind reaches the UI from the rig.
+                panel.FocusTargetRow(0);
+                Assert.AreEqual("Kind: Quad", kindButton.text);
+
+                panel.FocusTargetRow(1);
+                Assert.AreEqual("Kind: VAT Mesh", kindButton.text);
             }
             finally
             {
