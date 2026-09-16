@@ -120,6 +120,7 @@ namespace DotsAnimationToolkit.Editor
             assetsListView.bindItem = BindRow;
             assetsListView.itemsSource = filteredAssets;
             assetsListView.selectionChanged += OnListSelectionChanged;
+            assetsListView.AddToClassList("toolkit-list-surface");
             Add(assetsListView);
 
             emptyLabel = new Label();

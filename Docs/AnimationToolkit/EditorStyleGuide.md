@@ -127,3 +127,9 @@ A screen passes only when it breaks none. Cite rules by id in specs, logs and ca
   `ClipEditorWindow.uss` outside the data and status palettes is a violation.
 - Capture recipe and focus trap: `Assets/_Vault/Memories/Code/AnimationToolkit.md`, "A session CAN see the editor UI".
   Captures need the Editor focused; an unfocused `GrabPixels` returns a stale frame.
+- **Reference image:** `Assets/_Vault/Tasks/Claude/StyleGuideReferenceImage.png` (the owner's capture of §1's rebuilt
+  Ragdoll tab, 2026-09-15). Judge a pass against the image, not only the rules. What it shows that R01–R22 do not
+  state outright: the column is three depths deep — window column, darker list body, darker still viewport — and the
+  owner's 2026-09-15 note is that one flat tone "becomes very hard to read". Counts are outline pill badges, not
+  sentences; the viewport header carries a segmented control; the inspector groups into cards with collapsible
+  headers over an aligned label column; the footer is a tone dot plus one line.

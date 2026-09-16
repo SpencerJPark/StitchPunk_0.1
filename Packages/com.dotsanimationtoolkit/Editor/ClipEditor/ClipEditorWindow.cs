@@ -55,6 +55,18 @@ namespace DotsAnimationToolkit.Editor
         private const string TabActiveUssClassName = "clip-editor__tab--active";
         private const string TablistTabActiveUssClassName = "toolkit-tablist__tab--active";
 
+        /// <summary>Applied to the tab strip when it is too narrow for tab words; the stylesheet hides each toggle's label and shows its icon.</summary>
+        private const string TablistCompactUssClassName = "toolkit-tablist--compact";
+
+        /// <summary>Held on the icon Image child so the stylesheet can size and show it only in compact mode.</summary>
+        private const string TablistTabIconUssClassName = "toolkit-tablist__tab-icon";
+
+        /// <summary>Marks a tab whose icon failed to resolve, so a future stylesheet rule can keep its word visible in compact mode.</summary>
+        private const string TablistTabIconUnresolvedUssClassName = "toolkit-tablist__tab--icon-unresolved";
+
+        /// <summary>How much slack the available width needs over the needed width before leaving compact mode, so a window dragged to the boundary does not flicker.</summary>
+        private const float TablistCompactExitHysteresisPixels = 24f;
+
         private const string HintUssClassName = "toolkit-hint";
         private const string ReconcileRowUssClassName = "clip-editor__reconcile-row";
         private const string ReconcileRowLabelUssClassName = "clip-editor__reconcile-row-label";
@@ -205,6 +217,48 @@ namespace DotsAnimationToolkit.Editor
         /// leave one lit alongside the new one.
         /// </summary>
         private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[15];
+
+        /// <summary>
+        /// Icon content name for each tab, keyed by element name rather than <see cref="ClipEditorTab"/>
+        /// so nothing here depends on enum order.
+        /// </summary>
+        private static readonly Dictionary<string, string> TabIconNameByElementName = new Dictionary<string, string>
+        {
+            { "tab-texture-packer", "Texture Icon" },
+            { "tab-flipbooks", "Sprite Icon" },
+            { "tab-clip-sets", "AnimationClip Icon" },
+            { "tab-new-rig", "Avatar Icon" },
+            { "tab-materials", "Material Icon" },
+            { "tab-events", "Animation.AddEvent" },
+            { "tab-clip-editor", "UnityEditor.AnimationWindow" },
+            { "tab-retarget", "AvatarMask Icon" },
+            { "tab-vat-bake", "RenderTexture Icon" },
+            { "tab-actor-editor", "UnityEditor.SceneHierarchyWindow" },
+            { "tab-ragdoll", "CharacterJoint Icon" },
+            { "tab-cutscene-editor", "UnityEditor.Timeline.TimelineWindow" },
+            { "tab-capture", "FrameCapture" },
+            { "tab-stats", "UnityEditor.ProfilerWindow" },
+            { "tab-health", "console.warnicon" },
+        };
+
+        /// <summary>The tab strip element that gets <see cref="TablistCompactUssClassName"/> toggled on it.</summary>
+        private VisualElement tabStrip;
+
+        /// <summary>The tab strip's parent toolbar, measured to decide compact vs. full.</summary>
+        private VisualElement clipEditorToolbar;
+
+        /// <summary>Whether the tab strip is currently showing icons instead of words.</summary>
+        private bool isTabStripCompact;
+
+        /// <summary>Guards the re-entry a compact-mode switch could cause via its own layout change.</summary>
+        private bool isApplyingTabStripCompactMode;
+
+        /// <summary>
+        /// The tab strip's total width the last time it was measured in full (word) mode. Reused while
+        /// compact, because a compacted toggle's resolvedStyle.width reflects its icon size, not the
+        /// word width a return to full mode would need.
+        /// </summary>
+        private float cachedFullTabStripWidth = -1f;
 
         /// <summary>The Cutscene Editor's cover pane, and the panel built into it the first time it is opened.</summary>
         private VisualElement cutscenePane;
@@ -1406,6 +1460,7 @@ namespace DotsAnimationToolkit.Editor
                 + "histogram, events per frame, VAT texture memory and per-group timings, with a Markdown snapshot.");
 
             ApplyActiveTab();
+            BindTabStripCompactSwitching();
         }
 
         private void BindTab(ClipEditorTab tab, string elementName, string tooltip)
@@ -1418,6 +1473,10 @@ namespace DotsAnimationToolkit.Editor
             }
 
             toggle.tooltip = tooltip;
+            // A compact tab still needs to say what it is on hover, so the word wins over the
+            // longer description above once the toggle is resolved.
+            toggle.tooltip = toggle.text;
+            SetUpTabCompactIcon(toggle, elementName);
             toggle.RegisterValueChangedCallback(changeEvent =>
             {
                 if (isApplyingTab)
@@ -1426,6 +1485,122 @@ namespace DotsAnimationToolkit.Editor
                 }
                 SetActiveTab(tab);
             });
+        }
+
+        // Built once per bind rather than per compact-mode switch, so entering and leaving compact
+        // mode never allocates.
+        private void SetUpTabCompactIcon(ToolbarToggle toggle, string elementName)
+        {
+            if (!TabIconNameByElementName.TryGetValue(elementName, out string iconName))
+            {
+                return;
+            }
+
+            Texture2D iconTexture = ToolkitIcons.Resolve(iconName);
+            if (iconTexture == null)
+            {
+                // No icon to show compact: mark the tab so a stylesheet rule can choose to keep its
+                // word visible instead of rendering an empty button.
+                toggle.AddToClassList(TablistTabIconUnresolvedUssClassName);
+                return;
+            }
+
+            Image tabIconImage = new Image { image = iconTexture };
+            tabIconImage.AddToClassList(TablistTabIconUssClassName);
+            toggle.Insert(0, tabIconImage);
+        }
+
+        // Registered once, in the same place the toggles are bound, so a rebuilt toolbar after a
+        // domain reload never ends up with two callbacks fighting over the same class toggle.
+        private void BindTabStripCompactSwitching()
+        {
+            if (clipEditorToolbar != null)
+            {
+                clipEditorToolbar.UnregisterCallback<GeometryChangedEvent>(OnClipEditorToolbarGeometryChanged);
+            }
+
+            tabStrip = rootVisualElement.Q<VisualElement>("tab-strip");
+            clipEditorToolbar = rootVisualElement.Q<Toolbar>("clip-editor-toolbar");
+            cachedFullTabStripWidth = -1f;
+            isTabStripCompact = false;
+
+            if (clipEditorToolbar == null)
+            {
+                return;
+            }
+
+            clipEditorToolbar.RegisterCallback<GeometryChangedEvent>(OnClipEditorToolbarGeometryChanged);
+        }
+
+        private void OnClipEditorToolbarGeometryChanged(GeometryChangedEvent geometryChangedEvent)
+        {
+            if (isApplyingTabStripCompactMode || tabStrip == null || clipEditorToolbar == null)
+            {
+                return;
+            }
+
+            float availableWidth = clipEditorToolbar.resolvedStyle.width;
+            if (float.IsNaN(availableWidth) || availableWidth <= 0f)
+            {
+                return;
+            }
+
+            if (!isTabStripCompact)
+            {
+                float measuredFullWidth = MeasureFullTabStripWidth();
+                if (float.IsNaN(measuredFullWidth))
+                {
+                    // The toggles have not been laid out at their full (word) size yet this frame;
+                    // wait for the next geometry change rather than deciding on a guessed width.
+                    return;
+                }
+                cachedFullTabStripWidth = measuredFullWidth;
+            }
+
+            if (cachedFullTabStripWidth <= 0f)
+            {
+                return;
+            }
+
+            bool wantsCompact = isTabStripCompact
+                ? availableWidth < cachedFullTabStripWidth + TablistCompactExitHysteresisPixels
+                : availableWidth < cachedFullTabStripWidth;
+
+            if (wantsCompact != isTabStripCompact)
+            {
+                ApplyTabStripCompactMode(wantsCompact);
+            }
+        }
+
+        private float MeasureFullTabStripWidth()
+        {
+            float totalWidth = 0f;
+            for (int tabIndex = 0; tabIndex < tabToggles.Length; tabIndex++)
+            {
+                ToolbarToggle toggle = tabToggles[tabIndex];
+                if (toggle == null)
+                {
+                    continue;
+                }
+
+                float toggleWidth = toggle.resolvedStyle.width;
+                if (float.IsNaN(toggleWidth) || toggleWidth <= 0f)
+                {
+                    return float.NaN;
+                }
+
+                totalWidth += toggleWidth;
+            }
+
+            return totalWidth;
+        }
+
+        private void ApplyTabStripCompactMode(bool compact)
+        {
+            isApplyingTabStripCompactMode = true;
+            isTabStripCompact = compact;
+            tabStrip.EnableInClassList(TablistCompactUssClassName, compact);
+            isApplyingTabStripCompactMode = false;
         }
 
         // The one place every tab-changing caller goes through, so a pane can never be shown
