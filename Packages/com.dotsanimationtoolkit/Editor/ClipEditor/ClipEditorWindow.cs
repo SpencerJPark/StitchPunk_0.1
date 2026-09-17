@@ -218,27 +218,31 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[15];
 
+        /// <summary>The tab icon images, indexed by <see cref="ClipEditorTab"/>, held so their tone
+        /// can be re-applied when the active tab changes.</summary>
+        private readonly Image[] tabIconImages = new Image[15];
+
         /// <summary>
-        /// Icon content name for each tab, keyed by element name rather than <see cref="ClipEditorTab"/>
+        /// Drawn glyph for each tab, keyed by element name rather than <see cref="ClipEditorTab"/>
         /// so nothing here depends on enum order.
         /// </summary>
-        private static readonly Dictionary<string, string> TabIconNameByElementName = new Dictionary<string, string>
+        private static readonly Dictionary<string, ToolkitGlyphId> TabGlyphByElementName = new Dictionary<string, ToolkitGlyphId>
         {
-            { "tab-texture-packer", "Texture Icon" },
-            { "tab-flipbooks", "Sprite Icon" },
-            { "tab-clip-sets", "AnimationClip Icon" },
-            { "tab-new-rig", "Avatar Icon" },
-            { "tab-materials", "Material Icon" },
-            { "tab-events", "Animation.AddEvent" },
-            { "tab-clip-editor", "UnityEditor.AnimationWindow" },
-            { "tab-retarget", "AvatarMask Icon" },
-            { "tab-vat-bake", "RenderTexture Icon" },
-            { "tab-actor-editor", "UnityEditor.SceneHierarchyWindow" },
-            { "tab-ragdoll", "CharacterJoint Icon" },
-            { "tab-cutscene-editor", "UnityEditor.Timeline.TimelineWindow" },
-            { "tab-capture", "FrameCapture" },
-            { "tab-stats", "UnityEditor.ProfilerWindow" },
-            { "tab-health", "console.warnicon" },
+            { "tab-texture-packer", ToolkitGlyphId.TexturePacker },
+            { "tab-flipbooks", ToolkitGlyphId.Flipbooks },
+            { "tab-clip-sets", ToolkitGlyphId.ClipSets },
+            { "tab-new-rig", ToolkitGlyphId.Rigs },
+            { "tab-materials", ToolkitGlyphId.Materials },
+            { "tab-events", ToolkitGlyphId.Events },
+            { "tab-clip-editor", ToolkitGlyphId.ClipEditor },
+            { "tab-retarget", ToolkitGlyphId.Retarget },
+            { "tab-vat-bake", ToolkitGlyphId.VatBake },
+            { "tab-actor-editor", ToolkitGlyphId.ActorProfiles },
+            { "tab-ragdoll", ToolkitGlyphId.Ragdoll },
+            { "tab-cutscene-editor", ToolkitGlyphId.Cutscenes },
+            { "tab-capture", ToolkitGlyphId.Capture },
+            { "tab-stats", ToolkitGlyphId.Stats },
+            { "tab-health", ToolkitGlyphId.Health },
         };
 
         /// <summary>The tab strip element that gets <see cref="TablistCompactUssClassName"/> toggled on it.</summary>
@@ -1477,7 +1481,7 @@ namespace DotsAnimationToolkit.Editor
             // A compact tab still needs to say what it is on hover, so the word wins over the
             // longer description above once the toggle is resolved.
             toggle.tooltip = toggle.text;
-            SetUpTabCompactIcon(toggle, elementName);
+            SetUpTabCompactIcon(toggle, elementName, tab);
             toggle.RegisterValueChangedCallback(changeEvent =>
             {
                 if (isApplyingTab)
@@ -1490,18 +1494,18 @@ namespace DotsAnimationToolkit.Editor
 
         // Built once per bind rather than per compact-mode switch, so entering and leaving compact
         // mode never allocates.
-        private void SetUpTabCompactIcon(ToolbarToggle toggle, string elementName)
+        private void SetUpTabCompactIcon(ToolbarToggle toggle, string elementName, ClipEditorTab tab)
         {
-            if (!TabIconNameByElementName.TryGetValue(elementName, out string iconName))
+            if (!TabGlyphByElementName.TryGetValue(elementName, out ToolkitGlyphId glyphId))
             {
                 return;
             }
 
-            Texture2D iconTexture = ToolkitIcons.Resolve(iconName);
+            Texture2D iconTexture = ToolkitGlyphs.Resolve(glyphId);
             if (iconTexture == null)
             {
-                // No icon to show compact: mark the tab so a stylesheet rule can choose to keep its
-                // word visible instead of rendering an empty button.
+                // No shape registered for this glyph yet: mark the tab so a stylesheet rule can
+                // choose to keep its word visible instead of rendering an empty button.
                 toggle.AddToClassList(TablistTabIconUnresolvedUssClassName);
                 return;
             }
@@ -1509,6 +1513,15 @@ namespace DotsAnimationToolkit.Editor
             Image tabIconImage = new Image { image = iconTexture };
             tabIconImage.AddToClassList(TablistTabIconUssClassName);
             toggle.Insert(0, tabIconImage);
+            tabIconImages[(int)tab] = tabIconImage;
+            ToolkitIcons.ApplyIconTone(tabIconImage, toggle);
+
+            // A drawn glyph is white ink toned by the toggle's own resolved colour, so the tone has
+            // to be re-applied whenever that colour can have changed: once attached, and on hover
+            // in/out once the :hover style has actually resolved.
+            toggle.RegisterCallback<AttachToPanelEvent>(_ => ToolkitIcons.ApplyIconTone(tabIconImage, toggle));
+            toggle.RegisterCallback<PointerEnterEvent>(_ => toggle.schedule.Execute(() => ToolkitIcons.ApplyIconTone(tabIconImage, toggle)));
+            toggle.RegisterCallback<PointerLeaveEvent>(_ => toggle.schedule.Execute(() => ToolkitIcons.ApplyIconTone(tabIconImage, toggle)));
         }
 
         // Registered once, in the same place the toggles are bound, so a rebuilt toolbar after a
@@ -1650,6 +1663,13 @@ namespace DotsAnimationToolkit.Editor
                 toggle.SetValueWithoutNotify(isActive);
                 toggle.EnableInClassList(TabActiveUssClassName, isActive);
                 toggle.EnableInClassList(TablistTabActiveUssClassName, isActive);
+
+                // The active class just changed, so the toggle's resolved colour has too.
+                Image tabIconImage = tabIconImages[tabIndex];
+                if (toggle != null && tabIconImage != null)
+                {
+                    ToolkitIcons.ApplyIconTone(tabIconImage, toggle);
+                }
             }
             isApplyingTab = false;
 
