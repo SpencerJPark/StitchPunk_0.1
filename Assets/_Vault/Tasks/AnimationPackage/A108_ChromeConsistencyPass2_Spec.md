@@ -1,6 +1,7 @@
 # A108 — Chrome consistency pass 2: gutters, one button family, one-tone glyphs
 
-> **Status:** 📝 specced 2026-09-17 from the owner's review of the A105 pass; not built.
+> **Status:** ✅ built 2026-09-17 as **0.57.0** (EditMode 962/962, PlayMode 304/304); specced the same
+> day from the owner's review of the A105 pass. One owner checkpoint open in §7.
 > **Takes** the next unused minor — `0.57.0` unless A105's close already claimed it. The stage reads `package.json`
 > at T0 and records the number in §7 (it read `0.56.0` while this spec was written, with A105's eight commits
 > `eb8869e3…29e9ba15` already on trunk).
@@ -318,14 +319,118 @@ mtime is newer than the edits, and say so plainly rather than claiming a compile
 
 ## 7. Log (filled while building)
 
-- **T0 —** version taken: ______ · probe verdict (§4.1): ______ · before captures: `Library/UIAudit/before-a108/`
-- **Wave A —** ledger rows, gate verdict, W2's Conformance_J counts before/after, W2's centring choice (TB2),
-  which sheet took the radius rule.
-- **Wave B —** ledger rows, gate verdict, the glyph capture's judgement per tab.
-- **Wave C —** fixtures added, the revert-to-fail proof per assertion, full-suite numbers.
-- **Carried —** the four cutscene-panel buttons left to A107 (§5.1 W6), inheriting the Secondary default.
+- **T0 (2026-09-17) —** version taken: **0.57.0** (`package.json` read `0.56.0`; A105's eight commits are on trunk and
+  claimed no minor). Probe verdict: **IGNORES**, settled statically because the pixel path was unusable while the
+  Editor was unfocused. `UnityEngine.UIElements.Image.OnGenerateVisualContent`'s IL reads
+  `Image.get_tintColor` into `RectangleParams.color` and **never** touches `unityBackgroundImageTintColor`
+  (member-token dump of the method body, 2026-09-17); live corroboration: an `Image` carrying an inline
+  `-unity-background-image-tint-color: red` reported `resolvedStyle.unityBackgroundImageTintColor == RGBA(1,0,0,1)`
+  while its own `tintColor` stayed white. So `ToolkitComponents.uss:152` is dead as written, exactly as BT6 says, and
+  D3 lands as `ToolkitIcons.ApplyIconTone` writing `Image.tintColor` from the control's resolved `color`. The
+  positive control (a plain element with `background-image` + tint) could not be photographed, so nothing here
+  claims the USS tint works for backgrounds — only that `Image` ignores it.
+- **T0 captures —** `Library/UIAudit/before-a108/` at the owner's docked width (974.4×646.8 pt, `pixelsPerPoint` 2.5):
+  `01_ActorProfiles.png`, `02_Flipbooks.png`, `03_TabStripCompact.png`, `04_TabStripFull.png` (the last one at
+  1382.4 pt, the window briefly maximized and restored). What they prove: GT1/GT2/GT3 — the four layer boxes run
+  edge to edge in the layers column and the first sits on the header divider; BT1 — Bake is 28px/rounded beside a
+  22px square Save in one run; TB1/TB3 — the compact strip is purple, two near-identical teal humanoids, a cyan
+  sphere, a green arrow and a yellow warning triangle; TB2 — the active tab's glyph sits visibly left of centre.
+  **Found while capturing (not in §2):** the full-width strip shows **words only** —
+  `.toolkit-tablist__tab-icon { display: none }` outside compact mode — so the drawn glyph set is a compact-mode
+  surface only, and 04 is a no-regression control rather than a glyph shot.
+- **T0 capture recipe (works unfocused too, contrary to the standing note):** `GrabPixels` returns a real current
+  frame after ~20 reflected `RepaintImmediately` calls on the host `GUIView`, whether or not the Editor has OS
+  focus — what is stale without them is the *first* frame of a window built in the same call. Source row 0 is the
+  window's **top** for both `DockArea` and `MaximizedHostView`; the two are not mirrored (an earlier "they differ"
+  reading was a replayed wrong history entry). Switch the tab in one call and grab in the next.
+- **Wave A (8 workers, one gate) —** W1 glyph framework, W2 component sheet, W3 icons+chrome, W4 both Actor
+  Editor columns, W6a/W6b/W6c the variant sweep, W7 the icon-button family. Gate: zero `error CS####`.
+  Conformance_J counts unchanged end to end (`ToolkitComponents.uss` 0 colour literals / 14 font sizes,
+  `ClipEditorWindow.uss` 135 literals against a pin of 135 — no ratchet raised). W2's TB2 choice:
+  `display: none` on `.unity-toggle__input` in compact mode, **plus** a rule putting the input back for an
+  `--icon-unresolved` tab, or that tab would lose the word it falls back to. Proven safe by drive rather
+  than by reasoning: `BaseBoolField`'s `Clickable` targets the Toggle itself (reflection), and `panel.Pick`
+  at the centre and all four edges of a 28x24 tab routes to the toggle. The radius rule for the icon-only
+  base went into `ClipEditorWindow.uss` (W7), which owns that family; `ToolkitComponents.uss` (W2) took the
+  action-run rules.
+- **Deviations from §5, decided and recorded:**
+  - **`.toolkit-card-stack` dropped.** `.toolkit-card` already carries `margin-bottom: 8px` and
+    `.toolkit-box` its own 6px, so a second rule over the same children would only make the rhythm
+    uneven. The 12px inset is the whole fix.
+  - **W4 and W5 merged** into one worker: two one-line class additions. The inset goes on the column
+    *views* (which carry `toolkit-list-surface`), never on their hosts in `ActorEditorPanel.cs` — the
+    surface's -10px pull-back is settled, and a second inset there is the double-gutter trap this repo has
+    already paid for once.
+  - **`SetButtonGlyph` skipped in W3, then added in X3** when six call sites turned out to need it (below).
+  - **W6 shrank from four workers to three.** Once `MakeIconTextButton` defaults to Secondary, the nine
+    Secondary buttons in §5's table need no edit at all; only the Ghost and Destructive ones do.
+    `EventUsageColumn.cs:170` also dropped out — it builds through `MakeIconButton`, so it is icon-only and
+    now reads as a ghost from the base class.
+- **Wave B (6 workers, one gate) —** X1–X5 the fifteen shapes, X6 the tab wiring. W1's design call, the one
+  that made the two waves parallel: `ToolkitGlyphs` registers shapes through five **erasable
+  `static partial void`** hooks called from its static constructor, so the framework compiled on its own
+  before a single shape existed. No `switch` over ids, no stub `Build...()` methods.
+  Glyph judgement, from a contact sheet rendered at 64px and at the real 16px
+  (`Library/UIAudit/a108-glyphs/contact_sheet.png`): twelve of fifteen landed first time. Three were
+  rejected on sight and reworked by the stage — **Materials** twice (a thin crescent read as a moon, then a
+  half-filled disc read as a prohibition sign; it is now a ring with one specular highlight), **Capture**
+  (one shutter notch read as a dial with a hand; three blades at 120 degrees read as a lens), and **Rigs**
+  (a crossed pair read as a node graph; it is now one bone with a pair of knuckles at each end). Rigs reads
+  as bones and Ragdoll as a body, which were the owner's two named asks.
+- **Two defects the gates could not see and the drive did.**
+  1. **The tone came out pure black on 14 of 15 glyphs.** `AttachToPanelEvent` fires before the element's
+     styles resolve, so `resolvedStyle.color` returned UI Toolkit's initial opaque black — alpha 1, so the
+     `a <= 0` guard let it straight through. Every dark button in the window had an invisible glyph while
+     five green gates and 962 fixtures saw nothing. Every trigger is now deferred or post-layout (attach
+     via `schedule.Execute`, plus `GeometryChangedEvent`); `CustomStyleResolvedEvent` alone is not enough,
+     since it only fires for elements declaring `--custom` properties, which is why exactly one button in
+     the window had recovered. Re-measured: 16/16 button glyphs and 15/15 tab glyphs now carry their own
+     control's resolved colour.
+  2. **The Health tab stayed 104px wide in compact mode.** `.clip-editor__tab--health`'s `flex-basis`
+     reserves room for its issue count, and `flex-basis` beats the compact rule's `width`, so its glyph sat
+     centred in a 104px slot and the strip ended in a gap that read as a missing icon. Compact mode now
+     overrides the basis. This was invisible to the centring measurement, which reported 0.000px on all
+     fifteen tabs — the glyph *was* centred, in a wrong-sized tab. The capture is what caught it.
+- **A tint multiplies; it cannot desaturate (this goes past D6's letter).** D3's tint gives one tone only
+  where the source already is one. Driven: exactly six visible call sites were multi-hue — `d_PreTextureRGB`
+  on four Bake buttons (Flipbooks, VAT Bake, Texture Packer's Bake and Bake As...) and `d_Avatar Icon` on
+  both Ragdoll preview toggles. All six now use drawn glyphs (`ToolkitGlyphId.VatBake`,
+  `ToolkitGlyphId.Ragdoll`), keeping the icon name as the fallback. D6's stated reason was not wanting to
+  redraw every icon in the package; this redraws none, it points six call sites at glyphs that already
+  existed. A built-in icon's texture is not CPU-readable (`GetPixels` throws), so the name is the only
+  signal for finding the rest.
+- **Wave C —** `ToolkitButtonStyleTests` (5 tests) + `Conformance_K` (1). **Every one proven by reverting
+  its own fix and watching it go red**, in three rounds: round A (the Secondary default / one
+  `RegisterShape` line / the `Resolve` cache / the USS tint declaration) took exactly tests 1, 4, 5 and K
+  red with tests 2 and 3 still green; round B (`MakePrimaryAction` back to `AddToClassList`) took only
+  test 2; round C (`StyleButton`'s four `RemoveFromClassList` calls) took test 3, and test 2 with it — the
+  same defect seen from the other end. Test 4 named `Rigs` by id, which is the point: a partial file
+  dropped from compilation would otherwise make three tabs fall back to words silently.
+  Two release pins moved by design rather than to fit a change: `ToolkitGlyphs` joins `Conformance_G`'s
+  plain-noun allowlist beside `ToolkitIcons` and `ToolkitChrome`, and the manifest identity pin tracks
+  0.57.0.
+- **Full suites at the close —** EditMode **962/962**, PlayMode **304/304**, zero failures.
+- **Captures —** `Library/UIAudit/before-a108/` and `after-a108/`, both at the owner's docked width
+  (974.4x646.8 pt, ppp 2.5), plus `after-a108/02b_BakeSaveRun.png` at 3x and the glyph contact sheet.
+  Measured rather than squinted at: Bake and Save now share height 28.0, radius 5.0 and one family; the
+  Bake glyph reads at **15.17:1** against its own fill; the whole run measures **saturation 0.00**; the
+  compact strip is fifteen 28px tabs with the ink centred to 0.000px. `04_TabStripFull` is unchanged from
+  before, which is the point — full mode shows words only, because `.toolkit-tablist__tab-icon` is
+  `display: none` outside compact mode, so the drawn set is a compact-mode surface and full mode cannot
+  regress from it.
+- **Observed, not caused by this pass:** at 974pt with all four Actor Profiles columns open, the 260px Actor
+  Inspector runs about 1.2px past the window's right edge, so its last control looks clipped. Measured:
+  **zero** elements overflow the column itself. The 12px inset does cost the inspector's fields 24px of
+  width, which is the trade the gutter was asked for; the `Rig` ObjectField truncates its label at this
+  width where before it did not.
+- **Carried —** the four cutscene-panel icon+word buttons (`CutsceneEditorPanel.cs:406`, `:550`, `:2411`,
+  `CutsceneCastPanel.cs:87`) are still A107's, and now inherit the Secondary default. The cutscene panel's
+  own `ToolkitIcons.Resolve(iconName)` call was left alone for the same reason.
 - **For the owner (checkpoint, closed as accepted unless something is game breaking):**
-  1. The tab glyph set at compact width — do Rigs and Ragdoll read the way you meant?
-  2. The action-run height rule: a run with a primary is 28px throughout. Is a uniformly taller run right, or should
-     the primary stay the only tall control?
-  3. D6 — drawn glyphs in the tab strip only; everywhere else the editor's own icons, one-toned by tint.
+  1. The tab glyph set at compact width — `after-a108/03_TabStripCompact.png`, and the contact sheet at
+     `Library/UIAudit/a108-glyphs/contact_sheet.png`, where each glyph is drawn at 64px and at its real
+     16px. Rigs is a bone with knuckles; Ragdoll is a whole slack body with joint dots.
+  2. The action-run height rule: a run carrying the primary is 28px throughout, so Save grew to match Bake
+     rather than Bake shrinking to match Save. `after-a108/02b_BakeSaveRun.png` is that run at 3x.
+  3. D6 was widened, as above: six coloured call sites now use drawn glyphs, because a tint cannot take the
+     colour out of an icon. Everything else still uses the editor's own icons, one-toned by tint.

@@ -518,6 +518,18 @@ route around this either — that steals input focus from whatever the owner is 
 When unfocused, report that no capture is possible rather than saving a stale image under the
 capture's filename; a stale frame with an unrelated result label is more misleading than no image.
 
+**Correction (2026-09-17, A108): an unfocused grab IS usable, if you repaint first.** The 2026-09-08
+finding above is right that a docked view's backbuffer does not refresh on its own while Unity is
+unfocused -- but ~20 reflected `RepaintImmediately()` calls on the host `GUIView`, immediately before
+`GrabPixels`, do produce a real current frame, tab switch and all, with `EditorApplication.isFocused`
+false the whole time. A whole A108 capture pass ran that way. What genuinely cannot be photographed is
+the *first* frame of a window built in the same `execute_code` call: its children have no resolved
+layout yet, so the grab comes back as bare background (a floating probe window read as a flat blue
+rectangle with none of its four Images drawn). Build in one call, grab in the next. Also settled:
+source row 0 is the window's **top** for both `DockArea` and `MaximizedHostView` -- the two are not
+mirrored, and an "they differ" reading in this session was a replayed wrong history entry, not a real
+difference. Do not use focus as a reason to skip a capture; use it as a reason to repaint harder.
+
 **Two more traps the A105 capture pass cost time on (2026-09-15).**
 
 - **`GrabPixels` takes its Rect in PIXELS, not points.** The owner's editor runs at
@@ -1564,3 +1576,44 @@ Traps only; the record is A103's §7 and HANDOFF §4.
 - **Project state found 2026-09-15:** `VatSampleTentacleRig` declares one target (it is not a targetless rig);
   `VatSampleTentacleClips.vatTextures` points at a deleted asset; the Clip Editor's proxy quad for a VAT-mesh target
   renders magenta.
+
+## Chrome consistency pass 2 (A108, 0.57.0)
+
+Traps only; the record is A108's §7 and HANDOFF §4.
+
+- **A `UnityEngine.UIElements.Image` ignores `-unity-background-image-tint-color`.** Settled by reading
+  the IL of `Image.OnGenerateVisualContent` (member-token dump via `MethodBody.GetILAsByteArray` +
+  `Module.ResolveMethod`): it reads `Image.get_tintColor` into `RectangleParams.color` and never touches
+  the resolved background tint. The property styles a *background-image*; an `Image` draws `image` as
+  content. A rule doing this sat dead in `ToolkitComponents.uss` for two releases and the resolved style
+  even reported the value back, so `resolvedStyle` is not proof that a declaration does anything.
+  Tone an icon with `ToolkitIcons.ApplyIconTone`, which writes `Image.tintColor`.
+- **`AttachToPanelEvent` is too early to read `resolvedStyle.color`.** The element's styles have not
+  resolved, so it returns UI Toolkit's initial value -- opaque **black**, alpha 1, which slips straight
+  past an `a <= 0` guard. Driven: 14 of 15 button glyphs came out pure black, invisible on every dark
+  button, while five green gates and a fixture suite saw nothing. Read the colour from
+  `schedule.Execute` off attach, plus `GeometryChangedEvent`. `CustomStyleResolvedEvent` alone is not
+  enough: it only fires for elements that actually declare `--custom` properties, which is why exactly
+  one button in the window had recovered.
+- **A tint multiplies, so it can never desaturate.** Unity's `d_PreTextureRGB` and `d_Avatar Icon` stay
+  multi-hue however dark you tint them. "Every icon is one tone" needs those call sites pointed at drawn
+  glyphs, not tinted. Find them by sampling saturation per glyph texture -- or just by name, since a
+  built-in icon's texture is not CPU-readable (`GetPixels` throws) and the name is the only signal.
+- **`flex-basis` beats `width`.** `.clip-editor__tab--health`'s 104px basis (room for the issue count)
+  survived the compact strip's `width: 28px` rule, so that tab's glyph sat centred in a 104px slot and
+  the strip ended in a gap that read as a missing icon. Compact mode has to override the basis itself.
+- **A compact tab's glyph is off centre because the hidden word's input is still in the row.** Hiding
+  `.unity-toggle__text` leaves `.unity-toggle__input` holding `flex-grow: 1`. Hiding the input instead
+  costs no click -- `BaseBoolField`'s `Clickable` targets the Toggle itself, verified by reflection, and
+  `panel.Pick` at all four edges plus the centre of a 28x24 tab still routes to the toggle. The
+  `--icon-unresolved` fallback tab needs its input put back, or it loses the word it falls back to.
+- **Erasable `static partial void` hooks let a framework file compile before its implementations exist.**
+  `ToolkitGlyphs` declares five `RegisterXShapes()` hooks with no access modifier and calls them from its
+  static constructor; the five shape files land later and implement them. That is what let the glyph
+  framework and its fifteen shapes be written in the same parallel wave -- a `switch` over ids calling
+  not-yet-written `Build...()` methods would not have compiled at any point in between.
+- **Render a glyph set to a contact sheet and look at it before trusting the geometry.** Three of fifteen
+  shapes were rejected on sight and reworked: a thin crescent read as a moon rather than a material ball,
+  a half-filled disc read as a prohibition sign, a single aperture notch read as a dial with one hand,
+  and a crossed-bone pair read as a node graph. Resolve every id, blit at 64px and at the real 16px into
+  one PNG, and read it. Watch the compositing orientation: a glyph's pixel row 0 is its bottom.
