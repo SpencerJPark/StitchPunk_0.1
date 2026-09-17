@@ -151,6 +151,11 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private static readonly Regex CssCommentPattern = new Regex(
             @"/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
 
+        private static readonly Regex CssRuleBlockPattern = new Regex(
+            @"([^{}]+)\{([^{}]*)\}", RegexOptions.Compiled | RegexOptions.Singleline);
+
+        private const string BackgroundImageTintDeclaration = "-unity-background-image-tint-color";
+
         private static readonly HashSet<int> TypeScalePixelSizes = new HashSet<int> { 11, 12, 13, 16 };
 
         // Shrink-only: lower both when a cleanup removes literals, never raise.
@@ -282,6 +287,39 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 WindowSheetNonScaleFontSizePin,
                 nonScaleFontSizeCount,
                 "the window sheet has fewer non-scale font sizes than its pin; lower WindowSheetNonScaleFontSizePin to " + nonScaleFontSizeCount);
+        }
+
+        [Test]
+        public void Conformance_K_NoBackgroundImageTintOnAnIconImage()
+        {
+            string[] sheetRelativePaths = { ToolkitComponentsSheetRelativePath, WindowSheetRelativePath };
+            List<string> violations = new List<string>();
+
+            foreach (string sheetRelativePath in sheetRelativePaths)
+            {
+                string sheetPath = Path.Combine(PackagingConformanceTests.PackageRootPath, sheetRelativePath);
+                Assert.IsTrue(File.Exists(sheetPath), sheetRelativePath + " not found at " + sheetPath);
+
+                string sheetText = CssCommentPattern.Replace(File.ReadAllText(sheetPath), string.Empty);
+                foreach (Match ruleMatch in CssRuleBlockPattern.Matches(sheetText))
+                {
+                    string selector = ruleMatch.Groups[1].Value;
+                    string declarations = ruleMatch.Groups[2].Value;
+                    bool selectorTargetsAnIconImage = selector.Contains("toolkit-icon-button__icon")
+                        || selector.Contains("toolkit-tablist__tab-icon");
+                    if (selectorTargetsAnIconImage && declarations.Contains(BackgroundImageTintDeclaration))
+                    {
+                        violations.Add(sheetRelativePath + ": " + selector.Trim());
+                    }
+                }
+            }
+
+            Assert.IsEmpty(
+                violations,
+                "The glyph is a UnityEngine.UIElements.Image carrying `image`, and " + BackgroundImageTintDeclaration +
+                " only tints a background-image, never that image -- the icon tone belongs to " +
+                "ToolkitIcons.ApplyIconTone via Image.tintColor, not this USS declaration: " +
+                string.Join(", ", violations));
         }
     }
 }

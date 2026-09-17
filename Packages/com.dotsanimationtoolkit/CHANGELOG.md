@@ -8,6 +8,35 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.57.0] — Chrome consistency pass 2
+
+### Added
+- `ToolkitChrome.MakeSecondaryAction`, `MakeGhostAction` and `MakeDestructiveAction`, mirroring `MakePrimaryAction`.
+- `ToolkitGlyphs`: fifteen drawn tab glyphs on one optical grid at one stroke weight — Rigs is a bone, Ragdoll is a
+  body — replacing Unity's built-in asset icons in the compact tab strip, which were multi-hue and read as the same
+  smudge at 16px. A glyph whose shape does not resolve still falls back to its word.
+
+### Changed
+- Actor Profiles' layers column and the Actor Inspector inset their cards 12px from the column's edges, inside the
+  dark list surface, so the surface still reaches the column edge.
+- `ToolkitIcons.MakeIconTextButton` applies the Secondary variant unless the caller names one, so a call site that
+  names none can no longer produce an unstyled control. Icon-only buttons in toolbars and rails read as ghosts, with
+  the shared 5px radius. A run of header actions now shares one height — 28px when it carries the tab's primary,
+  24px otherwise — so a tall primary no longer sits beside a short square neighbour.
+- A button's glyph is tinted to the colour its own control resolved, which is what makes a dark glyph legible on the
+  light primary fill — measured at 15:1. The six call sites whose editor icon was multi-hue (four Bake buttons, both
+  Ragdoll preview toggles) now use drawn glyphs, because a tint multiplies and can never desaturate. Each glyph's ink
+  is centred in its 28px tab to the pixel.
+
+### Fixed
+- A compact tab's glyph sat left of centre, because hiding only the toggle's word left its input holding
+  `flex-grow: 1` and eating the rest of a 28px tab.
+- The Health tab stayed 104px wide in compact mode — its `flex-basis`, which reserves room for the issue count in
+  word mode, beat the compact width rule — so the strip ended in a gap.
+- The glyph on the light primary fill blended into it. The stylesheet had carried a
+  `-unity-background-image-tint-color` rule for exactly this since 0.52.0, and it never did anything: a
+  `UnityEngine.UIElements.Image` draws `image` as content, and that property only tints a *background-image*.
+
 ## [0.56.0] — Style foundation
 
 The shared layer every Clip Editor tab draws from, built to the owner-approved editor style guide
