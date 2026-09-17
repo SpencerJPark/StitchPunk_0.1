@@ -150,7 +150,8 @@
 }
 
 .toolkit-primary-action.unity-button .toolkit-icon-button__icon {
-    -unity-background-image-tint-color: var(--unity-colors-default-background);
+    /* Tone comes from ToolkitIcons.ApplyIconTone, which reads the button's resolved color and
+       writes Image.tintColor -- a background-image tint here has no effect on this element. */
     opacity: 1;
 }
 
@@ -217,6 +218,26 @@
 .toolkit-button--destructive.unity-button:disabled,
 .toolkit-button--destructive.unity-button:disabled:hover {
     opacity: 0.4;
+}
+
+/* One run of actions, one height: a run that carries the primary is 28px throughout, a run
+   without one is 24px. The doubled class buys specificity over the per-variant heights, so this
+   holds wherever the rule lands in the sheet. */
+.toolkit-action-run {
+    flex-direction: row;
+    align-items: center;
+}
+
+.toolkit-action-run > .unity-button {
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    margin-left: 4px;
+    margin-right: 0;
+}
+
+.toolkit-action-run.toolkit-action-run--primary > .unity-button {
+    height: var(--toolkit-height-primary);
+    min-height: var(--toolkit-height-primary);
 }
 
 /* D. List rows */
@@ -450,6 +471,8 @@
     height: 16px;
     flex-shrink: 0;
     display: none;
+    margin: 0;
+    align-self: center;
 }
 
 .toolkit-tablist--compact .toolkit-tablist__tab-icon {
@@ -465,6 +488,23 @@
 }
 
 .toolkit-tablist--compact .toolkit-tablist__tab--icon-unresolved .unity-toggle__text {
+    display: flex;
+}
+
+/* Compact tabs show only the glyph, so the toggle's input -- which still carries flex-grow: 1 and
+   the now-hidden word -- must leave the row, or it pushes the 16px glyph off centre in a 28px tab.
+   The toggle itself carries the Clickable, so hiding the input costs no click. */
+.toolkit-tablist--compact .toolkit-tablist__tab .unity-toggle__input {
+    display: none;
+}
+
+.toolkit-tablist--compact .toolkit-tablist__tab.unity-toolbar-toggle {
+    justify-content: center;
+    align-items: center;
+}
+
+/* A tab whose glyph did not resolve keeps its word, so it keeps its input too. */
+.toolkit-tablist--compact .toolkit-tablist__tab--icon-unresolved .unity-toggle__input {
     display: flex;
 }
 
@@ -498,6 +538,16 @@
     max-width: 65%;
 }
 
+
+/* M. Column inset */
+/* A card or box never touches its column's edge. The column's dark list surface still runs edge
+   to edge (.toolkit-list-surface pulls back over the host's padding); this insets the content
+   inside it instead of undoing that. */
+.toolkit-column--inset {
+    padding-left: var(--toolkit-inset);
+    padding-right: var(--toolkit-inset);
+    padding-top: 8px;
+}
 
 /* N. Column host */
 /* A column that only hosts other columns must not inset them: two stacked insets is what left the

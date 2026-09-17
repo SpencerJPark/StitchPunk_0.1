@@ -40,6 +40,8 @@ namespace DotsAnimationToolkit.Editor
         private const string AssetBarLabelClassName = "toolkit-asset-bar__label";
         private const string AssetBarSpacerClassName = "toolkit-asset-bar__spacer";
         private const string PrimaryActionClassName = "toolkit-primary-action";
+        private const string ActionRunClassName = "toolkit-action-run";
+        private const string ActionRunPrimaryClassName = "toolkit-action-run--primary";
         private const string StatusRowClassName = "toolkit-status-row";
         private const string StatusRowFooterClassName = "toolkit-status-row--footer";
         private const string StatusClassName = "toolkit-status";
@@ -89,6 +91,7 @@ namespace DotsAnimationToolkit.Editor
 
             actions = new VisualElement();
             actions.AddToClassList(PaneActionsClassName);
+            actions.AddToClassList(ActionRunClassName);
 
             header.Add(titleLabel);
             header.Add(actions);
@@ -140,8 +143,29 @@ namespace DotsAnimationToolkit.Editor
         public static Button MakePrimaryAction(Action onClick, string iconName, string tooltip, string text)
         {
             Button primaryActionButton = ToolkitIcons.MakeIconTextButton(onClick, iconName, tooltip, text);
-            primaryActionButton.AddToClassList(PrimaryActionClassName);
+            StyleButton(primaryActionButton, ToolkitButtonVariant.Primary);
             return primaryActionButton;
+        }
+
+        public static Button MakeSecondaryAction(Action onClick, string iconName, string tooltip, string text)
+        {
+            Button secondaryActionButton = ToolkitIcons.MakeIconTextButton(onClick, iconName, tooltip, text);
+            StyleButton(secondaryActionButton, ToolkitButtonVariant.Secondary);
+            return secondaryActionButton;
+        }
+
+        public static Button MakeGhostAction(Action onClick, string iconName, string tooltip, string text)
+        {
+            Button ghostActionButton = ToolkitIcons.MakeIconTextButton(onClick, iconName, tooltip, text);
+            StyleButton(ghostActionButton, ToolkitButtonVariant.Ghost);
+            return ghostActionButton;
+        }
+
+        public static Button MakeDestructiveAction(Action onClick, string iconName, string tooltip, string text)
+        {
+            Button destructiveActionButton = ToolkitIcons.MakeIconTextButton(onClick, iconName, tooltip, text);
+            StyleButton(destructiveActionButton, ToolkitButtonVariant.Destructive);
+            return destructiveActionButton;
         }
 
         public static VisualElement MakeStatusRow(out Label statusLabel, out VisualElement actions, bool isFooter)
@@ -270,6 +294,15 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        public static bool HasButtonVariant(Button button)
+        {
+            return button != null
+                && (button.ClassListContains(PrimaryActionClassName)
+                    || button.ClassListContains(ButtonSecondaryClassName)
+                    || button.ClassListContains(ButtonGhostClassName)
+                    || button.ClassListContains(ButtonDestructiveClassName));
+        }
+
         public static void StyleButton(Button button, ToolkitButtonVariant variant)
         {
             if (button == null)
@@ -286,6 +319,15 @@ namespace DotsAnimationToolkit.Editor
             {
                 case ToolkitButtonVariant.Primary:
                     button.AddToClassList(PrimaryActionClassName);
+                    // A primary button inside a shared action run gets the run's own accent class,
+                    // registered here once rather than by every panel that builds an action run.
+                    button.RegisterCallback<AttachToPanelEvent>(_ =>
+                    {
+                        if (button.parent != null && button.parent.ClassListContains(ActionRunClassName))
+                        {
+                            button.parent.AddToClassList(ActionRunPrimaryClassName);
+                        }
+                    });
                     break;
                 case ToolkitButtonVariant.Secondary:
                     button.AddToClassList(ButtonSecondaryClassName);
@@ -313,6 +355,7 @@ namespace DotsAnimationToolkit.Editor
 
             headerActions = new VisualElement();
             headerActions.AddToClassList(CardActionsClassName);
+            headerActions.AddToClassList(ActionRunClassName);
 
             header.Add(headerTitle);
             header.Add(headerActions);

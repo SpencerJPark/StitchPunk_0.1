@@ -318,6 +318,13 @@ namespace DotsAnimationToolkit.Editor
         {
             Button iconTextButton = MakeIconButton(onClick, iconName, tooltip, text);
             SetButtonIconAndText(iconTextButton, iconName, text);
+
+            // A call site that names no variant must not fall through to the bare unstyled button.
+            if (!ToolkitChrome.HasButtonVariant(iconTextButton))
+            {
+                ToolkitChrome.StyleButton(iconTextButton, ToolkitButtonVariant.Secondary);
+            }
+
             return iconTextButton;
         }
 
@@ -343,6 +350,8 @@ namespace DotsAnimationToolkit.Editor
             }
             wordLabel.text = text;
             button.AddToClassList(IconButtonWithTextClassName);
+
+            RegisterIconToneUpdates(button, button.Q<Image>(className: IconButtonIconClassName));
         }
 
         public static void SetButtonIcon(Button button, string iconName, string fallbackText)
@@ -361,6 +370,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             ApplyIcon(button, iconImage, iconName, fallbackText);
+            RegisterIconToneUpdates(button, iconImage);
         }
 
         // Mirrors ClipEditorWindow's private SetOverlayToolIcon(Button, Image, ...): the caller already
@@ -427,12 +437,52 @@ namespace DotsAnimationToolkit.Editor
                 iconImage.image = iconTexture;
                 button.text = string.Empty;
                 button.RemoveFromClassList(IconButtonTextClassName);
+                RegisterIconToneUpdates(button, iconImage);
                 return;
             }
 
             iconImage.RemoveFromHierarchy();
             button.text = fallbackText;
             button.AddToClassList(IconButtonTextClassName);
+        }
+
+        // Marks an icon Image as already wired for tone updates, so repeated SetButtonIcon calls on
+        // the same button do not stack duplicate callbacks.
+        private static readonly object ToneUpdatesRegisteredMarker = new object();
+
+        /// <summary>Tones an icon to the colour its own control resolved, because an Image ignores
+        /// -unity-background-image-tint-color and would otherwise stay light on a light fill.</summary>
+        public static void ApplyIconTone(Image icon, VisualElement control)
+        {
+            if (icon == null || control == null || control.panel == null)
+            {
+                return;
+            }
+
+            Color tone = control.resolvedStyle.color;
+            if (tone.a <= 0f)
+            {
+                return;
+            }
+
+            icon.tintColor = tone;
+        }
+
+        private static void RegisterIconToneUpdates(VisualElement control, Image icon)
+        {
+            if (control == null || icon == null || icon.userData == ToneUpdatesRegisteredMarker)
+            {
+                return;
+            }
+
+            icon.userData = ToneUpdatesRegisteredMarker;
+
+            control.RegisterCallback<AttachToPanelEvent>(_ => ApplyIconTone(icon, control));
+            control.RegisterCallback<CustomStyleResolvedEvent>(_ => ApplyIconTone(icon, control));
+            control.RegisterCallback<PointerEnterEvent>(_ => control.schedule.Execute(() => ApplyIconTone(icon, control)));
+            control.RegisterCallback<PointerLeaveEvent>(_ => control.schedule.Execute(() => ApplyIconTone(icon, control)));
+
+            ApplyIconTone(icon, control);
         }
 
         private static Texture2D ResolveExact(string iconName)

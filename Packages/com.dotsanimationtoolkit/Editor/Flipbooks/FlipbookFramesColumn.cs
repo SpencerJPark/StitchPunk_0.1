@@ -43,6 +43,7 @@ namespace DotsAnimationToolkit.Editor
             removeButton = ToolkitIcons.MakeIconTextButton(
                 RemoveSelectedFrames, ToolkitIcons.Trash, "Remove the selected frames", "Remove");
             removeButton.name = "flipbook-frames-remove-button";
+            ToolkitChrome.StyleButton(removeButton, ToolkitButtonVariant.Destructive);
             actionsRow.Add(removeButton);
 
             framesListView = new ListView();

@@ -71,6 +71,7 @@ namespace DotsAnimationToolkit.Editor
             Button refreshButton = ToolkitIcons.MakeIconTextButton(
                 Rescan, options.refreshButtonIconName, options.refreshButtonTooltip, "Refresh");
             refreshButton.name = options.namePrefix + "-refresh-button";
+            ToolkitChrome.StyleButton(refreshButton, ToolkitButtonVariant.Ghost);
             HeaderActions.Add(refreshButton);
 
             if (!string.IsNullOrEmpty(options.title))

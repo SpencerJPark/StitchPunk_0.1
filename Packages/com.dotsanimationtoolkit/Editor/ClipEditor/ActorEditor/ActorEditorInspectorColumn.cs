@@ -19,6 +19,8 @@ namespace DotsAnimationToolkit.Editor
     {
         private static readonly Direction[] AllSlotsInOrder = DirectionSetClipQueueView.SlotOrder;
 
+        private const string ColumnInsetUssClassName = "toolkit-column--inset";
+
         private ActorProfileAsset profile;
         private ActorPreviewComposer composer;
         private ActorEditorSelection selection;
@@ -67,6 +69,7 @@ namespace DotsAnimationToolkit.Editor
         public ActorEditorInspectorColumn()
         {
             style.flexGrow = 1f;
+            AddToClassList(ColumnInsetUssClassName);
         }
 
         /// <summary>Points this column at a profile and the composer whose playback state its "Playing"/"Stopped" readout reads. <paramref name="composerInstance"/> may be null.</summary>

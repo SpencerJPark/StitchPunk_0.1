@@ -48,6 +48,7 @@ namespace DotsAnimationToolkit.Editor
             deleteBodyButton = ToolkitIcons.MakeIconTextButton(
                 OnDeleteBodyButtonClicked, "TreeEditor.Trash", "Delete the selected body", "Delete");
             deleteBodyButton.name = "ragdoll-delete-body-button";
+            ToolkitChrome.StyleButton(deleteBodyButton, ToolkitButtonVariant.Destructive);
             headerActions.Add(deleteBodyButton);
 
             availableTargetChoices.Add(null);

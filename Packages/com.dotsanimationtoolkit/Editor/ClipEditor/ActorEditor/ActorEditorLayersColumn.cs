@@ -19,6 +19,7 @@ namespace DotsAnimationToolkit.Editor
     public sealed class ActorEditorLayersColumn : VisualElement
     {
         private const string RootUssClassName = "actor-editor__layers-column-root";
+        private const string ColumnInsetUssClassName = "toolkit-column--inset";
         private const string LayerBoxUssClassName = "toolkit-box";
         private const string LayerBoxSelectedUssClassName = "toolkit-box--selected";
         private const string BoxHeaderUssClassName = "toolkit-box__header";
@@ -81,6 +82,7 @@ namespace DotsAnimationToolkit.Editor
         {
             style.flexGrow = 1f;
             AddToClassList(RootUssClassName);
+            AddToClassList(ColumnInsetUssClassName);
 
             rowScroll = new ScrollView(ScrollViewMode.Vertical);
             rowScroll.style.flexGrow = 1f;

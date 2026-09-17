@@ -139,6 +139,13 @@
     margin-right: 1px;
     justify-content: center;
     align-items: center;
+    background-color: transparent;
+    border-width: 0;
+    border-radius: var(--toolkit-radius-button);
+}
+
+.toolkit-icon-button:hover {
+    background-color: var(--toolkit-hover);
 }
 
 /* On the text path -- an icon that failed to resolve fell back to its word -- the fixed width
@@ -156,27 +163,28 @@
     flex-direction: row;
     align-items: center;
     width: auto;
-    height: auto;
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
     padding-left: 4px;
     padding-right: 6px;
 }
 
 .toolkit-icon-button--with-text > .toolkit-icon-button__icon {
     margin-right: 3px;
-    opacity: 0.85;
 }
 
 .toolkit-icon-button__label {
     white-space: nowrap;
 }
 
-/* Drawn at its own 16px so it stays crisp rather than being scaled to the button, and dimmed
-   until its button is lit so the state reads from the glyph as well as the tint. Picking is
-   off: a child that swallows the pointer would make the middle of the button dead to clicks. */
+/* Drawn at its own 16px so it stays crisp rather than being scaled to the button. The tone now
+   carries the state, not the alpha -- ToolkitIcons.ApplyIconTone writes Image.tintColor from the
+   button's resolved color. Picking is off: a child that swallows the pointer would make the
+   middle of the button dead to clicks. */
 .toolkit-icon-button__icon {
     width: 16px;
     height: 16px;
-    opacity: 0.55;
+    opacity: 1;
 }
 
 /* Tinted while playing, so the bar answers "is it running" without reading the label. */
@@ -190,10 +198,6 @@
    pressed. */
 .toolkit-icon-button--lit {
     background-color: var(--toolkit-color-loop-on);
-}
-
-.toolkit-icon-button--lit .toolkit-icon-button__icon {
-    opacity: 1;
 }
 
 /* A number in the bar is a caption plus the field it labels. */

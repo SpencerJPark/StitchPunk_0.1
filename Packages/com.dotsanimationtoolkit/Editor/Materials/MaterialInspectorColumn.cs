@@ -38,6 +38,7 @@ namespace DotsAnimationToolkit.Editor
                 "Select this material in the Inspector",
                 "Inspector");
             selectButton.name = "material-inspector-select";
+            ToolkitChrome.StyleButton(selectButton, ToolkitButtonVariant.Ghost);
             actions.Add(selectButton);
             header.Add(actions);
             Add(header);

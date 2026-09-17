@@ -74,6 +74,7 @@ namespace DotsAnimationToolkit.Editor
             Button refreshButton = ToolkitIcons.MakeIconTextButton(
                 RescanProject, "d_Refresh", "Rescan the project for images", "Refresh");
             refreshButton.name = "images-refresh-button";
+            ToolkitChrome.StyleButton(refreshButton, ToolkitButtonVariant.Ghost);
             headerActions.Add(refreshButton);
 
             searchField = new ToolbarSearchField();

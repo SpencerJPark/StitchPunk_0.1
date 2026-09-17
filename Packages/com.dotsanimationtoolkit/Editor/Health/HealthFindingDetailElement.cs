@@ -149,6 +149,7 @@ namespace DotsAnimationToolkit.Editor
             if (asset is ClipAsset || asset is CutsceneAsset || asset is ActorProfileAsset)
             {
                 Button openButton = ToolkitIcons.MakeIconTextButton(() => AssetDatabase.OpenAsset(asset), "editicon.sml", "Open", "Open");
+                ToolkitChrome.StyleButton(openButton, ToolkitButtonVariant.Ghost);
                 openButton.style.marginLeft = 4f;
                 row.Add(openButton);
             }

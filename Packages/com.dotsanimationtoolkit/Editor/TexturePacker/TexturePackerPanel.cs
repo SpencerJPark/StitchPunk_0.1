@@ -103,6 +103,7 @@ namespace DotsAnimationToolkit.Editor
             Button clearButton = ToolkitIcons.MakeIconTextButton(
                 OnClearButtonClicked, ToolkitIcons.Trash, "Remove every source node and wire. The output node stays.", "Clear");
             clearButton.name = "texture-packer-clear-button";
+            ToolkitChrome.StyleButton(clearButton, ToolkitButtonVariant.Ghost);
             actions.Add(clearButton);
 
             header.Add(actions);

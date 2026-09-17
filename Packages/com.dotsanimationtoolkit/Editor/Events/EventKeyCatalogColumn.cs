@@ -43,6 +43,7 @@ namespace DotsAnimationToolkit.Editor
 
             Button refreshButton = ToolkitIcons.MakeIconTextButton(Rescan, "Refresh", "Rescan asset references.", "Refresh");
             refreshButton.name = "events-keys-refresh-button";
+            ToolkitChrome.StyleButton(refreshButton, ToolkitButtonVariant.Ghost);
             headerActions.Add(refreshButton);
 
             VisualElement header = new VisualElement();
