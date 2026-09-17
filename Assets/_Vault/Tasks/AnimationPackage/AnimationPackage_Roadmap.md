@@ -64,7 +64,7 @@ free minor and correct the spec's status line.
 
 - [x] **A103 — Unified authoring and the whole-animation VAT preview** (`0.55.0`, built 2026-09-15, S6 closed under the standing rule; Q1–Q3 in HANDOFF §4) — [`A103_UnifiedAuthoringAndVatPreview_Spec.md`](A103_UnifiedAuthoringAndVatPreview_Spec.md). One `RegistryTargetPoser` behind both previews: a targetless rig builds an empty-target registry and previews; the Clip Editor gains a *Baked VAT* viewport toggle, a VAT binding row (by name) and read-only lanes for imported clips; the VAT Bake preview plays every baked part and poses the cutout half behind *VAT parts* / *Other parts* toggles beside Ghost. UA's three decisions recorded as A103-D1/D2/D4; ⏸ S6 asks three visual questions.
 
-### Phase 6 — editor UI to the style guide (A104 alone → A105 + A106 in parallel → A107 alone)
+### Phase 6 — editor UI to the style guide (A104 alone → A105 + A106 in parallel → A107 alone → A108 alone)
 
 Binding reference: [`Docs/AnimationToolkit/EditorStyleGuide.md`](../../../../Docs/AnimationToolkit/EditorStyleGuide.md), approved by the owner 2026-09-15. Before captures of all 15 tabs: `Library/UIAudit/`.
 
@@ -72,6 +72,7 @@ Binding reference: [`Docs/AnimationToolkit/EditorStyleGuide.md`](../../../../Doc
 - [ ] **A105 — Asset tabs pass** (`0.57.0`, specced 2026-09-15) — [`A105_AssetTabsPass_Spec.md`](A105_AssetTabsPass_Spec.md). Texture Packer (no recipe required), Flipbooks, Clip Sets, Rigs (chips + detail card), Materials, Events.
 - [ ] **A106 — Preview tabs pass** (`0.58.0`, specced 2026-09-15) — [`A106_PreviewTabsPass_Spec.md`](A106_PreviewTabsPass_Spec.md). Retarget, VAT Bake, Capture, Ragdoll (to the style guide's reference composition), Stats, Health.
 - [ ] **A107 — Timeline tabs pass** (`0.59.0`, specced 2026-09-15) — [`A107_TimelineTabsPass_Spec.md`](A107_TimelineTabsPass_Spec.md). Clip Editor, Actor Profiles (hover play), Cutscenes; ends with the final 15-tab audit.
+- [ ] **A108 — Chrome consistency pass 2** (next unused minor, specced 2026-09-17) — [`A108_ChromeConsistencyPass2_Spec.md`](A108_ChromeConsistencyPass2_Spec.md). The owner's review of the A105 pass: 12px card gutters in Actor Profiles and the Actor Inspector, one button family (one variant each, one radius, one height per action run), icons tinted so they read on the white primary, and fifteen drawn one-tone tab glyphs (Rigs is bones, Ragdoll is a body). Runs alone on the shared style layer.
 
 ## 2. Standing owner calls these specs inherit (do not re-ask)
 
