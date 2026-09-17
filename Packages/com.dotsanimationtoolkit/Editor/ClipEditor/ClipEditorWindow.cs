@@ -1514,12 +1514,13 @@ namespace DotsAnimationToolkit.Editor
             tabIconImage.AddToClassList(TablistTabIconUssClassName);
             toggle.Insert(0, tabIconImage);
             tabIconImages[(int)tab] = tabIconImage;
-            ToolkitIcons.ApplyIconTone(tabIconImage, toggle);
 
             // A drawn glyph is white ink toned by the toggle's own resolved colour, so the tone has
-            // to be re-applied whenever that colour can have changed: once attached, and on hover
-            // in/out once the :hover style has actually resolved.
-            toggle.RegisterCallback<AttachToPanelEvent>(_ => ToolkitIcons.ApplyIconTone(tabIconImage, toggle));
+            // to be re-applied whenever that colour can have changed. Every trigger is deferred or
+            // post-layout: inside AttachToPanelEvent the toggle's styles have not resolved and
+            // resolvedStyle.color still reads opaque black, which would tint the glyph invisible.
+            toggle.RegisterCallback<AttachToPanelEvent>(_ => toggle.schedule.Execute(() => ToolkitIcons.ApplyIconTone(tabIconImage, toggle)));
+            toggle.RegisterCallback<GeometryChangedEvent>(_ => ToolkitIcons.ApplyIconTone(tabIconImage, toggle));
             toggle.RegisterCallback<PointerEnterEvent>(_ => toggle.schedule.Execute(() => ToolkitIcons.ApplyIconTone(tabIconImage, toggle)));
             toggle.RegisterCallback<PointerLeaveEvent>(_ => toggle.schedule.Execute(() => ToolkitIcons.ApplyIconTone(tabIconImage, toggle)));
         }

@@ -477,12 +477,15 @@ namespace DotsAnimationToolkit.Editor
 
             icon.userData = ToneUpdatesRegisteredMarker;
 
-            control.RegisterCallback<AttachToPanelEvent>(_ => ApplyIconTone(icon, control));
+            // Every trigger here is deferred or post-layout, and that is the whole point: reading
+            // resolvedStyle.color inside AttachToPanelEvent returns UI Toolkit's initial opaque
+            // black because the element's styles have not resolved yet. Driven 2026-09-17, that
+            // tinted 14 of 15 glyphs black -- invisible on every dark button in the window.
+            control.RegisterCallback<AttachToPanelEvent>(_ => control.schedule.Execute(() => ApplyIconTone(icon, control)));
+            control.RegisterCallback<GeometryChangedEvent>(_ => ApplyIconTone(icon, control));
             control.RegisterCallback<CustomStyleResolvedEvent>(_ => ApplyIconTone(icon, control));
             control.RegisterCallback<PointerEnterEvent>(_ => control.schedule.Execute(() => ApplyIconTone(icon, control)));
             control.RegisterCallback<PointerLeaveEvent>(_ => control.schedule.Execute(() => ApplyIconTone(icon, control)));
-
-            ApplyIconTone(icon, control);
         }
 
         private static Texture2D ResolveExact(string iconName)

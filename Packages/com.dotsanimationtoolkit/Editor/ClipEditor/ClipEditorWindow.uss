@@ -625,6 +625,13 @@
     flex-shrink: 0;
 }
 
+/* Compact tabs are all 28px wide, Health included. Its 104px basis reserves room for the issue
+   count in word mode, and flex-basis beats the compact rule's width, so icon mode has to say so
+   itself -- otherwise its glyph sits centred in a 104px tab and the strip ends in a gap. */
+.toolkit-tablist--compact .clip-editor__tab--health {
+    flex-basis: 28px;
+}
+
 /*
  * Every button and toggle that joins a run of them — the top bar, and the Snap / Auto Key group at
  * the head of the key area. One rule, so the two rows cannot drift apart from each other.
