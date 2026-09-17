@@ -112,6 +112,7 @@ namespace DotsAnimationToolkit.Editor
             bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB",
                 "Compose the frames into a grid PNG at the output path and import it as a Texture2DArray.", "Bake");
+            ToolkitIcons.SetButtonGlyph(bakeButton, ToolkitGlyphId.VatBake);
 
             saveButton = ToolkitIcons.MakeIconTextButton(Save, "d_SaveAs", "Write this flipbook to its asset.", "Save");
 

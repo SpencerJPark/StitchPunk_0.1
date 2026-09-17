@@ -195,6 +195,7 @@ namespace DotsAnimationToolkit.Editor
             // No second "Bake" heading: the pane title and the button already say it twice.
             Button bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB", "Bake every VAT-bound clip in the set to textures.", "Bake");
+            ToolkitIcons.SetButtonGlyph(bakeButton, ToolkitGlyphId.VatBake);
             bakeButton.style.marginTop = 8f;
             root.Add(bakeButton);
 

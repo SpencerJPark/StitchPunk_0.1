@@ -412,7 +412,7 @@ namespace DotsAnimationToolkit.Editor
             });
 
             ragdollToggle = viewportFrame.AddRailToggle(
-                "d_Avatar Icon",
+                ToolkitGlyphs.Resolve(ToolkitGlyphId.Ragdoll),
                 "Drop the previewed rig as an active ragdoll to see whether a pose still reads on impact. "
                 + "Turning it off restores the pose exactly.",
                 "Ragdoll");

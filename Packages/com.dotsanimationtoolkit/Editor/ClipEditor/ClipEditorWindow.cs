@@ -1097,9 +1097,11 @@ namespace DotsAnimationToolkit.Editor
                     + "and self-collision — to see whether a pose still reads on impact. Turning it "
                     + "off restores the pose exactly.";
                 ragdollPreviewToggle.RegisterValueChangedCallback(OnRagdollPreviewToggleChanged);
-                SetOverlayToolIcon(
+                // Unity's Avatar Icon is multi-hue and cannot be toned down by a tint, and it is the
+                // same teal humanoid the Retarget tab used to show; the drawn body says ragdoll.
+                ToolkitIcons.SetToggleIcon(
                     ragdollPreviewToggle, ragdollPreviewToggle.Q<Image>("ragdoll-preview-icon"),
-                    "d_Avatar Icon", "Ragdoll");
+                    ToolkitGlyphs.Resolve(ToolkitGlyphId.Ragdoll), "Ragdoll");
             }
 
             bakedVatPreviewToggle = rootVisualElement.Q<ToolbarToggle>("baked-vat-preview-toggle");

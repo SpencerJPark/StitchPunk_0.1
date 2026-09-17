@@ -354,6 +354,29 @@ namespace DotsAnimationToolkit.Editor
             RegisterIconToneUpdates(button, button.Q<Image>(className: IconButtonIconClassName));
         }
 
+        // For the handful of actions whose editor icon is multi-hue. A tint multiplies, so it can
+        // darken Unity's RGB-channel icon but never desaturate it, and the owner asked for one tone
+        // everywhere -- so those few swap the resolved icon for a drawn one.
+        public static void SetButtonGlyph(Button button, ToolkitGlyphId glyphId)
+        {
+            Texture2D glyphTexture = ToolkitGlyphs.Resolve(glyphId);
+            if (button == null || glyphTexture == null)
+            {
+                return;
+            }
+
+            Image iconImage = button.Q<Image>(className: IconButtonIconClassName);
+            if (iconImage == null)
+            {
+                iconImage = new Image { pickingMode = PickingMode.Ignore };
+                iconImage.AddToClassList(IconButtonIconClassName);
+                button.Insert(0, iconImage);
+            }
+
+            iconImage.image = glyphTexture;
+            RegisterIconToneUpdates(button, iconImage);
+        }
+
         public static void SetButtonIcon(Button button, string iconName, string fallbackText)
         {
             if (button == null)

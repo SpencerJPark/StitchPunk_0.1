@@ -92,11 +92,13 @@ namespace DotsAnimationToolkit.Editor
 
             Button bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB", "Write the packed PNG to disk, overwriting the output asset in place.", "Bake");
+            ToolkitIcons.SetButtonGlyph(bakeButton, ToolkitGlyphId.VatBake);
             bakeButton.name = "texture-packer-bake-button";
             actions.Add(bakeButton);
 
             Button bakeAsButton = ToolkitIcons.MakeIconTextButton(
                 BakeAs, "d_PreTextureRGB", "Choose a new output path, then bake.", "Bake As…");
+            ToolkitIcons.SetButtonGlyph(bakeAsButton, ToolkitGlyphId.VatBake);
             bakeAsButton.name = "texture-packer-bake-as-button";
             actions.Add(bakeAsButton);
 
