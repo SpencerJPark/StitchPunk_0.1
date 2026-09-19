@@ -405,6 +405,7 @@ namespace DotsAnimationToolkit.Editor
 
             Button newCutsceneButton = ToolkitIcons.MakeIconTextButton(CreateCutsceneAsset, "d_Toolbar Plus",
                 "Creates a new Cutscene asset wherever you choose, and loads it.", "New");
+            ToolkitChrome.StyleButton(newCutsceneButton, ToolkitButtonVariant.Primary);
             newCutsceneButton.style.marginLeft = 4f;
             toolbar.Add(newCutsceneButton);
 
@@ -532,17 +533,18 @@ namespace DotsAnimationToolkit.Editor
                 text = "All",
                 tooltip = "Frame the whole timeline. Shortcut: Shift+F."
             };
-            frameAllButton.AddToClassList("toolkit-icon-button");
-            frameAllButton.AddToClassList("toolkit-icon-button--text");
-            zoomGroup.Add(frameAllButton);
+            frameAllButton.AddToClassList("toolkit-segmented__item");
             Button framePlayheadButton = new Button(CentreTimelineOnPlayhead)
             {
                 text = "Playhead",
                 tooltip = "Centre the timeline on the playhead. Shortcut: Alt+P."
             };
-            framePlayheadButton.AddToClassList("toolkit-icon-button");
-            framePlayheadButton.AddToClassList("toolkit-icon-button--text");
-            zoomGroup.Add(framePlayheadButton);
+            framePlayheadButton.AddToClassList("toolkit-segmented__item");
+            VisualElement frameSegmented = new VisualElement { name = "cutscene-frame-segmented" };
+            frameSegmented.AddToClassList("toolkit-segmented");
+            frameSegmented.Add(frameAllButton);
+            frameSegmented.Add(framePlayheadButton);
+            zoomGroup.Add(frameSegmented);
             row.Add(zoomGroup);
 
             VisualElement statusGroup = new VisualElement();
@@ -551,6 +553,7 @@ namespace DotsAnimationToolkit.Editor
                 ReleaseHold, "d_PlayButton",
                 "Releases the hold the transport is waiting on, the way a host releases it at run time.",
                 "Continue");
+            ToolkitChrome.StyleButton(continueButton, ToolkitButtonVariant.Secondary);
             continueButton.style.display = DisplayStyle.None;
             statusGroup.Add(continueButton);
             transportStatusLabel = new Label(string.Empty);
@@ -588,6 +591,9 @@ namespace DotsAnimationToolkit.Editor
             skipHoldsToggle.AddToClassList("clip-editor__bar-action");
             skipHoldsToggle.AddToClassList("clip-editor__status-action");
             skipHoldsToggle.tooltip = "Run straight through hold markers instead of waiting for Continue.";
+            skipHoldsToggle.EnableInClassList("toolkit-bar-action--recording", skipHoldsToggle.value);
+            skipHoldsToggle.RegisterValueChangedCallback(changeEvent =>
+                skipHoldsToggle.EnableInClassList("toolkit-bar-action--recording", changeEvent.newValue));
             statusActions.Add(skipHoldsToggle);
 
             statusRow.Add(statusActions);
@@ -1088,6 +1094,7 @@ namespace DotsAnimationToolkit.Editor
 
             viewportOverlay = new VisualElement();
             viewportOverlay.AddToClassList("cutscene-editor__viewport-overlay");
+            viewportOverlay.AddToClassList("toolkit-empty");
             viewportOverlay.style.position = Position.Absolute;
             viewportOverlay.style.left = 0f;
             viewportOverlay.style.right = 0f;
@@ -1099,10 +1106,13 @@ namespace DotsAnimationToolkit.Editor
 
             viewportMessageLabel = new Label(string.Empty);
             viewportMessageLabel.AddToClassList("toolkit-hint");
+            viewportMessageLabel.AddToClassList("toolkit-empty__why");
             viewportMessageLabel.style.marginBottom = 6f;
             viewportOverlay.Add(viewportMessageLabel);
 
             viewportActionButton = new Button(OnSceneActionButtonClicked) { text = string.Empty };
+            viewportActionButton.AddToClassList("toolkit-empty__action");
+            ToolkitChrome.StyleButton(viewportActionButton, ToolkitButtonVariant.Secondary);
             viewportActionButton.style.display = DisplayStyle.None;
             viewportOverlay.Add(viewportActionButton);
             container.Add(viewportOverlay);
@@ -1264,9 +1274,11 @@ namespace DotsAnimationToolkit.Editor
             if (message == null)
             {
                 viewportOverlay.style.display = DisplayStyle.None;
+                viewportElement?.SetRenderSuppressed(false);
                 return;
             }
             viewportOverlay.style.display = DisplayStyle.Flex;
+            viewportElement?.SetRenderSuppressed(true);
             viewportMessageLabel.text = message;
             viewportActionButton.text = action ?? string.Empty;
             viewportActionButton.style.display = action != null ? DisplayStyle.Flex : DisplayStyle.None;
@@ -2411,6 +2423,7 @@ namespace DotsAnimationToolkit.Editor
                 Button addPartTrackButton = ToolkitIcons.MakeIconTextButton(
                     () => OpenAddPartTrackPicker(slotIndex), "d_Toolbar Plus",
                     "Adds a keyed override track for one rig part (picked by tag).", "Part Track");
+                ToolkitChrome.StyleButton(addPartTrackButton, ToolkitButtonVariant.Ghost);
                 addPartTrackButton.AddToClassList("toolkit-pane-action");
                 addPartTrackButton.style.marginLeft = 8f;
                 addPartTrackButton.style.width = HeaderColumnWidth - 16f;
@@ -4453,7 +4466,10 @@ namespace DotsAnimationToolkit.Editor
 
             if (cutscene == null)
             {
-                inspectorScroll.Add(new Label("Assign a Cutscene asset above."));
+                inspectorScroll.Add(ToolkitChrome.MakeEmptyState(
+                    "cutscene-inspector-empty", "No cutscene loaded",
+                    "Assign a Cutscene asset in the bar above, or create a new one.",
+                    "New Cutscene", CreateCutsceneAsset));
                 return;
             }
 

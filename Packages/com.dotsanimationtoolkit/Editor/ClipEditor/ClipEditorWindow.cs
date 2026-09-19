@@ -286,6 +286,9 @@ namespace DotsAnimationToolkit.Editor
         private Image previewImage;
         private Label previewStatusLabel;
 
+        /// <summary>R13: the viewport's own empty state, shown only while no clip is selected.</summary>
+        private VisualElement clipEditorViewportEmptyState;
+
         private ClipPreviewController previewController;
         private bool previewRegistryDirty;
         private double previewDirtiedAt;
@@ -2566,6 +2569,17 @@ namespace DotsAnimationToolkit.Editor
         private void BindViewport()
         {
             previewStatusLabel = rootVisualElement.Q<Label>("viewport-status");
+            VisualElement viewportPane = rootVisualElement.Q<VisualElement>("viewport-pane");
+            if (viewportPane != null && previewStatusLabel != null)
+            {
+                // R14: status lives in the footer, not floating above the render. MakeStatusRow's
+                // own out-label is discarded — previewStatusLabel keeps its name and every class it
+                // already carries, because the refresh below EnableInClassList's it by name.
+                VisualElement viewportStatusRow = ToolkitChrome.MakeStatusRow(
+                    out Label unusedStatusLabel, out VisualElement viewportStatusActions, true);
+                viewportStatusRow.Add(previewStatusLabel);
+                viewportPane.Add(viewportStatusRow);
+            }
             viewportFrame = rootVisualElement.Q<VisualElement>("viewport-frame");
             rigEditBanner = rootVisualElement.Q<Label>("rig-edit-banner");
 
@@ -2587,6 +2601,21 @@ namespace DotsAnimationToolkit.Editor
                 // the gizmo rail's clicks that land on top of it.
                 viewportEmptyState.pickingMode = PickingMode.Ignore;
                 viewportFrame.Insert(1, viewportEmptyState);
+
+                // R13: a second overlay, independent of the rig one above — a rig can be loaded with
+                // no clip picked yet, and that state deserves its own designed empty view.
+                clipEditorViewportEmptyState = ToolkitChrome.MakeEmptyState(
+                    "clip-editor-viewport-empty-clip", "No clip selected",
+                    "Pick a clip in the list on the left, or create one, to preview and key it.",
+                    null, null);
+                clipEditorViewportEmptyState.style.position = Position.Absolute;
+                clipEditorViewportEmptyState.style.left = 0f;
+                clipEditorViewportEmptyState.style.right = 0f;
+                clipEditorViewportEmptyState.style.top = 0f;
+                clipEditorViewportEmptyState.style.bottom = 0f;
+                clipEditorViewportEmptyState.style.display = DisplayStyle.None;
+                clipEditorViewportEmptyState.pickingMode = PickingMode.Ignore;
+                viewportFrame.Add(clipEditorViewportEmptyState);
             }
 
             reconcilePanel = rootVisualElement.Q<VisualElement>("reconcile-panel");
@@ -2849,6 +2878,14 @@ namespace DotsAnimationToolkit.Editor
             if (iconTexture != null && icon != null)
             {
                 icon.image = iconTexture;
+                // A built-in editor icon arrives in its own hue; the rail only reads as one control
+                // when each glyph takes the colour its own button resolved.
+                if (control != null)
+                {
+                    control.RegisterCallback<AttachToPanelEvent>(
+                        attachEvent => control.schedule.Execute(() => ToolkitIcons.ApplyIconTone(icon, control)));
+                }
+                ToolkitIcons.ApplyIconTone(icon, control);
                 return;
             }
             if (icon != null)
@@ -2867,6 +2904,14 @@ namespace DotsAnimationToolkit.Editor
             if (iconTexture != null && icon != null)
             {
                 icon.image = iconTexture;
+                // A built-in editor icon arrives in its own hue; the rail only reads as one control
+                // when each glyph takes the colour its own button resolved.
+                if (control != null)
+                {
+                    control.RegisterCallback<AttachToPanelEvent>(
+                        attachEvent => control.schedule.Execute(() => ToolkitIcons.ApplyIconTone(icon, control)));
+                }
+                ToolkitIcons.ApplyIconTone(icon, control);
                 return;
             }
             if (icon != null)
@@ -3890,6 +3935,12 @@ namespace DotsAnimationToolkit.Editor
             if (viewportEmptyState != null)
             {
                 viewportEmptyState.EnableInClassList(HiddenUssClassName, LoadedPrefab != null);
+            }
+
+            if (clipEditorViewportEmptyState != null)
+            {
+                clipEditorViewportEmptyState.style.display =
+                    selectedClip == null ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             Rect previewRect = previewImage.contentRect;

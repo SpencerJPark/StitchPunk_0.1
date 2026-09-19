@@ -540,7 +540,23 @@ namespace DotsAnimationToolkit.Editor
             {
                 readout += ", mirrored";
             }
-            directionReadoutLabel.text = readout;
+
+            // Always keep the full sentence on the tooltip so the resolved clip is recoverable on
+            // hover even while the row itself is hidden.
+            directionReadoutLabel.tooltip = readout;
+
+            // R03: the dropdown already states the pick, so only surface the readout when it tells
+            // us something the dropdown does not — a different authored clip, or a mirror.
+            bool readoutAddsInformation = clipFacing != currentMemberFacing || mirrorX;
+            if (readoutAddsInformation)
+            {
+                directionReadoutLabel.text = readout;
+                directionReadoutLabel.style.display = DisplayStyle.Flex;
+            }
+            else
+            {
+                directionReadoutLabel.style.display = DisplayStyle.None;
+            }
         }
 
         private void RefreshValidationBadge()
@@ -723,7 +739,16 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            viewportFrame?.ShowEmptyState(activeRig == null || profile == null);
+            bool hasActorToPreview = activeRig != null && profile != null;
+            viewportFrame?.ShowEmptyState(!hasActorToPreview);
+
+            // The empty state overlay sits on top of the render, but the render keeps drawing
+            // underneath it and bleeds through — blank it so the empty-state sentence stays readable.
+            viewportImage.style.display = hasActorToPreview ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!hasActorToPreview)
+            {
+                return;
+            }
 
             Rect viewportRect = viewportImage.contentRect;
             if (float.IsNaN(viewportRect.width) || viewportRect.width < 1f || viewportRect.height < 1f)

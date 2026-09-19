@@ -56,6 +56,7 @@ namespace DotsAnimationToolkit.Editor
         private Button addClipButton;
         private EnumField loopField;
         private FloatField speedField;
+        private FloatField layerTimeField;
         private Toggle useClipDefaultBlendToggle;
         private FloatField blendInField;
         private EnumField ragdollTriggerField;
@@ -204,6 +205,7 @@ namespace DotsAnimationToolkit.Editor
             addClipButton = null;
             loopField = null;
             speedField = null;
+            layerTimeField = null;
             useClipDefaultBlendToggle = null;
             blendInField = null;
             ragdollTriggerField = null;
@@ -552,13 +554,18 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement container = new VisualElement();
 
+            VisualElement animationCardBody;
+            VisualElement animationCard = ToolkitChrome.MakeCard(
+                "actor-editor-inspector-animation-card", "Animation",
+                out animationCardBody, out _);
+
             animationNameButton = new Button
             {
                 name = "actor-editor-inspector-animation-name-button",
                 text = DescribeAnimationName(animation.animationKey)
             };
             animationNameButton.clicked += () => OpenAnimationNamePicker(animationNameButton);
-            container.Add(animationNameButton);
+            animationCardBody.Add(animationNameButton);
 
             hasDirectionsToggle = new Toggle("Direction dimension")
             {
@@ -567,7 +574,7 @@ namespace DotsAnimationToolkit.Editor
             hasDirectionsToggle.SetValueWithoutNotify(animation.hasDirections);
             hasDirectionsToggle.RegisterValueChangedCallback(
                 changeEvent => ApplyHasDirectionsChange(changeEvent.newValue));
-            container.Add(hasDirectionsToggle);
+            animationCardBody.Add(hasDirectionsToggle);
 
             clipField = new ObjectField("Clip")
             {
@@ -577,7 +584,7 @@ namespace DotsAnimationToolkit.Editor
             clipField.SetValueWithoutNotify(animation.clip);
             clipField.RegisterValueChangedCallback(
                 changeEvent => ApplyClipChange(changeEvent.newValue as ClipAsset));
-            container.Add(clipField);
+            animationCardBody.Add(clipField);
 
             directionContainer = new VisualElement { name = "actor-editor-inspector-direction-container" };
 
@@ -607,19 +614,26 @@ namespace DotsAnimationToolkit.Editor
             };
             directionContainer.Add(addClipButton);
 
-            container.Add(directionContainer);
+            animationCardBody.Add(directionContainer);
 
             ApplyDirectionDimensionVisibility(animation);
             RebuildDirectionQueue(animation);
 
             loopField = new EnumField("Loop", animation.loop) { name = "actor-editor-inspector-loop-field" };
             loopField.RegisterValueChangedCallback(changeEvent => ApplyLoopChange((LoopMode)changeEvent.newValue));
-            container.Add(loopField);
+            animationCardBody.Add(loopField);
 
             speedField = new FloatField("Speed") { name = "actor-editor-inspector-speed-field" };
             speedField.SetValueWithoutNotify(animation.speed);
             speedField.RegisterValueChangedCallback(changeEvent => ApplySpeedChange(changeEvent.newValue));
-            container.Add(speedField);
+            animationCardBody.Add(speedField);
+
+            layerTimeField = new FloatField("Layer Time") { name = "actor-editor-inspector-layer-time-field" };
+            layerTimeField.tooltip = "This layer's playhead, seconds.";
+            layerTimeField.SetValueWithoutNotify(composer != null ? composer.LayerTime(selection.layerIndex) : 0f);
+            layerTimeField.RegisterValueChangedCallback(
+                changeEvent => composer?.SetLayerTime(selection.layerIndex, changeEvent.newValue));
+            animationCardBody.Add(layerTimeField);
 
             bool usesClipDefaultBlend = float.IsNaN(animation.blendIn);
 
@@ -630,13 +644,13 @@ namespace DotsAnimationToolkit.Editor
             useClipDefaultBlendToggle.SetValueWithoutNotify(usesClipDefaultBlend);
             useClipDefaultBlendToggle.RegisterValueChangedCallback(
                 changeEvent => ApplyBlendInUseClipDefaultChange(changeEvent.newValue));
-            container.Add(useClipDefaultBlendToggle);
+            animationCardBody.Add(useClipDefaultBlendToggle);
 
             blendInField = new FloatField("Blend In") { name = "actor-editor-inspector-blend-in-field" };
             blendInField.SetValueWithoutNotify(usesClipDefaultBlend ? 0f : animation.blendIn);
             blendInField.style.display = usesClipDefaultBlend ? DisplayStyle.None : DisplayStyle.Flex;
             blendInField.RegisterValueChangedCallback(changeEvent => ApplyBlendInChange(changeEvent.newValue));
-            container.Add(blendInField);
+            animationCardBody.Add(blendInField);
 
             ragdollTriggerField = new EnumField("Ragdoll Trigger", animation.ragdollTrigger)
             {
@@ -644,7 +658,7 @@ namespace DotsAnimationToolkit.Editor
             };
             ragdollTriggerField.RegisterValueChangedCallback(
                 changeEvent => ApplyRagdollTriggerChange((RagdollTrigger)changeEvent.newValue));
-            container.Add(ragdollTriggerField);
+            animationCardBody.Add(ragdollTriggerField);
 
             ragdollAtEventButton = new Button
             {
@@ -652,18 +666,20 @@ namespace DotsAnimationToolkit.Editor
                 text = DescribeRagdollAtEvent(animation.ragdollAtEventKey)
             };
             ragdollAtEventButton.clicked += () => OpenRagdollAtEventPicker(ragdollAtEventButton);
-            container.Add(ragdollAtEventButton);
+            animationCardBody.Add(ragdollAtEventButton);
             ApplyRagdollAtEventVisibility(animation);
 
             layerReadoutLabel = new Label("Layer: " + DescribeLayerName(layer))
             {
                 name = "actor-editor-inspector-layer-readout-label"
             };
-            container.Add(layerReadoutLabel);
+            animationCardBody.Add(layerReadoutLabel);
 
             playingStatusLabel = new Label { name = "actor-editor-inspector-playing-status-label" };
-            container.Add(playingStatusLabel);
+            animationCardBody.Add(playingStatusLabel);
             RefreshPlayingStatusLabel(animation);
+
+            container.Add(animationCard);
 
             return container;
         }
@@ -1152,6 +1168,11 @@ namespace DotsAnimationToolkit.Editor
             if (speedField != null && !IsBeingEdited(speedField) && !Mathf.Approximately(speedField.value, animation.speed))
             {
                 speedField.SetValueWithoutNotify(animation.speed);
+            }
+            if (composer != null && layerTimeField != null && !IsBeingEdited(layerTimeField)
+                && !Mathf.Approximately(layerTimeField.value, composer.LayerTime(selection.layerIndex)))
+            {
+                layerTimeField.SetValueWithoutNotify(composer.LayerTime(selection.layerIndex));
             }
 
             bool usesClipDefaultBlend = float.IsNaN(animation.blendIn);
