@@ -228,3 +228,46 @@ Struck = already on trunk, verified by code evidence and cross-checked against t
   Above the fold threshold, so A106 keeps its own worktree.
 
 *(T0 grounding, gates, revert-to-fail, drift, For integration, S2 audit table, drives, close to follow.)*
+
+### Phase 1 — build (spec-lead `a106`, 2026-09-19, branch `spec/a106`)
+
+- **Commits:** `a3d13260` A106-W1 (14 source files + fixture F1), `f0c23f1` W1 fix (CapturePanel CS1061).
+- **Gate 1:** `compile-errors` — `CapturePanel.cs:614 CS1061`, `SetValueWithoutNotify` on the `VisualElement` the
+  Format segmented control now is. The RadioButtonGroup swap missed one write site. Fixed in the lead's own turn.
+- **Gate 2:** **pass**, EditMode 32/32 over `EditorStyleConformanceTests`, `ClipEditorLayoutTests`,
+  `PackagingConformanceTests`, `HealthFindingMessageTests`, `HealthRulesTests`, `VatBakePanelTests`,
+  `VatSourceHashResolverTests`, `VatPreviewPlaybackTests` (each name namespace-qualified, one `--edit-mode` each).
+- **Ids built:** RT1; VB1–VB6; CP1–CP4, CP7; RD1, RD3, RD4, RD6, RD7, RD8, RD10, RD11; ST1–ST3; HL1–HL3, HL5–HL7.
+- **RD5** — cause found, fix unproven by capture. `.toolkit-pane-header` (`ClipEditorWindow.uss:258`) has **no
+  height at all**, so each header is as tall as its own content: the Bodies header carried icon+text buttons, the
+  Inspector header only a title, and `RagdollViewportElement` is not a `.toolkit-column`, so it also missed that
+  class's `padding-top: 8px`. Measured on `11_Ragdoll.png`: "Viewport" ~27px above "Bodies", "Inspector" ~6px above.
+  Fix: all three headers now set `style.height = 32f; style.flexShrink = 0f` (layout writes, Conformance_I-safe),
+  the Bodies actions became icon-only ghosts, and the viewport root takes `style.paddingTop = 8f`.
+  **The stage must confirm this by capture** — it cannot be proven from the builder call, which is the whole point
+  of the finding.
+- **RD9 was already true on trunk** and was left alone. Pixel-sampling `11_Ragdoll.png` reads the Bodies column at
+  `#383838` and the list body at `#282828` — `toolkit-list-surface` is applied and resolving. What made it read flat
+  was the missing search field and the absent selection fill above it, i.e. RD7 and RD10, now built. Do not
+  "fix" the tone.
+- **CP5 not built** (the ad-hoc Capture transport → shared `TransportCoreElement`). It lives in `CapturePanel.cs`,
+  which T4 held for five other ids, so it was deferred rather than run as a conflicting second worker. **Residual.**
+- **T16 docs not built:** the five tab pages are under `Packages/com.dotsanimationtoolkit/Documentation~/`, which the
+  session seam reserves for the stage. **Stage owns them.**
+
+### For integration
+
+1. **`ClipEditorWindow.uss` — `.toolkit-pane-header` needs `min-height: 32px`** (R06). Three specs each set the
+   height from C# instead because the sheet is stage-owned; one rule in the sheet would retire all of those writes.
+2. **`ViewportFrameElement.SetEmptyState` takes no action button**, so R13's "the action that fills it" cannot be
+   met on any viewport empty state (hit on VB6). It wants an optional `actionText` + `Action` overload, forwarded to
+   `ToolkitChrome.MakeEmptyState`, which already accepts both.
+3. No allowlist change is needed: `Conformance_I`'s only entry is
+   `Editor/ClipEditor/Preview/RagdollPreviewSceneryProvider.cs`, untouched, and no new `// colour from data` line was
+   added in this spec.
+4. **`VatFreshnessBadgeElement.cs:56`** now lifts the first letter of the resolver's reason, because HL6 made those
+   reasons lower-case sentence tails. Any new bare display of `VatSourceHashResolver.Resolve`'s `reason` must do the
+   same.
+5. Open risk for the capture pass: `HealthPanel`'s filter segments keep the old toggles' `<color=#hex>●</color>`
+   rich text on a `Button`. Nobody could compile-check that a `Button` renders it; if it prints as markup, strip the
+   tags and keep the count as plain text.
