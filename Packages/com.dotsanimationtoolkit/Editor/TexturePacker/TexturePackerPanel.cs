@@ -22,6 +22,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly VisualElement graphHost;
         private readonly Label recipeLabel;
+        private readonly Label unsavedChangesBadge;
         private readonly TexturePackBaker baker = new TexturePackBaker();
 
         private string outputAssetPath = string.Empty;
@@ -38,6 +39,12 @@ namespace DotsAnimationToolkit.Editor
             recipeLabel.name = "texture-packer-recipe-label";
             recipeLabel.AddToClassList("toolkit-pane-title");
 
+            unsavedChangesBadge = ToolkitChrome.MakeBadge("modified", ToolkitStatusTone.Neutral);
+            unsavedChangesBadge.name = "texture-packer-unsaved-badge";
+            unsavedChangesBadge.tooltip = "This setup has changes that are not saved to a recipe asset.";
+            unsavedChangesBadge.style.marginLeft = 6f;
+            unsavedChangesBadge.style.display = DisplayStyle.None;
+
             Sidebar = new TexturePackerSidebar();
             Sidebar.Images.ImagesActivated += textures => Graph.AddSourcesAtVisibleCenter(textures);
             Sidebar.Recipes.RecipeSelected += OnRecipeSelected;
@@ -50,7 +57,6 @@ namespace DotsAnimationToolkit.Editor
             Graph.style.flexGrow = 1f;
             Graph.GraphChanged += OnGraphChanged;
             Graph.OutputNode.SettingsChanged += OnOutputSettingsChanged;
-            Graph.OutputNode.BakeRequested += Bake;
             Graph.OutputNode.MatchLargestSourceRequested += OnMatchLargestSourceRequested;
             Graph.SourceChannelViewChanged += OnSourceChannelViewChanged;
 
@@ -86,6 +92,7 @@ namespace DotsAnimationToolkit.Editor
             header.style.paddingBottom = 4f;
             header.style.paddingRight = 8f;
             header.Add(recipeLabel);
+            header.Add(unsavedChangesBadge);
 
             VisualElement actions = new VisualElement();
             actions.AddToClassList("toolkit-pane-actions");
@@ -101,6 +108,12 @@ namespace DotsAnimationToolkit.Editor
             ToolkitIcons.SetButtonGlyph(bakeAsButton, ToolkitGlyphId.VatBake);
             bakeAsButton.name = "texture-packer-bake-as-button";
             actions.Add(bakeAsButton);
+
+            Button saveAsRecipeButton = ToolkitIcons.MakeIconTextButton(
+                SaveRecipe, "d_SaveAs", "Save this node setup as a reusable recipe asset. Baking does not need one.", "Save as recipe");
+            saveAsRecipeButton.name = "texture-packer-save-as-recipe-button";
+            ToolkitChrome.StyleButton(saveAsRecipeButton, ToolkitButtonVariant.Secondary);
+            actions.Add(saveAsRecipeButton);
 
             Button clearButton = ToolkitIcons.MakeIconTextButton(
                 OnClearButtonClicked, ToolkitIcons.Trash, "Remove every source node and wire. The output node stays.", "Clear");
@@ -448,8 +461,8 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshRecipeLabel()
         {
-            string baseText = LoadedRecipe != null ? "Recipe: " + LoadedRecipe.name : "No recipe";
-            recipeLabel.text = hasUnsavedChanges ? baseText + " ●" : baseText;
+            recipeLabel.text = LoadedRecipe != null ? "Recipe: " + LoadedRecipe.name : "Unsaved setup";
+            unsavedChangesBadge.style.display = hasUnsavedChanges ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 }

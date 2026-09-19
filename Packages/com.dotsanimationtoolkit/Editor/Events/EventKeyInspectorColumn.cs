@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using UnityEditor.UIElements;
@@ -14,6 +15,9 @@ namespace DotsAnimationToolkit.Editor
         public AnimEventKeyRegistry Registry { get; private set; }
 
         public AnimEventKeyEntry BoundEntry { get; private set; }
+
+        /// <summary>Raised by the empty state's action button; this column cannot create a key itself.</summary>
+        public event Action NewEventKeyRequested;
 
         private readonly VisualElement bodyContainer;
         private VisualElement payloadPreviewSection;
@@ -48,9 +52,9 @@ namespace DotsAnimationToolkit.Editor
                 bodyContainer.Add(ToolkitChrome.MakeEmptyState(
                     "events-inspector-empty",
                     "No event selected",
-                    "Pick a key on the left and its name, mask and usage show up here.",
-                    null,
-                    null));
+                    "Pick a key on the left, or create one.",
+                    "New event key",
+                    () => NewEventKeyRequested?.Invoke()));
                 return;
             }
 
@@ -60,10 +64,10 @@ namespace DotsAnimationToolkit.Editor
             titleLabel.AddToClassList("toolkit-pane-title");
             header.Add(titleLabel);
             bool isMaskable = AnimEventMaskKeys.IsMaskable(BoundEntry.eventKey);
-            Label kindLabel = new Label(isMaskable
-                ? "maskable · key " + BoundEntry.eventKey.ToString()
-                : "pulse-only · key " + BoundEntry.eventKey.ToString());
-            header.Add(kindLabel);
+            string maskability = isMaskable ? "maskable" : "pulse-only";
+            Label kindBadge = ToolkitChrome.MakeBadge(BoundEntry.eventKey.ToString() + " · " + maskability, ToolkitStatusTone.Neutral);
+            kindBadge.tooltip = "event key " + BoundEntry.eventKey.ToString() + ", " + maskability;
+            header.Add(kindBadge);
             bodyContainer.Add(header);
 
             TextField nameField = new TextField("Name") { isDelayed = true, value = BoundEntry.name };

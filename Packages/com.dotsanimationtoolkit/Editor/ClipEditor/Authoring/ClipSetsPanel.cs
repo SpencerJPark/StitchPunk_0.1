@@ -36,7 +36,6 @@ namespace DotsAnimationToolkit.Editor
 
         private ClipPickerListElement picker;
 
-        private Label editHintLabel;
         private Label resultLabel;
 
         public event Action<ClipSetAsset> OpenInEditorRequested;
@@ -170,7 +169,7 @@ namespace DotsAnimationToolkit.Editor
 
             editorContent = new VisualElement { name = "clip-set-editor-content" };
 
-            nameField = new TextField("Name") { name = "clip-set-name-field" };
+            nameField = new TextField { name = "clip-set-name-field" };
             // Commit on blur/Enter, not on every keystroke — renaming an asset per character
             // would create a file operation per letter.
             nameField.RegisterCallback<FocusOutEvent>(focusOutEvent => CommitNameFieldChange());
@@ -181,17 +180,17 @@ namespace DotsAnimationToolkit.Editor
                     CommitNameFieldChange();
                 }
             });
-            editorContent.Add(nameField);
+            editorContent.Add(ToolkitChrome.MakePropertyRow("Name", nameField, "Renames the selected clip set asset."));
 
-            folderRow = new PathPickerRowElement(
-                "Folder", "Where the next New clip set is created. Does not move the selected clip set.")
+            const string folderRowTooltip = "Where the next New clip set is created. Does not move the selected clip set.";
+            folderRow = new PathPickerRowElement(string.Empty, folderRowTooltip)
             {
                 name = "clip-set-folder-row"
             };
             folderRow.Path = saveLocation.Recall();
             folderRow.BrowseRequested += OnFolderButtonClicked;
 
-            editorContent.Add(folderRow);
+            editorContent.Add(ToolkitChrome.MakePropertyRow("Folder", folderRow, folderRowTooltip));
 
             vatTexturesRow = new VisualElement { name = "clip-set-vat-textures-row" };
             vatTexturesRow.style.flexDirection = FlexDirection.Row;
@@ -232,15 +231,13 @@ namespace DotsAnimationToolkit.Editor
             picker.ClipRenameRequested += OnPickerClipRenameRequested;
             editorContent.Add(picker);
 
-            editHintLabel = new Label("Ticks apply to the set immediately. Ctrl+Z undoes.");
-            editHintLabel.AddToClassList("toolkit-hint");
-            editorContent.Add(editHintLabel);
-
             editorColumn.Add(editorContent);
 
             VisualElement resultStatusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
             resultLabel.name = "clip-sets-result-label";
             editorColumn.Add(resultStatusRow);
+            // Seeds the footer with the edit hint on open; a real operation result overwriting it later is expected.
+            ToolkitChrome.SetStatus(resultLabel, "Ticks apply to the set immediately. Ctrl+Z undoes.", ToolkitStatusTone.Neutral);
 
             return editorColumn;
         }

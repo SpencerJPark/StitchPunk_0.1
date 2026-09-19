@@ -38,12 +38,13 @@ namespace DotsAnimationToolkit.Editor
         private RigCatalogColumn catalog;
         private Label targetsTitleLabel;
         private Button useInEditorButton;
-        private Label noSelectionHintLabel;
+        private VisualElement noSelectionHintLabel;
         private VisualElement editorContent;
         private TextField rigNameField;
         private PathPickerRowElement rigFolderRow;
         private ObjectField sourcePrefabField;
         private Label candidateSummaryLabel;
+        private Label targetsCountBadge;
         private VisualElement candidateContainer;
         private Label resultLabel;
         private RigSourcePreviewElement preview;
@@ -53,6 +54,7 @@ namespace DotsAnimationToolkit.Editor
         private Label targetNodeLabel;
         private Button targetKindButton;
         private Button targetTagButton;
+        private Toggle targetFacesDirectionToggle;
         private Label targetUntickedHint;
 
         private readonly List<CandidateRow> candidateRows = new List<CandidateRow>();
@@ -260,8 +262,15 @@ namespace DotsAnimationToolkit.Editor
 
             targetsColumn.Add(header);
 
-            noSelectionHintLabel = ToolkitChrome.MakeHint("Select a rig, or press New to make one.");
-            noSelectionHintLabel.name = "rig-no-selection-hint";
+            // RG6: same element name so line 201's toggle and any test locator still find it, but a
+            // designed empty state (R13) instead of a bare sentence; reuses the catalog's own New
+            // handler rather than duplicating it.
+            noSelectionHintLabel = ToolkitChrome.MakeEmptyState(
+                "rig-no-selection-hint",
+                "No rig selected",
+                "Pick a rig on the left to see and edit its targets.",
+                "New rig",
+                CreateAndSelectNewRig);
             targetsColumn.Add(noSelectionHintLabel);
 
             editorContent = new VisualElement { name = "rig-editor-content" };
@@ -314,8 +323,14 @@ namespace DotsAnimationToolkit.Editor
             });
             editorContent.Add(sourcePrefabField);
 
-            editorContent.Add(ToolkitChrome.MakeHeading("Targets"));
+            VisualElement targetsHeader = ToolkitChrome.MakePaneHeader(
+                "Targets", out _, out VisualElement targetsHeaderActions);
+            targetsCountBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            targetsHeaderActions.Add(targetsCountBadge);
+            editorContent.Add(targetsHeader);
 
+            // RG3: the count now lives only in the badge above; this label says which rig (or, with
+            // no rig/prefab yet, the same guidance it always gave) so nothing is said twice (R03).
             candidateSummaryLabel = ToolkitChrome.MakeHint(
                 "Assign a source prefab to scan its hierarchy for renderer-bearing nodes.");
             editorContent.Add(candidateSummaryLabel);
@@ -323,6 +338,10 @@ namespace DotsAnimationToolkit.Editor
             ScrollView candidateScroll = new ScrollView();
             candidateScroll.style.flexGrow = 1f;
             candidateScroll.style.marginTop = 4f;
+            // RG5: the middle column stays window-coloured, but its list body must not — the base
+            // class's -10px pull-back matches this column's own 10px inset exactly (ClipEditorWindow.uss
+            // .toolkit-column), so no --flush modifier is needed here.
+            candidateScroll.AddToClassList("toolkit-list-surface");
             candidateContainer = candidateScroll.contentContainer;
             editorContent.Add(candidateScroll);
 
@@ -371,6 +390,13 @@ namespace DotsAnimationToolkit.Editor
                 }));
             targetCardBody.Add(ToolkitChrome.MakePropertyRow(
                 "Tag", targetTagButton, "The vocabulary tag clips bind to on this target."));
+
+            targetFacesDirectionToggle = new Toggle { name = "rig-target-faces-direction-toggle" };
+            targetFacesDirectionToggle.RegisterValueChangedCallback(
+                changeEvent => SetFocusedRowFacesDirection(changeEvent.newValue));
+            targetCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Faces direction", targetFacesDirectionToggle,
+                "Bakes a PartFacing component so this target's art changes with the direction the actor faces."));
 
             targetUntickedHint = ToolkitChrome.MakeHint("Tick the node in the list above to make it a target.");
             targetCardBody.Add(targetUntickedHint);
@@ -449,7 +475,17 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            row.TagButton.text = DescribeTag(row.TagId);
+            // The row chip is compact, so it drops the "Tag: " prefix the Target card's button keeps.
+            row.TagButton.text = DescribeTagChip(row.TagId);
+        }
+
+        private static string DescribeTagChip(uint tagId)
+        {
+            string describedTag = DescribeTag(tagId);
+            const string tagPrefix = "Tag: ";
+            return describedTag.StartsWith(tagPrefix, StringComparison.Ordinal)
+                ? describedTag.Substring(tagPrefix.Length)
+                : describedTag;
         }
 
         private static string DescribeTag(uint tagId)
@@ -504,7 +540,17 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            row.KindButton.text = DescribeKind(row.Kind);
+            // The row chip is compact, so it drops the "Kind: " prefix the Target card's button keeps.
+            row.KindButton.text = DescribeKindChip(row.Kind);
+        }
+
+        private static string DescribeKindChip(TargetKind kind)
+        {
+            string describedKind = DescribeKind(kind);
+            const string kindPrefix = "Kind: ";
+            return describedKind.StartsWith(kindPrefix, StringComparison.Ordinal)
+                ? describedKind.Substring(kindPrefix.Length)
+                : describedKind;
         }
 
         private static string DescribeKind(TargetKind kind)
@@ -561,6 +607,7 @@ namespace DotsAnimationToolkit.Editor
             if (rig == null)
             {
                 candidateSummaryLabel.text = "No rig selected.";
+                targetsCountBadge.text = string.Empty;
                 return;
             }
 
@@ -568,6 +615,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 candidateSummaryLabel.text =
                     "Assign a source prefab to scan its hierarchy for renderer-bearing nodes.";
+                targetsCountBadge.text = string.Empty;
                 return;
             }
 
@@ -578,7 +626,8 @@ namespace DotsAnimationToolkit.Editor
                 BuildCandidateRow(row, row.IsTarget);
             }
 
-            candidateSummaryLabel.text = candidateRows.Count.ToString() + " node(s) in \"" + rig.name + "\".";
+            targetsCountBadge.text = candidateRows.Count.ToString();
+            candidateSummaryLabel.text = "in \"" + rig.name + "\".";
         }
 
         private void BuildCandidateRow(RigTargetRow sourceRow, bool ticked)
@@ -602,12 +651,28 @@ namespace DotsAnimationToolkit.Editor
             Label rowPathLabel = new Label(rowTitleText);
             rowPathLabel.AddToClassList("toolkit-list-row__title");
 
+            // A105-D3 (SG-D6): Kind/Tag chips that open the same pickers as the Target card, shown
+            // only while the row is ticked so an untargeted node stays a plain checkbox + name.
+            Button rowKindChip = new Button();
+            rowKindChip.AddToClassList("toolkit-badge");
+            ToolkitChrome.StyleButton(rowKindChip, ToolkitButtonVariant.Ghost);
+            rowKindChip.tooltip = "Change how this target is drawn at runtime.";
+            rowKindChip.style.display = ticked ? DisplayStyle.Flex : DisplayStyle.None;
+
+            Button rowTagChip = new Button();
+            rowTagChip.AddToClassList("toolkit-badge");
+            ToolkitChrome.StyleButton(rowTagChip, ToolkitButtonVariant.Ghost);
+            rowTagChip.tooltip = "Change the vocabulary tag clips bind to on this target.";
+            rowTagChip.style.display = ticked ? DisplayStyle.Flex : DisplayStyle.None;
+
             VisualElement candidateRow = new VisualElement();
             candidateRow.AddToClassList("toolkit-list-row");
             // The visible label ellipsizes a deep node path; the tooltip carries the full path.
             candidateRow.tooltip = sourceRow.SourceNodePath;
             candidateRow.Add(rowToggle);
             candidateRow.Add(rowPathLabel);
+            candidateRow.Add(rowKindChip);
+            candidateRow.Add(rowTagChip);
             candidateContainer.Add(candidateRow);
 
             CandidateRow row = new CandidateRow
@@ -619,10 +684,14 @@ namespace DotsAnimationToolkit.Editor
                 Kind = sourceRow.Kind,
                 IsMissingNode = sourceRow.IsMissingNode,
                 ToggleControl = rowToggle,
-                TagButton = null,
-                KindButton = null,
+                TagButton = rowTagChip,
+                KindButton = rowKindChip,
                 Box = candidateRow
             };
+            rowKindChip.clicked += () => OpenRowKindPicker(row, rowKindChip);
+            rowTagChip.clicked += () => OpenRowTagPicker(row, rowTagChip);
+            RefreshKindButtonText(row);
+            RefreshTagButtonText(row);
             rowToggle.RegisterValueChangedCallback(
                 changeEvent => OnRowToggleChanged(row, rowToggle, changeEvent.newValue));
             // TrickleDown, so clicking the toggle still shows which node the row means rather than
@@ -642,6 +711,9 @@ namespace DotsAnimationToolkit.Editor
         private void OnRowToggleChanged(CandidateRow row, Toggle rowToggle, bool isChecked)
         {
             RefreshTargetCard();
+            // A105-D3: the Kind/Tag chips are only meaningful once the node is a target.
+            row.KindButton.style.display = isChecked ? DisplayStyle.Flex : DisplayStyle.None;
+            row.TagButton.style.display = isChecked ? DisplayStyle.Flex : DisplayStyle.None;
             if (!row.IsMissingNode)
             {
                 preview.SetNodeIncluded(row.SourceNodePath, isChecked);
@@ -679,6 +751,8 @@ namespace DotsAnimationToolkit.Editor
                     // SetValueWithoutNotify, not value = true: a plain set re-enters this same
                     // callback and asks the owner the same question forever.
                     rowToggle.SetValueWithoutNotify(true);
+                    row.KindButton.style.display = DisplayStyle.Flex;
+                    row.TagButton.style.display = DisplayStyle.Flex;
                     RefreshTargetCard();
                     if (!row.IsMissingNode)
                     {

@@ -192,11 +192,6 @@ namespace DotsAnimationToolkit.Editor
             });
             row.Add(nameLabel);
 
-            Label indexLabel = new Label();
-            indexLabel.name = "flipbook-frame-index";
-            indexLabel.AddToClassList("toolkit-list-row__meta");
-            row.Add(indexLabel);
-
             Label sizeLabel = new Label();
             sizeLabel.name = "flipbook-frame-size";
             sizeLabel.AddToClassList("toolkit-list-row__meta");
@@ -223,9 +218,7 @@ namespace DotsAnimationToolkit.Editor
 
             Label nameLabel = row.Q<Label>("flipbook-frame-name");
             nameLabel.text = frame.name;
-
-            Label indexLabel = row.Q<Label>("flipbook-frame-index");
-            indexLabel.text = "#" + frame.index.ToString();
+            row.tooltip = frame.name + "  ·  frame #" + frame.index.ToString();
 
             Label sizeLabel = row.Q<Label>("flipbook-frame-size");
             if (frame.source == null)

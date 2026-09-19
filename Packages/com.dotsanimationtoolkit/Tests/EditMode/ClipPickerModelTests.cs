@@ -103,5 +103,39 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(1, model.VisibleEntries.Count);
             Assert.AreEqual("Walk", model.VisibleEntries[0].Name);
         }
+
+        [Test]
+        public void FolderColumn_OmitsTheFolder_WhenItMatchesTheSetsFolder()
+        {
+            string homeFolderPath = ClipRowFolderResolver.ComputeHomeFolderPath(new[] { "Anim/A", "Anim/A" });
+            string folderColumnText = ClipRowFolderResolver.ResolveFolderColumnText("Anim/A", homeFolderPath);
+
+            Assert.AreEqual(string.Empty, folderColumnText);
+        }
+
+        [Test]
+        public void FolderColumn_ShowsOnlyTheClipsOwnFolderName_WhenOutsideTheSetsFolder()
+        {
+            string homeFolderPath = ClipRowFolderResolver.ComputeHomeFolderPath(new[] { "Anim/A", "Anim/A" });
+            string folderColumnText = ClipRowFolderResolver.ResolveFolderColumnText("Anim/Nested/B", homeFolderPath);
+
+            Assert.AreEqual("B", folderColumnText);
+        }
+
+        [Test]
+        public void ComputeHomeFolderPath_PicksTheMostCommonFolder_NotTheFirstOneSeen()
+        {
+            string homeFolderPath = ClipRowFolderResolver.ComputeHomeFolderPath(new[] { "Anim/A", "Anim/B", "Anim/B" });
+
+            Assert.AreEqual("Anim/B", homeFolderPath);
+        }
+
+        [Test]
+        public void ComputeHomeFolderPath_ResolvesATie_ToTheFirstFolderSeen()
+        {
+            string homeFolderPath = ClipRowFolderResolver.ComputeHomeFolderPath(new[] { "Anim/B", "Anim/A", "Anim/B", "Anim/A" });
+
+            Assert.AreEqual("Anim/B", homeFolderPath);
+        }
     }
 }

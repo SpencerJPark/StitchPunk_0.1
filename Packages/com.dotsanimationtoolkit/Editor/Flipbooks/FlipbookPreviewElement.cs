@@ -18,12 +18,17 @@ namespace DotsAnimationToolkit.Editor
         private const string HoverDefaultText = "Hover a frame to name it.";
         private const string SelectedCellClassName = "flipbook-preview-cell--selected";
 
+        public static string DefaultHoverText { get { return HoverDefaultText; } }
+
         private static readonly Color SelectedBorderColor = new Color(0.24f, 0.70f, 0.68f);
         private static readonly Color CellBorderColor = new Color(0.35f, 0.35f, 0.35f);
         private static readonly Color CellBackgroundColor = new Color(0.15f, 0.15f, 0.15f);
 
         // The list position of the clicked thumbnail.
         public event Action<int> FrameClicked;
+
+        // Fires whenever the hover hint text changes, so a host column can show it in its own footer.
+        public event Action<string> HoverTextChanged;
 
         private readonly Label hoverLabel;
         private readonly ScrollView scrollView;
@@ -45,7 +50,6 @@ namespace DotsAnimationToolkit.Editor
             {
                 name = "flipbook-preview-hover",
             };
-            this.Add(this.hoverLabel);
 
             this.frameContainer = new VisualElement();
             this.frameContainer.style.flexDirection = FlexDirection.Row;
@@ -55,6 +59,12 @@ namespace DotsAnimationToolkit.Editor
             this.scrollView.style.flexGrow = 1f;
             this.scrollView.Add(this.frameContainer);
             this.Add(this.scrollView);
+        }
+
+        private void SetHoverText(string hoverText)
+        {
+            this.hoverLabel.text = hoverText;
+            this.HoverTextChanged?.Invoke(hoverText);
         }
 
         public void SetFlipbook(FlipbookAsset flipbook)
@@ -84,7 +94,7 @@ namespace DotsAnimationToolkit.Editor
         {
             this.frameContainer.Clear();
             this.cellElements.Clear();
-            this.hoverLabel.text = HoverDefaultText;
+            this.SetHoverText(HoverDefaultText);
 
             if (this.flipbookAsset == null)
             {
@@ -177,11 +187,11 @@ namespace DotsAnimationToolkit.Editor
 
             cellElement.RegisterCallback<PointerEnterEvent>(pointerEnterEvent =>
             {
-                this.hoverLabel.text = frame.name + "  #" + frame.index;
+                this.SetHoverText(frame.name + "  #" + frame.index);
             });
             cellElement.RegisterCallback<PointerLeaveEvent>(pointerLeaveEvent =>
             {
-                this.hoverLabel.text = HoverDefaultText;
+                this.SetHoverText(HoverDefaultText);
             });
             cellElement.RegisterCallback<ClickEvent>(clickEvent =>
             {

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using UnityEditor;
 using UnityEngine.UIElements;
@@ -19,6 +20,7 @@ namespace DotsAnimationToolkit.Editor
         public uint BoundEventKey { get; private set; }
 
         private readonly ScrollView usageScrollView;
+        private readonly Label usageCountBadge;
         private double dueTimeSinceStartup = -1.0;
 
         public EventUsageColumn()
@@ -27,7 +29,9 @@ namespace DotsAnimationToolkit.Editor
             AddToClassList("toolkit-column");
             style.flexGrow = 1f;
 
-            Add(ToolkitChrome.MakePaneHeader("Used by", out _, out _));
+            Add(ToolkitChrome.MakePaneHeader("Used by", out _, out VisualElement paneHeaderActionsContainer));
+            usageCountBadge = ToolkitChrome.MakeBadge("0", ToolkitStatusTone.Neutral);
+            paneHeaderActionsContainer.Add(usageCountBadge);
 
             usageScrollView = new ScrollView(ScrollViewMode.Vertical);
             usageScrollView.style.flexGrow = 1f;
@@ -50,16 +54,22 @@ namespace DotsAnimationToolkit.Editor
 
             if (BoundEventKey == 0u)
             {
+                usageCountBadge.style.display = DisplayStyle.None;
                 usageScrollView.Add(ToolkitChrome.MakeEmptyState(
                     "event-usage-empty",
                     "No event selected",
-                    "Selecting a key lists the clips and cutscenes that fire it.",
+                    "Select a key in the Keys column to list the clips and cutscenes that fire it.",
+                    // No action here: this pane is driven entirely by the Keys column's selection, not something the user can act on directly.
                     null,
                     null));
                 return;
             }
 
             List<AssetReference> references = AssetReferenceIndex.ReferencesToEventKey(BoundEventKey);
+
+            usageCountBadge.style.display = DisplayStyle.Flex;
+            usageCountBadge.text = references.Count.ToString(CultureInfo.InvariantCulture);
+            usageCountBadge.tooltip = string.Format("{0} clips and cutscenes fire this event.", references.Count);
 
             Dictionary<UnityEngine.Object, List<string>> clipOwnerDetails = new Dictionary<UnityEngine.Object, List<string>>();
             Dictionary<UnityEngine.Object, List<string>> cutsceneOwnerDetails = new Dictionary<UnityEngine.Object, List<string>>();

@@ -17,7 +17,6 @@ namespace DotsAnimationToolkit.Editor
     /// </summary>
     public sealed class PackOutputNodeView : Node
     {
-        private static readonly Color HeaderColor = new Color(0.34f, 0.20f, 0.44f);
         private const float PreviewSize = 128f;
 
         private readonly Port[] channelPorts = new Port[PackChannelIndex.Count];
@@ -32,7 +31,6 @@ namespace DotsAnimationToolkit.Editor
         private Texture2D previewTexture;
 
         public event Action SettingsChanged;
-        public event Action BakeRequested;
         public event Action MatchLargestSourceRequested;
 
         /// A texture drop landed on one channel row.
@@ -41,7 +39,11 @@ namespace DotsAnimationToolkit.Editor
         public PackOutputNodeView()
         {
             title = "Pack Output";
-            TexturePackPortBuilder.SetHeaderColor(this, HeaderColor);
+            titleContainer.AddToClassList("toolkit-card__header");
+
+            Label outputBadge = ToolkitChrome.MakeBadge("PNG", ToolkitStatusTone.Neutral);
+            outputBadge.tooltip = "The packed texture this node writes to disk.";
+            titleContainer.Add(outputBadge);
 
             // The graph has no meaning without this node, so take deletion off the table.
             capabilities &= ~(Capabilities.Deletable | Capabilities.Copiable);
@@ -54,6 +56,7 @@ namespace DotsAnimationToolkit.Editor
             resolutionField = new Vector2IntField("Size");
             resolutionField.value = new Vector2Int(1024, 1024);
             resolutionField.style.flexGrow = 1f;
+            resolutionField.style.minWidth = 132f;
             resolutionField.RegisterValueChangedCallback(changeEvent =>
             {
                 Vector2Int clamped = new Vector2Int(Mathf.Max(1, changeEvent.newValue.x), Mathf.Max(1, changeEvent.newValue.y));
@@ -98,13 +101,6 @@ namespace DotsAnimationToolkit.Editor
             outputPathLabel.style.marginTop = 4f;
             outputPathLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
             extensionContainer.Add(outputPathLabel);
-
-            Button bakeButton = new Button(() => BakeRequested?.Invoke());
-            bakeButton.text = "Bake";
-            bakeButton.style.marginTop = 6f;
-            bakeButton.style.marginBottom = 4f;
-            bakeButton.style.height = 24f;
-            extensionContainer.Add(bakeButton);
 
             RefreshExpandedState();
             RefreshPorts();

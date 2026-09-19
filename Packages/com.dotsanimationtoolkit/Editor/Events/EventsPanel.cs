@@ -27,6 +27,7 @@ namespace DotsAnimationToolkit.Editor
             Usage = new EventUsageColumn();
             Keys.EntrySelected += OnEntrySelected;
             Usage.OpenOwnerRequested += OnUsageOpenOwnerRequested;
+            Inspector.NewEventKeyRequested += OnInspectorNewEventKeyRequested;
 
             CoverPaneSplitView detailSplit = new CoverPaneSplitView("Events.Inspector", 0, 420f, TwoPaneSplitViewOrientation.Horizontal);
             detailSplit.style.flexGrow = 1f;
@@ -83,6 +84,11 @@ namespace DotsAnimationToolkit.Editor
         private void OnUsageOpenOwnerRequested(UnityEngine.Object owner)
         {
             OpenOwnerRequested?.Invoke(owner);
+        }
+
+        private void OnInspectorNewEventKeyRequested()
+        {
+            Keys.CreateNewEventKey();
         }
     }
 }

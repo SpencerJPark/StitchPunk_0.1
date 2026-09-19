@@ -87,33 +87,17 @@ namespace DotsAnimationToolkit.Editor
             bodyScrollView.style.display = DisplayStyle.Flex;
             selectButton.SetEnabled(true);
 
-            VisualElement materialCardBody;
-            VisualElement materialCardHeaderActions;
-            VisualElement materialCard = ToolkitChrome.MakeCard(
-                "material-inspector-card",
-                "Material",
-                out materialCardBody,
-                out materialCardHeaderActions);
+            VisualElement shaderCardBody;
+            VisualElement shaderCardHeaderActions;
+            VisualElement shaderCard = ToolkitChrome.MakeCard(
+                "material-inspector-shader-card",
+                "Shader",
+                out shaderCardBody,
+                out shaderCardHeaderActions);
+            shaderCard.style.flexShrink = 0f;
 
             Label shaderValueLabel = new Label(material.shader != null ? material.shader.name : "no shader") { name = "material-inspector-shader" };
-            materialCardBody.Add(ToolkitChrome.MakePropertyRow("Shader", shaderValueLabel, null));
-
-            List<RigTargetDefinition> targets = BoundUsage.Targets;
-            string usedByText = targets != null && targets.Count > 0
-                ? string.Join(", ", targets.Select(target => target.displayName))
-                : "no rig target";
-            Label usedByValueLabel = new Label(usedByText) { name = "material-inspector-used-by" };
-            materialCardBody.Add(ToolkitChrome.MakePropertyRow("Used by", usedByValueLabel, null));
-
-            List<TargetKind> distinctKindsInEnumOrder = targets != null && targets.Count > 0
-                ? targets.Select(target => target.kind).Distinct().OrderBy(kind => (int)kind).ToList()
-                : new List<TargetKind>();
-
-            string kindText = distinctKindsInEnumOrder.Count > 0
-                ? string.Join(", ", distinctKindsInEnumOrder.Select(DisplayNameForTargetKind))
-                : "no rig target";
-            Label kindValueLabel = new Label(kindText) { name = "material-inspector-kind" };
-            materialCardBody.Add(ToolkitChrome.MakePropertyRow("Kind", kindValueLabel, null));
+            shaderCardBody.Add(ToolkitChrome.MakePropertyRow("Shader", shaderValueLabel, null));
 
             bool isInstancingEnabled = material.enableInstancing;
             Label instancingBadge = ToolkitChrome.MakeBadge(
@@ -125,31 +109,62 @@ namespace DotsAnimationToolkit.Editor
                 instancingBadge.tooltip = "Entities Graphics needs it on";
             }
 
-            materialCardBody.Add(instancingBadge);
-            if (!isInstancingEnabled)
+            shaderCardBody.Add(instancingBadge);
+
+            bodyScrollView.Add(shaderCard);
+
+            VisualElement usageCardBody;
+            VisualElement usageCardHeaderActions;
+            VisualElement usageCard = ToolkitChrome.MakeCard(
+                "material-inspector-usage-card",
+                "Usage",
+                out usageCardBody,
+                out usageCardHeaderActions);
+            usageCard.style.flexShrink = 0f;
+
+            List<RigTargetDefinition> targets = BoundUsage.Targets;
+            string usedByText = targets != null && targets.Count > 0
+                ? string.Join(", ", targets.Select(target => target.displayName))
+                : "no rig target";
+            Label usedByValueLabel = new Label(usedByText) { name = "material-inspector-used-by" };
+            usageCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Used by",
+                usedByValueLabel,
+                "Rig targets whose material this is. With none, no material contract applies."));
+
+            List<TargetKind> distinctKindsInEnumOrder = targets != null && targets.Count > 0
+                ? targets.Select(target => target.kind).Distinct().OrderBy(kind => (int)kind).ToList()
+                : new List<TargetKind>();
+
+            string kindText = distinctKindsInEnumOrder.Count > 0
+                ? string.Join(", ", distinctKindsInEnumOrder.Select(DisplayNameForTargetKind))
+                : "—";
+            Label kindValueLabel = new Label(kindText) { name = "material-inspector-kind" };
+            usageCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Kind",
+                kindValueLabel,
+                distinctKindsInEnumOrder.Count == 0 ? "No rig target uses this material." : null));
+
+            if (distinctKindsInEnumOrder.Count == 0 && BoundUsage.UnmappedNodePaths != null && BoundUsage.UnmappedNodePaths.Count > 0)
             {
-                Label instancingHint = new Label("Entities Graphics needs it on");
-                instancingHint.AddToClassList("toolkit-hint");
-                materialCardBody.Add(instancingHint);
+                Label unmappedHint = new Label("Unmapped: " + string.Join(", ", BoundUsage.UnmappedNodePaths));
+                unmappedHint.AddToClassList("toolkit-hint");
+                usageCardBody.Add(unmappedHint);
             }
 
-            bodyScrollView.Add(materialCard);
+            bodyScrollView.Add(usageCard);
 
-            if (distinctKindsInEnumOrder.Count == 0)
+            if (distinctKindsInEnumOrder.Count > 0)
             {
-                if (BoundUsage.UnmappedNodePaths != null && BoundUsage.UnmappedNodePaths.Count > 0)
-                {
-                    Label unmappedHint = new Label("Unmapped: " + string.Join(", ", BoundUsage.UnmappedNodePaths));
-                    unmappedHint.AddToClassList("toolkit-hint");
-                    bodyScrollView.Add(unmappedHint);
-                }
+                VisualElement contractCardBody;
+                VisualElement contractCardHeaderActions;
+                VisualElement contractCard = ToolkitChrome.MakeCard(
+                    "material-inspector-contract-card",
+                    "Contract",
+                    out contractCardBody,
+                    out contractCardHeaderActions);
+                contractCard.style.flexShrink = 0f;
 
-                Label noTargetHint = new Label("No rig target uses this material, so no contract applies.");
-                noTargetHint.AddToClassList("toolkit-hint");
-                bodyScrollView.Add(noTargetHint);
-            }
-            else
-            {
                 bool hasSeveralKinds = distinctKindsInEnumOrder.Count > 1;
                 foreach (TargetKind kind in distinctKindsInEnumOrder)
                 {
@@ -160,16 +175,18 @@ namespace DotsAnimationToolkit.Editor
                     {
                         Label kindSectionLabel = new Label(DisplayNameForTargetKind(kind));
                         kindSectionLabel.AddToClassList("toolkit-heading");
-                        bodyScrollView.Add(kindSectionLabel);
+                        contractCardBody.Add(kindSectionLabel);
                     }
 
                     List<ContractPropertyStatus> propertyStatuses = new List<ContractPropertyStatus>();
                     MaterialContractValidation.EvaluateProperties(material, kind, propertyStatuses);
                     foreach (ContractPropertyStatus propertyStatus in propertyStatuses)
                     {
-                        AddPropertyRow(propertyStatus, kind);
+                        AddPropertyRow(contractCardBody, propertyStatus, kind);
                     }
                 }
+
+                bodyScrollView.Add(contractCard);
             }
 
             List<ValidationMessage> flipbookWarnings = new List<ValidationMessage>();
@@ -182,7 +199,7 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private void AddPropertyRow(ContractPropertyStatus propertyStatus, TargetKind kind)
+        private void AddPropertyRow(VisualElement targetContainer, ContractPropertyStatus propertyStatus, TargetKind kind)
         {
             string propertyName = propertyStatus.property.name;
             Label propertyRow;
@@ -207,7 +224,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             propertyRow.name = "material-inspector-property-" + propertyName;
-            bodyScrollView.Add(propertyRow);
+            targetContainer.Add(propertyRow);
         }
 
         private static string DisplayNameForTargetKind(TargetKind kind)

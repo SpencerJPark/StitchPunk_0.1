@@ -72,12 +72,25 @@ namespace DotsAnimationToolkit.Editor
             Slider zoomSlider = new Slider(
                 "Zoom", FlipbookPreviewElement.MinimumThumbnailSize, FlipbookPreviewElement.MaximumThumbnailSize);
             zoomSlider.value = FlipbookPreviewElement.DefaultThumbnailSize;
-            zoomSlider.RegisterValueChangedCallback(evt => preview.SetThumbnailSize(evt.newValue));
+            zoomSlider.RegisterValueChangedCallback(
+                zoomChangeEvent => preview.SetThumbnailSize(zoomChangeEvent.newValue));
+            zoomSlider.style.flexGrow = 1f;
+
+            VisualElement zoomToolbar = new VisualElement();
+            zoomToolbar.AddToClassList("toolkit-pane-actions");
+            zoomToolbar.style.height = 24f;
+            zoomToolbar.style.flexShrink = 0f;
+            zoomToolbar.Add(zoomSlider);
 
             VisualElement previewColumn = new VisualElement();
             previewColumn.style.flexGrow = 1f;
-            previewColumn.Add(zoomSlider);
+            previewColumn.Add(zoomToolbar);
             previewColumn.Add(preview);
+
+            VisualElement previewStatusRow = ToolkitChrome.MakeStatusRow(out Label previewStatusLabel, out _, true);
+            ToolkitChrome.SetStatus(previewStatusLabel, FlipbookPreviewElement.DefaultHoverText, ToolkitStatusTone.Neutral);
+            preview.HoverTextChanged += hoverText => ToolkitChrome.SetStatus(previewStatusLabel, hoverText, ToolkitStatusTone.Neutral);
+            previewColumn.Add(previewStatusRow);
 
             CoverPaneSplitView framesSplit = new CoverPaneSplitView("Flipbooks.Frames", 0, 300f, TwoPaneSplitViewOrientation.Horizontal);
             framesSplit.style.flexGrow = 1f;
@@ -117,8 +130,7 @@ namespace DotsAnimationToolkit.Editor
             saveButton = ToolkitIcons.MakeIconTextButton(Save, "d_SaveAs", "Write this flipbook to its asset.", "Save");
 
             VisualElement header = ToolkitChrome.MakePaneHeader(string.Empty, out flipbookLabel, out headerActions);
-            infoLabel = new Label();
-            infoLabel.AddToClassList("toolkit-text--dim");
+            infoLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
             header.Insert(1, infoLabel);
             headerActions.Add(bakeButton);
             headerActions.Add(saveButton);

@@ -57,7 +57,7 @@ namespace DotsAnimationToolkit.Editor
                 emptySearchMessage = "No flipbooks match your search.",
                 scan = ScanProjectRows,
                 secondLine = DescribeRow,
-                tooltip = DescribeRowPath,
+                tooltip = DescribeRowExtraTooltip,
                 allowRename = true,
                 allowDelete = true,
                 rowAllowsRenameAndDelete = row => row is FlipbookAsset,
@@ -109,7 +109,32 @@ namespace DotsAnimationToolkit.Editor
             return foundRows;
         }
 
+        // Short form for the row's meta line (R01/R03): count and size only, state moves to a badge/tooltip.
         private static string DescribeRow(UnityEngine.Object row)
+        {
+            Texture2DArray bareArray = row as Texture2DArray;
+            if (bareArray != null)
+            {
+                return bareArray.depth.ToString() + " · " + bareArray.width.ToString() + "×" + bareArray.height.ToString();
+            }
+
+            FlipbookAsset flipbook = row as FlipbookAsset;
+            int frameCount = flipbook != null && flipbook.frames != null ? flipbook.frames.Count : 0;
+            if (flipbook != null && flipbook.IsImportedArray)
+            {
+                return frameCount.ToString() + " · " + flipbook.texture.width.ToString() + "×" + flipbook.texture.height.ToString();
+            }
+
+            if (flipbook != null && flipbook.texture != null)
+            {
+                return frameCount.ToString() + " · " + flipbook.layerSize.x.ToString() + "×" + flipbook.layerSize.y.ToString();
+            }
+
+            return frameCount.ToString() + " · not baked";
+        }
+
+        // Long form kept for the tooltip so shortening DescribeRow drops nothing (R01/R03 "say it once").
+        private static string DescribeRowTooltip(UnityEngine.Object row)
         {
             Texture2DArray bareArray = row as Texture2DArray;
             if (bareArray != null)
@@ -129,10 +154,24 @@ namespace DotsAnimationToolkit.Editor
             if (flipbook != null && flipbook.texture != null)
             {
                 return frameCount.ToString() + " frames · "
-                    + flipbook.layerSize.x.ToString() + "x" + flipbook.layerSize.y.ToString();
+                    + flipbook.layerSize.x.ToString() + "×" + flipbook.layerSize.y.ToString();
             }
 
             return frameCount.ToString() + " frames · not baked";
+        }
+
+        // Feeds the base column's "extra" tooltip line: the long-form sentence plus the asset path, so
+        // nothing DescribeRow used to say gets lost when its on-row text shortens.
+        private static string DescribeRowExtraTooltip(UnityEngine.Object row)
+        {
+            string longForm = DescribeRowTooltip(row);
+            string path = DescribeRowPath(row);
+            if (string.IsNullOrEmpty(path))
+            {
+                return longForm;
+            }
+
+            return longForm + "\n" + path;
         }
 
         private static string DescribeRowPath(UnityEngine.Object row)

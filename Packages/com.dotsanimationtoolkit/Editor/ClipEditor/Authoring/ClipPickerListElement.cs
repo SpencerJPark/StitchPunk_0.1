@@ -57,6 +57,11 @@ namespace DotsAnimationToolkit.Editor
             title.AddToClassList("toolkit-box__title");
             titleRow.Add(title);
 
+            countLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            countLabel.name = "clip-picker-count";
+            countLabel.style.marginRight = 4f;
+            titleRow.Add(countLabel);
+
             checkedOnlyToggle = new Toggle("Ticked only");
             checkedOnlyToggle.name = "clip-picker-checked-only";
             // Toggle inherits BaseField's 120px label min-width, meant for aligning inspector-style
@@ -92,13 +97,6 @@ namespace DotsAnimationToolkit.Editor
             headerBlock.Add(searchRow);
             Add(headerBlock);
 
-            countLabel = new Label();
-            countLabel.name = "clip-picker-count";
-            countLabel.AddToClassList("toolkit-hint");
-            countLabel.style.marginLeft = 6f;
-            countLabel.style.marginTop = 4f;
-            Add(countLabel);
-
             clipListView = new ListView();
             clipListView.name = "clip-picker-list";
             clipListView.fixedItemHeight = 22f;
@@ -132,31 +130,15 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            homeFolderPath = ComputeHomeFolderPath(entries);
-            model.SetEntries(entries);
-            RefreshList();
-        }
-
-        // Most common FolderPath among the clips -- ties resolve to whichever folder is seen
-        // first, which is stable for a given SetClips call since entries preserve input order.
-        private static string ComputeHomeFolderPath(List<ClipPickerEntry> entries)
-        {
-            Dictionary<string, int> folderCounts = new Dictionary<string, int>();
-            string mostCommonFolderPath = string.Empty;
-            int mostCommonFolderCount = 0;
+            List<string> entryFolderPaths = new List<string>(entries.Count);
             for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
             {
-                string folderPath = entries[entryIndex].FolderPath ?? string.Empty;
-                int folderCount = folderCounts.TryGetValue(folderPath, out int existingCount) ? existingCount + 1 : 1;
-                folderCounts[folderPath] = folderCount;
-                if (folderCount > mostCommonFolderCount)
-                {
-                    mostCommonFolderCount = folderCount;
-                    mostCommonFolderPath = folderPath;
-                }
+                entryFolderPaths.Add(entries[entryIndex].FolderPath ?? string.Empty);
             }
 
-            return mostCommonFolderPath;
+            homeFolderPath = ClipRowFolderResolver.ComputeHomeFolderPath(entryFolderPaths);
+            model.SetEntries(entries);
+            RefreshList();
         }
 
         public void SetCheckedClips(IEnumerable<ClipAsset> clips)
@@ -288,8 +270,7 @@ namespace DotsAnimationToolkit.Editor
             // R03: only a clip outside the shared home folder gets a visible path, and only its
             // own folder name -- the full chain stays in the tooltip so nothing is lost.
             Label folderLabel = element.Q<Label>("clip-picker-row-folder");
-            bool clipIsOutsideHomeFolder = !string.Equals(entry.FolderPath, homeFolderPath, StringComparison.Ordinal);
-            folderLabel.text = clipIsOutsideHomeFolder ? Path.GetFileName(entry.FolderPath) : string.Empty;
+            folderLabel.text = ClipRowFolderResolver.ResolveFolderColumnText(entry.FolderPath, homeFolderPath);
             element.tooltip = entry.FolderPath;
         }
 

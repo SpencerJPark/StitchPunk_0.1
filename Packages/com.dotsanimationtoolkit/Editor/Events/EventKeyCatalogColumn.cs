@@ -18,6 +18,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly ListView keysListView;
         private readonly Label emptyLabel;
         private readonly Label budgetLabel;
+        private readonly Label maskableBudgetBadge;
+        private readonly Label pulseOnlyCountBadge;
 
         private string searchText = string.Empty;
 
@@ -36,6 +38,14 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement headerActions = new VisualElement();
             headerActions.AddToClassList("toolkit-pane-actions");
+
+            maskableBudgetBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            maskableBudgetBadge.name = "events-keys-maskable-budget-badge";
+            headerActions.Add(maskableBudgetBadge);
+
+            pulseOnlyCountBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            pulseOnlyCountBadge.name = "events-keys-pulse-only-badge";
+            headerActions.Add(pulseOnlyCountBadge);
 
             Button newButton = ToolkitIcons.MakeIconTextButton(RaiseNewRequested, "Toolbar Plus", "Create a new event key.", "New");
             newButton.name = "events-keys-new-button";
@@ -198,6 +208,12 @@ namespace DotsAnimationToolkit.Editor
             SelectKey(newKey);
         }
 
+        /// <summary>Lets a sibling column (the inspector's empty-state action) trigger the same New flow.</summary>
+        public void CreateNewEventKey()
+        {
+            RaiseNewRequested();
+        }
+
         private void Rescan()
         {
             AssetReferenceIndex.MarkDirty();
@@ -248,7 +264,7 @@ namespace DotsAnimationToolkit.Editor
         private static string DescribeKeyLine(AnimEventKeyEntry entry)
         {
             string maskability = AnimEventMaskKeys.IsMaskable(entry.eventKey) ? "maskable" : "pulse-only";
-            return maskability + " · key " + entry.eventKey.ToString();
+            return entry.eventKey.ToString() + " · " + maskability;
         }
 
         private void OnListSelectionChanged(IEnumerable<object> selectedItems)
@@ -304,12 +320,22 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
+            bool isOverMaskableBudget = maskableUsedCount >= AnimEventMaskKeys.MaskKeyCount;
+
+            maskableBudgetBadge.text = maskableUsedCount + "/" + AnimEventMaskKeys.MaskKeyCount;
+            maskableBudgetBadge.tooltip = maskableUsedCount + " of " + AnimEventMaskKeys.MaskKeyCount + " maskable keys used";
+            maskableBudgetBadge.EnableInClassList("toolkit-badge--warning", isOverMaskableBudget);
+            maskableBudgetBadge.EnableInClassList("toolkit-badge--neutral", !isOverMaskableBudget);
+
+            pulseOnlyCountBadge.text = pulseOnlyUsedCount.ToString();
+            pulseOnlyCountBadge.tooltip = pulseOnlyUsedCount + " pulse-only keys";
+
             string budgetStatusText = maskableUsedCount + " of " + AnimEventMaskKeys.MaskKeyCount
                 + " maskable keys used · " + pulseOnlyUsedCount + " pulse-only";
-            ToolkitStatusTone budgetStatusTone = maskableUsedCount >= AnimEventMaskKeys.MaskKeyCount
+            ToolkitStatusTone budgetStatusTone = isOverMaskableBudget
                 ? ToolkitStatusTone.Warning
                 : ToolkitStatusTone.Neutral;
-            ToolkitChrome.SetStatus(budgetLabel, budgetStatusText, budgetStatusTone);
+            ToolkitChrome.SetStatus(budgetLabel, "Event key budget", budgetStatusTone);
             budgetLabel.tooltip = budgetStatusText;
         }
 

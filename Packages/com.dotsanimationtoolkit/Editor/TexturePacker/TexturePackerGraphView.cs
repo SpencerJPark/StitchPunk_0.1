@@ -41,12 +41,27 @@ namespace DotsAnimationToolkit.Editor
 
             RegisterCallback<DragUpdatedEvent>(OnTextureDragUpdated);
             RegisterCallback<DragPerformEvent>(OnTextureDragPerform);
+            RegisterCallback<GeometryChangedEvent>(OnFirstGeometry);
 
             OutputNode = new PackOutputNodeView();
             OutputNode.SetPosition(new Rect(new Vector2(620f, 180f), Vector2.zero));
             OutputNode.SourceDroppedOnChannel += (channelIndex, droppedTextures) => AddSourcesWiredIntoChannel(channelIndex, droppedTextures);
             AddElement(OutputNode);
             OutputNode.RefreshChannelRows();
+        }
+
+        // FrameAll is a no-op before the view has been laid out, so callers schedule it.
+        public void FrameGraphContents()
+        {
+            FrameAll();
+        }
+
+        // A tab with no recipe loaded still opens on a working default setup (D2-a); centre it
+        // once the view has a real size, then stop listening.
+        private void OnFirstGeometry(GeometryChangedEvent geometryChangedEvent)
+        {
+            UnregisterCallback<GeometryChangedEvent>(OnFirstGeometry);
+            FrameGraphContents();
         }
 
         public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
