@@ -5,6 +5,7 @@ using DotsAnimationToolkit.Editor;
 using NUnit.Framework;
 using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Tests.EditMode
 {

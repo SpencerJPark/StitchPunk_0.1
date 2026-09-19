@@ -216,3 +216,84 @@ question and builds it on trunk in Phase 3 if the answer says to change it.
   original "runs alone".
 
 *(T0 grounding, gates, revert-to-fail, drift, For integration, S2 audit table, drives, close to follow.)*
+
+### Phase 6 — the lead's build (a107 worktree, 2026-09-19, branch `spec/a107`, takes `0.60.0`)
+
+**T0 — grounding.** Every §1.1 anchor resolved on trunk `45e6fa6b` within a line or two. **One drift:**
+`ValidationBadgeElement.cs` lives at `Editor/ClipEditor/`, not `Editor/ClipEditor/ActorEditor/` as §2 says.
+**Second drift:** §2 calls `ActorEditorInspectorColumn.cs` allowlisted; it is **not** in
+`EditorStyleConformanceTests.InlineStyleAllowlist` — of this spec's files only `LayerEventStripElement.cs` is.
+That made the allowlist a one-way trap rather than a shrink opportunity; see the traps below.
+
+**W1 — commit `a5aae862`, nine workers.** CE2, CE5, CE6, AP1+D3, AP2/AP3+D2's row, AP4, AP7, CT2+CT6's Sync, CT1's
+viewport half. **Gate: pass, 28/28, compile clean.**
+
+**W2 — commit `350eae68`, five workers.** CE3, CE4, AP6, AP8, D2's Animation card, CT4, CT5, CT6's three panel
+sites, CT7, and fixture F1. **Gate: blocked — the broker died between waves** (one "heartbeat went stale", then
+three "no live broker heartbeat" over ~4 minutes). W2 is committed and unverified; the stage carries the gate.
+
+**Findings closed:** CE2 CE3 CE4 CE5 CE6 · AP1 AP2 AP3 AP4 AP6 AP7 AP8 · CT1 CT2 CT4 CT5 CT6 CT7 · D2 D3.
+**Left open:** CT3 only (below).
+
+#### Two calls the lead made rather than re-ask
+
+- **D2 says "the per-row number field is speed". It is not.** The field on the animation row was the *layer
+  playhead* (`composer.LayerTime` / `SetLayerTime`); `speed` already lived in the inspector at
+  `actor-editor-inspector-speed-field`. Dropping the row's field would have lost the playhead outright, so the new
+  **Animation** card hosts both: `Speed` (D2's intent, and what F1 pins) and `Layer Time`
+  (`actor-editor-inspector-layer-time-field`), refreshed under the same `IsBeingEdited` guard as Speed.
+- **AP8's empty state already existed.** `ViewportFrameElement.ShowEmptyState` builds a correct `MakeEmptyState`
+  overlay; the defect was purely that the render kept drawing behind it. Building a second overlay would have
+  stacked two. The fix is one `style.display` swap on the frame's render image in `ActorEditorPanel`, plus an early
+  return that skips the now-pointless `previewController.Render`. Nothing was added to `Shared/`.
+
+#### Traps worth keeping
+
+1. **`worktree.py gate --edit-mode` is `action="append"` — the flag repeats, it does not take a list.** A
+   comma-joined string is read as one fixture name and comes back `verdict: refused, "no tests matched"`. That is
+   the honest failure; a space-separated list is worse, argparse rejects the whole call. One flag per fixture.
+2. **`Conformance_I`'s allowlist is a trap in both directions.** `Conformance_I_AllowlistEntriesStillNeedListing`
+   fails when an allowlisted file has **no** inline visual styles left, so cleaning one up breaks the gate unless
+   the stage removes its entry in the same change — and the test file is the stage's. The T7 brief therefore had to
+   forbid touching any colour write in `LayerEventStripElement.cs`. Non-allowlisted files escape only via a line
+   ending in the exact comment `// colour from data`.
+3. **Wrapping two UXML buttons in a container is safe; renaming them is not.** `ClipEditorLayoutTests` resolves
+   `frame-all-button` / `frame-selection-button` with descendant `Q<VisualElement>(name)`, so CE6's segmented
+   wrapper needed no test change. Their click wiring lives in `TimelinePane.View.cs`, which §2 closes — which is
+   why CE6 became a UXML-only edit.
+4. **`ToolkitIcons.MakeIconTextButton` falls through to `Secondary` when the call site names no variant.** That
+   fall-through is the whole of CT6: four buttons A108 left behind read as filled grey for no authored reason.
+5. **`ApplyIconTone` early-returns when `control.panel == null`,** so calling it during construction does nothing.
+   CE4 registers it on `AttachToPanelEvent` and schedules it, then calls it once directly for the attached case.
+6. **A worker deleting a field must be told what happens to the dictionary that held it.** T5 correctly stopped
+   populating `animationScrubFields` but left the dictionary and its refresh loop iterating nothing; the lead
+   removed both, added the missing `animationPlayButtons.Clear()` on rebuild, and added hovered-row tracking so a
+   play button that stops playing hides again without vanishing out from under the pointer.
+7. **Badges are children, so every other writer of that control has to clear them.** T6 flagged two early-return
+   branches of `ValidationBadgeElement` that set `summaryButton.text` without `Clear()` — stale counts would have
+   sat beside the new text. Fixed by the lead in the same commit.
+
+#### CT3 — for the owner, carried by the stage
+
+The cutscene viewport rail's opacity is deliberate: there is a design comment at `CutsceneEditorPanel.cs:1033-1037`
+and a matching rule in `ClipEditorWindow.uss:1505-1529`. R20 wants one rail style on a translucent card. **Nothing
+in this worktree touched it,** including the comment. It needs the owner's answer before it moves.
+
+### For integration
+
+The stage owns all of these; a107 wrote none of them.
+
+1. **`package.json` → `0.60.0`**, and a CHANGELOG entry `## [0.60.0] — Timeline tabs pass` covering the findings
+   listed above.
+2. **No allowlist shrink is available from this spec.** `LayerEventStripElement.cs` must stay listed — its event
+   lanes legitimately colour from data, and removing the entry would fail
+   `Conformance_I_AllowlistEntriesStillNeedListing`. `ActorEditorInspectorColumn.cs` was never listed.
+3. **No shared class, token or `ToolkitChrome` member was added.** Everything used already existed.
+4. **Gate W2 (`350eae68`)** once the broker is back, with `DotsAnimationToolkit.Tests.EditMode.` +
+   `EditorStyleConformanceTests`, `ClipEditorLayoutTests`, `PackagingConformanceTests`, `ActorPreviewComposerTests`,
+   `ActorEditorLayerRowTests`, `ActorEditorPanelTests`, `ActorEditorInspectorColumnTests`.
+   `ActorEditorLayerRowTests.cs` is a new file and needs a Unity import first — a gate reporting 0 matched for it
+   means the import has not run, not that the fixture is missing.
+5. **F1's revert-to-fail was never observed** — the broker went down before the fixture could run once. Prove it
+   before the batch closes.
+6. **CT3 needs the owner's answer** (above), and S2's captures are the only proof of every CE/AP/CT verdict here.
