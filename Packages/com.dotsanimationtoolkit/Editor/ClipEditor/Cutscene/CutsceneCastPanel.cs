@@ -74,6 +74,7 @@ namespace DotsAnimationToolkit.Editor
                 () => AddSlotRequested?.Invoke(CutsceneSlotKind.Actor), ToolkitIcons.Plus,
                 "Add an actor slot.", "+ Actor");
             ToolkitIcons.SetButtonIconAndText(addActorButton, ToolkitIcons.Plus, "Actor");
+            ToolkitChrome.StyleButton(addActorButton, ToolkitButtonVariant.Ghost);
             addActorButton.AddToClassList("toolkit-pane-action");
             actionsRow.Add(addActorButton);
 
@@ -81,15 +82,17 @@ namespace DotsAnimationToolkit.Editor
                 () => AddSlotRequested?.Invoke(CutsceneSlotKind.Prop), ToolkitIcons.Plus,
                 "Add a prop slot.", "+ Prop");
             ToolkitIcons.SetButtonIconAndText(addPropButton, ToolkitIcons.Plus, "Prop");
+            ToolkitChrome.StyleButton(addPropButton, ToolkitButtonVariant.Ghost);
             addPropButton.AddToClassList("toolkit-pane-action");
             actionsRow.Add(addPropButton);
 
-            syncToStageButton = ToolkitIcons.MakeIconTextButton(
+            syncToStageButton = ToolkitIcons.MakeIconButton(
                 () => SyncToStageRequested?.Invoke(), "d_Refresh",
-                "Writes every bound slot into this scene's CutsceneStageAuthoring component, baking "
-                + "one CutsceneStage entity that plays this cutscene at runtime. Explicit, never "
-                + "automatic — press it after the cast is the way you want it.",
+                "Sync to Stage — writes every bound slot into this scene's CutsceneStageAuthoring "
+                + "component, baking one CutsceneStage entity that plays this cutscene at runtime. "
+                + "Explicit, never automatic — press it after the cast is the way you want it.",
                 "Sync");
+            ToolkitChrome.StyleButton(syncToStageButton, ToolkitButtonVariant.Ghost);
             syncToStageButton.AddToClassList("toolkit-pane-action");
             actionsRow.Add(syncToStageButton);
 
@@ -121,7 +124,8 @@ namespace DotsAnimationToolkit.Editor
                 slotIndicesShowingBindField.Clear();
                 rowsContainer.Add(ToolkitChrome.MakeEmptyState(
                     "cutscene-cast-empty", "No cast yet",
-                    "Add an Actor or Prop slot, then place or bind it in the open scene.", null, null));
+                    "Add an Actor or Prop slot, then place or bind it in the open scene.",
+                    "Add Actor", () => AddSlotRequested?.Invoke(CutsceneSlotKind.Actor)));
                 return;
             }
 

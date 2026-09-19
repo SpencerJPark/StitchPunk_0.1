@@ -94,7 +94,11 @@ namespace DotsAnimationToolkit.Editor
 
             if (clipSet == null)
             {
+                // ApplyMessages leaves badge children on the button; a bare text assignment would
+                // sit beside stale counts from the last clip set.
+                summaryButton.Clear();
                 summaryButton.text = "No clip set";
+                summaryButton.tooltip = "No clip set to validate.";
                 summaryButton.style.color = CleanColor; // colour from data
                 messagePanelTitle.text = "Validation";
                 RebuildMessageList();
@@ -181,7 +185,9 @@ namespace DotsAnimationToolkit.Editor
             {
                 currentMessages.Clear();
                 HasErrors = false;
+                summaryButton.Clear();
                 summaryButton.text = emptyLabel;
+                summaryButton.tooltip = emptyLabel;
                 summaryButton.style.color = CleanColor; // colour from data
                 messagePanelTitle.text = "Validation";
                 RebuildMessageList();
@@ -230,25 +236,57 @@ namespace DotsAnimationToolkit.Editor
 
             HasErrors = errorCount > 0;
 
-            if (errorCount == 0 && warningCount == 0)
-            {
-                summaryButton.text = "Valid";
-                summaryButton.style.color = CleanColor; // colour from data
-            }
-            else
-            {
-                summaryButton.text = errorCount.ToString() + " err  " + warningCount.ToString() + " warn";
-                summaryButton.style.color = errorCount > 0 ? ErrorColor : WarningColor; // colour from data
-            }
+            // Content becomes badges (R16 status hues, R03 say it once); the button itself stays the
+            // click target, so children are picking-transparent and the row layout is a plain flex.
+            summaryButton.Clear();
+            summaryButton.text = string.Empty;
+            summaryButton.style.flexDirection = FlexDirection.Row;
+
+            string summaryText = errorCount == 0 && warningCount == 0
+                ? "Valid"
+                : errorCount.ToString() + " err  " + warningCount.ToString() + " warn";
 
             if (hasStaleVatBake)
             {
-                summaryButton.text = "VAT stale · " + summaryButton.text;
+                summaryText = "VAT stale · " + summaryText;
+
+                // Leads the row: a stale bake silently plays old motion, so it must be seen before
+                // the error/warning counts beside it.
+                Label staleVatBadge = ToolkitChrome.MakeBadge("VAT stale", ToolkitStatusTone.Warning);
+                staleVatBadge.tooltip = "The VAT bake is older than the clips it was baked from.";
+                staleVatBadge.pickingMode = PickingMode.Ignore;
+                summaryButton.Add(staleVatBadge);
             }
+
+            if (errorCount == 0 && warningCount == 0)
+            {
+                Label validBadge = ToolkitChrome.MakeBadge("Valid", ToolkitStatusTone.Ok);
+                validBadge.pickingMode = PickingMode.Ignore;
+                summaryButton.Add(validBadge);
+            }
+            else
+            {
+                if (errorCount > 0)
+                {
+                    Label errorBadge = ToolkitChrome.MakeBadge(errorCount.ToString(), ToolkitStatusTone.Error);
+                    errorBadge.tooltip = errorCount.ToString() + " errors";
+                    errorBadge.pickingMode = PickingMode.Ignore;
+                    summaryButton.Add(errorBadge);
+                }
+                if (warningCount > 0)
+                {
+                    Label warningBadge = ToolkitChrome.MakeBadge(warningCount.ToString(), ToolkitStatusTone.Warning);
+                    warningBadge.tooltip = warningCount.ToString() + " warnings";
+                    warningBadge.pickingMode = PickingMode.Ignore;
+                    summaryButton.Add(warningBadge);
+                }
+            }
+
+            summaryButton.tooltip = summaryText;
 
             // The panel repeats the counts because it is read on its own, over the preview, with the
             // button it belongs to at the far end of a different row.
-            messagePanelTitle.text = "Validation — " + summaryButton.text;
+            messagePanelTitle.text = "Validation — " + summaryText;
 
             RebuildMessageList();
         }

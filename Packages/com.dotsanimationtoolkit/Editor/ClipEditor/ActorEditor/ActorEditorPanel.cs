@@ -78,7 +78,18 @@ namespace DotsAnimationToolkit.Editor
             style.paddingTop = 0f;
             style.paddingBottom = 0f;
 
-            Add(BuildBody());
+            // BuildBody assigns profilesColumn, so it must run before the asset bar can host that
+            // column's shared Clip Set / Rig fields.
+            VisualElement body = BuildBody();
+            body.style.flexGrow = 1f;
+
+            VisualElement assetBar = ToolkitChrome.MakeAssetBar("actor-editor-asset-bar");
+            assetBar.style.flexShrink = 0f;
+            profilesColumn?.AddSharedAssetFieldsTo(assetBar);
+            assetBar.Add(ToolkitChrome.MakeAssetBarSpacer());
+
+            Add(assetBar);
+            Add(body);
         }
 
         // -----------------------------------------------------------------------------------------

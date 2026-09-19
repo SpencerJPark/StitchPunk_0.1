@@ -279,6 +279,9 @@ namespace DotsAnimationToolkit.Editor
             if (editPrefabButton != null)
             {
                 editPrefabButton.clicked += OnEditPrefabClicked;
+                ToolkitIcons.SetButtonIcon(editPrefabButton, ToolkitIcons.Link, "Prefab");
+                editPrefabButton.AddToClassList("toolkit-icon-button");
+                ToolkitChrome.StyleButton(editPrefabButton, ToolkitButtonVariant.Ghost);
             }
             RefreshPrefabActionState();
         }

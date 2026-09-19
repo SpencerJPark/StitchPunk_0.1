@@ -69,8 +69,18 @@ namespace DotsAnimationToolkit.Editor
         private readonly Dictionary<(int layerIndex, int animationIndex), Label> animationLiveDots =
             new Dictionary<(int layerIndex, int animationIndex), Label>();
 
-        private readonly Dictionary<(int layerIndex, int animationIndex), FloatField> animationScrubFields =
-            new Dictionary<(int layerIndex, int animationIndex), FloatField>();
+        private readonly Dictionary<(int layerIndex, int animationIndex), Button> animationPlayButtons =
+            new Dictionary<(int layerIndex, int animationIndex), Button>();
+
+        private static readonly (int layerIndex, int animationIndex) NoHoveredAnimationRow = (-1, -1);
+
+        // Which row the pointer is over, so the live refresh can re-hide a play button that stopped
+        // playing without stealing it back from under the pointer.
+        private (int layerIndex, int animationIndex) hoveredAnimationRow = (-1, -1);
+
+        /// <summary>The layer a row belongs to, so the inspector's Animation card can host that
+        /// layer's playhead — the field the row itself gave up.</summary>
+        public int SelectedLayerIndex { get { return currentSelection.layerIndex; } }
 
         /// <summary>Raised when a layer or animation row is clicked.</summary>
         public event Action<ActorEditorSelection> SelectionChanged;
@@ -154,7 +164,8 @@ namespace DotsAnimationToolkit.Editor
             rowScroll.Clear();
             layerLiveDotsByLayerIndex.Clear();
             animationLiveDots.Clear();
-            animationScrubFields.Clear();
+            animationPlayButtons.Clear();
+            hoveredAnimationRow = NoHoveredAnimationRow;
             selectedRowElement = null;
 
             if (profile == null || profile.layers == null)
@@ -210,9 +221,14 @@ namespace DotsAnimationToolkit.Editor
             nameLabel.AddToClassList(BoxTitleUssClassName);
             headerRow.Add(nameLabel);
 
-            Button starterButton = new Button { text = ResolveAnimationDisplayName(layer != null ? layer.startingAnimationKey : 0u) };
+            Button starterButton = new Button
+            {
+                text = ResolveAnimationDisplayName(layer != null ? layer.startingAnimationKey : 0u) + " ▾"
+            };
             starterButton.tooltip = "The animation this layer starts on at bake.";
             starterButton.AddToClassList("toolkit-box__starter");
+            starterButton.AddToClassList("unity-base-popup-field__input");
+            starterButton.style.flexShrink = 0f;
             starterButton.clicked += () => OpenStarterMenu(layerIndex, starterButton);
             headerRow.Add(starterButton);
 
@@ -271,27 +287,52 @@ namespace DotsAnimationToolkit.Editor
 
             Label nameLabel = new Label(ResolveAnimationDisplayName(animationKey));
             nameLabel.AddToClassList("toolkit-box__label");
+            nameLabel.style.flexGrow = 1f;
+            nameLabel.style.flexShrink = 1f;
+            nameLabel.style.overflow = Overflow.Hidden;
+            nameLabel.style.minWidth = LayerEventStripElement.LayerNameColumnWidth;
+            nameLabel.tooltip = ResolveAnimationDisplayName(animationKey);
             row.Add(nameLabel);
 
+            // Owner decision A107-D2/SG-D7: hover play only, stop lives in the preview
+            // transport, speed moves to the inspector's Animation card.
             Button playButton = ToolkitIcons.MakeIconButton(
                 () => composer?.PlayAnimation(animationKey), ToolkitIcons.Play, "Play this animation on the preview.", "▶");
+            playButton.style.flexShrink = 0f;
+            playButton.style.visibility = Visibility.Hidden;
             row.Add(playButton);
+            animationPlayButtons[(layerIndex, animationIndex)] = playButton;
 
-            Button stopButton = ToolkitIcons.MakeIconButton(
-                () => composer?.StopAnimation(animationKey), ToolkitIcons.Stop, "Stop this animation on the preview.", "■");
-            row.Add(stopButton);
-
-            FloatField scrubField = new FloatField
+            row.RegisterCallback<PointerEnterEvent>(enterEvent =>
             {
-                value = composer != null ? composer.LayerTime(layerIndex) : 0f
-            };
-            scrubField.AddToClassList(TransportFieldUssClassName);
-            scrubField.tooltip = "This layer's playhead, seconds.";
-            scrubField.RegisterValueChangedCallback(changeEvent => composer?.SetLayerTime(layerIndex, changeEvent.newValue));
-            row.Add(scrubField);
-            animationScrubFields[(layerIndex, animationIndex)] = scrubField;
+                hoveredAnimationRow = (layerIndex, animationIndex);
+                playButton.style.visibility = Visibility.Visible;
+            });
+            row.RegisterCallback<PointerLeaveEvent>(leaveEvent =>
+            {
+                hoveredAnimationRow = NoHoveredAnimationRow;
+                playButton.style.visibility =
+                    IsAnimationLive(layerIndex, animationIndex) ? Visibility.Visible : Visibility.Hidden;
+            });
 
             return row;
+        }
+
+        private bool IsAnimationLive(int layerIndex, int animationIndex)
+        {
+            if (composer == null || profile == null || profile.layers == null || layerIndex >= profile.layers.Count)
+            {
+                return false;
+            }
+
+            ActorLayerDefinition layer = profile.layers[layerIndex];
+            ActorAnimationDefinition animation = layer != null && layer.animations != null
+                && animationIndex < layer.animations.Count
+                ? layer.animations[animationIndex] : null;
+            uint animationKey = animation != null ? animation.animationKey : 0u;
+            return animationKey != 0u
+                && composer.LayerAnimationKey(layerIndex) == animationKey
+                && (composer.LayerFlags(layerIndex) & PlaybackFlags.Active) != 0;
         }
 
         private void RefreshLiveIndicators()
@@ -309,25 +350,18 @@ namespace DotsAnimationToolkit.Editor
 
             foreach (KeyValuePair<(int layerIndex, int animationIndex), Label> entry in animationLiveDots)
             {
-                ActorLayerDefinition layer = profile.layers[entry.Key.layerIndex];
-                ActorAnimationDefinition animation = layer != null && layer.animations != null
-                    && entry.Key.animationIndex < layer.animations.Count
-                    ? layer.animations[entry.Key.animationIndex] : null;
-                uint animationKey = animation != null ? animation.animationKey : 0u;
-                bool isActive = animationKey != 0u
-                    && composer.LayerAnimationKey(entry.Key.layerIndex) == animationKey
-                    && (composer.LayerFlags(entry.Key.layerIndex) & PlaybackFlags.Active) != 0;
+                bool isActive = IsAnimationLive(entry.Key.layerIndex, entry.Key.animationIndex);
                 entry.Value.EnableInClassList(LiveDotActiveUssClassName, isActive);
-            }
 
-            foreach (KeyValuePair<(int layerIndex, int animationIndex), FloatField> entry in animationScrubFields)
-            {
-                bool isBeingEdited = entry.Value.panel != null
-                    && entry.Value.panel.focusController != null
-                    && entry.Value.panel.focusController.focusedElement == entry.Value;
-                if (!isBeingEdited)
+                // A live animation keeps its play button visible off-hover; one that stopped gives
+                // it up again, unless the pointer is still on that row.
+                Button rowPlayButton;
+                if (animationPlayButtons.TryGetValue(entry.Key, out rowPlayButton))
                 {
-                    entry.Value.SetValueWithoutNotify(composer.LayerTime(entry.Key.layerIndex));
+                    bool isHovered = hoveredAnimationRow.layerIndex == entry.Key.layerIndex
+                        && hoveredAnimationRow.animationIndex == entry.Key.animationIndex;
+                    rowPlayButton.style.visibility =
+                        isActive || isHovered ? Visibility.Visible : Visibility.Hidden;
                 }
             }
         }

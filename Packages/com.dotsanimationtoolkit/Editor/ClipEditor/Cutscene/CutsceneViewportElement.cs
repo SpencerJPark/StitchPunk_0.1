@@ -32,6 +32,8 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly Image sceneImage;
 
+        private bool isRenderSuppressed;
+
         private Camera utilityCamera;
         private RenderTexture renderTarget;
 
@@ -89,9 +91,20 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>True while the panel is feeding shot poses in; gates the gesture-breaks-shot event.</summary>
         public bool IsShowingShotPose { get; set; }
 
+        /// <summary>Hides the render so an empty state can be read. A sentence drawn over a live
+        /// actor is unreadable, and the viewport is the only thing that can stop drawing.</summary>
+        public void SetRenderSuppressed(bool suppressed)
+        {
+            isRenderSuppressed = suppressed;
+            sceneImage.style.display = suppressed ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        public bool IsRenderSuppressed { get { return isRenderSuppressed; } }
+
         public CutsceneViewportElement()
         {
             AddToClassList(UssClassName);
+            AddToClassList("toolkit-list-surface");
             focusable = true;
 
             sceneImage = new Image { scaleMode = ScaleMode.StretchToFill };
@@ -116,6 +129,12 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Renders the open scene from the free orbit rig.</summary>
         public void RenderFree()
         {
+            // Rendering into a hidden Image is wasted work every repaint; suppression means nothing draws.
+            if (isRenderSuppressed)
+            {
+                return;
+            }
+
             Quaternion rotation = Quaternion.Euler(orbitPitchDegrees, orbitYawDegrees, 0f);
             Vector3 position = orbitFocus - rotation * Vector3.forward * orbitDistance;
             Render(position, rotation, freeFieldOfView);
@@ -124,6 +143,11 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Renders the open scene from a sampled camera-lane pose (Shot mode).</summary>
         public void RenderShot(Vector3 position, Quaternion rotation, float fieldOfView)
         {
+            if (isRenderSuppressed)
+            {
+                return;
+            }
+
             Render(position, rotation, fieldOfView);
         }
 

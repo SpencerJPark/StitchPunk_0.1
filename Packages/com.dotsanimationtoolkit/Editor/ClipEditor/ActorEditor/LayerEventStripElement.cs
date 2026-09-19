@@ -19,7 +19,9 @@ namespace DotsAnimationToolkit.Editor
         private const float InactiveAlpha = 0.35f;
         private const long FlashDurationMilliseconds = 120;
         private const float FlashOutlineWidth = 3f;
-        private const float NameLabelWidth = 72f;
+        /// <summary>The layer name column, shared with the Actor Editor's layer rows so the strip's
+        /// lanes line up under the names they belong to.</summary>
+        public const float LayerNameColumnWidth = 96f;
         private const float ReadoutLabelWidth = 96f;
 
         private static readonly Color PlayheadColor = new Color(0.95f, 0.36f, 0.30f);
@@ -161,7 +163,7 @@ namespace DotsAnimationToolkit.Editor
                 style.flexDirection = FlexDirection.Row;
                 style.alignItems = Align.Center;
 
-                nameLabel = new Label { style = { width = NameLabelWidth, overflow = Overflow.Hidden } };
+                nameLabel = new Label { style = { width = LayerNameColumnWidth, overflow = Overflow.Hidden } };
                 Add(nameLabel);
 
                 lane = new VisualElement { style = { flexGrow = 1f, height = RowHeight } };
@@ -177,6 +179,8 @@ namespace DotsAnimationToolkit.Editor
                 if (nameLabel.text != displayName)
                 {
                     nameLabel.text = displayName;
+                    // Fixed-width column can clip a long layer name; the tooltip carries the full text.
+                    nameLabel.tooltip = displayName;
                 }
 
                 // Asset lookups only fire on a clip change, never per tick.

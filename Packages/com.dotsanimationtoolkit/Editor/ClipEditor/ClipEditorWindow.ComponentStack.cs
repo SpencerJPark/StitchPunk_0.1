@@ -1037,10 +1037,16 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            clipInspectorPane.ContentPane.Add(ClipInspectorPane.MakeHeading("Attachment Points"));
-            clipInspectorPane.ContentPane.Add(ClipInspectorPane.MakeHint(
-                "Sockets live on the rig, and are edited on the part or bone they follow. "
-                + rig.sockets.Count + " on this rig."));
+            VisualElement socketCardBody;
+            VisualElement socketCardHeaderActions;
+            VisualElement socketCard = ToolkitChrome.MakeCard(
+                "clip-inspector-socket-card", "Attachment Points", out socketCardBody, out socketCardHeaderActions);
+            Label socketCountBadge = ToolkitChrome.MakeBadge(
+                rig.sockets.Count.ToString(), ToolkitStatusTone.Neutral);
+            socketCountBadge.tooltip = rig.sockets.Count + " sockets on this rig.";
+            socketCardHeaderActions.Add(socketCountBadge);
+            socketCardBody.Add(ClipInspectorPane.MakeHint(
+                "Sockets live on the rig, and are edited on the part or bone they follow."));
 
             for (int socketIndex = 0; socketIndex < rig.sockets.Count; socketIndex++)
             {
@@ -1049,8 +1055,9 @@ namespace DotsAnimationToolkit.Editor
                 {
                     continue;
                 }
-                clipInspectorPane.ContentPane.Add(BuildSocketDirectoryRow(rig, socket));
+                socketCardBody.Add(BuildSocketDirectoryRow(rig, socket));
             }
+            clipInspectorPane.ContentPane.Add(socketCard);
         }
 
         private VisualElement BuildSocketDirectoryRow(RigAsset rig, SocketDefinition socket)
@@ -1065,12 +1072,12 @@ namespace DotsAnimationToolkit.Editor
                 Label socketLabel = new Label(hierarchyPane.DescribeSocketLabel(socket));
                 socketLabel.AddToClassList("toolkit-list-row__title");
                 resolvedRow.Add(socketLabel);
-                Button selectSourceButton = new Button(() => SelectSocketSource(socket))
-                {
-                    text = "Select",
-                    tooltip = "Selects the object this socket follows and opens it here."
-                };
-                ToolkitChrome.StyleButton(selectSourceButton, ToolkitButtonVariant.Secondary);
+                Button selectSourceButton = ToolkitIcons.MakeIconButton(
+                    () => SelectSocketSource(socket),
+                    ToolkitIcons.Link,
+                    "Selects the object this socket follows and opens it here.",
+                    "Select");
+                ToolkitChrome.StyleButton(selectSourceButton, ToolkitButtonVariant.Ghost);
                 selectSourceButton.style.flexShrink = 0f;
                 resolvedRow.Add(selectSourceButton);
                 return resolvedRow;
@@ -1108,10 +1115,14 @@ namespace DotsAnimationToolkit.Editor
                     "Pick a rig with a Source Prefab above the hierarchy to pick the bone this should follow."));
             }
 
-            row.Add(new Button(() => ConfirmDeleteSocket(socket))
+            Button deleteSocketButton = new Button(() => ConfirmDeleteSocket(socket))
             {
                 text = "Delete Socket"
-            });
+            };
+            ToolkitChrome.StyleButton(deleteSocketButton, ToolkitButtonVariant.Secondary);
+            deleteSocketButton.style.alignSelf = Align.FlexStart;
+            deleteSocketButton.style.flexShrink = 0f;
+            row.Add(deleteSocketButton);
             return row;
         }
 

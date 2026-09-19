@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Actor Editor's first column: the shared clip set and rig fields over a searchable profile catalog with New, Refresh, and row Rename/Delete.</summary>
+    /// <summary>The Actor Editor's first column: a searchable profile catalog with New, Refresh, and row Rename/Delete. The clip set and rig fields it owns are hosted in the panel's shared asset bar.</summary>
     public sealed class ActorEditorProfilesColumn : VisualElement, IDisposable
     {
         public event Action<ActorProfileAsset> ProfileSelected;
@@ -28,8 +28,8 @@ namespace DotsAnimationToolkit.Editor
             name = "profiles-column";
             style.minWidth = 200f;
             // The catalog below is itself a padded toolkit-column; a second inset here is what left its
-            // list in a grey gutter. The two pickers carry their own inset instead.
-            style.paddingTop = 8f;
+            // list in a grey gutter. Nothing else sits above the catalog now that the pickers moved to
+            // the panel's asset bar, so there is no inset to add here.
             style.paddingLeft = 0f;
             style.paddingRight = 0f;
 
@@ -41,10 +41,7 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "The clip set every tab is working on. Not what this profile plays — a profile lists its own clip sets."
             };
             clipSetField.AddToClassList("clip-editor__pane-field");
-            clipSetField.style.marginLeft = 10f;
-            clipSetField.style.marginRight = 10f;
             clipSetField.RegisterValueChangedCallback(OnClipSetFieldChanged);
-            Add(clipSetField);
 
             rigField = new ObjectField
             {
@@ -54,10 +51,7 @@ namespace DotsAnimationToolkit.Editor
                 tooltip = "The rig every tab is working on. Picking a profile sets it to the profile's rig."
             };
             rigField.AddToClassList("clip-editor__pane-field");
-            rigField.style.marginLeft = 10f;
-            rigField.style.marginRight = 10f;
             rigField.RegisterValueChangedCallback(OnRigFieldChanged);
-            Add(rigField);
 
             catalog = new ActorProfileCatalogColumn();
             catalog.NewRequested += CreateAndSelectNewProfile;
@@ -66,6 +60,24 @@ namespace DotsAnimationToolkit.Editor
             catalog.ProfileRenameRequested += RenameProfileAndRefresh;
             catalog.ProfileDeleteRequested += RequestDeleteProfile;
             Add(catalog);
+        }
+
+        /// <summary>The Clip Set and Rig pickers belong to the whole tab, not to this column, so the
+        /// panel hosts them in its asset bar and the column keeps owning their wiring.</summary>
+        public void AddSharedAssetFieldsTo(VisualElement assetBar)
+        {
+            if (assetBar == null)
+            {
+                return;
+            }
+            clipSetField.style.flexGrow = 1f;
+            clipSetField.style.maxWidth = 260f;
+            rigField.style.flexGrow = 1f;
+            rigField.style.maxWidth = 260f;
+            assetBar.Add(ToolkitChrome.MakeAssetBarLabel("Clip Set"));
+            assetBar.Add(clipSetField);
+            assetBar.Add(ToolkitChrome.MakeAssetBarLabel("Rig"));
+            assetBar.Add(rigField);
         }
 
         public void Bind(ActiveAssetSelection sharedSelection)

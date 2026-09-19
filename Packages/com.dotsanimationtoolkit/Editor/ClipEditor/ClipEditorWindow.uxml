@@ -117,8 +117,10 @@
                         <ui:VisualElement class="toolkit-transport__group">
                             <ui:Label text="Zoom" class="toolkit-transport__caption"/>
                             <ui:Slider name="zoom-slider" class="clip-editor__transport-slider"/>
-                            <ui:Button name="frame-all-button" text="All" class="toolkit-icon-button toolkit-icon-button--text"/>
-                            <ui:Button name="frame-selection-button" text="Selected" class="toolkit-icon-button toolkit-icon-button--text"/>
+                            <ui:VisualElement name="frame-segmented" class="toolkit-segmented">
+                                <ui:Button name="frame-all-button" text="All" tooltip="Fit the whole clip in the timeline." class="toolkit-segmented__item"/>
+                                <ui:Button name="frame-selection-button" text="Selected" tooltip="Fit the selected keys in the timeline. Falls back to framing the clip when nothing is selected." class="toolkit-segmented__item"/>
+                            </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:Label name="transform-readout" class="clip-editor__transform-readout"/>
                     </ui:VisualElement>
