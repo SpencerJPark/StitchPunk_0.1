@@ -15,9 +15,9 @@ in place.
 - **The sidebar has two modes, Images and Recipes,** switched by a pair of
   toggles where a pane title would sit. **Images** lists every `Texture2D`
   found under your project's Assets folder — nothing under a package is
-  offered — each row a boxed thumbnail 48 pixels square, the texture's name,
-  its dimensions and folder underneath, and a search field above the list to
-  narrow it. Drag a row, or a shift-selected run of rows, out onto the canvas
+  offered — each row a flat thumbnail, the texture's name, and its
+  dimensions and folder as muted meta beside it, and a search field above the
+  list to narrow it. Drag a row, or a shift-selected run of rows, out onto the canvas
   exactly as you would drag files out of the Project window — both land on
   the same drop handling, so neither path is the "real" one. Double-clicking
   a row instead adds that texture at the centre of whatever the canvas
@@ -26,7 +26,7 @@ in place.
   hides rows already on the canvas from the list, for when the sidebar is
   more list than you want to scroll. Refresh rescans the project for new or
   renamed textures.
-- **Recipes is the saved-setup catalog**, the same boxed-row shape as
+- **Recipes is the saved-setup catalog**, the same row shape as
   Images. **New** asks for a name and a folder before creating anything —
   cancel and nothing is written — and remembers the folder you chose for
   next time. Clicking a row loads that recipe's graph onto the canvas;
@@ -60,8 +60,8 @@ in place.
   need. An unwired channel offers a flat-value slider instead, so a channel
   nothing feeds still bakes a deliberate constant rather than an accidental
   zero.
-- **A recipe is written only by pressing Save in the Recipes column** —
-  nothing else ever writes one. Baking does not touch the loaded recipe,
+- **A recipe is written only by pressing Save as recipe in the tab's asset
+  bar** — nothing else ever writes one. Baking does not touch the loaded recipe,
   loading one does not rewrite it, and renaming or deleting leaves its
   graph alone. Because of that, the graph header shows the recipe's name
   with a trailing dot the moment the canvas stops matching what was last

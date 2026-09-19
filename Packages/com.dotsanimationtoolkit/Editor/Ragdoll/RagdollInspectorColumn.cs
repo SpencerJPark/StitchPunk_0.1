@@ -191,6 +191,10 @@ namespace DotsAnimationToolkit.Editor
             bodySection.Clear();
 
             Label nodeLabel = new Label(DescribeAddress(bodyDefinition.address)) { name = "ragdoll-inspector-node" };
+            if (bodyDefinition.address.kind == RigNodeAddressKind.RigTarget)
+            {
+                nodeLabel.tooltip = "Target id " + bodyDefinition.address.targetId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
             bodySection.Add(nodeLabel);
 
             TextField nameField = new TextField { value = bodyDefinition.displayName, name = "ragdoll-inspector-name" };
@@ -199,14 +203,17 @@ namespace DotsAnimationToolkit.Editor
 
             Vector3Field sizeField = new Vector3Field { value = ToVector3(bodyDefinition.boxSize), name = "ragdoll-inspector-size" };
             RegisterCommit(sizeField, () => CommitBodyField(body => body.boxSize = ToFloat3(sizeField.value)));
+            ShrinkVectorFieldToFitPropertyRow(sizeField);
             bodySection.Add(ToolkitChrome.MakePropertyRow("Size", sizeField, string.Empty));
 
             Vector3Field centerField = new Vector3Field { value = ToVector3(bodyDefinition.boxCenter), name = "ragdoll-inspector-center" };
             RegisterCommit(centerField, () => CommitBodyField(body => body.boxCenter = ToFloat3(centerField.value)));
+            ShrinkVectorFieldToFitPropertyRow(centerField);
             bodySection.Add(ToolkitChrome.MakePropertyRow("Center", centerField, string.Empty));
 
             Vector3Field rotationField = new Vector3Field { value = ToVector3(bodyDefinition.boxEulerAngles), name = "ragdoll-inspector-rotation" };
             RegisterCommit(rotationField, () => CommitBodyField(body => body.boxEulerAngles = ToFloat3(rotationField.value)));
+            ShrinkVectorFieldToFitPropertyRow(rotationField);
             bodySection.Add(ToolkitChrome.MakePropertyRow("Rotation", rotationField, string.Empty));
 
             FloatField massField = new FloatField { value = bodyDefinition.mass, name = "ragdoll-inspector-mass" };
@@ -349,18 +356,63 @@ namespace DotsAnimationToolkit.Editor
             BodyEdited?.Invoke();
         }
 
-        private static string DescribeAddress(RigNodeAddress address)
+        private string DescribeAddress(RigNodeAddress address)
         {
             switch (address.kind)
             {
                 case RigNodeAddressKind.RigTarget:
-                    return "rig target " + address.targetId;
+                    return ResolveRigTargetDisplayName(boundRig, address.targetId);
                 case RigNodeAddressKind.HierarchyPath:
                     return address.hierarchyPath;
                 case RigNodeAddressKind.Bone:
                     return address.boneName;
                 default:
                     return string.Empty;
+            }
+        }
+
+        // Names never numbers: the raw targetId is a stable id, not something the owner should
+        // ever read on screen. Mirrors the lookup in RagdollBodySummaryResolver.ResolveRigTargetSourceNodePath.
+        private static string ResolveRigTargetDisplayName(RigAsset rig, uint targetId)
+        {
+            if (rig != null && rig.targets != null)
+            {
+                foreach (RigTargetDefinition candidateTargetDefinition in rig.targets)
+                {
+                    if (candidateTargetDefinition != null && candidateTargetDefinition.Id.Value == targetId)
+                    {
+                        return string.IsNullOrEmpty(candidateTargetDefinition.displayName)
+                            ? "rig target (unnamed)"
+                            : candidateTargetDefinition.displayName;
+                    }
+                }
+            }
+
+            return "rig target missing";
+        }
+
+        // R01 no clipped text: the joined X/Y/Z fields must shrink to fit the property row instead
+        // of overflowing the column, while the shared 112px label column stays fixed.
+        // A Vector3Field sizes each of its three sub-fields to content, so a long value such as
+        // 0.009578966 pushes Y and Z straight out of a 260px inspector column and the row clips (R01).
+        // Giving every sub-field a zero flex-basis and an equal grow makes the three share whatever
+        // width the property row has, and a zero min-width lets them actually reach it -- the default
+        // min-width on the inner input is what defeats a min-width set on the field alone.
+        private static void ShrinkVectorFieldToFitPropertyRow(Vector3Field vectorField)
+        {
+            vectorField.style.flexShrink = 1f;
+            vectorField.style.minWidth = 0f;
+            foreach (FloatField subField in vectorField.Query<FloatField>().ToList())
+            {
+                subField.style.flexBasis = 0f;
+                subField.style.flexGrow = 1f;
+                subField.style.flexShrink = 1f;
+                subField.style.minWidth = 0f;
+                foreach (VisualElement inputElement in subField.Query(className: "unity-base-field__input").ToList())
+                {
+                    inputElement.style.minWidth = 0f;
+                    inputElement.style.flexShrink = 1f;
+                }
             }
         }
 

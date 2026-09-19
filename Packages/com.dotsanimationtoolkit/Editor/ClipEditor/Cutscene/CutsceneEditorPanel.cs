@@ -528,22 +528,24 @@ namespace DotsAnimationToolkit.Editor
                 RebuildTimeline();
             });
             zoomGroup.Add(zoomSlider);
-            Button frameAllButton = new Button(FrameWholeTimeline)
-            {
-                text = "All",
-                tooltip = "Frame the whole timeline. Shortcut: Shift+F."
-            };
-            frameAllButton.AddToClassList("toolkit-segmented__item");
-            Button framePlayheadButton = new Button(CentreTimelineOnPlayhead)
-            {
-                text = "Playhead",
-                tooltip = "Centre the timeline on the playhead. Shortcut: Alt+P."
-            };
-            framePlayheadButton.AddToClassList("toolkit-segmented__item");
-            VisualElement frameSegmented = new VisualElement { name = "cutscene-frame-segmented" };
-            frameSegmented.AddToClassList("toolkit-segmented");
-            frameSegmented.Add(frameAllButton);
-            frameSegmented.Add(framePlayheadButton);
+            List<string> frameSegmentLabels = new List<string> { "All", "Playhead" };
+            VisualElement frameSegmented = ToolkitChrome.MakeSegmentedControl(
+                "cutscene-frame-segmented",
+                frameSegmentLabels,
+                0,
+                selectedFrameIndex =>
+                {
+                    if (selectedFrameIndex == 0)
+                    {
+                        FrameWholeTimeline();
+                    }
+                    else
+                    {
+                        CentreTimelineOnPlayhead();
+                    }
+                });
+            frameSegmented[0].tooltip = "Frame the whole timeline. Shortcut: Shift+F.";
+            frameSegmented[1].tooltip = "Centre the timeline on the playhead. Shortcut: Alt+P.";
             zoomGroup.Add(frameSegmented);
             row.Add(zoomGroup);
 

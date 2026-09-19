@@ -14,16 +14,17 @@ still shows its own badge for profile-specific rules; that one stays.
 
 ## Layout
 
-- **Scan project** is the big button on the left of the toolbar — you can't
-  miss it. Beside it, a status label reads the time of the last scan and how
-  many findings it produced, or "not scanned yet" before the first scan.
-- **Three chips** sit next to the button, one per severity: a coloured dot
-  and a live count, for example "● 2 Errors". Click a chip to hide or show
-  that severity while you work through the list. A search field on the right
-  narrows the list by code, title or asset name.
+- **A severity filter** — All · Errors · Warnings · Notes, each with a live
+  count, for example "Errors 2" — sits in the toolbar; click an entry to
+  narrow the list to that severity while you work through it. A search field
+  on the right narrows the list by code, title or asset name. **Scan project**
+  sits at the right of the bar; a status label reads the time of the last
+  scan and how many findings it produced, or "not scanned yet" before the
+  first scan.
 - **Two panels** fill the rest of the tab. The left panel is the findings
-  list: each row is two lines — a severity dot, the code and a short title
-  on the first line, the affected asset's name on the second. Rows carry no
+  list: each row is two lines — a severity dot and a short title on the
+  first line, the affected asset's name on the second, with the finding's
+  code shown as a meta badge rather than part of the title. Rows carry no
   buttons; clicking a row selects it and drives the panel on the right.
   Scanning again keeps the same row selected when its code and asset still
   match a finding; otherwise the next row down is selected.

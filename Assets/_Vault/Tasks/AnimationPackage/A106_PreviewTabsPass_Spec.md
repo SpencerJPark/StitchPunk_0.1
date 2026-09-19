@@ -1,6 +1,6 @@
 # A106 — Preview tabs pass: Retarget, VAT Bake, Capture, Ragdoll, Stats, Health
 
-> **Status:** 📝 specced 2026-09-15, **reconciled against trunk 2026-09-19** (see §7 Phase 0); takes `0.59.0`; not built.
+> **Status:** ✅ **BUILT 2026-09-19** as `0.59.0`, merged to trunk and integrated the same day (EditMode 968/968). Reconciled against trunk first — see §7 Phase 0; §1.1 is the residual only.
 > A104 is merged, and eight later trunk passes plus A108 (`0.57.0`) closed several of this spec's original findings
 > without updating it. **§1.1 below is the residual only** — the struck findings are already on trunk and must not be
 > rebuilt. Runs in parallel with A105 and A107 (disjoint folders, seam in the session prompt).

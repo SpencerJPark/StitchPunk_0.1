@@ -1,6 +1,6 @@
 # A107 — Timeline tabs pass: Clip Editor, Actor Profiles, Cutscenes
 
-> **Status:** 📝 specced 2026-09-15, **reconciled against trunk 2026-09-19** (see §7 Phase 0); takes `0.60.0`; not built.
+> **Status:** ✅ **BUILT 2026-09-19** as `0.60.0`, merged to trunk and integrated the same day (EditMode 968/968). Reconciled against trunk first — see §7 Phase 0; §1.1 is the residual only.
 > **"Runs alone" is overturned** (stage, 2026-09-19): its stated reason was that it edits files the other two stay out
 > of, which is the definition of parallel-safe. It runs alongside A105 and A106. What genuinely had to wait — the
 > final fifteen-tab audit — is a stage step after all three merge.

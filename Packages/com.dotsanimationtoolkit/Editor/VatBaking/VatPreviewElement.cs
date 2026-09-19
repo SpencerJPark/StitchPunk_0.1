@@ -232,11 +232,15 @@ namespace DotsAnimationToolkit.Editor
                 if (sourceRenderer != null && sourceRenderer.sharedMesh != null)
                 {
                     statusLabel.text = "Source shown at rest — bake to play it back from the textures.";
+                    statusLabel.style.display = DisplayStyle.Flex;
                     cameraRig.SetFrameTarget(sourceRenderer.sharedMesh.bounds);
                 }
                 else
                 {
+                    // The viewport's own empty state already says "nothing baked yet" here — repeating
+                    // it as a status line underneath would say the same fact three times (R03).
                     statusLabel.text = "No VAT texture set to preview.";
+                    statusLabel.style.display = DisplayStyle.None;
                     cameraRig.ClearFrameTarget();
                 }
                 if (subjectChanged)
@@ -314,6 +318,7 @@ namespace DotsAnimationToolkit.Editor
             statusLabel.text = hasBake
                 ? "parts " + partPreviews.Count.ToString() + " · frames " + selectedClockRange.frameCount.ToString()
                 : (firstFailureMessage ?? "No VAT parts to preview.");
+            statusLabel.style.display = DisplayStyle.Flex;
         }
 
         // Same "no set" condition Show() early-returns on: the centred empty state and the transport

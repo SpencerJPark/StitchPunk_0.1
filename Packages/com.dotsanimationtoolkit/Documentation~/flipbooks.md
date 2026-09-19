@@ -23,8 +23,8 @@ flipbook rows/columns counts too.
 
 A row reads its frame count and layer size, plus a status:
 
-- `64 frames · 64×64 · imported, unnamed` — an array the tab has never named.
-- `64 frames · 64×64 · imported` — an array that has a names asset.
+- `64 frames · 64×64 · unnamed` — an array the tab has never named.
+- `64 frames · 64×64` — an array that has a names asset.
 
 Right-click a row for **Rename** and **Delete**. Both act on the array asset
 itself.
@@ -87,8 +87,8 @@ array.
 - **New** asks for a name and a folder before creating the flipbook asset.
 - Drag images from the **Images** column into **Frames**, or double-click an
   image to add it.
-- Drag rows in Frames to reorder them — list order is layer order, and the
-  `#` number beside a row is the layer that frame bakes to.
+- Drag rows in Frames to reorder them — list order is layer order, and a
+  row's tooltip shows the layer that frame bakes to.
 - Set **Filter** (Point by default), **Wrap** (Clamp by default), **Mips**,
   and **Linear** for the baked array.
 - **Bake**, then **Save**.

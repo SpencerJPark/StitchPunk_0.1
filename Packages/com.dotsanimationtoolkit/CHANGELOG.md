@@ -8,6 +8,84 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.60.0] — Timeline tabs pass
+
+The Clip Editor, Actor Profiles and Cutscenes tabs, to the approved editor style guide (A107).
+
+### Changed
+- **Actor Profiles has a real asset bar.** The Clip Set and Rig fields no longer sit stacked above the Profiles
+  list; they run across the tab in one 36px row, and all four column headers now land on a single baseline.
+- **Animation rows are hover play.** A row shows its name and one play icon that appears on hover and while that
+  animation plays. Stop lives in the preview transport, and an animation's speed moved to an Animation card in the
+  Actor Inspector. A layer header carries its eye toggle, live dot, name, default-animation dropdown and a ghost
+  trash.
+- The Actor Inspector groups into Profile and Clip Sets cards over an aligned label column.
+- The preview's validation chip is an outline badge, and the direction row no longer repeats the resolved
+  direction when it matches the pick.
+- The preview's "no actor" message is a designed empty state on its own surface instead of text drawn over a live
+  actor render.
+- Clip Editor: pane-header actions are ghost icon buttons with tooltips and Delete disables without a selection;
+  Attachment Points is a card with a header action; All / Selected is one segmented control.
+- Cutscenes: the Cast pane's actions are ghost icon buttons over a designed empty state, the inspector has a real
+  empty state with its own New Cutscene action, and the four icon+word buttons A108 left behind now carry their
+  intended variants.
+
+### Fixed
+- The Cutscenes viewport's empty message no longer sits at low contrast over the darkened scene render.
+
+## [0.59.0] — Preview tabs pass
+
+Retarget, VAT Bake, Capture, Ragdoll, Stats and Health, to the approved editor style guide (A106).
+
+### Changed
+- **Every preview tab shares one frame:** a 36px asset bar with the primary action at its right, 32px pane headers
+  on one baseline, a viewport with the standard rail and a centred empty state, one transport row, one footer.
+- **VAT Bake:** Bake moved to the asset bar; Settings and Output are cards of property rows; "Fallback Samples /
+  Second" is now "Sample rate" with the full name in its tooltip; Output Folder gained a picker; the bake warning
+  moved to the footer behind an Issue badge; and an unbaked preview shows "Nothing baked yet" with the transport
+  and clip picker hidden until a texture set exists.
+- **Capture:** the Capture action moved to the asset bar, Width and Height joined into one Size row, and the
+  Background and Format radio groups became segmented controls with the Colour field shown only when it applies.
+- **Ragdoll**, judged against the style guide's reference image: the add-body dropdown is gone in favour of a
+  header action, a search field sits under the Bodies header, rows carry muted meta, the viewport controls
+  collapsed into one toolbar, damping labels shortened with tooltips, and the clip-set notice reads as a footer
+  status line with a warning dot.
+- **Health:** the severity counts are a filter rather than three buttons, a finding's code is a meta badge instead
+  of part of its title, Affected entries are flat rows, the severity is a badge, and Scan project moved right.
+- **Stats** shows its cards at rest with muted values out of Play mode, draws the sparkline's baseline at rest, and
+  disables Snapshot until Play.
+
+### Fixed
+- **Pane headers now share one baseline.** `.toolkit-pane-header` carried no height at all, so a header was only as
+  tall as its content and a column with an extra action grew taller than its neighbours — three `MakePaneHeader`
+  calls produced three different heights on the Ragdoll tab. The shared rule now sets `min-height: 32px`.
+- The H06 health message no longer repeats itself ("…is unbaked: Not baked: …"), pinned by a new fixture.
+
+## [0.58.0] — Asset tabs pass
+
+Texture Packer, Flipbooks, Clip Sets, Rigs, Materials and Events, to the approved editor style guide (A105).
+
+### Changed
+- **Texture Packer never requires a recipe.** The tab opens on a working unsaved setup with the Pack Output node
+  centred, the header reads "Unsaved setup", Bake in the asset bar bakes that setup directly, and Save as recipe is
+  an optional secondary action. An open recipe shows its name and a modified badge when the graph differs.
+- The Pack Output node lost its duplicate Bake button and its saturated violet header in favour of neutral card
+  chrome with a status badge.
+- **Rigs:** ticked target rows carry Kind and Tag chips, the Target card gained a Faces direction row, the Targets
+  header carries a count badge, and the targets list takes the darker surface tone so the column reads as two tones.
+- **Clip Sets:** Name and Folder are property rows on one label column, the ticked count sits beside its toggle in
+  the card header, and the undo hint moved to the status footer.
+- **Materials:** the inspector splits into Shader, Usage and Contract cards, and no longer states twice that no rig
+  target uses a material.
+- **Flipbooks:** the header reads as a detail title with a meta badge, frame rows keep the index in the tooltip, and
+  Zoom moved into the frames toolbar with its hint in the footer.
+- **Events:** empty panes are designed empty states with their action wired, the key footer reads as badges rather
+  than a wrapping sentence, and a key's meta reads number first.
+
+### Added
+- `ClipRowFolderResolver`, extracted so the rule deciding when a clip row shows its folder is testable, with a
+  fixture that fails when the rule is reverted.
+
 ## [0.57.0] — Chrome consistency pass 2
 
 ### Added

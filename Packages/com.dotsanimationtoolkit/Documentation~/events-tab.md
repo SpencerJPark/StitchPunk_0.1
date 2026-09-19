@@ -11,7 +11,7 @@ on the right.
 
 The left column is the project event registry, shown as a searchable catalog.
 Each row's first line is the event name; the second reads either
-`maskable · key 16` or `pulse-only · key 80`. Keys 16 through 79 are
+`16 · maskable` or `80 · pulse-only`. Keys 16 through 79 are
 maskable — there are 64 of them, each owns a bit in `AnimEventMask`, and each
 can hold a window. Keys 80 and up are pulse-only: they still carry a payload
 through `AnimEventOutput`, but they never claim a mask bit and can't be
