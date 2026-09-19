@@ -53,7 +53,12 @@ namespace DotsAnimationToolkit.Editor
             label.EnableInClassList("toolkit-text--warning", isStale);
             label.EnableInClassList("toolkit-text--error", isBroken);
 
-            tooltip = reason ?? string.Empty;
+            // The resolver's reasons are written to follow a colon in a finding sentence, so they
+            // start lower case; shown on their own here, the first letter has to be lifted.
+            string reasonSentence = reason ?? string.Empty;
+            tooltip = reasonSentence.Length > 0
+                ? char.ToUpperInvariant(reasonSentence[0]) + reasonSentence.Substring(1)
+                : string.Empty;
         }
     }
 }

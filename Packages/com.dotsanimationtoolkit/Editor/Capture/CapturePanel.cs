@@ -25,7 +25,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly List<uint> currentAnimationKeys = new List<uint>();
 
-        private DropdownField sourceKindField;
+        private VisualElement sourceKindField;
         private VisualElement clipSourceRow;
         private VisualElement profileSourceRow;
         private VisualElement cutsceneSourceRow;
@@ -49,9 +49,12 @@ namespace DotsAnimationToolkit.Editor
         private IntegerField fpsField;
         private MinMaxSlider rangeSlider;
         private Label rangeSummaryLabel;
-        private RadioButtonGroup backgroundGroup;
+        private VisualElement backgroundGroup;
+        private int backgroundSelectedIndex;
         private ColorField backgroundColourField;
-        private RadioButtonGroup formatGroup;
+        private VisualElement backgroundColourRow;
+        private VisualElement formatGroup;
+        private int formatSelectedIndex;
         private TextField nameField;
         private Label effectiveNameLabel;
         private TextField outputFolderField;
@@ -75,6 +78,8 @@ namespace DotsAnimationToolkit.Editor
             splitView.Add(BuildViewportColumn());
             splitView.Add(BuildSettingsColumn());
 
+            Add(ToolkitChrome.MakeStatusRow(out resultLabel, out _, true));
+
             UpdateSourceRowVisibility();
             RefreshClipChoices(null);
             RefreshAnimationChoices(null);
@@ -91,11 +96,9 @@ namespace DotsAnimationToolkit.Editor
             kindRow.style.flexWrap = Wrap.Wrap;
             kindRow.style.alignItems = Align.Center;
             List<string> sourceKindChoices = new List<string> { "Clip", "Profile Animation", "Cutscene" };
-            sourceKindField = new DropdownField(sourceKindChoices, sourceKindIndex);
-            sourceKindField.AddToClassList("toolkit-asset-bar__field");
-            sourceKindField.RegisterValueChangedCallback(changeEvent =>
+            sourceKindField = ToolkitChrome.MakeSegmentedControl("capture-source-segmented", sourceKindChoices, sourceKindIndex, selectedIndex =>
             {
-                sourceKindIndex = sourceKindField.index;
+                sourceKindIndex = selectedIndex;
                 EditorPrefs.SetInt(SourceKindPrefsKey, sourceKindIndex);
                 UpdateSourceRowVisibility();
                 RebuildSource();
@@ -109,6 +112,10 @@ namespace DotsAnimationToolkit.Editor
             container.Add(clipSourceRow);
             container.Add(profileSourceRow);
             container.Add(cutsceneSourceRow);
+
+            container.Add(ToolkitChrome.MakeAssetBarSpacer());
+            captureButton = ToolkitChrome.MakePrimaryAction(OnCaptureButtonClicked, "d_Animation.Record", "Render the frame range to disk", "Capture");
+            container.Add(captureButton);
 
             return container;
         }
@@ -274,13 +281,22 @@ namespace DotsAnimationToolkit.Editor
             VisualElement sizeCardBody;
             cardsScrollView.Add(ToolkitChrome.MakeCard("capture-size-card", "Size", out sizeCardBody, out _));
 
-            // Stacked, not side by side: two 112px label columns in one row left the fields no width.
             widthField = new IntegerField { value = settings.width };
             widthField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             heightField = new IntegerField { value = settings.height };
             heightField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            sizeCardBody.Add(ToolkitChrome.MakePropertyRow("Width", widthField, null));
-            sizeCardBody.Add(ToolkitChrome.MakePropertyRow("Height", heightField, null));
+
+            VisualElement sizeFieldRow = new VisualElement();
+            sizeFieldRow.style.flexDirection = FlexDirection.Row;
+            sizeFieldRow.style.alignItems = Align.Center;
+            widthField.style.flexShrink = 0f;
+            heightField.style.flexShrink = 0f;
+            sizeFieldRow.Add(widthField);
+            Label sizeSeparatorLabel = new Label("x");
+            sizeSeparatorLabel.style.flexShrink = 0f;
+            sizeFieldRow.Add(sizeSeparatorLabel);
+            sizeFieldRow.Add(heightField);
+            sizeCardBody.Add(ToolkitChrome.MakePropertyRow("Size", sizeFieldRow, "Output width by height in pixels."));
 
             List<string> presetLabels = new List<string>();
             foreach (CaptureSizePreset preset in CaptureSettings.SizePresets)
@@ -319,19 +335,28 @@ namespace DotsAnimationToolkit.Editor
             VisualElement backgroundCardBody;
             cardsScrollView.Add(ToolkitChrome.MakeCard("capture-background-card", "Background", out backgroundCardBody, out _));
 
-            backgroundGroup = new RadioButtonGroup(string.Empty, new List<string> { "Transparent", "Colour" });
-            backgroundGroup.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
+            backgroundSelectedIndex = settings.background == CaptureBackgroundMode.SolidColour ? 1 : 0;
+            backgroundGroup = ToolkitChrome.MakeSegmentedControl("capture-background-segmented", new List<string> { "Transparent", "Colour" }, backgroundSelectedIndex, selectedIndex =>
+            {
+                backgroundSelectedIndex = selectedIndex;
+                OnSettingsFieldChanged();
+            });
             backgroundCardBody.Add(backgroundGroup);
 
             backgroundColourField = new ColorField { value = settings.backgroundColour };
             backgroundColourField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
-            backgroundCardBody.Add(ToolkitChrome.MakePropertyRow("Colour", backgroundColourField, null));
+            backgroundColourRow = ToolkitChrome.MakePropertyRow("Colour", backgroundColourField, null);
+            backgroundCardBody.Add(backgroundColourRow);
 
             VisualElement formatCardBody;
             cardsScrollView.Add(ToolkitChrome.MakeCard("capture-format-card", "Format", out formatCardBody, out _));
 
-            formatGroup = new RadioButtonGroup(string.Empty, new List<string> { "PNG Sequence", "GIF" });
-            formatGroup.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
+            formatSelectedIndex = settings.format == CaptureOutputFormat.Gif ? 1 : 0;
+            formatGroup = ToolkitChrome.MakeSegmentedControl("capture-format-segmented", new List<string> { "PNG Sequence", "GIF" }, formatSelectedIndex, selectedIndex =>
+            {
+                formatSelectedIndex = selectedIndex;
+                OnSettingsFieldChanged();
+            });
             formatCardBody.Add(formatGroup);
 
             VisualElement outputCardBody;
@@ -354,10 +379,6 @@ namespace DotsAnimationToolkit.Editor
             resolvedFolderLabel.AddToClassList("toolkit-hint");
             outputCardBody.Add(resolvedFolderLabel);
 
-            captureButton = ToolkitChrome.MakePrimaryAction(OnCaptureButtonClicked, "d_Animation.Record", "Render the frame range to disk", "Capture");
-            captureButton.style.marginTop = 10f;
-            column.Add(captureButton);
-
             progressBar = new ProgressBar();
             progressBar.style.marginTop = 6f;
             progressBar.style.display = DisplayStyle.None;
@@ -367,8 +388,6 @@ namespace DotsAnimationToolkit.Editor
             cancelButton.style.marginTop = 4f;
             cancelButton.style.display = DisplayStyle.None;
             column.Add(cancelButton);
-
-            column.Add(ToolkitChrome.MakeStatusRow(out resultLabel, out _, true));
 
             return column;
         }
@@ -575,9 +594,9 @@ namespace DotsAnimationToolkit.Editor
             settings.framesPerSecond = fpsField.value;
             settings.rangeStartNormalized = rangeSlider.value.x;
             settings.rangeEndNormalized = rangeSlider.value.y;
-            settings.background = backgroundGroup.value == 1 ? CaptureBackgroundMode.SolidColour : CaptureBackgroundMode.Transparent;
+            settings.background = backgroundSelectedIndex == 1 ? CaptureBackgroundMode.SolidColour : CaptureBackgroundMode.Transparent;
             settings.backgroundColour = backgroundColourField.value;
-            settings.format = formatGroup.value == 1 ? CaptureOutputFormat.Gif : CaptureOutputFormat.PngSequence;
+            settings.format = formatSelectedIndex == 1 ? CaptureOutputFormat.Gif : CaptureOutputFormat.PngSequence;
             settings.captureName = nameField.value ?? string.Empty;
             settings.outputFolder = outputFolderField.value ?? string.Empty;
         }
@@ -588,9 +607,10 @@ namespace DotsAnimationToolkit.Editor
             heightField.SetValueWithoutNotify(settings.height);
             fpsField.SetValueWithoutNotify(settings.framesPerSecond);
             rangeSlider.SetValueWithoutNotify(new Vector2(settings.rangeStartNormalized, settings.rangeEndNormalized));
-            backgroundGroup.SetValueWithoutNotify(settings.background == CaptureBackgroundMode.SolidColour ? 1 : 0);
+            backgroundSelectedIndex = settings.background == CaptureBackgroundMode.SolidColour ? 1 : 0;
+            ToolkitChrome.SetSegmentedSelection(backgroundGroup, backgroundSelectedIndex);
             backgroundColourField.SetValueWithoutNotify(settings.backgroundColour);
-            backgroundColourField.SetEnabled(settings.background == CaptureBackgroundMode.SolidColour);
+            backgroundColourRow.style.display = settings.background == CaptureBackgroundMode.SolidColour ? DisplayStyle.Flex : DisplayStyle.None;
             formatGroup.SetValueWithoutNotify(settings.format == CaptureOutputFormat.Gif ? 1 : 0);
             nameField.SetValueWithoutNotify(settings.captureName);
             outputFolderField.SetValueWithoutNotify(settings.outputFolder);

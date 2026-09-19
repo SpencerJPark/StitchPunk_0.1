@@ -39,8 +39,11 @@ namespace DotsAnimationToolkit.Editor
         private ClipSetAsset clipSetForNames;
         private SkinnedMeshRenderer sourceRenderer;
 
+        private ViewportFrameElement viewportFrame;
         private Image viewportImage;
         private Label statusLabel;
+        private VisualElement transportRow;
+        private VisualElement clipGroup;
         private DropdownField clipDropdown;
         private Label frameReadoutLabel;
         private TransportCoreElement transportCore;
@@ -82,7 +85,7 @@ namespace DotsAnimationToolkit.Editor
         {
             playback.Loop = true;
 
-            ViewportFrameElement viewportFrame = new ViewportFrameElement();
+            viewportFrame = new ViewportFrameElement();
 
             resetCameraButton = viewportFrame.AddResetCameraButton(() => cameraNavigation.ResetView());
             resetCameraButton.name = "vat-reset-camera-button";
@@ -120,6 +123,10 @@ namespace DotsAnimationToolkit.Editor
             ghostToggle.SetEnabled(false);
 
             viewportImage = viewportFrame.ViewportImage;
+            viewportFrame.SetEmptyState(
+                "vat-preview-empty",
+                "Nothing baked yet",
+                "Bake this clip set in the Settings column to see the baked motion play here.");
             Add(viewportFrame);
 
             statusLabel = new Label("No VAT texture set to preview.");
@@ -129,7 +136,7 @@ namespace DotsAnimationToolkit.Editor
             statusLabel.style.marginTop = 4f;
             Add(statusLabel);
 
-            VisualElement transportRow = new VisualElement();
+            transportRow = new VisualElement();
             transportRow.AddToClassList("toolkit-transport");
 
             VisualElement transportGroup = new VisualElement();
@@ -139,7 +146,7 @@ namespace DotsAnimationToolkit.Editor
             transportGroup.Add(transportCore);
             transportRow.Add(transportGroup);
 
-            VisualElement clipGroup = new VisualElement();
+            clipGroup = new VisualElement();
             clipGroup.AddToClassList("toolkit-transport__group");
             Label clipCaption = new Label("Clip");
             clipCaption.AddToClassList("toolkit-transport__caption");
@@ -155,6 +162,10 @@ namespace DotsAnimationToolkit.Editor
             transportRow.Add(frameReadoutLabel);
 
             Add(transportRow);
+
+            // Nothing is loaded until Show() runs, so the empty state starts on and the transport
+            // that has nothing to control starts hidden.
+            UpdateEmptyStateVisibility(true);
 
             cameraNavigation.Rig = cameraRig;
             cameraNavigation.AttachTo(viewportImage);
@@ -202,6 +213,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (textureSet == null || textureSet.clipRanges == null || textureSet.clipRanges.Count == 0)
             {
+                UpdateEmptyStateVisibility(true);
                 vatPartsToggle?.SetEnabled(false);
                 otherPartsToggle?.SetEnabled(false);
                 RefreshSourceCopyAppearance();
@@ -233,6 +245,8 @@ namespace DotsAnimationToolkit.Editor
                 }
                 return;
             }
+
+            UpdateEmptyStateVisibility(false);
 
             Texture mainTexture = sourceRenderer != null && sourceRenderer.sharedMaterial != null
                 ? sourceRenderer.sharedMaterial.mainTexture
@@ -300,6 +314,15 @@ namespace DotsAnimationToolkit.Editor
             statusLabel.text = hasBake
                 ? "parts " + partPreviews.Count.ToString() + " · frames " + selectedClockRange.frameCount.ToString()
                 : (firstFailureMessage ?? "No VAT parts to preview.");
+        }
+
+        // Same "no set" condition Show() early-returns on: the centred empty state and the transport
+        // are two sides of one switch, never toggled independently.
+        private void UpdateEmptyStateVisibility(bool hasNoBakedSet)
+        {
+            viewportFrame.ShowEmptyState(hasNoBakedSet);
+            transportRow.style.display = hasNoBakedSet ? DisplayStyle.None : DisplayStyle.Flex;
+            clipGroup.style.display = hasNoBakedSet ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         private string DescribeClip(ulong clipId)

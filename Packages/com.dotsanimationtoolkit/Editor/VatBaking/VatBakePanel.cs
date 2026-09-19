@@ -18,13 +18,14 @@ namespace DotsAnimationToolkit.Editor
     {
         private ObjectField clipSetField;
         private Label resolvedSourceLabel;
+        private VisualElement resolvedSourceBadgeSlot;
         private VatFreshnessBadgeElement freshnessBadge;
         private List<VatBakeSource> resolvedSources;
         private EnumField flavorField;
         private ObjectField rigField;
         private FloatField sampleRateField;
         private Toggle fullPrecisionField;
-        private TextField outputFolderField;
+        private PathPickerRowElement outputFolderField;
         private Label summaryLabel;
         private ScrollView logView;
         private VatPreviewElement preview;
@@ -110,14 +111,11 @@ namespace DotsAnimationToolkit.Editor
 
             assetBar.Add(ToolkitChrome.MakeAssetBarSpacer());
 
-            // Not a field: which meshes a bake covers is a fact about the rig, not a fourth thing to keep in
-            // step with it. This line is the receipt — what the rig resolved to, or why it did not.
-            resolvedSourceLabel = new Label(string.Empty);
-            resolvedSourceLabel.name = "vat-resolved-source-label";
-            resolvedSourceLabel.AddToClassList("toolkit-hint");
-            resolvedSourceLabel.RegisterCallback<ClickEvent>(clickEvent => PingSourcePrefab());
-            resolvedSourceLabel.style.flexGrow = 1;
-            resolvedSourceLabel.style.flexShrink = 1;
+            // Not a field: which meshes a bake covers is a fact about the rig, not a fourth thing to
+            // keep in step with it. The full receipt now lives in the footer status row at the bottom
+            // of the panel; this slot only holds a short word for whether it is worth a look.
+            resolvedSourceBadgeSlot = new VisualElement { name = "vat-resolved-source-badge-slot" };
+            resolvedSourceBadgeSlot.style.marginRight = 6;
 
             freshnessBadge = new VatFreshnessBadgeElement();
             freshnessBadge.style.marginLeft = 6;
@@ -127,9 +125,16 @@ namespace DotsAnimationToolkit.Editor
             resolvedSourceRow.name = "vat-resolved-source-row";
             resolvedSourceRow.style.flexDirection = FlexDirection.Row;
             resolvedSourceRow.style.alignItems = Align.FlexStart;
-            resolvedSourceRow.Add(resolvedSourceLabel);
+            resolvedSourceRow.Add(resolvedSourceBadgeSlot);
             resolvedSourceRow.Add(freshnessBadge);
             assetBar.Add(resolvedSourceRow);
+
+            // Moved from the mid-column: the primary action belongs in the asset bar, pushed to the
+            // right of the fields it acts on by the spacer above.
+            Button bakeButton = ToolkitChrome.MakePrimaryAction(
+                Bake, "d_PreTextureRGB", "Bake every VAT-bound clip in the set to textures.", "Bake");
+            ToolkitIcons.SetButtonGlyph(bakeButton, ToolkitGlyphId.VatBake);
+            assetBar.Add(bakeButton);
 
             VatSourceImportWatcher.AssetsImported += OnSourcesImported;
 
@@ -141,10 +146,12 @@ namespace DotsAnimationToolkit.Editor
             VisualElement formColumn = new VisualElement { name = "vat-bake-form-column" };
             formColumn.AddToClassList("toolkit-column");
             formColumn.style.minWidth = 320f;
+            // No pane header: the card below is already titled "Settings", and a second "Bake"
+            // heading only repeated the panel's own name. This keeps the top inset the header used to give.
+            formColumn.style.paddingTop = 12f;
             splitView.Add(formColumn);
 
             VisualElement root = formColumn;
-            root.Add(ToolkitChrome.MakePaneHeader("Bake", out _, out _));
 
             VisualElement settingsCardBody;
             root.Add(ToolkitChrome.MakeCard("vat-bake-settings-card", "Settings", out settingsCardBody, out _));
@@ -158,11 +165,11 @@ namespace DotsAnimationToolkit.Editor
 
             sampleRateField = new FloatField { value = 30f };
             settingsCardBody.Add(ToolkitChrome.MakePropertyRow(
-                "Fallback Samples / Second",
+                "Sample rate",
                 sampleRateField,
-                "Used only for a clip that carries no frame rate of its own. Every clip in a set "
-                    + "bakes at its own FPS — the field in the Clip Editor's transport bar — so a set "
-                    + "can hold a 12fps clip beside a 60fps one and each keeps its own row count."));
+                "Fallback samples per second. Used only for a clip that carries no frame rate of its "
+                    + "own. Every clip in a set bakes at its own FPS — the field in the Clip Editor's "
+                    + "transport bar — so a set can hold a 12fps clip beside a 60fps one and each keeps its own row count."));
 
             fullPrecisionField = new Toggle();
             settingsCardBody.Add(ToolkitChrome.MakePropertyRow(
@@ -176,7 +183,8 @@ namespace DotsAnimationToolkit.Editor
 
             // Left empty on purpose: a package must not hardcode a host's project folders, since
             // that would be wrong in every project organised differently.
-            outputFolderField = new TextField { value = string.Empty };
+            outputFolderField = new PathPickerRowElement(string.Empty, "Pick the folder to write the baked textures into.");
+            outputFolderField.BrowseRequested += OnOutputFolderBrowseRequested;
             outputCardBody.Add(ToolkitChrome.MakePropertyRow(
                 "Output Folder", outputFolderField, "Leave empty to write beside the clip set."));
 
@@ -191,13 +199,6 @@ namespace DotsAnimationToolkit.Editor
                 "Preview Set",
                 previewSetField,
                 "The baked set shown in the preview on the right. Filled automatically after a bake, or pick one by hand."));
-
-            // No second "Bake" heading: the pane title and the button already say it twice.
-            Button bakeButton = ToolkitChrome.MakePrimaryAction(
-                Bake, "d_PreTextureRGB", "Bake every VAT-bound clip in the set to textures.", "Bake");
-            ToolkitIcons.SetButtonGlyph(bakeButton, ToolkitGlyphId.VatBake);
-            bakeButton.style.marginTop = 8f;
-            root.Add(bakeButton);
 
             logView = new ScrollView();
             logView.style.flexGrow = 1f;
@@ -222,6 +223,15 @@ namespace DotsAnimationToolkit.Editor
             preview = new VatPreviewElement();
             preview.style.flexGrow = 1f;
             previewPane.Add(preview);
+
+            // The resolved-source receipt used to fill the asset bar; it now lives here, at the
+            // bottom of the whole panel, with only a short badge left up top (see resolvedSourceBadgeSlot).
+            VisualElement resolvedSourceFooter = ToolkitChrome.MakeStatusRow(out resolvedSourceLabel, out _, true);
+            resolvedSourceFooter.name = "vat-resolved-source-footer";
+            resolvedSourceLabel.name = "vat-resolved-source-label";
+            resolvedSourceLabel.AddToClassList("toolkit-hint");
+            resolvedSourceLabel.RegisterCallback<ClickEvent>(clickEvent => PingSourcePrefab());
+            Add(resolvedSourceFooter);
         }
 
         // Follows a shared clip-set/rig pick across every host that binds the same selection.
@@ -490,6 +500,7 @@ namespace DotsAnimationToolkit.Editor
                 resolvedSources = null;
                 resolvedSourceLabel.text = failureMessage;
                 resolvedSourceLabel.EnableInClassList("toolkit-text--warning", true);
+                UpdateResolvedSourceBadge(true);
                 if (rebuildPreview)
                 {
                     RefreshPreview();
@@ -506,6 +517,7 @@ namespace DotsAnimationToolkit.Editor
                 int boneCount = onlySource.PrefabRenderer.bones == null ? 0 : onlySource.PrefabRenderer.bones.Length;
                 resolvedSourceLabel.text = rig.sourcePrefab.name + " ▸ " + onlySource.DisplayName
                     + " · " + boneCount.ToString() + " bones";
+                UpdateResolvedSourceBadge(false);
                 if (rebuildPreview)
                 {
                     RefreshPreview();
@@ -523,6 +535,7 @@ namespace DotsAnimationToolkit.Editor
                 }
                 resolvedSourceLabel.text = "resolves " + sources.Count.ToString() + " VAT parts · "
                     + string.Join(", ", allPartNames);
+                UpdateResolvedSourceBadge(false);
                 if (rebuildPreview)
                 {
                     RefreshPreview();
@@ -559,10 +572,29 @@ namespace DotsAnimationToolkit.Editor
                 resolvedSourceLabel.text = headline + "\n" + string.Join("\n", skippedLines);
             }
 
+            UpdateResolvedSourceBadge(false);
+
             if (rebuildPreview)
             {
                 RefreshPreview();
             }
+        }
+
+        // The badge is the asset bar's short receipt; the full sentence resolvedSourceLabel carries
+        // lives in the footer, and its tooltip so no detail is lost to the shorter word up top.
+        private void UpdateResolvedSourceBadge(bool isWarning)
+        {
+            if (resolvedSourceBadgeSlot == null)
+            {
+                return;
+            }
+
+            resolvedSourceBadgeSlot.Clear();
+            string badgeWord = isWarning ? "Issue" : "Source";
+            Label sourceBadge = ToolkitChrome.MakeBadge(
+                badgeWord, isWarning ? ToolkitStatusTone.Warning : ToolkitStatusTone.Neutral);
+            sourceBadge.tooltip = resolvedSourceLabel.text;
+            resolvedSourceBadgeSlot.Add(sourceBadge);
         }
 
         private void PingSourcePrefab()
@@ -662,7 +694,7 @@ namespace DotsAnimationToolkit.Editor
         /// </summary>
         private string ResolveOutputFolder(ClipSetAsset clipSet)
         {
-            string typedFolder = outputFolderField.value;
+            string typedFolder = outputFolderField.Path;
             if (!string.IsNullOrEmpty(typedFolder))
             {
                 return typedFolder.TrimEnd('/');
@@ -671,6 +703,63 @@ namespace DotsAnimationToolkit.Editor
             string clipSetPath = AssetDatabase.GetAssetPath(clipSet);
             int lastSeparator = clipSetPath.LastIndexOf('/');
             return lastSeparator > 0 ? clipSetPath.Substring(0, lastSeparator) : clipSetPath;
+        }
+
+        private void OnOutputFolderBrowseRequested()
+        {
+            string projectAssetsAbsolutePath = Application.dataPath;
+            string projectRootAbsolutePath = System.IO.Path.GetDirectoryName(projectAssetsAbsolutePath);
+            string currentRelativeFolder = outputFolderField.Path;
+            string startingAbsoluteFolder = string.IsNullOrEmpty(currentRelativeFolder)
+                ? projectAssetsAbsolutePath
+                : System.IO.Path.GetFullPath(System.IO.Path.Combine(projectRootAbsolutePath, currentRelativeFolder));
+
+            string pickedAbsoluteFolder = EditorUtility.OpenFolderPanel("VAT Output Folder", startingAbsoluteFolder, string.Empty);
+            if (string.IsNullOrEmpty(pickedAbsoluteFolder))
+            {
+                return;
+            }
+
+            string projectRelativeFolder;
+            if (TryMakeProjectRelativeFolder(
+                pickedAbsoluteFolder, projectRootAbsolutePath, projectAssetsAbsolutePath, out projectRelativeFolder))
+            {
+                outputFolderField.Path = projectRelativeFolder;
+            }
+            else
+            {
+                ToolkitChrome.SetStatus(
+                    summaryLabel,
+                    "The chosen folder must be inside this project's Assets or Packages folder.",
+                    ToolkitStatusTone.Error);
+            }
+        }
+
+        // Mirrors ClipSetsPanel/RigsPanel's own folder-picker conversion, extended to accept a
+        // Packages/ destination too since a VAT bake's output is not restricted to Assets/.
+        private static bool TryMakeProjectRelativeFolder(
+            string absoluteFolder, string projectRootAbsolutePath, string projectAssetsAbsolutePath, out string projectRelativeFolder)
+        {
+            string normalizedAbsoluteFolder = absoluteFolder.Replace('\\', '/').TrimEnd('/');
+            string normalizedAssetsAbsolutePath = projectAssetsAbsolutePath.Replace('\\', '/').TrimEnd('/');
+            string normalizedPackagesAbsolutePath = projectRootAbsolutePath.Replace('\\', '/').TrimEnd('/') + "/Packages";
+
+            if (normalizedAbsoluteFolder.Equals(normalizedAssetsAbsolutePath, System.StringComparison.OrdinalIgnoreCase)
+                || normalizedAbsoluteFolder.StartsWith(normalizedAssetsAbsolutePath + "/", System.StringComparison.OrdinalIgnoreCase))
+            {
+                projectRelativeFolder = "Assets" + normalizedAbsoluteFolder.Substring(normalizedAssetsAbsolutePath.Length);
+                return true;
+            }
+
+            if (normalizedAbsoluteFolder.Equals(normalizedPackagesAbsolutePath, System.StringComparison.OrdinalIgnoreCase)
+                || normalizedAbsoluteFolder.StartsWith(normalizedPackagesAbsolutePath + "/", System.StringComparison.OrdinalIgnoreCase))
+            {
+                projectRelativeFolder = "Packages" + normalizedAbsoluteFolder.Substring(normalizedPackagesAbsolutePath.Length);
+                return true;
+            }
+
+            projectRelativeFolder = null;
+            return false;
         }
     }
 }

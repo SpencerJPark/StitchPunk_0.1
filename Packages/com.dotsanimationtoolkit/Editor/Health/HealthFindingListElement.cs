@@ -121,6 +121,10 @@ namespace DotsAnimationToolkit.Editor
             titleLabel.AddToClassList("toolkit-list-row__title");
             row.Add(titleLabel);
 
+            Label codeBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            codeBadge.name = "health-finding-code";
+            row.Add(codeBadge);
+
             Label assetLabel = new Label();
             assetLabel.name = "health-finding-asset";
             assetLabel.AddToClassList("toolkit-list-row__meta");
@@ -141,7 +145,10 @@ namespace DotsAnimationToolkit.Editor
 
             Label titleLabel = row.Q<Label>("health-finding-title");
             string title = string.IsNullOrEmpty(finding.title) ? finding.message : finding.title;
-            titleLabel.text = finding.code + "  " + title;
+            titleLabel.text = title;
+
+            Label codeBadge = row.Q<Label>("health-finding-code");
+            codeBadge.text = finding.code;
 
             Label assetLabel = row.Q<Label>("health-finding-asset");
             assetLabel.text = finding.target != null ? finding.target.name : "(missing)";

@@ -84,7 +84,7 @@ namespace DotsAnimationToolkit.Editor
         private void DrawSparkline(MeshGenerationContext context)
         {
             Rect rect = contentRect;
-            if (sampleCount < 2 || float.IsNaN(rect.width) || float.IsNaN(rect.height)
+            if (float.IsNaN(rect.width) || float.IsNaN(rect.height)
                 || rect.width <= 0f || rect.height <= 0f)
             {
                 return;
@@ -99,34 +99,37 @@ namespace DotsAnimationToolkit.Editor
             painter.LineTo(new Vector2(rect.width, rect.height - 0.5f));
             painter.Stroke();
 
-            float xStep = rect.width / (Capacity - 1);
-            int oldestIndex = sampleCount < Capacity ? 0 : writeIndex;
-            int highest = peak;
-
-            painter.strokeColor = ToolkitPalette.LaneEvents;
-            painter.lineWidth = 1.5f;
-            painter.BeginPath();
-            for (int sampleOffset = 0; sampleOffset < sampleCount; sampleOffset++)
+            if (sampleCount >= 2)
             {
-                int ringIndex = (oldestIndex + sampleOffset) % Capacity;
-                int slotFromOldest = Capacity - sampleCount + sampleOffset;
-                float x = slotFromOldest * xStep;
-                float normalizedHeight = highest > 0 ? samples[ringIndex] / (float)highest : 0f;
-                float y = highest > 0
-                    ? 1f + ((1f - normalizedHeight) * (rect.height - 1f))
-                    : rect.height;
+                float xStep = rect.width / (Capacity - 1);
+                int oldestIndex = sampleCount < Capacity ? 0 : writeIndex;
+                int highest = peak;
 
-                if (sampleOffset == 0)
+                painter.strokeColor = ToolkitPalette.LaneEvents;
+                painter.lineWidth = 1.5f;
+                painter.BeginPath();
+                for (int sampleOffset = 0; sampleOffset < sampleCount; sampleOffset++)
                 {
-                    painter.MoveTo(new Vector2(x, y));
+                    int ringIndex = (oldestIndex + sampleOffset) % Capacity;
+                    int slotFromOldest = Capacity - sampleCount + sampleOffset;
+                    float x = slotFromOldest * xStep;
+                    float normalizedHeight = highest > 0 ? samples[ringIndex] / (float)highest : 0f;
+                    float y = highest > 0
+                        ? 1f + ((1f - normalizedHeight) * (rect.height - 1f))
+                        : rect.height;
+
+                    if (sampleOffset == 0)
+                    {
+                        painter.MoveTo(new Vector2(x, y));
+                    }
+                    else
+                    {
+                        painter.LineTo(new Vector2(x, y));
+                    }
                 }
-                else
-                {
-                    painter.LineTo(new Vector2(x, y));
-                }
+
+                painter.Stroke();
             }
-
-            painter.Stroke();
         }
     }
 }

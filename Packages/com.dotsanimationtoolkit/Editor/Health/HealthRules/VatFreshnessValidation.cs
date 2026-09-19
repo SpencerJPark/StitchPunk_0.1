@@ -36,7 +36,7 @@ namespace DotsAnimationToolkit.Editor
                 string freshnessWord = isUnbaked ? "unbaked" : "stale";
                 string message = rig != null
                     ? "VAT set for clip set '" + clipSet.name + "' on rig '" + rig.name + "' is " + freshnessWord + ": " + reason
-                    : "VAT set for clip set '" + clipSet.name + "' has no baked rig yet and is " + freshnessWord + ": " + reason;
+                    : "VAT set for clip set '" + clipSet.name + "' is " + freshnessWord + ", with no baked rig: " + reason;
 
                 ClipSetAsset capturedClipSet = clipSet;
                 RigAsset capturedRig = rig;

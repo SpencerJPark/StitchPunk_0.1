@@ -178,7 +178,7 @@ namespace DotsAnimationToolkit.Editor
         {
             if (textures == null)
             {
-                reason = "Not baked: this clip set has no VAT texture set. Bake it in the VAT Bake tab.";
+                reason = "this clip set has no VAT texture set yet. Bake it in the VAT Bake tab.";
                 return VatBakeFreshness.Unbaked;
             }
             if (rig == null)

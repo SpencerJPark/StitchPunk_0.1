@@ -13,15 +13,20 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>The Ragdoll tab's left column: every body on the rig, with add and delete.</summary>
     public sealed class RagdollBodiesColumn : VisualElement
     {
+        private readonly List<RagdollBodyDefinition> allBodyDefinitionsInRig = new List<RagdollBodyDefinition>();
         private readonly List<RagdollBodyDefinition> bodyEntries = new List<RagdollBodyDefinition>();
         private readonly List<RigTargetDefinition> availableTargetChoices = new List<RigTargetDefinition>();
         private readonly ListView bodiesListView;
+        private readonly ToolbarSearchField bodiesSearchField;
+        // Kept alive off-hierarchy: FormatTargetChoice and the choices list back the + button's
+        // GenericMenu, even though the popup row itself is gone (one way to add a body, not two).
         private readonly PopupField<RigTargetDefinition> addTargetPopupField;
         private readonly Button addBodyButton;
         private readonly Button deleteBodyButton;
 
         private RigAsset currentRig;
         private uint selectedBodyId;
+        private string bodiesSearchFilterText = string.Empty;
 
         public event Action<uint> BodySelected;
         public event Action RigBodiesChanged;
@@ -38,14 +43,17 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement headerRow = ToolkitChrome.MakePaneHeader(
                 "Bodies", out Label titleLabel, out VisualElement headerActions);
+            // Bodies/Viewport/Inspector headers all share one baseline.
+            headerRow.style.height = 32f;
+            headerRow.style.flexShrink = 0f;
             Add(headerRow);
 
-            addBodyButton = ToolkitIcons.MakeIconTextButton(
+            addBodyButton = ToolkitIcons.MakeIconButton(
                 OnAddBodyButtonClicked, "d_Toolbar Plus", "Add a body to the rig", "Add");
             addBodyButton.name = "ragdoll-add-body-button";
             headerActions.Add(addBodyButton);
 
-            deleteBodyButton = ToolkitIcons.MakeIconTextButton(
+            deleteBodyButton = ToolkitIcons.MakeIconButton(
                 OnDeleteBodyButtonClicked, "TreeEditor.Trash", "Delete the selected body", "Delete");
             deleteBodyButton.name = "ragdoll-delete-body-button";
             ToolkitChrome.StyleButton(deleteBodyButton, ToolkitButtonVariant.Destructive);
@@ -55,11 +63,13 @@ namespace DotsAnimationToolkit.Editor
             addTargetPopupField = new PopupField<RigTargetDefinition>(
                 availableTargetChoices, 0, FormatTargetChoice, FormatTargetChoice);
             addTargetPopupField.name = "ragdoll-add-body-target-field";
-            // A dropdown in a column stretches to fill it when it grows; this one is a control,
-            // not content, so it keeps its own height and the bodies list takes the space.
-            addTargetPopupField.style.flexGrow = 0f;
-            addTargetPopupField.style.flexShrink = 0f;
-            Add(addTargetPopupField);
+
+            bodiesSearchField = new ToolbarSearchField();
+            bodiesSearchField.name = "ragdoll-bodies-search";
+            bodiesSearchField.tooltip = "Search bodies";
+            bodiesSearchField.style.flexShrink = 0f;
+            bodiesSearchField.RegisterValueChangedCallback(OnBodiesSearchFieldValueChanged);
+            Add(bodiesSearchField);
 
             bodiesListView = new ListView();
             bodiesListView.name = "ragdoll-bodies-list";
@@ -96,19 +106,43 @@ namespace DotsAnimationToolkit.Editor
                 bodiesListView.SetSelectionWithoutNotify(new int[0]);
             }
             UpdateButtonStates();
+            // The selected tone is a class on the row, so rows re-bind to move it.
+            bodiesListView.RefreshItems();
         }
 
         public void Refresh()
         {
-            bodyEntries.Clear();
+            allBodyDefinitionsInRig.Clear();
             if (currentRig != null && currentRig.ragdollBodies != null)
             {
                 foreach (RagdollBodyDefinition candidateBody in currentRig.ragdollBodies)
                 {
                     if (candidateBody != null)
                     {
-                        bodyEntries.Add(candidateBody);
+                        allBodyDefinitionsInRig.Add(candidateBody);
                     }
+                }
+            }
+
+            ApplyBodiesSearchFilter();
+            RefreshAddTargetPopupChoices();
+            UpdateButtonStates();
+        }
+
+        // Filtering and rig-refresh share this one path so a search never drifts from what
+        // Refresh() would otherwise show.
+        private void ApplyBodiesSearchFilter()
+        {
+            bodyEntries.Clear();
+            string trimmedFilterText = string.IsNullOrEmpty(bodiesSearchFilterText)
+                ? string.Empty
+                : bodiesSearchFilterText.Trim();
+
+            foreach (RagdollBodyDefinition candidateBody in allBodyDefinitionsInRig)
+            {
+                if (trimmedFilterText.Length == 0 || BodyMatchesSearchFilter(candidateBody, trimmedFilterText))
+                {
+                    bodyEntries.Add(candidateBody);
                 }
             }
 
@@ -124,11 +158,27 @@ namespace DotsAnimationToolkit.Editor
                 selectedBodyId = 0u;
                 bodiesListView.SetSelectionWithoutNotify(new int[0]);
             }
-
-            RefreshAddTargetPopupChoices();
-            UpdateButtonStates();
         }
 
+        private void OnBodiesSearchFieldValueChanged(ChangeEvent<string> changeEvent)
+        {
+            bodiesSearchFilterText = changeEvent.newValue ?? string.Empty;
+            ApplyBodiesSearchFilter();
+        }
+
+        private bool BodyMatchesSearchFilter(RagdollBodyDefinition bodyDefinition, string filterText)
+        {
+            if (bodyDefinition == null)
+            {
+                return false;
+            }
+
+            string rowTitle = ResolveBodyRowTitle(bodyDefinition);
+            return rowTitle.IndexOf(filterText, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        // The + button's only job now: open a menu of every addable target, anchored to the
+        // button, so there is exactly one way to add a body (the popup row is gone).
         private void OnAddBodyButtonClicked()
         {
             if (currentRig == null)
@@ -136,7 +186,38 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            RigTargetDefinition selectedTargetDefinition = addTargetPopupField.value;
+            GenericMenu targetChoiceMenu = new GenericMenu();
+            bool hasAnyAddableTarget = false;
+            foreach (RigTargetDefinition candidateTargetDefinition in availableTargetChoices)
+            {
+                if (candidateTargetDefinition == null || candidateTargetDefinition.Id.Value == 0u)
+                {
+                    continue;
+                }
+
+                hasAnyAddableTarget = true;
+                RigTargetDefinition capturedTargetDefinition = candidateTargetDefinition;
+                targetChoiceMenu.AddItem(
+                    new GUIContent(FormatTargetChoice(capturedTargetDefinition)),
+                    false,
+                    () => AddBodyForTarget(capturedTargetDefinition));
+            }
+
+            if (!hasAnyAddableTarget)
+            {
+                targetChoiceMenu.AddDisabledItem(new GUIContent(FormatTargetChoice(null)));
+            }
+
+            targetChoiceMenu.DropDown(addBodyButton.worldBound);
+        }
+
+        private void AddBodyForTarget(RigTargetDefinition selectedTargetDefinition)
+        {
+            if (currentRig == null)
+            {
+                return;
+            }
+
             if (selectedTargetDefinition == null || selectedTargetDefinition.Id.Value == 0u)
             {
                 return;
@@ -206,6 +287,8 @@ namespace DotsAnimationToolkit.Editor
 
             selectedBodyId = selectedBodyDefinition != null ? selectedBodyDefinition.Id.Value : 0u;
             UpdateButtonStates();
+            // The selected tone is a class on the row, so rows re-bind to move it.
+            bodiesListView.RefreshItems();
             BodySelected?.Invoke(selectedBodyId);
         }
 
@@ -274,26 +357,53 @@ namespace DotsAnimationToolkit.Editor
             Label rowLabel = new Label();
             rowLabel.AddToClassList("toolkit-list-row__title");
             row.Add(rowLabel);
+
+            Label rowMetaLabel = new Label();
+            rowMetaLabel.name = "ragdoll-body-row-meta";
+            rowMetaLabel.AddToClassList("toolkit-list-row__meta");
+            row.Add(rowMetaLabel);
+
             return itemSlot;
         }
 
         private void BindBodyRow(VisualElement element, int index)
         {
+            VisualElement row = element?.Q<VisualElement>("ragdoll-body-row");
             Label rowLabel = element?.Q<Label>(className: "toolkit-list-row__title");
-            if (rowLabel == null || index < 0 || index >= bodyEntries.Count)
+            Label rowMetaLabel = element?.Q<Label>("ragdoll-body-row-meta");
+            if (row == null || rowLabel == null || rowMetaLabel == null || index < 0 || index >= bodyEntries.Count)
             {
                 return;
             }
 
             RagdollBodyDefinition bodyDefinition = bodyEntries[index];
-            string resolvedNodeName = RagdollBodySummaryResolver.ResolveNodePath(currentRig, bodyDefinition);
-            string rowText = !string.IsNullOrEmpty(bodyDefinition.displayName)
-                ? bodyDefinition.displayName
-                : (!string.IsNullOrEmpty(resolvedNodeName) ? resolvedNodeName : "(unnamed body)");
+            string rowText = ResolveBodyRowTitle(bodyDefinition);
 
             bool isBodyResolved = RagdollBodySummaryResolver.IsBodyResolved(currentRig, bodyDefinition);
             rowLabel.text = isBodyResolved ? rowText : rowText + "  (unresolved)";
             rowLabel.EnableInClassList("toolkit-text--warning", !isBodyResolved);
+
+            // Every body is a box collider (see RagdollBodyDefinition); "root" means no other
+            // ragdoll body sits above it in the addressed hierarchy.
+            bool isRootBody = isBodyResolved && !RagdollBodySummaryResolver.HasParentBody(currentRig, bodyDefinition);
+            rowMetaLabel.text = isRootBody ? "box · root" : "box";
+
+            row.EnableInClassList(
+                "toolkit-list-row--selected",
+                bodyDefinition != null && bodyDefinition.Id.Value == selectedBodyId);
+        }
+
+        private string ResolveBodyRowTitle(RagdollBodyDefinition bodyDefinition)
+        {
+            if (bodyDefinition == null)
+            {
+                return "(unnamed body)";
+            }
+
+            string resolvedNodeName = RagdollBodySummaryResolver.ResolveNodePath(currentRig, bodyDefinition);
+            return !string.IsNullOrEmpty(bodyDefinition.displayName)
+                ? bodyDefinition.displayName
+                : (!string.IsNullOrEmpty(resolvedNodeName) ? resolvedNodeName : "(unnamed body)");
         }
     }
 }

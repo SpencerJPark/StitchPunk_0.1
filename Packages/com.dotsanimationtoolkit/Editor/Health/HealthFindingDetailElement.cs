@@ -16,12 +16,17 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly ScrollView scrollView;
         private readonly Label emptyLabel;
+        private readonly Label severityBadgeLabel;
 
         public HealthFindingDetailElement()
         {
             name = "health-finding-detail";
             AddToClassList("toolkit-column");
             style.flexGrow = 1f;
+
+            // Built once and reused every SetFinding call: only its text and tone class change.
+            severityBadgeLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            severityBadgeLabel.name = "health-finding-severity-badge";
 
             scrollView = new ScrollView(ScrollViewMode.Vertical);
             scrollView.style.flexGrow = 1f;
@@ -67,13 +72,13 @@ namespace DotsAnimationToolkit.Editor
             scrollView.Add(BuildFixSection(finding));
         }
 
-        private static VisualElement BuildHeaderRow(HealthFinding finding)
+        private VisualElement BuildHeaderRow(HealthFinding finding)
         {
             VisualElement headerRow = ToolkitChrome.MakePaneHeader(finding.code, out _, out VisualElement actions);
 
-            Label severityLabel = new Label(SeverityWord(finding.severity));
-            severityLabel.AddToClassList(SeverityClassName(finding.severity));
-            actions.Add(severityLabel);
+            severityBadgeLabel.text = SeverityWord(finding.severity);
+            ApplySeverityTone(severityBadgeLabel, SeverityTone(finding.severity));
+            actions.Add(severityBadgeLabel);
 
             return headerRow;
         }
@@ -133,26 +138,47 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildAffectedAssetRow(UnityEngine.Object asset)
         {
             VisualElement row = new VisualElement();
-            row.AddToClassList("toolkit-box__row");
+            row.AddToClassList("toolkit-list-row");
 
-            Button locateButton = new Button();
-            locateButton.text = "▸ " + asset.name;
-            locateButton.tooltip = AssetDatabase.GetAssetPath(asset);
-            locateButton.style.flexGrow = 1f;
-            locateButton.clicked += () =>
+            Texture assetThumbnail = AssetPreview.GetMiniThumbnail(asset);
+            if (assetThumbnail == null)
+            {
+                assetThumbnail = EditorGUIUtility.ObjectContent(asset, asset.GetType()).image;
+            }
+
+            Image assetIconImage = new Image { image = assetThumbnail, pickingMode = PickingMode.Ignore };
+            assetIconImage.style.width = 16f;
+            assetIconImage.style.height = 16f;
+            assetIconImage.style.flexShrink = 0f;
+            assetIconImage.style.marginRight = 6f;
+            row.Add(assetIconImage);
+
+            Label assetNameLabel = new Label(asset.name);
+            assetNameLabel.AddToClassList("toolkit-list-row__title");
+            assetNameLabel.style.flexGrow = 1f;
+            assetNameLabel.tooltip = AssetDatabase.GetAssetPath(asset);
+            row.Add(assetNameLabel);
+
+            void SelectAndPingAsset()
             {
                 Selection.activeObject = asset;
                 EditorGUIUtility.PingObject(asset);
-            };
-            row.Add(locateButton);
+            }
 
             if (asset is ClipAsset || asset is CutsceneAsset || asset is ActorProfileAsset)
             {
-                Button openButton = ToolkitIcons.MakeIconTextButton(() => AssetDatabase.OpenAsset(asset), "editicon.sml", "Open", "Open");
-                ToolkitChrome.StyleButton(openButton, ToolkitButtonVariant.Ghost);
-                openButton.style.marginLeft = 4f;
-                row.Add(openButton);
+                Button openGhostButton = ToolkitChrome.MakeGhostAction(() => AssetDatabase.OpenAsset(asset), "editicon.sml", "Open", "Open");
+                openGhostButton.style.marginLeft = 4f;
+                openGhostButton.RegisterCallback<ClickEvent>(clickEvent => clickEvent.StopPropagation());
+                row.Add(openGhostButton);
             }
+
+            Button selectGhostButton = ToolkitChrome.MakeGhostAction(SelectAndPingAsset, ToolkitIcons.Frame, "Select in Project", "Select");
+            selectGhostButton.style.marginLeft = 4f;
+            selectGhostButton.RegisterCallback<ClickEvent>(clickEvent => clickEvent.StopPropagation());
+            row.Add(selectGhostButton);
+
+            row.RegisterCallback<ClickEvent>(clickEvent => SelectAndPingAsset());
 
             return row;
         }
@@ -307,17 +333,26 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private static string SeverityClassName(HealthSeverity severity)
+        private static ToolkitStatusTone SeverityTone(HealthSeverity severity)
         {
             switch (severity)
             {
                 case HealthSeverity.Error:
-                    return "toolkit-text--error";
+                    return ToolkitStatusTone.Error;
                 case HealthSeverity.Warning:
-                    return "toolkit-text--warning";
+                    return ToolkitStatusTone.Warning;
                 default:
-                    return "toolkit-text--dim";
+                    return ToolkitStatusTone.Neutral;
             }
+        }
+
+        // Reused badge instance: toggle every tone class explicitly so exactly one is ever set.
+        private static void ApplySeverityTone(Label badge, ToolkitStatusTone tone)
+        {
+            badge.EnableInClassList("toolkit-badge--error", tone == ToolkitStatusTone.Error);
+            badge.EnableInClassList("toolkit-badge--warning", tone == ToolkitStatusTone.Warning);
+            badge.EnableInClassList("toolkit-badge--neutral", tone == ToolkitStatusTone.Neutral);
+            badge.EnableInClassList("toolkit-badge--ok", tone == ToolkitStatusTone.Ok);
         }
     }
 }

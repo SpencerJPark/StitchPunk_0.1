@@ -14,6 +14,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<TrackBinding> bindings = new List<TrackBinding>();
         private readonly ListView trackListView;
         private readonly Label headerTitleLabel;
+        private readonly Label rigPartCaptionLabel;
+        private readonly Label statusCaptionLabel;
+        private readonly Label headerTrackCountBadge;
         private readonly VisualElement emptyHintLabel;
 
         public event Action<TrackBinding, VisualElement> RemapRequested;
@@ -25,11 +28,19 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.flexDirection = FlexDirection.Column;
 
-            VisualElement header = new VisualElement();
-            header.AddToClassList("toolkit-pane-header");
-            headerTitleLabel = new Label("Tracks (0)");
-            headerTitleLabel.AddToClassList("toolkit-pane-title");
-            header.Add(headerTitleLabel);
+            VisualElement header = ToolkitChrome.MakePaneHeader("Clip track", out headerTitleLabel, out VisualElement headerActions);
+
+            rigPartCaptionLabel = new Label("Rig part");
+            rigPartCaptionLabel.AddToClassList("toolkit-list-row__meta");
+            header.Insert(1, rigPartCaptionLabel);
+
+            statusCaptionLabel = new Label("Status");
+            statusCaptionLabel.AddToClassList("toolkit-list-row__meta");
+            header.Insert(2, statusCaptionLabel);
+
+            headerTrackCountBadge = ToolkitChrome.MakeBadge(bindings.Count.ToString() + " tracks", ToolkitStatusTone.Neutral);
+            headerActions.Add(headerTrackCountBadge);
+
             Add(header);
 
             VisualElement listBody = new VisualElement { name = "retarget-track-body" };
@@ -66,7 +77,7 @@ namespace DotsAnimationToolkit.Editor
                 this.bindings.AddRange(bindings);
             }
 
-            headerTitleLabel.text = "Tracks (" + this.bindings.Count.ToString() + ")";
+            headerTrackCountBadge.text = this.bindings.Count.ToString() + " tracks";
             trackListView.Rebuild();
             RefreshEmptyState();
         }
@@ -86,10 +97,10 @@ namespace DotsAnimationToolkit.Editor
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
 
-            Label glyphLabel = new Label();
-            glyphLabel.name = "retarget-track-glyph";
-            glyphLabel.style.width = 16f;
-            row.Add(glyphLabel);
+            VisualElement statusBadgeContainer = new VisualElement();
+            statusBadgeContainer.name = "retarget-track-status-container";
+            statusBadgeContainer.style.flexDirection = FlexDirection.Row;
+            row.Add(statusBadgeContainer);
 
             Label nameLabel = new Label();
             nameLabel.name = "retarget-track-name";
@@ -120,29 +131,28 @@ namespace DotsAnimationToolkit.Editor
         private void BindTrackRow(VisualElement element, int index)
         {
             TrackBinding binding = bindings[index];
-            Label glyphLabel = element.Q<Label>("retarget-track-glyph");
+            VisualElement statusBadgeContainer = element.Q<VisualElement>("retarget-track-status-container");
             Label nameLabel = element.Q<Label>("retarget-track-name");
             Label detailLabel = element.Q<Label>("retarget-track-detail");
             Button remapButton = element.Q<Button>("retarget-remap-button");
 
+            statusBadgeContainer.Clear();
+            Label statusBadgeLabel;
             switch (binding.state)
             {
                 case TrackBindingState.Bound:
-                    glyphLabel.text = "✓";
-                    glyphLabel.style.color = ToolkitPalette.Clean; // colour from data
-                    glyphLabel.tooltip = "Bound";
+                    statusBadgeLabel = ToolkitChrome.MakeBadge("Bound", ToolkitStatusTone.Ok);
                     break;
                 case TrackBindingState.Skipped:
-                    glyphLabel.text = "●";
-                    glyphLabel.style.color = ToolkitPalette.Warning; // colour from data
-                    glyphLabel.tooltip = "Skipped: this rig has no part for this track";
+                    statusBadgeLabel = ToolkitChrome.MakeBadge("Skipped", ToolkitStatusTone.Warning);
+                    statusBadgeLabel.tooltip = "Skipped: this rig has no part for this track";
                     break;
                 default:
-                    glyphLabel.text = "✗";
-                    glyphLabel.style.color = ToolkitPalette.Error; // colour from data
-                    glyphLabel.tooltip = "Dangling: the tag is not in the registry";
+                    statusBadgeLabel = ToolkitChrome.MakeBadge("Dangling", ToolkitStatusTone.Error);
+                    statusBadgeLabel.tooltip = "Dangling: the tag is not in the registry";
                     break;
             }
+            statusBadgeContainer.Add(statusBadgeLabel);
 
             nameLabel.text = binding.trackName;
 

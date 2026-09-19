@@ -18,6 +18,9 @@ namespace DotsAnimationToolkit.Editor
 
         private const string GroundOnlyLabel = "Ground only";
 
+        private const string NoClipSetStatusMessage =
+            "No clip set assigned: bodies are shown at rest. Pick a clip set on Clip Sets to pose them.";
+
         public event Action<uint> BodyPicked;
         public event Action BodyBoxEdited;
 
@@ -30,7 +33,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly Toggle poseFromClipToggle;
         private readonly Label poseClipLabel;
         private readonly Slider poseTimeSlider;
-        private readonly PopupField<string> groundField;
+        private readonly VisualElement groundField;
 
         private RigAsset currentRig;
         private uint selectedBodyId;
@@ -44,44 +47,60 @@ namespace DotsAnimationToolkit.Editor
             name = "ragdoll-viewport";
             style.flexGrow = 1f;
             style.flexDirection = FlexDirection.Column;
+            // Not inside a .toolkit-column (that would inset the viewport sideways), so match its
+            // 8px top pad by hand to keep this header level with Bodies and Inspector.
+            style.paddingTop = 8f;
 
             previewController = new ClipPreviewController();
             cameraNavigation = new PreviewCameraNavigation();
             dragSession = new RagdollBoxDragSession();
 
-            // Transport sits under the viewport as on every other tab that plays; the ground choice is
-            // a viewport setting, so it rides the pane header.
-            VisualElement headerRow = ToolkitChrome.MakePaneHeader("Viewport", out _, out VisualElement headerActions);
-            groundField = new PopupField<string>(BuildGroundChoices(), 0);
-            groundField.name = "ragdoll-ground-field";
-            groundField.RegisterValueChangedCallback(OnGroundFieldChanged);
-            headerActions.Add(groundField);
-            Add(headerRow);
+            // One 32px header row carries the whole viewport toolbar: title, transport, the scenery
+            // choice and the pose-from-clip group, matching the reference layout and the height of
+            // the Bodies/Inspector pane headers either side of it.
+            VisualElement headerRow = ToolkitChrome.MakePaneHeader("Viewport", out Label headerTitleLabel, out VisualElement headerActions);
+            headerRow.style.height = 32f;
+            headerRow.style.flexShrink = 0f;
+            headerTitleLabel.style.flexShrink = 0f;
 
-            VisualElement poseRow = new VisualElement();
-            poseRow.name = "ragdoll-pose-row";
-            poseRow.style.flexDirection = FlexDirection.Row;
-            poseRow.style.alignItems = Align.Center;
-            poseRow.style.paddingLeft = 6f;
-            poseRow.style.paddingRight = 8f;
-            poseRow.style.paddingBottom = 4f;
-            poseFromClipToggle = new Toggle("Pose from clip");
+            VisualElement transportGroup = new VisualElement();
+            transportGroup.AddToClassList("toolkit-transport__group");
+            transportGroup.style.flexShrink = 0f;
+            transport = new TransportCoreElement();
+            transport.name = "ragdoll-transport";
+            transport.Bind(this);
+            transportGroup.Add(transport);
+            headerActions.Add(transportGroup);
+
+            groundField = ToolkitChrome.MakeSegmentedControl("ragdoll-ground-segmented", BuildGroundChoices(), 0, OnGroundChoiceSelected);
+            groundField.style.flexShrink = 0f;
+            headerActions.Add(groundField);
+
+            VisualElement headerSpacer = new VisualElement();
+            headerSpacer.style.flexGrow = 1f;
+            headerActions.Add(headerSpacer);
+
+            Label poseFromCaption = new Label("Pose from");
+            poseFromCaption.AddToClassList("toolkit-hint");
+            poseFromCaption.style.flexShrink = 0f;
+            headerActions.Add(poseFromCaption);
+
+            poseFromClipToggle = new Toggle();
             poseFromClipToggle.name = "ragdoll-pose-from-clip-toggle";
             poseFromClipToggle.tooltip = DropTooltip;
-            poseRow.Add(poseFromClipToggle);
+            poseFromClipToggle.style.flexShrink = 0f;
+            poseFromClipToggle.style.marginLeft = 4f;
+            headerActions.Add(poseFromClipToggle);
+
             poseClipLabel = new Label("No clip bound");
+            poseClipLabel.name = "ragdoll-pose-clip-label";
             poseClipLabel.tooltip = DropTooltip;
             poseClipLabel.AddToClassList("toolkit-hint");
-            poseClipLabel.style.marginLeft = 8f;
-            poseClipLabel.style.marginRight = 8f;
-            poseRow.Add(poseClipLabel);
-            poseTimeSlider = new Slider(0f, 1f);
-            poseTimeSlider.style.flexGrow = 1f;
-            poseTimeSlider.name = "ragdoll-pose-time-slider";
-            poseTimeSlider.tooltip = DropTooltip;
-            poseTimeSlider.RegisterValueChangedCallback(OnPoseTimeSliderChanged);
-            poseRow.Add(poseTimeSlider);
-            Add(poseRow);
+            poseClipLabel.style.marginLeft = 6f;
+            poseClipLabel.style.flexShrink = 0f;
+            headerActions.Add(poseClipLabel);
+
+            Add(headerRow);
 
             ViewportFrameElement viewportFrame = new ViewportFrameElement();
             viewportFrame.AddResetCameraButton(() => cameraNavigation.ResetView());
@@ -93,20 +112,28 @@ namespace DotsAnimationToolkit.Editor
             viewportImage.RegisterCallback<PointerUpEvent>(OnViewportPointerUp);
             Add(viewportFrame);
 
-            VisualElement transportRow = new VisualElement();
-            transportRow.AddToClassList("toolkit-transport");
-            VisualElement transportGroup = new VisualElement();
-            transportGroup.AddToClassList("toolkit-transport__group");
-            transport = new TransportCoreElement();
-            transport.name = "ragdoll-transport";
-            transport.Bind(this);
-            transportGroup.Add(transport);
-            transportRow.Add(transportGroup);
-            Add(transportRow);
+            // The scrub value is a live pose-time control, not header chrome, so it keeps its own
+            // full-width row directly under the viewport it drives.
+            VisualElement poseTimeRow = new VisualElement();
+            poseTimeRow.name = "ragdoll-pose-time-row";
+            poseTimeRow.style.flexDirection = FlexDirection.Row;
+            poseTimeRow.style.alignItems = Align.Center;
+            poseTimeRow.style.paddingLeft = 6f;
+            poseTimeRow.style.paddingRight = 8f;
+            poseTimeRow.style.paddingBottom = 4f;
+            poseTimeSlider = new Slider(0f, 1f);
+            poseTimeSlider.style.flexGrow = 1f;
+            poseTimeSlider.name = "ragdoll-pose-time-slider";
+            poseTimeSlider.tooltip = DropTooltip;
+            poseTimeSlider.RegisterValueChangedCallback(OnPoseTimeSliderChanged);
+            poseTimeRow.Add(poseTimeSlider);
+            Add(poseTimeRow);
 
-            statusLabel = ToolkitChrome.MakeHint(string.Empty);
-            statusLabel.name = "ragdoll-viewport-status";
-            Add(statusLabel);
+            Label footerStatusLabel;
+            VisualElement footerRow = ToolkitChrome.MakeStatusRow(out footerStatusLabel, out _, true);
+            footerStatusLabel.name = "ragdoll-viewport-status";
+            statusLabel = footerStatusLabel;
+            Add(footerRow);
 
             cameraNavigation.Rig = previewController;
             cameraNavigation.AttachTo(viewportImage);
@@ -147,7 +174,7 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            statusLabel.text = currentRig == null ? "Pick a rig to preview." : previewController.StatusMessage;
+            RefreshStatus();
             transport.RefreshState();
         }
 
@@ -181,7 +208,7 @@ namespace DotsAnimationToolkit.Editor
             string refusalReason;
             if (!previewController.TryEnableRagdollPreview(out refusalReason))
             {
-                statusLabel.text = refusalReason;
+                ToolkitChrome.SetStatus(statusLabel, refusalReason, ToolkitStatusTone.Warning);
                 transport.RefreshState();
                 return;
             }
@@ -266,14 +293,33 @@ namespace DotsAnimationToolkit.Editor
             return choices;
         }
 
-        private void OnGroundFieldChanged(ChangeEvent<string> changeEvent)
+        private void OnGroundChoiceSelected(int selectedIndex)
         {
+            // Index 0 is GroundOnlyLabel (no prop), so a chosen prop sits at selectedIndex - 1.
             List<RagdollPreviewPropDefinition> props = RagdollPreviewScenery.instance.Props;
             for (int index = 0; index < props.Count; index++)
             {
-                props[index].enabled = props[index].displayName == changeEvent.newValue;
+                props[index].enabled = index == selectedIndex - 1;
             }
             RagdollPreviewScenery.instance.PersistChange();
+        }
+
+        private void RefreshStatus()
+        {
+            if (boundClipSet == null)
+            {
+                ToolkitChrome.SetStatus(statusLabel, NoClipSetStatusMessage, ToolkitStatusTone.Warning);
+                return;
+            }
+
+            if (currentRig == null)
+            {
+                ToolkitChrome.SetStatus(statusLabel, "Pick a rig to preview.", ToolkitStatusTone.Warning);
+                return;
+            }
+
+            string liveStatusText = previewController.StatusMessage + (previewController.RagdollPreviewSleeping ? " — settled" : string.Empty);
+            ToolkitChrome.SetStatus(statusLabel, liveStatusText, ToolkitStatusTone.Neutral);
         }
 
         private void OnPoseTimeSliderChanged(ChangeEvent<float> changeEvent)
@@ -357,7 +403,7 @@ namespace DotsAnimationToolkit.Editor
                 viewportImage.MarkDirtyRepaint();
             }
 
-            statusLabel.text = previewController.StatusMessage + (previewController.RagdollPreviewSleeping ? " — settled" : string.Empty);
+            RefreshStatus();
             transport.RefreshState();
         }
     }

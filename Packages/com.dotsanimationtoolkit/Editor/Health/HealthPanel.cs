@@ -10,7 +10,7 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Health tab: a Scan button and status, per-severity toggle filters, a search field, and a findings list paired with a detail panel; rescans shortly after toolkit assets change.</summary>
+    /// <summary>The Health tab: a search field and an exclusive severity-filter segmented control on the left, a Scan button and status pushed right, and a findings list paired with a detail panel; rescans shortly after toolkit assets change.</summary>
     public sealed class HealthPanel : VisualElement, IDisposable
     {
         private const double DebounceSeconds = 0.5;
@@ -70,11 +70,17 @@ namespace DotsAnimationToolkit.Editor
         private readonly Button scanButton;
         private readonly Label scanStatusLabel;
         private readonly ToolbarSearchField filterField;
-        private readonly ToolbarToggle errorsToggle;
-        private readonly ToolbarToggle warningsToggle;
-        private readonly ToolbarToggle notesToggle;
+        private readonly VisualElement healthFilterSegmented;
         private readonly HealthFindingListElement findingListElement;
         private readonly HealthFindingDetailElement findingDetailElement;
+
+        private const int HealthFilterSegmentAllIndex = 0;
+        private const int HealthFilterSegmentErrorsIndex = 1;
+        private const int HealthFilterSegmentWarningsIndex = 2;
+        private const int HealthFilterSegmentNotesIndex = 3;
+
+        // Segments are an exclusive filter (A106-D4), not the old three independent toggles.
+        private int selectedHealthFilterSegmentIndex = HealthFilterSegmentAllIndex;
 
         private bool isBound;
         private double dueTimeSinceStartup = -1.0;
@@ -91,6 +97,23 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement toolbar = ToolkitChrome.MakeAssetBar("health-asset-bar");
 
+            filterField = new ToolbarSearchField();
+            filterField.name = "health-filter-field";
+            filterField.RegisterValueChangedCallback(OnFilterChanged);
+            toolbar.Add(filterField);
+
+            List<string> healthFilterSegmentLabels = new List<string> { "All", "Errors", "Warnings", "Notes" };
+            healthFilterSegmented = ToolkitChrome.MakeSegmentedControl(
+                "health-filter-segmented",
+                healthFilterSegmentLabels,
+                HealthFilterSegmentAllIndex,
+                OnHealthFilterSegmentSelected);
+            toolbar.Add(healthFilterSegmented);
+
+            UpdateCounts();
+
+            toolbar.Add(ToolkitChrome.MakeAssetBarSpacer());
+
             scanButton = ToolkitChrome.MakePrimaryAction(Scan, "d_Refresh", "Scan every toolkit asset", "Scan project");
             scanButton.name = "health-scan-button";
             toolbar.Add(scanButton);
@@ -101,36 +124,6 @@ namespace DotsAnimationToolkit.Editor
             scanStatusLabel.style.marginLeft = 8f;
             scanStatusLabel.style.marginRight = 8f;
             toolbar.Add(scanStatusLabel);
-
-            errorsToggle = new ToolbarToggle();
-            errorsToggle.name = "health-filter-errors";
-            errorsToggle.AddToClassList("clip-editor__bar-action");
-            errorsToggle.value = true;
-            errorsToggle.RegisterValueChangedCallback(OnFilterChanged);
-            toolbar.Add(errorsToggle);
-
-            warningsToggle = new ToolbarToggle();
-            warningsToggle.name = "health-filter-warnings";
-            warningsToggle.AddToClassList("clip-editor__bar-action");
-            warningsToggle.value = true;
-            warningsToggle.RegisterValueChangedCallback(OnFilterChanged);
-            toolbar.Add(warningsToggle);
-
-            notesToggle = new ToolbarToggle();
-            notesToggle.name = "health-filter-notes";
-            notesToggle.AddToClassList("clip-editor__bar-action");
-            notesToggle.value = true;
-            notesToggle.RegisterValueChangedCallback(OnFilterChanged);
-            toolbar.Add(notesToggle);
-
-            UpdateCounts();
-
-            toolbar.Add(ToolkitChrome.MakeAssetBarSpacer());
-
-            filterField = new ToolbarSearchField();
-            filterField.name = "health-filter-field";
-            filterField.RegisterValueChangedCallback(OnFilterChanged);
-            toolbar.Add(filterField);
 
             Add(toolbar);
 
@@ -194,16 +187,37 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            errorsToggle.text = BuildSeverityToggleText(errorCount, ToolkitPalette.Error, "Error", "Errors");
-            warningsToggle.text = BuildSeverityToggleText(warningCount, ToolkitPalette.Warning, "Warning", "Warnings");
-            notesToggle.text = BuildSeverityToggleText(noteCount, ToolkitPalette.Accent, "Note", "Notes");
+            int totalCount = errorCount + warningCount + noteCount;
+            SetHealthFilterSegmentText(HealthFilterSegmentAllIndex, "All (" + totalCount + ")");
+            SetHealthFilterSegmentText(HealthFilterSegmentErrorsIndex, BuildSeverityFilterSegmentText(errorCount, ToolkitPalette.Error, "Error", "Errors"));
+            SetHealthFilterSegmentText(HealthFilterSegmentWarningsIndex, BuildSeverityFilterSegmentText(warningCount, ToolkitPalette.Warning, "Warning", "Warnings"));
+            SetHealthFilterSegmentText(HealthFilterSegmentNotesIndex, BuildSeverityFilterSegmentText(noteCount, ToolkitPalette.Accent, "Note", "Notes"));
         }
 
-        private static string BuildSeverityToggleText(int count, Color dotColor, string singularLabel, string pluralLabel)
+        private void SetHealthFilterSegmentText(int segmentIndex, string segmentText)
+        {
+            if (healthFilterSegmented == null || segmentIndex >= healthFilterSegmented.childCount)
+            {
+                return;
+            }
+
+            if (healthFilterSegmented[segmentIndex] is Button segmentButton)
+            {
+                segmentButton.text = segmentText;
+            }
+        }
+
+        private static string BuildSeverityFilterSegmentText(int count, Color dotColor, string singularLabel, string pluralLabel)
         {
             string hexColor = ColorUtility.ToHtmlStringRGB(dotColor);
             string countLabel = count == 1 ? singularLabel : pluralLabel;
             return "<color=#" + hexColor + ">●</color> " + count + " " + countLabel;
+        }
+
+        private void OnHealthFilterSegmentSelected(int selectedSegmentIndex)
+        {
+            selectedHealthFilterSegmentIndex = selectedSegmentIndex;
+            ApplyFilter();
         }
 
         private void UpdateScanStatusLabel()
@@ -295,14 +309,19 @@ namespace DotsAnimationToolkit.Editor
 
         private bool IsSeverityEnabled(HealthSeverity severity)
         {
+            if (selectedHealthFilterSegmentIndex == HealthFilterSegmentAllIndex)
+            {
+                return true;
+            }
+
             switch (severity)
             {
                 case HealthSeverity.Error:
-                    return errorsToggle.value;
+                    return selectedHealthFilterSegmentIndex == HealthFilterSegmentErrorsIndex;
                 case HealthSeverity.Warning:
-                    return warningsToggle.value;
+                    return selectedHealthFilterSegmentIndex == HealthFilterSegmentWarningsIndex;
                 default:
-                    return notesToggle.value;
+                    return selectedHealthFilterSegmentIndex == HealthFilterSegmentNotesIndex;
             }
         }
 
@@ -327,11 +346,6 @@ namespace DotsAnimationToolkit.Editor
         }
 
         private void OnFilterChanged(ChangeEvent<string> changeEvent)
-        {
-            ApplyFilter();
-        }
-
-        private void OnFilterChanged(ChangeEvent<bool> changeEvent)
         {
             ApplyFilter();
         }

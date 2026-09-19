@@ -38,6 +38,8 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly SparklineElement sparkline;
         private readonly Label eventsSummaryLabel;
+        private readonly Label eventsNowBadgeLabel;
+        private readonly Label eventsPeakBadgeLabel;
         private readonly Label pendingValueLabel;
         private readonly Label windowsValueLabel;
 
@@ -50,6 +52,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly Label timeLogicValueLabel;
         private readonly Label timePresentationValueLabel;
         private readonly Label timeRagdollValueLabel;
+
+        private readonly VisualElement noWorldBanner;
+        private readonly Button snapshotButton;
 
         private ToolkitStatsSample lastSample;
         private bool isShowingUnavailableStatus;
@@ -87,6 +92,19 @@ namespace DotsAnimationToolkit.Editor
             headerRow.Add(playingDot);
             playingLabel = new Label { name = "stats-playing-label" };
             headerRow.Add(playingLabel);
+            headerRow.Add(ToolkitChrome.MakeAssetBarSpacer());
+            snapshotButton = ToolkitChrome.MakePrimaryAction(
+                CopySnapshotToClipboard, "d_SaveAs", "Copy these numbers as a Markdown table", "Snapshot");
+            snapshotButton.name = "stats-snapshot-button";
+            headerRow.Add(snapshotButton);
+
+            noWorldBanner = ToolkitChrome.MakeEmptyState(
+                "stats-no-world-banner",
+                "Enter Play mode to read the world",
+                "These cards fill from the default world's animation systems while the game is playing.",
+                null,
+                null);
+            Add(noWorldBanner);
 
             VisualElement actorsColumn = ToolkitChrome.MakeColumn("stats-actors-column");
             VisualElement eventsColumn = ToolkitChrome.MakeColumn("stats-events-column");
@@ -111,10 +129,17 @@ namespace DotsAnimationToolkit.Editor
             actorsColumn.Add(actorsBox);
 
             VisualElement eventsBox = ToolkitChrome.MakeCard(
-                "stats-events-card", "Events / frame", out VisualElement eventsBody, out _);
+                "stats-events-card", "Events / frame", out VisualElement eventsBody, out VisualElement eventsHeaderActions);
+            eventsNowBadgeLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            eventsNowBadgeLabel.name = "stats-events-now-badge";
+            eventsPeakBadgeLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            eventsPeakBadgeLabel.name = "stats-events-peak-badge";
+            eventsHeaderActions.Add(eventsNowBadgeLabel);
+            eventsHeaderActions.Add(eventsPeakBadgeLabel);
             sparkline = new SparklineElement();
             eventsBody.Add(sparkline);
             eventsSummaryLabel = new Label { name = "stats-events-summary" };
+            eventsSummaryLabel.style.display = DisplayStyle.None;
             eventsBody.Add(eventsSummaryLabel);
             pendingValueLabel = MakeValueRow(eventsBody, "Pending actors", "stats-pending-value");
             windowsValueLabel = MakeValueRow(eventsBody, "Actors with windows open", "stats-windows-value");
@@ -149,11 +174,7 @@ namespace DotsAnimationToolkit.Editor
             actorsSplitView.Add(timingSplitView);
             Add(actorsSplitView);
 
-            VisualElement statusFooter = ToolkitChrome.MakeStatusRow(out statusLabel, out VisualElement statusActions, true);
-            Button snapshotButton = ToolkitChrome.MakePrimaryAction(
-                CopySnapshotToClipboard, "d_SaveAs", "Copy these numbers as a Markdown table", "Snapshot");
-            snapshotButton.name = "stats-snapshot-button";
-            statusActions.Add(snapshotButton);
+            VisualElement statusFooter = ToolkitChrome.MakeStatusRow(out statusLabel, out _, true);
             Add(statusFooter);
 
             RegisterCallback<AttachToPanelEvent>(evt => EditorApplication.update += OnEditorUpdate);
@@ -218,11 +239,14 @@ namespace DotsAnimationToolkit.Editor
             bool available = lastSample.worldAvailable;
             string noWorldText = StatsSnapshotFormatting.NoWorldText;
 
+            noWorldBanner.style.display = available ? DisplayStyle.None : DisplayStyle.Flex;
+
             worldLabel.text = available ? lastSample.worldName : noWorldText;
 
             bool isPlaying = EditorApplication.isPlaying;
             playingLabel.text = isPlaying ? "playing" : "not playing";
             playingDot.style.backgroundColor = isPlaying ? ToolkitPalette.Playing : ToolkitPalette.BoxBorder; // colour from data
+            snapshotButton.SetEnabled(isPlaying && available);
 
             SetValue(actorsValueLabel, available ? lastSample.actorCount.ToString() : noWorldText, available);
             SetValue(layersValueLabel, available ? lastSample.layerCount.ToString() : noWorldText, available);
@@ -255,6 +279,8 @@ namespace DotsAnimationToolkit.Editor
                 available && lastSample.lodSampled ? DisplayStyle.Flex : DisplayStyle.None;
 
             eventsSummaryLabel.text = string.Format("now {0}   peak {1}", sparkline.Latest, sparkline.Peak);
+            eventsNowBadgeLabel.text = string.Format("now {0}", sparkline.Latest);
+            eventsPeakBadgeLabel.text = string.Format("peak {0}", sparkline.Peak);
             SetValue(
                 pendingValueLabel, available ? lastSample.pendingEventActorCount.ToString() : noWorldText, available);
             SetValue(
@@ -377,6 +403,7 @@ namespace DotsAnimationToolkit.Editor
         {
             valueLabel.text = text;
             valueLabel.tooltip = available ? string.Empty : NoWorldTooltip;
+            valueLabel.EnableInClassList("toolkit-hint", !available);
         }
 
         private static string ResolvePackageVersion()
