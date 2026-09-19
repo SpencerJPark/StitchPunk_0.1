@@ -297,3 +297,50 @@ The stage owns all of these; a107 wrote none of them.
 5. **F1's revert-to-fail was never observed** — the broker went down before the fixture could run once. Prove it
    before the batch closes.
 6. **CT3 needs the owner's answer** (above), and S2's captures are the only proof of every CE/AP/CT verdict here.
+
+### S5 — the final fifteen-tab R01–R22 audit (stage, 2026-09-19)
+
+Judged from `Library/UIAudit/after-phase6-close/` at the docked width (1279×614 pt, `pixelsPerPoint` 2.5), with
+`NewRig` + `NewClipSet` selected, plus `10_ActorEditor_loaded.png`, `11_Ragdoll_vectorfix.png`,
+`12_CutsceneEditor_final.png`, `01_TexturePacker_final.png` and `09_VatBake_final.png` for the states that only
+appear with content loaded. **Every "met" below was read off a capture, not off the code.**
+
+| # | Tab | Verdict | What still breaks a rule |
+|---|---|---|---|
+| 01 | Texture Packer | **Pass** | — "Unsaved setup", node centred, one Bake, neutral header + PNG badge, flat rows. |
+| 02 | Flipbooks | **Pass with two** | An **empty meta badge** renders as a stray "·" beside "No flipbook" (R13). FB4's Zoom is still a loose label + slider rather than a 24px toolbar (R07). |
+| 03 | Clip Sets | Pass | — |
+| 04 | Rigs | Pass | — chips, count badge, two-tone list, designed empty state. |
+| 05 | Materials | Pass | — |
+| 06 | Events | Pass | — |
+| 07 | **Clip Editor** | **Fail — the weakest tab** | **CE1:** the Clips list still shows ~2 rows; the 150px initial dimension is consumed by the pane's own header and asset field (R10). **CE4:** the viewport rail still resolves built-in icons with no `ApplyIconTone`, so it is the one multi-hue rail left (R20, R21). CE3 and CE8 fixed this session — see below. |
+| 08 | Retarget | Pass | — |
+| 09 | VAT Bake | Pass | — warning in the footer behind an Issue badge, cards, real empty state. |
+| 10 | Actor Profiles | Pass | — asset bar, four headers on one baseline, hover-play rows, cards. |
+| 11 | Ragdoll | **Pass — closest to the reference** | Matches `StyleGuideReferenceImage.png` on headers, search, row meta, selection fill, one-row toolbar and the footer sentence. Scenery shows one segment only because this scene has no authored props. |
+| 12 | Cutscenes | **Pass with one owner call** | **CT3** — the rail is opaque *by design comment*, against R20. Owner's call, not a defect. |
+| 13 | Capture | **Pass with one** | **CP5** — the transport is still ad hoc rather than the shared `TransportCoreElement` (D2). |
+| 14 | Stats | Pass | — judged at rest; Play mode was not authorised, so the live state is unphotographed. |
+| 15 | Health | **Pass with one** | The `V38:` family still prints a code inside its title while the badge carries `H11` (R03). |
+
+**Rule-by-rule, across all fifteen:** R01 met (the last clipping, Ragdoll's `Vector3Field`, fixed this session);
+R02–R03 met bar Health's `V38:`; R04 met after the sweep, with one recorded exception — the tab bar keeps 6px
+vertical padding because 6+24+6 makes the 36px asset-bar height that is itself on the scale; R05–R09 met;
+R10 met bar CE1; R11–R19 met; **R20 has two exceptions, CE4 and CT3**; R21 met bar CE4; R22 met — this run
+photographed before and after, and three of its own findings were overturned by captures and pixel measurements.
+
+**Fixed after the first after-capture, then re-photographed** (`07_ClipEditor_final.png`):
+
+- **CE3 — fixed and verified.** The viewport suppressed nothing behind its overlay, so "No clip selected" was drawn
+  across a live actor render and could not be read. The preview image is now hidden while the empty state shows,
+  matching the fix Actor Profiles already had, and the third repeat of the same sentence
+  ("Select a clip to pose the rig.") is gone from the viewport corner.
+- **CE8 — improved, not perfect.** It had been graded DONE because no literal `-30` exists anywhere; the real cause
+  was a **negative `viewPan` persisted in `EditorPrefs`** being applied against the placeholder frame count of 30
+  that an empty timeline falls back to. Clamping the pan for the empty state moves the ruler to start at 0, and the
+  capture confirms it — but **one `-10` tick label still bleeds into the track-header gutter left of the track**.
+  Carried to RC1 rather than claimed as closed.
+
+Both are the reason R22 exists: each passed a code review and failed a photograph.
+
+**Not judged:** Play mode was not authorised, so Stats' live numbers and every runtime path are unphotographed.

@@ -1617,3 +1617,51 @@ Traps only; the record is A108's §7 and HANDOFF §4.
   a half-filled disc read as a prohibition sign, a single aperture notch read as a dial with one hand,
   and a crossed-bone pair read as a node graph. Resolve every id, blit at 64px and at the real 16px into
   one PNG, and read it. Watch the compositing orientation: a glyph's pixel row 0 is its bottom.
+
+## Phase 6 close — A105/A106/A107 in parallel (0.58.0–0.60.0, 2026-09-19)
+
+Traps only; the record is each spec's §7 and HANDOFF §4.
+
+- **A capture taken with nothing selected is not a capture of the tab.** The first before-pass of this run
+  photographed Rigs as "Select a rig", Ragdoll as "0 bodies / List is empty" and Actor Profiles as three empty
+  states — none of which show the rows the findings are about. Judging a UI pass off that set would have been
+  judging blank screens. Drive the selection first: `ClipEditorWindow` holds a private `selection`
+  (`ActiveAssetSelection`, `SetRig` / `SetClipSet`), `ActorEditorPanel.Profile` has a public setter, and a
+  **Ragdoll body must be selected through `bodiesListView.selectedIndex`, not `RagdollPanel.OnBodySelected`** —
+  the latter updates the inspector but leaves the list unpainted, which reads as a missing selection fill.
+- **`.toolkit-pane-header` had no height at all**, so a header was only as tall as its content and any column
+  carrying an extra action row grew taller than its neighbours. Three `MakePaneHeader` calls therefore produced
+  three different baselines on one tab (Ragdoll). It carries `min-height: 32px` now. A builder call is not a
+  guarantee of a shared metric — if the rule sets nothing, every caller gets a different answer.
+- **The `-10px` list pull-back and the host column's `10px` inset are one mechanism, not two numbers.** They cancel
+  so the darker list reaches the column edge. Change one without the other and the owner's headline two-tone
+  breaks. (Both are 12px now, which also settles A108's latent 2px mismatch: it put the 12px `--toolkit-inset` on
+  columns sitting inside a surface that only pulled back 10px.)
+- **`--edit-mode` on the gate CLI is `action="append"` — one fixture per flag, repeated.** Space-separated is a
+  loud argparse error, but **comma-separated is accepted and refused as "no tests matched"**, which reads like a
+  missing fixture rather than a syntax mistake. It cost a lead two gate cycles.
+- **A `spec-lead` cannot produce a `.meta`,** because it has no Editor. Every new `.cs` a lead adds lands without
+  one, and this package tracks a `.meta` for every file. They also cannot be committed to trunk while any worktree
+  is still open (trap 27). Land them at integration, after the last `worktree.py remove`.
+- **A modal dialog freezes the broker and Unity MCP together, and neither says why.** A "Script Updating Consent"
+  dialog (the API Updater) blocked Unity's main thread: `doctor` reported `brokerAlive: false`, every MCP call
+  returned "ping not answered" or `TimeoutError`, and `Logs/Editor.log` kept growing from background threads, so
+  the Editor looked alive. Enumerate the process's windows (`EnumWindows`, class `#32770`) before concluding the
+  bridge is broken. `APIUpdaterManager.numberOfTimesAsked` is settable by reflection and was raised so it stops
+  asking; `DoesCommandLineIndicateAPIUpdatingShouldHappenWithoutConsent` is the only path to a consent-free
+  rewrite, and it is false, so a high ask-count can never grant consent.
+- **A `Vector3Field` clips its own Y and Z in a narrow inspector,** and a `min-width` on the field does not fix it —
+  the inner `.unity-base-field__input` has its own min-width that wins. The three sub-fields need
+  `flex-basis: 0` + `flex-grow: 1` + `min-width: 0`, and the input needs `min-width: 0` too.
+- **Grep proves a literal is absent, not that a behaviour is.** CE8 ("the ruler starts at 0") was graded DONE
+  because no `-30` existed anywhere in the source. The pre-roll is *computed*, and the capture plainly showed
+  `-30 -20 -10 0`. Likewise AP6 was graded DONE from the inspector column while the duplicated text lived in the
+  preview transport row. A code verdict is a hypothesis; the capture is the test.
+- **Measure before you call a tone flat.** The Ragdoll bodies list was reported as one flat grey by eye and is
+  genuinely two-tone (`#383838` column, `#282828` list) — the dark viewport beside it fooled the reading. Sample
+  the PNG (`ImageConversion.LoadImage` + `GetPixel`) rather than squinting.
+- **A worker that refuses the task can be right.** Two of this run's fix briefs were answered with "no change
+  needed, here is the proof": the Ragdoll scenery control already *is* a segmented control (it shows one segment
+  because `RagdollPreviewScenery.Props` is empty in this scene, while the style guide's reference image was
+  captured with props authored), and Skip Holds already carried Auto Key's on-state class. Both were stage
+  misreadings of a capture.

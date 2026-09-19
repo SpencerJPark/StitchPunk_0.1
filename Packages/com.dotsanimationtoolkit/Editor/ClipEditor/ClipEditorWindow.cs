@@ -3901,12 +3901,9 @@ namespace DotsAnimationToolkit.Editor
                     viewportStatus = "Clip is not in the built registry — is it listed in the set?";
                 }
             }
-            else if (selectedClip == null && clipSet != null && string.IsNullOrEmpty(viewportStatus))
-            {
-                // Only when the controller has nothing of its own to say: a rig with no targets or a
-                // set that failed to build is the more useful message, and this must not bury it.
-                viewportStatus = "Select a clip to pose the rig.";
-            }
+            // No further "select a clip" message here: whenever selectedClip is null the
+            // clip-editor-viewport-empty-clip overlay below is already showing that same
+            // sentence, and a second copy in the footer just repeated it a third time (CE3).
 
             // The held, unkeyed edit is in no registry — the registry is built from committed keys —
             // so without this a drag with auto-key off moved the numbers and nothing else. Applied
@@ -3937,10 +3934,20 @@ namespace DotsAnimationToolkit.Editor
                 viewportEmptyState.EnableInClassList(HiddenUssClassName, LoadedPrefab != null);
             }
 
+            bool showingNoClipEmptyState = selectedClip == null;
             if (clipEditorViewportEmptyState != null)
             {
                 clipEditorViewportEmptyState.style.display =
-                    selectedClip == null ? DisplayStyle.Flex : DisplayStyle.None;
+                    showingNoClipEmptyState ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            // The empty state overlay sits on top of the render, but the render keeps drawing
+            // underneath it and bleeds through — blank it so the empty-state sentence stays
+            // readable. Same fix as ActorEditorPanel.RenderViewport for its "No actor to preview" state.
+            previewImage.style.display = showingNoClipEmptyState ? DisplayStyle.None : DisplayStyle.Flex;
+            if (showingNoClipEmptyState)
+            {
+                return;
             }
 
             Rect previewRect = previewImage.contentRect;

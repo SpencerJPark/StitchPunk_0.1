@@ -485,6 +485,7 @@ namespace DotsAnimationToolkit.Editor
                 timelineRowCount = 0;
                 SyncGhostLanes();
                 RebuildInspector();
+                ClampViewPanForEmptyTimeline();
                 return;
             }
 

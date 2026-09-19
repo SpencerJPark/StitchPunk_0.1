@@ -308,6 +308,19 @@ namespace DotsAnimationToolkit.Editor
             PushViewToImportedClipLanes();
         }
 
+        // With no clip selected the ruler falls back to a placeholder frame count rather than a
+        // real one, so a pan restored from EditorPrefs (left over from panning before frame 0 on a
+        // real clip) reads as a large negative pre-roll instead of the small one it was earned on.
+        // Zoom is left alone: it self-clamps against MaximumViewZoom either way.
+        private void ClampViewPanForEmptyTimeline()
+        {
+            if (viewPan < 0f)
+            {
+                viewPan = 0f;
+                ApplyTimelineView();
+            }
+        }
+
         /// <summary>Resizes the ghost rows to whatever the timeline has left under its last track.</summary>
         private void SyncGhostLanes()
         {
