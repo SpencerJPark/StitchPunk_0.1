@@ -28,12 +28,12 @@ a spec as written will rebuild finished work.** So this session reconciles first
 
 ## Owner answers for this run (fill before starting)
 
-- I am [at the PC / away]. Captures need the Editor **focused** — if `EditorApplication.isFocused` is false, say so
+- I am at the PC. Captures need the Editor **focused** — if `EditorApplication.isFocused` is false, say so
   and do not save a capture; an unfocused grab is a stale frame.
 - Models: lead `opus`, workers `sonnet`, verifiers `sonnet`.
 - Merge of each spec is authorized once its wave gates are green and the one before it has merged.
 - Play mode: not authorized. Leave the Editor open.
-- Checkpoints: [real stops with before/after pairs / close under the standing rule, questions kept in HANDOFF §4].
+- Checkpoints: No check points, check in at the very end for verification. it will run smoother this way, if you have questions ask them upfront.
 
 ## Phase 0 — reconcile (trunk, no worktrees open)
 

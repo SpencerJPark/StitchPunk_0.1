@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Faceware
-  m_Shader: {fileID: -6465566751694194690, guid: e5e6305bdbeddc649b56d342dc41c652, type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: dd0290a2d3ecfec4aa7453f268717683, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
