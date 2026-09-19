@@ -611,7 +611,8 @@ namespace DotsAnimationToolkit.Editor
             ToolkitChrome.SetSegmentedSelection(backgroundGroup, backgroundSelectedIndex);
             backgroundColourField.SetValueWithoutNotify(settings.backgroundColour);
             backgroundColourRow.style.display = settings.background == CaptureBackgroundMode.SolidColour ? DisplayStyle.Flex : DisplayStyle.None;
-            formatGroup.SetValueWithoutNotify(settings.format == CaptureOutputFormat.Gif ? 1 : 0);
+            formatSelectedIndex = settings.format == CaptureOutputFormat.Gif ? 1 : 0;
+            ToolkitChrome.SetSegmentedSelection(formatGroup, formatSelectedIndex);
             nameField.SetValueWithoutNotify(settings.captureName);
             outputFolderField.SetValueWithoutNotify(settings.outputFolder);
             RefreshRangeSummaryLabel();
