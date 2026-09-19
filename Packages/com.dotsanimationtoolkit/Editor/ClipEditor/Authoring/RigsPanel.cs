@@ -534,6 +534,55 @@ namespace DotsAnimationToolkit.Editor
             RefreshTargetCard();
         }
 
+        // A105-D3's Faces direction write path. It mirrors RigAssetUtility.SetTargetKind rather than
+        // living beside it, because RigAssetUtility is outside a105's file seam; folding it in is an
+        // integration item, not a behaviour difference.
+        private void SetFocusedRowFacesDirection(bool facesDirection)
+        {
+            if (SelectedRig == null || focusedRow == null || focusedRow.TargetStableId == 0u
+                || SelectedRig.targets == null)
+            {
+                return;
+            }
+
+            for (int targetIndex = 0; targetIndex < SelectedRig.targets.Count; targetIndex++)
+            {
+                RigTargetDefinition candidateTarget = SelectedRig.targets[targetIndex];
+                if (candidateTarget == null || candidateTarget.Id.Value != focusedRow.TargetStableId)
+                {
+                    continue;
+                }
+
+                Undo.RecordObject(SelectedRig, "Set Rig Target Faces Direction");
+                candidateTarget.facesDirection = facesDirection;
+                EditorUtility.SetDirty(SelectedRig);
+                AssetDatabase.SaveAssetIfDirty(SelectedRig);
+                return;
+            }
+        }
+
+        // SetValueWithoutNotify, or showing the card would write the value it just read back.
+        private void RefreshFacesDirectionToggle()
+        {
+            bool facesDirection = false;
+            if (SelectedRig != null && focusedRow != null && focusedRow.TargetStableId != 0u
+                && SelectedRig.targets != null)
+            {
+                for (int targetIndex = 0; targetIndex < SelectedRig.targets.Count; targetIndex++)
+                {
+                    RigTargetDefinition candidateTarget = SelectedRig.targets[targetIndex];
+                    if (candidateTarget != null && candidateTarget.Id.Value == focusedRow.TargetStableId)
+                    {
+                        facesDirection = candidateTarget.facesDirection;
+                        break;
+                    }
+                }
+            }
+
+            targetFacesDirectionToggle.SetValueWithoutNotify(facesDirection);
+            targetFacesDirectionToggle.SetEnabled(focusedRow != null && focusedRow.TargetStableId != 0u);
+        }
+
         private void RefreshKindButtonText(CandidateRow row)
         {
             if (row.KindButton == null)
@@ -590,6 +639,7 @@ namespace DotsAnimationToolkit.Editor
             bool isTicked = focusedRow.ToggleControl != null && focusedRow.ToggleControl.value;
             targetKindButton.SetEnabled(isTicked);
             targetTagButton.SetEnabled(isTicked);
+            RefreshFacesDirectionToggle();
             targetUntickedHint.style.display = isTicked ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
