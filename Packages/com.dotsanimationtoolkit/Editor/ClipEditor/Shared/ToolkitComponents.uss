@@ -274,15 +274,14 @@
 .toolkit-icon-square-run {
     flex-direction: row;
     align-items: center;
+    /* UI Toolkit has no :first-child, so every child leads with 4px and the run pulls back by 4px. */
+    margin-left: -4px;
 }
 
 .toolkit-icon-square-run > .toolkit-icon-square {
     margin-left: 4px;
 }
 
-.toolkit-icon-square-run > .toolkit-icon-square:first-child {
-    margin-left: 0;
-}
 
 .toolkit-badge-row {
     flex-direction: row;
@@ -291,13 +290,11 @@
     flex-shrink: 0;
 }
 
+/* Every child leads with 4px (no :first-child in UI Toolkit); that lead doubles as the gap from whatever precedes the row. */
 .toolkit-badge-row > * {
     margin-left: 4px;
 }
 
-.toolkit-badge-row > *:first-child {
-    margin-left: 0;
-}
 
 /* One run of actions, one height: every button in a run is 24px (A109 D1). */
 .toolkit-action-run {
