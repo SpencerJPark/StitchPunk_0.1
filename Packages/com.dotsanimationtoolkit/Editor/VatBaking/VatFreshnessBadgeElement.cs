@@ -17,7 +17,7 @@ namespace DotsAnimationToolkit.Editor
         public VatFreshnessBadgeElement()
         {
             name = "vat-freshness-badge";
-            AddToClassList("toolkit-chip");
+            AddToClassList("toolkit-badge");
             style.flexShrink = 0f;
 
             dot = ToolkitChrome.MakeSeverityDot(ToolkitPalette.Clean);
@@ -49,6 +49,10 @@ namespace DotsAnimationToolkit.Editor
                     dot.style.backgroundColor = ToolkitPalette.Error; // colour from data
                     break;
             }
+
+            EnableInClassList("toolkit-badge--ok", freshness == VatBakeFreshness.Fresh);
+            EnableInClassList("toolkit-badge--warning", isStale);
+            EnableInClassList("toolkit-badge--error", isBroken);
 
             label.EnableInClassList("toolkit-text--warning", isStale);
             label.EnableInClassList("toolkit-text--error", isBroken);

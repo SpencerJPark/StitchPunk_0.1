@@ -62,6 +62,10 @@ namespace DotsAnimationToolkit.Editor
         private const string CardActionsClassName = "toolkit-card__actions";
         private const string CardBodyClassName = "toolkit-card__body";
         private const string BadgeClassName = "toolkit-badge";
+        private const string IconSquareClassName = "toolkit-icon-square";
+        private const string IconSquareDestructiveClassName = "toolkit-icon-square--destructive";
+        private const string IconSquareRunClassName = "toolkit-icon-square-run";
+        private const string BadgeRowClassName = "toolkit-badge-row";
         private const string BadgeNeutralClassName = "toolkit-badge--neutral";
         private const string BadgeWarningClassName = "toolkit-badge--warning";
         private const string BadgeErrorClassName = "toolkit-badge--error";
@@ -198,7 +202,33 @@ namespace DotsAnimationToolkit.Editor
             statusLabel.text = text;
             statusLabel.EnableInClassList(StatusWarningClassName, tone == ToolkitStatusTone.Warning);
             statusLabel.EnableInClassList(StatusErrorClassName, tone == ToolkitStatusTone.Error);
+
+            // Style guide: a status row is a tone dot plus one line. The dot is kept beside the label
+            // here so every footer gets it from the one call they all already make.
+            VisualElement statusRow = statusLabel.parent;
+            if (statusRow == null || !statusRow.ClassListContains(StatusRowClassName))
+            {
+                return;
+            }
+
+            VisualElement toneDot = statusRow.Q(StatusDotElementName);
+            if (toneDot == null)
+            {
+                toneDot = new VisualElement { name = StatusDotElementName };
+                toneDot.AddToClassList(StatusDotClassName);
+                toneDot.pickingMode = PickingMode.Ignore;
+                statusRow.Insert(statusRow.IndexOf(statusLabel), toneDot);
+                statusLabel.AddToClassList(StatusClassName + "--dotted");
+            }
+
+            toneDot.EnableInClassList(StatusDotClassName + "--warning", tone == ToolkitStatusTone.Warning);
+            toneDot.EnableInClassList(StatusDotClassName + "--error", tone == ToolkitStatusTone.Error);
+            toneDot.EnableInClassList(StatusDotClassName + "--ok", tone == ToolkitStatusTone.Ok);
+            toneDot.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
         }
+
+        private const string StatusDotElementName = "toolkit-status-dot";
+        private const string StatusDotClassName = "toolkit-status-dot";
 
         public static VisualElement MakeListRowSlot(string rowElementName, out VisualElement row)
         {
@@ -300,7 +330,36 @@ namespace DotsAnimationToolkit.Editor
                 && (button.ClassListContains(PrimaryActionClassName)
                     || button.ClassListContains(ButtonSecondaryClassName)
                     || button.ClassListContains(ButtonGhostClassName)
-                    || button.ClassListContains(ButtonDestructiveClassName));
+                    || button.ClassListContains(ButtonDestructiveClassName)
+                    || button.ClassListContains(IconSquareClassName));
+        }
+
+        public static Button MakeIconSquare(Action onClick, string iconName, string tooltip)
+        {
+            Button iconSquare = ToolkitIcons.MakeIconButton(onClick, iconName, tooltip, "•");
+            iconSquare.AddToClassList(IconSquareClassName);
+            return iconSquare;
+        }
+
+        public static Button MakeDestructiveIconSquare(Action onClick, string iconName, string tooltip)
+        {
+            Button destructiveIconSquare = MakeIconSquare(onClick, iconName, tooltip);
+            destructiveIconSquare.AddToClassList(IconSquareDestructiveClassName);
+            return destructiveIconSquare;
+        }
+
+        public static VisualElement MakeIconSquareRun(string elementName)
+        {
+            VisualElement iconSquareRun = new VisualElement { name = elementName };
+            iconSquareRun.AddToClassList(IconSquareRunClassName);
+            return iconSquareRun;
+        }
+
+        public static VisualElement MakeBadgeRow(string elementName)
+        {
+            VisualElement badgeRow = new VisualElement { name = elementName };
+            badgeRow.AddToClassList(BadgeRowClassName);
+            return badgeRow;
         }
 
         public static void StyleButton(Button button, ToolkitButtonVariant variant)
@@ -336,7 +395,8 @@ namespace DotsAnimationToolkit.Editor
                     button.AddToClassList(ButtonGhostClassName);
                     break;
                 case ToolkitButtonVariant.Destructive:
-                    button.AddToClassList(ButtonGhostClassName);
+                    // Outlined like secondary, red text: a borderless red word read as a stray label (A109 TP1/FB3).
+                    button.AddToClassList(ButtonSecondaryClassName);
                     button.AddToClassList(ButtonDestructiveClassName);
                     break;
             }
@@ -416,6 +476,28 @@ namespace DotsAnimationToolkit.Editor
 
             return empty;
         }
+
+        // A viewport's empty state sits over grid lines and a live render; on its own card the text
+        // stays readable instead of being crossed by the axis and floor lines.
+        public static void PlaceEmptyStateOnViewportCard(VisualElement emptyState)
+        {
+            if (emptyState == null || emptyState.Q(className: ViewportEmptyCardClassName) != null)
+            {
+                return;
+            }
+
+            VisualElement card = new VisualElement();
+            card.AddToClassList(ViewportEmptyCardClassName);
+            card.pickingMode = PickingMode.Ignore;
+            List<VisualElement> contents = new List<VisualElement>(emptyState.Children());
+            foreach (VisualElement content in contents)
+            {
+                card.Add(content);
+            }
+            emptyState.Add(card);
+        }
+
+        private const string ViewportEmptyCardClassName = "toolkit-viewport-empty-card";
 
         public static VisualElement MakePropertyRow(string labelText, VisualElement field, string tooltip)
         {

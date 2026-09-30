@@ -23,7 +23,13 @@ namespace DotsAnimationToolkit.Editor
         private MaterialPropertyBlock propertyBlock;
         // Owned by this mirror: created fresh on every Rebuild, destroyed in Dispose.
         private Material neutralSurfaceMaterial;
+        private readonly List<string> borrowedSourceNodePaths = new List<string>();
 
+        /// <summary>Source-prefab node paths whose art a proxy now draws, so the static clone can hide them.</summary>
+        public IReadOnlyList<string> BorrowedSourceNodePaths
+        {
+            get { return borrowedSourceNodePaths; }
+        }
 
         /// <summary>The mirror's root, or null when nothing is built.</summary>
         public GameObject RootObject
@@ -119,6 +125,10 @@ namespace DotsAnimationToolkit.Editor
                 if (partRenderer != null)
                 {
                     partRenderer.sharedMaterial = neutralSurfaceMaterial;
+                    if (TryBorrowSourceArt(rig, target, partObject, partRenderer))
+                    {
+                        borrowedSourceNodePaths.Add(target.sourceNodePath);
+                    }
                     partRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
                     partRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
                     partRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -129,6 +139,45 @@ namespace DotsAnimationToolkit.Editor
                 partRenderers.Add(partRenderer);
             }
 
+        }
+
+        // Assigns (never edits) the source node's shared mesh and materials, so the animated proxy
+        // wears the painted art. Skinned and VAT nodes keep the neutral quad: a VAT material
+        // without its frame parameters draws wrong, and a skinned mesh needs its bones.
+        private static bool TryBorrowSourceArt(
+            RigAsset rig, RigTargetDefinition target, GameObject partObject, MeshRenderer partRenderer)
+        {
+            if (rig.sourcePrefab == null
+                || target.kind != TargetKind.Quad
+                || string.IsNullOrEmpty(target.sourceNodePath))
+            {
+                return false;
+            }
+
+            Transform sourceNode = rig.sourcePrefab.transform.Find(target.sourceNodePath);
+            if (sourceNode == null)
+            {
+                return false;
+            }
+
+            MeshRenderer sourceRenderer = sourceNode.GetComponent<MeshRenderer>();
+            MeshFilter sourceFilter = sourceNode.GetComponent<MeshFilter>();
+            if (sourceRenderer == null || sourceFilter == null || sourceFilter.sharedMesh == null)
+            {
+                return false;
+            }
+
+            MeshFilter partFilter = partObject.GetComponent<MeshFilter>();
+            if (partFilter == null)
+            {
+                return false;
+            }
+
+            partFilter.sharedMesh = sourceFilter.sharedMesh;
+            partRenderer.sharedMaterials = sourceRenderer.sharedMaterials;
+            partRenderer.sortingLayerID = sourceRenderer.sortingLayerID;
+            partRenderer.sortingOrder = sourceRenderer.sortingOrder;
+            return true;
         }
 
         // Poses the part bound to targetId. Unknown ids are ignored. pose carries rotation in
@@ -175,6 +224,7 @@ namespace DotsAnimationToolkit.Editor
             partTransforms.Clear();
             partRenderers.Clear();
             targetIdToMirrorIndex.Clear();
+            borrowedSourceNodePaths.Clear();
 
             // The marker GameObjects were children of rootObject, so destroying it took them with
             // it; only the bookkeeping needs clearing here.

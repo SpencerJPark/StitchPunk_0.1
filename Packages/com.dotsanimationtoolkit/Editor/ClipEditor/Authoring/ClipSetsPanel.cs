@@ -22,7 +22,8 @@ namespace DotsAnimationToolkit.Editor
 
         private Label editorTitleLabel;
         private Button openInEditorButton;
-        private Label noSelectionHintLabel;
+        private VisualElement noSelectionEmptyState;
+        private VisualElement resultStatusRow;
         private VisualElement editorContent;
 
         private TextField nameField;
@@ -93,11 +94,7 @@ namespace DotsAnimationToolkit.Editor
         private static string DescribeClipSet(ClipSetAsset clipSet)
         {
             int clipCount = clipSet != null && clipSet.clips != null ? clipSet.clips.Count : 0;
-            string assetPath = clipSet != null ? AssetDatabase.GetAssetPath(clipSet) : string.Empty;
-            string folderPath = string.IsNullOrEmpty(assetPath)
-                ? string.Empty
-                : System.IO.Path.GetDirectoryName(assetPath).Replace('\\', '/');
-            return clipCount.ToString() + " clips" + (string.IsNullOrEmpty(folderPath) ? string.Empty : " · " + folderPath);
+            return clipCount.ToString() + (clipCount == 1 ? " clip" : " clips");
         }
 
         private void RequestDeleteClipSet(ClipSetAsset targetSet)
@@ -150,10 +147,13 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
+            header.AddToClassList("toolkit-detail-header");
+            header.AddToClassList("clip-sets-detail-header");
 
             editorTitleLabel = new Label();
             editorTitleLabel.name = "clip-set-editor-title";
-            editorTitleLabel.AddToClassList("toolkit-pane-title");
+            editorTitleLabel.AddToClassList("toolkit-detail-title");
+            editorTitleLabel.AddToClassList("clip-sets-detail-title");
             header.Add(editorTitleLabel);
 
             openInEditorButton = ToolkitChrome.MakePrimaryAction(
@@ -163,9 +163,11 @@ namespace DotsAnimationToolkit.Editor
 
             editorColumn.Add(header);
 
-            noSelectionHintLabel = ToolkitChrome.MakeHint("Select a clip set, or press New to make one.");
-            noSelectionHintLabel.name = "clip-set-no-selection-hint";
-            editorColumn.Add(noSelectionHintLabel);
+            // R13: a designed empty state (title, why, the action that fills it), not a corner hint.
+            noSelectionEmptyState = ToolkitChrome.MakeEmptyState(
+                "clip-set-no-selection-hint", "No clip set selected",
+                "Pick a clip set on the left, or create one.", "New clip set", CreateAndSelectNewClipSet);
+            editorColumn.Add(noSelectionEmptyState);
 
             editorContent = new VisualElement { name = "clip-set-editor-content" };
 
@@ -187,6 +189,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 name = "clip-set-folder-row"
             };
+            folderRow.AddToClassList("clip-sets-folder-row");
             folderRow.Path = saveLocation.Recall();
             folderRow.BrowseRequested += OnFolderButtonClicked;
 
@@ -208,19 +211,21 @@ namespace DotsAnimationToolkit.Editor
             vatTexturesNameLabel.style.whiteSpace = WhiteSpace.NoWrap;
             vatTexturesRow.Add(vatTexturesNameLabel);
 
-            vatFreshnessBadge = new VatFreshnessBadgeElement();
-            vatFreshnessBadge.style.marginLeft = 6f;
-            vatTexturesRow.Add(vatFreshnessBadge);
+            VisualElement vatStatusBadgeRow = ToolkitChrome.MakeBadgeRow("clip-set-vat-status-row");
 
-            rebakeButton = new Button(OnRebakeClicked)
-            {
-                text = "Rebake",
-                name = "clip-set-rebake-button",
-                tooltip = "Open the VAT Bake tab with this clip set and the rig it was baked for. Nothing bakes until you press Bake there."
-            };
-            rebakeButton.style.marginLeft = 6f;
+            vatFreshnessBadge = new VatFreshnessBadgeElement();
+            vatStatusBadgeRow.Add(vatFreshnessBadge);
+
+            rebakeButton = ToolkitChrome.MakeSecondaryAction(
+                OnRebakeClicked,
+                "d_Refresh",
+                "Open the VAT Bake tab with this clip set and the rig it was baked for. Nothing bakes until you press Bake there.",
+                "Rebake");
+            rebakeButton.name = "clip-set-rebake-button";
             rebakeButton.style.display = DisplayStyle.None;
-            vatTexturesRow.Add(rebakeButton);
+            vatStatusBadgeRow.Add(rebakeButton);
+
+            vatTexturesRow.Add(vatStatusBadgeRow);
 
             editorContent.Add(vatTexturesRow);
 
@@ -233,7 +238,7 @@ namespace DotsAnimationToolkit.Editor
 
             editorColumn.Add(editorContent);
 
-            VisualElement resultStatusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
+            resultStatusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
             resultLabel.name = "clip-sets-result-label";
             editorColumn.Add(resultStatusRow);
             // Seeds the footer with the edit hint on open; a real operation result overwriting it later is expected.
@@ -520,8 +525,10 @@ namespace DotsAnimationToolkit.Editor
             bool hasSelection = SelectedSet != null;
             editorTitleLabel.text = hasSelection ? SelectedSet.name : "Clip Set";
             openInEditorButton.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
-            noSelectionHintLabel.style.display = hasSelection ? DisplayStyle.None : DisplayStyle.Flex;
+            noSelectionEmptyState.style.display = hasSelection ? DisplayStyle.None : DisplayStyle.Flex;
             editorContent.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
+            // The footer explains ticking; with no set there is nothing to tick.
+            resultStatusRow.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void CommitNameFieldChange()

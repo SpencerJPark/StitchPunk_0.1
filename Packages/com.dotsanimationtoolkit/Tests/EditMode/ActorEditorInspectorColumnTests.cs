@@ -54,13 +54,13 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.IsNotNull(directionContainer);
             Assert.IsNotNull(clipField);
             Assert.AreEqual(DisplayStyle.None, directionContainer.style.display.value);
-            Assert.AreEqual(DisplayStyle.Flex, clipField.style.display.value);
+            Assert.AreEqual(DisplayStyle.Flex, clipField.parent.style.display.value);
 
             InvokeApply(column, "ApplyHasDirectionsChange", true);
 
             Assert.IsTrue(animationDefinition.hasDirections);
             Assert.AreEqual(DisplayStyle.Flex, directionContainer.style.display.value);
-            Assert.AreEqual(DisplayStyle.None, clipField.style.display.value);
+            Assert.AreEqual(DisplayStyle.None, clipField.parent.style.display.value);
             Assert.IsNotNull(
                 column.Q<DirectionSetClipQueueView>("actor-editor-inspector-direction-queue-view"),
                 "The queue view must exist in the tree once the direction dimension is on.");
@@ -87,7 +87,27 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             FloatField blendInField = column.Q<FloatField>("actor-editor-inspector-blend-in-field");
             Assert.IsNotNull(blendInField);
-            Assert.AreEqual(DisplayStyle.None, blendInField.style.display.value);
+            Assert.AreEqual(DisplayStyle.None, blendInField.parent.style.display.value);
+        }
+
+        [Test]
+        public void BlendInStartingOnClipDefault_ShowsTheFieldWhenTheToggleIsCleared()
+        {
+            animationDefinition.blendIn = float.NaN;
+            ActorEditorInspectorColumn column = new ActorEditorInspectorColumn();
+            column.Bind(profileAsset, null);
+            column.SetSelection(new ActorEditorSelection
+            {
+                kind = ActorEditorSelectionKind.Animation, layerIndex = 1, animationIndex = 0
+            });
+
+            InvokeApply(column, "ApplyBlendInUseClipDefaultChange", false);
+
+            FloatField blendInField = column.Q<FloatField>("actor-editor-inspector-blend-in-field");
+            Assert.IsNotNull(blendInField);
+            Assert.AreEqual(DisplayStyle.Flex, blendInField.parent.style.display.value);
+            Assert.AreNotEqual(DisplayStyle.None, blendInField.style.display.value,
+                "Hidden before it had a row, the field stayed hidden inside a visible row.");
         }
 
         [Test]

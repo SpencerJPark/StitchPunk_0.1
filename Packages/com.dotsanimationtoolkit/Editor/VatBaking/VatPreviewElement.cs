@@ -129,10 +129,10 @@ namespace DotsAnimationToolkit.Editor
                 "Bake this clip set in the Settings column to see the baked motion play here.");
             Add(viewportFrame);
 
-            statusLabel = new Label("No VAT texture set to preview.");
+            statusLabel =new Label("No VAT texture set to preview.");
             statusLabel.style.whiteSpace = WhiteSpace.Normal;
             statusLabel.AddToClassList("toolkit-hint");
-            statusLabel.style.marginLeft = 8f;
+            statusLabel.style.marginLeft = 12f;
             statusLabel.style.marginTop = 4f;
             Add(statusLabel);
 

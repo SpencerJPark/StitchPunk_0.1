@@ -30,8 +30,7 @@ namespace DotsAnimationToolkit.Editor
         private SerializedObject serializedObject;
 
         private ObjectField cutsceneField;
-        private Label sceneStatusLabel;
-        private Button sceneActionButton;
+        private VisualElement sceneStatusRow;
         private Slider zoomSlider;
         private Toggle previewShotToggle;
         private float pixelsPerSecond = 40f;
@@ -200,6 +199,7 @@ namespace DotsAnimationToolkit.Editor
 
             inspectorScroll = new ScrollView(ScrollViewMode.Vertical);
             inspectorScroll.AddToClassList("clip-editor__inspector");
+            inspectorScroll.contentContainer.AddToClassList("cutscene-inspector-body");
             inspectorScroll.style.flexGrow = 1f;
             inspectorPane.Add(inspectorScroll);
 
@@ -409,15 +409,8 @@ namespace DotsAnimationToolkit.Editor
             newCutsceneButton.style.marginLeft = 4f;
             toolbar.Add(newCutsceneButton);
 
-            sceneStatusLabel = new Label(string.Empty);
-            sceneStatusLabel.AddToClassList("toolkit-text--dim");
-            sceneStatusLabel.style.marginLeft = 12f;
-            toolbar.Add(sceneStatusLabel);
-
-            sceneActionButton = new Button { text = string.Empty };
-            sceneActionButton.style.marginLeft = 6f;
-            sceneActionButton.style.display = DisplayStyle.None;
-            toolbar.Add(sceneActionButton);
+            sceneStatusRow = ToolkitChrome.MakeBadgeRow("cutscene-scene-status");
+            toolbar.Add(sceneStatusRow);
 
             return toolbar;
         }
@@ -1339,10 +1332,9 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshSceneStatus()
         {
+            sceneStatusRow.Clear();
             if (cutscene == null)
             {
-                sceneStatusLabel.text = string.Empty;
-                sceneActionButton.style.display = DisplayStyle.None;
                 return;
             }
 
@@ -1350,27 +1342,35 @@ namespace DotsAnimationToolkit.Editor
 
             if (string.IsNullOrEmpty(cutscene.sceneGuid))
             {
-                sceneStatusLabel.text = "No scene remembered.";
-                sceneActionButton.text = "Remember Current Scene";
-                sceneActionButton.style.display = DisplayStyle.Flex;
-                sceneActionButton.clicked -= OnSceneActionButtonClicked;
-                sceneActionButton.clicked += OnSceneActionButtonClicked;
+                sceneStatusRow.Add(MakeSceneStatusDimLabel("No scene remembered."));
+                sceneStatusRow.Add(ToolkitChrome.MakeSecondaryAction(
+                    OnSceneActionButtonClicked, "d_SceneAsset Icon",
+                    "Remembers the scene that is open now as this cutscene's scene.",
+                    "Remember Current Scene"));
                 return;
             }
 
             if (currentGuid != cutscene.sceneGuid)
             {
-                sceneStatusLabel.text = "Wrong scene open — expects " + cutscene.scenePath
+                Label wrongSceneBadge = ToolkitChrome.MakeBadge("Wrong scene", ToolkitStatusTone.Warning);
+                wrongSceneBadge.tooltip = "Wrong scene open — expects " + cutscene.scenePath
                     + ". Timing edits still work.";
-                sceneActionButton.text = "Open Scene";
-                sceneActionButton.style.display = DisplayStyle.Flex;
-                sceneActionButton.clicked -= OnSceneActionButtonClicked;
-                sceneActionButton.clicked += OnSceneActionButtonClicked;
+                sceneStatusRow.Add(wrongSceneBadge);
+                sceneStatusRow.Add(ToolkitChrome.MakeSecondaryAction(
+                    OnSceneActionButtonClicked, "d_SceneAsset Icon",
+                    "Open " + cutscene.scenePath, "Open Scene"));
                 return;
             }
 
-            sceneStatusLabel.text = "Scene: " + cutscene.scenePath;
-            sceneActionButton.style.display = DisplayStyle.None;
+            sceneStatusRow.Add(MakeSceneStatusDimLabel("Scene: " + cutscene.scenePath));
+        }
+
+        private static Label MakeSceneStatusDimLabel(string text)
+        {
+            Label label = new Label(text);
+            label.AddToClassList("toolkit-text--dim");
+            label.tooltip = text;
+            return label;
         }
 
         private void OnSceneActionButtonClicked()
@@ -4464,6 +4464,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void RebuildInspectorContent()
         {
+            UnityEngine.Debug.Log("PROBE_REBUILD_INSPECTOR\n" + System.Environment.StackTrace);
             inspectorScroll.Clear();
 
             if (cutscene == null)
@@ -4642,9 +4643,9 @@ namespace DotsAnimationToolkit.Editor
 
             BuildSceneBindingRow(slotIndex);
 
-            Button removeButton = new Button(() => RemoveSlot(slotIndex)) { text = "Remove Slot" };
-            removeButton.style.marginTop = 8f;
-            inspectorScroll.Add(removeButton);
+            inspectorScroll.Add(ToolkitChrome.MakeDestructiveAction(
+                () => RemoveSlot(slotIndex), ToolkitIcons.Trash,
+                "Removes this slot and its keys from the cutscene.", "Remove Slot"));
         }
 
         /// <summary>
@@ -4693,13 +4694,11 @@ namespace DotsAnimationToolkit.Editor
                 });
             AddBoundField(locomotionProperty, "movingSpeedThresholdMetersPerSecond", "Threshold (m/s)", body);
 
-            Button defaultsButton = new Button(() => ApplyLocomotionDefaultsFromProfile(slotProperty, slot))
-            {
-                text = "Defaults From Profile",
-                tooltip = "Fills Standing/Moving from this profile's entries named exactly Idle / Walk."
-            };
+            Button defaultsButton = ToolkitChrome.MakeSecondaryAction(
+                () => ApplyLocomotionDefaultsFromProfile(slotProperty, slot), "d_Refresh",
+                "Fills Standing/Moving from this profile's entries named exactly Idle / Walk.",
+                "Defaults From Profile");
             defaultsButton.SetEnabled(slot.profile != null);
-            defaultsButton.style.marginTop = 4f;
             body.Add(defaultsButton);
 
             inspectorScroll.Add(box);
@@ -4708,10 +4707,11 @@ namespace DotsAnimationToolkit.Editor
         private void BuildLocomotionAnimationRow(
             VisualElement body, string label, uint currentKey, Action<uint> onPicked)
         {
-            VisualElement row = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center } };
+            VisualElement pickerRun = ToolkitChrome.MakeIconSquareRun("locomotion-" + label.ToLowerInvariant() + "-picker");
 
-            Button pickButton = new Button { text = label + ": " + ResolveAnimationDisplayName(currentKey) };
-            pickButton.style.flexGrow = 1f;
+            Button pickButton = ToolkitChrome.MakeSecondaryAction(
+                null, "d_Animation.Play", "Pick the " + label + " animation.",
+                ResolveAnimationDisplayName(currentKey));
             pickButton.clicked += () =>
             {
                 AnimationNameRegistry registry = VocabularyRegistryProvider.AnimationNames;
@@ -4721,13 +4721,14 @@ namespace DotsAnimationToolkit.Editor
                     onPicked,
                     () => RequestInspectorRebuild());
             };
-            row.Add(pickButton);
+            pickerRun.Add(pickButton);
 
-            Button clearButton = ToolkitIcons.MakeIconButton(
-                () => onPicked(0u), ToolkitIcons.Trash, "Clear this animation.", "×");
-            row.Add(clearButton);
+            Button clearButton = ToolkitChrome.MakeDestructiveIconSquare(
+                () => onPicked(0u), ToolkitIcons.Trash, "Clear this animation.");
+            pickerRun.Add(clearButton);
 
-            body.Add(row);
+            body.Add(ToolkitChrome.MakePropertyRow(
+                label, pickerRun, "The " + label + " locomotion animation."));
         }
 
         private void ApplyLocomotionDefaultsFromProfile(SerializedProperty slotProperty, CutsceneSlot slot)

@@ -24,8 +24,6 @@ namespace DotsAnimationToolkit.Editor
         private readonly string packageVersion;
 
         private readonly Label worldLabel;
-        private readonly VisualElement playingDot;
-        private readonly Label playingLabel;
         private readonly Label statusLabel;
 
         private readonly Label actorsValueLabel;
@@ -57,7 +55,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly Button snapshotButton;
 
         private ToolkitStatsSample lastSample;
-        private bool isShowingUnavailableStatus;
+        private bool isShowingCopyConfirmation;
+        private string lastConnectionStatusText = string.Empty;
         private bool isDisposed;
 
         public ToolkitStatsSample LastSample
@@ -87,23 +86,15 @@ namespace DotsAnimationToolkit.Editor
             worldLabel.AddToClassList("toolkit-text--dim");
             headerRow.Add(worldLabel);
             headerRow.Add(ToolkitChrome.MakeAssetBarSpacer());
-            playingDot = ToolkitChrome.MakeSeverityDot(ToolkitPalette.BoxBorder);
-            playingDot.name = "stats-playing-dot";
-            headerRow.Add(playingDot);
-            playingLabel = new Label { name = "stats-playing-label" };
-            headerRow.Add(playingLabel);
-            headerRow.Add(ToolkitChrome.MakeAssetBarSpacer());
             snapshotButton = ToolkitChrome.MakePrimaryAction(
                 CopySnapshotToClipboard, "d_SaveAs", "Copy these numbers as a Markdown table", "Snapshot");
             snapshotButton.name = "stats-snapshot-button";
             headerRow.Add(snapshotButton);
 
-            noWorldBanner = ToolkitChrome.MakeEmptyState(
-                "stats-no-world-banner",
-                "Enter Play mode to read the world",
-                "These cards fill from the default world's animation systems while the game is playing.",
-                null,
-                null);
+            noWorldBanner = ToolkitChrome.MakeHint(
+                "Enter Play mode and these cards fill from the default world's animation systems.");
+            noWorldBanner.name = "stats-no-world-banner";
+            noWorldBanner.AddToClassList("stats-hint-line");
             Add(noWorldBanner);
 
             VisualElement actorsColumn = ToolkitChrome.MakeColumn("stats-actors-column");
@@ -112,7 +103,7 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement actorsBox = ToolkitChrome.MakeCard(
                 "stats-actors-card", "Actors", out VisualElement actorsBody, out _);
-            actorsValueLabel = MakeValueRow(actorsBody, "Actors", "stats-actors-value");
+            actorsValueLabel = MakeValueRow(actorsBody, "Total", "stats-actors-value");
             layersValueLabel = MakeValueRow(actorsBody, "Layers", "stats-layers-value");
             ragdollingValueLabel = MakeValueRow(actorsBody, "Ragdolling", "stats-ragdolling-value");
             cutsceneValueLabel = MakeValueRow(actorsBody, "In cutscene", "stats-cutscene-value");
@@ -191,7 +182,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (!wasAvailable && lastSample.worldAvailable)
             {
-                sparkline.Clear();
+                sparkline.ClearSamples();
             }
             if (lastSample.worldAvailable)
             {
@@ -209,7 +200,7 @@ namespace DotsAnimationToolkit.Editor
         public void CopySnapshotToClipboard()
         {
             EditorGUIUtility.systemCopyBuffer = BuildSnapshotMarkdown();
-            isShowingUnavailableStatus = false;
+            isShowingCopyConfirmation = true;
             ToolkitChrome.SetStatus(statusLabel, "Copied a snapshot to the clipboard.", ToolkitStatusTone.Neutral);
         }
 
@@ -244,8 +235,6 @@ namespace DotsAnimationToolkit.Editor
             worldLabel.text = available ? lastSample.worldName : noWorldText;
 
             bool isPlaying = EditorApplication.isPlaying;
-            playingLabel.text = isPlaying ? "playing" : "not playing";
-            playingDot.style.backgroundColor = isPlaying ? ToolkitPalette.Playing : ToolkitPalette.BoxBorder; // colour from data
             snapshotButton.SetEnabled(isPlaying && available);
 
             SetValue(actorsValueLabel, available ? lastSample.actorCount.ToString() : noWorldText, available);
@@ -339,16 +328,19 @@ namespace DotsAnimationToolkit.Editor
                 timeRagdollValueLabel.tooltip = TimingUnavailableTooltip;
             }
 
-            if (!available)
+            string connectionStatusText = !isPlaying
+                ? "Not playing"
+                : available ? "Playing · " + lastSample.worldName : "Playing · no default world";
+            bool connectionChanged = connectionStatusText != lastConnectionStatusText;
+            if (connectionChanged)
             {
-                isShowingUnavailableStatus = true;
-                ToolkitChrome.SetStatus(
-                    statusLabel, "Enter Play mode to read the default world.", ToolkitStatusTone.Neutral);
+                lastConnectionStatusText = connectionStatusText;
+                isShowingCopyConfirmation = false;
             }
-            else if (isShowingUnavailableStatus)
+            if (!isShowingCopyConfirmation)
             {
-                isShowingUnavailableStatus = false;
-                ToolkitChrome.SetStatus(statusLabel, string.Empty, ToolkitStatusTone.Neutral);
+                ToolkitChrome.SetStatus(
+                    statusLabel, connectionStatusText, isPlaying && available ? ToolkitStatusTone.Ok : ToolkitStatusTone.Neutral);
             }
         }
 
@@ -404,6 +396,7 @@ namespace DotsAnimationToolkit.Editor
             valueLabel.text = text;
             valueLabel.tooltip = available ? string.Empty : NoWorldTooltip;
             valueLabel.EnableInClassList("toolkit-hint", !available);
+            valueLabel.EnableInClassList("stats-value--empty", !available);
         }
 
         private static string ResolvePackageVersion()

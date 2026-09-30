@@ -32,6 +32,7 @@ namespace DotsAnimationToolkit.Editor
             style.flexDirection = FlexDirection.Column;
 
             previewController = new ClipPreviewController();
+            previewController.DrawsRagdollBodies = false;
             cameraNavigation = new PreviewCameraNavigation();
             isPlaying = true;
 
@@ -89,8 +90,12 @@ namespace DotsAnimationToolkit.Editor
             if (rig != boundRig)
             {
                 boundRig = rig;
+                // SetRig arms a one-shot frame that fires on the first render, once the part quads are
+                // laid out; framing here too measured empty bounds and cleared that pending frame.
                 previewController.SetRig(rig);
-                previewController.FrameRig();
+                // The rest poses and the parts' painted art come from the source prefab; without it
+                // every part sits on the origin at unit scale.
+                previewController.SetSkinnedSource(rig != null ? rig.sourcePrefab : null);
             }
 
             if (clipSet != boundClipSet)
@@ -171,13 +176,17 @@ namespace DotsAnimationToolkit.Editor
             }
 
             statusLabel.text = ResolveStatusText();
+            statusLabel.style.display = string.IsNullOrEmpty(statusLabel.text) ? DisplayStyle.None : DisplayStyle.Flex;
+            // R17: nothing to play without a rig and a clip, so the transport says so by being disabled.
+            transportCore.SetEnabled(boundRig != null && boundClip != null);
         }
 
         private string ResolveStatusText()
         {
             if (boundRig == null)
             {
-                return "Pick a rig to preview.";
+                // The viewport's empty state says this already (R03).
+                return string.Empty;
             }
 
             if (boundClip == null)

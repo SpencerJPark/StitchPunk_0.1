@@ -232,6 +232,16 @@ namespace DotsAnimationToolkit.Editor
             cutsceneSourceRow.style.display = sourceKindIndex == 2 ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
+        private const string CustomPresetLabel = "Custom";
+
+        private static VisualElement MakeValueColumnHint(out Label hintLabel)
+        {
+            hintLabel = new Label(string.Empty);
+            hintLabel.AddToClassList("toolkit-hint");
+            hintLabel.AddToClassList("capture-hint-value");
+            return ToolkitChrome.MakePropertyRow(string.Empty, hintLabel, null);
+        }
+
         private VisualElement BuildViewportColumn()
         {
             VisualElement column = new VisualElement { name = "capture-viewport-column" };
@@ -246,19 +256,16 @@ namespace DotsAnimationToolkit.Editor
             viewport.style.flexGrow = 1f;
             column.Add(viewport);
 
-            VisualElement transportRow = new VisualElement();
-            transportRow.AddToClassList("toolkit-transport");
-            VisualElement timeGroup = new VisualElement();
-            timeGroup.AddToClassList("toolkit-transport__group");
+            VisualElement timeRow = new VisualElement();
+            timeRow.AddToClassList("capture-time-row");
             Label timeCaption = new Label("Time");
-            timeCaption.AddToClassList("toolkit-transport__caption");
-            timeGroup.Add(timeCaption);
+            timeCaption.AddToClassList("capture-time-row__caption");
+            timeRow.Add(timeCaption);
             previewTimeSlider = new Slider(0f, 1f);
-            previewTimeSlider.style.width = 280f;
+            previewTimeSlider.AddToClassList("capture-time-row__slider");
             previewTimeSlider.RegisterValueChangedCallback(changeEvent => { viewport.PreviewSeconds = changeEvent.newValue; });
-            timeGroup.Add(previewTimeSlider);
-            transportRow.Add(timeGroup);
-            column.Add(transportRow);
+            timeRow.Add(previewTimeSlider);
+            column.Add(timeRow);
 
             return column;
         }
@@ -292,7 +299,7 @@ namespace DotsAnimationToolkit.Editor
             widthField.style.flexShrink = 0f;
             heightField.style.flexShrink = 0f;
             sizeFieldRow.Add(widthField);
-            Label sizeSeparatorLabel = new Label("x");
+            Label sizeSeparatorLabel = new Label("×");
             sizeSeparatorLabel.style.flexShrink = 0f;
             sizeFieldRow.Add(sizeSeparatorLabel);
             sizeFieldRow.Add(heightField);
@@ -303,7 +310,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 presetLabels.Add(preset.label);
             }
-            presetField = new DropdownField(presetLabels, 0);
+            presetLabels.Add(CustomPresetLabel);
+            presetField = new DropdownField(presetLabels, CaptureSettings.IndexOfPresetMatchingSize(settings.width, settings.height));
             presetField.RegisterValueChangedCallback(changeEvent =>
             {
                 int presetIndex = presetField.index;
@@ -328,12 +336,10 @@ namespace DotsAnimationToolkit.Editor
             rangeSlider.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             timingCardBody.Add(ToolkitChrome.MakePropertyRow("Range", rangeSlider, null));
 
-            rangeSummaryLabel = new Label(string.Empty);
-            rangeSummaryLabel.AddToClassList("toolkit-hint");
-            timingCardBody.Add(rangeSummaryLabel);
+            timingCardBody.Add(MakeValueColumnHint(out rangeSummaryLabel));
 
-            VisualElement backgroundCardBody;
-            cardsScrollView.Add(ToolkitChrome.MakeCard("capture-background-card", "Background", out backgroundCardBody, out _));
+            VisualElement lookCardBody;
+            cardsScrollView.Add(ToolkitChrome.MakeCard("capture-look-card", "Look", out lookCardBody, out _));
 
             backgroundSelectedIndex = settings.background == CaptureBackgroundMode.SolidColour ? 1 : 0;
             backgroundGroup = ToolkitChrome.MakeSegmentedControl("capture-background-segmented", new List<string> { "Transparent", "Colour" }, backgroundSelectedIndex, selectedIndex =>
@@ -341,15 +347,12 @@ namespace DotsAnimationToolkit.Editor
                 backgroundSelectedIndex = selectedIndex;
                 OnSettingsFieldChanged();
             });
-            backgroundCardBody.Add(backgroundGroup);
+            lookCardBody.Add(ToolkitChrome.MakePropertyRow("Background", backgroundGroup, "Transparent keeps the alpha channel."));
 
             backgroundColourField = new ColorField { value = settings.backgroundColour };
             backgroundColourField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             backgroundColourRow = ToolkitChrome.MakePropertyRow("Colour", backgroundColourField, null);
-            backgroundCardBody.Add(backgroundColourRow);
-
-            VisualElement formatCardBody;
-            cardsScrollView.Add(ToolkitChrome.MakeCard("capture-format-card", "Format", out formatCardBody, out _));
+            lookCardBody.Add(backgroundColourRow);
 
             formatSelectedIndex = settings.format == CaptureOutputFormat.Gif ? 1 : 0;
             formatGroup = ToolkitChrome.MakeSegmentedControl("capture-format-segmented", new List<string> { "PNG Sequence", "GIF" }, formatSelectedIndex, selectedIndex =>
@@ -357,7 +360,7 @@ namespace DotsAnimationToolkit.Editor
                 formatSelectedIndex = selectedIndex;
                 OnSettingsFieldChanged();
             });
-            formatCardBody.Add(formatGroup);
+            lookCardBody.Add(ToolkitChrome.MakePropertyRow("Format", formatGroup, "PNG Sequence writes one file per frame."));
 
             VisualElement outputCardBody;
             cardsScrollView.Add(ToolkitChrome.MakeCard("capture-output-card", "Output", out outputCardBody, out _));
@@ -366,18 +369,13 @@ namespace DotsAnimationToolkit.Editor
             nameField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             outputCardBody.Add(ToolkitChrome.MakePropertyRow("Name", nameField, null));
 
-            effectiveNameLabel = new Label(string.Empty);
-            effectiveNameLabel.AddToClassList("toolkit-hint");
-            outputCardBody.Add(effectiveNameLabel);
+            outputCardBody.Add(MakeValueColumnHint(out effectiveNameLabel));
 
             outputFolderField = new TextField { value = settings.outputFolder };
             outputFolderField.RegisterValueChangedCallback(changeEvent => OnSettingsFieldChanged());
             outputCardBody.Add(ToolkitChrome.MakePropertyRow("Output Folder", outputFolderField, null));
 
-            resolvedFolderLabel = new Label(string.Empty);
-            resolvedFolderLabel.style.whiteSpace = WhiteSpace.Normal;
-            resolvedFolderLabel.AddToClassList("toolkit-hint");
-            outputCardBody.Add(resolvedFolderLabel);
+            outputCardBody.Add(MakeValueColumnHint(out resolvedFolderLabel));
 
             progressBar = new ProgressBar();
             progressBar.style.marginTop = 6f;
@@ -559,6 +557,13 @@ namespace DotsAnimationToolkit.Editor
             }
 
             viewport.Source = activeSource;
+            // R17 + A109 D4: disabled with nothing to capture, and the tooltip says why.
+            bool hasCaptureSource = activeSource != null;
+            captureButton.SetEnabled(hasCaptureSource && !runner.IsRunning);
+            captureButton.tooltip = hasCaptureSource
+                ? "Render the frame range to disk"
+                : "Pick a clip, a profile animation or a cutscene in the bar first.";
+            previewTimeSlider.SetEnabled(hasCaptureSource);
             RefreshPreviewTimeRange();
             RefreshEffectiveNameLabel();
             RefreshRangeSummaryLabel();
@@ -605,6 +610,8 @@ namespace DotsAnimationToolkit.Editor
         {
             widthField.SetValueWithoutNotify(settings.width);
             heightField.SetValueWithoutNotify(settings.height);
+            int matchingPresetIndex = CaptureSettings.IndexOfPresetMatchingSize(settings.width, settings.height);
+            presetField.SetValueWithoutNotify(matchingPresetIndex < CaptureSettings.SizePresets.Length ? CaptureSettings.SizePresets[matchingPresetIndex].label : CustomPresetLabel);
             fpsField.SetValueWithoutNotify(settings.framesPerSecond);
             rangeSlider.SetValueWithoutNotify(new Vector2(settings.rangeStartNormalized, settings.rangeEndNormalized));
             backgroundSelectedIndex = settings.background == CaptureBackgroundMode.SolidColour ? 1 : 0;
@@ -626,12 +633,13 @@ namespace DotsAnimationToolkit.Editor
             float startSeconds = settings.RangeStartSeconds(durationSeconds);
             float endSeconds = settings.RangeEndSeconds(durationSeconds);
             int frameCount = settings.FrameCountFor(durationSeconds);
-            rangeSummaryLabel.text = frameCount + " frames, " + startSeconds.ToString("0.00") + " s to " + endSeconds.ToString("0.00") + " s";
+            rangeSummaryLabel.text = frameCount + (frameCount == 1 ? " frame, " : " frames, ") + startSeconds.ToString("0.00") + " s to " + endSeconds.ToString("0.00") + " s";
         }
 
         private void RefreshResolvedFolderLabel()
         {
             resolvedFolderLabel.text = "Writes to " + settings.ResolvedOutputFolder;
+            resolvedFolderLabel.tooltip = settings.ResolvedOutputFolder;
         }
 
         private void RefreshEffectiveNameLabel()

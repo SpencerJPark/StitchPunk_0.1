@@ -5,7 +5,7 @@ Paste this whole file as the first message of a new chat.
 ---
 
 You are continuing a sellable UPM package at
-`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.60.0).
+`C:\Users\spenc\Documents\GitHub\Stitch_Punk\Packages\com.dotsanimationtoolkit` (version 0.61.0).
 **§4** is newest first: A100 (Stats tab, built 2026-09-15, T12 closed under the standing rule with its question kept; roadmap Phase 2 complete), the 0.52.1 Flipbooks rename, then A101 (editor chrome consistency, built 2026-09-15 unattended, three ⚠ interpretations for the owner), then A99, A97F and A96F (built 2026-09-15 unattended; their checkpoints closed under the standing rule, the ⚠ questions kept in each paragraph), then A98, A97 and A96 (built 2026-09-14). The older editor checkpoints
 further down §4 (A71–A81 era) were closed as accepted on 2026-09-14 under the owner's "assume they pass unless something
 is game breaking" rule; the in-game G5-P10 and ragdoll RG-T4/T7/T10 checks stay open (A99 re-asks the ragdoll ones).

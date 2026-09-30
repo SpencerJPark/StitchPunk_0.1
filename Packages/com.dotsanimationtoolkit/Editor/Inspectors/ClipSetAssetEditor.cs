@@ -194,7 +194,8 @@ namespace DotsAnimationToolkit.Editor
             bool isBakeable = errorCount == 0;
 
             Label countsLabel = new Label(
-                errorCount.ToString() + " error(s), " + warningCount.ToString() + " warning(s)");
+                errorCount.ToString() + (errorCount == 1 ? " error, " : " errors, ") + warningCount.ToString()
+                + (warningCount == 1 ? " warning" : " warnings"));
             countsLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             countsLabel.style.color = errorCount > 0
                 ? ErrorColor

@@ -61,7 +61,7 @@ namespace DotsAnimationToolkit.Editor
             string folderPath = string.IsNullOrEmpty(assetPath)
                 ? string.Empty
                 : System.IO.Path.GetDirectoryName(assetPath).Replace('\\', '/');
-            return targetCount.ToString() + " targets"
+            return targetCount.ToString() + (targetCount == 1 ? " target" : " targets")
                 + (string.IsNullOrEmpty(folderPath) ? string.Empty : " · " + folderPath);
         }
 

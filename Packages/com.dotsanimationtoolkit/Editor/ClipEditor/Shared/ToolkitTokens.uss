@@ -45,7 +45,7 @@
     --toolkit-height-field: 20px;
     --toolkit-height-row: 22px;
     --toolkit-height-control: 24px;
-    --toolkit-height-primary: 28px;
+    --toolkit-height-primary: 24px;
     --toolkit-height-pane-header: 32px;
     --toolkit-height-asset-bar: 36px;
 

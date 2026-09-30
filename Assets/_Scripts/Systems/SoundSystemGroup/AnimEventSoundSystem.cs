@@ -69,7 +69,7 @@ public partial struct AnimEventSoundJob : IJobEntity
     {
         for (int i = 0; i < events.Length; i++)
         {
-            if (library.Value.TryGetSound(events[i].eventKey, out SoundType sound))
+            if (library.Value.TryGetSound(events[i].eventKey, events[i].intParam, out SoundType sound))
                 SoundUtil.PlayOn(ref ecb, sortKey, sound, entity);
         }
     }
@@ -87,7 +87,7 @@ public partial struct CutsceneAnimEventSoundJob : IJobEntity
     {
         for (int i = 0; i < events.Length; i++)
         {
-            if (library.Value.TryGetSound(events[i].eventKey, out SoundType sound))
+            if (library.Value.TryGetSound(events[i].eventKey, events[i].intParam, out SoundType sound))
                 SoundUtil.Play(ref ecb, sound, listenerPosition);
         }
     }

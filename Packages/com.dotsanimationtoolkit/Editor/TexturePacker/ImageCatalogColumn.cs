@@ -47,6 +47,10 @@ namespace DotsAnimationToolkit.Editor
         private readonly ListView imagesListView;
         private readonly Label emptyLabel;
         private readonly VisualElement headerActions;
+        private readonly Button hideOnCanvasButton;
+
+        private const string HideOnCanvasOffTooltip = "Hide images already on the canvas";
+        private const string HideOnCanvasOnTooltip = "Show images already on the canvas";
 
         public event Action<IReadOnlyList<Texture2D>> ImagesActivated;
 
@@ -59,22 +63,17 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.minWidth = 200f;
 
-            headerActions = new VisualElement();
+            headerActions = ToolkitChrome.MakeIconSquareRun("images-header-actions");
             headerActions.AddToClassList("toolkit-pane-actions");
 
-            ToolbarToggle hideOnCanvasToggle = new ToolbarToggle();
-            hideOnCanvasToggle.name = "images-hide-on-canvas-toggle";
-            hideOnCanvasToggle.tooltip = "Hide images already on the canvas";
-            Image hideOnCanvasIcon = new Image { pickingMode = PickingMode.Ignore };
-            hideOnCanvasToggle.Add(hideOnCanvasIcon);
-            ToolkitIcons.SetToggleIcon(hideOnCanvasToggle, hideOnCanvasIcon, "d_scenevis_hidden_hover", "On canvas");
-            hideOnCanvasToggle.RegisterValueChangedCallback(OnHideOnCanvasToggleChanged);
-            headerActions.Add(hideOnCanvasToggle);
+            hideOnCanvasButton = ToolkitChrome.MakeIconSquare(
+                ToggleHideImagesAlreadyOnCanvas, "d_scenevis_hidden_hover", HideOnCanvasOffTooltip);
+            hideOnCanvasButton.name = "images-hide-on-canvas-toggle";
+            headerActions.Add(hideOnCanvasButton);
 
-            Button refreshButton = ToolkitIcons.MakeIconTextButton(
-                RescanProject, "d_Refresh", "Rescan the project for images", "Refresh");
+            Button refreshButton = ToolkitChrome.MakeIconSquare(
+                RescanProject, "d_Refresh", "Rescan the project for images");
             refreshButton.name = "images-refresh-button";
-            ToolkitChrome.StyleButton(refreshButton, ToolkitButtonVariant.Ghost);
             headerActions.Add(refreshButton);
 
             searchField = new ToolbarSearchField();
@@ -170,11 +169,13 @@ namespace DotsAnimationToolkit.Editor
             thumbnail.name = "image-row-thumbnail";
             thumbnail.scaleMode = ScaleMode.ScaleToFit;
             thumbnail.pickingMode = PickingMode.Ignore;
-            thumbnail.style.width = 24f;
-            thumbnail.style.height = 24f;
-            thumbnail.style.flexShrink = 0f;
-            thumbnail.style.marginRight = 8f;
-            row.Add(thumbnail);
+            thumbnail.AddToClassList("texture-packer-thumbnail");
+
+            VisualElement thumbnailSlot = new VisualElement();
+            thumbnailSlot.AddToClassList("texture-packer-thumbnail-slot");
+            thumbnailSlot.pickingMode = PickingMode.Ignore;
+            thumbnailSlot.Add(thumbnail);
+            row.Add(thumbnailSlot);
 
             Label titleLabel = new Label();
             titleLabel.name = "image-row-title";
@@ -244,9 +245,15 @@ namespace DotsAnimationToolkit.Editor
             ApplyFilter();
         }
 
-        private void OnHideOnCanvasToggleChanged(ChangeEvent<bool> changeEvent)
+        private void ToggleHideImagesAlreadyOnCanvas()
         {
-            hideImagesAlreadyOnCanvas = changeEvent.newValue;
+            hideImagesAlreadyOnCanvas = !hideImagesAlreadyOnCanvas;
+            hideOnCanvasButton.EnableInClassList("toolkit-icon-square--on", hideImagesAlreadyOnCanvas);
+            hideOnCanvasButton.tooltip = hideImagesAlreadyOnCanvas ? HideOnCanvasOnTooltip : HideOnCanvasOffTooltip;
+            ToolkitIcons.SetButtonIcon(
+                hideOnCanvasButton,
+                hideImagesAlreadyOnCanvas ? "d_scenevis_visible_hover" : "d_scenevis_hidden_hover",
+                "•");
             ApplyFilter();
         }
 
@@ -345,7 +352,7 @@ namespace DotsAnimationToolkit.Editor
 
             DragAndDrop.PrepareStartDrag();
             DragAndDrop.objectReferences = draggedTextures.ToArray();
-            DragAndDrop.StartDrag(draggedTextures.Count.ToString() + " image(s)");
+            DragAndDrop.StartDrag(draggedTextures.Count.ToString() + (draggedTextures.Count == 1 ? " image" : " images"));
             // Stops the ListView's own pointer handling from also starting a rectangle selection.
             pointerEvent.StopPropagation();
         }

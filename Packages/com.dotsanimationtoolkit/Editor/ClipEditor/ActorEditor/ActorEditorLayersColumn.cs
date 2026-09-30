@@ -170,12 +170,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (profile == null || profile.layers == null)
             {
-                rowScroll.Add(ToolkitChrome.MakeEmptyState(
-                    "actor-editor-layers-empty",
-                    "No profile assigned",
-                    "A profile holds the layers this actor plays.",
-                    null,
-                    null));
+                rowScroll.Add(ToolkitChrome.MakeHint("No profile selected."));
                 return;
             }
 

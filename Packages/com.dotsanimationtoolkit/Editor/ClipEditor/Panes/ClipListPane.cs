@@ -50,7 +50,7 @@ namespace DotsAnimationToolkit.Editor
                     newClipButton.clicked += CreateClip;
                     ToolkitIcons.SetButtonIcon(newClipButton, ToolkitIcons.Plus, "New");
                     newClipButton.AddToClassList("toolkit-icon-button");
-                    ToolkitChrome.StyleButton(newClipButton, ToolkitButtonVariant.Ghost);
+                    newClipButton.AddToClassList("toolkit-icon-square");
                     newClipButton.tooltip =
                         "Create a clip beside the clip set on disk, using the set's rig, and add it to "
                         + "the set.";
@@ -62,7 +62,8 @@ namespace DotsAnimationToolkit.Editor
                     deleteClipButton.clicked += DeleteSelectedClip;
                     ToolkitIcons.SetButtonIcon(deleteClipButton, ToolkitIcons.Trash, "Delete");
                     deleteClipButton.AddToClassList("toolkit-icon-button");
-                    ToolkitChrome.StyleButton(deleteClipButton, ToolkitButtonVariant.Destructive);
+                    deleteClipButton.AddToClassList("toolkit-icon-square");
+                    deleteClipButton.AddToClassList("toolkit-icon-square--destructive");
                     deleteClipButton.tooltip =
                         "Remove the selected clip from the set, and optionally send its asset to the "
                         + "trash. Asks first.";

@@ -87,15 +87,14 @@ namespace DotsAnimationToolkit.Editor
             VisualElement header = new VisualElement();
             header.name = "texture-packer-header";
             header.AddToClassList("toolkit-pane-header");
-            // The graph column is flush, so the header insets itself or its buttons sit on the window edge.
-            header.style.paddingTop = 4f;
-            header.style.paddingBottom = 4f;
-            header.style.paddingRight = 8f;
+            // The graph column is flush, so the header insets itself (#texture-packer-header in the
+            // window sheet) or its buttons sit on the window edge.
             header.Add(recipeLabel);
             header.Add(unsavedChangesBadge);
 
             VisualElement actions = new VisualElement();
             actions.AddToClassList("toolkit-pane-actions");
+            actions.AddToClassList("toolkit-action-run");
 
             Button bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB", "Write the packed PNG to disk, overwriting the output asset in place.", "Bake");
@@ -118,7 +117,7 @@ namespace DotsAnimationToolkit.Editor
             Button clearButton = ToolkitIcons.MakeIconTextButton(
                 OnClearButtonClicked, ToolkitIcons.Trash, "Remove every source node and wire. The output node stays.", "Clear");
             clearButton.name = "texture-packer-clear-button";
-            ToolkitChrome.StyleButton(clearButton, ToolkitButtonVariant.Ghost);
+            ToolkitChrome.StyleButton(clearButton, ToolkitButtonVariant.Destructive);
             actions.Add(clearButton);
 
             header.Add(actions);

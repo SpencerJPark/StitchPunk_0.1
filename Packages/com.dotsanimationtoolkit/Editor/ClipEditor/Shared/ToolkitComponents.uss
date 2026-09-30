@@ -220,9 +220,86 @@
     opacity: 0.4;
 }
 
-/* One run of actions, one height: a run that carries the primary is 28px throughout, a run
-   without one is 24px. The doubled class buys specificity over the per-variant heights, so this
-   holds wherever the rule lands in the sheet. */
+/* Square icon-only button, the same height as its row. */
+.toolkit-icon-square.unity-button {
+    width: var(--toolkit-height-control);
+    min-width: var(--toolkit-height-control);
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0;
+    margin: 0;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-button);
+    background-color: transparent;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.toolkit-icon-square.unity-button:hover {
+    background-color: var(--toolkit-hover);
+}
+
+.toolkit-icon-square.unity-button:disabled,
+.toolkit-icon-square.unity-button:disabled:hover {
+    opacity: 0.4;
+    background-color: transparent;
+}
+
+.toolkit-icon-square.unity-button .toolkit-icon-button__icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+/* ApplyIconTone tints the glyph from the button's own resolved colour, so the red goes on the button. */
+.toolkit-icon-square--destructive.unity-button,
+.toolkit-icon-square--destructive.unity-button:hover {
+    color: var(--toolkit-color-error);
+}
+
+/* R17: a square that toggles shows its on state filled, like the segmented control's on item. */
+/* R17: an "on" toggle must read as filled. The raised tone is 6 levels off the window colour and
+   vanished; Unity's button grey is the neutral fill every other "on" state uses. */
+.toolkit-icon-square.toolkit-icon-square--on.unity-button,
+.toolkit-icon-square.toolkit-icon-square--on.unity-button:hover {
+    background-color: var(--unity-colors-button-background);
+    color: var(--toolkit-text);
+}
+
+/* R02: four text styles, no italic; muted says "empty" on its own. */
+.toolkit-path-row__path.toolkit-path-row__path--empty {
+    color: var(--toolkit-color-muted);
+    -unity-font-style: normal;
+}
+
+.toolkit-icon-square-run {
+    flex-direction: row;
+    align-items: center;
+    /* UI Toolkit has no :first-child, so every child leads with 4px and the run pulls back by 4px. */
+    margin-left: -4px;
+}
+
+.toolkit-icon-square-run > .toolkit-icon-square {
+    margin-left: 4px;
+}
+
+
+.toolkit-badge-row {
+    flex-direction: row;
+    align-items: center;
+    height: var(--toolkit-height-control);
+    flex-shrink: 0;
+}
+
+/* Every child leads with 4px (no :first-child in UI Toolkit); that lead doubles as the gap from whatever precedes the row. */
+.toolkit-badge-row > * {
+    margin-left: 4px;
+}
+
+
+/* One run of actions, one height: every button in a run is 24px (A109 D1). */
 .toolkit-action-run {
     flex-direction: row;
     align-items: center;
@@ -233,11 +310,6 @@
     min-height: var(--toolkit-height-control);
     margin-left: 4px;
     margin-right: 0;
-}
-
-.toolkit-action-run.toolkit-action-run--primary > .unity-button {
-    height: var(--toolkit-height-primary);
-    min-height: var(--toolkit-height-primary);
 }
 
 /* D. List rows */
@@ -351,6 +423,36 @@
     border-radius: 9px;
     font-size: var(--toolkit-text-meta);
     -unity-text-align: middle-center;
+}
+
+/* A badge built as a container (dot + label, e.g. VatFreshnessBadgeElement) gets the same pill. */
+.toolkit-badge {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    height: 18px;
+    min-height: 18px;
+    padding: 0 4px;
+    border-width: 1px;
+    border-radius: 9px;
+}
+
+.toolkit-badge > .unity-label {
+    font-size: var(--toolkit-text-meta);
+    margin: 0;
+    padding: 0;
+}
+
+.toolkit-badge > .toolkit-severity-dot {
+    margin-right: 4px;
+}
+
+/* A109 D5: in any row the pill centres on the 24px buttons beside it; flex-start sat it on the top edge. */
+.toolkit-badge-row > .toolkit-badge,
+.toolkit-pane-actions > .toolkit-badge,
+.toolkit-asset-bar > .toolkit-badge,
+.toolkit-card__actions > .toolkit-badge {
+    align-self: center;
 }
 
 .toolkit-badge.toolkit-badge--neutral {
@@ -573,4 +675,62 @@
    depths, so the eye separates them without a border. */
 .toolkit-column--raised {
     background-color: var(--toolkit-raised);
+}
+
+/* A toolbar button or toggle carrying the square class gets the same box (Clip Editor pane headers declare them in UXML). */
+.toolkit-icon-square.unity-toolbar-button,
+.toolkit-icon-square.unity-toolbar-toggle {
+    width: var(--toolkit-height-control);
+    min-width: var(--toolkit-height-control);
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0;
+    margin: 0 0 0 4px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-button);
+    background-color: transparent;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.toolkit-icon-square.unity-toolbar-button:hover,
+.toolkit-icon-square.unity-toolbar-toggle:hover {
+    background-color: var(--toolkit-hover);
+}
+
+.toolkit-icon-square.unity-toolbar-toggle:checked {
+    background-color: var(--unity-colors-button-background);
+    color: var(--toolkit-text);
+}
+
+/* A toolbar toggle that reads as a word (Snap, Auto Key): secondary outline, filled when on (R17). */
+.toolkit-toggle-button {
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0 8px;
+    margin: 0 0 0 4px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-button);
+    background-color: transparent;
+    color: var(--toolkit-label);
+    font-size: var(--toolkit-text-body);
+    flex-shrink: 0;
+}
+
+.toolkit-toggle-button:hover {
+    background-color: var(--toolkit-hover);
+}
+
+.toolkit-toggle-button:checked {
+    background-color: var(--unity-colors-button-background);
+    color: var(--toolkit-text);
+}
+
+/* Inside a 24px control row the segmented control's 2px track padding pushed it to ~30px and past the bar. */
+.toolkit-transport .toolkit-segmented,
+.toolkit-action-run .toolkit-segmented {
+    padding: 0;
 }

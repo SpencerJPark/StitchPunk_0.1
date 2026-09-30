@@ -35,8 +35,23 @@ namespace DotsAnimationToolkit.Editor
         private readonly ObjectField importSettingsSourceField;
         private readonly Button bakeButton;
         private readonly Button saveButton;
+        private readonly Button makeEditableButton;
+
+        private const string MakeEditableTooltip =
+            "Copy every layer out as a PNG frame and make a flipbook you can reorder, rename and bake. The imported array is left untouched.";
+        private const string BakeButtonNormalTooltip =
+            "Compose the frames into a grid PNG at the output path and import it as a Texture2DArray.";
+        private const string BakeButtonImportedTooltip =
+            "Unity's importer builds this array. Press Make editable to bake your own copy.";
+        private const string SaveButtonNormalTooltip = "Write this flipbook to its asset.";
+        private const string SaveButtonImportedDisabledTooltip =
+            "Rename a frame to enable Save (it stores the frame names).";
         private readonly VisualElement headerActions;
         private readonly VisualElement bodyHost;
+        private readonly VisualElement flipbookContent;
+        private readonly VisualElement noFlipbookEmptyState;
+        private readonly VisualElement outputCard;
+        private const string NothingSelectedTooltip = "Select a flipbook on the left first.";
 
         private FlipbookAsset workingCopy;
 
@@ -78,6 +93,7 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement zoomToolbar = new VisualElement();
             zoomToolbar.AddToClassList("toolkit-pane-actions");
+            zoomToolbar.AddToClassList("flipbooks-zoom-toolbar");
             zoomToolbar.style.height = 24f;
             zoomToolbar.style.flexShrink = 0f;
             zoomToolbar.Add(zoomSlider);
@@ -88,15 +104,20 @@ namespace DotsAnimationToolkit.Editor
             previewColumn.Add(preview);
 
             VisualElement previewStatusRow = ToolkitChrome.MakeStatusRow(out Label previewStatusLabel, out _, true);
+            previewStatusRow.AddToClassList("flipbooks-status-row");
             ToolkitChrome.SetStatus(previewStatusLabel, FlipbookPreviewElement.DefaultHoverText, ToolkitStatusTone.Neutral);
             preview.HoverTextChanged += hoverText => ToolkitChrome.SetStatus(previewStatusLabel, hoverText, ToolkitStatusTone.Neutral);
             previewColumn.Add(previewStatusRow);
 
             CoverPaneSplitView framesSplit = new CoverPaneSplitView("Flipbooks.Frames", 0, 300f, TwoPaneSplitViewOrientation.Horizontal);
             framesSplit.style.flexGrow = 1f;
+            // Shrinks below its content so the Output row under it stays on screen.
+            framesSplit.style.flexShrink = 1f;
+            framesSplit.style.minHeight = 0f;
             framesSplit.Add(frames);
             framesSplit.Add(previewColumn);
 
+            framesSplit.AddToClassList("flipbooks-section-gap");
             bodyHost = framesSplit;
 
             filterModeField = new EnumField(FilterMode.Bilinear);
@@ -131,11 +152,20 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement header = ToolkitChrome.MakePaneHeader(string.Empty, out flipbookLabel, out headerActions);
             infoLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
-            header.Insert(1, infoLabel);
+            makeEditableButton = ToolkitChrome.MakeSecondaryAction(
+                OnMakeEditableClicked, "d_Toolbar Plus", MakeEditableTooltip, "Make editable");
+            makeEditableButton.name = "flipbooks-make-editable-button";
+            makeEditableButton.style.display = DisplayStyle.None;
+
+            // In the actions run, not between title and actions: the header spreads its children apart,
+            // which left the badge floating mid-header.
+            headerActions.Add(infoLabel);
+            headerActions.Add(makeEditableButton);
             headerActions.Add(bakeButton);
             headerActions.Add(saveButton);
 
-            importedHintLabel = ToolkitChrome.MakeHint("The importer owns the layer order: rename frames, then Save to keep the names.");
+            importedHintLabel = ToolkitChrome.MakeHint(
+                "Imported array: Unity's importer owns the layers. Rename frames and Save to keep the names, or press Make editable to reorder, remove and bake.");
             importedHintLabel.name = "flipbook-imported-hint";
             importedHintLabel.style.display = DisplayStyle.None;
             importedHintLabel.style.flexShrink = 0f;
@@ -159,17 +189,32 @@ namespace DotsAnimationToolkit.Editor
             importSettingsCardBody.Add(ToolkitChrome.MakePropertyRow(
                 "Match import settings of", importSettingsSourceField, importSettingsSourceTooltip));
 
-            outputPathRow = new PathPickerRowElement("Output", "Choose where the baked flipbook is written.");
+            outputPathRow = new PathPickerRowElement(null, "Choose where the baked flipbook is written.");
             outputPathRow.BrowseRequested += OnChooseOutputPathClicked;
+            outputPathRow.style.flexShrink = 0f;
+
+            outputCard = ToolkitChrome.MakeCard("flipbook-output-card", "Output", out VisualElement outputCardBody, out _);
+            outputCard.style.flexShrink = 0f;
+            outputCardBody.Add(ToolkitChrome.MakePropertyRow("Folder", outputPathRow, null));
+
+            flipbookContent = new VisualElement { name = "flipbook-content" };
+            flipbookContent.style.flexGrow = 1f;
+            flipbookContent.style.minHeight = 0f;
+            flipbookContent.Add(importSettingsCard);
+            flipbookContent.Add(bodyHost);
+            flipbookContent.Add(outputCard);
+
+            noFlipbookEmptyState = ToolkitChrome.MakeEmptyState(
+                "flipbooks-empty-state", "No flipbook selected",
+                "Pick a flipbook on the left, or create one from images.", "New flipbook", OnNewRequested);
 
             VisualElement flipbookColumn = new VisualElement();
             flipbookColumn.AddToClassList("toolkit-column");
             flipbookColumn.Add(header);
             flipbookColumn.Add(importedHintLabel);
             flipbookColumn.Add(depthWarningLabel);
-            flipbookColumn.Add(importSettingsCard);
-            flipbookColumn.Add(bodyHost);
-            flipbookColumn.Add(outputPathRow);
+            flipbookColumn.Add(noFlipbookEmptyState);
+            flipbookColumn.Add(flipbookContent);
 
             CoverPaneSplitView sidebarSplit = new CoverPaneSplitView("Flipbooks.Sidebar", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
             sidebarSplit.style.flexGrow = 1f;
@@ -180,6 +225,7 @@ namespace DotsAnimationToolkit.Editor
             RefreshFlipbookLabel();
             RefreshInfoLabel();
             SetControlsEnabled(false);
+            RefreshModeControls();
         }
 
         public void RescanProject()
@@ -451,14 +497,58 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (workingCopy.IsImportedArray)
+            {
+                FilterMode newFilterMode = (FilterMode)changeEvent.newValue;
+                WriteToImportedArrayImporter(arrayImporter => arrayImporter.filterMode = newFilterMode);
+                return;
+            }
+
             workingCopy.filterMode = (FilterMode)changeEvent.newValue;
             MarkUnsaved();
+        }
+
+        private void WriteToImportedArrayImporter(Action<TextureImporter> applySetting)
+        {
+            TextureImporter arrayImporter =
+                AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(workingCopy.texture)) as TextureImporter;
+            if (arrayImporter != null)
+            {
+                applySetting(arrayImporter);
+                arrayImporter.SaveAndReimport();
+            }
+
+            RefreshModeControls();
+        }
+
+        private void OnMakeEditableClicked()
+        {
+            if (workingCopy == null || !workingCopy.IsImportedArray || !ConfirmDiscardIfUnsaved())
+            {
+                return;
+            }
+
+            FlipbookAsset editable = FlipbookAssetUtility.ExtractArrayLayersToEditableFlipbook(workingCopy.texture);
+            if (editable == null)
+            {
+                return;
+            }
+
+            LoadFlipbook(editable);
+            RescanProject();
         }
 
         private void OnWrapModeChanged(ChangeEvent<Enum> changeEvent)
         {
             if (workingCopy == null)
             {
+                return;
+            }
+
+            if (workingCopy.IsImportedArray)
+            {
+                TextureWrapMode newWrapMode = (TextureWrapMode)changeEvent.newValue;
+                WriteToImportedArrayImporter(arrayImporter => arrayImporter.wrapMode = newWrapMode);
                 return;
             }
 
@@ -473,6 +563,13 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (workingCopy.IsImportedArray)
+            {
+                bool newMipmapEnabled = changeEvent.newValue;
+                WriteToImportedArrayImporter(arrayImporter => arrayImporter.mipmapEnabled = newMipmapEnabled);
+                return;
+            }
+
             workingCopy.generateMips = changeEvent.newValue;
             MarkUnsaved();
         }
@@ -481,6 +578,13 @@ namespace DotsAnimationToolkit.Editor
         {
             if (workingCopy == null)
             {
+                return;
+            }
+
+            if (workingCopy.IsImportedArray)
+            {
+                bool newSrgbTexture = !changeEvent.newValue;
+                WriteToImportedArrayImporter(arrayImporter => arrayImporter.sRGBTexture = newSrgbTexture);
                 return;
             }
 
@@ -624,7 +728,7 @@ namespace DotsAnimationToolkit.Editor
         {
             string baseText = LoadedFlipbook != null
                 ? LoadedFlipbook.name
-                : LoadedArray != null ? LoadedArray.name : "No flipbook";
+                : LoadedArray != null ? LoadedArray.name : "Flipbook";
             flipbookLabel.text = HasUnsavedChanges ? baseText + "  ●" : baseText;
         }
 
@@ -632,14 +736,17 @@ namespace DotsAnimationToolkit.Editor
         {
             bool importedMode = workingCopy != null && workingCopy.IsImportedArray;
 
-            bakeButton.SetEnabled(!importedMode);
+            bakeButton.SetEnabled(workingCopy != null && !importedMode);
+            bakeButton.tooltip = workingCopy == null
+                ? NothingSelectedTooltip
+                : importedMode ? BakeButtonImportedTooltip : BakeButtonNormalTooltip;
             importSettingsSourceField.SetEnabled(!importedMode);
-            filterModeField.SetEnabled(!importedMode);
-            wrapModeField.SetEnabled(!importedMode);
-            generateMipsToggle.SetEnabled(!importedMode);
-            linearToggle.SetEnabled(!importedMode);
+            importSettingsSourceField.tooltip = importedMode
+                ? "An imported array takes its settings from its own importer."
+                : "Bake copies this array's import settings (compression, filter, mips, sRGB). Empty uses the project defaults.";
+            makeEditableButton.style.display = importedMode ? DisplayStyle.Flex : DisplayStyle.None;
 
-            outputPathRow.style.display = importedMode ? DisplayStyle.None : DisplayStyle.Flex;
+            outputCard.style.display = importedMode ? DisplayStyle.None : DisplayStyle.Flex;
             importedHintLabel.style.display = importedMode ? DisplayStyle.Flex : DisplayStyle.None;
 
             if (importedMode)
@@ -663,8 +770,14 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            saveButton.SetEnabled(workingCopy != null
-                && (LoadedArray == null || AnyFrameNameDiffersFromLayerIndex(workingCopy)));
+            bool saveEnabled = workingCopy != null
+                && (LoadedArray == null || AnyFrameNameDiffersFromLayerIndex(workingCopy));
+            saveButton.SetEnabled(saveEnabled);
+            saveButton.tooltip = workingCopy == null
+                ? NothingSelectedTooltip
+                : importedMode && !saveEnabled
+                ? SaveButtonImportedDisabledTooltip
+                : SaveButtonNormalTooltip;
         }
 
         private static bool AnyFrameNameDiffersFromLayerIndex(FlipbookAsset flipbook)
@@ -683,32 +796,36 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshInfoLabel()
         {
+            string infoText = BuildInfoText();
+            infoLabel.text = infoText;
+            infoLabel.style.display = infoText.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        private string BuildInfoText()
+        {
             if (workingCopy == null)
             {
-                infoLabel.text = "-";
-                return;
+                return string.Empty;
             }
 
             if (workingCopy.texture != null)
             {
-                infoLabel.text = workingCopy.layerSize.x + "x" + workingCopy.layerSize.y + " · " + workingCopy.frames.Count + " layers";
-                return;
+                return workingCopy.layerSize.x + "x" + workingCopy.layerSize.y + " · " + workingCopy.frames.Count + " layers";
             }
 
             if (workingCopy.frames.Count > 0 && workingCopy.frames[0].source != null)
             {
                 Texture2D firstSource = workingCopy.frames[0].source;
-                infoLabel.text = firstSource.width + "x" + firstSource.height + " · " + workingCopy.frames.Count + " layers";
-                return;
+                return firstSource.width + "x" + firstSource.height + " · " + workingCopy.frames.Count + " layers";
             }
 
-            infoLabel.text = "-";
+            return string.Empty;
         }
 
         private void SetControlsEnabled(bool enabled)
         {
-            headerActions.SetEnabled(enabled);
-            bodyHost.SetEnabled(enabled);
+            flipbookContent.style.display = enabled ? DisplayStyle.Flex : DisplayStyle.None;
+            noFlipbookEmptyState.style.display = enabled ? DisplayStyle.None : DisplayStyle.Flex;
         }
     }
 }

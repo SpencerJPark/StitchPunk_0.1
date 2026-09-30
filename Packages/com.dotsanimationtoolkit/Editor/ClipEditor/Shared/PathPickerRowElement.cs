@@ -12,6 +12,7 @@ namespace DotsAnimationToolkit.Editor
     {
         private readonly Label pathLabel;
         private readonly Button browseButton;
+        private string currentPath = string.Empty;
 
         public PathPickerRowElement(string captionText, string browseTooltip)
         {
@@ -28,18 +29,24 @@ namespace DotsAnimationToolkit.Editor
             pathLabel.AddToClassList("toolkit-path-row__path");
             Add(pathLabel);
 
-            browseButton = ToolkitIcons.MakeIconButton(RaiseBrowseRequested, "FolderOpened Icon", browseTooltip, "…");
+            string resolvedBrowseTooltip = string.IsNullOrEmpty(browseTooltip) ? "Choose a folder" : browseTooltip;
+            browseButton = ToolkitChrome.MakeIconSquare(RaiseBrowseRequested, "FolderOpened Icon", resolvedBrowseTooltip);
             browseButton.name = "path-browse-button";
             Add(browseButton);
+
+            Path = string.Empty;
         }
 
         public string Path
         {
-            get => pathLabel.text;
+            get => currentPath;
             set
             {
-                pathLabel.text = value;
-                pathLabel.tooltip = value;
+                currentPath = value ?? string.Empty;
+                bool isEmpty = currentPath.Length == 0;
+                pathLabel.text = isEmpty ? "No folder chosen" : currentPath;
+                pathLabel.tooltip = isEmpty ? "Press the folder button to choose one" : currentPath;
+                pathLabel.EnableInClassList("toolkit-path-row__path--empty", isEmpty);
             }
         }
 

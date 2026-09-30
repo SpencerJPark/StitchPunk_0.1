@@ -23,6 +23,7 @@ namespace DotsAnimationToolkit.Editor
             this.rig = rig;
             this.clip = clip;
             this.previewController = new ClipPreviewController();
+            this.previewController.DrawsRagdollBodies = false;
 
             if (rig != null)
             {

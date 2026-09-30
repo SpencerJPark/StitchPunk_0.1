@@ -850,6 +850,7 @@ namespace DotsAnimationToolkit.Editor
             if (actorEditorPanel != null)
             {
                 actorEditorPanel.SetTicking(false);
+                actorEditorPanel.HealthRequested -= OnActorProfileHealthRequested;
                 actorEditorPanel.Dispose();
                 actorEditorPanel = null;
             }
@@ -1194,8 +1195,13 @@ namespace DotsAnimationToolkit.Editor
             rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
             if (rigEditToggle != null)
             {
+                rigEditToggle.text = string.Empty;
+                rigEditToggle.AddToClassList("toolkit-icon-square");
+                Image rigEditIcon = new Image { pickingMode = PickingMode.Ignore };
+                rigEditToggle.Add(rigEditIcon);
+                ToolkitIcons.SetToggleIcon(rigEditToggle, rigEditIcon, "editicon.sml", "Edit");
                 rigEditToggle.tooltip =
-                    "Off: gizmos and fields key the selected clip. "
+                    "Edit rig: Off: gizmos and fields key the selected clip. "
                     + "On: gizmos write the prefab's base pose and the hierarchy accepts drag-to-"
                     + "reparent. No keyframes are created in Rig Edit.";
                 rigEditToggle.RegisterValueChangedCallback(OnRigEditModeChanged);
@@ -1849,6 +1855,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     actorEditorPanel = new ActorEditorPanel();
                     actorEditorPanel.Bind(selection);
+                    actorEditorPanel.HealthRequested += OnActorProfileHealthRequested;
                     actorEditorPane.Add(actorEditorPanel);
                 }
 
@@ -1916,11 +1923,29 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // The count is a badge beside the word rather than rich text inside it, so the tab is
+            // only as wide as what it shows and needs no reserved width (which left a gap before it).
+            Label errorCountBadge = healthToggle.Q<Label>(HealthTabErrorBadgeName);
+            if (errorCountBadge == null)
+            {
+                errorCountBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Error);
+                errorCountBadge.name = HealthTabErrorBadgeName;
+                errorCountBadge.AddToClassList(TabCountBadgeClassName);
+                errorCountBadge.pickingMode = PickingMode.Ignore;
+                healthToggle.Add(errorCountBadge);
+            }
+
             int errorCount = healthPanel.ErrorCount;
-            healthToggle.text = errorCount > 0
-                ? "Health (<color=#" + ColorUtility.ToHtmlStringRGB(ToolkitPalette.Error) + ">" + errorCount + "</color>)"
-                : "Health";
+            healthToggle.text = "Health";
+            errorCountBadge.text = errorCount.ToString();
+            errorCountBadge.style.display = errorCount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            healthToggle.tooltip = errorCount > 0
+                ? errorCount + (errorCount == 1 ? " error" : " errors") + " in the last scan"
+                : string.Empty;
         }
+
+        private const string HealthTabErrorBadgeName = "health-tab-error-count";
+        private const string TabCountBadgeClassName = "clip-editor__tab-count";
 
         private void ShowFlipbooksTab(bool isShown)
         {
@@ -2063,6 +2088,13 @@ namespace DotsAnimationToolkit.Editor
             SetActiveTab(ClipEditorTab.ClipEditor);
         }
 
+        // Unfiltered on purpose: Health files a profile's problems under the clip or rig at fault, so a
+        // profile-name filter comes back empty.
+        private void OnActorProfileHealthRequested()
+        {
+            SetActiveTab(ClipEditorTab.Health);
+        }
+
         private void OnClipSetRebakeRequested(ClipSetAsset requestedSet, RigAsset bakedRig)
         {
             selection.SetClipSet(requestedSet);
@@ -2189,8 +2221,9 @@ namespace DotsAnimationToolkit.Editor
 
             if (reconcileTitle != null)
             {
-                reconcileTitle.text = brokenBindings.Count.ToString()
-                    + " binding(s) no longer match the prefab. Nothing has been changed — pick a "
+                reconcileTitle.text = Pluralize(brokenBindings.Count, "binding", "bindings")
+                    + (brokenBindings.Count == 1 ? " no longer matches" : " no longer match")
+                    + " the prefab. Nothing has been changed — pick a "
                     + "new name or remove each one.";
             }
 
@@ -2247,8 +2280,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 case BrokenBindingKind.BoneTrack:
                     return binding.description + "  ·  \"" + binding.missingName
-                        + "\" is not in the prefab. " + binding.keyCount.ToString()
-                        + " key(s) will not bake.";
+                        + "\" is not in the prefab. " + Pluralize(binding.keyCount, "key", "keys")
+                        + " will not bake.";
                 case BrokenBindingKind.BoneSocket:
                     return binding.description + "  ·  \"" + binding.missingName
                         + "\" is not in the prefab. The attachment will bake at the origin.";
@@ -2291,7 +2324,7 @@ namespace DotsAnimationToolkit.Editor
         {
             string question = binding.kind == BrokenBindingKind.BoneTrack
                 ? "Delete the bone track for \"" + binding.missingName + "\"?\n\n"
-                    + binding.keyCount.ToString() + " key(s) will be lost."
+                    + Pluralize(binding.keyCount, "key", "keys") + " will be lost."
                 : "Delete the socket bound to \"" + binding.missingName + "\"?";
 
             if (!EditorUtility.DisplayDialog("Delete Broken Binding", question, "Delete", "Cancel"))
@@ -2577,7 +2610,11 @@ namespace DotsAnimationToolkit.Editor
                 // already carries, because the refresh below EnableInClassList's it by name.
                 VisualElement viewportStatusRow = ToolkitChrome.MakeStatusRow(
                     out Label unusedStatusLabel, out VisualElement viewportStatusActions, true);
-                viewportStatusRow.Add(previewStatusLabel);
+                // In the unused label's place, ahead of the actions: appended after them, the actions'
+                // auto margin pushed the text to the right edge of the footer.
+                unusedStatusLabel.RemoveFromHierarchy();
+                previewStatusLabel.AddToClassList("toolkit-status");
+                viewportStatusRow.Insert(0, previewStatusLabel);
                 viewportPane.Add(viewportStatusRow);
             }
             viewportFrame = rootVisualElement.Q<VisualElement>("viewport-frame");
@@ -2591,11 +2628,8 @@ namespace DotsAnimationToolkit.Editor
                     "Pick a rig in the Rig Hierarchy pane on the left, and the clip you select plays on it here.",
                     null,
                     null);
-                viewportEmptyState.style.position = Position.Absolute;
-                viewportEmptyState.style.left = 0;
-                viewportEmptyState.style.right = 0;
-                viewportEmptyState.style.top = 0;
-                viewportEmptyState.style.bottom = 0;
+                viewportEmptyState.AddToClassList("clip-editor__viewport-empty-overlay");
+                ToolkitChrome.PlaceEmptyStateOnViewportCard(viewportEmptyState);
 
                 // The overlay sits over the whole frame; without Ignore it eats camera drags and
                 // the gizmo rail's clicks that land on top of it.
@@ -2608,11 +2642,8 @@ namespace DotsAnimationToolkit.Editor
                     "clip-editor-viewport-empty-clip", "No clip selected",
                     "Pick a clip in the list on the left, or create one, to preview and key it.",
                     null, null);
-                clipEditorViewportEmptyState.style.position = Position.Absolute;
-                clipEditorViewportEmptyState.style.left = 0f;
-                clipEditorViewportEmptyState.style.right = 0f;
-                clipEditorViewportEmptyState.style.top = 0f;
-                clipEditorViewportEmptyState.style.bottom = 0f;
+                clipEditorViewportEmptyState.AddToClassList("clip-editor__viewport-empty-overlay");
+                ToolkitChrome.PlaceEmptyStateOnViewportCard(clipEditorViewportEmptyState);
                 clipEditorViewportEmptyState.style.display = DisplayStyle.None;
                 clipEditorViewportEmptyState.pickingMode = PickingMode.Ignore;
                 viewportFrame.Add(clipEditorViewportEmptyState);
@@ -3919,6 +3950,12 @@ namespace DotsAnimationToolkit.Editor
 
             if (previewStatusLabel != null)
             {
+                // R03: while the "No rig to preview" card is up it already says what to do; the footer
+                // repeating "Pick a rig above the hierarchy." made it the fourth copy on screen.
+                if (LoadedPrefab == null && viewportEmptyState != null)
+                {
+                    viewportStatus = string.Empty;
+                }
                 previewStatusLabel.text = viewportStatus;
 
                 // Collapsed when there is nothing to say, rather than left as an empty line. It sits
@@ -3937,8 +3974,11 @@ namespace DotsAnimationToolkit.Editor
             bool showingNoClipEmptyState = selectedClip == null;
             if (clipEditorViewportEmptyState != null)
             {
+                // One message at a time: with no rig, the rig overlay above says the first thing to do,
+                // and both drawing at once stacked two titles on top of each other.
+                bool rigOverlayShowing = viewportEmptyState != null && LoadedPrefab == null;
                 clipEditorViewportEmptyState.style.display =
-                    showingNoClipEmptyState ? DisplayStyle.Flex : DisplayStyle.None;
+                    showingNoClipEmptyState && !rigOverlayShowing ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             // The empty state overlay sits on top of the render, but the render keeps drawing
@@ -4632,8 +4672,8 @@ namespace DotsAnimationToolkit.Editor
         private static string DescribeTagCarry(
             int movedTrackCount, int mergedTrackCount, int refusedTrackCount, int touchedClipCount)
         {
-            string message = "Moved " + (movedTrackCount + mergedTrackCount).ToString()
-                + " row(s) in " + touchedClipCount.ToString() + " clip(s) to the new tag.";
+            string message = "Moved " + Pluralize(movedTrackCount + mergedTrackCount, "row", "rows")
+                + " in " + Pluralize(touchedClipCount, "clip", "clips") + " to the new tag.";
             if (mergedTrackCount > 0)
             {
                 message += "\n" + mergedTrackCount.ToString()
@@ -4641,8 +4681,8 @@ namespace DotsAnimationToolkit.Editor
             }
             if (refusedTrackCount > 0)
             {
-                message += "\n" + refusedTrackCount.ToString()
-                    + " flipbook row(s) stayed put — different frame settings.";
+                message += "\n" + Pluralize(refusedTrackCount, "flipbook row", "flipbook rows")
+                    + " stayed put — different frame settings.";
             }
             return message;
         }

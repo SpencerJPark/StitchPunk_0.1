@@ -99,7 +99,7 @@ namespace DotsAnimationToolkit.Editor
                 finding.severity = HealthSeverity.Error;
                 finding.code = HealthFinding.EventKeyNotInRegistryCode;
                 finding.message = "Event key 0x" + eventKey.ToString("X8") + " is used by " + clipsForKey.Count +
-                    " clip(s) but is not in the event keys registry: " + string.Join(", ", quotedClipNames);
+                    (clipsForKey.Count == 1 ? " clip" : " clips") + " but is not in the event keys registry: " + string.Join(", ", quotedClipNames);
                 finding.title = "Event key is not registered";
                 finding.detail = "Markers fire a key no system names.";
                 finding.target = clipsForKey[0];

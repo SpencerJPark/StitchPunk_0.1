@@ -196,8 +196,9 @@
 
 /* A mode rather than a momentary action -- loop and its kin show themselves lit rather than
    pressed. */
+/* R16/R17: "on" is one neutral fill everywhere; amber read as a warning on the loop button. */
 .toolkit-icon-button--lit {
-    background-color: var(--toolkit-color-loop-on);
+    background-color: var(--unity-colors-button-background);
 }
 
 /* A number in the bar is a caption plus the field it labels. */
@@ -244,12 +245,36 @@
     -unity-font-style: bold;
 }
 
+/* R02 + R05: 13/600, and no side padding -- the header's column already insets it 12px, so an extra
+   8px here put every title 8px right of the rows beneath it. Card titles are 13px too; a 12px pane
+   title read smaller than the cards inside its own pane. */
 .toolkit-pane-title {
+    font-size: var(--toolkit-text-title);
     -unity-font-style: bold;
+    padding: 0;
+    margin: 0;
+}
+
+/* Panes with no column padding (the Clip Editor's, and every flush viewport column) carry the
+   inset on the header instead, so a viewport's title lines up with its neighbours'. */
+.clip-editor__pane > .toolkit-pane-header,
+.toolkit-column--flush > .toolkit-pane-header,
+#ragdoll-viewport > .toolkit-pane-header,
+#retarget-preview > .toolkit-pane-header,
+#texture-packer-header {
+    padding-left: var(--toolkit-inset);
+    padding-right: var(--toolkit-inset);
+}
+
+#texture-packer-header {
     padding-top: 4px;
-    padding-bottom: 2px;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-bottom: 4px;
+}
+
+/* R06: the preview is not a .toolkit-column, so it missed the 8px top every other column has and
+   its header sat 8px above Tracks. */
+#retarget-preview {
+    padding-top: 8px;
 }
 
 /* A title with an action button pushed to the right edge of the pane. */
@@ -319,8 +344,12 @@
     align-items: center;
     flex-shrink: 0;
     margin-left: auto;
-    /* A run ending at the window edge otherwise draws its last border on the edge itself. */
-    margin-right: 8px;
+    margin-right: 0;
+}
+
+/* Every status row ends on the 12px inset, footer or not (the actions carried their own 8px). */
+.toolkit-status-row {
+    padding-right: var(--toolkit-inset);
 }
 
 /* Auto Key while on, the Key button's icon -- an edit-armed state layered onto a bar-action
@@ -446,13 +475,12 @@
 
 /* A run of prose sitting under a control that needs one more line of explanation than its label
    can carry. */
+/* One muted tone for every hint (the token, not body text at 70% -- that made a second grey), and
+   no side margin: a hint sits on its column's inset, under the label or title it explains. */
 .toolkit-hint {
     white-space: normal;
-    margin-left: 8px;
-    margin-right: 8px;
-    margin-top: 2px;
-    margin-bottom: 2px;
-    opacity: 0.7;
+    margin: 2px 0;
+    color: var(--toolkit-color-muted);
 }
 
 .toolkit-heading {
@@ -468,9 +496,12 @@
     align-items: center;
     flex-wrap: wrap;
     flex-shrink: 0;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    padding-right: 8px;
+    /* One height on every tab (measured 30/33/34/36 before) and the same 12px inset on the right as
+       on the left, so the primary action never sits closer to the window edge than the first label. */
+    min-height: var(--toolkit-height-asset-bar);
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-right: var(--toolkit-inset);
     border-bottom-width: 1px;
     border-bottom-color: var(--toolkit-divider);
 }
@@ -626,8 +657,17 @@
    likely label, instead of its text, keeps that change from resizing it and nudging every other tab. 104px is "Health (999)"
    (72px of text at 12px) plus padding and borders, with a little to spare. */
 .clip-editor__tab--health {
-    flex-basis: 104px;
     flex-shrink: 0;
+}
+
+/* The Health tab's error count: a badge beside the word, centred on the pill. */
+.clip-editor__tab-count.toolkit-badge {
+    align-self: center;
+    margin-left: 4px;
+}
+
+.toolkit-tablist--compact .clip-editor__tab-count {
+    display: none;
 }
 
 /* Compact tabs are all 28px wide, Health included. Its 104px basis reserves room for the issue
@@ -982,8 +1022,8 @@
 
 .clip-editor__inspector {
     flex-grow: 1;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: var(--toolkit-inset);
+    padding-right: var(--toolkit-inset);
     padding-top: 2px;
 }
 
@@ -1464,9 +1504,13 @@
     align-items: center;
 }
 
+/* No box of its own: it only holds count badges, and a box around a pill read as a ring in a ring. */
 .clip-editor__validation-summary {
     margin-left: 4px;
     margin-right: 4px;
+    padding: 0;
+    border-width: 0;
+    background-color: transparent;
 }
 
 /* The pressed look for the toggle. The button carries the counts either way, so without this the
@@ -1929,3 +1973,672 @@
     background-color: var(--toolkit-color-selected);
 }
 
+
+/* A109 — consistency pass 3 */
+
+/* D3: no control touches the header above it. */
+.clip-sets-detail-header,
+.rigs-detail-header {
+    margin-bottom: 8px;
+}
+
+/* A path picker inside a property row takes the row's height, not its own 4px margins (the floating folder icon). */
+.toolkit-property-row .toolkit-path-row {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* FB4: the frames grid sits clear of the Import settings card. */
+.flipbooks-section-gap {
+    margin-top: 12px;
+}
+
+.materials-create-target-dropdown {
+    min-width: 140px;
+    height: 24px;
+    margin: 0;
+}
+
+/* RT1: header and row cells share one set of column widths; the remaining 8% holds the Remap button. */
+.retarget-col-track,
+.retarget-col-part,
+.retarget-col-status {
+    flex-grow: 0;
+    min-width: 0;
+    padding: 0 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.retarget-col-track {
+    flex-basis: 28%;
+    flex-shrink: 0;
+}
+
+.retarget-col-part {
+    flex-basis: 44%;
+    flex-shrink: 1;
+}
+
+.retarget-col-status {
+    flex-basis: 20%;
+    flex-shrink: 0;
+}
+
+/* Outranks the shared list-row title/meta rules (title grows, meta keeps a left margin and a 65%
+   cap), which made cells ignore the column bases the caption row follows. */
+.toolkit-list-row > .retarget-col-track.unity-label,
+.toolkit-list-row > .retarget-col-part.unity-label,
+.toolkit-list-row > .retarget-col-status {
+    flex-grow: 0;
+    margin: 0;
+    max-width: none;
+    -unity-text-align: middle-left;
+}
+
+/* RT2: roster chips sit in one row with 8px between them; the coverage badge 4px after the name. */
+#retarget-roster-strip {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#retarget-roster-heading {
+    margin-right: 8px;
+}
+
+.retarget-roster-chip {
+    flex-direction: row;
+    align-items: center;
+    margin-right: 8px;
+}
+
+.retarget-roster-chip > .toolkit-badge {
+    margin-left: 4px;
+    align-self: center;
+}
+
+.ragdoll-rig-field {
+    min-width: 200px;
+    flex-shrink: 0;
+}
+
+/* RD2: one control row in the viewport header, groups split by a 1px divider (R07). */
+.toolkit-header-divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 8px;
+    flex-shrink: 0;
+    background-color: var(--toolkit-divider);
+}
+
+.toolkit-header-toggle {
+    margin-left: 8px;
+}
+
+/* HE1: the search field stops short so the filter pills are never clipped against it. */
+.health-search-field {
+    flex-grow: 1;
+    max-width: 320px;
+    margin-left: var(--toolkit-inset);
+    margin-right: 8px;
+}
+
+/* Every search box is a field (20px, R10); Unity's toolbar variant is 16px with no border. */
+.unity-toolbar-search-field {
+    height: var(--toolkit-height-field);
+    min-height: var(--toolkit-height-field);
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* HE2: every fix is one secondary button of one width, its description centred beside it. */
+.health-fix-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.health-fix-button {
+    width: 120px;
+    flex-grow: 0;
+    flex-shrink: 0;
+    margin-left: 0;
+}
+
+/* CU3: the cutscene inspector gets the column inset every other inspector has (R05). */
+.cutscene-inspector-body {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+.timeline-toolbar-dropdown {
+    height: 24px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* ---- A110 polish pass 4 ---------------------------------------------------------------------- */
+
+/* T2 Rigs: every target row one flat 22px height (ticked rows grew by their chips), the node name
+   growing, Kind/Tag chips right-aligned at badge height. */
+.rigs-target-row {
+    height: var(--toolkit-height-row);
+    min-height: var(--toolkit-height-row);
+    max-height: var(--toolkit-height-row);
+    align-items: center;
+}
+
+.rigs-target-row > .unity-toggle {
+    margin: 0 4px 0 0;
+    flex-shrink: 0;
+}
+
+.rigs-target-row > .toolkit-list-row__title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.rigs-target-chip.unity-button {
+    flex-shrink: 0;
+    height: 18px;
+    min-height: 18px;
+    margin: 0 0 0 4px;
+}
+
+.rigs-folder-field-group {
+    flex-direction: row;
+    align-items: center;
+}
+
+.rigs-folder-field {
+    flex-grow: 1;
+    margin: 0;
+}
+
+/* T3 Clip Sets: picker meta keeps the card's right inset and trails off instead of clipping. */
+.toolkit-list-row__meta.unity-label.clip-sets-picker-meta {
+    margin-right: var(--toolkit-inset);
+}
+
+.clip-sets-folder-row .toolkit-path-row__path {
+    padding-left: 6px;
+}
+
+.clip-sets-detail-header .clip-sets-detail-title.unity-label {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+/* T6 Health: fixed columns so every code badge shares one x. */
+.health-finding-row__title.unity-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.health-finding-row__asset.unity-label {
+    flex-grow: 0;
+    flex-shrink: 0;
+    width: 140px;
+    margin-left: 8px;
+}
+
+.health-finding-row__code.toolkit-badge {
+    flex-grow: 0;
+    flex-shrink: 0;
+    width: 40px;
+    -unity-text-align: middle-center;
+    align-self: center;
+    margin-left: 8px;
+}
+
+/* Beat .toolkit-badge.unity-label's margin reset (same specificity, later sheet). */
+.clip-editor__tab-count.toolkit-badge.unity-label,
+.health-finding-row__code.toolkit-badge.unity-label {
+    margin-left: 8px;
+}
+
+.rigs-folder-field-group {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.rigs-folder-field {
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.rigs-folder-field-group > .unity-button {
+    flex-shrink: 0;
+    margin-right: 0;
+}
+
+/* T4 Clip Editor: the empty state starts right of the tool rail (24px buttons + 8px card padding). */
+.clip-editor__viewport-empty-overlay {
+    position: absolute;
+    left: 48px;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+/* R16: blue means selected. A billboard root keeps normal text; its marker glyph says it. */
+.clip-editor__hierarchy-row--billboard-root,
+.clip-editor__hierarchy-row--billboard-inherited {
+    color: var(--toolkit-text);
+}
+
+/* T5 Events */
+.events-inspector-body {
+    flex-grow: 1;
+}
+
+.events-keys-header-badge.toolkit-badge.unity-label {
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+/* T8 Capture */
+.capture-hint-value {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.capture-time-row {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    height: var(--toolkit-height-control);
+    padding: 0 var(--toolkit-inset);
+}
+
+.capture-time-row__caption {
+    margin: 0 8px 0 0;
+}
+
+.capture-time-row__slider {
+    flex-grow: 1;
+    margin: 0;
+}
+
+#capture-background-segmented,
+#capture-format-segmented {
+    align-self: flex-start;
+}
+
+/* T12 Stats */
+.stats-hint-line {
+    margin: 0 var(--toolkit-inset) 8px var(--toolkit-inset);
+}
+
+.toolkit-list-row__meta.unity-label.stats-value--empty {
+    color: var(--toolkit-color-muted);
+}
+
+#stats-sparkline {
+    position: relative;
+}
+
+.stats-sparkline__empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    -unity-text-align: middle-center;
+    font-size: var(--toolkit-text-meta);
+    color: var(--toolkit-color-muted);
+}
+
+/* T10 Actor Profiles: the one empty state fills the viewport frame. */
+.actor-editor__viewport-empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+/* T13 Texture Packer: Pack Output node on one label column. */
+/* Centred on the title row's midline, pushed to its right end. The component's badge rule
+   (align-self: flex-start; margin: 0) out-ranked a one-class selector and pinned it to the top. */
+.toolkit-card__header > .texture-packer-output-badge.toolkit-badge.unity-label {
+    align-self: center;
+    margin: 0 0 0 auto;
+}
+
+.texture-packer-output-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: var(--toolkit-height-field);
+    padding: 2px 8px;
+}
+
+.texture-packer-output-row--first {
+    margin-top: 4px;
+}
+
+.texture-packer-output-label {
+    width: 88px;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.texture-packer-output-channel-label {
+    flex-direction: row;
+    align-items: center;
+}
+
+.texture-packer-output-invert {
+    flex-shrink: 0;
+    margin: 0 4px;
+    font-size: var(--toolkit-text-meta);
+}
+
+.texture-packer-output-value {
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 120px;
+    margin: 0;
+}
+
+.texture-packer-output-presets {
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+
+.texture-packer-output-path {
+    font-size: var(--toolkit-text-meta);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.texture-packer-output-path--empty {
+    color: var(--toolkit-color-muted);
+}
+
+.texture-packer-output-preview {
+    align-self: center;
+    margin: 4px 0;
+}
+
+/* Every thumbnail aspect-fits one square slot, on the list's own surface with a hairline. */
+.texture-packer-thumbnail-slot {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    margin-right: 8px;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--toolkit-radius-field);
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    background-color: var(--toolkit-window);
+}
+
+.texture-packer-thumbnail {
+    width: 100%;
+    height: 100%;
+}
+
+/* T14 Flipbooks */
+.flipbooks-zoom-toolbar,
+.flipbooks-status-row {
+    padding-left: var(--toolkit-inset);
+    padding-right: var(--toolkit-inset);
+}
+
+/* A badge in a row (pane header, header actions, a tab) centres on the row's midline; the
+   component default (flex-start) is for badges stacked in a column. */
+.toolkit-pane-header .toolkit-badge.unity-label,
+.toolkit-pane-actions .toolkit-badge.unity-label,
+.toolkit-list-row .toolkit-badge.unity-label,
+.clip-editor__tab-count.toolkit-badge.unity-label {
+    align-self: center;
+}
+
+/* A segmented control in a property row sizes to its content (style guide: never full width). */
+.toolkit-property-row .toolkit-segmented {
+    flex-grow: 0;
+    align-self: center;
+}
+
+/* Status rows: one inset everywhere (12px to the text), a tone dot before the line. A footer inside
+   a padded column reaches back over that padding so it spans the column like the list surface. */
+.toolkit-status-row {
+    padding-left: 4px;
+}
+
+.toolkit-status-row--footer {
+    min-height: var(--toolkit-height-control);
+    padding-right: var(--toolkit-inset);
+}
+
+.toolkit-column > .toolkit-status-row--footer {
+    margin-left: -12px;
+    margin-right: -12px;
+}
+
+.toolkit-status-row > .toolkit-status.unity-label {
+    margin: 0 0 0 8px;
+}
+
+.toolkit-status-row > .toolkit-status.toolkit-status--dotted.unity-label {
+    margin-left: 6px;
+}
+
+.toolkit-status-row > .toolkit-hint.unity-label,
+.toolkit-pane-actions > .toolkit-hint.unity-label {
+    margin: 0 0 0 8px;
+}
+
+.toolkit-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    flex-shrink: 0;
+    background-color: var(--toolkit-color-muted);
+}
+
+.toolkit-status-dot--warning {
+    background-color: var(--toolkit-color-warning);
+}
+
+.toolkit-status-dot--error {
+    background-color: var(--toolkit-color-error);
+}
+
+.toolkit-status-dot--ok {
+    background-color: var(--toolkit-color-clean);
+}
+
+/* A badge in a property row keeps its pill size instead of growing to the field's width. */
+.toolkit-property-row .toolkit-badge.unity-label {
+    flex-grow: 0;
+    align-self: center;
+}
+
+/* A badge that follows text in a row keeps a gap from it (the component resets margin to 0, which
+   jammed "NewRig" against its "1/1" count). USS has no sibling selector, so the rows that put a
+   badge after a label are named here. */
+.toolkit-chip > .toolkit-badge.unity-label,
+.toolkit-list-row > .toolkit-badge.unity-label,
+.toolkit-card__actions > .toolkit-badge.unity-label,
+.toolkit-card__header > .toolkit-badge.unity-label,
+.toolkit-pane-actions > .toolkit-badge.unity-label,
+.toolkit-pane-header > .toolkit-badge.unity-label {
+    margin-left: 6px;
+}
+
+/* Measured 0px between "11 bodies" and "8 joints": the badge's own margin reset beat the row gap. */
+.toolkit-badge-row > .toolkit-badge.unity-label {
+    margin-right: 4px;
+}
+
+/* Icon squares in a pane header keep the header's 4px gap (the Clips + and Delete measured 0px). */
+.toolkit-pane-actions > .toolkit-icon-square.unity-button,
+.toolkit-pane-actions > .toolkit-icon-square.unity-toolbar-button,
+.toolkit-pane-actions > .toolkit-icon-square.unity-toolbar-toggle {
+    margin-left: 4px;
+    margin-right: 0;
+}
+
+/* Health toolbar: search | filter (centred) | scan status + Scan project. */
+.toolkit-asset-bar.health-toolbar {
+    flex-wrap: nowrap;
+    padding-left: var(--toolkit-inset);
+}
+
+.health-toolbar__side {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+}
+
+.health-toolbar__side--end {
+    justify-content: flex-end;
+}
+
+.health-toolbar__side > .health-search-field {
+    flex-grow: 1;
+    max-width: 280px;
+    margin: 0 16px 0 0;
+}
+
+.health-toolbar > .health-filter {
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.health-scan-status.unity-label {
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0 12px 0 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.health-toolbar__side--end > .unity-button {
+    margin-left: 0;
+    flex-shrink: 0;
+}
+
+/* Clip Editor transport: timing left, playback on the true centre, playhead + zoom right. The side
+   zones share the spare width equally (flex 1 1 0) -- space-evenly left the play controls off-centre
+   and put 34px of dead space before "Length". */
+.toolkit-transport.clip-editor__transport-zoned {
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.toolkit-transport__zone {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+}
+
+.toolkit-transport__zone--end {
+    justify-content: flex-end;
+}
+
+.clip-editor__transport-zoned > #transport-core-slot {
+    flex-shrink: 0;
+    margin: 0 16px;
+    padding-right: 0;
+}
+
+#transport-end-zone > .toolkit-transport__group {
+    margin: 0 0 0 16px;
+    padding-right: 0;
+}
+
+/* The start zone is also a transport group; its 4px margins and 8px right padding made it 12px
+   heavier than the end zone and pushed playback 6px right of centre (measured). */
+#transport-start-zone {
+    margin: 0;
+    padding: 0;
+}
+
+/* Zoom is a timeline view control, so it lives on the timeline's own toolbar, split from the editing
+   actions by a hairline. Moving it off the transport balanced the two sides so playback can centre. */
+.clip-editor__timeline-zoom {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left-width: 1px;
+    border-left-color: var(--toolkit-divider);
+}
+
+.clip-editor__transport-zoned .toolkit-transport__field,
+.clip-editor__transport-zoned .toolkit-transport__caption {
+    flex-shrink: 0;
+}
+
+/* Hints placed straight in a flush Clip Editor pane sit on the pane's 12px inset, not its edge. */
+.clip-editor__pane > .toolkit-hint.unity-label {
+    margin: 4px var(--toolkit-inset);
+}
+
+/* Unity's own "List is empty": a muted hint on the list's inset rather than body text on the edge. */
+.unity-list-view__empty-label {
+    color: var(--toolkit-color-muted);
+    font-size: var(--toolkit-text-body);
+    -unity-text-align: upper-left;
+    padding: 8px var(--toolkit-inset);
+    margin: 0;
+}
+
+/* Every viewport's empty state: fills the frame, centred, text on a card over the grid. */
+.toolkit-viewport-empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.toolkit-viewport-empty-card {
+    align-items: center;
+    max-width: 480px;
+    padding: 12px 16px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-card);
+    background-color: var(--toolkit-surface);
+}
+
+.toolkit-viewport-empty-card > .toolkit-empty__why.unity-label {
+    margin-bottom: 0;
+}
+
+/* Viewport status lines placed straight under a preview sit on the column's 12px inset. */
+#retarget-preview-status,
+#rig-preview-status,
+#actor-editor-viewport-status {
+    margin: 4px var(--toolkit-inset);
+}
+
+/* The Keys count sits beside its title, not floating mid-header between title and actions. */
+.toolkit-pane-header > .events-keys-header-badge.toolkit-badge.unity-label {
+    margin-left: 8px;
+    margin-right: auto;
+}

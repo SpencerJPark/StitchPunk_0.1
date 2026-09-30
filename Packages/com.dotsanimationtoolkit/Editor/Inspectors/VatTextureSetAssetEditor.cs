@@ -331,7 +331,8 @@ namespace DotsAnimationToolkit.Editor
                 totalFrames += clipRanges[rangeIndex].frameCount;
             }
             Label summary = new Label(
-                clipRanges.Count.ToString() + " clip(s), " + totalFrames.ToString() + " total frame(s).");
+                clipRanges.Count.ToString() + (clipRanges.Count == 1 ? " clip, " : " clips, ") + totalFrames.ToString()
+                + (totalFrames == 1 ? " total frame." : " total frames."));
             summary.style.marginBottom = 4f;
             container.Add(summary);
 
@@ -416,8 +417,9 @@ namespace DotsAnimationToolkit.Editor
                 ? minSampleCount.ToString()
                 : minSampleCount.ToString() + " – " + maxSampleCount.ToString();
             Label summary = new Label(
-                socketTracks.Count.ToString() + " track(s) across " + distinctSocketIds.Count.ToString()
-                + " distinct socket(s). Samples per track:  " + sampleRangeText + ".");
+                socketTracks.Count.ToString() + (socketTracks.Count == 1 ? " track" : " tracks") + " across "
+                + distinctSocketIds.Count.ToString()
+                + (distinctSocketIds.Count == 1 ? " distinct socket" : " distinct sockets") + ". Samples per track:  " + sampleRangeText + ".");
             summary.style.whiteSpace = WhiteSpace.Normal;
             summary.style.marginBottom = 4f;
             container.Add(summary);

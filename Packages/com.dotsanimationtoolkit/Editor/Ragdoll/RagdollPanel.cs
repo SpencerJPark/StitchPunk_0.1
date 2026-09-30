@@ -53,6 +53,7 @@ namespace DotsAnimationToolkit.Editor
                 allowSceneObjects = false
             };
             rigField.AddToClassList("toolkit-asset-bar__field");
+            rigField.AddToClassList("ragdoll-rig-field");
             rigField.RegisterValueChangedCallback(changeEvent =>
             {
                 RigAsset newRig = changeEvent.newValue as RigAsset;
@@ -69,13 +70,14 @@ namespace DotsAnimationToolkit.Editor
 
             summaryBodiesBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
             summaryBodiesBadge.name = "ragdoll-summary-label";
-            summaryBodiesBadge.style.marginLeft = 6f;
-            headerRow.Add(summaryBodiesBadge);
 
             summaryJointsBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
             summaryJointsBadge.name = "ragdoll-joints-badge";
-            summaryJointsBadge.style.marginLeft = 4f;
-            headerRow.Add(summaryJointsBadge);
+
+            VisualElement summaryBadgeRow = ToolkitChrome.MakeBadgeRow("ragdoll-summary-badge-row");
+            summaryBadgeRow.Add(summaryBodiesBadge);
+            summaryBadgeRow.Add(summaryJointsBadge);
+            headerRow.Add(summaryBadgeRow);
 
             bodiesColumn = new RagdollBodiesColumn();
             bodiesColumn.BodySelected += OnBodySelected;

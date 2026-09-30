@@ -96,11 +96,18 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
 
             VisualElement toolbar = ToolkitChrome.MakeAssetBar("health-asset-bar");
+            toolbar.AddToClassList("health-toolbar");
 
+            // Three zones: the two sides share the spare width equally, so the filter sits on the bar's
+            // true centre however long the scan status grows.
+            VisualElement searchZone = new VisualElement { name = "health-toolbar-search-zone" };
+            searchZone.AddToClassList("health-toolbar__side");
             filterField = new ToolbarSearchField();
             filterField.name = "health-filter-field";
+            filterField.AddToClassList("health-search-field");
             filterField.RegisterValueChangedCallback(OnFilterChanged);
-            toolbar.Add(filterField);
+            searchZone.Add(filterField);
+            toolbar.Add(searchZone);
 
             List<string> healthFilterSegmentLabels = new List<string> { "All", "Errors", "Warnings", "Notes" };
             healthFilterSegmented = ToolkitChrome.MakeSegmentedControl(
@@ -108,22 +115,25 @@ namespace DotsAnimationToolkit.Editor
                 healthFilterSegmentLabels,
                 HealthFilterSegmentAllIndex,
                 OnHealthFilterSegmentSelected);
+            healthFilterSegmented.AddToClassList("health-filter");
             toolbar.Add(healthFilterSegmented);
 
             UpdateCounts();
 
-            toolbar.Add(ToolkitChrome.MakeAssetBarSpacer());
-
-            scanButton = ToolkitChrome.MakePrimaryAction(Scan, "d_Refresh", "Scan every toolkit asset", "Scan project");
-            scanButton.name = "health-scan-button";
-            toolbar.Add(scanButton);
+            VisualElement scanZone = new VisualElement { name = "health-scan-row" };
+            scanZone.AddToClassList("health-toolbar__side");
+            scanZone.AddToClassList("health-toolbar__side--end");
 
             scanStatusLabel = new Label("not scanned yet");
             scanStatusLabel.name = "health-scan-status";
-            scanStatusLabel.AddToClassList("toolkit-text--dim");
-            scanStatusLabel.style.marginLeft = 8f;
-            scanStatusLabel.style.marginRight = 8f;
-            toolbar.Add(scanStatusLabel);
+            scanStatusLabel.AddToClassList("toolkit-hint");
+            scanStatusLabel.AddToClassList("health-scan-status");
+            scanZone.Add(scanStatusLabel);
+
+            scanButton = ToolkitChrome.MakePrimaryAction(Scan, "d_Refresh", "Scan every toolkit asset", "Scan project");
+            scanButton.name = "health-scan-button";
+            scanZone.Add(scanButton);
+            toolbar.Add(scanZone);
 
             Add(toolbar);
 
@@ -222,9 +232,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void UpdateScanStatusLabel()
         {
-            int findingCount = latestFindings.Count;
-            string countLabel = findingCount == 1 ? "finding" : "findings";
-            scanStatusLabel.text = "last scan " + DateTime.Now.ToString("HH:mm") + " · " + findingCount + " " + countLabel;
+            scanStatusLabel.text = "Scanned " + DateTime.Now.ToString("HH:mm");
         }
 
         private void ApplyFilter()

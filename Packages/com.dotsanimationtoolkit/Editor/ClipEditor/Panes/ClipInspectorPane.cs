@@ -13,6 +13,11 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>The Inspector pane: the key, object and clip field builders and their live bindings; every edit it makes goes back through the window's undo, commit and rebuild delegates, so nothing here hand-rolls an edit path.</summary>
     public sealed class ClipInspectorPane : VisualElement, System.IDisposable
     {
+        private static string Pluralize(int count, string singular, string plural)
+        {
+            return count.ToString() + " " + (count == 1 ? singular : plural);
+        }
+
         internal delegate TransformValueState ResolveDisplayedTransformHandler(
             uint targetId, out float3 position, out float3 rotationDegrees, out float3 scale);
         internal delegate void ReadRigEditPoseHandler(
@@ -1277,7 +1282,7 @@ namespace DotsAnimationToolkit.Editor
                     "Not baked: no captured motion for this socket. Re-run the VAT bake, and check "
                     + "the Console for unresolved bone names while you are there.");
             }
-            return MakeHint("Baked across " + bakedClipCount.ToString() + " clip(s).");
+            return MakeHint("Baked across " + Pluralize(bakedClipCount, "clip", "clips") + ".");
         }
 
         /// <summary>A dropdown of the rig's parts, so a target binding cannot be mistyped.</summary>
@@ -1402,7 +1407,7 @@ namespace DotsAnimationToolkit.Editor
             int effectiveKeyIndex = ClipSpriteEditing.FindEffectiveKeyIndex(track, session.PlayheadNormalized);
             bool isOnKey = ClipSpriteEditing.FindKeyIndexAt(track, session.PlayheadNormalized) >= 0;
 
-            trackBlock.Add(MakeHeading("Track " + trackIndex + "  ·  " + keyCount + " key(s)"));
+            trackBlock.Add(MakeHeading("Track " + trackIndex + "  ·  " + Pluralize(keyCount, "key", "keys")));
 
             Label stateHint = MakeHint(keyCount == 0
                 ? "Empty — editing the index below creates the first key."
@@ -1850,7 +1855,7 @@ namespace DotsAnimationToolkit.Editor
                 "clip-inspector-bone-tracks-card", "Bone Tracks", out boneTracksBody, out _));
 
             int boneTrackCount = session.SelectedClip.boneTracks != null ? session.SelectedClip.boneTracks.Count : 0;
-            boneTracksBody.Add(new Label(boneTrackCount.ToString() + " track(s)"));
+            boneTracksBody.Add(new Label(boneTrackCount == 0 ? "No bone tracks" : Pluralize(boneTrackCount, "bone track", "bone tracks")));
 
             // LoadedPrefab, not just whether a rig is assigned: a rig with no sourcePrefab yet has
             // no hierarchy to pick a bone from either, and the typed fallback covers that state.

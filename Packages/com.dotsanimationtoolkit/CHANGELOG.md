@@ -8,6 +8,37 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.0] — Consistency pass 3
+
+Every tab, against the owner's circled captures (A109): one button height, one header-action idiom, and no
+greyed-out control without a reason.
+
+### Changed
+- **Primary buttons are 24px**, the same height as the buttons beside them (Bake, Scan project, Open in Clip
+  Editor, Create and assign, New).
+- **Pane-header actions are boxed icon squares** on every tab — New, Refresh, Hide, Save, +, trash, Edit, link —
+  24×24 with a tooltip; delete squares carry a red glyph. The Clip Editor's left pane included.
+- **Destructive word buttons are outlined** with red text instead of a borderless red word (Clear, Remove,
+  Remove Slot, Health's Delete).
+- 8px under every detail header and asset bar; status badges and their buttons share one centred row.
+- Cutscene cast: Add Actor and Add Prop are a figure and a cube; the stage status sits under the header.
+- Ragdoll: the pose source is a Rest / Clip segmented control beside the ground control.
+- Retarget: column captions sit in their own row, aligned with the cells.
+- Validation placeholders ("No profile", "No clip set") are neutral badges; the count badges open Health.
+- VAT Bake disables Bake while a source problem stands, and the badge and footer say what it is.
+
+### Added
+- **Flipbooks: imported arrays can be set up.** Import settings write to the array's importer, and **Make
+  editable** copies every layer out as a PNG frame into a new flipbook that can be reordered, renamed, trimmed
+  and baked. The source array is never touched.
+- A disabled control's tooltip says why it is disabled.
+- Events: a hint on Int value names — one key per kind of event, the int param picks the variant.
+
+### Fixed
+- Clipped footers, headers and segmented controls on Events, VAT Bake, Flipbooks, Health and Cutscenes.
+- Actor inspector: Blend In, hidden while "use clip default" was on, never came back when it was turned off.
+- Rigs: the target summary was a half-sentence.
+
 ## [0.60.0] — Timeline tabs pass
 
 The Clip Editor, Actor Profiles and Cutscenes tabs, to the approved editor style guide (A107).

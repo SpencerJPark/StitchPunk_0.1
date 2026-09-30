@@ -57,8 +57,6 @@ namespace DotsAnimationToolkit.Editor
                 this.findings.AddRange(findings);
             }
 
-            titleLabel.text = "Findings (" + this.findings.Count + ")";
-
             // The panel re-selects immediately after calling this, so the old selection is cleared
             // silently here rather than through ClearSelection, which would fire FindingSelected(null)
             // for a frame before the panel's own re-selection lands.
@@ -119,16 +117,19 @@ namespace DotsAnimationToolkit.Editor
             Label titleLabel = new Label();
             titleLabel.name = "health-finding-title";
             titleLabel.AddToClassList("toolkit-list-row__title");
+            titleLabel.AddToClassList("health-finding-row__title");
             row.Add(titleLabel);
-
-            Label codeBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
-            codeBadge.name = "health-finding-code";
-            row.Add(codeBadge);
 
             Label assetLabel = new Label();
             assetLabel.name = "health-finding-asset";
             assetLabel.AddToClassList("toolkit-list-row__meta");
+            assetLabel.AddToClassList("health-finding-row__asset");
             row.Add(assetLabel);
+
+            Label codeBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            codeBadge.name = "health-finding-code";
+            codeBadge.AddToClassList("health-finding-row__code");
+            row.Add(codeBadge);
 
             return itemSlot;
         }
@@ -145,13 +146,30 @@ namespace DotsAnimationToolkit.Editor
 
             Label titleLabel = row.Q<Label>("health-finding-title");
             string title = string.IsNullOrEmpty(finding.title) ? finding.message : finding.title;
-            titleLabel.text = title;
+            titleLabel.text = StripValidatorIdPrefix(title);
 
             Label codeBadge = row.Q<Label>("health-finding-code");
             codeBadge.text = finding.code;
 
             Label assetLabel = row.Q<Label>("health-finding-asset");
-            assetLabel.text = finding.target != null ? finding.target.name : "(missing)";
+            string assetName = finding.target != null ? finding.target.name : "(missing)";
+            assetLabel.text = assetName;
+            assetLabel.tooltip = assetName;
+        }
+
+        // Rule titles may carry an internal validator id ("V38: ..."); it is not user copy.
+        public static string StripValidatorIdPrefix(string title)
+        {
+            if (string.IsNullOrEmpty(title))
+            {
+                return title;
+            }
+
+            string strippedTitle = System.Text.RegularExpressions.Regex.Replace(title, @"^V\d+:\s*", string.Empty);
+            // The prefix sat before a lower-case clause ("V38: clip set doesn't…"); a title starts upper-case.
+            return strippedTitle.Length > 0 && strippedTitle.Length != title.Length
+                ? char.ToUpperInvariant(strippedTitle[0]) + strippedTitle.Substring(1)
+                : strippedTitle;
         }
 
         private static Color SeverityColor(HealthSeverity severity)

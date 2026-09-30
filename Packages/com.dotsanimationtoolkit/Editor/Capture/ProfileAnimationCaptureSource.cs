@@ -27,6 +27,7 @@ namespace DotsAnimationToolkit.Editor
             this.animationDefinition = FindAnimationDefinition(profile, animationKey);
 
             this.previewController = new ClipPreviewController();
+            this.previewController.DrawsRagdollBodies = false;
             this.previewComposer = new ActorPreviewComposer();
 
             if (profile != null && profile.rig != null)

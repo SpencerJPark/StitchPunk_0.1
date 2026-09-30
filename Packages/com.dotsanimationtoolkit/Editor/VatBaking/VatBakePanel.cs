@@ -20,6 +20,8 @@ namespace DotsAnimationToolkit.Editor
         private Label resolvedSourceLabel;
         private VisualElement resolvedSourceBadgeSlot;
         private VatFreshnessBadgeElement freshnessBadge;
+        private Button bakeButton;
+        private const string BakeButtonDefaultTooltip = "Bake every VAT-bound clip in the set to textures.";
         private List<VatBakeSource> resolvedSources;
         private EnumField flavorField;
         private ObjectField rigField;
@@ -27,6 +29,8 @@ namespace DotsAnimationToolkit.Editor
         private Toggle fullPrecisionField;
         private PathPickerRowElement outputFolderField;
         private Label summaryLabel;
+        private VisualElement summaryRow;
+        private string resolvedSourceFailureMessage;
         private ScrollView logView;
         private VatPreviewElement preview;
         private ObjectField previewSetField;
@@ -115,26 +119,21 @@ namespace DotsAnimationToolkit.Editor
             // keep in step with it. The full receipt now lives in the footer status row at the bottom
             // of the panel; this slot only holds a short word for whether it is worth a look.
             resolvedSourceBadgeSlot = new VisualElement { name = "vat-resolved-source-badge-slot" };
-            resolvedSourceBadgeSlot.style.marginRight = 6;
 
             freshnessBadge = new VatFreshnessBadgeElement();
-            freshnessBadge.style.marginLeft = 6;
             freshnessBadge.style.display = DisplayStyle.None;
 
-            VisualElement resolvedSourceRow = new VisualElement();
-            resolvedSourceRow.name = "vat-resolved-source-row";
-            resolvedSourceRow.style.flexDirection = FlexDirection.Row;
-            resolvedSourceRow.style.alignItems = Align.FlexStart;
-            resolvedSourceRow.Add(resolvedSourceBadgeSlot);
-            resolvedSourceRow.Add(freshnessBadge);
-            assetBar.Add(resolvedSourceRow);
-
-            // Moved from the mid-column: the primary action belongs in the asset bar, pushed to the
-            // right of the fields it acts on by the spacer above.
-            Button bakeButton = ToolkitChrome.MakePrimaryAction(
-                Bake, "d_PreTextureRGB", "Bake every VAT-bound clip in the set to textures.", "Bake");
+            // The primary action belongs in the asset bar, pushed to the right of the fields it acts
+            // on by the spacer above; issue badge, freshness pill and Bake share one aligned row.
+            bakeButton = ToolkitChrome.MakePrimaryAction(
+                Bake, "d_PreTextureRGB", BakeButtonDefaultTooltip, "Bake");
             ToolkitIcons.SetButtonGlyph(bakeButton, ToolkitGlyphId.VatBake);
-            assetBar.Add(bakeButton);
+
+            VisualElement statusAndBakeRow = ToolkitChrome.MakeBadgeRow("vat-bake-status-run");
+            statusAndBakeRow.Add(resolvedSourceBadgeSlot);
+            statusAndBakeRow.Add(freshnessBadge);
+            statusAndBakeRow.Add(bakeButton);
+            assetBar.Add(statusAndBakeRow);
 
             VatSourceImportWatcher.AssetsImported += OnSourcesImported;
 
@@ -205,7 +204,10 @@ namespace DotsAnimationToolkit.Editor
             logView.style.marginTop = 4f;
             root.Add(logView);
 
-            root.Add(ToolkitChrome.MakeStatusRow(out summaryLabel, out _, true));
+            // Hidden until a bake or folder check has something to say, so the tab has one footer, not two.
+            summaryRow = ToolkitChrome.MakeStatusRow(out summaryLabel, out _, true);
+            summaryRow.style.display = DisplayStyle.None;
+            root.Add(summaryRow);
 
             VisualElement previewPane = new VisualElement { name = "vat-bake-preview-pane" };
             previewPane.AddToClassList("toolkit-column");
@@ -231,6 +233,10 @@ namespace DotsAnimationToolkit.Editor
             resolvedSourceLabel.name = "vat-resolved-source-label";
             resolvedSourceLabel.AddToClassList("toolkit-hint");
             resolvedSourceLabel.RegisterCallback<ClickEvent>(clickEvent => PingSourcePrefab());
+            // The split view above takes flexGrow 1; without flexShrink 0 here the footer is squeezed
+            // out of the window bottom when its message wraps.
+            resolvedSourceFooter.style.flexShrink = 0f;
+            splitView.style.minHeight = 0f;
             Add(resolvedSourceFooter);
         }
 
@@ -421,7 +427,7 @@ namespace DotsAnimationToolkit.Editor
                         Debug.LogWarning(
                             "'" + sourcePlan.Source.DisplayName + "': VAT bake could not resolve "
                             + bakeResult.unresolvedBoneTrackNames.Count.ToString()
-                            + " authored bone track name(s) in the source hierarchy: "
+                            + (bakeResult.unresolvedBoneTrackNames.Count == 1 ? " authored bone track name" : " authored bone track names") + " in the source hierarchy: "
                             + string.Join(", ", bakeResult.unresolvedBoneTrackNames)
                             + ". Those bones baked at rest. Check the names on the clip's bone tracks "
                             + "against the rig's source prefab.");
@@ -435,7 +441,7 @@ namespace DotsAnimationToolkit.Editor
                         Debug.LogWarning(
                             "'" + sourcePlan.Source.DisplayName + "': VAT bake could not resolve "
                             + bakeResult.unresolvedSocketBones.Count.ToString()
-                            + " socket bone(s) in the source hierarchy: "
+                            + (bakeResult.unresolvedSocketBones.Count == 1 ? " socket bone" : " socket bones") + " in the source hierarchy: "
                             + string.Join(", ", bakeResult.unresolvedSocketBones)
                             + ". Check the bone names on the rig's socket rows.");
                     }
@@ -498,8 +504,14 @@ namespace DotsAnimationToolkit.Editor
             if (!VatBakeSourceResolver.TryResolve(rig, out sources, out failureMessage))
             {
                 resolvedSources = null;
-                resolvedSourceLabel.text = failureMessage;
-                resolvedSourceLabel.EnableInClassList("toolkit-text--warning", true);
+                resolvedSourceFailureMessage = failureMessage;
+                bool lacksSkinnedMesh = failureMessage != null
+                    && failureMessage.IndexOf("no skinned mesh", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                // The asset-bar badge already names the problem; the footer only says what to do.
+                ToolkitChrome.SetStatus(
+                    resolvedSourceLabel,
+                    lacksSkinnedMesh ? "Pick a rig whose source prefab has a SkinnedMeshRenderer." : failureMessage,
+                    ToolkitStatusTone.Warning);
                 UpdateResolvedSourceBadge(true);
                 if (rebuildPreview)
                 {
@@ -509,7 +521,8 @@ namespace DotsAnimationToolkit.Editor
             }
 
             resolvedSources = sources;
-            resolvedSourceLabel.EnableInClassList("toolkit-text--warning", false);
+            resolvedSourceFailureMessage = null;
+            ToolkitChrome.SetStatus(resolvedSourceLabel, string.Empty, ToolkitStatusTone.Neutral);
 
             if (sources.Count == 1)
             {
@@ -590,11 +603,41 @@ namespace DotsAnimationToolkit.Editor
             }
 
             resolvedSourceBadgeSlot.Clear();
-            string badgeWord = isWarning ? "Issue" : "Source";
+            string badgeWord = "Source";
+            if (isWarning)
+            {
+                bool hasNoSkinnedMesh = resolvedSourceFailureMessage != null
+                    && resolvedSourceFailureMessage.IndexOf("no skinned mesh", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                // Name the problem: "Issue" said nothing the orange already didn't.
+                if (hasNoSkinnedMesh)
+                {
+                    badgeWord = "No skinned mesh";
+                }
+                else if (rigField != null && rigField.value == null)
+                {
+                    badgeWord = "No rig";
+                }
+                else if (clipSetField != null && clipSetField.value == null)
+                {
+                    badgeWord = "No clip set";
+                }
+                else
+                {
+                    badgeWord = "Can't bake";
+                }
+            }
             Label sourceBadge = ToolkitChrome.MakeBadge(
                 badgeWord, isWarning ? ToolkitStatusTone.Warning : ToolkitStatusTone.Neutral);
-            sourceBadge.tooltip = resolvedSourceLabel.text;
+            sourceBadge.tooltip = isWarning ? resolvedSourceFailureMessage : resolvedSourceLabel.text;
             resolvedSourceBadgeSlot.Add(sourceBadge);
+
+            if (bakeButton != null)
+            {
+                bakeButton.SetEnabled(!isWarning);
+                bakeButton.tooltip = isWarning
+                    ? "Bake is unavailable: " + resolvedSourceFailureMessage
+                    : BakeButtonDefaultTooltip;
+            }
         }
 
         private void PingSourcePrefab()
@@ -615,10 +658,9 @@ namespace DotsAnimationToolkit.Editor
                 totalClipRangeCount += partRanges == null ? 0 : partRanges.Count;
             }
 
-            ToolkitChrome.SetStatus(
-                summaryLabel,
-                "Baked " + partResults.Count.ToString() + " VAT part(s), "
-                    + totalClipRangeCount.ToString() + " clip range(s).",
+            ShowSummary(
+                "Baked " + partResults.Count.ToString() + (partResults.Count == 1 ? " VAT part, " : " VAT parts, ")
+                    + totalClipRangeCount.ToString() + (totalClipRangeCount == 1 ? " clip range." : " clip ranges."),
                 ToolkitStatusTone.Neutral);
 
             StringBuilder detail = new StringBuilder();
@@ -677,8 +719,14 @@ namespace DotsAnimationToolkit.Editor
 
         private void ReportFailure(string message)
         {
-            ToolkitChrome.SetStatus(summaryLabel, "Bake failed.", ToolkitStatusTone.Error);
+            ShowSummary("Bake failed.", ToolkitStatusTone.Error);
             AppendLog(message);
+        }
+
+        private void ShowSummary(string text, ToolkitStatusTone tone)
+        {
+            summaryRow.style.display = DisplayStyle.Flex;
+            ToolkitChrome.SetStatus(summaryLabel, text, tone);
         }
 
         private void AppendLog(string text)
@@ -728,8 +776,7 @@ namespace DotsAnimationToolkit.Editor
             }
             else
             {
-                ToolkitChrome.SetStatus(
-                    summaryLabel,
+                ShowSummary(
                     "The chosen folder must be inside this project's Assets or Packages folder.",
                     ToolkitStatusTone.Error);
             }

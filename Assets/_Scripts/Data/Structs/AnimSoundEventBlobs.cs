@@ -4,13 +4,13 @@ public struct AnimSoundEventMappingBlob
 {
     public BlobArray<AnimSoundEventEntryBlob> entries;
 
-    public bool TryGetSound(uint eventKey, out SoundType sound)
+    public bool TryGetSound(uint eventKey, int intParam, out SoundType sound)
     {
         for (int i = 0; i < entries.Length; i++)
         {
             if (entries[i].eventKey == eventKey)
             {
-                sound = entries[i].sound;
+                sound = entries[i].soundFromIntParam ? (SoundType)intParam : entries[i].sound;
                 return true;
             }
         }
@@ -23,4 +23,5 @@ public struct AnimSoundEventEntryBlob
 {
     public uint eventKey;
     public SoundType sound;
+    public bool soundFromIntParam;
 }

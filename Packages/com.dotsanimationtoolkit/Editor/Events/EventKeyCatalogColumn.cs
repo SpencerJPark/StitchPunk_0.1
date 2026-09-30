@@ -17,7 +17,6 @@ namespace DotsAnimationToolkit.Editor
         private readonly ToolbarSearchField searchField;
         private readonly ListView keysListView;
         private readonly Label emptyLabel;
-        private readonly Label budgetLabel;
         private readonly Label maskableBudgetBadge;
         private readonly Label pulseOnlyCountBadge;
 
@@ -36,32 +35,29 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.minWidth = 200f;
 
-            VisualElement headerActions = new VisualElement();
+            VisualElement headerActions = ToolkitChrome.MakeIconSquareRun("events-keys-header-actions");
             headerActions.AddToClassList("toolkit-pane-actions");
 
             maskableBudgetBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
             maskableBudgetBadge.name = "events-keys-maskable-budget-badge";
-            headerActions.Add(maskableBudgetBadge);
 
             pulseOnlyCountBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
             pulseOnlyCountBadge.name = "events-keys-pulse-only-badge";
-            headerActions.Add(pulseOnlyCountBadge);
 
-            Button newButton = ToolkitIcons.MakeIconTextButton(RaiseNewRequested, "Toolbar Plus", "Create a new event key.", "New");
+            Button newButton = ToolkitChrome.MakeIconSquare(RaiseNewRequested, "Toolbar Plus", "Create a new event key");
             newButton.name = "events-keys-new-button";
             headerActions.Add(newButton);
 
-            Button refreshButton = ToolkitIcons.MakeIconTextButton(Rescan, "Refresh", "Rescan asset references.", "Refresh");
+            Button refreshButton = ToolkitChrome.MakeIconSquare(Rescan, "Refresh", "Rescan asset references");
             refreshButton.name = "events-keys-refresh-button";
-            ToolkitChrome.StyleButton(refreshButton, ToolkitButtonVariant.Ghost);
             headerActions.Add(refreshButton);
 
-            VisualElement header = new VisualElement();
-            header.AddToClassList("toolkit-pane-header");
-
-            Label titleLabel = new Label("Keys");
-            titleLabel.AddToClassList("toolkit-pane-title");
-            header.Add(titleLabel);
+            VisualElement header = ToolkitChrome.MakePaneHeader("Keys", out Label titleLabel, out VisualElement defaultActions);
+            header.Remove(defaultActions);
+            maskableBudgetBadge.AddToClassList("events-keys-header-badge");
+            pulseOnlyCountBadge.AddToClassList("events-keys-header-badge");
+            header.Insert(header.IndexOf(titleLabel) + 1, maskableBudgetBadge);
+            header.Insert(header.IndexOf(titleLabel) + 2, pulseOnlyCountBadge);
             header.Add(headerActions);
             Add(header);
 
@@ -80,6 +76,8 @@ namespace DotsAnimationToolkit.Editor
             keysListView.fixedItemHeight = 22f;
             keysListView.selectionType = SelectionType.Single;
             keysListView.style.flexGrow = 1f;
+            keysListView.style.flexShrink = 1f;
+            keysListView.style.minHeight = 0f;
             keysListView.style.marginTop = 4f;
             keysListView.makeItem = MakeRow;
             keysListView.bindItem = BindRow;
@@ -91,10 +89,6 @@ namespace DotsAnimationToolkit.Editor
             emptyLabel = new Label();
             emptyLabel.AddToClassList("toolkit-hint");
             Add(emptyLabel);
-
-            VisualElement budgetStatusRow = ToolkitChrome.MakeStatusRow(out budgetLabel, out _, true);
-            budgetLabel.name = "events-keys-budget";
-            Add(budgetStatusRow);
 
             RefreshEmptyState();
             UpdateBudgetLabel();
@@ -234,6 +228,11 @@ namespace DotsAnimationToolkit.Editor
             infoLabel.AddToClassList("toolkit-list-row__meta");
             row.Add(infoLabel);
 
+            Label pulseOnlyRowBadge = ToolkitChrome.MakeBadge("pulse-only", ToolkitStatusTone.Neutral);
+            pulseOnlyRowBadge.name = "events-keys-row-pulse-only";
+            pulseOnlyRowBadge.tooltip = "Past the maskable budget: fires once, cannot hold a window open.";
+            row.Add(pulseOnlyRowBadge);
+
             row.AddManipulator(new ContextualMenuManipulator(
                 populateEvent => PopulateRowContextMenu(populateEvent, row)));
 
@@ -256,15 +255,14 @@ namespace DotsAnimationToolkit.Editor
             titleLabel.text = entry != null && !string.IsNullOrEmpty(entry.name) ? entry.name : "(unnamed)";
 
             Label infoLabel = row.Q<Label>("events-keys-row-info");
-            infoLabel.text = entry != null ? DescribeKeyLine(entry) : string.Empty;
+            infoLabel.text = entry != null ? "#" + entry.eventKey.ToString() : string.Empty;
+
+            Label pulseOnlyRowBadge = row.Q<Label>("events-keys-row-pulse-only");
+            pulseOnlyRowBadge.style.display = entry != null && !AnimEventMaskKeys.IsMaskable(entry.eventKey)
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
 
             row.EnableInClassList("toolkit-list-row--selected", entry == SelectedEntry);
-        }
-
-        private static string DescribeKeyLine(AnimEventKeyEntry entry)
-        {
-            string maskability = AnimEventMaskKeys.IsMaskable(entry.eventKey) ? "maskable" : "pulse-only";
-            return entry.eventKey.ToString() + " · " + maskability;
         }
 
         private void OnListSelectionChanged(IEnumerable<object> selectedItems)
@@ -322,21 +320,17 @@ namespace DotsAnimationToolkit.Editor
 
             bool isOverMaskableBudget = maskableUsedCount >= AnimEventMaskKeys.MaskKeyCount;
 
-            maskableBudgetBadge.text = maskableUsedCount + "/" + AnimEventMaskKeys.MaskKeyCount;
-            maskableBudgetBadge.tooltip = maskableUsedCount + " of " + AnimEventMaskKeys.MaskKeyCount + " maskable keys used";
+            maskableBudgetBadge.text = maskableUsedCount + " / " + AnimEventMaskKeys.MaskKeyCount;
+            maskableBudgetBadge.tooltip = maskableUsedCount + " of " + AnimEventMaskKeys.MaskKeyCount
+                + " maskable keys used. A maskable key can hold a window open; keys past "
+                + AnimEventMaskKeys.MaskKeyCount + " still work but only fire once (pulse).";
             maskableBudgetBadge.EnableInClassList("toolkit-badge--warning", isOverMaskableBudget);
             maskableBudgetBadge.EnableInClassList("toolkit-badge--neutral", !isOverMaskableBudget);
 
             pulseOnlyCountBadge.text = pulseOnlyUsedCount.ToString();
-            pulseOnlyCountBadge.tooltip = pulseOnlyUsedCount + " pulse-only keys";
-
-            string budgetStatusText = maskableUsedCount + " of " + AnimEventMaskKeys.MaskKeyCount
-                + " maskable keys used · " + pulseOnlyUsedCount + " pulse-only";
-            ToolkitStatusTone budgetStatusTone = isOverMaskableBudget
-                ? ToolkitStatusTone.Warning
-                : ToolkitStatusTone.Neutral;
-            ToolkitChrome.SetStatus(budgetLabel, "Event key budget", budgetStatusTone);
-            budgetLabel.tooltip = budgetStatusText;
+            pulseOnlyCountBadge.tooltip = pulseOnlyUsedCount + " pulse-only keys (past the "
+                + AnimEventMaskKeys.MaskKeyCount + " maskable slots)";
+            pulseOnlyCountBadge.style.display = pulseOnlyUsedCount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void PopulateRowContextMenu(ContextualMenuPopulateEvent populateEvent, VisualElement row)
@@ -407,7 +401,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 bool confirmedStillInUse = EditorUtility.DisplayDialog(
                     "Delete Event Still In Use",
-                    references.Count + " reference(s) will show as an unresolved key. Delete anyway?",
+                    references.Count + (references.Count == 1 ? " reference" : " references") + " will show as an unresolved key. Delete anyway?",
                     "Delete Anyway",
                     "Cancel");
                 if (!confirmedStillInUse)

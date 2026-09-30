@@ -67,7 +67,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             AssertExactVariantClasses(button, GhostVariantClassName);
 
             ToolkitChrome.StyleButton(button, ToolkitButtonVariant.Destructive);
-            AssertExactVariantClasses(button, GhostVariantClassName, DestructiveVariantClassName);
+            AssertExactVariantClasses(button, SecondaryVariantClassName, DestructiveVariantClassName);
 
             ToolkitChrome.StyleButton(button, ToolkitButtonVariant.Primary);
             AssertExactVariantClasses(button, PrimaryVariantClassName);

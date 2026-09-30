@@ -132,16 +132,10 @@ namespace DotsAnimationToolkit.Editor
                 return null;
             }
 
-            string[] existingFlipbookGuids = AssetDatabase.FindAssets("t:FlipbookAsset");
-            for (int guidIndex = 0; guidIndex < existingFlipbookGuids.Length; guidIndex++)
+            FlipbookAsset wrappingFlipbook = FindFlipbookWrappingArrayPath(arrayAssetPath);
+            if (wrappingFlipbook != null)
             {
-                string existingFlipbookPath = AssetDatabase.GUIDToAssetPath(existingFlipbookGuids[guidIndex]);
-                FlipbookAsset existingFlipbook = AssetDatabase.LoadAssetAtPath<FlipbookAsset>(existingFlipbookPath);
-                if (existingFlipbook != null && existingFlipbook.texture != null &&
-                    AssetDatabase.GetAssetPath(existingFlipbook.texture) == arrayAssetPath)
-                {
-                    return existingFlipbook;
-                }
+                return wrappingFlipbook;
             }
 
             FlipbookAsset flipbook = ScriptableObject.CreateInstance<FlipbookAsset>();
@@ -158,6 +152,165 @@ namespace DotsAnimationToolkit.Editor
             AssetDatabase.SaveAssetIfDirty(flipbook);
 
             return flipbook;
+        }
+
+        private static FlipbookAsset FindFlipbookWrappingArrayPath(string arrayAssetPath)
+        {
+            string[] existingFlipbookGuids = AssetDatabase.FindAssets("t:FlipbookAsset");
+            for (int guidIndex = 0; guidIndex < existingFlipbookGuids.Length; guidIndex++)
+            {
+                string existingFlipbookPath = AssetDatabase.GUIDToAssetPath(existingFlipbookGuids[guidIndex]);
+                FlipbookAsset existingFlipbook = AssetDatabase.LoadAssetAtPath<FlipbookAsset>(existingFlipbookPath);
+                if (existingFlipbook != null && existingFlipbook.texture != null &&
+                    AssetDatabase.GetAssetPath(existingFlipbook.texture) == arrayAssetPath)
+                {
+                    return existingFlipbook;
+                }
+            }
+            return null;
+        }
+
+        // Writes every layer of an importer-owned array out as a png and wraps them in a NEW editable flipbook; the source array is never touched.
+        public static FlipbookAsset ExtractArrayLayersToEditableFlipbook(Texture2DArray array)
+        {
+            if (array == null)
+            {
+                return null;
+            }
+
+            string arrayAssetPath = AssetDatabase.GetAssetPath(array);
+            if (string.IsNullOrEmpty(arrayAssetPath))
+            {
+                return null;
+            }
+
+            TextureImporter arrayImporter = AssetImporter.GetAtPath(arrayAssetPath) as TextureImporter;
+            bool isLinear = arrayImporter != null && !arrayImporter.sRGBTexture;
+            string arrayFolder = (Path.GetDirectoryName(arrayAssetPath) ?? "Assets").Replace('\\', '/');
+            string framesFolder = arrayFolder + "/" + array.name + "_Frames";
+            int layerCount = array.depth;
+
+            // Look up only: creating the names wrapper here would rename the source array's catalog row to "<Array>_Flipbook".
+            FlipbookAsset existingFlipbook = FindFlipbookWrappingArrayPath(arrayAssetPath);
+            HashSet<string> takenNames = new HashSet<string>();
+            string[] frameNames = new string[layerCount];
+            string[] pngPaths = new string[layerCount];
+            char[] invalidFileNameCharacters = Path.GetInvalidFileNameChars();
+
+            try
+            {
+                if (!AssetDatabase.IsValidFolder(framesFolder))
+                {
+                    AssetDatabase.CreateFolder(arrayFolder, array.name + "_Frames");
+                }
+
+                RenderTextureReadWrite readWrite = isLinear ? RenderTextureReadWrite.Linear : RenderTextureReadWrite.sRGB;
+                RenderTexture previousActive = RenderTexture.active;
+
+                AssetDatabase.StartAssetEditing();
+                try
+                {
+                    for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
+                    {
+                        EditorUtility.DisplayProgressBar(
+                            "Extracting array layers", array.name + " layer " + layerIndex, (float)layerIndex / layerCount);
+
+                        FlipbookFrame existingFrame = existingFlipbook != null ? existingFlipbook.FindFrameByLayerIndex(layerIndex) : null;
+                        string rawName = existingFrame != null && !string.IsNullOrEmpty(existingFrame.name)
+                            ? existingFrame.name
+                            : layerIndex.ToString();
+                        foreach (char invalidCharacter in invalidFileNameCharacters)
+                        {
+                            rawName = rawName.Replace(invalidCharacter, '_');
+                        }
+
+                        string frameName = FlipbookValidation.DedupeFrameName(rawName, takenNames);
+                        takenNames.Add(frameName);
+                        frameNames[layerIndex] = frameName;
+
+                        RenderTexture layerTarget = RenderTexture.GetTemporary(
+                            array.width, array.height, 0, RenderTextureFormat.ARGB32, readWrite);
+                        Texture2D layerReadback = new Texture2D(
+                            array.width, array.height, TextureFormat.RGBA32, false, isLinear);
+                        try
+                        {
+                            Graphics.Blit(array, layerTarget, layerIndex, 0);
+                            RenderTexture.active = layerTarget;
+                            layerReadback.ReadPixels(new Rect(0f, 0f, array.width, array.height), 0, 0);
+                            layerReadback.Apply();
+
+                            pngPaths[layerIndex] = framesFolder + "/" + frameName + ".png";
+                            File.WriteAllBytes(pngPaths[layerIndex], layerReadback.EncodeToPNG());
+                        }
+                        finally
+                        {
+                            RenderTexture.active = previousActive;
+                            RenderTexture.ReleaseTemporary(layerTarget);
+                            Object.DestroyImmediate(layerReadback);
+                        }
+                    }
+                }
+                finally
+                {
+                    AssetDatabase.StopAssetEditing();
+                }
+
+                FlipbookAsset extractedFlipbook = ScriptableObject.CreateInstance<FlipbookAsset>();
+                extractedFlipbook.layerSize = new Vector2Int(array.width, array.height);
+                extractedFlipbook.texture = null;
+                extractedFlipbook.frames = new List<FlipbookFrame>();
+                if (arrayImporter != null)
+                {
+                    extractedFlipbook.filterMode = arrayImporter.filterMode;
+                    extractedFlipbook.wrapMode = arrayImporter.wrapMode;
+                    extractedFlipbook.generateMips = arrayImporter.mipmapEnabled;
+                }
+
+                extractedFlipbook.linear = isLinear;
+                extractedFlipbook.outputPath = arrayFolder + "/" + array.name + "_Editable_Array.asset";
+
+                for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
+                {
+                    EditorUtility.DisplayProgressBar(
+                        "Importing extracted layers", pngPaths[layerIndex], (float)layerIndex / layerCount);
+
+                    AssetDatabase.ImportAsset(pngPaths[layerIndex], ImportAssetOptions.ForceSynchronousImport);
+                    TextureImporter pngImporter = AssetImporter.GetAtPath(pngPaths[layerIndex]) as TextureImporter;
+                    if (pngImporter != null)
+                    {
+                        pngImporter.textureType = TextureImporterType.Default;
+                        pngImporter.sRGBTexture = !isLinear;
+                        pngImporter.isReadable = true;
+                        pngImporter.npotScale = TextureImporterNPOTScale.None;
+                        pngImporter.textureCompression = TextureImporterCompression.Uncompressed;
+                        pngImporter.mipmapEnabled = false;
+                        if (arrayImporter != null)
+                        {
+                            pngImporter.filterMode = arrayImporter.filterMode;
+                            pngImporter.wrapMode = arrayImporter.wrapMode;
+                        }
+
+                        pngImporter.SaveAndReimport();
+                    }
+
+                    extractedFlipbook.frames.Add(new FlipbookFrame
+                    {
+                        name = frameNames[layerIndex],
+                        index = layerIndex,
+                        source = AssetDatabase.LoadAssetAtPath<Texture2D>(pngPaths[layerIndex])
+                    });
+                }
+
+                string editablePath = AssetDatabase.GenerateUniqueAssetPath(arrayFolder + "/" + array.name + "_Editable.asset");
+                AssetDatabase.CreateAsset(extractedFlipbook, editablePath);
+                AssetDatabase.SaveAssetIfDirty(extractedFlipbook);
+
+                return extractedFlipbook;
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
         }
 
         // A HideAndDontSave flipbook over array with one numeric frame per layer; nothing touches disk.

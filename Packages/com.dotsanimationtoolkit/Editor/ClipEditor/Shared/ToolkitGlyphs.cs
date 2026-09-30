@@ -8,7 +8,10 @@ namespace DotsAnimationToolkit.Editor
     public enum ToolkitGlyphId
     {
         TexturePacker, Flipbooks, ClipSets, Rigs, Materials, Events, ClipEditor, Retarget,
-        VatBake, ActorProfiles, Ragdoll, Cutscenes, Capture, Stats, Health
+        VatBake, ActorProfiles, Ragdoll, Cutscenes, Capture, Stats, Health,
+
+        // Action glyphs that stand in for built-in icons (see ToolkitIcons.ResolveDrawnReplacement).
+        Delete, Edit
     }
 
     // Signed-distance-field glyph framework. Wave B supplies the shapes in five sibling partial
@@ -37,6 +40,7 @@ namespace DotsAnimationToolkit.Editor
             RegisterRigShapes();
             RegisterMotionShapes();
             RegisterBodyShapes();
+            RegisterActionShapes();
         }
 
         static partial void RegisterAssetShapes();
@@ -44,6 +48,7 @@ namespace DotsAnimationToolkit.Editor
         static partial void RegisterRigShapes();
         static partial void RegisterMotionShapes();
         static partial void RegisterBodyShapes();
+        static partial void RegisterActionShapes();
 
         public static Texture2D Resolve(ToolkitGlyphId glyphId)
         {

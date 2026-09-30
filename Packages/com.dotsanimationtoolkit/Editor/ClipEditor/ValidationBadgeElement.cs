@@ -17,7 +17,6 @@ namespace DotsAnimationToolkit.Editor
     {
         private static readonly Color ErrorColor = ToolkitPalette.Error;
         private static readonly Color WarningColor = ToolkitPalette.Warning;
-        private static readonly Color CleanColor = ToolkitPalette.Clean;
 
         private readonly Button summaryButton;
         private readonly VisualElement messagePanel;
@@ -96,10 +95,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 // ApplyMessages leaves badge children on the button; a bare text assignment would
                 // sit beside stale counts from the last clip set.
-                summaryButton.Clear();
-                summaryButton.text = "No clip set";
-                summaryButton.tooltip = "No clip set to validate.";
-                summaryButton.style.color = CleanColor; // colour from data
+                ShowPlaceholderBadge("No clip set", "No clip set to validate.");
                 messagePanelTitle.text = "Validation";
                 RebuildMessageList();
                 return;
@@ -185,15 +181,24 @@ namespace DotsAnimationToolkit.Editor
             {
                 currentMessages.Clear();
                 HasErrors = false;
-                summaryButton.Clear();
-                summaryButton.text = emptyLabel;
-                summaryButton.tooltip = emptyLabel;
-                summaryButton.style.color = CleanColor; // colour from data
+                ShowPlaceholderBadge(emptyLabel, emptyLabel);
                 messagePanelTitle.text = "Validation";
                 RebuildMessageList();
                 return;
             }
             ApplyMessages(effectiveMessages);
+        }
+
+        // Nothing to validate is not the same as valid: a neutral pill, never the green "Valid" tone.
+        private void ShowPlaceholderBadge(string text, string tooltip)
+        {
+            summaryButton.Clear();
+            summaryButton.text = string.Empty;
+            summaryButton.style.flexDirection = FlexDirection.Row;
+            Label placeholderBadge = ToolkitChrome.MakeBadge(text, ToolkitStatusTone.Neutral);
+            placeholderBadge.pickingMode = PickingMode.Ignore;
+            summaryButton.Add(placeholderBadge);
+            summaryButton.tooltip = tooltip;
         }
 
         private void ApplyMessages(List<ValidationMessage> messages)
@@ -269,15 +274,15 @@ namespace DotsAnimationToolkit.Editor
                 if (errorCount > 0)
                 {
                     Label errorBadge = ToolkitChrome.MakeBadge(errorCount.ToString(), ToolkitStatusTone.Error);
-                    errorBadge.tooltip = errorCount.ToString() + " errors";
-                    errorBadge.pickingMode = PickingMode.Ignore;
+                    errorBadge.tooltip = BuildCountTooltip(errorCount, "errors", ValidationSeverity.Error);
+                    errorBadge.RegisterCallback<ClickEvent>(RaiseHealthRequested);
                     summaryButton.Add(errorBadge);
                 }
                 if (warningCount > 0)
                 {
                     Label warningBadge = ToolkitChrome.MakeBadge(warningCount.ToString(), ToolkitStatusTone.Warning);
-                    warningBadge.tooltip = warningCount.ToString() + " warnings";
-                    warningBadge.pickingMode = PickingMode.Ignore;
+                    warningBadge.tooltip = BuildCountTooltip(warningCount, "warnings", ValidationSeverity.Warning);
+                    warningBadge.RegisterCallback<ClickEvent>(RaiseHealthRequested);
                     summaryButton.Add(warningBadge);
                 }
             }
@@ -289,6 +294,43 @@ namespace DotsAnimationToolkit.Editor
             messagePanelTitle.text = "Validation — " + summaryText;
 
             RebuildMessageList();
+        }
+
+        private const int MaxTooltipMessageLines = 6;
+
+        /// <summary>Raised when a count badge is clicked; the host decides how to open the Health tab.</summary>
+        public event System.Action HealthRequested;
+
+        private void RaiseHealthRequested(ClickEvent clickEvent)
+        {
+            HealthRequested?.Invoke();
+        }
+
+        private string BuildCountTooltip(int count, string noun, ValidationSeverity severity)
+        {
+            System.Text.StringBuilder builder = new System.Text.StringBuilder();
+            builder.Append(count.ToString()).Append(' ').Append(noun).Append(" — open Health for fixes");
+            int listedCount = 0;
+            for (int messageIndex = 0; messageIndex < currentMessages.Count; messageIndex++)
+            {
+                ValidationMessage message = currentMessages[messageIndex];
+                bool isError = message.severity == ValidationSeverity.Error;
+                if (isError != (severity == ValidationSeverity.Error))
+                {
+                    continue;
+                }
+                if (listedCount >= MaxTooltipMessageLines)
+                {
+                    break;
+                }
+                builder.Append('\n').Append(message.text);
+                listedCount++;
+            }
+            if (count > listedCount)
+            {
+                builder.Append("\n…and ").Append((count - listedCount).ToString()).Append(" more");
+            }
+            return builder.ToString();
         }
 
         private void ToggleExpanded()

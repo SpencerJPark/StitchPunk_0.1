@@ -190,6 +190,7 @@ namespace DotsAnimationToolkit.Editor
             Label folderLabel = new Label();
             folderLabel.name = "clip-picker-row-folder";
             folderLabel.AddToClassList("toolkit-list-row__meta");
+            folderLabel.AddToClassList("clip-sets-picker-meta");
             row.Add(folderLabel);
 
             row.AddManipulator(new ContextualMenuManipulator(
@@ -272,6 +273,7 @@ namespace DotsAnimationToolkit.Editor
             Label folderLabel = element.Q<Label>("clip-picker-row-folder");
             folderLabel.text = ClipRowFolderResolver.ResolveFolderColumnText(entry.FolderPath, homeFolderPath);
             element.tooltip = entry.FolderPath;
+            folderLabel.tooltip = entry.FolderPath;
         }
 
         /// <summary>Per-row state stashed in a recycled row's userData so the toggle callback reads the live index, not a captured one.</summary>
