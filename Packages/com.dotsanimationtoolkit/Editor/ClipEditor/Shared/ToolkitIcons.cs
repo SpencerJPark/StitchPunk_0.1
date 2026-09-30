@@ -57,6 +57,12 @@ namespace DotsAnimationToolkit.Editor
                 return null;
             }
 
+            Texture2D drawnReplacement = ResolveDrawnReplacement(iconName);
+            if (drawnReplacement != null)
+            {
+                return drawnReplacement;
+            }
+
             // Callers may pass the dark-skin name already; the prefix is decided here, once.
             if (iconName.StartsWith("d_", System.StringComparison.Ordinal))
             {
@@ -448,6 +454,12 @@ namespace DotsAnimationToolkit.Editor
 
         private static Texture ResolveExactIconTexture(string iconName)
         {
+            Texture2D drawnReplacement = ResolveDrawnReplacement(iconName);
+            if (drawnReplacement != null)
+            {
+                return drawnReplacement;
+            }
+
             GUIContent iconContent = EditorGUIUtility.IconContent(iconName);
             return iconContent != null ? iconContent.image : null;
         }
@@ -510,6 +522,26 @@ namespace DotsAnimationToolkit.Editor
             control.RegisterCallback<PointerEnterEvent>(_ => control.schedule.Execute(() => ApplyIconTone(icon, control)));
             control.RegisterCallback<PointerLeaveEvent>(_ => control.schedule.Execute(() => ApplyIconTone(icon, control)));
         }
+
+        // Unity's trash is filled and shaded and its pencil is a tiny pixel sprite; beside the drawn tab
+        // glyphs both read as another icon family, so every caller asking for them gets the drawn ones.
+        private static Texture2D ResolveDrawnReplacement(string iconName)
+        {
+            string bareIconName = iconName.StartsWith("d_", System.StringComparison.Ordinal)
+                ? iconName.Substring(2)
+                : iconName;
+            switch (bareIconName)
+            {
+                case Trash:
+                    return ToolkitGlyphs.Resolve(ToolkitGlyphId.Delete);
+                case EditIconName:
+                    return ToolkitGlyphs.Resolve(ToolkitGlyphId.Edit);
+                default:
+                    return null;
+            }
+        }
+
+        private const string EditIconName = "editicon.sml";
 
         private static Texture2D ResolveExact(string iconName)
         {
