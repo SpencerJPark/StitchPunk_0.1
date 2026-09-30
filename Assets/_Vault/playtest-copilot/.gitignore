@@ -1,0 +1,19 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+*.csproj
+*.sln
+
+# Playtest sessions (local recordings, can be large and personal)
+PlaytestSessions/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env

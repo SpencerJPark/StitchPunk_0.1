@@ -1,0 +1,11 @@
+{
+  "name": "com.playtestcopilot.editor",
+  "version": "0.1.0",
+  "displayName": "Playtest Copilot",
+  "description": "AI Play mode for the Unity Editor: record gameplay and voice notes, circle things on screen, and turn playtest feedback into specs for coding agents.",
+  "unity": "6000.4",
+  "author": {
+    "name": "Spencer J Park"
+  },
+  "keywords": ["playtest", "ai", "editor", "workflow"]
+}
