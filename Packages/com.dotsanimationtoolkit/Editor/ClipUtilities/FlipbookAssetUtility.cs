@@ -132,16 +132,10 @@ namespace DotsAnimationToolkit.Editor
                 return null;
             }
 
-            string[] existingFlipbookGuids = AssetDatabase.FindAssets("t:FlipbookAsset");
-            for (int guidIndex = 0; guidIndex < existingFlipbookGuids.Length; guidIndex++)
+            FlipbookAsset wrappingFlipbook = FindFlipbookWrappingArrayPath(arrayAssetPath);
+            if (wrappingFlipbook != null)
             {
-                string existingFlipbookPath = AssetDatabase.GUIDToAssetPath(existingFlipbookGuids[guidIndex]);
-                FlipbookAsset existingFlipbook = AssetDatabase.LoadAssetAtPath<FlipbookAsset>(existingFlipbookPath);
-                if (existingFlipbook != null && existingFlipbook.texture != null &&
-                    AssetDatabase.GetAssetPath(existingFlipbook.texture) == arrayAssetPath)
-                {
-                    return existingFlipbook;
-                }
+                return wrappingFlipbook;
             }
 
             FlipbookAsset flipbook = ScriptableObject.CreateInstance<FlipbookAsset>();
@@ -158,6 +152,22 @@ namespace DotsAnimationToolkit.Editor
             AssetDatabase.SaveAssetIfDirty(flipbook);
 
             return flipbook;
+        }
+
+        private static FlipbookAsset FindFlipbookWrappingArrayPath(string arrayAssetPath)
+        {
+            string[] existingFlipbookGuids = AssetDatabase.FindAssets("t:FlipbookAsset");
+            for (int guidIndex = 0; guidIndex < existingFlipbookGuids.Length; guidIndex++)
+            {
+                string existingFlipbookPath = AssetDatabase.GUIDToAssetPath(existingFlipbookGuids[guidIndex]);
+                FlipbookAsset existingFlipbook = AssetDatabase.LoadAssetAtPath<FlipbookAsset>(existingFlipbookPath);
+                if (existingFlipbook != null && existingFlipbook.texture != null &&
+                    AssetDatabase.GetAssetPath(existingFlipbook.texture) == arrayAssetPath)
+                {
+                    return existingFlipbook;
+                }
+            }
+            return null;
         }
 
         // Writes every layer of an importer-owned array out as a png and wraps them in a NEW editable flipbook; the source array is never touched.
@@ -180,7 +190,8 @@ namespace DotsAnimationToolkit.Editor
             string framesFolder = arrayFolder + "/" + array.name + "_Frames";
             int layerCount = array.depth;
 
-            FlipbookAsset existingFlipbook = GetOrCreateFlipbookForArray(array);
+            // Look up only: creating the names wrapper here would rename the source array's catalog row to "<Array>_Flipbook".
+            FlipbookAsset existingFlipbook = FindFlipbookWrappingArrayPath(arrayAssetPath);
             HashSet<string> takenNames = new HashSet<string>();
             string[] frameNames = new string[layerCount];
             string[] pngPaths = new string[layerCount];

@@ -30,7 +30,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly TransportCoreElement transport;
         private readonly Image viewportImage;
         private readonly Label statusLabel;
-        private readonly Toggle poseFromClipToggle;
+        private readonly VisualElement poseSourceField;
+        private bool isPosedFromClip;
         private readonly Label poseClipLabel;
         private readonly Slider poseTimeSlider;
         private readonly VisualElement groundField;
@@ -80,11 +81,16 @@ namespace DotsAnimationToolkit.Editor
             groundField.style.flexShrink = 0f;
             headerActions.Add(groundField);
 
-            poseFromClipToggle = new Toggle("Pose from clip");
-            poseFromClipToggle.name = "ragdoll-pose-from-clip-toggle";
-            poseFromClipToggle.AddToClassList("toolkit-header-toggle");
-            poseFromClipToggle.style.flexShrink = 0f;
-            headerActions.Add(poseFromClipToggle);
+            VisualElement poseDivider = new VisualElement();
+            poseDivider.AddToClassList("toolkit-header-divider");
+            headerActions.Add(poseDivider);
+
+            // A segmented pair like the ground control beside it, not a checkbox: three idioms in one run read as three tools.
+            poseSourceField = ToolkitChrome.MakeSegmentedControl(
+                "ragdoll-pose-source-segmented", new List<string> { "Rest pose", "Clip pose" }, 0,
+                selectedIndex => isPosedFromClip = selectedIndex == 1);
+            poseSourceField.style.flexShrink = 0f;
+            headerActions.Add(poseSourceField);
 
             poseClipLabel = new Label();
             poseClipLabel.name = "ragdoll-pose-clip-label";
@@ -196,13 +202,19 @@ namespace DotsAnimationToolkit.Editor
         {
             bool hasBoundClip = boundClip != null;
             poseClipLabel.text = hasBoundClip ? boundClip.name : "No clip bound";
-            poseFromClipToggle.SetEnabled(hasBoundClip);
-            poseFromClipToggle.tooltip = hasBoundClip ? DropTooltip : "Pick a clip set on Clip Sets to pose the bodies";
+            VisualElement clipPoseItem = poseSourceField[1];
+            clipPoseItem.SetEnabled(hasBoundClip);
+            clipPoseItem.tooltip = hasBoundClip ? DropTooltip : "Pick a clip set on Clip Sets to pose the bodies";
+            if (!hasBoundClip && isPosedFromClip)
+            {
+                isPosedFromClip = false;
+                ToolkitChrome.SetSegmentedSelection(poseSourceField, 0);
+            }
         }
 
         public void Drop()
         {
-            if (poseFromClipToggle.value && boundClip != null)
+            if (isPosedFromClip && boundClip != null)
             {
                 previewController.SamplePose(boundClip.stableId, restPoseNormalizedTime);
             }

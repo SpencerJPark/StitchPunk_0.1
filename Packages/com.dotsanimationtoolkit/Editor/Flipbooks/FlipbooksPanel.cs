@@ -105,6 +105,9 @@ namespace DotsAnimationToolkit.Editor
 
             CoverPaneSplitView framesSplit = new CoverPaneSplitView("Flipbooks.Frames", 0, 300f, TwoPaneSplitViewOrientation.Horizontal);
             framesSplit.style.flexGrow = 1f;
+            // Shrinks below its content so the Output row under it stays on screen.
+            framesSplit.style.flexShrink = 1f;
+            framesSplit.style.minHeight = 0f;
             framesSplit.Add(frames);
             framesSplit.Add(previewColumn);
 
@@ -143,12 +146,14 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement header = ToolkitChrome.MakePaneHeader(string.Empty, out flipbookLabel, out headerActions);
             infoLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
-            header.Insert(1, infoLabel);
             makeEditableButton = ToolkitChrome.MakeSecondaryAction(
                 OnMakeEditableClicked, "d_Toolbar Plus", MakeEditableTooltip, "Make editable");
             makeEditableButton.name = "flipbooks-make-editable-button";
             makeEditableButton.style.display = DisplayStyle.None;
 
+            // In the actions run, not between title and actions: the header spreads its children apart,
+            // which left the badge floating mid-header.
+            headerActions.Add(infoLabel);
             headerActions.Add(makeEditableButton);
             headerActions.Add(bakeButton);
             headerActions.Add(saveButton);
@@ -180,6 +185,7 @@ namespace DotsAnimationToolkit.Editor
 
             outputPathRow = new PathPickerRowElement("Output", "Choose where the baked flipbook is written.");
             outputPathRow.BrowseRequested += OnChooseOutputPathClicked;
+            outputPathRow.style.flexShrink = 0f;
 
             VisualElement flipbookColumn = new VisualElement();
             flipbookColumn.AddToClassList("toolkit-column");
@@ -765,26 +771,30 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshInfoLabel()
         {
+            string infoText = BuildInfoText();
+            infoLabel.text = infoText;
+            infoLabel.style.display = infoText.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        private string BuildInfoText()
+        {
             if (workingCopy == null)
             {
-                infoLabel.text = "-";
-                return;
+                return string.Empty;
             }
 
             if (workingCopy.texture != null)
             {
-                infoLabel.text = workingCopy.layerSize.x + "x" + workingCopy.layerSize.y + " · " + workingCopy.frames.Count + " layers";
-                return;
+                return workingCopy.layerSize.x + "x" + workingCopy.layerSize.y + " · " + workingCopy.frames.Count + " layers";
             }
 
             if (workingCopy.frames.Count > 0 && workingCopy.frames[0].source != null)
             {
                 Texture2D firstSource = workingCopy.frames[0].source;
-                infoLabel.text = firstSource.width + "x" + firstSource.height + " · " + workingCopy.frames.Count + " layers";
-                return;
+                return firstSource.width + "x" + firstSource.height + " · " + workingCopy.frames.Count + " layers";
             }
 
-            infoLabel.text = "-";
+            return string.Empty;
         }
 
         private void SetControlsEnabled(bool enabled)

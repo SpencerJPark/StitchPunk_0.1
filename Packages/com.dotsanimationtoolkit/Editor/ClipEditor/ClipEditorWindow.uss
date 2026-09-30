@@ -1464,9 +1464,13 @@
     align-items: center;
 }
 
+/* No box of its own: it only holds count badges, and a box around a pill read as a ring in a ring. */
 .clip-editor__validation-summary {
     margin-left: 4px;
     margin-right: 4px;
+    padding: 0;
+    border-width: 0;
+    background-color: transparent;
 }
 
 /* The pressed look for the toggle. The button carries the counts either way, so without this the

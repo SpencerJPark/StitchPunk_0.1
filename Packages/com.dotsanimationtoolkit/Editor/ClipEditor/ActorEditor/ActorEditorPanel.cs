@@ -26,8 +26,8 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Raised when the header's Profile field picks a different asset.</summary>
         public event Action<ActorProfileAsset> ProfileChanged;
 
-        /// <summary>Raised when a validation count badge is clicked, with the profile it counts.</summary>
-        public event Action<ActorProfileAsset> HealthRequested;
+        /// <summary>Raised when a validation count badge is clicked.</summary>
+        public event Action HealthRequested;
 
         private ActorProfileAsset profile;
         private readonly ActorPreviewComposer composer;
@@ -389,7 +389,7 @@ namespace DotsAnimationToolkit.Editor
             VisualElement viewportActions = new VisualElement();
             viewportActions.AddToClassList("toolkit-pane-actions");
             validationBadge = new ValidationBadgeElement { name = "actor-editor-validation-badge" };
-            validationBadge.HealthRequested += () => HealthRequested?.Invoke(profile);
+            validationBadge.HealthRequested += () => HealthRequested?.Invoke();
             viewportActions.Add(validationBadge);
             viewportHeader.Add(viewportActions);
 

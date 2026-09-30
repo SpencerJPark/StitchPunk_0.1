@@ -17,7 +17,6 @@ namespace DotsAnimationToolkit.Editor
     {
         private static readonly Color ErrorColor = ToolkitPalette.Error;
         private static readonly Color WarningColor = ToolkitPalette.Warning;
-        private static readonly Color CleanColor = ToolkitPalette.Clean;
 
         private readonly Button summaryButton;
         private readonly VisualElement messagePanel;
@@ -96,10 +95,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 // ApplyMessages leaves badge children on the button; a bare text assignment would
                 // sit beside stale counts from the last clip set.
-                summaryButton.Clear();
-                summaryButton.text = "No clip set";
-                summaryButton.tooltip = "No clip set to validate.";
-                summaryButton.style.color = CleanColor; // colour from data
+                ShowPlaceholderBadge("No clip set", "No clip set to validate.");
                 messagePanelTitle.text = "Validation";
                 RebuildMessageList();
                 return;
@@ -185,15 +181,24 @@ namespace DotsAnimationToolkit.Editor
             {
                 currentMessages.Clear();
                 HasErrors = false;
-                summaryButton.Clear();
-                summaryButton.text = emptyLabel;
-                summaryButton.tooltip = emptyLabel;
-                summaryButton.style.color = CleanColor; // colour from data
+                ShowPlaceholderBadge(emptyLabel, emptyLabel);
                 messagePanelTitle.text = "Validation";
                 RebuildMessageList();
                 return;
             }
             ApplyMessages(effectiveMessages);
+        }
+
+        // Nothing to validate is not the same as valid: a neutral pill, never the green "Valid" tone.
+        private void ShowPlaceholderBadge(string text, string tooltip)
+        {
+            summaryButton.Clear();
+            summaryButton.text = string.Empty;
+            summaryButton.style.flexDirection = FlexDirection.Row;
+            Label placeholderBadge = ToolkitChrome.MakeBadge(text, ToolkitStatusTone.Neutral);
+            placeholderBadge.pickingMode = PickingMode.Ignore;
+            summaryButton.Add(placeholderBadge);
+            summaryButton.tooltip = tooltip;
         }
 
         private void ApplyMessages(List<ValidationMessage> messages)

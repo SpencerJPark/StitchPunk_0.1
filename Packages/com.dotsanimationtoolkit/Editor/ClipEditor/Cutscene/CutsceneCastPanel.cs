@@ -63,20 +63,17 @@ namespace DotsAnimationToolkit.Editor
             heading.AddToClassList("toolkit-pane-title");
             headerRow.Add(heading);
 
-            stageStatusLabel.AddToClassList("toolkit-hint");
-            stageStatusLabel.AddToClassList("cutscene-editor__cast-status");
-            headerRow.Add(stageStatusLabel);
-
             VisualElement actionsRow = ToolkitChrome.MakeIconSquareRun("cutscene-cast-actions");
             actionsRow.AddToClassList("toolkit-pane-actions");
 
-            // Actor and Prop share the Plus glyph; the tooltips tell them apart.
+            // A figure and a cube rather than two Plus squares: side by side, two identical glyphs
+            // could only be told apart by hovering.
             actionsRow.Add(ToolkitChrome.MakeIconSquare(
-                () => AddSlotRequested?.Invoke(CutsceneSlotKind.Actor), ToolkitIcons.Plus,
+                () => AddSlotRequested?.Invoke(CutsceneSlotKind.Actor), "d_AvatarSelector",
                 "Add an actor to the cast"));
 
             actionsRow.Add(ToolkitChrome.MakeIconSquare(
-                () => AddSlotRequested?.Invoke(CutsceneSlotKind.Prop), ToolkitIcons.Plus,
+                () => AddSlotRequested?.Invoke(CutsceneSlotKind.Prop), "d_PreMatCube",
                 "Add a prop to the cast"));
 
             syncToStageButton = ToolkitChrome.MakeIconSquare(
@@ -89,6 +86,11 @@ namespace DotsAnimationToolkit.Editor
             headerRow.Add(actionsRow);
 
             Add(headerRow);
+
+            // Under the header, not in it: beside three icon squares it pushed them onto a second line.
+            stageStatusLabel.AddToClassList("toolkit-hint");
+            stageStatusLabel.AddToClassList("cutscene-editor__cast-status");
+            Add(stageStatusLabel);
 
             ScrollView rowsScroll = new ScrollView(ScrollViewMode.Vertical) { name = "cutscene-cast-rows-scroll" };
             rowsScroll.style.flexGrow = 1f;

@@ -369,7 +369,8 @@ namespace DotsAnimationToolkit.Editor
                     button.AddToClassList(ButtonGhostClassName);
                     break;
                 case ToolkitButtonVariant.Destructive:
-                    button.AddToClassList(ButtonGhostClassName);
+                    // Outlined like secondary, red text: a borderless red word read as a stray label (A109 TP1/FB3).
+                    button.AddToClassList(ButtonSecondaryClassName);
                     button.AddToClassList(ButtonDestructiveClassName);
                     break;
             }

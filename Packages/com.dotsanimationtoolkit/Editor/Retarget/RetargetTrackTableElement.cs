@@ -28,24 +28,37 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.flexDirection = FlexDirection.Column;
 
-            VisualElement header = ToolkitChrome.MakePaneHeader("Clip track", out headerTitleLabel, out VisualElement headerActions);
+            VisualElement header = ToolkitChrome.MakePaneHeader("Tracks", out headerTitleLabel, out VisualElement headerActions);
 
-            headerTitleLabel.AddToClassList("retarget-col-track");
+            headerTrackCountBadge = ToolkitChrome.MakeBadge(FormatTrackCount(bindings.Count), ToolkitStatusTone.Neutral);
+            headerActions.Add(headerTrackCountBadge);
+
+            Add(header);
+
+            // Built like a track row, not inside the pane header: the header's padding and actions
+            // gave the percentage columns a different width, so captions drifted off their cells.
+            VisualElement captionRow = new VisualElement { name = "retarget-track-caption-row" };
+            captionRow.AddToClassList("toolkit-list-row");
+            captionRow.style.flexDirection = FlexDirection.Row;
+            captionRow.style.alignItems = Align.Center;
+            captionRow.style.flexShrink = 0f;
+
+            Label trackCaptionLabel = new Label("Clip track");
+            trackCaptionLabel.AddToClassList("toolkit-list-row__meta");
+            trackCaptionLabel.AddToClassList("retarget-col-track");
+            captionRow.Add(trackCaptionLabel);
 
             rigPartCaptionLabel = new Label("Rig part");
             rigPartCaptionLabel.AddToClassList("toolkit-list-row__meta");
             rigPartCaptionLabel.AddToClassList("retarget-col-part");
-            header.Insert(1, rigPartCaptionLabel);
+            captionRow.Add(rigPartCaptionLabel);
 
             statusCaptionLabel = new Label("Status");
             statusCaptionLabel.AddToClassList("toolkit-list-row__meta");
             statusCaptionLabel.AddToClassList("retarget-col-status");
-            header.Insert(2, statusCaptionLabel);
+            captionRow.Add(statusCaptionLabel);
 
-            headerTrackCountBadge = ToolkitChrome.MakeBadge(bindings.Count.ToString() + " tracks", ToolkitStatusTone.Neutral);
-            headerActions.Add(headerTrackCountBadge);
-
-            Add(header);
+            Add(captionRow);
 
             VisualElement listBody = new VisualElement { name = "retarget-track-body" };
             listBody.AddToClassList("toolkit-list-surface");
@@ -81,7 +94,7 @@ namespace DotsAnimationToolkit.Editor
                 this.bindings.AddRange(bindings);
             }
 
-            headerTrackCountBadge.text = this.bindings.Count.ToString() + " tracks";
+            headerTrackCountBadge.text = FormatTrackCount(this.bindings.Count);
             trackListView.Rebuild();
             RefreshEmptyState();
         }
@@ -91,6 +104,11 @@ namespace DotsAnimationToolkit.Editor
             bool hasBindings = bindings.Count > 0;
             trackListView.style.display = hasBindings ? DisplayStyle.Flex : DisplayStyle.None;
             emptyHintLabel.style.display = hasBindings ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private static string FormatTrackCount(int trackCount)
+        {
+            return trackCount == 1 ? "1 track" : trackCount + " tracks";
         }
 
         private VisualElement MakeTrackRow()

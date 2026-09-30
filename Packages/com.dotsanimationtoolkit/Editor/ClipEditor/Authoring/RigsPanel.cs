@@ -671,14 +671,20 @@ namespace DotsAnimationToolkit.Editor
             }
 
             List<RigTargetRow> rows = RigTargetRowBuilder.BuildForRig(rig);
+            int tickedTargetCount = 0;
             for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
             {
                 RigTargetRow row = rows[rowIndex];
                 BuildCandidateRow(row, row.IsTarget);
+                if (row.IsTarget)
+                {
+                    tickedTargetCount++;
+                }
             }
 
             targetsCountBadge.text = candidateRows.Count.ToString();
-            candidateSummaryLabel.text = "in \"" + rig.name + "\".";
+            candidateSummaryLabel.text = tickedTargetCount + " of " + candidateRows.Count
+                + " nodes are targets in \"" + rig.name + "\". Tick a node to animate it.";
         }
 
         private void BuildCandidateRow(RigTargetRow sourceRow, bool ticked)

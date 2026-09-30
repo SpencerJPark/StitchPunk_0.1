@@ -2070,13 +2070,11 @@ namespace DotsAnimationToolkit.Editor
             SetActiveTab(ClipEditorTab.ClipEditor);
         }
 
-        private void OnActorProfileHealthRequested(ActorProfileAsset requestedProfile)
+        // Unfiltered on purpose: Health files a profile's problems under the clip or rig at fault, so a
+        // profile-name filter comes back empty.
+        private void OnActorProfileHealthRequested()
         {
             SetActiveTab(ClipEditorTab.Health);
-            if (healthPanel != null && requestedProfile != null)
-            {
-                healthPanel.FilterToSearchText(requestedProfile.name);
-            }
         }
 
         private void OnClipSetRebakeRequested(ClipSetAsset requestedSet, RigAsset bakedRig)
