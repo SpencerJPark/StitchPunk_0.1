@@ -49,7 +49,7 @@ namespace PlaytestCopilot.Editor
         /// "note_014". Three digits keeps the folders sorting correctly up to 999 notes a session.
         public static string BuildMarkerId(int markerIndex)
         {
-            return "note_" + markerIndex.ToString("D3", CultureInfo.InvariantCulture);
+            return PlaytestMarkerId.For(markerIndex);
         }
 
         public static string SanitiseForFolderName(string rawName)

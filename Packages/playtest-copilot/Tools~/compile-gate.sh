@@ -34,7 +34,6 @@ mkdir -p "$OUT_DIR"
 
 REFERENCE_ARGS=()
 for dll in "$UNITY_DATA/Managed/UnityEngine/"*.dll; do REFERENCE_ARGS+=("-r:$dll"); done
-REFERENCE_ARGS+=("-r:$UNITY_DATA/Managed/UnityEditor.dll")
 REFERENCE_ARGS+=("-r:$UNITY_DATA/NetStandard/ref/2.1.0/netstandard.dll")
 
 # Test assemblies live in the host project, not the Unity install. Without them the Tests
@@ -46,6 +45,11 @@ for name in UnityEngine.TestRunner UnityEditor.TestRunner; do
   test_dll="$PROJECT_ROOT/Library/ScriptAssemblies/$name.dll"
   [ -f "$test_dll" ] && TEST_REFERENCE_ARGS+=("-r:$test_dll")
 done
+
+# Unity ships nunit built against mscorlib (net472), while everything else here resolves through
+# netstandard. Without the mscorlib facade every [Test] attribute fails with CS0012.
+MSCORLIB_FACADE="$UNITY_DATA/NetStandard/compat/2.1.0/shims/netfx/mscorlib.dll"
+[ -f "$MSCORLIB_FACADE" ] && TEST_REFERENCE_ARGS+=("-r:$MSCORLIB_FACADE")
 
 compile_assembly() {
   assembly_name="$1"; shift

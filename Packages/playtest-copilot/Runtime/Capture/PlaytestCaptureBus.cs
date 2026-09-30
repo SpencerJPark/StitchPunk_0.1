@@ -10,6 +10,11 @@ namespace PlaytestCopilot
     {
         public static event Action<PlaytestSessionDescriptor> SessionStarted;
         public static event Action<PlaytestSessionDescriptor> SessionEnded;
+        /// Runs before MarkerCompleted, and is where the recorder host fills in the marker's
+        /// References and State. It exists because subscription order decides who sees a marker
+        /// first, and the Editor's folder writer subscribes at domain load, long before the host
+        /// is created at play start — so without this the note would be written empty.
+        public static event Action<PlaytestMarker> MarkerEnriching;
         public static event Action<PlaytestMarker> MarkerCompleted;
         public static event Action<PlaytestAnnotationCapture> AnnotationCaptured;
         public static event Action<PlaytestStateSample> StateSampleRecorded;
@@ -27,6 +32,7 @@ namespace PlaytestCopilot
 
         public static void RaiseMarkerCompleted(PlaytestMarker marker)
         {
+            Raise(MarkerEnriching, marker, nameof(MarkerEnriching));
             Raise(MarkerCompleted, marker, nameof(MarkerCompleted));
         }
 
@@ -50,6 +56,7 @@ namespace PlaytestCopilot
         public static void RemoveAllSubscribers()
         {
             SessionStarted = null;
+            MarkerEnriching = null;
             SessionEnded = null;
             MarkerCompleted = null;
             AnnotationCaptured = null;

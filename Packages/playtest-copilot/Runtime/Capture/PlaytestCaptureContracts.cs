@@ -4,6 +4,16 @@ using UnityEngine;
 
 namespace PlaytestCopilot
 {
+    /// "note_014". Three digits keeps the note folders sorting correctly up to 999 a session.
+    /// Lives in Runtime because the recorders mint the ids and the Editor writers only reuse them.
+    public static class PlaytestMarkerId
+    {
+        public static string For(int markerIndex)
+        {
+            return "note_" + markerIndex.ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
     public enum PlaytestNoteIntent
     {
         Unclassified,
