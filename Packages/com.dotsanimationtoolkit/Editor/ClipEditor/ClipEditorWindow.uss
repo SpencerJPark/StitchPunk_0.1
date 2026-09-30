@@ -244,12 +244,31 @@
     -unity-font-style: bold;
 }
 
+/* R02 + R05: 13/600, and no side padding -- the header's column already insets it 12px, so an extra
+   8px here put every title 8px right of the rows beneath it. Card titles are 13px too; a 12px pane
+   title read smaller than the cards inside its own pane. */
 .toolkit-pane-title {
+    font-size: var(--toolkit-text-title);
     -unity-font-style: bold;
-    padding-top: 4px;
-    padding-bottom: 2px;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding: 0;
+    margin: 0;
+}
+
+/* Panes with no column padding (the Clip Editor's, and every flush viewport column) carry the
+   inset on the header instead, so a viewport's title lines up with its neighbours'. */
+.clip-editor__pane > .toolkit-pane-header,
+.toolkit-column--flush > .toolkit-pane-header,
+#ragdoll-viewport > .toolkit-pane-header,
+#retarget-preview > .toolkit-pane-header,
+#texture-packer-header {
+    padding-left: var(--toolkit-inset);
+    padding-right: var(--toolkit-inset);
+}
+
+/* R06: the preview is not a .toolkit-column, so it missed the 8px top every other column has and
+   its header sat 8px above Tracks. */
+#retarget-preview {
+    padding-top: 8px;
 }
 
 /* A title with an action button pushed to the right edge of the pane. */
@@ -468,9 +487,12 @@
     align-items: center;
     flex-wrap: wrap;
     flex-shrink: 0;
-    padding-top: 4px;
-    padding-bottom: 4px;
-    padding-right: 8px;
+    /* One height on every tab (measured 30/33/34/36 before) and the same 12px inset on the right as
+       on the left, so the primary action never sits closer to the window edge than the first label. */
+    min-height: var(--toolkit-height-asset-bar);
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-right: var(--toolkit-inset);
     border-bottom-width: 1px;
     border-bottom-color: var(--toolkit-divider);
 }
@@ -2041,7 +2063,16 @@
 .health-search-field {
     flex-grow: 1;
     max-width: 320px;
+    margin-left: var(--toolkit-inset);
     margin-right: 8px;
+}
+
+/* Every search box is a field (20px, R10); Unity's toolbar variant is 16px with no border. */
+.unity-toolbar-search-field {
+    height: var(--toolkit-height-field);
+    min-height: var(--toolkit-height-field);
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 /* HE2: every fix is one secondary button of one width, its description centred beside it. */
