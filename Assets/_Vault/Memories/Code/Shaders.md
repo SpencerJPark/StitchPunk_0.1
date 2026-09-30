@@ -453,3 +453,44 @@ So the config is already correct — just never raise `m_MSAA`. Switch-perf alt:
   `ComputeScreenSpaceNormal` never compiled (1-arg vs 2-arg signature mismatch)
   and used `_ScreenParams.zw` (= 1 + 1/res) as a texel size; the old debug
   lighting file always returned its light-count overlay.
+
+## Painted-ground lighting on sprites — `2DPaintedShader` (2026-09-20)
+
+`Assets/Shaders/Graphs/2DPaintedShader.shadergraph` (guid
+`432967785a7b4b83a06852ad6975b31c`) is `2DShader` with the cel chain swapped for the
+**ground's own** lighting function, so sprites and `Painted/Ground` sit in the same light.
+Built by graph surgery (script kept in the session scratchpad; it is a straight
+duplicate + node swap, re-derivable from this note).
+
+What changed against `2DShader`, and why each one is load-bearing:
+
+- **Lit → Unlit subtarget.** `PaintedLighting_float` runs its *own* main-light + cluster
+  light loop and the result is multiplied into Base Color. On the Lit subtarget URP would
+  then light that result a second time, so the sprite could never match the ground. The
+  four 2D graphs are all `UniversalLitSubTarget` today and every Painted* shader is Unlit —
+  that split is the whole reason a separate graph exists instead of an edit in place.
+  Dropping the subtarget means dropping the Lit-only surface blocks (Smoothness, NormalTS,
+  Emission, Occlusion, Specular, Metallic); BaseColor / Alpha / AlphaClipThreshold stay.
+- **The seven URP keywords are declared on the blackboard** (`MAIN_LIGHT_SHADOWS`,
+  `_CASCADE`, `_SCREEN`, `ADDITIONAL_LIGHTS`, `ADDITIONAL_LIGHT_SHADOWS`,
+  `CLUSTER_LIGHT_LOOP`, `SHADOWS_SOFT`, all Boolean/Global/multi-compile). An Unlit target
+  does not declare them, and without them the light loop compiles to ambient only — a flat
+  wash with no shadow and no campfire pool, which looks *plausible*, not broken. Copy them
+  with any future Painted graph.
+- **`SG_Lighting (Custom Function)`** on `PaintedGroundGraph.hlsl`
+  (guid `7f3a1c9e5b2d4e6f8a9b0c1d2e3f4a5b`), slots 0..6 =
+  posWS, normalWS, ambientTint, shadowStrength, ndotlInfluence, pointBoost, out lighting.
+  Deliberately the same node the ground graph uses, not the reflected `Painted Lighting`
+  node (`Painted.Lighting`, in `PaintedGroundNodes.hlsl`): the custom-function wrapper
+  computes screen UV from the world position internally, so no Screen Position node is
+  needed, and "identical to the ground" is then true by construction. posWS/normalWS come
+  from the existing `WorldSpaceSurfaceData` subgraph outputs [1] and [2].
+- **Four per-material dials, cloned from the ground graph with its defaults and reference
+  names**: `_AmbientTint` (white), `_ShadowStrength` (0.6), `_NdotLInfluence` (0.15),
+  `_PointLightBoost` (1). Matching a scene = copying these four values from
+  `M_PaintedGround`; they are not frozen constants, so they *can* drift.
+- **Kept from `2DShader`**: `_MainTex` × `_BaseColor` (Hybrid Per Instance — the DOTS
+  `BodyPartTint` override still works), the `_IsInteractable` / `_InteractableHighlight`
+  branch, alpha clip, double-sided, cast shadows. The stray unused `_Float` property was
+  dropped. Only the plain Texture2D variant was built; the array / packed-array variants
+  are the same swap if the look lands.

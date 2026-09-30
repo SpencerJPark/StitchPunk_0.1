@@ -8,17 +8,16 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: BaseHead
-  m_Shader: {fileID: -6465566751694194690, guid: dd0290a2d3ecfec4aa7453f268717683, type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 432967785a7b4b83a06852ad6975b31c, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _ALPHATEST_ON
-  m_InvalidKeywords:
-  - _ENUM_A
+  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 2450
+  m_CustomRenderQueue: -1
   stringTagMap:
     RenderType: TransparentCutout
   disabledShaderPasses:
@@ -89,6 +88,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _ADDITIONAL_LIGHTS: 0
+    - _ADDITIONAL_LIGHT_SHADOWS: 0
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 1
     - _AlphaToMask: 1
@@ -97,6 +98,7 @@ Material:
     - _Blend: 0
     - _BlendModePreserveSpecular: 0
     - _BumpScale: 1
+    - _CLUSTER_LIGHT_LOOP: 0
     - _CastShadows: 1
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
@@ -122,16 +124,25 @@ Material:
     - _ImageIndex: 0
     - _InteractableHighlight: 0.03
     - _IsInteractable: 1
+    - _MAIN_LIGHT_SHADOWS: 0
+    - _MAIN_LIGHT_SHADOWS_CASCADE: 0
+    - _MAIN_LIGHT_SHADOWS_SCREEN: 0
     - _Metallic: 0
+    - _NdotLInfluence: 0.15
     - _OcclusionStrength: 1
     - _Parallax: 0.005
+    - _PointLightBoost: 1
     - _QueueControl: 0
     - _QueueOffset: 0
     - _ReceiveShadows: 1
     - _RimIntensity: 0.5
     - _RimSmooth: 0.1
+    - _RimStrength: 0.2
     - _RimThreshold: 0.01
+    - _SHADOWS_SOFT: 0
+    - _ShadowLift: 0.25
     - _ShadowSmoothness: 0.05
+    - _ShadowStrength: 0.704
     - _ShadowThreshold: 0.5
     - _Smoothness: 0.09
     - _SmoothnessTextureChannel: 0
@@ -147,11 +158,13 @@ Material:
     - _ZWrite: 1
     - _ZWriteControl: 1
     m_Colors:
+    - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShadowColor: {r: 0.6, g: 0.5, b: 0.7, a: 1}
+    - _ShadowTint: {r: 0.27999997, g: 0.33999997, b: 0.52, a: 1}
     - _SpecColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}
     - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
