@@ -648,9 +648,10 @@ namespace DotsAnimationToolkit.Editor
 
             blendInField = new FloatField() { name = "actor-editor-inspector-blend-in-field" };
             blendInField.SetValueWithoutNotify(usesClipDefaultBlend ? 0f : animation.blendIn);
-            SetFieldRowDisplay(blendInField, !usesClipDefaultBlend);
             blendInField.RegisterValueChangedCallback(changeEvent => ApplyBlendInChange(changeEvent.newValue));
             animationCardBody.Add(ToolkitChrome.MakePropertyRow("Blend In", blendInField, null));
+            // After the row exists: toggled before it, the field hid itself and no later row toggle brought it back.
+            SetFieldRowDisplay(blendInField, !usesClipDefaultBlend);
 
             ragdollTriggerField = new EnumField(animation.ragdollTrigger)
             {
