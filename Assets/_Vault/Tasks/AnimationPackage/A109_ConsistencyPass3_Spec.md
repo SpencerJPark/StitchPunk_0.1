@@ -103,7 +103,29 @@ all four UI waves can be written before the first gate if needed. The cost is a 
 
 ## 5. Log
 
-_(Filled during the build: per-wave gate result, capture paths, R-rule audit, owner checkpoint.)_
+**Built 2026-09-29, all four UI waves + G1, on branch `spec/a109` (worktree `.claude/worktrees/a109-consistency`).**
+Every wave gated through the broker: compile clean, `EditorStyleConformanceTests` 5/5. Not merged, not version-bumped
+(still reads 0.60.0; bump to 0.61.0 + CHANGELOG at merge).
+
+**Paused for usage (owner at 94%). Left for the next session, in order:**
+1. **Captures were never taken:** the Editor was unfocused every time. Stage the branch
+   (`worktree.py stage-commit <sha>`, then `refresh_unity`), have the owner focus Unity, and capture all 15 tabs against
+   `issue*.png`. Then `restore-trunk`.
+2. **Unverified guesses to check in captures:**
+   - Events footer clipping (list `flexShrink`/`minHeight 0`).
+   - VAT Bake footer clipping (split `minHeight 0`).
+   - The Cutscenes "Slot" clip (inset only).
+   - The All/Selected segmented clip (track padding 0 in transport rows).
+   - Whether `.toolkit-icon-square` matches the uxml `ToolbarButton`/`ToolbarToggle` (rules for `.unity-toolbar-button`/`-toggle` added).
+   - The cutscene slot picker icon `d_Animation.Play`.
+3. **FB2 "Make editable" never ran:** drive it once on `MaleHairTextureArray` in memory (it writes PNGs + two assets beside the array).
+4. **Behaviour changes to confirm:**
+   - VAT Bake disables Bake while a source issue stands (tooltip says why).
+   - Health fixes are all secondary except Delete, which stays red.
+   - The validation badge raises `HealthRequested`, but nothing is wired to the Health tab yet (`ClipEditorWindow.ShowHealthTab` is private).
+5. **G1 (game) needs a rebake:** tick `soundFromIntParam` on a `_AnimSoundEventMapping` entry for the Sound key. The Sound key's
+   "Int value names" should list `SoundType` in order. Play-test is the owner's.
+6. **Full EditMode suite** (package + game) once, then the owner's checkpoint on D1/D2, then merge (`worktree.py merge a109`, owner's word).
 
 **Owner checkpoint (end of Wave 4):** are D1 (24px primary) and D2 (icon squares in pane headers) the look you want?
 Both are global, so they are cheap to flip back.
