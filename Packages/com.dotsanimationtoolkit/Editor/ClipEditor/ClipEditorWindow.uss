@@ -1986,6 +1986,17 @@
     flex-shrink: 0;
 }
 
+/* Outranks the shared list-row title/meta rules (title grows, meta keeps a left margin and a 65%
+   cap), which made cells ignore the column bases the caption row follows. */
+.toolkit-list-row > .retarget-col-track.unity-label,
+.toolkit-list-row > .retarget-col-part.unity-label,
+.toolkit-list-row > .retarget-col-status {
+    flex-grow: 0;
+    margin: 0;
+    max-width: none;
+    -unity-text-align: middle-left;
+}
+
 /* RT2: roster chips sit in one row with 8px between them; the coverage badge 4px after the name. */
 #retarget-roster-strip {
     flex-direction: row;

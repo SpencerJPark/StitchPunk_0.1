@@ -68,9 +68,12 @@ namespace DotsAnimationToolkit.Editor
 
             // A figure and a cube rather than two Plus squares: side by side, two identical glyphs
             // could only be told apart by hovering.
-            actionsRow.Add(ToolkitChrome.MakeIconSquare(
+            Button addActorSquare = ToolkitChrome.MakeIconSquare(
                 () => AddSlotRequested?.Invoke(CutsceneSlotKind.Actor), "d_AvatarSelector",
-                "Add an actor to the cast"));
+                "Add an actor to the cast");
+            // The drawn Actor Profiles glyph: Unity's avatar icon is teal and breaks the one-tone rule.
+            ToolkitIcons.SetButtonGlyph(addActorSquare, ToolkitGlyphId.ActorProfiles);
+            actionsRow.Add(addActorSquare);
 
             actionsRow.Add(ToolkitChrome.MakeIconSquare(
                 () => AddSlotRequested?.Invoke(CutsceneSlotKind.Prop), "d_PreMatCube",

@@ -70,6 +70,11 @@ namespace DotsAnimationToolkit.Editor
             bodiesSearchField.name = "ragdoll-bodies-search";
             bodiesSearchField.tooltip = "Search bodies";
             bodiesSearchField.style.flexShrink = 0f;
+            // Same clamp as ToolkitCatalogColumn: the field's min-content width overflows a narrow column otherwise.
+            bodiesSearchField.style.width = new Length(100f, LengthUnit.Percent);
+            bodiesSearchField.style.minWidth = 0f;
+            bodiesSearchField.style.marginLeft = 0f;
+            bodiesSearchField.style.marginRight = 0f;
             bodiesSearchField.RegisterValueChangedCallback(OnBodiesSearchFieldValueChanged);
             Add(bodiesSearchField);
 
