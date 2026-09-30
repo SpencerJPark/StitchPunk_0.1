@@ -122,7 +122,7 @@ Every wave gated through the broker: compile clean, `EditorStyleConformanceTests
 4. **Behaviour changes to confirm:**
    - VAT Bake disables Bake while a source issue stands (tooltip says why).
    - Health fixes are all secondary except Delete, which stays red.
-   - The validation badge raises `HealthRequested`, but nothing is wired to the Health tab yet (`ClipEditorWindow.ShowHealthTab` is private).
+   - Clicking an Actor Profiles count badge now opens Health filtered to the profile name (wired 2026-09-30, offline-compiled only; drive it once).
 5. **G1 (game) needs a rebake:** tick `soundFromIntParam` on a `_AnimSoundEventMapping` entry for the Sound key. The Sound key's
    "Int value names" should list `SoundType` in order. Play-test is the owner's.
 6. **Full EditMode suite** (package + game) once, then the owner's checkpoint on D1/D2, then merge (`worktree.py merge a109`, owner's word).

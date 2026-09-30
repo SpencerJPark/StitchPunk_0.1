@@ -67,6 +67,12 @@ namespace DotsAnimationToolkit.Editor
             OnAssetReferenceIndexDirtied();
         }
 
+        // Another tab's badge lands here: the search field matches finding titles, messages and target names.
+        public void FilterToSearchText(string searchText)
+        {
+            filterField.value = searchText ?? string.Empty;
+        }
+
         private readonly Button scanButton;
         private readonly Label scanStatusLabel;
         private readonly ToolbarSearchField filterField;

@@ -850,6 +850,7 @@ namespace DotsAnimationToolkit.Editor
             if (actorEditorPanel != null)
             {
                 actorEditorPanel.SetTicking(false);
+                actorEditorPanel.HealthRequested -= OnActorProfileHealthRequested;
                 actorEditorPanel.Dispose();
                 actorEditorPanel = null;
             }
@@ -1854,6 +1855,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     actorEditorPanel = new ActorEditorPanel();
                     actorEditorPanel.Bind(selection);
+                    actorEditorPanel.HealthRequested += OnActorProfileHealthRequested;
                     actorEditorPane.Add(actorEditorPanel);
                 }
 
@@ -2066,6 +2068,15 @@ namespace DotsAnimationToolkit.Editor
         private void OnClipSetOpenRequested(ClipSetAsset requestedSet)
         {
             SetActiveTab(ClipEditorTab.ClipEditor);
+        }
+
+        private void OnActorProfileHealthRequested(ActorProfileAsset requestedProfile)
+        {
+            SetActiveTab(ClipEditorTab.Health);
+            if (healthPanel != null && requestedProfile != null)
+            {
+                healthPanel.FilterToSearchText(requestedProfile.name);
+            }
         }
 
         private void OnClipSetRebakeRequested(ClipSetAsset requestedSet, RigAsset bakedRig)
