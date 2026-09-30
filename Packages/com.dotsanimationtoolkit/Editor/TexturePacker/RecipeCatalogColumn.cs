@@ -20,9 +20,9 @@ namespace DotsAnimationToolkit.Editor
 
         public RecipeCatalogColumn() : base(BuildOptions())
         {
-            // Save sits between New and Refresh, where the sidebar showed it before.
-            Button saveButton = ToolkitIcons.MakeIconTextButton(
-                RaiseSaveRequested, "d_SaveAs", "Write the current graph into the selected recipe, or into a new one", "Save");
+            // Save is an icon square between New and Refresh in the header run.
+            Button saveButton = ToolkitChrome.MakeIconSquare(
+                RaiseSaveRequested, "d_SaveAs", "Save as recipe: write the current graph into the selected recipe, or into a new one");
             saveButton.name = "recipes-save-button";
             HeaderActions.Insert(1, saveButton);
 

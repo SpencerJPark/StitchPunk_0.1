@@ -60,18 +60,19 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.minWidth = 200f;
 
-            HeaderActions = new VisualElement();
+            HeaderActions = ToolkitChrome.MakeIconSquareRun(options.namePrefix + "-header-actions");
             HeaderActions.AddToClassList("toolkit-pane-actions");
 
-            Button newButton = ToolkitIcons.MakeIconTextButton(
-                RaiseNewRequested, options.newButtonIconName, options.newButtonTooltip, "New");
+            string newButtonTooltip = string.IsNullOrEmpty(options.newButtonTooltip) ? "New" : options.newButtonTooltip;
+            Button newButton = ToolkitChrome.MakeIconSquare(
+                RaiseNewRequested, options.newButtonIconName, newButtonTooltip);
             newButton.name = options.namePrefix + "-new-button";
             HeaderActions.Add(newButton);
 
-            Button refreshButton = ToolkitIcons.MakeIconTextButton(
-                Rescan, options.refreshButtonIconName, options.refreshButtonTooltip, "Refresh");
+            string refreshButtonTooltip = string.IsNullOrEmpty(options.refreshButtonTooltip) ? "Rescan the project" : options.refreshButtonTooltip;
+            Button refreshButton = ToolkitChrome.MakeIconSquare(
+                Rescan, options.refreshButtonIconName, refreshButtonTooltip);
             refreshButton.name = options.namePrefix + "-refresh-button";
-            ToolkitChrome.StyleButton(refreshButton, ToolkitButtonVariant.Ghost);
             HeaderActions.Add(refreshButton);
 
             if (!string.IsNullOrEmpty(options.title))

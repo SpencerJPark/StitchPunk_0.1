@@ -259,6 +259,18 @@
     color: var(--toolkit-color-error);
 }
 
+/* R17: a square that toggles shows its on state filled, like the segmented control's on item. */
+.toolkit-icon-square.toolkit-icon-square--on.unity-button,
+.toolkit-icon-square.toolkit-icon-square--on.unity-button:hover {
+    background-color: var(--toolkit-raised);
+    color: var(--toolkit-text);
+}
+
+.toolkit-path-row__path.toolkit-path-row__path--empty {
+    color: var(--toolkit-color-muted);
+    -unity-font-style: italic;
+}
+
 .toolkit-icon-square-run {
     flex-direction: row;
     align-items: center;
@@ -411,6 +423,36 @@
     border-radius: 9px;
     font-size: var(--toolkit-text-meta);
     -unity-text-align: middle-center;
+}
+
+/* A badge built as a container (dot + label, e.g. VatFreshnessBadgeElement) gets the same pill. */
+.toolkit-badge {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    height: 18px;
+    min-height: 18px;
+    padding: 0 4px;
+    border-width: 1px;
+    border-radius: 9px;
+}
+
+.toolkit-badge > .unity-label {
+    font-size: var(--toolkit-text-meta);
+    margin: 0;
+    padding: 0;
+}
+
+.toolkit-badge > .toolkit-severity-dot {
+    margin-right: 4px;
+}
+
+/* A109 D5: in any row the pill centres on the 24px buttons beside it; flex-start sat it on the top edge. */
+.toolkit-badge-row > .toolkit-badge,
+.toolkit-pane-actions > .toolkit-badge,
+.toolkit-asset-bar > .toolkit-badge,
+.toolkit-card__actions > .toolkit-badge {
+    align-self: center;
 }
 
 .toolkit-badge.toolkit-badge--neutral {
