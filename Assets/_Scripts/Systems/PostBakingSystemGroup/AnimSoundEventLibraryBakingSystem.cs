@@ -32,6 +32,7 @@ public partial struct AnimSoundEventLibraryBakingSystem : ISystem
         {
             entriesBuilder[i].eventKey = librarySO.entries[i].eventKey;
             entriesBuilder[i].sound    = librarySO.entries[i].sound;
+            entriesBuilder[i].soundFromIntParam = librarySO.entries[i].soundFromIntParam;
         }
 
         BlobAssetReference<AnimSoundEventMappingBlob> blobRef =

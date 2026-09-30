@@ -63,37 +63,27 @@ namespace DotsAnimationToolkit.Editor
             heading.AddToClassList("toolkit-pane-title");
             headerRow.Add(heading);
 
-            stageStatusLabel.style.marginLeft = 6f;
+            stageStatusLabel.AddToClassList("toolkit-hint");
             stageStatusLabel.AddToClassList("cutscene-editor__cast-status");
             headerRow.Add(stageStatusLabel);
 
-            VisualElement actionsRow = new VisualElement();
+            VisualElement actionsRow = ToolkitChrome.MakeIconSquareRun("cutscene-cast-actions");
             actionsRow.AddToClassList("toolkit-pane-actions");
 
-            Button addActorButton = ToolkitIcons.MakeIconButton(
+            // Actor and Prop share the Plus glyph; the tooltips tell them apart.
+            actionsRow.Add(ToolkitChrome.MakeIconSquare(
                 () => AddSlotRequested?.Invoke(CutsceneSlotKind.Actor), ToolkitIcons.Plus,
-                "Add an actor slot.", "+ Actor");
-            ToolkitIcons.SetButtonIconAndText(addActorButton, ToolkitIcons.Plus, "Actor");
-            ToolkitChrome.StyleButton(addActorButton, ToolkitButtonVariant.Ghost);
-            addActorButton.AddToClassList("toolkit-pane-action");
-            actionsRow.Add(addActorButton);
+                "Add an actor to the cast"));
 
-            Button addPropButton = ToolkitIcons.MakeIconButton(
+            actionsRow.Add(ToolkitChrome.MakeIconSquare(
                 () => AddSlotRequested?.Invoke(CutsceneSlotKind.Prop), ToolkitIcons.Plus,
-                "Add a prop slot.", "+ Prop");
-            ToolkitIcons.SetButtonIconAndText(addPropButton, ToolkitIcons.Plus, "Prop");
-            ToolkitChrome.StyleButton(addPropButton, ToolkitButtonVariant.Ghost);
-            addPropButton.AddToClassList("toolkit-pane-action");
-            actionsRow.Add(addPropButton);
+                "Add a prop to the cast"));
 
-            syncToStageButton = ToolkitIcons.MakeIconButton(
+            syncToStageButton = ToolkitChrome.MakeIconSquare(
                 () => SyncToStageRequested?.Invoke(), "d_Refresh",
                 "Sync to Stage — writes every bound slot into this scene's CutsceneStageAuthoring "
                 + "component, baking one CutsceneStage entity that plays this cutscene at runtime. "
-                + "Explicit, never automatic — press it after the cast is the way you want it.",
-                "Sync");
-            ToolkitChrome.StyleButton(syncToStageButton, ToolkitButtonVariant.Ghost);
-            syncToStageButton.AddToClassList("toolkit-pane-action");
+                + "Explicit, never automatic — press it after the cast is the way you want it.");
             actionsRow.Add(syncToStageButton);
 
             headerRow.Add(actionsRow);
@@ -136,11 +126,8 @@ namespace DotsAnimationToolkit.Editor
                 && currentSceneGuid == cutscene.sceneGuid;
             if (!sceneMatches)
             {
-                Label sceneMismatchNotice = new Label(
-                    "Open the remembered scene to place or bind the cast. Timing edits still work.")
-                { style = { whiteSpace = WhiteSpace.Normal, marginBottom = 6f } };
-                sceneMismatchNotice.AddToClassList("toolkit-hint");
-                rowsContainer.Add(sceneMismatchNotice);
+                rowsContainer.Add(ToolkitChrome.MakeHint(
+                    "Open the remembered scene to place or bind the cast. Timing edits still work."));
             }
 
             for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
@@ -278,6 +265,7 @@ namespace DotsAnimationToolkit.Editor
         {
             Button button = new Button(onClick) { tooltip = tooltip };
             button.AddToClassList("cutscene-editor__cast-button");
+            button.AddToClassList("toolkit-icon-square");
 
             Texture iconTexture = LoadEditorIconTexture(iconName);
             if (iconTexture == null)

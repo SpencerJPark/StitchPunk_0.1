@@ -269,15 +269,15 @@ namespace DotsAnimationToolkit.Editor
                 if (errorCount > 0)
                 {
                     Label errorBadge = ToolkitChrome.MakeBadge(errorCount.ToString(), ToolkitStatusTone.Error);
-                    errorBadge.tooltip = errorCount.ToString() + " errors";
-                    errorBadge.pickingMode = PickingMode.Ignore;
+                    errorBadge.tooltip = BuildCountTooltip(errorCount, "errors", ValidationSeverity.Error);
+                    errorBadge.RegisterCallback<ClickEvent>(RaiseHealthRequested);
                     summaryButton.Add(errorBadge);
                 }
                 if (warningCount > 0)
                 {
                     Label warningBadge = ToolkitChrome.MakeBadge(warningCount.ToString(), ToolkitStatusTone.Warning);
-                    warningBadge.tooltip = warningCount.ToString() + " warnings";
-                    warningBadge.pickingMode = PickingMode.Ignore;
+                    warningBadge.tooltip = BuildCountTooltip(warningCount, "warnings", ValidationSeverity.Warning);
+                    warningBadge.RegisterCallback<ClickEvent>(RaiseHealthRequested);
                     summaryButton.Add(warningBadge);
                 }
             }
@@ -289,6 +289,43 @@ namespace DotsAnimationToolkit.Editor
             messagePanelTitle.text = "Validation — " + summaryText;
 
             RebuildMessageList();
+        }
+
+        private const int MaxTooltipMessageLines = 6;
+
+        /// <summary>Raised when a count badge is clicked; the host decides how to open the Health tab.</summary>
+        public event System.Action HealthRequested;
+
+        private void RaiseHealthRequested(ClickEvent clickEvent)
+        {
+            HealthRequested?.Invoke();
+        }
+
+        private string BuildCountTooltip(int count, string noun, ValidationSeverity severity)
+        {
+            System.Text.StringBuilder builder = new System.Text.StringBuilder();
+            builder.Append(count.ToString()).Append(' ').Append(noun).Append(" — open Health for fixes");
+            int listedCount = 0;
+            for (int messageIndex = 0; messageIndex < currentMessages.Count; messageIndex++)
+            {
+                ValidationMessage message = currentMessages[messageIndex];
+                bool isError = message.severity == ValidationSeverity.Error;
+                if (isError != (severity == ValidationSeverity.Error))
+                {
+                    continue;
+                }
+                if (listedCount >= MaxTooltipMessageLines)
+                {
+                    break;
+                }
+                builder.Append('\n').Append(message.text);
+                listedCount++;
+            }
+            if (count > listedCount)
+            {
+                builder.Append("\n…and ").Append((count - listedCount).ToString()).Append(" more");
+            }
+            return builder.ToString();
         }
 
         private void ToggleExpanded()

@@ -565,18 +565,19 @@ namespace DotsAnimationToolkit.Editor
                 text = DescribeAnimationName(animation.animationKey)
             };
             animationNameButton.clicked += () => OpenAnimationNamePicker(animationNameButton);
-            animationCardBody.Add(animationNameButton);
+            ToolkitChrome.StyleButton(animationNameButton, ToolkitButtonVariant.Secondary);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Name", animationNameButton, "Pick which animation this entry plays"));
 
-            hasDirectionsToggle = new Toggle("Direction dimension")
+            hasDirectionsToggle = new Toggle()
             {
                 name = "actor-editor-inspector-animation-has-directions-toggle"
             };
             hasDirectionsToggle.SetValueWithoutNotify(animation.hasDirections);
             hasDirectionsToggle.RegisterValueChangedCallback(
                 changeEvent => ApplyHasDirectionsChange(changeEvent.newValue));
-            animationCardBody.Add(hasDirectionsToggle);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Direction dimension", hasDirectionsToggle, null));
 
-            clipField = new ObjectField("Clip")
+            clipField = new ObjectField()
             {
                 objectType = typeof(ClipAsset),
                 name = "actor-editor-inspector-animation-clip-field"
@@ -584,17 +585,17 @@ namespace DotsAnimationToolkit.Editor
             clipField.SetValueWithoutNotify(animation.clip);
             clipField.RegisterValueChangedCallback(
                 changeEvent => ApplyClipChange(changeEvent.newValue as ClipAsset));
-            animationCardBody.Add(clipField);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Clip", clipField, null));
 
             directionContainer = new VisualElement { name = "actor-editor-inspector-direction-container" };
 
-            targetDirectionsField = new EnumField("Target Directions", animation.directionSlots.targetDirections)
+            targetDirectionsField = new EnumField(animation.directionSlots.targetDirections)
             {
                 name = "actor-editor-inspector-target-directions-field"
             };
             targetDirectionsField.RegisterValueChangedCallback(
                 changeEvent => ApplyTargetDirectionsChange((AnimationDirections)changeEvent.newValue));
-            directionContainer.Add(targetDirectionsField);
+            directionContainer.Add(ToolkitChrome.MakePropertyRow("Target Directions", targetDirectionsField, null));
 
             queueView = new DirectionSetClipQueueView { name = "actor-editor-inspector-direction-queue-view" };
             queueView.SlotAssigned += OnDirectionSlotAssigned;
@@ -619,46 +620,45 @@ namespace DotsAnimationToolkit.Editor
             ApplyDirectionDimensionVisibility(animation);
             RebuildDirectionQueue(animation);
 
-            loopField = new EnumField("Loop", animation.loop) { name = "actor-editor-inspector-loop-field" };
+            loopField = new EnumField(animation.loop) { name = "actor-editor-inspector-loop-field" };
             loopField.RegisterValueChangedCallback(changeEvent => ApplyLoopChange((LoopMode)changeEvent.newValue));
-            animationCardBody.Add(loopField);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Loop", loopField, null));
 
-            speedField = new FloatField("Speed") { name = "actor-editor-inspector-speed-field" };
+            speedField = new FloatField() { name = "actor-editor-inspector-speed-field" };
             speedField.SetValueWithoutNotify(animation.speed);
             speedField.RegisterValueChangedCallback(changeEvent => ApplySpeedChange(changeEvent.newValue));
-            animationCardBody.Add(speedField);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Speed", speedField, null));
 
-            layerTimeField = new FloatField("Layer Time") { name = "actor-editor-inspector-layer-time-field" };
-            layerTimeField.tooltip = "This layer's playhead, seconds.";
+            layerTimeField = new FloatField() { name = "actor-editor-inspector-layer-time-field" };
             layerTimeField.SetValueWithoutNotify(composer != null ? composer.LayerTime(selection.layerIndex) : 0f);
             layerTimeField.RegisterValueChangedCallback(
                 changeEvent => composer?.SetLayerTime(selection.layerIndex, changeEvent.newValue));
-            animationCardBody.Add(layerTimeField);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Layer Time", layerTimeField, "This layer's playhead, seconds."));
 
             bool usesClipDefaultBlend = float.IsNaN(animation.blendIn);
 
-            useClipDefaultBlendToggle = new Toggle("Use Clip Default Blend-In")
+            useClipDefaultBlendToggle = new Toggle()
             {
                 name = "actor-editor-inspector-blend-in-use-default-toggle"
             };
             useClipDefaultBlendToggle.SetValueWithoutNotify(usesClipDefaultBlend);
             useClipDefaultBlendToggle.RegisterValueChangedCallback(
                 changeEvent => ApplyBlendInUseClipDefaultChange(changeEvent.newValue));
-            animationCardBody.Add(useClipDefaultBlendToggle);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Default blend-in", useClipDefaultBlendToggle, "Use the clip's own blend-in time"));
 
-            blendInField = new FloatField("Blend In") { name = "actor-editor-inspector-blend-in-field" };
+            blendInField = new FloatField() { name = "actor-editor-inspector-blend-in-field" };
             blendInField.SetValueWithoutNotify(usesClipDefaultBlend ? 0f : animation.blendIn);
-            blendInField.style.display = usesClipDefaultBlend ? DisplayStyle.None : DisplayStyle.Flex;
+            SetFieldRowDisplay(blendInField, !usesClipDefaultBlend);
             blendInField.RegisterValueChangedCallback(changeEvent => ApplyBlendInChange(changeEvent.newValue));
-            animationCardBody.Add(blendInField);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Blend In", blendInField, null));
 
-            ragdollTriggerField = new EnumField("Ragdoll Trigger", animation.ragdollTrigger)
+            ragdollTriggerField = new EnumField(animation.ragdollTrigger)
             {
                 name = "actor-editor-inspector-ragdoll-trigger-field"
             };
             ragdollTriggerField.RegisterValueChangedCallback(
                 changeEvent => ApplyRagdollTriggerChange((RagdollTrigger)changeEvent.newValue));
-            animationCardBody.Add(ragdollTriggerField);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Ragdoll Trigger", ragdollTriggerField, null));
 
             ragdollAtEventButton = new Button
             {
@@ -666,17 +666,19 @@ namespace DotsAnimationToolkit.Editor
                 text = DescribeRagdollAtEvent(animation.ragdollAtEventKey)
             };
             ragdollAtEventButton.clicked += () => OpenRagdollAtEventPicker(ragdollAtEventButton);
-            animationCardBody.Add(ragdollAtEventButton);
+            ToolkitChrome.StyleButton(ragdollAtEventButton, ToolkitButtonVariant.Secondary);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("Ragdoll At Event", ragdollAtEventButton, "Animation event that triggers the ragdoll"));
             ApplyRagdollAtEventVisibility(animation);
 
-            layerReadoutLabel = new Label("Layer: " + DescribeLayerName(layer))
-            {
-                name = "actor-editor-inspector-layer-readout-label"
-            };
-            animationCardBody.Add(layerReadoutLabel);
-
-            playingStatusLabel = new Label { name = "actor-editor-inspector-playing-status-label" };
-            animationCardBody.Add(playingStatusLabel);
+            VisualElement stateBadgeRow = ToolkitChrome.MakeBadgeRow("actor-editor-inspector-state-badge-row");
+            layerReadoutLabel = ToolkitChrome.MakeBadge(DescribeLayerName(layer), ToolkitStatusTone.Neutral);
+            layerReadoutLabel.name = "actor-editor-inspector-layer-readout-label";
+            layerReadoutLabel.tooltip = "Layer this animation lives on";
+            stateBadgeRow.Add(layerReadoutLabel);
+            playingStatusLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+            playingStatusLabel.name = "actor-editor-inspector-playing-status-label";
+            stateBadgeRow.Add(playingStatusLabel);
+            animationCardBody.Add(ToolkitChrome.MakePropertyRow("State", stateBadgeRow, null));
             RefreshPlayingStatusLabel(animation);
 
             container.Add(animationCard);
@@ -715,12 +717,18 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
+        private static void SetFieldRowDisplay(VisualElement field, bool isVisible)
+        {
+            VisualElement row = field.parent ?? field;
+            row.style.display = isVisible ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
         private void ApplyDirectionDimensionVisibility(ActorAnimationDefinition animation)
         {
             bool hasDirections = animation != null && animation.hasDirections;
             if (clipField != null)
             {
-                clipField.style.display = hasDirections ? DisplayStyle.None : DisplayStyle.Flex;
+                SetFieldRowDisplay(clipField, !hasDirections);
             }
             if (directionContainer != null)
             {
@@ -968,7 +976,7 @@ namespace DotsAnimationToolkit.Editor
             if (blendInField != null)
             {
                 blendInField.SetValueWithoutNotify(animation.blendIn);
-                blendInField.style.display = useClipDefault ? DisplayStyle.None : DisplayStyle.Flex;
+                SetFieldRowDisplay(blendInField, !useClipDefault);
             }
         }
 
@@ -1006,7 +1014,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
             bool showAtEventPicker = animation != null && animation.ragdollTrigger != RagdollTrigger.None;
-            ragdollAtEventButton.style.display = showAtEventPicker ? DisplayStyle.Flex : DisplayStyle.None;
+            SetFieldRowDisplay(ragdollAtEventButton, showAtEventPicker);
         }
 
         private void OpenAnimationNamePicker(Button anchor)
@@ -1104,6 +1112,13 @@ namespace DotsAnimationToolkit.Editor
             return layer != null && !string.IsNullOrEmpty(layer.displayName) ? layer.displayName : "(unnamed)";
         }
 
+        private void SetPlayingBadge(string text, bool isPlaying)
+        {
+            playingStatusLabel.text = text;
+            playingStatusLabel.EnableInClassList("toolkit-badge--ok", isPlaying);
+            playingStatusLabel.EnableInClassList("toolkit-badge--neutral", !isPlaying);
+        }
+
         private void RefreshPlayingStatusLabel(ActorAnimationDefinition animation)
         {
             if (playingStatusLabel == null)
@@ -1112,13 +1127,13 @@ namespace DotsAnimationToolkit.Editor
             }
             if (composer == null || !composer.IsCreated || animation == null)
             {
-                playingStatusLabel.text = "Playing: —";
+                SetPlayingBadge("Playing: —", false);
                 return;
             }
 
             bool isThisEntryActive = composer.LayerAnimationKey(selection.layerIndex) == animation.animationKey
                 && (composer.LayerFlags(selection.layerIndex) & PlaybackFlags.Active) != 0;
-            playingStatusLabel.text = isThisEntryActive ? "Playing" : "Stopped";
+            SetPlayingBadge(isThisEntryActive ? "Playing" : "Stopped", isThisEntryActive);
         }
 
         private void RefreshAnimationBlockIfChanged()
@@ -1182,7 +1197,7 @@ namespace DotsAnimationToolkit.Editor
                 useClipDefaultBlendToggle.SetValueWithoutNotify(usesClipDefaultBlend);
                 if (blendInField != null)
                 {
-                    blendInField.style.display = usesClipDefaultBlend ? DisplayStyle.None : DisplayStyle.Flex;
+                    SetFieldRowDisplay(blendInField, !usesClipDefaultBlend);
                 }
             }
             if (blendInField != null && !usesClipDefaultBlend && !IsBeingEdited(blendInField)
@@ -1208,7 +1223,7 @@ namespace DotsAnimationToolkit.Editor
 
             if (layerReadoutLabel != null && layer != null)
             {
-                string expectedLayerText = "Layer: " + DescribeLayerName(layer);
+                string expectedLayerText = DescribeLayerName(layer);
                 if (layerReadoutLabel.text != expectedLayerText)
                 {
                     layerReadoutLabel.text = expectedLayerText;

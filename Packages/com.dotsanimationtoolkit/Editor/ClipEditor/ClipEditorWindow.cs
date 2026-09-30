@@ -1194,8 +1194,13 @@ namespace DotsAnimationToolkit.Editor
             rigEditToggle = rootVisualElement.Q<ToolbarToggle>("rig-edit-toggle");
             if (rigEditToggle != null)
             {
+                rigEditToggle.text = string.Empty;
+                rigEditToggle.AddToClassList("toolkit-icon-square");
+                Image rigEditIcon = new Image { pickingMode = PickingMode.Ignore };
+                rigEditToggle.Add(rigEditIcon);
+                ToolkitIcons.SetToggleIcon(rigEditToggle, rigEditIcon, "editicon.sml", "Edit");
                 rigEditToggle.tooltip =
-                    "Off: gizmos and fields key the selected clip. "
+                    "Edit rig: Off: gizmos and fields key the selected clip. "
                     + "On: gizmos write the prefab's base pose and the hierarchy accepts drag-to-"
                     + "reparent. No keyframes are created in Rig Edit.";
                 rigEditToggle.RegisterValueChangedCallback(OnRigEditModeChanged);

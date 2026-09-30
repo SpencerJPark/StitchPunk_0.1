@@ -213,24 +213,16 @@ namespace DotsAnimationToolkit.Editor
             // One action per line, its description beside it: side-by-side columns sized to each
             // description left the second button floating mid-panel.
             VisualElement rowContainer = new VisualElement();
-            rowContainer.style.flexDirection = FlexDirection.Row;
-            rowContainer.style.alignItems = Align.Center;
-            rowContainer.style.marginBottom = 6f;
+            rowContainer.AddToClassList("health-fix-row");
 
-            string actionIconName = ResolveActionIconName(action.label);
-            Button actionButton = actionIconName == null
-                ? new Button { text = action.label }
-                : ToolkitIcons.MakeIconTextButton(() => RunAction(finding, action), actionIconName, action.description, action.label);
+            string actionIconName = ResolveActionIconName(action.label) ?? ToolkitIcons.Frame;
+            Button actionButton = ToolkitChrome.MakeSecondaryAction(() => RunAction(finding, action), actionIconName, action.description, action.label);
             actionButton.name = "health-finding-action";
-            actionButton.style.flexGrow = 0f;
-            actionButton.style.flexShrink = 0f;
-            actionButton.style.minWidth = 120f;
-            actionButton.style.marginLeft = 0f;
-            ToolkitChrome.StyleButton(actionButton, ResolveActionVariant(action));
-
-            if (actionIconName == null)
+            actionButton.AddToClassList("health-fix-button");
+            // A fix that deletes stays red (destructive = red ghost), still one width with its neighbours.
+            if (action.label.StartsWith("Delete", StringComparison.Ordinal))
             {
-                actionButton.clicked += () => RunAction(finding, action);
+                ToolkitChrome.StyleButton(actionButton, ToolkitButtonVariant.Destructive);
             }
 
             rowContainer.Add(actionButton);
@@ -265,23 +257,6 @@ namespace DotsAnimationToolkit.Editor
             }
 
             return null;
-        }
-
-        // Rebake is the fix the finding is asking for, so it gets the primary treatment;
-        // destructive actions (Delete) stay visually distinct; everything else (e.g. Locate) is secondary navigation.
-        private static ToolkitButtonVariant ResolveActionVariant(HealthFindingAction action)
-        {
-            if (action.isDestructive)
-            {
-                return ToolkitButtonVariant.Destructive;
-            }
-
-            if (!string.IsNullOrEmpty(action.label) && action.label.StartsWith("Rebake", StringComparison.Ordinal))
-            {
-                return ToolkitButtonVariant.Primary;
-            }
-
-            return ToolkitButtonVariant.Secondary;
         }
 
         private void RunAction(HealthFinding finding, HealthFindingAction action)

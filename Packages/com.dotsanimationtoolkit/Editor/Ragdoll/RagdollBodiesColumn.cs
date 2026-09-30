@@ -48,16 +48,18 @@ namespace DotsAnimationToolkit.Editor
             headerRow.style.flexShrink = 0f;
             Add(headerRow);
 
-            addBodyButton = ToolkitIcons.MakeIconButton(
-                OnAddBodyButtonClicked, "d_Toolbar Plus", "Add a body to the rig", "Add");
-            addBodyButton.name = "ragdoll-add-body-button";
-            headerActions.Add(addBodyButton);
+            VisualElement bodyIconSquareRun = ToolkitChrome.MakeIconSquareRun("ragdoll-bodies-icon-run");
+            headerActions.Add(bodyIconSquareRun);
 
-            deleteBodyButton = ToolkitIcons.MakeIconButton(
-                OnDeleteBodyButtonClicked, "TreeEditor.Trash", "Delete the selected body", "Delete");
+            addBodyButton = ToolkitChrome.MakeIconSquare(
+                OnAddBodyButtonClicked, "d_Toolbar Plus", "Add a body to the rig");
+            addBodyButton.name = "ragdoll-add-body-button";
+            bodyIconSquareRun.Add(addBodyButton);
+
+            deleteBodyButton = ToolkitChrome.MakeDestructiveIconSquare(
+                OnDeleteBodyButtonClicked, "TreeEditor.Trash", "Delete the selected body");
             deleteBodyButton.name = "ragdoll-delete-body-button";
-            ToolkitChrome.StyleButton(deleteBodyButton, ToolkitButtonVariant.Destructive);
-            headerActions.Add(deleteBodyButton);
+            bodyIconSquareRun.Add(deleteBodyButton);
 
             availableTargetChoices.Add(null);
             addTargetPopupField = new PopupField<RigTargetDefinition>(

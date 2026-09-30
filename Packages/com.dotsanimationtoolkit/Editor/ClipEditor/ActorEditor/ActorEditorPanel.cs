@@ -352,12 +352,13 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement layersActions = new VisualElement();
             layersActions.AddToClassList("toolkit-pane-actions");
-            Button addLayerButton = ToolkitIcons.MakeIconButton(
-                () => layersColumnView?.AddLayer(), ToolkitIcons.Plus, "Add a layer above Override.", "+ Layer");
-            ToolkitIcons.SetButtonIconAndText(addLayerButton, ToolkitIcons.Plus, "Layer");
+            VisualElement layersActionRun = ToolkitChrome.MakeIconSquareRun("actor-editor-layers-action-run");
+            Button addLayerButton = ToolkitChrome.MakeIconSquare(
+                () => layersColumnView?.AddLayer(), ToolkitIcons.Plus, "Add a layer above Override");
             addLayerButton.AddToClassList("toolkit-pane-action");
             addLayerButton.name = "actor-editor-add-layer-button";
-            layersActions.Add(addLayerButton);
+            layersActionRun.Add(addLayerButton);
+            layersActions.Add(layersActionRun);
             layersHeader.Add(layersActions);
 
             layersColumn.Add(layersHeader);

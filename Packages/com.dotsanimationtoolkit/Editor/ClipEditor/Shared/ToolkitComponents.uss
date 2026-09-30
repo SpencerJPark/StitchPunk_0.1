@@ -701,3 +701,33 @@
     background-color: var(--toolkit-raised);
     color: var(--toolkit-text);
 }
+
+/* A toolbar toggle that reads as a word (Snap, Auto Key): secondary outline, filled when on (R17). */
+.toolkit-toggle-button {
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0 8px;
+    margin: 0 0 0 4px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-button);
+    background-color: transparent;
+    color: var(--toolkit-label);
+    font-size: var(--toolkit-text-body);
+    flex-shrink: 0;
+}
+
+.toolkit-toggle-button:hover {
+    background-color: var(--toolkit-hover);
+}
+
+.toolkit-toggle-button:checked {
+    background-color: var(--toolkit-raised);
+    color: var(--toolkit-text);
+}
+
+/* Inside a 24px control row the segmented control's 2px track padding pushed it to ~30px and past the bar. */
+.toolkit-transport .toolkit-segmented,
+.toolkit-action-run .toolkit-segmented {
+    padding: 0;
+}
