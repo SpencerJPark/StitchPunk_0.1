@@ -86,6 +86,7 @@ Building1.blend
 !/Packages/com.dotsanimationtoolkit/
 !/Packages/com.dotsmovementtoolkit/
 !/Packages/com.worktreetoolkit/
+!/Packages/playtest-copilot/
 # Python bytecode from the Worktree Toolkit CLI and its tests.
 Packages/com.worktreetoolkit/Tools~/**/__pycache__/
 
@@ -98,3 +99,6 @@ Packages/com.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*.meta
 # Subagent context ledger written by .claude/hooks/subagent_ledger.py
 .claude/subagent-ledger.tsv
 .claude/hooks/__pycache__/
+
+# Playtest Copilot session recordings: large, and they contain the developer's voice.
+PlaytestSessions/

@@ -1,0 +1,20 @@
+{
+  "name": "com.playtestcopilot",
+  "displayName": "Playtest Copilot",
+  "version": "0.1.0",
+  "unity": "6000.4",
+  "description": "An AI playtest mode for the Unity Editor. Press AI Play instead of Play, talk through what you want changed, pause and circle things on screen, and the session becomes a folder of timestamped notes with clips, resolved object references and a markdown export any coding agent can read.",
+  "keywords": [
+    "playtest",
+    "ai",
+    "editor",
+    "workflow",
+    "capture"
+  ],
+  "author": {
+    "name": "Spencer Park",
+    "email": "spencerjamespark@gmail.com"
+  },
+  "license": "MIT",
+  "dependencies": {}
+}
