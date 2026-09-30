@@ -147,5 +147,4 @@ Steps 1–4 and 6 above are done; step 5 (G1 rebake + play) and the merge are th
   back — fixed, with a regression test proven to fail on the old order.
 - Left as is: Retarget's green pause is the shared transport's "playing" tint (Retarget autoplays); not A109-specific.
 
-**Owner checkpoint (end of Wave 4):** are D1 (24px primary) and D2 (icon squares in pane headers) the look you want?
-Both are global, so they are cheap to flip back.
+**Owner checkpoint answered 2026-09-30:** keep D1 (24px, "same height") and D2; merge approved ("merge now"). Shipped as 0.61.0.
