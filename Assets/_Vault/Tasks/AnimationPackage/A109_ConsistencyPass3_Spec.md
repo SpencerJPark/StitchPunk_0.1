@@ -127,5 +127,25 @@ Every wave gated through the broker: compile clean, `EditorStyleConformanceTests
    "Int value names" should list `SoundType` in order. Play-test is the owner's.
 6. **Full EditMode suite** (package + game) once, then the owner's checkpoint on D1/D2, then merge (`worktree.py merge a109`, owner's word).
 
+**2026-09-30 capture pass (Editor focused, all 15 tabs captured in `Library/A109Captures/`, `r2_*`/`r3_*` = after fixes).**
+Steps 1–4 and 6 above are done; step 5 (G1 rebake + play) and the merge are the owner's.
+- Confirmed in captures: D1 primaries, D2 squares (Clip Editor left pane included), D3 gaps, VAT Bake issue badge +
+  disabled Bake + unclipped footer, Events footer, All/Selected, Cutscene Slot inspector, Health pills and fix buttons.
+- Fixed from captures: destructive word buttons are now outlined red (were borderless ghosts; Clear, Remove, Remove Slot);
+  Flipbooks info badge sits in the actions run and hides when empty (was a floating "-"), Output row no longer clipped;
+  Rigs target hint was a broken half-sentence; Retarget captions moved to a row-shaped caption row + column rules that
+  outrank the shared list-row title/meta rules; validation placeholders ("No profile") are neutral pills in a box-less
+  button; Cutscene cast Actor/Prop are a drawn figure glyph and a cube (were two identical Plus squares), stage status
+  moved under the header (it wrapped the squares); Ragdoll pose source is a Rest/Clip segmented control and the bodies
+  search is clamped to its column.
+- Make editable drove clean on `MaleHairTextureArray` (64 PNG frames + `_Editable` flipbook, Bake/Save/Remove live,
+  source untouched). It also created a `_Flipbook` names wrapper that renamed the source's catalog row — fixed (lookup
+  only). Test outputs deleted afterwards.
+- The Actor Profiles badge now opens Health **unfiltered**: Health files a profile's problems under the clip/rig at
+  fault, so a profile-name filter showed 0 findings.
+- EditMode 969/969. The run caught a real AP2 bug: Blend In was hidden before its property row existed, so it never came
+  back — fixed, with a regression test proven to fail on the old order.
+- Left as is: Retarget's green pause is the shared transport's "playing" tint (Retarget autoplays); not A109-specific.
+
 **Owner checkpoint (end of Wave 4):** are D1 (24px primary) and D2 (icon squares in pane headers) the look you want?
 Both are global, so they are cheap to flip back.
