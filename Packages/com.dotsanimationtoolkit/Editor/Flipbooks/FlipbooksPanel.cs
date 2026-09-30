@@ -35,6 +35,17 @@ namespace DotsAnimationToolkit.Editor
         private readonly ObjectField importSettingsSourceField;
         private readonly Button bakeButton;
         private readonly Button saveButton;
+        private readonly Button makeEditableButton;
+
+        private const string MakeEditableTooltip =
+            "Copy every layer out as a PNG frame and make a flipbook you can reorder, rename and bake. The imported array is left untouched.";
+        private const string BakeButtonNormalTooltip =
+            "Compose the frames into a grid PNG at the output path and import it as a Texture2DArray.";
+        private const string BakeButtonImportedTooltip =
+            "Unity's importer builds this array. Press Make editable to bake your own copy.";
+        private const string SaveButtonNormalTooltip = "Write this flipbook to its asset.";
+        private const string SaveButtonImportedDisabledTooltip =
+            "Rename a frame to enable Save (it stores the frame names).";
         private readonly VisualElement headerActions;
         private readonly VisualElement bodyHost;
 
@@ -97,6 +108,7 @@ namespace DotsAnimationToolkit.Editor
             framesSplit.Add(frames);
             framesSplit.Add(previewColumn);
 
+            framesSplit.AddToClassList("flipbooks-section-gap");
             bodyHost = framesSplit;
 
             filterModeField = new EnumField(FilterMode.Bilinear);
@@ -132,10 +144,17 @@ namespace DotsAnimationToolkit.Editor
             VisualElement header = ToolkitChrome.MakePaneHeader(string.Empty, out flipbookLabel, out headerActions);
             infoLabel = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
             header.Insert(1, infoLabel);
+            makeEditableButton = ToolkitChrome.MakeSecondaryAction(
+                OnMakeEditableClicked, "d_Toolbar Plus", MakeEditableTooltip, "Make editable");
+            makeEditableButton.name = "flipbooks-make-editable-button";
+            makeEditableButton.style.display = DisplayStyle.None;
+
+            headerActions.Add(makeEditableButton);
             headerActions.Add(bakeButton);
             headerActions.Add(saveButton);
 
-            importedHintLabel = ToolkitChrome.MakeHint("The importer owns the layer order: rename frames, then Save to keep the names.");
+            importedHintLabel = ToolkitChrome.MakeHint(
+                "Imported array: Unity's importer owns the layers. Rename frames and Save to keep the names, or press Make editable to reorder, remove and bake.");
             importedHintLabel.name = "flipbook-imported-hint";
             importedHintLabel.style.display = DisplayStyle.None;
             importedHintLabel.style.flexShrink = 0f;
@@ -451,14 +470,58 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (workingCopy.IsImportedArray)
+            {
+                FilterMode newFilterMode = (FilterMode)changeEvent.newValue;
+                WriteToImportedArrayImporter(arrayImporter => arrayImporter.filterMode = newFilterMode);
+                return;
+            }
+
             workingCopy.filterMode = (FilterMode)changeEvent.newValue;
             MarkUnsaved();
+        }
+
+        private void WriteToImportedArrayImporter(Action<TextureImporter> applySetting)
+        {
+            TextureImporter arrayImporter =
+                AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(workingCopy.texture)) as TextureImporter;
+            if (arrayImporter != null)
+            {
+                applySetting(arrayImporter);
+                arrayImporter.SaveAndReimport();
+            }
+
+            RefreshModeControls();
+        }
+
+        private void OnMakeEditableClicked()
+        {
+            if (workingCopy == null || !workingCopy.IsImportedArray || !ConfirmDiscardIfUnsaved())
+            {
+                return;
+            }
+
+            FlipbookAsset editable = FlipbookAssetUtility.ExtractArrayLayersToEditableFlipbook(workingCopy.texture);
+            if (editable == null)
+            {
+                return;
+            }
+
+            LoadFlipbook(editable);
+            RescanProject();
         }
 
         private void OnWrapModeChanged(ChangeEvent<Enum> changeEvent)
         {
             if (workingCopy == null)
             {
+                return;
+            }
+
+            if (workingCopy.IsImportedArray)
+            {
+                TextureWrapMode newWrapMode = (TextureWrapMode)changeEvent.newValue;
+                WriteToImportedArrayImporter(arrayImporter => arrayImporter.wrapMode = newWrapMode);
                 return;
             }
 
@@ -473,6 +536,13 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (workingCopy.IsImportedArray)
+            {
+                bool newMipmapEnabled = changeEvent.newValue;
+                WriteToImportedArrayImporter(arrayImporter => arrayImporter.mipmapEnabled = newMipmapEnabled);
+                return;
+            }
+
             workingCopy.generateMips = changeEvent.newValue;
             MarkUnsaved();
         }
@@ -481,6 +551,13 @@ namespace DotsAnimationToolkit.Editor
         {
             if (workingCopy == null)
             {
+                return;
+            }
+
+            if (workingCopy.IsImportedArray)
+            {
+                bool newSrgbTexture = !changeEvent.newValue;
+                WriteToImportedArrayImporter(arrayImporter => arrayImporter.sRGBTexture = newSrgbTexture);
                 return;
             }
 
@@ -633,11 +710,12 @@ namespace DotsAnimationToolkit.Editor
             bool importedMode = workingCopy != null && workingCopy.IsImportedArray;
 
             bakeButton.SetEnabled(!importedMode);
+            bakeButton.tooltip = importedMode ? BakeButtonImportedTooltip : BakeButtonNormalTooltip;
             importSettingsSourceField.SetEnabled(!importedMode);
-            filterModeField.SetEnabled(!importedMode);
-            wrapModeField.SetEnabled(!importedMode);
-            generateMipsToggle.SetEnabled(!importedMode);
-            linearToggle.SetEnabled(!importedMode);
+            importSettingsSourceField.tooltip = importedMode
+                ? "An imported array takes its settings from its own importer."
+                : "Bake copies this array's import settings (compression, filter, mips, sRGB). Empty uses the project defaults.";
+            makeEditableButton.style.display = importedMode ? DisplayStyle.Flex : DisplayStyle.None;
 
             outputPathRow.style.display = importedMode ? DisplayStyle.None : DisplayStyle.Flex;
             importedHintLabel.style.display = importedMode ? DisplayStyle.Flex : DisplayStyle.None;
@@ -663,8 +741,12 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            saveButton.SetEnabled(workingCopy != null
-                && (LoadedArray == null || AnyFrameNameDiffersFromLayerIndex(workingCopy)));
+            bool saveEnabled = workingCopy != null
+                && (LoadedArray == null || AnyFrameNameDiffersFromLayerIndex(workingCopy));
+            saveButton.SetEnabled(saveEnabled);
+            saveButton.tooltip = importedMode && !saveEnabled
+                ? SaveButtonImportedDisabledTooltip
+                : SaveButtonNormalTooltip;
         }
 
         private static bool AnyFrameNameDiffersFromLayerIndex(FlipbookAsset flipbook)

@@ -20,6 +20,8 @@ namespace DotsAnimationToolkit.Editor
         private Label resolvedSourceLabel;
         private VisualElement resolvedSourceBadgeSlot;
         private VatFreshnessBadgeElement freshnessBadge;
+        private Button bakeButton;
+        private const string BakeButtonDefaultTooltip = "Bake every VAT-bound clip in the set to textures.";
         private List<VatBakeSource> resolvedSources;
         private EnumField flavorField;
         private ObjectField rigField;
@@ -115,26 +117,21 @@ namespace DotsAnimationToolkit.Editor
             // keep in step with it. The full receipt now lives in the footer status row at the bottom
             // of the panel; this slot only holds a short word for whether it is worth a look.
             resolvedSourceBadgeSlot = new VisualElement { name = "vat-resolved-source-badge-slot" };
-            resolvedSourceBadgeSlot.style.marginRight = 6;
 
             freshnessBadge = new VatFreshnessBadgeElement();
-            freshnessBadge.style.marginLeft = 6;
             freshnessBadge.style.display = DisplayStyle.None;
 
-            VisualElement resolvedSourceRow = new VisualElement();
-            resolvedSourceRow.name = "vat-resolved-source-row";
-            resolvedSourceRow.style.flexDirection = FlexDirection.Row;
-            resolvedSourceRow.style.alignItems = Align.FlexStart;
-            resolvedSourceRow.Add(resolvedSourceBadgeSlot);
-            resolvedSourceRow.Add(freshnessBadge);
-            assetBar.Add(resolvedSourceRow);
-
-            // Moved from the mid-column: the primary action belongs in the asset bar, pushed to the
-            // right of the fields it acts on by the spacer above.
-            Button bakeButton = ToolkitChrome.MakePrimaryAction(
-                Bake, "d_PreTextureRGB", "Bake every VAT-bound clip in the set to textures.", "Bake");
+            // The primary action belongs in the asset bar, pushed to the right of the fields it acts
+            // on by the spacer above; issue badge, freshness pill and Bake share one aligned row.
+            bakeButton = ToolkitChrome.MakePrimaryAction(
+                Bake, "d_PreTextureRGB", BakeButtonDefaultTooltip, "Bake");
             ToolkitIcons.SetButtonGlyph(bakeButton, ToolkitGlyphId.VatBake);
-            assetBar.Add(bakeButton);
+
+            VisualElement statusAndBakeRow = ToolkitChrome.MakeBadgeRow("vat-bake-status-run");
+            statusAndBakeRow.Add(resolvedSourceBadgeSlot);
+            statusAndBakeRow.Add(freshnessBadge);
+            statusAndBakeRow.Add(bakeButton);
+            assetBar.Add(statusAndBakeRow);
 
             VatSourceImportWatcher.AssetsImported += OnSourcesImported;
 
@@ -231,6 +228,10 @@ namespace DotsAnimationToolkit.Editor
             resolvedSourceLabel.name = "vat-resolved-source-label";
             resolvedSourceLabel.AddToClassList("toolkit-hint");
             resolvedSourceLabel.RegisterCallback<ClickEvent>(clickEvent => PingSourcePrefab());
+            // The split view above takes flexGrow 1; without flexShrink 0 here the footer is squeezed
+            // out of the window bottom when its message wraps.
+            resolvedSourceFooter.style.flexShrink = 0f;
+            splitView.style.minHeight = 0f;
             Add(resolvedSourceFooter);
         }
 
@@ -590,11 +591,25 @@ namespace DotsAnimationToolkit.Editor
             }
 
             resolvedSourceBadgeSlot.Clear();
-            string badgeWord = isWarning ? "Issue" : "Source";
+            string badgeWord = "Source";
+            if (isWarning)
+            {
+                bool hasNoSkinnedMesh = resolvedSourceLabel.text != null
+                    && resolvedSourceLabel.text.IndexOf("no skinned mesh", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                badgeWord = hasNoSkinnedMesh ? "No skinned mesh" : "Issue";
+            }
             Label sourceBadge = ToolkitChrome.MakeBadge(
                 badgeWord, isWarning ? ToolkitStatusTone.Warning : ToolkitStatusTone.Neutral);
             sourceBadge.tooltip = resolvedSourceLabel.text;
             resolvedSourceBadgeSlot.Add(sourceBadge);
+
+            if (bakeButton != null)
+            {
+                bakeButton.SetEnabled(!isWarning);
+                bakeButton.tooltip = isWarning
+                    ? "Bake is unavailable: " + resolvedSourceLabel.text
+                    : BakeButtonDefaultTooltip;
+            }
         }
 
         private void PingSourcePrefab()

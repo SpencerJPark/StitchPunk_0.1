@@ -1929,3 +1929,77 @@
     background-color: var(--toolkit-color-selected);
 }
 
+
+/* A109 — consistency pass 3 */
+
+/* D3: no control touches the header above it. */
+.clip-sets-detail-header,
+.rigs-detail-header {
+    margin-bottom: 8px;
+}
+
+/* A path picker inside a property row takes the row's height, not its own 4px margins (the floating folder icon). */
+.toolkit-property-row .toolkit-path-row {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* FB4: the frames grid sits clear of the Import settings card. */
+.flipbooks-section-gap {
+    margin-top: 12px;
+}
+
+.materials-create-target-dropdown {
+    min-width: 140px;
+    height: 24px;
+    margin: 0;
+}
+
+/* RT1: header and row cells share one set of column widths; the remaining 8% holds the Remap button. */
+.retarget-col-track,
+.retarget-col-part,
+.retarget-col-status {
+    flex-grow: 0;
+    min-width: 0;
+    padding: 0 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.retarget-col-track {
+    flex-basis: 28%;
+    flex-shrink: 0;
+}
+
+.retarget-col-part {
+    flex-basis: 44%;
+    flex-shrink: 1;
+}
+
+.retarget-col-status {
+    flex-basis: 20%;
+    flex-shrink: 0;
+}
+
+/* RT2: roster chips sit in one row with 8px between them; the coverage badge 4px after the name. */
+#retarget-roster-strip {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+#retarget-roster-heading {
+    margin-right: 8px;
+}
+
+.retarget-roster-chip {
+    flex-direction: row;
+    align-items: center;
+    margin-right: 8px;
+}
+
+.retarget-roster-chip > .toolkit-badge {
+    margin-left: 4px;
+    align-self: center;
+}

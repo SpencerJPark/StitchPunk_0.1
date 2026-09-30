@@ -676,3 +676,31 @@
 .toolkit-column--raised {
     background-color: var(--toolkit-raised);
 }
+
+/* A toolbar button or toggle carrying the square class gets the same box (Clip Editor pane headers declare them in UXML). */
+.toolkit-icon-square.unity-toolbar-button,
+.toolkit-icon-square.unity-toolbar-toggle {
+    width: var(--toolkit-height-control);
+    min-width: var(--toolkit-height-control);
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0;
+    margin: 0 0 0 4px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-button);
+    background-color: transparent;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.toolkit-icon-square.unity-toolbar-button:hover,
+.toolkit-icon-square.unity-toolbar-toggle:hover {
+    background-color: var(--toolkit-hover);
+}
+
+.toolkit-icon-square.unity-toolbar-toggle:checked {
+    background-color: var(--toolkit-raised);
+    color: var(--toolkit-text);
+}

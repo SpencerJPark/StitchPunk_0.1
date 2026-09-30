@@ -18,6 +18,9 @@ namespace DotsAnimationToolkit.Editor
         // The list position of the newly selected frame.
         public event Action<int> FrameSelected;
 
+        private const string RemoveButtonEnabledTooltip = "Remove the selected frames from the flipbook";
+        private const string RemoveButtonImportedTooltip = "Imported array: press Make editable to remove frames";
+
         private readonly Label titleLabel;
         private readonly ListView framesListView;
         private readonly Label emptyLabel;
@@ -40,11 +43,12 @@ namespace DotsAnimationToolkit.Editor
             titleLabel.name = "flipbook-frames-title";
             Add(paneHeader);
 
-            removeButton = ToolkitIcons.MakeIconTextButton(
-                RemoveSelectedFrames, ToolkitIcons.Trash, "Remove the selected frames", "Remove");
+            removeButton = ToolkitChrome.MakeDestructiveIconSquare(
+                RemoveSelectedFrames, ToolkitIcons.Trash, RemoveButtonEnabledTooltip);
             removeButton.name = "flipbook-frames-remove-button";
-            ToolkitChrome.StyleButton(removeButton, ToolkitButtonVariant.Destructive);
-            actionsRow.Add(removeButton);
+            VisualElement actionsIconSquareRun = ToolkitChrome.MakeIconSquareRun("flipbook-frames-actions-run");
+            actionsIconSquareRun.Add(removeButton);
+            actionsRow.Add(actionsIconSquareRun);
 
             framesListView = new ListView();
             framesListView.name = "flipbook-frames-list";
@@ -141,6 +145,7 @@ namespace DotsAnimationToolkit.Editor
             framesListView.itemsSource = flipbook != null ? flipbook.frames : emptyFrames;
             framesListView.reorderable = !IsImportedMode;
             removeButton.SetEnabled(!IsImportedMode);
+            removeButton.tooltip = IsImportedMode ? RemoveButtonImportedTooltip : RemoveButtonEnabledTooltip;
             framesListView.RefreshItems();
 
             bool isEmpty = frameCount == 0;

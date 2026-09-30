@@ -23,13 +23,9 @@ namespace DotsAnimationToolkit.Editor
             name = "retarget-roster-strip";
             AddToClassList("toolkit-status-row");
             AddToClassList("toolkit-status-row--footer");
-            style.flexDirection = FlexDirection.Row;
-            style.alignItems = Align.Center;
-            style.flexWrap = Wrap.Wrap;
 
-            headingLabel = new Label("Roster:") { name = "retarget-roster-heading" };
-            headingLabel.AddToClassList("toolkit-status");
-            headingLabel.style.marginRight = 6f;
+            headingLabel = new Label("Roster") { name = "retarget-roster-heading" };
+            headingLabel.AddToClassList("toolkit-hint");
             Add(headingLabel);
         }
 
@@ -62,14 +58,11 @@ namespace DotsAnimationToolkit.Editor
             VisualElement chip = new VisualElement { name = "retarget-roster-chip" };
             chip.AddToClassList("toolkit-chip");
             chip.EnableInClassList("toolkit-chip--selected", isSelected);
-            chip.style.flexDirection = FlexDirection.Row;
-            chip.style.alignItems = Align.Center;
-            chip.style.marginRight = 10f;
+            chip.AddToClassList("retarget-roster-chip");
 
             string rigName = entry.rig != null ? entry.rig.name : "(missing rig)";
 
             Label nameLabel = new Label(rigName) { name = "retarget-roster-chip-name" };
-            nameLabel.style.marginRight = 4f;
             chip.Add(nameLabel);
 
             ToolkitStatusTone countTone;
@@ -92,7 +85,6 @@ namespace DotsAnimationToolkit.Editor
 
             Label countLabel = ToolkitChrome.MakeBadge(entry.boundCount + "/" + entry.totalCount, countTone);
             countLabel.name = "retarget-roster-chip-count";
-            countLabel.style.marginRight = 4f;
             chip.Add(countLabel);
 
             chip.tooltip = "Show this clip on " + rigName;

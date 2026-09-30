@@ -251,6 +251,7 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
+            header.AddToClassList("rigs-detail-header");
             targetsTitleLabel = new Label("Rig") { name = "rig-targets-title" };
             targetsTitleLabel.AddToClassList("toolkit-pane-title");
             header.Add(targetsTitleLabel);

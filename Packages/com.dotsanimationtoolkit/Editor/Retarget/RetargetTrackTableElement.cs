@@ -30,12 +30,16 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement header = ToolkitChrome.MakePaneHeader("Clip track", out headerTitleLabel, out VisualElement headerActions);
 
+            headerTitleLabel.AddToClassList("retarget-col-track");
+
             rigPartCaptionLabel = new Label("Rig part");
             rigPartCaptionLabel.AddToClassList("toolkit-list-row__meta");
+            rigPartCaptionLabel.AddToClassList("retarget-col-part");
             header.Insert(1, rigPartCaptionLabel);
 
             statusCaptionLabel = new Label("Status");
             statusCaptionLabel.AddToClassList("toolkit-list-row__meta");
+            statusCaptionLabel.AddToClassList("retarget-col-status");
             header.Insert(2, statusCaptionLabel);
 
             headerTrackCountBadge = ToolkitChrome.MakeBadge(bindings.Count.ToString() + " tracks", ToolkitStatusTone.Neutral);
@@ -97,20 +101,21 @@ namespace DotsAnimationToolkit.Editor
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
 
-            VisualElement statusBadgeContainer = new VisualElement();
-            statusBadgeContainer.name = "retarget-track-status-container";
-            statusBadgeContainer.style.flexDirection = FlexDirection.Row;
-            row.Add(statusBadgeContainer);
-
             Label nameLabel = new Label();
             nameLabel.name = "retarget-track-name";
             nameLabel.AddToClassList("toolkit-list-row__title");
+            nameLabel.AddToClassList("retarget-col-track");
             row.Add(nameLabel);
 
             Label detailLabel = new Label();
             detailLabel.name = "retarget-track-detail";
             detailLabel.AddToClassList("toolkit-list-row__meta");
+            detailLabel.AddToClassList("retarget-col-part");
             row.Add(detailLabel);
+
+            VisualElement statusBadgeContainer = ToolkitChrome.MakeBadgeRow("retarget-track-status-container");
+            statusBadgeContainer.AddToClassList("retarget-col-status");
+            row.Add(statusBadgeContainer);
 
             Button remapButton = null;
             remapButton = ToolkitIcons.MakeIconTextButton(() =>
@@ -159,12 +164,14 @@ namespace DotsAnimationToolkit.Editor
             if (binding.state == TrackBindingState.Bound)
             {
                 detailLabel.text = "→ " + binding.targetDisplayName;
+                detailLabel.tooltip = binding.targetDisplayName;
                 detailLabel.EnableInClassList("toolkit-text--warning", false);
                 detailLabel.EnableInClassList("toolkit-text--error", false);
             }
             else
             {
                 detailLabel.text = "(" + binding.reason + ")";
+                detailLabel.tooltip = binding.reason;
                 detailLabel.EnableInClassList("toolkit-text--warning", binding.state == TrackBindingState.Skipped);
                 detailLabel.EnableInClassList("toolkit-text--error", binding.state != TrackBindingState.Skipped);
             }

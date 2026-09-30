@@ -96,6 +96,7 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement actions = new VisualElement();
             actions.AddToClassList("toolkit-pane-actions");
+            actions.AddToClassList("toolkit-action-run");
 
             Button bakeButton = ToolkitChrome.MakePrimaryAction(
                 Bake, "d_PreTextureRGB", "Write the packed PNG to disk, overwriting the output asset in place.", "Bake");
@@ -118,7 +119,7 @@ namespace DotsAnimationToolkit.Editor
             Button clearButton = ToolkitIcons.MakeIconTextButton(
                 OnClearButtonClicked, ToolkitIcons.Trash, "Remove every source node and wire. The output node stays.", "Clear");
             clearButton.name = "texture-packer-clear-button";
-            ToolkitChrome.StyleButton(clearButton, ToolkitButtonVariant.Ghost);
+            ToolkitChrome.StyleButton(clearButton, ToolkitButtonVariant.Destructive);
             actions.Add(clearButton);
 
             header.Add(actions);

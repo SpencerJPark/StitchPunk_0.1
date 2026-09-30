@@ -96,7 +96,8 @@ namespace DotsAnimationToolkit.Editor
                 out shaderCardHeaderActions);
             shaderCard.style.flexShrink = 0f;
 
-            Label shaderValueLabel = new Label(material.shader != null ? material.shader.name : "no shader") { name = "material-inspector-shader" };
+            shaderCardBody.Add(ToolkitChrome.MakeHint("The shader this material uses and whether GPU instancing is on."));
+            Label shaderValueLabel =new Label(material.shader != null ? material.shader.name : "no shader") { name = "material-inspector-shader" };
             shaderCardBody.Add(ToolkitChrome.MakePropertyRow("Shader", shaderValueLabel, null));
 
             bool isInstancingEnabled = material.enableInstancing;
@@ -122,6 +123,7 @@ namespace DotsAnimationToolkit.Editor
                 out usageCardHeaderActions);
             usageCard.style.flexShrink = 0f;
 
+            usageCardBody.Add(ToolkitChrome.MakeHint("Which rig targets use this material, and what kind of part each is."));
             List<RigTargetDefinition> targets = BoundUsage.Targets;
             string usedByText = targets != null && targets.Count > 0
                 ? string.Join(", ", targets.Select(target => target.displayName))
@@ -165,7 +167,11 @@ namespace DotsAnimationToolkit.Editor
                     out contractCardHeaderActions);
                 contractCard.style.flexShrink = 0f;
 
+                contractCardBody.Add(ToolkitChrome.MakeHint(
+                    "The shader properties the toolkit writes per frame for this part kind."));
+
                 bool hasSeveralKinds = distinctKindsInEnumOrder.Count > 1;
+                int listedPropertyCount = 0;
                 foreach (TargetKind kind in distinctKindsInEnumOrder)
                 {
                     // With one kind the card's Kind row already names it, and a header here would
@@ -182,8 +188,21 @@ namespace DotsAnimationToolkit.Editor
                     MaterialContractValidation.EvaluateProperties(material, kind, propertyStatuses);
                     foreach (ContractPropertyStatus propertyStatus in propertyStatuses)
                     {
+                        if (propertyStatus.state != ContractPropertyState.NotNeeded)
+                        {
+                            listedPropertyCount++;
+                        }
+
                         AddPropertyRow(contractCardBody, propertyStatus, kind);
                     }
+                }
+
+                if (listedPropertyCount == 0)
+                {
+                    contractCardBody.Add(ToolkitChrome.MakeHint(
+                        "Nothing to check: this part kind drives no per-instance shader property "
+                        + "(only Flipbook needs _ImageIndex or _AtlasFrame; VAT needs _VatFrameA, _VatFrameB and _VatBlend). "
+                        + "This shader is fine as it is."));
                 }
 
                 bodyScrollView.Add(contractCard);

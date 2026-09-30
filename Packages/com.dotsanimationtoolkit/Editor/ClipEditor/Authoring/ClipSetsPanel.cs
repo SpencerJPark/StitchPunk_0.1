@@ -150,6 +150,8 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
+            header.AddToClassList("toolkit-detail-header");
+            header.AddToClassList("clip-sets-detail-header");
 
             editorTitleLabel = new Label();
             editorTitleLabel.name = "clip-set-editor-title";
@@ -208,19 +210,21 @@ namespace DotsAnimationToolkit.Editor
             vatTexturesNameLabel.style.whiteSpace = WhiteSpace.NoWrap;
             vatTexturesRow.Add(vatTexturesNameLabel);
 
-            vatFreshnessBadge = new VatFreshnessBadgeElement();
-            vatFreshnessBadge.style.marginLeft = 6f;
-            vatTexturesRow.Add(vatFreshnessBadge);
+            VisualElement vatStatusBadgeRow = ToolkitChrome.MakeBadgeRow("clip-set-vat-status-row");
 
-            rebakeButton = new Button(OnRebakeClicked)
-            {
-                text = "Rebake",
-                name = "clip-set-rebake-button",
-                tooltip = "Open the VAT Bake tab with this clip set and the rig it was baked for. Nothing bakes until you press Bake there."
-            };
-            rebakeButton.style.marginLeft = 6f;
+            vatFreshnessBadge = new VatFreshnessBadgeElement();
+            vatStatusBadgeRow.Add(vatFreshnessBadge);
+
+            rebakeButton = ToolkitChrome.MakeSecondaryAction(
+                OnRebakeClicked,
+                "d_Refresh",
+                "Open the VAT Bake tab with this clip set and the rig it was baked for. Nothing bakes until you press Bake there.",
+                "Rebake");
+            rebakeButton.name = "clip-set-rebake-button";
             rebakeButton.style.display = DisplayStyle.None;
-            vatTexturesRow.Add(rebakeButton);
+            vatStatusBadgeRow.Add(rebakeButton);
+
+            vatTexturesRow.Add(vatStatusBadgeRow);
 
             editorContent.Add(vatTexturesRow);
 

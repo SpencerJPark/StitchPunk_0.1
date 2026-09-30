@@ -19,6 +19,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly ObjectField rigField;
         private readonly ObjectField clipSetField;
         private readonly DropdownField createTargetDropdown;
+        private readonly Button createButton;
+        private const string createButtonTooltip = "Create a material for this target from the package's shader, saved beside the rig's prefab, and assigned to the part's renderer in the prefab.";
         private readonly Label resultLabel;
         private readonly MaterialCatalogColumn catalog;
         private readonly MaterialInspectorColumn inspector;
@@ -77,18 +79,25 @@ namespace DotsAnimationToolkit.Editor
 
             // Its own bar label, not the field's inline one: Unity's label column left "Target" stranded
             // far from its dropdown.
-            header.Add(ToolkitChrome.MakeAssetBarLabel("Target"));
+            VisualElement createRun = new VisualElement();
+            createRun.AddToClassList("toolkit-action-run");
+            createRun.AddToClassList("materials-create-run");
+
+            createRun.Add(ToolkitChrome.MakeAssetBarLabel("Target"));
             createTargetDropdown = new DropdownField(new List<string>(), 0);
             createTargetDropdown.name = "materials-create-target";
-            header.Add(createTargetDropdown);
+            createTargetDropdown.AddToClassList("materials-create-target-dropdown");
+            createTargetDropdown.tooltip = "Which rig target the new material is for";
+            createRun.Add(createTargetDropdown);
 
-            Button createButton = ToolkitChrome.MakePrimaryAction(
+            createButton = ToolkitChrome.MakePrimaryAction(
                 OnCreateClicked,
                 "d_Toolbar Plus",
-                "Create a material for this target from the package's shader, saved beside the rig's prefab, and assigned to the part's renderer in the prefab.",
+                createButtonTooltip,
                 "Create and assign");
             createButton.name = "materials-create-button";
-            header.Add(createButton);
+            createRun.Add(createButton);
+            header.Add(createRun);
 
             VisualElement statusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
             resultLabel.name = "materials-result";
@@ -269,6 +278,10 @@ namespace DotsAnimationToolkit.Editor
 
             createTargetDropdown.choices = choices;
             createTargetDropdown.index = choices.Count > 0 ? 0 : -1;
+
+            bool hasCreateTargets = choices.Count > 0;
+            createButton.SetEnabled(hasCreateTargets);
+            createButton.tooltip = hasCreateTargets ? createButtonTooltip : "Pick a rig with targets first";
         }
 
         private void RebindInspectorForSelection()
