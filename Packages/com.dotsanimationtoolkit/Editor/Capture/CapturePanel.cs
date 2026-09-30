@@ -557,6 +557,13 @@ namespace DotsAnimationToolkit.Editor
             }
 
             viewport.Source = activeSource;
+            // R17 + A109 D4: disabled with nothing to capture, and the tooltip says why.
+            bool hasCaptureSource = activeSource != null;
+            captureButton.SetEnabled(hasCaptureSource && !runner.IsRunning);
+            captureButton.tooltip = hasCaptureSource
+                ? "Render the frame range to disk"
+                : "Pick a clip, a profile animation or a cutscene in the bar first.";
+            previewTimeSlider.SetEnabled(hasCaptureSource);
             RefreshPreviewTimeRange();
             RefreshEffectiveNameLabel();
             RefreshRangeSummaryLabel();
@@ -626,7 +633,7 @@ namespace DotsAnimationToolkit.Editor
             float startSeconds = settings.RangeStartSeconds(durationSeconds);
             float endSeconds = settings.RangeEndSeconds(durationSeconds);
             int frameCount = settings.FrameCountFor(durationSeconds);
-            rangeSummaryLabel.text = frameCount + " frames, " + startSeconds.ToString("0.00") + " s to " + endSeconds.ToString("0.00") + " s";
+            rangeSummaryLabel.text = frameCount + (frameCount == 1 ? " frame, " : " frames, ") + startSeconds.ToString("0.00") + " s to " + endSeconds.ToString("0.00") + " s";
         }
 
         private void RefreshResolvedFolderLabel()

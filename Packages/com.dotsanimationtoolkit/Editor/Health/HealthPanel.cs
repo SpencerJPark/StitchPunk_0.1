@@ -96,12 +96,18 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
 
             VisualElement toolbar = ToolkitChrome.MakeAssetBar("health-asset-bar");
+            toolbar.AddToClassList("health-toolbar");
 
+            // Three zones: the two sides share the spare width equally, so the filter sits on the bar's
+            // true centre however long the scan status grows.
+            VisualElement searchZone = new VisualElement { name = "health-toolbar-search-zone" };
+            searchZone.AddToClassList("health-toolbar__side");
             filterField = new ToolbarSearchField();
             filterField.name = "health-filter-field";
             filterField.AddToClassList("health-search-field");
             filterField.RegisterValueChangedCallback(OnFilterChanged);
-            toolbar.Add(filterField);
+            searchZone.Add(filterField);
+            toolbar.Add(searchZone);
 
             List<string> healthFilterSegmentLabels = new List<string> { "All", "Errors", "Warnings", "Notes" };
             healthFilterSegmented = ToolkitChrome.MakeSegmentedControl(
@@ -114,21 +120,20 @@ namespace DotsAnimationToolkit.Editor
 
             UpdateCounts();
 
-            toolbar.Add(ToolkitChrome.MakeAssetBarSpacer());
-
-            VisualElement scanRow = ToolkitChrome.MakeBadgeRow("health-scan-row");
+            VisualElement scanZone = new VisualElement { name = "health-scan-row" };
+            scanZone.AddToClassList("health-toolbar__side");
+            scanZone.AddToClassList("health-toolbar__side--end");
 
             scanStatusLabel = new Label("not scanned yet");
             scanStatusLabel.name = "health-scan-status";
             scanStatusLabel.AddToClassList("toolkit-hint");
-            scanStatusLabel.style.flexShrink = 0f;
-            scanStatusLabel.style.marginRight = 8f;
-            scanRow.Add(scanStatusLabel);
+            scanStatusLabel.AddToClassList("health-scan-status");
+            scanZone.Add(scanStatusLabel);
 
             scanButton = ToolkitChrome.MakePrimaryAction(Scan, "d_Refresh", "Scan every toolkit asset", "Scan project");
             scanButton.name = "health-scan-button";
-            scanRow.Add(scanButton);
-            toolbar.Add(scanRow);
+            scanZone.Add(scanButton);
+            toolbar.Add(scanZone);
 
             Add(toolbar);
 

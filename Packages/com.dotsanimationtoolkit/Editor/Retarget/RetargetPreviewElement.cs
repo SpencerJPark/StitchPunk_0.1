@@ -176,13 +176,17 @@ namespace DotsAnimationToolkit.Editor
             }
 
             statusLabel.text = ResolveStatusText();
+            statusLabel.style.display = string.IsNullOrEmpty(statusLabel.text) ? DisplayStyle.None : DisplayStyle.Flex;
+            // R17: nothing to play without a rig and a clip, so the transport says so by being disabled.
+            transportCore.SetEnabled(boundRig != null && boundClip != null);
         }
 
         private string ResolveStatusText()
         {
             if (boundRig == null)
             {
-                return "Pick a rig to preview.";
+                // The viewport's empty state says this already (R03).
+                return string.Empty;
             }
 
             if (boundClip == null)

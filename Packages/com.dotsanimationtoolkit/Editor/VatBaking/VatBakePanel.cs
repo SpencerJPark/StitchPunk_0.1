@@ -608,7 +608,23 @@ namespace DotsAnimationToolkit.Editor
             {
                 bool hasNoSkinnedMesh = resolvedSourceFailureMessage != null
                     && resolvedSourceFailureMessage.IndexOf("no skinned mesh", System.StringComparison.OrdinalIgnoreCase) >= 0;
-                badgeWord = hasNoSkinnedMesh ? "No skinned mesh" : "Issue";
+                // Name the problem: "Issue" said nothing the orange already didn't.
+                if (hasNoSkinnedMesh)
+                {
+                    badgeWord = "No skinned mesh";
+                }
+                else if (rigField != null && rigField.value == null)
+                {
+                    badgeWord = "No rig";
+                }
+                else if (clipSetField != null && clipSetField.value == null)
+                {
+                    badgeWord = "No clip set";
+                }
+                else
+                {
+                    badgeWord = "Can't bake";
+                }
             }
             Label sourceBadge = ToolkitChrome.MakeBadge(
                 badgeWord, isWarning ? ToolkitStatusTone.Warning : ToolkitStatusTone.Neutral);

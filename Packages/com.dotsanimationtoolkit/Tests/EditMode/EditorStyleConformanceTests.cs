@@ -31,7 +31,6 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "Editor/ClipEditor/Panes/TimelinePane.cs",
             "Editor/ClipEditor/TimeRulerElement.cs",
             "Editor/Flipbooks/FlipbookPreviewElement.cs",
-            "Editor/TexturePacker/PackOutputNodeView.cs",
             "Editor/TexturePacker/SourceImageNodeView.cs",
             "Editor/ClipEditor/Preview/RagdollPreviewSceneryProvider.cs",
             "Editor/TexturePacker/TexturePackerGraphView.cs",

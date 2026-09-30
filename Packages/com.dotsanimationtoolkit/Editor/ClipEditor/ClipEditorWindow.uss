@@ -266,6 +266,11 @@
     padding-right: var(--toolkit-inset);
 }
 
+#texture-packer-header {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
 /* R06: the preview is not a .toolkit-column, so it missed the 8px top every other column has and
    its header sat 8px above Tracks. */
 #retarget-preview {
@@ -339,8 +344,12 @@
     align-items: center;
     flex-shrink: 0;
     margin-left: auto;
-    /* A run ending at the window edge otherwise draws its last border on the edge itself. */
-    margin-right: 8px;
+    margin-right: 0;
+}
+
+/* Every status row ends on the 12px inset, footer or not (the actions carried their own 8px). */
+.toolkit-status-row {
+    padding-right: var(--toolkit-inset);
 }
 
 /* Auto Key while on, the Key button's icon -- an edit-armed state layered onto a bar-action
@@ -1013,8 +1022,8 @@
 
 .clip-editor__inspector {
     flex-grow: 1;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: var(--toolkit-inset);
+    padding-right: var(--toolkit-inset);
     padding-top: 2px;
 }
 
@@ -2263,16 +2272,6 @@
     align-self: flex-start;
 }
 
-/* T9 VAT Bake: the empty message sits on a card, not on the grid lines. */
-.vat-bake-empty-card {
-    align-items: center;
-    padding: 12px 16px;
-    border-width: 1px;
-    border-color: var(--toolkit-color-hairline);
-    border-radius: var(--toolkit-radius-card);
-    background-color: var(--toolkit-surface);
-}
-
 /* T12 Stats */
 .stats-hint-line {
     margin: 0 var(--toolkit-inset) 8px var(--toolkit-inset);
@@ -2307,10 +2306,11 @@
 }
 
 /* T13 Texture Packer: Pack Output node on one label column. */
-.texture-packer-output-badge {
+/* Centred on the title row's midline, pushed to its right end. The component's badge rule
+   (align-self: flex-start; margin: 0) out-ranked a one-class selector and pinned it to the top. */
+.toolkit-card__header > .texture-packer-output-badge.toolkit-badge.unity-label {
     align-self: center;
-    margin-left: auto;
-    margin-right: 8px;
+    margin: 0 0 0 auto;
 }
 
 .texture-packer-output-row {
@@ -2489,4 +2489,156 @@
 .toolkit-pane-actions > .toolkit-icon-square.unity-toolbar-toggle {
     margin-left: 4px;
     margin-right: 0;
+}
+
+/* Health toolbar: search | filter (centred) | scan status + Scan project. */
+.toolkit-asset-bar.health-toolbar {
+    flex-wrap: nowrap;
+    padding-left: var(--toolkit-inset);
+}
+
+.health-toolbar__side {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+}
+
+.health-toolbar__side--end {
+    justify-content: flex-end;
+}
+
+.health-toolbar__side > .health-search-field {
+    flex-grow: 1;
+    max-width: 280px;
+    margin: 0 16px 0 0;
+}
+
+.health-toolbar > .health-filter {
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.health-scan-status.unity-label {
+    flex-shrink: 1;
+    min-width: 0;
+    margin: 0 12px 0 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.health-toolbar__side--end > .unity-button {
+    margin-left: 0;
+    flex-shrink: 0;
+}
+
+/* Clip Editor transport: timing left, playback on the true centre, playhead + zoom right. The side
+   zones share the spare width equally (flex 1 1 0) -- space-evenly left the play controls off-centre
+   and put 34px of dead space before "Length". */
+.toolkit-transport.clip-editor__transport-zoned {
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.toolkit-transport__zone {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+}
+
+.toolkit-transport__zone--end {
+    justify-content: flex-end;
+}
+
+.clip-editor__transport-zoned > #transport-core-slot {
+    flex-shrink: 0;
+    margin: 0 16px;
+    padding-right: 0;
+}
+
+#transport-end-zone > .toolkit-transport__group {
+    margin: 0 0 0 16px;
+    padding-right: 0;
+}
+
+/* The start zone is also a transport group; its 4px margins and 8px right padding made it 12px
+   heavier than the end zone and pushed playback 6px right of centre (measured). */
+#transport-start-zone {
+    margin: 0;
+    padding: 0;
+}
+
+/* Zoom is a timeline view control, so it lives on the timeline's own toolbar, split from the editing
+   actions by a hairline. Moving it off the transport balanced the two sides so playback can centre. */
+.clip-editor__timeline-zoom {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left-width: 1px;
+    border-left-color: var(--toolkit-divider);
+}
+
+.clip-editor__transport-zoned .toolkit-transport__field,
+.clip-editor__transport-zoned .toolkit-transport__caption {
+    flex-shrink: 0;
+}
+
+/* Hints placed straight in a flush Clip Editor pane sit on the pane's 12px inset, not its edge. */
+.clip-editor__pane > .toolkit-hint.unity-label {
+    margin: 4px var(--toolkit-inset);
+}
+
+/* Unity's own "List is empty": a muted hint on the list's inset rather than body text on the edge. */
+.unity-list-view__empty-label {
+    color: var(--toolkit-color-muted);
+    font-size: var(--toolkit-text-body);
+    -unity-text-align: upper-left;
+    padding: 8px var(--toolkit-inset);
+    margin: 0;
+}
+
+/* Every viewport's empty state: fills the frame, centred, text on a card over the grid. */
+.toolkit-viewport-empty {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.toolkit-viewport-empty-card {
+    align-items: center;
+    max-width: 480px;
+    padding: 12px 16px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-card);
+    background-color: var(--toolkit-surface);
+}
+
+.toolkit-viewport-empty-card > .toolkit-empty__why.unity-label {
+    margin-bottom: 0;
+}
+
+/* Viewport status lines placed straight under a preview sit on the column's 12px inset. */
+#retarget-preview-status,
+#rig-preview-status,
+#actor-editor-viewport-status {
+    margin: 4px var(--toolkit-inset);
+}
+
+/* The Keys count sits beside its title, not floating mid-header between title and actions. */
+.toolkit-pane-header > .events-keys-header-badge.toolkit-badge.unity-label {
+    margin-left: 8px;
+    margin-right: auto;
 }

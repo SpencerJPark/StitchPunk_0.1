@@ -97,8 +97,8 @@
                     </ui:TwoPaneSplitView>
                 </ui:TwoPaneSplitView>
                 <ui:VisualElement name="timeline-pane" class="clip-editor__pane">
-                    <ui:VisualElement name="transport-bar" class="toolkit-transport">
-                        <ui:VisualElement class="toolkit-transport__group">
+                    <ui:VisualElement name="transport-bar" class="toolkit-transport clip-editor__transport-zoned">
+                        <ui:VisualElement name="transport-start-zone" class="toolkit-transport__group toolkit-transport__zone">
                             <ui:Label name="length-caption" text="Length" class="toolkit-transport__caption"/>
                             <ui:FloatField name="clip-length-field" class="toolkit-transport__field"/>
                             <ui:Label name="frame-rate-caption" text="FPS" class="toolkit-transport__caption"/>
@@ -106,23 +106,17 @@
                             <ui:Label name="frame-count-label" text="0 frames" class="toolkit-transport__caption toolkit-transport__derived"/>
                         </ui:VisualElement>
                         <ui:VisualElement name="transport-core-slot" class="toolkit-transport__group"/>
-                        <ui:VisualElement class="toolkit-transport__group">
-                            <ui:Label name="frame-caption" text="Frame" class="toolkit-transport__caption"/>
-                            <ui:IntegerField name="current-frame-field" class="toolkit-transport__field"/>
-                            <ui:Label name="seconds-caption" text="Time" class="toolkit-transport__caption"/>
-                            <ui:FloatField name="current-seconds-field" class="toolkit-transport__field"/>
-                            <ui:Label name="speed-caption" text="Speed" class="toolkit-transport__caption"/>
-                            <ui:FloatField name="playback-speed-field" class="toolkit-transport__field"/>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="toolkit-transport__group">
-                            <ui:Label text="Zoom" class="toolkit-transport__caption"/>
-                            <ui:Slider name="zoom-slider" class="clip-editor__transport-slider"/>
-                            <ui:VisualElement name="frame-segmented" class="toolkit-segmented">
-                                <ui:Button name="frame-all-button" text="All" tooltip="Fit the whole clip in the timeline." class="toolkit-segmented__item"/>
-                                <ui:Button name="frame-selection-button" text="Selected" tooltip="Fit the selected keys in the timeline. Falls back to framing the clip when nothing is selected." class="toolkit-segmented__item"/>
+                        <ui:VisualElement name="transport-end-zone" class="toolkit-transport__zone toolkit-transport__zone--end">
+                            <ui:Label name="transform-readout" class="clip-editor__transform-readout"/>
+                            <ui:VisualElement class="toolkit-transport__group">
+                                <ui:Label name="frame-caption" text="Frame" class="toolkit-transport__caption"/>
+                                <ui:IntegerField name="current-frame-field" class="toolkit-transport__field"/>
+                                <ui:Label name="seconds-caption" text="Time" class="toolkit-transport__caption"/>
+                                <ui:FloatField name="current-seconds-field" class="toolkit-transport__field"/>
+                                <ui:Label name="speed-caption" text="Speed" class="toolkit-transport__caption"/>
+                                <ui:FloatField name="playback-speed-field" class="toolkit-transport__field"/>
                             </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:Label name="transform-readout" class="clip-editor__transform-readout"/>
                     </ui:VisualElement>
                     <ui:VisualElement name="timeline-status-row" class="toolkit-status-row">
                         <ui:Label name="timeline-status" text="Assign a clip set." class="toolkit-status"/>
@@ -132,6 +126,14 @@
                             <uie:ToolbarToggle name="snap-toggle" text="Snap" value="true" class="toolkit-toggle-button"/>
                             <uie:ToolbarToggle name="auto-key-toggle" text="Auto Key" class="toolkit-toggle-button"/>
                             <ui:DropdownField name="pivot-dropdown" class="clip-editor__status-dropdown timeline-toolbar-dropdown"/>
+                            <ui:VisualElement name="timeline-zoom-group" class="clip-editor__timeline-zoom">
+                                <ui:Label text="Zoom" class="toolkit-transport__caption"/>
+                                <ui:Slider name="zoom-slider" class="clip-editor__transport-slider"/>
+                                <ui:VisualElement name="frame-segmented" class="toolkit-segmented">
+                                    <ui:Button name="frame-all-button" text="All" tooltip="Fit the whole clip in the timeline." class="toolkit-segmented__item"/>
+                                    <ui:Button name="frame-selection-button" text="Selected" tooltip="Fit the selected keys in the timeline. Falls back to framing the clip when nothing is selected." class="toolkit-segmented__item"/>
+                                </ui:VisualElement>
+                            </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:ScrollView name="timeline-scroll" mode="Vertical" class="clip-editor__timeline-scroll">

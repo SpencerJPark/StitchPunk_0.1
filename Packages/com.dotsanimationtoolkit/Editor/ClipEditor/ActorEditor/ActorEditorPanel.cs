@@ -397,6 +397,7 @@ namespace DotsAnimationToolkit.Editor
             viewportColumn.Add(viewportHeader);
 
             viewportStatusLabel = ToolkitChrome.MakeHint(string.Empty);
+            viewportStatusLabel.name = "actor-editor-viewport-status";
             viewportColumn.Add(viewportStatusLabel);
 
             viewportFrame = new ViewportFrameElement { name = "viewport-frame" };
@@ -738,7 +739,10 @@ namespace DotsAnimationToolkit.Editor
             RigAsset activeRig = selection != null ? selection.Rig : null;
             if (activeRig == null)
             {
-                status = "No rig picked — choose a profile, or pick a rig in the column on the left.";
+                // With no profile the viewport's empty state already says this (R03).
+                status = profile == null
+                    ? string.Empty
+                    : "This profile has no rig yet. Pick one in the bar above.";
             }
 
             if (!string.IsNullOrEmpty(ragdollRefusalReason))

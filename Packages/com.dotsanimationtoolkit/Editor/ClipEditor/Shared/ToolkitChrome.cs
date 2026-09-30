@@ -477,6 +477,28 @@ namespace DotsAnimationToolkit.Editor
             return empty;
         }
 
+        // A viewport's empty state sits over grid lines and a live render; on its own card the text
+        // stays readable instead of being crossed by the axis and floor lines.
+        public static void PlaceEmptyStateOnViewportCard(VisualElement emptyState)
+        {
+            if (emptyState == null || emptyState.Q(className: ViewportEmptyCardClassName) != null)
+            {
+                return;
+            }
+
+            VisualElement card = new VisualElement();
+            card.AddToClassList(ViewportEmptyCardClassName);
+            card.pickingMode = PickingMode.Ignore;
+            List<VisualElement> contents = new List<VisualElement>(emptyState.Children());
+            foreach (VisualElement content in contents)
+            {
+                card.Add(content);
+            }
+            emptyState.Add(card);
+        }
+
+        private const string ViewportEmptyCardClassName = "toolkit-viewport-empty-card";
+
         public static VisualElement MakePropertyRow(string labelText, VisualElement field, string tooltip)
         {
             VisualElement row = new VisualElement();

@@ -2610,7 +2610,11 @@ namespace DotsAnimationToolkit.Editor
                 // already carries, because the refresh below EnableInClassList's it by name.
                 VisualElement viewportStatusRow = ToolkitChrome.MakeStatusRow(
                     out Label unusedStatusLabel, out VisualElement viewportStatusActions, true);
-                viewportStatusRow.Add(previewStatusLabel);
+                // In the unused label's place, ahead of the actions: appended after them, the actions'
+                // auto margin pushed the text to the right edge of the footer.
+                unusedStatusLabel.RemoveFromHierarchy();
+                previewStatusLabel.AddToClassList("toolkit-status");
+                viewportStatusRow.Insert(0, previewStatusLabel);
                 viewportPane.Add(viewportStatusRow);
             }
             viewportFrame = rootVisualElement.Q<VisualElement>("viewport-frame");
@@ -2625,6 +2629,7 @@ namespace DotsAnimationToolkit.Editor
                     null,
                     null);
                 viewportEmptyState.AddToClassList("clip-editor__viewport-empty-overlay");
+                ToolkitChrome.PlaceEmptyStateOnViewportCard(viewportEmptyState);
 
                 // The overlay sits over the whole frame; without Ignore it eats camera drags and
                 // the gizmo rail's clicks that land on top of it.
@@ -2638,6 +2643,7 @@ namespace DotsAnimationToolkit.Editor
                     "Pick a clip in the list on the left, or create one, to preview and key it.",
                     null, null);
                 clipEditorViewportEmptyState.AddToClassList("clip-editor__viewport-empty-overlay");
+                ToolkitChrome.PlaceEmptyStateOnViewportCard(clipEditorViewportEmptyState);
                 clipEditorViewportEmptyState.style.display = DisplayStyle.None;
                 clipEditorViewportEmptyState.pickingMode = PickingMode.Ignore;
                 viewportFrame.Add(clipEditorViewportEmptyState);
@@ -3944,6 +3950,12 @@ namespace DotsAnimationToolkit.Editor
 
             if (previewStatusLabel != null)
             {
+                // R03: while the "No rig to preview" card is up it already says what to do; the footer
+                // repeating "Pick a rig above the hierarchy." made it the fourth copy on screen.
+                if (LoadedPrefab == null && viewportEmptyState != null)
+                {
+                    viewportStatus = string.Empty;
+                }
                 previewStatusLabel.text = viewportStatus;
 
                 // Collapsed when there is nothing to say, rather than left as an empty line. It sits
@@ -3962,8 +3974,11 @@ namespace DotsAnimationToolkit.Editor
             bool showingNoClipEmptyState = selectedClip == null;
             if (clipEditorViewportEmptyState != null)
             {
+                // One message at a time: with no rig, the rig overlay above says the first thing to do,
+                // and both drawing at once stacked two titles on top of each other.
+                bool rigOverlayShowing = viewportEmptyState != null && LoadedPrefab == null;
                 clipEditorViewportEmptyState.style.display =
-                    showingNoClipEmptyState ? DisplayStyle.Flex : DisplayStyle.None;
+                    showingNoClipEmptyState && !rigOverlayShowing ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             // The empty state overlay sits on top of the render, but the render keeps drawing

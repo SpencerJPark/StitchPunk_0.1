@@ -81,6 +81,7 @@ namespace DotsAnimationToolkit.Editor
             Add(frame);
 
             statusLabel = ToolkitChrome.MakeHint("Assign a source prefab to see it here.");
+            statusLabel.name = "rig-preview-status";
             Add(statusLabel);
 
             cameraNavigation.Rig = cameraRig;

@@ -46,11 +46,8 @@ namespace DotsAnimationToolkit.Editor
             if (emptyState == null)
             {
                 emptyState = ToolkitChrome.MakeEmptyState(elementName, title, why, null, null);
-                emptyState.style.position = Position.Absolute;
-                emptyState.style.left = 0f;
-                emptyState.style.right = 0f;
-                emptyState.style.top = 0f;
-                emptyState.style.bottom = 0f;
+                emptyState.AddToClassList("toolkit-viewport-empty");
+                ToolkitChrome.PlaceEmptyStateOnViewportCard(emptyState);
                 emptyState.pickingMode = PickingMode.Ignore;
                 Insert(IndexOf(Overlay), emptyState);
                 return;

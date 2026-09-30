@@ -22,7 +22,8 @@ namespace DotsAnimationToolkit.Editor
 
         private Label editorTitleLabel;
         private Button openInEditorButton;
-        private Label noSelectionHintLabel;
+        private VisualElement noSelectionEmptyState;
+        private VisualElement resultStatusRow;
         private VisualElement editorContent;
 
         private TextField nameField;
@@ -162,9 +163,11 @@ namespace DotsAnimationToolkit.Editor
 
             editorColumn.Add(header);
 
-            noSelectionHintLabel = ToolkitChrome.MakeHint("Select a clip set, or press New to make one.");
-            noSelectionHintLabel.name = "clip-set-no-selection-hint";
-            editorColumn.Add(noSelectionHintLabel);
+            // R13: a designed empty state (title, why, the action that fills it), not a corner hint.
+            noSelectionEmptyState = ToolkitChrome.MakeEmptyState(
+                "clip-set-no-selection-hint", "No clip set selected",
+                "Pick a clip set on the left, or create one.", "New clip set", CreateAndSelectNewClipSet);
+            editorColumn.Add(noSelectionEmptyState);
 
             editorContent = new VisualElement { name = "clip-set-editor-content" };
 
@@ -235,7 +238,7 @@ namespace DotsAnimationToolkit.Editor
 
             editorColumn.Add(editorContent);
 
-            VisualElement resultStatusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
+            resultStatusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
             resultLabel.name = "clip-sets-result-label";
             editorColumn.Add(resultStatusRow);
             // Seeds the footer with the edit hint on open; a real operation result overwriting it later is expected.
@@ -522,8 +525,10 @@ namespace DotsAnimationToolkit.Editor
             bool hasSelection = SelectedSet != null;
             editorTitleLabel.text = hasSelection ? SelectedSet.name : "Clip Set";
             openInEditorButton.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
-            noSelectionHintLabel.style.display = hasSelection ? DisplayStyle.None : DisplayStyle.Flex;
+            noSelectionEmptyState.style.display = hasSelection ? DisplayStyle.None : DisplayStyle.Flex;
             editorContent.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
+            // The footer explains ticking; with no set there is nothing to tick.
+            resultStatusRow.style.display = hasSelection ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void CommitNameFieldChange()

@@ -87,10 +87,8 @@ namespace DotsAnimationToolkit.Editor
             VisualElement header = new VisualElement();
             header.name = "texture-packer-header";
             header.AddToClassList("toolkit-pane-header");
-            // The graph column is flush, so the header insets itself or its buttons sit on the window edge.
-            header.style.paddingTop = 4f;
-            header.style.paddingBottom = 4f;
-            header.style.paddingRight = 8f;
+            // The graph column is flush, so the header insets itself (#texture-packer-header in the
+            // window sheet) or its buttons sit on the window edge.
             header.Add(recipeLabel);
             header.Add(unsavedChangesBadge);
 
