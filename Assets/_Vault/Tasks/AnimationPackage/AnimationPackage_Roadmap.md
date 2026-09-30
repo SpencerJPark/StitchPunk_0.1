@@ -74,6 +74,12 @@ Binding reference: [`Docs/AnimationToolkit/EditorStyleGuide.md`](../../../../Doc
 - [x] **A107 — Timeline tabs pass** (`0.60.0`, built 2026-09-19) — [`A107_TimelineTabsPass_Spec.md`](A107_TimelineTabsPass_Spec.md). Clip Editor, Actor Profiles (hover play), Cutscenes; ends with the final 15-tab audit.
 - [x] **A108 — Chrome consistency pass 2** (0.57.0, built 2026-09-17) — [`A108_ChromeConsistencyPass2_Spec.md`](A108_ChromeConsistencyPass2_Spec.md). The owner's review of the A105 pass: 12px card gutters in Actor Profiles and the Actor Inspector, one button family (one variant each, one radius, one height per action run), icons tinted so they read on the white primary, and fifteen drawn one-tone tab glyphs (Rigs is bones, Ragdoll is a body). Runs alone on the shared style layer.
 
+### Phase 7 — consistency pass 3 (the owner's circled captures)
+
+- [x] **A109 — Consistency pass 3** (`0.61.0`, merged 2026-09-30) — one button height, boxed icon header actions, outlined destructive buttons, Flipbooks *Make editable*.
+
+> **Spec files cleared 2026-09-30.** Every spec above is built; the files were removed from this folder in `c64bb0b5`. Read one back with `git show c64bb0b5^:Assets/_Vault/Tasks/AnimationPackage/<name>`. **Next: RC1** — `Assets/_Vault/Spencer/next-session-rc1-spec-prompt.md`.
+
 ## 2. Standing owner calls these specs inherit (do not re-ask)
 
 - Names, never numbers, in game code and editor surfaces (HANDOFF §5).

@@ -1,6 +1,6 @@
 # Next session — spec the 1.0 release candidate (RC1)
 
-You are the **stage orchestrator**. Phase 6 is closed: the editor UI pass is done and the package reads `0.60.0`.
+You are the **stage orchestrator**. Phase 6 is closed, and A109 (consistency pass 3) shipped after it on 2026-09-30: the package reads `0.61.0`. **Re-check the open-items table below against the `0.61.0` CHANGELOG entry first** — A109 touched Flipbooks, Clip Editor headers and Health, so some rows may already be closed.
 **This session writes a spec, it does not build one.** The deliverable is
 `Assets/_Vault/Tasks/AnimationPackage/RC1_ReleaseCandidate_Spec.md` plus the session prompt that builds it.
 
