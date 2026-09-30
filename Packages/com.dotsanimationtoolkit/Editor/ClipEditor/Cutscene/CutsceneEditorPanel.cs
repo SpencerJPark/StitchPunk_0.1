@@ -4464,6 +4464,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void RebuildInspectorContent()
         {
+            UnityEngine.Debug.Log("PROBE_REBUILD_INSPECTOR\n" + System.Environment.StackTrace);
             inspectorScroll.Clear();
 
             if (cutscene == null)

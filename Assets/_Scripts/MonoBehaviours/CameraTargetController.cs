@@ -6,7 +6,6 @@ using UnityEngine;
 public class CameraTargetController : MonoBehaviour, IUpdateObserver
 {
     private EntityManager _entityManager;
-
     private EntityQuery _playerQuery;
     private Entity _playerEntity;
     private bool _hasPlayer;

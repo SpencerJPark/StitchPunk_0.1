@@ -85,7 +85,7 @@ Material:
     - _UseSecond: 1
     m_Colors:
     - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
-    - _InkColor: {r: 0, g: 0, b: 0, a: 0.75}
+    - _InkColor: {r: 0.024620876, g: 0.93207544, b: 0.25639436, a: 1}
     - _MacroDark: {r: 0.35999998, g: 0.38999996, b: 0.45, a: 1}
     - _MacroLight: {r: 0.58, g: 0.54999995, b: 0.47999996, a: 1}
     - _RimColor: {r: 0.95, g: 0.92, b: 0.8, a: 0}

@@ -22,22 +22,60 @@ MonoBehaviour:
     rig: {fileID: 0}
     clipSets: []
     directionSet: {fileID: 0}
+    profile: {fileID: 0}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 0
+      movingAnimationKey: 0
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks: []
     transformKeys: []
     facingKeys: []
     partTracks: []
+    attachMarkers: []
+    markKeys: []
   - name: Prop 2
     slotId: 3418555890
     kind: 1
     rig: {fileID: 0}
     clipSets: []
     directionSet: {fileID: 0}
+    profile: {fileID: 0}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 0
+      movingAnimationKey: 0
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
     actorPrefab: {fileID: 0}
     clipBlocks: []
     transformKeys: []
     facingKeys: []
     partTracks: []
+    attachMarkers: []
+    markKeys: []
+  - name: Actor 3
+    slotId: 3551633068
+    kind: 0
+    rig: {fileID: 0}
+    clipSets: []
+    directionSet: {fileID: 0}
+    profile: {fileID: 0}
+    locomotion:
+      enabled: 1
+      standingAnimationKey: 0
+      movingAnimationKey: 0
+      movingSpeedThresholdMetersPerSecond: 0.05
+    layerStops: []
+    actorPrefab: {fileID: 0}
+    clipBlocks: []
+    transformKeys: []
+    facingKeys: []
+    partTracks: []
+    attachMarkers: []
+    markKeys: []
   cameraLane:
     keys: []
     cutMarkers: []
