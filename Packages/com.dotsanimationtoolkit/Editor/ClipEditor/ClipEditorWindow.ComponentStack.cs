@@ -13,6 +13,11 @@ namespace DotsAnimationToolkit.Editor
 {
     public sealed partial class ClipEditorWindow
     {
+        private static string Pluralize(int count, string singular, string plural)
+        {
+            return count.ToString() + " " + (count == 1 ? singular : plural);
+        }
+
         private const string ComponentBlockUssClassName = "toolkit-box";
 
         /// <summary>
@@ -419,7 +424,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             int keyCount = ClipComponentModel.KeyCount(selectedClip, objectRef, instance);
-            return name + "  ·  " + keyCount + " key(s)";
+            return name + "  ·  " + Pluralize(keyCount, "key", "keys");
         }
 
         private void ToggleComponentKind(ClipComponentKind kind)
@@ -893,7 +898,7 @@ namespace DotsAnimationToolkit.Editor
             if (keyCount > 0 && !EditorUtility.DisplayDialog(
                     "Remove " + kindName,
                     "Remove " + kindName + " from this object?\n\n"
-                        + keyCount + " key(s) on this clip go with it.",
+                        + Pluralize(keyCount, "key", "keys") + " on this clip go with it.",
                     "Remove",
                     "Cancel"))
             {
@@ -928,7 +933,7 @@ namespace DotsAnimationToolkit.Editor
 
             int keyCount = ClipComponentModel.KeyCount(selectedClip, objectRef, instance);
             string keyWarning = keyCount > 0
-                ? "\n\n" + keyCount + " key(s) on this clip go with it."
+                ? "\n\n" + Pluralize(keyCount, "key", "keys") + " on this clip go with it."
                 : string.Empty;
             if (!EditorUtility.DisplayDialog(
                     "Remove Billboard",
@@ -1215,7 +1220,7 @@ namespace DotsAnimationToolkit.Editor
             parent.Add(enabledField);
 
             parent.Add(ClipInspectorPane.MakeHint(
-                keyCount + " key(s). Billboard keys have no timeline row yet — they are edited "
+                Pluralize(keyCount, "key", "keys") + ". Billboard keys have no timeline row yet — they are edited "
                 + "here, at the playhead."));
         }
 

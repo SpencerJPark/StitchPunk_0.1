@@ -166,11 +166,15 @@ namespace DotsAnimationToolkit.Editor
                 if (rig != null)
                 {
                     previewController.SetRig(rig);
+                    // Rest poses, painted art and Bone/HierarchyPath bodies all resolve against the
+                    // source prefab's instance; without it every part sits on the origin.
+                    previewController.SetSkinnedSource(rig.sourcePrefab);
                     previewController.FrameRig();
                 }
                 else
                 {
                     previewController.SetRig(null);
+                    previewController.SetSkinnedSource(null);
                 }
             }
 

@@ -202,7 +202,33 @@ namespace DotsAnimationToolkit.Editor
             statusLabel.text = text;
             statusLabel.EnableInClassList(StatusWarningClassName, tone == ToolkitStatusTone.Warning);
             statusLabel.EnableInClassList(StatusErrorClassName, tone == ToolkitStatusTone.Error);
+
+            // Style guide: a status row is a tone dot plus one line. The dot is kept beside the label
+            // here so every footer gets it from the one call they all already make.
+            VisualElement statusRow = statusLabel.parent;
+            if (statusRow == null || !statusRow.ClassListContains(StatusRowClassName))
+            {
+                return;
+            }
+
+            VisualElement toneDot = statusRow.Q(StatusDotElementName);
+            if (toneDot == null)
+            {
+                toneDot = new VisualElement { name = StatusDotElementName };
+                toneDot.AddToClassList(StatusDotClassName);
+                toneDot.pickingMode = PickingMode.Ignore;
+                statusRow.Insert(statusRow.IndexOf(statusLabel), toneDot);
+                statusLabel.AddToClassList(StatusClassName + "--dotted");
+            }
+
+            toneDot.EnableInClassList(StatusDotClassName + "--warning", tone == ToolkitStatusTone.Warning);
+            toneDot.EnableInClassList(StatusDotClassName + "--error", tone == ToolkitStatusTone.Error);
+            toneDot.EnableInClassList(StatusDotClassName + "--ok", tone == ToolkitStatusTone.Ok);
+            toneDot.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
         }
+
+        private const string StatusDotElementName = "toolkit-status-dot";
+        private const string StatusDotClassName = "toolkit-status-dot";
 
         public static VisualElement MakeListRowSlot(string rowElementName, out VisualElement row)
         {

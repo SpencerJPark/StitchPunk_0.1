@@ -49,7 +49,8 @@ namespace DotsAnimationToolkit.Editor
             new Dictionary<string, PreviewNode>();
         private readonly HashSet<string> excludedNodePaths = new HashSet<string>();
         private string focusedNodePath;
-        private Material excludedNodeMaterial;
+        // One ghost material per source texture, so an untargeted part keeps its own silhouette.
+        private readonly Dictionary<Texture, Material> excludedNodeMaterialsByTexture = new Dictionary<Texture, Material>();
         private bool showExcludedNodes = true;
         private float lastTickTimeSinceStartup;
 
@@ -102,7 +103,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            statusLabel.text = prefab.name + " — " + nodesBySourcePath.Count.ToString() + " renderer(s).";
+            int rendererCount = nodesBySourcePath.Count;
+            statusLabel.text = prefab.name + " · " + rendererCount + (rendererCount == 1 ? " renderer" : " renderers");
             cameraRig.SetFrameTarget(MeasurePrefabCopyBounds());
             cameraRig.ResetView();
         }
@@ -293,34 +295,72 @@ namespace DotsAnimationToolkit.Editor
                     continue;
                 }
 
-                Material[] greyedMaterials = new Material[node.CopiedRenderer.sharedMaterials.Length];
+                Material[] greyedMaterials = new Material[node.AuthoredMaterials.Length];
                 for (int slotIndex = 0; slotIndex < greyedMaterials.Length; slotIndex++)
                 {
-                    greyedMaterials[slotIndex] = EnsureExcludedNodeMaterial();
+                    greyedMaterials[slotIndex] = EnsureExcludedNodeMaterial(node.AuthoredMaterials[slotIndex]);
                 }
                 node.CopiedRenderer.sharedMaterials = greyedMaterials;
             }
         }
 
-        private Material EnsureExcludedNodeMaterial()
+        // A faint ghost of the part's own art. Setting _Surface alone does not make a URP material
+        // transparent -- the blend state and keyword must follow, or it draws as an opaque grey box.
+        private Material EnsureExcludedNodeMaterial(Material authoredMaterial)
         {
-            if (excludedNodeMaterial != null)
+            Texture authoredTexture = ResolveMainTexture(authoredMaterial);
+            Texture textureKey = authoredTexture != null ? authoredTexture : Texture2D.whiteTexture;
+            Material ghostMaterial;
+            if (excludedNodeMaterialsByTexture.TryGetValue(textureKey, out ghostMaterial) && ghostMaterial != null)
             {
-                return excludedNodeMaterial;
+                return ghostMaterial;
             }
+
             Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
             if (unlitShader == null)
             {
-                unlitShader = Shader.Find("Unlit/Color");
+                unlitShader = Shader.Find("Unlit/Transparent");
             }
-            excludedNodeMaterial = new Material(unlitShader);
-            excludedNodeMaterial.hideFlags = HideFlags.HideAndDontSave;
-            Color greyedColor = new Color(0.55f, 0.57f, 0.6f, 0.22f);
-            excludedNodeMaterial.SetColor("_BaseColor", greyedColor);
-            excludedNodeMaterial.SetColor("_Color", greyedColor);
-            excludedNodeMaterial.SetFloat("_Surface", 1f); // transparent
-            excludedNodeMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-            return excludedNodeMaterial;
+            ghostMaterial = new Material(unlitShader);
+            ghostMaterial.hideFlags = HideFlags.HideAndDontSave;
+            Color ghostTint = new Color(0.7f, 0.72f, 0.76f, 0.3f);
+            ghostMaterial.SetColor("_BaseColor", ghostTint);
+            ghostMaterial.SetColor("_Color", ghostTint);
+            ghostMaterial.SetTexture("_BaseMap", textureKey);
+            ghostMaterial.SetTexture("_MainTex", textureKey);
+            ghostMaterial.SetFloat("_Surface", 1f);
+            ghostMaterial.SetFloat("_Blend", 0f);
+            ghostMaterial.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            ghostMaterial.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            ghostMaterial.SetFloat("_ZWrite", 0f);
+            ghostMaterial.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+            ghostMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            // The painted art cuts its silhouette by alpha test, not blend; without the same clip the
+            // part's transparent (black) texels still tint a full rectangle. The cutoff is scaled by
+            // the ghost's 0.3 alpha, so it keeps texels the source shader would keep.
+            ghostMaterial.SetFloat("_AlphaClip", 1f);
+            ghostMaterial.SetFloat("_Cutoff", 0.15f);
+            ghostMaterial.EnableKeyword("_ALPHATEST_ON");
+            ghostMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            excludedNodeMaterialsByTexture[textureKey] = ghostMaterial;
+            return ghostMaterial;
+        }
+
+        private static Texture ResolveMainTexture(Material authoredMaterial)
+        {
+            if (authoredMaterial == null)
+            {
+                return null;
+            }
+            if (authoredMaterial.HasProperty("_BaseMap") && authoredMaterial.GetTexture("_BaseMap") is Texture2D baseMap)
+            {
+                return baseMap;
+            }
+            if (authoredMaterial.HasProperty("_MainTex") && authoredMaterial.GetTexture("_MainTex") is Texture2D mainTexture)
+            {
+                return mainTexture;
+            }
+            return null;
         }
 
         // A prefab with no renderers, or one whose renderers are all switched off, measures as an
@@ -385,11 +425,14 @@ namespace DotsAnimationToolkit.Editor
         {
             EditorApplication.update -= Tick;
             DestroyPrefabCopy();
-            if (excludedNodeMaterial != null)
+            foreach (Material ghostMaterial in excludedNodeMaterialsByTexture.Values)
             {
-                UnityEngine.Object.DestroyImmediate(excludedNodeMaterial);
-                excludedNodeMaterial = null;
+                if (ghostMaterial != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(ghostMaterial);
+                }
             }
+            excludedNodeMaterialsByTexture.Clear();
             sceneGizmos.Dispose();
             sceneGizmosAdded = false;
             if (renderUtility != null)

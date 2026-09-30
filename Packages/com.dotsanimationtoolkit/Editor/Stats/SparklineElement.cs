@@ -17,6 +17,7 @@ namespace DotsAnimationToolkit.Editor
         private int writeIndex;
         private int latest;
         private int peak;
+        private readonly Label emptyLabel;
 
         public int Latest
         {
@@ -40,6 +41,12 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
             style.minWidth = 120f;
             generateVisualContent += DrawSparkline;
+
+            emptyLabel = new Label("No samples yet");
+            emptyLabel.name = "stats-sparkline-empty";
+            emptyLabel.AddToClassList("stats-sparkline__empty");
+            emptyLabel.pickingMode = PickingMode.Ignore;
+            Add(emptyLabel);
         }
 
         public void Push(int value)
@@ -52,16 +59,18 @@ namespace DotsAnimationToolkit.Editor
             }
 
             latest = value;
+            emptyLabel.style.display = DisplayStyle.None;
             RecomputePeak();
             MarkDirtyRepaint();
         }
 
-        public void Clear()
+        public void ClearSamples()
         {
             sampleCount = 0;
             writeIndex = 0;
             latest = 0;
             peak = 0;
+            emptyLabel.style.display = DisplayStyle.Flex;
             MarkDirtyRepaint();
         }
 

@@ -38,3 +38,19 @@ Cutscenes tab (T17) is held: a peer session has an uncommitted probe in `Cutscen
 
 ## 3. Log
 - 2026-09-30: audit + G1–G5 landed (USS only, refreshed, captured in `Library/UIAudit_0930/scratch/`).
+- 2026-09-30: T1–T14 + T16 built (two waves of parallel workers, stage gate per wave; captures `w1`–`w5`).
+  Found on the way, fixed:
+  - **Previews were broken, not just grey.** Retarget and Ragdoll never called `SetSkinnedSource`, so rest poses were
+    identity and every part stacked on the origin; T1's proxies now borrow the source node's mesh/materials and the clone
+    hides the renderers they stand in for. Ragdoll wireframes (`DrawsRagdollBodies`) off in Retarget and Capture.
+  - Rigs' "22% ghost" for untargeted parts drew opaque grey boxes: `_Surface` alone does not make a URP material
+    transparent (needs blend state + keyword) and the painted art alpha-*tests*, so the ghost needs `_ALPHATEST_ON` too.
+  - Colour: one muted tone (`.toolkit-hint` was body text at 70% — a second grey); loop amber → neutral "on";
+    every "on" fill was `--toolkit-raised`, 6 levels off the window colour and invisible (R17) → Unity button grey.
+    Measured: muted text 3.6–4.6:1 on every surface (R18 ✓).
+  - Spacing, measured by a sibling-gap probe (`Library/UIAudit_0930/spacing.txt`): badges after text had 0px
+    (`.toolkit-badge.unity-label { margin: 0 }` beats row gaps) — roster chips, Ragdoll counts; Clips header icons 0px.
+  - Status rows: one inset, and `SetStatus` now keeps a tone dot beside the line (style guide §3 said so; none had one).
+  - "(s)" plurals replaced across ~16 files (generated-code comment in ConstantsGenerator left).
+  Open: T17 Cutscenes (peer probe in `CutsceneEditorPanel.cs`); EditMode suite not yet run (MCP bridge dropped);
+  Clip Editor's hidden dock stays laid out behind every other tab (probe saw its elements on all 15) — perf, not visual.

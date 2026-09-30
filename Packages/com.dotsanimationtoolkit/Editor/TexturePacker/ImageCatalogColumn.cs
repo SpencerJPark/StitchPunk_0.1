@@ -169,11 +169,13 @@ namespace DotsAnimationToolkit.Editor
             thumbnail.name = "image-row-thumbnail";
             thumbnail.scaleMode = ScaleMode.ScaleToFit;
             thumbnail.pickingMode = PickingMode.Ignore;
-            thumbnail.style.width = 24f;
-            thumbnail.style.height = 24f;
-            thumbnail.style.flexShrink = 0f;
-            thumbnail.style.marginRight = 8f;
-            row.Add(thumbnail);
+            thumbnail.AddToClassList("texture-packer-thumbnail");
+
+            VisualElement thumbnailSlot = new VisualElement();
+            thumbnailSlot.AddToClassList("texture-packer-thumbnail-slot");
+            thumbnailSlot.pickingMode = PickingMode.Ignore;
+            thumbnailSlot.Add(thumbnail);
+            row.Add(thumbnailSlot);
 
             Label titleLabel = new Label();
             titleLabel.name = "image-row-title";
@@ -350,7 +352,7 @@ namespace DotsAnimationToolkit.Editor
 
             DragAndDrop.PrepareStartDrag();
             DragAndDrop.objectReferences = draggedTextures.ToArray();
-            DragAndDrop.StartDrag(draggedTextures.Count.ToString() + " image(s)");
+            DragAndDrop.StartDrag(draggedTextures.Count.ToString() + (draggedTextures.Count == 1 ? " image" : " images"));
             // Stops the ListView's own pointer handling from also starting a rectangle selection.
             pointerEvent.StopPropagation();
         }

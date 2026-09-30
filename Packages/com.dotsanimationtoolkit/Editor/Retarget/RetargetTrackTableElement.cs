@@ -58,12 +58,14 @@ namespace DotsAnimationToolkit.Editor
             statusCaptionLabel.AddToClassList("retarget-col-status");
             captionRow.Add(statusCaptionLabel);
 
-            Add(captionRow);
-
             VisualElement listBody = new VisualElement { name = "retarget-track-body" };
             listBody.AddToClassList("toolkit-list-surface");
             listBody.style.flexGrow = 1f;
             Add(listBody);
+
+            // Inside the list surface so it shares the rows' edge-to-edge pull-back over the column
+            // padding; as a sibling above it the captions sat one column inset right of their cells.
+            listBody.Add(captionRow);
 
             trackListView = new ListView();
             trackListView.name = "retarget-track-list";

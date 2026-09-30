@@ -260,15 +260,18 @@
 }
 
 /* R17: a square that toggles shows its on state filled, like the segmented control's on item. */
+/* R17: an "on" toggle must read as filled. The raised tone is 6 levels off the window colour and
+   vanished; Unity's button grey is the neutral fill every other "on" state uses. */
 .toolkit-icon-square.toolkit-icon-square--on.unity-button,
 .toolkit-icon-square.toolkit-icon-square--on.unity-button:hover {
-    background-color: var(--toolkit-raised);
+    background-color: var(--unity-colors-button-background);
     color: var(--toolkit-text);
 }
 
+/* R02: four text styles, no italic; muted says "empty" on its own. */
 .toolkit-path-row__path.toolkit-path-row__path--empty {
     color: var(--toolkit-color-muted);
-    -unity-font-style: italic;
+    -unity-font-style: normal;
 }
 
 .toolkit-icon-square-run {
@@ -698,7 +701,7 @@
 }
 
 .toolkit-icon-square.unity-toolbar-toggle:checked {
-    background-color: var(--toolkit-raised);
+    background-color: var(--unity-colors-button-background);
     color: var(--toolkit-text);
 }
 
@@ -722,7 +725,7 @@
 }
 
 .toolkit-toggle-button:checked {
-    background-color: var(--toolkit-raised);
+    background-color: var(--unity-colors-button-background);
     color: var(--toolkit-text);
 }
 

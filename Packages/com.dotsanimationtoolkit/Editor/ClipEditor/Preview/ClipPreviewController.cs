@@ -340,6 +340,33 @@ namespace DotsAnimationToolkit.Editor
             restPosesDirty = true;
             framePending = true;
             ApplyRestPoses();
+            HideCloneRenderersDrawnByMirror();
+        }
+
+        // The mirror's proxies wear the source art and animate; the static skeleton clone would
+        // draw the same parts frozen underneath them. Renderers are disabled, never destroyed.
+        private void HideCloneRenderersDrawnByMirror()
+        {
+            if (skeletonMirror.InstanceRoot == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<string> borrowedPaths = rigMirror.BorrowedSourceNodePaths;
+            for (int pathIndex = 0; pathIndex < borrowedPaths.Count; pathIndex++)
+            {
+                Transform cloneNode = skeletonMirror.InstanceRoot.transform.Find(borrowedPaths[pathIndex]);
+                if (cloneNode == null)
+                {
+                    continue;
+                }
+
+                Renderer cloneRenderer = cloneNode.GetComponent<Renderer>();
+                if (cloneRenderer != null)
+                {
+                    cloneRenderer.enabled = false;
+                }
+            }
         }
 
         // Puts every part at its rest pose, with no clip applied. Without this a new mirror is a
@@ -467,6 +494,7 @@ namespace DotsAnimationToolkit.Editor
             restPosesDirty = true;
             framePending = true;
             ApplyRestPoses();
+            HideCloneRenderersDrawnByMirror();
 
             boneHandles.Rebuild(skeletonMirror.InstanceRoot);
             boneHandlesAdded = false;
@@ -823,9 +851,19 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
+        /// <summary>Whether the rig's ragdoll body wireframes draw. Off for views that show the finished
+        /// animation (Retarget, Capture), where eleven cyan boxes are noise over the art.</summary>
+        public bool DrawsRagdollBodies { get; set; } = true;
+
         /// <summary>Rebuilds every body's wireframe and the selected body's grab handles for this render.</summary>
         private void UpdateRagdollBoxHandles()
         {
+            if (!DrawsRagdollBodies)
+            {
+                ragdollBoxHandles.Hide();
+                return;
+            }
+
             List<RagdollBoxVisual> boxes = BuildRagdollBoxVisuals(mirrorRig);
             RagdollSpace space = mirrorRig != null ? mirrorRig.ragdollSettings.space : RagdollSpace.Planar2D;
             ragdollBoxHandles.Rebuild(boxes, selectedRagdollBodyId, space, activeRagdollBoxHandle, GizmoHandleLength);
@@ -1046,7 +1084,7 @@ namespace DotsAnimationToolkit.Editor
                 posedBones = true;
                 if (skeletonMirror.UnresolvedBoneNames.Count > 0)
                 {
-                    statusMessage = "Bone name(s) not in the skinned source: "
+                    statusMessage = (skeletonMirror.UnresolvedBoneNames.Count == 1 ? "Bone name" : "Bone names") + " not in the skinned source: "
                         + string.Join(", ", skeletonMirror.UnresolvedBoneNames);
                 }
             }

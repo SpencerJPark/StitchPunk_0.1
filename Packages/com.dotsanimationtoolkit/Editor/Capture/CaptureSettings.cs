@@ -40,11 +40,24 @@ namespace DotsAnimationToolkit.Editor
 
         public static readonly CaptureSizePreset[] SizePresets = new CaptureSizePreset[]
         {
-            new CaptureSizePreset { label = "256 x 256", width = 256, height = 256 },
-            new CaptureSizePreset { label = "512 x 512", width = 512, height = 512 },
-            new CaptureSizePreset { label = "1024 x 1024", width = 1024, height = 1024 },
-            new CaptureSizePreset { label = "1920 x 1080", width = 1920, height = 1080 }
+            new CaptureSizePreset { label = "256 × 256", width = 256, height = 256 },
+            new CaptureSizePreset { label = "512 × 512", width = 512, height = 512 },
+            new CaptureSizePreset { label = "1024 × 1024", width = 1024, height = 1024 },
+            new CaptureSizePreset { label = "1920 × 1080", width = 1920, height = 1080 }
         };
+
+        // Returns SizePresets.Length (the "Custom" entry) when no preset matches.
+        public static int IndexOfPresetMatchingSize(int width, int height)
+        {
+            for (int presetIndex = 0; presetIndex < SizePresets.Length; presetIndex++)
+            {
+                if (SizePresets[presetIndex].width == width && SizePresets[presetIndex].height == height)
+                {
+                    return presetIndex;
+                }
+            }
+            return SizePresets.Length;
+        }
 
         public int width = 512;
         public int height = 512;

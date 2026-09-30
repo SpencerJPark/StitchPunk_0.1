@@ -53,7 +53,7 @@ namespace DotsAnimationToolkit.Editor
 
             scrollView.Add(BuildHeaderRow(finding));
 
-            Label findingTitleLabel = ToolkitChrome.MakeDetailTitle(finding.title);
+            Label findingTitleLabel = ToolkitChrome.MakeDetailTitle(HealthFindingListElement.StripValidatorIdPrefix(finding.title));
             findingTitleLabel.style.whiteSpace = WhiteSpace.Normal;
             findingTitleLabel.style.marginBottom = 6f;
             scrollView.Add(findingTitleLabel);

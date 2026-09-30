@@ -56,6 +56,7 @@ namespace DotsAnimationToolkit.Editor
         private ActorEditorProfilesColumn profilesColumn;
         private ValidationBadgeElement validationBadge;
         private TransportCoreElement transportCore;
+        private VisualElement noProfileEmptyState;
         private EnumField directionField;
         private Label directionReadoutLabel;
         private VisualElement layersColumn;
@@ -401,10 +402,15 @@ namespace DotsAnimationToolkit.Editor
             viewportFrame = new ViewportFrameElement { name = "viewport-frame" };
             viewportFrame.Overlay.name = "viewport-overlay";
             viewportFrame.OverlayColumn.name = "overlay-column";
-            viewportFrame.SetEmptyState(
+            // Not ViewportFrameElement.SetEmptyState: that overlay ignores the pointer and has no action.
+            noProfileEmptyState = ToolkitChrome.MakeEmptyState(
                 "actor-editor-viewport-empty",
-                "No actor to preview",
-                "Pick a profile in the catalog on the left, and its layers play here.");
+                "No profile selected",
+                "Pick a profile on the left, or create one.",
+                "New profile",
+                () => profilesColumn?.CreateAndSelectNewProfile());
+            noProfileEmptyState.AddToClassList("actor-editor__viewport-empty");
+            viewportFrame.Add(noProfileEmptyState);
             viewportColumn.Add(viewportFrame);
 
             viewportImage = viewportFrame.ViewportImage;
@@ -571,6 +577,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // The empty state in the preview already says no profile is selected.
+            validationBadge.style.display = profile == null ? DisplayStyle.None : DisplayStyle.Flex;
             if (profile == null)
             {
                 validationBadge.RefreshFromMessages(new List<ValidationMessage>(), "No profile");
@@ -709,11 +717,19 @@ namespace DotsAnimationToolkit.Editor
                 layerEventStrip?.Tick(isPlaying);
             }
 
+            RefreshPlaybackControlsEnabled();
             RefreshValidationBadge();
             layersColumnView?.RefreshIfChanged();
             inspectorColumnView?.RefreshIfChanged();
 
             RenderViewport();
+        }
+
+        private void RefreshPlaybackControlsEnabled()
+        {
+            bool hasPlayableActor = profile != null && composer.IsCreated;
+            transportCore?.SetEnabled(hasPlayableActor);
+            directionField?.SetEnabled(hasPlayableActor);
         }
 
         private void RenderViewport()
@@ -745,7 +761,10 @@ namespace DotsAnimationToolkit.Editor
             }
 
             bool hasActorToPreview = activeRig != null && profile != null;
-            viewportFrame?.ShowEmptyState(!hasActorToPreview);
+            if (noProfileEmptyState != null)
+            {
+                noProfileEmptyState.style.display = profile == null ? DisplayStyle.Flex : DisplayStyle.None;
+            }
 
             // The empty state overlay sits on top of the render, but the render keeps drawing
             // underneath it and bleeds through — blank it so the empty-state sentence stays readable.

@@ -1923,11 +1923,29 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            // The count is a badge beside the word rather than rich text inside it, so the tab is
+            // only as wide as what it shows and needs no reserved width (which left a gap before it).
+            Label errorCountBadge = healthToggle.Q<Label>(HealthTabErrorBadgeName);
+            if (errorCountBadge == null)
+            {
+                errorCountBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Error);
+                errorCountBadge.name = HealthTabErrorBadgeName;
+                errorCountBadge.AddToClassList(TabCountBadgeClassName);
+                errorCountBadge.pickingMode = PickingMode.Ignore;
+                healthToggle.Add(errorCountBadge);
+            }
+
             int errorCount = healthPanel.ErrorCount;
-            healthToggle.text = errorCount > 0
-                ? "Health (<color=#" + ColorUtility.ToHtmlStringRGB(ToolkitPalette.Error) + ">" + errorCount + "</color>)"
-                : "Health";
+            healthToggle.text = "Health";
+            errorCountBadge.text = errorCount.ToString();
+            errorCountBadge.style.display = errorCount > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            healthToggle.tooltip = errorCount > 0
+                ? errorCount + (errorCount == 1 ? " error" : " errors") + " in the last scan"
+                : string.Empty;
         }
+
+        private const string HealthTabErrorBadgeName = "health-tab-error-count";
+        private const string TabCountBadgeClassName = "clip-editor__tab-count";
 
         private void ShowFlipbooksTab(bool isShown)
         {
@@ -2203,8 +2221,9 @@ namespace DotsAnimationToolkit.Editor
 
             if (reconcileTitle != null)
             {
-                reconcileTitle.text = brokenBindings.Count.ToString()
-                    + " binding(s) no longer match the prefab. Nothing has been changed — pick a "
+                reconcileTitle.text = Pluralize(brokenBindings.Count, "binding", "bindings")
+                    + (brokenBindings.Count == 1 ? " no longer matches" : " no longer match")
+                    + " the prefab. Nothing has been changed — pick a "
                     + "new name or remove each one.";
             }
 
@@ -2261,8 +2280,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 case BrokenBindingKind.BoneTrack:
                     return binding.description + "  ·  \"" + binding.missingName
-                        + "\" is not in the prefab. " + binding.keyCount.ToString()
-                        + " key(s) will not bake.";
+                        + "\" is not in the prefab. " + Pluralize(binding.keyCount, "key", "keys")
+                        + " will not bake.";
                 case BrokenBindingKind.BoneSocket:
                     return binding.description + "  ·  \"" + binding.missingName
                         + "\" is not in the prefab. The attachment will bake at the origin.";
@@ -2305,7 +2324,7 @@ namespace DotsAnimationToolkit.Editor
         {
             string question = binding.kind == BrokenBindingKind.BoneTrack
                 ? "Delete the bone track for \"" + binding.missingName + "\"?\n\n"
-                    + binding.keyCount.ToString() + " key(s) will be lost."
+                    + Pluralize(binding.keyCount, "key", "keys") + " will be lost."
                 : "Delete the socket bound to \"" + binding.missingName + "\"?";
 
             if (!EditorUtility.DisplayDialog("Delete Broken Binding", question, "Delete", "Cancel"))
@@ -2605,11 +2624,7 @@ namespace DotsAnimationToolkit.Editor
                     "Pick a rig in the Rig Hierarchy pane on the left, and the clip you select plays on it here.",
                     null,
                     null);
-                viewportEmptyState.style.position = Position.Absolute;
-                viewportEmptyState.style.left = 0;
-                viewportEmptyState.style.right = 0;
-                viewportEmptyState.style.top = 0;
-                viewportEmptyState.style.bottom = 0;
+                viewportEmptyState.AddToClassList("clip-editor__viewport-empty-overlay");
 
                 // The overlay sits over the whole frame; without Ignore it eats camera drags and
                 // the gizmo rail's clicks that land on top of it.
@@ -2622,11 +2637,7 @@ namespace DotsAnimationToolkit.Editor
                     "clip-editor-viewport-empty-clip", "No clip selected",
                     "Pick a clip in the list on the left, or create one, to preview and key it.",
                     null, null);
-                clipEditorViewportEmptyState.style.position = Position.Absolute;
-                clipEditorViewportEmptyState.style.left = 0f;
-                clipEditorViewportEmptyState.style.right = 0f;
-                clipEditorViewportEmptyState.style.top = 0f;
-                clipEditorViewportEmptyState.style.bottom = 0f;
+                clipEditorViewportEmptyState.AddToClassList("clip-editor__viewport-empty-overlay");
                 clipEditorViewportEmptyState.style.display = DisplayStyle.None;
                 clipEditorViewportEmptyState.pickingMode = PickingMode.Ignore;
                 viewportFrame.Add(clipEditorViewportEmptyState);
@@ -4646,8 +4657,8 @@ namespace DotsAnimationToolkit.Editor
         private static string DescribeTagCarry(
             int movedTrackCount, int mergedTrackCount, int refusedTrackCount, int touchedClipCount)
         {
-            string message = "Moved " + (movedTrackCount + mergedTrackCount).ToString()
-                + " row(s) in " + touchedClipCount.ToString() + " clip(s) to the new tag.";
+            string message = "Moved " + Pluralize(movedTrackCount + mergedTrackCount, "row", "rows")
+                + " in " + Pluralize(touchedClipCount, "clip", "clips") + " to the new tag.";
             if (mergedTrackCount > 0)
             {
                 message += "\n" + mergedTrackCount.ToString()
@@ -4655,8 +4666,8 @@ namespace DotsAnimationToolkit.Editor
             }
             if (refusedTrackCount > 0)
             {
-                message += "\n" + refusedTrackCount.ToString()
-                    + " flipbook row(s) stayed put — different frame settings.";
+                message += "\n" + Pluralize(refusedTrackCount, "flipbook row", "flipbook rows")
+                    + " stayed put — different frame settings.";
             }
             return message;
         }

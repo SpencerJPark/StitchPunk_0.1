@@ -52,7 +52,7 @@ namespace DotsAnimationToolkit.Editor
 
             // report is never read or dereferenced: verification calls this method with null.
             StringBuilder builder = new StringBuilder();
-            builder.Append("Player build stopped: " + messages.Count + " animation name error(s) in actor profiles. Fix each profile, or turn off 'Fail player builds on profile name errors' in Project Settings > DOTS Animation Toolkit > Animation Names.");
+            builder.Append("Player build stopped: " + messages.Count + (messages.Count == 1 ? " animation name error" : " animation name errors") + " in actor profiles. Fix each profile, or turn off 'Fail player builds on profile name errors' in Project Settings > DOTS Animation Toolkit > Animation Names.");
 
             for (int messageIndex = 0; messageIndex < messages.Count; messageIndex++)
             {

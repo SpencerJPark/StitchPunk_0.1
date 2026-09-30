@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement noSelectionHintLabel;
         private VisualElement editorContent;
         private TextField rigNameField;
-        private PathPickerRowElement rigFolderRow;
+        private TextField rigFolderField;
         private ObjectField sourcePrefabField;
         private Label candidateSummaryLabel;
         private Label targetsCountBadge;
@@ -238,7 +238,7 @@ namespace DotsAnimationToolkit.Editor
             saveLocation.FallbackFolder = rigs.Count > 0
                 ? System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(rigs[0])).Replace('\\', '/')
                 : "Assets";
-            rigFolderRow.Path = saveLocation.Recall();
+            rigFolderField.SetValueWithoutNotify(saveLocation.Recall());
 
             catalog.SetRigs(rigs);
         }
@@ -276,7 +276,7 @@ namespace DotsAnimationToolkit.Editor
 
             editorContent = new VisualElement { name = "rig-editor-content" };
 
-            rigNameField = new TextField("Name") { name = "rig-name-field" };
+            rigNameField = new TextField { name = "rig-name-field" };
             // Commit on blur/Enter, not on every keystroke — renaming an asset per character
             // would create a file operation per letter.
             rigNameField.RegisterCallback<FocusOutEvent>(focusOutEvent => CommitRigNameChange());
@@ -287,18 +287,23 @@ namespace DotsAnimationToolkit.Editor
                     CommitRigNameChange();
                 }
             });
-            editorContent.Add(rigNameField);
+            editorContent.Add(ToolkitChrome.MakePropertyRow("Name", rigNameField, "The rig asset's name."));
 
-            rigFolderRow = new PathPickerRowElement(
-                "Folder", "Where the next New rig is created. Does not move the selected rig.")
-            {
-                name = "rig-folder-row",
-                Path = saveLocation.Recall()
-            };
-            rigFolderRow.BrowseRequested += OnRigFolderButtonClicked;
-            editorContent.Add(rigFolderRow);
+            // A read-only TextField so the folder text shares the Name field's inner padding and column.
+            const string folderTooltip = "Where the next New rig is created. Does not move the selected rig.";
+            rigFolderField = new TextField { name = "rig-folder-field", isReadOnly = true, tooltip = folderTooltip };
+            rigFolderField.SetValueWithoutNotify(saveLocation.Recall());
+            rigFolderField.AddToClassList("rigs-folder-field");
+            Button rigFolderBrowseButton = ToolkitChrome.MakeIconSquare(
+                OnRigFolderButtonClicked, "FolderOpened Icon", folderTooltip);
+            rigFolderBrowseButton.name = "rig-folder-browse-button";
+            VisualElement rigFolderFieldGroup = new VisualElement { name = "rig-folder-row" };
+            rigFolderFieldGroup.AddToClassList("rigs-folder-field-group");
+            rigFolderFieldGroup.Add(rigFolderField);
+            rigFolderFieldGroup.Add(rigFolderBrowseButton);
+            editorContent.Add(ToolkitChrome.MakePropertyRow("Folder", rigFolderFieldGroup, folderTooltip));
 
-            sourcePrefabField = new ObjectField("Source Prefab")
+            sourcePrefabField = new ObjectField
             {
                 name = "rig-source-prefab-field",
                 objectType = typeof(GameObject),
@@ -322,7 +327,8 @@ namespace DotsAnimationToolkit.Editor
                     RaiseRigTargetsChanged();
                 }
             });
-            editorContent.Add(sourcePrefabField);
+            editorContent.Add(ToolkitChrome.MakePropertyRow(
+                "Source Prefab", sourcePrefabField, sourcePrefabField.tooltip));
 
             VisualElement targetsHeader = ToolkitChrome.MakePaneHeader(
                 "Targets", out _, out VisualElement targetsHeaderActions);
@@ -682,19 +688,24 @@ namespace DotsAnimationToolkit.Editor
                 }
             }
 
-            targetsCountBadge.text = candidateRows.Count.ToString();
-            candidateSummaryLabel.text = tickedTargetCount + " of " + candidateRows.Count
-                + " nodes are targets in \"" + rig.name + "\". Tick a node to animate it.";
+            targetsCountBadge.text = tickedTargetCount + " / " + candidateRows.Count;
+            candidateSummaryLabel.text = "Tick a node to animate it.";
         }
 
         private void BuildCandidateRow(RigTargetRow sourceRow, bool ticked)
         {
-            string rowTitleText = sourceRow.SourceNodePath;
+            int lastSeparatorIndex = sourceRow.SourceNodePath != null
+                ? sourceRow.SourceNodePath.LastIndexOf('/')
+                : -1;
+            string nodeNameText = lastSeparatorIndex >= 0
+                ? sourceRow.SourceNodePath.Substring(lastSeparatorIndex + 1)
+                : sourceRow.SourceNodePath;
+            string rowTitleText = nodeNameText;
             if (sourceRow.IsMissingNode)
             {
                 rowTitleText = string.IsNullOrEmpty(sourceRow.SourceNodePath)
                     ? "⚠ " + sourceRow.DisplayName + " (no node)"
-                    : "⚠ " + sourceRow.SourceNodePath + " (missing from prefab)";
+                    : "⚠ " + nodeNameText + " (missing from prefab)";
             }
 
             // SG-D6's order is checkbox first, then the node name. A Toggle built WITH label text
@@ -712,18 +723,21 @@ namespace DotsAnimationToolkit.Editor
             // only while the row is ticked so an untargeted node stays a plain checkbox + name.
             Button rowKindChip = new Button();
             rowKindChip.AddToClassList("toolkit-badge");
-            ToolkitChrome.StyleButton(rowKindChip, ToolkitButtonVariant.Ghost);
+            rowKindChip.AddToClassList("toolkit-badge--neutral");
+            rowKindChip.AddToClassList("rigs-target-chip");
             rowKindChip.tooltip = "Change how this target is drawn at runtime.";
             rowKindChip.style.display = ticked ? DisplayStyle.Flex : DisplayStyle.None;
 
             Button rowTagChip = new Button();
             rowTagChip.AddToClassList("toolkit-badge");
-            ToolkitChrome.StyleButton(rowTagChip, ToolkitButtonVariant.Ghost);
+            rowTagChip.AddToClassList("toolkit-badge--neutral");
+            rowTagChip.AddToClassList("rigs-target-chip");
             rowTagChip.tooltip = "Change the vocabulary tag clips bind to on this target.";
             rowTagChip.style.display = ticked ? DisplayStyle.Flex : DisplayStyle.None;
 
             VisualElement candidateRow = new VisualElement();
             candidateRow.AddToClassList("toolkit-list-row");
+            candidateRow.AddToClassList("rigs-target-row");
             // The visible label ellipsizes a deep node path; the tooltip carries the full path.
             candidateRow.tooltip = sourceRow.SourceNodePath;
             candidateRow.Add(rowToggle);
@@ -971,7 +985,7 @@ namespace DotsAnimationToolkit.Editor
                 pickedAbsoluteFolder, projectAssetsAbsolutePath, out projectRelativeFolder))
             {
                 saveLocation.Remember(projectRelativeFolder);
-                rigFolderRow.Path = projectRelativeFolder;
+                rigFolderField.SetValueWithoutNotify(projectRelativeFolder);
             }
             else
             {

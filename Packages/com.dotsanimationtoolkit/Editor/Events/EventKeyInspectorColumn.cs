@@ -20,18 +20,21 @@ namespace DotsAnimationToolkit.Editor
         public event Action NewEventKeyRequested;
 
         private readonly VisualElement bodyContainer;
+        private readonly Label paneTitleLabel;
+        private readonly VisualElement headerBadgeHost;
         private VisualElement payloadPreviewSection;
 
         public EventKeyInspectorColumn()
         {
             name = "events-inspector-column";
-            style.paddingTop = 8f;
-            style.paddingLeft = 10f;
-            style.paddingRight = 10f;
+            AddToClassList("toolkit-column");
             style.flexGrow = 1f;
 
+            Add(ToolkitChrome.MakePaneHeader("Event key", out paneTitleLabel, out headerBadgeHost));
+            headerBadgeHost.name = "events-inspector-header-badges";
+
             bodyContainer = new VisualElement { name = "events-inspector-body" };
-            bodyContainer.style.flexGrow = 1f;
+            bodyContainer.AddToClassList("events-inspector-body");
             Add(bodyContainer);
         }
 
@@ -46,9 +49,11 @@ namespace DotsAnimationToolkit.Editor
         private void RebuildBody()
         {
             bodyContainer.Clear();
+            headerBadgeHost.Clear();
 
             if (BoundEntry == null)
             {
+                paneTitleLabel.text = "Event key";
                 bodyContainer.Add(ToolkitChrome.MakeEmptyState(
                     "events-inspector-empty",
                     "No event selected",
@@ -58,17 +63,16 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            VisualElement header = new VisualElement();
-            header.AddToClassList("toolkit-pane-header");
-            Label titleLabel = new Label(BoundEntry.name);
-            titleLabel.AddToClassList("toolkit-pane-title");
-            header.Add(titleLabel);
-            bool isMaskable = AnimEventMaskKeys.IsMaskable(BoundEntry.eventKey);
-            string maskability = isMaskable ? "maskable" : "pulse-only";
-            Label kindBadge = ToolkitChrome.MakeBadge(BoundEntry.eventKey.ToString() + " · " + maskability, ToolkitStatusTone.Neutral);
-            kindBadge.tooltip = "event key " + BoundEntry.eventKey.ToString() + ", " + maskability;
-            header.Add(kindBadge);
-            bodyContainer.Add(header);
+            paneTitleLabel.text = string.IsNullOrEmpty(BoundEntry.name) ? "(unnamed)" : BoundEntry.name;
+            Label idBadge = ToolkitChrome.MakeBadge("#" + BoundEntry.eventKey.ToString(), ToolkitStatusTone.Neutral);
+            idBadge.tooltip = "Event key id " + BoundEntry.eventKey.ToString();
+            headerBadgeHost.Add(idBadge);
+            if (!AnimEventMaskKeys.IsMaskable(BoundEntry.eventKey))
+            {
+                Label pulseOnlyBadge = ToolkitChrome.MakeBadge("pulse-only", ToolkitStatusTone.Warning);
+                pulseOnlyBadge.tooltip = "Past the maskable budget: this key fires once and cannot hold a window open.";
+                headerBadgeHost.Add(pulseOnlyBadge);
+            }
 
             TextField nameField = new TextField() { isDelayed = true, value = BoundEntry.name };
             nameField.RegisterValueChangedCallback(changeEvent =>

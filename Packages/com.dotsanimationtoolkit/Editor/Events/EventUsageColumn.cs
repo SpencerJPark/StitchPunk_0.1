@@ -55,13 +55,10 @@ namespace DotsAnimationToolkit.Editor
             if (BoundEventKey == 0u)
             {
                 usageCountBadge.style.display = DisplayStyle.None;
-                usageScrollView.Add(ToolkitChrome.MakeEmptyState(
-                    "event-usage-empty",
-                    "No event selected",
-                    "Select a key in the Keys column to list the clips and cutscenes that fire it.",
-                    // No action here: this pane is driven entirely by the Keys column's selection, not something the user can act on directly.
-                    null,
-                    null));
+                // One designed empty state lives in the inspector column; this pane only hints.
+                Label selectKeyHint = ToolkitChrome.MakeHint("Select a key to see what fires it.");
+                selectKeyHint.name = "event-usage-empty-hint";
+                usageScrollView.Add(selectKeyHint);
                 return;
             }
 

@@ -354,8 +354,8 @@ namespace DotsAnimationToolkit.Editor
             int clipCount = AnimEventBindingUtility.CountBoundClips(entry);
 
             string question = markerCount > 0
-                ? "Delete event " + entryLabel + "?\n\n" + markerCount + " marker(s) across "
-                    + clipCount + " clip(s) use it and will show as an unresolved key the moment "
+                ? "Delete event " + entryLabel + "?\n\n" + markerCount + (markerCount == 1 ? " marker" : " markers") + " across "
+                    + clipCount + (clipCount == 1 ? " clip uses" : " clips use") + " it and will show as an unresolved key the moment "
                     + "it is gone."
                 : "Delete event " + entryLabel + "? Nothing currently uses it.";
 

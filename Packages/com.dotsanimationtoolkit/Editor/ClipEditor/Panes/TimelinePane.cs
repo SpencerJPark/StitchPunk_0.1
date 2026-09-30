@@ -12,6 +12,11 @@ namespace DotsAnimationToolkit.Editor
     /// <summary>The Timeline pane: the ruler, the playhead, the track lanes and their headers, key drags, box select, the keyboard map, events and sorting; the view (zoom and pan) lives in its View partial, and every clip write goes back through the window's undo and commit delegates.</summary>
     public sealed partial class TimelinePane : VisualElement, System.IDisposable
     {
+        private static string Pluralize(int count, string singular, string plural)
+        {
+            return count.ToString() + " " + (count == 1 ? singular : plural);
+        }
+
         /// <summary>
         /// Where a dragged track-name column width is remembered. Alongside the split positions and
         /// keyed the same way, for the same reason: it is a habit of the person, not of the project.
@@ -503,10 +508,17 @@ namespace DotsAnimationToolkit.Editor
             // appeared" needs an answer on screen rather than in the source.
             int keylessTrackCount = 0;
 
-            statusLabel.text = session.SelectedClip.name
-                + "   duration " + session.SelectedClip.duration.ToString("0.###") + "s"
-                + "   loop " + session.SelectedClip.defaultLoop.ToString()
-                + "   selected " + session.SelectedKeys.Count.ToString();
+            int selectedKeyCount = session.SelectedKeys.Count;
+            string selectedKeySuffix = selectedKeyCount == 0
+                ? string.Empty
+                : "  ·  " + selectedKeyCount.ToString() + (selectedKeyCount == 1 ? " key selected" : " keys selected");
+            ToolkitChrome.SetStatus(
+                statusLabel,
+                session.SelectedClip.name
+                    + "  ·  " + session.SelectedClip.duration.ToString("0.00") + " s"
+                    + "  ·  " + session.SelectedClip.defaultLoop.ToString()
+                    + selectedKeySuffix,
+                ToolkitStatusTone.Neutral);
 
             ruler.durationSeconds = session.SelectedClip.duration;
             ruler.frameCount = TransportFrameCount;
@@ -637,14 +649,14 @@ namespace DotsAnimationToolkit.Editor
             {
                 statusLabel.text += "   ·   focused on " + DescribeSelection()
                     + (hiddenTrackCount > 0
-                        ? " (" + hiddenTrackCount.ToString() + " track(s) hidden — deselect to show all)"
+                        ? " (" + Pluralize(hiddenTrackCount, "track", "tracks") + " hidden — deselect to show all)"
                         : string.Empty);
             }
 
             if (keylessTrackCount > 0)
             {
-                statusLabel.text += "   ·   " + keylessTrackCount.ToString()
-                    + " track(s) with no keys — select the part and press Key to start one";
+                statusLabel.text += "   ·   " + Pluralize(keylessTrackCount, "track", "tracks")
+                    + " with no keys — select the part and press Key to start one";
             }
 
             timelineRowCount = rowIndex;
@@ -734,7 +746,7 @@ namespace DotsAnimationToolkit.Editor
                 headerLabel.AddToClassList(TrackHeaderLabelUssClassName);
                 headerLabel.tooltip = "Imported from '" + sourceClip.name + "' — read only."
                     + (lane.keysPastClipEnd > 0
-                        ? "\n" + lane.keysPastClipEnd.ToString() + " key(s) past the clip's duration never play."
+                        ? "\n" + Pluralize(lane.keysPastClipEnd, "key", "keys") + " past the clip's duration never play."
                         : string.Empty);
                 headerRow.Add(headerLabel);
                 trackHeaderColumn.Add(headerRow);
@@ -1355,7 +1367,7 @@ namespace DotsAnimationToolkit.Editor
             string range = normalizedTime < 0f || normalizedTime > 1f ? "   (outside clip)" : string.Empty;
             statusLabel.text = "Frame " + frame.ToString("0.##")
                 + "   " + (normalizedTime * session.SelectedClip.duration).ToString("0.###") + "s"
-                + "   " + session.SelectedKeys.Count.ToString() + " key(s)" + range;
+                + "   " + Pluralize(session.SelectedKeys.Count, "key", "keys") + range;
         }
 
         // Driven by a scheduler, not pointer movement: the case that matters is the pointer held
@@ -1720,8 +1732,8 @@ namespace DotsAnimationToolkit.Editor
             // Said out loud because copy is the one half of the pair with nothing on screen to show
             // for it. Silence after Ctrl+C is indistinguishable from a shortcut that did not fire.
             ShowNotification(new GUIContent(
-                "Copied " + ClipKeyClipboard.KeyCount.ToString() + " key(s) from "
-                + ClipKeyClipboard.ObjectCount.ToString() + " object(s)"));
+                "Copied " + Pluralize(ClipKeyClipboard.KeyCount, "key", "keys") + " from "
+                + Pluralize(ClipKeyClipboard.ObjectCount, "object", "objects")));
         }
 
         /// <summary>Pastes the clipboard onto the selected objects, anchored at the playhead.</summary>
@@ -1788,11 +1800,10 @@ namespace DotsAnimationToolkit.Editor
                 return "Nothing pasted — the clipboard's components could not be placed here.";
             }
 
-            string described = "Pasted " + pasteResult.keyCount.ToString() + " key(s)";
+            string described = "Pasted " + Pluralize(pasteResult.keyCount, "key", "keys");
             if (pasteResult.addedComponentCount > 0)
             {
-                described += ", added " + pasteResult.addedComponentCount.ToString()
-                    + " component(s)";
+                described += ", added " + Pluralize(pasteResult.addedComponentCount, "component", "components");
             }
             if (pasteResult.droppedKeyCount > 0)
             {
@@ -2199,8 +2210,8 @@ namespace DotsAnimationToolkit.Editor
 
             bool confirmed = EditorUtility.DisplayDialog(
                 "Delete Event Lane",
-                "Delete lane '" + laneLabel + "'?\n\n" + flatIndices.Count
-                    + " marker(s) on it will be removed.",
+                "Delete lane '" + laneLabel + "'?\n\n" + Pluralize(flatIndices.Count, "marker", "markers")
+                    + " on it will be removed.",
                 "Delete", "Cancel");
             if (!confirmed)
             {

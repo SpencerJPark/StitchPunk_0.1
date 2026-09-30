@@ -46,7 +46,7 @@ namespace DotsAnimationToolkit.Editor
                 finding.severity = HealthSeverity.Error;
                 finding.code = HealthFinding.StaleOrUnbakedVatSetCode;
                 finding.message = message;
-                finding.title = isUnbaked ? "VAT bake is not baked yet" : "VAT bake is stale";
+                finding.title = isUnbaked ? "Clip set has no VAT bake" : "VAT bake is stale";
                 finding.detail = isUnbaked
                     ? "Actors using this clip set play no motion at runtime, with no run-time error."
                     : "Actors using this clip set play old motion at runtime, with no run-time error. Rebake after editing clips or the rig.";

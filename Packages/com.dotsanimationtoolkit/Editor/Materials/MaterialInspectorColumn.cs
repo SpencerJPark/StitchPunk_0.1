@@ -15,7 +15,8 @@ namespace DotsAnimationToolkit.Editor
         public RigMaterialUsage BoundUsage { get; private set; }
         public ClipSetAsset BoundClipSet { get; private set; }
 
-        private readonly Label hintLabel;
+        private readonly Label titleLabel;
+        private readonly VisualElement emptyState;
         private readonly Button selectButton;
         private readonly ScrollView bodyScrollView;
 
@@ -26,26 +27,29 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement header = new VisualElement();
             header.AddToClassList("toolkit-pane-header");
-            Label titleLabel = new Label("Material") { name = "material-inspector-title" };
+            titleLabel = new Label("Material") { name = "material-inspector-title" };
             titleLabel.AddToClassList("toolkit-pane-title");
             header.Add(titleLabel);
 
             VisualElement actions = new VisualElement();
             actions.AddToClassList("toolkit-pane-actions");
-            selectButton = ToolkitIcons.MakeIconTextButton(
+            selectButton = ToolkitChrome.MakeGhostAction(
                 SelectBoundMaterial,
-                "d_UnityEditor.InspectorWindow",
-                "Select this material in the Inspector",
-                "Inspector");
+                ToolkitIcons.Frame,
+                "Select this material in the Project and Inspector",
+                "Select");
             selectButton.name = "material-inspector-select";
-            ToolkitChrome.StyleButton(selectButton, ToolkitButtonVariant.Ghost);
             actions.Add(selectButton);
             header.Add(actions);
             Add(header);
 
-            hintLabel = new Label("Pick a material on the left.") { name = "material-inspector-hint" };
-            hintLabel.AddToClassList("toolkit-hint");
-            Add(hintLabel);
+            emptyState = ToolkitChrome.MakeEmptyState(
+                "material-inspector-hint",
+                "No material selected",
+                "Pick a material on the left to see its shader, users and contract.",
+                null,
+                null);
+            Add(emptyState);
 
             bodyScrollView = new ScrollView();
             bodyScrollView.style.flexGrow = 1f;
@@ -77,13 +81,15 @@ namespace DotsAnimationToolkit.Editor
             Material material = BoundUsage != null ? BoundUsage.Material : null;
             if (BoundUsage == null || material == null)
             {
-                hintLabel.style.display = DisplayStyle.Flex;
+                titleLabel.text = "Material";
+                emptyState.style.display = DisplayStyle.Flex;
                 bodyScrollView.style.display = DisplayStyle.None;
                 selectButton.SetEnabled(false);
                 return;
             }
 
-            hintLabel.style.display = DisplayStyle.None;
+            titleLabel.text = material.name;
+            emptyState.style.display = DisplayStyle.None;
             bodyScrollView.style.display = DisplayStyle.Flex;
             selectButton.SetEnabled(true);
 
@@ -96,8 +102,7 @@ namespace DotsAnimationToolkit.Editor
                 out shaderCardHeaderActions);
             shaderCard.style.flexShrink = 0f;
 
-            shaderCardBody.Add(ToolkitChrome.MakeHint("The shader this material uses and whether GPU instancing is on."));
-            Label shaderValueLabel =new Label(material.shader != null ? material.shader.name : "no shader") { name = "material-inspector-shader" };
+            Label shaderValueLabel = new Label(material.shader != null ? material.shader.name : "no shader") { name = "material-inspector-shader" };
             shaderCardBody.Add(ToolkitChrome.MakePropertyRow("Shader", shaderValueLabel, null));
 
             bool isInstancingEnabled = material.enableInstancing;
@@ -110,7 +115,7 @@ namespace DotsAnimationToolkit.Editor
                 instancingBadge.tooltip = "Entities Graphics needs it on";
             }
 
-            shaderCardBody.Add(instancingBadge);
+            shaderCardBody.Add(ToolkitChrome.MakePropertyRow("Instancing", instancingBadge, "Whether GPU instancing is on for this material."));
 
             bodyScrollView.Add(shaderCard);
 
@@ -123,7 +128,6 @@ namespace DotsAnimationToolkit.Editor
                 out usageCardHeaderActions);
             usageCard.style.flexShrink = 0f;
 
-            usageCardBody.Add(ToolkitChrome.MakeHint("Which rig targets use this material, and what kind of part each is."));
             List<RigTargetDefinition> targets = BoundUsage.Targets;
             string usedByText = targets != null && targets.Count > 0
                 ? string.Join(", ", targets.Select(target => target.displayName))
@@ -149,9 +153,8 @@ namespace DotsAnimationToolkit.Editor
 
             if (distinctKindsInEnumOrder.Count == 0 && BoundUsage.UnmappedNodePaths != null && BoundUsage.UnmappedNodePaths.Count > 0)
             {
-                Label unmappedHint = new Label("Unmapped: " + string.Join(", ", BoundUsage.UnmappedNodePaths));
-                unmappedHint.AddToClassList("toolkit-hint");
-                usageCardBody.Add(unmappedHint);
+                Label unmappedValueLabel = new Label(string.Join(", ", BoundUsage.UnmappedNodePaths));
+                usageCardBody.Add(ToolkitChrome.MakePropertyRow("Unmapped", unmappedValueLabel, "Nodes using this material that no rig target maps."));
             }
 
             bodyScrollView.Add(usageCard);
@@ -166,9 +169,6 @@ namespace DotsAnimationToolkit.Editor
                     out contractCardBody,
                     out contractCardHeaderActions);
                 contractCard.style.flexShrink = 0f;
-
-                contractCardBody.Add(ToolkitChrome.MakeHint(
-                    "The shader properties the toolkit writes per frame for this part kind."));
 
                 bool hasSeveralKinds = distinctKindsInEnumOrder.Count > 1;
                 int listedPropertyCount = 0;
@@ -199,10 +199,11 @@ namespace DotsAnimationToolkit.Editor
 
                 if (listedPropertyCount == 0)
                 {
-                    contractCardBody.Add(ToolkitChrome.MakeHint(
-                        "Nothing to check: this part kind drives no per-instance shader property "
-                        + "(only Flipbook needs _ImageIndex or _AtlasFrame; VAT needs _VatFrameA, _VatFrameB and _VatBlend). "
-                        + "This shader is fine as it is."));
+                    VisualElement noPropertiesRow = ToolkitChrome.MakeBadgeRow("material-inspector-contract-ok");
+                    noPropertiesRow.Add(ToolkitChrome.MakeBadge("No per-frame properties", ToolkitStatusTone.Ok));
+                    Label needsHint = ToolkitChrome.MakeHint("Only Flipbook (_ImageIndex) and VAT (_VatFrameA/B, _VatBlend) parts need any.");
+                    noPropertiesRow.Add(needsHint);
+                    contractCardBody.Add(noPropertiesRow);
                 }
 
                 bodyScrollView.Add(contractCard);

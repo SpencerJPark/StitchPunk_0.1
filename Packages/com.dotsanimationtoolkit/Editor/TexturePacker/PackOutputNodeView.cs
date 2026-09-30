@@ -42,6 +42,7 @@ namespace DotsAnimationToolkit.Editor
             titleContainer.AddToClassList("toolkit-card__header");
 
             Label outputBadge = ToolkitChrome.MakeBadge("PNG", ToolkitStatusTone.Neutral);
+            outputBadge.AddToClassList("texture-packer-output-badge");
             outputBadge.tooltip = "The packed texture this node writes to disk.";
             titleContainer.Add(outputBadge);
 
@@ -53,10 +54,9 @@ namespace DotsAnimationToolkit.Editor
                 inputContainer.Add(BuildChannelRow(channelIndex));
             }
 
-            resolutionField = new Vector2IntField("Size");
+            resolutionField = new Vector2IntField();
             resolutionField.value = new Vector2Int(1024, 1024);
-            resolutionField.style.flexGrow = 1f;
-            resolutionField.style.minWidth = 132f;
+            resolutionField.AddToClassList("texture-packer-output-value");
             resolutionField.RegisterValueChangedCallback(changeEvent =>
             {
                 Vector2Int clamped = new Vector2Int(Mathf.Max(1, changeEvent.newValue.x), Mathf.Max(1, changeEvent.newValue.y));
@@ -70,37 +70,37 @@ namespace DotsAnimationToolkit.Editor
             Button presetsButton = new Button();
             presetsButton.name = "output-presets-button";
             presetsButton.text = "Presets ▾";
-            presetsButton.style.marginLeft = 4f;
+            presetsButton.AddToClassList("texture-packer-output-presets");
             presetsButton.clicked += () => OpenPresetsMenu(presetsButton);
 
-            VisualElement sizeRow = new VisualElement();
-            sizeRow.style.flexDirection = FlexDirection.Row;
-            sizeRow.style.alignItems = Align.Center;
-            sizeRow.style.marginTop = 6f;
+            VisualElement sizeRow = MakeBodyRow("Size");
+            sizeRow.AddToClassList("texture-packer-output-row--first");
             sizeRow.Add(resolutionField);
             sizeRow.Add(presetsButton);
             extensionContainer.Add(sizeRow);
 
-            previewChannelField = new EnumField("View", PackPreviewChannel.RGB);
+            previewChannelField = new EnumField(PackPreviewChannel.RGB);
+            previewChannelField.AddToClassList("texture-packer-output-value");
             previewChannelField.RegisterValueChangedCallback(changeEvent => SettingsChanged?.Invoke());
-            extensionContainer.Add(previewChannelField);
+            VisualElement viewRow = MakeBodyRow("View");
+            viewRow.Add(previewChannelField);
+            extensionContainer.Add(viewRow);
+
+            outputPathLabel = new Label();
+            outputPathLabel.AddToClassList("texture-packer-output-value");
+            outputPathLabel.AddToClassList("texture-packer-output-path");
+            VisualElement outputRow = MakeBodyRow("Output");
+            outputRow.Add(outputPathLabel);
+            extensionContainer.Add(outputRow);
+            SetOutputPathLabel(null);
 
             previewImage = new Image();
             previewImage.scaleMode = ScaleMode.ScaleToFit;
             previewImage.style.width = PreviewSize;
             previewImage.style.height = PreviewSize;
-            previewImage.style.alignSelf = Align.Center;
-            previewImage.style.marginTop = 4f;
+            previewImage.AddToClassList("texture-packer-output-preview");
+            SetDisplayed(previewImage, false);
             extensionContainer.Add(previewImage);
-
-            outputPathLabel = new Label("(no output path chosen)");
-            outputPathLabel.style.fontSize = 9;
-            outputPathLabel.style.opacity = 0.7f;
-            outputPathLabel.style.whiteSpace = WhiteSpace.Normal;
-            outputPathLabel.style.maxWidth = PreviewSize + 60f;
-            outputPathLabel.style.marginTop = 4f;
-            outputPathLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
-            extensionContainer.Add(outputPathLabel);
 
             RefreshExpandedState();
             RefreshPorts();
@@ -110,8 +110,12 @@ namespace DotsAnimationToolkit.Editor
         private VisualElement BuildChannelRow(int channelIndex)
         {
             VisualElement row = new VisualElement();
-            row.style.flexDirection = FlexDirection.Row;
-            row.style.alignItems = Align.Center;
+            row.AddToClassList("texture-packer-output-row");
+
+            VisualElement labelColumn = new VisualElement();
+            labelColumn.AddToClassList("texture-packer-output-label");
+            labelColumn.AddToClassList("texture-packer-output-channel-label");
+            row.Add(labelColumn);
 
             Port channelPort = TexturePackPortBuilder.MakePort(
                 this,
@@ -120,27 +124,20 @@ namespace DotsAnimationToolkit.Editor
                 PackChannelIndex.Names[channelIndex],
                 PackChannelIndex.PortColors[channelIndex]);
             channelPorts[channelIndex] = channelPort;
-            row.Add(channelPort);
+            labelColumn.Add(channelPort);
 
-            Toggle invertToggle = new Toggle();
-            invertToggle.tooltip = "Invert the sampled values of this channel (255 - value).";
-            invertToggle.style.marginLeft = 2f;
+            Toggle invertToggle = new Toggle("inv");
+            invertToggle.tooltip = "Invert channel (255 - value).";
+            invertToggle.AddToClassList("texture-packer-output-invert");
             invertToggle.RegisterValueChangedCallback(changeEvent => SettingsChanged?.Invoke());
             invertToggles[channelIndex] = invertToggle;
             row.Add(invertToggle);
-
-            Label invertLabel = new Label("inv");
-            invertLabel.style.fontSize = 9;
-            invertLabel.style.opacity = 0.7f;
-            invertLabel.style.marginRight = 4f;
-            invertLabel.tooltip = invertToggle.tooltip;
-            row.Add(invertLabel);
 
             Slider defaultSlider = new Slider(0f, 1f);
             defaultSlider.showInputField = true;
             defaultSlider.value = channelIndex == PackChannelIndex.Alpha ? 1f : 0f;
             defaultSlider.tooltip = "Flat value written to this channel while nothing is wired in.";
-            defaultSlider.style.width = 110f;
+            defaultSlider.AddToClassList("texture-packer-output-value");
             defaultSlider.RegisterValueChangedCallback(changeEvent => SettingsChanged?.Invoke());
             defaultSliders[channelIndex] = defaultSlider;
             row.Add(defaultSlider);
@@ -148,6 +145,16 @@ namespace DotsAnimationToolkit.Editor
             row.RegisterCallback<DragUpdatedEvent>(dragEvent => OnChannelRowDragUpdated());
             row.RegisterCallback<DragPerformEvent>(dragEvent => OnChannelRowDragPerform(channelIndex, dragEvent));
 
+            return row;
+        }
+
+        private static VisualElement MakeBodyRow(string labelText)
+        {
+            VisualElement row = new VisualElement();
+            row.AddToClassList("texture-packer-output-row");
+            Label label = new Label(labelText);
+            label.AddToClassList("texture-packer-output-label");
+            row.Add(label);
             return row;
         }
 
@@ -230,7 +237,10 @@ namespace DotsAnimationToolkit.Editor
 
         public void SetOutputPathLabel(string outputAssetPath)
         {
-            outputPathLabel.text = string.IsNullOrEmpty(outputAssetPath) ? "(no output path chosen)" : outputAssetPath;
+            bool hasPath = !string.IsNullOrEmpty(outputAssetPath);
+            outputPathLabel.text = hasPath ? outputAssetPath : "Not chosen";
+            outputPathLabel.tooltip = hasPath ? outputAssetPath : string.Empty;
+            outputPathLabel.EnableInClassList("texture-packer-output-path--empty", !hasPath);
         }
 
         // Takes ownership of the preview texture and destroys the one it replaces.
@@ -242,6 +252,7 @@ namespace DotsAnimationToolkit.Editor
             }
             previewTexture = newPreviewTexture;
             previewImage.image = previewTexture;
+            SetDisplayed(previewImage, previewTexture != null);
         }
 
         public void DisposePreviewTexture()

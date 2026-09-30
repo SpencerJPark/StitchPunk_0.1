@@ -231,7 +231,7 @@ namespace DotsAnimationToolkit.Editor
                 + TargetTagBindingUtility.CountTrackBindings(entry);
 
             string question = bindingCount > 0
-                ? "Delete tag " + entryLabel + "?\n\n" + bindingCount + " binding(s) use it and " +
+                ? "Delete tag " + entryLabel + "?\n\n" + bindingCount + (bindingCount == 1 ? " binding uses" : " bindings use") + " it and " +
                     "will fail validation the moment it is gone."
                 : "Delete tag " + entryLabel + "? Nothing currently binds to it.";
 
@@ -291,7 +291,7 @@ namespace DotsAnimationToolkit.Editor
                 findingsContainer.Add(MakeNote(
                     entryCount == 0
                         ? "No tags yet."
-                        : entryCount + " tag(s), all valid.",
+                        : entryCount + (entryCount == 1 ? " tag" : " tags") + ", all valid.",
                     CleanColor));
                 return;
             }

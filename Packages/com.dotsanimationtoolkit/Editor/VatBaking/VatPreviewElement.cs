@@ -127,9 +127,17 @@ namespace DotsAnimationToolkit.Editor
                 "vat-preview-empty",
                 "Nothing baked yet",
                 "Bake this clip set in the Settings column to see the baked motion play here.");
+            // The grid runs under the empty text; a backing card keeps the words readable without
+            // hiding the grid that tells the user this is a live 3D viewport.
+            VisualElement emptyStateRoot = viewportFrame.Q<VisualElement>("vat-preview-empty");
+            VisualElement emptyStateCard = new VisualElement { name = "vat-bake-empty-card" };
+            emptyStateCard.AddToClassList("vat-bake-empty-card");
+            emptyStateCard.Add(emptyStateRoot.Q<Label>(className: "toolkit-empty__title"));
+            emptyStateCard.Add(emptyStateRoot.Q<Label>(className: "toolkit-empty__why"));
+            emptyStateRoot.Add(emptyStateCard);
             Add(viewportFrame);
 
-            statusLabel = new Label("No VAT texture set to preview.");
+            statusLabel =new Label("No VAT texture set to preview.");
             statusLabel.style.whiteSpace = WhiteSpace.Normal;
             statusLabel.AddToClassList("toolkit-hint");
             statusLabel.style.marginLeft = 8f;

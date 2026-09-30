@@ -227,9 +227,7 @@ namespace DotsAnimationToolkit.Editor
 
         private void UpdateScanStatusLabel()
         {
-            int findingCount = latestFindings.Count;
-            string countLabel = findingCount == 1 ? "finding" : "findings";
-            scanStatusLabel.text = "last scan " + DateTime.Now.ToString("HH:mm") + " · " + findingCount + " " + countLabel;
+            scanStatusLabel.text = "Scanned " + DateTime.Now.ToString("HH:mm");
         }
 
         private void ApplyFilter()

@@ -93,11 +93,7 @@ namespace DotsAnimationToolkit.Editor
         private static string DescribeClipSet(ClipSetAsset clipSet)
         {
             int clipCount = clipSet != null && clipSet.clips != null ? clipSet.clips.Count : 0;
-            string assetPath = clipSet != null ? AssetDatabase.GetAssetPath(clipSet) : string.Empty;
-            string folderPath = string.IsNullOrEmpty(assetPath)
-                ? string.Empty
-                : System.IO.Path.GetDirectoryName(assetPath).Replace('\\', '/');
-            return clipCount.ToString() + " clips" + (string.IsNullOrEmpty(folderPath) ? string.Empty : " · " + folderPath);
+            return clipCount.ToString() + (clipCount == 1 ? " clip" : " clips");
         }
 
         private void RequestDeleteClipSet(ClipSetAsset targetSet)
@@ -155,7 +151,8 @@ namespace DotsAnimationToolkit.Editor
 
             editorTitleLabel = new Label();
             editorTitleLabel.name = "clip-set-editor-title";
-            editorTitleLabel.AddToClassList("toolkit-pane-title");
+            editorTitleLabel.AddToClassList("toolkit-detail-title");
+            editorTitleLabel.AddToClassList("clip-sets-detail-title");
             header.Add(editorTitleLabel);
 
             openInEditorButton = ToolkitChrome.MakePrimaryAction(
@@ -189,6 +186,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 name = "clip-set-folder-row"
             };
+            folderRow.AddToClassList("clip-sets-folder-row");
             folderRow.Path = saveLocation.Recall();
             folderRow.BrowseRequested += OnFolderButtonClicked;
 
