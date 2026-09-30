@@ -62,6 +62,10 @@ namespace DotsAnimationToolkit.Editor
         private const string CardActionsClassName = "toolkit-card__actions";
         private const string CardBodyClassName = "toolkit-card__body";
         private const string BadgeClassName = "toolkit-badge";
+        private const string IconSquareClassName = "toolkit-icon-square";
+        private const string IconSquareDestructiveClassName = "toolkit-icon-square--destructive";
+        private const string IconSquareRunClassName = "toolkit-icon-square-run";
+        private const string BadgeRowClassName = "toolkit-badge-row";
         private const string BadgeNeutralClassName = "toolkit-badge--neutral";
         private const string BadgeWarningClassName = "toolkit-badge--warning";
         private const string BadgeErrorClassName = "toolkit-badge--error";
@@ -300,7 +304,36 @@ namespace DotsAnimationToolkit.Editor
                 && (button.ClassListContains(PrimaryActionClassName)
                     || button.ClassListContains(ButtonSecondaryClassName)
                     || button.ClassListContains(ButtonGhostClassName)
-                    || button.ClassListContains(ButtonDestructiveClassName));
+                    || button.ClassListContains(ButtonDestructiveClassName)
+                    || button.ClassListContains(IconSquareClassName));
+        }
+
+        public static Button MakeIconSquare(Action onClick, string iconName, string tooltip)
+        {
+            Button iconSquare = ToolkitIcons.MakeIconButton(onClick, iconName, tooltip, "•");
+            iconSquare.AddToClassList(IconSquareClassName);
+            return iconSquare;
+        }
+
+        public static Button MakeDestructiveIconSquare(Action onClick, string iconName, string tooltip)
+        {
+            Button destructiveIconSquare = MakeIconSquare(onClick, iconName, tooltip);
+            destructiveIconSquare.AddToClassList(IconSquareDestructiveClassName);
+            return destructiveIconSquare;
+        }
+
+        public static VisualElement MakeIconSquareRun(string elementName)
+        {
+            VisualElement iconSquareRun = new VisualElement { name = elementName };
+            iconSquareRun.AddToClassList(IconSquareRunClassName);
+            return iconSquareRun;
+        }
+
+        public static VisualElement MakeBadgeRow(string elementName)
+        {
+            VisualElement badgeRow = new VisualElement { name = elementName };
+            badgeRow.AddToClassList(BadgeRowClassName);
+            return badgeRow;
         }
 
         public static void StyleButton(Button button, ToolkitButtonVariant variant)
