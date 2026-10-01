@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.Overlays;
 using UnityEditor.Toolbars;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace PlaytestCopilot.Editor
 {
@@ -19,6 +20,14 @@ namespace PlaytestCopilot.Editor
         // re-places the button once instead of keeping it where the previous version left it.
         private const string FirstRunRevealPreferenceKeyPrefix = "PlaytestCopilot.ToolbarPlaced2.";
         private const string PlayModeControlsElementPath = "Play Mode Controls";
+
+        // The class Unity puts on Play/Pause/Step. It is what paints the grouped grey background; an
+        // element without it draws on the bare toolbar and reads as a floating icon.
+        private const string ButtonStripClassName = "unity-editor-toolbar__button-strip-element";
+
+        // Unity's highlight blue, the same token the style guide uses for selection. Applied directly
+        // because checking the toggle does not tint it on its own.
+        private static readonly Color ActiveTintColor = new Color(0.173f, 0.365f, 0.529f, 1f);
         private const string ToggleTooltipText =
             "Play with Playtest Copilot capture on: records voice, state and notes for this session.";
         private const string ToggleFallbackText = "AI Play";
@@ -80,6 +89,7 @@ namespace PlaytestCopilot.Editor
             if (!shouldCapture)
             {
                 IsCaptureSessionActive = false;
+                RefreshToolbarElementChrome();
                 if (EditorApplication.isPlaying)
                 {
                     EditorApplication.ExitPlaymode();
@@ -96,6 +106,7 @@ namespace PlaytestCopilot.Editor
             }
 
             IsCaptureSessionActive = true;
+            RefreshToolbarElementChrome();
             EditorApplication.EnterPlaymode();
         }
 
@@ -105,6 +116,95 @@ namespace PlaytestCopilot.Editor
             {
                 IsCaptureSessionActive = false;
             }
+
+            RefreshToolbarElementChrome();
+        }
+
+        /// Gives the element the chrome its neighbours have, and tints it while a capture session is
+        /// running. Both have to be reapplied on every domain reload: the toolbar rebuilds the element
+        /// from the factory each time, and the factory cannot reach the VisualElement it produces.
+        public static void RefreshToolbarElementChrome()
+        {
+            try
+            {
+                VisualElement toggleElement = FindToolbarToggleElement();
+                if (toggleElement == null)
+                {
+                    return;
+                }
+
+                if (!toggleElement.ClassListContains(ButtonStripClassName))
+                {
+                    toggleElement.AddToClassList(ButtonStripClassName);
+                }
+
+                bool isActive = IsCaptureSessionActive;
+                toggleElement.style.backgroundColor = isActive
+                    ? new StyleColor(ActiveTintColor)
+                    : new StyleColor(StyleKeyword.Null);
+            }
+            catch (Exception)
+            {
+                // Toolbar internals are not public API; a rename must cost the tint, not an exception
+                // on every domain reload.
+            }
+        }
+
+        private static VisualElement FindToolbarToggleElement()
+        {
+            MethodInfo windowGetter = typeof(MainToolbar).GetMethod(
+                "get_window", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            if (windowGetter == null)
+            {
+                return null;
+            }
+
+            EditorWindow toolbarWindow = windowGetter.Invoke(null, null) as EditorWindow;
+            if (toolbarWindow == null || toolbarWindow.rootVisualElement == null)
+            {
+                return null;
+            }
+
+            VisualElement overlayElement = FindDescendantByName(toolbarWindow.rootVisualElement, ToolbarElementPath);
+            return overlayElement == null ? null : FindDescendantByTypeName(overlayElement, "EditorToolbarToggle");
+        }
+
+        private static VisualElement FindDescendantByName(VisualElement parent, string elementName)
+        {
+            if (parent.name == elementName)
+            {
+                return parent;
+            }
+
+            for (int childIndex = 0; childIndex < parent.childCount; childIndex++)
+            {
+                VisualElement found = FindDescendantByName(parent[childIndex], elementName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
+        }
+
+        private static VisualElement FindDescendantByTypeName(VisualElement parent, string typeName)
+        {
+            if (parent.GetType().Name == typeName)
+            {
+                return parent;
+            }
+
+            for (int childIndex = 0; childIndex < parent.childCount; childIndex++)
+            {
+                VisualElement found = FindDescendantByTypeName(parent[childIndex], typeName);
+                if (found != null)
+                {
+                    return found;
+                }
+            }
+
+            return null;
         }
 
         /// A newly registered main toolbar element is hidden *and* unplaced: it is an overlay, so the
@@ -120,16 +220,8 @@ namespace PlaytestCopilot.Editor
         [InitializeOnLoadMethod]
         private static void RevealToolbarElementOnFirstRun()
         {
-            string preferenceKey = FirstRunRevealPreferenceKeyPrefix
-                + Application.dataPath.GetHashCode().ToString("X8", CultureInfo.InvariantCulture);
-            if (EditorPrefs.GetBool(preferenceKey, false))
-            {
-                return;
-            }
-
-            // The toolbar does not exist during InitializeOnLoad, and a single delayCall is too
-            // early too — it fires before the toolbar window is built, finds no overlay, and the
-            // placement is silently skipped for the whole session. Poll instead, briefly.
+            // The poll runs on every domain reload, not only the first: placement is a one-time
+            // concern but the chrome is rebuilt with the element and has to be reapplied each time.
             placementAttemptsRemaining = PlacementAttemptLimit;
             EditorApplication.update += TryPlaceToolbarElementUntilToolbarExists;
         }
@@ -140,6 +232,8 @@ namespace PlaytestCopilot.Editor
         {
             placementAttemptsRemaining--;
 
+            RefreshToolbarElementChrome();
+
             bool placed = TryPlaceToolbarElementBesidePlayControls();
             if (!placed && placementAttemptsRemaining > 0)
             {
@@ -147,12 +241,6 @@ namespace PlaytestCopilot.Editor
             }
 
             EditorApplication.update -= TryPlaceToolbarElementUntilToolbarExists;
-            if (placed)
-            {
-                string preferenceKey = FirstRunRevealPreferenceKeyPrefix
-                    + Application.dataPath.GetHashCode().ToString("X8", CultureInfo.InvariantCulture);
-                EditorPrefs.SetBool(preferenceKey, true);
-            }
         }
 
         /// MainToolbar exposes only Refresh publicly, and Overlay.DockAfter is internal, so placing
@@ -160,6 +248,14 @@ namespace PlaytestCopilot.Editor
         /// must cost a misplaced button, not an exception on every domain reload.
         private static bool TryPlaceToolbarElementBesidePlayControls()
         {
+            string preferenceKey = FirstRunRevealPreferenceKeyPrefix
+                + Application.dataPath.GetHashCode().ToString("X8", CultureInfo.InvariantCulture);
+            if (EditorPrefs.GetBool(preferenceKey, false))
+            {
+                // Already placed once; moving it again would undo a drag the owner made deliberately.
+                return true;
+            }
+
             try
             {
                 MethodInfo tryGetOverlay = typeof(MainToolbar).GetMethod(
@@ -196,6 +292,7 @@ namespace PlaytestCopilot.Editor
                     }
                 }
 
+                EditorPrefs.SetBool(preferenceKey, true);
                 return true;
             }
             catch (Exception)

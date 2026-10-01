@@ -135,6 +135,17 @@ nothing. And the placement cannot run from `InitializeOnLoad` *or* a single `Edi
 .delayCall`: both fire before the toolbar window is built, find no overlay, and skip silently for
 the whole session. Poll `EditorApplication.update` until it succeeds.
 
+**A main toolbar element has no chrome until you give it Unity's button-strip class.** Play, Pause
+and Step are `EditorToolbarToggle`s carrying `unity-editor-toolbar__button-strip-element`; that class
+is what paints the grouped grey background. Without it an element draws on the bare toolbar and reads
+as a floating icon, which is what the AI Play button did. `MainToolbarToggle` never exposes the
+`VisualElement` it creates, so the class is applied by walking
+`MainToolbar.window.rootVisualElement` for the overlay named after the element path and taking the
+first `EditorToolbarToggle` inside. It must be reapplied on every domain reload, because the toolbar
+rebuilds the element from the factory each time. Checking the toggle does **not** tint it, so the
+active blue is an explicit inline `style.backgroundColor`, cleared back to `StyleKeyword.Null` when
+idle so the strip grey returns.
+
 **The AssetDatabase addresses a package by its package name, not its folder name.** This package
 lives in `Packages/playtest-copilot/` but loads from `Packages/com.playtestcopilot/...`, and the
 folder path silently returns null. Do not hardcode either: ask
