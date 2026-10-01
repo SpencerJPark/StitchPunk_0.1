@@ -112,6 +112,11 @@ namespace PlaytestCopilot.Editor
             PlaytestCaptureBus.RaiseSessionEnded(activeDescriptor);
             PlaytestSessionFolderWriter.EndSession();
 
+            // The session folder lives under Assets/, so it does not exist as far as the Project
+            // window is concerned until the asset database is told. Without this the files are on
+            // disk but invisible in the Editor, which is the whole reason they were moved here.
+            AssetDatabase.Refresh();
+
             ReportSessionWritten(activeDescriptor);
             activeDescriptor = null;
         }

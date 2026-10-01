@@ -348,7 +348,7 @@ bool CaptureGameObjectState;         // true
 bool CaptureEntitiesState;           // false — the Entities backend is Milestone 1b
 bool ShowOnScreenRecordButton;       // true
 float VoiceActivityThreshold;        // 0.02f
-string SessionsRootPath;             // empty means <project root>/PlaytestSessions
+string SessionsRootPath;             // empty means Assets/PlaytestSessions
 
 string ResolvedSessionsRoot { get; } // absolute, honours SessionsRootPath when set
 void SaveSettings();                 // Save(true)

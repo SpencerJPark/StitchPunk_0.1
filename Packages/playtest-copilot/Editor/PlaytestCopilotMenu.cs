@@ -48,12 +48,37 @@ namespace PlaytestCopilot.Editor
             SettingsService.OpenProjectSettings("Project/Playtest Copilot");
         }
 
-        /// RevealInFinder on a folder selects it in its parent rather than opening it, so point at a
-        /// file inside when there is one — the point is to land the user among the session's files.
+        /// Sessions live under Assets/, so the useful thing is to select the folder in the Project
+        /// window rather than open a file browser. Falls back to the OS browser only when the
+        /// sessions root has been pointed somewhere the AssetDatabase cannot see.
         public static void RevealFolder(string absoluteFolderPath)
         {
+            string assetPath = ToAssetPath(absoluteFolderPath);
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                Object folderAsset = AssetDatabase.LoadAssetAtPath<Object>(assetPath);
+                if (folderAsset != null)
+                {
+                    Selection.activeObject = folderAsset;
+                    EditorGUIUtility.PingObject(folderAsset);
+                    return;
+                }
+            }
+
             string indexFile = PlaytestSessionPaths.IndexFile(absoluteFolderPath);
             EditorUtility.RevealInFinder(File.Exists(indexFile) ? indexFile : absoluteFolderPath + "/");
+        }
+
+        private static string ToAssetPath(string absolutePath)
+        {
+            string assetsPath = Application.dataPath.Replace('\\', '/');
+            string normalised = absolutePath.Replace('\\', '/').TrimEnd('/');
+            if (!normalised.StartsWith(assetsPath, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Empty;
+            }
+
+            return "Assets" + normalised.Substring(assetsPath.Length);
         }
     }
 }

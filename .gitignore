@@ -101,4 +101,8 @@ Packages/com.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*.meta
 .claude/hooks/__pycache__/
 
 # Playtest Copilot session recordings: large, and they contain the developer's voice.
+# They live under Assets/ so they are visible and manageable in the Project window, which means
+# Unity also generates a folder .meta OUTSIDE the ignored folder — ignore that too or every
+# session folder arrives as a tracked .meta with no content behind it.
 PlaytestSessions/
+Assets/PlaytestSessions.meta

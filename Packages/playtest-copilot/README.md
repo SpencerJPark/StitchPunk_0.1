@@ -61,7 +61,7 @@ floaty" arrives at an agent with the numbers attached.
 ## The session folder
 
 ```
-PlaytestSessions/2026-09-28_1808_Level1/
+Assets/PlaytestSessions/2026-09-28_1808_Level1/
   session.json           Unity version, scene, git commit, settings
   audio.wav              the full microphone recording
   state.jsonl            one JSON object per state sample
@@ -77,6 +77,11 @@ PlaytestSessions/2026-09-28_1808_Level1/
 
 Everything a person or an agent needs is in those files. If something is only visible inside the
 Editor window, it is a bug.
+
+Sessions live under `Assets/` so they appear in the Project window and can be opened, moved and
+deleted without leaving Unity — `audio.wav` even imports as an AudioClip you can play from the
+Inspector. They are gitignored. Find them with **Tools > Playtest Copilot > Open Last Session
+Folder**, or point the root somewhere else in Project Settings.
 
 ## Building on it
 

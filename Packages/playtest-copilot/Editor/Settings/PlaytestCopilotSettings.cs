@@ -110,6 +110,26 @@ namespace PlaytestCopilot.Editor
 
         /// Absolute, forward-slashed sessions root: the explicit override when it is a rooted
         /// path, otherwise a PlaytestSessions folder beside Assets/.
+        public const string DefaultSessionsFolderName = "PlaytestSessions";
+
+        /// The project-relative form ("Assets/PlaytestSessions/...") that AssetDatabase needs.
+        /// Returns empty when the sessions root has been pointed outside Assets/, where the
+        /// AssetDatabase cannot reach and the Project window will not show anything.
+        public string ResolvedSessionsRootAssetPath
+        {
+            get
+            {
+                string assetsPath = Application.dataPath.Replace('\\', '/');
+                string sessionsRoot = this.ResolvedSessionsRoot;
+                if (!sessionsRoot.StartsWith(assetsPath, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return string.Empty;
+                }
+
+                return "Assets" + sessionsRoot.Substring(assetsPath.Length);
+            }
+        }
+
         public string ResolvedSessionsRoot
         {
             get
@@ -119,8 +139,10 @@ namespace PlaytestCopilot.Editor
                     return this.sessionsRootPath.Replace('\\', '/');
                 }
 
-                string projectRootPath = Directory.GetParent(Application.dataPath).FullName;
-                string defaultSessionsRootPath = Path.Combine(projectRootPath, "PlaytestSessions");
+                // Under Assets/, not the project root: a folder outside Assets/ never appears in the
+                // Project window, so a session cannot be opened, moved or deleted from inside Unity.
+                // It costs an import of each session's files, which is the price of being manageable.
+                string defaultSessionsRootPath = Path.Combine(Application.dataPath, DefaultSessionsFolderName);
                 return defaultSessionsRootPath.Replace('\\', '/');
             }
         }

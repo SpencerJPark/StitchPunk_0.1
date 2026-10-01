@@ -48,6 +48,14 @@ overlay grabs the frame from a coroutine after `WaitForEndOfFrame`.
 **The frame clock is `realtimeSinceStartupAsDouble`, never `Time.time`.** Pause-and-draw zeroes
 `timeScale`; a marker must still be able to close and the streams must stay in sync.
 
+**Sessions live under `Assets/PlaytestSessions/`, and that is deliberate.** A folder beside
+`Assets/` never appears in the Project window, so it cannot be selected, deleted or previewed from
+inside Unity — the owner hit this immediately. Under `Assets/`, `audio.wav` imports as an AudioClip
+that plays in the Inspector and `index.md` as a readable TextAsset. Two traps came with the move:
+the folder's own `.meta` sits *outside* the ignored folder, so `PlaytestSessions/` alone leaves
+`Assets/PlaytestSessions.meta` tracked; and files written during play mode stay invisible until
+`AssetDatabase.Refresh()` runs at session end.
+
 ## Compile gate with no Editor
 
 `bash Packages/playtest-copilot/Tools~/compile-gate.sh` compiles all three assemblies with the

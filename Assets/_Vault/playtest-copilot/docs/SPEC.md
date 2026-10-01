@@ -92,7 +92,9 @@ PlaytestSessions/
     index.md              # one page linking every note and spec
 ```
 
-- Default location is the project root, git-ignored; it can point anywhere in settings.
+- Default location is `Assets/PlaytestSessions/`, git-ignored; it can point anywhere in settings.
+  (Changed from the project root on 2026-10-01: a folder outside `Assets/` never appears in the
+  Project window, so sessions could not be seen or managed from inside the Editor.)
 - `index.md` is a readable summary with thumbnails, so you can review a session without Unity open.
 - The review window has an **Open Folder** button for each note and session.
 
