@@ -21,9 +21,13 @@ namespace PlaytestCopilot.Editor
         private const string FirstRunRevealPreferenceKeyPrefix = "PlaytestCopilot.ToolbarPlaced2.";
         private const string PlayModeControlsElementPath = "Play Mode Controls";
 
-        // The class Unity puts on Play/Pause/Step. It is what paints the grouped grey background; an
-        // element without it draws on the bare toolbar and reads as a floating icon.
+        // The classes Unity puts on Play/Pause/Step. They carry the strip's 4px corner radius and
+        // padding; both end caps because this element stands alone rather than inside a group.
+        // They do NOT carry the background — that was measured, and comes from somewhere scoped to
+        // the PlayMode element — so the fill is copied from the neighbour instead.
         private const string ButtonStripClassName = "unity-editor-toolbar__button-strip-element";
+        private const string ButtonStripLeftClassName = "unity-editor-toolbar__button-strip-element--left";
+        private const string ButtonStripRightClassName = "unity-editor-toolbar__button-strip-element--right";
 
         // Unity's highlight blue, the same token the style guide uses for selection. Applied directly
         // because checking the toggle does not tint it on its own.
@@ -123,31 +127,112 @@ namespace PlaytestCopilot.Editor
         /// Gives the element the chrome its neighbours have, and tints it while a capture session is
         /// running. Both have to be reapplied on every domain reload: the toolbar rebuilds the element
         /// from the factory each time, and the factory cannot reach the VisualElement it produces.
-        public static void RefreshToolbarElementChrome()
+        /// Returns true once the element is wearing a definite fill, so the caller knows whether to
+        /// keep retrying: resolved styles read as transparent until the toolbar has laid out, and a
+        /// colour copied at that moment would be invisible.
+        public static bool RefreshToolbarElementChrome()
         {
             try
             {
                 VisualElement toggleElement = FindToolbarToggleElement();
                 if (toggleElement == null)
                 {
-                    return;
+                    return false;
                 }
 
-                if (!toggleElement.ClassListContains(ButtonStripClassName))
+                AddClassIfMissing(toggleElement, ButtonStripClassName);
+                AddClassIfMissing(toggleElement, ButtonStripLeftClassName);
+                AddClassIfMissing(toggleElement, ButtonStripRightClassName);
+
+                if (IsCaptureSessionActive)
                 {
-                    toggleElement.AddToClassList(ButtonStripClassName);
+                    toggleElement.style.backgroundColor = new StyleColor(ActiveTintColor);
+                    return true;
                 }
 
-                bool isActive = IsCaptureSessionActive;
-                toggleElement.style.backgroundColor = isActive
-                    ? new StyleColor(ActiveTintColor)
-                    : new StyleColor(StyleKeyword.Null);
+                // Copied from Play rather than hardcoded, so this tracks the skin and any future
+                // change Unity makes to its own toolbar instead of drifting away from it.
+                Color neighbourFill;
+                if (!TryReadPlayButtonFill(out neighbourFill))
+                {
+                    return false;
+                }
+
+                toggleElement.style.backgroundColor = new StyleColor(neighbourFill);
+                return true;
             }
             catch (Exception)
             {
                 // Toolbar internals are not public API; a rename must cost the tint, not an exception
                 // on every domain reload.
+                return false;
             }
+        }
+
+        private static void AddClassIfMissing(VisualElement element, string className)
+        {
+            if (!element.ClassListContains(className))
+            {
+                element.AddToClassList(className);
+            }
+        }
+
+        /// Finds a neighbour by what it looks like rather than by name: Unity's play overlay element
+        /// is called "PlayMode" while its registered path is "Play Mode Controls", and matching on the
+        /// path found nothing at all. Any strip element outside this one will do, and taking the first
+        /// with a visible fill also skips the ones that have not laid out yet.
+        private static bool TryReadPlayButtonFill(out Color fill)
+        {
+            fill = default(Color);
+            VisualElement ownOverlay = FindToolbarOverlayElement(ToolbarElementPath);
+            VisualElement toolbarRoot = FindToolbarRootElement();
+            if (toolbarRoot == null)
+            {
+                return false;
+            }
+
+            return TryFindStripFillOutside(toolbarRoot, ownOverlay, ref fill);
+        }
+
+        private static bool TryFindStripFillOutside(VisualElement element, VisualElement excludedSubtree, ref Color fill)
+        {
+            if (element == excludedSubtree)
+            {
+                return false;
+            }
+
+            if (element.ClassListContains(ButtonStripClassName))
+            {
+                Color resolvedFill = element.resolvedStyle.backgroundColor;
+                if (resolvedFill.a > 0f)
+                {
+                    fill = resolvedFill;
+                    return true;
+                }
+            }
+
+            for (int childIndex = 0; childIndex < element.childCount; childIndex++)
+            {
+                if (TryFindStripFillOutside(element[childIndex], excludedSubtree, ref fill))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static VisualElement FindToolbarRootElement()
+        {
+            MethodInfo windowGetter = typeof(MainToolbar).GetMethod(
+                "get_window", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            if (windowGetter == null)
+            {
+                return null;
+            }
+
+            EditorWindow toolbarWindow = windowGetter.Invoke(null, null) as EditorWindow;
+            return toolbarWindow == null ? null : toolbarWindow.rootVisualElement;
         }
 
         private static VisualElement FindToolbarToggleElement()
@@ -167,6 +252,26 @@ namespace PlaytestCopilot.Editor
 
             VisualElement overlayElement = FindDescendantByName(toolbarWindow.rootVisualElement, ToolbarElementPath);
             return overlayElement == null ? null : FindDescendantByTypeName(overlayElement, "EditorToolbarToggle");
+        }
+
+        /// The overlay wrapper is named after the element's registered path, which is how the two
+        /// toolbar elements are told apart in the tree.
+        private static VisualElement FindToolbarOverlayElement(string elementPath)
+        {
+            MethodInfo windowGetter = typeof(MainToolbar).GetMethod(
+                "get_window", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            if (windowGetter == null)
+            {
+                return null;
+            }
+
+            EditorWindow toolbarWindow = windowGetter.Invoke(null, null) as EditorWindow;
+            if (toolbarWindow == null || toolbarWindow.rootVisualElement == null)
+            {
+                return null;
+            }
+
+            return FindDescendantByName(toolbarWindow.rootVisualElement, elementPath);
         }
 
         private static VisualElement FindDescendantByName(VisualElement parent, string elementName)
@@ -232,10 +337,9 @@ namespace PlaytestCopilot.Editor
         {
             placementAttemptsRemaining--;
 
-            RefreshToolbarElementChrome();
-
+            bool chromeApplied = RefreshToolbarElementChrome();
             bool placed = TryPlaceToolbarElementBesidePlayControls();
-            if (!placed && placementAttemptsRemaining > 0)
+            if ((!placed || !chromeApplied) && placementAttemptsRemaining > 0)
             {
                 return;
             }

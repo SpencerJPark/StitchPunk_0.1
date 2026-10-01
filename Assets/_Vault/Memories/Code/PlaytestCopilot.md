@@ -142,7 +142,12 @@ as a floating icon, which is what the AI Play button did. `MainToolbarToggle` ne
 `VisualElement` it creates, so the class is applied by walking
 `MainToolbar.window.rootVisualElement` for the overlay named after the element path and taking the
 first `EditorToolbarToggle` inside. It must be reapplied on every domain reload, because the toolbar
-rebuilds the element from the factory each time. Checking the toggle does **not** tint it, so the
+rebuilds the element from the factory each time. **The strip class carries the 4px radius and padding
+but not the background**, so the idle fill is copied from a neighbour's `resolvedStyle` instead of
+hardcoded — and the neighbour is found by its strip class, not by name: Unity's play overlay element
+is called `PlayMode` while its registered path is `Play Mode Controls`, so a name lookup silently
+matches nothing. `resolvedStyle` reads transparent until the toolbar has laid out, so the refresh
+reports whether it succeeded and the update poll keeps going until it does. Checking the toggle does **not** tint it, so the
 active blue is an explicit inline `style.backgroundColor`, cleared back to `StyleKeyword.Null` when
 idle so the strip grey returns.
 
