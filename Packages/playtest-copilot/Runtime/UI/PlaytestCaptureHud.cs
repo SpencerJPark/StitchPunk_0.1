@@ -12,8 +12,15 @@ namespace PlaytestCopilot
     {
         private const float ReferenceScreenHeight = 900f;
         private const float MaximumScale = 3f;
+        private const float MinimumVisibleEdgePixels = 40f;
+        private const string HudPositionXPrefKey = "PlaytestCopilot.HudX";
+        private const string HudPositionYPrefKey = "PlaytestCopilot.HudY";
 
         private bool isPressed;
+        private bool isDragging;
+        private bool hasBarPosition;
+        private Vector2 barTopLeft;
+        private Vector2 dragGrabOffset;
         private GUIStyle recordingLabelStyle;
         private GUIStyle hintLabelStyle;
         private GUIStyle buttonStyle;
@@ -25,6 +32,10 @@ namespace PlaytestCopilot
         public PlaytestAnnotationOverlay AnnotationOverlay { get; set; }
         public KeyCode RecordKey { get; set; } = KeyCode.BackQuote;
         public KeyCode AnnotateKey { get; set; } = KeyCode.F2;
+
+        /// Raised when the owner presses the Capture button; a subscriber elsewhere owns writing the
+        /// frame to disk, so this stays harmless while nothing is listening.
+        public event System.Action FrameCaptureRequested;
 
         private float Scale
         {
@@ -86,13 +97,27 @@ namespace PlaytestCopilot
         private void DrawControlBar(bool markerIsOpen, float scale)
         {
             float barHeight = 64f * scale;
-            float barWidth = Mathf.Min(Screen.width - 32f * scale, 560f * scale);
-            Rect barRect = new Rect((Screen.width - barWidth) * 0.5f, Screen.height - barHeight - 16f * scale, barWidth, barHeight);
-            DrawSolid(barRect, new Color(0.08f, 0.08f, 0.09f, 0.82f));
+            float barWidth = Mathf.Min(Screen.width - 32f * scale, 760f * scale);
+            EnsureBarPositionInitialized(barWidth, barHeight, scale);
 
             float padding = 12f * scale;
-            float buttonWidth = 190f * scale;
-            Rect buttonRect = new Rect(barRect.x + padding, barRect.y + padding, buttonWidth, barRect.height - padding * 2f);
+            float recordButtonWidth = 190f * scale;
+            float iconButtonWidth = 86f * scale;
+
+            Rect barRect = new Rect(barTopLeft.x, barTopLeft.y, barWidth, barHeight);
+            Rect recordButtonRect;
+            Rect drawButtonRect;
+            Rect captureButtonRect;
+            ComputeBarButtonRects(barRect, padding, recordButtonWidth, iconButtonWidth, out recordButtonRect, out drawButtonRect, out captureButtonRect);
+
+            HandleBarDragging(barRect, recordButtonRect, drawButtonRect, captureButtonRect, barWidth, barHeight);
+
+            // Re-derive from the (possibly just-moved) top-left so the bar tracks the cursor the same
+            // frame it is dragged instead of lagging one OnGUI pass behind.
+            barRect = new Rect(barTopLeft.x, barTopLeft.y, barWidth, barHeight);
+            ComputeBarButtonRects(barRect, padding, recordButtonWidth, iconButtonWidth, out recordButtonRect, out drawButtonRect, out captureButtonRect);
+
+            DrawSolid(barRect, new Color(0.08f, 0.08f, 0.09f, 0.82f));
 
             Color previousBackgroundColor = GUI.backgroundColor;
             GUI.backgroundColor = markerIsOpen ? new Color(0.9f, 0.25f, 0.25f) : previousBackgroundColor;
@@ -100,17 +125,120 @@ namespace PlaytestCopilot
 
             // GUI.Button only fires on mouse-up, which would open and close a marker in the same
             // frame; GUI.RepeatButton reports true for every frame the mouse stays down.
-            bool pressedThisFrame = GUI.RepeatButton(buttonRect, markerIsOpen ? "Recording..." : "Hold to Record", buttonStyle);
+            bool pressedThisFrame = GUI.RepeatButton(recordButtonRect, markerIsOpen ? "Recording..." : "Hold to Record", buttonStyle);
             GUI.backgroundColor = previousBackgroundColor;
             HandlePressStateChange(pressedThisFrame);
 
-            float meterX = buttonRect.xMax + padding;
+            if (GUI.Button(drawButtonRect, "Draw", buttonStyle))
+            {
+                OpenAnnotationOverlay();
+            }
+
+            if (GUI.Button(captureButtonRect, "Capture", buttonStyle))
+            {
+                FrameCaptureRequested?.Invoke();
+            }
+
+            float meterX = captureButtonRect.xMax + padding;
             float meterWidth = barRect.xMax - padding - meterX;
             DrawLevelMeter(new Rect(meterX, barRect.y + padding, meterWidth, 20f * scale), markerIsOpen);
 
             hintLabelStyle.fontSize = Mathf.RoundToInt(13f * scale);
             Rect hintRect = new Rect(meterX, barRect.y + padding + 24f * scale, meterWidth, barRect.height - padding - 24f * scale);
-            GUI.Label(hintRect, "Hold [" + RecordKey + "] to talk     Press [" + AnnotateKey + "] to pause and draw", hintLabelStyle);
+            GUI.Label(hintRect, "Hold [" + RecordKey + "] or Record to talk     Draw to annotate [" + AnnotateKey + "]     Capture grabs a frame     Drag bar to move", hintLabelStyle);
+        }
+
+        private void ComputeBarButtonRects(Rect barRect, float padding, float recordButtonWidth, float iconButtonWidth, out Rect recordButtonRect, out Rect drawButtonRect, out Rect captureButtonRect)
+        {
+            recordButtonRect = new Rect(barRect.x + padding, barRect.y + padding, recordButtonWidth, barRect.height - padding * 2f);
+            drawButtonRect = new Rect(recordButtonRect.xMax + padding, barRect.y + padding, iconButtonWidth, barRect.height - padding * 2f);
+            captureButtonRect = new Rect(drawButtonRect.xMax + padding, barRect.y + padding, iconButtonWidth, barRect.height - padding * 2f);
+        }
+
+        private void OpenAnnotationOverlay()
+        {
+            if (AnnotationOverlay == null || AnnotationOverlay.IsOpen)
+            {
+                return;
+            }
+
+            int completedMarkerCount = VoiceController != null ? VoiceController.CompletedMarkerCount : 0;
+            AnnotationOverlay.Open(PlaytestMarkerId.For(completedMarkerCount));
+        }
+
+        // Click-and-drag anywhere on the bar background moves it; a mouse-down that lands inside one
+        // of the three button rects is excluded so it reaches the button instead of starting a drag.
+        private void HandleBarDragging(Rect barRect, Rect recordButtonRect, Rect drawButtonRect, Rect captureButtonRect, float barWidth, float barHeight)
+        {
+            Event currentEvent = Event.current;
+            Vector2 mousePosition = currentEvent.mousePosition;
+
+            if (currentEvent.type == EventType.MouseDown && barRect.Contains(mousePosition)
+                && !recordButtonRect.Contains(mousePosition) && !drawButtonRect.Contains(mousePosition) && !captureButtonRect.Contains(mousePosition))
+            {
+                isDragging = true;
+                dragGrabOffset = mousePosition - barTopLeft;
+                currentEvent.Use();
+            }
+            else if (currentEvent.type == EventType.MouseDrag && isDragging)
+            {
+                barTopLeft = ClampBarPosition(mousePosition - dragGrabOffset, barWidth, barHeight);
+                currentEvent.Use();
+            }
+            else if (currentEvent.type == EventType.MouseUp && isDragging)
+            {
+                isDragging = false;
+                SaveBarPosition();
+                currentEvent.Use();
+            }
+        }
+
+        private Vector2 ClampBarPosition(Vector2 desiredTopLeft, float barWidth, float barHeight)
+        {
+            float minimumX = MinimumVisibleEdgePixels - barWidth;
+            float maximumX = Screen.width - MinimumVisibleEdgePixels;
+            float minimumY = MinimumVisibleEdgePixels - barHeight;
+            float maximumY = Screen.height - MinimumVisibleEdgePixels;
+
+            float clampedX = Mathf.Clamp(desiredTopLeft.x, minimumX, maximumX);
+            float clampedY = Mathf.Clamp(desiredTopLeft.y, minimumY, maximumY);
+            return new Vector2(clampedX, clampedY);
+        }
+
+        // Runs once per enable: loads the normalised saved position, or falls back to the original
+        // bottom-centre placement when the owner has never dragged the bar before.
+        private void EnsureBarPositionInitialized(float barWidth, float barHeight, float scale)
+        {
+            if (hasBarPosition)
+            {
+                return;
+            }
+
+            hasBarPosition = true;
+
+            if (PlayerPrefs.HasKey(HudPositionXPrefKey) && PlayerPrefs.HasKey(HudPositionYPrefKey))
+            {
+                float normalizedX = PlayerPrefs.GetFloat(HudPositionXPrefKey);
+                float normalizedY = PlayerPrefs.GetFloat(HudPositionYPrefKey);
+                barTopLeft = ClampBarPosition(new Vector2(normalizedX * Screen.width, normalizedY * Screen.height), barWidth, barHeight);
+                return;
+            }
+
+            barTopLeft = new Vector2((Screen.width - barWidth) * 0.5f, Screen.height - barHeight - 16f * scale);
+        }
+
+        // Normalised so a resized game view keeps the bar roughly where the owner put it instead of
+        // throwing it off screen; saved only on mouse-up, not every drag frame.
+        private void SaveBarPosition()
+        {
+            if (Screen.width <= 0 || Screen.height <= 0)
+            {
+                return;
+            }
+
+            PlayerPrefs.SetFloat(HudPositionXPrefKey, barTopLeft.x / Screen.width);
+            PlayerPrefs.SetFloat(HudPositionYPrefKey, barTopLeft.y / Screen.height);
+            PlayerPrefs.Save();
         }
 
         private void DrawLevelMeter(Rect meterRect, bool markerIsOpen)

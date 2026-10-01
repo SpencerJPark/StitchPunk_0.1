@@ -106,3 +106,6 @@ Packages/com.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*.meta
 # session folder arrives as a tracked .meta with no content behind it.
 PlaytestSessions/
 Assets/PlaytestSessions.meta
+
+# Playtest Copilot's local transcription venv and model cache.
+Packages/playtest-copilot/Tools~/transcribe/.venv/

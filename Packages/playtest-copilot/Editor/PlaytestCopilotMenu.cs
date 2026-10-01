@@ -42,6 +42,26 @@ namespace PlaytestCopilot.Editor
             RevealFolder(sessionsRoot);
         }
 
+        [MenuItem(MenuRoot + "Transcribe Last Session", priority = 2)]
+        private static void TranscribeLastSession()
+        {
+            string lastSessionFolder = EditorPrefs.GetString(LastSessionFolderPreferenceKey, string.Empty);
+            if (string.IsNullOrEmpty(lastSessionFolder) || !Directory.Exists(lastSessionFolder))
+            {
+                EditorUtility.DisplayDialog("Playtest Copilot", "No session has been recorded yet.", "OK");
+                return;
+            }
+
+            PlaytestTranscriptionRunner.TryBeginTranscription(lastSessionFolder);
+        }
+
+        [MenuItem(MenuRoot + "Transcribe Last Session", validate = true)]
+        private static bool ValidateTranscribeLastSession()
+        {
+            return !PlaytestTranscriptionRunner.IsRunning
+                && !string.IsNullOrEmpty(EditorPrefs.GetString(LastSessionFolderPreferenceKey, string.Empty));
+        }
+
         [MenuItem(MenuRoot + "Settings", priority = 20)]
         private static void OpenSettings()
         {

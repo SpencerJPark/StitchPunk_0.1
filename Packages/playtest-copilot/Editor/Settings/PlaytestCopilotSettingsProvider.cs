@@ -135,7 +135,36 @@ namespace PlaytestCopilot.Editor
             sectionContainer.Add(voiceModeField);
             sectionContainer.Add(recordKeyField);
             sectionContainer.Add(recordKeyClashHelpBox);
+            // The owner's first transcribed session asked for this by name: four notes where one was
+            // meant, because every mid-sentence pause closed the marker.
+            Slider silenceHangSlider = new Slider("Silence Before Note Ends", 0.3f, 5f)
+            {
+                value = settings.SilenceHangSeconds,
+                showInputField = true,
+                tooltip = "How long you may pause mid-thought before the note is closed. Raise it if "
+                    + "one remark keeps arriving as several notes.",
+            };
+            silenceHangSlider.RegisterValueChangedCallback(changeEvent =>
+            {
+                settings.SilenceHangSeconds = changeEvent.newValue;
+                settings.SaveSettings();
+            });
+
+            TextField transcriptionModelField = new TextField("Transcription Model")
+            {
+                value = settings.TranscriptionModel,
+                tooltip = "A faster-whisper model name: base.en is fastest, small.en is the default, "
+                    + "medium.en is slower and more accurate.",
+            };
+            transcriptionModelField.RegisterValueChangedCallback(changeEvent =>
+            {
+                settings.TranscriptionModel = changeEvent.newValue;
+                settings.SaveSettings();
+            });
+
             sectionContainer.Add(voiceActivityThresholdSlider);
+            sectionContainer.Add(silenceHangSlider);
+            sectionContainer.Add(transcriptionModelField);
             sectionContainer.Add(showOnScreenRecordButtonToggle);
             return sectionContainer;
         }

@@ -10,6 +10,7 @@ namespace PlaytestCopilot
         public KeyCode RecordKey;
         public KeyCode AnnotateKey;
         public float VoiceActivityThreshold;
+        public float SilenceHangSeconds;
         public bool CaptureGameObjectState;
         public bool ShowOnScreenRecordButton;
         public string AudioFileAbsolutePath;
@@ -71,6 +72,11 @@ namespace PlaytestCopilot
             VoiceCapture.Mode = configuration.VoiceMode;
             VoiceCapture.RecordKey = configuration.RecordKey;
             VoiceCapture.VoiceActivityThreshold = configuration.VoiceActivityThreshold;
+            if (configuration.SilenceHangSeconds > 0f)
+            {
+                VoiceCapture.SilenceHangSeconds = configuration.SilenceHangSeconds;
+            }
+
 
             PointerTracker = gameObject.AddComponent<PlaytestPointerTracker>();
             PointerTracker.CaptureCamera = Camera.main;
@@ -89,6 +95,8 @@ namespace PlaytestCopilot
             CaptureHud.RecordKey = configuration.RecordKey;
             CaptureHud.AnnotateKey = configuration.AnnotateKey;
             CaptureHud.IsVisible = configuration.ShowOnScreenRecordButton;
+            CaptureHud.FrameCaptureRequested += CaptureFrameWithoutDrawing;
+
 
             PlaytestCaptureBus.MarkerEnriching += EnrichMarker;
             MicrophoneRecorder.BeginCapture();
@@ -97,6 +105,10 @@ namespace PlaytestCopilot
         private void ShutDown()
         {
             PlaytestCaptureBus.MarkerEnriching -= EnrichMarker;
+            if (CaptureHud != null)
+            {
+                CaptureHud.FrameCaptureRequested -= CaptureFrameWithoutDrawing;
+            }
 
             if (VoiceCapture != null && VoiceCapture.IsMarkerOpen)
             {
@@ -138,6 +150,27 @@ namespace PlaytestCopilot
             request.EditorSelection = EditorSelectionProvider != null ? EditorSelectionProvider() : null;
 
             marker.References = PlaytestReferenceResolver.Resolve(request);
+        }
+
+        /// The Capture button: the frame alone, no pause and no drawing. It rides the same bus event
+        /// as a drawn annotation with only the frame filled in, so the writer needs no new path.
+        private void CaptureFrameWithoutDrawing()
+        {
+            StartCoroutine(CaptureFrameAtEndOfFrame());
+        }
+
+        private System.Collections.IEnumerator CaptureFrameAtEndOfFrame()
+        {
+            // CaptureScreenshotAsTexture outside end-of-frame returns a black or torn texture.
+            yield return new WaitForEndOfFrame();
+
+            Texture2D frameTexture = ScreenCapture.CaptureScreenshotAsTexture();
+            PlaytestAnnotationCapture capture = new PlaytestAnnotationCapture();
+            capture.MarkerId = PlaytestMarkerId.For(VoiceCapture != null ? VoiceCapture.CompletedMarkerCount : 0);
+            capture.Time = PlaytestSessionClock.Now;
+            capture.FramePng = frameTexture.EncodeToPNG();
+            PlaytestCaptureBus.RaiseAnnotationCaptured(capture);
+            Destroy(frameTexture);
         }
 
         /// Set by the Editor bootstrap so the resolver can use the Editor's current selection, one

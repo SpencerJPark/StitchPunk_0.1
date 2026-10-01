@@ -89,6 +89,7 @@ namespace PlaytestCopilot.Editor
             configuration.RecordKey = settings.RecordKey;
             configuration.AnnotateKey = settings.AnnotateKey;
             configuration.VoiceActivityThreshold = settings.VoiceActivityThreshold;
+            configuration.SilenceHangSeconds = settings.SilenceHangSeconds;
             configuration.CaptureGameObjectState = settings.CaptureGameObjectState;
             configuration.ShowOnScreenRecordButton = settings.ShowOnScreenRecordButton;
             configuration.AudioFileAbsolutePath = PlaytestSessionPaths.AudioFile(descriptor.AbsoluteFolderPath);
@@ -118,6 +119,7 @@ namespace PlaytestCopilot.Editor
             AssetDatabase.Refresh();
 
             ReportSessionWritten(activeDescriptor);
+            PlaytestTranscriptionRunner.TryBeginTranscription(activeDescriptor.AbsoluteFolderPath);
             activeDescriptor = null;
         }
 

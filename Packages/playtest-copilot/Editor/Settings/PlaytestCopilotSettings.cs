@@ -39,6 +39,15 @@ namespace PlaytestCopilot.Editor
         [SerializeField]
         private float voiceActivityThreshold = 0.02f;
 
+        // The owner's first transcribed session asked for this directly: four notes were recorded
+        // where one was meant, because every natural pause mid-sentence closed the marker. 2 s is
+        // long enough to think mid-sentence and short enough to still separate two remarks.
+        [SerializeField]
+        private float silenceHangSeconds = 2.0f;
+
+        [SerializeField]
+        private string transcriptionModel = "small.en";
+
         [SerializeField]
         private string sessionsRootPath = string.Empty;
 
@@ -100,6 +109,21 @@ namespace PlaytestCopilot.Editor
         {
             get => this.voiceActivityThreshold;
             set => this.voiceActivityThreshold = value;
+        }
+
+        /// How long the tester may stay quiet before an utterance is treated as finished.
+        public float SilenceHangSeconds
+        {
+            get => this.silenceHangSeconds;
+            set => this.silenceHangSeconds = value;
+        }
+
+        /// A faster-whisper model name. "small.en" transcribes roughly eight times realtime on CPU;
+        /// "base.en" is faster and rougher, "medium.en" slower and better.
+        public string TranscriptionModel
+        {
+            get => this.transcriptionModel;
+            set => this.transcriptionModel = value;
         }
 
         public string SessionsRootPath

@@ -20,7 +20,12 @@ namespace PlaytestCopilot
         private float voiceActivityThreshold = 0.02f;
 
         [SerializeField]
-        private float silenceHangSeconds = 0.8f;
+        // 3 s, not the 0.8 s this shipped with. The owner's first transcribed session measured
+        // mid-sentence pauses of 1.0-2.8 s, every one of which closed a marker and split one remark
+        // into four notes. Trimming the trailing silence off the end time is what makes a gap this
+        // long cost nothing.
+        private float silenceHangSeconds = 3.0f;
+        private bool closedBySilence;
 
         [SerializeField]
         private PlaytestMicrophoneRecorder microphone;
@@ -135,6 +140,7 @@ namespace PlaytestCopilot
             this.silenceSecondsElapsed += Time.unscaledDeltaTime;
             if (this.silenceSecondsElapsed >= this.silenceHangSeconds)
             {
+                this.closedBySilence = true;
                 this.CloseMarkerIfOpenAndLongEnough();
             }
         }
@@ -161,7 +167,21 @@ namespace PlaytestCopilot
             this.markerOpen = false;
             this.silenceSecondsElapsed = 0.0f;
 
+            // A voice-detected close happens SilenceHangSeconds *after* the last word, so the raw
+            // end time includes that wait. Trim it back, or every note claims a window of silence it
+            // did not speak into — which makes neighbouring notes overlap and share each other's
+            // transcript text. Push-to-talk ends on the key, so nothing is trimmed there.
             PlaytestTimestamp endTimestamp = PlaytestSessionClock.Now;
+            if (this.closedBySilence)
+            {
+                endTimestamp.SecondsSinceSessionStart -= this.SilenceHangSeconds;
+                if (endTimestamp.SecondsSinceSessionStart < this.markerStartTimestamp.SecondsSinceSessionStart)
+                {
+                    endTimestamp.SecondsSinceSessionStart = this.markerStartTimestamp.SecondsSinceSessionStart;
+                }
+            }
+
+            this.closedBySilence = false;
             double durationSeconds = endTimestamp.SecondsSinceSessionStart
                 - this.markerStartTimestamp.SecondsSinceSessionStart;
 
