@@ -22,6 +22,7 @@ namespace PlaytestCopilot.Editor
         private static Process runningProcess;
         private static StringBuilder standardOutputBuffer;
         private static string pendingSessionFolder;
+        private static int progressTaskId = -1;
 
         public static bool IsRunning
         {
@@ -83,11 +84,22 @@ namespace PlaytestCopilot.Editor
             {
                 Debug.LogWarning("Playtest Copilot: could not start the transcriber. " + exception.Message);
                 runningProcess = null;
+                FinishProgressTask();
                 return false;
             }
 
             EditorApplication.update += PollTranscriptionProcess;
-            Debug.Log("Playtest Copilot: transcribing " + Path.GetFileName(sessionFolder) + " in the background.");
+
+            // Without a visible task the Editor looks idle for the half-minute a cold model load
+            // takes, and the obvious conclusion is that transcription did not run. This puts a
+            // spinner in the status bar's background-task area instead.
+            progressTaskId = Progress.Start(
+                "Playtest Copilot: transcribing",
+                Path.GetFileName(sessionFolder),
+                Progress.Options.Indefinite);
+            Debug.Log("Playtest Copilot: transcribing " + Path.GetFileName(sessionFolder)
+                + " in the background. The first run of a model loads it from disk and can take ~30s;"
+                + " transcript.md appears in the session folder when it finishes.");
             return true;
         }
 
@@ -99,6 +111,7 @@ namespace PlaytestCopilot.Editor
             }
 
             EditorApplication.update -= PollTranscriptionProcess;
+            FinishProgressTask();
             string output = standardOutputBuffer.ToString();
             string sessionFolder = pendingSessionFolder;
             runningProcess.Dispose();
@@ -232,6 +245,22 @@ namespace PlaytestCopilot.Editor
             PlaytestAgentMarkdownExport.WriteToFile(
                 PlaytestSessionPaths.Normalise(Path.Combine(sessionFolder, "session-for-agent.md")),
                 descriptor, markers, sessionFolder);
+        }
+
+        private static void FinishProgressTask()
+        {
+            if (progressTaskId == -1)
+            {
+                return;
+            }
+
+            // Progress.Exists guards the case where a domain reload took the task with it.
+            if (Progress.Exists(progressTaskId))
+            {
+                Progress.Remove(progressTaskId);
+            }
+
+            progressTaskId = -1;
         }
 
         private static string ResolveToolsFolder()
