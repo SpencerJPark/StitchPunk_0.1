@@ -57,6 +57,12 @@
         "com.unity.physics": "6.5.0"
       }
     },
+    "com.playtestcopilot": {
+      "version": "file:playtest-copilot",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.ai.inference": {
       "version": "2.6.1",
       "depth": 0,
