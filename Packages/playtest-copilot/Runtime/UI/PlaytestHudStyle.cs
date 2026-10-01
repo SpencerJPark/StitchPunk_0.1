@@ -38,16 +38,25 @@ namespace PlaytestCopilot
         public const float PrimaryHeight = 28f;
         public const float MeterHeight = 6f;
 
-        // Radius scale from the style guide: 4 field, 5 button, 6 card.
+        // Radius scale, identical to the toolkit's ToolkitTokens.uss: 4 field, 5 button, 6 card.
+        // UI Toolkit scales these by DPI on its own; IMGUI does not, so every call site multiplies
+        // by the same factor it uses for sizes. An unscaled 5px radius on a button twice as tall
+        // reads as a square corner, which is what the first rounded build shipped.
         public const int RadiusField = 4;
         public const int RadiusButton = 5;
         public const int RadiusCard = 6;
+
+        public static int ScaledRadius(int radius, float scale)
+        {
+            return Mathf.Max(2, Mathf.RoundToInt(radius * scale));
+        }
 
         public const int TypeMeta = 11;
         public const int TypeBody = 12;
         public const int TypePaneTitle = 13;
 
         private static Texture2D solidTexture;
+        private static Texture2D circleTexture;
         private static readonly Dictionary<int, Texture2D> roundedFillTextures = new Dictionary<int, Texture2D>();
         private static readonly Dictionary<int, Texture2D> roundedBorderTextures = new Dictionary<int, Texture2D>();
         private static readonly Dictionary<int, GUIStyle> roundedFillStyles = new Dictionary<int, GUIStyle>();
@@ -83,10 +92,11 @@ namespace PlaytestCopilot
         /// The guide's card: a rounded surface with a hairline border. IMGUI has no rounded rect, so
         /// the corners come from a generated 9-slice texture rather than from a shipped sprite — that
         /// keeps the package asset-free while still matching the Clip Editor's radii.
-        public static void DrawSurface(Rect rect)
+        public static void DrawSurface(Rect rect, float scale)
         {
-            DrawRounded(rect, Surface, RadiusCard);
-            DrawRoundedBorder(rect, Divider, RadiusCard);
+            int radius = ScaledRadius(RadiusCard, scale);
+            DrawRounded(rect, Surface, radius);
+            DrawRoundedBorder(rect, Divider, radius);
         }
 
         public static void DrawRounded(Rect rect, Color color, int radius)
@@ -116,7 +126,41 @@ namespace PlaytestCopilot
         /// as a dot rather than a square.
         public static void DrawStatusDot(Rect rect, Color tone)
         {
-            DrawRounded(rect, tone, Mathf.Max(2, Mathf.RoundToInt(Mathf.Min(rect.width, rect.height) * 0.5f)));
+            // Not the 9-slice path: its borders are larger than the dot itself, and IMGUI then folds
+            // the corners over each other, which drew a small cross instead of a dot.
+            if (circleTexture == null)
+            {
+                circleTexture = BuildCircleTexture(32);
+            }
+
+            Color previousColor = GUI.color;
+            GUI.color = tone;
+            GUI.DrawTexture(rect, circleTexture, ScaleMode.StretchToFill, true);
+            GUI.color = previousColor;
+        }
+
+        private static Texture2D BuildCircleTexture(int size)
+        {
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.hideFlags = HideFlags.HideAndDontSave;
+            texture.filterMode = FilterMode.Bilinear;
+            texture.wrapMode = TextureWrapMode.Clamp;
+
+            Color32[] pixels = new Color32[size * size];
+            float center = (size - 1) * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    float coverage = Mathf.Clamp01(center - distance);
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(coverage * 255f));
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return texture;
         }
 
         private static GUIStyle GetRoundedStyle(Dictionary<int, GUIStyle> styleCache,
@@ -250,13 +294,15 @@ namespace PlaytestCopilot
 
         /// Draws a button as a flat filled rect plus a label, so the game's GUI skin cannot impose its
         /// own chrome on top of the guide's. Returns true on click.
-        public static bool DrawFlatButton(Rect rect, string label, GUIStyle labelStyle, Color fill, Color border)
+        public static bool DrawFlatButton(Rect rect, string label, GUIStyle labelStyle, Color fill,
+            Color border, float scale)
         {
+            int radius = ScaledRadius(RadiusButton, scale);
             bool isHovered = rect.Contains(Event.current.mousePosition);
-            DrawRounded(rect, isHovered ? Lighten(fill, 0.06f) : fill, RadiusButton);
+            DrawRounded(rect, isHovered ? Lighten(fill, 0.06f) : fill, radius);
             if (border.a > 0f)
             {
-                DrawRoundedBorder(rect, border, RadiusButton);
+                DrawRoundedBorder(rect, border, radius);
             }
 
             GUI.Label(rect, label, labelStyle);

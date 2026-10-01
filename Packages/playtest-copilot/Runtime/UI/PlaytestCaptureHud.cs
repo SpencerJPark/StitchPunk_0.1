@@ -52,7 +52,7 @@ namespace PlaytestCopilot
             HandleCardDragging(cardRect, scale);
             cardRect = ComputeCardRect(scale);
 
-            PlaytestHudStyle.DrawSurface(cardRect);
+            PlaytestHudStyle.DrawSurface(cardRect, scale);
             DrawStatusRow(cardRect, scale);
             DrawLevelMeter(cardRect, scale);
             DrawActionRow(cardRect, scale);
@@ -158,7 +158,8 @@ namespace PlaytestCopilot
                 cardRect.width - inset * 2f,
                 PlaytestHudStyle.MeterHeight * scale);
 
-            PlaytestHudStyle.DrawSolid(meterRect, PlaytestHudStyle.FieldBackground);
+            int meterRadius = Mathf.Max(2, Mathf.RoundToInt(meterRect.height * 0.5f));
+            PlaytestHudStyle.DrawRounded(meterRect, PlaytestHudStyle.FieldBackground, meterRadius);
 
             if (Microphone == null)
             {
@@ -167,9 +168,10 @@ namespace PlaytestCopilot
 
             float inputLevel01 = Mathf.Clamp01(Microphone.CurrentInputLevel);
             bool markerIsOpen = VoiceController != null && VoiceController.IsMarkerOpen;
-            Rect fillRect = new Rect(meterRect.x, meterRect.y, meterRect.width * inputLevel01, meterRect.height);
-            PlaytestHudStyle.DrawSolid(fillRect,
-                markerIsOpen ? PlaytestHudStyle.MeterFill : PlaytestHudStyle.TextMuted);
+            float fillWidth = Mathf.Max(meterRect.height, meterRect.width * inputLevel01);
+            Rect fillRect = new Rect(meterRect.x, meterRect.y, fillWidth, meterRect.height);
+            PlaytestHudStyle.DrawRounded(fillRect,
+                markerIsOpen ? PlaytestHudStyle.MeterFill : PlaytestHudStyle.TextMuted, meterRadius);
         }
 
         private void DrawActionRow(Rect cardRect, float scale)
@@ -187,23 +189,25 @@ namespace PlaytestCopilot
 
             // The one primary action on this surface. RepeatButton rather than Button, because the
             // marker must stay open for as long as it is held.
-            Color recordFill = markerIsOpen ? PlaytestHudStyle.StatusRecording : PlaytestHudStyle.TextLabel;
+            Color recordFill = PlaytestHudStyle.TextLabel;
             bool isHovered = recordRect.Contains(Event.current.mousePosition);
-            PlaytestHudStyle.DrawSolid(recordRect, isHovered ? PlaytestHudStyle.Lighten(recordFill, 0.06f) : recordFill);
-            GUI.Label(recordRect, markerIsOpen ? "Recording" : "Hold to Talk", PlaytestHudStyle.PrimaryButton(scale));
+            PlaytestHudStyle.DrawRounded(recordRect,
+                isHovered ? PlaytestHudStyle.Lighten(recordFill, 0.06f) : recordFill,
+                PlaytestHudStyle.ScaledRadius(PlaytestHudStyle.RadiusButton, scale));
+            GUI.Label(recordRect, markerIsOpen ? "Recording..." : "Hold to Talk", PlaytestHudStyle.PrimaryButton(scale));
             bool pressedThisFrame = GUI.RepeatButton(recordRect, GUIContent.none, GUIStyle.none);
             HandlePressStateChange(pressedThisFrame);
 
             Rect circleRect = new Rect(recordRect.xMax + gap, rowY, secondaryWidth, rowHeight);
             if (PlaytestHudStyle.DrawFlatButton(circleRect, "Circle", PlaytestHudStyle.SecondaryButton(scale),
-                PlaytestHudStyle.ButtonBackground, PlaytestHudStyle.Divider))
+                PlaytestHudStyle.ButtonBackground, PlaytestHudStyle.Divider, scale))
             {
                 OpenAnnotationOverlay();
             }
 
             Rect captureRect = new Rect(circleRect.xMax + gap, rowY, secondaryWidth, rowHeight);
             if (PlaytestHudStyle.DrawFlatButton(captureRect, "Capture", PlaytestHudStyle.SecondaryButton(scale),
-                PlaytestHudStyle.ButtonBackground, PlaytestHudStyle.Divider))
+                PlaytestHudStyle.ButtonBackground, PlaytestHudStyle.Divider, scale))
             {
                 if (FrameCaptureRequested != null)
                 {
@@ -228,8 +232,27 @@ namespace PlaytestCopilot
                 ActionRowY(cardRect, scale) + PlaytestHudStyle.PrimaryHeight * scale + PlaytestHudStyle.SpaceTiny * scale,
                 cardRect.width - inset * 2f,
                 PlaytestHudStyle.ControlHeight * scale);
-            GUI.Label(hintRect, RecordKey + " talk  ·  " + AnnotateKey + " draw  ·  drag the title to move",
-                PlaytestHudStyle.MetaLabel(scale));
+            GUI.Label(hintRect, KeyLabel(RecordKey) + " talk     " + KeyLabel(AnnotateKey) + " draw",
+                PlaytestHudStyle.BodyLabel(scale));
+        }
+
+        /// KeyCode.ToString gives "BackQuote", which is the enum name and not the key anyone sees on
+        /// their keyboard.
+        private static string KeyLabel(KeyCode key)
+        {
+            switch (key)
+            {
+                case KeyCode.BackQuote: return "`";
+                case KeyCode.Space: return "Space";
+                case KeyCode.Return: return "Enter";
+                case KeyCode.LeftShift: return "Shift";
+                case KeyCode.RightShift: return "Shift";
+                case KeyCode.LeftControl: return "Ctrl";
+                case KeyCode.RightControl: return "Ctrl";
+                case KeyCode.LeftAlt: return "Alt";
+                case KeyCode.RightAlt: return "Alt";
+                default: return key.ToString();
+            }
         }
 
         private void OpenAnnotationOverlay()

@@ -346,7 +346,7 @@ namespace PlaytestCopilot
         /// tool filled with the selection blue, and Done as the single primary action.
         private void DrawToolbar(Rect toolbarRect, float scale)
         {
-            PlaytestHudStyle.DrawSurface(toolbarRect);
+            PlaytestHudStyle.DrawSurface(toolbarRect, scale);
 
             float padding = ToolbarPaddingPixels * scale;
             float buttonWidth = ToolbarButtonWidthPixels * scale;
@@ -359,9 +359,15 @@ namespace PlaytestCopilot
             DrawToolButton(ref cursorX, cursorY, "Arrow", PlaytestAnnotationTool.Arrow, scale);
 
             Rect noteFieldRect = new Rect(cursorX, cursorY, ToolbarNoteFieldWidthPixels * scale, buttonHeight);
-            PlaytestHudStyle.DrawSolid(noteFieldRect, PlaytestHudStyle.FieldBackground);
-            PlaytestHudStyle.DrawBorder(noteFieldRect, PlaytestHudStyle.Divider);
+            int fieldRadius = PlaytestHudStyle.ScaledRadius(PlaytestHudStyle.RadiusField, scale);
+            PlaytestHudStyle.DrawRounded(noteFieldRect, PlaytestHudStyle.FieldBackground, fieldRadius);
+            PlaytestHudStyle.DrawRoundedBorder(noteFieldRect, PlaytestHudStyle.Divider, fieldRadius);
             typedNote = GUI.TextField(noteFieldRect, typedNote, PlaytestHudStyle.Field(scale));
+            if (string.IsNullOrEmpty(typedNote))
+            {
+                // An empty unlabelled box reads as a gap in the toolbar rather than as a field.
+                GUI.Label(noteFieldRect, "  Type a note (optional)", PlaytestHudStyle.MetaLabel(scale));
+            }
             cursorX += ToolbarNoteFieldWidthPixels * scale + padding;
 
             bool hasStrokes = completedStrokes.Count > 0;
@@ -382,7 +388,8 @@ namespace PlaytestCopilot
             cursorX += buttonWidth + padding;
 
             Rect doneButtonRect = new Rect(cursorX, cursorY, buttonWidth, buttonHeight);
-            PlaytestHudStyle.DrawSolid(doneButtonRect, PlaytestHudStyle.TextLabel);
+            PlaytestHudStyle.DrawRounded(doneButtonRect, PlaytestHudStyle.TextLabel,
+                PlaytestHudStyle.ScaledRadius(PlaytestHudStyle.RadiusButton, scale));
             GUI.Label(doneButtonRect, "Done", PlaytestHudStyle.PrimaryButton(scale));
             if (GUI.Button(doneButtonRect, GUIContent.none, GUIStyle.none))
             {
@@ -394,7 +401,8 @@ namespace PlaytestCopilot
 
             Rect cancelButtonRect = new Rect(cursorX, cursorY, buttonWidth, buttonHeight);
             if (PlaytestHudStyle.DrawFlatButton(cancelButtonRect, "Cancel",
-                PlaytestHudStyle.SecondaryButton(scale), PlaytestHudStyle.ButtonBackground, PlaytestHudStyle.Divider))
+                PlaytestHudStyle.SecondaryButton(scale), PlaytestHudStyle.ButtonBackground,
+                PlaytestHudStyle.Divider, scale))
             {
                 Cancel();
             }
@@ -408,7 +416,8 @@ namespace PlaytestCopilot
             {
                 Color disabledFill = PlaytestHudStyle.ButtonBackground;
                 disabledFill.a = 0.4f;
-                PlaytestHudStyle.DrawSolid(buttonRect, disabledFill);
+                PlaytestHudStyle.DrawRounded(buttonRect, disabledFill,
+                    PlaytestHudStyle.ScaledRadius(PlaytestHudStyle.RadiusButton, scale));
                 GUIStyle disabledLabelStyle = PlaytestHudStyle.SecondaryButton(scale);
                 Color previousColor = GUI.color;
                 GUI.color = new Color(1f, 1f, 1f, 0.4f);
@@ -419,7 +428,7 @@ namespace PlaytestCopilot
 
             return PlaytestHudStyle.DrawFlatButton(buttonRect, label,
                 PlaytestHudStyle.SecondaryButton(scale), PlaytestHudStyle.ButtonBackground,
-                PlaytestHudStyle.Divider);
+                PlaytestHudStyle.Divider, scale);
         }
 
         public void UndoLastStroke()
@@ -454,7 +463,7 @@ namespace PlaytestCopilot
             bool isActiveTool = ActiveTool == tool;
             Color fill = isActiveTool ? PlaytestHudStyle.Selection : PlaytestHudStyle.ButtonBackground;
             if (PlaytestHudStyle.DrawFlatButton(buttonRect, label,
-                PlaytestHudStyle.SecondaryButton(scale), fill, PlaytestHudStyle.Divider))
+                PlaytestHudStyle.SecondaryButton(scale), fill, PlaytestHudStyle.Divider, scale))
             {
                 ActiveTool = tool;
             }
