@@ -132,3 +132,15 @@ Run the fixtures (temp repos only, never the real project):
 26. **`restore-trunk` leaves the empty folders a lead's commit created,** and the Editor then writes a folder `.meta` onto the stage
     as an untracked file (`Editor/Capture.meta`, twice in the A98 batch). Harmless for a branch that tracks no metas; a branch that
     commits that `.meta` would be refused at its next stage move. Check `git status` after every hand gate.
+27. **`File.Replace` throws transiently on Windows, and the broker tick turns that into console spam.**
+    Observed 2026-09-30: `IOException: Unable to remove the file to be replaced` from
+    `GateRequestStore.WriteHeartbeat`, which runs via `GateBroker.Tick` on *every* editor update. Any
+    process holding the destination for an instant — indexer, antivirus, a file watcher — fails the call,
+    and the half-written `.tmp` was left behind in the state directory for the Python side to find.
+    - The heartbeat never needed the atomic path: `broker_is_alive` reads **mtime**, so a torn heartbeat
+      costs nothing. It is written in place now.
+    - Queue and result files do need atomicity, so they keep `File.Replace` but retry 4x at 25 ms, clean
+      up the temp file, and fall back to a direct overwrite rather than losing the write — a lost request
+      leaves the other side waiting forever, which is worse than a non-atomic one.
+    - The broker being alive is *not* evidence the write path is healthy: the heartbeat had a current mtime
+      the whole time this was throwing. Check the console.
