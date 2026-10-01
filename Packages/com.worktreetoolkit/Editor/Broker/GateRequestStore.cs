@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using UnityEngine;
 
 namespace WorktreeToolkit.Editor
@@ -88,7 +89,12 @@ namespace WorktreeToolkit.Editor
                 utc = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture),
             };
 
-            WriteJsonAtomically(this.HeartbeatFilePath, JsonUtility.ToJson(heartbeat, true));
+            // Written in place rather than through WriteJsonAtomically: the only reader is
+            // broker_is_alive, which looks at mtime, so a torn heartbeat costs nothing, while
+            // File.Replace throws IOException whenever anything else momentarily holds the file
+            // (indexer, antivirus) — and this runs on every editor update, so one hiccup becomes a
+            // stack trace in the console.
+            File.WriteAllText(this.HeartbeatFilePath, JsonUtility.ToJson(heartbeat, true));
             File.SetLastWriteTimeUtc(this.HeartbeatFilePath, DateTime.UtcNow);
         }
 
@@ -98,18 +104,62 @@ namespace WorktreeToolkit.Editor
         }
 
         // A crashed writer must never leave a half-written queue/result file for the other side to read.
+        //
+        // On Windows both Replace and Move fail with IOException while anything else holds the
+        // destination for an instant, which happens often enough with an indexer or antivirus
+        // watching the repo. Retrying briefly is enough; what must not happen is an exception
+        // escaping into EditorApplication.update, or a .tmp left behind for the Python side to trip
+        // over when it scans the queue directory.
+        private const int AtomicWriteAttemptCount = 4;
+        private const int AtomicWriteRetryDelayMilliseconds = 25;
+
         private static void WriteJsonAtomically(string destinationPath, string jsonText)
         {
             string temporaryPath = destinationPath + ".tmp";
             File.WriteAllText(temporaryPath, jsonText);
 
-            if (File.Exists(destinationPath))
+            for (int attempt = 1; attempt <= AtomicWriteAttemptCount; attempt++)
             {
-                File.Replace(temporaryPath, destinationPath, null);
+                try
+                {
+                    if (File.Exists(destinationPath))
+                    {
+                        File.Replace(temporaryPath, destinationPath, null);
+                    }
+                    else
+                    {
+                        File.Move(temporaryPath, destinationPath);
+                    }
+
+                    return;
+                }
+                catch (IOException) when (attempt < AtomicWriteAttemptCount)
+                {
+                    Thread.Sleep(AtomicWriteRetryDelayMilliseconds);
+                }
+                catch (IOException)
+                {
+                    // Out of attempts. A direct overwrite gives up atomicity, but losing the write
+                    // entirely is worse: the other side would wait on a request that never arrived.
+                    TryDeleteTemporaryFile(temporaryPath);
+                    File.WriteAllText(destinationPath, jsonText);
+                    return;
+                }
             }
-            else
+        }
+
+        private static void TryDeleteTemporaryFile(string temporaryPath)
+        {
+            try
             {
-                File.Move(temporaryPath, destinationPath);
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+            catch (IOException)
+            {
+                // Nothing useful to do; the next write overwrites it.
             }
         }
 
