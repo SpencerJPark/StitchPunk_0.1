@@ -15,7 +15,10 @@ namespace PlaytestCopilot.Editor
         public const string ToolbarElementPath = "PlaytestCopilot/AIPlay";
 
         private const string CaptureSessionActiveSessionStateKey = "PlaytestCopilot.CaptureSessionActive";
-        private const string FirstRunRevealPreferenceKeyPrefix = "PlaytestCopilot.ToolbarRevealed.";
+        // Bumped when the first-run placement changes, so an Editor that already ran the old one
+        // re-places the button once instead of keeping it where the previous version left it.
+        private const string FirstRunRevealPreferenceKeyPrefix = "PlaytestCopilot.ToolbarPlaced2.";
+        private const string PlayModeControlsElementPath = "Play Mode Controls";
         private const string ToggleTooltipText =
             "Play with Playtest Copilot capture on: records voice, state and notes for this session.";
         private const string ToggleFallbackText = "AI Play";
@@ -104,21 +107,19 @@ namespace PlaytestCopilot.Editor
             }
         }
 
-        /// A newly registered main toolbar element is hidden: it is an overlay, and the Editor's saved
-        /// toolbar layout predates it, so `displayed` comes back false and the button never appears
-        /// even though registration succeeded. Reveal it exactly once per project, which leaves a
-        /// later deliberate hide (right-click the toolbar) alone.
+        /// A newly registered main toolbar element is hidden *and* unplaced: it is an overlay, so the
+        /// Editor's saved toolbar layout decides both. The layout predates this element, so
+        /// `displayed` comes back false and the button never appears even though registration
+        /// succeeded — and `defaultDockPosition` only applies the very first time a path registers,
+        /// so once a layout has placed it, changing the attribute moves nothing.
+        ///
+        /// Both are therefore fixed here, exactly once per project, which leaves a later deliberate
+        /// hide or drag (right-click the toolbar) alone.
+        private static int placementAttemptsRemaining;
+
         [InitializeOnLoadMethod]
         private static void RevealToolbarElementOnFirstRun()
         {
-            // The toolbar does not exist yet during InitializeOnLoad.
-            EditorApplication.delayCall += TryRevealToolbarElementOnce;
-        }
-
-        private static void TryRevealToolbarElementOnce()
-        {
-            EditorApplication.delayCall -= TryRevealToolbarElementOnce;
-
             string preferenceKey = FirstRunRevealPreferenceKeyPrefix
                 + Application.dataPath.GetHashCode().ToString("X8", CultureInfo.InvariantCulture);
             if (EditorPrefs.GetBool(preferenceKey, false))
@@ -126,17 +127,38 @@ namespace PlaytestCopilot.Editor
                 return;
             }
 
-            // Only record success: if the toolbar was not ready, the next domain reload retries.
-            if (TrySetToolbarElementDisplayed())
+            // The toolbar does not exist during InitializeOnLoad, and a single delayCall is too
+            // early too — it fires before the toolbar window is built, finds no overlay, and the
+            // placement is silently skipped for the whole session. Poll instead, briefly.
+            placementAttemptsRemaining = PlacementAttemptLimit;
+            EditorApplication.update += TryPlaceToolbarElementUntilToolbarExists;
+        }
+
+        private const int PlacementAttemptLimit = 600;
+
+        private static void TryPlaceToolbarElementUntilToolbarExists()
+        {
+            placementAttemptsRemaining--;
+
+            bool placed = TryPlaceToolbarElementBesidePlayControls();
+            if (!placed && placementAttemptsRemaining > 0)
             {
+                return;
+            }
+
+            EditorApplication.update -= TryPlaceToolbarElementUntilToolbarExists;
+            if (placed)
+            {
+                string preferenceKey = FirstRunRevealPreferenceKeyPrefix
+                    + Application.dataPath.GetHashCode().ToString("X8", CultureInfo.InvariantCulture);
                 EditorPrefs.SetBool(preferenceKey, true);
             }
         }
 
-        /// MainToolbar exposes only Refresh publicly, so reaching the overlay means reflection. It is
-        /// wrapped because an internal rename in a future Editor must cost a hidden button, not an
-        /// exception on every domain reload.
-        private static bool TrySetToolbarElementDisplayed()
+        /// MainToolbar exposes only Refresh publicly, and Overlay.DockAfter is internal, so placing
+        /// the button means reflection. It is wrapped because an internal rename in a future Editor
+        /// must cost a misplaced button, not an exception on every domain reload.
+        private static bool TryPlaceToolbarElementBesidePlayControls()
         {
             try
             {
@@ -148,25 +170,49 @@ namespace PlaytestCopilot.Editor
                     return false;
                 }
 
-                object[] arguments = new object[] { ToolbarElementPath, null };
-                if (!(bool)tryGetOverlay.Invoke(null, arguments))
+                Overlay aiPlayOverlay = FindOverlay(tryGetOverlay, ToolbarElementPath);
+                if (aiPlayOverlay == null)
                 {
                     return false;
                 }
 
-                Overlay toolbarOverlay = arguments[1] as Overlay;
-                if (toolbarOverlay == null)
+                aiPlayOverlay.displayed = true;
+
+                // Docking after Play Mode Controls puts it beside Play/Pause/Step, which is the whole
+                // point of the button — the Middle *section* is what the eye reads as "next to Play",
+                // and the dock attribute alone cannot get it there once a layout exists.
+                Overlay playModeOverlay = FindOverlay(tryGetOverlay, PlayModeControlsElementPath);
+                if (playModeOverlay != null)
                 {
-                    return false;
+                    MethodInfo dockAfter = typeof(Overlay).GetMethod(
+                        "DockAfter",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new Type[] { typeof(Overlay) },
+                        null);
+                    if (dockAfter != null)
+                    {
+                        dockAfter.Invoke(aiPlayOverlay, new object[] { playModeOverlay });
+                    }
                 }
 
-                toolbarOverlay.displayed = true;
                 return true;
             }
             catch (Exception)
             {
                 return false;
             }
+        }
+
+        private static Overlay FindOverlay(MethodInfo tryGetOverlay, string elementPath)
+        {
+            object[] arguments = new object[] { elementPath, null };
+            if (!(bool)tryGetOverlay.Invoke(null, arguments))
+            {
+                return null;
+            }
+
+            return arguments[1] as Overlay;
         }
     }
 }

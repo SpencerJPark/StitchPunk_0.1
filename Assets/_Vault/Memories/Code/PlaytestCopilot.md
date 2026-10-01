@@ -103,6 +103,17 @@ later deliberate hide via the toolbar's right-click menu survives.
 Invoking the factory method by hand proves only that the factory works. It does not prove the
 toolbar took the element, and it was what misled this session into reporting the button fixed twice.
 
+**Placement is the saved layout's, not the attribute's, and the reveal races the toolbar.**
+`defaultDockPosition` applies only the very first time a path registers; once a layout has placed
+the element, changing the attribute moves nothing. Moving it for real means
+`Overlay.DockAfter(target)` (internal) against the `Play Mode Controls` overlay — the Middle
+*section* is what the eye reads as "next to Play". Read the sections off
+`MainToolbarOverlayContainer`'s `m_LeftSection` / `m_MiddleSection` / `m_RightSection` to see where
+anything actually sits; every element shares one `container`, so `container` alone tells you
+nothing. And the placement cannot run from `InitializeOnLoad` *or* a single `EditorApplication
+.delayCall`: both fire before the toolbar window is built, find no overlay, and skip silently for
+the whole session. Poll `EditorApplication.update` until it succeeds.
+
 **The AssetDatabase addresses a package by its package name, not its folder name.** This package
 lives in `Packages/playtest-copilot/` but loads from `Packages/com.playtestcopilot/...`, and the
 folder path silently returns null. Do not hardcode either: ask

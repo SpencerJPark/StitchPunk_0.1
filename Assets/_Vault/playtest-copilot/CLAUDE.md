@@ -39,7 +39,13 @@ Do not start Milestone 2 (cloud) until Milestone 1 is done.
 - `unity-package/Editor/Icons/PlayAI.png` (light skin) and `d_PlayAI.png` (dark/pro skin), with `@2x` versions at 32 px.
 - Import them as Texture Type **Editor GUI and Legacy GUI**, no compression, no mipmaps.
 - Pick the variant with `EditorGUIUtility.isProSkin`, and the `@2x` file on high-DPI displays.
-- Sources are in `design/icons/`. Do not redraw the icon.
+- Redrawn 2026-10-01 at the owner's request, and no longer from `design/icons/`: the originals read
+  as a foreign orange glyph next to Unity's own controls. The shipped icons are now **Unity's own
+  `PlayButton` triangle**, read back from `EditorGUIUtility.IconContent` and composited with a plus
+  in the free bottom-right corner — light grey (195) for the dark skin, dark grey (56) for the light
+  skin. The SVGs in `design/icons/` are the superseded originals.
+- To regenerate, blit the built-in icon to a RenderTexture and `ReadPixels` it: built-in icon
+  textures are not readable, so `GetPixels32` on them throws.
 
 ## Before you ask the user
 
