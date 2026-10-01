@@ -88,6 +88,21 @@ without an Editor restart.
 Because the package's minimum is Unity 6.4 there is no reflection-based toolbar injection to
 write, despite what the spec says.
 
+**A newly registered main toolbar element is hidden, and registration success proves nothing.**
+Main toolbar elements are overlays, so the Editor's *saved toolbar layout* decides visibility. A
+path that has never been seen before is not in that layout, so `displayed` comes back `false` and
+no button appears — with a clean console, a valid element and the path sitting in
+`MainToolbar.GetAllElementDefinitions()`. Two diagnostics that matter:
+`MainToolbar.GetAllElementDefinitions()` tells you whether *discovery* worked (read each
+definition's `attr.path`; the definitions' `ToString()` is useless), and
+`MainToolbar.TryGetOverlay(path, out overlay)` then tells you whether it is *displayed*. Both are
+internal — only `Refresh(string path)` is public. `PlaytestAIPlayToolbarButton` reveals itself once
+per project through reflection, keyed in EditorPrefs by a hash of `Application.dataPath`, so a
+later deliberate hide via the toolbar's right-click menu survives.
+
+Invoking the factory method by hand proves only that the factory works. It does not prove the
+toolbar took the element, and it was what misled this session into reporting the button fixed twice.
+
 **The AssetDatabase addresses a package by its package name, not its folder name.** This package
 lives in `Packages/playtest-copilot/` but loads from `Packages/com.playtestcopilot/...`, and the
 folder path silently returns null. Do not hardcode either: ask
