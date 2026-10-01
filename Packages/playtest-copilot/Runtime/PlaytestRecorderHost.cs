@@ -27,7 +27,7 @@ namespace PlaytestCopilot
         public PlaytestGameObjectStateBackend StateBackend { get; private set; }
         public PlaytestPointerTracker PointerTracker { get; private set; }
         public PlaytestAnnotationOverlay AnnotationOverlay { get; private set; }
-        public PlaytestOnScreenRecordButton RecordButton { get; private set; }
+        public PlaytestCaptureHud CaptureHud { get; private set; }
 
         private PlaytestRecorderConfiguration configuration;
         private bool annotateKeyWasDownLastFrame;
@@ -82,10 +82,13 @@ namespace PlaytestCopilot
 
             AnnotationOverlay = gameObject.AddComponent<PlaytestAnnotationOverlay>();
 
-            RecordButton = gameObject.AddComponent<PlaytestOnScreenRecordButton>();
-            RecordButton.VoiceController = VoiceCapture;
-            RecordButton.Microphone = MicrophoneRecorder;
-            RecordButton.IsVisible = configuration.ShowOnScreenRecordButton;
+            CaptureHud = gameObject.AddComponent<PlaytestCaptureHud>();
+            CaptureHud.VoiceController = VoiceCapture;
+            CaptureHud.Microphone = MicrophoneRecorder;
+            CaptureHud.AnnotationOverlay = AnnotationOverlay;
+            CaptureHud.RecordKey = configuration.RecordKey;
+            CaptureHud.AnnotateKey = configuration.AnnotateKey;
+            CaptureHud.IsVisible = configuration.ShowOnScreenRecordButton;
 
             PlaytestCaptureBus.MarkerEnriching += EnrichMarker;
             MicrophoneRecorder.BeginCapture();

@@ -313,16 +313,25 @@ y-flip when turning GUI points into `PlaytestScreenRegion`.
 
 Freeze by saving and zeroing `Time.timeScale`, and restore the saved value — never assume it was 1.
 
-### `Runtime/UI/PlaytestOnScreenRecordButton.cs` — `sealed class : MonoBehaviour`
+### `Runtime/UI/PlaytestCaptureHud.cs` — `sealed class : MonoBehaviour`
 
 ```csharp
 bool IsVisible { get; set; }
 PlaytestVoiceCaptureController VoiceController { get; set; }
 PlaytestMicrophoneRecorder Microphone { get; set; }
+PlaytestAnnotationOverlay AnnotationOverlay { get; set; }
+KeyCode RecordKey { get; set; }
+KeyCode AnnotateKey { get; set; }
 ```
 
-IMGUI, bottom-right, shows the input level while a marker is open. It is the alternative for
-developers whose record key clashes with a game binding, so it must work with no keyboard at all.
+IMGUI. A red banner across the top while a note is recording, and a bottom-centre bar with the
+hold-to-record button, the live microphone level and both key hints. Everything is sized from
+`Screen.height / 900`, clamped to 3x: a fixed-pixel panel is unreadably small on a high-DPI game
+view, which is what the first version shipped and the owner immediately hit.
+
+It hides itself while the annotation overlay is open — two IMGUI layers competing for the same
+clicks turns a circle into a button press. It is also the alternative for developers whose record
+key clashes with a game binding, so it must work with no keyboard at all.
 
 ### `Editor/Settings/PlaytestCopilotSettings.cs` — `sealed class : ScriptableSingleton<PlaytestCopilotSettings>`
 

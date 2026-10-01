@@ -112,8 +112,29 @@ namespace PlaytestCopilot.Editor
             PlaytestCaptureBus.RaiseSessionEnded(activeDescriptor);
             PlaytestSessionFolderWriter.EndSession();
 
-            Debug.Log("Playtest Copilot: session written to " + activeDescriptor.AbsoluteFolderPath);
+            ReportSessionWritten(activeDescriptor);
             activeDescriptor = null;
+        }
+
+        /// The session folder lives outside Assets/, so nothing in the Project window points at it.
+        /// This console line is the main way a developer finds their recording, so it names the
+        /// files that exist rather than only the folder — and says plainly what is not there yet,
+        /// because "where are my specs" is the obvious question and the honest answer is "not built".
+        private static void ReportSessionWritten(PlaytestSessionDescriptor descriptor)
+        {
+            EditorPrefs.SetString(PlaytestCopilotMenu.LastSessionFolderPreferenceKey, descriptor.AbsoluteFolderPath);
+
+            int noteCount = PlaytestSessionFolderWriter.CompletedMarkers.Count;
+            string message = "Playtest Copilot: session saved, " + noteCount + " note(s).\n"
+                + descriptor.AbsoluteFolderPath + "\n"
+                + "  index.md              the session, readable with Unity closed\n"
+                + "  session-for-agent.md  paste this into a coding agent\n"
+                + "  audio.wav             the full microphone recording\n"
+                + "  state.jsonl           the game state log\n"
+                + "  notes/                one folder per note\n"
+                + "Menu: Tools > Playtest Copilot > Open Last Session Folder.\n"
+                + "No specs yet: spec drafting is the next milestone, so hand session-for-agent.md to an agent for now.";
+            Debug.Log(message);
         }
 
         private static GameObject GetActiveEditorSelection()

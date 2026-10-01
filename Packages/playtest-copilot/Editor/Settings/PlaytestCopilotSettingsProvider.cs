@@ -265,8 +265,18 @@ namespace PlaytestCopilot.Editor
             sessionsRootRowContainer.Add(sessionsRootPathField);
             sessionsRootRowContainer.Add(browseSessionsRootButton);
 
+            // Sessions are written outside Assets/, so the Project window never shows them. Without
+            // a way to open the folder from here, the printed path is the only clue a user gets.
+            Button openSessionsFolderButton = new Button { text = "Open Sessions Folder" };
+            openSessionsFolderButton.clicked += () =>
+            {
+                System.IO.Directory.CreateDirectory(settings.ResolvedSessionsRoot);
+                PlaytestCopilotMenu.RevealFolder(settings.ResolvedSessionsRoot);
+            };
+
             sectionContainer.Add(sessionsRootRowContainer);
             sectionContainer.Add(resolvedSessionsRootLabel);
+            sectionContainer.Add(openSessionsFolderButton);
             return sectionContainer;
         }
     }
