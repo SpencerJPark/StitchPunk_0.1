@@ -67,11 +67,32 @@ needs the Editor running.
 
 ## Verified platform facts
 
-The Unity 6.5 main toolbar API is `[MainToolbarElement("path", defaultDockPosition = ...,
-defaultDockIndex = ...)]` on a **static** method returning `VisualElement`, in
-`UnityEditor.Toolbars`. Those are property initialisers with `=`, not named constructor arguments
-with `:` — the constructor takes the path and nothing else. Because the package's minimum is
-Unity 6.4 there is no reflection-based toolbar injection to write, despite what the spec says.
+**The main toolbar factory must return a concrete `MainToolbarElement`, not a `VisualElement`.**
+Returning a `VisualElement` compiles cleanly and then fails at load with
+`Methods with MainToolbarElement attribute must return MainToolbarElementData` — a type that does
+not exist; the real base is `UnityEditor.Toolbars.MainToolbarElement`. The only symptom is a
+toolbar with no button on it, so a clean compile proves nothing here. The concrete subclasses are
+`MainToolbarButton`, `MainToolbarToggle`, `MainToolbarDropdown`, `MainToolbarLabel` and
+`MainToolbarSlider`, each taking a `MainToolbarContent` (which has ctors for text, image, tooltip
+and combinations). `MainToolbarToggle` has **no settable `value`** — only a private `m_Value` — so
+the on state has to live outside it and seed the constructor on each domain reload.
+
+The attribute itself is `[MainToolbarElement("path", defaultDockPosition = ..., defaultDockIndex =
+...)]` on a **static** method. Those are property initialisers with `=`, not named constructor
+arguments with `:` — the constructor takes the path and nothing else. `MainToolbarDockPosition` is
+`Left | Right | Middle`, and **Middle is the zone holding Play/Pause/Step** — Left is the far-left
+tools zone. A dock default applies only the first time an element registers, so changing it later
+will not move a button that is already placed. `MainToolbar.Refresh(path)` rebuilds one element
+without an Editor restart.
+
+Because the package's minimum is Unity 6.4 there is no reflection-based toolbar injection to
+write, despite what the spec says.
+
+**The AssetDatabase addresses a package by its package name, not its folder name.** This package
+lives in `Packages/playtest-copilot/` but loads from `Packages/com.playtestcopilot/...`, and the
+folder path silently returns null. Do not hardcode either: ask
+`PackageManager.PackageInfo.FindForAssembly(typeof(T).Assembly).assetPath`, which is what
+`PlaytestIconLoader` does.
 
 ## What is not done
 

@@ -7,7 +7,8 @@ namespace PlaytestCopilot.Editor
     /// AssetDatabase every frame; the cache is invalidated only when the editor skin changes.
     public static class PlaytestIconLoader
     {
-        private const string IconFolderPath = "Packages/playtest-copilot/Editor/Icons";
+        private const string IconFolderRelativePath = "Editor/Icons";
+        private const string FallbackPackageAssetPath = "Packages/com.playtestcopilot";
         private const string DarkSkinIconName = "d_PlayAI";
         private const string LightSkinIconName = "PlayAI";
         private const string RetinaSuffix = "@2x";
@@ -15,6 +16,7 @@ namespace PlaytestCopilot.Editor
         private static Texture2D cachedIcon;
         private static bool hasCachedIcon;
         private static bool cachedIsProSkin;
+        private static string resolvedPackageAssetPath;
 
         public static Texture2D LoadAIPlayIcon()
         {
@@ -65,8 +67,27 @@ namespace PlaytestCopilot.Editor
 
         private static Texture2D TryLoadIconAtPath(string iconName)
         {
-            string assetPath = IconFolderPath + "/" + iconName + ".png";
+            string assetPath = PackageAssetPath() + "/" + IconFolderRelativePath + "/" + iconName + ".png";
             return AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+        }
+
+        /// The AssetDatabase addresses a package by its **package name**, not its folder name, so an
+        /// embedded package in `Packages/playtest-copilot/` is loaded from
+        /// `Packages/com.playtestcopilot/`. Hardcoding either one breaks on a rename, so ask the
+        /// package manager which path this assembly actually came from.
+        private static string PackageAssetPath()
+        {
+            if (!string.IsNullOrEmpty(resolvedPackageAssetPath))
+            {
+                return resolvedPackageAssetPath;
+            }
+
+            UnityEditor.PackageManager.PackageInfo packageInfo =
+                UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(PlaytestIconLoader).Assembly);
+            resolvedPackageAssetPath = packageInfo != null && !string.IsNullOrEmpty(packageInfo.assetPath)
+                ? packageInfo.assetPath
+                : FallbackPackageAssetPath;
+            return resolvedPackageAssetPath;
         }
     }
 }
