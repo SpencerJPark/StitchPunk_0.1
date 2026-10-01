@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PlaytestCopilot
@@ -37,11 +38,20 @@ namespace PlaytestCopilot
         public const float PrimaryHeight = 28f;
         public const float MeterHeight = 6f;
 
+        // Radius scale from the style guide: 4 field, 5 button, 6 card.
+        public const int RadiusField = 4;
+        public const int RadiusButton = 5;
+        public const int RadiusCard = 6;
+
         public const int TypeMeta = 11;
         public const int TypeBody = 12;
         public const int TypePaneTitle = 13;
 
         private static Texture2D solidTexture;
+        private static readonly Dictionary<int, Texture2D> roundedFillTextures = new Dictionary<int, Texture2D>();
+        private static readonly Dictionary<int, Texture2D> roundedBorderTextures = new Dictionary<int, Texture2D>();
+        private static readonly Dictionary<int, GUIStyle> roundedFillStyles = new Dictionary<int, GUIStyle>();
+        private static readonly Dictionary<int, GUIStyle> roundedBorderStyles = new Dictionary<int, GUIStyle>();
         private static GUIStyle metaLabelStyle;
         private static GUIStyle bodyLabelStyle;
         private static GUIStyle paneTitleStyle;
@@ -70,27 +80,103 @@ namespace PlaytestCopilot
             GUI.color = previousColor;
         }
 
-        /// A flush surface with a 1px border, which is the guide's card: no radius here because IMGUI
-        /// has no rounded rect without shipping a sprite, and a hairline border reads closer than a
-        /// fake one would.
+        /// The guide's card: a rounded surface with a hairline border. IMGUI has no rounded rect, so
+        /// the corners come from a generated 9-slice texture rather than from a shipped sprite — that
+        /// keeps the package asset-free while still matching the Clip Editor's radii.
         public static void DrawSurface(Rect rect)
         {
-            DrawSolid(rect, Surface);
-            DrawBorder(rect, Divider);
+            DrawRounded(rect, Surface, RadiusCard);
+            DrawRoundedBorder(rect, Divider, RadiusCard);
+        }
+
+        public static void DrawRounded(Rect rect, Color color, int radius)
+        {
+            GUIStyle fillStyle = GetRoundedStyle(roundedFillStyles, roundedFillTextures, radius, false);
+            Color previousColor = GUI.color;
+            GUI.color = color;
+            GUI.Box(rect, GUIContent.none, fillStyle);
+            GUI.color = previousColor;
+        }
+
+        public static void DrawRoundedBorder(Rect rect, Color color, int radius)
+        {
+            GUIStyle borderStyle = GetRoundedStyle(roundedBorderStyles, roundedBorderTextures, radius, true);
+            Color previousColor = GUI.color;
+            GUI.color = color;
+            GUI.Box(rect, GUIContent.none, borderStyle);
+            GUI.color = previousColor;
         }
 
         public static void DrawBorder(Rect rect, Color color)
         {
-            DrawSolid(new Rect(rect.x, rect.y, rect.width, 1f), color);
-            DrawSolid(new Rect(rect.x, rect.yMax - 1f, rect.width, 1f), color);
-            DrawSolid(new Rect(rect.x, rect.y, 1f, rect.height), color);
-            DrawSolid(new Rect(rect.xMax - 1f, rect.y, 1f, rect.height), color);
+            DrawRoundedBorder(rect, color, RadiusField);
         }
 
-        /// Status row dot, per the guide's "tone dot plus one line" footer.
+        /// Status row dot, per the guide's "tone dot plus one line" footer. Fully rounded, so it reads
+        /// as a dot rather than a square.
         public static void DrawStatusDot(Rect rect, Color tone)
         {
-            DrawSolid(rect, tone);
+            DrawRounded(rect, tone, Mathf.Max(2, Mathf.RoundToInt(Mathf.Min(rect.width, rect.height) * 0.5f)));
+        }
+
+        private static GUIStyle GetRoundedStyle(Dictionary<int, GUIStyle> styleCache,
+            Dictionary<int, Texture2D> textureCache, int radius, bool isBorder)
+        {
+            radius = Mathf.Clamp(radius, 1, 32);
+            GUIStyle cachedStyle;
+            if (styleCache.TryGetValue(radius, out cachedStyle) && cachedStyle.normal.background != null)
+            {
+                return cachedStyle;
+            }
+
+            Texture2D roundedTexture = BuildRoundedTexture(radius, isBorder);
+            textureCache[radius] = roundedTexture;
+
+            GUIStyle style = new GUIStyle();
+            style.normal.background = roundedTexture;
+            // The 9-slice keeps the corners at their drawn size and stretches only the 1px middle.
+            style.border = new RectOffset(radius + 1, radius + 1, radius + 1, radius + 1);
+            style.padding = new RectOffset(0, 0, 0, 0);
+            style.margin = new RectOffset(0, 0, 0, 0);
+            style.overflow = new RectOffset(0, 0, 0, 0);
+            styleCache[radius] = style;
+            return style;
+        }
+
+        /// White pixels with a rounded alpha mask, tinted at draw time by GUI.color. The edge is
+        /// antialiased by coverage so a 5px radius does not read as a staircase.
+        private static Texture2D BuildRoundedTexture(int radius, bool isBorder)
+        {
+            int size = radius * 2 + 3;
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.hideFlags = HideFlags.HideAndDontSave;
+            texture.filterMode = FilterMode.Bilinear;
+            texture.wrapMode = TextureWrapMode.Clamp;
+
+            Color32[] pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float nearestX = Mathf.Clamp(x, radius, size - 1 - radius);
+                    float nearestY = Mathf.Clamp(y, radius, size - 1 - radius);
+                    float distance = Vector2.Distance(new Vector2(x, y), new Vector2(nearestX, nearestY));
+
+                    float outerCoverage = Mathf.Clamp01(radius + 0.5f - distance);
+                    float coverage = outerCoverage;
+                    if (isBorder)
+                    {
+                        float innerCoverage = Mathf.Clamp01(radius - 0.5f - distance);
+                        coverage = Mathf.Clamp01(outerCoverage - innerCoverage);
+                    }
+
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(coverage * 255f));
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return texture;
         }
 
         public static GUIStyle MetaLabel(float scale)
@@ -167,10 +253,10 @@ namespace PlaytestCopilot
         public static bool DrawFlatButton(Rect rect, string label, GUIStyle labelStyle, Color fill, Color border)
         {
             bool isHovered = rect.Contains(Event.current.mousePosition);
-            DrawSolid(rect, isHovered ? Lighten(fill, 0.06f) : fill);
+            DrawRounded(rect, isHovered ? Lighten(fill, 0.06f) : fill, RadiusButton);
             if (border.a > 0f)
             {
-                DrawBorder(rect, border);
+                DrawRoundedBorder(rect, border, RadiusButton);
             }
 
             GUI.Label(rect, label, labelStyle);

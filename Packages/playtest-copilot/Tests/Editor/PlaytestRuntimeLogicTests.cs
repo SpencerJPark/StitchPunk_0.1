@@ -116,14 +116,9 @@ namespace PlaytestCopilot.Tests.Editor
         }
 
         [Test]
-        public void ToRegions_SkipsEraserAndInflatesSinglePointTapToAtLeastEightByEightPixels()
+        public void ToRegions_InflatesSinglePointTapToAtLeastEightByEightPixels()
         {
-            PlaytestStroke eraserStroke = new PlaytestStroke
-            {
-                Tool = PlaytestAnnotationTool.Eraser,
-                ScreenPoints = new List<Vector2> { new Vector2(0f, 0f), new Vector2(10f, 10f) }
-            };
-
+            // A zero-size rect raycasts through nothing, so a tap must still select something.
             PlaytestStroke tapStroke = new PlaytestStroke
             {
                 Tool = PlaytestAnnotationTool.Pen,
@@ -131,9 +126,9 @@ namespace PlaytestCopilot.Tests.Editor
             };
 
             List<PlaytestScreenRegion> regions = PlaytestAnnotationStrokes.ToRegions(
-                new List<PlaytestStroke> { eraserStroke, tapStroke });
+                new List<PlaytestStroke> { tapStroke });
 
-            Assert.AreEqual(1, regions.Count, "The eraser stroke must not produce a region.");
+            Assert.AreEqual(1, regions.Count);
             Assert.GreaterOrEqual(regions[0].ScreenRect.width, 8f);
             Assert.GreaterOrEqual(regions[0].ScreenRect.height, 8f);
         }

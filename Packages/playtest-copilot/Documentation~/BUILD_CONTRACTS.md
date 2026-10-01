@@ -37,7 +37,7 @@ namespace PlaytestCopilot
 
 enum PlaytestNoteIntent   { Unclassified, Bug, Tuning, Feature, Content, Noise }
 enum PlaytestVoiceMode    { PushToTalk, AlwaysOn }
-enum PlaytestAnnotationTool { Circle, Pen, Arrow, Eraser }
+enum PlaytestAnnotationTool { Circle, Pen, Arrow }   // no eraser: undo/clear instead
 enum PlaytestReferenceSource { CircledRegion, PointerUnderCursor, EditorSelection,
                                TranscriptName, NearCameraCenter, RecentInteraction }
 
@@ -287,7 +287,7 @@ sealed class PlaytestStroke {
 
 static class PlaytestAnnotationStrokes {
     Rect BoundsOf(PlaytestStroke stroke);
-    List<PlaytestScreenRegion> ToRegions(List<PlaytestStroke> strokes);   // skips Eraser strokes
+    List<PlaytestScreenRegion> ToRegions(List<PlaytestStroke> strokes);
     Texture2D RenderToTexture(List<PlaytestStroke> strokes, int width, int height);  // transparent background
     Texture2D Combine(Texture2D frame, Texture2D annotation);             // annotation over frame
 }
@@ -305,6 +305,8 @@ string TypedNote { get; }
 void Open(string markerId);      // freezes time, grabs the frame
 void CloseAndCapture();          // raises AnnotationCaptured, restores time
 void Cancel();                   // restores time, raises nothing
+void UndoLastStroke();           // drops the most recent stroke
+void ClearAllStrokes();          // drops every stroke
 ```
 
 Draws with IMGUI in `OnGUI`. IMGUI is the only way to put an interactive overlay over the game view

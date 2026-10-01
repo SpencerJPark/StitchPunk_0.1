@@ -30,12 +30,14 @@ namespace PlaytestCopilot
         AlwaysOn
     }
 
+    /// No eraser: an eraser the width of a pen only perforates a stroke, and undo/clear is what a
+    /// person actually reaches for. Removing it rather than leaving it unused keeps the renderer
+    /// honest — nothing draws transparent pixels any more.
     public enum PlaytestAnnotationTool
     {
         Circle,
         Pen,
-        Arrow,
-        Eraser
+        Arrow
     }
 
     /// Which capture signal produced an object reference. The resolver ranks by this before

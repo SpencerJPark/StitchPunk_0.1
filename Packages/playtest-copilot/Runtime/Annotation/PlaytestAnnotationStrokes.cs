@@ -48,7 +48,7 @@ namespace PlaytestCopilot
             for (int strokeIndex = 0; strokeIndex < strokes.Count; strokeIndex++)
             {
                 PlaytestStroke stroke = strokes[strokeIndex];
-                if (stroke == null || stroke.Tool == PlaytestAnnotationTool.Eraser)
+                if (stroke == null)
                 {
                     continue;
                 }
@@ -180,9 +180,7 @@ namespace PlaytestCopilot
                 return;
             }
 
-            Color32 drawColor = stroke.Tool == PlaytestAnnotationTool.Eraser
-                ? new Color32(0, 0, 0, 0)
-                : (Color32)stroke.Color;
+            Color32 drawColor = (Color32)stroke.Color;
             float radius = Mathf.Max(0.5f, stroke.ThicknessPixels / 2f);
 
             switch (stroke.Tool)
@@ -194,7 +192,6 @@ namespace PlaytestCopilot
                     DrawArrow(pixels, width, height, stroke.ScreenPoints, drawColor, radius);
                     break;
                 case PlaytestAnnotationTool.Pen:
-                case PlaytestAnnotationTool.Eraser:
                 default:
                     DrawPolyline(pixels, width, height, stroke.ScreenPoints, drawColor, radius);
                     break;

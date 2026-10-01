@@ -14,12 +14,6 @@ namespace PlaytestCopilot
         private const float ToolbarNoteFieldWidthPixels = 220f;
         private const int DefaultStrokeThicknessPixels = 4;
 
-        // An eraser the width of the pen cuts slivers out of a line instead of removing it, which is
-        // what made the first annotation come back as dashes. It has to be several strokes wide to
-        // read as erasing at all, and the ring cursor is driven by the same number so the preview
-        // cannot lie about what will be cleared.
-        private const int EraserThicknessPixels = 28;
-
         // Matches the capture HUD so both on-screen surfaces are sized by one rule. A fixed-pixel
         // toolbar draws at a third of its intended size on a high-DPI game view.
         private const float ReferenceScreenHeight = 900f;
@@ -192,9 +186,7 @@ namespace PlaytestCopilot
                 {
                     Tool = ActiveTool,
                     Color = ColorForTool(ActiveTool),
-                    ThicknessPixels = ActiveTool == PlaytestAnnotationTool.Eraser
-                        ? EraserThicknessPixels
-                        : DefaultStrokeThicknessPixels
+                    ThicknessPixels = DefaultStrokeThicknessPixels
                 };
                 activeStroke.ScreenPoints.Add(bottomLeftOriginPoint);
                 currentEvent.Use();
@@ -224,8 +216,6 @@ namespace PlaytestCopilot
                     return Color.red;
                 case PlaytestAnnotationTool.Arrow:
                     return Color.cyan;
-                case PlaytestAnnotationTool.Eraser:
-                    return Color.white;
                 default:
                     return Color.magenta;
             }
@@ -249,12 +239,6 @@ namespace PlaytestCopilot
 
             if (activeStroke == null)
             {
-                return;
-            }
-
-            if (activeStroke.Tool == PlaytestAnnotationTool.Eraser)
-            {
-                DrawEraserCursor(activeStroke);
                 return;
             }
 
@@ -282,19 +266,6 @@ namespace PlaytestCopilot
 
             previewTexture = PlaytestAnnotationStrokes.RenderToTexture(
                 completedStrokes, Screen.width, Screen.height);
-        }
-
-        private static void DrawEraserCursor(PlaytestStroke stroke)
-        {
-            if (stroke.ScreenPoints == null || stroke.ScreenPoints.Count == 0)
-            {
-                return;
-            }
-
-            Vector2 cursorGuiSpace = FlipToGuiSpace(stroke.ScreenPoints[stroke.ScreenPoints.Count - 1]);
-            float radius = Mathf.Max(4f, stroke.ThicknessPixels);
-            Rect ringRect = new Rect(cursorGuiSpace.x - radius, cursorGuiSpace.y - radius, radius * 2f, radius * 2f);
-            PlaytestHudStyle.DrawBorder(ringRect, PlaytestHudStyle.TextPrimary);
         }
 
         private static void DrawStroke(PlaytestStroke stroke)
@@ -364,9 +335,9 @@ namespace PlaytestCopilot
             float padding = ToolbarPaddingPixels * scale;
             float buttonWidth = ToolbarButtonWidthPixels * scale;
             float width = padding
-                + (4 * (buttonWidth + padding))
+                + (3 * (buttonWidth + padding))
                 + ToolbarNoteFieldWidthPixels * scale + padding
-                + (2 * (buttonWidth + padding));
+                + (4 * (buttonWidth + padding));
             float height = ToolbarButtonHeightPixels * scale + (2f * padding);
             return new Rect(padding, padding, width, height);
         }
@@ -386,13 +357,29 @@ namespace PlaytestCopilot
             DrawToolButton(ref cursorX, cursorY, "Circle", PlaytestAnnotationTool.Circle, scale);
             DrawToolButton(ref cursorX, cursorY, "Pen", PlaytestAnnotationTool.Pen, scale);
             DrawToolButton(ref cursorX, cursorY, "Arrow", PlaytestAnnotationTool.Arrow, scale);
-            DrawToolButton(ref cursorX, cursorY, "Eraser", PlaytestAnnotationTool.Eraser, scale);
 
             Rect noteFieldRect = new Rect(cursorX, cursorY, ToolbarNoteFieldWidthPixels * scale, buttonHeight);
             PlaytestHudStyle.DrawSolid(noteFieldRect, PlaytestHudStyle.FieldBackground);
             PlaytestHudStyle.DrawBorder(noteFieldRect, PlaytestHudStyle.Divider);
             typedNote = GUI.TextField(noteFieldRect, typedNote, PlaytestHudStyle.Field(scale));
             cursorX += ToolbarNoteFieldWidthPixels * scale + padding;
+
+            bool hasStrokes = completedStrokes.Count > 0;
+            Rect undoButtonRect = new Rect(cursorX, cursorY, buttonWidth, buttonHeight);
+            if (DrawActionButton(undoButtonRect, "Undo", scale, hasStrokes))
+            {
+                UndoLastStroke();
+            }
+
+            cursorX += buttonWidth + padding;
+
+            Rect clearButtonRect = new Rect(cursorX, cursorY, buttonWidth, buttonHeight);
+            if (DrawActionButton(clearButtonRect, "Clear", scale, hasStrokes))
+            {
+                ClearAllStrokes();
+            }
+
+            cursorX += buttonWidth + padding;
 
             Rect doneButtonRect = new Rect(cursorX, cursorY, buttonWidth, buttonHeight);
             PlaytestHudStyle.DrawSolid(doneButtonRect, PlaytestHudStyle.TextLabel);
@@ -411,6 +398,50 @@ namespace PlaytestCopilot
             {
                 Cancel();
             }
+        }
+
+        /// Undo and Clear are actions, not tools, so they never take the selected-blue fill. Disabled
+        /// at 40% with no hover when there is nothing to undo, per the style guide's state rule.
+        private bool DrawActionButton(Rect buttonRect, string label, float scale, bool isEnabled)
+        {
+            if (!isEnabled)
+            {
+                Color disabledFill = PlaytestHudStyle.ButtonBackground;
+                disabledFill.a = 0.4f;
+                PlaytestHudStyle.DrawSolid(buttonRect, disabledFill);
+                GUIStyle disabledLabelStyle = PlaytestHudStyle.SecondaryButton(scale);
+                Color previousColor = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, 0.4f);
+                GUI.Label(buttonRect, label, disabledLabelStyle);
+                GUI.color = previousColor;
+                return false;
+            }
+
+            return PlaytestHudStyle.DrawFlatButton(buttonRect, label,
+                PlaytestHudStyle.SecondaryButton(scale), PlaytestHudStyle.ButtonBackground,
+                PlaytestHudStyle.Divider);
+        }
+
+        public void UndoLastStroke()
+        {
+            if (completedStrokes.Count == 0)
+            {
+                return;
+            }
+
+            completedStrokes.RemoveAt(completedStrokes.Count - 1);
+            previewTextureDirty = true;
+        }
+
+        public void ClearAllStrokes()
+        {
+            if (completedStrokes.Count == 0)
+            {
+                return;
+            }
+
+            completedStrokes.Clear();
+            previewTextureDirty = true;
         }
 
         private void DrawToolButton(ref float cursorX, float cursorY, string label,
