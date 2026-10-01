@@ -120,12 +120,14 @@ namespace PlaytestCopilot
         {
             if (primaryButtonStyle == null)
             {
-                primaryButtonStyle = new GUIStyle(GUI.skin.button);
+                // Built from the label skin, never the button skin. GUI.Label draws its style's
+                // background, so a button-derived style paints Unity's default chrome straight over
+                // the flat fill underneath it — which is why the first restyle changed nothing on
+                // screen even though every token was correct.
+                primaryButtonStyle = NewBackgroundlessStyle();
                 primaryButtonStyle.alignment = TextAnchor.MiddleCenter;
                 primaryButtonStyle.fontStyle = FontStyle.Bold;
-                primaryButtonStyle.normal.textColor = Hex(0x1A1A1A, 1f);
-                primaryButtonStyle.hover.textColor = Hex(0x1A1A1A, 1f);
-                primaryButtonStyle.active.textColor = Hex(0x1A1A1A, 1f);
+                SetTextColorForAllStates(primaryButtonStyle, Hex(0x1A1A1A, 1f));
             }
 
             primaryButtonStyle.fontSize = Mathf.RoundToInt(TypeBody * scale);
@@ -136,11 +138,9 @@ namespace PlaytestCopilot
         {
             if (secondaryButtonStyle == null)
             {
-                secondaryButtonStyle = new GUIStyle(GUI.skin.button);
+                secondaryButtonStyle = NewBackgroundlessStyle();
                 secondaryButtonStyle.alignment = TextAnchor.MiddleCenter;
-                secondaryButtonStyle.normal.textColor = TextLabel;
-                secondaryButtonStyle.hover.textColor = TextPrimary;
-                secondaryButtonStyle.active.textColor = TextPrimary;
+                SetTextColorForAllStates(secondaryButtonStyle, TextLabel);
             }
 
             secondaryButtonStyle.fontSize = Mathf.RoundToInt(TypeBody * scale);
@@ -152,8 +152,10 @@ namespace PlaytestCopilot
             if (fieldStyle == null)
             {
                 fieldStyle = new GUIStyle(GUI.skin.textField);
-                fieldStyle.normal.textColor = TextPrimary;
-                fieldStyle.focused.textColor = TextPrimary;
+                ClearStyleBackgrounds(fieldStyle);
+                SetTextColorForAllStates(fieldStyle, TextPrimary);
+                fieldStyle.alignment = TextAnchor.MiddleLeft;
+                fieldStyle.padding = new RectOffset(6, 6, 0, 0);
             }
 
             fieldStyle.fontSize = Mathf.RoundToInt(TypeBody * scale);
@@ -191,11 +193,47 @@ namespace PlaytestCopilot
                 return existingStyle;
             }
 
-            GUIStyle style = new GUIStyle(GUI.skin.label);
+            GUIStyle style = NewBackgroundlessStyle();
             style.alignment = TextAnchor.MiddleLeft;
-            style.normal.textColor = textColor;
-            style.wordWrap = false;
+            SetTextColorForAllStates(style, textColor);
             return style;
+        }
+
+        /// A label style carrying no chrome of its own, so the only pixels drawn are the glyphs over
+        /// whatever this file painted underneath.
+        private static GUIStyle NewBackgroundlessStyle()
+        {
+            GUIStyle style = new GUIStyle(GUI.skin.label);
+            ClearStyleBackgrounds(style);
+            style.wordWrap = false;
+            style.padding = new RectOffset(0, 0, 0, 0);
+            style.margin = new RectOffset(0, 0, 0, 0);
+            style.border = new RectOffset(0, 0, 0, 0);
+            return style;
+        }
+
+        private static void ClearStyleBackgrounds(GUIStyle style)
+        {
+            style.normal.background = null;
+            style.hover.background = null;
+            style.active.background = null;
+            style.focused.background = null;
+            style.onNormal.background = null;
+            style.onHover.background = null;
+            style.onActive.background = null;
+            style.onFocused.background = null;
+        }
+
+        private static void SetTextColorForAllStates(GUIStyle style, Color textColor)
+        {
+            style.normal.textColor = textColor;
+            style.hover.textColor = textColor;
+            style.active.textColor = textColor;
+            style.focused.textColor = textColor;
+            style.onNormal.textColor = textColor;
+            style.onHover.textColor = textColor;
+            style.onActive.textColor = textColor;
+            style.onFocused.textColor = textColor;
         }
 
         private static Color Hex(int rgb, float alpha)

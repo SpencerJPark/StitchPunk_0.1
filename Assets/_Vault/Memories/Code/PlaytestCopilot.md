@@ -56,6 +56,19 @@ the folder's own `.meta` sits *outside* the ignored folder, so `PlaytestSessions
 `Assets/PlaytestSessions.meta` tracked; and files written during play mode stay invisible until
 `AssetDatabase.Refresh()` runs at session end.
 
+**`GUI.Label` draws its style's background, so a button-derived style repaints Unity's default
+chrome.** The first restyle of the on-screen UI had every token right and changed nothing visible,
+because `PlaytestHudStyle`'s button styles were built from `GUI.skin.button`: the flat fill was
+drawn, then `GUI.Label` painted the default button graphic straight over it. Label styles for this
+package are built from `GUI.skin.label` with every state background nulled (`NewBackgroundlessStyle`).
+If on-screen chrome ever looks like stock Unity again, check this first.
+
+**A capture exists and it is the only honest judge of the on-screen UI.** Play-mode IMGUI cannot be
+grabbed from a session, but `notes/<id>/annotated.png` in any session with an annotation contains the
+game view *with the draw toolbar in it*. Read that image rather than reasoning about layout numbers.
+It is what revealed that the toolbar never scaled while the HUD did, and that the eraser was
+pen-width.
+
 ## Compile gate with no Editor
 
 `bash Packages/playtest-copilot/Tools~/compile-gate.sh` compiles all three assemblies with the

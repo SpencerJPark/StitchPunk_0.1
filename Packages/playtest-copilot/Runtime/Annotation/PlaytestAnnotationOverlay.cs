@@ -14,6 +14,17 @@ namespace PlaytestCopilot
         private const float ToolbarNoteFieldWidthPixels = 220f;
         private const int DefaultStrokeThicknessPixels = 4;
 
+        // An eraser the width of the pen cuts slivers out of a line instead of removing it, which is
+        // what made the first annotation come back as dashes. It has to be several strokes wide to
+        // read as erasing at all, and the ring cursor is driven by the same number so the preview
+        // cannot lie about what will be cleared.
+        private const int EraserThicknessPixels = 28;
+
+        // Matches the capture HUD so both on-screen surfaces are sized by one rule. A fixed-pixel
+        // toolbar draws at a third of its intended size on a high-DPI game view.
+        private const float ReferenceScreenHeight = 900f;
+        private const float MaximumScale = 3f;
+
         private static Texture2D solidWhiteTexture;
 
         private bool isOpen;
@@ -137,10 +148,10 @@ namespace PlaytestCopilot
                 return;
             }
 
-            Rect toolbarRect = ComputeToolbarRect();
+            Rect toolbarRect = ComputeToolbarRect(ToolbarScale);
             HandleToolInput(toolbarRect);
             DrawStrokesScreenSpace();
-            DrawToolbar(toolbarRect);
+            DrawToolbar(toolbarRect, ToolbarScale);
         }
 
         private void HandleKeyboardShortcuts()
@@ -181,7 +192,9 @@ namespace PlaytestCopilot
                 {
                     Tool = ActiveTool,
                     Color = ColorForTool(ActiveTool),
-                    ThicknessPixels = DefaultStrokeThicknessPixels
+                    ThicknessPixels = ActiveTool == PlaytestAnnotationTool.Eraser
+                        ? EraserThicknessPixels
+                        : DefaultStrokeThicknessPixels
                 };
                 activeStroke.ScreenPoints.Add(bottomLeftOriginPoint);
                 currentEvent.Use();
@@ -341,68 +354,81 @@ namespace PlaytestCopilot
             solidWhiteTexture.Apply();
         }
 
-        private static Rect ComputeToolbarRect()
+        private static float ToolbarScale
         {
-            float width = ToolbarPaddingPixels
-                + (4 * (ToolbarButtonWidthPixels + ToolbarPaddingPixels))
-                + ToolbarNoteFieldWidthPixels + ToolbarPaddingPixels
-                + (2 * (ToolbarButtonWidthPixels + ToolbarPaddingPixels));
-            float height = ToolbarButtonHeightPixels + (2f * ToolbarPaddingPixels);
-            return new Rect(ToolbarPaddingPixels, ToolbarPaddingPixels, width, height);
+            get { return Mathf.Clamp(Screen.height / ReferenceScreenHeight, 1f, MaximumScale); }
+        }
+
+        private static Rect ComputeToolbarRect(float scale)
+        {
+            float padding = ToolbarPaddingPixels * scale;
+            float buttonWidth = ToolbarButtonWidthPixels * scale;
+            float width = padding
+                + (4 * (buttonWidth + padding))
+                + ToolbarNoteFieldWidthPixels * scale + padding
+                + (2 * (buttonWidth + padding));
+            float height = ToolbarButtonHeightPixels * scale + (2f * padding);
+            return new Rect(padding, padding, width, height);
         }
 
         /// Same surface language as the capture card: one flush card, Unity's neutrals, the active
         /// tool filled with the selection blue, and Done as the single primary action.
-        private void DrawToolbar(Rect toolbarRect)
+        private void DrawToolbar(Rect toolbarRect, float scale)
         {
             PlaytestHudStyle.DrawSurface(toolbarRect);
 
-            float cursorX = toolbarRect.x + ToolbarPaddingPixels;
-            float cursorY = toolbarRect.y + ToolbarPaddingPixels;
+            float padding = ToolbarPaddingPixels * scale;
+            float buttonWidth = ToolbarButtonWidthPixels * scale;
+            float buttonHeight = ToolbarButtonHeightPixels * scale;
+            float cursorX = toolbarRect.x + padding;
+            float cursorY = toolbarRect.y + padding;
 
-            DrawToolButton(ref cursorX, cursorY, "Circle", PlaytestAnnotationTool.Circle);
-            DrawToolButton(ref cursorX, cursorY, "Pen", PlaytestAnnotationTool.Pen);
-            DrawToolButton(ref cursorX, cursorY, "Arrow", PlaytestAnnotationTool.Arrow);
-            DrawToolButton(ref cursorX, cursorY, "Eraser", PlaytestAnnotationTool.Eraser);
+            DrawToolButton(ref cursorX, cursorY, "Circle", PlaytestAnnotationTool.Circle, scale);
+            DrawToolButton(ref cursorX, cursorY, "Pen", PlaytestAnnotationTool.Pen, scale);
+            DrawToolButton(ref cursorX, cursorY, "Arrow", PlaytestAnnotationTool.Arrow, scale);
+            DrawToolButton(ref cursorX, cursorY, "Eraser", PlaytestAnnotationTool.Eraser, scale);
 
-            Rect noteFieldRect = new Rect(cursorX, cursorY, ToolbarNoteFieldWidthPixels, ToolbarButtonHeightPixels);
+            Rect noteFieldRect = new Rect(cursorX, cursorY, ToolbarNoteFieldWidthPixels * scale, buttonHeight);
             PlaytestHudStyle.DrawSolid(noteFieldRect, PlaytestHudStyle.FieldBackground);
-            typedNote = GUI.TextField(noteFieldRect, typedNote, PlaytestHudStyle.Field(1f));
-            cursorX += ToolbarNoteFieldWidthPixels + ToolbarPaddingPixels;
+            PlaytestHudStyle.DrawBorder(noteFieldRect, PlaytestHudStyle.Divider);
+            typedNote = GUI.TextField(noteFieldRect, typedNote, PlaytestHudStyle.Field(scale));
+            cursorX += ToolbarNoteFieldWidthPixels * scale + padding;
 
-            Rect doneButtonRect = new Rect(cursorX, cursorY, ToolbarButtonWidthPixels, ToolbarButtonHeightPixels);
+            Rect doneButtonRect = new Rect(cursorX, cursorY, buttonWidth, buttonHeight);
             PlaytestHudStyle.DrawSolid(doneButtonRect, PlaytestHudStyle.TextLabel);
-            GUI.Label(doneButtonRect, "Done", PlaytestHudStyle.PrimaryButton(1f));
+            GUI.Label(doneButtonRect, "Done", PlaytestHudStyle.PrimaryButton(scale));
             if (GUI.Button(doneButtonRect, GUIContent.none, GUIStyle.none))
             {
                 CloseAndCapture();
                 return;
             }
 
-            cursorX += ToolbarButtonWidthPixels + ToolbarPaddingPixels;
+            cursorX += buttonWidth + padding;
 
-            Rect cancelButtonRect = new Rect(cursorX, cursorY, ToolbarButtonWidthPixels, ToolbarButtonHeightPixels);
+            Rect cancelButtonRect = new Rect(cursorX, cursorY, buttonWidth, buttonHeight);
             if (PlaytestHudStyle.DrawFlatButton(cancelButtonRect, "Cancel",
-                PlaytestHudStyle.SecondaryButton(1f), PlaytestHudStyle.ButtonBackground, PlaytestHudStyle.Divider))
+                PlaytestHudStyle.SecondaryButton(scale), PlaytestHudStyle.ButtonBackground, PlaytestHudStyle.Divider))
             {
                 Cancel();
             }
         }
 
-        private void DrawToolButton(ref float cursorX, float cursorY, string label, PlaytestAnnotationTool tool)
+        private void DrawToolButton(ref float cursorX, float cursorY, string label,
+            PlaytestAnnotationTool tool, float scale)
         {
-            Rect buttonRect = new Rect(cursorX, cursorY, ToolbarButtonWidthPixels, ToolbarButtonHeightPixels);
+            Rect buttonRect = new Rect(cursorX, cursorY,
+                ToolbarButtonWidthPixels * scale, ToolbarButtonHeightPixels * scale);
 
             // Blue means selected, per the style guide; a toggle that is on is filled, not tinted.
             bool isActiveTool = ActiveTool == tool;
             Color fill = isActiveTool ? PlaytestHudStyle.Selection : PlaytestHudStyle.ButtonBackground;
             if (PlaytestHudStyle.DrawFlatButton(buttonRect, label,
-                PlaytestHudStyle.SecondaryButton(1f), fill, PlaytestHudStyle.Divider))
+                PlaytestHudStyle.SecondaryButton(scale), fill, PlaytestHudStyle.Divider))
             {
                 ActiveTool = tool;
             }
 
-            cursorX += ToolbarButtonWidthPixels + ToolbarPaddingPixels;
+            cursorX += ToolbarButtonWidthPixels * scale + ToolbarPaddingPixels * scale;
         }
 
         private void OnDestroy()
