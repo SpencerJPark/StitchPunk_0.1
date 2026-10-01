@@ -23,6 +23,8 @@ namespace PlaytestCopilot
         private Texture2D capturedFrameTexture;
         private readonly List<PlaytestStroke> completedStrokes = new List<PlaytestStroke>();
         private PlaytestStroke activeStroke;
+        private Texture2D previewTexture;
+        private bool previewTextureDirty;
 
         public bool IsOpen => isOpen;
         public PlaytestAnnotationTool ActiveTool { get; set; } = PlaytestAnnotationTool.Circle;
@@ -34,6 +36,7 @@ namespace PlaytestCopilot
             typedNote = string.Empty;
             completedStrokes.Clear();
             activeStroke = null;
+            previewTextureDirty = true;
             ActiveTool = PlaytestAnnotationTool.Circle;
 
             savedTimeScale = Time.timeScale;
@@ -89,6 +92,7 @@ namespace PlaytestCopilot
             DestroyCapturedFrame();
             completedStrokes.Clear();
             activeStroke = null;
+            previewTextureDirty = true;
             Time.timeScale = savedTimeScale;
             isOpen = false;
         }
@@ -100,6 +104,16 @@ namespace PlaytestCopilot
                 Destroy(capturedFrameTexture);
                 capturedFrameTexture = null;
             }
+
+            // The stroke preview is a full-screen texture rebuilt on every committed stroke; leaving
+            // it behind leaks one screen's worth of RGBA per annotation for the rest of the session.
+            if (previewTexture != null)
+            {
+                Destroy(previewTexture);
+                previewTexture = null;
+            }
+
+            previewTextureDirty = true;
         }
 
         // ScreenCapture.CaptureScreenshotAsTexture only returns a complete frame when called after
@@ -182,6 +196,7 @@ namespace PlaytestCopilot
                 activeStroke.ScreenPoints.Add(bottomLeftOriginPoint);
                 completedStrokes.Add(activeStroke);
                 activeStroke = null;
+                previewTextureDirty = true;
                 currentEvent.Use();
             }
         }
@@ -203,17 +218,70 @@ namespace PlaytestCopilot
             }
         }
 
+        /// Committed strokes are previewed through the very texture the saved PNG is rendered from,
+        /// so the eraser actually erases on screen. Drawing them as GUI lines instead is what made the
+        /// eraser look like a white pen: it painted over the ink rather than removing it, and nothing
+        /// on screen matched the file that came out.
+        ///
+        /// Only the in-progress stroke is drawn as cheap GUI lines, and the eraser's is a hollow ring
+        /// cursor rather than a filled line, because an eraser has no colour of its own.
         private void DrawStrokesScreenSpace()
         {
-            for (int strokeIndex = 0; strokeIndex < completedStrokes.Count; strokeIndex++)
+            RebuildPreviewTextureIfDirty();
+
+            if (previewTexture != null)
             {
-                DrawStroke(completedStrokes[strokeIndex]);
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), previewTexture);
             }
 
-            if (activeStroke != null)
+            if (activeStroke == null)
             {
-                DrawStroke(activeStroke);
+                return;
             }
+
+            if (activeStroke.Tool == PlaytestAnnotationTool.Eraser)
+            {
+                DrawEraserCursor(activeStroke);
+                return;
+            }
+
+            DrawStroke(activeStroke);
+        }
+
+        private void RebuildPreviewTextureIfDirty()
+        {
+            if (!previewTextureDirty)
+            {
+                return;
+            }
+
+            previewTextureDirty = false;
+            if (previewTexture != null)
+            {
+                Destroy(previewTexture);
+                previewTexture = null;
+            }
+
+            if (completedStrokes.Count == 0)
+            {
+                return;
+            }
+
+            previewTexture = PlaytestAnnotationStrokes.RenderToTexture(
+                completedStrokes, Screen.width, Screen.height);
+        }
+
+        private static void DrawEraserCursor(PlaytestStroke stroke)
+        {
+            if (stroke.ScreenPoints == null || stroke.ScreenPoints.Count == 0)
+            {
+                return;
+            }
+
+            Vector2 cursorGuiSpace = FlipToGuiSpace(stroke.ScreenPoints[stroke.ScreenPoints.Count - 1]);
+            float radius = Mathf.Max(4f, stroke.ThicknessPixels);
+            Rect ringRect = new Rect(cursorGuiSpace.x - radius, cursorGuiSpace.y - radius, radius * 2f, radius * 2f);
+            PlaytestHudStyle.DrawBorder(ringRect, PlaytestHudStyle.TextPrimary);
         }
 
         private static void DrawStroke(PlaytestStroke stroke)
@@ -283,9 +351,11 @@ namespace PlaytestCopilot
             return new Rect(ToolbarPaddingPixels, ToolbarPaddingPixels, width, height);
         }
 
+        /// Same surface language as the capture card: one flush card, Unity's neutrals, the active
+        /// tool filled with the selection blue, and Done as the single primary action.
         private void DrawToolbar(Rect toolbarRect)
         {
-            GUI.Box(toolbarRect, GUIContent.none);
+            PlaytestHudStyle.DrawSurface(toolbarRect);
 
             float cursorX = toolbarRect.x + ToolbarPaddingPixels;
             float cursorY = toolbarRect.y + ToolbarPaddingPixels;
@@ -296,11 +366,14 @@ namespace PlaytestCopilot
             DrawToolButton(ref cursorX, cursorY, "Eraser", PlaytestAnnotationTool.Eraser);
 
             Rect noteFieldRect = new Rect(cursorX, cursorY, ToolbarNoteFieldWidthPixels, ToolbarButtonHeightPixels);
-            typedNote = GUI.TextField(noteFieldRect, typedNote);
+            PlaytestHudStyle.DrawSolid(noteFieldRect, PlaytestHudStyle.FieldBackground);
+            typedNote = GUI.TextField(noteFieldRect, typedNote, PlaytestHudStyle.Field(1f));
             cursorX += ToolbarNoteFieldWidthPixels + ToolbarPaddingPixels;
 
             Rect doneButtonRect = new Rect(cursorX, cursorY, ToolbarButtonWidthPixels, ToolbarButtonHeightPixels);
-            if (GUI.Button(doneButtonRect, "Done"))
+            PlaytestHudStyle.DrawSolid(doneButtonRect, PlaytestHudStyle.TextLabel);
+            GUI.Label(doneButtonRect, "Done", PlaytestHudStyle.PrimaryButton(1f));
+            if (GUI.Button(doneButtonRect, GUIContent.none, GUIStyle.none))
             {
                 CloseAndCapture();
                 return;
@@ -309,7 +382,8 @@ namespace PlaytestCopilot
             cursorX += ToolbarButtonWidthPixels + ToolbarPaddingPixels;
 
             Rect cancelButtonRect = new Rect(cursorX, cursorY, ToolbarButtonWidthPixels, ToolbarButtonHeightPixels);
-            if (GUI.Button(cancelButtonRect, "Cancel"))
+            if (PlaytestHudStyle.DrawFlatButton(cancelButtonRect, "Cancel",
+                PlaytestHudStyle.SecondaryButton(1f), PlaytestHudStyle.ButtonBackground, PlaytestHudStyle.Divider))
             {
                 Cancel();
             }
@@ -318,15 +392,16 @@ namespace PlaytestCopilot
         private void DrawToolButton(ref float cursorX, float cursorY, string label, PlaytestAnnotationTool tool)
         {
             Rect buttonRect = new Rect(cursorX, cursorY, ToolbarButtonWidthPixels, ToolbarButtonHeightPixels);
-            Color previousBackgroundColor = GUI.backgroundColor;
-            GUI.backgroundColor = ActiveTool == tool ? Color.cyan : previousBackgroundColor;
 
-            if (GUI.Button(buttonRect, label))
+            // Blue means selected, per the style guide; a toggle that is on is filled, not tinted.
+            bool isActiveTool = ActiveTool == tool;
+            Color fill = isActiveTool ? PlaytestHudStyle.Selection : PlaytestHudStyle.ButtonBackground;
+            if (PlaytestHudStyle.DrawFlatButton(buttonRect, label,
+                PlaytestHudStyle.SecondaryButton(1f), fill, PlaytestHudStyle.Divider))
             {
                 ActiveTool = tool;
             }
 
-            GUI.backgroundColor = previousBackgroundColor;
             cursorX += ToolbarButtonWidthPixels + ToolbarPaddingPixels;
         }
 
