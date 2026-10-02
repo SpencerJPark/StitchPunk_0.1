@@ -3981,15 +3981,6 @@ namespace DotsAnimationToolkit.Editor
                     showingNoClipEmptyState && !rigOverlayShowing ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
-            // The empty state overlay sits on top of the render, but the render keeps drawing
-            // underneath it and bleeds through — blank it so the empty-state sentence stays
-            // readable. Same fix as ActorEditorPanel.RenderViewport for its "No actor to preview" state.
-            previewImage.style.display = showingNoClipEmptyState ? DisplayStyle.None : DisplayStyle.Flex;
-            if (showingNoClipEmptyState)
-            {
-                return;
-            }
-
             Rect previewRect = previewImage.contentRect;
             if (float.IsNaN(previewRect.width) || previewRect.width < 1f || previewRect.height < 1f)
             {
@@ -3997,8 +3988,12 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            Texture renderedTexture = previewController.Render(
-                Mathf.RoundToInt(previewRect.width), Mathf.RoundToInt(previewRect.height));
+            // With no clip the stage still draws (grid only); the empty state sits on its card above it.
+            int pixelWidth = Mathf.RoundToInt(previewRect.width);
+            int pixelHeight = Mathf.RoundToInt(previewRect.height);
+            Texture renderedTexture = showingNoClipEmptyState
+                ? previewController.RenderEmptyStage(pixelWidth, pixelHeight)
+                : previewController.Render(pixelWidth, pixelHeight);
             if (renderedTexture != null)
             {
                 previewImage.image = renderedTexture;

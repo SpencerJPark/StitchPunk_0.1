@@ -258,7 +258,8 @@ namespace DotsAnimationToolkit.Editor
         }
 
         /// <summary>The point the camera orbits and looks at — the middle of the rig, not the origin.</summary>
-        private Vector3 orbitFocus = Vector3.zero;
+        // Starts where FrameRig aims with no rig: at the origin the camera sits on the floor plane and an empty stage shows the floor edge-on.
+        private Vector3 orbitFocus = new Vector3(0f, MinimumFocusHeight, 0f);
 
         // Whether the camera should reframe on the next render. Deferred rather than framed the
         // moment the rig changes, since the clip set and the prefab field arrive separately and a
@@ -1604,6 +1605,10 @@ namespace DotsAnimationToolkit.Editor
             {
                 HideOverlaysForCapture();
             }
+            if (emptyStageOnly)
+            {
+                HideActorForEmptyStage();
+            }
 
             ApplyCameraPose();
 
@@ -1630,9 +1635,52 @@ namespace DotsAnimationToolkit.Editor
             // so buttons stopped opening their pickers; a slider dragger lost the pointer the moment
             // it grabbed it, so drags died on the spot.
             renderUtility.BeginPreview(new Rect(0f, 0f, pixelWidth, pixelHeight), GUIStyle.none);
-            bakedVatOverlay.Draw(renderUtility);
+            if (!emptyStageOnly)
+            {
+                bakedVatOverlay.Draw(renderUtility);
+            }
             renderUtility.camera.Render();
             return renderUtility.EndPreview();
+        }
+
+        // An empty tab still shows its 3D space: the grid alone, with the shared rig and every handle hidden.
+        public Texture RenderEmptyStage(int pixelWidth, int pixelHeight)
+        {
+            emptyStageOnly = true;
+            try
+            {
+                return Render(pixelWidth, pixelHeight);
+            }
+            finally
+            {
+                emptyStageOnly = false;
+                RestoreOverlaysHiddenForCapture();
+            }
+        }
+
+        private bool emptyStageOnly;
+
+        private void HideActorForEmptyStage()
+        {
+            HideOverlayForCapture(skeletonMirror.InstanceRoot);
+            HideOverlayForCapture(rigMirror.RootObject);
+            HideOverlayForCapture(sceneGizmos.SelectionObject);
+            HideOverlayForCapture(boneHandles.HandlesObject);
+            HideOverlayForCapture(socketMarkers.RootObject);
+            HideOverlayForCapture(transformGizmo.GizmoObject);
+            HideOverlayForCapture(ragdollBoxHandles.HandlesObject);
+        }
+
+        private void RestoreOverlaysHiddenForCapture()
+        {
+            for (int overlayIndex = 0; overlayIndex < overlaysHiddenForCapture.Count; overlayIndex++)
+            {
+                if (overlaysHiddenForCapture[overlayIndex] != null)
+                {
+                    overlaysHiddenForCapture[overlayIndex].SetActive(true);
+                }
+            }
+            overlaysHiddenForCapture.Clear();
         }
 
         private bool captureOverlaysHidden;
@@ -1659,14 +1707,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 captureOverlaysHidden = false;
                 renderUtility.camera.backgroundColor = previousBackgroundColour;
-                for (int overlayIndex = 0; overlayIndex < overlaysHiddenForCapture.Count; overlayIndex++)
-                {
-                    if (overlaysHiddenForCapture[overlayIndex] != null)
-                    {
-                        overlaysHiddenForCapture[overlayIndex].SetActive(true);
-                    }
-                }
-                overlaysHiddenForCapture.Clear();
+                RestoreOverlaysHiddenForCapture();
             }
         }
 

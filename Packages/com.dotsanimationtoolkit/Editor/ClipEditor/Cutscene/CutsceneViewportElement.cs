@@ -105,6 +105,8 @@ namespace DotsAnimationToolkit.Editor
         {
             AddToClassList(UssClassName);
             AddToClassList("toolkit-list-surface");
+            // Without --flush the surface's -12px pull-back overhangs the column and shows as a grey strip beside the inspector.
+            AddToClassList("toolkit-list-surface--flush");
             focusable = true;
 
             sceneImage = new Image { scaleMode = ScaleMode.StretchToFill };

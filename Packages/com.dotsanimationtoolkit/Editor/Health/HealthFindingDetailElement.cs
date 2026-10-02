@@ -190,6 +190,7 @@ namespace DotsAnimationToolkit.Editor
 
             VisualElement body = new VisualElement();
             body.AddToClassList("toolkit-box__body");
+            body.AddToClassList("health-fix-body");
             section.Add(body);
 
             if (finding.actions == null || finding.actions.Count == 0)

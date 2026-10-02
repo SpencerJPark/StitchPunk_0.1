@@ -504,6 +504,12 @@
     margin: 0;
 }
 
+/* An empty list keeps its own tone and offers its action at the top of the body, as the cutscene cast does. */
+.toolkit-list-surface > .toolkit-empty {
+    flex-grow: 0;
+    justify-content: flex-start;
+}
+
 /* H. Property row */
 .toolkit-property-row {
     flex-direction: row;
@@ -727,6 +733,26 @@
 .toolkit-toggle-button:checked {
     background-color: var(--unity-colors-button-background);
     color: var(--toolkit-text);
+}
+
+/* A toolbar button in a status row (Add Event, Quantize Keys) wears its toggle neighbours' outline;
+   Unity's toolbar style otherwise out-ranks the secondary class and draws it square and grey-filled. */
+.toolkit-status-actions > .toolkit-button--secondary.unity-toolbar-button {
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding: 0 8px;
+    margin: 0 0 0 4px;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+    border-radius: var(--toolkit-radius-button);
+    background-color: transparent;
+    color: var(--toolkit-label);
+    font-size: var(--toolkit-text-body);
+    flex-shrink: 0;
+}
+
+.toolkit-status-actions > .toolkit-button--secondary.unity-toolbar-button:hover {
+    background-color: var(--toolkit-hover);
 }
 
 /* Inside a 24px control row the segmented control's 2px track padding pushed it to ~30px and past the bar. */

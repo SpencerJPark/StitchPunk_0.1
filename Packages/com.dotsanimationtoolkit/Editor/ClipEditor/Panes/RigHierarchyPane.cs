@@ -57,6 +57,7 @@ namespace DotsAnimationToolkit.Editor
 
         private TreeView hierarchyTreeView;
         private Label hierarchyEmptyLabel;
+        private ToolkitEmptyListSurface hierarchyEmptySurface;
 
         private ObjectField skinnedSourceField;
 
@@ -268,6 +269,15 @@ namespace DotsAnimationToolkit.Editor
             }
             hierarchyTreeView.fixedItemHeight = 20f;
 
+            // The reason the tree is empty shows inside the list body, in its tone, not as a band above it.
+            if (hierarchyEmptyLabel != null)
+            {
+                hierarchyEmptyLabel.style.display = DisplayStyle.None;
+            }
+            hierarchyEmptySurface = new ToolkitEmptyListSurface("hierarchy-empty", hierarchyTreeView);
+            hierarchyEmptySurface.AddToClassList("toolkit-list-surface--flush");
+            hierarchyTreeView.parent.Insert(hierarchyTreeView.parent.IndexOf(hierarchyTreeView) + 1, hierarchyEmptySurface);
+
             // Multiple, so several parts can be focused on the timeline at once. Ctrl-click adds,
             // shift-click extends — the conventions every list in the editor already uses.
             hierarchyTreeView.selectionType = SelectionType.Multiple;
@@ -411,30 +421,33 @@ namespace DotsAnimationToolkit.Editor
                 hierarchyTreeView.ExpandAll();
             }
 
-            if (hierarchyEmptyLabel != null)
+            if (hierarchyEmptySurface == null)
             {
-                hierarchyEmptyLabel.text = ResolveHierarchyEmptyMessage();
-                hierarchyEmptyLabel.EnableInClassList(HiddenUssClassName, rootItems.Count > 0);
+                return;
             }
-        }
 
-        /// <summary>What the empty-hierarchy hint should say, given why it is empty.</summary>
-        private string ResolveHierarchyEmptyMessage()
-        {
-            if (selection.ClipSet == null)
+            if (rootItems.Count > 0)
             {
-                return "Assign a clip set.";
+                hierarchyEmptySurface.Hide();
             }
-            if (ActiveRig == null)
+            else if (selection.ClipSet == null)
             {
-                return "Pick a rig above the hierarchy.";
+                hierarchyEmptySurface.Show("No clip set", "Assign a clip set in the Clips pane above.", null, null);
             }
-            if (ActiveRig.sourcePrefab == null)
+            else if (ActiveRig == null)
             {
-                return "Rig \"" + ActiveRig.name + "\" has no Source Prefab assigned yet. Open "
-                    + "the rig asset and assign one to preview and author bone tracks.";
+                hierarchyEmptySurface.Show("No rig", "Pick a rig in the field above to list its parts.", null, null);
             }
-            return "This rig's source prefab has no child transforms to show.";
+            else if (ActiveRig.sourcePrefab == null)
+            {
+                hierarchyEmptySurface.Show(
+                    "No source prefab", "Rig \"" + ActiveRig.name + "\" needs a Source Prefab to preview and author bone tracks.",
+                    "Open Rig", () => UnityEditor.Selection.activeObject = ActiveRig);
+            }
+            else
+            {
+                hierarchyEmptySurface.Show("No parts", "This rig's source prefab has no child transforms to show.", null, null);
+            }
         }
 
         // The id is the preview's own index for that transform, not a counter kept here — two

@@ -863,7 +863,9 @@
 /* Appears only when some key does not land on a frame of the current grid. */
 /* Quantize Keys, tinted because it is the one control in its run that changes authored data rather
    than a mode. Sizing and dividers come from the shared bar-action rule; this only colours it. */
-.clip-editor__quantize-action {
+/* Out-ranks the status-row outline rule, which would otherwise clear this fill to transparent. */
+.clip-editor__quantize-action,
+.toolkit-status-actions > .toolkit-button--secondary.unity-toolbar-button.clip-editor__quantize-action {
     background-color: rgb(150, 110, 40);
 }
 
@@ -2091,6 +2093,11 @@
     min-height: var(--toolkit-height-field);
     margin-top: 0;
     margin-bottom: 0;
+}
+
+/* The first fix button sat flush under the "How to fix" header; the scale's 8px separates them. */
+.health-fix-body {
+    padding-top: 8px;
 }
 
 /* HE2: every fix is one secondary button of one width, its description centred beside it. */

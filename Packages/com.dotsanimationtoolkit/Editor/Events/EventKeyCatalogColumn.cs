@@ -16,7 +16,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<AnimEventKeyEntry> filteredEntries = new List<AnimEventKeyEntry>();
         private readonly ToolbarSearchField searchField;
         private readonly ListView keysListView;
-        private readonly Label emptyLabel;
+        private readonly ToolkitEmptyListSurface emptyListSurface;
         private readonly Label maskableBudgetBadge;
         private readonly Label pulseOnlyCountBadge;
 
@@ -86,9 +86,9 @@ namespace DotsAnimationToolkit.Editor
             keysListView.AddToClassList("toolkit-list-surface");
             Add(keysListView);
 
-            emptyLabel = new Label();
-            emptyLabel.AddToClassList("toolkit-hint");
-            Add(emptyLabel);
+            emptyListSurface = new ToolkitEmptyListSurface("events-keys-empty", keysListView);
+            emptyListSurface.style.marginTop = 4f;
+            Add(emptyListSurface);
 
             RefreshEmptyState();
             UpdateBudgetLabel();
@@ -284,13 +284,22 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshEmptyState()
         {
-            bool isEmpty = filteredEntries.Count == 0;
-            keysListView.style.display = isEmpty ? DisplayStyle.None : DisplayStyle.Flex;
-            emptyLabel.style.display = isEmpty ? DisplayStyle.Flex : DisplayStyle.None;
-            if (isEmpty)
+            if (filteredEntries.Count > 0)
             {
-                bool registryHasNoEntries = Registry == null || Registry.entries == null || Registry.entries.Count == 0;
-                emptyLabel.text = registryHasNoEntries ? "No event keys yet." : "No event keys match your search.";
+                emptyListSurface.Hide();
+                return;
+            }
+
+            bool registryHasNoEntries = Registry == null || Registry.entries == null || Registry.entries.Count == 0;
+            if (registryHasNoEntries)
+            {
+                emptyListSurface.Show(
+                    "No event keys yet", "An event key names a moment a clip can fire, like a footstep.",
+                    "New Event Key", RaiseNewRequested);
+            }
+            else
+            {
+                emptyListSurface.Show("No matches", "No event keys match your search.", null, null);
             }
         }
 

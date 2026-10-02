@@ -17,7 +17,10 @@ namespace DotsAnimationToolkit.Editor
         public string newButtonTooltip;
         public string refreshButtonIconName = "Refresh";
         public string refreshButtonTooltip;
+        public string emptyProjectTitle = "Nothing here yet";
         public string emptyProjectMessage;
+        // Null shows the empty state without a button; otherwise the button raises New.
+        public string emptyProjectActionText = "Create";
         public string emptySearchMessage;
         public Func<IReadOnlyList<TAsset>> scan;
         public Func<TAsset, string> secondLine;
@@ -39,7 +42,7 @@ namespace DotsAnimationToolkit.Editor
         private string searchText = string.Empty;
         private readonly ToolbarSearchField searchField;
         private readonly ListView assetsListView;
-        private readonly Label emptyLabel;
+        private readonly ToolkitEmptyListSurface emptyListSurface;
 
         public event Action NewRequested;
         public event Action RefreshRequested;
@@ -125,9 +128,9 @@ namespace DotsAnimationToolkit.Editor
             assetsListView.AddToClassList("toolkit-list-surface");
             Add(assetsListView);
 
-            emptyLabel = new Label();
-            emptyLabel.AddToClassList("toolkit-hint");
-            Add(emptyLabel);
+            emptyListSurface = new ToolkitEmptyListSurface(options.namePrefix + "-empty", assetsListView);
+            emptyListSurface.style.marginTop = 4f;
+            Add(emptyListSurface);
 
             RefreshEmptyState();
         }
@@ -341,14 +344,21 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshEmptyState()
         {
-            bool isEmpty = filteredAssets.Count == 0;
-            assetsListView.style.display = isEmpty ? DisplayStyle.None : DisplayStyle.Flex;
-            emptyLabel.style.display = isEmpty ? DisplayStyle.Flex : DisplayStyle.None;
-            if (isEmpty)
+            if (filteredAssets.Count > 0)
             {
-                emptyLabel.text = catalogAssets.Count == 0
-                    ? options.emptyProjectMessage
-                    : options.emptySearchMessage;
+                emptyListSurface.Hide();
+                return;
+            }
+
+            if (catalogAssets.Count == 0)
+            {
+                emptyListSurface.Show(
+                    options.emptyProjectTitle, options.emptyProjectMessage,
+                    options.emptyProjectActionText, RaiseNewRequested);
+            }
+            else
+            {
+                emptyListSurface.Show("No matches", options.emptySearchMessage, null, null);
             }
         }
     }

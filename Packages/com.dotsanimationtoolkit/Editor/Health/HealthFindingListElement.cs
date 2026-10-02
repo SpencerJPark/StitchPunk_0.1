@@ -13,7 +13,7 @@ namespace DotsAnimationToolkit.Editor
     {
         private readonly List<HealthFinding> findings = new List<HealthFinding>();
         private readonly ListView findingListView;
-        private readonly Label emptyLabel;
+        private readonly ToolkitEmptyListSurface emptyListSurface;
         private readonly Label titleLabel;
         private HealthFinding selectedFinding;
 
@@ -42,9 +42,8 @@ namespace DotsAnimationToolkit.Editor
             findingListView.AddToClassList("toolkit-list-surface");
             Add(findingListView);
 
-            emptyLabel = ToolkitChrome.MakeHint("No findings.");
-            emptyLabel.name = "health-finding-empty";
-            Add(emptyLabel);
+            emptyListSurface = new ToolkitEmptyListSurface("health-finding-empty", findingListView);
+            Add(emptyListSurface);
 
             RefreshEmptyState();
         }
@@ -101,8 +100,14 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshEmptyState()
         {
-            findingListView.style.display = findings.Count == 0 ? DisplayStyle.None : DisplayStyle.Flex;
-            emptyLabel.style.display = findings.Count == 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            if (findings.Count > 0)
+            {
+                emptyListSurface.Hide();
+            }
+            else
+            {
+                emptyListSurface.Show("No findings", "Nothing in the project needs attention.", null, null);
+            }
         }
 
         private VisualElement MakeFindingRow()

@@ -343,7 +343,6 @@ namespace DotsAnimationToolkit.Editor
             layersColumn = new VisualElement { name = "layers-column" };
             layersColumn.AddToClassList(LayersColumnUssClassName);
             layersColumn.AddToClassList("toolkit-column");
-            layersColumn.AddToClassList("toolkit-column--raised");
             // Floored rather than fixed: a layer box header carries seven controls, and dragging
             // this pane narrower than that would ellipsize every layer name to one letter.
             layersColumn.style.minWidth = 220f;
@@ -411,6 +410,7 @@ namespace DotsAnimationToolkit.Editor
                 "New profile",
                 () => profilesColumn?.CreateAndSelectNewProfile());
             noProfileEmptyState.AddToClassList("actor-editor__viewport-empty");
+            ToolkitChrome.PlaceEmptyStateOnViewportCard(noProfileEmptyState);
             viewportFrame.Add(noProfileEmptyState);
             viewportColumn.Add(viewportFrame);
 
@@ -770,14 +770,6 @@ namespace DotsAnimationToolkit.Editor
                 noProfileEmptyState.style.display = profile == null ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
-            // The empty state overlay sits on top of the render, but the render keeps drawing
-            // underneath it and bleeds through — blank it so the empty-state sentence stays readable.
-            viewportImage.style.display = hasActorToPreview ? DisplayStyle.Flex : DisplayStyle.None;
-            if (!hasActorToPreview)
-            {
-                return;
-            }
-
             Rect viewportRect = viewportImage.contentRect;
             if (float.IsNaN(viewportRect.width) || viewportRect.width < 1f || viewportRect.height < 1f)
             {
@@ -785,8 +777,12 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            Texture renderedTexture = previewController.Render(
-                Mathf.RoundToInt(viewportRect.width), Mathf.RoundToInt(viewportRect.height));
+            // With nothing to preview the stage still draws (grid only); the empty state sits on its card above it.
+            int pixelWidth = Mathf.RoundToInt(viewportRect.width);
+            int pixelHeight = Mathf.RoundToInt(viewportRect.height);
+            Texture renderedTexture = hasActorToPreview
+                ? previewController.Render(pixelWidth, pixelHeight)
+                : previewController.RenderEmptyStage(pixelWidth, pixelHeight);
             if (renderedTexture != null)
             {
                 viewportImage.image = renderedTexture;

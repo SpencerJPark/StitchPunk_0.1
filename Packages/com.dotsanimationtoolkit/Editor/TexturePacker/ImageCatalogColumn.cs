@@ -45,7 +45,7 @@ namespace DotsAnimationToolkit.Editor
         private string homeFolderPath = string.Empty;
         private readonly ToolbarSearchField searchField;
         private readonly ListView imagesListView;
-        private readonly Label emptyLabel;
+        private readonly ToolkitEmptyListSurface emptyListSurface;
         private readonly VisualElement headerActions;
         private readonly Button hideOnCanvasButton;
 
@@ -101,9 +101,9 @@ namespace DotsAnimationToolkit.Editor
             imagesListView.RegisterCallback<KeyDownEvent>(OnImagesListKeyDown);
             Add(imagesListView);
 
-            emptyLabel = new Label("No textures under Assets/ yet.");
-            emptyLabel.AddToClassList("toolkit-hint");
-            Add(emptyLabel);
+            emptyListSurface = new ToolkitEmptyListSurface("images-empty", imagesListView);
+            emptyListSurface.style.marginTop = 4f;
+            Add(emptyListSurface);
 
             RefreshEmptyState();
         }
@@ -306,15 +306,39 @@ namespace DotsAnimationToolkit.Editor
 
         private void RefreshEmptyState()
         {
-            bool isEmpty = filteredImages.Count == 0;
-            imagesListView.style.display = isEmpty ? DisplayStyle.None : DisplayStyle.Flex;
-            emptyLabel.style.display = isEmpty ? DisplayStyle.Flex : DisplayStyle.None;
-            if (isEmpty)
+            if (filteredImages.Count > 0)
             {
-                emptyLabel.text = catalogImages.Count == 0
-                    ? "No textures under Assets/ yet."
-                    : "No images match your search.";
+                emptyListSurface.Hide();
             }
+            else if (catalogImages.Count == 0)
+            {
+                emptyListSurface.Show(
+                    "No images yet", "Bring in a texture from your computer to pack it.",
+                    "Import Image", ImportImageFromDisk);
+            }
+            else
+            {
+                emptyListSurface.Show("No matches", "No images match your search.", null, null);
+            }
+        }
+
+        // Copies the picked file under the home folder (or Assets/) and imports it, so the catalog lists it.
+        private void ImportImageFromDisk()
+        {
+            string sourceFilePath = EditorUtility.OpenFilePanelWithFilters(
+                "Import Image", string.Empty,
+                new[] { "Images", "png,jpg,jpeg,tga,psd,exr,tif,tiff,bmp", "All files", "*" });
+            if (string.IsNullOrEmpty(sourceFilePath))
+            {
+                return;
+            }
+
+            string destinationFolderPath = string.IsNullOrEmpty(homeFolderPath) ? "Assets" : homeFolderPath;
+            string destinationAssetPath = AssetDatabase.GenerateUniqueAssetPath(
+                destinationFolderPath + "/" + System.IO.Path.GetFileName(sourceFilePath));
+            System.IO.File.Copy(sourceFilePath, destinationAssetPath);
+            AssetDatabase.ImportAsset(destinationAssetPath);
+            RescanProject();
         }
 
         private void OnImageRowPointerMove(PointerMoveEvent pointerEvent, VisualElement row)

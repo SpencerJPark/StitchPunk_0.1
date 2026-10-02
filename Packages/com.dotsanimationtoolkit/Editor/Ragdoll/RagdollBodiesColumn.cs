@@ -17,6 +17,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<RagdollBodyDefinition> bodyEntries = new List<RagdollBodyDefinition>();
         private readonly List<RigTargetDefinition> availableTargetChoices = new List<RigTargetDefinition>();
         private readonly ListView bodiesListView;
+        private readonly ToolkitEmptyListSurface bodiesEmptyListSurface;
         private readonly ToolbarSearchField bodiesSearchField;
         // Kept alive off-hierarchy: FormatTargetChoice and the choices list back the + button's
         // GenericMenu, even though the popup row itself is gone (one way to add a body, not two).
@@ -75,6 +76,7 @@ namespace DotsAnimationToolkit.Editor
             bodiesSearchField.style.minWidth = 0f;
             bodiesSearchField.style.marginLeft = 0f;
             bodiesSearchField.style.marginRight = 0f;
+            bodiesSearchField.style.marginTop = 4f;
             bodiesSearchField.RegisterValueChangedCallback(OnBodiesSearchFieldValueChanged);
             Add(bodiesSearchField);
 
@@ -83,12 +85,17 @@ namespace DotsAnimationToolkit.Editor
             bodiesListView.selectionType = SelectionType.Single;
             bodiesListView.fixedItemHeight = 22f;
             bodiesListView.style.flexGrow = 1f;
+            bodiesListView.style.marginTop = 4f;
             bodiesListView.makeItem = MakeBodyRow;
             bodiesListView.bindItem = BindBodyRow;
             bodiesListView.itemsSource = bodyEntries;
             bodiesListView.selectionChanged += OnBodiesListSelectionChanged;
             bodiesListView.AddToClassList("toolkit-list-surface");
             Add(bodiesListView);
+
+            bodiesEmptyListSurface = new ToolkitEmptyListSurface("ragdoll-bodies-empty", bodiesListView);
+            bodiesEmptyListSurface.style.marginTop = 4f;
+            Add(bodiesEmptyListSurface);
 
             UpdateButtonStates();
         }
@@ -154,6 +161,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             bodiesListView.Rebuild();
+            RefreshBodiesEmptyState(trimmedFilterText);
 
             int matchingIndex = FindIndexOfBodyId(selectedBodyId);
             if (matchingIndex >= 0)
@@ -164,6 +172,29 @@ namespace DotsAnimationToolkit.Editor
             {
                 selectedBodyId = 0u;
                 bodiesListView.SetSelectionWithoutNotify(new int[0]);
+            }
+        }
+
+        private void RefreshBodiesEmptyState(string trimmedFilterText)
+        {
+            if (bodyEntries.Count > 0)
+            {
+                bodiesEmptyListSurface.Hide();
+            }
+            else if (currentRig == null)
+            {
+                bodiesEmptyListSurface.Show("No rig", "Pick a rig in the bar above to edit its bodies.", null, null);
+            }
+            else if (trimmedFilterText.Length > 0)
+            {
+                bodiesEmptyListSurface.Show("No matches", "No bodies match your search.", null, null);
+            }
+            else
+            {
+                Button addFirstBodyButton = null;
+                addFirstBodyButton = bodiesEmptyListSurface.Show(
+                    "No bodies yet", "Add a body for each part that should go limp.",
+                    "Add Body", () => OpenAddBodyMenu(addFirstBodyButton.worldBound));
             }
         }
 
@@ -187,6 +218,11 @@ namespace DotsAnimationToolkit.Editor
         // The + button's only job now: open a menu of every addable target, anchored to the
         // button, so there is exactly one way to add a body (the popup row is gone).
         private void OnAddBodyButtonClicked()
+        {
+            OpenAddBodyMenu(addBodyButton.worldBound);
+        }
+
+        private void OpenAddBodyMenu(Rect menuAnchor)
         {
             if (currentRig == null)
             {
@@ -215,7 +251,7 @@ namespace DotsAnimationToolkit.Editor
                 targetChoiceMenu.AddDisabledItem(new GUIContent(FormatTargetChoice(null)));
             }
 
-            targetChoiceMenu.DropDown(addBodyButton.worldBound);
+            targetChoiceMenu.DropDown(menuAnchor);
         }
 
         private void AddBodyForTarget(RigTargetDefinition selectedTargetDefinition)

@@ -23,7 +23,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly Label titleLabel;
         private readonly ListView framesListView;
-        private readonly Label emptyLabel;
+        private readonly ToolkitEmptyListSurface emptyListSurface;
         private readonly Button removeButton;
         private readonly List<FlipbookFrame> emptyFrames = new List<FlipbookFrame>();
         private readonly FlipbookLayerThumbnailCache layerThumbnailCache = new FlipbookLayerThumbnailCache();
@@ -34,7 +34,6 @@ namespace DotsAnimationToolkit.Editor
         {
             name = "flipbook-frames-column";
             AddToClassList("toolkit-column");
-            AddToClassList("toolkit-column--raised");
             style.flexGrow = 1f;
             style.minWidth = 220f;
 
@@ -67,8 +66,9 @@ namespace DotsAnimationToolkit.Editor
             framesListView.AddToClassList("toolkit-list-surface");
             Add(framesListView);
 
-            emptyLabel = ToolkitChrome.MakeHint("Select or create a flipbook.");
-            Add(emptyLabel);
+            emptyListSurface = new ToolkitEmptyListSurface("flipbook-frames-empty", framesListView);
+            emptyListSurface.style.marginTop = 4f;
+            Add(emptyListSurface);
 
             RegisterCallback<DragUpdatedEvent>(OnDragUpdated);
             RegisterCallback<DragPerformEvent>(OnDragPerformed);
@@ -148,14 +148,53 @@ namespace DotsAnimationToolkit.Editor
             removeButton.tooltip = IsImportedMode ? RemoveButtonImportedTooltip : RemoveButtonEnabledTooltip;
             framesListView.RefreshItems();
 
-            bool isEmpty = frameCount == 0;
-            framesListView.style.display = isEmpty ? DisplayStyle.None : DisplayStyle.Flex;
-            emptyLabel.style.display = isEmpty ? DisplayStyle.Flex : DisplayStyle.None;
-            if (isEmpty)
+            if (frameCount > 0)
             {
-                emptyLabel.text = flipbook == null
-                    ? "Select or create a flipbook."
-                    : "Drag images here from the Images column, or double-click one.";
+                emptyListSurface.Hide();
+            }
+            else if (flipbook == null)
+            {
+                emptyListSurface.Show("No flipbook", "Select or create a flipbook on the left.", null, null);
+            }
+            else
+            {
+                emptyListSurface.Show(
+                    "No frames yet", "Drag images here from the Images column, or add one from your computer.",
+                    IsImportedMode ? null : "Add Image", AddFrameImageFromDisk);
+            }
+        }
+
+        // A file outside the project is copied next to the flipbook first, since a frame must reference an asset.
+        private void AddFrameImageFromDisk()
+        {
+            string sourceFilePath = EditorUtility.OpenFilePanelWithFilters(
+                "Add Image", string.Empty,
+                new[] { "Images", "png,jpg,jpeg,tga,psd,exr,tif,tiff,bmp", "All files", "*" });
+            if (string.IsNullOrEmpty(sourceFilePath) || flipbook == null)
+            {
+                return;
+            }
+
+            string normalizedSourcePath = sourceFilePath.Replace('\\', '/');
+            string projectAssetsPath = Application.dataPath.Replace('\\', '/');
+            string textureAssetPath;
+            if (normalizedSourcePath.StartsWith(projectAssetsPath + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                textureAssetPath = "Assets" + normalizedSourcePath.Substring(projectAssetsPath.Length);
+            }
+            else
+            {
+                string flipbookFolderPath = System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(flipbook)).Replace('\\', '/');
+                textureAssetPath = AssetDatabase.GenerateUniqueAssetPath(
+                    flipbookFolderPath + "/" + System.IO.Path.GetFileName(normalizedSourcePath));
+                System.IO.File.Copy(normalizedSourcePath, textureAssetPath);
+                AssetDatabase.ImportAsset(textureAssetPath);
+            }
+
+            Texture2D importedTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(textureAssetPath);
+            if (importedTexture != null)
+            {
+                AddSources(new[] { importedTexture });
             }
         }
 

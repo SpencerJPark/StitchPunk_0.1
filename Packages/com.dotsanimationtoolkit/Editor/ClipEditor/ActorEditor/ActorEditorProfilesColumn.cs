@@ -70,10 +70,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 return;
             }
-            clipSetField.style.flexGrow = 1f;
-            clipSetField.style.maxWidth = 260f;
-            rigField.style.flexGrow = 1f;
-            rigField.style.maxWidth = 260f;
+            // The pane-field margins are for a picker under a pane header; in the bar they skewed the spacing against VAT Bake's.
+            clipSetField.RemoveFromClassList("clip-editor__pane-field");
+            clipSetField.AddToClassList("toolkit-asset-bar__field");
+            rigField.RemoveFromClassList("clip-editor__pane-field");
+            rigField.AddToClassList("toolkit-asset-bar__field");
             assetBar.Add(ToolkitChrome.MakeAssetBarLabel("Clip Set"));
             assetBar.Add(clipSetField);
             assetBar.Add(ToolkitChrome.MakeAssetBarLabel("Rig"));

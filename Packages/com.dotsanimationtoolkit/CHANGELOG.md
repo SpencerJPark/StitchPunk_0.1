@@ -8,6 +8,22 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Empty lists and empty previews
+
+### Changed
+- **An empty list keeps its list tone and offers the action that fills it** — title, one line of why, and a
+  button (New Profile, New Clip Set, New Rig, New Flipbook, New Recipe, New Event Key, New Clip, Add Body), or a
+  file picker where the list is an import (Import Image on Texture Packer's Images, Add Image on Flipbook frames).
+- **Empty previews still show their 3D stage**: Actor Profiles and the Clip Editor draw the grid behind the
+  empty-state card instead of a blank panel.
+- Actor Profiles' Clip Set and Rig pickers use the shared asset-bar field, spaced like VAT Bake's; the Layers and
+  Flipbook Frames headers use the window grey like every other column.
+- Add Event wears the outlined style of Snap and Auto Key; Health's first fix button no longer touches "How to fix";
+  Ragdoll's search sits 4px under its header.
+
+### Fixed
+- A grey strip between the Cutscenes viewport and inspector (the viewport's list-surface pull-back overhung its column).
+
 ## [0.61.0] — Consistency pass 3
 
 Every tab, against the owner's circled captures (A109): one button height, one header-action idiom, and no

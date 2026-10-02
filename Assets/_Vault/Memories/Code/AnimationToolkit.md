@@ -1665,3 +1665,21 @@ Traps only; the record is each spec's §7 and HANDOFF §4.
   because `RagdollPreviewScenery.Props` is empty in this scene, while the style guide's reference image was
   captured with props authored), and Skip Holds already carried Auto Key's on-state class. Both were stage
   misreadings of a capture.
+
+## Empty lists and empty previews (2026-10-02)
+
+- **`ToolkitEmptyListSurface`** (`Editor/ClipEditor/Shared/`) is the one empty state for a list: it hides the list
+  and stands in with the list's tone plus title/why/action. `ToolkitCatalogColumn` routes through it
+  (`emptyProjectTitle` / `emptyProjectActionText` options; null action = no button). Never go back to a bare
+  `toolkit-hint` label under a list — the owner rejected that on every tab.
+- **`ClipPreviewController.RenderEmptyStage`** renders the grid with the actor and every handle hidden (reuses the
+  capture-hide list). Actor Profiles and the Clip Editor call it when there is nothing to preview; the empty
+  state goes on `PlaceEmptyStateOnViewportCard` so grid lines do not cross its text.
+- **Trap: `toolkit-list-surface` pulls back -12px each side.** On anything that is not inside a 12px-padded
+  column (a viewport, a Clip Editor pane) add `toolkit-list-surface--flush`, or it overhangs by 12px — the
+  Cutscenes viewport showed it as a grey strip beside the inspector, visible only where the dim overlay stopped.
+- **Trap: the preview camera's default focus was the origin** — the camera sat on the floor plane and an empty
+  stage showed the floor edge-on. It now starts at `MinimumFocusHeight`, the same place `FrameRig` aims with no rig.
+- A `ToolbarButton` with `toolkit-button--secondary` loses to Unity's toolbar style (square, grey fill); inside a
+  `toolkit-status-actions` row a dedicated rule gives it the toggle outline.
+

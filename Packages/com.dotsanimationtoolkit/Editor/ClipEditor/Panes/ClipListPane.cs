@@ -19,6 +19,7 @@ namespace DotsAnimationToolkit.Editor
 
         private ObjectField clipSetField;
         private ListView clipListView;
+        private ToolkitEmptyListSurface clipListEmptySurface;
         private Button newClipButton;
         private Button deleteClipButton;
 
@@ -79,6 +80,11 @@ namespace DotsAnimationToolkit.Editor
                     clipListView.bindItem = BindClipRow;
                     clipListView.selectionChanged += OnClipSelectionChanged;
                     clipListView.itemsSource = new List<ClipAsset>();
+
+                    clipListEmptySurface = new ToolkitEmptyListSurface("clip-list-empty", clipListView);
+                    clipListEmptySurface.AddToClassList("toolkit-list-surface--flush");
+                    clipListView.parent.Insert(clipListView.parent.IndexOf(clipListView) + 1, clipListEmptySurface);
+                    RefreshClipListEmptyState();
                 }
 
                 selection.ClipSetChanged += OnClipSetChanged;
@@ -186,6 +192,28 @@ namespace DotsAnimationToolkit.Editor
                 ? (System.Collections.IList)selection.ClipSet.clips
                 : new List<ClipAsset>();
             clipListView.Rebuild();
+            RefreshClipListEmptyState();
+        }
+
+        private void RefreshClipListEmptyState()
+        {
+            if (clipListEmptySurface == null)
+            {
+                return;
+            }
+
+            if (selection.ClipSet == null)
+            {
+                clipListEmptySurface.Show("No clip set", "Pick a clip set above to list its clips.", null, null);
+            }
+            else if (clipListView.itemsSource == null || clipListView.itemsSource.Count == 0)
+            {
+                clipListEmptySurface.Show("No clips yet", "Create a clip in this set to start keying.", "New Clip", CreateClip);
+            }
+            else
+            {
+                clipListEmptySurface.Hide();
+            }
         }
 
         // Enables the Clips pane's actions for the states in which they mean something. A clip is
