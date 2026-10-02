@@ -28,6 +28,7 @@ source generators — Unity's harvested rsp carries 315 references, ~40 defines 
 - **Never hand-roll the reference set.** Referencing all 145 `Library/ScriptAssemblies/*.dll` plus every
   `Managed/UnityEngine/*.dll` produced 10 phantom errors from two colliding `AABB` types. Real asmdefs reference
   7–8 assemblies. Harvest `Library/Bee/artifacts/*.dag/<Assembly>.rsp` instead — it is exactly what Unity ran.
+  Match `<Assembly>.rsp` exactly: the same dir also holds `<Assembly>.mvfrm.rsp`, a different and wrong file.
 - **Redirecting `-out:` must preserve the assembly *name*.** Writing `…Editor.rg.dll` changed the assembly identity,
   `InternalsVisibleTo("DotsAnimationToolkit.Editor")` stopped matching, and 58 phantom `CS0122`s appeared. Redirect
   the directory only.
@@ -56,7 +57,7 @@ a bare `cd` moves the session cwd and breaks every relative `.claude/hooks` path
 | Id | Decision |
 |---|---|
 | D1 | Lives at repo-root `Tools/devloop/`, **not** in `com.dotsanimationtoolkit`. A sellable package should not ship AI dev tooling, the gate is identical for all four packages, and a root-level folder is outside Unity's import entirely. |
-| D2 | Python, following `worktree_toolkit`'s layout. `compile-gate.sh` is bash but has no logic; dag discovery, rsp rewriting and staleness need real code. |
+| D2 | Python, following `worktree_toolkit`'s layout: entry `Tools/devloop/devloop.py`, package `Tools/devloop/devloop_tools/`. `compile-gate.sh` is bash but has no logic; dag discovery, rsp rewriting and staleness need real code. **No pytest on this machine** (checked 2026-10-02) — tests use `unittest`, as `worktree_toolkit/tests` already does. |
 | D3 | Harvest Unity's rsp. Never construct the reference set. |
 | D4 | Output redirect changes the directory, never the assembly name. |
 | D5 | Sources are re-globbed from the asmdef folder, so files a worker just added are gated. Unity's stale source list is discarded. |
@@ -85,8 +86,8 @@ def gate_assemblies(project_root: str, assembly_names: list[str]) -> GateReport 
 | T2 gate [parallel-safe] | `Tools/devloop/devloop/gate.py` | Write the response file, invoke `csc.dll` via Unity's `dotnet.exe` with cwd = project root, dedupe `error CS` lines, emit a ≤10-line verdict (`GATE PASS` / per-assembly `files, errors, seconds` / first 20 unique errors). Exit 0/1/2. |
 | T3 cli + config [parallel-safe] | `Tools/devloop/cli.py`, `Tools/devloop/devloop/packages.py` | `gate` / `lint` subcommands; package → assembly-list map for the four packages plus `Assembly-CSharp*`; `UNITY_DATA` override with a clear "set UNITY_DATA" failure. |
 | T4 lint [parallel-safe] | `Tools/devloop/devloop/lint.py` | Diff-scoped (`git diff --name-only` default, explicit paths accepted). Rules: no `var`, no single-letter identifiers, no `.Run()` on a job, `EnabledRefRW/RO` named `fooEnabled`, and no `Handles.`/`OnGUI`/`GUILayout` under a package `Editor/`. One line per hit, `file:line  rule  text`. |
-| T5 tests [parallel-safe] | `Tools/devloop/tests/test_gate.py`, `Tools/devloop/tests/test_lint.py` | Fixtures that actually fail when reverted: a stale-asmdef → exit 2; a renamed output → the CS0122 regression; an injected CS0029 → exit 1; one lint hit per rule. No fixtures for argument parsing. |
-| T6 wire-in [parallel-safe] | `CLAUDE.md`, `Tools/devloop/README.md` | CLAUDE.md compile-gate line per D8; the worker-brief checklist gains "run the CLI gate before writing your report" — this is where the respawn savings come from. |
+| T5 tests [wave 2] | `Tools/devloop/tests/test_gate.py`, `Tools/devloop/tests/test_lint.py` | Fixtures that actually fail when reverted: a stale-asmdef → exit 2; a renamed output → the CS0122 regression; an injected CS0029 → exit 1; one lint hit per rule. No fixtures for argument parsing. |
+| T6 wire-in [wave 2, orchestrator] | `CLAUDE.md`, `Tools/devloop/README.md` | CLAUDE.md compile-gate line per D8; the worker-brief checklist gains "run the CLI gate before writing your report" — this is where the respawn savings come from. |
 | T7 ledger fix [parallel-safe] | `.claude/hooks/subagent_ledger.py`, `.claude/hooks/agent_result_ledger.py` | Find why `peak_tokens`/`turns`/`reads` write `0` on all 338 rows and make them record. Prerequisite for ever proving §2. |
 
 ## 5. Checkpoints
@@ -95,5 +96,30 @@ def gate_assemblies(project_root: str, assembly_names: list[str]) -> GateReport 
   both cut and the gate stays as a plain convenience.
 
 ## 6. Log
+- 2026-10-02: **BUILT.** `Tools/devloop/` ships `gate` and `lint` with 9 unittest fixtures (3 proven to fail when
+  broken). All four packages gate clean: animation toolkit 6 assemblies / 561 files in 37s warm, movement 3 in 9s,
+  worktree 2 in 5s. Wired into CLAUDE.md per D8, including the worker-brief line that is the whole point.
+  P3 (`where`/`members`) still deferred per D10.
+  Four defects the drive found that review would not have:
+  - **A false pass.** Unity's rsp references siblings as prebuilt `Library/Bee/.../Runtime.ref.dll`, so gating
+    `Editor` compiled against the last Editor-built Runtime; editing Runtime+Editor together could pass where Unity
+    fails. Fixed by chaining each fresh `.ref.dll` forward and reporting a dependent as `SKIPPED` when its upstream
+    failed. Proven by renaming a Runtime method and watching Authoring fail with CS0117.
+  - **An exit-code lie.** A missing rsp (an assembly Unity never compiled, e.g. `PlaytestCopilot.Tests.Runtime`)
+    escaped as a traceback and exit 1 - read by a caller as "compile errors". Now `GATE UNAVAILABLE` and exit 2.
+  - **A lint with no signal.** `no-single-letter-names` fired 141 times, all on conforming code (`for (int i`,
+    `float x = rotation.x`). Narrowed to parameters and fields; `no-run-on-jobs` also exempts a PascalCase receiver
+    (`HealthScan.Run(context)` is a static call). Package now reports 11 findings, 8 of them real (see below).
+  - **A truncated report read as complete.** `format_report` capped at 40 lines in silence, which is how a
+    141-finding run was mistaken for 40 of one rule. It now prints a per-rule tally and an explicit omitted count.
+- 2026-10-02: ⚠ **Open for the owner, not fixed by me:** the lint's 8 `enabled-ref-naming` findings are genuine
+  convention violations - `EnabledRefRW<AnimationCommandPending> commandPendingEnabled` in `Runtime/Api/PlaybackApi.cs`
+  (7) and `EnabledRefRW<AnimEventMask> eventMaskEnabled` in `Runtime/Systems/EventWindowSystem.cs` (1), where the
+  rule expects the full component name. Renaming them is a **breaking API change** for any caller using named
+  arguments on a sellable package, so it is a product call rather than a cleanup. The 3 `int j = i;` hits are
+  cosmetic; leave them.
+- 2026-10-02: wave 1 spawned — T1 rsp harvest, T2 gate, T3 cli+packages, T4 lint, T7 ledger, five parallel workers
+  on disjoint files with the §4 interface pinned in every brief. T5/T6 held for wave 2: tests need the modules to
+  exist, and the wire-in text should quote a command already proven to run.
 - 2026-10-02: probe + spec. Gate proven on `com.dotsanimationtoolkit` (table in §1), three traps recorded, scope
   narrowed to the dev loop by the owner, D1–D10 settled. Not yet built.
