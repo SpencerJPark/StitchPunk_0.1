@@ -430,13 +430,10 @@ namespace DotsAnimationToolkit.Editor
             {
                 hierarchyEmptySurface.Hide();
             }
-            else if (selection.ClipSet == null)
-            {
-                hierarchyEmptySurface.Show("No clip set", "Assign a clip set in the Clips pane above.", null, null);
-            }
+            // The hierarchy is the rig's alone; a clip set is not needed to list it.
             else if (ActiveRig == null)
             {
-                hierarchyEmptySurface.Show("No rig", "Pick a rig in the field above to list its parts.", null, null);
+                hierarchyEmptySurface.Show("No rig set", "Pick a rig in the field above to list its parts.", null, null);
             }
             else if (ActiveRig.sourcePrefab == null)
             {
