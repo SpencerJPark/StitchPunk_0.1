@@ -100,6 +100,7 @@ Packages/com.dotsanimationtoolkit/Tests/EditMode/DiskRoundTripScratch_*.meta
 # Subagent context ledger written by .claude/hooks/subagent_ledger.py
 .claude/subagent-ledger.tsv
 .claude/hooks/__pycache__/
+.claude/hooks/ledger-errors.log
 
 # Playtest Copilot session recordings: large, and they contain the developer's voice.
 # They live under Assets/ so they are visible and manageable in the Project window, which means
