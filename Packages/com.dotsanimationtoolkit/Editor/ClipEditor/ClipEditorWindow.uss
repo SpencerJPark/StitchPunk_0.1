@@ -2428,6 +2428,13 @@
     padding-right: var(--toolkit-inset);
 }
 
+/* The timeline's action row was exactly its 24px buttons tall, so Add Event, Snap and Auto Key touched the
+   transport bar and the ruler; 4px either side gives it the 32px header height. */
+#timeline-status-row {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
 .toolkit-column > .toolkit-status-row--footer {
     margin-left: -12px;
     margin-right: -12px;
