@@ -96,6 +96,11 @@ def gate_assemblies(project_root: str, assembly_names: list[str]) -> GateReport 
   both cut and the gate stays as a plain convenience.
 
 ## 6. Log
+- 2026-10-02: ⚠ **Real convention drift the lint found, for the owner to schedule:**
+  `com.dotsmovementtoolkit` has **77 genuine `no-var` violations** across 12 files (plus 15 single-letter and 4
+  enabled-ref). These are true positives - `var registryEntity = ...`, `foreach (var horde in ...)` - so that
+  package was simply never held to the no-`var` rule. Mechanical but not trivial; not touched here.
+- 2026-10-02: T7 ledger - partially fixed, see §7.
 - 2026-10-02: **BUILT.** `Tools/devloop/` ships `gate` and `lint` with 9 unittest fixtures (3 proven to fail when
   broken). All four packages gate clean: animation toolkit 6 assemblies / 561 files in 37s warm, movement 3 in 9s,
   worktree 2 in 5s. Wired into CLAUDE.md per D8, including the worker-brief line that is the whole point.
@@ -123,3 +128,29 @@ def gate_assemblies(project_root: str, assembly_names: list[str]) -> GateReport 
   exist, and the wire-in text should quote a command already proven to run.
 - 2026-10-02: probe + spec. Gate proven on `com.dotsanimationtoolkit` (table in §1), three traps recorded, scope
   narrowed to the dev loop by the owner, D1–D10 settled. Not yet built.
+
+## 7. T7 ledger: what is actually fixed
+
+Three passes, and the honest state is "no longer lying, not yet proven right":
+
+- **Fixed:** `SubagentStop` read a payload key that does not exist (`agent_transcript_path` vs `transcript_path`),
+  so it never ran. `PostToolUse` fires on the Agent tool's *async launch* acknowledgment, when the transcript
+  exists but is empty - it wrote a zero row at launch that then claimed the agent id, which is how all 346 rows
+  ended up empty. It now refuses to write any row whose metrics are all zero, keyed off the data rather than the
+  response wording (matching the wording was tried and failed against the real payload shape).
+- **Fixed:** rows were briefly populated with the **orchestrator's own** numbers (`claude-opus-5`, 189k, 144
+  turns) because `transcript_path` on a `SubagentStop` payload is the parent's transcript. Real subagent
+  transcripts are at `<session-uuid>/subagents/agent-<id>.jsonl`, with an `agent-<id>.meta.json` sibling carrying
+  `agentType`. A guard now refuses to measure a non-`subagents/` transcript and logs to
+  `.claude/hooks/ledger-errors.log`; 5 bogus rows were removed.
+- **Fixed:** dedup treated a zero row as "already recorded", so a stale launch row blocked the real measurement
+  forever. Only rows with non-zero `peak_tokens` now count as recorded.
+- **Fixed:** the row's `agent_id` came from the payload, which carries an identifier that has no transcript of its
+  own (`a3af24490c6487388` was written for a measurement actually taken from `agent-aad594dca0bb979fc.jsonl`). The
+  transcript filename now wins, so the id always names what was measured.
+- **⚠ Not proven:** exactly one real row has been produced end to end (`verifier, claude-sonnet-5, 56389
+  tokens, 4 turns`) and it predates the agent_id fix. The id correction needs one more real spawn-and-stop cycle to
+  confirm. Until then, treat the ledger as unverified and take subagent token figures from the harness
+  notifications, not from the TSV.
+- **⚠ Known gap:** `agent_type` is blank on `SubagentStop`-sourced rows unless the `.meta.json` is found. The
+  346 historical zero rows are left in place as a record that those agents ran; their metrics are simply unknown.
