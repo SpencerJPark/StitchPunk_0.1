@@ -3964,6 +3964,13 @@ namespace DotsAnimationToolkit.Editor
                 // the whole point of what changed around it is that the viewport keeps its room.
                 previewStatusLabel.EnableInClassList(
                     HiddenUssClassName, string.IsNullOrEmpty(viewportStatus));
+                // The footer row too: hiding only the label left an empty 24px strip above the transport bar.
+                if (previewStatusLabel.parent != null
+                    && previewStatusLabel.parent.ClassListContains("toolkit-status-row--footer"))
+                {
+                    previewStatusLabel.parent.EnableInClassList(
+                        HiddenUssClassName, string.IsNullOrEmpty(viewportStatus));
+                }
             }
 
             if (viewportEmptyState != null)
