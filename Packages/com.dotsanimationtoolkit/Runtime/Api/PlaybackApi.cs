@@ -15,7 +15,7 @@ namespace DotsAnimationToolkit
         /// <param name="blendDuration">NaN uses the clip's authored default; 0 is a hard cut.</param>
         public static void Play(
             ref DynamicBuffer<AnimationCommand> commands,
-            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
             byte layerIndex,
             ClipId clip,
             float speed = 1f,
@@ -32,7 +32,7 @@ namespace DotsAnimationToolkit
                 blendDuration = blendDuration,
                 time = 0f
             });
-            commandPendingEnabled.ValueRW = true;
+            animationCommandPendingEnabled.ValueRW = true;
         }
 
         /// <summary>
@@ -42,7 +42,7 @@ namespace DotsAnimationToolkit
         /// <param name="blendDuration">NaN uses the clip's authored default; 0 is a hard cut.</param>
         public static void Queue(
             ref DynamicBuffer<AnimationCommand> commands,
-            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
             byte layerIndex,
             ClipId clip,
             float speed = 1f,
@@ -59,13 +59,13 @@ namespace DotsAnimationToolkit
                 blendDuration = blendDuration,
                 time = 0f
             });
-            commandPendingEnabled.ValueRW = true;
+            animationCommandPendingEnabled.ValueRW = true;
         }
 
         /// <param name="blendDuration">NaN uses the clip's authored default blend-out; 0 deactivates immediately.</param>
         public static void Stop(
             ref DynamicBuffer<AnimationCommand> commands,
-            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
             byte layerIndex,
             float blendDuration = float.NaN)
         {
@@ -79,7 +79,7 @@ namespace DotsAnimationToolkit
                 blendDuration = blendDuration,
                 time = 0f
             });
-            commandPendingEnabled.ValueRW = true;
+            animationCommandPendingEnabled.ValueRW = true;
         }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace DotsAnimationToolkit
         /// </summary>
         public static void SetSpeed(
             ref DynamicBuffer<AnimationCommand> commands,
-            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
             byte layerIndex,
             float speed)
         {
@@ -102,7 +102,7 @@ namespace DotsAnimationToolkit
                 blendDuration = float.NaN,
                 time = 0f
             });
-            commandPendingEnabled.ValueRW = true;
+            animationCommandPendingEnabled.ValueRW = true;
         }
 
         /// <summary>
@@ -111,7 +111,7 @@ namespace DotsAnimationToolkit
         /// </summary>
         public static void SetTime(
             ref DynamicBuffer<AnimationCommand> commands,
-            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
             byte layerIndex,
             float time)
         {
@@ -125,7 +125,7 @@ namespace DotsAnimationToolkit
                 blendDuration = float.NaN,
                 time = time
             });
-            commandPendingEnabled.ValueRW = true;
+            animationCommandPendingEnabled.ValueRW = true;
         }
 
         /// <summary>
@@ -138,7 +138,7 @@ namespace DotsAnimationToolkit
         /// <param name="blendDuration">NaN uses the entry's authored blend-in.</param>
         public static void PlayAnimation(
             ref DynamicBuffer<AnimationCommand> commands,
-            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
             uint animationKey,
             float speed = float.NaN,
             LoopMode loop = LoopMode.UseClipDefault,
@@ -155,7 +155,7 @@ namespace DotsAnimationToolkit
                 time = 0f,
                 animationKey = animationKey
             });
-            commandPendingEnabled.ValueRW = true;
+            animationCommandPendingEnabled.ValueRW = true;
         }
 
         /// <summary>
@@ -165,7 +165,7 @@ namespace DotsAnimationToolkit
         /// <param name="blendDuration">NaN uses the entry's authored blend-out.</param>
         public static void StopAnimation(
             ref DynamicBuffer<AnimationCommand> commands,
-            EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+            EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
             uint animationKey,
             float blendDuration = float.NaN)
         {
@@ -180,7 +180,7 @@ namespace DotsAnimationToolkit
                 time = 0f,
                 animationKey = animationKey
             });
-            commandPendingEnabled.ValueRW = true;
+            animationCommandPendingEnabled.ValueRW = true;
         }
 
         /// <summary>True when any layer's active clip was started by <see cref="PlayAnimation"/> with this key.</summary>

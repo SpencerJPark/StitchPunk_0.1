@@ -1377,13 +1377,13 @@ namespace DotsAnimationToolkit.Editor
             int count = listProperty.arraySize;
             for (int i = 1; i < count; i++)
             {
-                int j = i;
-                while (j > 0 &&
-                    listProperty.GetArrayElementAtIndex(j - 1).FindPropertyRelative("time").floatValue >
-                    listProperty.GetArrayElementAtIndex(j).FindPropertyRelative("time").floatValue)
+                int insertionIndex = i;
+                while (insertionIndex > 0 &&
+                    listProperty.GetArrayElementAtIndex(insertionIndex - 1).FindPropertyRelative("time").floatValue >
+                    listProperty.GetArrayElementAtIndex(insertionIndex).FindPropertyRelative("time").floatValue)
                 {
-                    listProperty.MoveArrayElement(j, j - 1);
-                    j--;
+                    listProperty.MoveArrayElement(insertionIndex, insertionIndex - 1);
+                    insertionIndex--;
                 }
             }
         }

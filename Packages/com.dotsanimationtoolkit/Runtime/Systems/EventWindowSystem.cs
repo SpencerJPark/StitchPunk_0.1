@@ -41,7 +41,7 @@ namespace DotsAnimationToolkit
             in DynamicBuffer<PlaybackLayer> layers,
             in ClipRegistry clipRegistry,
             ref AnimEventMask eventMask,
-            EnabledRefRW<AnimEventMask> eventMaskEnabled)
+            EnabledRefRW<AnimEventMask> animEventMaskEnabled)
         {
             BlobAssetReference<ClipRegistryBlob> registryReference = clipRegistry.Value;
             ref ClipRegistryBlob registry = ref registryReference.Value;
@@ -64,7 +64,7 @@ namespace DotsAnimationToolkit
             }
 
             eventMask.bits = openBits;
-            eventMaskEnabled.ValueRW = openBits != 0UL;
+            animEventMaskEnabled.ValueRW = openBits != 0UL;
         }
 
         private static ulong CollectLayerWindows(ref ClipRegistryBlob registry, in PlaybackLayer layer)

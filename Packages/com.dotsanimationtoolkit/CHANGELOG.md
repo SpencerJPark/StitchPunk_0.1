@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Empty lists and empty previews
 
 ### Changed
+- **Breaking, source only:** `PlaybackApi`'s `EnabledRefRW<AnimationCommandPending>` parameter is renamed
+  `commandPendingEnabled` → `animationCommandPendingEnabled` on all seven methods, matching the project's
+  component-plus-`Enabled` naming rule. Callers passing it positionally — which is every normal call — are
+  unaffected; only a named argument (`commandPendingEnabled:`) needs updating.
 - **An empty list keeps its list tone and offers the action that fills it** — title, one line of why, and a
   button (New Profile, New Clip Set, New Rig, New Flipbook, New Recipe, New Event Key, New Clip, Add Body), or a
   file picker where the list is an import (Import Image on Texture Packer's Images, Add Image on Flipbook frames).
