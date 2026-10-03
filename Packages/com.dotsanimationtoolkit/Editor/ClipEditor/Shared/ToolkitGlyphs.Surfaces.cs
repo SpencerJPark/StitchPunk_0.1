@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace DotsAnimationToolkit.Editor
 {
-    // Wave B surface glyphs: Materials, VatBake, Capture.
+    // Wave B surface glyphs: Materials, VatBake, Capture, Cutouts.
     public static partial class ToolkitGlyphs
     {
         static partial void RegisterSurfaceShapes()
@@ -10,6 +10,30 @@ namespace DotsAnimationToolkit.Editor
             RegisterShape(ToolkitGlyphId.Materials, MaterialsDistance);
             RegisterShape(ToolkitGlyphId.VatBake, VatBakeDistance);
             RegisterShape(ToolkitGlyphId.Capture, CaptureDistance);
+            RegisterShape(ToolkitGlyphId.Cutouts, CutoutsDistance);
+        }
+
+        // A mesh outline drawn around art: an irregular hexagon of stroke edges with a filled
+        // handle dot on every corner, so it reads as a polygon being edited.
+        private static float CutoutsDistance(Vector2 samplePoint)
+        {
+            Vector2[] cornerPoints =
+            {
+                new Vector2(0.30f, 0.18f), new Vector2(0.70f, 0.18f), new Vector2(0.84f, 0.46f),
+                new Vector2(0.72f, 0.82f), new Vector2(0.32f, 0.82f), new Vector2(0.16f, 0.50f)
+            };
+
+            float outlineDistance = float.MaxValue;
+            float handlesDistance = float.MaxValue;
+            for (int cornerIndex = 0; cornerIndex < cornerPoints.Length; cornerIndex++)
+            {
+                Vector2 edgeStart = cornerPoints[cornerIndex];
+                Vector2 edgeEnd = cornerPoints[(cornerIndex + 1) % cornerPoints.Length];
+                outlineDistance = Union(outlineDistance, SegmentDistance(samplePoint, edgeStart, edgeEnd, StrokeHalfWidth));
+                handlesDistance = Union(handlesDistance, CircleDistance(samplePoint, edgeStart, 0.065f));
+            }
+
+            return Union(outlineDistance, handlesDistance);
         }
 
         // A material preview ball: a ring with one specular highlight inside it. Two earlier

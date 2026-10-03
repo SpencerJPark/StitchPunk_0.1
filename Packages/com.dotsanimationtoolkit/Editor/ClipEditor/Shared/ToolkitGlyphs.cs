@@ -9,6 +9,7 @@ namespace DotsAnimationToolkit.Editor
     {
         TexturePacker, Flipbooks, ClipSets, Rigs, Materials, Events, ClipEditor, Retarget,
         VatBake, ActorProfiles, Ragdoll, Cutscenes, Capture, Stats, Health,
+        Cutouts,
 
         // Action glyphs that stand in for built-in icons (see ToolkitIcons.ResolveDrawnReplacement).
         Delete, Edit
