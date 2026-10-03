@@ -119,7 +119,13 @@ def harvest(
     source_files: list[str] = []
     for source_root in source_roots:
         absolute_source_root: str = os.path.join(project_root, source_root)
-        for walked_directory, _subdirectory_names, file_names in os.walk(absolute_source_root):
+        for walked_directory, subdirectory_names, file_names in os.walk(absolute_source_root):
+            # A nested .asmdef carves its subtree out of this assembly, exactly as Unity does. Without
+            # this, StitchPunk.Tests swallows Tests/PlayMode and fails on types it cannot legally see.
+            subdirectory_names[:] = [
+                subdirectory_name for subdirectory_name in subdirectory_names
+                if not _directory_declares_its_own_assembly(os.path.join(walked_directory, subdirectory_name))
+            ]
             for file_name in file_names:
                 if file_name.endswith(".cs"):
                     absolute_source_path: str = os.path.join(walked_directory, file_name).replace("\\", "/")
@@ -154,6 +160,13 @@ def is_stale(project_root: str, assembly_name: str, asmdef_paths: list[str]) -> 
                 )
 
     return StalenessVerdict(is_stale=False, reason="")
+
+
+def _directory_declares_its_own_assembly(directory_path: str) -> bool:
+    try:
+        return any(entry.endswith(".asmdef") for entry in os.listdir(directory_path))
+    except OSError:
+        return False
 
 
 def write_response_file(harvested: HarvestedCompile, response_file_path: str) -> None:

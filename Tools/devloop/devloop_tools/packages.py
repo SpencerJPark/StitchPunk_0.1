@@ -49,6 +49,22 @@ _PACKAGE_ASSEMBLY_ROOTS: dict[str, list[tuple[str, str]]] = {
         ("PlaytestCopilot.Tests.Editor", "Packages/playtest-copilot/Tests/Editor"),
         ("PlaytestCopilot.Tests.Runtime", "Packages/playtest-copilot/Tests/Runtime"),
     ],
+    # The game's own assemblies, so an edit under Assets/_Scripts can be gated too. The order is a
+    # real topological sort of the asmdef references (which are GUID-form, not names) - it has to be,
+    # because an assembly compiled before its dependency would link the stale Bee copy instead.
+    "game": [
+        ("StitchPunk.Core", "Assets/_Scripts/Core"),
+        ("StitchPunk.Data", "Assets/_Scripts/Data"),
+        ("StitchPunk.Components", "Assets/_Scripts/Components"),
+        ("StitchPunk.Utils", "Assets/_Scripts/Utils"),
+        ("StitchPunk.Authoring", "Assets/_Scripts/Authoring"),
+        ("StitchPunk.Systems", "Assets/_Scripts/Systems"),
+        ("StitchPunk.MonoBehaviours", "Assets/_Scripts/MonoBehaviours"),
+        ("StitchPunk.UI", "Assets/_Scripts/UI"),
+        ("StitchPunk.Editor", "Assets/_Scripts/Editor"),
+        ("StitchPunk.Tests", "Assets/_Scripts/Tests"),
+        ("StitchPunk.Tests.PlayMode", "Assets/_Scripts/Tests/PlayMode"),
+    ],
 }
 
 

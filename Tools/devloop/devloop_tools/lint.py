@@ -26,11 +26,22 @@ _VAR_KEYWORD_PATTERN: re.Pattern[str] = re.compile(r"\bvar\b")
 # locals named `x`/`y`/`z`/`w` (e.g. `float x = rotation.x;`).
 _SINGLE_LETTER_DECLARATION_PATTERN: re.Pattern[str] = re.compile(
     r"(?<![A-Za-z0-9_.])"
-    r"[A-Za-z_][A-Za-z0-9_<>\[\],\.\s]*[A-Za-z0-9_>\]]"
+    r"(?P<type>[A-Za-z_][A-Za-z0-9_<>\[\],\.\s]*[A-Za-z0-9_>\]])"
     r"[ \t]+"
     r"(?P<name>[A-Za-z])"
     r"(?=[ \t]*[=;,)\]])"
 )
+
+# A keyword in the type position means there is no declaration on the line at all: `return i;` and
+# `instance = this as T;` both look like "<type> <single letter>" to the pattern above, and reporting
+# them trains people to ignore the rule. Only the last word before the name matters, since the type
+# position legitimately spans modifiers such as `public static float`.
+_WORDS_THAT_ARE_NEVER_A_TYPE: frozenset[str] = frozenset({
+    "and", "as", "await", "base", "by", "case", "checked", "default", "do", "else", "equals", "from",
+    "goto", "group", "if", "in", "into", "is", "let", "lock", "nameof", "new", "not", "null", "on",
+    "or", "orderby", "out", "ref", "return", "select", "sizeof", "stackalloc", "switch", "this",
+    "throw", "typeof", "unchecked", "using", "when", "where", "while", "yield",
+})
 
 # A single-letter generic type parameter declaration, e.g. `class Foo<T>` or `void Bar<T>(...)`;
 # these are intentionally exempt from no-single-letter-names and must not be flagged.
@@ -155,6 +166,12 @@ def _lint_file_text(file_path: str, source_text: str) -> list[LintFinding]:
         for match in _SINGLE_LETTER_DECLARATION_PATTERN.finditer(code_only_line):
             name_start, name_end = match.span("name")
             declared_name: str = match.group("name")
+            type_position_is_a_keyword: bool = (
+                match.group("type").split()[-1] in _WORDS_THAT_ARE_NEVER_A_TYPE
+                if match.group("type").split() else True
+            )
+            if type_position_is_a_keyword:
+                continue
             inside_generic_parameter_list: bool = any(
                 span_start <= name_start and name_end <= span_end for span_start, span_end in generic_parameter_spans
             )
