@@ -26,8 +26,8 @@ public partial struct PathRequestJob : IJobEntity
         ref PathfindingAgent             agent,
         ref Movement                     movement,
         EnabledRefRW<PathRequest>        pathRequestEnabled,
-        EnabledRefRW<DStarLiteFollower>  dstarEnabled,
-        EnabledRefRW<FlowFieldFollower>  flowFieldEnabled)
+        EnabledRefRW<DStarLiteFollower>  dStarLiteFollowerEnabled,
+        EnabledRefRW<FlowFieldFollower>  flowFieldFollowerEnabled)
     {
         switch (pathRequest.requestedMode)
         {
@@ -35,8 +35,8 @@ public partial struct PathRequestJob : IJobEntity
                 movement.targetPosition    = localTransform.Position;
                 agent.isActive             = false;
                 pathRequest.targetPosition = new float3(float.MaxValue);
-                dstarEnabled.ValueRW       = false;
-                flowFieldEnabled.ValueRW   = false;
+                dStarLiteFollowerEnabled.ValueRW = false;
+                flowFieldFollowerEnabled.ValueRW = false;
                 pathRequestEnabled.ValueRW = false;
                 break;
 
@@ -47,7 +47,7 @@ public partial struct PathRequestJob : IJobEntity
                 agent.isActive            = true;
                 agent.needsRepath         = false;
                 agent.timeSinceLastRepath = 0f;
-                flowFieldEnabled.ValueRW  = false;
+                flowFieldFollowerEnabled.ValueRW = false;
                 // PathRequest left enabled — DStarLiteSystem consumes it downstream
                 break;
 
@@ -58,7 +58,7 @@ public partial struct PathRequestJob : IJobEntity
                 agent.isActive            = true;
                 agent.needsRepath         = false;
                 agent.timeSinceLastRepath = 0f;
-                dstarEnabled.ValueRW      = false;
+                dStarLiteFollowerEnabled.ValueRW = false;
                 // PathRequest left enabled — FlowFieldSystem consumes it downstream
                 break;
         }

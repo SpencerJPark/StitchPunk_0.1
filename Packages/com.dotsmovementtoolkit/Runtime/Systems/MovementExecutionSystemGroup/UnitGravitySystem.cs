@@ -21,7 +21,7 @@ public partial struct UnitGravitySystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var physicsWorldSingleton = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
+        PhysicsWorldSingleton physicsWorldSingleton = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
         CollisionWorld collisionWorld = physicsWorldSingleton.CollisionWorld;
 
         float deltaTime = SystemAPI.Time.DeltaTime;
@@ -33,7 +33,7 @@ public partial struct UnitGravitySystem : ISystem
             GroupIndex   = 0,
         };
 
-        var job = new UnitGravityJob
+        UnitGravityJob job = new UnitGravityJob
         {
             deltaTime       = deltaTime,
             collisionWorld  = collisionWorld,
@@ -68,14 +68,14 @@ public partial struct UnitGravityJob : IJobEntity
         float3 rayStart = pos + new float3(0f, 0.2f, 0f);
         float3 rayEnd   = pos - new float3(0f, maxCheckDist, 0f);
 
-        var input = new RaycastInput
+        RaycastInput input = new RaycastInput
         {
             Start  = rayStart,
             End    = rayEnd,
             Filter = collisionFilter
         };
 
-        bool hitGround = collisionWorld.CastRay(input, out var hit);
+        bool hitGround = collisionWorld.CastRay(input, out RaycastHit hit);
 
         if (hitGround)
         {

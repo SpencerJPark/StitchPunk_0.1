@@ -26,25 +26,25 @@ public partial struct StairTransitionSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
+        NavGridConfig gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
         
         // Get stair connections
         if (stairConnectionQuery.IsEmpty) return;
         
-        var stairEntity = stairConnectionQuery.GetSingletonEntity();
-        var stairConnections = state.EntityManager.GetBuffer<NavGridStairConnection>(stairEntity);
+        Entity stairEntity = stairConnectionQuery.GetSingletonEntity();
+        DynamicBuffer<NavGridStairConnection> stairConnections = state.EntityManager.GetBuffer<NavGridStairConnection>(stairEntity);
         
         if (stairConnections.Length == 0) return;
         
         // Copy to native array for job
-        var stairs = new NativeArray<NavGridStairConnection>(stairConnections.Length, Allocator.TempJob);
+        NativeArray<NavGridStairConnection> stairs = new NativeArray<NavGridStairConnection>(stairConnections.Length, Allocator.TempJob);
         for (int i = 0; i < stairConnections.Length; i++)
         {
             stairs[i] = stairConnections[i];
         }
         
         // Process flow field followers
-        var flowFieldJob = new StairTransitionFlowFieldJob
+        StairTransitionFlowFieldJob flowFieldJob = new StairTransitionFlowFieldJob
         {
             cellSize = gridConfig.cellSize,
             layerHeight = gridConfig.layerHeight,
@@ -55,7 +55,7 @@ public partial struct StairTransitionSystem : ISystem
         state.Dependency = flowFieldJob.ScheduleParallel(state.Dependency);
         
         // Process D* Lite followers
-        var dstarJob = new StairTransitionDStarJob
+        StairTransitionDStarJob dstarJob = new StairTransitionDStarJob
         {
             cellSize = gridConfig.cellSize,
             layerHeight = gridConfig.layerHeight,
@@ -95,8 +95,8 @@ public partial struct StairTransitionFlowFieldJob : IJobEntity
         // Check if on a stair cell
         for (int i = 0; i < stairs.Length; i++)
         {
-            var stair = stairs[i];
-            
+            NavGridStairConnection stair = stairs[i];
+
             // Check if we're at this stair's entry point
             bool atEntry = gridPos.Equals(stair.gridPosition) && currentLayer == stair.fromLayer;
             bool atExit = stair.bidirectional && gridPos.Equals(stair.gridPosition) && currentLayer == stair.toLayer;
@@ -154,8 +154,8 @@ public partial struct StairTransitionDStarJob : IJobEntity
         // Check if on a stair cell
         for (int i = 0; i < stairs.Length; i++)
         {
-            var stair = stairs[i];
-            
+            NavGridStairConnection stair = stairs[i];
+
             bool atEntry = gridPos.Equals(stair.gridPosition) && currentLayer == stair.fromLayer;
             bool atExit = stair.bidirectional && gridPos.Equals(stair.gridPosition) && currentLayer == stair.toLayer;
             
@@ -202,11 +202,11 @@ public static class StairUtils
         float3 exitWorldPosition,
         bool bidirectional = true)
     {
-        var query = em.CreateEntityQuery(ComponentType.ReadWrite<NavGridStairConnection>());
+        EntityQuery query = em.CreateEntityQuery(ComponentType.ReadWrite<NavGridStairConnection>());
         if (query.IsEmpty) return;
-        
-        var stairEntity = query.GetSingletonEntity();
-        var buffer = em.GetBuffer<NavGridStairConnection>(stairEntity);
+
+        Entity stairEntity = query.GetSingletonEntity();
+        DynamicBuffer<NavGridStairConnection> buffer = em.GetBuffer<NavGridStairConnection>(stairEntity);
         
         buffer.Add(new NavGridStairConnection
         {

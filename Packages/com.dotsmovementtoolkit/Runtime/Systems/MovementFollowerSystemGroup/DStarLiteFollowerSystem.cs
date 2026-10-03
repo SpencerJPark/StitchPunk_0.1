@@ -158,10 +158,10 @@ public partial struct UpdateFollowersJob : IJobEntity
                 if (costs[neighborIndex] == wallCost) continue;
 
                 DStarLiteSystem.DStarNode neighborNode = nodes[neighborIndex];
-                if (neighborNode.g >= float.MaxValue * 0.5f) continue;
+                if (neighborNode.gCost >= float.MaxValue * 0.5f) continue;
 
                 float cost  = PathfindingUtils.CalculateMoveCost(dx, dy, costs[neighborIndex]);
-                float score = cost + neighborNode.g;
+                float score = cost + neighborNode.gCost;
 
                 if (score < bestScore)
                 {

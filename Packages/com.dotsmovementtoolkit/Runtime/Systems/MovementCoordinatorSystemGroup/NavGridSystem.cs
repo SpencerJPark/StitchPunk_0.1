@@ -36,7 +36,7 @@ public partial struct NavGridSystem : ISystem
     {
         if (SystemAPI.HasComponent<NavGridCostMap>(state.SystemHandle))
         {
-            var costMap = SystemAPI.GetComponent<NavGridCostMap>(state.SystemHandle);
+            NavGridCostMap costMap = SystemAPI.GetComponent<NavGridCostMap>(state.SystemHandle);
             if (costMap.costs.IsCreated) costMap.costs.Dispose();
         }
     }
@@ -50,13 +50,13 @@ public partial struct NavGridSystem : ISystem
             isInitialized = true;
         }
 
-        var gridConfig = SystemAPI.GetComponent<NavGridConfig>(state.SystemHandle);
-        var gridCostMap = SystemAPI.GetComponent<NavGridCostMap>(state.SystemHandle);
+        NavGridConfig gridConfig = SystemAPI.GetComponent<NavGridConfig>(state.SystemHandle);
+        NavGridCostMap gridCostMap = SystemAPI.GetComponent<NavGridCostMap>(state.SystemHandle);
 
         // Check if physics world changed
         if (SystemAPI.HasSingleton<PhysicsWorldSingleton>())
         {
-            var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
+            PhysicsWorldSingleton physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
             int currentPhysicsVersion = physicsWorld.PhysicsWorld.NumBodies;
 
             if (currentPhysicsVersion != lastPhysicsVersion)
@@ -72,7 +72,7 @@ public partial struct NavGridSystem : ISystem
 
                 int cellsPerLayer = gridConfig.width * gridConfig.height;
 
-                var updateCostJob = new UpdateNavGridCostMapJob
+                UpdateNavGridCostMapJob updateCostJob = new UpdateNavGridCostMapJob
                 {
                     width = gridConfig.width,
                     cellSize = gridConfig.cellSize,
@@ -136,7 +136,7 @@ public partial struct NavGridSystem : ISystem
             gridOrigin = settings.gridOrigin
         });
 
-        var costMap = new NavGridCostMap
+        NavGridCostMap costMap = new NavGridCostMap
         {
             costs = new NativeArray<byte>(totalCells, Allocator.Persistent)
         };
@@ -151,7 +151,7 @@ public partial struct NavGridSystem : ISystem
         state.EntityManager.SetComponentData(state.SystemHandle, costMap);
 
         // Create stair connections buffer on a separate entity
-        var stairEntity = state.EntityManager.CreateEntity();
+        Entity stairEntity = state.EntityManager.CreateEntity();
         state.EntityManager.AddBuffer<NavGridStairConnection>(stairEntity);
 
         costMapDirty = true;
@@ -309,12 +309,12 @@ public partial struct NavGridSystem : ISystem
     }
     
     /// <summary>Octile distance heuristic for 8-directional movement. Delegates to PathfindingUtils.OctileDistance.</summary>
-    public static float OctileDistance(int2 a, int2 b) => PathfindingUtils.OctileDistance(a, b);
-    
+    public static float OctileDistance(int2 firstCell, int2 secondCell) => PathfindingUtils.OctileDistance(firstCell, secondCell);
+
     /// <summary>Manhattan distance heuristic for 4-directional movement.</summary>
-    public static float ManhattanDistance(int2 a, int2 b)
+    public static float ManhattanDistance(int2 firstCell, int2 secondCell)
     {
-        return math.abs(a.x - b.x) + math.abs(a.y - b.y);
+        return math.abs(firstCell.x - secondCell.x) + math.abs(firstCell.y - secondCell.y);
     }
 }
 
@@ -355,7 +355,7 @@ public struct UpdateNavGridCostMapJob : IJobParallelFor
         );
         
         // Check for walls
-        var wallHits = new NativeList<DistanceHit>(Allocator.Temp);
+        NativeList<DistanceHit> wallHits = new NativeList<DistanceHit>(Allocator.Temp);
         if (collisionWorld.OverlapSphere(worldPos, cellSizeHalf * 0.9f, ref wallHits, wallFilter))
         {
             costs[index] = wallCost;
@@ -365,7 +365,7 @@ public struct UpdateNavGridCostMapJob : IJobParallelFor
         wallHits.Dispose();
         
         // Check for heavy/difficult terrain
-        var heavyHits = new NativeList<DistanceHit>(Allocator.Temp);
+        NativeList<DistanceHit> heavyHits = new NativeList<DistanceHit>(Allocator.Temp);
         if (collisionWorld.OverlapSphere(worldPos, cellSizeHalf * 0.9f, ref heavyHits, heavyFilter))
         {
             costs[index] = heavyCost;

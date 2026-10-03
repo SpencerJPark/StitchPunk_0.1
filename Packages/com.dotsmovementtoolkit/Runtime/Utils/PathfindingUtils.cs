@@ -125,36 +125,36 @@ public static class PathfindingUtils
     /// <summary>
     /// Euclidean distance between two grid positions.
     /// </summary>
-    public static float EuclideanDistance(int2 a, int2 b)
+    public static float EuclideanDistance(int2 firstCell, int2 secondCell)
     {
-        float dx = a.x - b.x;
-        float dy = a.y - b.y;
+        float dx = firstCell.x - secondCell.x;
+        float dy = firstCell.y - secondCell.y;
         return math.sqrt(dx * dx + dy * dy);
     }
-    
+
     /// <summary>
     /// Manhattan distance between two grid positions.
     /// </summary>
-    public static int ManhattanDistance(int2 a, int2 b)
+    public static int ManhattanDistance(int2 firstCell, int2 secondCell)
     {
-        return math.abs(a.x - b.x) + math.abs(a.y - b.y);
+        return math.abs(firstCell.x - secondCell.x) + math.abs(firstCell.y - secondCell.y);
     }
-    
+
     /// <summary>
     /// Chebyshev (chessboard) distance between two grid positions.
     /// </summary>
-    public static int ChebyshevDistance(int2 a, int2 b)
+    public static int ChebyshevDistance(int2 firstCell, int2 secondCell)
     {
-        return math.max(math.abs(a.x - b.x), math.abs(a.y - b.y));
+        return math.max(math.abs(firstCell.x - secondCell.x), math.abs(firstCell.y - secondCell.y));
     }
-    
+
     /// <summary>
     /// Octile distance - optimal heuristic for 8-directional movement.
     /// </summary>
-    public static float OctileDistance(int2 a, int2 b)
+    public static float OctileDistance(int2 firstCell, int2 secondCell)
     {
-        int dx = math.abs(a.x - b.x);
-        int dy = math.abs(a.y - b.y);
+        int dx = math.abs(firstCell.x - secondCell.x);
+        int dy = math.abs(firstCell.y - secondCell.y);
         return math.max(dx, dy) + 0.414f * math.min(dx, dy);
     }
     
@@ -254,20 +254,20 @@ public static class PathfindingUtils
     /// <summary>
     /// Calculate D* Lite priority key.
     /// </summary>
-    public static float2 CalculateDStarKey(int2 pos, int2 start, float g, float rhs, float km)
+    public static float2 CalculateDStarKey(int2 pos, int2 start, float gCost, float rhs, float km)
     {
-        float h = OctileDistance(pos, start);
-        float minGRhs = math.min(g, rhs);
-        return new float2(minGRhs + h + km, minGRhs);
+        float heuristic = OctileDistance(pos, start);
+        float minGRhs = math.min(gCost, rhs);
+        return new float2(minGRhs + heuristic + km, minGRhs);
     }
-    
+
     /// <summary>
     /// Compare two D* Lite keys (returns true if a < b).
     /// </summary>
-    public static bool KeyLessThan(float2 a, float2 b)
+    public static bool KeyLessThan(float2 firstKey, float2 secondKey)
     {
         const float epsilon = 0.001f;
-        return a.x < b.x - epsilon || (math.abs(a.x - b.x) < epsilon && a.y < b.y - epsilon);
+        return firstKey.x < secondKey.x - epsilon || (math.abs(firstKey.x - secondKey.x) < epsilon && firstKey.y < secondKey.y - epsilon);
     }
     
     // ============================================

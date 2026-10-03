@@ -30,7 +30,7 @@ public partial struct FormationOffsetSystem : ISystem
         membershipLookup.Update(ref state);
         followerLookup.Update(ref state);
 
-        foreach (var (horde, memberBuffer) in
+        foreach ((RefRO<Horde> horde, DynamicBuffer<HordeMemberBuffer> memberBuffer) in
             SystemAPI.Query<RefRO<Horde>, DynamicBuffer<HordeMemberBuffer>>())
         {
             int count = memberBuffer.Length;
@@ -64,8 +64,8 @@ public partial struct FormationOffsetSystem : ISystem
         }
     }
 
-    // Returns a 2D (XZ) offset for member index i out of n total members.
-    private static float2 ComputeOffset(FormationType formation, int i, int n)
+    // Returns a 2D (XZ) offset for member index memberIndex out of memberCount total members.
+    private static float2 ComputeOffset(FormationType formation, int memberIndex, int memberCount)
     {
         switch (formation)
         {
@@ -73,19 +73,19 @@ public partial struct FormationOffsetSystem : ISystem
             {
                 // Spread evenly along X, centered on 0.
                 float spacing = 1.2f;
-                float totalWidth = (n - 1) * spacing;
-                float x = i * spacing - totalWidth * 0.5f;
+                float totalWidth = (memberCount - 1) * spacing;
+                float x = memberIndex * spacing - totalWidth * 0.5f;
                 return new float2(x, 0f);
             }
 
             case FormationType.Square:
             {
-                int cols = (int)math.ceil(math.sqrt(n));
-                int col  = i % cols;
-                int row  = i / cols;
+                int cols = (int)math.ceil(math.sqrt(memberCount));
+                int col  = memberIndex % cols;
+                int row  = memberIndex / cols;
                 float spacing = 1.2f;
                 int totalCols = cols;
-                int totalRows = (int)math.ceil((float)n / cols);
+                int totalRows = (int)math.ceil((float)memberCount / cols);
                 float x = col * spacing - (totalCols - 1) * spacing * 0.5f;
                 float z = row * spacing - (totalRows - 1) * spacing * 0.5f;
                 return new float2(x, z);
@@ -93,8 +93,8 @@ public partial struct FormationOffsetSystem : ISystem
 
             case FormationType.Circle:
             {
-                float radius = 0.8f * math.sqrt(n);
-                float angle  = i * (2f * math.PI / n);
+                float radius = 0.8f * math.sqrt(memberCount);
+                float angle  = memberIndex * (2f * math.PI / memberCount);
                 return new float2(math.cos(angle) * radius, math.sin(angle) * radius);
             }
 

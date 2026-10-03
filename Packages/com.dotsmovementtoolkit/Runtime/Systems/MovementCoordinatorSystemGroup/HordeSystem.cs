@@ -18,7 +18,7 @@ public partial struct HordeSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         // Create horde registry singleton
-        var registryEntity = state.EntityManager.CreateEntity();
+        Entity registryEntity = state.EntityManager.CreateEntity();
         state.EntityManager.AddComponent<HordeRegistry>(registryEntity);
         state.EntityManager.SetComponentData(registryEntity, new HordeRegistry { nextHordeId = 1 });
     }
@@ -26,7 +26,7 @@ public partial struct HordeSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var registry = SystemAPI.GetSingletonRW<HordeRegistry>();
+        RefRW<HordeRegistry> registry = SystemAPI.GetSingletonRW<HordeRegistry>();
         
         // Update member counts and handle disbanded hordes
         UpdateHordeMemberCounts(ref state);
@@ -41,15 +41,15 @@ public partial struct HordeSystem : ISystem
     private void UpdateHordeMemberCounts(ref SystemState state)
     {
         // Reset all horde member counts
-        foreach (var horde in SystemAPI.Query<RefRW<Horde>>())
+        foreach (RefRW<Horde> horde in SystemAPI.Query<RefRW<Horde>>())
         {
             horde.ValueRW.memberCount = 0;
         }
         
         // Count members per horde
-        var hordeLookup = SystemAPI.GetComponentLookup<Horde>(false);
-        
-        foreach (var (membership, entity) in 
+        ComponentLookup<Horde> hordeLookup = SystemAPI.GetComponentLookup<Horde>(false);
+
+        foreach ((RefRO<HordeMembership> membership, Entity entity) in
             SystemAPI.Query<RefRO<HordeMembership>>()
             .WithAll<HordeMembership>()
             .WithEntityAccess())
@@ -57,13 +57,13 @@ public partial struct HordeSystem : ISystem
             if (membership.ValueRO.hordeEntity != Entity.Null && 
                 hordeLookup.HasComponent(membership.ValueRO.hordeEntity))
             {
-                var horde = hordeLookup.GetRefRW(membership.ValueRO.hordeEntity);
+                RefRW<Horde> horde = hordeLookup.GetRefRW(membership.ValueRO.hordeEntity);
                 horde.ValueRW.memberCount++;
             }
         }
-        
+
         // Deactivate empty hordes
-        foreach (var (horde, entity) in SystemAPI.Query<RefRW<Horde>>().WithEntityAccess())
+        foreach ((RefRW<Horde> horde, Entity entity) in SystemAPI.Query<RefRW<Horde>>().WithEntityAccess())
         {
             if (horde.ValueRO.memberCount == 0 && horde.ValueRO.isActive)
             {
@@ -81,10 +81,10 @@ public partial struct HordeSystem : ISystem
         if (!SystemAPI.HasSingleton<FlowFieldSystem.FlowFieldData>())
             return;
             
-        var gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
-        var flowFieldData = SystemAPI.GetSingleton<FlowFieldSystem.FlowFieldData>();
-        
-        foreach (var (horde, entity) in SystemAPI.Query<RefRW<Horde>>().WithEntityAccess())
+        NavGridConfig gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
+        FlowFieldSystem.FlowFieldData flowFieldData = SystemAPI.GetSingleton<FlowFieldSystem.FlowFieldData>();
+
+        foreach ((RefRW<Horde> horde, Entity entity) in SystemAPI.Query<RefRW<Horde>>().WithEntityAccess())
         {
             if (!horde.ValueRO.isActive || !horde.ValueRO.needsPathUpdate)
                 continue;
@@ -112,7 +112,7 @@ public partial struct HordeSystem : ISystem
     private void RequestFlowFieldForHorde(ref SystemState state, Entity hordeEntity, float3 targetPosition)
     {
         // Find any member of this horde to request the path
-        foreach (var (membership, agent, pathRequest, memberEntity) in 
+        foreach ((RefRO<HordeMembership> membership, RefRW<PathfindingAgent> agent, RefRW<PathRequest> pathRequest, Entity memberEntity) in
             SystemAPI.Query<RefRO<HordeMembership>, RefRW<PathfindingAgent>, RefRW<PathRequest>>()
             .WithAll<HordeMembership>()
             .WithEntityAccess())
@@ -131,9 +131,9 @@ public partial struct HordeSystem : ISystem
     
     private void SyncMembersToHorde(ref SystemState state)
     {
-        var hordeLookup = SystemAPI.GetComponentLookup<Horde>(true);
-        
-        foreach (var (membership, follower, agent, entity) in 
+        ComponentLookup<Horde> hordeLookup = SystemAPI.GetComponentLookup<Horde>(true);
+
+        foreach ((RefRO<HordeMembership> membership, RefRW<FlowFieldFollower> follower, RefRW<PathfindingAgent> agent, Entity entity) in
             SystemAPI.Query<RefRO<HordeMembership>, RefRW<FlowFieldFollower>, RefRW<PathfindingAgent>>()
             .WithAll<HordeMembership>()
             .WithEntityAccess())
@@ -144,7 +144,7 @@ public partial struct HordeSystem : ISystem
             if (!hordeLookup.HasComponent(membership.ValueRO.hordeEntity))
                 continue;
                 
-            var horde = hordeLookup[membership.ValueRO.hordeEntity];
+            Horde horde = hordeLookup[membership.ValueRO.hordeEntity];
             
             if (!horde.isActive)
                 continue;
@@ -165,7 +165,7 @@ public partial struct HordeSystem : ISystem
     {
         for (int i = 0; i < FlowFieldSystem.FLOW_FIELD_MAP_COUNT; i++)
         {
-            var target = flowFieldData.targets[i];
+            FlowFieldSystem.FlowFieldTarget target = flowFieldData.targets[i];
             if (target.isValid && target.gridPosition.Equals(targetGridPosition) && target.layer == layer)
             {
                 return i;

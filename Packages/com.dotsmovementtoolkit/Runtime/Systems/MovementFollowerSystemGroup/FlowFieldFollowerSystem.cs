@@ -31,16 +31,16 @@ public partial struct FlowFieldFollowerSystem : ISystem
         // Complete any pending jobs on the cost map before reading
         state.CompleteDependency();
 
-        var gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
-        var gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
-        var flowFieldData = SystemAPI.GetSingleton<FlowFieldSystem.FlowFieldData>();
-        var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
-        var gridSettings = SystemAPI.GetSingleton<NavGridSettings>();
+        NavGridConfig gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
+        NavGridCostMap gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
+        FlowFieldSystem.FlowFieldData flowFieldData = SystemAPI.GetSingleton<FlowFieldSystem.FlowFieldData>();
+        PhysicsWorldSingleton physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
+        NavGridSettings gridSettings = SystemAPI.GetSingleton<NavGridSettings>();
 
         int cellsPerLayer = gridConfig.width * gridConfig.height;
 
         // First: Check if entities can move straight to target (line of sight optimization)
-        var lineOfSightJob = new FlowFieldLineOfSightJob
+        FlowFieldLineOfSightJob lineOfSightJob = new FlowFieldLineOfSightJob
         {
             collisionWorld = physicsWorld.CollisionWorld,
             wallLayerMask = gridSettings.wallLayerMask
@@ -48,7 +48,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
         state.Dependency = lineOfSightJob.ScheduleParallel(state.Dependency);
 
         // Second: Update movement targets from flow field for entities still following
-        var followJob = new FlowFieldFollowJob
+        FlowFieldFollowJob followJob = new FlowFieldFollowJob
         {
             cellSize = gridConfig.cellSize,
             cellSizeDouble = gridConfig.cellSize * 2f,
@@ -80,7 +80,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             in PathfindingAgent agent,
             ref Movement movement,
             ref FlowFieldFollower follower,
-            EnabledRefRW<FlowFieldFollower> followerEnabled)
+            EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled)
         {
             if (!agent.isActive)
                 return;
@@ -101,7 +101,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             {
                 // Clear line of sight - move directly to target
                 movement.targetPosition = follower.targetPosition;
-                followerEnabled.ValueRW = false;
+                flowFieldFollowerEnabled.ValueRW = false;
             }
         }
     }
@@ -129,7 +129,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             in PathfindingAgent agent,
             ref Movement movement,
             ref FlowFieldFollower follower,
-            EnabledRefRW<FlowFieldFollower> followerEnabled)
+            EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled)
         {
             if (!agent.isActive)
                 return;
@@ -137,22 +137,22 @@ public partial struct FlowFieldFollowerSystem : ISystem
             // Validate flow field
             if (follower.flowFieldIndex < 0 || follower.flowFieldIndex >= FlowFieldSystem.FLOW_FIELD_MAP_COUNT)
             {
-                followerEnabled.ValueRW = false;
+                flowFieldFollowerEnabled.ValueRW = false;
                 return;
             }
-            
+
             if (!targets[follower.flowFieldIndex].isValid)
             {
-                followerEnabled.ValueRW = false;
+                flowFieldFollowerEnabled.ValueRW = false;
                 return;
             }
 
             int2 gridPosition = NavGridSystem.GetGridPosition(localTransform.Position, cellSize, gridOrigin);
-            
+
             // Bounds check
             if (!NavGridSystem.IsValidGridPosition(gridPosition, width, height))
             {
-                followerEnabled.ValueRW = false;
+                flowFieldFollowerEnabled.ValueRW = false;
                 return;
             }
             
@@ -183,7 +183,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
             if (distToTarget < cellSize)
             {
                 movement.targetPosition = follower.targetPosition;
-                followerEnabled.ValueRW = false;
+                flowFieldFollowerEnabled.ValueRW = false;
             }
         }
     }

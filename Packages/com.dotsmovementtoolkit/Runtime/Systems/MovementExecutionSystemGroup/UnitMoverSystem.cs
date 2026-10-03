@@ -26,10 +26,10 @@ public partial struct UnitMoverSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
+        PhysicsWorldSingleton physicsWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>();
         float deltaTime = SystemAPI.Time.DeltaTime;
 
-        var job = new UnitMoverJob
+        UnitMoverJob job = new UnitMoverJob
         {
             deltaTime = deltaTime,
             collisionWorld = physicsWorld.CollisionWorld

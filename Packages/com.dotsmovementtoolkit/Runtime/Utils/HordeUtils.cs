@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Unity.Collections;
+using Unity.Entities;
 using Unity.Mathematics;
 
 namespace DotsMovementToolkit
@@ -13,15 +14,15 @@ public static class HordeUtils
     /// </summary>
     public static Entity CreateHorde(EntityManager em, float3 targetPosition, Entity targetEntity = default)
     {
-        var registry = em.CreateEntityQuery(typeof(HordeRegistry)).GetSingleton<HordeRegistry>();
+        HordeRegistry registry = em.CreateEntityQuery(typeof(HordeRegistry)).GetSingleton<HordeRegistry>();
         int hordeId = registry.nextHordeId++;
         
         // Update registry
-        var registryEntity = em.CreateEntityQuery(typeof(HordeRegistry)).GetSingletonEntity();
+        Entity registryEntity = em.CreateEntityQuery(typeof(HordeRegistry)).GetSingletonEntity();
         em.SetComponentData(registryEntity, registry);
         
         // Create horde entity
-        var hordeEntity = em.CreateEntity();
+        Entity hordeEntity = em.CreateEntity();
         em.AddComponent<Horde>(hordeEntity);
         em.SetComponentData(hordeEntity, new Horde
         {
@@ -48,8 +49,8 @@ public static class HordeUtils
         if (!em.HasComponent<Horde>(hordeEntity))
             return;
             
-        var horde = em.GetComponentData<Horde>(hordeEntity);
-        
+        Horde horde = em.GetComponentData<Horde>(hordeEntity);
+
         // Set membership on the entity
         if (em.HasComponent<HordeMembership>(memberEntity))
         {
@@ -64,13 +65,13 @@ public static class HordeUtils
         }
         
         // Add to horde's member buffer
-        var buffer = em.GetBuffer<HordeMemberBuffer>(hordeEntity);
+        DynamicBuffer<HordeMemberBuffer> buffer = em.GetBuffer<HordeMemberBuffer>(hordeEntity);
         buffer.Add(new HordeMemberBuffer { memberEntity = memberEntity });
         
         // Update pathfinding mode
         if (em.HasComponent<PathfindingAgent>(memberEntity))
         {
-            var agent = em.GetComponentData<PathfindingAgent>(memberEntity);
+            PathfindingAgent agent = em.GetComponentData<PathfindingAgent>(memberEntity);
             agent.currentMode = PathfindingMode.FlowField;
             em.SetComponentData(memberEntity, agent);
         }
@@ -84,8 +85,8 @@ public static class HordeUtils
         if (!em.HasComponent<HordeMembership>(memberEntity))
             return;
             
-        var membership = em.GetComponentData<HordeMembership>(memberEntity);
-        var hordeEntity = membership.hordeEntity;
+        HordeMembership membership = em.GetComponentData<HordeMembership>(memberEntity);
+        Entity hordeEntity = membership.hordeEntity;
         
         // Disable membership
         em.SetComponentEnabled<HordeMembership>(memberEntity, false);
@@ -100,7 +101,7 @@ public static class HordeUtils
         // Remove from horde buffer
         if (hordeEntity != Entity.Null && em.HasBuffer<HordeMemberBuffer>(hordeEntity))
         {
-            var buffer = em.GetBuffer<HordeMemberBuffer>(hordeEntity);
+            DynamicBuffer<HordeMemberBuffer> buffer = em.GetBuffer<HordeMemberBuffer>(hordeEntity);
             for (int i = buffer.Length - 1; i >= 0; i--)
             {
                 if (buffer[i].memberEntity == memberEntity)
@@ -114,7 +115,7 @@ public static class HordeUtils
         // Revert to preferred pathfinding mode
         if (em.HasComponent<PathfindingAgent>(memberEntity))
         {
-            var agent = em.GetComponentData<PathfindingAgent>(memberEntity);
+            PathfindingAgent agent = em.GetComponentData<PathfindingAgent>(memberEntity);
             agent.currentMode = agent.preferredMode;
             em.SetComponentData(memberEntity, agent);
         }
@@ -134,7 +135,7 @@ public static class HordeUtils
         if (!em.HasComponent<Horde>(hordeEntity))
             return;
             
-        var horde = em.GetComponentData<Horde>(hordeEntity);
+        Horde horde = em.GetComponentData<Horde>(hordeEntity);
         horde.targetPosition = targetPosition;
         horde.targetEntity = targetEntity;
         horde.needsPathUpdate = true;
@@ -152,7 +153,7 @@ public static class HordeUtils
         // Get all members and remove them
         if (em.HasBuffer<HordeMemberBuffer>(hordeEntity))
         {
-            var buffer = em.GetBuffer<HordeMemberBuffer>(hordeEntity);
+            DynamicBuffer<HordeMemberBuffer> buffer = em.GetBuffer<HordeMemberBuffer>(hordeEntity);
             for (int i = 0; i < buffer.Length; i++)
             {
                 LeaveHorde(em, buffer[i].memberEntity);
@@ -160,7 +161,7 @@ public static class HordeUtils
         }
         
         // Mark horde as inactive
-        var horde = em.GetComponentData<Horde>(hordeEntity);
+        Horde horde = em.GetComponentData<Horde>(hordeEntity);
         horde.isActive = false;
         horde.memberCount = 0;
         em.SetComponentData(hordeEntity, horde);

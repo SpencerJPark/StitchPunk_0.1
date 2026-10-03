@@ -25,7 +25,7 @@ public partial struct DStarLiteSystem : ISystem
 
     public struct DStarNode
     {
-        public float g;
+        public float gCost;
         public float rhs;
         public float2 key;
         public int2   position;
@@ -81,7 +81,10 @@ public partial struct DStarLiteSystem : ISystem
 
         // PathRequestSystem already set agent state and left PathRequest enabled for us.
         // Iterate inline — no separate gather job needed.
-        foreach (var (pathRequest, transform, pathRequestEnabled, entity) in
+        foreach ((RefRO<PathRequest> pathRequest,
+                  RefRO<LocalTransform> transform,
+                  EnabledRefRW<PathRequest> pathRequestEnabled,
+                  Entity entity) in
             SystemAPI.Query<
                 RefRO<PathRequest>,
                 RefRO<LocalTransform>,
@@ -168,7 +171,7 @@ public partial struct DStarLiteSystem : ISystem
             int y = i / dstarData.width;
             dstarData.nodes[i] = new DStarNode
             {
-                g         = float.MaxValue,
+                gCost     = float.MaxValue,
                 rhs       = float.MaxValue,
                 key       = new float2(float.MaxValue, float.MaxValue),
                 position  = new int2(x, y),
@@ -188,7 +191,7 @@ public partial struct DStarLiteSystem : ISystem
         for (int i = 0; i < cellCount; i++)
         {
             DStarNode node = dstarData.nodes[i];
-            node.g        = float.MaxValue;
+            node.gCost    = float.MaxValue;
             node.rhs      = float.MaxValue;
             node.inOpenSet = false;
             dstarData.nodes[i] = node;
@@ -202,7 +205,7 @@ public partial struct DStarLiteSystem : ISystem
 
         DStarNode goalNode = dstarData.nodes[goalIndex];
         goalNode.rhs      = 0;
-        goalNode.key      = PathfindingUtils.CalculateDStarKey(pathData.goalPosition, pathData.startPosition, goalNode.g, 0, pathData.km);
+        goalNode.key      = PathfindingUtils.CalculateDStarKey(pathData.goalPosition, pathData.startPosition, goalNode.gCost, 0, pathData.km);
         goalNode.inOpenSet = true;
         dstarData.nodes[goalIndex] = goalNode;
 
@@ -234,23 +237,23 @@ public partial struct DStarLiteSystem : ISystem
             DStarNode startNode  = dstarData.nodes[startIndex];
 
             float2 startKey = PathfindingUtils.CalculateDStarKey(pathData.startPosition, pathData.startPosition,
-                startNode.g, startNode.rhs, pathData.km);
+                startNode.gCost, startNode.rhs, pathData.km);
 
-            if (!PathfindingUtils.KeyLessThan(bestKey, startKey) && math.abs(startNode.rhs - startNode.g) < 0.001f)
+            if (!PathfindingUtils.KeyLessThan(bestKey, startKey) && math.abs(startNode.rhs - startNode.gCost) < 0.001f)
                 break;
 
             openSet.RemoveAtSwapBack(bestIdx);
             currentNode.inOpenSet = false;
 
-            if (currentNode.g > currentNode.rhs)
+            if (currentNode.gCost > currentNode.rhs)
             {
-                currentNode.g = currentNode.rhs;
+                currentNode.gCost = currentNode.rhs;
                 dstarData.nodes[currentIndex] = currentNode;
                 UpdatePredecessors(ref dstarData, currentIndex, ref openSet, pathData, costMap, wallCost);
             }
             else
             {
-                currentNode.g = float.MaxValue;
+                currentNode.gCost = float.MaxValue;
                 dstarData.nodes[currentIndex] = currentNode;
                 UpdateVertex(ref dstarData, currentIndex, ref openSet, pathData, costMap, wallCost);
                 UpdatePredecessors(ref dstarData, currentIndex, ref openSet, pathData, costMap, wallCost);
@@ -312,7 +315,7 @@ public partial struct DStarLiteSystem : ISystem
 
                     DStarNode neighborNode = dstarData.nodes[neighborIndex];
                     float cost             = PathfindingUtils.CalculateMoveCost(dx, dy, costMap[neighborIndex]);
-                    float candidateRhs     = neighborNode.g + cost;
+                    float candidateRhs     = neighborNode.gCost + cost;
 
                     if (candidateRhs < minRhs) minRhs = candidateRhs;
                 }
@@ -334,9 +337,9 @@ public partial struct DStarLiteSystem : ISystem
             node.inOpenSet = false;
         }
 
-        if (math.abs(node.g - node.rhs) > 0.001f)
+        if (math.abs(node.gCost - node.rhs) > 0.001f)
         {
-            node.key       = PathfindingUtils.CalculateDStarKey(pos, pathData.startPosition, node.g, node.rhs, pathData.km);
+            node.key       = PathfindingUtils.CalculateDStarKey(pos, pathData.startPosition, node.gCost, node.rhs, pathData.km);
             node.inOpenSet = true;
             openSet.Add(nodeIndex);
         }
@@ -362,10 +365,10 @@ public partial struct DStarLiteSystem : ISystem
                 if (costMap[neighborIndex] == wallCost) continue;
 
                 DStarNode neighborNode = dstarData.nodes[neighborIndex];
-                if (neighborNode.g >= float.MaxValue * 0.5f) continue;
+                if (neighborNode.gCost >= float.MaxValue * 0.5f) continue;
 
                 float cost  = PathfindingUtils.CalculateMoveCost(dx, dy, costMap[neighborIndex]);
-                float score = cost + neighborNode.g;
+                float score = cost + neighborNode.gCost;
 
                 if (score < bestScore)
                 {

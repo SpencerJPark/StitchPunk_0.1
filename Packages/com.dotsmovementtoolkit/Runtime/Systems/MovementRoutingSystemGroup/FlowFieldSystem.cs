@@ -72,7 +72,7 @@ public partial struct FlowFieldSystem : ISystem
         
         if (SystemAPI.HasComponent<FlowFieldData>(state.SystemHandle))
         {
-            var data = SystemAPI.GetComponent<FlowFieldData>(state.SystemHandle);
+            FlowFieldData data = SystemAPI.GetComponent<FlowFieldData>(state.SystemHandle);
             if (data.bestCosts.IsCreated) data.bestCosts.Dispose();
             if (data.vectors.IsCreated) data.vectors.Dispose();
             if (data.targets.IsCreated) data.targets.Dispose();
@@ -82,8 +82,8 @@ public partial struct FlowFieldSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        var gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
-        var gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
+        NavGridConfig gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
+        NavGridCostMap gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
         byte wallCost = SystemAPI.GetSingleton<NavGridSettings>().wallCost;
 
         // Initialize flow field data on first update
@@ -92,8 +92,8 @@ public partial struct FlowFieldSystem : ISystem
             InitializeFlowFieldData(ref state, gridConfig);
         }
         
-        var flowFieldSystemData = SystemAPI.GetComponent<FlowFieldSystemData>(state.SystemHandle);
-        var flowFieldData = SystemAPI.GetComponent<FlowFieldData>(state.SystemHandle);
+        FlowFieldSystemData flowFieldSystemData = SystemAPI.GetComponent<FlowFieldSystemData>(state.SystemHandle);
+        FlowFieldData flowFieldData = SystemAPI.GetComponent<FlowFieldData>(state.SystemHandle);
         
         int cellsPerLayer = gridConfig.width * gridConfig.height;
         
@@ -118,7 +118,7 @@ public partial struct FlowFieldSystem : ISystem
             flowFieldSystemData.nextFlowFieldIndex = (flowFieldSystemData.nextFlowFieldIndex + 1) % FLOW_FIELD_MAP_COUNT;
             
             // Initialize flow field
-            var initJob = new InitializeFlowFieldJob
+            InitializeFlowFieldJob initJob = new InitializeFlowFieldJob
             {
                 flowFieldIndex = flowFieldIndex,
                 cellsPerLayer = cellsPerLayer,
@@ -128,7 +128,7 @@ public partial struct FlowFieldSystem : ISystem
             flowFieldHandle = initJob.Schedule(cellsPerLayer, 64, flowFieldHandle);
             
             // Calculate flow field
-            var calculateJob = new CalculateFlowFieldJob
+            CalculateFlowFieldJob calculateJob = new CalculateFlowFieldJob
             {
                 flowFieldIndex = flowFieldIndex,
                 width = gridConfig.width,
@@ -143,7 +143,7 @@ public partial struct FlowFieldSystem : ISystem
             flowFieldHandle = calculateJob.Schedule(flowFieldHandle);
             
             // Mark as valid
-            var targets = flowFieldData.targets;
+            NativeArray<FlowFieldTarget> targets = flowFieldData.targets;
             targets[flowFieldIndex] = new FlowFieldTarget
             {
                 gridPosition = request.targetGridPosition,
@@ -163,7 +163,7 @@ public partial struct FlowFieldSystem : ISystem
         int cellsPerLayer = gridConfig.width * gridConfig.height;
         int totalCells = cellsPerLayer * FLOW_FIELD_MAP_COUNT;
         
-        var flowFieldData = new FlowFieldData
+        FlowFieldData flowFieldData = new FlowFieldData
         {
             bestCosts = new NativeArray<int>(totalCells, Allocator.Persistent),
             vectors = new NativeArray<float2>(totalCells, Allocator.Persistent),
@@ -182,7 +182,7 @@ public partial struct FlowFieldSystem : ISystem
     
     private void CollectRequests(ref SystemState state, NavGridConfig gridConfig)
     {
-        foreach (var (pathRequest, pathRequestEnabled, entity) in
+        foreach ((RefRO<PathRequest> pathRequest, EnabledRefRW<PathRequest> pathRequestEnabled, Entity entity) in
             SystemAPI.Query<
                 RefRO<PathRequest>,
                 EnabledRefRW<PathRequest>>()
@@ -211,7 +211,7 @@ public partial struct FlowFieldSystem : ISystem
     {
         for (int i = 0; i < FLOW_FIELD_MAP_COUNT; i++)
         {
-            var target = data.targets[i];
+            FlowFieldTarget target = data.targets[i];
             if (target.isValid && target.gridPosition.Equals(targetPos) && target.layer == layer)
             {
                 return i;
@@ -224,7 +224,7 @@ public partial struct FlowFieldSystem : ISystem
     {
         if (!SystemAPI.HasComponent<FlowFieldFollower>(entity)) return;
         
-        var follower = SystemAPI.GetComponentRW<FlowFieldFollower>(entity);
+        RefRW<FlowFieldFollower> follower = SystemAPI.GetComponentRW<FlowFieldFollower>(entity);
         follower.ValueRW.flowFieldIndex = flowFieldIndex;
         follower.ValueRW.targetPosition = targetPosition;
         SystemAPI.SetComponentEnabled<FlowFieldFollower>(entity, true);
@@ -237,7 +237,7 @@ public partial struct FlowFieldSystem : ISystem
     {
         for (int i = 0; i < FLOW_FIELD_MAP_COUNT; i++)
         {
-            var target = data.targets[i];
+            FlowFieldTarget target = data.targets[i];
             target.isValid = false;
             data.targets[i] = target;
         }
@@ -299,7 +299,7 @@ public struct CalculateFlowFieldJob : IJob
             return;
         
         // BFS queue (ring buffer)
-        var queue = new NativeArray<int>(cellsPerLayer, Allocator.Temp);
+        NativeArray<int> queue = new NativeArray<int>(cellsPerLayer, Allocator.Temp);
         int queueHead = 0;
         int queueTail = 0;
         
