@@ -5,6 +5,7 @@
             <ui:VisualElement name="tab-strip" class="clip-editor__tab-strip toolkit-tablist">
                 <uie:ToolbarToggle name="tab-texture-packer" text="Texture Packer" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-flipbooks" text="Flipbooks" class="clip-editor__tab toolkit-tablist__tab"/>
+                <uie:ToolbarToggle name="tab-cutouts" text="Cutouts" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-clip-sets" text="Clip Sets" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-new-rig" text="Rigs" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-materials" text="Materials" class="clip-editor__tab toolkit-tablist__tab"/>
@@ -159,6 +160,7 @@
             <ui:VisualElement name="events-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="health-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="flipbooks-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
+            <ui:VisualElement name="cutouts-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="materials-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="retarget-pane" class="clip-editor__cover-pane clip-editor--hidden"/>
             <ui:VisualElement name="capture-pane" class="clip-editor__cover-pane clip-editor--hidden"/>

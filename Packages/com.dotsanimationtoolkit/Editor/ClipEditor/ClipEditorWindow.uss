@@ -2656,3 +2656,33 @@
     margin-left: 8px;
     margin-right: auto;
 }
+
+/* A111 Cutouts. The canvas is the deepest of the three column depths, like a rendered viewport. */
+.cutout-canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    background-color: var(--toolkit-surface);
+}
+
+.cutout-canvas__axis-label {
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    font-size: var(--toolkit-text-meta);
+    color: var(--toolkit-color-muted);
+}
+
+/* The frame stepper's readout sits between its two arrows and ellipsizes (its tooltip has the full name). */
+.cutouts-frame-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -unity-text-align: middle-center;
+    color: var(--toolkit-color-muted);
+}

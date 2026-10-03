@@ -8,7 +8,21 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Empty lists and empty previews
+## [0.63.0] — Cutouts tab
+
+### Added
+- **Cutouts tab** (after Flipbooks): draw a flat mesh tight around a flipbook's art instead of rendering it on a
+  full quad, so transparent pixels stop costing a fragment sample and a discard in every pass. Pick a flipbook (or a
+  saved cutout), flip through its frames over a world-unit grid, size the art against a reference image with
+  Pixels / unit, then drag, insert and delete outline vertices — or press **Fit to art** for a padded convex outline
+  over every frame within a vertex budget — place the origin on the joint, choose −Z/+Z facing with flat or rounded
+  normals, and **Save Mesh**. The asset bar shows the vertex count and the area as a percentage of the quad; the
+  footer names any frame whose art pokes outside the shape. UVs come from position, so one mesh fits every slice.
+- `CutoutAsset` (editor-only) keeps the flipbook, pixels per unit, outline, origin, facing, normals and reference
+  placement; reopening it restores the session, and saving again rewrites the same Mesh asset (GUID kept).
+- Drawn **Cutouts** tab glyph. User guide: `Documentation~/cutouts.md`.
+
+## [0.62.0] — Empty lists and empty previews
 
 ### Changed
 - **Breaking, source only:** `PlaybackApi`'s `EnabledRefRW<AnimationCommandPending>` parameter is renamed

@@ -13,6 +13,9 @@ namespace DotsAnimationToolkit.Editor
 
         Flipbooks = 1,
 
+        /// <summary>Draw a tight flat mesh around a flipbook's art, shared by every frame, and save it as a Mesh asset.</summary>
+        Cutouts = 15,
+
         /// <summary>Browse, create and edit clip sets — which clips each one registers.</summary>
         ClipSets = 2,
 

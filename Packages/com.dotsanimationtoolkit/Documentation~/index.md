@@ -89,6 +89,7 @@ beneath it inherits that root unless it declares one of its own. See
 | `VatTextureSetAsset` inspector | Select a generated `VatTextureSetAsset` | Read-only bake stats (format, memory, per-clip frame ranges). |
 | Actor Editor | Clip Editor's **Actor Editor** tab, or double-click an `ActorProfileAsset` | Layer/animation editor, composited multi-layer preview, direction slider, ragdoll mix, validation badge (P1-P7). See [`actor-profiles.md`](actor-profiles.md). |
 | `ActorAuthoring` inspector | Select a GameObject with `ActorAuthoring` | Profile field and presentation settings. |
+| Cutouts | Clip Editor's **Cutouts** tab, right after Flipbooks | Draws a tight mesh around a flipbook's art, so a part's quad stops shading empty pixels. See [`cutouts.md`](cutouts.md). |
 
 The clip inspector and clip-set inspector share the same `ClipValidation` rule
 set the bake enforces, so a problem you see in the editor is the same one that
@@ -175,6 +176,9 @@ And the two references both of them lean on:
 - [`flipbooks.md`](flipbooks.md) — the Flipbooks tab: stacking
   same-size frames into one `Texture2DArray`, the contact sheet, and picking a
   sprite key's frame by name.
+- [`cutouts.md`](cutouts.md) — the Cutouts tab: why a tighter mesh than the
+  quad saves fragment work, fitting and hand-editing the shape, origin, facing
+  and normals, and saving the mesh asset.
 - [`materials-tab.md`](materials-tab.md) — the Materials tab: every material on
   a rig's prefab against the shader contract per target kind, instancing, the
   flipbook check, and Create for a target.

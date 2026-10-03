@@ -51,6 +51,9 @@ Editor's reconciliation panel will tell you (see
 [`clip-editor.md`](clip-editor.md)), but it is a rename you have to follow
 through.
 
+A part's quad can be swapped for a mesh fitted to its art, which cuts the
+fragment cost of empty pixels; see [`cutouts.md`](cutouts.md).
+
 ### 2. Create the rig asset
 
 **Assets ▸ Create ▸ DOTS Animation Toolkit ▸ Rig Asset**
