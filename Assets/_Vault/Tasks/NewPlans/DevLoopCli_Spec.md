@@ -96,6 +96,29 @@ def gate_assemblies(project_root: str, assembly_names: list[str]) -> GateReport 
   both cut and the gate stays as a plain convenience.
 
 ## 6. Log
+- 2026-10-03: **Repo-wide conformance done** (owner: "fix the 77 var violations in the movement toolkit and the
+  other violations"). 1057 files now lint clean; game + both DOTS toolkits + worktree toolkit all gate clean.
+  219 findings fixed in total: movement toolkit 92, animation toolkit 11, game 107, plus 11 that appeared mid-pass.
+  - **A misnamed `EnabledRef` is invisible behind `var`.** The rule needs the type written down, so converting
+    `foreach (var (...))` tuples to explicit types exposed names that had always been wrong
+    (`EnabledRefRW<PlayerInteractable> interactableEnabled`). The count went **up** from 11 to 22 before it went
+    down, and the enabled-ref pass has to run *after* the no-var pass. Remember this ordering.
+  - **One worker per assembly.** Two workers editing the same assembly each compile the other's half-finished
+    edits during their own gate run. Grouping by assembly removed that entirely; where it was unavoidable (the 36
+    files of `StitchPunk.Systems`) the briefs said to attribute an error in an unowned file to a peer and not touch
+    it, and the workers did exactly that.
+  - Three gate/lint defects the work itself exposed, all fixed: the source re-glob reached into **nested
+    asmdefs** (`StitchPunk.Tests` swallowed `Tests/PlayMode`, phantom CS0246); one shared temp build directory
+    meant parallel gates **overwrote each other's `.ref.dll`**; and the "suspiciously fast" guard was a false
+    positive, since a six-file assembly honestly compiles in under a second - it now checks that `-out:` exists
+    rather than timing the run.
+  - `no-single-letter-names` had 9 more false positives: `return i;` and `instance = this as T;` contain no
+    declaration, but any `<word> <letter>;` matched. Keywords are now rejected in the type position.
+  - Deliberately preserved: `for`-loop counters, `rhs`/`km` in the D*Lite key maths, and the intentionally
+    descending comparison in `VoiceSelectionSystem`'s comparer.
+- 2026-10-03: ⚠ **No Editor pass yet.** All of the above is gate-verified only - `error CS####` and nothing more.
+  Burst `BC####`, baking and runtime behaviour are unchecked, and ~1050 files changed names or declaration types.
+  The EditMode/PlayMode suites and a play-test are still owed before this is trusted in a build.
 - 2026-10-02: ⚠ **Real convention drift the lint found, for the owner to schedule:**
   `com.dotsmovementtoolkit` has **77 genuine `no-var` violations** across 12 files (plus 15 single-letter and 4
   enabled-ref). These are true positives - `var registryEntity = ...`, `foreach (var horde in ...)` - so that
