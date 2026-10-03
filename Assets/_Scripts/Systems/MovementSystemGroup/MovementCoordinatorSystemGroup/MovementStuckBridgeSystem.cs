@@ -24,9 +24,9 @@ public partial struct MovementStuckBridgeJob : IJobEntity
 {
     public void Execute(
         EnabledRefRW<MovementStuck>          movementStuckEnabled,
-        EnabledRefRW<ActionInterruptRequest> interruptEnabled)
+        EnabledRefRW<ActionInterruptRequest> actionInterruptRequestEnabled)
     {
-        interruptEnabled.ValueRW    = true;
+        actionInterruptRequestEnabled.ValueRW    = true;
         movementStuckEnabled.ValueRW = false;
     }
 }

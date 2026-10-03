@@ -26,7 +26,7 @@ public partial struct SpawnInitCleanupSystem : ISystem
     {
         _newlySpawnedLookup.Update(ref state);
 
-        foreach (var (_, entity) in
+        foreach ((RefRO<NewlySpawned> _, Entity entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
         {
             _newlySpawnedLookup.SetComponentEnabled(entity, false);

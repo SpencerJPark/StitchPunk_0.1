@@ -13,9 +13,9 @@ public struct ConsiderationBlob
     public BlobArray<float>  samples;   // sampled at t in [0,1]
 
     // Sample the curve at a normalized input t in [0,1] via linear interpolation between samples.
-    public float Evaluate(float t)
+    public float Evaluate(float normalizedTime)
     {
-        float position = math.saturate(t) * (resolution - 1);
+        float position = math.saturate(normalizedTime) * (resolution - 1);
         int   lower    = (int)math.floor(position);
         int   upper    = math.min(lower + 1, resolution - 1);
         return math.lerp(samples[lower], samples[upper], position - lower);

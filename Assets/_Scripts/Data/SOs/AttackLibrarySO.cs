@@ -8,7 +8,7 @@ public class AttackLibrarySO : ScriptableObject
 
     public AttackSO GetAttack(DamageSource damageSource)
     {
-        foreach (var attack in attacks)
+        foreach (AttackSO attack in attacks)
         {
             if (attack != null && attack.damageSource == damageSource)
                 return attack;

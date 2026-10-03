@@ -57,7 +57,7 @@ public partial struct PlayerUnequipSystem : ISystem
 
         state.EntityManager.SetComponentData(itemEntity, LocalTransform.FromPosition(worldPos));
 
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
+        EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.Temp);
         ecb.RemoveComponent<Parent>(itemEntity);
         ecb.SetComponentEnabled<PlayerInteractable>(itemEntity, true);
         ecb.Playback(state.EntityManager);

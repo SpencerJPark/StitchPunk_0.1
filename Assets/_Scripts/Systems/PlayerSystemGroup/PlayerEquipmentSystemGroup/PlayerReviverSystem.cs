@@ -14,7 +14,7 @@ public partial struct PlayerReviverSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (var (reviverEnabled, target, targetEnabled) in
+        foreach ((EnabledRefRW<OnPlayerReviverEquip> onPlayerReviverEquipEnabled, RefRO<Target> target, EnabledRefRO<Target> targetEnabled) in
             SystemAPI.Query<
                 EnabledRefRW<OnPlayerReviverEquip>,
                 RefRO<Target>,
@@ -22,7 +22,7 @@ public partial struct PlayerReviverSystem : ISystem
                     .WithAll<Player>()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
-            if (!reviverEnabled.ValueRO) continue;
+            if (!onPlayerReviverEquipEnabled.ValueRO) continue;
 
             if (targetEnabled.ValueRO)
             {
@@ -31,7 +31,7 @@ public partial struct PlayerReviverSystem : ISystem
                     SystemAPI.SetComponentEnabled<ReviveRequest>(targetEntity, true);
             }
 
-            reviverEnabled.ValueRW = false;
+            onPlayerReviverEquipEnabled.ValueRW = false;
         }
     }
 

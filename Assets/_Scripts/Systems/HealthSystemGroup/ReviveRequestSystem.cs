@@ -78,7 +78,7 @@ public partial struct ReviveJob : IJobEntity
         ref Health health,
         in UnitData unitData,
         ref UnitAction unitAction,
-        EnabledRefRW<ReviveRequest> reviveEnabled,
+        EnabledRefRW<ReviveRequest> reviveRequestEnabled,
         EnabledRefRW<Undead>        undeadEnabled,
         EnabledRefRW<Dead>          deadEnabled,
         EnabledRefRW<Movement>      movementEnabled,
@@ -90,12 +90,12 @@ public partial struct ReviveJob : IJobEntity
         UnitType becomes = srcIdx >= 0 ? unitLibrary.Value.units[srcIdx].becomesUnitType : UnitType.None;
         if (becomes == UnitType.None || !swapBrainLookup.HasComponent(entity))
         {
-            reviveEnabled.ValueRW = false;
+            reviveRequestEnabled.ValueRW = false;
             return;
         }
 
         health.healthAmount   = health.healthAmountMax;
-        reviveEnabled.ValueRW = false;
+        reviveRequestEnabled.ValueRW = false;
         undeadEnabled.ValueRW = true;
         // Dead disabled = alive. Disabling it also drops this entity from the [WithAll(Dead)]
         // filter next frame, so the revive runs exactly once.

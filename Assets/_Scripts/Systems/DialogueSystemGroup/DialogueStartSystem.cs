@@ -35,7 +35,7 @@ public partial struct DialogueStartSystem : ISystem
         // Skip if a dialogue is already running.
         if (SystemAPI.IsComponentEnabled<ActiveDialogue>(managerEntity)) return;
 
-        foreach (var (interactEnabled, target, targetEnabled) in
+        foreach ((EnabledRefRW<OnInteractPlayerInput> onInteractPlayerInputEnabled, RefRO<Target> target, EnabledRefRO<Target> targetEnabled) in
             SystemAPI.Query<
                 EnabledRefRW<OnInteractPlayerInput>,
                 RefRO<Target>,
@@ -43,7 +43,7 @@ public partial struct DialogueStartSystem : ISystem
                     .WithAll<Player>()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
-            if (!interactEnabled.ValueRO) continue;
+            if (!onInteractPlayerInputEnabled.ValueRO) continue;
             if (!targetEnabled.ValueRO)   continue;
 
             Entity targetEntity = target.ValueRO.entity;
@@ -62,7 +62,7 @@ public partial struct DialogueStartSystem : ISystem
             SystemAPI.SetComponentEnabled<ActiveDialogue>(managerEntity, true);
 
             // Consume interact so nothing else (e.g. PlayerReviverSystem) fires this frame.
-            interactEnabled.ValueRW = false;
+            onInteractPlayerInputEnabled.ValueRW = false;
             break;
         }
     }

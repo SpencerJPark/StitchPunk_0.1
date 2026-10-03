@@ -20,20 +20,20 @@ public partial struct PlayerRollInputSystem : ISystem
 
         float deltaTime = SystemAPI.Time.DeltaTime;
 
-        foreach (var (rollInput, rollEnabled) in
+        foreach ((RefRW<OnRollPlayerInput> rollInput, EnabledRefRW<OnRollPlayerInput> onRollPlayerInputEnabled) in
             SystemAPI.Query<
                 RefRW<OnRollPlayerInput>,
                 EnabledRefRW<OnRollPlayerInput>>()
                     .WithAll<Player>()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
-            if (!rollEnabled.ValueRO) continue;
+            if (!onRollPlayerInputEnabled.ValueRO) continue;
 
             rollInput.ValueRW.rollTime -= deltaTime;
             if (rollInput.ValueRO.rollTime <= 0f)
             {
                 rollInput.ValueRW.rollTime = 0f;
-                rollEnabled.ValueRW = false;
+                onRollPlayerInputEnabled.ValueRW = false;
             }
         }
     }

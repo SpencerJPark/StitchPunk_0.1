@@ -28,10 +28,10 @@ public partial struct UnitPoolReturnSystem : ISystem
         float3 playerPos = SystemAPI.GetComponent<LocalTransform>(
             SystemAPI.GetSingletonEntity<Player>()).Position;
 
-        var ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
+        EntityCommandBuffer ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
         float thresholdSq = PoolReturnDistance * PoolReturnDistance;
 
-        foreach (var (transform, entity) in
+        foreach ((RefRO<LocalTransform> transform, Entity entity) in
             SystemAPI.Query<RefRO<LocalTransform>>()
                 .WithAll<PoolOwner>()
                 .WithEntityAccess())

@@ -11,7 +11,7 @@ public static class GameObjectUtils
     public static void SetActiveForAll(bool shouldBeActive, List<GameObject> objects)
     {
         if (objects == null) return;
-        foreach (var go in objects)
+        foreach (GameObject go in objects)
         {
             if (go != null)
                 go.SetActive(shouldBeActive);

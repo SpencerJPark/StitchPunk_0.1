@@ -47,14 +47,14 @@ public partial struct NarrativeProximitySystem : ISystem
 
         if (!playerFound) return;
 
-        foreach (var (trigger, triggerTransform, triggerEnabled) in
+        foreach ((RefRO<NarrativeTrigger> trigger, RefRO<LocalTransform> triggerTransform, EnabledRefRW<NarrativeTrigger> narrativeTriggerEnabled) in
             SystemAPI.Query<
                 RefRO<NarrativeTrigger>,
                 RefRO<LocalTransform>,
                 EnabledRefRW<NarrativeTrigger>>()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
-            if (!triggerEnabled.ValueRO) continue;
+            if (!narrativeTriggerEnabled.ValueRO) continue;
 
             float distance = math.distance(playerPosition, triggerTransform.ValueRO.Position);
             if (distance > trigger.ValueRO.range) continue;
@@ -67,7 +67,7 @@ public partial struct NarrativeProximitySystem : ISystem
             SystemAPI.SetComponentEnabled<OnNarrativeEvent>(narrativeEntity, true);
 
             // Disable trigger to prevent re-firing until the event completes.
-            triggerEnabled.ValueRW = false;
+            narrativeTriggerEnabled.ValueRW = false;
 
             // Only fire one trigger per frame.
             break;

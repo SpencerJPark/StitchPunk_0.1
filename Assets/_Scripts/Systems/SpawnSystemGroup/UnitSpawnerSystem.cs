@@ -40,16 +40,16 @@ public partial struct UnitSpawnerSystem : ISystem
         // UnitPrefabEntry is a DynamicBuffer on the UnitDataLibrary singleton entity.
         // Look up by entity to avoid ambiguity with any other entity that may carry this buffer.
         Entity libraryEntity = SystemAPI.GetSingletonEntity<UnitDataLibrary>();
-        var prefabs = SystemAPI.GetBuffer<UnitPrefabEntry>(libraryEntity);
+        DynamicBuffer<UnitPrefabEntry> prefabs = SystemAPI.GetBuffer<UnitPrefabEntry>(libraryEntity);
 
         // --- Collect spawner data before any structural changes ---
-        var spawnerEntities  = new NativeList<Entity>(Allocator.Temp);
-        var spawnerTypes     = new NativeList<UnitType>(Allocator.Temp);
-        var spawnerCounts    = new NativeList<int>(Allocator.Temp);
-        var spawnerPositions = new NativeList<float3>(Allocator.Temp);
-        var spawnerRanges    = new NativeList<float>(Allocator.Temp);
+        NativeList<Entity> spawnerEntities    = new NativeList<Entity>(Allocator.Temp);
+        NativeList<UnitType> spawnerTypes     = new NativeList<UnitType>(Allocator.Temp);
+        NativeList<int> spawnerCounts         = new NativeList<int>(Allocator.Temp);
+        NativeList<float3> spawnerPositions   = new NativeList<float3>(Allocator.Temp);
+        NativeList<float> spawnerRanges       = new NativeList<float>(Allocator.Temp);
 
-        foreach (var (spawner, transform, entity) in
+        foreach ((RefRO<UnitSpawner> spawner, RefRO<LocalTransform> transform, Entity entity) in
             SystemAPI.Query<RefRO<UnitSpawner>, RefRO<LocalTransform>>().WithEntityAccess())
         {
             spawnerEntities.Add(entity);
@@ -73,12 +73,12 @@ public partial struct UnitSpawnerSystem : ISystem
         float noSpawnRadiusSq = noSpawnRadius * noSpawnRadius;
 
         // --- Snapshot the current pool ---
-        var pooledEntities = _poolQuery.ToEntityArray(Allocator.Temp);
-        var pooledOwners   = _poolQuery.ToComponentDataArray<PoolOwner>(Allocator.Temp);
+        NativeArray<Entity> pooledEntities    = _poolQuery.ToEntityArray(Allocator.Temp);
+        NativeArray<PoolOwner> pooledOwners   = _poolQuery.ToComponentDataArray<PoolOwner>(Allocator.Temp);
         // Tracks which pool slots have been claimed this frame so we don't double-assign.
-        var reclaimed = new NativeBitArray(pooledEntities.Length, Allocator.Temp);
+        NativeBitArray reclaimed = new NativeBitArray(pooledEntities.Length, Allocator.Temp);
 
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
+        EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.Temp);
 
         for (int s = 0; s < spawnerEntities.Length; s++)
         {

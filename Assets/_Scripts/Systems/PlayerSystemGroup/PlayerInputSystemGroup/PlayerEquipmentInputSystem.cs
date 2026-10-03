@@ -28,7 +28,7 @@ public partial struct PlayerEquipmentInputSystem : ISystem
             && SystemAPI.IsComponentEnabled<CutsceneActiveTag>(narrativeEntity))
             return;
 
-        foreach (var (slotInput, slotEnabled, slots, entity) in
+        foreach ((RefRO<OnEquipmentSlotPlayerInput> slotInput, EnabledRefRW<OnEquipmentSlotPlayerInput> onEquipmentSlotPlayerInputEnabled, RefRO<PlayerEquipmentSlots> slots, Entity entity) in
             SystemAPI.Query<
                 RefRO<OnEquipmentSlotPlayerInput>,
                 EnabledRefRW<OnEquipmentSlotPlayerInput>,
@@ -37,7 +37,7 @@ public partial struct PlayerEquipmentInputSystem : ISystem
                     .WithEntityAccess()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
-            if (!slotEnabled.ValueRO) continue;
+            if (!onEquipmentSlotPlayerInputEnabled.ValueRO) continue;
 
             ItemType equippedItem = slotInput.ValueRO.slot switch
             {
@@ -55,7 +55,7 @@ public partial struct PlayerEquipmentInputSystem : ISystem
                     break;
             }
 
-            slotEnabled.ValueRW = false;
+            onEquipmentSlotPlayerInputEnabled.ValueRW = false;
         }
     }
 

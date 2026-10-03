@@ -104,7 +104,7 @@ public partial struct VoiceSelectionSystem : ISystem
         }
 
         // Loops (enabled only) — stable per-frame volume/pitch so they don't jitter.
-        foreach (var (loopRO, xformRO, entity) in
+        foreach ((RefRO<LoopingSound> loopRO, RefRO<LocalTransform> xformRO, Entity entity) in
             SystemAPI.Query<RefRO<LoopingSound>, RefRO<LocalTransform>>().WithEntityAccess())
         {
             LoopingSound loop = loopRO.ValueRO;
@@ -181,6 +181,6 @@ public partial struct VoiceSelectionSystem : ISystem
 
     private struct CandidateComparer : IComparer<Candidate>
     {
-        public int Compare(Candidate a, Candidate b) => b.score.CompareTo(a.score);
+        public int Compare(Candidate firstCandidate, Candidate secondCandidate) => secondCandidate.score.CompareTo(firstCandidate.score);
     }
 }

@@ -25,10 +25,10 @@ public partial struct HealRequestSystem : ISystem
 [WithAll(typeof(HealRequest))]
 public partial struct HealJob : IJobEntity
 {
-    public void Execute(ref Health health, ref HealRequest healRequest, EnabledRefRW<HealRequest> healEnabled)
+    public void Execute(ref Health health, ref HealRequest healRequest, EnabledRefRW<HealRequest> healRequestEnabled)
     {
         health.healthAmount = math.min(health.healthAmount + healRequest.healAmount, health.healthAmountMax);
         healRequest.healAmount = 0;
-        healEnabled.ValueRW = false;
+        healRequestEnabled.ValueRW = false;
     }
 }

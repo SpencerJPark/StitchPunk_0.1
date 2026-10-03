@@ -142,10 +142,10 @@ public static class UnitBakingUtil
         System.Random rng = new System.Random();
         for (int i = 0; i < amount; i++)
         {
-            int j = rng.Next(i, copy.Length);
+            int swapIndex = rng.Next(i, copy.Length);
             NeedType temp = copy[i];
-            copy[i] = copy[j];
-            copy[j] = temp;
+            copy[i] = copy[swapIndex];
+            copy[swapIndex] = temp;
             buffer.Add(DefaultBehaviour(copy[i]));
         }
     }
@@ -173,10 +173,10 @@ public static class UnitBakingUtil
 
         for (int i = 0; i < amount; i++)
         {
-            int j = random.NextInt(i, poolLength);
+            int swapIndex = random.NextInt(i, poolLength);
             NeedType temp = copy[i];
-            copy[i] = copy[j];
-            copy[j] = temp;
+            copy[i] = copy[swapIndex];
+            copy[swapIndex] = temp;
             buffer.Add(DefaultBehaviour(copy[i]));
         }
 
@@ -187,13 +187,13 @@ public static class UnitBakingUtil
     {
         for (int i = 0; i < buffer.Length; i++)
         {
-            Motivation m = buffer[i];
+            Motivation motivation = buffer[i];
             for (int r = 0; r < rates.Count; r++)
             {
-                if (rates[r].needType != m.needType)
+                if (rates[r].needType != motivation.needType)
                     continue;
-                m.decayRate = rates[r].decayRate;
-                buffer[i]   = m;
+                motivation.decayRate = rates[r].decayRate;
+                buffer[i]            = motivation;
                 break;
             }
         }

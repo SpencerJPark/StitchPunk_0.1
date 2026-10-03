@@ -19,7 +19,7 @@ public partial struct BodyPartInitSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         NativeHashSet<Entity> roots = new NativeHashSet<Entity>(8, Allocator.Temp);
-        foreach (var (_, entity) in SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
+        foreach ((RefRO<NewlySpawned> _, Entity entity) in SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
             roots.Add(entity);
 
         if (roots.IsEmpty)
@@ -29,7 +29,7 @@ public partial struct BodyPartInitSystem : ISystem
         }
 
         // Clear stale buffer contents on the spawning roots.
-        foreach (var (buffer, entity) in
+        foreach ((DynamicBuffer<BodyPart> buffer, Entity entity) in
             SystemAPI.Query<DynamicBuffer<BodyPart>>().WithEntityAccess())
         {
             if (roots.Contains(entity))
@@ -37,7 +37,7 @@ public partial struct BodyPartInitSystem : ISystem
         }
 
         // For each part whose remapped BaseParent points to a spawning root, register it.
-        foreach (var (info, baseParent, entity) in
+        foreach ((RefRO<BodyPartInfo> info, RefRO<BaseParent> baseParent, Entity entity) in
             SystemAPI.Query<RefRO<BodyPartInfo>, RefRO<BaseParent>>().WithEntityAccess())
         {
             Entity rootEntity = baseParent.ValueRO.baseParentEntity;

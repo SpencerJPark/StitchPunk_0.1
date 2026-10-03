@@ -30,7 +30,7 @@ public partial struct WorldMoodSystem : ISystem
         float radiusSq = view.viewRadius * view.viewRadius;
 
         bool combat = false;
-        foreach (var (attack, xform) in
+        foreach ((RefRO<AttackRequest> attack, RefRO<LocalTransform> xform) in
             SystemAPI.Query<RefRO<AttackRequest>, RefRO<LocalTransform>>())
         {
             if (math.distancesq(xform.ValueRO.Position, view.center) <= radiusSq)
@@ -43,7 +43,7 @@ public partial struct WorldMoodSystem : ISystem
         bool tension = false;
         if (!combat)
         {
-            foreach (var (threats, xform) in
+            foreach ((DynamicBuffer<ThreatEntry> threats, RefRO<LocalTransform> xform) in
                 SystemAPI.Query<DynamicBuffer<ThreatEntry>, RefRO<LocalTransform>>())
             {
                 if (threats.Length > 0 && math.distancesq(xform.ValueRO.Position, view.center) <= radiusSq)

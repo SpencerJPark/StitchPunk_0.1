@@ -53,9 +53,9 @@ public partial struct ItemLibraryBakingSystem : ISystem
         }
     }
 
-    static ItemBlob DefaultItem(int i) => new ItemBlob
+    static ItemBlob DefaultItem(int id) => new ItemBlob
     {
-        itemType          = (ItemType)i,
+        itemType          = (ItemType)id,
         category          = ItemCategory.None,
         weaponAttack      = DamageSource.None,
         onHitEffect       = EffectType.None,

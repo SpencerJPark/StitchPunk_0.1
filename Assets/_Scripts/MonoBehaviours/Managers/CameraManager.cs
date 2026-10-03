@@ -53,7 +53,7 @@ public class CameraManager : Singleton<CameraManager>
     {
         currentCamera = type;
 
-        foreach (var pair in cameraMap)
+        foreach (KeyValuePair<CinemachineCameraType, CinemachineCamera> pair in cameraMap)
         {
             if (pair.Value == null)
                 continue;

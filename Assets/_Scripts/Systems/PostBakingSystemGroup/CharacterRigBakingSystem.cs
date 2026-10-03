@@ -17,7 +17,7 @@ public partial struct CharacterRigBakingSystem : ISystem
         foreach (DynamicBuffer<BodyPart> buffer in SystemAPI.Query<DynamicBuffer<BodyPart>>())
             buffer.Clear();
 
-        foreach (var (info, baseParent, partEntity) in
+        foreach ((RefRO<BodyPartInfo> info, RefRO<BaseParent> baseParent, Entity partEntity) in
             SystemAPI.Query<RefRO<BodyPartInfo>, RefRO<BaseParent>>().WithEntityAccess())
         {
             Entity rootEntity = baseParent.ValueRO.baseParentEntity;

@@ -21,7 +21,7 @@ partial struct PlayerMoveSystem : ISystem
         bool cutsceneActive = SystemAPI.TryGetSingletonEntity<NarrativeEventTag>(out Entity narrativeEntity)
             && SystemAPI.IsComponentEnabled<CutsceneActiveTag>(narrativeEntity);
 
-        foreach (var (transform, unitMover, moveInput, moveEnabled, actionMap, aimEnabled) in
+        foreach ((RefRO<LocalTransform> transform, RefRW<Movement> unitMover, RefRO<MovePlayerInput> moveInput, EnabledRefRO<MovePlayerInput> movePlayerInputEnabled, RefRO<PlayerActionMap> actionMap, EnabledRefRO<AimPlayerInput> aimPlayerInputEnabled) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
                 RefRW<Movement>,
@@ -48,13 +48,13 @@ partial struct PlayerMoveSystem : ISystem
             }
 
             // Lock movement while aiming
-            if (aimEnabled.ValueRO)
+            if (aimPlayerInputEnabled.ValueRO)
             {
                 unitMover.ValueRW.targetPosition = currentPos;
                 continue;
             }
 
-            if (!moveEnabled.ValueRO)
+            if (!movePlayerInputEnabled.ValueRO)
             {
                 unitMover.ValueRW.targetPosition = currentPos;
                 continue;

@@ -49,7 +49,7 @@ public partial struct DesignChangeSystem : ISystem
         // before writing.
         state.CompleteDependency();
 
-        foreach (var (persistedDesign, palette, changeRequest, parts, entity) in
+        foreach ((RefRW<PersistedDesign> persistedDesign, RefRW<CharacterPalette> palette, RefRO<ChangeDesignRequest> changeRequest, DynamicBuffer<BodyPart> parts, Entity entity) in
             SystemAPI.Query<RefRW<PersistedDesign>, RefRW<CharacterPalette>, RefRO<ChangeDesignRequest>,
                 DynamicBuffer<BodyPart>>()
                 .WithEntityAccess())

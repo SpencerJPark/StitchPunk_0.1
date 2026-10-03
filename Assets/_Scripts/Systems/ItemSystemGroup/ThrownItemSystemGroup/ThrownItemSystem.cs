@@ -24,7 +24,7 @@ public partial struct ThrownItemSystem : ISystem
     {
         float dt = SystemAPI.Time.DeltaTime;
 
-        foreach (var (transform, thrownItem, gravity, thrownEnabled, interactableEnabled) in
+        foreach ((RefRW<LocalTransform> transform, RefRW<ThrownItemRequest> thrownItem, RefRO<Gravity> gravity, EnabledRefRW<ThrownItemRequest> thrownItemRequestEnabled, EnabledRefRW<PlayerInteractable> playerInteractableEnabled) in
             SystemAPI.Query<
                 RefRW<LocalTransform>,
                 RefRW<ThrownItemRequest>,
@@ -36,8 +36,8 @@ public partial struct ThrownItemSystem : ISystem
             if (gravity.ValueRO.isGrounded)
             {
                 thrownItem.ValueRW.velocity  = float3.zero;
-                thrownEnabled.ValueRW        = false;
-                interactableEnabled.ValueRW  = true;
+                thrownItemRequestEnabled.ValueRW  = false;
+                playerInteractableEnabled.ValueRW  = true;
                 continue;
             }
 

@@ -53,9 +53,9 @@ public partial struct SoundLibraryBakingSystem : ISystem
         }
     }
 
-    static SoundBlob DefaultSound(int i) => new SoundBlob
+    static SoundBlob DefaultSound(int id) => new SoundBlob
     {
-        type           = (SoundType)i,
+        type           = (SoundType)id,
         bus            = SoundBus.SFX,
         variationCount = 0,
         volumeMin      = 1f,

@@ -20,7 +20,7 @@ public static class PhysicsColliderUtil
         if (!physicsCollider.IsValid)
             return false;
 
-        var input = new ColliderCastInput
+        ColliderCastInput input = new ColliderCastInput
         {
             Collider    = physicsCollider.ColliderPtr, // pointer into the collider blob
             Orientation = orientation,

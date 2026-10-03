@@ -56,9 +56,9 @@ public partial struct AttackLibraryBakingSystem : ISystem
         }
     }
 
-    static AttackBlob DefaultAttack(int i) => new AttackBlob
+    static AttackBlob DefaultAttack(int id) => new AttackBlob
     {
-        damageSource    = (DamageSource)i,
+        damageSource    = (DamageSource)id,
         damageBehaviour = DamageBehaviour.SinlgeTarget,
         damageAmount    = 0,
         range           = 0f,

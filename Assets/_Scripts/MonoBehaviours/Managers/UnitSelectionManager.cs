@@ -170,9 +170,9 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
         for (int i = 0; i < entities.Length; i++)
         {
-            Selected s     = selectedArray[i];
-            s.onDeselected = true;
-            entityManager.SetComponentData(entities[i], s);
+            Selected selected     = selectedArray[i];
+            selected.onDeselected = true;
+            entityManager.SetComponentData(entities[i], selected);
             entityManager.SetComponentEnabled<Selected>(entities[i], false);
         }
 
@@ -183,9 +183,9 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     private void SetSelected(Entity entity, bool selected)
     {
         entityManager.SetComponentEnabled<Selected>(entity, selected);
-        Selected s   = entityManager.GetComponentData<Selected>(entity);
-        s.onSelected = selected;
-        entityManager.SetComponentData(entity, s);
+        Selected selectedComponent   = entityManager.GetComponentData<Selected>(entity);
+        selectedComponent.onSelected = selected;
+        entityManager.SetComponentData(entity, selectedComponent);
     }
 
     // Called by UI to draw the drag box.

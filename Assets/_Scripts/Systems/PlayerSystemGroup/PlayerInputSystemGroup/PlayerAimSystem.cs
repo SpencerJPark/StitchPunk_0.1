@@ -24,7 +24,7 @@ public partial struct PlayerAimSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (var (transform, aimDir, indicatorRef, aimEnabled, lookInput, lookEnabled) in
+        foreach ((RefRW<LocalTransform> transform, RefRW<AimDirection> aimDir, RefRO<AimIndicatorRef> indicatorRef, EnabledRefRO<AimPlayerInput> aimPlayerInputEnabled, RefRO<LookPlayerInput> lookInput, EnabledRefRO<LookPlayerInput> lookPlayerInputEnabled) in
             SystemAPI.Query<
                 RefRW<LocalTransform>,
                 RefRW<AimDirection>,
@@ -35,7 +35,7 @@ public partial struct PlayerAimSystem : ISystem
                     .WithAll<Player>()
                     .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
-            bool isAiming = aimEnabled.ValueRO;
+            bool isAiming = aimPlayerInputEnabled.ValueRO;
 
             // Show or hide the indicator by scaling it
             Entity indicatorEntity = indicatorRef.ValueRO.visualEntity;
@@ -49,7 +49,7 @@ public partial struct PlayerAimSystem : ISystem
                 continue;
 
             // Update aim direction from look input (right stick or mouse direction via PlayerInputManager)
-            if (lookEnabled.ValueRO)
+            if (lookPlayerInputEnabled.ValueRO)
             {
                 float2 look = lookInput.ValueRO.lookInput;
                 if (math.lengthsq(look) > 0.01f)

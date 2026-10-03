@@ -44,7 +44,7 @@ public partial struct ItemEquipJob : IJobEntity
         Entity itemEntity,
         in EquipBy equipBy,
         in AttachedTo attachedTo,
-        EnabledRefRW<PickupRequest> equipRequestEnabled)
+        EnabledRefRW<PickupRequest> pickupRequestEnabled)
     {
         // Link item to owner's UnitEquip slot
         if (unitEquipLookup.HasComponent(equipBy.owner))
@@ -62,6 +62,6 @@ public partial struct ItemEquipJob : IJobEntity
             equipSocketLookup[attachedTo.socket] = socket;
         }
 
-        equipRequestEnabled.ValueRW = false;
+        pickupRequestEnabled.ValueRW = false;
     }
 }

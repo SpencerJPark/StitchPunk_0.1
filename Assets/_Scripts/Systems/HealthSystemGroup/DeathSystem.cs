@@ -110,8 +110,8 @@ public partial struct DeathJob : IJobEntity
         ref UnitAction unitAction,
         ref Movement mover,
         EnabledRefRW<PathRequest>      pathRequestEnabled,
-        EnabledRefRW<DStarLiteFollower> dStarEnabled,
-        EnabledRefRW<FlowFieldFollower> flowFieldEnabled,
+        EnabledRefRW<DStarLiteFollower> dStarLiteFollowerEnabled,
+        EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled,
         EnabledRefRW<HordeMembership>  hordeMembershipEnabled,
         EnabledRefRW<Movement>         movementEnabled,
         EnabledRefRW<Gravity>          gravityEnabled)
@@ -127,8 +127,8 @@ public partial struct DeathJob : IJobEntity
         // 1. Flip life/death state flags
         unitAction.current             = ActionType.Death;
         pathRequestEnabled.ValueRW     = false;
-        dStarEnabled.ValueRW           = false;
-        flowFieldEnabled.ValueRW       = false;
+        dStarLiteFollowerEnabled.ValueRW = false;
+        flowFieldFollowerEnabled.ValueRW = false;
         hordeMembershipEnabled.ValueRW = false;
         // Movement/Gravity disabled on death — Ragdoll2DSystem drives the corpse from here.
         movementEnabled.ValueRW        = false;

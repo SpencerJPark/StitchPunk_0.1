@@ -17,7 +17,7 @@ public class RegulatorSingleton<T> : MonoBehaviour where T : Component
                 instance = FindAnyObjectByType<T>();
                 if (instance == null)
                 {
-                    var go = new GameObject(typeof(T).Name + " Auto-Generated");
+                    GameObject go = new GameObject(typeof(T).Name + " Auto-Generated");
                     go.hideFlags = HideFlags.HideAndDontSave;
                     instance = go.GetComponent<T>();
                 }

@@ -19,11 +19,6 @@ from devloop_tools import packages, rsp_harvest
 _ERROR_LINE_PATTERN: re.Pattern[str] = re.compile(r"error CS\d+")
 _WARNING_LINE_PATTERN: re.Pattern[str] = re.compile(r"warning CS\d+")
 
-# A compile under one second with zero errors almost always means the response file
-# was never actually read (e.g. an empty or truncated @rsp argument) rather than a
-# genuinely fast pass, so callers must flag it instead of trusting it.
-_SUSPICIOUSLY_FAST_SECONDS: float = 1.0
-
 
 @dataclass
 class AssemblyGateResult:
@@ -58,6 +53,14 @@ def _find_csc_path(unity_data_directory: str) -> str:
     return candidate_csc_paths[0]
 
 
+def _output_assembly_path_from_flag_lines(flag_lines: list[str]) -> str:
+    """The path `-out:` names, so a clean pass can be checked against a file that really exists."""
+    for flag_line in flag_lines:
+        if flag_line.startswith("-out:"):
+            return flag_line[len("-out:"):].strip().strip('"')
+    return ""
+
+
 def _compile_one_assembly(
     project_root: str,
     dotnet_executable_path: str,
@@ -89,12 +92,18 @@ def _compile_one_assembly(
         elif _WARNING_LINE_PATTERN.search(output_line):
             warning_count += 1
 
+    # The failure this guards against is csc never running at all - an overflowed command line, a
+    # bad response file - which looks exactly like a clean pass. Elapsed time cannot tell the two
+    # apart: a six-file assembly honestly compiles in under a second once the analyzers are warm.
+    # The produced assembly can: no output file means no compile, whatever the exit code said.
     skipped_reason: str = ""
-    if elapsed_seconds < _SUSPICIOUSLY_FAST_SECONDS and not unique_error_lines:
-        skipped_reason = (
-            f"suspiciously fast ({elapsed_seconds:.2f}s) clean pass — the response file was "
-            "likely not actually read; treat as unverified, not a real compile"
-        )
+    if not unique_error_lines:
+        expected_output_path: str = _output_assembly_path_from_flag_lines(harvested_compile.flag_lines)
+        if expected_output_path and not os.path.isfile(expected_output_path):
+            skipped_reason = (
+                f"no output assembly at {expected_output_path} after a {elapsed_seconds:.2f}s clean pass - "
+                "the compiler did not actually run; treat as unverified, not a real compile"
+            )
 
     return AssemblyGateResult(
         assembly_name=harvested_compile.assembly_name,
@@ -134,7 +143,10 @@ def gate(project_root: str, package_or_assembly: str) -> GateReport:
             stale_reason="set UNITY_DATA to a Unity 6000.5 install",
         )
 
-    build_output_directory: str = os.path.join(tempfile.gettempdir(), "devloop_gate_build")
+    # Per-process, because the point of this gate is that a dozen parallel workers can each run it:
+    # one shared build directory would have them overwriting each other's .ref.dll mid-compile, and
+    # the sibling-reference chaining reads those back.
+    build_output_directory: str = os.path.join(tempfile.gettempdir(), f"devloop_gate_build_{os.getpid()}")
     os.makedirs(build_output_directory, exist_ok=True)
 
     # Assembly name -> this run's freshly built .ref.dll, so a later sibling compiles against

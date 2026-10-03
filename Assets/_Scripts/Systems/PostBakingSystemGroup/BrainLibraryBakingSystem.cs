@@ -81,8 +81,8 @@ public partial struct BrainLibraryBakingSystem : ISystem
 
                 for (int sampleIndex = 0; sampleIndex < resolution; sampleIndex++)
                 {
-                    float t = (float)sampleIndex / (resolution - 1);
-                    samplesBuilder[sampleIndex] = authored.curve != null ? authored.curve.Evaluate(t) : 0f;
+                    float normalizedTime = (float)sampleIndex / (resolution - 1);
+                    samplesBuilder[sampleIndex] = authored.curve != null ? authored.curve.Evaluate(normalizedTime) : 0f;
                 }
             }
         }

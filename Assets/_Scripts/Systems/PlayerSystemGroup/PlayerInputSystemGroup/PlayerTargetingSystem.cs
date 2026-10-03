@@ -21,7 +21,7 @@ public partial struct PlayerTargetingSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (var (transform, target, targetEnabled) in
+        foreach ((RefRO<LocalTransform> transform, RefRW<Target> target, EnabledRefRW<Target> targetEnabled) in
             SystemAPI.Query<RefRO<LocalTransform>, RefRW<Target>, EnabledRefRW<Target>>()
                 .WithAll<Player>()
                 .WithPresent<Target>())
@@ -32,7 +32,7 @@ public partial struct PlayerTargetingSystem : ISystem
             Entity bestTarget = Entity.Null;
             float bestDistSq = float.MaxValue;
 
-            foreach (var (enemyTransform, enemyEntity) in
+            foreach ((RefRO<LocalTransform> enemyTransform, Entity enemyEntity) in
                 SystemAPI.Query<RefRO<LocalTransform>>()
                     .WithAll<PlayerInteractable>()
                     .WithEntityAccess())

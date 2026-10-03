@@ -88,7 +88,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _cutsceneActorLookup.Update(ref state);
         _cutsceneMarkIssuedLookup.Update(ref state);
 
-        foreach (var (_, entity) in
+        foreach ((RefRO<NewlySpawned> _, Entity entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
         {
             // Health / life state — Dead disabled means alive; units start alive.

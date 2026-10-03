@@ -20,7 +20,7 @@ public class GameOverUI : MonoBehaviour {
         Hide();
     }
 
-    private void DOTSEventsManager_OnHQDead(object sender, System.EventArgs e) {
+    private void DOTSEventsManager_OnHQDead(object sender, System.EventArgs eventArgs) {
         Show();
         Time.timeScale = 0f;
     }

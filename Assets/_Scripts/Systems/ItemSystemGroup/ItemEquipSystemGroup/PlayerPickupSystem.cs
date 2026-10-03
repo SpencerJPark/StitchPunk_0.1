@@ -83,11 +83,11 @@ public partial struct PlayerPickupJob : IJobEntity
         Entity playerEntity,
         RefRW<Target> target,
         EnabledRefRW<Target> targetEnabled,
-        EnabledRefRW<OnInteractPlayerInput> interactEnabled)
+        EnabledRefRW<OnInteractPlayerInput> onInteractPlayerInputEnabled)
     {
-        if (!interactEnabled.ValueRO) return;
+        if (!onInteractPlayerInputEnabled.ValueRO) return;
 
-        interactEnabled.ValueRW = false;
+        onInteractPlayerInputEnabled.ValueRW = false;
 
         if (!targetEnabled.ValueRO) return;
 

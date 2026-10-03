@@ -40,7 +40,7 @@ public partial struct PlayerAttackSystem : ISystem
         ComponentLookup<AnimationCommandPending> animationCommandPendingLookup =
             SystemAPI.GetComponentLookup<AnimationCommandPending>(false);
 
-        foreach ((EnabledRefRW<OnAttackPlayerInput> attackInputEnabled, Entity selfEntity) in
+        foreach ((EnabledRefRW<OnAttackPlayerInput> onAttackPlayerInputEnabled, Entity selfEntity) in
             SystemAPI.Query<EnabledRefRW<OnAttackPlayerInput>>()
                 .WithAll<Player>()
                 .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)
@@ -50,8 +50,8 @@ public partial struct PlayerAttackSystem : ISystem
             if (SystemAPI.GetComponent<PlayerActionMap>(selfEntity).activeActionMap != ActionMaps.Player)
                 continue;
 
-            if (!attackInputEnabled.ValueRO) continue;
-            attackInputEnabled.ValueRW = false;
+            if (!onAttackPlayerInputEnabled.ValueRO) continue;
+            onAttackPlayerInputEnabled.ValueRW = false;
 
             // Cadence gate — a live cooldown blocks the swing.
             if (SystemAPI.IsComponentEnabled<AttackCooldown>(selfEntity)) continue;

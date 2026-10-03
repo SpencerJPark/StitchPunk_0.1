@@ -27,10 +27,10 @@ public class SearchableEnumDrawer : PropertyDrawer
         if (GUI.Button(buttonRect, buttonLabel, EditorStyles.popup))
         {
             // Capture property path so the lambda works correctly in batched repaints
-            var obj  = property.serializedObject;
-            var path = property.propertyPath;
+            SerializedObject obj  = property.serializedObject;
+            string           path = property.propertyPath;
 
-            var dropdown = new EnumSearchDropdown(
+            EnumSearchDropdown dropdown = new EnumSearchDropdown(
                 new AdvancedDropdownState(),
                 names,
                 selectedIndex =>

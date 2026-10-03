@@ -102,7 +102,7 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
                 sortingCriteria
             );
 
-            var param = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
+            RendererListParams param = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
             return renderGraph.CreateRendererList(param);
         }
 
@@ -115,7 +115,7 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
             int scaledWidth = cameraData.cameraTargetDescriptor.width;
             int scaledHeight = cameraData.cameraTargetDescriptor.height;
 
-            var silhouetteDesc = new TextureDesc(scaledWidth, scaledHeight)
+            TextureDesc silhouetteDesc = new TextureDesc(scaledWidth, scaledHeight)
             {
                 colorFormat = GraphicsFormat.R8G8B8A8_UNorm,
                 depthBufferBits = DepthBits.None,
@@ -128,12 +128,12 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
 
             TextureHandle silhouetteTexture = renderGraph.CreateTexture(silhouetteDesc);
 
-            var outlineData = frameData.Create<OutlineData>();
+            OutlineData outlineData = frameData.Create<OutlineData>();
             outlineData.silhouetteTexture = silhouetteTexture;
             outlineData.scaledWidth = scaledWidth;
             outlineData.scaledHeight = scaledHeight;
 
-            using (var builder = renderGraph.AddRasterRenderPass<PassData>("Silhouette Capture", out var passData))
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass<PassData>("Silhouette Capture", out PassData passData))
             {
                 passData.opaqueListHandle = CreateRendererList(
                     frameData, renderGraph,
@@ -215,11 +215,11 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
             UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
             UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
 
-            var outlineData = frameData.GetOrCreate<OutlineData>();
+            OutlineData outlineData = frameData.GetOrCreate<OutlineData>();
             if (!outlineData.silhouetteTexture.IsValid())
                 return;
 
-            var copyDesc = new TextureDesc(
+            TextureDesc copyDesc = new TextureDesc(
                 cameraData.cameraTargetDescriptor.width,
                 cameraData.cameraTargetDescriptor.height
             )
@@ -231,7 +231,7 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
 
             TextureHandle cameraColorCopy = renderGraph.CreateTexture(copyDesc);
 
-            using (var builder = renderGraph.AddRasterRenderPass<CopyPassData>("Copy Camera Color", out var copyData))
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass<CopyPassData>("Copy Camera Color", out CopyPassData copyData))
             {
                 copyData.source = resourceData.activeColorTexture;
 
@@ -244,7 +244,7 @@ public class SilhouetteOutlineFeature : ScriptableRendererFeature
                 });
             }
 
-            using (var builder = renderGraph.AddRasterRenderPass<PassData>("Outline Composite", out var passData))
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass<PassData>("Outline Composite", out PassData passData))
             {
                 passData.material = m_OutlineMaterial;
                 passData.silhouetteTexture = outlineData.silhouetteTexture;

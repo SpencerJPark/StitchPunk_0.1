@@ -48,7 +48,7 @@ public partial struct DesignApplySystem : ISystem
         // before writing.
         state.CompleteDependency();
 
-        foreach (var (parts, persistedDesign, palette) in
+        foreach ((DynamicBuffer<BodyPart> parts, RefRO<PersistedDesign> persistedDesign, RefRO<CharacterPalette> palette) in
             SystemAPI.Query<DynamicBuffer<BodyPart>, RefRO<PersistedDesign>, RefRO<CharacterPalette>>()
                 .WithAll<NewlySpawned>())
         {

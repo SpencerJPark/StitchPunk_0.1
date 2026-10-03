@@ -186,8 +186,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         float2 value = float2.zero;
         if (context.performed || context.canceled)
         {
-            Vector2 v = context.ReadValue<Vector2>();
-            value = new float2(v.x, v.y);
+            Vector2 moveRawValue = context.ReadValue<Vector2>();
+            value = new float2(moveRawValue.x, moveRawValue.y);
         }
 
         entityManager.SetComponentData(playerEntity, new MovePlayerInput { moveInput = value });
@@ -201,8 +201,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         float2 value = float2.zero;
         if (context.performed || context.canceled)
         {
-            Vector2 v = context.ReadValue<Vector2>();
-            value = new float2(v.x, v.y);
+            Vector2 lookRawValue = context.ReadValue<Vector2>();
+            value = new float2(lookRawValue.x, lookRawValue.y);
         }
 
         entityManager.SetComponentData(playerEntity, new LookPlayerInput { lookInput = value });
@@ -304,8 +304,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         float2 value = float2.zero;
         if (context.performed || context.canceled)
         {
-            Vector2 v = context.ReadValue<Vector2>();
-            value = new float2(v.x, v.y);
+            Vector2 cursorRawValue = context.ReadValue<Vector2>();
+            value = new float2(cursorRawValue.x, cursorRawValue.y);
         }
 
         entityManager.SetComponentData(playerEntity, new CursorPlayerInput { cursorInput = value });

@@ -38,9 +38,9 @@ public static class AIUtils
         {
             for (int y = minCell.y; y <= maxCell.y; y++)
             {
-                var key = new SpatialInteractionKey(new int2(x, y), needType);
+                SpatialInteractionKey key = new SpatialInteractionKey(new int2(x, y), needType);
 
-                if (!interactionCells.TryGetFirstValue(key, out Entity candidate, out var iterator))
+                if (!interactionCells.TryGetFirstValue(key, out Entity candidate, out NativeParallelMultiHashMapIterator<SpatialInteractionKey> iterator))
                     continue;
 
                 do

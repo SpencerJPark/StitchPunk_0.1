@@ -608,12 +608,12 @@ public class DialogueGraphView : GraphView
     {
         DialogueNodeViewBase view = nodeData switch
         {
-            DialogueStartNodeData      d => new DialogueStartNodeView(d, sequence, this),
-            DialogueRefresherNodeData  d => new DialogueRefresherNodeView(d, sequence, this),
-            DialogueEndNodeData        d => new DialogueEndNodeView(d, sequence, this),
-            DialogueLineNodeData       d => new DialogueLineNodeView(d, sequence, this),
-            DialogueDecisionNodeData   d => new DialogueDecisionNodeView(d, sequence, this),
-            DialogueEventNodeData      d => new DialogueEventNodeView(d, sequence, this),
+            DialogueStartNodeData      startNodeData     => new DialogueStartNodeView(startNodeData, sequence, this),
+            DialogueRefresherNodeData  refresherNodeData => new DialogueRefresherNodeView(refresherNodeData, sequence, this),
+            DialogueEndNodeData        endNodeData       => new DialogueEndNodeView(endNodeData, sequence, this),
+            DialogueLineNodeData       lineNodeData      => new DialogueLineNodeView(lineNodeData, sequence, this),
+            DialogueDecisionNodeData   decisionNodeData  => new DialogueDecisionNodeView(decisionNodeData, sequence, this),
+            DialogueEventNodeData      eventNodeData     => new DialogueEventNodeView(eventNodeData, sequence, this),
             _                            => null
         };
 

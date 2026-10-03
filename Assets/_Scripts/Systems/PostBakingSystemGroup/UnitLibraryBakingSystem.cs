@@ -16,7 +16,7 @@ public partial struct UnitLibraryBakingSystem : ISystem
     {
         EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.Temp);
 
-        foreach (var (libraryRef, entity) in
+        foreach ((RefRO<UnitDataLibraryReference> libraryRef, Entity entity) in
             SystemAPI.Query<RefRO<UnitDataLibraryReference>>()
             .WithNone<UnitDataLibrary>()
             .WithEntityAccess())
@@ -38,7 +38,7 @@ public partial struct UnitLibraryBakingSystem : ISystem
 
     public void OnDestroy(ref SystemState state)
     {
-        foreach (var holder in SystemAPI.Query<RefRW<UnitDataLibrary>>())
+        foreach (RefRW<UnitDataLibrary> holder in SystemAPI.Query<RefRW<UnitDataLibrary>>())
         {
             if (holder.ValueRO.library.IsCreated)
                 holder.ValueRW.library.Dispose();

@@ -17,9 +17,9 @@ public partial struct ItemAttachSystem : ISystem
 
     public void OnUpdate(ref SystemState state)
     {
-        var ecb = new EntityCommandBuffer(Allocator.Temp);
+        EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.Temp);
 
-        foreach (var (attachedTo, entity) in
+        foreach ((RefRO<AttachedTo> attachedTo, Entity entity) in
             SystemAPI.Query<RefRO<AttachedTo>>()
                 .WithAll<AttachItemRequest>()
                 .WithEntityAccess())

@@ -42,7 +42,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
 
     public void Execute(
         ref DynamicBuffer<AnimationCommand>   commands,
-        EnabledRefRW<AnimationCommandPending> commandPendingEnabled,
+        EnabledRefRW<AnimationCommandPending> animationCommandPendingEnabled,
         EnabledRefRO<CutsceneActor>           cutsceneActorEnabled,
         in DynamicBuffer<PlaybackLayer>       playbackLayers,
         in UnitData         unitData,
@@ -65,7 +65,7 @@ public partial struct UnitAnimationAssignmentJob : IJobEntity
         uint key = movement.isMoving ? walkKey : idleKey;
         if (key != 0 && !PlaybackApi.IsAnimationPlaying(playbackLayers, key))
         {
-            PlaybackApi.PlayAnimation(ref commands, commandPendingEnabled, key);
+            PlaybackApi.PlayAnimation(ref commands, animationCommandPendingEnabled, key);
         }
     }
 }

@@ -89,7 +89,7 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
             drawSettings.overrideMaterial = m_NormalMaterial;
             drawSettings.overrideMaterialPassIndex = 0;
 
-            var param = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
+            RendererListParams param = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
             return renderGraph.CreateRendererList(param);
         }
 
@@ -99,7 +99,7 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
             UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
 
             // Create normals texture
-            var normalsDesc = new TextureDesc(
+            TextureDesc normalsDesc = new TextureDesc(
                 cameraData.cameraTargetDescriptor.width,
                 cameraData.cameraTargetDescriptor.height
             )
@@ -114,10 +114,10 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
 
             TextureHandle normalsTexture = renderGraph.CreateTexture(normalsDesc);
 
-            var customData = frameData.GetOrCreate<RobertsCrossData>();
+            RobertsCrossData customData = frameData.GetOrCreate<RobertsCrossData>();
             customData.normalsTexture = normalsTexture;
 
-            using (var builder = renderGraph.AddRasterRenderPass<PassData>("Normal Capture Pass", out var passData))
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass<PassData>("Normal Capture Pass", out PassData passData))
             {
                 passData.rendererListHandle = CreateRendererList(frameData, renderGraph);
 
@@ -173,11 +173,11 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
             UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
             UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
 
-            var customData = frameData.GetOrCreate<RobertsCrossData>();
+            RobertsCrossData customData = frameData.GetOrCreate<RobertsCrossData>();
             if (!customData.normalsTexture.IsValid())
                 return;
 
-            var copyDesc = new TextureDesc(
+            TextureDesc copyDesc = new TextureDesc(
                 cameraData.cameraTargetDescriptor.width,
                 cameraData.cameraTargetDescriptor.height
             )
@@ -189,7 +189,7 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
 
             TextureHandle cameraColorCopy = renderGraph.CreateTexture(copyDesc);
 
-            using (var builder = renderGraph.AddRasterRenderPass<CopyPassData>("Copy Camera Color", out var copyData))
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass<CopyPassData>("Copy Camera Color", out CopyPassData copyData))
             {
                 copyData.source = resourceData.activeColorTexture;
 
@@ -202,7 +202,7 @@ public class RobertsCrossRenderFeature : ScriptableRendererFeature
                 });
             }
 
-            using (var builder = renderGraph.AddRasterRenderPass<PassData>("Roberts Cross Outline Pass", out var passData))
+            using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass<PassData>("Roberts Cross Outline Pass", out PassData passData))
             {
                 passData.material = m_Material;
                 passData.normalsTexture = customData.normalsTexture;

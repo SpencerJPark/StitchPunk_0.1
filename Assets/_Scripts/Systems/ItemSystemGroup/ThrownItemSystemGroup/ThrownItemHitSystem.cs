@@ -63,8 +63,8 @@ public partial struct ThrownItemHitSystem : ISystem
         foreach ((RefRO<LocalTransform> transform,
                   RefRO<ThrownItemRequest> thrownItem,
                   RefRO<Item> item,
-                  EnabledRefRW<ThrownItemRequest> thrownEnabled,
-                  EnabledRefRW<PlayerInteractable> interactableEnabled) in
+                  EnabledRefRW<ThrownItemRequest> thrownItemRequestEnabled,
+                  EnabledRefRW<PlayerInteractable> playerInteractableEnabled) in
             SystemAPI.Query<
                 RefRO<LocalTransform>,
                 RefRO<ThrownItemRequest>,
@@ -90,14 +90,14 @@ public partial struct ThrownItemHitSystem : ISystem
 
             for (int i = 0; i < targets.Length; i++)
             {
-                TargetData t = targets[i];
+                TargetData target = targets[i];
 
-                if (t.entity == thrownItem.ValueRO.thrower)
+                if (target.entity == thrownItem.ValueRO.thrower)
                     continue;
 
                 // 2.5D — ignore Y difference so height arc doesn't matter
-                float dx = itemPos.x - t.position.x;
-                float dz = itemPos.z - t.position.z;
+                float dx = itemPos.x - target.position.x;
+                float dz = itemPos.z - target.position.z;
                 float distSq = dx * dx + dz * dz;
 
                 if (distSq > hitRadiusSq)
@@ -105,7 +105,7 @@ public partial struct ThrownItemHitSystem : ISystem
 
                 damageQueue.Enqueue(new DamageEvent
                 {
-                    targetEntity    = t.entity,
+                    targetEntity    = target.entity,
                     sourceEntity    = Entity.Null,
                     damageSource    = DamageSource.Throw,
                     damageAmount    = itemBlob.throwDamage,
@@ -118,8 +118,8 @@ public partial struct ThrownItemHitSystem : ISystem
                     range           = 0f,
                 });
 
-                thrownEnabled.ValueRW       = false;
-                interactableEnabled.ValueRW = true;
+                thrownItemRequestEnabled.ValueRW = false;
+                playerInteractableEnabled.ValueRW = true;
                 break;
             }
         }

@@ -21,7 +21,7 @@ public class UnitLibraryAuthoring : MonoBehaviour
             // Body and brain are baked as separate prefab entities so the spawner can
             // instantiate them independently (fixes IEnableableComponent bit copying
             // and enables runtime brain-swapping).
-            var buffer = AddBuffer<UnitPrefabEntry>(entity);
+            DynamicBuffer<UnitPrefabEntry> buffer = AddBuffer<UnitPrefabEntry>(entity);
             if (authoring.unitLibrary == null) return;
 
             foreach (UnitSO unitSO in authoring.unitLibrary.units)
