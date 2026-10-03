@@ -90,6 +90,7 @@ namespace DotsAnimationToolkit.Editor
             sidebar.SetMode(CutoutsModeName);
 
             VisualElement centreColumn = ToolkitChrome.MakeColumn("cutouts-centre-column");
+            centreColumn.AddToClassList("toolkit-column--flush");
             centreColumn.style.flexGrow = 1f;
             centreColumn.Add(ToolkitChrome.MakePaneHeader("Canvas", out Label _, out VisualElement _));
 
@@ -110,6 +111,10 @@ namespace DotsAnimationToolkit.Editor
             BuildRail();
             viewportFrame.SetEmptyState("cutouts-empty-state", "No flipbook picked", "Pick a cutout, or a flipbook to start one, on the left.");
             centreColumn.Add(viewportFrame);
+
+            VisualElement statusRow = ToolkitChrome.MakeStatusRow(out statusLabel, out VisualElement _, true);
+            statusRow.name = "cutouts-status";
+            centreColumn.Add(statusRow);
 
             inspector = new CutoutInspectorColumn();
             inspector.PixelsPerUnitChanged += OnPixelsPerUnitChanged;
@@ -139,10 +144,6 @@ namespace DotsAnimationToolkit.Editor
             sidebarSplit.Add(sidebar);
             sidebarSplit.Add(inspectorSplit);
             Add(sidebarSplit);
-
-            VisualElement statusRow = ToolkitChrome.MakeStatusRow(out statusLabel, out VisualElement _, true);
-            statusRow.name = "cutouts-status";
-            Add(statusRow);
 
             Undo.undoRedoPerformed += OnUndoRedo;
             RefreshAll();
@@ -456,11 +457,12 @@ namespace DotsAnimationToolkit.Editor
             if (overhangs.Count > 0)
             {
                 FrameOverhang worst = overhangs[0];
-                string message = "Frame " + worst.layerIndex + " (" + FrameName(worst.layerIndex) + ") pokes out by "
+                // Numbered from 1 like the inspector's frame stepper, so the two never disagree.
+                string message = "Frame " + (worst.layerIndex + 1) + " (" + FrameName(worst.layerIndex) + ") pokes out by "
                     + Mathf.CeilToInt(worst.overhangPixels) + " px";
                 if (overhangs.Count > 1)
                 {
-                    message += " and " + (overhangs.Count - 1) + " more";
+                    message += ", and " + (overhangs.Count - 1) + " more frames";
                 }
 
                 SetStatus(message, ToolkitStatusTone.Warning);

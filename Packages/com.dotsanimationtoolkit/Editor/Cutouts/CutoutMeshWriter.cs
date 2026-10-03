@@ -10,7 +10,7 @@ namespace DotsAnimationToolkit.Editor
     {
         public const string MeshFolderPrefsKey = "DotsAnimationToolkit.Cutouts.MeshFolder";
         private const string FallbackFolder = "Assets";
-        private const string CutoutDataSuffix = "_Data";
+        private const string MeshFileSuffix = "_CutoutMesh";
 
         public static string RecallMeshFolder()
         {
@@ -39,7 +39,7 @@ namespace DotsAnimationToolkit.Editor
                 sourceName = "Cutout";
             }
 
-            return RecallMeshFolder() + "/" + sourceName + "_Cutout.asset";
+            return RecallMeshFolder() + "/" + sourceName + MeshFileSuffix + ".asset";
         }
 
         public static bool TrySave(
@@ -103,8 +103,11 @@ namespace DotsAnimationToolkit.Editor
             {
                 CutoutAsset createdCutout = UnityEngine.Object.Instantiate(workingCopy);
                 createdCutout.hideFlags = HideFlags.None;
-                string cutoutPath = AssetDatabase.GenerateUniqueAssetPath(
-                    meshFolder + "/" + meshFileName + CutoutDataSuffix + ".asset");
+                // "Arm_CutoutMesh" pairs with "Arm_Cutout"; a mesh named anything else gets "_Cutout" appended.
+                string cutoutBaseName = meshFileName.EndsWith("Mesh", System.StringComparison.Ordinal)
+                    ? meshFileName.Substring(0, meshFileName.Length - "Mesh".Length)
+                    : meshFileName + "_Cutout";
+                string cutoutPath = AssetDatabase.GenerateUniqueAssetPath(meshFolder + "/" + cutoutBaseName + ".asset");
                 createdCutout.name = Path.GetFileNameWithoutExtension(cutoutPath);
                 AssetDatabase.CreateAsset(createdCutout, cutoutPath);
                 savedCutout = createdCutout;

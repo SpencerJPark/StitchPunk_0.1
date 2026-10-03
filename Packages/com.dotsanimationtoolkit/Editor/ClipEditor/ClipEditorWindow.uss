@@ -2686,3 +2686,9 @@
     -unity-text-align: middle-center;
     color: var(--toolkit-color-muted);
 }
+
+/* The canvas column is flush, so its footer carries the column inset itself. */
+#cutouts-status {
+    padding-left: var(--toolkit-inset);
+    padding-right: var(--toolkit-inset);
+}

@@ -16,6 +16,7 @@ namespace DotsAnimationToolkit.Editor
         private const float MinimumGridLineSpacingPoints = 6f;
         private const float MinimumAxisLabelSpacingPoints = 48f;
         private const int AxisLabelPoolLimit = 64;
+        private const float RailClearancePoints = 48f;
         private const float HandleSizePoints = 7f;
         private const float HoveredHandleSizePoints = 10f;
         private const float OriginCircleRadiusPoints = 7f;
@@ -758,25 +759,37 @@ namespace DotsAnimationToolkit.Editor
                 int lastX = Mathf.FloorToInt(worldMax.x / labelStepUnits);
                 for (int index = firstX; index <= lastX && usedCount < AxisLabelPoolLimit; index++)
                 {
+                    // The origin is where the axes cross; a "0" there would sit on the origin gizmo.
+                    if (index == 0)
+                    {
+                        continue;
+                    }
+
                     float value = index * labelStepUnits;
                     Label label = GetAxisLabel(usedCount);
                     usedCount++;
                     label.text = value.ToString("0.##");
                     label.style.display = DisplayStyle.Flex;
                     label.style.left = WorldToElement(new Vector2(value, 0f)).x + 3f;
-                    label.style.top = layout.height - 16f;
+                    label.style.top = Mathf.Clamp(WorldToElement(Vector2.zero).y + 2f, 2f, layout.height - 16f);
                 }
 
                 int firstY = Mathf.CeilToInt(worldMin.y / labelStepUnits);
                 int lastY = Mathf.FloorToInt(worldMax.y / labelStepUnits);
                 for (int index = firstY; index <= lastY && usedCount < AxisLabelPoolLimit; index++)
                 {
+                    if (index == 0)
+                    {
+                        continue;
+                    }
+
                     float value = index * labelStepUnits;
                     Label label = GetAxisLabel(usedCount);
                     usedCount++;
                     label.text = value.ToString("0.##");
                     label.style.display = DisplayStyle.Flex;
-                    label.style.left = 3f;
+                    // Past the rail's 40pt column so a label never sits under its buttons.
+                    label.style.left = Mathf.Clamp(WorldToElement(Vector2.zero).x + 3f, RailClearancePoints, layout.width - 24f);
                     label.style.top = WorldToElement(new Vector2(0f, value)).y - 14f;
                 }
             }

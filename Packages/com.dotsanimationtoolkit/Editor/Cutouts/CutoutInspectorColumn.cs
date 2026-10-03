@@ -178,9 +178,9 @@ namespace DotsAnimationToolkit.Editor
             scrollContent.Add(ToolkitChrome.MakeCard("cutouts-card-facing", "Facing", out facingBody, out _));
 
             facingControl = ToolkitChrome.MakeSegmentedControl("cutouts-facing",
-                new[] { "−Z (toward camera)", "+Z" }, 0,
+                new[] { "−Z", "+Z" }, 0,
                 (int selectedIndex) => FacingChanged?.Invoke(selectedIndex == 0 ? CutoutFacing.NegativeZ : CutoutFacing.PositiveZ));
-            facingBody.Add(ToolkitChrome.MakePropertyRow("Faces", facingControl, "Which way the flat mesh's front side points."));
+            facingBody.Add(ToolkitChrome.MakePropertyRow("Faces", facingControl, "Which way the front of the flat mesh points. −Z faces a default camera, like Unity's built-in Quad."));
 
             normalModeControl = ToolkitChrome.MakeSegmentedControl("cutouts-normal-mode",
                 new[] { "Flat", "Rounded" }, 0,
@@ -236,7 +236,7 @@ namespace DotsAnimationToolkit.Editor
         {
             shownCutout = cutout;
             bool hasCutout = cutout != null;
-            scrollContent.SetEnabled(hasCutout);
+            scrollContent.style.display = hasCutout ? DisplayStyle.Flex : DisplayStyle.None;
             noCutoutHint.style.display = hasCutout ? DisplayStyle.None : DisplayStyle.Flex;
 
             allFramesToggle.SetValueWithoutNotify(isAllFramesGhostVisible);

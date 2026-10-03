@@ -1,6 +1,6 @@
 # Amendment A111 — Cutouts tab: tight flat meshes drawn around flipbook art
 
-> **Status:** 📝 specced 2026-10-03, every decision settled (owner answered D1/D8/D10/D12 the same day) — buildable.
+> **Status:** ✅ built 2026-10-03 as 0.63.0 (T0–T12); ⏸ T13 owner checkpoint open on the captures in `Library/A111Captures/`.
 > **Roadmap:** after Phase 6; standalone tab, no runtime change.
 > **Why:** a flipbook part renders on a quad, and every transparent pixel inside that quad still runs the fragment
 > shader (the shipped `ToolkitSpriteUnlitArray` is opaque + alpha clip, so empty pixels cost a sample and a discard,
@@ -155,16 +155,16 @@ action top right (R12), status in the footer (R14), a designed empty state for n
     one stroke weight, R21).
 - **Gate wave 1.** Run T1–T3 fixtures. Commit `A111 wave 1`.
 - **Wave 2 [parallel-safe; each gets wave 1's public signatures pasted into its brief]**
-  - [ ] **T6 — Canvas.** Files: `CutoutCanvasElement.cs`.
-  - [ ] **T7 — Manipulator.** Files: `CutoutShapeManipulator.cs`.
-  - [ ] **T8 — Inspector + catalog.** Files: `CutoutInspectorColumn.cs`, `CutoutCatalogColumn.cs`.
-  - [ ] **T9 — Panel.** Files: `CutoutsPanel.cs` (hosts T6–T8 by the §4 surfaces).
+  - [x] **T6 — Canvas.** Files: `CutoutCanvasElement.cs`.
+  - [x] **T7 — Manipulator.** Files: `CutoutShapeManipulator.cs`.
+  - [x] **T8 — Inspector + catalog.** Files: `CutoutInspectorColumn.cs`, `CutoutCatalogColumn.cs`.
+  - [x] **T9 — Panel.** Files: `CutoutsPanel.cs` (hosts T6–T8 by the §4 surfaces).
 - **Gate wave 2.** Commit `A111 wave 2`.
-- [ ] **T10 — Window wiring (orchestrator).** Enum, uxml toggle after Flipbooks, `BindTab` tooltip, Show/hide,
+- [x] **T10 — Window wiring (orchestrator).** Enum, uxml toggle after Flipbooks, `BindTab` tooltip, Show/hide,
   layout + conformance lists, `package.json`, `CHANGELOG.md`. Gate + `lint`.
-- [ ] **T11 — Docs [worker].** Files: `Documentation~/cutouts.md` (new), `Documentation~/index.md` (one row + one
+- [x] **T11 — Docs [worker].** Files: `Documentation~/cutouts.md` (new), `Documentation~/index.md` (one row + one
   further-reading line). `cutout-characters.md` gets one sentence pointing here.
-- [ ] **T12 — Drive + captures (orchestrator, Editor focused).** MaleCitizen's arm flipbook: frames cycle with ◀ ▶;
+- [x] **T12 — Drive + captures (orchestrator, Editor focused).** MaleCitizen's arm flipbook: frames cycle with ◀ ▶;
   Fit to art lands ≤ 8 verts covering every frame; drag the origin to the shoulder; Save → mesh at the chosen path;
   drop it on a MeshFilter in a scratch scene → art unstretched, pivot at the shoulder, normals −Z; reopen the cutout
   → session restored; edit + Save → same GUID. Before/after captures audited against R01–R22 in §6 (R22).
@@ -187,3 +187,31 @@ action top right (R12), status in the footer (R14), a designed empty state for n
   triangulator's containment check fails the L test (9 indices, not 12); zeroing the bend fails the rounded test;
   pixel centres instead of padded corners fail the diamond test. T1 deviation: the brief's 2×2 L passes without the
   containment check (the notch only touches the first ear), so the L is 3×3 (area 5) where the notch sits inside it.
+- 2026-10-03 wave 2 (T6–T9, four parallel workers against one pinned contract) + T10/T11: gate PASS (Editor 280
+  files, every new file compiled), lint PASS. The first Editor run failed `Conformance_G`: `PolygonTriangulator`,
+  `CutoutAlphaTracer` and `CutoutMeshWriter` carry no role suffix — they joined the plain-noun allowlist
+  (`PngSequenceWriter` / `VatTextureBaker` precedent) rather than renaming the spec's own §4 names. Commits f454f8de
+  (wave 1), 7a14e7f4 (wave 2), 4ddcaae4 (T10–T11). Version: committed `[Unreleased]` → 0.62.0, A111 → 0.63.0.
+- 2026-10-03 T12 drive (Editor focused, captures in `Library/A111Captures/`): `HeadArray` (64 × 256², DXT5) loads in
+  399 ms including the 64-layer alpha read. Frames cycle; **Fit to art → 8 verts, 56% of quad**, footer "Every frame
+  fits". Origin (128, 10) → Save → mesh: 8 verts / 6 tris, UV-vs-position error 0 px (unstretched), every normal and
+  every triangle's winding −Z, bounds min y −0.08 = (2.1 − 10)/100 (pivot at the origin). Pick another array, pick
+  HeadArray again → its cutout reopens with outline + origin restored, not unsaved. Delete a vertex + Rounded +
+  Save → **same mesh GUID**, 7 verts, first normal leans out (−0.08, −0.37, −0.92); one cutout asset (updated in
+  place). Undo of a pixels/unit edit restores 100. Scratch assets deleted; owner's tab restored.
+  Fixes from the captures: footer moved under the canvas column with the column inset (R14/R05); canvas column
+  flush (was in a grey gutter); "−Z (toward camera)" clipped "+Z" → "−Z"/"+Z" + tooltip (R01); inspector showed a
+  column of zeros with nothing loaded → only the hint (R13); axis labels ride the axes per D3 and clear the rail,
+  no "0" on the origin gizmo; overhang status numbered from 1 like the frame stepper (R03); saved names
+  `X_CutoutMesh` + `X_Cutout` instead of `X_Cutout` + `X_Cutout_Data`.
+  **R01–R22 audit (after_cutouts_final.png):** R01 ✓ (row ellipsis has its tooltip) · R02 ✓ · R03 ✓ · R04/R05 ✓ ·
+  R06 ✓ (Cutouts/Canvas/Inspector headers on one baseline) · R07 ✓ · R08 ✓ · R09 ✓ · R10 ✓ · R11 ✓ · R12 ✓ (Save
+  Mesh only) · R13 ✓ · R14 ✓ · R15 ✓ (no literals added; USS uses tokens) · R16 ✓ (blue only on the selected row and
+  selected vertex) · R17–R19 ✓ · R20 ✓ (ViewportFrameElement rail) · R21 ⚠ see below · R22 ✓.
+  **Not proven, for T13:** (1) pointer gestures — vertex drag/insert, origin drag, reference drag/resize, wheel zoom,
+  middle/Alt pan — were exercised through the panel's methods, not real pointer events; the owner's hands are the
+  test. (2) No scratch-scene MeshFilter: the owner's open scene (`PaintedGround/New Scene`) may be unsaved, so the
+  mesh was verified numerically instead. (3) The tab list renders text-only at this window width, so the drawn
+  Cutouts glyph was never seen; R21 also wants a look at the rail mixing the drawn glyph with built-in icons and a
+  magnifier for "Frame". (4) No true tab-list before-capture: the window had already recompiled with the tab.
+  (5) The project has no reference image to size against; the Reference card is untested beyond compiling.
