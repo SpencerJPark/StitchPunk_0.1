@@ -1683,3 +1683,19 @@ Traps only; the record is each spec's §7 and HANDOFF §4.
 - A `ToolbarButton` with `toolkit-button--secondary` loses to Unity's toolbar style (square, grey fill); inside a
   `toolkit-status-actions` row a dedicated rule gives it the toggle outline.
 
+
+## Cutouts tab (A111, 0.63.0, 2026-10-03) — traps only
+
+- **A compressed, unreadable `Texture2DArray` layer IS CPU-readable through a blit**: `Graphics.Blit(array, rt, layer, 0)`
+  into an ARGB32 linear RT, then `ReadPixels` (probed on DXT5 `EarArray`; `CutoutAlphaTracer.ReadLayerMasks`). Row 0 is the
+  bottom. `Graphics.CopyTexture` (the thumbnail cache) is GPU-only.
+- **The canvas draws textures as child `Image` layers, Painter2D only for lines** (grid, polygon, handles). Opacity goes
+  through `Image.tintColor`, never `style.opacity` — Conformance_I fails on any inline visual style in a new file.
+- **World space is mesh space** (`(pixel − origin) / ppu`), so moving the origin pans the view by the same delta to keep
+  the art still under the cursor (`SetOriginPixels`); the reference rect stays put in world on purpose.
+- **Conformance_G rejects a new static class without a role suffix** (Api/Builder/Sampler/Resolver/Math/Validation/
+  Utility/Editing). `PolygonTriangulator`, `CutoutAlphaTracer`, `CutoutMeshWriter` are on the plain-noun allowlist.
+- **Save never calls `AssetDatabase.SaveAssets()`** — `SaveAssetIfDirty` per object; the mesh is rebuilt into the
+  existing asset so its GUID (and every MeshFilter using it) survives.
+- Drive trap: `execute_code` history is wiped by every domain reload, so `replay` indices from before a recompile are
+  gone — and replaying index 0 blind re-ran a tab switch.
