@@ -1,6 +1,6 @@
 # Amendment A111F — Cutouts: object/edit modes, art on a fixed grid, drawn edges
 
-> **Status:** 📝 specced 2026-10-04 from the owner's first look at A111 (0.63.0); every decision below answered by the
+> **Status:** ✅ built 2026-10-04 as 0.64.0 (T1–T8); ⏸ T9 owner checkpoint — the gestures by hand.
 > owner the same day — buildable. Ships as **0.64.0**.
 > **Why:** "the grid itself is for measuring, so it is useless if I can't scale and move the flipbook around." In
 > A111 the grid was mesh space: the art was nailed to grid zero and dragging the origin panned the grid. The owner
@@ -52,7 +52,7 @@
   - [x] T6 — `CutoutInspectorColumn.cs` (Location + Zero, Pivot rename, Edges + Clear edges, Output Name + Folder).
   - [x] T7 — `CutoutsPanel.cs` + `CutoutMeshWriter.cs` (Edit toggle, Vertex | Edge header control, wiring, status).
 - Gate, fixtures, commit.
-- [ ] T8 — Orchestrator: changelog 0.64.0, docs, drive + captures (Object: move/scale/pivot/zero; Edit: vertex and
+- [x] T8 — Orchestrator: changelog 0.64.0, docs, drive + captures (Object: move/scale/pivot/zero; Edit: vertex and
   edge modes, a drawn diagonal survives Save into the mesh's triangles), R01–R22 audit.
 - [ ] T9 — ⏸ Owner checkpoint: the gestures by hand.
 
@@ -63,3 +63,15 @@
   from one vert to another to make an edge"), Vertex | Edge sub-modes and F-D4 (free pivot + Zero) answered in-session.
 - 2026-10-04 wave 1 (T1–T3, three workers): gate PASS, 9/9 Cutouts fixtures; revert-to-fail in the Editor — making TryTriangulateWithEdges ignore its edges fails DrawnDiagonal_IsKeptAsATriangleEdge (and only it).
 - 2026-10-04 wave 2 (T4–T7, four workers on one pinned contract): gate PASS, lint PASS, Editor recompile clean, EditMode 899/899.
+- 2026-10-04 T8 drive (HeadArray; captures `Library/A111Captures/a111f_*.png`): location (0.5, 0.25) moves art and
+  origin together; scaling 100 → 50 ppu holding pixel (0,0) keeps that corner at exactly (−0.78, 0.25); moving the
+  pivot to (300, 40) — off the art — leaves the art's top at (1.78, 5.37) and moves only the Location; Zero puts the
+  origin on (0, 0); the working copy follows ppu and Location. Edit/Edge: drawn edge 1–5 accepted, 0–3 refused "That
+  edge crosses another edge."; Save → the mesh's 6 triangles include edge 1–5. Name "HeadPart" → `HeadPart.asset` +
+  `HeadPart_Cutout.asset`; rename to "HeadPiece" + Save → both renamed, **mesh GUID kept**. Scratch deleted.
+  Captures: Object mode shows corner handles, thin outline, off-art ⊕ (R01–R22 clean); Edit/Edge shows the wireframe,
+  the drawn edge in Accent and the Vertex | Edge control in the canvas header (R11: segmented ≠ tab list ✓).
+  **Not proven, for T9:** every pointer gesture (art drag, corner scale, pivot drag, double-click insert, vertex→vertex
+  edge drag, Delete) and the Tab / 1 / 2 keys were driven through canvas/panel methods, not real pointer or key events —
+  the drawn rubber band and Tab-not-moving-focus are unverified. Editor was unfocused for these captures (45-repaint
+  grab). Pixels / unit field and corner-scale share one value, so the inspector field updates as you drag.

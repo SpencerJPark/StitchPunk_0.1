@@ -8,6 +8,19 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.64.0] — Cutouts: object and edit modes
+
+### Changed
+- **The Cutouts grid is a fixed ruler.** The art has a Location on it: drag the art to move it, drag a frame corner
+  to scale it (Pixels / unit, opposite corner held), and drag the origin to move only the pivot — it can sit anywhere,
+  and **Zero** puts it back on grid centre, carrying the art. The saved mesh's (0,0,0) is still the origin.
+- **Edit mesh** (rail toggle or Tab) shows the triangle wireframe with a **Vertex | Edge** switch (1 / 2): move, add
+  (double-click) and delete outline vertices, or drag from vertex to vertex to draw the edges the triangles must
+  follow. Invalid edges are refused with the reason in the footer; edges a later edit invalidates are ignored with a
+  warning. Fit to art clears drawn edges; the Shape card counts them and has Clear edges.
+- Output has a **Name** above the Folder: the mesh is `<Name>.asset`, the cutout `<Name>_Cutout.asset`. Renaming a
+  saved cutout moves its mesh asset on Save, keeping the GUID.
+
 ## [0.63.0] — Cutouts tab
 
 ### Added
