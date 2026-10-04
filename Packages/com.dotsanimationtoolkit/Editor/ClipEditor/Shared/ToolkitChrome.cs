@@ -53,6 +53,8 @@ namespace DotsAnimationToolkit.Editor
         private const string SegmentedClassName = "toolkit-segmented";
         private const string SegmentedItemClassName = "toolkit-segmented__item";
         private const string SegmentedItemOnClassName = "toolkit-segmented__item--on";
+        // UI Toolkit has no :last-child, so the last segment is tagged to drop the gap that would double the track's padding.
+        private const string SegmentedItemLastClassName = "toolkit-segmented__item--last";
         private const string ButtonSecondaryClassName = "toolkit-button--secondary";
         private const string ButtonGhostClassName = "toolkit-button--ghost";
         private const string ButtonDestructiveClassName = "toolkit-button--destructive";
@@ -303,6 +305,7 @@ namespace DotsAnimationToolkit.Editor
                         text = labels[itemIndex]
                     };
                     segmentButton.AddToClassList(SegmentedItemClassName);
+                    segmentButton.EnableInClassList(SegmentedItemLastClassName, itemIndex == labels.Count - 1);
                     segmented.Add(segmentButton);
                 }
             }

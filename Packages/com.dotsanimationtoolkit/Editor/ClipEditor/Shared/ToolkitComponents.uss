@@ -131,6 +131,12 @@
     border-color: var(--toolkit-color-hairline);
 }
 
+/* The 2px gap sits between segments only, so both ends of the track keep the same inset. */
+.toolkit-segmented__item.toolkit-segmented__item--last.unity-button,
+.toolkit-segmented__item.toolkit-segmented__item--last.unity-button:hover {
+    margin-right: 0;
+}
+
 /* C. Buttons */
 .toolkit-primary-action.unity-button {
     background-color: var(--unity-colors-default-text);
