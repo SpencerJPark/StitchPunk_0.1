@@ -25,41 +25,57 @@ namespace DotsAnimationToolkit.Editor
                 return layerMasks;
             }
 
-            Texture2D readback = new Texture2D(array.width, array.height, TextureFormat.RGBA32, false, true);
+            for (int layerIndex = 0; layerIndex < array.depth; layerIndex++)
+            {
+                int capturedLayerIndex = layerIndex;
+                layerMasks.Add(ReadMaskThroughBlit(array.width, array.height, alphaThreshold,
+                    (RenderTexture target) => Graphics.Blit(array, target, capturedLayerIndex, 0)));
+            }
+            return layerMasks;
+        }
+
+        // Texture2D sources may be compressed or unreadable too, so they take the same GPU blit.
+        public static List<bool[]> ReadSourceMasks(Texture source, float alphaThreshold)
+        {
+            if (source is Texture2DArray array)
+            {
+                return ReadLayerMasks(array, alphaThreshold);
+            }
+
+            List<bool[]> masks = new List<bool[]>();
+            if (source is Texture2D image)
+            {
+                masks.Add(ReadMaskThroughBlit(image.width, image.height, alphaThreshold,
+                    (RenderTexture target) => Graphics.Blit(image, target)));
+            }
+            return masks;
+        }
+
+        static bool[] ReadMaskThroughBlit(int width, int height, float alphaThreshold, System.Action<RenderTexture> blitIntoTarget)
+        {
+            Texture2D readback = new Texture2D(width, height, TextureFormat.RGBA32, false, true);
             RenderTexture previousActive = RenderTexture.active;
+            RenderTexture target = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
             try
             {
-                for (int layerIndex = 0; layerIndex < array.depth; layerIndex++)
+                blitIntoTarget(target);
+                RenderTexture.active = target;
+                readback.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                readback.Apply();
+                Color32[] pixels = readback.GetPixels32();
+                bool[] mask = new bool[pixels.Length];
+                for (int pixelIndex = 0; pixelIndex < pixels.Length; pixelIndex++)
                 {
-                    RenderTexture layerTarget = RenderTexture.GetTemporary(array.width, array.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
-                    try
-                    {
-                        Graphics.Blit(array, layerTarget, layerIndex, 0);
-                        RenderTexture.active = layerTarget;
-                        readback.ReadPixels(new Rect(0, 0, array.width, array.height), 0, 0);
-                        readback.Apply();
-                    }
-                    finally
-                    {
-                        RenderTexture.active = previousActive;
-                        RenderTexture.ReleaseTemporary(layerTarget);
-                    }
-
-                    Color32[] layerPixels = readback.GetPixels32();
-                    bool[] layerMask = new bool[layerPixels.Length];
-                    for (int pixelIndex = 0; pixelIndex < layerPixels.Length; pixelIndex++)
-                    {
-                        layerMask[pixelIndex] = layerPixels[pixelIndex].a / 255f > alphaThreshold;
-                    }
-                    layerMasks.Add(layerMask);
+                    mask[pixelIndex] = pixels[pixelIndex].a / 255f > alphaThreshold;
                 }
+                return mask;
             }
             finally
             {
                 RenderTexture.active = previousActive;
+                RenderTexture.ReleaseTemporary(target);
                 Object.DestroyImmediate(readback);
             }
-            return layerMasks;
         }
 
         public static bool[] ReadAlphaUnion(Texture2DArray array, float alphaThreshold)

@@ -3,8 +3,8 @@
 **Window ▸ DOTS Animation Toolkit ▸ DOTS Animator** — the Cutouts tab, right
 after Flipbooks.
 
-Builds a tight mesh around a flipbook's art, so a part stops paying for the
-empty corners of its quad.
+Builds a tight mesh around a flipbook's or an image's art, so a part stops
+paying for the empty corners of its quad.
 
 ---
 
@@ -19,14 +19,18 @@ it removes. The asset bar's "41% of quad" readout is that saving.
 
 ## The sidebar
 
-Two modes:
+Three modes:
 
 - **Cutouts** — the saved cutouts.
 - **Flipbooks** — pick one to start a cutout. Picking a flipbook that already
   has a cutout opens it instead of starting a second.
+- **Images** — any texture: a single image, or a whole atlas sheet. An image is
+  a one-frame source, so the frame stepper and All frames are hidden.
 
 There is one shape per flipbook, because every layer of an array is the same
-size.
+size. An image's cutout always spans the whole texture (UVs 0–1): for an atlas,
+draw the outline around the part you want on the full sheet, and use the atlas
+texture itself in the material.
 
 ## The canvas
 

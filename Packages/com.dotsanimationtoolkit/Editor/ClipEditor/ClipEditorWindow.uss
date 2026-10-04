@@ -2692,3 +2692,13 @@
     padding-left: var(--toolkit-inset);
     padding-right: var(--toolkit-inset);
 }
+
+/* Fit to art and Clear edges sit under the Shape card's settings, right-aligned with the fields above. */
+.cutouts-shape-actions {
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.cutouts-shape-actions > .unity-button:first-child {
+    margin-left: 0;
+}

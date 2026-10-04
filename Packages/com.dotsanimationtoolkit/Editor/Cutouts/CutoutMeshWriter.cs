@@ -60,9 +60,9 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            if (workingCopy.ResolveArray() == null)
+            if (!workingCopy.HasSource)
             {
-                failureReason = "The flipbook has no texture array.";
+                failureReason = "Pick a flipbook or an image first.";
                 return false;
             }
 

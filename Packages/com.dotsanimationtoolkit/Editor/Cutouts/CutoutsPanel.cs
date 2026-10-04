@@ -15,6 +15,7 @@ namespace DotsAnimationToolkit.Editor
     {
         private const string CutoutsModeName = "cutouts";
         private const string FlipbooksModeName = "flipbooks";
+        private const string ImagesModeName = "images";
 
         private readonly Label cutoutNameLabel;
         private readonly VisualElement badgeRow;
@@ -24,6 +25,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly CatalogSidebarElement sidebar;
         private readonly CutoutCatalogColumn cutoutCatalog;
         private readonly FlipbookCatalogColumn flipbookCatalog;
+        private readonly ImageCatalogColumn imageCatalog;
         private readonly ViewportFrameElement viewportFrame;
         private readonly CutoutCanvasElement canvas;
         private readonly CutoutShapeManipulator manipulator;
@@ -87,9 +89,13 @@ namespace DotsAnimationToolkit.Editor
             flipbookCatalog.ArraySelected += LoadFlipbookSource;
             flipbookCatalog.NewRequested += OnFlipbookNewRequested;
 
+            imageCatalog = new ImageCatalogColumn();
+            imageCatalog.ImagesActivated += OnImagesActivated;
+
             sidebar = new CatalogSidebarElement { name = "cutouts-sidebar" };
             sidebar.AddMode(CutoutsModeName, "Cutouts", cutoutCatalog, cutoutCatalog.HeaderActions);
             sidebar.AddMode(FlipbooksModeName, "Flipbooks", flipbookCatalog, null);
+            sidebar.AddMode(ImagesModeName, "Images", imageCatalog, imageCatalog.HeaderActions);
             sidebar.SetMode(CutoutsModeName);
 
             VisualElement centreColumn = ToolkitChrome.MakeColumn("cutouts-centre-column");
@@ -121,7 +127,7 @@ namespace DotsAnimationToolkit.Editor
             manipulator.EdgeRejected += OnEdgeRejected;
             canvas.ModeChanged += OnCanvasModeChanged;
             BuildRail();
-            viewportFrame.SetEmptyState("cutouts-empty-state", "No flipbook picked", "Pick a cutout, or a flipbook to start one, on the left.");
+            viewportFrame.SetEmptyState("cutouts-empty-state", "Nothing picked", "Pick a cutout, a flipbook or an image on the left.");
             centreColumn.Add(viewportFrame);
 
             VisualElement statusRow = ToolkitChrome.MakeStatusRow(out statusLabel, out VisualElement _, true);
@@ -155,7 +161,9 @@ namespace DotsAnimationToolkit.Editor
             inspectorSplit.Add(inspector);
 
             CoverPaneSplitView sidebarSplit =
-                new CoverPaneSplitView("Cutouts.Sidebar", 0, 260f, TwoPaneSplitViewOrientation.Horizontal);
+                // Three modes plus two header buttons need ~300pt or the buttons wrap under the segmented control;
+                // a new key so the old 260pt remembered width does not stick.
+                new CoverPaneSplitView("Cutouts.SidebarThreeModes", 0, 310f, TwoPaneSplitViewOrientation.Horizontal);
             sidebarSplit.style.flexGrow = 1f;
             sidebarSplit.Add(sidebar);
             sidebarSplit.Add(inspectorSplit);
@@ -169,6 +177,15 @@ namespace DotsAnimationToolkit.Editor
         {
             cutoutCatalog.RescanProject();
             flipbookCatalog.RescanProject();
+            imageCatalog.RescanProject();
+        }
+
+        private void OnImagesActivated(IReadOnlyList<Texture2D> activatedImages)
+        {
+            if (activatedImages != null && activatedImages.Count > 0)
+            {
+                LoadFlipbookSource(activatedImages[0]);
+            }
         }
 
         public void LoadCutout(CutoutAsset cutout)
@@ -188,7 +205,7 @@ namespace DotsAnimationToolkit.Editor
             if (flipbookOrArray == null || !SourceHasArray(flipbookOrArray))
             {
                 Unload();
-                SetStatus("That flipbook has no texture array.", ToolkitStatusTone.Warning);
+                SetStatus("That source has no texture.", ToolkitStatusTone.Warning);
                 return;
             }
 
@@ -258,7 +275,7 @@ namespace DotsAnimationToolkit.Editor
                 return flipbook.texture != null;
             }
 
-            return source is Texture2DArray;
+            return source is Texture2DArray || source is Texture2D;
         }
 
         private static CutoutAsset FindCutoutWrapping(UnityEngine.Object source)
@@ -304,15 +321,14 @@ namespace DotsAnimationToolkit.Editor
             LoadedCutout = loadedFromDisk;
             HasUnsavedChanges = isUnsaved;
 
-            Texture2DArray array = workingCopy.ResolveArray();
-            if (array == null)
+            if (!workingCopy.HasSource)
             {
                 Unload();
-                SetStatus("That flipbook has no texture array.", ToolkitStatusTone.Warning);
+                SetStatus("That source has no texture.", ToolkitStatusTone.Warning);
                 return;
             }
 
-            layerMasks = CutoutAlphaTracer.ReadLayerMasks(array, CutoutAlphaTracer.DefaultAlphaThreshold);
+            layerMasks = CutoutAlphaTracer.ReadSourceMasks(workingCopy.ResolveSourceTexture(), CutoutAlphaTracer.DefaultAlphaThreshold);
             unionMask = CutoutAlphaTracer.Union(layerMasks);
             BuildGhostTexture(workingCopy.FrameSize);
 
@@ -352,7 +368,7 @@ namespace DotsAnimationToolkit.Editor
             canvas.SetCutout(
                 workingCopy.outlinePixels, workingCopy.innerEdges, workingCopy.originPixels, workingCopy.artPositionWorld,
                 workingCopy.pixelsPerUnit, workingCopy.FrameSize);
-            canvas.SetFrameTexture(thumbnailCache.GetLayerThumbnail(workingCopy.ResolveArray(), frameIndex));
+            canvas.SetFrameTexture(FrameTextureAt(frameIndex));
             canvas.SetAllFramesGhost(ghostTexture);
             canvas.SetReference(workingCopy.referenceImage, workingCopy.referenceRectWorld, workingCopy.referenceOpacity);
             canvas.IsOutlineInvalid = PolygonTriangulator.IsSelfIntersecting(workingCopy.outlinePixels);
@@ -388,8 +404,25 @@ namespace DotsAnimationToolkit.Editor
             overhangs = new List<FrameOverhang>();
         }
 
+        private Texture FrameTextureAt(int textureFrameIndex)
+        {
+            Texture2D image = workingCopy.ResolveImage();
+            if (image != null)
+            {
+                return image;
+            }
+
+            return thumbnailCache.GetLayerThumbnail(workingCopy.ResolveArray(), textureFrameIndex);
+        }
+
         private string FrameName(int layerIndex)
         {
+            Texture2D image = workingCopy.ResolveImage();
+            if (image != null)
+            {
+                return image.name;
+            }
+
             FlipbookAsset flipbook = workingCopy.flipbook as FlipbookAsset;
             if (flipbook != null)
             {
@@ -455,7 +488,7 @@ namespace DotsAnimationToolkit.Editor
             inspector.ShowCutout(
                 workingCopy,
                 frameIndex,
-                workingCopy.ResolveArray().depth,
+                workingCopy.FrameCount,
                 FrameName(frameIndex),
                 canvas.IsAllFramesGhostVisible);
         }
@@ -469,7 +502,7 @@ namespace DotsAnimationToolkit.Editor
         {
             if (workingCopy == null)
             {
-                SetStatus("Pick a flipbook on the left.", ToolkitStatusTone.Neutral);
+                SetStatus("Pick a flipbook or an image on the left.", ToolkitStatusTone.Neutral);
                 return;
             }
 
@@ -639,9 +672,14 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            int frameCount = workingCopy.ResolveArray().depth;
+            int frameCount = workingCopy.FrameCount;
+            if (frameCount <= 0)
+            {
+                return;
+            }
+
             frameIndex = ((frameIndex + step) % frameCount + frameCount) % frameCount;
-            canvas.SetFrameTexture(thumbnailCache.GetLayerThumbnail(workingCopy.ResolveArray(), frameIndex));
+            canvas.SetFrameTexture(FrameTextureAt(frameIndex));
             RefreshInspector();
         }
 
@@ -883,9 +921,9 @@ namespace DotsAnimationToolkit.Editor
 
         private void SaveMesh()
         {
-            if (workingCopy == null || workingCopy.ResolveArray() == null)
+            if (workingCopy == null || !workingCopy.HasSource)
             {
-                SetStatus("Nothing to save: pick a flipbook first.", ToolkitStatusTone.Warning);
+                SetStatus("Nothing to save: pick a flipbook or an image first.", ToolkitStatusTone.Warning);
                 return;
             }
 

@@ -49,6 +49,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly FloatField pixelsPerUnitField;
         private readonly Label frameLabel;
         private readonly Toggle allFramesToggle;
+        private readonly VisualElement frameRowContainer;
+        private readonly VisualElement allFramesRowContainer;
         private readonly Label vertexCountLabel;
         private readonly IntegerField vertexBudgetField;
         private readonly FloatField paddingField;
@@ -85,7 +87,7 @@ namespace DotsAnimationToolkit.Editor
             scrollView.style.flexGrow = 1f;
             Add(scrollView);
 
-            noCutoutHint = ToolkitChrome.MakeHint("Pick a flipbook on the left to edit its cutout.");
+            noCutoutHint = ToolkitChrome.MakeHint("Pick a flipbook or an image on the left to edit its cutout.");
             noCutoutHint.name = "cutouts-inspector-hint";
             scrollView.Add(noCutoutHint);
 
@@ -94,7 +96,7 @@ namespace DotsAnimationToolkit.Editor
 
             // Flipbook
             VisualElement flipbookBody;
-            scrollContent.Add(ToolkitChrome.MakeCard("cutouts-card-flipbook", "Flipbook", out flipbookBody, out _));
+            scrollContent.Add(ToolkitChrome.MakeCard("cutouts-card-flipbook", "Source", out flipbookBody, out _));
 
             pixelsPerUnitField = new FloatField { name = "cutouts-pixels-per-unit" };
             pixelsPerUnitField.RegisterValueChangedCallback((ChangeEvent<float> changeEvent) =>
@@ -121,22 +123,18 @@ namespace DotsAnimationToolkit.Editor
             frameLabel.style.textOverflow = TextOverflow.Ellipsis;
             frameRow.Add(frameLabel);
             frameRow.Add(ToolkitChrome.MakeIconSquare(() => FrameStepRequested?.Invoke(1), "d_Animation.NextKey", "Next frame"));
-            flipbookBody.Add(ToolkitChrome.MakePropertyRow("Frame", frameRow, "Step through the flipbook's frames."));
+            frameRowContainer = ToolkitChrome.MakePropertyRow("Frame", frameRow, "Step through the flipbook's frames.");
+            flipbookBody.Add(frameRowContainer);
 
             allFramesToggle = new Toggle { name = "cutouts-all-frames" };
             allFramesToggle.RegisterValueChangedCallback((ChangeEvent<bool> changeEvent) => AllFramesGhostToggled?.Invoke(changeEvent.newValue));
-            flipbookBody.Add(ToolkitChrome.MakePropertyRow("All frames", allFramesToggle,
-                "Draw every frame's art as a ghost, so you can see the shape must cover all of them"));
+            allFramesRowContainer = ToolkitChrome.MakePropertyRow("All frames", allFramesToggle,
+                "Draw every frame's art as a ghost, so you can see the shape must cover all of them");
+            flipbookBody.Add(allFramesRowContainer);
 
             // Shape
             VisualElement shapeBody;
-            VisualElement shapeHeaderActions;
-            scrollContent.Add(ToolkitChrome.MakeCard("cutouts-card-shape", "Shape", out shapeBody, out shapeHeaderActions));
-            shapeHeaderActions.Add(ToolkitChrome.MakeSecondaryAction(() => FitToArtRequested?.Invoke(), "d_Grid.FillTool",
-                "Trace every frame's art, wrap it in a convex outline grown by the padding, and reduce it to the vertex budget. Edit by hand from there.",
-                "Fit to art"));
-            shapeHeaderActions.Add(ToolkitChrome.MakeGhostAction(() => ClearEdgesRequested?.Invoke(), "d_TreeEditor.Trash",
-                "Remove every drawn edge; the triangles go back to automatic.", "Clear edges"));
+            scrollContent.Add(ToolkitChrome.MakeCard("cutouts-card-shape", "Shape", out shapeBody, out VisualElement _));
 
             vertexCountLabel = new Label { name = "cutouts-vertex-count" };
             shapeBody.Add(ToolkitChrome.MakePropertyRow("Vertices", vertexCountLabel, "How many corners the outline has."));
@@ -164,6 +162,17 @@ namespace DotsAnimationToolkit.Editor
             });
             shapeBody.Add(ToolkitChrome.MakePropertyRow("Padding (px)", paddingField,
                 "How far Fit to art grows the outline past the art, in pixels (0 to 64)."));
+
+            // Under the settings they act on, not in the card header (owner, 2026-10-04).
+            VisualElement shapeActionsRow = new VisualElement { name = "cutouts-shape-actions" };
+            shapeActionsRow.AddToClassList("toolkit-action-run");
+            shapeActionsRow.AddToClassList("cutouts-shape-actions");
+            shapeActionsRow.Add(ToolkitChrome.MakeSecondaryAction(() => FitToArtRequested?.Invoke(), "d_Grid.FillTool",
+                "Trace every frame's art, wrap it in a convex outline grown by the padding, and reduce it to the vertex budget. Edit by hand from there.",
+                "Fit to art"));
+            shapeActionsRow.Add(ToolkitChrome.MakeSecondaryAction(() => ClearEdgesRequested?.Invoke(), "d_TreeEditor.Trash",
+                "Remove every drawn edge; the triangles go back to automatic.", "Clear edges"));
+            shapeBody.Add(shapeActionsRow);
 
             // Origin
             VisualElement originBody;
@@ -283,6 +292,9 @@ namespace DotsAnimationToolkit.Editor
             allFramesToggle.SetValueWithoutNotify(isAllFramesGhostVisible);
             frameLabel.text = (frameIndex + 1) + " / " + frameCount + " · " + frameName;
             frameLabel.tooltip = frameLabel.text;
+            DisplayStyle frameRowsDisplay = frameCount > 1 ? DisplayStyle.Flex : DisplayStyle.None;
+            frameRowContainer.style.display = frameRowsDisplay;
+            allFramesRowContainer.style.display = frameRowsDisplay;
 
             if (!hasCutout)
             {

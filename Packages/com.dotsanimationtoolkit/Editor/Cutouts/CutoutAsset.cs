@@ -11,7 +11,7 @@ namespace DotsAnimationToolkit.Editor
     {
         public const int MinimumVertexCount = 3;
 
-        [Tooltip("The art the cutout is drawn over: a FlipbookAsset or a bare Texture2DArray.")]
+        [Tooltip("The art the cutout is drawn over: a FlipbookAsset, a bare Texture2DArray, or a Texture2D image (a whole image or atlas sheet).")]
         public UnityEngine.Object flipbook;
 
         [Tooltip("Pixels per world unit, with the same meaning as a sprite's.")]
@@ -63,9 +63,40 @@ namespace DotsAnimationToolkit.Editor
         {
             get
             {
-                Texture2DArray array = ResolveArray();
-                return array == null ? Vector2Int.zero : new Vector2Int(array.width, array.height);
+                Texture sourceTexture = ResolveSourceTexture();
+                return sourceTexture == null ? Vector2Int.zero : new Vector2Int(sourceTexture.width, sourceTexture.height);
             }
+        }
+
+        public int FrameCount
+        {
+            get
+            {
+                Texture2DArray array = ResolveArray();
+                if (array != null)
+                {
+                    return array.depth;
+                }
+                return ResolveImage() != null ? 1 : 0;
+            }
+        }
+
+        public bool HasSource => FrameCount > 0;
+
+        // A plain image is a one-frame source spanning the whole texture.
+        public Texture2D ResolveImage()
+        {
+            return flipbook as Texture2D;
+        }
+
+        public Texture ResolveSourceTexture()
+        {
+            Texture2DArray array = ResolveArray();
+            if (array != null)
+            {
+                return array;
+            }
+            return ResolveImage();
         }
 
         // The array the cutout is drawn over: the flipbook's texture, or the bare array itself; null when unset.

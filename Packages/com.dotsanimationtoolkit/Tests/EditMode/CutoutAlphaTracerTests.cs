@@ -62,5 +62,31 @@ namespace DotsAnimationToolkit.Tests.EditMode
             Assert.AreEqual(1, overhangs[0].layerIndex);
             Assert.AreEqual(1.5f, overhangs[0].overhangPixels, 0.01f);
         }
+
+        [Test]
+        public void ReadSourceMasks_SingleImage_ReturnsOneMaskMatchingItsAlpha()
+        {
+            Texture2D texture = new Texture2D(8, 8, TextureFormat.RGBA32, false, true);
+            try
+            {
+                Color32[] pixels = new Color32[64];
+                pixels[3 * 8 + 2] = new Color32(255, 255, 255, 255);
+                pixels[6 * 8 + 5] = new Color32(255, 255, 255, 255);
+                texture.SetPixels32(pixels);
+                texture.Apply();
+
+                List<bool[]> masks = CutoutAlphaTracer.ReadSourceMasks(texture, 0.1f);
+
+                Assert.AreEqual(1, masks.Count);
+                Assert.AreEqual(64, masks[0].Length);
+                Assert.IsTrue(masks[0][3 * 8 + 2]);
+                Assert.IsTrue(masks[0][6 * 8 + 5]);
+                Assert.IsFalse(masks[0][0]);
+            }
+            finally
+            {
+                Object.DestroyImmediate(texture);
+            }
+        }
     }
 }

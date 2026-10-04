@@ -32,11 +32,11 @@ namespace DotsAnimationToolkit.Editor
                 // No title: the Cutouts sidebar owns the header.
                 title = string.Empty,
                 newButtonIconName = "d_Toolbar Plus",
-                newButtonTooltip = "Start a cutout: pick the flipbook to draw it over",
+                newButtonTooltip = "Start a cutout: pick the flipbook or image to draw it over",
                 refreshButtonIconName = "d_Refresh",
                 refreshButtonTooltip = "Rescan the project for cutouts",
                 emptyProjectTitle = "No cutouts yet",
-                emptyProjectMessage = "A cutout is a flat mesh drawn tight around a flipbook's art.",
+                emptyProjectMessage = "A cutout is a flat mesh drawn tight around a flipbook's or an image's art.",
                 emptyProjectActionText = "New Cutout",
                 emptySearchMessage = "No cutouts match your search.",
                 scan = ScanProjectCutouts,
@@ -68,8 +68,8 @@ namespace DotsAnimationToolkit.Editor
 
         private static string DescribeCutout(CutoutAsset cutout)
         {
-            string flipbookName = cutout.flipbook != null ? cutout.flipbook.name : "no flipbook";
-            return cutout.outlinePixels.Count + " verts · " + flipbookName;
+            string sourceName = cutout.flipbook != null ? cutout.flipbook.name : "no source";
+            return cutout.outlinePixels.Count + " verts · " + sourceName;
         }
 
         private static string DescribeCutoutTooltip(CutoutAsset cutout)

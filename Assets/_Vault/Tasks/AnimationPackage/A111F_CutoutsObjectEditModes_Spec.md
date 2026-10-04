@@ -37,6 +37,12 @@
   `<Folder>/<Name>.asset` and the cutout beside it as `<Name>_Cutout.asset`; the default Name is the flipbook's name.
   Renaming a cutout whose mesh already exists renames that mesh asset on Save (`AssetDatabase.RenameAsset`), so its
   GUID — and every MeshFilter using it — survives. `outputPath` stays the stored truth (folder + name).
+- **F-D7 — Images as a source** (owner, 2026-10-04: "I could possibly make one off an atlas texture that wouldn't need
+  the flipbook option, or a single image"; atlas scope answered **whole texture only**): the sidebar becomes
+  **Cutouts | Flipbooks | Images**; Images reuses `ImageCatalogColumn` (every `Texture2D`). A texture is a one-frame
+  source spanning the whole image (0–1 UVs; for an atlas, draw the outline around the wanted part on the full sheet).
+  `CutoutAsset.flipbook` (already `UnityEngine.Object`) holds it. Frame stepper and All frames hide for one frame; the
+  inspector card reads **Source**. Ships as **0.65.0**.
 
 ## 2. Tasks
 
@@ -55,6 +61,9 @@
 - [x] T8 — Orchestrator: changelog 0.64.0, docs, drive + captures (Object: move/scale/pivot/zero; Edit: vertex and
   edge modes, a drawn diagonal survives Save into the mesh's triangles), R01–R22 audit.
 - [ ] T9 — ⏸ Owner checkpoint: the gestures by hand.
+- **F-D7 wave [parallel]**: [x] T10 `CutoutAsset.cs` (source helpers) · [x] T11 `CutoutAlphaTracer.cs` + fixture
+  (`ReadSourceMasks`) · [x] T12 `CutoutInspectorColumn.cs` + `CutoutCatalogColumn.cs` (Source card, one-frame rows) ·
+  [x] T13 `CutoutsPanel.cs` + `CutoutMeshWriter.cs` (Images mode, texture source). Then gate, drive, 0.65.0.
 
 ## 3. Log
 
@@ -75,3 +84,9 @@
   edge drag, Delete) and the Tab / 1 / 2 keys were driven through canvas/panel methods, not real pointer or key events —
   the drawn rubber band and Tab-not-moving-focus are unverified. Editor was unfocused for these captures (45-repaint
   grab). Pixels / unit field and corner-scale share one value, so the inspector field updates as you drag.
+- 2026-10-04 F-D7 wave (T10–T13, four workers): gate PASS, 27/27 Cutouts + conformance fixtures; revert-to-fail in
+  the Editor — dropping ReadSourceMasks' Texture2D branch fails ReadSourceMasks_SingleImage (count 0, not 1). Drive:
+  Images mode → BaseHead.png (194×240) loads as 1 frame, Fit to art 8 verts, Save → mesh UVs inside 0–1 on the whole
+  texture. Owner's mid-wave note: Fit to art / Clear edges moved from the Shape card header to a row under Padding.
+  Capture found the three-mode sidebar header wrapping its buttons onto a second row (R06/R07) → sidebar default
+  260 → 310pt under a new split key. Shipped 0.65.0.

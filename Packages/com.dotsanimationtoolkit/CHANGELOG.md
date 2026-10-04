@@ -8,6 +8,16 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.65.0] — Cutouts from images
+
+### Added
+- **Images** in the Cutouts sidebar (Cutouts | Flipbooks | Images): start a cutout from any texture — a single image
+  or a whole atlas sheet. It is a one-frame source spanning the whole texture, so the frame stepper and All frames
+  hide; Fit to art, overhangs and Save work as for flipbooks.
+
+### Changed
+- Fit to art and Clear edges moved from the Shape card's header to a row under Padding.
+
 ## [0.64.0] — Cutouts: object and edit modes
 
 ### Changed
