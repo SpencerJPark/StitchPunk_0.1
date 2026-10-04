@@ -92,7 +92,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
             "actor-editor-pane", "cutscene-pane",
             // The Events, Health, Flipbooks and Cutouts slots.
             "events-pane", "health-pane", "flipbooks-pane", "cutouts-pane",
-            // Materials (after Rigs), Retarget (after Clip Editor) and Capture (after Cutscenes); Health is last.
+            // Materials (after Cutouts, before Rigs), Retarget (after Clip Editor) and Capture (after Cutscenes); Health is last.
             "materials-pane", "retarget-pane", "capture-pane",
             // Ragdoll, after Capture, then Stats, before Health.
             "ragdoll-pane", "stats-pane"

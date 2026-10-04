@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Fit to art and Clear edges moved from the Shape card's header to a row under Padding.
+- Tab order: Materials now follows Cutouts, then Rigs, then Clip Sets (ids unchanged).
 
 ## [0.64.0] — Cutouts: object and edit modes
 
