@@ -23,6 +23,12 @@ namespace DotsAnimationToolkit.Editor
         [Tooltip("Pivot of the mesh in frame pixels.")]
         public Vector2 originPixels;
 
+        [Tooltip("Where the origin sits on the canvas grid, in world units. Editor-only, never baked.")]
+        public Vector2 artPositionWorld;
+
+        [Tooltip("Drawn edges: pairs of outline vertex indices (x < y) the triangulation must keep.")]
+        public List<Vector2Int> innerEdges = new List<Vector2Int>();
+
         [Tooltip("Which way the front face points. NegativeZ faces a default camera, like Unity's built-in Quad.")]
         public CutoutFacing facing = CutoutFacing.NegativeZ;
 
@@ -92,6 +98,8 @@ namespace DotsAnimationToolkit.Editor
                 new Vector2(0f, height)
             };
             originPixels = new Vector2(width * 0.5f, 0f);
+            // The outline was replaced, so the old vertex indices mean nothing.
+            innerEdges.Clear();
         }
     }
 }

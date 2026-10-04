@@ -9,6 +9,14 @@ namespace DotsAnimationToolkit.Editor
         PositiveZ
     }
 
+    // Blender's object mode, and edit mode's vertex / edge select modes.
+    public enum CutoutCanvasMode
+    {
+        Object,
+        EditVertices,
+        EditEdges
+    }
+
     public enum CutoutNormalMode
     {
         Flat,

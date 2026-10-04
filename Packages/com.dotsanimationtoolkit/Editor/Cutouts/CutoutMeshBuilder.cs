@@ -11,6 +11,13 @@ namespace DotsAnimationToolkit.Editor
         public static bool TryBuild(IReadOnlyList<Vector2> outlinePixels, Vector2Int frameSize, Vector2 originPixels,
             float pixelsPerUnit, CutoutFacing facing, CutoutNormalMode normalMode, float roundness, Mesh target, out string failureReason)
         {
+            return TryBuild(outlinePixels, frameSize, originPixels, pixelsPerUnit, facing, normalMode, roundness, null, target, out failureReason);
+        }
+
+        public static bool TryBuild(IReadOnlyList<Vector2> outlinePixels, Vector2Int frameSize, Vector2 originPixels,
+            float pixelsPerUnit, CutoutFacing facing, CutoutNormalMode normalMode, float roundness,
+            IReadOnlyList<Vector2Int> innerEdges, Mesh target, out string failureReason)
+        {
             failureReason = string.Empty;
             if (outlinePixels == null || outlinePixels.Count < 3)
             {
@@ -33,7 +40,8 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
             List<int> triangles = new List<int>();
-            if (!PolygonTriangulator.TryEarClip(outlinePixels, triangles))
+            List<int> skippedEdgeIndices = new List<int>();
+            if (!PolygonTriangulator.TryTriangulateWithEdges(outlinePixels, innerEdges, triangles, skippedEdgeIndices))
             {
                 failureReason = "The outline could not be triangulated — check for overlapping or duplicate points.";
                 return false;
