@@ -47,10 +47,10 @@
   - [x] T3 — `CutoutMeshBuilder.cs` (an overload taking the drawn edges).
 - Gate, fixtures, commit.
 - **Wave 2 [parallel, one pinned contract]**
-  - [ ] T4 — `CutoutCanvasElement.cs` (location mapping, modes, wireframe, corner handles, rubber band, keys).
-  - [ ] T5 — `CutoutShapeManipulator.cs` (per-mode gestures).
-  - [ ] T6 — `CutoutInspectorColumn.cs` (Location + Zero, Pivot rename, Edges + Clear edges, Output Name + Folder).
-  - [ ] T7 — `CutoutsPanel.cs` + `CutoutMeshWriter.cs` (Edit toggle, Vertex | Edge header control, wiring, status).
+  - [x] T4 — `CutoutCanvasElement.cs` (location mapping, modes, wireframe, corner handles, rubber band, keys).
+  - [x] T5 — `CutoutShapeManipulator.cs` (per-mode gestures).
+  - [x] T6 — `CutoutInspectorColumn.cs` (Location + Zero, Pivot rename, Edges + Clear edges, Output Name + Folder).
+  - [x] T7 — `CutoutsPanel.cs` + `CutoutMeshWriter.cs` (Edit toggle, Vertex | Edge header control, wiring, status).
 - Gate, fixtures, commit.
 - [ ] T8 — Orchestrator: changelog 0.64.0, docs, drive + captures (Object: move/scale/pivot/zero; Edit: vertex and
   edge modes, a drawn diagonal survives Save into the mesh's triangles), R01–R22 audit.
@@ -62,3 +62,4 @@
 - 2026-10-04: specced from the owner's notes on 0.63.0; F-D2 (split), F-D3 (edges, not vertices, in Edit — "drag
   from one vert to another to make an edge"), Vertex | Edge sub-modes and F-D4 (free pivot + Zero) answered in-session.
 - 2026-10-04 wave 1 (T1–T3, three workers): gate PASS, 9/9 Cutouts fixtures; revert-to-fail in the Editor — making TryTriangulateWithEdges ignore its edges fails DrawnDiagonal_IsKeptAsATriangleEdge (and only it).
+- 2026-10-04 wave 2 (T4–T7, four workers on one pinned contract): gate PASS, lint PASS, Editor recompile clean, EditMode 899/899.

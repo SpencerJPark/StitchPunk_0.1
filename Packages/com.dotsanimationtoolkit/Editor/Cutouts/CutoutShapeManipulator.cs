@@ -12,10 +12,11 @@ namespace DotsAnimationToolkit.Editor
         public const float HandlePickRadiusPoints = 8f;
         public const float EdgePickDistancePoints = 6f;
 
-        private enum DragKind { None, Origin, Vertex, ReferenceMove, ReferenceResize }
+        private enum DragKind { None, Origin, Vertex, ReferenceMove, ReferenceResize, ArtMove, ArtScale, EdgeRubberBand }
 
         public event Action EditStarting;
         public event Action EditFinished;
+        public event Action<string> EdgeRejected;
 
         private readonly CutoutCanvasElement canvas;
         private DragKind dragKind = DragKind.None;
@@ -23,6 +24,11 @@ namespace DotsAnimationToolkit.Editor
         private int dragVertexIndex = -1;
         private Vector2 referencePressWorld;
         private Rect referenceStartRect;
+        private Vector2 artPressWorld;
+        private Vector2 artStartLocation;
+        private Vector2 scaleHeldPixel;
+        private Vector2 scaleHeldWorld;
+        private Vector2 scaleDraggedPixel;
 
         public CutoutShapeManipulator(CutoutCanvasElement canvas)
         {
@@ -68,9 +74,23 @@ namespace DotsAnimationToolkit.Editor
             }
 
             target.Focus();
-            Vector2 localPosition = pointerEvent.localPosition;
-            List<Vector2> outline = canvas.OutlinePixels;
+            switch (canvas.Mode)
+            {
+                case CutoutCanvasMode.Object:
+                    PressInObjectMode(pointerEvent);
+                    break;
+                case CutoutCanvasMode.EditVertices:
+                    PressInEditVerticesMode(pointerEvent);
+                    break;
+                case CutoutCanvasMode.EditEdges:
+                    PressInEditEdgesMode(pointerEvent);
+                    break;
+            }
+        }
 
+        private void PressInObjectMode(PointerDownEvent pointerEvent)
+        {
+            Vector2 localPosition = pointerEvent.localPosition;
             if (canvas.IsOriginVisible && IsWithinPickRadius(localPosition, canvas.PixelToElement(canvas.OriginPixels)))
             {
                 BeginDrag(pointerEvent, DragKind.Origin);
@@ -79,38 +99,42 @@ namespace DotsAnimationToolkit.Editor
 
             if (canvas.IsShapeVisible)
             {
-                int vertexIndex = FindVertexAt(localPosition);
-                if (vertexIndex >= 0)
+                Vector2Int frameSize = canvas.FrameSize;
+                Vector2[] cornerPixels =
                 {
-                    canvas.SelectedVertexIndex = vertexIndex;
-                    dragVertexIndex = vertexIndex;
-                    BeginDrag(pointerEvent, DragKind.Vertex);
-                    return;
-                }
+                    new Vector2(0f, 0f),
+                    new Vector2(frameSize.x, 0f),
+                    new Vector2(frameSize.x, frameSize.y),
+                    new Vector2(0f, frameSize.y)
+                };
+                for (int cornerIndex = 0; cornerIndex < cornerPixels.Length; cornerIndex++)
+                {
+                    if (!IsWithinPickRadius(localPosition, canvas.PixelToElement(cornerPixels[cornerIndex])))
+                    {
+                        continue;
+                    }
 
-                Vector2 projectedElementPoint;
-                int edgeIndex = FindEdgeAt(localPosition, out projectedElementPoint);
-                if (edgeIndex >= 0)
-                {
-                    EditStarting?.Invoke();
-                    Vector2 insertedPixel = SnapToPixel(canvas.ElementToPixel(projectedElementPoint));
-                    int insertedIndex = edgeIndex + 1;
-                    outline.Insert(insertedIndex, insertedPixel);
-                    canvas.SelectedVertexIndex = insertedIndex;
-                    canvas.HoveredEdgeIndex = -1;
-                    dragVertexIndex = insertedIndex;
-                    canvas.Refresh();
-                    canvas.RaiseShapeChanged();
-                    BeginDrag(pointerEvent, DragKind.Vertex, raiseEditStarting: false);
+                    scaleDraggedPixel = cornerPixels[cornerIndex];
+                    scaleHeldPixel = cornerPixels[(cornerIndex + 2) % cornerPixels.Length];
+                    scaleHeldWorld = canvas.PixelToWorld(scaleHeldPixel);
+                    BeginDrag(pointerEvent, DragKind.ArtScale);
                     return;
                 }
+            }
+
+            Vector2 pointerWorld = canvas.ElementToWorld(localPosition);
+            if (canvas.IsShapeVisible && canvas.ArtRectWorld.Contains(pointerWorld))
+            {
+                artPressWorld = pointerWorld;
+                artStartLocation = canvas.ArtPositionWorld;
+                BeginDrag(pointerEvent, DragKind.ArtMove);
+                return;
             }
 
             if (canvas.HasReference && canvas.IsReferenceVisible)
             {
                 Rect referenceRect = canvas.ReferenceRectWorld;
                 Vector2 topRightElement = canvas.WorldToElement(new Vector2(referenceRect.xMax, referenceRect.yMax));
-                Vector2 pointerWorld = canvas.ElementToWorld(localPosition);
                 if (IsWithinPickRadius(localPosition, topRightElement))
                 {
                     referenceStartRect = referenceRect;
@@ -123,11 +147,69 @@ namespace DotsAnimationToolkit.Editor
                     referenceStartRect = referenceRect;
                     referencePressWorld = pointerWorld;
                     BeginDrag(pointerEvent, DragKind.ReferenceMove);
-                    return;
                 }
             }
+        }
 
-            canvas.SelectedVertexIndex = -1;
+        private void PressInEditVerticesMode(PointerDownEvent pointerEvent)
+        {
+            if (!canvas.IsShapeVisible)
+            {
+                return;
+            }
+
+            Vector2 localPosition = pointerEvent.localPosition;
+            int vertexIndex = FindVertexAt(localPosition);
+            if (vertexIndex >= 0)
+            {
+                canvas.SelectedVertexIndex = vertexIndex;
+                dragVertexIndex = vertexIndex;
+                BeginDrag(pointerEvent, DragKind.Vertex);
+                return;
+            }
+
+            Vector2 projectedElementPoint;
+            int edgeIndex = FindEdgeAt(localPosition, out projectedElementPoint);
+            if (edgeIndex >= 0 && pointerEvent.clickCount == 2)
+            {
+                EditStarting?.Invoke();
+                Vector2 insertedPixel = SnapToPixel(canvas.ElementToPixel(projectedElementPoint));
+                int insertedIndex = edgeIndex + 1;
+                canvas.OutlinePixels.Insert(insertedIndex, insertedPixel);
+                PolygonTriangulator.ShiftEdgesForInsertedVertex(canvas.InnerEdges, insertedIndex);
+                canvas.SelectedVertexIndex = insertedIndex;
+                canvas.HoveredEdgeIndex = -1;
+                canvas.Refresh();
+                canvas.RaiseShapeChanged();
+                EditFinished?.Invoke();
+                pointerEvent.StopPropagation();
+                return;
+            }
+
+            if (edgeIndex < 0)
+            {
+                canvas.SelectedVertexIndex = -1;
+            }
+        }
+
+        private void PressInEditEdgesMode(PointerDownEvent pointerEvent)
+        {
+            if (!canvas.IsShapeVisible)
+            {
+                return;
+            }
+
+            Vector2 localPosition = pointerEvent.localPosition;
+            int vertexIndex = FindVertexAt(localPosition);
+            if (vertexIndex >= 0)
+            {
+                dragVertexIndex = vertexIndex;
+                canvas.SetEdgeRubberBand(vertexIndex, localPosition);
+                BeginDrag(pointerEvent, DragKind.EdgeRubberBand, raiseEditStarting: false);
+                return;
+            }
+
+            canvas.SelectedInnerEdgeIndex = FindInnerEdgeAt(localPosition);
         }
 
         private void BeginDrag(PointerDownEvent pointerEvent, DragKind kind, bool raiseEditStarting = true)
@@ -171,11 +253,57 @@ namespace DotsAnimationToolkit.Editor
                 case DragKind.ReferenceResize:
                     ResizeReference(canvas.ElementToWorld(localPosition), useGrid);
                     break;
+                case DragKind.ArtMove:
+                    MoveArt(canvas.ElementToWorld(localPosition), useGrid);
+                    break;
+                case DragKind.ArtScale:
+                    ScaleArt(canvas.ElementToWorld(localPosition), useGrid);
+                    break;
+                case DragKind.EdgeRubberBand:
+                    canvas.SetEdgeRubberBand(dragVertexIndex, localPosition);
+                    canvas.HoveredVertexIndex = FindVertexAt(localPosition);
+                    pointerEvent.StopPropagation();
+                    return;
             }
 
             canvas.Refresh();
             canvas.RaiseShapeChanged();
             pointerEvent.StopPropagation();
+        }
+
+        private void MoveArt(Vector2 pointerWorld, bool useGrid)
+        {
+            Vector2 newLocation = artStartLocation + (pointerWorld - artPressWorld);
+            if (useGrid)
+            {
+                newLocation = SnapWorldToGrid(newLocation, CutoutCanvasElement.MinorGridWorldUnits);
+            }
+
+            canvas.SetArtPositionWorld(newLocation);
+        }
+
+        private void ScaleArt(Vector2 pointerWorld, bool useGrid)
+        {
+            Vector2 pixelDiagonal = scaleDraggedPixel - scaleHeldPixel;
+            float pixelDiagonalLength = pixelDiagonal.magnitude;
+            if (pixelDiagonalLength <= 0f)
+            {
+                return;
+            }
+
+            float worldDistanceAlongDiagonal = Vector2.Dot(pointerWorld - scaleHeldWorld, pixelDiagonal / pixelDiagonalLength);
+            if (worldDistanceAlongDiagonal <= 0.0001f)
+            {
+                return;
+            }
+
+            float newPixelsPerUnit = Mathf.Max(1f, pixelDiagonalLength / worldDistanceAlongDiagonal);
+            if (useGrid)
+            {
+                newPixelsPerUnit = Mathf.Max(1f, Mathf.Round(newPixelsPerUnit));
+            }
+
+            canvas.SetPixelsPerUnitHoldingPixel(newPixelsPerUnit, scaleHeldPixel);
         }
 
         private void MoveReference(Vector2 pointerWorld, bool useGrid)
@@ -208,6 +336,11 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (dragKind == DragKind.EdgeRubberBand)
+            {
+                TryAddInnerEdgeFromRubberBand(FindVertexAt(pointerEvent.localPosition));
+            }
+
             if (target.HasPointerCapture(dragPointerId))
             {
                 target.ReleasePointer(dragPointerId);
@@ -215,6 +348,28 @@ namespace DotsAnimationToolkit.Editor
 
             FinishDrag();
             pointerEvent.StopPropagation();
+        }
+
+        private void TryAddInnerEdgeFromRubberBand(int releasedVertexIndex)
+        {
+            int startVertexIndex = dragVertexIndex;
+            if (releasedVertexIndex < 0 || releasedVertexIndex == startVertexIndex)
+            {
+                return;
+            }
+
+            string rejectionReason;
+            if (!PolygonTriangulator.IsValidInnerEdge(canvas.OutlinePixels, canvas.InnerEdges, startVertexIndex, releasedVertexIndex, out rejectionReason))
+            {
+                EdgeRejected?.Invoke(rejectionReason);
+                return;
+            }
+
+            EditStarting?.Invoke();
+            canvas.InnerEdges.Add(new Vector2Int(Mathf.Min(startVertexIndex, releasedVertexIndex), Mathf.Max(startVertexIndex, releasedVertexIndex)));
+            canvas.Refresh();
+            canvas.RaiseShapeChanged();
+            EditFinished?.Invoke();
         }
 
         private void OnPointerCaptureOut(PointerCaptureOutEvent captureEvent)
@@ -229,9 +384,16 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            DragKind finishedKind = dragKind;
             dragKind = DragKind.None;
             dragPointerId = -1;
             dragVertexIndex = -1;
+            if (finishedKind == DragKind.EdgeRubberBand)
+            {
+                canvas.ClearEdgeRubberBand();
+                return;
+            }
+
             EditFinished?.Invoke();
         }
 
@@ -247,14 +409,33 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            bool handled = false;
+            if (canvas.Mode == CutoutCanvasMode.EditVertices)
+            {
+                handled = DeleteSelectedVertex();
+            }
+            else if (canvas.Mode == CutoutCanvasMode.EditEdges)
+            {
+                handled = DeleteSelectedInnerEdge();
+            }
+
+            if (handled)
+            {
+                keyEvent.StopPropagation();
+            }
+        }
+
+        private bool DeleteSelectedVertex()
+        {
             int selectedIndex = canvas.SelectedVertexIndex;
             List<Vector2> outline = canvas.OutlinePixels;
             if (selectedIndex < 0 || selectedIndex >= outline.Count || outline.Count <= CutoutAsset.MinimumVertexCount)
             {
-                return;
+                return false;
             }
 
             EditStarting?.Invoke();
+            PolygonTriangulator.RemoveEdgesForDeletedVertex(canvas.InnerEdges, selectedIndex);
             outline.RemoveAt(selectedIndex);
             canvas.SelectedVertexIndex = -1;
             canvas.HoveredVertexIndex = -1;
@@ -262,20 +443,50 @@ namespace DotsAnimationToolkit.Editor
             canvas.Refresh();
             canvas.RaiseShapeChanged();
             EditFinished?.Invoke();
-            keyEvent.StopPropagation();
+            return true;
+        }
+
+        private bool DeleteSelectedInnerEdge()
+        {
+            int selectedIndex = canvas.SelectedInnerEdgeIndex;
+            if (selectedIndex < 0 || selectedIndex >= canvas.InnerEdges.Count)
+            {
+                return false;
+            }
+
+            EditStarting?.Invoke();
+            canvas.InnerEdges.RemoveAt(selectedIndex);
+            canvas.SelectedInnerEdgeIndex = -1;
+            canvas.HoveredInnerEdgeIndex = -1;
+            canvas.Refresh();
+            canvas.RaiseShapeChanged();
+            EditFinished?.Invoke();
+            return true;
         }
 
         private void UpdateHover(Vector2 localPosition)
         {
             int hoveredVertex = -1;
             int hoveredEdge = -1;
+            int hoveredInnerEdge = -1;
             if (canvas.HasCutout && canvas.IsShapeVisible)
             {
-                hoveredVertex = FindVertexAt(localPosition);
-                if (hoveredVertex < 0)
+                if (canvas.Mode == CutoutCanvasMode.EditVertices)
                 {
-                    Vector2 unusedProjection;
-                    hoveredEdge = FindEdgeAt(localPosition, out unusedProjection);
+                    hoveredVertex = FindVertexAt(localPosition);
+                    if (hoveredVertex < 0)
+                    {
+                        Vector2 unusedProjection;
+                        hoveredEdge = FindEdgeAt(localPosition, out unusedProjection);
+                    }
+                }
+                else if (canvas.Mode == CutoutCanvasMode.EditEdges)
+                {
+                    hoveredVertex = FindVertexAt(localPosition);
+                    if (hoveredVertex < 0)
+                    {
+                        hoveredInnerEdge = FindInnerEdgeAt(localPosition);
+                    }
                 }
             }
 
@@ -287,6 +498,11 @@ namespace DotsAnimationToolkit.Editor
             if (canvas.HoveredEdgeIndex != hoveredEdge)
             {
                 canvas.HoveredEdgeIndex = hoveredEdge;
+            }
+
+            if (canvas.HoveredInnerEdgeIndex != hoveredInnerEdge)
+            {
+                canvas.HoveredInnerEdgeIndex = hoveredInnerEdge;
             }
         }
 
@@ -325,6 +541,32 @@ namespace DotsAnimationToolkit.Editor
             return closestIndex;
         }
 
+        private int FindInnerEdgeAt(Vector2 localPosition)
+        {
+            List<Vector2> outline = canvas.OutlinePixels;
+            List<Vector2Int> innerEdges = canvas.InnerEdges;
+            int closestIndex = -1;
+            float closestDistance = EdgePickDistancePoints;
+            for (int edgeIndex = 0; edgeIndex < innerEdges.Count; edgeIndex++)
+            {
+                Vector2Int edge = innerEdges[edgeIndex];
+                if (edge.x < 0 || edge.y < 0 || edge.x >= outline.Count || edge.y >= outline.Count)
+                {
+                    continue;
+                }
+
+                Vector2 projectedUnused;
+                float distance = DistanceToSegment(localPosition, canvas.PixelToElement(outline[edge.x]), canvas.PixelToElement(outline[edge.y]), out projectedUnused);
+                if (distance <= closestDistance)
+                {
+                    closestDistance = distance;
+                    closestIndex = edgeIndex;
+                }
+            }
+
+            return closestIndex;
+        }
+
         private int FindEdgeAt(Vector2 localPosition, out Vector2 projectedElementPoint)
         {
             List<Vector2> outline = canvas.OutlinePixels;
@@ -335,13 +577,8 @@ namespace DotsAnimationToolkit.Editor
             {
                 Vector2 segmentStart = canvas.PixelToElement(outline[edgeIndex]);
                 Vector2 segmentEnd = canvas.PixelToElement(outline[(edgeIndex + 1) % outline.Count]);
-                Vector2 segment = segmentEnd - segmentStart;
-                float segmentLengthSquared = segment.sqrMagnitude;
-                float along = segmentLengthSquared > 0f
-                    ? Mathf.Clamp01(Vector2.Dot(localPosition - segmentStart, segment) / segmentLengthSquared)
-                    : 0f;
-                Vector2 projected = segmentStart + segment * along;
-                float distance = (localPosition - projected).magnitude;
+                Vector2 projected;
+                float distance = DistanceToSegment(localPosition, segmentStart, segmentEnd, out projected);
                 if (distance <= closestDistance)
                 {
                     closestDistance = distance;
@@ -351,6 +588,17 @@ namespace DotsAnimationToolkit.Editor
             }
 
             return closestIndex;
+        }
+
+        private static float DistanceToSegment(Vector2 point, Vector2 segmentStart, Vector2 segmentEnd, out Vector2 projected)
+        {
+            Vector2 segment = segmentEnd - segmentStart;
+            float segmentLengthSquared = segment.sqrMagnitude;
+            float along = segmentLengthSquared > 0f
+                ? Mathf.Clamp01(Vector2.Dot(point - segmentStart, segment) / segmentLengthSquared)
+                : 0f;
+            projected = segmentStart + segment * along;
+            return (point - projected).magnitude;
         }
     }
 }

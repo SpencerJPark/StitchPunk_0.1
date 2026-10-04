@@ -31,6 +31,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly Label statusLabel;
         private readonly FlipbookLayerThumbnailCache thumbnailCache = new FlipbookLayerThumbnailCache();
 
+        private VisualElement editModeSegmented;
+        private ToolbarToggle editMeshToggle;
+        private CutoutCanvasMode lastEditMode = CutoutCanvasMode.EditVertices;
         private CutoutAsset workingCopy;
         private List<bool[]> layerMasks;
         private bool[] unionMask;
@@ -92,7 +95,14 @@ namespace DotsAnimationToolkit.Editor
             VisualElement centreColumn = ToolkitChrome.MakeColumn("cutouts-centre-column");
             centreColumn.AddToClassList("toolkit-column--flush");
             centreColumn.style.flexGrow = 1f;
-            centreColumn.Add(ToolkitChrome.MakePaneHeader("Canvas", out Label _, out VisualElement _));
+            centreColumn.Add(ToolkitChrome.MakePaneHeader("Canvas", out Label _, out VisualElement canvasHeaderActions));
+            editModeSegmented = ToolkitChrome.MakeSegmentedControl(
+                "cutouts-edit-mode",
+                new List<string> { "Vertex", "Edge" },
+                0,
+                selectedIndex => canvas.Mode = selectedIndex == 1 ? CutoutCanvasMode.EditEdges : CutoutCanvasMode.EditVertices);
+            editModeSegmented.style.display = DisplayStyle.None;
+            canvasHeaderActions.Add(editModeSegmented);
 
             viewportFrame = new ViewportFrameElement();
             viewportFrame.style.flexGrow = 1f;
@@ -108,6 +118,8 @@ namespace DotsAnimationToolkit.Editor
             canvas.ShapeChanged += OnCanvasShapeChanged;
             manipulator.EditStarting += OnManipulatorEditStarting;
             manipulator.EditFinished += OnManipulatorEditFinished;
+            manipulator.EdgeRejected += OnEdgeRejected;
+            canvas.ModeChanged += OnCanvasModeChanged;
             BuildRail();
             viewportFrame.SetEmptyState("cutouts-empty-state", "No flipbook picked", "Pick a cutout, or a flipbook to start one, on the left.");
             centreColumn.Add(viewportFrame);
@@ -131,6 +143,10 @@ namespace DotsAnimationToolkit.Editor
             inspector.ReferenceRectChanged += OnReferenceRectChanged;
             inspector.ReferenceOpacityChanged += OnReferenceOpacityChanged;
             inspector.OutputBrowseRequested += OnOutputBrowseRequested;
+            inspector.OutputNameChanged += OnOutputNameChanged;
+            inspector.LocationChanged += OnLocationChanged;
+            inspector.ZeroLocationRequested += OnZeroLocationRequested;
+            inspector.ClearEdgesRequested += OnClearEdgesRequested;
 
             CoverPaneSplitView inspectorSplit =
                 new CoverPaneSplitView("Cutouts.Inspector", 1, 320f, TwoPaneSplitViewOrientation.Horizontal);
@@ -225,6 +241,13 @@ namespace DotsAnimationToolkit.Editor
                 viewportFrame.AddRailToggle("d_RawImage Icon", "Show the reference image", "Reference");
             referenceToggle.SetValueWithoutNotify(true);
             referenceToggle.RegisterValueChangedCallback(changeEvent => canvas.IsReferenceVisible = changeEvent.newValue);
+
+            editMeshToggle = viewportFrame.AddRailToggle(
+                "d_EditCollider",
+                "Edit the mesh (Tab): Vertex mode moves, adds and deletes outline vertices; Edge mode draws the edges the triangles must follow.",
+                "Edit");
+            editMeshToggle.RegisterValueChangedCallback(
+                changeEvent => canvas.Mode = changeEvent.newValue ? lastEditMode : CutoutCanvasMode.Object);
         }
 
         private static bool SourceHasArray(UnityEngine.Object source)
@@ -326,7 +349,9 @@ namespace DotsAnimationToolkit.Editor
 
         private void PushWorkingCopyIntoCanvas()
         {
-            canvas.SetCutout(workingCopy.outlinePixels, workingCopy.originPixels, workingCopy.pixelsPerUnit, workingCopy.FrameSize);
+            canvas.SetCutout(
+                workingCopy.outlinePixels, workingCopy.innerEdges, workingCopy.originPixels, workingCopy.artPositionWorld,
+                workingCopy.pixelsPerUnit, workingCopy.FrameSize);
             canvas.SetFrameTexture(thumbnailCache.GetLayerThumbnail(workingCopy.ResolveArray(), frameIndex));
             canvas.SetAllFramesGhost(ghostTexture);
             canvas.SetReference(workingCopy.referenceImage, workingCopy.referenceRectWorld, workingCopy.referenceOpacity);
@@ -454,6 +479,14 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            int skippedEdgeCount = canvas.SkippedInnerEdgeIndices.Count;
+            if (skippedEdgeCount > 0)
+            {
+                SetStatus(
+                    skippedEdgeCount + " drawn edges no longer fit the shape and are ignored.", ToolkitStatusTone.Warning);
+                return;
+            }
+
             if (overhangs.Count > 0)
             {
                 FrameOverhang worst = overhangs[0];
@@ -506,6 +539,8 @@ namespace DotsAnimationToolkit.Editor
             }
 
             workingCopy.originPixels = canvas.OriginPixels;
+            workingCopy.artPositionWorld = canvas.ArtPositionWorld;
+            workingCopy.pixelsPerUnit = canvas.PixelsPerUnit;
             workingCopy.referenceRectWorld = canvas.ReferenceRectWorld;
             MarkEdited();
             canvas.IsOutlineInvalid = PolygonTriangulator.IsSelfIntersecting(workingCopy.outlinePixels);
@@ -634,7 +669,9 @@ namespace DotsAnimationToolkit.Editor
             RecordUndo();
             workingCopy.outlinePixels.Clear();
             workingCopy.outlinePixels.AddRange(fittedOutline);
+            workingCopy.innerEdges.Clear();
             canvas.SelectedVertexIndex = -1;
+            canvas.SelectedInnerEdgeIndex = -1;
             canvas.Refresh();
             canvas.RaiseShapeChanged();
             RecomputeOverhangs();
@@ -751,18 +788,97 @@ namespace DotsAnimationToolkit.Editor
             string fileName = string.IsNullOrEmpty(workingCopy.outputPath)
                 ? "Cutout"
                 : Path.GetFileNameWithoutExtension(workingCopy.outputPath);
-            string chosenPath = EditorUtility.SaveFilePanelInProject(
-                "Save cutout mesh", fileName, "asset", "Choose where the cutout mesh is written.", startFolder);
-            if (string.IsNullOrEmpty(chosenPath))
+            string absoluteStartFolder = Path.GetFullPath(Path.Combine(Application.dataPath, "..", startFolder));
+            string chosenAbsoluteFolder = EditorUtility.OpenFolderPanel("Cutout mesh folder", absoluteStartFolder, string.Empty);
+            if (string.IsNullOrEmpty(chosenAbsoluteFolder))
+            {
+                return;
+            }
+
+            if (!ClipSetSaveLocation.TryMakeProjectRelative(chosenAbsoluteFolder, Application.dataPath, out string chosenFolder))
+            {
+                SetStatus("Pick a folder inside this project's Assets folder.", ToolkitStatusTone.Warning);
+                return;
+            }
+
+            RecordUndo();
+            workingCopy.outputPath = chosenFolder + "/" + fileName + ".asset";
+            CutoutMeshWriter.RememberMeshFolder(chosenFolder);
+            MarkEdited();
+            RefreshInspector();
+        }
+
+        private void OnOutputNameChanged(string newName)
+        {
+            if (workingCopy == null || string.IsNullOrWhiteSpace(newName))
+            {
+                return;
+            }
+
+            string folder = string.IsNullOrEmpty(workingCopy.outputPath)
+                ? CutoutMeshWriter.RecallMeshFolder()
+                : Path.GetDirectoryName(workingCopy.outputPath).Replace('\\', '/');
+            RecordUndo();
+            workingCopy.outputPath = folder + "/" + newName + ".asset";
+            MarkEdited();
+            RefreshInspector();
+        }
+
+        private void OnLocationChanged(Vector2 newLocationWorld)
+        {
+            ApplyArtLocation(newLocationWorld);
+        }
+
+        private void OnZeroLocationRequested()
+        {
+            ApplyArtLocation(Vector2.zero);
+        }
+
+        private void ApplyArtLocation(Vector2 newLocationWorld)
+        {
+            if (workingCopy == null)
             {
                 return;
             }
 
             RecordUndo();
-            workingCopy.outputPath = chosenPath;
-            CutoutMeshWriter.RememberMeshFolder(Path.GetDirectoryName(chosenPath).Replace('\\', '/'));
+            workingCopy.artPositionWorld = newLocationWorld;
+            canvas.SetArtPositionWorld(newLocationWorld);
             MarkEdited();
-            RefreshInspector();
+            RefreshAll();
+        }
+
+        private void OnClearEdgesRequested()
+        {
+            if (workingCopy == null)
+            {
+                return;
+            }
+
+            RecordUndo();
+            workingCopy.innerEdges.Clear();
+            canvas.SelectedInnerEdgeIndex = -1;
+            canvas.Refresh();
+            MarkEdited();
+            RefreshAll();
+        }
+
+        private void OnEdgeRejected(string reason)
+        {
+            SetStatus(reason, ToolkitStatusTone.Warning);
+        }
+
+        private void OnCanvasModeChanged()
+        {
+            bool isEditing = canvas.Mode != CutoutCanvasMode.Object;
+            if (isEditing)
+            {
+                lastEditMode = canvas.Mode;
+            }
+
+            editMeshToggle.SetValueWithoutNotify(isEditing);
+            editModeSegmented.style.display = isEditing ? DisplayStyle.Flex : DisplayStyle.None;
+            ToolkitChrome.SetSegmentedSelection(editModeSegmented, canvas.Mode == CutoutCanvasMode.EditEdges ? 1 : 0);
         }
 
         private void SaveMesh()

@@ -10,7 +10,6 @@ namespace DotsAnimationToolkit.Editor
     {
         public const string MeshFolderPrefsKey = "DotsAnimationToolkit.Cutouts.MeshFolder";
         private const string FallbackFolder = "Assets";
-        private const string MeshFileSuffix = "_CutoutMesh";
 
         public static string RecallMeshFolder()
         {
@@ -39,7 +38,7 @@ namespace DotsAnimationToolkit.Editor
                 sourceName = "Cutout";
             }
 
-            return RecallMeshFolder() + "/" + sourceName + MeshFileSuffix + ".asset";
+            return RecallMeshFolder() + "/" + sourceName + ".asset";
         }
 
         public static bool TrySave(
@@ -67,11 +66,33 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
+            if (workingCopy.outputMesh != null)
+            {
+                string previousMeshPath = AssetDatabase.GetAssetPath(workingCopy.outputMesh);
+                if (!string.IsNullOrEmpty(previousMeshPath) && previousMeshPath != outputPath)
+                {
+                    if (AssetDatabase.LoadMainAssetAtPath(outputPath) != null)
+                    {
+                        failureReason = "Another asset already uses that name.";
+                        return false;
+                    }
+
+                    EnsureFolderExists(Path.GetDirectoryName(outputPath).Replace('\\', '/'));
+                    string moveError = AssetDatabase.MoveAsset(previousMeshPath, outputPath);
+                    if (!string.IsNullOrEmpty(moveError))
+                    {
+                        failureReason = moveError;
+                        return false;
+                    }
+                }
+            }
+
             Mesh existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(outputPath);
             Mesh targetMesh = existingMesh != null ? existingMesh : new Mesh();
             bool built = CutoutMeshBuilder.TryBuild(
                 workingCopy.outlinePixels, workingCopy.FrameSize, workingCopy.originPixels, workingCopy.pixelsPerUnit,
-                workingCopy.facing, workingCopy.normalMode, workingCopy.roundness, targetMesh, out failureReason);
+                workingCopy.facing, workingCopy.normalMode, workingCopy.roundness, workingCopy.innerEdges,
+                targetMesh, out failureReason);
             if (!built)
             {
                 if (existingMesh == null)
@@ -103,11 +124,7 @@ namespace DotsAnimationToolkit.Editor
             {
                 CutoutAsset createdCutout = UnityEngine.Object.Instantiate(workingCopy);
                 createdCutout.hideFlags = HideFlags.None;
-                // "Arm_CutoutMesh" pairs with "Arm_Cutout"; a mesh named anything else gets "_Cutout" appended.
-                string cutoutBaseName = meshFileName.EndsWith("Mesh", System.StringComparison.Ordinal)
-                    ? meshFileName.Substring(0, meshFileName.Length - "Mesh".Length)
-                    : meshFileName + "_Cutout";
-                string cutoutPath = AssetDatabase.GenerateUniqueAssetPath(meshFolder + "/" + cutoutBaseName + ".asset");
+                string cutoutPath = AssetDatabase.GenerateUniqueAssetPath(meshFolder + "/" + meshFileName + "_Cutout.asset");
                 createdCutout.name = Path.GetFileNameWithoutExtension(cutoutPath);
                 AssetDatabase.CreateAsset(createdCutout, cutoutPath);
                 savedCutout = createdCutout;
@@ -121,8 +138,25 @@ namespace DotsAnimationToolkit.Editor
             }
 
             AssetDatabase.SaveAssetIfDirty(savedCutout);
+            RenameCutoutAssetToMatchMesh(savedCutout, meshFileName);
             failureReason = string.Empty;
             return true;
+        }
+
+        private static void RenameCutoutAssetToMatchMesh(CutoutAsset savedCutout, string meshFileName)
+        {
+            string cutoutPath = AssetDatabase.GetAssetPath(savedCutout);
+            string wantedName = meshFileName + "_Cutout";
+            if (string.IsNullOrEmpty(cutoutPath) || savedCutout.name == wantedName)
+            {
+                return;
+            }
+
+            string renameError = AssetDatabase.RenameAsset(cutoutPath, wantedName);
+            if (!string.IsNullOrEmpty(renameError))
+            {
+                Debug.LogWarning("Cutout asset was not renamed: " + renameError);
+            }
         }
 
         private static void EnsureFolderExists(string projectRelativeFolder)

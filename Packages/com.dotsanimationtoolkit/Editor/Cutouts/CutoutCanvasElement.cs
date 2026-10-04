@@ -25,6 +25,7 @@ namespace DotsAnimationToolkit.Editor
 
         public event Action ShapeChanged;
         public event Action ViewChanged;
+        public event Action ModeChanged;
 
         private readonly VisualElement gridLayer;
         private readonly Image referenceImageElement;
@@ -35,6 +36,16 @@ namespace DotsAnimationToolkit.Editor
 
         private List<Vector2> outlinePixels;
         private Vector2 originPixels;
+        private Vector2 artPositionWorld;
+        private List<Vector2Int> innerEdges = new List<Vector2Int>();
+        private readonly List<int> cachedTriangles = new List<int>();
+        private readonly List<int> cachedSkippedEdgeIndices = new List<int>();
+        private CutoutCanvasMode mode = CutoutCanvasMode.Object;
+        private CutoutCanvasMode lastEditMode = CutoutCanvasMode.EditVertices;
+        private int selectedInnerEdgeIndex = -1;
+        private int hoveredInnerEdgeIndex = -1;
+        private int rubberBandFromVertexIndex = -1;
+        private Vector2 rubberBandToElementPoint;
         private float pixelsPerUnit = 100f;
         private Vector2Int frameSize;
         private bool hasCutout;
@@ -63,6 +74,64 @@ namespace DotsAnimationToolkit.Editor
         public bool HasCutout => hasCutout;
         public bool HasReference => hasReference;
         public float ElementPointsPerWorldUnit => zoomPointsPerWorldUnit;
+
+        public Vector2 ArtPositionWorld => artPositionWorld;
+        public List<Vector2Int> InnerEdges => innerEdges;
+        public IReadOnlyList<int> SkippedInnerEdgeIndices => cachedSkippedEdgeIndices;
+
+        public Rect ArtRectWorld
+        {
+            get
+            {
+                Vector2 minWorld = PixelToWorld(Vector2.zero);
+                Vector2 maxWorld = PixelToWorld(new Vector2(frameSize.x, frameSize.y));
+                return Rect.MinMaxRect(minWorld.x, minWorld.y, maxWorld.x, maxWorld.y);
+            }
+        }
+
+        public CutoutCanvasMode Mode
+        {
+            get => mode;
+            set
+            {
+                if (value != CutoutCanvasMode.Object)
+                {
+                    lastEditMode = value;
+                }
+
+                bool modeChanged = value != mode;
+                mode = value;
+                selectedVertexIndex = -1;
+                selectedInnerEdgeIndex = -1;
+                hoveredInnerEdgeIndex = -1;
+                rubberBandFromVertexIndex = -1;
+                Refresh();
+                if (modeChanged)
+                {
+                    ModeChanged?.Invoke();
+                }
+            }
+        }
+
+        public int SelectedInnerEdgeIndex
+        {
+            get => selectedInnerEdgeIndex;
+            set
+            {
+                selectedInnerEdgeIndex = value;
+                overlayLayer.MarkDirtyRepaint();
+            }
+        }
+
+        public int HoveredInnerEdgeIndex
+        {
+            get => hoveredInnerEdgeIndex;
+            set
+            {
+                hoveredInnerEdgeIndex = value;
+                overlayLayer.MarkDirtyRepaint();
+            }
+        }
 
         public Rect ReferenceRectWorld
         {
@@ -184,19 +253,52 @@ namespace DotsAnimationToolkit.Editor
             RegisterCallback<PointerUpEvent>(OnPointerUp);
             RegisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut);
             RegisterCallback<KeyDownEvent>(OnKeyDown);
+            RegisterCallback<NavigationMoveEvent>(OnNavigationMove);
         }
 
-        public void SetCutout(List<Vector2> outlinePixels, Vector2 originPixels, float pixelsPerUnit, Vector2Int frameSize)
+        public void SetCutout(List<Vector2> outlinePixels, List<Vector2Int> innerEdges, Vector2 originPixels, Vector2 artPositionWorld, float pixelsPerUnit, Vector2Int frameSize)
         {
             this.outlinePixels = outlinePixels;
+            this.innerEdges = innerEdges ?? new List<Vector2Int>();
             this.originPixels = originPixels;
+            this.artPositionWorld = artPositionWorld;
             this.pixelsPerUnit = Mathf.Max(0.0001f, pixelsPerUnit);
             this.frameSize = frameSize;
             hasCutout = true;
             selectedVertexIndex = -1;
             hoveredVertexIndex = -1;
             hoveredEdgeIndex = -1;
+            selectedInnerEdgeIndex = -1;
+            hoveredInnerEdgeIndex = -1;
+            rubberBandFromVertexIndex = -1;
             Refresh();
+        }
+
+        public void SetArtPositionWorld(Vector2 newArtPositionWorld)
+        {
+            artPositionWorld = newArtPositionWorld;
+            Refresh();
+        }
+
+        public void SetPixelsPerUnitHoldingPixel(float newPixelsPerUnit, Vector2 heldPixel)
+        {
+            Vector2 heldWorld = PixelToWorld(heldPixel);
+            pixelsPerUnit = Mathf.Max(1f, newPixelsPerUnit);
+            artPositionWorld = heldWorld - (heldPixel - originPixels) / pixelsPerUnit;
+            Refresh();
+        }
+
+        public void SetEdgeRubberBand(int fromVertexIndex, Vector2 toElementPoint)
+        {
+            rubberBandFromVertexIndex = fromVertexIndex;
+            rubberBandToElementPoint = toElementPoint;
+            overlayLayer.MarkDirtyRepaint();
+        }
+
+        public void ClearEdgeRubberBand()
+        {
+            rubberBandFromVertexIndex = -1;
+            overlayLayer.MarkDirtyRepaint();
         }
 
         public void ClearCutout()
@@ -212,8 +314,7 @@ namespace DotsAnimationToolkit.Editor
 
         public void SetOriginPixels(Vector2 newOriginPixels)
         {
-            Vector2 worldDelta = (originPixels - newOriginPixels) / pixelsPerUnit;
-            viewCentreWorld += worldDelta;
+            artPositionWorld += (newOriginPixels - originPixels) / pixelsPerUnit;
             originPixels = newOriginPixels;
             Refresh();
         }
@@ -282,6 +383,13 @@ namespace DotsAnimationToolkit.Editor
 
         public void Refresh()
         {
+            cachedTriangles.Clear();
+            cachedSkippedEdgeIndices.Clear();
+            if (hasCutout && mode != CutoutCanvasMode.Object && outlinePixels != null && outlinePixels.Count >= 3)
+            {
+                PolygonTriangulator.TryTriangulateWithEdges(outlinePixels, innerEdges, cachedTriangles, cachedSkippedEdgeIndices);
+            }
+
             LayoutImages();
             gridLayer.MarkDirtyRepaint();
             overlayLayer.MarkDirtyRepaint();
@@ -295,12 +403,12 @@ namespace DotsAnimationToolkit.Editor
 
         public Vector2 PixelToWorld(Vector2 pixel)
         {
-            return (pixel - originPixels) / pixelsPerUnit;
+            return artPositionWorld + (pixel - originPixels) / pixelsPerUnit;
         }
 
         public Vector2 WorldToPixel(Vector2 world)
         {
-            return world * pixelsPerUnit + originPixels;
+            return (world - artPositionWorld) * pixelsPerUnit + originPixels;
         }
 
         public Vector2 WorldToElement(Vector2 world)
@@ -473,13 +581,43 @@ namespace DotsAnimationToolkit.Editor
 
         private void OnKeyDown(KeyDownEvent keyDownEvent)
         {
-            if (keyDownEvent.keyCode != KeyCode.F)
+            switch (keyDownEvent.keyCode)
             {
-                return;
+                case KeyCode.F:
+                    FrameAll();
+                    break;
+                case KeyCode.Tab:
+                    Mode = mode == CutoutCanvasMode.Object ? lastEditMode : CutoutCanvasMode.Object;
+                    break;
+                case KeyCode.Alpha1:
+                case KeyCode.Keypad1:
+                    if (mode == CutoutCanvasMode.Object)
+                    {
+                        return;
+                    }
+
+                    Mode = CutoutCanvasMode.EditVertices;
+                    break;
+                case KeyCode.Alpha2:
+                case KeyCode.Keypad2:
+                    if (mode == CutoutCanvasMode.Object)
+                    {
+                        return;
+                    }
+
+                    Mode = CutoutCanvasMode.EditEdges;
+                    break;
+                default:
+                    return;
             }
 
-            FrameAll();
             keyDownEvent.StopPropagation();
+        }
+
+        private void OnNavigationMove(NavigationMoveEvent navigationMoveEvent)
+        {
+            panel?.focusController?.IgnoreEvent(navigationMoveEvent);
+            navigationMoveEvent.StopPropagation();
         }
 
         private static Color WhiteWithAlpha(float alpha)
@@ -644,9 +782,22 @@ namespace DotsAnimationToolkit.Editor
             }
 
             int vertexCount = outlinePixels != null ? outlinePixels.Count : 0;
+            if (hasFrame && mode == CutoutCanvasMode.Object)
+            {
+                DrawObjectModeFrame(painter);
+            }
+
             if (hasCutout && isShapeVisible && vertexCount >= 2)
             {
-                DrawOutline(painter, vertexCount);
+                if (mode == CutoutCanvasMode.Object)
+                {
+                    DrawOutlineThin(painter, vertexCount);
+                }
+                else
+                {
+                    DrawWireframe(painter);
+                    DrawOutline(painter, vertexCount);
+                }
             }
 
             if (hasCutout && isOriginVisible)
@@ -691,17 +842,152 @@ namespace DotsAnimationToolkit.Editor
                 painter.Stroke();
             }
 
+            DrawInnerEdges(painter, elementPoints);
+
             for (int index = 0; index < vertexCount; index++)
             {
                 bool isHovered = index == hoveredVertexIndex;
                 bool isSelected = index == selectedVertexIndex;
-                StrokeHandleSquare(painter, elementPoints[index], isHovered ? HoveredHandleSizePoints : HandleSizePoints, isSelected);
+                if (mode == CutoutCanvasMode.EditEdges)
+                {
+                    DrawEdgeModeVertexDot(painter, elementPoints[index], isHovered);
+                }
+                else
+                {
+                    StrokeHandleSquare(painter, elementPoints[index], isHovered ? HoveredHandleSizePoints : HandleSizePoints, isSelected);
+                }
             }
+
+            if (mode == CutoutCanvasMode.EditEdges && rubberBandFromVertexIndex >= 0 && rubberBandFromVertexIndex < vertexCount)
+            {
+                painter.BeginPath();
+                painter.MoveTo(elementPoints[rubberBandFromVertexIndex]);
+                painter.LineTo(rubberBandToElementPoint);
+                painter.strokeColor = ToolkitPalette.Accent;
+                painter.lineWidth = 1.5f;
+                painter.Stroke();
+            }
+        }
+
+        private void DrawEdgeModeVertexDot(Painter2D painter, Vector2 centre, bool isHovered)
+        {
+            painter.BeginPath();
+            painter.Arc(centre, 2f, Angle.Degrees(0f), Angle.Degrees(360f), ArcDirection.Clockwise);
+            painter.fillColor = Color.white;
+            painter.Fill(FillRule.NonZero);
+
+            if (isHovered)
+            {
+                painter.BeginPath();
+                painter.Arc(centre, 6f, Angle.Degrees(0f), Angle.Degrees(360f), ArcDirection.Clockwise);
+                painter.strokeColor = ToolkitPalette.Accent;
+                painter.lineWidth = 1.5f;
+                painter.Stroke();
+            }
+        }
+
+        private void StrokeInnerEdge(Painter2D painter, List<Vector2> elementPoints, int edgeIndex, Color color, float width)
+        {
+            Vector2Int edge = innerEdges[edgeIndex];
+            if (edge.x < 0 || edge.y < 0 || edge.x >= elementPoints.Count || edge.y >= elementPoints.Count)
+            {
+                return;
+            }
+
+            painter.BeginPath();
+            painter.MoveTo(elementPoints[edge.x]);
+            painter.LineTo(elementPoints[edge.y]);
+            painter.strokeColor = color;
+            painter.lineWidth = width;
+            painter.Stroke();
+        }
+
+        private void DrawInnerEdges(Painter2D painter, List<Vector2> elementPoints)
+        {
+            for (int edgeIndex = 0; edgeIndex < innerEdges.Count; edgeIndex++)
+            {
+                bool isSkipped = cachedSkippedEdgeIndices.Contains(edgeIndex);
+                if (isSkipped)
+                {
+                    StrokeInnerEdge(painter, elementPoints, edgeIndex, ToolkitPalette.Warning, 1f);
+                }
+                else
+                {
+                    StrokeInnerEdge(painter, elementPoints, edgeIndex, ToolkitPalette.Accent, 1.5f);
+                }
+            }
+
+            if (hoveredInnerEdgeIndex >= 0 && hoveredInnerEdgeIndex < innerEdges.Count)
+            {
+                StrokeInnerEdge(painter, elementPoints, hoveredInnerEdgeIndex, ToolkitPalette.Accent, 2.5f);
+            }
+
+            if (selectedInnerEdgeIndex >= 0 && selectedInnerEdgeIndex < innerEdges.Count)
+            {
+                StrokeInnerEdge(painter, elementPoints, selectedInnerEdgeIndex, ToolkitPalette.Selected, 2.5f);
+            }
+        }
+
+        private void DrawWireframe(Painter2D painter)
+        {
+            int triangleIndexCount = cachedTriangles.Count - cachedTriangles.Count % 3;
+            if (triangleIndexCount == 0)
+            {
+                return;
+            }
+
+            painter.BeginPath();
+            for (int index = 0; index < triangleIndexCount; index += 3)
+            {
+                Vector2 first = PixelToElement(outlinePixels[cachedTriangles[index]]);
+                Vector2 second = PixelToElement(outlinePixels[cachedTriangles[index + 1]]);
+                Vector2 third = PixelToElement(outlinePixels[cachedTriangles[index + 2]]);
+                painter.MoveTo(first);
+                painter.LineTo(second);
+                painter.LineTo(third);
+                painter.LineTo(first);
+            }
+
+            painter.strokeColor = WhiteWithAlpha(0.25f);
+            painter.lineWidth = 1f;
+            painter.Stroke();
+        }
+
+        private void DrawOutlineThin(Painter2D painter, int vertexCount)
+        {
+            painter.BeginPath();
+            painter.MoveTo(PixelToElement(outlinePixels[0]));
+            for (int index = 1; index < vertexCount; index++)
+            {
+                painter.LineTo(PixelToElement(outlinePixels[index]));
+            }
+
+            painter.ClosePath();
+            painter.strokeColor = isOutlineInvalid ? ToolkitPalette.Error : WhiteWithAlpha(0.6f);
+            painter.lineWidth = 1f;
+            painter.Stroke();
+        }
+
+        private void DrawObjectModeFrame(Painter2D painter)
+        {
+            Vector2 bottomLeftElement = PixelToElement(Vector2.zero);
+            Vector2 topRightElement = PixelToElement(new Vector2(frameSize.x, frameSize.y));
+            Vector2 topLeft = new Vector2(bottomLeftElement.x, topRightElement.y);
+            Vector2 bottomRight = new Vector2(topRightElement.x, bottomLeftElement.y);
+            AppendRectPath(painter, topLeft, bottomRight);
+            painter.strokeColor = WhiteWithAlpha(0.6f);
+            painter.lineWidth = 1f;
+            painter.Stroke();
+
+            StrokeHandleSquare(painter, topLeft, HandleSizePoints, false);
+            StrokeHandleSquare(painter, new Vector2(bottomRight.x, topLeft.y), HandleSizePoints, false);
+            StrokeHandleSquare(painter, bottomRight, HandleSizePoints, false);
+            StrokeHandleSquare(painter, new Vector2(topLeft.x, bottomRight.y), HandleSizePoints, false);
         }
 
         private void DrawOriginMarker(Painter2D painter)
         {
-            Vector2 centre = WorldToElement(Vector2.zero);
+            Vector2 centre = WorldToElement(artPositionWorld);
             painter.strokeColor = ToolkitPalette.MarkerRoot;
             painter.lineWidth = 1.5f;
             painter.BeginPath();

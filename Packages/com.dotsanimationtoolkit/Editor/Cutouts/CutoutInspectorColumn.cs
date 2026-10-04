@@ -22,6 +22,10 @@ namespace DotsAnimationToolkit.Editor
         public event Action<Texture2D> ReferenceImageChanged;
         public event Action<Rect> ReferenceRectChanged;
         public event Action<float> ReferenceOpacityChanged;
+        public event Action<Vector2> LocationChanged;
+        public event Action ZeroLocationRequested;
+        public event Action ClearEdgesRequested;
+        public event Action<string> OutputNameChanged;
         public event Action OutputBrowseRequested;
 
         private const float OriginPresetToleranceInPixels = 0.5f;
@@ -59,6 +63,9 @@ namespace DotsAnimationToolkit.Editor
         private readonly Vector2Field referencePositionField;
         private readonly Vector2Field referenceSizeField;
         private readonly PathPickerRowElement outputPathRow;
+        private readonly Vector2Field locationField;
+        private readonly Label edgeCountLabel;
+        private readonly TextField outputNameField;
 
         private CutoutAsset shownCutout;
 
@@ -128,9 +135,15 @@ namespace DotsAnimationToolkit.Editor
             shapeHeaderActions.Add(ToolkitChrome.MakeSecondaryAction(() => FitToArtRequested?.Invoke(), "d_Grid.FillTool",
                 "Trace every frame's art, wrap it in a convex outline grown by the padding, and reduce it to the vertex budget. Edit by hand from there.",
                 "Fit to art"));
+            shapeHeaderActions.Add(ToolkitChrome.MakeGhostAction(() => ClearEdgesRequested?.Invoke(), "d_TreeEditor.Trash",
+                "Remove every drawn edge; the triangles go back to automatic.", "Clear edges"));
 
             vertexCountLabel = new Label { name = "cutouts-vertex-count" };
             shapeBody.Add(ToolkitChrome.MakePropertyRow("Vertices", vertexCountLabel, "How many corners the outline has."));
+
+            edgeCountLabel = new Label { name = "cutouts-edge-count" };
+            shapeBody.Add(ToolkitChrome.MakePropertyRow("Edges", edgeCountLabel,
+                "Edges you drew in Edit mode's Edge view; the triangles follow them."));
 
             vertexBudgetField = new IntegerField { name = "cutouts-vertex-budget" };
             vertexBudgetField.RegisterValueChangedCallback((ChangeEvent<int> changeEvent) =>
@@ -154,12 +167,20 @@ namespace DotsAnimationToolkit.Editor
 
             // Origin
             VisualElement originBody;
-            scrollContent.Add(ToolkitChrome.MakeCard("cutouts-card-origin", "Origin", out originBody, out _));
+            VisualElement originHeaderActions;
+            scrollContent.Add(ToolkitChrome.MakeCard("cutouts-card-origin", "Origin", out originBody, out originHeaderActions));
+            originHeaderActions.Add(ToolkitChrome.MakeGhostAction(() => ZeroLocationRequested?.Invoke(), "d_Refresh",
+                "Put the origin back on the grid centre, carrying the art with it.", "Zero"));
 
             originField = new Vector2Field { name = "cutouts-origin" };
             originField.RegisterValueChangedCallback((ChangeEvent<Vector2> changeEvent) => OriginPixelsChanged?.Invoke(changeEvent.newValue));
-            originBody.Add(ToolkitChrome.MakePropertyRow("Position (px)", originField,
-                "The mesh's (0,0,0): the part rotates about it. Put it on the joint."));
+            originBody.Add(ToolkitChrome.MakePropertyRow("Pivot (px)", originField,
+                "The mesh's (0,0,0), in the art's pixels: the part rotates about it. Drag the ⊕ or type it; it can sit anywhere, even off the art."));
+
+            locationField = new Vector2Field { name = "cutouts-location" };
+            locationField.RegisterValueChangedCallback((ChangeEvent<Vector2> changeEvent) => LocationChanged?.Invoke(changeEvent.newValue));
+            originBody.Add(ToolkitChrome.MakePropertyRow("Location", locationField,
+                "Where the origin sits on the grid, in world units. Moving the art changes it; it is never baked into the mesh."));
 
             originPresetField = new DropdownField(new System.Collections.Generic.List<string>(OriginPresetNames), 0) { name = "cutouts-origin-preset" };
             originPresetField.RegisterValueChangedCallback((ChangeEvent<string> changeEvent) =>
@@ -225,9 +246,29 @@ namespace DotsAnimationToolkit.Editor
             VisualElement outputBody;
             scrollContent.Add(ToolkitChrome.MakeCard("cutouts-card-output", "Output", out outputBody, out _));
 
-            outputPathRow = new PathPickerRowElement(null, "Choose where the mesh asset is written") { name = "cutouts-output-path" };
+            outputNameField = new TextField { name = "cutouts-output-name", isDelayed = true };
+            outputNameField.RegisterValueChangedCallback((ChangeEvent<string> changeEvent) =>
+            {
+                string sanitisedName = changeEvent.newValue == null ? string.Empty : changeEvent.newValue.Trim();
+                foreach (char invalidCharacter in System.IO.Path.GetInvalidFileNameChars())
+                {
+                    sanitisedName = sanitisedName.Replace(invalidCharacter.ToString(), string.Empty);
+                }
+
+                if (sanitisedName.Length == 0)
+                {
+                    outputNameField.SetValueWithoutNotify(changeEvent.previousValue);
+                    return;
+                }
+
+                outputNameField.SetValueWithoutNotify(sanitisedName);
+                OutputNameChanged?.Invoke(sanitisedName);
+            });
+            outputBody.Add(ToolkitChrome.MakePropertyRow("Name", outputNameField, "The mesh asset's file name, without the extension."));
+
+            outputPathRow = new PathPickerRowElement(null, "Choose the folder the mesh is written to.") { name = "cutouts-output-path" };
             outputPathRow.BrowseRequested += () => OutputBrowseRequested?.Invoke();
-            outputBody.Add(ToolkitChrome.MakePropertyRow("Mesh", outputPathRow, "Where the baked mesh asset is written."));
+            outputBody.Add(ToolkitChrome.MakePropertyRow("Folder", outputPathRow, "The folder the baked mesh asset is written to."));
 
             ShowCutout(null, 0, 0, string.Empty, true);
         }
@@ -265,7 +306,11 @@ namespace DotsAnimationToolkit.Editor
             referencePositionField.SetValueWithoutNotify(cutout.referenceRectWorld.position);
             referenceSizeField.SetValueWithoutNotify(cutout.referenceRectWorld.size);
 
-            outputPathRow.Path = cutout.outputPath;
+            locationField.SetValueWithoutNotify(cutout.artPositionWorld);
+            edgeCountLabel.text = cutout.innerEdges.Count.ToString();
+            outputNameField.SetValueWithoutNotify(System.IO.Path.GetFileNameWithoutExtension(cutout.outputPath));
+            string outputFolder = System.IO.Path.GetDirectoryName(cutout.outputPath);
+            outputPathRow.Path = string.IsNullOrEmpty(outputFolder) ? string.Empty : outputFolder.Replace('\\', '/');
         }
 
         private int FindMatchingOriginPresetIndex(CutoutAsset cutout)
