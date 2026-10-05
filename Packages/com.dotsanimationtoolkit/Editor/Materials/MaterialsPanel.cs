@@ -27,6 +27,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly MeshCatalogColumn meshCatalog;
         private readonly CatalogSidebarElement sidebar;
         private readonly MaterialInspectorColumn inspector;
+        private readonly MaterialPreviewElement preview;
         private ActiveAssetSelection selection;
         private MaterialInspectorSubject currentSubject = new MaterialInspectorSubject();
         private bool isRefreshing;
@@ -107,10 +108,31 @@ namespace DotsAnimationToolkit.Editor
             inspector.MaterialChanged += OnInspectorMaterialChanged;
             inspector.StatusReported += (text, tone) => ToolkitChrome.SetStatus(resultLabel, text, tone);
 
-            CoverPaneSplitView split = new CoverPaneSplitView("Materials.Catalog", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
+            // Three columns like the Cutouts tab: the list, the model with its material in the middle,
+            // and the material's options on the right.
+            VisualElement previewColumn = new VisualElement { name = "materials-preview-column" };
+            previewColumn.AddToClassList("toolkit-column");
+            previewColumn.style.flexGrow = 1f;
+            VisualElement previewHeader = new VisualElement();
+            previewHeader.AddToClassList("toolkit-pane-header");
+            Label previewTitle = new Label("Preview");
+            previewTitle.AddToClassList("toolkit-pane-title");
+            previewHeader.Add(previewTitle);
+            previewColumn.Add(previewHeader);
+            preview = new MaterialPreviewElement { name = "materials-preview" };
+            previewColumn.Add(preview);
+
+            CoverPaneSplitView inspectorSplit =
+                new CoverPaneSplitView("Materials.Inspector", 1, 340f, TwoPaneSplitViewOrientation.Horizontal);
+            inspectorSplit.style.flexGrow = 1f;
+            inspectorSplit.Add(previewColumn);
+            inspectorSplit.Add(inspector);
+
+            CoverPaneSplitView split =
+                new CoverPaneSplitView("Materials.CatalogThreeColumns", 0, 300f, TwoPaneSplitViewOrientation.Horizontal);
             split.style.flexGrow = 1f;
             split.Add(sidebar);
-            split.Add(inspector);
+            split.Add(inspectorSplit);
 
             Add(header);
             Add(split);
@@ -193,7 +215,7 @@ namespace DotsAnimationToolkit.Editor
 
         public void Dispose()
         {
-            inspector.Dispose();
+            preview.Dispose();
             if (selection != null)
             {
                 selection.RigChanged -= OnSharedRigChanged;
@@ -297,6 +319,8 @@ namespace DotsAnimationToolkit.Editor
         {
             currentSubject.RigUsage = FindUsageForMaterial(currentSubject.Material);
             inspector.Bind(currentSubject, BoundRig, BoundClipSet);
+            // A mesh with no material yet shows on a neutral surface; a material picked on its own shows on a quad.
+            preview.Show(currentSubject.Mesh, currentSubject.Material);
         }
 
         private MaterialInspectorSubject BuildSubject(Material material, CutoutAsset cutout, Mesh mesh)

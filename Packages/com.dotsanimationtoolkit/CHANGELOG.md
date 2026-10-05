@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The preview camera is sized to the picked mesh (no more tiny meshes below the view or big ones clipped) and
   opens at a three-quarter view; left-drag orbits, right-drag + WASD/QE flies, middle-drag pans, **Return** (or F)
   frames the mesh again. Every sub-mesh gets the material.
+- The Materials tab is three columns: list | Preview | material options. The preview turns billboarding off
+  (the real material is untouched; a property block overrides it), and a flipbook material gets a frame row
+  (previous / next / play at 12 fps / slider) to look through its array.
 - **Save as prefab** saves `<Mesh>.prefab` beside the mesh with the material on it, and updates that same prefab
   afterwards, so it is always found at one path.
 - The Shader card says **Toolkit** or **Custom**, and on a custom shader lists the contract properties it lacks.

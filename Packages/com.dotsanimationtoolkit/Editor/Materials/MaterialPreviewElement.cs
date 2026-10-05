@@ -31,17 +31,32 @@ namespace DotsAnimationToolkit.Editor
         private Material neutralSurfaceMaterial;
         private float lastTickTimeSinceStartup;
 
+        private const float FramesPerSecond = 12f;
+        private static readonly int BillboardParamsPropertyId = Shader.PropertyToID("_BillboardParams");
+        private static readonly int ImageIndexPropertyId = Shader.PropertyToID("_ImageIndex");
+        private static readonly int MainTexArrayPropertyId = Shader.PropertyToID("_MainTexArray");
+
+        private readonly MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
+        private readonly VisualElement frameRow;
+        private readonly Label frameLabel;
+        private readonly SliderInt frameSlider;
+        private readonly Button framePlayButton;
+        private int frameCount;
+        private int frameIndex;
+        private bool framesPlaying;
+        private double nextFrameAdvanceTime;
+
         public Mesh ShownMesh { get; private set; }
         public Material ShownMaterial { get; private set; }
 
         public MaterialPreviewElement()
         {
             name = "material-preview-element";
-            style.flexShrink = 0f;
+            style.flexGrow = 1f;
 
             frame = new ViewportFrameElement();
             frame.name = "material-preview-frame";
-            frame.style.height = 300f;
+            frame.style.flexGrow = 1f;
             UnityEditor.UIElements.ToolbarButton resetCameraButton =
                 frame.AddResetCameraButton(() => cameraNavigation.ResetView());
             resetCameraButton.name = "material-preview-reset-camera-button";
@@ -51,6 +66,25 @@ namespace DotsAnimationToolkit.Editor
 
             viewportImage = frame.ViewportImage;
             Add(frame);
+
+            frameRow = new VisualElement { name = "material-preview-frame-row" };
+            frameRow.style.flexDirection = FlexDirection.Row;
+            frameRow.style.alignItems = Align.Center;
+            frameRow.Add(ToolkitChrome.MakeIconSquare(() => StepFrame(-1), "d_Animation.PrevKey", "Previous frame"));
+            frameLabel = new Label { name = "material-preview-frame-label" };
+            frameLabel.AddToClassList("cutouts-frame-label");
+            frameRow.Add(frameLabel);
+            frameRow.Add(ToolkitChrome.MakeIconSquare(() => StepFrame(1), "d_Animation.NextKey", "Next frame"));
+            framePlayButton = ToolkitChrome.MakeIconSquare(ToggleFramesPlaying, "d_PlayButton", "Play the frames at 12 fps");
+            framePlayButton.name = "material-preview-frame-play";
+            frameRow.Add(framePlayButton);
+            frameSlider = new SliderInt(0, 0) { name = "material-preview-frame-slider" };
+            frameSlider.style.flexGrow = 1f;
+            frameSlider.RegisterValueChangedCallback(
+                (ChangeEvent<int> changeEvent) => SetFrameIndex(changeEvent.newValue, false));
+            frameRow.Add(frameSlider);
+            frameRow.style.display = DisplayStyle.None;
+            Add(frameRow);
             Label hintLabel = ToolkitChrome.MakeHint(
                 "Drag: orbit · Right-drag + WASD/QE: fly (Shift fast) · Middle-drag: pan · Wheel: zoom · F: return");
             hintLabel.name = "material-preview-hint";
@@ -69,6 +103,11 @@ namespace DotsAnimationToolkit.Editor
             frame.ShowEmptyState(nothingToShow);
 
             bool meshChanged = mesh != ShownMesh || subjectObject == null;
+            if (material != ShownMaterial)
+            {
+                frameIndex = 0;
+                SetFramesPlaying(false);
+            }
             ShownMesh = mesh;
             ShownMaterial = material;
             if (nothingToShow)
@@ -77,6 +116,7 @@ namespace DotsAnimationToolkit.Editor
                 {
                     subjectRenderer.enabled = false;
                 }
+                RefreshFrameRow(null);
                 return;
             }
 
@@ -93,6 +133,7 @@ namespace DotsAnimationToolkit.Editor
             }
             subjectRenderer.sharedMaterials = materialPerSubMesh;
             subjectRenderer.enabled = true;
+            RefreshFrameRow(material);
 
             if (meshChanged)
             {
@@ -100,6 +141,88 @@ namespace DotsAnimationToolkit.Editor
                 cameraRig.SetFrameTarget(meshToDraw.bounds);
                 cameraRig.ResetView();
             }
+        }
+
+        private void RefreshFrameRow(Material material)
+        {
+            Texture2DArray frameArray = null;
+            if (material != null && material.HasProperty(MainTexArrayPropertyId) && material.HasProperty(ImageIndexPropertyId))
+            {
+                frameArray = material.GetTexture(MainTexArrayPropertyId) as Texture2DArray;
+            }
+            frameCount = frameArray != null ? frameArray.depth : 0;
+            bool hasFrames = frameCount > 0;
+            frameRow.style.display = hasFrames ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!hasFrames)
+            {
+                SetFramesPlaying(false);
+            }
+            frameIndex = hasFrames ? Mathf.Clamp(frameIndex, 0, frameCount - 1) : 0;
+            frameSlider.lowValue = 0;
+            frameSlider.highValue = Mathf.Max(frameCount - 1, 0);
+            frameSlider.SetValueWithoutNotify(frameIndex);
+            frameLabel.text = (frameIndex + 1) + " / " + frameCount;
+            ApplyPropertyBlock();
+        }
+
+        private void StepFrame(int direction)
+        {
+            if (frameCount <= 0)
+            {
+                return;
+            }
+            SetFrameIndex((frameIndex + direction + frameCount) % frameCount, true);
+        }
+
+        private void SetFrameIndex(int newIndex, bool updateSlider)
+        {
+            frameIndex = Mathf.Clamp(newIndex, 0, Mathf.Max(frameCount - 1, 0));
+            if (updateSlider)
+            {
+                frameSlider.SetValueWithoutNotify(frameIndex);
+            }
+            frameLabel.text = (frameIndex + 1) + " / " + frameCount;
+            ApplyPropertyBlock();
+        }
+
+        private void ToggleFramesPlaying()
+        {
+            SetFramesPlaying(!framesPlaying);
+        }
+
+        private void SetFramesPlaying(bool playing)
+        {
+            if (framesPlaying == playing)
+            {
+                return;
+            }
+            framesPlaying = playing;
+            nextFrameAdvanceTime = EditorApplication.timeSinceStartup + 1.0 / FramesPerSecond;
+            ToolkitIcons.SetButtonIcon(framePlayButton, playing ? "d_PauseButton" : "d_PlayButton", "•");
+            framePlayButton.tooltip = playing ? "Pause" : "Play the frames at 12 fps";
+        }
+
+        // The preview draws the real material asset, so billboarding and the frame index are overridden per renderer only.
+        private void ApplyPropertyBlock()
+        {
+            if (subjectRenderer == null)
+            {
+                return;
+            }
+            propertyBlock.Clear();
+            Material shownMaterial = ShownMaterial;
+            if (shownMaterial != null)
+            {
+                if (shownMaterial.HasProperty(BillboardParamsPropertyId))
+                {
+                    propertyBlock.SetVector(BillboardParamsPropertyId, Vector4.zero);
+                }
+                if (frameCount > 0)
+                {
+                    propertyBlock.SetFloat(ImageIndexPropertyId, frameIndex);
+                }
+            }
+            subjectRenderer.SetPropertyBlock(propertyBlock);
         }
 
         private Material GetNeutralSurfaceMaterial()
@@ -135,6 +258,12 @@ namespace DotsAnimationToolkit.Editor
                 ? nowSinceStartup - lastTickTimeSinceStartup
                 : 0f;
             lastTickTimeSinceStartup = nowSinceStartup;
+
+            if (framesPlaying && frameCount > 1 && EditorApplication.timeSinceStartup >= nextFrameAdvanceTime)
+            {
+                nextFrameAdvanceTime = EditorApplication.timeSinceStartup + 1.0 / FramesPerSecond;
+                StepFrame(1);
+            }
 
             cameraNavigation.StepFly(deltaSeconds);
             RenderViewport();

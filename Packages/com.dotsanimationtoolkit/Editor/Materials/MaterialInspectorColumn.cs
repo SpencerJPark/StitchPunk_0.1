@@ -20,7 +20,7 @@ namespace DotsAnimationToolkit.Editor
     }
 
     /// <summary>The Materials tab's detail column: motion, shader, rig usage, contract properties and flipbook findings.</summary>
-    public sealed class MaterialInspectorColumn : VisualElement, IDisposable
+    public sealed class MaterialInspectorColumn : VisualElement
     {
         public MaterialInspectorSubject BoundSubject { get; private set; }
         public RigAsset BoundRig { get; private set; }
@@ -39,7 +39,6 @@ namespace DotsAnimationToolkit.Editor
         private readonly VisualElement emptyState;
         private readonly Button selectButton;
         private readonly ScrollView bodyScrollView;
-        private readonly MaterialPreviewElement preview;
 
         public MaterialInspectorColumn()
         {
@@ -64,9 +63,6 @@ namespace DotsAnimationToolkit.Editor
             header.Add(actions);
             Add(header);
 
-            preview = new MaterialPreviewElement { name = "material-inspector-preview" };
-            Add(preview);
-
             emptyState = ToolkitChrome.MakeEmptyState(
                 "material-inspector-hint",
                 "No material selected",
@@ -86,11 +82,6 @@ namespace DotsAnimationToolkit.Editor
             BoundRig = rig;
             BoundClipSet = clipSet;
             RebuildBody();
-        }
-
-        public void Dispose()
-        {
-            preview.Dispose();
         }
 
         private void SelectBoundMaterial()
@@ -115,11 +106,6 @@ namespace DotsAnimationToolkit.Editor
 
             Material material = BoundSubject != null ? BoundSubject.Material : null;
             bool hasCutoutOrMesh = BoundSubject != null && (BoundSubject.Cutout != null || BoundSubject.Mesh != null);
-
-            // The model with its material on it: a mesh with no material yet shows on a neutral surface,
-            // and a material picked from the Materials list shows on a quad.
-            preview.style.display = material != null || hasCutoutOrMesh ? DisplayStyle.Flex : DisplayStyle.None;
-            preview.Show(BoundSubject != null ? BoundSubject.Mesh : null, material);
 
             if (material == null && !hasCutoutOrMesh)
             {
