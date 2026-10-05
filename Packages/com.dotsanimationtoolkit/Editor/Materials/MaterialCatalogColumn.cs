@@ -29,7 +29,6 @@ namespace DotsAnimationToolkit.Editor
         public void SetUsages(IReadOnlyList<RigMaterialUsage> usages)
         {
             usageByMaterial.Clear();
-            List<Material> materials = new List<Material>();
             if (usages != null)
             {
                 for (int usageIndex = 0; usageIndex < usages.Count; usageIndex++)
@@ -41,11 +40,15 @@ namespace DotsAnimationToolkit.Editor
                     }
 
                     usageByMaterial.Add(usage.Material, usage);
-                    materials.Add(usage.Material);
                 }
             }
 
-            SetItems(materials);
+            Rescan();
+        }
+
+        public void RescanProject()
+        {
+            Rescan();
         }
 
         public void SetSelectedMaterial(Material material)
@@ -59,20 +62,83 @@ namespace DotsAnimationToolkit.Editor
             {
                 elementName = "material-catalog-column",
                 namePrefix = "materials",
-                title = "Materials",
+                // No title: the sidebar owns the header.
+                title = string.Empty,
                 newButtonIconName = "d_Toolbar Plus",
-                newButtonTooltip = "Create a material for a target of this rig from the package's shader",
+                newButtonTooltip = "Create a material from the package's shader",
                 refreshButtonIconName = "d_Refresh",
-                refreshButtonTooltip = "Re-read the rig's prefab for materials",
-                emptyProjectTitle = "No materials",
-                emptyProjectMessage = "Pick a rig with a source prefab to list its materials.",
-                emptyProjectActionText = null,
+                refreshButtonTooltip = "Rescan the project for materials",
+                emptyProjectTitle = "No materials yet",
+                emptyProjectMessage = "A material is the look of a cutout or mesh: its texture, tint and cutoff. Pick a cutout or mesh to make one, or create one here.",
+                emptyProjectActionText = "Create material",
                 emptySearchMessage = "No materials match your search.",
-                secondLine = material => DescribeUsage(usageByMaterial, material),
+                scan = () => ScanToolkitMaterials(usageByMaterial),
+                secondLine = material => DescribeMaterial(usageByMaterial, material),
                 tooltip = material => AssetDatabase.GetAssetPath(material),
                 allowRename = false,
                 allowDelete = false,
             };
+        }
+
+        private static IReadOnlyList<Material> ScanToolkitMaterials(Dictionary<Material, RigMaterialUsage> usageByMaterial)
+        {
+            HashSet<Material> distinctMaterials = new HashSet<Material>(usageByMaterial.Keys);
+            string[] guids = AssetDatabase.FindAssets("t:Material", new[] { "Assets" });
+            for (int guidIndex = 0; guidIndex < guids.Length; guidIndex++)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guids[guidIndex]);
+                Material material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+                if (material != null && MaterialFeatureResolver.IsToolkitShader(material.shader))
+                {
+                    distinctMaterials.Add(material);
+                }
+            }
+
+            List<Material> materials = new List<Material>(distinctMaterials);
+            materials.Sort((Material left, Material right) =>
+                string.Compare(left.name, right.name, StringComparison.OrdinalIgnoreCase));
+            return materials;
+        }
+
+        private static string DescribeMaterial(Dictionary<Material, RigMaterialUsage> usageByMaterial, Material material)
+        {
+            if (material == null)
+            {
+                return string.Empty;
+            }
+
+            if (usageByMaterial.ContainsKey(material))
+            {
+                string usageDescription = DescribeUsage(usageByMaterial, material);
+                if (!string.IsNullOrEmpty(usageDescription))
+                {
+                    return usageDescription;
+                }
+            }
+
+            MaterialFeature features = MaterialFeatureResolver.ReadFeatures(material);
+            string featureLine;
+            if ((features & MaterialFeature.Vat) != 0)
+            {
+                bool isBaked = material.HasProperty(MaterialFeatureResolver.VatBoneTexturePropertyName)
+                    && material.GetTexture(MaterialFeatureResolver.VatBoneTexturePropertyName) != null;
+                featureLine = isBaked ? "VAT" : "VAT · not baked";
+            }
+            else if ((features & MaterialFeature.Flipbook) != 0)
+            {
+                featureLine = "Flipbook";
+            }
+            else
+            {
+                featureLine = "Static";
+            }
+
+            if (!MaterialFeatureResolver.IsToolkitShader(material.shader))
+            {
+                featureLine += " · custom shader";
+            }
+
+            return featureLine;
         }
 
         private static string DescribeUsage(Dictionary<Material, RigMaterialUsage> usageByMaterial, Material material)

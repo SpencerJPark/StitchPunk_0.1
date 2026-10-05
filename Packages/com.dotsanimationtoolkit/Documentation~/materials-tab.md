@@ -1,41 +1,56 @@
 # The Materials tab
 
 **Window ▸ DOTS Animation Toolkit ▸ DOTS Animator** — the Materials tab, after
-Flipbooks.
+Cutouts and before Rigs.
 
-Checks every material a rig actually uses against the per-instance property
-contract in [shader-contract.md](shader-contract.md), so a broken material
-shows up as a list of missing properties instead of a silent frame-0 part.
+Makes a material's **look** (texture, tint, cutoff) before any rig exists, then checks it
+against the per-instance property contract in [shader-contract.md](shader-contract.md), so a
+broken material shows up as a list of missing properties instead of a silent frame-0 part.
 
-The tab follows the window's shared Rig, picked in the Rigs tab, and never
-changes that selection itself. It also reads the window's shared clip set for
-the flipbook check below.
+A material has two parts: its look, made here, and its **motion**, which is either Flipbook or
+VAT. Flipbook follows the art (a cutout drawn over a flipbook gets it); VAT is switched on by the
+VAT bake, never ticked here.
 
 ---
 
-## Opening the tab
+## The sidebar: Materials | Cutouts | Meshes
 
-Select a rig anywhere in the window (Rigs tab, or any tab that shares the rig
-selection) and switch to Materials. The tab scans every `Renderer` under the
-rig's Source Prefab, collects the materials those renderers use, and maps
-each one to the rig targets it serves by the target's source node path.
+- **Materials** lists every material under `Assets/` on one of the package's shader graphs, plus
+  every material the bound rig's prefab uses (on any shader).
+- **Cutouts** lists every cutout. Picking one shows the material stored on it
+  (`CutoutAsset.material`).
+- **Meshes** lists every mesh under `Assets/`. A bare mesh has no field to store a material, so
+  its material is found by name: `M_<MeshName>.mat` in the mesh's folder, the name Create writes.
 
-This is a per-rig scan, not a project-wide one: a material no rig prefab
-references never appears here, even if it exists in the project. A material
-found on a renderer that matches no rig target still appears, marked
-"no rig target", since a broken path mapping is exactly the kind of problem
-this tab exists to surface.
+When a cutout or mesh has no material yet, the right column shows **Create material**. The new
+material is saved beside the cutout's mesh (or the mesh) as `M_<Name>.mat`, from the shipped graph
+for its motion: a flipbook source gets `ToolkitSpriteUnlitArray` with the array assigned, an image
+or a bare mesh gets `ToolkitSpriteUnlit`. GPU instancing is on.
 
-## What it lists
+## Check against (optional)
 
-**Left column** — one row per material, showing:
+The bar's **Rig** and **Clip Set** follow the window's shared selection. Neither is needed to make
+a material. With a rig bound:
 
-- The target kinds it serves, e.g. `Quad ×3 · VAT Mesh`.
-- A problem count, so a broken material stands out in a long list.
+- the rig prefab's materials join the Materials list, each with the target kinds it serves;
+- a picked material the rig uses also shows its Usage and Contract cards (below);
+- a picked cutout or mesh offers **Use in rig: N parts**, which puts the material on every
+  renderer in the rig's Source Prefab whose mesh is this one. That is a prefab **asset** edit,
+  saved immediately, and not undoable; assign the old material back to revert it.
 
-**Right column** — the selected material's detail:
+## What it shows
 
-- The shader it uses.
+**Motion** — a **Flipbook** toggle and a **VAT** status line. On a toolkit material the toggle
+swaps the shader between the shipped graphs on the same asset, so the GUID and every renderer
+using it survive; turning Flipbook on or off changes the texture type, so the texture is cleared
+and the status line says so. VAT reads "Not baked: VAT Bake turns this on" until a bake writes it.
+
+**Shader** — the shader, **Toolkit** or **Custom**, and GPU instancing. On a custom shader the
+toggle is read-only, and the card lists which features its properties provide and which contract
+properties it lacks (see "Your own shader" in [shader-contract.md](shader-contract.md)).
+
+**Usage and Contract** (only for a material the bound rig uses):
+
 - "Used by": the rig part names it is assigned to.
 - Per target kind, one row per contract property, marked:
   - `✓` present.
@@ -43,12 +58,11 @@ this tab exists to surface.
   - `–` present but not needed by this kind.
   - `–` covered by the other frame property (see the Flipbook Plane row
     below).
-- GPU instancing: `✓` or `✗`. Off is always an error — Entities Graphics
-  requires it.
 - Any flipbook warnings (see below).
 
-**Select in Inspector** pings the material asset. The tab itself is
-read-only — properties are edited on the material in the Inspector, not here.
+GPU instancing off is always an error — Entities Graphics requires it.
+**Select** pings the material asset; texture, tint and cutoff are edited on the
+material in the Inspector.
 
 ## What each target kind needs
 
@@ -69,43 +83,16 @@ assigned and binds a part that uses this material, but the material has no
 material. This catches a flipbook material that was set up before its part
 was pointed at a named flipbook.
 
-## Creating a material
-
-Pick a Target in the tab's header and press **Create and assign**. The new
-material is built from the package's own shader graph for that target's
-kind:
-
-- Quad → `ToolkitSpriteUnlit`
-- Flipbook Plane → `ToolkitSpriteUnlitArray`
-- VAT Mesh → `ToolkitVatCrowdUnlit`
-
-GPU instancing is enabled on the new material. It saves beside the rig's
-Source Prefab as `M_<Rig>_<Target>.mat`, numbering the filename if one
-already exists there — Create never overwrites an existing material.
-
-The new material is also written onto the renderer at the target's Source
-Node Path inside the rig's Source Prefab. This is a prefab **asset** edit,
-saved immediately, and it is **not undoable** — the same as every other
-rig structure edit the window makes.
-
-Which slot gets replaced depends on the renderer. A renderer with one
-material slot has that slot replaced. A renderer with several slots has
-the slot holding the material currently selected in the catalog replaced,
-if that material is on this renderer — otherwise slot 0 is replaced. The
-result line names the slot, reading like `Created M_NewRig_BaseHead.mat
-and assigned it to BaseHead (replaced BaseHead.mat).`
-
-Nothing is lost when the assignment cannot happen: a missing node, a node
-with no Renderer, or a Source Prefab that is not a saved asset still
-creates the material, and the result line says why, reading like `Created
-M_NewRig_BaseHead.mat; not assigned: node 'BaseHead' has no Renderer.`
-
-**To undo it**, assign the old material back — the replaced material is
-still on disk, untouched.
-
 ## At bake time
 
-Baking a VAT Mesh part whose material has the VAT texture slot filled runs
-the same check as this tab and emits one warning listing any missing
-contract property or disabled instancing. Fixing the material here before
-baking avoids that warning.
+After the VAT Bake tab writes a bone-flavour set, it updates each baked
+part's material and lists one line per part in its report:
+
+- a toolkit material switches to `ToolkitVatCrowdUnlit` in place, keeping its
+  texture, tint and cutoff, and gets `_VatBoneTex` and `_VatTexelParams`;
+- a custom material that declares `_VatBoneTex` gets the textures, and is never
+  swapped;
+- a material shared by two baked parts is **refused** and both parts are named:
+  VAT textures are per part, so give each part its own material;
+- a Flipbook material is refused (no shipped graph does both);
+- a vertex-flavour bake leaves every material alone.

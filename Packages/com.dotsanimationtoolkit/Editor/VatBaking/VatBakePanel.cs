@@ -459,9 +459,20 @@ namespace DotsAnimationToolkit.Editor
 
             string outputFolder = ResolveOutputFolder(clipSet);
             string setPath = VatTextureSetBuilder.WriteSet(clipSet, rig, bakeFlavor, outputFolder, partResults);
-            ReportSuccess(partResults, setPath);
-
             VatTextureSetAsset bakedSet = AssetDatabase.LoadAssetAtPath<VatTextureSetAsset>(setPath);
+
+            List<string> materialReportLines = new List<string>();
+            if (bakedSet != null)
+            {
+                List<VatBakeSource> bakedSources = new List<VatBakeSource>();
+                for (int partIndex = 0; partIndex < partResults.Count; partIndex++)
+                {
+                    bakedSources.Add(partResults[partIndex].Source);
+                }
+                VatMaterialUpgrader.UpgradeMaterialsForSet(bakedSet, bakedSources, materialReportLines);
+            }
+            ReportSuccess(partResults, setPath, materialReportLines);
+
             previewSetField.SetValueWithoutNotify(bakedSet);
             RefreshPreview();
             RefreshFreshnessBadge();
@@ -649,7 +660,8 @@ namespace DotsAnimationToolkit.Editor
             }
         }
 
-        private void ReportSuccess(List<VatBakePartResult> partResults, string setPath)
+        private void ReportSuccess(
+            List<VatBakePartResult> partResults, string setPath, IReadOnlyList<string> materialReportLines)
         {
             int totalClipRangeCount = 0;
             for (int partIndex = 0; partIndex < partResults.Count; partIndex++)
@@ -686,6 +698,16 @@ namespace DotsAnimationToolkit.Editor
                         + "  frames " + range.frameStart.ToString()
                         + ".." + (range.frameStart + range.frameCount - 1).ToString()
                         + "  @" + range.fps.ToString() + "fps");
+                }
+            }
+
+            if (materialReportLines != null && materialReportLines.Count > 0)
+            {
+                detail.AppendLine();
+                detail.AppendLine("Materials:");
+                for (int lineIndex = 0; lineIndex < materialReportLines.Count; lineIndex++)
+                {
+                    detail.AppendLine("  " + materialReportLines[lineIndex]);
                 }
             }
 

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Spencer Park. All rights reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using DotsAnimationToolkit.Authoring;
@@ -9,11 +10,30 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Materials tab's detail column: one material's shader, users, contract properties, instancing and flipbook findings.</summary>
+    /// <summary>What the Materials tab's inspector shows: a material, or the cutout or mesh that still needs one.</summary>
+    public sealed class MaterialInspectorSubject
+    {
+        public Material Material;
+        public CutoutAsset Cutout;
+        public Mesh Mesh;
+        public RigMaterialUsage RigUsage;
+    }
+
+    /// <summary>The Materials tab's detail column: motion, shader, rig usage, contract properties and flipbook findings.</summary>
     public sealed class MaterialInspectorColumn : VisualElement
     {
-        public RigMaterialUsage BoundUsage { get; private set; }
+        public MaterialInspectorSubject BoundSubject { get; private set; }
+        public RigAsset BoundRig { get; private set; }
         public ClipSetAsset BoundClipSet { get; private set; }
+
+        public event Action<Material> MaterialCreated;
+        public event Action<Material> MaterialChanged;
+        public event Action<string, ToolkitStatusTone> StatusReported;
+
+        private RigMaterialUsage BoundUsage
+        {
+            get { return BoundSubject != null ? BoundSubject.RigUsage : null; }
+        }
 
         private readonly Label titleLabel;
         private readonly VisualElement emptyState;
@@ -56,30 +76,37 @@ namespace DotsAnimationToolkit.Editor
             Add(bodyScrollView);
         }
 
-        public void Bind(RigMaterialUsage usage, ClipSetAsset clipSet)
+        public void Bind(MaterialInspectorSubject subject, RigAsset rig, ClipSetAsset clipSet)
         {
-            BoundUsage = usage;
+            BoundSubject = subject;
+            BoundRig = rig;
             BoundClipSet = clipSet;
             RebuildBody();
         }
 
         private void SelectBoundMaterial()
         {
-            if (BoundUsage == null || BoundUsage.Material == null)
+            if (BoundSubject == null || BoundSubject.Material == null)
             {
                 return;
             }
 
-            Selection.activeObject = BoundUsage.Material;
-            EditorGUIUtility.PingObject(BoundUsage.Material);
+            Selection.activeObject = BoundSubject.Material;
+            EditorGUIUtility.PingObject(BoundSubject.Material);
+        }
+
+        private void ReportStatus(string message, ToolkitStatusTone tone)
+        {
+            StatusReported?.Invoke(message, tone);
         }
 
         private void RebuildBody()
         {
             bodyScrollView.Clear();
 
-            Material material = BoundUsage != null ? BoundUsage.Material : null;
-            if (BoundUsage == null || material == null)
+            Material material = BoundSubject != null ? BoundSubject.Material : null;
+            bool hasCutoutOrMesh = BoundSubject != null && (BoundSubject.Cutout != null || BoundSubject.Mesh != null);
+            if (material == null && !hasCutoutOrMesh)
             {
                 titleLabel.text = "Material";
                 emptyState.style.display = DisplayStyle.Flex;
@@ -88,10 +115,19 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            titleLabel.text = material.name;
             emptyState.style.display = DisplayStyle.None;
             bodyScrollView.style.display = DisplayStyle.Flex;
-            selectButton.SetEnabled(true);
+            selectButton.SetEnabled(material != null);
+
+            if (material == null)
+            {
+                titleLabel.text = BoundSubject.Cutout != null ? BoundSubject.Cutout.name : BoundSubject.Mesh.name;
+                AddNoMaterialYetCard();
+                return;
+            }
+
+            titleLabel.text = material.name;
+            AddMotionCard(material);
 
             VisualElement shaderCardBody;
             VisualElement shaderCardHeaderActions;
@@ -117,7 +153,29 @@ namespace DotsAnimationToolkit.Editor
 
             shaderCardBody.Add(ToolkitChrome.MakePropertyRow("Instancing", instancingBadge, "Whether GPU instancing is on for this material."));
 
+            bool isToolkitShader = MaterialFeatureResolver.IsToolkitShader(material.shader);
+            Label shaderKindBadge = ToolkitChrome.MakeBadge(
+                isToolkitShader ? "Toolkit" : "Custom",
+                isToolkitShader ? ToolkitStatusTone.Ok : ToolkitStatusTone.Neutral);
+            shaderKindBadge.name = "material-inspector-shader-kind";
+            shaderCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Kind",
+                shaderKindBadge,
+                "Toolkit shaders are the ones this package ships; anything else is a custom shader."));
+
+            if (!isToolkitShader)
+            {
+                AddCustomShaderFindings(shaderCardBody, material);
+            }
+
             bodyScrollView.Add(shaderCard);
+
+            AddUseInRigAction(material);
+
+            if (BoundUsage == null)
+            {
+                return;
+            }
 
             VisualElement usageCardBody;
             VisualElement usageCardHeaderActions;
@@ -217,6 +275,241 @@ namespace DotsAnimationToolkit.Editor
                 warningRow.AddToClassList("toolkit-text--warning");
                 bodyScrollView.Add(warningRow);
             }
+        }
+
+        private void AddNoMaterialYetCard()
+        {
+            string subjectNoun = BoundSubject.Cutout != null ? "cutout" : "mesh";
+            VisualElement createCard = ToolkitChrome.MakeEmptyState(
+                "material-inspector-create",
+                "No material yet",
+                "Make the look this " + subjectNoun + " is shown with.",
+                "Create material",
+                CreateMaterialForSubject);
+            createCard.style.flexShrink = 0f;
+            bodyScrollView.Add(createCard);
+        }
+
+        private void CreateMaterialForSubject()
+        {
+            CutoutAsset cutout = BoundSubject.Cutout;
+            string materialPath;
+            MaterialFeature features;
+            Texture sourceTexture;
+
+            if (cutout != null)
+            {
+                string outputMeshPath = cutout.outputMesh != null ? AssetDatabase.GetAssetPath(cutout.outputMesh) : string.Empty;
+                if (!string.IsNullOrEmpty(outputMeshPath))
+                {
+                    materialPath = MaterialFeatureResolver.ComputeDefaultMaterialPath(cutout.outputMesh);
+                }
+                else
+                {
+                    string cutoutFolder = System.IO.Path.GetDirectoryName(AssetDatabase.GetAssetPath(cutout)).Replace('\\', '/');
+                    materialPath = cutoutFolder + "/M_" + cutout.name + ".mat";
+                }
+
+                features = MaterialFeatureResolver.FeaturesForCutout(cutout);
+                sourceTexture = cutout.ResolveSourceTexture();
+            }
+            else
+            {
+                materialPath = MaterialFeatureResolver.ComputeDefaultMaterialPath(BoundSubject.Mesh);
+                features = MaterialFeature.None;
+                sourceTexture = null;
+            }
+
+            if (string.IsNullOrEmpty(materialPath))
+            {
+                ReportStatus("Save the mesh as an asset first.", ToolkitStatusTone.Error);
+                return;
+            }
+
+            Material createdMaterial;
+            string failureMessage;
+            if (!MaterialAuthoringUtility.TryCreateMaterial(materialPath, features, sourceTexture, out createdMaterial, out failureMessage))
+            {
+                ReportStatus(failureMessage, ToolkitStatusTone.Error);
+                return;
+            }
+
+            if (cutout != null)
+            {
+                // A cutout stores its material; a bare mesh is matched by the M_<Mesh>.mat name.
+                cutout.material = createdMaterial;
+                EditorUtility.SetDirty(cutout);
+                AssetDatabase.SaveAssetIfDirty(cutout);
+            }
+
+            ReportStatus("Created " + System.IO.Path.GetFileName(materialPath) + ".", ToolkitStatusTone.Neutral);
+            MaterialCreated?.Invoke(createdMaterial);
+        }
+
+        private void AddMotionCard(Material material)
+        {
+            VisualElement motionCardBody;
+            VisualElement motionCardHeaderActions;
+            VisualElement motionCard = ToolkitChrome.MakeCard(
+                "material-inspector-motion-card",
+                "Motion",
+                out motionCardBody,
+                out motionCardHeaderActions);
+            motionCard.style.flexShrink = 0f;
+
+            MaterialFeature currentFeatures = MaterialFeatureResolver.ReadFeatures(material);
+            Toggle flipbookToggle = new Toggle { name = "material-inspector-flipbook-toggle" };
+            flipbookToggle.SetValueWithoutNotify((currentFeatures & MaterialFeature.Flipbook) != 0);
+            flipbookToggle.SetEnabled(MaterialFeatureResolver.IsToolkitShader(material.shader));
+            flipbookToggle.RegisterValueChangedCallback(changeEvent => OnFlipbookToggled(material, changeEvent.newValue));
+            motionCardBody.Add(ToolkitChrome.MakePropertyRow(
+                "Flipbook",
+                flipbookToggle,
+                "Swap the material between the static and flipbook toolkit shaders. Only toolkit shaders can be switched."));
+
+            string vatText;
+            bool isVat = (currentFeatures & MaterialFeature.Vat) != 0;
+            Texture boneTexture = isVat ? material.GetTexture(MaterialFeatureResolver.VatBoneTexturePropertyName) : null;
+            if (!isVat)
+            {
+                vatText = "Not baked: VAT Bake turns this on";
+            }
+            else if (boneTexture == null)
+            {
+                vatText = "VAT, not baked yet: run VAT Bake";
+            }
+            else
+            {
+                UnityEngine.Object bakeAsset = AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GetAssetPath(boneTexture));
+                vatText = "Baked by " + (bakeAsset != null ? bakeAsset.name : boneTexture.name);
+            }
+
+            Label vatStatusLabel = new Label(vatText) { name = "material-inspector-vat-status" };
+            if (isVat && boneTexture == null)
+            {
+                vatStatusLabel.AddToClassList("toolkit-text--warning");
+            }
+
+            motionCardBody.Add(ToolkitChrome.MakePropertyRow("VAT", vatStatusLabel, "VAT is set by the VAT Bake tab, never switched by hand."));
+            bodyScrollView.Add(motionCard);
+        }
+
+        private void OnFlipbookToggled(Material material, bool isFlipbookOn)
+        {
+            MaterialFeature newFeatures = MaterialFeatureResolver.ReadFeatures(material) & MaterialFeature.Vat;
+            if (isFlipbookOn)
+            {
+                newFeatures |= MaterialFeature.Flipbook;
+            }
+
+            string resultMessage;
+            bool succeeded = MaterialAuthoringUtility.TrySetToolkitFeatures(material, newFeatures, out resultMessage);
+            ReportStatus(resultMessage, succeeded ? ToolkitStatusTone.Neutral : ToolkitStatusTone.Error);
+            if (succeeded)
+            {
+                MaterialChanged?.Invoke(material);
+            }
+
+            RebuildBody();
+        }
+
+        private void AddCustomShaderFindings(VisualElement shaderCardBody, Material material)
+        {
+            MaterialFeature features = MaterialFeatureResolver.ReadFeatures(material);
+            List<string> providedNames = new List<string>();
+            if ((features & MaterialFeature.Flipbook) != 0)
+            {
+                providedNames.Add("Flipbook");
+            }
+
+            if ((features & MaterialFeature.Vat) != 0)
+            {
+                providedNames.Add("VAT");
+            }
+
+            Label providesLabel = new Label(providedNames.Count > 0 ? string.Join(", ", providedNames) : "Static")
+            {
+                name = "material-inspector-provides"
+            };
+            shaderCardBody.Add(ToolkitChrome.MakePropertyRow("Provides", providesLabel, "Features read from this shader's properties."));
+
+            List<TargetKind> contractKinds = new List<TargetKind>();
+            if ((features & MaterialFeature.Flipbook) != 0)
+            {
+                contractKinds.Add(TargetKind.FlipbookPlane);
+            }
+
+            if ((features & MaterialFeature.Vat) != 0)
+            {
+                contractKinds.Add(TargetKind.VatMesh);
+            }
+
+            bool hasMissingProperty = false;
+            foreach (TargetKind kind in contractKinds)
+            {
+                List<ContractPropertyStatus> propertyStatuses = new List<ContractPropertyStatus>();
+                MaterialContractValidation.EvaluateProperties(material, kind, propertyStatuses);
+                foreach (ContractPropertyStatus propertyStatus in propertyStatuses)
+                {
+                    if (propertyStatus.state != ContractPropertyState.Missing)
+                    {
+                        continue;
+                    }
+
+                    hasMissingProperty = true;
+                    Label missingLabel = new Label("✗ " + propertyStatus.property.name + " (missing: a " + DisplayNameForTargetKind(kind) + " part needs it)");
+                    missingLabel.AddToClassList("toolkit-text--error");
+                    shaderCardBody.Add(missingLabel);
+                }
+            }
+
+            if (hasMissingProperty)
+            {
+                shaderCardBody.Add(ToolkitChrome.MakeHint(
+                    "Add them with a Custom Function node from Packages/com.dotsanimationtoolkit/Shaders/Nodes/*.hlsl, or see shader-contract.md."));
+            }
+        }
+
+        private void AddUseInRigAction(Material material)
+        {
+            if (BoundRig == null || BoundRig.sourcePrefab == null || BoundSubject.Mesh == null)
+            {
+                return;
+            }
+
+            Mesh mesh = BoundSubject.Mesh;
+            int partCount = MaterialMeshAssignment.CountRendererSlotsUsingMesh(BoundRig.sourcePrefab, mesh);
+            Button useInRigButton = ToolkitChrome.MakePrimaryAction(
+                () => UseMaterialInRig(material),
+                ToolkitIcons.Plus,
+                partCount > 0
+                    ? "Put this material on every part of " + BoundRig.name + "'s prefab that uses " + mesh.name
+                    : "No part of the rig uses this mesh",
+                "Use in rig: " + partCount + " parts");
+            useInRigButton.name = "material-inspector-use-in-rig";
+            useInRigButton.SetEnabled(partCount > 0);
+            useInRigButton.style.flexShrink = 0f;
+            bodyScrollView.Add(useInRigButton);
+        }
+
+        private void UseMaterialInRig(Material material)
+        {
+            int assignedSlotCount;
+            string failureMessage;
+            if (!MaterialMeshAssignment.TryAssignToRenderersUsingMesh(
+                    BoundRig.sourcePrefab,
+                    BoundSubject.Mesh,
+                    material,
+                    out assignedSlotCount,
+                    out failureMessage))
+            {
+                ReportStatus(failureMessage, ToolkitStatusTone.Error);
+                return;
+            }
+
+            ReportStatus("Put " + material.name + " on " + assignedSlotCount + " parts.", ToolkitStatusTone.Neutral);
+            MaterialChanged?.Invoke(material);
+            RebuildBody();
         }
 
         private void AddPropertyRow(VisualElement targetContainer, ContractPropertyStatus propertyStatus, TargetKind kind)

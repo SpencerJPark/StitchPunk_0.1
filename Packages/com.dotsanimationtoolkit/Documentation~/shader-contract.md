@@ -512,6 +512,30 @@ these settings will get the exact "renders as noise" failure mode in §6.
 
 ---
 
+## 5a. Your own shader in the Materials tab
+
+The Materials tab never stores whether a material is Flipbook or VAT. It reads the shader's property names, so a
+shader you write yourself is treated exactly like a shipped one:
+
+| Feature | Properties that turn it on | What the toolkit then writes |
+|---|---|---|
+| Flipbook | `_MainTexArray` **and** `_ImageIndex` | `_ImageIndex` per instance, every frame |
+| VAT (bone flavour) | `_VatBoneTex` | the VAT bake sets `_VatBoneTex` and `_VatTexelParams` on the material; `_VatFrameA`, `_VatFrameB` and `_VatBlend` per instance |
+| Static | neither | nothing |
+
+The per-instance names (`_ImageIndex`, `_VatFrameA/B`, `_VatBlend`, `_BillboardParams`) must be Hybrid Per
+Instance properties (§1). In Shader Graph, add the logic with a Custom Function node pointing at one of the
+functions in `Packages/com.dotsanimationtoolkit/Shaders/Nodes/` (`ToolkitFlipbookSliceUV.hlsl`,
+`ToolkitVatBoneSkin.hlsl`, `ToolkitBillboardVertex.hlsl`, ...).
+
+On a custom shader the tab's feature toggles are read-only: the Shader card says **Custom** and lists the contract
+properties the shader lacks. The VAT bake gives a custom material its textures when it declares `_VatBoneTex`, and
+never swaps a custom shader for a shipped one. Only the three shipped graphs (`ToolkitSpriteUnlit`,
+`ToolkitSpriteUnlitArray`, `ToolkitVatCrowdUnlit`) are swapped between, in place, so the material keeps its GUID.
+No shipped graph does Flipbook and VAT together; that needs your own shader.
+
+---
+
 ## 6. Troubleshooting
 
 | Symptom | Likely cause |

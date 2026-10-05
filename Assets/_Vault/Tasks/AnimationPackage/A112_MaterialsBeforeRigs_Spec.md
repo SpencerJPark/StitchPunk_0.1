@@ -1,6 +1,6 @@
 # Amendment A112 — Materials before Rigs: a material's look first, its motion later
 
-> **Status:** 📝 specced 2026-10-04, not built. Ships as **0.66.0**.
+> **Status:** 🔨 built 2026-10-04 as **0.66.0** (T1–T9, T10 docs); Editor recompile, fixture run, drive and captures owed.
 > **Why:** the owner, 2026-10-04: a rig is a prefab of stacked meshes, "but you need to be able to see what those
 > meshes look like to be able to stack them, which means you need to be able to see a material on them." The tab
 > strip already reads Cutouts, Materials, Rigs, Clip Sets (1f62fdd7), but the Materials tab still needs a bound
@@ -120,31 +120,31 @@ Every worker: edits only the files it is named, reads only the line ranges it is
 writes a report of 30 lines or fewer. No Unity MCP.
 
 - **Wave 1 [parallel, disjoint files]**
-  - [ ] T1 — `MaterialFeatureResolver.cs` (new, includes the `MaterialFeature` enum) +
+  - [x] T1 — `MaterialFeatureResolver.cs` (new, includes the `MaterialFeature` enum) +
     `Tests/EditMode/MaterialFeatureResolverTests.cs`:
     - `ReadFeatures_EachShippedGraph_ReportsItsFeature`
     - `ResolveToolkitShaderPath_FlipbookAndVat_IsNull`
-  - [ ] T2 — `MaterialAuthoringUtility.cs` (new). Reads `MaterialTemplateUtility.cs:60-116` for the creation
+  - [x] T2 — `MaterialAuthoringUtility.cs` (new). Reads `MaterialTemplateUtility.cs:60-116` for the creation
     pattern. Codes against T1's signatures as pinned. Fixture `TrySetToolkitFeatures_StaticToVat_KeepsBaseColor`.
-  - [ ] T3 — `MaterialMeshAssignment.cs` (new). Reads `MaterialTemplateUtility.cs:118-end` for the prefab write path.
-  - [ ] T4 — `VatMaterialUpgrader.cs` (new). Copies the property mapping from `VatPreviewMaterial.cs:60-67`;
+  - [x] T3 — `MaterialMeshAssignment.cs` (new). Reads `MaterialTemplateUtility.cs:118-end` for the prefab write path.
+  - [x] T4 — `VatMaterialUpgrader.cs` (new). Copies the property mapping from `VatPreviewMaterial.cs:60-67`;
     M-D3/M-D6/M-D10. Fixtures:
     - `Upgrade_ToolkitStaticMaterial_BecomesVatWithBoneTexture`
     - `Upgrade_MaterialSharedByTwoParts_IsRefused`
-  - [ ] T5 — `CutoutAsset.cs`: the `material` field only.
+  - [x] T5 — `CutoutAsset.cs`: the `material` field only.
 - Gate, then the four fixtures. Revert-to-fail each one in the Editor; delete any test that cannot fail. Commit.
 - **Wave 2 [parallel, codes against §2]**
-  - [ ] T6 — `MaterialsPanel.cs`: the `CatalogSidebarElement` with three modes, rig and clip-set moved into a
+  - [x] T6 — `MaterialsPanel.cs`: the `CatalogSidebarElement` with three modes, rig and clip-set moved into a
     **Check against** row, and selection routing (a cutout or mesh resolves its material per M-D8).
-  - [ ] T7 — `MaterialCatalogColumn.cs` (Materials scan per M-D7) + new `MeshCatalogColumn.cs`
+  - [x] T7 — `MaterialCatalogColumn.cs` (Materials scan per M-D7) + new `MeshCatalogColumn.cs`
     (`ToolkitCatalogColumn<Mesh>`, empty state with a Create action). The Cutouts mode reuses `CutoutCatalogColumn`
     as-is.
-  - [ ] T8 — `MaterialInspectorColumn.cs`:
+  - [x] T8 — `MaterialInspectorColumn.cs`:
     - **Motion** card: a Flipbook toggle and a VAT status line.
     - **Shader** card: Toolkit/Custom plus missing-property hints.
     - The empty-state **Create material** card.
     - The **Use in rig: N parts** action.
-  - [ ] T9 — `VatBakePanel.cs`: after `WriteSet` (line 461), call `VatMaterialUpgrader` and add its lines to the
+  - [x] T9 — `VatBakePanel.cs`: after `WriteSet` (line 461), call `VatMaterialUpgrader` and add its lines to the
     success report.
 - Gate, lint, Editor recompile, then the EditMode run for touched fixtures. Commit.
 - [ ] T10 — Orchestrator:
@@ -169,3 +169,11 @@ writes a report of 30 lines or fewer. No Unity MCP.
 
 - 2026-10-04: specced from the owner's voice note. Owner on VAT: "a vat would be per object" (read as: one
   material per baked part is fine, since the bone texture is a second sample).
+- 2026-10-04: built. T1 + T5 by the orchestrator, T2–T4 and T6–T9 by seven parallel workers against §2 and a pinned
+  wave-2 surface (`MaterialInspectorSubject`; `MaterialInspectorColumn.Bind(subject, rig, clipSet)` with
+  MaterialCreated / MaterialChanged / StatusReported; `MeshCatalogColumn`). Offline gate and lint pass. The Unity MCP
+  bridge was down for the session, so the Editor recompile, the four fixtures' revert-to-fail, the drive and the
+  captures are still owed (T10). Calls made while building, beyond the ⚠ list: the per-target **Create and assign**
+  (0.49.0) is removed, replaced by Create material on a cutout/mesh + Use in rig; Materials-mode **+** asks for a
+  save path and makes a static material; Meshes-mode **+** switches to Cutouts; a Flipbook material baked as VAT is
+  refused like any Flipbook + VAT.

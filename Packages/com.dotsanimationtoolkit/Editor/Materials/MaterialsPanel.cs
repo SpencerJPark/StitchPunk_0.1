@@ -11,26 +11,28 @@ using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Materials tab: every material the shared rig's prefab uses, checked against the shader contract, with Create for a target.</summary>
+    /// <summary>The Materials tab: author and check a material from a cutout or a mesh, with a rig optional for the shader-contract check.</summary>
     public sealed class MaterialsPanel : VisualElement, IDisposable
     {
+        private const string MaterialsModeName = "materials";
+        private const string CutoutsModeName = "cutouts";
+        private const string MeshesModeName = "meshes";
+
         private readonly List<RigMaterialUsage> usages = new List<RigMaterialUsage>();
-        private readonly List<RigTargetDefinition> dropdownTargets = new List<RigTargetDefinition>();
         private readonly ObjectField rigField;
         private readonly ObjectField clipSetField;
-        private readonly DropdownField createTargetDropdown;
-        private readonly Button createButton;
-        private const string createButtonTooltip = "Create a material for this target from the package's shader, saved beside the rig's prefab, and assigned to the part's renderer in the prefab.";
         private readonly Label resultLabel;
-        private readonly MaterialCatalogColumn catalog;
+        private readonly MaterialCatalogColumn materialCatalog;
+        private readonly CutoutCatalogColumn cutoutCatalog;
+        private readonly MeshCatalogColumn meshCatalog;
+        private readonly CatalogSidebarElement sidebar;
         private readonly MaterialInspectorColumn inspector;
         private ActiveAssetSelection selection;
+        private MaterialInspectorSubject currentSubject = new MaterialInspectorSubject();
 
         public RigAsset BoundRig { get; private set; }
         public ClipSetAsset BoundClipSet { get; private set; }
-        public Material LastCreatedMaterial { get; private set; }
         public Material SelectedMaterial { get; private set; }
-        public string LastAssignedDescription { get; private set; }
 
         public IReadOnlyList<RigMaterialUsage> Usages
         {
@@ -42,9 +44,9 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
 
             VisualElement header = ToolkitChrome.MakeAssetBar("materials-asset-bar");
+            header.Add(ToolkitChrome.MakeAssetBarLabel("Check against"));
 
             header.Add(ToolkitChrome.MakeAssetBarLabel("Rig"));
-
             rigField = new ObjectField
             {
                 objectType = typeof(RigAsset),
@@ -60,7 +62,6 @@ namespace DotsAnimationToolkit.Editor
             header.Add(rigField);
 
             header.Add(ToolkitChrome.MakeAssetBarLabel("Clip Set"));
-
             clipSetField = new ObjectField
             {
                 objectType = typeof(ClipSetAsset),
@@ -75,43 +76,39 @@ namespace DotsAnimationToolkit.Editor
             });
             header.Add(clipSetField);
 
-            header.Add(ToolkitChrome.MakeAssetBarSpacer());
-
-            // Its own bar label, not the field's inline one: Unity's label column left "Target" stranded
-            // far from its dropdown.
-            VisualElement createRun = new VisualElement();
-            createRun.AddToClassList("toolkit-action-run");
-            createRun.AddToClassList("materials-create-run");
-
-            createRun.Add(ToolkitChrome.MakeAssetBarLabel("Target"));
-            createTargetDropdown = new DropdownField(new List<string>(), 0);
-            createTargetDropdown.name = "materials-create-target";
-            createTargetDropdown.AddToClassList("materials-create-target-dropdown");
-            createTargetDropdown.tooltip = "Which rig target the new material is for";
-            createRun.Add(createTargetDropdown);
-
-            createButton = ToolkitChrome.MakePrimaryAction(
-                OnCreateClicked,
-                "d_Toolbar Plus",
-                createButtonTooltip,
-                "Create and assign");
-            createButton.name = "materials-create-button";
-            createRun.Add(createButton);
-            header.Add(createRun);
-
             VisualElement statusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
             resultLabel.name = "materials-result";
 
-            catalog = new MaterialCatalogColumn();
-            catalog.MaterialSelected += SelectMaterial;
-            catalog.RefreshRequested += Refresh;
-            catalog.NewRequested += OnCreateClicked;
+            materialCatalog = new MaterialCatalogColumn();
+            materialCatalog.MaterialSelected += SelectMaterial;
+            materialCatalog.RefreshRequested += Refresh;
+            materialCatalog.NewRequested += OnNewMaterialRequested;
+
+            cutoutCatalog = new CutoutCatalogColumn();
+            cutoutCatalog.AssetSelected += OnCutoutPicked;
+            cutoutCatalog.RefreshRequested += Refresh;
+            cutoutCatalog.NewRequested += OnNewCutoutRequested;
+
+            meshCatalog = new MeshCatalogColumn();
+            meshCatalog.MeshSelected += OnMeshPicked;
+            meshCatalog.RefreshRequested += Refresh;
+            meshCatalog.NewRequested += OnNewMeshRequested;
+
+            sidebar = new CatalogSidebarElement { name = "materials-sidebar" };
+            sidebar.AddMode(MaterialsModeName, "Materials", materialCatalog, materialCatalog.HeaderActions);
+            sidebar.AddMode(CutoutsModeName, "Cutouts", cutoutCatalog, cutoutCatalog.HeaderActions);
+            sidebar.AddMode(MeshesModeName, "Meshes", meshCatalog, meshCatalog.HeaderActions);
+            sidebar.SetMode(MaterialsModeName);
+            sidebar.ModeChanged += OnSidebarModeChanged;
 
             inspector = new MaterialInspectorColumn();
+            inspector.MaterialCreated += OnInspectorMaterialCreated;
+            inspector.MaterialChanged += OnInspectorMaterialChanged;
+            inspector.StatusReported += (text, tone) => ToolkitChrome.SetStatus(resultLabel, text, tone);
 
             CoverPaneSplitView split = new CoverPaneSplitView("Materials.Catalog", 0, 280f, TwoPaneSplitViewOrientation.Horizontal);
             split.style.flexGrow = 1f;
-            split.Add(catalog);
+            split.Add(sidebar);
             split.Add(inspector);
 
             Add(header);
@@ -138,7 +135,6 @@ namespace DotsAnimationToolkit.Editor
         {
             BoundRig = rig;
             rigField.SetValueWithoutNotify(rig);
-            RebuildCreateTargetDropdown();
             Refresh();
         }
 
@@ -146,7 +142,7 @@ namespace DotsAnimationToolkit.Editor
         {
             BoundClipSet = clipSet;
             clipSetField.SetValueWithoutNotify(clipSet);
-            RebindInspectorForSelection();
+            RebindCurrentSubject();
         }
 
         public void Refresh()
@@ -157,68 +153,26 @@ namespace DotsAnimationToolkit.Editor
                 usages.AddRange(RigMaterialResolver.Resolve(BoundRig));
             }
 
-            catalog.SetUsages(usages);
+            materialCatalog.SetUsages(usages);
+            cutoutCatalog.RescanProject();
+            meshCatalog.RescanProject();
 
-            Material nextSelected = null;
-            if (SelectedMaterial != null && IsMaterialInUsages(SelectedMaterial))
+            if (sidebar.Mode == MaterialsModeName && SelectedMaterial == null && usages.Count > 0)
             {
-                nextSelected = SelectedMaterial;
-            }
-            else if (usages.Count > 0)
-            {
-                nextSelected = usages[0].Material;
+                SelectedMaterial = usages[0].Material;
+                materialCatalog.SetSelectedMaterial(SelectedMaterial);
+                currentSubject = BuildSubject(SelectedMaterial, null, null);
             }
 
-            SelectedMaterial = nextSelected;
-            catalog.SetSelectedMaterial(SelectedMaterial);
-            RebindInspectorForSelection();
+            RebindCurrentSubject();
         }
 
         public void SelectMaterial(Material material)
         {
             SelectedMaterial = material;
-            catalog.SetSelectedMaterial(material);
-            RebindInspectorForSelection();
-        }
-
-        public bool CreateForTarget(RigTargetDefinition target, out string failureMessage)
-        {
-            if (BoundRig == null)
-            {
-                failureMessage = "Pick a rig first.";
-                ToolkitChrome.SetStatus(resultLabel, failureMessage, ToolkitStatusTone.Error);
-                return false;
-            }
-
-            // Capture before Refresh(), which can change SelectedMaterial as the list rebinds.
-            Material previouslySelectedMaterial = SelectedMaterial;
-
-            Material createdMaterial;
-            bool created = MaterialTemplateUtility.TryCreateForTarget(BoundRig, target, out createdMaterial, out failureMessage);
-            if (created)
-            {
-                LastCreatedMaterial = createdMaterial;
-
-                bool assigned = MaterialTemplateUtility.TryAssignToTargetRenderer(BoundRig, target, createdMaterial, previouslySelectedMaterial, out string assignedDescription, out string assignFailureMessage);
-                string createdFileName = Path.GetFileName(AssetDatabase.GetAssetPath(createdMaterial));
-                if (assigned)
-                {
-                    ToolkitChrome.SetStatus(resultLabel, "Created " + createdFileName + " and assigned it to " + assignedDescription + ".", ToolkitStatusTone.Neutral);
-                    LastAssignedDescription = assignedDescription;
-                }
-                else
-                {
-                    ToolkitChrome.SetStatus(resultLabel, "Created " + createdFileName + "; " + assignFailureMessage, ToolkitStatusTone.Neutral);
-                    LastAssignedDescription = string.Empty;
-                }
-
-                EditorGUIUtility.PingObject(createdMaterial);
-                Refresh();
-                return true;
-            }
-
-            ToolkitChrome.SetStatus(resultLabel, failureMessage, ToolkitStatusTone.Error);
-            return false;
+            materialCatalog.SetSelectedMaterial(material);
+            currentSubject = BuildSubject(material, null, null);
+            RebindCurrentSubject();
         }
 
         public void Dispose()
@@ -240,54 +194,129 @@ namespace DotsAnimationToolkit.Editor
             SetClipSet(clipSet);
         }
 
-        private void RebuildCreateTargetDropdown()
+        private void OnCutoutPicked(CutoutAsset cutout)
         {
-            dropdownTargets.Clear();
-            List<string> choices = new List<string>();
-            if (BoundRig != null && BoundRig.targets != null)
-            {
-                Dictionary<string, int> displayNameCounts = new Dictionary<string, int>();
-                foreach (RigTargetDefinition target in BoundRig.targets)
-                {
-                    if (target == null)
-                    {
-                        continue;
-                    }
-
-                    displayNameCounts.TryGetValue(target.displayName ?? string.Empty, out int existingCount);
-                    displayNameCounts[target.displayName ?? string.Empty] = existingCount + 1;
-                }
-
-                foreach (RigTargetDefinition target in BoundRig.targets)
-                {
-                    if (target == null)
-                    {
-                        continue;
-                    }
-
-                    string choiceName = target.displayName ?? string.Empty;
-                    if (displayNameCounts[choiceName] > 1)
-                    {
-                        choiceName = choiceName + " (" + target.sourceNodePath + ")";
-                    }
-
-                    dropdownTargets.Add(target);
-                    choices.Add(choiceName);
-                }
-            }
-
-            createTargetDropdown.choices = choices;
-            createTargetDropdown.index = choices.Count > 0 ? 0 : -1;
-
-            bool hasCreateTargets = choices.Count > 0;
-            createButton.SetEnabled(hasCreateTargets);
-            createButton.tooltip = hasCreateTargets ? createButtonTooltip : "Pick a rig with targets first";
+            currentSubject = BuildSubjectForCutout(cutout);
+            RebindCurrentSubject();
         }
 
-        private void RebindInspectorForSelection()
+        private void OnMeshPicked(Mesh mesh)
         {
-            RigMaterialUsage matchedUsage = FindUsageForMaterial(SelectedMaterial);
-            inspector.Bind(matchedUsage, BoundClipSet);
+            currentSubject = BuildSubjectForMesh(mesh);
+            RebindCurrentSubject();
+        }
+
+        private void OnSidebarModeChanged(string modeName)
+        {
+            if (modeName == CutoutsModeName)
+            {
+                currentSubject = BuildSubjectForCutout(cutoutCatalog.SelectedAsset);
+            }
+            else if (modeName == MeshesModeName)
+            {
+                currentSubject = BuildSubjectForMesh(meshCatalog.SelectedAsset);
+            }
+            else
+            {
+                currentSubject = BuildSubject(SelectedMaterial, null, null);
+            }
+
+            RebindCurrentSubject();
+        }
+
+        private void OnInspectorMaterialCreated(Material createdMaterial)
+        {
+            MaterialInspectorSubject previousSubject = currentSubject;
+            Refresh();
+
+            if (previousSubject.Cutout != null || previousSubject.Mesh != null)
+            {
+                currentSubject = BuildSubject(createdMaterial, previousSubject.Cutout, previousSubject.Mesh);
+                RebindCurrentSubject();
+            }
+            else
+            {
+                SelectMaterial(createdMaterial);
+            }
+        }
+
+        private void OnInspectorMaterialChanged(Material changedMaterial)
+        {
+            materialCatalog.RefreshRows();
+            RebindCurrentSubject();
+        }
+
+        private void OnNewMaterialRequested()
+        {
+            string assetPath = EditorUtility.SaveFilePanelInProject("New material", "M_New", "mat", "Where to save the material");
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return;
+            }
+
+            if (MaterialAuthoringUtility.TryCreateMaterial(assetPath, MaterialFeature.None, null, out Material createdMaterial, out string failureMessage))
+            {
+                ToolkitChrome.SetStatus(resultLabel, "Created " + Path.GetFileName(assetPath) + ".", ToolkitStatusTone.Neutral);
+                Refresh();
+                SelectMaterial(createdMaterial);
+            }
+            else
+            {
+                ToolkitChrome.SetStatus(resultLabel, failureMessage, ToolkitStatusTone.Error);
+            }
+        }
+
+        private void OnNewCutoutRequested()
+        {
+            ToolkitChrome.SetStatus(resultLabel, "Make cutouts in the Cutouts tab.", ToolkitStatusTone.Neutral);
+        }
+
+        private void OnNewMeshRequested()
+        {
+            sidebar.SetMode(CutoutsModeName);
+        }
+
+        private void RebindCurrentSubject()
+        {
+            currentSubject.RigUsage = FindUsageForMaterial(currentSubject.Material);
+            inspector.Bind(currentSubject, BoundRig, BoundClipSet);
+        }
+
+        private MaterialInspectorSubject BuildSubject(Material material, CutoutAsset cutout, Mesh mesh)
+        {
+            return new MaterialInspectorSubject
+            {
+                Material = material,
+                Cutout = cutout,
+                Mesh = mesh,
+                RigUsage = FindUsageForMaterial(material)
+            };
+        }
+
+        private MaterialInspectorSubject BuildSubjectForCutout(CutoutAsset cutout)
+        {
+            if (cutout == null)
+            {
+                return new MaterialInspectorSubject();
+            }
+
+            Material material = cutout.material;
+            if (material == null && cutout.outputMesh != null)
+            {
+                material = MaterialFeatureResolver.FindMaterialForMesh(cutout.outputMesh);
+            }
+
+            return BuildSubject(material, cutout, cutout.outputMesh);
+        }
+
+        private MaterialInspectorSubject BuildSubjectForMesh(Mesh mesh)
+        {
+            if (mesh == null)
+            {
+                return new MaterialInspectorSubject();
+            }
+
+            return BuildSubject(MaterialFeatureResolver.FindMaterialForMesh(mesh), null, mesh);
         }
 
         private RigMaterialUsage FindUsageForMaterial(Material material)
@@ -306,24 +335,6 @@ namespace DotsAnimationToolkit.Editor
             }
 
             return null;
-        }
-
-        private bool IsMaterialInUsages(Material material)
-        {
-            return FindUsageForMaterial(material) != null;
-        }
-
-        private void OnCreateClicked()
-        {
-            int selectedIndex = createTargetDropdown.index;
-            if (selectedIndex < 0 || selectedIndex >= dropdownTargets.Count)
-            {
-                ToolkitChrome.SetStatus(resultLabel, "Pick a target first.", ToolkitStatusTone.Error);
-                return;
-            }
-
-            string failureMessage;
-            CreateForTarget(dropdownTargets[selectedIndex], out failureMessage);
         }
     }
 }

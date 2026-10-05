@@ -8,6 +8,29 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.66.0] — Materials before rigs
+
+### Added
+- **The Materials tab works before any rig exists.** Its sidebar reads Materials | Cutouts | Meshes: Materials lists
+  every material on a toolkit shader graph plus the bound rig's, Cutouts lists every cutout, Meshes every mesh under
+  `Assets/`. Picking a cutout or mesh shows its material, or a **Create material** card when it has none.
+- A material's **motion** is read from its shader's properties (`_MainTexArray` + `_ImageIndex` = Flipbook,
+  `_VatBoneTex` = VAT), so the same check works on your own shaders. A cutout drawn over a flipbook gets a Flipbook
+  material; one drawn over an image, or a bare mesh, gets a static one. The Flipbook toggle swaps a toolkit material
+  between the shipped graphs in place, so its GUID and every renderer using it survive.
+- **VAT is switched on by the bake, never ticked.** After VAT Bake writes a bone-flavour set, each baked part's
+  material switches to the VAT graph with `_VatBoneTex` and `_VatTexelParams` set, one line per part in the bake
+  report. A material shared by two baked parts is refused and named; a custom shader is never swapped, only given
+  the textures when it declares `_VatBoneTex`. A vertex-flavour bake leaves materials alone.
+- **Use in rig: N parts** puts the material on every renderer in the rig's prefab that uses the picked mesh.
+- `CutoutAsset.material`; a bare mesh finds its material as `M_<MeshName>.mat` beside it.
+- The Shader card says **Toolkit** or **Custom**, and on a custom shader lists the contract properties it lacks.
+- shader-contract.md: "Your own shader" — which properties turn on which feature.
+
+### Changed
+- The Materials tab's bar is now one **Check against** row (Rig, Clip Set). The per-target **Create and assign**
+  (0.49.0) is replaced by Create material on a cutout or mesh plus Use in rig.
+
 ## [0.65.0] — Cutouts from images
 
 ### Added
