@@ -1,6 +1,7 @@
 # Amendment A112 — Materials before Rigs: a material's look first, its motion later
 
-> **Status:** 🔨 built 2026-10-04 as **0.66.0** (T1–T9, T10 docs); Editor recompile, fixture run, drive and captures owed.
+> **Status:** 🔨 built 2026-10-04 as **0.66.0**, then reworked the same day (§6): the Materials tab is a per-part input
+> check with a red-flag rig preview; the authoring in §1–§3 was built and removed. Editor recompile, fixture run and drive owed.
 > **Why:** the owner, 2026-10-04: a rig is a prefab of stacked meshes, "but you need to be able to see what those
 > meshes look like to be able to stack them, which means you need to be able to see a material on them." The tab
 > strip already reads Cutouts, Materials, Rigs, Clip Sets (1f62fdd7), but the Materials tab still needs a bound
@@ -204,3 +205,10 @@ Settled the same day (owner's answers):
   `_VatFrameA`, `_VatFrameB`, `_VatBlend`, `_VatBoneTex`, `_VatTexelParams`. Transform tracks need nothing. No clip set
   = nothing is checked, and the tab says to pick one. The preview reuses the scale-aware camera
   (`MaterialPreviewCameraRig`) with billboarding off through a property block.
+- **Built (R), cd05c362:** `PartInputCheck` (+ fixture), `MaterialPartListColumn`, `MaterialCheckPreviewElement` (red
+  overlay per source texture with alpha clip; array materials get a plain wash since URP Unlit cannot sample an
+  array), `MaterialInspectorColumn` and `MaterialsPanel` rewritten, `VatMaterialUpgrader` writes textures only
+  (fixtures updated). Deleted: MaterialFeatureResolver, MaterialAuthoringUtility, MaterialMeshAssignment,
+  MaterialPrefabSaving, MaterialPreviewElement, MeshCatalogColumn, MaterialCatalogColumn and their tests;
+  ToolkitCatalogColumn, ToolkitComponents.uss and CutoutAsset reverted to 10d1a9c6. `MaterialPreviewCameraRig` kept.
+  Gate + lint only; the Unity MCP bridge was down all session.
