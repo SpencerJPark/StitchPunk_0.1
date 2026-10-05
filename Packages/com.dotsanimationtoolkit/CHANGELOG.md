@@ -8,39 +8,25 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.66.0] — Materials before rigs
-
-### Added
-- **The Materials tab works before any rig exists.** Its sidebar reads Materials | Cutouts | Meshes: Materials lists
-  every material on a toolkit shader graph plus the bound rig's, Cutouts lists every cutout, Meshes every mesh under
-  `Assets/`. Picking a cutout or mesh shows its material, or a **Create material** card when it has none.
-- A material's **motion** is read from its shader's properties (`_MainTexArray` + `_ImageIndex` = Flipbook,
-  `_VatBoneTex` = VAT), so the same check works on your own shaders. A cutout drawn over a flipbook gets a Flipbook
-  material; one drawn over an image, or a bare mesh, gets a static one. The Flipbook toggle swaps a toolkit material
-  between the shipped graphs in place, so its GUID and every renderer using it survive.
-- **VAT is switched on by the bake, never ticked.** After VAT Bake writes a bone-flavour set, each baked part's
-  material switches to the VAT graph with `_VatBoneTex` and `_VatTexelParams` set, one line per part in the bake
-  report. A material shared by two baked parts is refused and named; a custom shader is never swapped, only given
-  the textures when it declares `_VatBoneTex`. A vertex-flavour bake leaves materials alone.
-- **Use in rig: N parts** puts the material on every renderer in the rig's prefab that uses the picked mesh.
-- `CutoutAsset.material`; a bare mesh finds its material as `M_<MeshName>.mat` beside it.
-- A 3D preview at the top of the Materials inspector: the picked mesh with its material (a quad for a material
-  picked on its own), orbitable, updating live as the material is edited. The Materials and Meshes lists show
-  40px thumbnails (`CatalogColumnOptions.thumbnail`, off by default for every other list).
-- The preview camera is sized to the picked mesh (no more tiny meshes below the view or big ones clipped) and
-  opens at a three-quarter view; left-drag orbits, right-drag + WASD/QE flies, middle-drag pans, **Return** (or F)
-  frames the mesh again. Every sub-mesh gets the material.
-- The Materials tab is three columns: list | Preview | material options. The preview turns billboarding off
-  (the real material is untouched; a property block overrides it), and a flipbook material gets a frame row
-  (previous / next / play at 12 fps / slider) to look through its array.
-- **Save as prefab** saves `<Mesh>.prefab` beside the mesh with the material on it, and updates that same prefab
-  afterwards, so it is always found at one path.
-- The Shader card says **Toolkit** or **Custom**, and on a custom shader lists the contract properties it lacks.
-- shader-contract.md: "Your own shader" — which properties turn on which feature.
+## [0.66.0] — Materials tab: a per-part input check
 
 ### Changed
-- The Materials tab's bar is now one **Check against** row (Rig, Clip Set). The per-target **Create and assign**
-  (0.49.0) is replaced by Create material on a cutout or mesh plus Use in rig.
+- **The Materials tab checks each rig part against what its animations drive.** For the shared Rig and Clip Set
+  it lists every part with ✓ / ✗: a slice sprite track needs `_ImageIndex` and `_MainTexArray`, an atlas sprite
+  track `_AtlasFrame`, a VAT track or VAT source `_VatFrameA/B`, `_VatBlend`, `_VatBoneTex` and `_VatTexelParams`.
+  The selected part shows each input with the clips that ask for it, its materials, shaders and GPU instancing,
+  and warnings (no texture array, VAT not baked). Wiring the inputs stays in the shader; the tab never edits a
+  material. Columns: Parts | Preview | Part.
+- **3D preview of the rig** in the middle column: parts missing inputs are washed red over their art, the selected
+  part is boxed, billboarding is off. The camera is sized to the rig; left-drag orbits, right-drag + WASD/QE
+  flies, middle-drag pans, **Return** (or F) frames it again.
+- The bar's per-target **Create and assign** (0.49.0) is gone; the tab no longer creates materials.
+
+### Added
+- **VAT Bake writes the bone texture onto each baked part's material** (`_VatBoneTex`, `_VatTexelParams`) when its
+  shader declares them, one report line per part. It never swaps a shader; a material shared by two baked parts is
+  refused and named; a vertex-flavour bake leaves materials alone.
+- shader-contract.md: "Your own shader" — which properties each kind of track needs.
 
 ## [0.65.0] — Cutouts from images
 

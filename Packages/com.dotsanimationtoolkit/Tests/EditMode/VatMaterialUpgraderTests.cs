@@ -11,6 +11,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
 {
     public sealed class VatMaterialUpgraderTests
     {
+        private const string VatShaderPath = "Packages/com.dotsanimationtoolkit/Shaders/ToolkitVatCrowdUnlit.shadergraph";
+        private const string SpriteShaderPath = "Packages/com.dotsanimationtoolkit/Shaders/ToolkitSpriteUnlit.shadergraph";
+
         private readonly List<Object> createdObjects = new List<Object>();
 
         [TearDown]
@@ -28,9 +31,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
         }
 
         [Test]
-        public void Upgrade_ToolkitStaticMaterial_BecomesVatWithBoneTexture()
+        public void Upgrade_MaterialDeclaringVatBoneTex_GetsBoneTexture()
         {
-            Material material = CreateStaticToolkitMaterial();
+            Material material = CreateMaterialOnShader(VatShaderPath);
             VatBakeSource source = CreateSource(1u, "BaseHead", material);
             Texture2D boneTexture = Track(new Texture2D(4, 4));
             VatTextureSetAsset textureSet = CreateTextureSet(boneTexture, 1u);
@@ -38,14 +41,29 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             VatMaterialUpgrader.UpgradeMaterialsForSet(textureSet, new List<VatBakeSource> { source }, reportLines);
 
-            Assert.That(MaterialFeatureResolver.ReadFeatures(material), Is.EqualTo(MaterialFeature.Vat), string.Join("\n", reportLines));
-            Assert.That(material.GetTexture("_VatBoneTex"), Is.EqualTo(boneTexture));
+            Assert.That(material.GetTexture("_VatBoneTex"), Is.EqualTo(boneTexture), string.Join("\n", reportLines));
+        }
+
+        [Test]
+        public void Upgrade_MaterialWithoutVatInputs_IsLeftOnItsShader()
+        {
+            Material material = CreateMaterialOnShader(SpriteShaderPath);
+            Shader shaderBefore = material.shader;
+            VatBakeSource source = CreateSource(1u, "BaseHead", material);
+            Texture2D boneTexture = Track(new Texture2D(4, 4));
+            VatTextureSetAsset textureSet = CreateTextureSet(boneTexture, 1u);
+            List<string> reportLines = new List<string>();
+
+            VatMaterialUpgrader.UpgradeMaterialsForSet(textureSet, new List<VatBakeSource> { source }, reportLines);
+
+            Assert.That(material.shader, Is.EqualTo(shaderBefore));
+            Assert.That(reportLines, Has.Some.Contains("no _VatBoneTex"));
         }
 
         [Test]
         public void Upgrade_MaterialSharedByTwoParts_IsRefused()
         {
-            Material sharedMaterial = CreateStaticToolkitMaterial();
+            Material sharedMaterial = CreateMaterialOnShader(VatShaderPath);
             VatBakeSource first = CreateSource(1u, "BaseHead", sharedMaterial);
             VatBakeSource second = CreateSource(2u, "BaseBody", sharedMaterial);
             Texture2D boneTexture = Track(new Texture2D(4, 4));
@@ -54,7 +72,7 @@ namespace DotsAnimationToolkit.Tests.EditMode
 
             VatMaterialUpgrader.UpgradeMaterialsForSet(textureSet, new List<VatBakeSource> { first, second }, reportLines);
 
-            Assert.That(MaterialFeatureResolver.ReadFeatures(sharedMaterial), Is.EqualTo(MaterialFeature.None));
+            Assert.That(sharedMaterial.GetTexture("_VatBoneTex"), Is.Null);
             Assert.That(reportLines, Has.Some.Contains("refused"));
         }
 
@@ -64,9 +82,9 @@ namespace DotsAnimationToolkit.Tests.EditMode
             return createdObject;
         }
 
-        private Material CreateStaticToolkitMaterial()
+        private Material CreateMaterialOnShader(string shaderPath)
         {
-            Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(MaterialTemplateUtility.QuadTemplateShaderPath);
+            Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(shaderPath);
             Assert.That(shader, Is.Not.Null);
             return Track(new Material(shader));
         }

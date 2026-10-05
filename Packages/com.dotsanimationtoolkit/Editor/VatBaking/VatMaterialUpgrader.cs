@@ -9,6 +9,8 @@ namespace DotsAnimationToolkit.Editor
 {
     public static class VatMaterialUpgrader
     {
+        private const string VatBoneTexturePropertyName = "_VatBoneTex";
+
         public static void UpgradeMaterialsForSet(VatTextureSetAsset textureSet,
             IReadOnlyList<VatBakeSource> bakedSources, List<string> reportLines)
         {
@@ -69,24 +71,14 @@ namespace DotsAnimationToolkit.Editor
 
         private static string UpgradeOneMaterial(string displayName, Material material, VatPartTextures part)
         {
-            bool alreadyVat = (MaterialFeatureResolver.ReadFeatures(material) & MaterialFeature.Vat) != 0;
-            if (!alreadyVat)
+            if (!material.HasProperty(VatBoneTexturePropertyName))
             {
-                if (!MaterialFeatureResolver.IsToolkitShader(material.shader))
-                {
-                    return displayName + ": custom shader has no " + MaterialFeatureResolver.VatBoneTexturePropertyName
-                        + ", add the VAT properties";
-                }
-
-                MaterialFeature wantedFeatures = MaterialFeatureResolver.ReadFeatures(material) | MaterialFeature.Vat;
-                if (!MaterialAuthoringUtility.TrySetToolkitFeatures(material, wantedFeatures, out string resultMessage))
-                {
-                    return displayName + ": " + resultMessage;
-                }
+                return displayName + ": " + material.name + " has no " + VatBoneTexturePropertyName
+                    + " input, so its shader cannot play VAT; use ToolkitVatCrowdUnlit or add the VAT inputs to your shader (see shader-contract.md).";
             }
 
             // Same property mapping as VatPreviewMaterial so the preview and the real material agree.
-            material.SetTexture("_VatBoneTex", part.boneTexture);
+            material.SetTexture(VatBoneTexturePropertyName, part.boneTexture);
             material.SetVector("_VatTexelParams",
                 new Vector4(part.textureWidth, part.boneTexture.height, part.rowsPerFrame, part.boneCount));
             EditorUtility.SetDirty(material);
@@ -95,7 +87,7 @@ namespace DotsAnimationToolkit.Editor
                 AssetDatabase.SaveAssetIfDirty(material);
             }
 
-            return displayName + (alreadyVat ? ": textures set" : ": switched to VAT, textures set");
+            return displayName + ": VAT textures set on " + material.name;
         }
     }
 }

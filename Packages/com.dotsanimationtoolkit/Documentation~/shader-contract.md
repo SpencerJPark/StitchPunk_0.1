@@ -512,27 +512,22 @@ these settings will get the exact "renders as noise" failure mode in §6.
 
 ---
 
-## 5a. Your own shader in the Materials tab
+## 5a. Your own shader
 
-The Materials tab never stores whether a material is Flipbook or VAT. It reads the shader's property names, so a
-shader you write yourself is treated exactly like a shipped one:
+The Materials tab checks a part's material by the shader's **property names**, so a shader you write yourself is
+held to exactly the same rule as a shipped one:
 
-| Feature | Properties that turn it on | What the toolkit then writes |
-|---|---|---|
-| Flipbook | `_MainTexArray` **and** `_ImageIndex` | `_ImageIndex` per instance, every frame |
-| VAT (bone flavour) | `_VatBoneTex` | the VAT bake sets `_VatBoneTex` and `_VatTexelParams` on the material; `_VatFrameA`, `_VatFrameB` and `_VatBlend` per instance |
-| Static | neither | nothing |
+| The part's clips have | Declare |
+|---|---|
+| a slice sprite track (flipbook frames) | `_MainTexArray` and `_ImageIndex` |
+| an atlas sprite track | `_AtlasFrame` |
+| a VAT track or VAT source | `_VatBoneTex`, `_VatTexelParams`, `_VatFrameA`, `_VatFrameB`, `_VatBlend` |
 
-The per-instance names (`_ImageIndex`, `_VatFrameA/B`, `_VatBlend`, `_BillboardParams`) must be Hybrid Per
-Instance properties (§1). In Shader Graph, add the logic with a Custom Function node pointing at one of the
-functions in `Packages/com.dotsanimationtoolkit/Shaders/Nodes/` (`ToolkitFlipbookSliceUV.hlsl`,
-`ToolkitVatBoneSkin.hlsl`, `ToolkitBillboardVertex.hlsl`, ...).
-
-On a custom shader the tab's feature toggles are read-only: the Shader card says **Custom** and lists the contract
-properties the shader lacks. The VAT bake gives a custom material its textures when it declares `_VatBoneTex`, and
-never swaps a custom shader for a shipped one. Only the three shipped graphs (`ToolkitSpriteUnlit`,
-`ToolkitSpriteUnlitArray`, `ToolkitVatCrowdUnlit`) are swapped between, in place, so the material keeps its GUID.
-No shipped graph does Flipbook and VAT together; that needs your own shader.
+The per-instance names (`_ImageIndex`, `_AtlasFrame`, `_VatFrameA/B`, `_VatBlend`, `_BillboardParams`) must be
+Hybrid Per Instance properties (§1). In Shader Graph, add the logic with a Custom Function node pointing at one of
+the functions in `Packages/com.dotsanimationtoolkit/Shaders/Nodes/` (`ToolkitFlipbookSliceUV.hlsl`,
+`ToolkitVatBoneSkin.hlsl`, `ToolkitBillboardVertex.hlsl`, ...). The VAT bake writes `_VatBoneTex` and
+`_VatTexelParams` onto any material that declares them, and never swaps a shader.
 
 ---
 
@@ -552,7 +547,7 @@ No shipped graph does Flipbook and VAT together; that needs your own shader.
 | Shader Graph fails to compile with a duplicate-property/duplicate-declaration error around DOTS instancing | `ToolkitInstancing.hlsl` was `#include`d from inside a Shader Graph custom function/subgraph. It is for hand-written shaders only — Shader Graph already emits its own instancing block from Hybrid Per Instance properties (§1, `ToolkitInstancing.hlsl:12-17`). |
 | Toolkit shader compiles and previews fine in the Material Inspector but never animates once entities render it (or vice versa) | The non-instanced fallback branch (`#else` in `ToolkitInstancing.hlsl:57-68`) and the instanced branch must both exist and must alias to the same names; if you hand-rolled a partial copy of this file, check both branches are present — `ShaderConformanceTests.TheInstancingBlock_GuardsTheNonInstancedPath` (`ShaderConformanceTests.cs:218-228`) is the check the shipped file passes. |
 | Reused one of the four includes in another project and it now depends on this package | An include unexpectedly grew an `#include` of another package file or started reading an undeclared global — this is exactly what `ShaderConformanceTests.TheIncludes_StayStandalone` guards against for the shipped copies (`ShaderConformanceTests.cs:168-180`), checking `ToolkitBillboard.hlsl` and `ToolkitFlipbook.hlsl` contain no `#include` after comment-stripping. If you are editing a *copy* you pulled into your own project, this test does not run against it — verify by inspection. |
-| A part renders but never animates, shows frame 0 forever, or never turns | Its material may lack a contract property from section 1. Open the Clip Editor's Materials tab with the rig selected: it lists each material the rig's prefab uses and which contract properties it has and lacks. See [materials-tab.md](materials-tab.md). |
+| A part renders but never animates, shows frame 0 forever, or never turns | Its material may lack a contract property from section 1. Open the Clip Editor's Materials tab with the rig and its clip set selected: a part whose material lacks an input its clips drive is marked ✗ and washed red in the preview. See [materials-tab.md](materials-tab.md). |
 
 ---
 

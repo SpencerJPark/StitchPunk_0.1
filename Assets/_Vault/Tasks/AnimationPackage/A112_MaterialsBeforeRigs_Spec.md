@@ -177,3 +177,30 @@ writes a report of 30 lines or fewer. No Unity MCP.
   (0.49.0) is removed, replaced by Create material on a cutout/mesh + Use in rig; Materials-mode **+** asks for a
   save path and makes a static material; Meshes-mode **+** switches to Cutouts; a Flipbook material baked as VAT is
   refused like any Flipbook + VAT.
+
+## 6. Rework R — the Materials tab is a check, not an editor (owner, 2026-10-04)
+
+Owner, after seeing the build: "there's nowhere to set the values of the material or assign a texture ... maybe this
+tab isn't actually that useful if I am going to be just redoing the Unity materials tab. I want it to go back to
+being based on rigs and clip set, and it being a check to make sure all the right parts have the right inputs based
+on what their animation says. Then it's up to the user to make sure those inputs are wired shader side; we provide
+pre-done shaders, but they can build their own modelled after ours. I still want the 3D view, but I want it to
+highlight a mesh red if it is missing inputs that its animations want."
+
+Settled the same day (owner's answers):
+- **R-D1** Every A112 authoring piece is removed: the Cutouts/Meshes sidebar, Create material, the Flipbook toggle,
+  Save as prefab, Use in rig, `CutoutAsset.material`, the catalog thumbnail option, `MaterialFeatureResolver`,
+  `MaterialAuthoringUtility`, `MaterialMeshAssignment`, `MaterialPrefabSaving`, `MaterialPreviewElement`.
+  M-D1, M-D2, M-D5, M-D7, M-D8, M-D9 are void.
+- **R-D2** VAT Bake still writes `_VatBoneTex` + `_VatTexelParams` onto each baked part's material when the material
+  declares them, but never swaps a shader. A material without them is reported (here and in the bake report).
+  Refuse-when-shared (M-D3) and bone-only (M-D10) stay.
+- **R-D3** The left column lists **rig parts** (one per target) with ✓/✗; the right column shows the selected part's
+  needs, which its material lacks, and which clips ask for each.
+- **R-D4** A part missing inputs is drawn with a **red tint over its texture** in the 3D view of the rig's prefab; the
+  selected part is boxed.
+- **R-D5** (orchestrator) Needs come from the clip set: a slice sprite track needs `_ImageIndex` + `_MainTexArray`; an
+  atlas sprite track `_AtlasFrame`; a VAT track (by target) or the clip's `vatSource` (every VatMesh target)
+  `_VatFrameA`, `_VatFrameB`, `_VatBlend`, `_VatBoneTex`, `_VatTexelParams`. Transform tracks need nothing. No clip set
+  = nothing is checked, and the tab says to pick one. The preview reuses the scale-aware camera
+  (`MaterialPreviewCameraRig`) with billboarding off through a property block.

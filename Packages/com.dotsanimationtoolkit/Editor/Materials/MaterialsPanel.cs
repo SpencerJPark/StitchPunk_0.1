@@ -2,43 +2,33 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using DotsAnimationToolkit.Authoring;
-using UnityEditor;
 using UnityEditor.UIElements;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace DotsAnimationToolkit.Editor
 {
-    /// <summary>The Materials tab: author and check a material from a cutout or a mesh, with a rig optional for the shader-contract check.</summary>
+    /// <summary>The Materials tab: checks each rig part's material against the inputs its clips drive.</summary>
     public sealed class MaterialsPanel : VisualElement, IDisposable
     {
-        private const string MaterialsModeName = "materials";
-        private const string CutoutsModeName = "cutouts";
-        private const string MeshesModeName = "meshes";
-
-        private readonly List<RigMaterialUsage> usages = new List<RigMaterialUsage>();
+        private readonly List<PartInputReport> reports = new List<PartInputReport>();
         private readonly ObjectField rigField;
         private readonly ObjectField clipSetField;
         private readonly Label resultLabel;
-        private readonly MaterialCatalogColumn materialCatalog;
-        private readonly CutoutCatalogColumn cutoutCatalog;
-        private readonly MeshCatalogColumn meshCatalog;
-        private readonly CatalogSidebarElement sidebar;
+        private readonly MaterialPartListColumn partList;
         private readonly MaterialInspectorColumn inspector;
-        private readonly MaterialPreviewElement preview;
+        private readonly MaterialCheckPreviewElement preview;
         private ActiveAssetSelection selection;
-        private MaterialInspectorSubject currentSubject = new MaterialInspectorSubject();
+        private RigAsset rigShownInPreview;
+        private bool hasShownRig;
         private bool isRefreshing;
 
         public RigAsset BoundRig { get; private set; }
         public ClipSetAsset BoundClipSet { get; private set; }
-        public Material SelectedMaterial { get; private set; }
 
-        public IReadOnlyList<RigMaterialUsage> Usages
+        public IReadOnlyList<PartInputReport> Reports
         {
-            get { return usages; }
+            get { return reports; }
         }
 
         public MaterialsPanel()
@@ -46,7 +36,6 @@ namespace DotsAnimationToolkit.Editor
             style.flexGrow = 1f;
 
             VisualElement header = ToolkitChrome.MakeAssetBar("materials-asset-bar");
-            header.Add(ToolkitChrome.MakeAssetBarLabel("Check against"));
 
             header.Add(ToolkitChrome.MakeAssetBarLabel("Rig"));
             rigField = new ObjectField
@@ -81,35 +70,12 @@ namespace DotsAnimationToolkit.Editor
             VisualElement statusRow = ToolkitChrome.MakeStatusRow(out resultLabel, out _, true);
             resultLabel.name = "materials-result";
 
-            materialCatalog = new MaterialCatalogColumn();
-            materialCatalog.MaterialSelected += SelectMaterial;
-            materialCatalog.RefreshRequested += Refresh;
-            materialCatalog.NewRequested += OnNewMaterialRequested;
-
-            cutoutCatalog = new CutoutCatalogColumn();
-            cutoutCatalog.AssetSelected += OnCutoutPicked;
-            cutoutCatalog.RefreshRequested += Refresh;
-            cutoutCatalog.NewRequested += OnNewCutoutRequested;
-
-            meshCatalog = new MeshCatalogColumn();
-            meshCatalog.MeshSelected += OnMeshPicked;
-            meshCatalog.RefreshRequested += Refresh;
-            meshCatalog.NewRequested += OnNewMeshRequested;
-
-            sidebar = new CatalogSidebarElement { name = "materials-sidebar" };
-            sidebar.AddMode(MaterialsModeName, "Materials", materialCatalog, materialCatalog.HeaderActions);
-            sidebar.AddMode(CutoutsModeName, "Cutouts", cutoutCatalog, cutoutCatalog.HeaderActions);
-            sidebar.AddMode(MeshesModeName, "Meshes", meshCatalog, meshCatalog.HeaderActions);
-            sidebar.SetMode(MaterialsModeName);
-            sidebar.ModeChanged += OnSidebarModeChanged;
+            partList = new MaterialPartListColumn { name = "materials-part-list-column" };
+            partList.PartSelected += OnPartSelected;
+            partList.RefreshRequested += Refresh;
 
             inspector = new MaterialInspectorColumn();
-            inspector.MaterialCreated += OnInspectorMaterialCreated;
-            inspector.MaterialChanged += OnInspectorMaterialChanged;
-            inspector.StatusReported += (text, tone) => ToolkitChrome.SetStatus(resultLabel, text, tone);
 
-            // Three columns like the Cutouts tab: the list, the model with its material in the middle,
-            // and the material's options on the right.
             VisualElement previewColumn = new VisualElement { name = "materials-preview-column" };
             previewColumn.AddToClassList("toolkit-column");
             previewColumn.style.flexGrow = 1f;
@@ -119,7 +85,7 @@ namespace DotsAnimationToolkit.Editor
             previewTitle.AddToClassList("toolkit-pane-title");
             previewHeader.Add(previewTitle);
             previewColumn.Add(previewHeader);
-            preview = new MaterialPreviewElement { name = "materials-preview" };
+            preview = new MaterialCheckPreviewElement { name = "materials-preview" };
             previewColumn.Add(preview);
 
             CoverPaneSplitView inspectorSplit =
@@ -131,7 +97,7 @@ namespace DotsAnimationToolkit.Editor
             CoverPaneSplitView split =
                 new CoverPaneSplitView("Materials.CatalogThreeColumns", 0, 300f, TwoPaneSplitViewOrientation.Horizontal);
             split.style.flexGrow = 1f;
-            split.Add(sidebar);
+            split.Add(partList);
             split.Add(inspectorSplit);
 
             Add(header);
@@ -150,7 +116,8 @@ namespace DotsAnimationToolkit.Editor
             selection = sharedSelection;
             selection.RigChanged += OnSharedRigChanged;
             selection.ClipSetChanged += OnSharedClipSetChanged;
-            SetClipSet(selection.ClipSet);
+            BoundClipSet = selection.ClipSet;
+            clipSetField.SetValueWithoutNotify(BoundClipSet);
             SetRig(selection.Rig);
         }
 
@@ -165,13 +132,12 @@ namespace DotsAnimationToolkit.Editor
         {
             BoundClipSet = clipSet;
             clipSetField.SetValueWithoutNotify(clipSet);
-            RebindCurrentSubject();
+            Refresh();
         }
 
         public void Refresh()
         {
-            // Each column's Rescan raises RefreshRequested, which is wired back here: without the guard
-            // the first rescan recursed until the stack overflowed and no list was ever filled.
+            // A column raising RefreshRequested from inside this call must not recurse back into it.
             if (isRefreshing)
             {
                 return;
@@ -180,37 +146,47 @@ namespace DotsAnimationToolkit.Editor
             isRefreshing = true;
             try
             {
-                usages.Clear();
-                if (BoundRig != null)
+                string selectedNodePath = partList.SelectedReport != null
+                    ? partList.SelectedReport.Target.sourceNodePath
+                    : null;
+
+                reports.Clear();
+                reports.AddRange(PartInputCheck.Evaluate(BoundRig, BoundClipSet));
+                partList.SetReports(reports, BoundClipSet != null);
+
+                // Reshowing the rig resets the preview camera, so only do it when the rig actually changed.
+                if (!hasShownRig || rigShownInPreview != BoundRig)
                 {
-                    usages.AddRange(RigMaterialResolver.Resolve(BoundRig));
+                    preview.ShowRig(BoundRig);
+                    rigShownInPreview = BoundRig;
+                    hasShownRig = true;
                 }
 
-                materialCatalog.SetUsages(usages);
-                cutoutCatalog.RescanProject();
-                meshCatalog.RescanProject();
+                List<string> flaggedNodePaths = new List<string>();
+                PartInputReport reportToSelect = null;
+                for (int reportIndex = 0; reportIndex < reports.Count; reportIndex++)
+                {
+                    PartInputReport report = reports[reportIndex];
+                    if (report.HasMissingInputs)
+                    {
+                        flaggedNodePaths.Add(report.Target.sourceNodePath);
+                    }
+
+                    if (selectedNodePath != null && report.Target.sourceNodePath == selectedNodePath)
+                    {
+                        reportToSelect = report;
+                    }
+                }
+
+                preview.SetFlaggedNodes(flaggedNodePaths);
+                partList.SetSelected(reportToSelect);
+                BindSelection(reportToSelect);
+                ReportStatus(flaggedNodePaths.Count);
             }
             finally
             {
                 isRefreshing = false;
             }
-
-            if (sidebar.Mode == MaterialsModeName && SelectedMaterial == null && usages.Count > 0)
-            {
-                SelectedMaterial = usages[0].Material;
-                materialCatalog.SetSelectedMaterial(SelectedMaterial);
-                currentSubject = BuildSubject(SelectedMaterial, null, null);
-            }
-
-            RebindCurrentSubject();
-        }
-
-        public void SelectMaterial(Material material)
-        {
-            SelectedMaterial = material;
-            materialCatalog.SetSelectedMaterial(material);
-            currentSubject = BuildSubject(material, null, null);
-            RebindCurrentSubject();
         }
 
         public void Dispose()
@@ -233,149 +209,36 @@ namespace DotsAnimationToolkit.Editor
             SetClipSet(clipSet);
         }
 
-        private void OnCutoutPicked(CutoutAsset cutout)
+        private void OnPartSelected(PartInputReport report)
         {
-            currentSubject = BuildSubjectForCutout(cutout);
-            RebindCurrentSubject();
+            BindSelection(report);
         }
 
-        private void OnMeshPicked(Mesh mesh)
+        private void BindSelection(PartInputReport report)
         {
-            currentSubject = BuildSubjectForMesh(mesh);
-            RebindCurrentSubject();
+            preview.FocusNode(report != null ? report.Target.sourceNodePath : null);
+            inspector.Bind(report, BoundRig, BoundClipSet);
         }
 
-        private void OnSidebarModeChanged(string modeName)
+        private void ReportStatus(int missingPartCount)
         {
-            if (modeName == CutoutsModeName)
+            if (BoundClipSet == null)
             {
-                currentSubject = BuildSubjectForCutout(cutoutCatalog.SelectedAsset);
+                ToolkitChrome.SetStatus(
+                    resultLabel, "Pick a clip set to check what each part's animations need.", ToolkitStatusTone.Neutral);
             }
-            else if (modeName == MeshesModeName)
+            else if (missingPartCount > 0)
             {
-                currentSubject = BuildSubjectForMesh(meshCatalog.SelectedAsset);
+                ToolkitChrome.SetStatus(
+                    resultLabel,
+                    missingPartCount + " of " + reports.Count + " parts are missing inputs their animations need.",
+                    ToolkitStatusTone.Error);
             }
             else
             {
-                currentSubject = BuildSubject(SelectedMaterial, null, null);
+                ToolkitChrome.SetStatus(
+                    resultLabel, "Every part has the inputs its animations need.", ToolkitStatusTone.Ok);
             }
-
-            RebindCurrentSubject();
-        }
-
-        private void OnInspectorMaterialCreated(Material createdMaterial)
-        {
-            MaterialInspectorSubject previousSubject = currentSubject;
-            Refresh();
-
-            if (previousSubject.Cutout != null || previousSubject.Mesh != null)
-            {
-                currentSubject = BuildSubject(createdMaterial, previousSubject.Cutout, previousSubject.Mesh);
-                RebindCurrentSubject();
-            }
-            else
-            {
-                SelectMaterial(createdMaterial);
-            }
-        }
-
-        private void OnInspectorMaterialChanged(Material changedMaterial)
-        {
-            materialCatalog.RefreshRows();
-            RebindCurrentSubject();
-        }
-
-        private void OnNewMaterialRequested()
-        {
-            string assetPath = EditorUtility.SaveFilePanelInProject("New material", "M_New", "mat", "Where to save the material");
-            if (string.IsNullOrEmpty(assetPath))
-            {
-                return;
-            }
-
-            if (MaterialAuthoringUtility.TryCreateMaterial(assetPath, MaterialFeature.None, null, out Material createdMaterial, out string failureMessage))
-            {
-                ToolkitChrome.SetStatus(resultLabel, "Created " + Path.GetFileName(assetPath) + ".", ToolkitStatusTone.Neutral);
-                Refresh();
-                SelectMaterial(createdMaterial);
-            }
-            else
-            {
-                ToolkitChrome.SetStatus(resultLabel, failureMessage, ToolkitStatusTone.Error);
-            }
-        }
-
-        private void OnNewCutoutRequested()
-        {
-            ToolkitChrome.SetStatus(resultLabel, "Make cutouts in the Cutouts tab.", ToolkitStatusTone.Neutral);
-        }
-
-        private void OnNewMeshRequested()
-        {
-            sidebar.SetMode(CutoutsModeName);
-        }
-
-        private void RebindCurrentSubject()
-        {
-            currentSubject.RigUsage = FindUsageForMaterial(currentSubject.Material);
-            inspector.Bind(currentSubject, BoundRig, BoundClipSet);
-            // A mesh with no material yet shows on a neutral surface; a material picked on its own shows on a quad.
-            preview.Show(currentSubject.Mesh, currentSubject.Material);
-        }
-
-        private MaterialInspectorSubject BuildSubject(Material material, CutoutAsset cutout, Mesh mesh)
-        {
-            return new MaterialInspectorSubject
-            {
-                Material = material,
-                Cutout = cutout,
-                Mesh = mesh,
-                RigUsage = FindUsageForMaterial(material)
-            };
-        }
-
-        private MaterialInspectorSubject BuildSubjectForCutout(CutoutAsset cutout)
-        {
-            if (cutout == null)
-            {
-                return new MaterialInspectorSubject();
-            }
-
-            Material material = cutout.material;
-            if (material == null && cutout.outputMesh != null)
-            {
-                material = MaterialFeatureResolver.FindMaterialForMesh(cutout.outputMesh);
-            }
-
-            return BuildSubject(material, cutout, cutout.outputMesh);
-        }
-
-        private MaterialInspectorSubject BuildSubjectForMesh(Mesh mesh)
-        {
-            if (mesh == null)
-            {
-                return new MaterialInspectorSubject();
-            }
-
-            return BuildSubject(MaterialFeatureResolver.FindMaterialForMesh(mesh), null, mesh);
-        }
-
-        private RigMaterialUsage FindUsageForMaterial(Material material)
-        {
-            if (material == null)
-            {
-                return null;
-            }
-
-            foreach (RigMaterialUsage usage in usages)
-            {
-                if (usage.Material == material)
-                {
-                    return usage;
-                }
-            }
-
-            return null;
         }
     }
 }

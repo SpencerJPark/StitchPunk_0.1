@@ -59,9 +59,6 @@ namespace DotsAnimationToolkit.Editor
         [Tooltip("Project-relative .asset path of the generated mesh.")]
         public string outputPath = string.Empty;
 
-        [Tooltip("The material this cutout's mesh is shown with (A112).")]
-        public Material material;
-
         public Vector2Int FrameSize
         {
             get
