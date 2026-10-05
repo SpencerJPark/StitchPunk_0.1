@@ -29,6 +29,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly MaterialInspectorColumn inspector;
         private ActiveAssetSelection selection;
         private MaterialInspectorSubject currentSubject = new MaterialInspectorSubject();
+        private bool isRefreshing;
 
         public RigAsset BoundRig { get; private set; }
         public ClipSetAsset BoundClipSet { get; private set; }
@@ -147,15 +148,30 @@ namespace DotsAnimationToolkit.Editor
 
         public void Refresh()
         {
-            usages.Clear();
-            if (BoundRig != null)
+            // Each column's Rescan raises RefreshRequested, which is wired back here: without the guard
+            // the first rescan recursed until the stack overflowed and no list was ever filled.
+            if (isRefreshing)
             {
-                usages.AddRange(RigMaterialResolver.Resolve(BoundRig));
+                return;
             }
 
-            materialCatalog.SetUsages(usages);
-            cutoutCatalog.RescanProject();
-            meshCatalog.RescanProject();
+            isRefreshing = true;
+            try
+            {
+                usages.Clear();
+                if (BoundRig != null)
+                {
+                    usages.AddRange(RigMaterialResolver.Resolve(BoundRig));
+                }
+
+                materialCatalog.SetUsages(usages);
+                cutoutCatalog.RescanProject();
+                meshCatalog.RescanProject();
+            }
+            finally
+            {
+                isRefreshing = false;
+            }
 
             if (sidebar.Mode == MaterialsModeName && SelectedMaterial == null && usages.Count > 0)
             {
