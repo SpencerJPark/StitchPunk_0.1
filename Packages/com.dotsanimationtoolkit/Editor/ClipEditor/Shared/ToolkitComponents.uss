@@ -790,8 +790,24 @@
     justify-content: center;
 }
 
+.toolkit-list-row--thumbnail {
+    flex-direction: row;
+    align-items: center;
+}
+
+/* The plain row's title grows to fill the line; in the two-line stack that stretched it to the full row
+   height and floated the name away from its image, so both lines keep their natural height here. */
+.toolkit-list-row--thumbnail .toolkit-list-row__title.unity-label {
+    flex-grow: 0;
+    flex-shrink: 0;
+    min-width: 0;
+    -unity-text-align: lower-left;
+}
+
 .toolkit-list-row--thumbnail .toolkit-list-row__meta.unity-label {
+    flex-grow: 0;
+    flex-shrink: 0;
     margin-left: 0;
     max-width: none;
-    -unity-text-align: middle-left;
+    -unity-text-align: upper-left;
 }

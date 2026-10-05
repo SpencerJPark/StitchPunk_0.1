@@ -17,7 +17,7 @@ namespace DotsAnimationToolkit.Editor
         private static readonly HashSet<GameObject> OwnedSubjects = new HashSet<GameObject>();
 
         private PreviewRenderUtility renderUtility;
-        private readonly PreviewOrbitCameraRig cameraRig = new PreviewOrbitCameraRig();
+        private readonly MaterialPreviewCameraRig cameraRig = new MaterialPreviewCameraRig();
         private readonly PreviewCameraNavigation cameraNavigation = new PreviewCameraNavigation();
         private readonly PreviewSceneGizmos sceneGizmos = new PreviewSceneGizmos();
         private bool sceneGizmosAdded;
@@ -37,20 +37,24 @@ namespace DotsAnimationToolkit.Editor
         public MaterialPreviewElement()
         {
             name = "material-preview-element";
-            style.height = 240f;
             style.flexShrink = 0f;
 
             frame = new ViewportFrameElement();
             frame.name = "material-preview-frame";
+            frame.style.height = 300f;
             UnityEditor.UIElements.ToolbarButton resetCameraButton =
                 frame.AddResetCameraButton(() => cameraNavigation.ResetView());
             resetCameraButton.name = "material-preview-reset-camera-button";
-            resetCameraButton.tooltip = "Put the camera back, framing the whole mesh.";
+            resetCameraButton.tooltip = "Return: frame the whole mesh again (F)";
             frame.SetEmptyState("material-preview-empty", "Nothing to preview", "Pick a material, cutout or mesh.");
             frame.ShowEmptyState(true);
 
             viewportImage = frame.ViewportImage;
             Add(frame);
+            Label hintLabel = ToolkitChrome.MakeHint(
+                "Drag: orbit · Right-drag + WASD/QE: fly (Shift fast) · Middle-drag: pan · Wheel: zoom · F: return");
+            hintLabel.name = "material-preview-hint";
+            Add(hintLabel);
 
             cameraNavigation.Rig = cameraRig;
             cameraNavigation.AttachTo(viewportImage);
@@ -81,12 +85,19 @@ namespace DotsAnimationToolkit.Editor
 
             Mesh meshToDraw = mesh != null ? mesh : Resources.GetBuiltinResource<Mesh>("Quad.fbx");
             subjectMeshFilter.sharedMesh = meshToDraw;
-            subjectRenderer.sharedMaterial = material != null ? material : GetNeutralSurfaceMaterial();
+            Material materialToDraw = material != null ? material : GetNeutralSurfaceMaterial();
+            Material[] materialPerSubMesh = new Material[Mathf.Max(meshToDraw.subMeshCount, 1)];
+            for (int subMeshIndex = 0; subMeshIndex < materialPerSubMesh.Length; subMeshIndex++)
+            {
+                materialPerSubMesh[subMeshIndex] = materialToDraw;
+            }
+            subjectRenderer.sharedMaterials = materialPerSubMesh;
             subjectRenderer.enabled = true;
 
             if (meshChanged)
             {
-                cameraRig.SetFrameTarget(subjectRenderer.bounds);
+                // mesh.bounds, not renderer.bounds: the renderer's bounds can be stale right after a swap.
+                cameraRig.SetFrameTarget(meshToDraw.bounds);
                 cameraRig.ResetView();
             }
         }
@@ -151,8 +162,17 @@ namespace DotsAnimationToolkit.Editor
                 sceneGizmosAdded = true;
             }
 
+            // Grid cells scale to the power of ten nearest the subject so a tiny or huge mesh keeps a usable floor.
+            if (sceneGizmos.GridObject != null)
+            {
+                float gridScale = Mathf.Pow(10f, Mathf.Round(Mathf.Log10(cameraRig.SubjectRadius)));
+                sceneGizmos.GridObject.transform.localScale = Vector3.one * gridScale;
+            }
+
             renderUtility.BeginPreview(viewportRect, GUIStyle.none);
             cameraRig.ApplyTo(renderUtility.camera);
+            renderUtility.camera.nearClipPlane = cameraRig.SuggestedNearClip;
+            renderUtility.camera.farClipPlane = cameraRig.SuggestedFarClip;
             renderUtility.camera.Render();
             viewportImage.image = renderUtility.EndPreview();
             viewportImage.MarkDirtyRepaint();

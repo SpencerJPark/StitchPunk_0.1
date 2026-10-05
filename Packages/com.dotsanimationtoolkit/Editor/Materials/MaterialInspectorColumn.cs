@@ -185,6 +185,7 @@ namespace DotsAnimationToolkit.Editor
 
             bodyScrollView.Add(shaderCard);
 
+            AddPrefabCard(material);
             AddUseInRigAction(material);
 
             if (BoundUsage == null)
@@ -483,6 +484,78 @@ namespace DotsAnimationToolkit.Editor
                 shaderCardBody.Add(ToolkitChrome.MakeHint(
                     "Add them with a Custom Function node from Packages/com.dotsanimationtoolkit/Shaders/Nodes/*.hlsl, or see shader-contract.md."));
             }
+        }
+
+        private void AddPrefabCard(Material material)
+        {
+            if (BoundSubject.Mesh == null || material == null)
+            {
+                return;
+            }
+
+            Mesh mesh = BoundSubject.Mesh;
+            VisualElement prefabCardBody;
+            VisualElement prefabCardHeaderActions;
+            VisualElement prefabCard = ToolkitChrome.MakeCard(
+                "material-inspector-prefab-card",
+                "Prefab",
+                out prefabCardBody,
+                out prefabCardHeaderActions);
+
+            GameObject existingPrefab = MaterialPrefabSaving.FindPrefabForMesh(mesh);
+            string saveButtonText;
+            if (existingPrefab != null)
+            {
+                Label prefabNameLabel = new Label(existingPrefab.name) { name = "material-inspector-prefab-name" };
+                prefabCardBody.Add(ToolkitChrome.MakePropertyRow("Prefab", prefabNameLabel, "The prefab saved beside this mesh."));
+
+                Button selectPrefabButton = ToolkitChrome.MakeGhostAction(
+                    () => SelectAndPingPrefab(existingPrefab),
+                    ToolkitIcons.Frame,
+                    "Select this prefab in the Project and Inspector",
+                    "Select");
+                selectPrefabButton.name = "material-inspector-prefab-select";
+                prefabCardHeaderActions.Add(selectPrefabButton);
+                saveButtonText = "Update prefab";
+            }
+            else
+            {
+                prefabCardBody.Add(ToolkitChrome.MakeHint(
+                    "Saves " + mesh.name + ".prefab beside the mesh, with this material on it."));
+                saveButtonText = "Save as prefab";
+            }
+
+            Button savePrefabButton = ToolkitChrome.MakePrimaryAction(
+                () => SaveMeshWithMaterialAsPrefab(mesh, material),
+                ToolkitIcons.Plus,
+                "Put this material on " + mesh.name + " and keep it as a prefab beside the mesh",
+                saveButtonText);
+            savePrefabButton.name = "material-inspector-prefab-save";
+            savePrefabButton.style.flexShrink = 0f;
+            prefabCardBody.Add(savePrefabButton);
+
+            bodyScrollView.Add(prefabCard);
+        }
+
+        private static void SelectAndPingPrefab(GameObject prefab)
+        {
+            Selection.activeObject = prefab;
+            EditorGUIUtility.PingObject(prefab);
+        }
+
+        private void SaveMeshWithMaterialAsPrefab(Mesh mesh, Material material)
+        {
+            GameObject savedPrefab;
+            string resultMessage;
+            if (!MaterialPrefabSaving.TrySavePrefab(mesh, material, out savedPrefab, out resultMessage))
+            {
+                ReportStatus(resultMessage, ToolkitStatusTone.Error);
+                return;
+            }
+
+            ReportStatus(resultMessage, ToolkitStatusTone.Neutral);
+            EditorGUIUtility.PingObject(savedPrefab);
+            RebuildBody();
         }
 
         private void AddUseInRigAction(Material material)

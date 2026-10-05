@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A 3D preview at the top of the Materials inspector: the picked mesh with its material (a quad for a material
   picked on its own), orbitable, updating live as the material is edited. The Materials and Meshes lists show
   40px thumbnails (`CatalogColumnOptions.thumbnail`, off by default for every other list).
+- The preview camera is sized to the picked mesh (no more tiny meshes below the view or big ones clipped) and
+  opens at a three-quarter view; left-drag orbits, right-drag + WASD/QE flies, middle-drag pans, **Return** (or F)
+  frames the mesh again. Every sub-mesh gets the material.
+- **Save as prefab** saves `<Mesh>.prefab` beside the mesh with the material on it, and updates that same prefab
+  afterwards, so it is always found at one path.
 - The Shader card says **Toolkit** or **Custom**, and on a custom shader lists the contract properties it lacks.
 - shader-contract.md: "Your own shader" — which properties turn on which feature.
 

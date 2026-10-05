@@ -219,6 +219,11 @@ namespace DotsAnimationToolkit.Editor
                 thumbnailImage.name = options.namePrefix + "-row-thumbnail";
                 thumbnailImage.AddToClassList("toolkit-list-row__thumbnail");
                 thumbnailImage.scaleMode = ScaleMode.ScaleToFit;
+                // Layout set inline as well as in the sheet: an image and its text must sit side by side
+                // even if a tab's own sheet restyles list rows.
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.alignItems = Align.Center;
+                thumbnailImage.style.flexShrink = 0f;
                 row.Add(thumbnailImage);
 
                 VisualElement textColumn = new VisualElement();
