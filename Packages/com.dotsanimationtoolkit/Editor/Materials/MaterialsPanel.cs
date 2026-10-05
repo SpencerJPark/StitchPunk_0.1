@@ -193,6 +193,7 @@ namespace DotsAnimationToolkit.Editor
 
         public void Dispose()
         {
+            inspector.Dispose();
             if (selection != null)
             {
                 selection.RigChanged -= OnSharedRigChanged;

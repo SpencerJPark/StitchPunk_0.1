@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the textures when it declares `_VatBoneTex`. A vertex-flavour bake leaves materials alone.
 - **Use in rig: N parts** puts the material on every renderer in the rig's prefab that uses the picked mesh.
 - `CutoutAsset.material`; a bare mesh finds its material as `M_<MeshName>.mat` beside it.
+- A 3D preview at the top of the Materials inspector: the picked mesh with its material (a quad for a material
+  picked on its own), orbitable, updating live as the material is edited. The Materials and Meshes lists show
+  40px thumbnails (`CatalogColumnOptions.thumbnail`, off by default for every other list).
 - The Shader card says **Toolkit** or **Custom**, and on a custom shader lists the contract properties it lacks.
 - shader-contract.md: "Your own shader" — which properties turn on which feature.
 

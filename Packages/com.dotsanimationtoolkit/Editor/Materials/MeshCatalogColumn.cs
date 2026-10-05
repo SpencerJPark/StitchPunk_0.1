@@ -45,6 +45,7 @@ namespace DotsAnimationToolkit.Editor
                 scan = ScanProjectMeshes,
                 secondLine = DescribeMesh,
                 tooltip = mesh => AssetDatabase.GetAssetPath(mesh),
+                thumbnail = mesh => AssetPreview.GetAssetPreview(mesh),
                 allowRename = false,
                 allowDelete = false,
             };

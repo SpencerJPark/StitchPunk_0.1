@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -28,6 +29,9 @@ namespace DotsAnimationToolkit.Editor
         public bool allowRename;
         public bool allowDelete;
 
+        // Null = no thumbnails (the default); set = taller rows with a 40px thumbnail on the left.
+        public Func<TAsset, Texture> thumbnail;
+
         // Null offers Rename/Delete on every row; otherwise only on rows it returns true for.
         public Func<TAsset, bool> rowAllowsRenameAndDelete;
     }
@@ -40,6 +44,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly List<TAsset> filteredAssets = new List<TAsset>();
 
         private string searchText = string.Empty;
+        private bool thumbnailRefreshPending;
         private readonly ToolbarSearchField searchField;
         private readonly ListView assetsListView;
         private readonly ToolkitEmptyListSurface emptyListSurface;
@@ -117,7 +122,7 @@ namespace DotsAnimationToolkit.Editor
             // regardless of the row's actual content height, so any slack left over here adds
             // straight onto the visual gap on top of the row's own margin -- a row is now a
             // single flat 22px line with no margin, so fixedItemHeight matches it exactly.
-            assetsListView.fixedItemHeight = 22f;
+            assetsListView.fixedItemHeight = options.thumbnail != null ? 44f : 22f;
             assetsListView.selectionType = SelectionType.Single;
             assetsListView.style.flexGrow = 1f;
             assetsListView.style.marginTop = 4f;
@@ -201,12 +206,32 @@ namespace DotsAnimationToolkit.Editor
             Label titleLabel = new Label();
             titleLabel.name = options.namePrefix + "-row-title";
             titleLabel.AddToClassList("toolkit-list-row__title");
-            row.Add(titleLabel);
 
             Label infoLabel = new Label();
             infoLabel.name = options.namePrefix + "-row-info";
             infoLabel.AddToClassList("toolkit-list-row__meta");
-            row.Add(infoLabel);
+
+            if (options.thumbnail != null)
+            {
+                row.AddToClassList("toolkit-list-row--thumbnail");
+
+                Image thumbnailImage = new Image();
+                thumbnailImage.name = options.namePrefix + "-row-thumbnail";
+                thumbnailImage.AddToClassList("toolkit-list-row__thumbnail");
+                thumbnailImage.scaleMode = ScaleMode.ScaleToFit;
+                row.Add(thumbnailImage);
+
+                VisualElement textColumn = new VisualElement();
+                textColumn.AddToClassList("toolkit-list-row__text");
+                textColumn.Add(titleLabel);
+                textColumn.Add(infoLabel);
+                row.Add(textColumn);
+            }
+            else
+            {
+                row.Add(titleLabel);
+                row.Add(infoLabel);
+            }
 
             if (options.allowRename || options.allowDelete)
             {
@@ -294,6 +319,33 @@ namespace DotsAnimationToolkit.Editor
             row.tooltip = tooltipText;
 
             row.EnableInClassList("toolkit-list-row--selected", asset == SelectedAsset);
+
+            if (options.thumbnail != null)
+            {
+                BindThumbnail(row, asset);
+            }
+        }
+
+        private void BindThumbnail(VisualElement row, TAsset asset)
+        {
+            Image thumbnailImage = row.Q<Image>(options.namePrefix + "-row-thumbnail");
+            Texture thumbnailTexture = asset != null ? options.thumbnail(asset) : null;
+            if (thumbnailTexture == null && asset != null)
+            {
+                thumbnailTexture = AssetPreview.GetMiniThumbnail(asset);
+                // GetAssetPreview stays null until Unity has rendered it, so poll once while it loads.
+                if (AssetPreview.IsLoadingAssetPreviews() && !thumbnailRefreshPending)
+                {
+                    thumbnailRefreshPending = true;
+                    schedule.Execute(() =>
+                    {
+                        thumbnailRefreshPending = false;
+                        RefreshRows();
+                    }).StartingIn(250);
+                }
+            }
+
+            thumbnailImage.image = thumbnailTexture;
         }
 
         private void OnListSelectionChanged(IEnumerable<object> selectedItems)

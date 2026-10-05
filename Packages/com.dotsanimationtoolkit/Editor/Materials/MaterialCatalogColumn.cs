@@ -75,6 +75,7 @@ namespace DotsAnimationToolkit.Editor
                 scan = () => ScanToolkitMaterials(usageByMaterial),
                 secondLine = material => DescribeMaterial(usageByMaterial, material),
                 tooltip = material => AssetDatabase.GetAssetPath(material),
+                thumbnail = material => AssetPreview.GetAssetPreview(material),
                 allowRename = false,
                 allowDelete = false,
             };
