@@ -170,7 +170,7 @@ namespace DotsAnimationToolkit.Editor
 
             Vector2 projectedElementPoint;
             int edgeIndex = FindEdgeAt(localPosition, out projectedElementPoint);
-            if (edgeIndex >= 0 && pointerEvent.clickCount == 2)
+            if (edgeIndex >= 0)
             {
                 EditStarting?.Invoke();
                 Vector2 insertedPixel = SnapToPixel(canvas.ElementToPixel(projectedElementPoint));

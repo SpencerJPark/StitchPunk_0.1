@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
+  m_Name: Nose_Cutout
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
+  flipbook: {fileID: 18700000, guid: 740d28b056e397043920f4c43d8f9d9c, type: 3}
+  pixelsPerUnit: 546.4629
+  outlinePixels:
+  - {x: 26.12903, y: 1.8064518}
+  - {x: 46.945946, y: 6.4324327}
+  - {x: 59, y: 24}
+  - {x: 38, y: 51}
+  - {x: 20, y: 57}
+  - {x: 1.301981, y: 9.445545}
+  originPixels: {x: 37, y: 29}
+  artPositionWorld: {x: -0.040231787, y: 1.5442601}
+  innerEdges: []
+  facing: 0
+  normalMode: 0
+  roundness: 0.5
+  fitVertexBudget: 7
+  fitPaddingPixels: 2
+  referenceImage: {fileID: 2800000, guid: d568409bb2bed7949a1accb86084a7f6, type: 3}
+  referenceRectWorld:
+    serializedVersion: 2
+    x: -1.0023484
+    y: -0.0009393692
+    width: 2
+    height: 2
+  referenceOpacity: 0.6
+  outputMesh: {fileID: 4300000, guid: f9a28fcce23bfd9438c2ec2c516d8c34, type: 2}
+  outputPath: Assets/Models/UnitMeshes/Nose.asset

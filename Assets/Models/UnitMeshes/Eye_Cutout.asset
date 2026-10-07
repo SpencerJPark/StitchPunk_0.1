@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
+  m_Name: Eye_Cutout
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
+  flipbook: {fileID: 18700000, guid: db1eda09a4e61414d8631fb9103d85bc, type: 3}
+  pixelsPerUnit: 592.2635
+  outlinePixels:
+  - {x: 22, y: 0}
+  - {x: 43.47059, y: -0.00000012768969}
+  - {x: 48.304348, y: 54.78261}
+  - {x: 11.476744, y: 52.616276}
+  originPixels: {x: 32, y: 0}
+  artPositionWorld: {x: -0.08133065, y: 1.518995}
+  innerEdges: []
+  facing: 0
+  normalMode: 0
+  roundness: 0.5
+  fitVertexBudget: 4
+  fitPaddingPixels: 2
+  referenceImage: {fileID: 2800000, guid: d568409bb2bed7949a1accb86084a7f6, type: 3}
+  referenceRectWorld:
+    serializedVersion: 2
+    x: -1
+    y: 0
+    width: 2
+    height: 2
+  referenceOpacity: 0.6
+  outputMesh: {fileID: 4300000, guid: c206bb65c9dbf30429ea57df92c1d651, type: 2}
+  outputPath: Assets/Models/UnitMeshes/Eye.asset

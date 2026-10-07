@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
+  m_Name: Ear_Cutout
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
+  flipbook: {fileID: 18700000, guid: f1c869b74e005c34b92053e04b00f2f6, type: 3}
+  pixelsPerUnit: 557.98486
+  outlinePixels:
+  - {x: 21, y: 0}
+  - {x: 41, y: 0}
+  - {x: 59.545456, y: 37.090908}
+  - {x: 52.428574, y: 62}
+  - {x: 23.999998, y: 62}
+  - {x: 2.333334, y: 18.666668}
+  originPixels: {x: 32, y: 0}
+  artPositionWorld: {x: 0.11923448, y: 1.5218426}
+  innerEdges: []
+  facing: 0
+  normalMode: 1
+  roundness: 0.5
+  fitVertexBudget: 6
+  fitPaddingPixels: 2
+  referenceImage: {fileID: 2800000, guid: d568409bb2bed7949a1accb86084a7f6, type: 3}
+  referenceRectWorld:
+    serializedVersion: 2
+    x: -1
+    y: 0
+    width: 2
+    height: 2
+  referenceOpacity: 0.6
+  outputMesh: {fileID: 4300000, guid: cdca8a35fd84aa1498d65c1eb48dcea0, type: 2}
+  outputPath: Assets/Models/UnitMeshes/Ear.asset

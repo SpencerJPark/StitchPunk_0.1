@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
+  m_Name: FacialHair_Cutout
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
+  flipbook: {fileID: 18700000, guid: 7e473cadeb65d944c872598771582bb1, type: 3}
+  pixelsPerUnit: 529.90704
+  outlinePixels:
+  - {x: -2, y: 56}
+  - {x: 10.368422, y: 19.210526}
+  - {x: 41, y: 9}
+  - {x: 111, y: 11}
+  - {x: 128, y: 65}
+  - {x: 128, y: 107}
+  - {x: 109, y: 117}
+  - {x: 90, y: 123}
+  - {x: 79, y: 113}
+  - {x: 35, y: 112}
+  - {x: 29, y: 122}
+  - {x: -0.0000014333509, y: 122.68571}
+  originPixels: {x: 64, y: 0}
+  artPositionWorld: {x: -0.018242411, y: 1.323447}
+  innerEdges:
+  - {x: 0, y: 9}
+  - {x: 6, y: 8}
+  - {x: 4, y: 6}
+  - {x: 3, y: 8}
+  - {x: 4, y: 8}
+  - {x: 2, y: 8}
+  - {x: 2, y: 9}
+  - {x: 0, y: 2}
+  facing: 0
+  normalMode: 0
+  roundness: 0.5
+  fitVertexBudget: 8
+  fitPaddingPixels: 2
+  referenceImage: {fileID: 2800000, guid: d568409bb2bed7949a1accb86084a7f6, type: 3}
+  referenceRectWorld:
+    serializedVersion: 2
+    x: -1
+    y: 0
+    width: 2
+    height: 2
+  referenceOpacity: 0.6
+  outputMesh: {fileID: 4300000, guid: 9e2f802f38da07f47aa0c434d493c00b, type: 2}
+  outputPath: Assets/Models/UnitMeshes/FacialHairArray.asset

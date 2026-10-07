@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
+  m_Name: Eyebrow_Cutout
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
+  flipbook: {fileID: 18700000, guid: d7d25faa35891e949acedcb2fd3b7987, type: 3}
+  pixelsPerUnit: 529.6903
+  outlinePixels:
+  - {x: 7, y: 22}
+  - {x: 56, y: 22}
+  - {x: 56, y: 42}
+  - {x: 7, y: 42}
+  originPixels: {x: 32, y: 0}
+  artPositionWorld: {x: 0.02538944, y: 1.5601547}
+  innerEdges: []
+  facing: 0
+  normalMode: 0
+  roundness: 0.5
+  fitVertexBudget: 4
+  fitPaddingPixels: 2
+  referenceImage: {fileID: 2800000, guid: d568409bb2bed7949a1accb86084a7f6, type: 3}
+  referenceRectWorld:
+    serializedVersion: 2
+    x: -1
+    y: 0
+    width: 2
+    height: 2
+  referenceOpacity: 0.6
+  outputMesh: {fileID: 4300000, guid: 6e626ef1a510b8445aeaf6c28be94b52, type: 2}
+  outputPath: Assets/Models/UnitMeshes/Eyebrow.asset

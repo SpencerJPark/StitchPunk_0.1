@@ -143,7 +143,8 @@ namespace DotsAnimationToolkit.Editor
             shapeBody.Add(ToolkitChrome.MakePropertyRow("Edges", edgeCountLabel,
                 "Edges you drew in Edit mode's Edge view; the triangles follow them."));
 
-            vertexBudgetField = new IntegerField { name = "cutouts-vertex-budget" };
+            // Delayed: commits on Enter/blur so typing "12" is not clamped to 4 after the "1".
+            vertexBudgetField = new IntegerField { name = "cutouts-vertex-budget", isDelayed = true };
             vertexBudgetField.RegisterValueChangedCallback((ChangeEvent<int> changeEvent) =>
             {
                 int clampedBudget = Mathf.Clamp(changeEvent.newValue, 4, 32);

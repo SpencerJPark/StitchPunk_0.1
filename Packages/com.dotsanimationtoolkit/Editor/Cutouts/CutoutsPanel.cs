@@ -696,8 +696,9 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            int safeVertexBudget = Mathf.Max(CutoutAsset.MinimumVertexCount, workingCopy.fitVertexBudget);
             List<Vector2> fittedOutline = CutoutAlphaTracer.FitOutline(
-                unionMask, workingCopy.FrameSize, workingCopy.fitVertexBudget, workingCopy.fitPaddingPixels);
+                unionMask, workingCopy.FrameSize, safeVertexBudget, workingCopy.fitPaddingPixels);
             if (fittedOutline.Count < CutoutAsset.MinimumVertexCount)
             {
                 SetStatus("No art found to fit; every frame is transparent.", ToolkitStatusTone.Warning);
