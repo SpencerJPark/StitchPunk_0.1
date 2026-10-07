@@ -6,10 +6,10 @@
                 <uie:ToolbarToggle name="tab-texture-packer" text="Texture Packer" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-flipbooks" text="Flipbooks" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-cutouts" text="Cutouts" class="clip-editor__tab toolkit-tablist__tab"/>
-                <uie:ToolbarToggle name="tab-materials" text="Materials" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-new-rig" text="Rigs" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-clip-sets" text="Clip Sets" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-events" text="Events" class="clip-editor__tab toolkit-tablist__tab"/>
+                <uie:ToolbarToggle name="tab-materials" text="Materials" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-clip-editor" text="Clip Editor" value="true" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-retarget" text="Retarget" class="clip-editor__tab toolkit-tablist__tab"/>
                 <uie:ToolbarToggle name="tab-vat-bake" text="VAT Bake" class="clip-editor__tab toolkit-tablist__tab"/>

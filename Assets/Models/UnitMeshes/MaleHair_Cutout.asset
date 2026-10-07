@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
+  m_Name: MaleHair_Cutout
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
+  flipbook: {fileID: 18700000, guid: f62a60eae866fb94ea9d6550aadee444, type: 3}
+  pixelsPerUnit: 525.741
+  outlinePixels:
+  - {x: 41.097675, y: 57.37857}
+  - {x: 128.69412, y: 45.95294}
+  - {x: 211.92168, y: 58.75718}
+  - {x: 224.70833, y: 168.35716}
+  - {x: 193.27585, y: 222.24138}
+  - {x: 127.775, y: 244.075}
+  - {x: 61.749996, y: 219.75}
+  - {x: 33.045456, y: 191.04546}
+  originPixels: {x: 126, y: 40}
+  artPositionWorld: {x: 0.008927543, y: 1.4228643}
+  innerEdges: []
+  facing: 0
+  normalMode: 1
+  roundness: 0.5
+  fitVertexBudget: 8
+  fitPaddingPixels: 2
+  referenceImage: {fileID: 2800000, guid: d568409bb2bed7949a1accb86084a7f6, type: 3}
+  referenceRectWorld:
+    serializedVersion: 2
+    x: -1
+    y: 0
+    width: 2
+    height: 2
+  referenceOpacity: 0.809
+  outputMesh: {fileID: 4300000, guid: a00edfa39c176cf4ea6282e86b7111ad, type: 2}
+  outputPath: Assets/Models/UnitMeshes/MaleHair.asset

@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12ff5bda72467164d92dbd71d86e9c13, type: 3}
+  m_Name: Mask_R_G_Recipe
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.TexturePackRecipeAsset
+  channels:
+  - sourceTextureGuid: c2535ae59cc1b7f44a9fea74e0b5ccc6
+    sourceChannel: 0
+    invert: 0
+    defaultValue: 0
+  - sourceTextureGuid: c8fccf72fe8b1b54f9e39468ed4808c5
+    sourceChannel: 1
+    invert: 0
+    defaultValue: 0
+  - sourceTextureGuid: 
+    sourceChannel: -1
+    invert: 0
+    defaultValue: 0
+  - sourceTextureGuid: c2535ae59cc1b7f44a9fea74e0b5ccc6
+    sourceChannel: 3
+    invert: 0
+    defaultValue: 1
+  resolution: {x: 2048, y: 2048}
+  outputAssetPath: 
+  sourceLayouts:
+  - sourceTextureGuid: c2535ae59cc1b7f44a9fea74e0b5ccc6
+    position: {x: 275.2, y: 15.599998}
+  - sourceTextureGuid: c8fccf72fe8b1b54f9e39468ed4808c5
+    position: {x: 283.2, y: 326.4}
+  outputNodePosition: {x: 620.00006, y: 180}
