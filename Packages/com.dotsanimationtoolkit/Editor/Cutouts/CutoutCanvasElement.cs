@@ -26,6 +26,7 @@ namespace DotsAnimationToolkit.Editor
         public event Action ShapeChanged;
         public event Action ViewChanged;
         public event Action ModeChanged;
+        public event Action<int> FrameStepKeyPressed;
 
         private readonly VisualElement gridLayer;
         private readonly Image referenceImageElement;
@@ -585,6 +586,12 @@ namespace DotsAnimationToolkit.Editor
             {
                 case KeyCode.F:
                     FrameAll();
+                    break;
+                case KeyCode.LeftArrow:
+                    FrameStepKeyPressed?.Invoke(-1);
+                    break;
+                case KeyCode.RightArrow:
+                    FrameStepKeyPressed?.Invoke(1);
                     break;
                 case KeyCode.Tab:
                     Mode = mode == CutoutCanvasMode.Object ? lastEditMode : CutoutCanvasMode.Object;

@@ -105,11 +105,13 @@ ProviderKeys are `StitchPunk.<Name>`; search the Create Node menu for "StitchPun
   alpha. Unclaimed pixels composite black, so outlines survive recoloring.
   `PackedChannelSwitch` (2026-07-11) — TWO-VARIANT packed sprite: one slice
   carries two shape/alpha pairs; a switch picks the pair. Normal = R shape ×
-  color, G alpha; alt = B shape × color, A alpha. Built for hair-under-hats
+  color, A alpha; alt = G shape × color, B alpha (repacked 2026-10-09 — was B/A). Built for hair-under-hats
   (alt = hat-hugging silhouette, same slice + rolled colour); wire Use Alt
   Shape to a per-instance float property so equipment code flips it per
-  character (0–1 cross-fades). Needs a hair variant graph of the packed array
-  shader (not yet built).
+  character (0–1 cross-fades). Built as `2DViewSwitchingPackedArrayShader`;
+  `_UseAltShape` was a blackboard property with no PropertyNode wired to the
+  switch (slot 3 sat on its literal 0) until 2026-10-09 — check the wire first if
+  the alt shape ever stops responding.
 
 ## Packed-channel recolor graph — `2DPackedRecolorShader` (2026-07-11)
 

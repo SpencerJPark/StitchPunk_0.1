@@ -19,8 +19,8 @@ MonoBehaviour:
   - {x: 43.47059, y: -0.00000012768969}
   - {x: 48.304348, y: 54.78261}
   - {x: 11.476744, y: 52.616276}
-  originPixels: {x: 32, y: 0}
-  artPositionWorld: {x: -0.08133065, y: 1.518995}
+  originPixels: {x: 31, y: 40}
+  artPositionWorld: {x: -0.083019085, y: 1.5865333}
   innerEdges: []
   facing: 0
   normalMode: 0

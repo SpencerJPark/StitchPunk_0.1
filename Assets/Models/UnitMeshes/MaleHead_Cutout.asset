@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MaleHead_Cutout
   m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
   flipbook: {fileID: 18700000, guid: bdf686f422cb2a84d842aca9bc3d4038, type: 3}
-  pixelsPerUnit: 505.7605
+  pixelsPerUnit: 540.61786
   outlinePixels:
   - {x: 102.85402, y: 2.065693}
   - {x: 208.07039, y: 10.159263}
@@ -23,11 +23,11 @@ MonoBehaviour:
   - {x: 108.49999, y: 226.25}
   - {x: 45.45946, y: 194.72972}
   - {x: 36.17008, y: 18.231506}
-  originPixels: {x: 136, y: 62}
-  artPositionWorld: {x: 0.02503699, y: 1.4803528}
+  originPixels: {x: 129, y: 124}
+  artPositionWorld: {x: 0.012073547, y: 1.5959773}
   innerEdges: []
   facing: 0
-  normalMode: 1
+  normalMode: 0
   roundness: 0.5
   fitVertexBudget: 8
   fitPaddingPixels: 2

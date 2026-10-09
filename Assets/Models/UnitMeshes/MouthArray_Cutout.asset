@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
-  m_Name: MaleHair_Cutout
+  m_Name: MouthArray_Cutout
   m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
-  flipbook: {fileID: 18700000, guid: f62a60eae866fb94ea9d6550aadee444, type: 3}
-  pixelsPerUnit: 538.61
+  flipbook: {fileID: 18700000, guid: d540bacedc6f866479336283fb59b8c7, type: 3}
+  pixelsPerUnit: 546.4687
   outlinePixels:
-  - {x: 41.097675, y: 57.37857}
-  - {x: 128.69412, y: 45.95294}
-  - {x: 211.92168, y: 58.75718}
-  - {x: 224.70833, y: 168.35716}
-  - {x: 193.27585, y: 222.24138}
-  - {x: 127.775, y: 244.075}
-  - {x: 61.749996, y: 219.75}
-  - {x: 33.045456, y: 191.04546}
-  originPixels: {x: 125, y: 195}
-  artPositionWorld: {x: 0.007528942, y: 1.7211437}
+  - {x: 0.000000028082724, y: 22.6}
+  - {x: 4.555556, y: 16.222221}
+  - {x: 22.545454, y: 1}
+  - {x: 37.416664, y: 1}
+  - {x: 58.942924, y: 14.595531}
+  - {x: 64, y: 35.66667}
+  - {x: 64, y: 57.166668}
+  - {x: -0.000000834465, y: 55.033333}
+  originPixels: {x: 32, y: 36}
+  artPositionWorld: {x: -0.0281457, y: 1.486751}
   innerEdges: []
   facing: 0
   normalMode: 0
@@ -38,6 +38,6 @@ MonoBehaviour:
     y: 0
     width: 2
     height: 2
-  referenceOpacity: 0.809
-  outputMesh: {fileID: 4300000, guid: a00edfa39c176cf4ea6282e86b7111ad, type: 2}
-  outputPath: Assets/Models/UnitMeshes/MaleHair.asset
+  referenceOpacity: 0.6
+  outputMesh: {fileID: 4300000, guid: 0315628c27854bd41baa96e179fec848, type: 2}
+  outputPath: Assets/Models/UnitMeshes/MouthArray.asset

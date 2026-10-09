@@ -31,6 +31,11 @@ namespace DotsAnimationToolkit.Authoring
         [Min(0)]
         public int restSliceIndex;
 
+        // Editor-only look: the bake never reads it, and the scene renderer's property block it writes
+        // never reaches the entity. Unticking clears the block on this renderer.
+        [Tooltip("Show Rest Slice Index on this part's renderer in the Scene view, so parts sharing one material can differ.")]
+        public bool previewRestSliceIndexInEditor;
+
         [Tooltip("Start this part horizontally mirrored. Requires the rig target to set Faces Direction.")]
         public bool startMirrored;
 
@@ -40,5 +45,31 @@ namespace DotsAnimationToolkit.Authoring
 
         [Tooltip("Material to validate against the actor's VAT texture set when this part has no renderer.")]
         public Material expectedMaterial;
+
+#if UNITY_EDITOR
+        // Matches SpriteSliceProperty's [MaterialProperty("_ImageIndex")].
+        private static readonly int ImageIndexPropertyId = Shader.PropertyToID("_ImageIndex");
+
+        private void OnValidate() { ApplyRestSliceIndexPreview(); }
+
+        private void OnEnable() { ApplyRestSliceIndexPreview(); }
+
+        private void ApplyRestSliceIndexPreview()
+        {
+            Renderer partRenderer = GetComponent<Renderer>();
+            if (partRenderer == null) return;
+
+            if (!previewRestSliceIndexInEditor)
+            {
+                partRenderer.SetPropertyBlock(null);
+                return;
+            }
+
+            MaterialPropertyBlock previewBlock = new MaterialPropertyBlock();
+            partRenderer.GetPropertyBlock(previewBlock);
+            previewBlock.SetFloat(ImageIndexPropertyId, restSliceIndex);
+            partRenderer.SetPropertyBlock(previewBlock);
+        }
+#endif
     }
 }

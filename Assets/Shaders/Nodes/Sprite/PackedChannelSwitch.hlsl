@@ -1,7 +1,7 @@
 // PackedChannelSwitch — a two-variant packed sprite: ONE texture slice carries two shape/alpha
 // pairs and a switch picks which pair renders. Packing convention:
-//   normal variant : R = shape mask (multiplied by the colour), G = output alpha
-//   alt variant    : B = shape mask (multiplied by the colour), A = output alpha
+//   normal variant : R = shape mask (multiplied by the colour), A = output alpha
+//   alt variant    : G = shape mask (multiplied by the colour), B = output alpha
 // Built for hair-under-hats: the alt pair is the same hair reshaped to hug the head, so putting a
 // hat on swaps to a silhouette that doesn't poke through the brim — same slice, same rolled colour.
 // Wire Use Alt Shape to a per-instance (Hybrid Per Instance) float property so equipment code can
@@ -26,7 +26,7 @@
 ///     <sg:Default>1, 1, 1, 1</sg:Default>
 ///</paramhints>
 ///<paramhints name = "useAltShape">
-///     <sg:DisplayName>Use Alt Shape (B/A)</sg:DisplayName>
+///     <sg:DisplayName>Use Alt Shape (G/B)</sg:DisplayName>
 ///     <sg:Range>0, 1</sg:Range>
 ///     <sg:Default>0</sg:Default>
 ///</paramhints>
@@ -40,8 +40,8 @@ void PackedChannelSwitch(
 {
     float altBlend = saturate(useAltShape);
 
-    float shapeMask  = lerp(packedSample.r, packedSample.b, altBlend);
-    float shapeAlpha = lerp(packedSample.g, packedSample.a, altBlend);
+    float shapeMask  = lerp(packedSample.r, packedSample.g, altBlend);
+    float shapeAlpha = lerp(packedSample.a, packedSample.b, altBlend);
 
     recoloredColor = shapeColor.rgb * shapeMask;
     recoloredAlpha = shapeAlpha;

@@ -11,6 +11,7 @@ namespace DotsAnimationToolkit.Editor
     {
         public event Action<float> PixelsPerUnitChanged;
         public event Action<int> FrameStepRequested;
+        public event Action<int> FrameSetRequested;
         public event Action<bool> AllFramesGhostToggled;
         public event Action FitToArtRequested;
         public event Action<int, float> FitSettingsChanged;
@@ -48,6 +49,7 @@ namespace DotsAnimationToolkit.Editor
 
         private readonly FloatField pixelsPerUnitField;
         private readonly Label frameLabel;
+        private readonly IntegerField frameNumberField;
         private readonly Toggle allFramesToggle;
         private readonly VisualElement frameRowContainer;
         private readonly VisualElement allFramesRowContainer;
@@ -116,6 +118,11 @@ namespace DotsAnimationToolkit.Editor
             frameRow.style.alignItems = Align.Center;
             frameRow.style.flexGrow = 1f;
             frameRow.Add(ToolkitChrome.MakeIconSquare(() => FrameStepRequested?.Invoke(-1), "d_Animation.PrevKey", "Previous frame"));
+            frameNumberField = new IntegerField { name = "cutouts-frame-number", isDelayed = true };
+            frameNumberField.style.minWidth = 40f;
+            frameNumberField.tooltip = "Type a frame number (1-based) and press Enter.";
+            frameNumberField.RegisterValueChangedCallback((ChangeEvent<int> changeEvent) => FrameSetRequested?.Invoke(changeEvent.newValue - 1));
+            frameRow.Add(frameNumberField);
             frameLabel = new Label { name = "cutouts-frame-label" };
             frameLabel.AddToClassList("cutouts-frame-label");
             frameLabel.style.flexGrow = 1f;
@@ -291,7 +298,8 @@ namespace DotsAnimationToolkit.Editor
             noCutoutHint.style.display = hasCutout ? DisplayStyle.None : DisplayStyle.Flex;
 
             allFramesToggle.SetValueWithoutNotify(isAllFramesGhostVisible);
-            frameLabel.text = (frameIndex + 1) + " / " + frameCount + " · " + frameName;
+            frameNumberField.SetValueWithoutNotify(frameIndex + 1);
+            frameLabel.text = "/ " + frameCount + " · " + frameName;
             frameLabel.tooltip = frameLabel.text;
             DisplayStyle frameRowsDisplay = frameCount > 1 ? DisplayStyle.Flex : DisplayStyle.None;
             frameRowContainer.style.display = frameRowsDisplay;

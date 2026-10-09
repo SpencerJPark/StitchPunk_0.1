@@ -137,6 +137,8 @@ namespace DotsAnimationToolkit.Editor
             inspector = new CutoutInspectorColumn();
             inspector.PixelsPerUnitChanged += OnPixelsPerUnitChanged;
             inspector.FrameStepRequested += OnFrameStepRequested;
+            inspector.FrameSetRequested += OnFrameSetRequested;
+            canvas.FrameStepKeyPressed += OnFrameStepRequested;
             inspector.AllFramesGhostToggled += OnAllFramesGhostToggled;
             inspector.FitToArtRequested += OnFitToArtRequested;
             inspector.FitSettingsChanged += OnFitSettingsChanged;
@@ -679,6 +681,18 @@ namespace DotsAnimationToolkit.Editor
             }
 
             frameIndex = ((frameIndex + step) % frameCount + frameCount) % frameCount;
+            canvas.SetFrameTexture(FrameTextureAt(frameIndex));
+            RefreshInspector();
+        }
+
+        private void OnFrameSetRequested(int requestedFrameIndex)
+        {
+            if (workingCopy == null || workingCopy.FrameCount <= 0)
+            {
+                return;
+            }
+
+            frameIndex = Mathf.Clamp(requestedFrameIndex, 0, workingCopy.FrameCount - 1);
             canvas.SetFrameTexture(FrameTextureAt(frameIndex));
             RefreshInspector();
         }
