@@ -38,7 +38,7 @@ public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 // --------------------------------------------------------------------------------------------
 // SimulationSystemGroup pipeline:
 // GameManager → Player → Cutscene → UtilityAI → MinionActionSelection → StateMachine → Item
-//   → Movement → Buildings → Combat → Health → Design → Animation
+//   → Movement → Buildings → PlayerResource → Combat → Health → Design → Animation
 // (Adjacent edges below are asserted by SystemGroupOrderTests — keep them explicit.)
 // --------------------------------------------------------------------------------------------
 
@@ -48,6 +48,13 @@ public partial class PlayerSystemGroup : GameSceneSystemGroup { }
 
         [UpdateInGroup(typeof(PlayerSystemGroup), OrderFirst = true)]
         public partial class PlayerInputSystemGroup : ComponentSystemGroup { }
+
+        // Deploy / mount / pack-up of the camp workstation. Reads Target (written in PlayerInput) and
+        // must consume E before Narrative/Dialogue/ItemEquip see it (CampLoop_System.md CL-A2).
+        [UpdateInGroup(typeof(PlayerSystemGroup))]
+        [UpdateAfter(typeof(PlayerInputSystemGroup))]
+        [UpdateBefore(typeof(NarrativeSystemGroup))]
+        public partial class WorkstationInputSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(PlayerSystemGroup))]
         [UpdateAfter(typeof(PlayerInputSystemGroup))]
@@ -114,8 +121,15 @@ public partial class ItemSystemGroup : GameSceneSystemGroup { }
 // declared from game code, so the game-relative edges below live on ITEM/BUILDINGS instead.
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(MovementSystemGroup))]
-[UpdateBefore(typeof(CombatSystemGroup))]
+[UpdateBefore(typeof(PlayerResourceSystemGroup))]
 public partial class BuildingsSystemGroup : GameSceneSystemGroup { }
+
+// Applies the player's ResourceChangeRequest deltas. After Buildings so producers/spenders queued
+// this frame (workstation, reviver) land this frame; before Combat so later groups read settled stock.
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(BuildingsSystemGroup))]
+[UpdateBefore(typeof(CombatSystemGroup))]
+public partial class PlayerResourceSystemGroup : GameSceneSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(HealthSystemGroup))]

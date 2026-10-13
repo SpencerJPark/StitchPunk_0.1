@@ -23,4 +23,7 @@ public enum UnitType {
     MaleRotter,
     FemaleZombie,
     PlayerZombie,
+    // Camp Loop station-summon variants (CampLoop_System.md §4). Append only: assets serialize the int.
+    PlayerZombieBrute,
+    PlayerZombieRunner,
 }

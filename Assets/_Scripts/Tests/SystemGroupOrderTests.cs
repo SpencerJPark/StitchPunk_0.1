@@ -27,6 +27,7 @@ namespace StitchPunk.Tests
             typeof(ItemSystemGroup),
             typeof(MovementSystemGroup),
             typeof(BuildingsSystemGroup),
+            typeof(PlayerResourceSystemGroup),
             typeof(CombatSystemGroup),
             typeof(HealthSystemGroup),
             typeof(DesignSystemGroup),
@@ -47,6 +48,7 @@ namespace StitchPunk.Tests
         private static readonly Dictionary<Type, Type> ChildToParent = new Dictionary<Type, Type>
         {
             { typeof(PlayerInputSystemGroup),         typeof(PlayerSystemGroup) },
+            { typeof(WorkstationInputSystemGroup),    typeof(PlayerSystemGroup) },
             { typeof(NarrativeSystemGroup),           typeof(PlayerSystemGroup) },
             { typeof(DialogueSystemGroup),            typeof(PlayerSystemGroup) },
             { typeof(PlayerEquipmentSystemGroup),     typeof(PlayerSystemGroup) },

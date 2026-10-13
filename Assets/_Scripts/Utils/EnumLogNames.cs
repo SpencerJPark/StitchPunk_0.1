@@ -1,4 +1,4 @@
-using Unity.Collections;
+﻿using Unity.Collections;
 
 // Burst-compatible enum → name helpers for log strings. Burst's FixedString interpolation
 // cannot stringify enums (no reflection) — `{someEnum}` prints the TYPE name ("BehaviorType"),
@@ -109,6 +109,8 @@ public static class EnumLogNames
             case UnitType.MaleRotter:    return "MaleRotter";
             case UnitType.FemaleZombie:  return "FemaleZombie";
             case UnitType.PlayerZombie:  return "PlayerZombie";
+            case UnitType.PlayerZombieBrute:  return "PlayerZombieBrute";
+            case UnitType.PlayerZombieRunner: return "PlayerZombieRunner";
             default:
             {
                 FixedString32Bytes fallback = default;
