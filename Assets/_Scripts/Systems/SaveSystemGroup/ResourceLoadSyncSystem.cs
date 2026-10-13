@@ -1,0 +1,41 @@
+using Unity.Burst;
+using Unity.Entities;
+
+[BurstCompile]
+[UpdateInGroup(typeof(SaveSystemGroup))]
+[UpdateAfter(typeof(PersistentLoadSystem))]
+public partial struct ResourceLoadSyncSystem : ISystem
+{
+    public void OnCreate(ref SystemState state)
+    {
+        state.RequireForUpdate<Player>();
+    }
+
+    [BurstCompile]
+    public void OnUpdate(ref SystemState state)
+    {
+        state.Dependency = new CopySnapshotIntoStackJob().Schedule(state.Dependency);
+    }
+
+    // The save mirror runs earlier this frame, so snapshot equals stack unless a load just overwrote
+    // the snapshot; that ordering is what stops the two mirrors fighting.
+    [BurstCompile]
+    [WithAll(typeof(Player))]
+    private partial struct CopySnapshotIntoStackJob : IJobEntity
+    {
+        private void Execute(ref DynamicBuffer<ResourceStack> resourceStacks, in PlayerResourcesSnapshot snapshot)
+        {
+            for (int rowIndex = 0; rowIndex < resourceStacks.Length; rowIndex++)
+            {
+                ResourceStack row = resourceStacks[rowIndex];
+                int snapshotAmount = ResourceSnapshotMapping.Read(snapshot, row.resourceType);
+                if (row.amount == snapshotAmount)
+                {
+                    continue;
+                }
+                row.amount = snapshotAmount;
+                resourceStacks[rowIndex] = row;
+            }
+        }
+    }
+}

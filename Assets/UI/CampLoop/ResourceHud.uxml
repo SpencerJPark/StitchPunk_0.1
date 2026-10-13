@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="resource-hud-root" style="position: absolute; top: 12px; left: 12px; flex-direction: row; background-color: rgba(20, 20, 20, 0.7); padding: 6px;">
+        <ui:Label name="bodies-label" text="Bodies 0" style="color: rgb(240, 230, 200); font-size: 16px; margin-right: 12px;" />
+        <ui:Label name="wood-label" text="Wood 0" style="color: rgb(240, 230, 200); font-size: 16px; margin-right: 12px;" />
+        <ui:Label name="scrap-label" text="Scrap 0" style="color: rgb(240, 230, 200); font-size: 16px; margin-right: 12px;" />
+        <ui:Label name="electricity-label" text="Electricity 0" style="color: rgb(240, 230, 200); font-size: 16px; margin-right: 12px;" />
+        <ui:Label name="rounds-label" text="Rounds 0" style="color: rgb(240, 230, 200); font-size: 16px; margin-right: 12px;" />
+        <ui:Label name="currency-label" text="Currency 0" style="color: rgb(240, 230, 200); font-size: 16px;" />
+    </ui:VisualElement>
+</ui:UXML>

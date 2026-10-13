@@ -33,3 +33,7 @@ public struct PoolOwner : IComponentData
 // Disabled (not removed) by SpawnInitCleanupSystem at the end of SpawnSystemGroup
 // so the component persists across pool cycles.
 public struct NewlySpawned : IComponentData, IEnableableComponent { }
+
+// Added by WorkstationSummonSpawnSystem; PlayerMinionSpawnInitSystem turns the unit into a player
+// minion (the same bits ReviveJob sets) and removes it.
+public struct SpawnAsPlayerMinion : IComponentData { }

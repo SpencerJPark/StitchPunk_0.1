@@ -1,4 +1,4 @@
-using DotsAnimationToolkit;
+﻿using DotsAnimationToolkit;
 using Unity.Entities;
 
 public struct UnitLibraryBlob
@@ -26,6 +26,9 @@ public struct UnitDataBlob
     // Spawn and maximum health. Stamped onto every unit by UnitHealthInitSystem at spawn, which is
     // what makes this — not the prefab's HealthAuthoring numbers — the live value.
     public int maxHealth;
+    // Charged by the workstation when this unit is summoned (corpses included). Field revives charge a
+    // RevivalRound instead (CampLoop_System.md CL-P3).
+    public SummonCostBlob summonCost;
     public BlobArray<NeedType> motivation;
     public int randomMotivationAmount;
     public BlobArray<NeedType> randomMotivations;
@@ -60,4 +63,11 @@ public struct AttackActionMappingBlob
 {
     public ActionType   action;
     public DamageSource attack;
+}
+
+public struct SummonCostBlob
+{
+    public int corpses;
+    public int scrapMetal;
+    public int electricity;
 }

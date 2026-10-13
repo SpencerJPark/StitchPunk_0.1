@@ -65,6 +65,12 @@ public partial struct UnitLibraryBakingSystem : ISystem
             unitsArray[i].canBePlayerControlled = unitSO.canBePlayerControlled;
             unitsArray[i].awarenessRange       = unitSO.awarenessRange;
             unitsArray[i].maxHealth            = unitSO.maxHealth;
+            unitsArray[i].summonCost = new SummonCostBlob
+            {
+                corpses     = unitSO.summonCost.corpses,
+                scrapMetal  = unitSO.summonCost.scrapMetal,
+                electricity = unitSO.summonCost.electricity,
+            };
 
             // Validate-only (ActorProfileCutover_System.md G5): the prefab's ActorAuthoring stays
             // the runtime source of truth, so a disagreement is reported here rather than pushed

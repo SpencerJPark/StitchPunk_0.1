@@ -54,10 +54,9 @@ public class UnitSO : ScriptableObject
     public float runSpeed = 9f;
     public float rotationSpeed = 10f;
     
-    // [Header("Spawn Cost")]
-    // public ResourceAmount[] spawnCostResourceAmountArray;
-    // public float progressMax;
-    // public Sprite sprite;
+    [Header("Summon Cost")]
+    [Tooltip("Charged when a workstation summons this unit (corpses included). Field revives charge a RevivalRound instead.")]
+    public SummonCost summonCost = new SummonCost { corpses = 1, scrapMetal = 1, electricity = 1 };
 
     // Whether this unit's declared actor profile disagrees with what its prefab's ActorAuthoring
     // actually carries. Shared by OnValidate and UnitLibraryBakingSystem so the inspector and the
@@ -112,5 +111,13 @@ public struct AttackActionMapping
 {
     [SearchableEnum] public ActionType action;
     [SearchableEnum] public DamageSource attack;
+}
+
+[Serializable]
+public struct SummonCost
+{
+    public int corpses;
+    public int scrapMetal;
+    public int electricity;
 }
 

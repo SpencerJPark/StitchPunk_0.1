@@ -1,4 +1,4 @@
-using DotsMovementToolkit;
+﻿using DotsMovementToolkit;
 using Unity.Entities;
 using UnityEngine;
 
@@ -25,6 +25,18 @@ public class PlayerControllerAuthoring : MonoBehaviour
 
     [Tooltip("One scene-object marker per group slot (index 0 = group 1). Shown at the order destination, hidden on arrival or overwrite.")]
     public GameObject[] groupOrderMarkers = new GameObject[4];
+
+    [Header("Resources")]
+    public int startingWood = 10;
+    public int startingScrapMetal = 5;
+    public int startingCorpses = 2;
+    public int startingElectricity = 5;
+    public int startingCurrency = 0;
+    public int startingRevivalRounds = 3;
+
+    [Header("Workstation")]
+    [Tooltip("Prefab with WorkstationAuthoring, instantiated when the player deploys (CampLoop_System.md §5).")]
+    public GameObject workstationPrefab;
 
     public class Baker : Baker<PlayerControllerAuthoring> {
 
@@ -181,7 +193,44 @@ public class PlayerControllerAuthoring : MonoBehaviour
                 : Entity.Null;
             AddComponent(entity, new UnitEquip { socketEntity = socketEntity });
 
+            // One row per ResourceType in enum order so the ledger and snapshot agree on a fixed layout.
+            DynamicBuffer<ResourceStack> resourceStacks = AddBuffer<ResourceStack>(entity);
+            resourceStacks.Add(new ResourceStack { resourceType = ResourceType.Wood, amount = controllerAuthoring.startingWood });
+            resourceStacks.Add(new ResourceStack { resourceType = ResourceType.ScrapMetal, amount = controllerAuthoring.startingScrapMetal });
+            resourceStacks.Add(new ResourceStack { resourceType = ResourceType.Corpse, amount = controllerAuthoring.startingCorpses });
+            resourceStacks.Add(new ResourceStack { resourceType = ResourceType.Electricity, amount = controllerAuthoring.startingElectricity });
+            resourceStacks.Add(new ResourceStack { resourceType = ResourceType.Currency, amount = controllerAuthoring.startingCurrency });
+            resourceStacks.Add(new ResourceStack { resourceType = ResourceType.RevivalRound, amount = controllerAuthoring.startingRevivalRounds });
+            AddBuffer<StorageCapacity>(entity);
+            AddBuffer<ResourceChangeRequest>(entity);
+            AddComponent(entity, new ResourceShortfall());
+            SetComponentEnabled<ResourceShortfall>(entity, false);
+            AddComponent(entity, new PlayerResourcesSnapshot
+            {
+                wood          = controllerAuthoring.startingWood,
+                scrapMetal    = controllerAuthoring.startingScrapMetal,
+                corpse        = controllerAuthoring.startingCorpses,
+                electricity   = controllerAuthoring.startingElectricity,
+                currency      = controllerAuthoring.startingCurrency,
+                revivalRound  = controllerAuthoring.startingRevivalRounds,
+            });
+
             // The player is not baked through UnitBakingUtil — add the cutscene gate here.
+            // Workstation deploy/mount state — all baked off; WorkstationInputSystemGroup drives them.
+            Entity workstationPrefabEntity = controllerAuthoring.workstationPrefab != null
+                ? GetEntity(controllerAuthoring.workstationPrefab, TransformUsageFlags.Dynamic)
+                : Entity.Null;
+            AddComponent(entity, new WorkstationPrefabReference { prefab = workstationPrefabEntity });
+            AddComponent(entity, new PlayerWorkstationLink { workstation = Entity.Null });
+            AddComponent(entity, new OnDeployWorkstationInput());
+            SetComponentEnabled<OnDeployWorkstationInput>(entity, false);
+            AddComponent(entity, new PlayerWorkstationPlacement());
+            SetComponentEnabled<PlayerWorkstationPlacement>(entity, false);
+            AddComponent(entity, new WorkstationMounted());
+            SetComponentEnabled<WorkstationMounted>(entity, false);
+            AddComponent(entity, new WorkstationDismountRequest());
+            SetComponentEnabled<WorkstationDismountRequest>(entity, false);
+
             AddComponent(entity, new CutsceneActor());
             SetComponentEnabled<CutsceneActor>(entity, false);
         }
