@@ -13,6 +13,7 @@ using Unity.Transforms;
 [UpdateAfter(typeof(MinionStandingOrderSystem))]
 public partial struct MinionGatherSystem : ISystem
 {
+    private ComponentLookup<CampLootLocked>          _campLootLockedLookup;
     private ComponentLookup<Dead>                    _deadLookup;
     private ComponentLookup<Despawn>                 _despawnLookup;
     private ComponentLookup<Faction>                 _factionLookup;
@@ -27,6 +28,7 @@ public partial struct MinionGatherSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<BrainLibrary>();
+        _campLootLockedLookup = state.GetComponentLookup<CampLootLocked>(true);
         _deadLookup         = state.GetComponentLookup<Dead>(true);
         _despawnLookup      = state.GetComponentLookup<Despawn>(false);
         _factionLookup      = state.GetComponentLookup<Faction>(true);
@@ -41,6 +43,7 @@ public partial struct MinionGatherSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        _campLootLockedLookup.Update(ref state);
         _deadLookup.Update(ref state);
         _despawnLookup.Update(ref state);
         _factionLookup.Update(ref state);
@@ -60,6 +63,7 @@ public partial struct MinionGatherSystem : ISystem
 
         JobHandle gatherHandle = new MinionGatherJob
         {
+            campLootLockedLookup = _campLootLockedLookup,
             deadLookup          = _deadLookup,
             despawnLookup       = _despawnLookup,
             factionLookup       = _factionLookup,
@@ -101,6 +105,7 @@ public partial struct MinionGatherJob : IJobEntity
     public ComponentLookup<Despawn>                         despawnLookup;
     public ComponentLookup<ResourceNode>                    resourceNodeLookup;
     public BufferLookup<ResourceChangeRequest>              requestLookup;
+    [ReadOnly] public ComponentLookup<CampLootLocked>       campLootLockedLookup;
     [ReadOnly] public ComponentLookup<Dead>                 deadLookup;
     [ReadOnly] public ComponentLookup<Faction>              factionLookup;
     [ReadOnly] public ComponentLookup<LocalTransform>       transformLookup;
@@ -254,7 +259,8 @@ public partial struct MinionGatherJob : IJobEntity
         {
             if (!IsHaulableCorpse(node)) return false;
         }
-        else if (!resourceNodeLookup.TryGetComponent(node, out ResourceNode resourceNode) || resourceNode.remaining <= 0)
+        else if (!resourceNodeLookup.TryGetComponent(node, out ResourceNode resourceNode) || resourceNode.remaining <= 0
+                 || campLootLockedLookup.HasComponent(node))
         {
             return false;
         }
@@ -293,7 +299,7 @@ public partial struct MinionGatherJob : IJobEntity
         for (int nodeIndex = 0; nodeIndex < nodeEntities.Length; nodeIndex++)
         {
             Entity candidate = nodeEntities[nodeIndex];
-            if (candidate == excluded) continue;
+            if (candidate == excluded || campLootLockedLookup.HasComponent(candidate)) continue;
             if (!resourceNodeLookup.TryGetComponent(candidate, out ResourceNode candidateNode)) continue;
             if (candidateNode.resourceType != resourceType || candidateNode.remaining <= 0) continue;
             float distance = PlanarDistance(nodeTransforms[nodeIndex].Position, center);

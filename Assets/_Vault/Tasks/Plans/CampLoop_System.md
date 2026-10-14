@@ -30,7 +30,7 @@ What already exists and is reused, not rebuilt:
 | 2 | **Workstation**: deploy with a ghost preview, pack up, mount → Control Units, furnace (wood → electricity), craft rounds, repair, summon three unit types, placeholder station menu, station destroyed = lose, playtest scene | build now |
 | 3 | **Squads + on-foot command**: Red/Blue squads (two unlocked), cycle the active squad, quick commands, command radius on foot, new summons join the active squad | building 2026-10-13 (CL-D16–D19, CL-A13) |
 | 4 | **Gathering**: tree and scrap nodes, harvest → carry → deposit at the workstation, corpse hauling | building 2026-10-13 (CL-D23–D26, CL-A14) |
-| 5 | **Bandit camp**: armed humans guarding a camp; their corpses feed field revives | after 4 |
+| 5 | **Bandit camp**: armed humans guarding a camp; their corpses feed field revives | building 2026-10-14 (CL-D27–D30) |
 | 6 | **Raid on the station**: periodic bandit wave targeting the workstation; station takes damage | after 5 |
 | 7 | **Rival corpse engineer**: an enemy workstation that spawns zombie waves; destroy it and its engineer flees or fights | after 6 |
 
@@ -288,6 +288,10 @@ No fixture for placement raycasts (they need a physics world and a scene) or for
 | CL-D24 | An empty node sends gatherers to the **nearest same-type node within 15 m**; none → back to the station. |
 | CL-D25 | **1 resource per trip, 3 s harvest**; per-node tunables on `ResourceNodeAuthoring`. |
 | CL-D26 | **Any non-player corpse** can be hauled for 1 Body; it despawns on pickup (can't also be revived). |
+| CL-D27 | (Phase 5, 2026-10-14) **5 melee bandits**, citizen body, ~100 HP; new `Bandits` faction and `Bandit` unit (revives into PlayerZombie). |
+| CL-D28 | **Guard + leash**: idle within ~10 m of camp, attack intruders inside ~12 m (awareness), chase to ~25 m from camp then return. |
+| CL-D29 | **Cleared camp** unlocks a loot cache (scrap crate 10 + strongbox 5 currency, haulable like nodes) and never respawns. |
+| CL-D30 | **Player health** (100). At 0 HP: knocked out, respawn at the workstation after ~5 s with full HP; no station deployed → game over. Mounted hits still knock you off the station (CL-D2 now live). |
 
 Architecture calls (mine, CL-A1–A6 above, plus):
 

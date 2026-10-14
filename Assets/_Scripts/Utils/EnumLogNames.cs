@@ -111,6 +111,7 @@ public static class EnumLogNames
             case UnitType.PlayerZombie:  return "PlayerZombie";
             case UnitType.PlayerZombieBrute:  return "PlayerZombieBrute";
             case UnitType.PlayerZombieRunner: return "PlayerZombieRunner";
+            case UnitType.Bandit:        return "Bandit";
             default:
             {
                 FixedString32Bytes fallback = default;

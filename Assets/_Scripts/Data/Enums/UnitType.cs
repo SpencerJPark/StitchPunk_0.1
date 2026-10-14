@@ -10,6 +10,7 @@
     NorthenForces = 7,
     Church,
     Elites,
+    Bandits,        // CampLoop Phase 5. Append only: FactionRegistry and assets key by the byte.
     
     
 }
@@ -26,4 +27,5 @@ public enum UnitType {
     // Camp Loop station-summon variants (CampLoop_System.md §4). Append only: assets serialize the int.
     PlayerZombieBrute,
     PlayerZombieRunner,
+    Bandit,         // CampLoop Phase 5 camp guard; revives into PlayerZombie.
 }

@@ -338,7 +338,11 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
     {
         if (!entityManager.Exists(target)) return false;
         if (entityManager.HasComponent<ResourceNode>(target))
+        {
+            // Bandit loot stays sealed until its camp is cleared (CampLoop Phase 5).
+            if (entityManager.HasComponent<CampLootLocked>(target)) return false;
             return entityManager.GetComponentData<ResourceNode>(target).remaining > 0;
+        }
         return IsHostileCorpse(entityManager, target);
     }
 
