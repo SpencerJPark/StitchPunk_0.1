@@ -36,6 +36,7 @@ public class MinionAuthoring : MonoBehaviour
 
             // Squad 0 = unassigned; set by the number keys or by joining the active squad on summon.
             AddComponent(bodyEntity, new SquadMember { squadIndex = 0 });
+            AddComponent(bodyEntity, new MinionStandingOrder { type = StandingOrderType.None });
         }
     }
 }

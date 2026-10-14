@@ -68,8 +68,7 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
                 }
 
                 // Claims exist because a unit still walking to its slot isn't there yet, so position alone would double-book it.
-                float3 travelDirection = FormationSlots.TravelDirection(pendingSpawn.position, rallyCenter);
-                int slotIndex = FindFreeSlot(rallyCenter, travelDirection, claims, minionPositions, occupiedRadius);
+                int slotIndex = FindFreeSlot(rallyCenter, pendingSpawn.position, claims, minionPositions, occupiedRadius);
                 float3 slotPosition = rallyCenter + FormationSlots.RoundedSlotOffset(slotIndex, FormationSlots.DefaultSpacing);
                 claims.Add(new WorkstationRallyClaim { slotIndex = slotIndex, claimedTime = now });
 
@@ -93,30 +92,31 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
         minionPositions.Dispose();
     }
 
-    // Summons arrive one by one from the station, so the frontmost free slot (farthest along the
-    // walk) goes first and later summons fill in behind without walking through earlier ones.
+    // Owner call CL-D22: the group grows outward from the spawn point — each summon takes the free slot
+    // nearest the spawn, so the first stops just outside it and later ones fill in further out.
     private static int FindFreeSlot(
         float3 rallyCenter,
-        float3 travelDirection,
+        float3 spawnPosition,
         DynamicBuffer<WorkstationRallyClaim> claims,
         NativeList<float3> minionPositions,
         float occupiedRadius)
     {
-        int frontmostSlot = -1;
-        float frontmostDepth = float.MinValue;
+        int nearestSlot = -1;
+        float nearestDistanceSquared = float.MaxValue;
         for (int slotIndex = 0; slotIndex < FormationSlots.RallyFormationCapacity; slotIndex++)
         {
             if (!IsSlotFree(rallyCenter, slotIndex, claims, minionPositions, occupiedRadius))
                 continue;
 
-            float depth = FormationSlots.SlotDepth(slotIndex, FormationSlots.DefaultSpacing, travelDirection);
-            if (depth <= frontmostDepth)
+            float3 slotPosition = rallyCenter + FormationSlots.RoundedSlotOffset(slotIndex, FormationSlots.DefaultSpacing);
+            float distanceSquared = math.lengthsq(slotPosition.xz - spawnPosition.xz);
+            if (distanceSquared >= nearestDistanceSquared)
                 continue;
-            frontmostDepth = depth;
-            frontmostSlot = slotIndex;
+            nearestDistanceSquared = distanceSquared;
+            nearestSlot = slotIndex;
         }
-        if (frontmostSlot >= 0)
-            return frontmostSlot;
+        if (nearestSlot >= 0)
+            return nearestSlot;
 
         // The formation is full: grow it outward.
         for (int slotIndex = FormationSlots.RallyFormationCapacity; slotIndex < MaxSlotSearch; slotIndex++)

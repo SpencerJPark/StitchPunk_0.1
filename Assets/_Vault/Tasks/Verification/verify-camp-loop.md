@@ -71,6 +71,12 @@ Built 2026-10-13 unattended:
 - [ ] New summons join the **active** squad. Field-revived zombies start in no squad (press a number to assign them).
 - [ ] Number keys on foot are still item slots and don't touch squads.
 
+**Standing orders and the spawn rally (2026-10-13, CL-D21/D22)**
+- [ ] Summons now **grow outward from the spawn point**: the first stops just outside it, and each later one takes the next free slot further out. Later ones may walk past earlier ones, which is fine per you.
+- [ ] **Follow** (radial up, or F + right-click) **stays on** until another order. The squad keeps its own slots around you as you walk, and re-paths when you move more than ~1 m. Any move, attack, interact, stop or return order cancels it.
+- [ ] While following, an enemy coming **within ~8 m of you** is attacked; the squad goes back to following once it's dead or has left the area (beyond ~13 m). Your character has no health yet, so "you were attacked" can't be detected; enemies getting close is the trigger.
+- [ ] **Hold** (radial left, or Shift + right-click on ground) also persists. Units stand at their spot (spread around the click for Shift) and attack enemies within 5 m, then walk back. Hold was previously a no-op: nothing consumed its order.
+
 ## Feel questions (your call; answers feed Phase 3)
 
 - [ ] Is B a good deploy key? Is E-to-confirm placement fine, or should it be click-to-place?

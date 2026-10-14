@@ -258,11 +258,22 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         // F key → follow player regardless of cursor position.
         if (Keyboard.current[Key.F].isPressed)
         {
+            // Slot 0 stays the player's own spot, so followers start at slot 1.
+            int followOrdinal = 0;
             for (int i = 0; i < minions.Length; i++)
             {
-                if (!entityManager.HasComponent<OnMinionFollowCommand>(minions[i])) continue;
-                entityManager.SetComponentEnabled<OnMinionFollowCommand>(minions[i], true);
-                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+                if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
+                entityManager.SetComponentData(minions[i], new MinionStandingOrder
+                {
+                    type = StandingOrderType.FollowCommander,
+                    formationSlotIndex = followOrdinal + 1,
+                    engageRadius = 8f,
+                    lastIssuedDestination = new float3(float.MaxValue),
+                    lastIssuedTime = -1000,
+                });
+                followOrdinal++;
+                if (entityManager.HasComponent<PlayerUnitBrain>(minions[i]))
+                    entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
             }
             minions.Dispose();
             return;
@@ -357,16 +368,23 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         // Shift + right-click on ground → defend position.
         if (Keyboard.current[Key.LeftShift].isPressed || Keyboard.current[Key.RightShift].isPressed)
         {
+            // Each unit holds its own slot around the click so a group holds a spread, not one point.
+            int holdOrdinal = 0;
             for (int i = 0; i < minions.Length; i++)
             {
-                if (!entityManager.HasComponent<OnMinionDefendCommand>(minions[i])) continue;
-                entityManager.SetComponentData(minions[i], new OnMinionDefendCommand
+                if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
+                float3 holdAnchor = (float3)worldPos + FormationSlots.RoundedSlotOffset(holdOrdinal, FormationSlots.DefaultSpacing);
+                holdOrdinal++;
+                entityManager.SetComponentData(minions[i], new MinionStandingOrder
                 {
-                    position = worldPos,
-                    radius   = 5f,
+                    type = StandingOrderType.HoldPosition,
+                    anchorPosition = holdAnchor,
+                    engageRadius = 5f,
+                    lastIssuedDestination = new float3(float.MaxValue),
+                    lastIssuedTime = -1000,
                 });
-                entityManager.SetComponentEnabled<OnMinionDefendCommand>(minions[i], true);
-                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+                if (entityManager.HasComponent<PlayerUnitBrain>(minions[i]))
+                    entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
             }
             minions.Dispose();
             return;

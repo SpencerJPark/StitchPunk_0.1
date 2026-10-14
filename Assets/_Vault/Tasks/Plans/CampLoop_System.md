@@ -282,6 +282,8 @@ No fixture for placement raycasts (they need a physics world and a scene) or for
 | CL-D18 | Quick commands = **radial**, held on **Q or middle mouse** (gamepad: left bumper on foot, right-stick click mounted): Follow, Hold, Attack my target, Return (Gather joins in Phase 4). |
 | CL-D19 | Control Units mouse **swapped**: left = select, right = command (gamepad triggers unchanged). |
 | CL-D20 | Formations fill **front-to-back by arrival order**; units may walk through each other en route (owner: "feels more natural"). |
+| CL-D21 | **Follow is persistent** until another order, and followers attack hostiles that come near the player (~8 m); Hold is persistent too. Implemented as `MinionStandingOrder` + `MinionStandingOrderSystem`; explicit orders clear it in `MinionActionSelectionSystem`. |
+| CL-D22 | **Spawn rally grows outward from the spawn point** (nearest free slot first), overriding the earlier front-to-back rally fill; move orders keep front-to-back (CL-D20). |
 
 Architecture calls (mine, CL-A1–A6 above, plus):
 

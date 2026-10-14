@@ -248,7 +248,7 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
             float3 memberPosition = transforms[minionIndex].Position;
             if (!SquadRules.HearsCommand(commanderMounted, commanderPosition, memberPosition, onFootRadius)) continue;
 
-            ApplyCommand(minions[minionIndex], command, memberPosition, targetEntity);
+            ApplyCommand(minions[minionIndex], command, memberPosition, targetEntity, commandedCount);
             commandedCount++;
         }
 
@@ -264,18 +264,32 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
         Debug.Log("[Squad] " + command + " -> " + commandedCount + " members of squad " + activeSquad);
     }
 
-    private void ApplyCommand(Entity member, QuickCommandType command, float3 memberPosition, Entity targetEntity)
+    private void ApplyCommand(Entity member, QuickCommandType command, float3 memberPosition, Entity targetEntity, int memberOrdinal)
     {
         switch (command)
         {
             case QuickCommandType.Follow:
-                if (!entityManager.HasComponent<OnMinionFollowCommand>(member)) return;
-                entityManager.SetComponentEnabled<OnMinionFollowCommand>(member, true);
+                if (!entityManager.HasComponent<MinionStandingOrder>(member)) return;
+                // Slot 0 stays the player's own spot, so members start at slot 1.
+                entityManager.SetComponentData(member, new MinionStandingOrder
+                {
+                    type = StandingOrderType.FollowCommander,
+                    formationSlotIndex = memberOrdinal + 1,
+                    engageRadius = 8f,
+                    lastIssuedDestination = new float3(float.MaxValue),
+                    lastIssuedTime = -1000,
+                });
                 break;
             case QuickCommandType.Hold:
-                if (!entityManager.HasComponent<OnMinionDefendCommand>(member)) return;
-                entityManager.SetComponentData(member, new OnMinionDefendCommand { position = memberPosition, radius = HoldDefendRadius });
-                entityManager.SetComponentEnabled<OnMinionDefendCommand>(member, true);
+                if (!entityManager.HasComponent<MinionStandingOrder>(member)) return;
+                entityManager.SetComponentData(member, new MinionStandingOrder
+                {
+                    type = StandingOrderType.HoldPosition,
+                    anchorPosition = memberPosition,
+                    engageRadius = HoldDefendRadius,
+                    lastIssuedDestination = memberPosition,
+                    lastIssuedTime = -1000,
+                });
                 break;
             case QuickCommandType.AttackTarget:
                 if (!entityManager.HasComponent<OnMinionAttackCommand>(member)) return;
