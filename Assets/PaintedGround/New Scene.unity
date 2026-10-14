@@ -886,6 +886,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1061540978011425619, guid: 842b79dbdb3670d479f07af71e4d6361, type: 3}
+      propertyPath: restSliceIndex
+      value: 20
+      objectReference: {fileID: 0}
     - target: {fileID: 4139101512849447948, guid: 842b79dbdb3670d479f07af71e4d6361, type: 3}
       propertyPath: m_Name
       value: MaleHead
@@ -936,7 +940,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8630484349165902654, guid: 842b79dbdb3670d479f07af71e4d6361, type: 3}
       propertyPath: restSliceIndex
-      value: 45
+      value: 33
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:

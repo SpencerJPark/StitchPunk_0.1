@@ -1,5 +1,6 @@
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 // Unit Design System — per-instance visual identity, now semantic (shape + palette) instead of raw
 // texture-array slice indices. Static per-part config (variant grid, colour axis) lives in the
@@ -73,3 +74,13 @@ public struct RandomTagOption : IBufferElementData
 // once on load. Stripped from the runtime world.
 [BakingType]
 public struct DesignReloadOnBake : IComponentData { }
+
+public struct NeckLength : IComponentData
+{
+    public float3 headPosition;
+}
+
+public struct UnitHeight : IComponentData
+{
+    public float scale;
+}

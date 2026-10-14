@@ -120,7 +120,7 @@ Material:
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
-    - _ImageIndex: 2
+    - _ImageIndex: 4
     - _InteractableHighlight: 0
     - _IsInteractable: 0
     - _Metallic: 0
@@ -154,7 +154,7 @@ Material:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
-    - _SecondaryColor: {r: 0.6, g: 0.04999984, b: 0.04999984, a: 1}
+    - _SecondaryColor: {r: 0.6, g: 0.04999982, b: 0.04999982, a: 0}
     - _ShadowColor: {r: 0.6, g: 0.5, b: 0.7, a: 1}
     - _ShadowTint: {r: 0.27999997, g: 0.33999997, b: 0.52, a: 1}
     - _SpecColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}
