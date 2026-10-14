@@ -776,3 +776,6 @@ After a mutation or a revert, Burst can keep serving the old compiled code, so t
 
 ### UI Toolkit buttons ignore the custom unit-control cursor
 `UnitSelectionCursorUI` hides the OS cursor and moves its own image by delta, so UI Toolkit never sees a pointer there. Panels used in Control Units mode must hit-test `CursorScreenPosition` themselves (`RuntimePanelUtils.ScreenToPanel` with Y flipped + `panel.Pick`) and register with `VirtualCursorUiRouter` so `UnitSelectionManager` swallows the click instead of commanding minions (`WorkstationMenuUI`).
+
+### A new UnitType needs its own BrainSO
+The brain library is indexed by `UnitType`; a type with no `BrainSO` in `_BrainLibrary` has no actions, so move/attack orders resolve to action def -1 and the unit silently ignores them (PlayerZombieBrute/Runner, 2026-10-13). `UnitBrainCoverageTests` now fails for any player-controllable unit without a brain, and `MinionActionSelectionSystem` warns `cannot Move: no Wander action`.

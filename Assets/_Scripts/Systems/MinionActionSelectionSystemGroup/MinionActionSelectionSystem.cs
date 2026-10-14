@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -131,7 +131,10 @@ public partial struct MinionActionWriteJob : IJobEntity
                 isPlayerOrdered   = true,
             });
             moveCmdLookup.SetComponentEnabled(unit, false);
-            if (loggingEnabled)
+            // A unit type with no BrainSO has no Wander def, so the order would silently do nothing.
+            if (defIndex < 0)
+                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} cannot Move: no Wander action in the brain for {brain.unitType.Name()}", LogLevel.Warning, timestamp, category: LogCategory.AI);
+            else if (loggingEnabled)
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Move to ({destination.x:G}, {destination.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
 
