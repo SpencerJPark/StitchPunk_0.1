@@ -7,6 +7,13 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// StitchPunk.UI references this assembly, so the menu registers itself here instead of being referenced directly.
+public static class VirtualCursorUiRouter
+{
+    public static System.Func<Vector2, bool> isScreenPositionOverUi;
+    public static System.Func<Vector2, bool> tryClickAtScreenPosition;
+}
+
 public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IUpdateObserver
 {
     private EntityManager entityManager;
@@ -18,6 +25,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     public bool IsSelecting { get; private set; }
 
     private Vector2 selectionStartScreenPosition;
+    private bool selectionStartedOverUi;
 
     #region Unity Lifecycle
 
@@ -45,15 +53,24 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             OnSelectPlayerInput selectInput = entityManager.GetComponentData<OnSelectPlayerInput>(playerEntity);
             entityManager.SetComponentEnabled<OnSelectPlayerInput>(playerEntity, false);
 
-            if (!selectInput.isReleased)
+            // The virtual cursor is not the OS pointer, so UI Toolkit never sees it; route clicks over the menu ourselves.
+            if (!selectInput.isReleased && VirtualCursorUiRouter.isScreenPositionOverUi != null
+                && VirtualCursorUiRouter.isScreenPositionOverUi(GetCursorScreenPosition()))
             {
+                selectionStartedOverUi = true;
+            }
+            else if (!selectInput.isReleased)
+            {
+                selectionStartedOverUi = false;
                 selectionStartScreenPosition = GetCursorScreenPosition();
                 IsSelecting = true;
                 DeselectAll();
             }
             else
             {
-                HandleSelectionComplete();
+                if (!selectionStartedOverUi)
+                    HandleSelectionComplete();
+                selectionStartedOverUi = false;
                 IsSelecting = false;
             }
         }
@@ -77,7 +94,10 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
         if (entityManager.IsComponentEnabled<OnCommandPlayerInput>(playerEntity))
         {
-            HandleCommand();
+            bool clickConsumedByUi = VirtualCursorUiRouter.tryClickAtScreenPosition != null
+                && VirtualCursorUiRouter.tryClickAtScreenPosition(GetCursorScreenPosition());
+            if (!clickConsumedByUi)
+                HandleCommand();
             entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, false);
         }
 

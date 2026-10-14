@@ -50,6 +50,13 @@ Built 2026-10-13 unattended:
 - [ ] **Lose:** "damage station" is not in the debug menu yet, so set the station's `Health.healthAmount` to 0 in the Entities inspector. "Your workstation was destroyed" appears, and Restart reloads.
 - [ ] **Repair** after some damage: Wood −2, station HP +25. At full HP nothing is spent.
 
+**Follow-up fixes (2026-10-13, after your first look)**
+- [ ] With the **custom cursor**, hovering a station-menu button tints it, and clicking presses it. Clicking anywhere on the panel does *not* send selected minions a move order. Right-click-drag starting on the panel does not start a box select.
+- [ ] Summons now **spawn**: `PlayerZombie.asset` had no prefab. All three zombie types now use MaleCitizen prefab variants (`Prefabs/Units/PlayerZombie*.prefab`), and look like citizens until they get their own art.
+- [ ] **Billboarding:** citizens and zombies stay visible while walking in every direction (NewRig now has an actor-root billboard at your package default, Screen Aligned). The player stays visible too, via a small game-side `VisualBillboardSystem` on the player's `Visual` child, since the player has no rig.
+- [ ] The console is free of `Can't call HasSingleton<CampLoopGameOver>` (fixed).
+- [ ] Tab in Control Units still also cycles formation (`UnitSelectionManager`, hard-coded Tab) as well as dismounting. Should formation cycling move to another key?
+
 ## Feel questions (your call; answers feed Phase 3)
 
 - [ ] Is B a good deploy key? Is E-to-confirm placement fine, or should it be click-to-place?

@@ -1,4 +1,4 @@
-using Unity.Entities;
+﻿using Unity.Entities;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
@@ -75,7 +75,10 @@ public class CampLoopGameOverUI : MonoBehaviour
         if (gameOverQuery.IsEmptyIgnoreFilter)
             return;
 
-        Entity gameOverEntity = gameOverQuery.GetSingletonEntity();
+        // GetSingletonEntity throws on enableable component types; take the first entity instead.
+        Unity.Collections.NativeArray<Entity> gameOverEntities = gameOverQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
+        Entity gameOverEntity = gameOverEntities[0];
+        gameOverEntities.Dispose();
         if (!entityManager.IsComponentEnabled<CampLoopGameOver>(gameOverEntity))
             return;
 

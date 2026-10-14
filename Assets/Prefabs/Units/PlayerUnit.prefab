@@ -279,7 +279,27 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3094532311958105572, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1794824144110468912}
+    - targetCorrespondingSourceObject: {fileID: 2772220204455685815, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 756013118837625890}
   m_SourcePrefab: {fileID: 100100000, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
+--- !u!1 &6080077151641677962 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2772220204455685815, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
+  m_PrefabInstance: {fileID: 8221358924657319485}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &756013118837625890
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6080077151641677962}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef49a3a53ccb40747a1bc7a4626b28bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::VisualBillboardAuthoring
 --- !u!4 &6156346193418944387 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2843915811544867262, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}

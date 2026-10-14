@@ -770,3 +770,9 @@ After a mutation or a revert, Burst can keep serving the old compiled code, so t
 
 ### Summoned minions bypass UnitSpawner
 `UnitSpawner` places units out of camera view at random points. Summoned minions therefore do not go through it, so the camera-view rule does not apply to them. See CL-A6 in [[CampLoop_System]].
+
+### `*Singleton*` query APIs throw on enableable components
+`EntityQuery.HasSingleton/TryGetSingletonEntity/GetSingletonEntity<T>()` throw `InvalidOperationException` when `T` is `IEnableableComponent` — even on a `WithPresent` / `IgnoreComponentEnabledState` query. The gate and unit tests do not catch it (it fires at runtime, from Burst as an abort). Read `query.ToEntityArray(Allocator.Temp)[0]` instead (`WorkstationDestroyedSystem`, `CampLoopGameOverUI` — the disabled `CampLoopGameOver` singleton).
+
+### UI Toolkit buttons ignore the custom unit-control cursor
+`UnitSelectionCursorUI` hides the OS cursor and moves its own image by delta, so UI Toolkit never sees a pointer there. Panels used in Control Units mode must hit-test `CursorScreenPosition` themselves (`RuntimePanelUtils.ScreenToPanel` with Y flipped + `panel.Pick`) and register with `VirtualCursorUiRouter` so `UnitSelectionManager` swallows the click instead of commanding minions (`WorkstationMenuUI`).

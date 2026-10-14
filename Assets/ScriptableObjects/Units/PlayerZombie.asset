@@ -16,7 +16,7 @@ MonoBehaviour:
   factionType: 1
   canBePlayerControlled: 1
   becomesUnitType: 6
-  prefab: {fileID: 0}
+  prefab: {fileID: 2943121499025311773, guid: 079341bcecad00e41aee7b48f5645d17, type: 3}
   awarenessRange: 20
   bravery: 1
   braveryVariance: 0
@@ -31,25 +31,8 @@ MonoBehaviour:
   randomMotivations: 
   motivationDecayRates: []
   socialFactions: 
-  actionAnimations:
-  - action: 0
-    animation: 1
-  - action: 1
-    animation: 2
-  - action: 17
-    animation: 36
-  stanceAnimations:
-  - stance: 0
-    idleAnimation: 1
-    movingAnimation: 2
-  - stance: 1
-    idleAnimation: 1
-    movingAnimation: 2
-  - stance: 2
-    idleAnimation: 1
-    movingAnimation: 3
-  idleAnimation: 1
-  movingAnimation: 2
+  actorProfile: {fileID: 0}
+  maxHealth: 100
   attackFactions: 
   attacks:
   - action: 17
@@ -57,3 +40,7 @@ MonoBehaviour:
   moveSpeed: 5
   runSpeed: 9
   rotationSpeed: 10
+  summonCost:
+    corpses: 1
+    scrapMetal: 1
+    electricity: 1

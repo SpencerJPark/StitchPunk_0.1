@@ -16,7 +16,7 @@ MonoBehaviour:
   factionType: 1
   canBePlayerControlled: 1
   becomesUnitType: 7
-  prefab: {fileID: 0}
+  prefab: {fileID: 7667983101179577842, guid: 7607e953753315347a3f4f3659987a47, type: 3}
   awarenessRange: 20
   bravery: 1
   braveryVariance: 0

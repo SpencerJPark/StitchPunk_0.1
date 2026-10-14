@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
@@ -20,10 +20,13 @@ public partial struct WorkstationDestroyedSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        if (!gameOverSingletonQuery.TryGetSingletonEntity<CampLoopGameOver>(out Entity gameOverEntity))
+        // The *Singleton* query API throws on enableable component types, so read the entity array instead.
+        NativeArray<Entity> gameOverEntities = gameOverSingletonQuery.ToEntityArray(Allocator.Temp);
+        if (gameOverEntities.Length == 0)
         {
             return;
         }
+        Entity gameOverEntity = gameOverEntities[0];
 
         foreach ((RefRO<Health> health, RefRO<Workstation> workstation) in SystemAPI.Query<RefRO<Health>, RefRO<Workstation>>())
         {

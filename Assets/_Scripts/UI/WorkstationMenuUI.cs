@@ -1,10 +1,14 @@
+using System.Collections.Generic;
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 // Placeholder until the Rive artboard exists (CampLoop_System.md CL-D11).
 public class WorkstationMenuUI : MonoBehaviour
 {
+    public static WorkstationMenuUI ActiveInstance { get; private set; }
+
     [SerializeField] private UIDocument menuDocument;
 
     private VisualElement menuRoot;
@@ -27,6 +31,9 @@ public class WorkstationMenuUI : MonoBehaviour
     private int builtSummonOptionCount = -1;
     private Entity builtForWorkstation = Entity.Null;
     private bool wasVisible;
+
+    private readonly Dictionary<Button, System.Action> buttonActions = new Dictionary<Button, System.Action>();
+    private Button hoveredButton;
 
     private string lastHealthText;
     private string lastQueueText;
@@ -52,11 +59,17 @@ public class WorkstationMenuUI : MonoBehaviour
         packUpButton = root.Q<Button>("pack-up-button");
         dismountButton = root.Q<Button>("dismount-button");
 
-        RegisterClick(craftRoundButton, OnCraftRoundClicked);
-        RegisterClick(repairButton, OnRepairClicked);
-        RegisterClick(furnaceButton, OnFurnaceClicked);
-        RegisterClick(packUpButton, OnPackUpClicked);
-        RegisterClick(dismountButton, OnDismountClicked);
+        ActiveInstance = this;
+        VirtualCursorUiRouter.isScreenPositionOverUi = IsScreenPositionOverMenu;
+        VirtualCursorUiRouter.tryClickAtScreenPosition = TryClickAtScreenPosition;
+        buttonActions.Clear();
+        hoveredButton = null;
+
+        RegisterClick(craftRoundButton, OnCraftRoundClicked, true);
+        RegisterClick(repairButton, OnRepairClicked, true);
+        RegisterClick(furnaceButton, OnFurnaceClicked, true);
+        RegisterClick(packUpButton, OnPackUpClicked, true);
+        RegisterClick(dismountButton, OnDismountClicked, true);
 
         builtSummonOptionCount = -1;
         ResetCachedText();
@@ -64,6 +77,12 @@ public class WorkstationMenuUI : MonoBehaviour
 
     private void OnDisable()
     {
+        if (ActiveInstance == this)
+            ActiveInstance = null;
+        VirtualCursorUiRouter.isScreenPositionOverUi = null;
+        VirtualCursorUiRouter.tryClickAtScreenPosition = null;
+        SetHoveredButton(null);
+        buttonActions.Clear();
         UnregisterClick(craftRoundButton, OnCraftRoundClicked);
         UnregisterClick(repairButton, OnRepairClicked);
         UnregisterClick(furnaceButton, OnFurnaceClicked);
@@ -75,6 +94,13 @@ public class WorkstationMenuUI : MonoBehaviour
     {
         if (button != null)
             button.clicked += handler;
+    }
+
+    private void RegisterClick(Button button, System.Action handler, bool trackForVirtualCursor)
+    {
+        RegisterClick(button, handler);
+        if (button != null && trackForVirtualCursor)
+            buttonActions[button] = handler;
     }
 
     private static void UnregisterClick(Button button, System.Action handler)
@@ -141,12 +167,89 @@ public class WorkstationMenuUI : MonoBehaviour
         }
 
         if (!shouldShow)
+        {
+            SetHoveredButton(null);
             return;
+        }
 
         RebuildSummonListIfNeeded(entityManager);
+        RefreshVirtualCursorHover(entityManager);
         RefreshHealth(entityManager);
         RefreshQueue(entityManager);
         RefreshRecipeButtons(entityManager);
+    }
+
+    private bool IsMenuVisible()
+    {
+        return menuRoot != null && menuRoot.panel != null && menuRoot.resolvedStyle.display != DisplayStyle.None && wasVisible;
+    }
+
+    private VisualElement PickMenuElementAtScreenPosition(Vector2 screenPositionBottomLeft)
+    {
+        if (!IsMenuVisible())
+            return null;
+
+        // UI Toolkit screen space has Y down, Input.mousePosition-style space has Y up.
+        Vector2 panelPosition = RuntimePanelUtils.ScreenToPanel(
+            menuRoot.panel, new Vector2(screenPositionBottomLeft.x, Screen.height - screenPositionBottomLeft.y));
+        VisualElement picked = menuRoot.panel.Pick(panelPosition);
+        for (VisualElement current = picked; current != null; current = current.parent)
+        {
+            if (current == menuRoot)
+                return picked;
+        }
+        return null;
+    }
+
+    private static Button FindAncestorOrSelfButton(VisualElement element)
+    {
+        for (VisualElement current = element; current != null; current = current.parent)
+        {
+            if (current is Button button)
+                return button;
+        }
+        return null;
+    }
+
+    public bool IsScreenPositionOverMenu(Vector2 screenPositionBottomLeft)
+    {
+        return PickMenuElementAtScreenPosition(screenPositionBottomLeft) != null;
+    }
+
+    // Returns true when the click landed on the menu at all, so it never also commands minions.
+    public bool TryClickAtScreenPosition(Vector2 screenPositionBottomLeft)
+    {
+        VisualElement picked = PickMenuElementAtScreenPosition(screenPositionBottomLeft);
+        if (picked == null)
+            return false;
+
+        Button button = FindAncestorOrSelfButton(picked);
+        if (button != null && button.enabledInHierarchy && buttonActions.TryGetValue(button, out System.Action action))
+            action();
+        return true;
+    }
+
+    private void RefreshVirtualCursorHover(EntityManager entityManager)
+    {
+        Button buttonUnderCursor = null;
+        if (currentPlayer != Entity.Null && entityManager.HasComponent<CursorScreenPosition>(currentPlayer))
+        {
+            float2 cursorPosition = entityManager.GetComponentData<CursorScreenPosition>(currentPlayer).Value;
+            VisualElement picked = PickMenuElementAtScreenPosition(new Vector2(cursorPosition.x, cursorPosition.y));
+            buttonUnderCursor = FindAncestorOrSelfButton(picked);
+        }
+        SetHoveredButton(buttonUnderCursor);
+    }
+
+    private void SetHoveredButton(Button button)
+    {
+        if (button == hoveredButton)
+            return;
+        if (hoveredButton != null)
+            hoveredButton.style.backgroundColor = StyleKeyword.Null;
+        hoveredButton = button;
+        if (hoveredButton != null)
+            hoveredButton.style.backgroundColor = new Color(0.45f, 0.45f, 0.5f, 1f);
     }
 
     private void RebuildSummonListIfNeeded(EntityManager entityManager)
@@ -160,6 +263,12 @@ public class WorkstationMenuUI : MonoBehaviour
 
         builtSummonOptionCount = options.Length;
         builtForWorkstation = currentWorkstation;
+        hoveredButton = null;
+        foreach (VisualElement staleChild in summonList.Children())
+        {
+            if (staleChild is Button staleButton)
+                buttonActions.Remove(staleButton);
+        }
         summonList.Clear();
 
         bool hasLibrary = !unitLibraryQuery.IsEmptyIgnoreFilter;
@@ -188,7 +297,9 @@ public class WorkstationMenuUI : MonoBehaviour
             summonButton.style.fontSize = 14;
             summonButton.style.marginBottom = 4;
             UnitType capturedUnitType = unitType;
-            summonButton.clicked += () => OnSummonClicked(capturedUnitType);
+            System.Action summonAction = () => OnSummonClicked(capturedUnitType);
+            summonButton.clicked += summonAction;
+            buttonActions[summonButton] = summonAction;
             summonList.Add(summonButton);
         }
     }
