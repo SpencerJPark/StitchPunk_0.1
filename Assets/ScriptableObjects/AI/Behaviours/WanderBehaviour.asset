@@ -17,6 +17,6 @@ MonoBehaviour:
   executionSequence:
   - type: 6
     IntParam: 0
-    FloatParam: 1.5
+    FloatParam: 0.4
     Duration: 0
   interruptionCleanup: []

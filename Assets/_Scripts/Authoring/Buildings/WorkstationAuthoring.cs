@@ -9,6 +9,8 @@ public class WorkstationAuthoring : MonoBehaviour
     public Transform mountPoint;
     [Tooltip("Where finished minions appear. Defaults to (0,0,2) when empty.")]
     public Transform summonSpawnPoint;
+    [Tooltip("Centre of the formation summoned minions walk to. Defaults to (0,0,5) when empty.")]
+    public Transform rallyPoint;
 
     [Header("Health")]
     public int maxHealth = 200;
@@ -51,12 +53,16 @@ public class WorkstationAuthoring : MonoBehaviour
             float3 summonSpawnLocalOffset = authoring.summonSpawnPoint != null
                 ? (float3)authoring.transform.InverseTransformPoint(authoring.summonSpawnPoint.position)
                 : new float3(0f, 0f, 2f);
+            float3 rallyLocalOffset = authoring.rallyPoint != null
+                ? (float3)authoring.transform.InverseTransformPoint(authoring.rallyPoint.position)
+                : new float3(0f, 0f, 5f);
 
             AddComponent(entity, new Workstation
             {
                 ownerPlayer = Entity.Null,
                 mountLocalOffset = mountLocalOffset,
                 summonSpawnLocalOffset = summonSpawnLocalOffset,
+                rallyLocalOffset = rallyLocalOffset,
             });
             AddComponent(entity, new WorkstationFurnace
             {
@@ -88,6 +94,7 @@ public class WorkstationAuthoring : MonoBehaviour
             AddBuffer<WorkstationSummonRequest>(entity);
             AddBuffer<WorkstationSummonQueueEntry>(entity);
             AddBuffer<PendingMinionSpawn>(entity);
+            AddBuffer<WorkstationRallyClaim>(entity);
 
             AddComponent<CraftRevivalRoundRequest>(entity);
             SetComponentEnabled<CraftRevivalRoundRequest>(entity, false);

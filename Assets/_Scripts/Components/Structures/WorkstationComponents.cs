@@ -1,4 +1,4 @@
-using Unity.Entities;
+﻿using Unity.Entities;
 using Unity.Mathematics;
 
 // The camp workstation (CampLoop_System.md §4). Faction-agnostic so a rival engineer's station
@@ -8,6 +8,7 @@ public struct Workstation : IComponentData
     public Entity ownerPlayer;
     public float3 mountLocalOffset;
     public float3 summonSpawnLocalOffset;
+    public float3 rallyLocalOffset;       // centre of the formation new summons walk to
 }
 
 public struct WorkstationFurnace : IComponentData
@@ -64,3 +65,11 @@ public struct WorkstationRepairRequest : IComponentData, IEnableableComponent { 
 public struct WorkstationPackUpRequest : IComponentData, IEnableableComponent { }
 
 public struct WorkstationFurnaceToggleRequest : IComponentData, IEnableableComponent { }
+
+// Rally slots handed out recently; a slot stays claimed for a few seconds so a unit still walking
+// to it is not double-booked before it arrives.
+public struct WorkstationRallyClaim : IBufferElementData
+{
+    public int slotIndex;
+    public double claimedTime;
+}

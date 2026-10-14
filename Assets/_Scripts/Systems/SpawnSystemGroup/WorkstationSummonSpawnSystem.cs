@@ -1,10 +1,15 @@
-﻿using Unity.Entities;
+using Unity.Collections;
+using Unity.Entities;
+using Unity.Mathematics;
 using Unity.Transforms;
 
 // Bypasses UnitSpawner because that spawns out of camera view at random points (CampLoop_System.md CL-A6).
 [UpdateInGroup(typeof(SpawnSystemGroup))]
 public partial struct WorkstationSummonSpawnSystem : ISystem
 {
+    private const double ClaimLifetimeSeconds = 6.0;
+    private const int MaxSlotSearch = 200;
+
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<UnitDataLibrary>();
@@ -15,13 +20,36 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
         Entity libraryEntity = SystemAPI.GetSingletonEntity<UnitDataLibrary>();
         DynamicBuffer<UnitPrefabEntry> prefabs = SystemAPI.GetBuffer<UnitPrefabEntry>(libraryEntity);
 
-        EntityCommandBuffer ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
+        EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.Temp);
+        double now = SystemAPI.Time.ElapsedTime;
 
-        foreach (DynamicBuffer<PendingMinionSpawn> pendingSpawns in
-            SystemAPI.Query<DynamicBuffer<PendingMinionSpawn>>())
+        NativeList<float3> minionPositions = new NativeList<float3>(Allocator.Temp);
+        foreach (RefRO<LocalTransform> minionTransform in
+            SystemAPI.Query<RefRO<LocalTransform>>().WithAll<Minion>())
+        {
+            minionPositions.Add(minionTransform.ValueRO.Position);
+        }
+
+        float occupiedRadius = FormationSlots.DefaultSpacing * 0.5f;
+
+        foreach ((RefRO<Workstation> workstation,
+                  RefRO<LocalTransform> stationTransform,
+                  DynamicBuffer<PendingMinionSpawn> pendingSpawns,
+                  DynamicBuffer<WorkstationRallyClaim> claims) in
+            SystemAPI.Query<RefRO<Workstation>, RefRO<LocalTransform>,
+                DynamicBuffer<PendingMinionSpawn>, DynamicBuffer<WorkstationRallyClaim>>())
         {
             if (pendingSpawns.IsEmpty)
                 continue;
+
+            float3 rallyCenter = stationTransform.ValueRO.Position
+                + math.rotate(stationTransform.ValueRO.Rotation, workstation.ValueRO.rallyLocalOffset);
+
+            for (int claimIndex = claims.Length - 1; claimIndex >= 0; claimIndex--)
+            {
+                if (now - claims[claimIndex].claimedTime > ClaimLifetimeSeconds)
+                    claims.RemoveAt(claimIndex);
+            }
 
             for (int index = 0; index < pendingSpawns.Length; index++)
             {
@@ -34,12 +62,19 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
                     continue;
                 }
 
+                // Claims exist because a unit still walking to its slot isn't there yet, so position alone would double-book it.
+                int slotIndex = FindFreeSlot(rallyCenter, claims, minionPositions, occupiedRadius);
+                float3 slotPosition = rallyCenter + FormationSlots.RoundedSlotOffset(slotIndex, FormationSlots.DefaultSpacing);
+                claims.Add(new WorkstationRallyClaim { slotIndex = slotIndex, claimedTime = now });
+
                 Entity newBody = ecb.Instantiate(bodyPrefab);
                 ecb.SetComponent(newBody, LocalTransform.FromPosition(pendingSpawn.position));
                 ecb.AddComponent(newBody, new PoolOwner { unitType = pendingSpawn.unitType });
                 ecb.SetComponentEnabled<NewlySpawned>(newBody, true);
                 ecb.SetComponentEnabled<ActionRequest>(newBody, true);
                 ecb.AddComponent<SpawnAsPlayerMinion>(newBody);
+                ecb.SetComponent(newBody, new OnMinionMoveCommand { destination = slotPosition });
+                ecb.SetComponentEnabled<OnMinionMoveCommand>(newBody, true);
             }
 
             pendingSpawns.Clear();
@@ -47,6 +82,48 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
 
         ecb.Playback(state.EntityManager);
         ecb.Dispose();
+        minionPositions.Dispose();
+    }
+
+    private static int FindFreeSlot(
+        float3 rallyCenter,
+        DynamicBuffer<WorkstationRallyClaim> claims,
+        NativeList<float3> minionPositions,
+        float occupiedRadius)
+    {
+        for (int slotIndex = 0; slotIndex < MaxSlotSearch; slotIndex++)
+        {
+            if (IsClaimed(claims, slotIndex))
+                continue;
+
+            float3 slotPosition = rallyCenter + FormationSlots.RoundedSlotOffset(slotIndex, FormationSlots.DefaultSpacing);
+            if (IsOccupiedByMinion(minionPositions, slotPosition, occupiedRadius))
+                continue;
+
+            return slotIndex;
+        }
+        return MaxSlotSearch;
+    }
+
+    private static bool IsClaimed(DynamicBuffer<WorkstationRallyClaim> claims, int slotIndex)
+    {
+        for (int claimIndex = 0; claimIndex < claims.Length; claimIndex++)
+        {
+            if (claims[claimIndex].slotIndex == slotIndex)
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsOccupiedByMinion(NativeList<float3> minionPositions, float3 slotPosition, float occupiedRadius)
+    {
+        for (int minionIndex = 0; minionIndex < minionPositions.Length; minionIndex++)
+        {
+            float2 offsetXZ = minionPositions[minionIndex].xz - slotPosition.xz;
+            if (math.lengthsq(offsetXZ) < occupiedRadius * occupiedRadius)
+                return true;
+        }
+        return false;
     }
 
     private static Entity FindBodyPrefab(DynamicBuffer<UnitPrefabEntry> prefabs, UnitType unitType)

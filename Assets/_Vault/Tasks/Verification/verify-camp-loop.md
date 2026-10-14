@@ -57,6 +57,8 @@ Built 2026-10-13 unattended:
 - [ ] The console is free of `Can't call HasSingleton<CampLoopGameOver>` (fixed).
 - [ ] **Formation cycling moved off Tab** to **C** (gamepad: left-stick click), as a `ControlUnits/CycleFormation` input action. Tab in Control Units now only dismounts.
 
+- [ ] **Formations:** a ground move order spreads the selection into a rounded formation (a sunflower disc about 1.2 m apart) instead of stacking. Each new summon walks from the spawn point to the next free slot around the station's `RallyPoint`, 5 m in front of it and movable on the prefab. Units stop within 0.4 m of their slot; Wander's stop distance went from 1.5 m to 0.4 m, which also affects citizens wandering.
+
 ## Feel questions (your call; answers feed Phase 3)
 
 - [ ] Is B a good deploy key? Is E-to-confirm placement fine, or should it be click-to-place?

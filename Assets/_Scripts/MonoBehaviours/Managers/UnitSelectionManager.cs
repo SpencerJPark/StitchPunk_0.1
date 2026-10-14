@@ -420,13 +420,33 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         }
 
         // Default: move to ground position under the cursor.
-        for (int i = 0; i < minions.Length; i++)
+        // Each unit gets its own formation slot so a group order does not stack everyone on one point.
+        NativeList<Entity> movableMinions = new NativeList<Entity>(minions.Length, Allocator.Temp);
+        for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
         {
-            if (!entityManager.HasComponent<OnMinionMoveCommand>(minions[i])) continue;
-            entityManager.SetComponentData(minions[i], new OnMinionMoveCommand { destination = worldPos });
-            entityManager.SetComponentEnabled<OnMinionMoveCommand>(minions[i], true);
-            entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+            if (!entityManager.HasComponent<OnMinionMoveCommand>(minions[minionIndex])) continue;
+            movableMinions.Add(minions[minionIndex]);
         }
+
+        NativeArray<float3> unitPositions = new NativeArray<float3>(movableMinions.Length, Allocator.Temp);
+        NativeArray<float3> slotDestinations = new NativeArray<float3>(movableMinions.Length, Allocator.Temp);
+        for (int movableIndex = 0; movableIndex < movableMinions.Length; movableIndex++)
+        {
+            unitPositions[movableIndex] = entityManager.GetComponentData<LocalTransform>(movableMinions[movableIndex]).Position;
+        }
+
+        FormationSlots.AssignRoundedSlots(unitPositions, (float3)worldPos, FormationSlots.DefaultSpacing, ref slotDestinations);
+
+        for (int movableIndex = 0; movableIndex < movableMinions.Length; movableIndex++)
+        {
+            Entity movableMinion = movableMinions[movableIndex];
+            entityManager.SetComponentData(movableMinion, new OnMinionMoveCommand { destination = slotDestinations[movableIndex] });
+            entityManager.SetComponentEnabled<OnMinionMoveCommand>(movableMinion, true);
+            entityManager.SetComponentEnabled<PlayerUnitBrain>(movableMinion, true);
+        }
+        unitPositions.Dispose();
+        slotDestinations.Dispose();
+        movableMinions.Dispose();
         minions.Dispose();
     }
 
