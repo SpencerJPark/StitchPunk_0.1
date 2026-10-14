@@ -59,12 +59,24 @@ Built 2026-10-13 unattended:
 
 - [ ] **Formations:** a ground move order spreads the selection into a rounded formation about 1.2 m apart. **Arrival order fills it front-to-back:** units expected to arrive first (by distance and speed) take the front of the circle in the direction of travel, and stragglers take the back, so nobody walks through units already standing. Within a row, units pair left-to-right. Summons walk to the station's `RallyPoint` (5 m in front, movable on the prefab) and fill the far side first, then back toward the station. Units stop within 0.4 m of their slot (Wander's stop distance went from 1.5 m to 0.4 m, which also affects citizens).
 
+**Phase 3 — squads (built 2026-10-13, CL-D16–D19)**
+- [ ] The squad bar at the top centre shows **Red** and **Blue** with member counts; the active squad is highlighted.
+- [ ] Control Units mouse: **left click selects / box-selects, right click commands**.
+- [ ] Select units and press **1** or **2**: they join Red or Blue and the counts update. **3** and **4** are locked and log a line.
+- [ ] With nothing selected, press **1** or **2**: that squad becomes active and its units are selected. **Ctrl+1/2** does the same even with units selected.
+- [ ] **Space** (mounted) and **Tab** (on foot) cycle Red → Blue → Red, selecting the squad each time.
+- [ ] Hold **Q** or **middle mouse**: a radial opens. Move the mouse up/right/down/left to Follow / Attack my target / Return / Hold, then release to issue. The console logs `[Squad] <command> -> N members of squad K`.
+- [ ] **On foot**, the radial shows a cyan ring of about 15 m; only members inside it obey. **Mounted**, the whole squad obeys.
+- [ ] Your aim doesn't spin while the radial is open on foot, and comes back after.
+- [ ] New summons join the **active** squad. Field-revived zombies start in no squad (press a number to assign them).
+- [ ] Number keys on foot are still item slots and don't touch squads.
+
 ## Feel questions (your call; answers feed Phase 3)
 
 - [ ] Is B a good deploy key? Is E-to-confirm placement fine, or should it be click-to-place?
 - [ ] Do the starting numbers feel right (5 summons' worth of scrap, 3 rounds)?
-- [ ] Phase 3 ← DECISION: **number keys** are both quick commands (Control Units) and item slots (on foot). Recommendation: Ctrl+1/2 to assign Red/Blue, plain number for the quick command.
-- [ ] Phase 3 ← DECISION: Control Units has **Select on right mouse button and Command on left**, the reverse of most RTS games. Swap them?
+- [x] Number keys: answered (CL-D16, D18): a number assigns the selection to a squad; quick commands moved to a radial.
+- [x] Mouse buttons: answered (CL-D19), swapped.
 
 ## Known gaps (by design or deferred)
 

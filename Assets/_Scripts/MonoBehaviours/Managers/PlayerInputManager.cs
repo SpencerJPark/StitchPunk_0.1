@@ -10,7 +10,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
     #region Fields
     [SerializeField] private PlayerInput playerInput;
-    [Tooltip("Off = Tab toggles Control Units anywhere (debug). On = mount a workstation to command units (CampLoop_System.md CL-A4).")]
+    [Tooltip("Off = Tab toggles Control Units anywhere (debug). On = mount a workstation to command units (CampLoop_System.md CL-A4); Tab on foot cycles the active squad.")]
     [SerializeField] private bool requireWorkstationForUnitControl = true;
 
     private EntityManager entityManager;
@@ -297,7 +297,13 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         if (requireWorkstationForUnitControl)
         {
             if (actionMap.activeActionMap == ActionMaps.Player)
-                Debug.Log("Mount your workstation (E) to command units.");
+            {
+                if (entityManager.HasComponent<OnCycleGroupInput>(playerEntity))
+                {
+                    entityManager.SetComponentData(playerEntity, new OnCycleGroupInput { delta = 1 });
+                    entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, true);
+                }
+            }
             else if (actionMap.activeActionMap == ActionMaps.ControlUnits
                 && entityManager.HasComponent<WorkstationDismountRequest>(playerEntity))
                 entityManager.SetComponentEnabled<WorkstationDismountRequest>(playerEntity, true);

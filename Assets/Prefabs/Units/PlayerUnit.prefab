@@ -329,7 +329,8 @@ MonoBehaviour:
   debugSlot2: 0
   debugSlot3: 0
   debugSlot4: 0
-  startingGroupCount: 1
+  startingGroupCount: 2
+  onFootCommandRadius: 15
   groupOrderMarkers:
   - {fileID: 0}
   - {fileID: 0}

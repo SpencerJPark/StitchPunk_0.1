@@ -1,4 +1,4 @@
-using Unity.Entities;
+﻿using Unity.Entities;
 using UnityEngine;
 
 // Bakes the player-controllable minion components onto a unit body entity.
@@ -33,6 +33,9 @@ public class MinionAuthoring : MonoBehaviour
                 showScale    = authoring.showScale,
             });
             SetComponentEnabled<Selected>(bodyEntity, false);
+
+            // Squad 0 = unassigned; set by the number keys or by joining the active squad on summon.
+            AddComponent(bodyEntity, new SquadMember { squadIndex = 0 });
         }
     }
 }

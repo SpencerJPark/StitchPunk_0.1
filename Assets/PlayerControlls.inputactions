@@ -611,6 +611,28 @@
                     "action": "ToggleMenu",
                     "isComposite": false,
                     "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "9e608665-ea5f-4cef-b2d0-db742918dc83",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "QuickCommand",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "aa7e8075-3256-40d3-933a-0dc6adc1fc30",
+                    "path": "<Mouse>/middleButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "QuickCommand",
+                    "isComposite": false,
+                    "isPartOfComposite": false
                 }
             ]
         },
@@ -748,6 +770,15 @@
                     "name": "CycleFormation",
                     "type": "Button",
                     "id": "48c7af5a-63c0-449b-9223-0014d2f86e66",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "QuickCommandRadial",
+                    "type": "Button",
+                    "id": "81819528-b4b8-441b-a841-129bac91436c",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -967,7 +998,7 @@
                 {
                     "name": "",
                     "id": "69d03002-5f07-4c42-847c-1759df17ef37",
-                    "path": "<Mouse>/rightButton",
+                    "path": "<Mouse>/leftButton",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
@@ -989,7 +1020,7 @@
                 {
                     "name": "",
                     "id": "62595649-ae0f-4aa3-b91b-87f4cd1c39fb",
-                    "path": "<Mouse>/leftButton",
+                    "path": "<Mouse>/rightButton",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
@@ -1022,7 +1053,7 @@
                 {
                     "name": "",
                     "id": "b1b2c3d4-0001-0001-0001-000000000002",
-                    "path": "<Keyboard>/e",
+                    "path": "<Keyboard>/space",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Keyboard&Mouse",
@@ -1043,33 +1074,11 @@
                 },
                 {
                     "name": "",
-                    "id": "b1b2c3d4-0001-0001-0001-000000000004",
-                    "path": "<Keyboard>/q",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Keyboard&Mouse",
-                    "action": "CycleGroupDown",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
                     "id": "1315b218-2b40-4dd1-9521-e99df1714851",
                     "path": "<Gamepad>/buttonSouth",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
-                    "action": "SnapCameraBack",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "406090cd-f95f-428f-a230-b1c805b12006",
-                    "path": "<Keyboard>/space",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": ";Keyboard&Mouse",
                     "action": "SnapCameraBack",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -1203,6 +1212,39 @@
                     "processors": "",
                     "groups": ";Gamepad",
                     "action": "CycleFormation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "304e9860-1943-49b1-b769-67e1a0695fed",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "QuickCommandRadial",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "37f90bc7-76a2-4836-9494-9763f4304d29",
+                    "path": "<Mouse>/middleButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "QuickCommandRadial",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "4414e192-8123-4d94-8b86-78cbe0fdb2dc",
+                    "path": "<Gamepad>/rightStickPress",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Gamepad",
+                    "action": "QuickCommandRadial",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

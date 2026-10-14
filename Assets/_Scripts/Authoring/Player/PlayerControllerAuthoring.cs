@@ -21,7 +21,10 @@ public class PlayerControllerAuthoring : MonoBehaviour
 
     [Header("Minion Groups")]
     [Tooltip("Number of group slots available at start (1–4). Upgrade system will write this at runtime.")]
-    [Range(1, 4)] public int startingGroupCount = 1;
+    [Range(1, 4)] public int startingGroupCount = 2;
+
+    [Tooltip("On foot, quick commands only reach squad members within this distance (CampLoop CL-D7).")]
+    public float onFootCommandRadius = 15f;
 
     [Tooltip("One scene-object marker per group slot (index 0 = group 1). Shown at the order destination, hidden on arrival or overwrite.")]
     public GameObject[] groupOrderMarkers = new GameObject[4];
@@ -151,6 +154,8 @@ public class PlayerControllerAuthoring : MonoBehaviour
                 unlockedGroupCount = controllerAuthoring.startingGroupCount,
                 assignmentGroupIndex = 0
             });
+
+            AddComponent(entity, new PlayerSquadSettings { onFootCommandRadius = controllerAuthoring.onFootCommandRadius });
 
             // Create 4 persistent horde entities (one per group slot) and store refs in buffer
             DynamicBuffer<PlayerHordeSlot> hordeSlots = AddBuffer<PlayerHordeSlot>(entity);

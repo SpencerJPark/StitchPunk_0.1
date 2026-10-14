@@ -42,6 +42,11 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
             if (pendingSpawns.IsEmpty)
                 continue;
 
+            int activeSquadIndex = 0;
+            Entity ownerPlayer = workstation.ValueRO.ownerPlayer;
+            if (ownerPlayer != Entity.Null && SystemAPI.HasComponent<PlayerMinionGroupsData>(ownerPlayer))
+                activeSquadIndex = SystemAPI.GetComponent<PlayerMinionGroupsData>(ownerPlayer).assignmentGroupIndex;
+
             float3 rallyCenter = stationTransform.ValueRO.Position
                 + math.rotate(stationTransform.ValueRO.Rotation, workstation.ValueRO.rallyLocalOffset);
 
@@ -74,6 +79,8 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
                 ecb.SetComponentEnabled<NewlySpawned>(newBody, true);
                 ecb.SetComponentEnabled<ActionRequest>(newBody, true);
                 ecb.AddComponent<SpawnAsPlayerMinion>(newBody);
+                // New summons join the owner's active squad.
+                ecb.SetComponent(newBody, new SquadMember { squadIndex = activeSquadIndex });
                 ecb.SetComponent(newBody, new OnMinionMoveCommand { destination = slotPosition });
                 ecb.SetComponentEnabled<OnMinionMoveCommand>(newBody, true);
             }

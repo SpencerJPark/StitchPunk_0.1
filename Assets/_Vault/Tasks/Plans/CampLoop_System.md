@@ -28,7 +28,7 @@ What already exists and is reused, not rebuilt:
 | 0 | Stage: groups, enums, order tests | build now |
 | 1 | **Player resources** (the `PlayerResource_System.md` ledger + HUD) amended: field revive costs a **revival round** | build now |
 | 2 | **Workstation**: deploy with a ghost preview, pack up, mount → Control Units, furnace (wood → electricity), craft rounds, repair, summon three unit types, placeholder station menu, station destroyed = lose, playtest scene | build now |
-| 3 | **Squads + on-foot command**: Red/Blue squads (two unlocked), cycle the active squad, quick commands, command radius on foot, new summons join the active squad | after owner play pass |
+| 3 | **Squads + on-foot command**: Red/Blue squads (two unlocked), cycle the active squad, quick commands, command radius on foot, new summons join the active squad | building 2026-10-13 (CL-D16–D19, CL-A13) |
 | 4 | **Gathering**: tree and scrap nodes, harvest → carry → deposit at the workstation, corpse hauling | after 3 |
 | 5 | **Bandit camp**: armed humans guarding a camp; their corpses feed field revives | after 4 |
 | 6 | **Raid on the station**: periodic bandit wave targeting the workstation; station takes damage | after 5 |
@@ -277,6 +277,12 @@ No fixture for placement raycasts (they need a physics world and a scene) or for
 | CL-D14 | Build Phases 1–2 unattended, compile-gated, with PlayMode fixtures, committed on `main`. |
 | CL-D15 | Editor use allowed (compile, tests, prefab/scene creation), **no Play mode**. Leave the owner's uncommitted files alone. |
 
+| CL-D16 | (2026-10-13, Phase 3) **Number key** with units selected → assign them to that squad; with nothing selected → switch to that squad. **Ctrl+number** always switches. Switching = make the squad active **and** select its members. |
+| CL-D17 | **Space** (Control Units) and **Tab** (on foot) cycle to the next squad. Gamepad: North (mounted), East (on foot). |
+| CL-D18 | Quick commands = **radial**, held on **Q or middle mouse** (gamepad: left bumper on foot, right-stick click mounted): Follow, Hold, Attack my target, Return (Gather joins in Phase 4). |
+| CL-D19 | Control Units mouse **swapped**: left = select, right = command (gamepad triggers unchanged). |
+| CL-D20 | Formations fill **front-to-back by arrival order**; units may walk through each other en route (owner: "feels more natural"). |
+
 Architecture calls (mine, CL-A1–A6 above, plus):
 
 | Id | Decision |
@@ -287,6 +293,7 @@ Architecture calls (mine, CL-A1–A6 above, plus):
 | CL-A10 | Station HP and the lose screen ship in Phase 2, with a debug damage button; real damage intake ships with the raid (Phase 6). |
 | CL-A11 | The Tab-anywhere toggle survives behind `requireWorkstationForUnitControl = false` as a debug escape hatch. |
 | CL-A12 | Unit-variant numbers in §4 are starting tunables, not design; they live on the SOs and the authoring. |
+| CL-A13 | Squads are a game-side `SquadMember { squadIndex }` on each minion, **not** movement-toolkit Hordes: horde members steer by flow field, which would override the per-unit formation slots. `PlayerMinionGroupsData.assignmentGroupIndex` is reused as the active squad. Quick-command logic lives in a `SquadCommandManager` MonoBehaviour beside `UnitSelectionManager`; the pure rules are in `Utils/SquadRules.cs`. |
 
 ## 12. Build plan (Phases 0–2)
 

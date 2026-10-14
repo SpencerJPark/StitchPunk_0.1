@@ -12,6 +12,8 @@ public static class VirtualCursorUiRouter
 {
     public static System.Func<Vector2, bool> isScreenPositionOverUi;
     public static System.Func<Vector2, bool> tryClickAtScreenPosition;
+    // Set by QuickCommandRadialUI: while the radial is held, clicks pick a wedge, not units.
+    public static bool isRadialOpen;
 }
 
 public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IUpdateObserver
@@ -55,8 +57,9 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             entityManager.SetComponentEnabled<OnSelectPlayerInput>(playerEntity, false);
 
             // The virtual cursor is not the OS pointer, so UI Toolkit never sees it; route clicks over the menu ourselves.
-            if (!selectInput.isReleased && VirtualCursorUiRouter.isScreenPositionOverUi != null
-                && VirtualCursorUiRouter.isScreenPositionOverUi(GetCursorScreenPosition()))
+            if (!selectInput.isReleased && (VirtualCursorUiRouter.isRadialOpen
+                || (VirtualCursorUiRouter.isScreenPositionOverUi != null
+                    && VirtualCursorUiRouter.isScreenPositionOverUi(GetCursorScreenPosition()))))
             {
                 selectionStartedOverUi = true;
             }
@@ -95,18 +98,12 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
         if (entityManager.IsComponentEnabled<OnCommandPlayerInput>(playerEntity))
         {
-            bool clickConsumedByUi = VirtualCursorUiRouter.tryClickAtScreenPosition != null
-                && VirtualCursorUiRouter.tryClickAtScreenPosition(GetCursorScreenPosition());
+            bool clickConsumedByUi = VirtualCursorUiRouter.isRadialOpen
+                || (VirtualCursorUiRouter.tryClickAtScreenPosition != null
+                    && VirtualCursorUiRouter.tryClickAtScreenPosition(GetCursorScreenPosition()));
             if (!clickConsumedByUi)
                 HandleCommand();
             entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, false);
-        }
-
-        if (entityManager.IsComponentEnabled<OnCycleGroupInput>(playerEntity))
-        {
-            OnCycleGroupInput cycleInput = entityManager.GetComponentData<OnCycleGroupInput>(playerEntity);
-            HandleCycleGroup(cycleInput.delta);
-            entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, false);
         }
 
         // Was a hard-coded Tab, which also dismounts the workstation in this map.
@@ -137,11 +134,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             SelectInRect(rect);
         else
             SelectAtCursor();
-
-        // If in group assignment mode, assign selected minions to the active group horde.
-        PlayerMinionGroupsData groupData = entityManager.GetComponentData<PlayerMinionGroupsData>(playerEntity);
-        if (groupData.assignmentGroupIndex > 0)
-            AssignSelectedToGroup(groupData.assignmentGroupIndex);
     }
 
     private void SelectAtCursor()
@@ -220,15 +212,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     #region Group Control
 
-    private void HandleCycleGroup(int delta)
-    {
-        PlayerMinionGroupsData groupData = entityManager.GetComponentData<PlayerMinionGroupsData>(playerEntity);
-        int total = groupData.unlockedGroupCount + 1; // +1 for index 0 = no group
-        int next  = ((groupData.assignmentGroupIndex + delta) % total + total) % total;
-        groupData.assignmentGroupIndex = next;
-        entityManager.SetComponentData(playerEntity, groupData);
-    }
-
     private void CycleFormationForSelectedHordes()
     {
         EntityQuery selectedQuery = new EntityQueryBuilder(Allocator.Temp)
@@ -252,28 +235,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
         memberships.Dispose();
         visited.Dispose();
-    }
-
-    private void AssignSelectedToGroup(int groupIndex)
-    {
-        DynamicBuffer<PlayerHordeSlot> slots = entityManager.GetBuffer<PlayerHordeSlot>(playerEntity);
-        int slotIndex = groupIndex - 1;
-        if (slotIndex < 0 || slotIndex >= slots.Length) return;
-        Entity targetHorde = slots[slotIndex].hordeEntity;
-
-        EntityQuery selectedQuery = new EntityQueryBuilder(Allocator.Temp)
-            .WithAll<Selected, Minion>()
-            .Build(entityManager);
-
-        NativeArray<Entity> selected = selectedQuery.ToEntityArray(Allocator.Temp);
-        for (int i = 0; i < selected.Length; i++)
-        {
-            Entity body = selected[i];
-            if (entityManager.IsComponentEnabled<HordeMembership>(body))
-                HordeUtils.LeaveHorde(entityManager, body);
-            HordeUtils.JoinHorde(entityManager, body, targetHorde, 0);
-        }
-        selected.Dispose();
     }
 
     #endregion
