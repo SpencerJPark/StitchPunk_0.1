@@ -753,3 +753,20 @@ anything that calls `PlaybackApi.PlayAnimation` on the locomotion layer) will fi
 there is no error, just a clip that keeps getting re-picked out from under whichever writer expected
 to own it. Gate any new Base-layer writer on the same flag, or wait for `CutsceneEndSystem` to clear
 it and hand the layer back.
+
+## Camp loop — resources, workstations, summons
+
+### ResourceLedger spends read the LIVE ResourceStack, not pending deltas
+Two spends in one frame can both pass the affordability check. `WorkstationSummonSystem` therefore processes one request per frame, and `WorkstationCraftSystem` computes the affordable count up front rather than checking per craft.
+
+### Resource save/load mirrors run every frame
+`ResourceLoadSyncSystem` only writes rows that differ, so the per-frame mirror is idempotent. Ordering is what stops the two directions fighting: save runs before `PersistentSaveSystem`, load runs after `PersistentLoadSystem`.
+
+### A query over a usually-disabled enableable request needs IgnoreComponentEnabledState
+An `EnabledRefRW` in the query alone filters to enabled entities, so a request that is normally DISABLED (e.g. `WorkstationFurnaceToggleRequest` in `WorkstationFurnaceSystem`) is never matched and the system silently skips everything. Add `.WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)`. Caught by `WorkstationFurnaceCraftTests`.
+
+### Revert-to-fail in PlayMode tests can run stale Burst code
+After a mutation or a revert, Burst can keep serving the old compiled code, so the test passes or fails for the wrong reason. Switch Burst off (`Unity.Burst.BurstCompiler.Options.EnableBurstCompilation = false`, via execute_code), run the test, then switch it back on.
+
+### Summoned minions bypass UnitSpawner
+`UnitSpawner` places units out of camera view at random points. Summoned minions therefore do not go through it, so the camera-view rule does not apply to them. See CL-A6 in [[CampLoop_System]].

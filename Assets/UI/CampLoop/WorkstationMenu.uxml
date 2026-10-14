@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="workstation-menu-root" style="position: absolute; right: 12px; top: 60px; width: 320px; background-color: rgba(20, 20, 20, 0.8); padding: 8px;">
+        <ui:Label name="title-label" text="Workstation" style="color: rgb(240, 230, 200); font-size: 20px; -unity-font-style: bold; margin-bottom: 4px;" />
+        <ui:Label name="health-label" text="Station 0/0" style="color: rgb(240, 230, 200); font-size: 16px; margin-bottom: 8px;" />
+        <ui:VisualElement name="summon-list" style="margin-bottom: 8px;" />
+        <ui:Label name="queue-label" text="Queue empty" style="color: rgb(240, 230, 200); font-size: 16px; margin-bottom: 4px;" />
+        <ui:VisualElement name="queue-progress" style="height: 10px; background-color: rgba(80, 80, 80, 0.8); margin-bottom: 8px;">
+            <ui:VisualElement name="queue-progress-fill" style="height: 100%; width: 0%; background-color: rgb(120, 200, 140);" />
+        </ui:VisualElement>
+        <ui:Button name="craft-round-button" text="Craft revival round" style="min-height: 32px; font-size: 14px; margin-bottom: 4px;" />
+        <ui:Button name="repair-button" text="Repair" style="min-height: 32px; font-size: 14px; margin-bottom: 4px;" />
+        <ui:Button name="furnace-button" text="Furnace" style="min-height: 32px; font-size: 14px; margin-bottom: 4px;" />
+        <ui:Button name="pack-up-button" text="Pack up" style="min-height: 32px; font-size: 14px; margin-bottom: 4px;" />
+        <ui:Button name="dismount-button" text="Dismount" style="min-height: 32px; font-size: 14px;" />
+    </ui:VisualElement>
+</ui:UXML>

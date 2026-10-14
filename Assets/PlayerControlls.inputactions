@@ -43,6 +43,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "DeployWorkstation",
+                    "type": "Button",
+                    "id": "ca37f11b-9e4b-47f2-9408-d8a7bd8f347b",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "SwitchControls",
                     "type": "Button",
                     "id": "54126885-5dc1-4b31-897a-d4bc839504de",
@@ -336,6 +345,28 @@
                     "processors": "",
                     "groups": "Gamepad",
                     "action": "Interact",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "67b43834-8416-4d80-ade3-079a00864052",
+                    "path": "<Keyboard>/b",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "DeployWorkstation",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "4bcdecee-0ab3-4661-85e0-a024b52149c4",
+                    "path": "<Gamepad>/select",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "DeployWorkstation",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

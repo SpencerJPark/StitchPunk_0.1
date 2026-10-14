@@ -304,6 +304,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   handSocket: {fileID: 4959147049819655531}
   aimIndicator: {fileID: 0}
+  defaultAttack: 6
+  debugSlot1: 0
+  debugSlot2: 0
+  debugSlot3: 0
+  debugSlot4: 0
+  startingGroupCount: 1
+  groupOrderMarkers:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  startingWood: 10
+  startingScrapMetal: 5
+  startingCorpses: 2
+  startingElectricity: 5
+  startingCurrency: 0
+  startingRevivalRounds: 3
+  workstationPrefab: {fileID: 5091449931996637746, guid: 990706a04f65a9742a2f7066559b3443, type: 3}
 --- !u!114 &8658708134968392578
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -328,4 +346,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab0a596492bcf9c4c998b809821e2689, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::AttackAuthoring
-  baseAttack: 6

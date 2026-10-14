@@ -38,7 +38,7 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `HordeOrderMarker.cs` | `Components/Units/` | `HordeOrderMarker` — game-only order-marker GameObject ref, split off the package's `Horde` (see [[Systems_Movement]]) |
 | `NavigationWaypoint.cs` | `Components/Units/` | `NavigationWaypoint` — stayed in game (AI-spine/waypoint-registration consumers only, no package system reads it) |
 | `UnitSpeedBakingData.cs` | `Components/Units/` | `UnitSpeedBakingData` — bake-only, stayed in game (`UnitSO` coupling) |
-| `SpawnerComponents.cs` | `Components/Spawners/` | `Despawn` (enableable — `mode: DespawnMode`, teardown request), `Lifetime` (enableable — `secondsRemaining`, ticks down to enabling `Despawn`), `UnitSpawner`, `PoolOwner`, `NewlySpawned` |
+| `SpawnerComponents.cs` | `Components/Spawners/` | `Despawn` (enableable — `mode: DespawnMode`, teardown request), `Lifetime` (enableable — `secondsRemaining`, ticks down to enabling `Despawn`), `UnitSpawner`, `PoolOwner`, `NewlySpawned`, `SpawnAsPlayerMinion` (tag — summons spawned as player minions) |
 | `PlayerComponents.cs` | `Components/Player/` | `Player`, `PlayerData`, `PlayerInputData`, input enable-tag components, `AimDirection`, `AimIndicatorRef`, `CombatTarget` (enableable — player combat target, distinct from interaction `Target`), `AttackCooldown` (enableable — player per-swing cadence gate; replaces the deleted `ActionTimer`) |
 | `PlayerEquipmentComponents.cs` | `Components/Player/` | `OnPlayerReviverEquipt` (enableable) — fired by `PlayerEquipmentInputSystem` when Reviver slot is activated |
 | `PlayerMinionCommandComponents.cs` | `Components/Player/` | Seven enableable one-shot commands — `OnMinionMoveCommand` (float3 destination), `OnMinionInteractCommand` (Entity targetEntity), `OnMinionAttackCommand` (Entity targetEntity), `OnMinionDefendCommand` (float3 position, float radius), `OnMinionFollowCommand`, `OnMinionStopCommand`, `OnMinionReturnCommand` (no payload) — written by `UnitSelectionManager`, baked disabled by `UnitBakingUtil.AddPlayerControlled`, consumed by `MinionActionSelectionSystem` |
@@ -46,6 +46,9 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `ItemComponents.cs` | `Components/Items/` | `Item`, `UnitEquipt`, `EquiptSocket`, `EquiptBy`, `AttachedTo`, `EquipAction`, `AttachItemRequest`, `SpawnItemRequest`, `DespawnItemRequest`, `ThrownItemRequest`. A **loose** (pickable) item has `EquiptBy.owner == Entity.Null` |
 | `EntityLibraries.cs` | `Components/EntityLibraries/` | Singleton blob holders: `ScoringLibrary`, `AnimationLibrary`, `UnitDataLibrary`, `AttackLibrary`, `FactoryLibrary`, `ColorPaletteLibrary` (+`ColorPaletteLibraryReference`), `UnitPrefabEntry` |
 | `FactoryComponents.cs` | `Components/Structures/` | `FactoryStation`, `StationInputSlot` buffer, `StationOutputSlot` buffer, `ProductionProgress` (enableable), `StationWorkerSlot` buffer, `FactoryGridConfig` singleton, `FactoryGridCell` buffer |
+| `WorkstationComponents.cs` | `Components/Structures/` | Camp Loop workstation: `Workstation`, furnace, recipes, summon option/request/queue/pending buffers, request enableables (read the file for fields) |
+| `ResourceComponents.cs` | `Components/Player/` | Player resource ledger buffers (one row per `ResourceType`), `ResourceShortfall` (enableable), `PlayerResourcesSnapshot` (`IPersist`, six ints — the save mirror) |
+| `PlayerWorkstationComponents.cs` | `Components/Player/` | Deploy, placement and mount state on `Player`; `CampLoopGameOver` (enableable singleton) |
 | `SceneTags.cs` | `Components/Tags/` | `MainMenuTag`, `GameSceneTag` |
 | `GameDataComponents.cs` | `Components/Save/` | `GameDataTag`, `SaveRequest`, `LoadRequest`, `AutoSaveTimer`, `PlayTimeTracker`, `GameSettings` (now incl. master/music/sfx/ambient volume floats — persisted via IPersist) |
 | `Dialogue.cs` | `Components/AI/` | `DialogueProvider` (enableable, on NPC), `DialogueManagerTag`, `ActiveDialogue` (enableable, singleton), `OnDialogueEvent` (enableable, singleton), `PlayedDialogue` (buffer on GameData), `DialogueFlag` (buffer on GameData) |
@@ -54,6 +57,8 @@ Component files are **pure data structs**. No methods, no logic, no Unity API ca
 | `WorldStateComponents.cs` | `Components/World/` | `WorldMoodState` enum (Explore/Tension/Combat) + `WorldMood` singleton — global mood written idempotently via `WorldMoodUtil`; read by music now + NPC behaviours later |
 
 ---
+
+**Append-only enums:** `ResourceType` is indexed by value by the HUD, the save mirror and bakes, so new members go at the end only. `UnitType` likewise; it gained `PlayerZombieBrute` and `PlayerZombieRunner` at the end.
 
 ## AI Components (`Components/AI/`)
 

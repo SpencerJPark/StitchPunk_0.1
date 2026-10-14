@@ -43,6 +43,14 @@ Keep this file current: add a row when you add a request component; delete the r
 | `CutsceneFacing` (package) | `CutsceneTimelineSystem`, every frame the cutscene has an answer for a bound Actor slot | `UnitFacingSystem` (`AnimationAssignmentSystemGroup`) — angle → `UnitFacing`, which already fans out to `PartFacing`. The angle is measured from +X toward +Z (0 east, 90 north), **not** a `LocalTransform` Y euler (G2) |
 | `CutsceneDetachSignal` (package) | `CutsceneTimelineSystem` on the frame a Detach marker fires | `CutsceneDetachSystem` (`CutsceneSystemGroup`) — items become `ThrownItemRequest`, units are placed only; the signal is always consumed (G2) |
 | `CutsceneHoldRelease` (package) | `CutsceneDialogueCueSystem` when a cued `ActiveDialogue` closes | `CutsceneTimelineSystem` — releases the segment's hold. A holding event's id is the event's **registry name**; read it back with `CutsceneApi.TryGetCurrentHoldId` rather than assuming (G2) |
+| `ResourceChangeRequest` (buffer on Player) | PlayerReviverSystem, workstation Furnace/Craft/Repair/Summon systems, DebugResourceMenu | `PlayerResourceSystemGroup` — ResourceChangeSystem. Clamps to `StorageCapacity`, clears the buffer |
+| `ResourceShortfall` (enableable on Player, time-stamped, never cleared) | Any `ResourceLedger` spend | `ResourceHudUI` (read-only) |
+| `WorkstationSummonRequest` (buffer on workstation) | WorkstationMenuUI | `WorkstationSummonSystem` — one request per frame |
+| `CraftRevivalRoundRequest`, `WorkstationRepairRequest`, `WorkstationPackUpRequest`, `WorkstationFurnaceToggleRequest` (enableables on workstation) | WorkstationMenuUI | Matching `BuildingsSystemGroup` systems |
+| `WorkstationDismountRequest` (enableable on Player) | PlayerInputManager (Tab while mounted), WorkstationMenuUI, WorkstationPackUpSystem | `WorkstationMountSystem` |
+| `PendingMinionSpawn` (buffer on workstation) | Summon path (`WorkstationSummonSystem`) | `WorkstationSummonSpawnSystem` (SpawnSystemGroup) → adds `SpawnAsPlayerMinion` tag → `PlayerMinionSpawnInitSystem` (SpawnInitSystemGroup, after SpawnStateInitSystem) |
+
+Camp loop contracts: spec [[CampLoop_System]].
 
 ## Read-only view/state singletons
 

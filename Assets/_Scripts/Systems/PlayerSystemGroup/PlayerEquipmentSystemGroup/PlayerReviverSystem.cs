@@ -1,4 +1,4 @@
-using Unity.Burst;
+﻿using Unity.Burst;
 using Unity.Entities;
 
 [BurstCompile]
@@ -54,7 +54,8 @@ public partial struct PlayerReviverSystem : ISystem
         }
     }
 
-    // Mirrors ReviveRequestSystem: no becomesUnitType means the revive would no-op, so it must not cost a round.
+    // Field revives are humans only (CL-D4): the corpse must convert into a DIFFERENT unit. No becomesUnitType
+    // would no-op in ReviveRequestSystem; becomesUnitType == itself is an undead form (e.g. PlayerZombie).
     private bool IsRevivable(ref SystemState state, Entity corpseEntity)
     {
         if (!SystemAPI.HasComponent<UnitData>(corpseEntity)) return false;
@@ -62,7 +63,9 @@ public partial struct PlayerReviverSystem : ISystem
         UnitType corpseType = SystemAPI.GetComponent<UnitData>(corpseEntity).unitType;
         BlobAssetReference<UnitLibraryBlob> unitLibrary = SystemAPI.GetSingleton<UnitDataLibrary>().library;
         int unitIndex = unitLibrary.Value.FindByUnitType(corpseType);
-        return unitIndex >= 0 && unitLibrary.Value.units[unitIndex].becomesUnitType != UnitType.None;
+        if (unitIndex < 0) return false;
+        UnitType becomesUnitType = unitLibrary.Value.units[unitIndex].becomesUnitType;
+        return becomesUnitType != UnitType.None && becomesUnitType != corpseType;
     }
 
     [BurstCompile]

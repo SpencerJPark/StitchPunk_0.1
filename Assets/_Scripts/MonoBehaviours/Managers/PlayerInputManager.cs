@@ -10,6 +10,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
     #region Fields
     [SerializeField] private PlayerInput playerInput;
+    [Tooltip("Off = Tab toggles Control Units anywhere (debug). On = mount a workstation to command units (CampLoop_System.md CL-A4).")]
+    [SerializeField] private bool requireWorkstationForUnitControl = true;
 
     private EntityManager entityManager;
     private EntityQuery playerQuery;
@@ -18,6 +20,9 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
     private ActionMaps targetActionMap;
     private bool hasPendingMapSwitch;
+
+    private bool lastKnownMountedState;
+    private InputAction deployWorkstationAction;
 
     private bool menuOpen;
     private ActionMaps mapBeforeMenu;
@@ -39,6 +44,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         if (playerInput == null)
             Debug.LogError("PlayerInputManager: No PlayerInput component found on this GameObject.");
 
+        deployWorkstationAction = playerInput.actions.FindAction("DeployWorkstation");
         playerInput.actions.Disable();
         playerInput.SwitchCurrentActionMap(PLAYER_ACTION_MAP_NAME);
 
@@ -77,7 +83,40 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             hasPendingMapSwitch = false;
         }
 
+        if (TryResolvePlayerEntity())
+        {
+            WatchWorkstationMount();
+            PollDeployWorkstationKey();
+        }
+
         UpdateMouseAimDirection();
+    }
+
+    private void WatchWorkstationMount()
+    {
+        if (!requireWorkstationForUnitControl) return;
+        if (!entityManager.HasComponent<WorkstationMounted>(playerEntity)) return;
+
+        bool mounted = entityManager.IsComponentEnabled<WorkstationMounted>(playerEntity);
+        if (mounted == lastKnownMountedState) return;
+        lastKnownMountedState = mounted;
+
+        ActionMaps mapForMountState = mounted ? ActionMaps.ControlUnits : ActionMaps.Player;
+        if (menuOpen)
+            mapBeforeMenu = mapForMountState;
+        else
+            ApplyActionMapSwitch(mapForMountState);
+    }
+
+    // Polled because the scene's PlayerInput uses Unity Events and a new action would need scene wiring.
+    private void PollDeployWorkstationKey()
+    {
+        if (deployWorkstationAction == null || !deployWorkstationAction.WasPressedThisFrame()) return;
+        if (!entityManager.HasComponent<PlayerActionMap>(playerEntity)) return;
+        if (entityManager.GetComponentData<PlayerActionMap>(playerEntity).activeActionMap != ActionMaps.Player) return;
+        if (!entityManager.HasComponent<OnDeployWorkstationInput>(playerEntity)) return;
+
+        entityManager.SetComponentEnabled<OnDeployWorkstationInput>(playerEntity, true);
     }
 
     // When aiming with a mouse, compute the world-space direction from the player to the
@@ -254,6 +293,17 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         if (!context.performed || !TryResolvePlayerEntity()) return;
 
         PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
+
+        if (requireWorkstationForUnitControl)
+        {
+            if (actionMap.activeActionMap == ActionMaps.Player)
+                Debug.Log("Mount your workstation (E) to command units.");
+            else if (actionMap.activeActionMap == ActionMaps.ControlUnits
+                && entityManager.HasComponent<WorkstationDismountRequest>(playerEntity))
+                entityManager.SetComponentEnabled<WorkstationDismountRequest>(playerEntity, true);
+            return;
+        }
+
         targetActionMap = actionMap.activeActionMap == ActionMaps.Player
             ? ActionMaps.ControlUnits
             : ActionMaps.Player;

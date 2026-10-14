@@ -24,12 +24,12 @@ public static class ResourceLedger
         bool chargeCorpses,
         double elapsedTime,
         ref ResourceShortfall shortfall,
-        EnabledRefRW<ResourceShortfall> shortfallEnabled)
+        EnabledRefRW<ResourceShortfall> resourceShortfallEnabled)
     {
         int corpseCost = chargeCorpses ? cost.corpses : 0;
-        if (!CheckLine(in stack, ResourceType.Corpse, corpseCost, elapsedTime, ref shortfall, shortfallEnabled)) return false;
-        if (!CheckLine(in stack, ResourceType.ScrapMetal, cost.scrapMetal, elapsedTime, ref shortfall, shortfallEnabled)) return false;
-        if (!CheckLine(in stack, ResourceType.Electricity, cost.electricity, elapsedTime, ref shortfall, shortfallEnabled)) return false;
+        if (!CheckLine(in stack, ResourceType.Corpse, corpseCost, elapsedTime, ref shortfall, resourceShortfallEnabled)) return false;
+        if (!CheckLine(in stack, ResourceType.ScrapMetal, cost.scrapMetal, elapsedTime, ref shortfall, resourceShortfallEnabled)) return false;
+        if (!CheckLine(in stack, ResourceType.Electricity, cost.electricity, elapsedTime, ref shortfall, resourceShortfallEnabled)) return false;
 
         QueueSpend(ref requests, ResourceType.Corpse, corpseCost);
         QueueSpend(ref requests, ResourceType.ScrapMetal, cost.scrapMetal);
@@ -44,9 +44,9 @@ public static class ResourceLedger
         int amount,
         double elapsedTime,
         ref ResourceShortfall shortfall,
-        EnabledRefRW<ResourceShortfall> shortfallEnabled)
+        EnabledRefRW<ResourceShortfall> resourceShortfallEnabled)
     {
-        if (!CheckLine(in stack, resourceType, amount, elapsedTime, ref shortfall, shortfallEnabled)) return false;
+        if (!CheckLine(in stack, resourceType, amount, elapsedTime, ref shortfall, resourceShortfallEnabled)) return false;
         QueueSpend(ref requests, resourceType, amount);
         return true;
     }
@@ -69,7 +69,7 @@ public static class ResourceLedger
         int amount,
         double elapsedTime,
         ref ResourceShortfall shortfall,
-        EnabledRefRW<ResourceShortfall> shortfallEnabled)
+        EnabledRefRW<ResourceShortfall> resourceShortfallEnabled)
     {
         if (amount <= 0) return true;
         int available = Get(in stack, resourceType);
@@ -81,7 +81,7 @@ public static class ResourceLedger
             missing      = amount - available,
             stampedTime  = elapsedTime,
         };
-        shortfallEnabled.ValueRW = true;
+        resourceShortfallEnabled.ValueRW = true;
         return false;
     }
 }

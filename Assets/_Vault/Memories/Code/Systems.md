@@ -16,6 +16,7 @@ PostBakingSystemGroup        — SOs → BlobAssets + cross-entity component dis
 GameManagerSystemGroup       — WORLD SERVICES (not scene-gated): registries, spatial hashes, DamageBus reset, floating origin, horde state
 PlayerSystemGroup            — all player-driven logic
   ├── PlayerInputSystemGroup (OrderFirst)  — input events → ECS components, targeting, attacks, aim, equipment dispatch
+  ├── WorkstationInputSystemGroup — placement/deploy/mount on E, before NarrativeSystemGroup (see Camp Loop)
   ├── NarrativeSystemGroup   — proximity trigger detection and dialogue→narrative bridge (before DialogueSystemGroup)
   ├── DialogueSystemGroup    — dialogue start detection and event relay (after NarrativeSystemGroup)
   └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions (reviver)
@@ -36,7 +37,8 @@ MovementSystemGroup          — PACKAGE-OWNED (com.dotsmovementtoolkit, ns Dots
   ├── MovementFollowerSystemGroup    — smooth path following (+ game's PlayerMoveSystem)
   ├── MovementSteeringSystemGroup    — empty, declared slot for future arrival easing/avoidance
   └── MovementExecutionSystemGroup   — writes final position/rotation to transforms (+ game's LocomotionStanceSystem)
-BuildingsSystemGroup         — factory production loop (PARKED — ProductionSystem + FactoryLibraryBakingSystem live commented-out in Core/Unused/)
+BuildingsSystemGroup         — workstation loop (furnace, craft, repair, summon, pack-up); factory loop still parked in Core/Unused/
+PlayerResourceSystemGroup    — ResourceChangeSystem applies ledger deltas (see Camp Loop)
 CombatSystemGroup
   ├── CombatExecutionSystemGroup — AttackRequestSystem, HazardZoneSystem (DamageBus producers)
   └── CombatReactionSystemGroup  — DamageResolutionSystem + DamageEventSystem (bus drain + apply)
@@ -201,7 +203,7 @@ Declared inside `Packages/com.dotsmovementtoolkit`, not `SystemGroups.cs` — th
 
 Runs after `MovementSystemGroup`, before `CombatSystemGroup`. Handles factory production. Requires a `FactoryLibrary` singleton entity (baked by `FactoryLibraryAuthoring`) to be present in the scene.
 
-> ⚠ **PARKED (2026-07):** `ProductionSystem` and `FactoryLibraryBakingSystem` are fully commented out and moved to `Core/Unused/`. The ECS data layer (grid, station components, authoring, library SO types) still exists, but the production loop does not run. Re-enabling = restore both files to their group folders, uncomment, and complete the setup steps below.
+> ⚠ **Factory loop PARKED (2026-07)** — the group itself is live for the camp workstation (see Camp Loop below): `ProductionSystem` and `FactoryLibraryBakingSystem` are fully commented out and moved to `Core/Unused/`. The ECS data layer (grid, station components, authoring, library SO types) still exists, but the production loop does not run. Re-enabling = restore both files to their group folders, uncomment, and complete the setup steps below.
 
 | System | File | Purpose |
 |---|---|---|
@@ -381,6 +383,19 @@ Runs after all transforms have settled.
 | `SelectedVisualSystem` | `SelectedVisualSystem.cs` | Shows/hides selection circle visual under units (raw `LateSimulationSystemGroup` — exempted) |
 
 > `OutlineSystem` / `OutlineLayerUpdateSystem` are **parked** in `Core/Unused/`.
+
+---
+
+## Camp Loop (workstation + resources)
+
+Design and phase status: [[CampLoop_System]].
+
+- `PlayerResourceSystemGroup` (after `BuildingsSystemGroup`, before `CombatSystemGroup`) — `ResourceChangeSystem` applies the Player's `ResourceChangeRequest` deltas, clamped by `StorageCapacity`. Producers and spenders queued earlier in the frame settle the same frame.
+- `WorkstationInputSystemGroup` (nested in `PlayerSystemGroup`, after `PlayerInputSystemGroup`, before `NarrativeSystemGroup`) — placement preview (B, physics raycast), deploy (E while previewing), mount/dismount (E on own station). Tab, menu, pack-up, or player damage also dismount. Must consume E before Dialogue/ItemEquip or one press does both.
+- `BuildingsSystemGroup/` is live: Workstation Furnace (wood→electricity), Craft (revival rounds), Repair (wood→HP), Summon (pay → queue → `PendingMinionSpawn`), PackUp, Destroyed (→ `CampLoopGameOver` singleton). The PARKED note in the Buildings section above is the old factory loop only.
+- `SpawnSystemGroup/WorkstationSummonSpawnSystem` + `SpawnInitSystemGroup/PlayerMinionSpawnInitSystem` — summons spawn at the station as player minions, setting the same bits `ReviveJob` sets.
+- `PlayerReviverSystem` charges 1 `RevivalRound` and only revives corpses whose `becomesUnitType` is a different unit (humans).
+- `PlayerInputManager` watches `WorkstationMounted` to switch the ControlUnits map and camera. `requireWorkstationForUnitControl` (default on) blocks the old Tab-anywhere toggle.
 
 ---
 

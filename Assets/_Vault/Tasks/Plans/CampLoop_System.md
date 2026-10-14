@@ -1,6 +1,6 @@
 # Camp Loop — Workstation, Summoning, Revival Rounds, Squads, Gathering, Enemies
 
-> **Status:** ✅ spec ready 2026-10-13. Owner answered 15 questions in one session (CL-D1–CL-D15, §11); architecture calls made under the standing delegation (CL-A1–CL-A12). **Phases 1–2 authorized to build unattended**, no Play mode; phases 3–7 wait for the owner's play pass on 1–2.
+> **Status:** 🔨 Phases 0–2 built 2026-10-13 (play pass owed: `Verification/verify-camp-loop.md`); Phases 3–7 not started. Spec written 2026-10-13. Owner answered 15 questions in one session (CL-D1–CL-D15, §11); architecture calls made under the standing delegation (CL-A1–CL-A12). **Phases 1–2 authorized to build unattended**, no Play mode; phases 3–7 wait for the owner's play pass on 1–2.
 > **Supersedes in part:** [`PlayerResource_System.md`](PlayerResource_System.md) becomes Phase 1 of this spec, with the amendments in §3. Read that spec for the ledger detail; this one only records what changed.
 > **Design source:** owner brief 2026-10-13 (below) + `Spencer/Design_Decisions.md` → RTS Mode, Caravan.
 
@@ -344,4 +344,44 @@ Orchestrator on `main`; `worker` subagents of at most two files each; `python To
 
 ## 13. Build log
 
-_(T0 drift, wave results, gate counts, revert-to-fail outcomes)_
+**2026-10-13, Phases 0–2 built unattended** (orchestrator + 21 Sonnet/Haiku workers of two files max, plus one verifier).
+
+**T0 drift**
+- The player entity has **no `Health`**. Dismount-on-damage is coded and covered by F7, but stays dormant in game until the player gets health.
+- Workstation components went in `Components/Structures/`, which already existed, not `Components/Buildings/`.
+- `requireWorkstationForUnitControl` lives on `PlayerInputManager`, not on the player authoring, because only the MonoBehaviour reads it.
+- The Deploy key is **polled** (`FindAction("DeployWorkstation").WasPressedThisFrame()`) instead of wired as a PlayerInput Unity Event, so the TestArea/CampLoop `PlayerInput` events needed no scene edit.
+
+**Changes during the build**
+- The basic `PlayerZombie` asset's `becomesUnitType` is **itself**, so the field-revive check is now `becomes != None && becomes != corpseType` (humans only, CL-D4). F2 case C uses that real shape.
+- `WorkstationFurnaceSystem` missed `IgnoreComponentEnabledState`, which F6 caught. Recorded in Gotchas.
+- Verifier follow-ups:
+  - A summon whose prefab is missing now logs a warning.
+  - A station at 0 HP cannot be repaired.
+  - The placement ray rejects hits on units and on the player.
+
+**Gates**
+- devloop gate: clean on every assembly.
+- Lint: clean on all new paths, after 8 enabled-ref renames.
+- Unity console: clean.
+- StitchPunk.Tests EditMode: 68/68.
+- StitchPunk.Tests.PlayMode: **43/43**, up from 19, with 24 new tests across F1–F7.
+
+**Revert-to-fail.** Burst must be **off**: with Burst on, PlayMode tests ran stale code. Both batches failed exactly their target tests:
+- F1 clamp: 3 tests.
+- F2 gate: 1.
+- F3 load mapping: 2.
+- F4 affordability: 1.
+- F5 enable bit: 1.
+- F6 wood guard: 1.
+- F7 damage check: 1.
+
+**Editor assets**
+- `PlayerZombieBrute` / `PlayerZombieRunner` UnitSOs, added to `_UnitLibrary`.
+- `Prefabs/Buildings/Workstation.prefab` (placeholder), wired on `PlayerUnit.prefab`.
+- `UI/CampLoop/CampLoopPanelSettings.asset` and `Materials/CampLoop/WorkstationGhost.mat`.
+- `Scenes/CampLoop.unity`: a TestArea copy plus the `CampLoopUI` and ghost presenter objects.
+- `Scenes/SubScenes/CampLoop_Sub.unity`: a DOTSTestScene copy without the test spheres, plus `CampLoopRules`. The player starts with the reviver in slot 1, and the spawner makes 3 citizens.
+- **Not baked, not played.**
+
+**Owner play pass:** [`../Verification/verify-camp-loop.md`](../Verification/verify-camp-loop.md).

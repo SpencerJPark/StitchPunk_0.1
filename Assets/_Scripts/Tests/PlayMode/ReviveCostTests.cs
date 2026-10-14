@@ -117,7 +117,7 @@ namespace StitchPunk.Tests.PlayMode
             BlobBuilderArray<UnitDataBlob> unitsBuilder = builder.Allocate(ref root.units, 2);
 
             ConfigureUnit(builder, ref unitsBuilder[0], UnitType.MaleCitizen, UnitType.PlayerZombie);
-            ConfigureUnit(builder, ref unitsBuilder[1], UnitType.PlayerZombie, UnitType.None);
+            ConfigureUnit(builder, ref unitsBuilder[1], UnitType.PlayerZombie, UnitType.PlayerZombie); // as authored: the undead form converts into itself
 
             return builder.CreateBlobAssetReference<UnitLibraryBlob>(Allocator.Persistent);
         }
