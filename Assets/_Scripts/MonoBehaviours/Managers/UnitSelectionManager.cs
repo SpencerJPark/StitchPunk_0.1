@@ -56,10 +56,11 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             OnSelectPlayerInput selectInput = entityManager.GetComponentData<OnSelectPlayerInput>(playerEntity);
             entityManager.SetComponentEnabled<OnSelectPlayerInput>(playerEntity, false);
 
-            // The virtual cursor is not the OS pointer, so UI Toolkit never sees it; route clicks over the menu ourselves.
+            // The virtual cursor is not the OS pointer, so UI Toolkit never sees it; route clicks over the menu
+            // ourselves. Select is the left button (CL-D19), so it is the one that presses menu buttons.
             if (!selectInput.isReleased && (VirtualCursorUiRouter.isRadialOpen
-                || (VirtualCursorUiRouter.isScreenPositionOverUi != null
-                    && VirtualCursorUiRouter.isScreenPositionOverUi(GetCursorScreenPosition()))))
+                || (VirtualCursorUiRouter.tryClickAtScreenPosition != null
+                    && VirtualCursorUiRouter.tryClickAtScreenPosition(GetCursorScreenPosition()))))
             {
                 selectionStartedOverUi = true;
             }
@@ -98,9 +99,10 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
         if (entityManager.IsComponentEnabled<OnCommandPlayerInput>(playerEntity))
         {
+            // A right click over the menu is swallowed (no minion order) but presses nothing.
             bool clickConsumedByUi = VirtualCursorUiRouter.isRadialOpen
-                || (VirtualCursorUiRouter.tryClickAtScreenPosition != null
-                    && VirtualCursorUiRouter.tryClickAtScreenPosition(GetCursorScreenPosition()));
+                || (VirtualCursorUiRouter.isScreenPositionOverUi != null
+                    && VirtualCursorUiRouter.isScreenPositionOverUi(GetCursorScreenPosition()));
             if (!clickConsumedByUi)
                 HandleCommand();
             entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, false);
