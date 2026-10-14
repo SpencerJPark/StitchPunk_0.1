@@ -55,7 +55,7 @@ Built 2026-10-13 unattended:
 - [ ] Summons now **spawn**: `PlayerZombie.asset` had no prefab. All three zombie types now use MaleCitizen prefab variants (`Prefabs/Units/PlayerZombie*.prefab`), and look like citizens until they get their own art.
 - [ ] **Billboarding:** citizens and zombies stay visible while walking in every direction (NewRig now has an actor-root billboard at your package default, Screen Aligned). The player stays visible too, via a small game-side `VisualBillboardSystem` on the player's `Visual` child, since the player has no rig.
 - [ ] The console is free of `Can't call HasSingleton<CampLoopGameOver>` (fixed).
-- [ ] Tab in Control Units still also cycles formation (`UnitSelectionManager`, hard-coded Tab) as well as dismounting. Should formation cycling move to another key?
+- [ ] **Formation cycling moved off Tab** to **C** (gamepad: left-stick click), as a `ControlUnits/CycleFormation` input action. Tab in Control Units now only dismounts.
 
 ## Feel questions (your call; answers feed Phase 3)
 

@@ -1,4 +1,4 @@
-using DotsMovementToolkit;
+﻿using DotsMovementToolkit;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -26,6 +26,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     private Vector2 selectionStartScreenPosition;
     private bool selectionStartedOverUi;
+    private InputAction cycleFormationAction;
 
     #region Unity Lifecycle
 
@@ -108,8 +109,19 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, false);
         }
 
-        if (Keyboard.current[Key.Tab].wasPressedThisFrame)
+        // Was a hard-coded Tab, which also dismounts the workstation in this map.
+        InputAction cycleFormationInput = ResolveCycleFormationAction();
+        if (cycleFormationInput != null && cycleFormationInput.WasPressedThisFrame())
             CycleFormationForSelectedHordes();
+    }
+
+    // Polled rather than wired as a PlayerInput event so the scenes' PlayerInput needs no edit.
+    private InputAction ResolveCycleFormationAction()
+    {
+        if (cycleFormationAction != null) return cycleFormationAction;
+        if (PlayerInput.all.Count == 0) return null;
+        cycleFormationAction = PlayerInput.all[0].actions.FindAction("ControlUnits/CycleFormation");
+        return cycleFormationAction;
     }
 
     #endregion
