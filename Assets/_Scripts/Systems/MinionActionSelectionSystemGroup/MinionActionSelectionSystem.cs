@@ -24,6 +24,7 @@ public partial struct MinionActionSelectionSystem : ISystem
     private ComponentLookup<OnMinionReturnCommand>   _returnCmdLookup;
     private ComponentLookup<ActionInterruptRequest>  _interruptRequestLookup;
     private ComponentLookup<MinionStandingOrder>     _standingOrderLookup;
+    private ComponentLookup<MinionGatherOrder>       _gatherOrderLookup;
     private BufferLookup<AvailableAttack>            _availableAttackLookup;
 
     [BurstCompile]
@@ -39,6 +40,7 @@ public partial struct MinionActionSelectionSystem : ISystem
         _returnCmdLookup         = state.GetComponentLookup<OnMinionReturnCommand>(false);
         _interruptRequestLookup  = state.GetComponentLookup<ActionInterruptRequest>(false);
         _standingOrderLookup     = state.GetComponentLookup<MinionStandingOrder>(false);
+        _gatherOrderLookup       = state.GetComponentLookup<MinionGatherOrder>(false);
         _availableAttackLookup   = state.GetBufferLookup<AvailableAttack>(true);
     }
 
@@ -55,6 +57,7 @@ public partial struct MinionActionSelectionSystem : ISystem
         _returnCmdLookup.Update(ref state);
         _interruptRequestLookup.Update(ref state);
         _standingOrderLookup.Update(ref state);
+        _gatherOrderLookup.Update(ref state);
         _availableAttackLookup.Update(ref state);
 
         Entity       playerEntity   = SystemAPI.GetSingletonEntity<Player>();
@@ -82,6 +85,7 @@ public partial struct MinionActionSelectionSystem : ISystem
             returnCmdLookup         = _returnCmdLookup,
             interruptRequestLookup  = _interruptRequestLookup,
             standingOrderLookup     = _standingOrderLookup,
+            gatherOrderLookup       = _gatherOrderLookup,
             availableAttackLookup   = _availableAttackLookup,
             ecb                     = ecb,
             loggingEnabled          = loggingEnabled,
@@ -110,6 +114,7 @@ public partial struct MinionActionWriteJob : IJobEntity
     public ComponentLookup<ActionInterruptRequest>  interruptRequestLookup;
     // Any explicit order replaces a standing Follow/Hold (MinionStandingOrderSystem runs after this).
     public ComponentLookup<MinionStandingOrder>     standingOrderLookup;
+    public ComponentLookup<MinionGatherOrder>       gatherOrderLookup;
     public Entity             playerEntity;
     public float3             playerPosition;
     public EntityCommandBuffer ecb;
@@ -137,7 +142,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 isPlayerOrdered   = true,
             });
             moveCmdLookup.SetComponentEnabled(unit, false);
-            ClearStandingOrder(unit);
+            ClearPersistentOrders(unit);
             // A unit type with no BrainSO has no Wander def, so the order would silently do nothing.
             if (defIndex < 0)
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} cannot Move: no Wander action in the brain for {brain.unitType.Name()}", LogLevel.Warning, timestamp, category: LogCategory.AI);
@@ -157,7 +162,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                     ref aiConfig.Value, brain.unitType, availableAttacks.AsNativeArray(), out orderedAttackType, out defIndex);
 
             attackCmdLookup.SetComponentEnabled(unit, false);
-            ClearStandingOrder(unit);
+            ClearPersistentOrders(unit);
             if (attackResolved)
             {
                 options.Add(new UtilityActions
@@ -190,7 +195,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 isPlayerOrdered = true,
             });
             interactCmdLookup.SetComponentEnabled(unit, false);
-            ClearStandingOrder(unit);
+            ClearPersistentOrders(unit);
             if (loggingEnabled)
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Interact {target.Index}", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
@@ -227,7 +232,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 isPlayerOrdered   = true,
             });
             returnCmdLookup.SetComponentEnabled(unit, false);
-            ClearStandingOrder(unit);
+            ClearPersistentOrders(unit);
             if (loggingEnabled)
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Return to player ({playerPosition.x:G}, {playerPosition.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
@@ -239,18 +244,29 @@ public partial struct MinionActionWriteJob : IJobEntity
             if (interruptRequestLookup.HasComponent(unit))
                 interruptRequestLookup.SetComponentEnabled(unit, true);
             stopCmdLookup.SetComponentEnabled(unit, false);
-            ClearStandingOrder(unit);
+            ClearPersistentOrders(unit);
             if (loggingEnabled)
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Stop", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
     }
 
-    private void ClearStandingOrder(Entity unit)
+    private void ClearPersistentOrders(Entity unit)
     {
         if (!standingOrderLookup.HasComponent(unit)) return;
         MinionStandingOrder standingOrder = standingOrderLookup[unit];
-        if (standingOrder.type == StandingOrderType.None) return;
-        standingOrder.type = StandingOrderType.None;
-        standingOrderLookup[unit] = standingOrder;
+        if (standingOrder.type != StandingOrderType.None)
+        {
+            standingOrder.type = StandingOrderType.None;
+            standingOrderLookup[unit] = standingOrder;
+        }
+
+        // An explicit order also ends a gather job (the gatherer's own Wander moves are emitted as
+        // options by MinionGatherSystem, never as move commands, so they don't land here).
+        if (!gatherOrderLookup.HasComponent(unit)) return;
+        MinionGatherOrder gatherOrder = gatherOrderLookup[unit];
+        if (gatherOrder.phase == GatherPhase.None) return;
+        gatherOrder.phase = GatherPhase.None;
+        gatherOrder.carriedAmount = 0;
+        gatherOrderLookup[unit] = gatherOrder;
     }
 }

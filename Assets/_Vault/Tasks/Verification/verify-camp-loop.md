@@ -77,6 +77,15 @@ Built 2026-10-13 unattended:
 - [ ] While following, an enemy coming **within ~8 m of you** is attacked; the squad goes back to following once it's dead or has left the area (beyond ~13 m). Your character has no health yet, so "you were attacked" can't be detected; enemies getting close is the trigger.
 - [ ] **Hold** (radial left, or Shift + right-click on ground) also persists. Units stand at their spot (spread around the click for Shift) and attack enemies within 5 m, then walk back. Hold was previously a no-op: nothing consumed its order.
 
+**Phase 4 — gathering (built 2026-10-13, CL-D23–D26)**
+- [ ] `CampLoop_Sub` has **5 trees** (east of the start, 10 wood each) and **3 scrap piles** (west, 8 scrap each). Prefabs are in `Prefabs/ResourceNodes/`, placeholder shapes for you to dress.
+- [ ] Deploy the workstation first; without it, a gather order logs "Deploy your workstation first".
+- [ ] Select units and **right-click a tree**: they walk over, harvest for ~3 s, carry 1 wood to the station's front, and Wood +1 in the HUD. They repeat until the tree is gone (it disappears at 0), then move to the nearest tree within 15 m.
+- [ ] Same with a **scrap pile**, giving Scrap.
+- [ ] **Corpses:** right-click a dead citizen. One unit carries it back for **Bodies +1**, and the corpse vanishes. Your own dead minions can't be hauled.
+- [ ] Radial **Gather** wedge (five wedges now; Gather sits lower-right): sends the active squad to the nearest node or corpse within 20 m of the cursor (mounted) or of you (on foot).
+- [ ] Any new order, or Follow/Hold, stops gathering. Gatherers walk through each other (expected).
+
 ## Feel questions (your call; answers feed Phase 3)
 
 - [ ] Is B a good deploy key? Is E-to-confirm placement fine, or should it be click-to-place?

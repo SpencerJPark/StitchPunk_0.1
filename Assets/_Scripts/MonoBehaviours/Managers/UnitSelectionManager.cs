@@ -263,6 +263,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             for (int i = 0; i < minions.Length; i++)
             {
                 if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
+                SquadCommandManager.EndGather(entityManager, minions[i]);
                 entityManager.SetComponentData(minions[i], new MinionStandingOrder
                 {
                     type = StandingOrderType.FollowCommander,
@@ -328,6 +329,22 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         if (physics.CollisionWorld.CastRay(rayInput, out Unity.Physics.RaycastHit hit))
         {
             Entity target    = hit.Entity;
+
+            // Resource nodes and hostile corpses start a gather job, checked before attack/interact.
+            if (SquadCommandManager.IsGatherTarget(entityManager, target))
+            {
+                if (!SquadCommandManager.PlayerHasDeployedWorkstation(entityManager, playerEntity))
+                {
+                    Debug.Log("Deploy your workstation first \u2014 gatherers need somewhere to deliver.");
+                }
+                else
+                {
+                    for (int i = 0; i < minions.Length; i++)
+                        SquadCommandManager.StartGather(entityManager, minions[i], playerEntity, target);
+                }
+                minions.Dispose();
+                return;
+            }
             bool   isHostile = entityManager.HasComponent<Dead>(target)
                             && !entityManager.IsComponentEnabled<Dead>(target)
                             && !entityManager.HasComponent<PlayerImmune>(target)
@@ -375,6 +392,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
                 if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
                 float3 holdAnchor = (float3)worldPos + FormationSlots.RoundedSlotOffset(holdOrdinal, FormationSlots.DefaultSpacing);
                 holdOrdinal++;
+                SquadCommandManager.EndGather(entityManager, minions[i]);
                 entityManager.SetComponentData(minions[i], new MinionStandingOrder
                 {
                     type = StandingOrderType.HoldPosition,

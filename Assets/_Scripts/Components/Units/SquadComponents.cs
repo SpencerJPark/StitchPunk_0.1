@@ -27,3 +27,18 @@ public struct MinionStandingOrder : IComponentData
     public float3 lastIssuedDestination;
     public double lastIssuedTime;
 }
+
+// A minion's gather job (CampLoop Phase 4): walk to the node, harvest, carry one load to the owner's
+// workstation, deposit, repeat; on an empty node move to the nearest same-type node within reach.
+// MinionGatherSystem drives it; explicit orders and standing orders clear it.
+public struct MinionGatherOrder : IComponentData
+{
+    public GatherPhase phase;               // None = not gathering
+    public Entity node;                     // ResourceNode entity, or a corpse
+    public ResourceType resourceType;
+    public Entity station;                  // the workstation loads are delivered to
+    public float harvestTimer;
+    public int carriedAmount;
+    public float3 lastIssuedDestination;
+    public double lastIssuedTime;
+}

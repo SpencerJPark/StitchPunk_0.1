@@ -12,6 +12,7 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
 
     private const float DefaultOnFootCommandRadius = 15f;
     private const float HoldDefendRadius = 5f;
+    private const float GatherSearchRadius = 20f;
 
     private EntityManager entityManager;
     private EntityQuery playerQuery;
@@ -233,6 +234,21 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
             }
         }
 
+        if (command == QuickCommandType.Gather)
+        {
+            targetEntity = FindNearestGatherTarget(playerEntity);
+            if (targetEntity == Entity.Null)
+            {
+                Debug.Log("No resource within reach.");
+                return;
+            }
+            if (!PlayerHasDeployedWorkstation(entityManager, playerEntity))
+            {
+                Debug.Log("Deploy your workstation first \u2014 gatherers need somewhere to deliver.");
+                return;
+            }
+        }
+
         bool commanderMounted = IsCommanderMounted;
         float3 commanderPosition = CommanderPosition;
         float onFootRadius = OnFootCommandRadius;
@@ -270,6 +286,7 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
         {
             case QuickCommandType.Follow:
                 if (!entityManager.HasComponent<MinionStandingOrder>(member)) return;
+                EndGather(entityManager, member);
                 // Slot 0 stays the player's own spot, so members start at slot 1.
                 entityManager.SetComponentData(member, new MinionStandingOrder
                 {
@@ -282,6 +299,7 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
                 break;
             case QuickCommandType.Hold:
                 if (!entityManager.HasComponent<MinionStandingOrder>(member)) return;
+                EndGather(entityManager, member);
                 entityManager.SetComponentData(member, new MinionStandingOrder
                 {
                     type = StandingOrderType.HoldPosition,
@@ -300,12 +318,131 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
                 if (!entityManager.HasComponent<OnMinionReturnCommand>(member)) return;
                 entityManager.SetComponentEnabled<OnMinionReturnCommand>(member, true);
                 break;
+            case QuickCommandType.Gather:
+                if (!TryGetPlayer(out Entity gatherPlayer)) return;
+                if (!StartGather(entityManager, member, gatherPlayer, targetEntity)) return;
+                break;
             default:
                 return;
         }
 
         if (entityManager.HasComponent<PlayerUnitBrain>(member))
             entityManager.SetComponentEnabled<PlayerUnitBrain>(member, true);
+    }
+
+    #endregion
+
+    #region Gather
+
+    public static bool IsGatherTarget(EntityManager entityManager, Entity target)
+    {
+        if (!entityManager.Exists(target)) return false;
+        if (entityManager.HasComponent<ResourceNode>(target))
+            return entityManager.GetComponentData<ResourceNode>(target).remaining > 0;
+        return IsHostileCorpse(entityManager, target);
+    }
+
+    private static bool IsHostileCorpse(EntityManager entityManager, Entity target)
+    {
+        if (!entityManager.HasComponent<Dead>(target) || !entityManager.IsComponentEnabled<Dead>(target)) return false;
+        if (!entityManager.HasComponent<UnitData>(target) || !entityManager.HasComponent<Faction>(target)) return false;
+        // Already being hauled away (or pooled): matches the gather system's IsHaulableCorpse.
+        if (entityManager.HasComponent<Despawn>(target) && entityManager.IsComponentEnabled<Despawn>(target)) return false;
+        return entityManager.GetComponentData<Faction>(target).factionType != FactionType.Player;
+    }
+
+    public static void EndGather(EntityManager entityManager, Entity minion)
+    {
+        if (!entityManager.HasComponent<MinionGatherOrder>(minion)) return;
+        MinionGatherOrder gatherOrder = entityManager.GetComponentData<MinionGatherOrder>(minion);
+        gatherOrder.phase = GatherPhase.None;
+        gatherOrder.carriedAmount = 0;
+        entityManager.SetComponentData(minion, gatherOrder);
+    }
+
+    public static bool PlayerHasDeployedWorkstation(EntityManager entityManager, Entity playerEntity)
+    {
+        if (!entityManager.HasComponent<PlayerWorkstationLink>(playerEntity)) return false;
+        Entity workstation = entityManager.GetComponentData<PlayerWorkstationLink>(playerEntity).workstation;
+        return workstation != Entity.Null && entityManager.Exists(workstation);
+    }
+
+    // Callers check PlayerHasDeployedWorkstation first so the warning logs once, not per minion.
+    public static bool StartGather(EntityManager entityManager, Entity minion, Entity playerEntity, Entity target)
+    {
+        if (!entityManager.HasComponent<MinionGatherOrder>(minion)) return false;
+        if (!entityManager.HasComponent<PlayerWorkstationLink>(playerEntity)) return false;
+        Entity station = entityManager.GetComponentData<PlayerWorkstationLink>(playerEntity).workstation;
+        if (station == Entity.Null) return false;
+
+        ResourceType resourceType = entityManager.HasComponent<ResourceNode>(target)
+            ? entityManager.GetComponentData<ResourceNode>(target).resourceType
+            : ResourceType.Corpse;
+
+        entityManager.SetComponentData(minion, new MinionGatherOrder
+        {
+            phase = GatherPhase.ToNode,
+            node = target,
+            resourceType = resourceType,
+            station = station,
+            harvestTimer = 0f,
+            carriedAmount = 0,
+            lastIssuedDestination = new float3(float.MaxValue),
+            lastIssuedTime = -1000,
+        });
+        if (entityManager.HasComponent<MinionStandingOrder>(minion))
+        {
+            MinionStandingOrder standingOrder = entityManager.GetComponentData<MinionStandingOrder>(minion);
+            standingOrder.type = StandingOrderType.None;
+            entityManager.SetComponentData(minion, standingOrder);
+        }
+        if (entityManager.HasComponent<PlayerUnitBrain>(minion))
+            entityManager.SetComponentEnabled<PlayerUnitBrain>(minion, true);
+        return true;
+    }
+
+    private Entity FindNearestGatherTarget(Entity playerEntity)
+    {
+        float3 referencePoint = CommanderPosition;
+        if (IsCommanderMounted && Camera.main != null
+            && entityManager.HasComponent<CursorScreenPosition>(playerEntity))
+        {
+            float2 cursor = entityManager.GetComponentData<CursorScreenPosition>(playerEntity).Value;
+            UnityEngine.Ray cursorRay = Camera.main.ScreenPointToRay(new Vector3(cursor.x, cursor.y, 0f));
+            UnityEngine.Plane commanderPlane = new UnityEngine.Plane(Vector3.up, new Vector3(0f, referencePoint.y, 0f));
+            if (commanderPlane.Raycast(cursorRay, out float planeDistance))
+                referencePoint = cursorRay.GetPoint(planeDistance);
+        }
+
+        Entity nearest = Entity.Null;
+        float nearestDistanceSquared = GatherSearchRadius * GatherSearchRadius;
+
+        EntityQuery nodeQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<ResourceNode, LocalTransform>().Build(entityManager);
+        NativeArray<Entity> nodes = nodeQuery.ToEntityArray(Allocator.Temp);
+        for (int nodeIndex = 0; nodeIndex < nodes.Length; nodeIndex++)
+        {
+            if (!IsGatherTarget(entityManager, nodes[nodeIndex])) continue;
+            float distanceSquared = math.distancesq(referencePoint, entityManager.GetComponentData<LocalTransform>(nodes[nodeIndex]).Position);
+            if (distanceSquared > nearestDistanceSquared) continue;
+            nearestDistanceSquared = distanceSquared;
+            nearest = nodes[nodeIndex];
+        }
+        nodes.Dispose();
+
+        EntityQuery corpseQuery = new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Dead, UnitData, Faction, LocalTransform>().Build(entityManager);
+        NativeArray<Entity> corpses = corpseQuery.ToEntityArray(Allocator.Temp);
+        for (int corpseIndex = 0; corpseIndex < corpses.Length; corpseIndex++)
+        {
+            if (!IsGatherTarget(entityManager, corpses[corpseIndex])) continue;
+            float distanceSquared = math.distancesq(referencePoint, entityManager.GetComponentData<LocalTransform>(corpses[corpseIndex]).Position);
+            if (distanceSquared > nearestDistanceSquared) continue;
+            nearestDistanceSquared = distanceSquared;
+            nearest = corpses[corpseIndex];
+        }
+        corpses.Dispose();
+        return nearest;
     }
 
     #endregion

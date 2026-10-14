@@ -29,7 +29,7 @@ What already exists and is reused, not rebuilt:
 | 1 | **Player resources** (the `PlayerResource_System.md` ledger + HUD) amended: field revive costs a **revival round** | build now |
 | 2 | **Workstation**: deploy with a ghost preview, pack up, mount → Control Units, furnace (wood → electricity), craft rounds, repair, summon three unit types, placeholder station menu, station destroyed = lose, playtest scene | build now |
 | 3 | **Squads + on-foot command**: Red/Blue squads (two unlocked), cycle the active squad, quick commands, command radius on foot, new summons join the active squad | building 2026-10-13 (CL-D16–D19, CL-A13) |
-| 4 | **Gathering**: tree and scrap nodes, harvest → carry → deposit at the workstation, corpse hauling | after 3 |
+| 4 | **Gathering**: tree and scrap nodes, harvest → carry → deposit at the workstation, corpse hauling | building 2026-10-13 (CL-D23–D26, CL-A14) |
 | 5 | **Bandit camp**: armed humans guarding a camp; their corpses feed field revives | after 4 |
 | 6 | **Raid on the station**: periodic bandit wave targeting the workstation; station takes damage | after 5 |
 | 7 | **Rival corpse engineer**: an enemy workstation that spawns zombie waves; destroy it and its engineer flees or fights | after 6 |
@@ -284,6 +284,10 @@ No fixture for placement raycasts (they need a physics world and a scene) or for
 | CL-D20 | Formations fill **front-to-back by arrival order**; units may walk through each other en route (owner: "feels more natural"). |
 | CL-D21 | **Follow is persistent** until another order, and followers attack hostiles that come near the player (~8 m); Hold is persistent too. Implemented as `MinionStandingOrder` + `MinionStandingOrderSystem`; explicit orders clear it in `MinionActionSelectionSystem`. |
 | CL-D22 | **Spawn rally grows outward from the spawn point** (nearest free slot first), overriding the earlier front-to-back rally fill; move orders keep front-to-back (CL-D20). |
+| CL-D23 | (Phase 4) Gather is started by **right-clicking a node or corpse** with units selected, or by a **Gather wedge** on the radial (nearest node to the cursor when mounted, to you on foot, within 20 m). |
+| CL-D24 | An empty node sends gatherers to the **nearest same-type node within 15 m**; none → back to the station. |
+| CL-D25 | **1 resource per trip, 3 s harvest**; per-node tunables on `ResourceNodeAuthoring`. |
+| CL-D26 | **Any non-player corpse** can be hauled for 1 Body; it despawns on pickup (can't also be revived). |
 
 Architecture calls (mine, CL-A1–A6 above, plus):
 
@@ -296,6 +300,7 @@ Architecture calls (mine, CL-A1–A6 above, plus):
 | CL-A11 | The Tab-anywhere toggle survives behind `requireWorkstationForUnitControl = false` as a debug escape hatch. |
 | CL-A12 | Unit-variant numbers in §4 are starting tunables, not design; they live on the SOs and the authoring. |
 | CL-A13 | Squads are a game-side `SquadMember { squadIndex }` on each minion, **not** movement-toolkit Hordes: horde members steer by flow field, which would override the per-unit formation slots. `PlayerMinionGroupsData.assignmentGroupIndex` is reused as the active squad. Quick-command logic lives in a `SquadCommandManager` MonoBehaviour beside `UnitSelectionManager`; the pure rules are in `Utils/SquadRules.cs`. |
+| CL-A14 | Gathering is a game-side `MinionGatherOrder` + `MinionGatherSystem` that emits Wander options (like the standing orders), not the `GatherBehaviour.asset` the §8 sketch named: the loop is state (node, carried load, station), which a linear behaviour command list models poorly. |
 
 ## 12. Build plan (Phases 0–2)
 

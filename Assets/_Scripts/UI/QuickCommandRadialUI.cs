@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
-// Hold-to-open four-way radial for squad quick commands. Built in code on the scene's shared PanelSettings.
+// Hold-to-open five-way radial for squad quick commands. Built in code on the scene's shared PanelSettings.
 public class QuickCommandRadialUI : MonoBehaviour
 {
     public static bool IsOpen { get; private set; }
@@ -20,16 +20,19 @@ public class QuickCommandRadialUI : MonoBehaviour
     private static readonly Color CreamLabelColor = new Color(0.96f, 0.92f, 0.8f, 1f);
     private static readonly Color HoveredLabelColor = new Color(0.35f, 0.9f, 0.9f, 1f);
 
-    // Wedge order: Up, Right, Down, Left.
+    // Wedge order: clockwise from the top, evenly spaced.
     private static readonly QuickCommandType[] WedgeCommands =
     {
-        QuickCommandType.Follow, QuickCommandType.AttackTarget, QuickCommandType.Return, QuickCommandType.Hold
+        QuickCommandType.Follow, QuickCommandType.AttackTarget, QuickCommandType.Gather,
+        QuickCommandType.Return, QuickCommandType.Hold
     };
-    private static readonly string[] WedgeNames = { "Follow", "Attack target", "Return", "Hold" };
-    private static readonly Vector2[] WedgeDirections =
+    private static readonly string[] WedgeNames = { "Follow", "Attack target", "Gather", "Return", "Hold" };
+
+    private static Vector2 WedgeDirection(int wedgeIndex)
     {
-        new Vector2(0f, 1f), new Vector2(1f, 0f), new Vector2(0f, -1f), new Vector2(-1f, 0f)
-    };
+        float angleRadians = wedgeIndex * (2f * Mathf.PI / WedgeCommands.Length);
+        return new Vector2(Mathf.Sin(angleRadians), Mathf.Cos(angleRadians));
+    }
 
     private InputAction onFootHoldAction;
     private InputAction mountedHoldAction;
@@ -40,7 +43,7 @@ public class QuickCommandRadialUI : MonoBehaviour
     private bool playerQueryCreated;
 
     private VisualElement circleElement;
-    private readonly Label[] wedgeLabels = new Label[4];
+    private readonly Label[] wedgeLabels = new Label[WedgeCommands.Length];
     private InputAction activeHoldAction;
     private Vector2 selectionVector;
     private QuickCommandType hoveredCommand;
@@ -192,9 +195,9 @@ public class QuickCommandRadialUI : MonoBehaviour
         int bestWedge = 0;
         float bestDot = float.MinValue;
         Vector2 direction = selectionVector.normalized;
-        for (int wedgeIndex = 0; wedgeIndex < WedgeDirections.Length; wedgeIndex++)
+        for (int wedgeIndex = 0; wedgeIndex < WedgeCommands.Length; wedgeIndex++)
         {
-            float dot = Vector2.Dot(direction, WedgeDirections[wedgeIndex]);
+            float dot = Vector2.Dot(direction, WedgeDirection(wedgeIndex));
             if (dot <= bestDot) continue;
             bestDot = dot;
             bestWedge = wedgeIndex;
@@ -245,8 +248,8 @@ public class QuickCommandRadialUI : MonoBehaviour
             label.style.borderTopRightRadius = 6;
             label.style.borderBottomLeftRadius = 6;
             label.style.borderBottomRightRadius = 6;
-            label.style.left = halfCircle + WedgeDirections[wedgeIndex].x * LabelOffsetPixels - labelWidth * 0.5f;
-            label.style.top = halfCircle - WedgeDirections[wedgeIndex].y * LabelOffsetPixels - labelHeight * 0.5f;
+            label.style.left = halfCircle + WedgeDirection(wedgeIndex).x * LabelOffsetPixels - labelWidth * 0.5f;
+            label.style.top = halfCircle - WedgeDirection(wedgeIndex).y * LabelOffsetPixels - labelHeight * 0.5f;
             wedgeLabels[wedgeIndex] = label;
             circleElement.Add(label);
         }
