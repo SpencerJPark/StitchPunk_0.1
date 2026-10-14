@@ -1,4 +1,4 @@
-using Unity.Collections;
+﻿using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -63,7 +63,8 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
                 }
 
                 // Claims exist because a unit still walking to its slot isn't there yet, so position alone would double-book it.
-                int slotIndex = FindFreeSlot(rallyCenter, claims, minionPositions, occupiedRadius);
+                float3 travelDirection = FormationSlots.TravelDirection(pendingSpawn.position, rallyCenter);
+                int slotIndex = FindFreeSlot(rallyCenter, travelDirection, claims, minionPositions, occupiedRadius);
                 float3 slotPosition = rallyCenter + FormationSlots.RoundedSlotOffset(slotIndex, FormationSlots.DefaultSpacing);
                 claims.Add(new WorkstationRallyClaim { slotIndex = slotIndex, claimedTime = now });
 
@@ -85,24 +86,51 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
         minionPositions.Dispose();
     }
 
+    // Summons arrive one by one from the station, so the frontmost free slot (farthest along the
+    // walk) goes first and later summons fill in behind without walking through earlier ones.
     private static int FindFreeSlot(
         float3 rallyCenter,
+        float3 travelDirection,
         DynamicBuffer<WorkstationRallyClaim> claims,
         NativeList<float3> minionPositions,
         float occupiedRadius)
     {
-        for (int slotIndex = 0; slotIndex < MaxSlotSearch; slotIndex++)
+        int frontmostSlot = -1;
+        float frontmostDepth = float.MinValue;
+        for (int slotIndex = 0; slotIndex < FormationSlots.RallyFormationCapacity; slotIndex++)
         {
-            if (IsClaimed(claims, slotIndex))
+            if (!IsSlotFree(rallyCenter, slotIndex, claims, minionPositions, occupiedRadius))
                 continue;
 
-            float3 slotPosition = rallyCenter + FormationSlots.RoundedSlotOffset(slotIndex, FormationSlots.DefaultSpacing);
-            if (IsOccupiedByMinion(minionPositions, slotPosition, occupiedRadius))
+            float depth = FormationSlots.SlotDepth(slotIndex, FormationSlots.DefaultSpacing, travelDirection);
+            if (depth <= frontmostDepth)
                 continue;
+            frontmostDepth = depth;
+            frontmostSlot = slotIndex;
+        }
+        if (frontmostSlot >= 0)
+            return frontmostSlot;
 
-            return slotIndex;
+        // The formation is full: grow it outward.
+        for (int slotIndex = FormationSlots.RallyFormationCapacity; slotIndex < MaxSlotSearch; slotIndex++)
+        {
+            if (IsSlotFree(rallyCenter, slotIndex, claims, minionPositions, occupiedRadius))
+                return slotIndex;
         }
         return MaxSlotSearch;
+    }
+
+    private static bool IsSlotFree(
+        float3 rallyCenter,
+        int slotIndex,
+        DynamicBuffer<WorkstationRallyClaim> claims,
+        NativeList<float3> minionPositions,
+        float occupiedRadius)
+    {
+        if (IsClaimed(claims, slotIndex))
+            return false;
+        float3 slotPosition = rallyCenter + FormationSlots.RoundedSlotOffset(slotIndex, FormationSlots.DefaultSpacing);
+        return !IsOccupiedByMinion(minionPositions, slotPosition, occupiedRadius);
     }
 
     private static bool IsClaimed(DynamicBuffer<WorkstationRallyClaim> claims, int slotIndex)

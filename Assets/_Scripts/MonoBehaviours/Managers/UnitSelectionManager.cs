@@ -420,7 +420,8 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         }
 
         // Default: move to ground position under the cursor.
-        // Each unit gets its own formation slot so a group order does not stack everyone on one point.
+        // Each unit gets its own formation slot; whoever arrives first takes the front, so late
+        // arrivals never walk through units already standing.
         NativeList<Entity> movableMinions = new NativeList<Entity>(minions.Length, Allocator.Temp);
         for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
         {
@@ -429,13 +430,18 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         }
 
         NativeArray<float3> unitPositions = new NativeArray<float3>(movableMinions.Length, Allocator.Temp);
+        NativeArray<float> unitSpeeds = new NativeArray<float>(movableMinions.Length, Allocator.Temp);
         NativeArray<float3> slotDestinations = new NativeArray<float3>(movableMinions.Length, Allocator.Temp);
         for (int movableIndex = 0; movableIndex < movableMinions.Length; movableIndex++)
         {
-            unitPositions[movableIndex] = entityManager.GetComponentData<LocalTransform>(movableMinions[movableIndex]).Position;
+            Entity movableMinion = movableMinions[movableIndex];
+            unitPositions[movableIndex] = entityManager.GetComponentData<LocalTransform>(movableMinion).Position;
+            unitSpeeds[movableIndex] = entityManager.HasComponent<Movement>(movableMinion)
+                ? entityManager.GetComponentData<Movement>(movableMinion).moveSpeed
+                : 1f;
         }
 
-        FormationSlots.AssignRoundedSlots(unitPositions, (float3)worldPos, FormationSlots.DefaultSpacing, ref slotDestinations);
+        FormationSlots.AssignFrontToBackSlots(unitPositions, unitSpeeds, (float3)worldPos, FormationSlots.DefaultSpacing, ref slotDestinations);
 
         for (int movableIndex = 0; movableIndex < movableMinions.Length; movableIndex++)
         {
@@ -445,6 +451,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             entityManager.SetComponentEnabled<PlayerUnitBrain>(movableMinion, true);
         }
         unitPositions.Dispose();
+        unitSpeeds.Dispose();
         slotDestinations.Dispose();
         movableMinions.Dispose();
         minions.Dispose();

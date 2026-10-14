@@ -57,7 +57,7 @@ Built 2026-10-13 unattended:
 - [ ] The console is free of `Can't call HasSingleton<CampLoopGameOver>` (fixed).
 - [ ] **Formation cycling moved off Tab** to **C** (gamepad: left-stick click), as a `ControlUnits/CycleFormation` input action. Tab in Control Units now only dismounts.
 
-- [ ] **Formations:** a ground move order spreads the selection into a rounded formation (a sunflower disc about 1.2 m apart) instead of stacking. Each new summon walks from the spawn point to the next free slot around the station's `RallyPoint`, 5 m in front of it and movable on the prefab. Units stop within 0.4 m of their slot; Wander's stop distance went from 1.5 m to 0.4 m, which also affects citizens wandering.
+- [ ] **Formations:** a ground move order spreads the selection into a rounded formation about 1.2 m apart. **Arrival order fills it front-to-back:** units expected to arrive first (by distance and speed) take the front of the circle in the direction of travel, and stragglers take the back, so nobody walks through units already standing. Within a row, units pair left-to-right. Summons walk to the station's `RallyPoint` (5 m in front, movable on the prefab) and fill the far side first, then back toward the station. Units stop within 0.4 m of their slot (Wander's stop distance went from 1.5 m to 0.4 m, which also affects citizens).
 
 ## Feel questions (your call; answers feed Phase 3)
 

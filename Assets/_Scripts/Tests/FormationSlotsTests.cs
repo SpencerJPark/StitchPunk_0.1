@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using Unity.Collections;
 using Unity.Mathematics;
 
@@ -12,17 +12,19 @@ namespace StitchPunk.Tests
 
         // Units stacked on one point must still each get their own spot, or they all walk to the same tile.
         [Test]
-        public void AssignRoundedSlots_GivesEveryUnitADistinctSpacedSlot()
+        public void AssignFrontToBackSlots_GivesEveryUnitADistinctSpacedSlot()
         {
             float3 center = new float3(10f, 0f, 10f);
             NativeArray<float3> unitPositions = new NativeArray<float3>(UnitCount, Allocator.Temp);
+            NativeArray<float> unitSpeeds = new NativeArray<float>(UnitCount, Allocator.Temp);
             NativeArray<float3> destinations = new NativeArray<float3>(UnitCount, Allocator.Temp);
             for (int unitIndex = 0; unitIndex < UnitCount; unitIndex++)
             {
                 unitPositions[unitIndex] = float3.zero;
+                unitSpeeds[unitIndex] = 5f;
             }
 
-            FormationSlots.AssignRoundedSlots(unitPositions, center, TestSpacing, ref destinations);
+            FormationSlots.AssignFrontToBackSlots(unitPositions, unitSpeeds, center, TestSpacing, ref destinations);
 
             float minimumAllowedGap = TestSpacing * 0.5f;
             float maximumAllowedRadius = TestSpacing * 3f;
@@ -41,6 +43,35 @@ namespace StitchPunk.Tests
             }
 
             unitPositions.Dispose();
+            unitSpeeds.Dispose();
+            destinations.Dispose();
+        }
+
+        // A column marching +Z: the unit that arrives first must end up ahead of (deeper than) the
+        // unit that arrives last, or the latecomer walks through the early arrivals to reach the front.
+        [Test]
+        public void AssignFrontToBackSlots_FirstArrivalTakesTheFrontAndLastTakesTheBack()
+        {
+            float3 center = new float3(0f, 0f, 20f);
+            NativeArray<float3> unitPositions = new NativeArray<float3>(UnitCount, Allocator.Temp);
+            NativeArray<float> unitSpeeds = new NativeArray<float>(UnitCount, Allocator.Temp);
+            NativeArray<float3> destinations = new NativeArray<float3>(UnitCount, Allocator.Temp);
+            for (int unitIndex = 0; unitIndex < UnitCount; unitIndex++)
+            {
+                // Unit 0 is closest to the destination, unit 11 the farthest back.
+                unitPositions[unitIndex] = new float3(0f, 0f, 10f - unitIndex);
+                unitSpeeds[unitIndex] = 5f;
+            }
+
+            FormationSlots.AssignFrontToBackSlots(unitPositions, unitSpeeds, center, TestSpacing, ref destinations);
+
+            float firstArrivalDepth = destinations[0].z - center.z;
+            float lastArrivalDepth = destinations[UnitCount - 1].z - center.z;
+            Assert.Greater(firstArrivalDepth, 0f, "The first arrival should stand in the front half");
+            Assert.Less(lastArrivalDepth, 0f, "The last arrival should stand in the back half");
+
+            unitPositions.Dispose();
+            unitSpeeds.Dispose();
             destinations.Dispose();
         }
 
