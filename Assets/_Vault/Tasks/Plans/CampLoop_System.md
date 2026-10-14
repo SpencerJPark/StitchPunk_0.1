@@ -403,3 +403,18 @@ Orchestrator on `main`; `worker` subagents of at most two files each; `python To
 - **Not baked, not played.**
 
 **Owner play pass:** [`../Verification/verify-camp-loop.md`](../Verification/verify-camp-loop.md).
+
+**2026-10-14, Phase 5 code landed (e2796c79); Editor steps still owed** (the MCP bridge dropped after an Editor restart):
+1. Refresh and compile; commit the generated `.meta` files for the 8 new scripts.
+2. Assets:
+   - `Brains/BanditBrain.asset`: copy CitizenBrain, set unitType Bandit, add PlayerZombieBrain's attack actions, add to `_BrainLibrary`.
+   - `Units/Bandit.asset`: copy MaleCitizen, set faction Bandits, attackFactions [Player], bravery 1, awareness 12, becomes PlayerZombie, attacks copied from PlayerZombie, add to `_UnitLibrary`.
+   - `Prefabs/Units/Bandit.prefab`: MaleCitizen variant with UnitAuthoring and UnitBrainAuthoring set to Bandit.
+   - Set the three PlayerZombie* units' attackFactions to [Bandits, Rottens].
+3. Camp in `CampLoop_Sub`:
+   - a `BanditCamp` root (BanditCampAuthoring) about 30 m from the start;
+   - 5 Bandit instances, each with GuardPostAuthoring pointing at the root;
+   - a ScrapPile node (10) and a Currency node (5), each with CampLootAuthoring pointing at the root;
+   - placeholder tents and a campfire.
+4. Wire `PlayerVitalsUI` (a UIDocument) under `CampLoopUI` in `CampLoop.unity`.
+5. Run EditMode and PlayMode tests (the UnitBrainCoverage test now needs the Bandit brain). Then revert-to-fail with Burst off for the camp-clear and knockout logic; there are no fixtures for these yet, so add them.
