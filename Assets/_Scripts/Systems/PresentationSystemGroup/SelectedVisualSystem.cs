@@ -3,7 +3,11 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
+// The ring follows the Selected enabled bit every frame. It used to react to one-shot
+// onSelected/onDeselected flags that nothing ever cleared, so after one deselect both stayed
+// true and the ring was hidden then re-shown each frame.
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
+[BurstCompile]
 partial struct SelectedVisualSystem : ISystem
 {
     [BurstCompile]
@@ -15,23 +19,21 @@ partial struct SelectedVisualSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (RefRO<Selected> selected in SystemAPI.Query<RefRO<Selected>>().WithPresent<Selected>())
+        foreach ((RefRO<Selected> selected, EnabledRefRO<Selected> selectedEnabled) in
+            SystemAPI.Query<RefRO<Selected>, EnabledRefRO<Selected>>()
+                .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
         {
             Entity visual = selected.ValueRO.visualEntity;
-            if (visual == Entity.Null) continue;
+            if (visual == Entity.Null || !SystemAPI.HasComponent<LocalTransform>(visual)) continue;
 
-            if (selected.ValueRO.onDeselected)
-            {
-                SystemAPI.GetComponentRW<LocalTransform>(visual).ValueRW.Scale = 0f;
-            }
+            float targetScale = selectedEnabled.ValueRO ? selected.ValueRO.showScale : 0f;
+            RefRW<LocalTransform> visualTransform = SystemAPI.GetComponentRW<LocalTransform>(visual);
+            if (visualTransform.ValueRO.Scale != targetScale)
+                visualTransform.ValueRW.Scale = targetScale;
 
-            if (selected.ValueRO.onSelected)
-            {
-                SystemAPI.GetComponentRW<LocalTransform>(visual).ValueRW.Scale = selected.ValueRO.showScale;
-                // Set ring color to match the current command type.
-                if (SystemAPI.HasComponent<SelectionColor>(visual))
-                    SystemAPI.GetComponentRW<SelectionColor>(visual).ValueRW.Value = CommandTypeToColor(selected.ValueRO.commandType);
-            }
+            // Set ring color to match the current command type.
+            if (selectedEnabled.ValueRO && SystemAPI.HasComponent<SelectionColor>(visual))
+                SystemAPI.GetComponentRW<SelectionColor>(visual).ValueRW.Value = CommandTypeToColor(selected.ValueRO.commandType);
         }
     }
 

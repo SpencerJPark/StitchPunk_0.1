@@ -90,9 +90,6 @@ public struct Selected : IComponentData, IEnableableComponent
     // Updated by MinionCommandSystem when a new order is issued.
     // Read by SelectedVisualSystem to drive ring color.
     public CommandType commandType;
-
-    public bool onSelected;
-    public bool onDeselected;
 }
 
 // Lives on the selection ring visual entity. Drives the _SelectionColor shader property.
