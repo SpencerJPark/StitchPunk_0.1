@@ -27,15 +27,22 @@ public partial struct VisualBillboardSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        AnimationToolkitCameraData cameraData = SystemAPI.GetSingleton<AnimationToolkitCameraData>();
+        float3 cameraForward = SystemAPI.GetSingleton<AnimationToolkitCameraData>().forward;
+        float3 flatCameraForward = new float3(cameraForward.x, 0f, cameraForward.z);
+        if (math.lengthsq(flatCameraForward) < 1e-6f)
+        {
+            return;
+        }
+
         localTransformLookup.Update(ref state);
         parentLookup.Update(ref state);
         localToWorldLookup.Update(ref state);
 
+        // Upright, turned to the camera's yaw only: CameraWorldLean tilts sprites and 3D meshes by the same
+        // view-matrix lean, so a screen-aligned tilt here would lean sprites twice.
         FaceCameraJob faceCameraJob = new FaceCameraJob
         {
-            cameraPosition = cameraData.position,
-            cameraForward = cameraData.forward,
+            uprightFacingWorldRotation = quaternion.LookRotation(math.normalize(flatCameraForward), math.up()),
             localTransformLookup = localTransformLookup,
             parentLookup = parentLookup,
             localToWorldLookup = localToWorldLookup
@@ -48,8 +55,7 @@ public partial struct VisualBillboardSystem : ISystem
 [WithAll(typeof(VisualBillboard))]
 public partial struct FaceCameraJob : IJobEntity
 {
-    public float3 cameraPosition;
-    public float3 cameraForward;
+    public quaternion uprightFacingWorldRotation;
 
     // Each visual only writes its own LocalTransform and reads its parent's, so parallel is safe.
     [NativeDisableParallelForRestriction] public ComponentLookup<LocalTransform> localTransformLookup;
@@ -65,42 +71,21 @@ public partial struct FaceCameraJob : IJobEntity
         Entity parent = parentLookup[entity].Value;
 
         quaternion parentWorldRotation;
-        float3 parentWorldPosition;
         if (localTransformLookup.HasComponent(parent) && !parentLookup.HasComponent(parent))
         {
             // Root parent: its LocalTransform is already this frame's, LocalToWorld would lag a frame.
-            LocalTransform parentTransform = localTransformLookup[parent];
-            parentWorldRotation = parentTransform.Rotation;
-            parentWorldPosition = parentTransform.Position;
+            parentWorldRotation = localTransformLookup[parent].Rotation;
         }
         else if (localToWorldLookup.HasComponent(parent))
         {
-            LocalToWorld parentLocalToWorld = localToWorldLookup[parent];
-            parentWorldRotation = parentLocalToWorld.Rotation;
-            parentWorldPosition = parentLocalToWorld.Position;
+            parentWorldRotation = localToWorldLookup[parent].Rotation;
         }
         else
         {
             return;
         }
 
-        BillboardSettings settings = new BillboardSettings
-        {
-            mode = BillboardMode.ScreenAligned,
-            enabled = true,
-            blendWeight = 1f,
-            clampHalfArcRadians = -1f
-        };
-
-        quaternion desiredWorldRotation;
-        bool resolved = BillboardMath.TryResolve(
-            settings, parentWorldPosition, cameraPosition, cameraForward, parentWorldRotation, out desiredWorldRotation);
-        if (!resolved)
-        {
-            return;
-        }
-
         RefRW<LocalTransform> visualTransform = localTransformLookup.GetRefRW(entity);
-        visualTransform.ValueRW.Rotation = math.mul(math.inverse(parentWorldRotation), desiredWorldRotation);
+        visualTransform.ValueRW.Rotation = math.mul(math.inverse(parentWorldRotation), uprightFacingWorldRotation);
     }
 }

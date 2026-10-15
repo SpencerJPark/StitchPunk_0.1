@@ -24,6 +24,12 @@ These are `RegulatorSingleton<T>` or `PersistentSingleton<T>` instances that liv
 
 ---
 
+## Camera world lean
+
+`CameraWorldLean` (on `Prefabs/SetUp/Main Camera 1.prefab`, the camera CampLoop and TestArea share) leans the rendered world away from the camera by `leanStrength` × camera pitch, pivoting on `groundHeight`, so 3D meshes read on the same plane as sprite billboards. It is view-only: it writes `worldToCameraMatrix` in `RenderPipelineManager.beginCameraRendering` (after Cinemachine), so transforms, physics, lighting and shadow maps stay upright and stock materials work. Billboards must stay upright (`VisualBillboardSystem`) or they lean twice. Culling trap in [[Gotchas]]. Replaced the per-material `SkewToCamera` shader experiment, which leaned per vertex and broke outlines.
+
+---
+
 ## Bridging ECS and MonoBehaviour
 
 Use `SystemAPI.GetSingleton<T>()` / `SystemAPI.SetSingleton<T>()` from inside a [[Systems]] system to read/write shared state that MonoBehaviours also need. For the other direction (MonoBehaviour → ECS), write to a singleton component through the `World.DefaultGameObjectInjectionWorld.EntityManager`.

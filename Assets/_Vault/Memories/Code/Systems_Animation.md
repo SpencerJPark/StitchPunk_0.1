@@ -87,7 +87,9 @@ See `Assets/_Vault/Tasks/NewPlans/AnimationToolkitMigration_System.md` for the m
   the toolkit's `AnimVisible` for actors that carry it (`AnimVisibleMirrorJob`). The toolkit's own
   `AnimLodDistanceSystem` is not used — two visibility authorities would just risk disagreeing.
 - **Billboard** — the toolkit's `BillboardResolveSystem`, Y-axis upright mode, authored per-actor on
-  `ActorAuthoring.billboardMode`. No game code.
+  `ActorAuthoring.billboardMode`. No game code. Units without a toolkit profile use the game-side
+  `VisualBillboardSystem`, upright to the camera's yaw (since 2026-10-15) because `CameraWorldLean`
+  supplies the tilt; never make either path screen-aligned while the lean is on, or sprites lean twice.
 - **Ragdoll** — every unit bakes a (disabled) `RagdollLaunch` via `UnitBakingUtil` regardless of
   whether its profile uses one, so pooled units don't need it added on death. `RagdollLaunchInitSystem`
   (`HealthSystemGroup`, after `DeathSystem`) reads `Health.kill*` (captured by `DamageEventSystem` on

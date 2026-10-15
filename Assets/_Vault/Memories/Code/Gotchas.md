@@ -779,3 +779,6 @@ After a mutation or a revert, Burst can keep serving the old compiled code, so t
 
 ### A new UnitType needs its own BrainSO
 The brain library is indexed by `UnitType`; a type with no `BrainSO` in `_BrainLibrary` has no actions, so move/attack orders resolve to action def -1 and the unit silently ignores them (PlayerZombieBrute/Runner, 2026-10-13). `UnitBrainCoverageTests` now fails for any player-controllable unit without a brain, and `MinionActionSelectionSystem` warns `cannot Move: no Wander action`.
+
+### A leaned camera view matrix drops shadows unless culling stays upright
+`CameraWorldLean` leans the world through `camera.worldToCameraMatrix`. If `camera.cullingMatrix` is left to follow that leaned matrix, URP culls shadow casters wrongly and tall objects lose their shadows with no warning. The component sets the culling matrix from the upright view with a widened frustum (`cullingMargin`). Found in the 2026-10-15 lean study. Anything that lean-tilts sprites itself (a screen-aligned billboard) leans them twice, which is why `VisualBillboardSystem` is upright now.
