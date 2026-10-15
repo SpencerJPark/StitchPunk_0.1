@@ -33,7 +33,7 @@ MonoBehaviour:
   socialFactions: 
   actorProfile: {fileID: 0}
   maxHealth: 100
-  attackFactions: 
+  attackFactions: 0a05
   attacks:
   - action: 17
     attack: 3

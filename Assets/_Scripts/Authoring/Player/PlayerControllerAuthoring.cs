@@ -19,9 +19,6 @@ public class PlayerControllerAuthoring : MonoBehaviour
     [SearchableEnum] public ItemType debugSlot3 = ItemType.None;
     [SearchableEnum] public ItemType debugSlot4 = ItemType.None;
 
-    [Header("Health")]
-    public int maxHealth = 100;
-
     [Header("Minion Groups")]
     [Tooltip("Number of group slots available at start (1–4). Upgrade system will write this at runtime.")]
     [Range(1, 4)] public int startingGroupCount = 2;
@@ -239,16 +236,8 @@ public class PlayerControllerAuthoring : MonoBehaviour
             AddComponent(entity, new WorkstationDismountRequest());
             SetComponentEnabled<WorkstationDismountRequest>(entity, false);
 
-            // DamageEventSystem writes Health and enables Dead (SetComponentEnabled throws if absent);
-            // PlayerKnockoutSystem clears Dead the same frame, so Dead stays baked disabled.
-            AddComponent(entity, new Health
-            {
-                healthAmount    = controllerAuthoring.maxHealth,
-                healthAmountMax = controllerAuthoring.maxHealth,
-            });
-            AddComponent(entity, new Dead());
-            SetComponentEnabled<Dead>(entity, false);
-
+            // Health and Dead come from HealthAuthoring on the BaseUnit parent prefab (100 HP there);
+            // adding them here is a duplicate-component bake error. PlayerKnockoutSystem clears Dead.
             // Threat bookkeeping only registers sources whose faction is in the victim's AttackFaction list.
             AddBuffer<ThreatEntry>(entity);
             DynamicBuffer<AttackFaction> attackFactions = AddBuffer<AttackFaction>(entity);

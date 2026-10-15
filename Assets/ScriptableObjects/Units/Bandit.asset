@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95850bc4d1a0feb499910a2fb76c62ab, type: 3}
+  m_Name: Bandit
+  m_EditorClassIdentifier: StitchPunk.Data::UnitSO
+  unitType: 9
+  factionType: 10
+  canBePlayerControlled: 1
+  becomesUnitType: 6
+  prefab: {fileID: 585186993279967742, guid: 41c1405634395e546884c1f2c9aea6ca, type: 3}
+  awarenessRange: 12
+  bravery: 1
+  braveryVariance: 0
+  socialAffinity: 0.5
+  socialAffinityVariance: 0.1
+  wanderlust: 0.5
+  wanderlustVariance: 0.1
+  gluttony: 0.5
+  gluttonyVariance: 0.1
+  motivations: 010000000200000003000000040000000500000006000000080000000a000000
+  randomMotivationsTotal: 3
+  randomMotivations: 0c0000000e0000000f000000100000001100000012000000130000001400000015000000
+  motivationDecayRates:
+  - needType: 1
+    decayRate: 0.5
+  - needType: 2
+    decayRate: 0.05
+  - needType: 3
+    decayRate: 0.5
+  - needType: 6
+    decayRate: 0.5
+  - needType: 4
+    decayRate: 0.3
+  - needType: 8
+    decayRate: 1
+  socialFactions: 0306080902
+  actorProfile: {fileID: 11400000, guid: b68693475b98e0947817efc19bba73bb, type: 2}
+  maxHealth: 100
+  attackFactions: 01
+  attacks:
+  - action: 17
+    attack: 3
+  moveSpeed: 1
+  runSpeed: 2.2
+  rotationSpeed: 10
+  summonCost:
+    corpses: 1
+    scrapMetal: 1
+    electricity: 1

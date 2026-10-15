@@ -86,6 +86,15 @@ Built 2026-10-13 unattended:
 - [ ] Radial **Gather** wedge (five wedges now; Gather sits lower-right): sends the active squad to the nearest node or corpse within 20 m of the cursor (mounted) or of you (on foot).
 - [ ] Any new order, or Follow/Hold, stops gathering. Gatherers walk through each other (expected).
 
+**Phase 5: bandit camp (built 2026-10-14/15, CL-D27–D30)**
+- [ ] **BanditCamp**, about 30 m north of the start: two tents, a campfire, 5 Bandits (citizen body, ~100 HP, melee), a scrap crate (10) and a strongbox (5 currency).
+- [ ] Bandits mill around within ~10 m. Walk your character or minions within ~12 m and they attack. Lead them away: past ~25 m from camp they break off and walk home.
+- [ ] Your zombies now treat Bandits (and Rottens) as hostile. Self-defence, Follow's "defend me" and Hold all engage them.
+- [ ] Before the camp is cleared, the crate and strongbox can't be gathered (right-click does nothing). After the last bandit dies, the console logs `[BanditCamp] Camp cleared — loot unlocked.` and they become haulable: Scrap +10 and Currency +5 over several trips.
+- [ ] Dead bandits can be field-revived (humans → PlayerZombie) or hauled for Bodies.
+- [ ] **Your health:** an HP bar sits bottom-left. Bandits can hurt you. At 0 HP, a "Knocked out — waking at the workstation… N" overlay counts down 5 s, then you're at the station with full HP. With no station deployed you get the lose screen.
+- [ ] Taking a hit while mounted knocks you off the station.
+
 ## Feel questions (your call; answers feed Phase 3)
 
 - [ ] Is B a good deploy key? Is E-to-confirm placement fine, or should it be click-to-place?
@@ -95,7 +104,7 @@ Built 2026-10-13 unattended:
 
 ## Known gaps (by design or deferred)
 
-- The player has no `Health`, so dismount-on-damage (CL-D2) is coded and tested but cannot fire in game until the player gets health.
+- ~~The player has no `Health`~~ Wrong: `PlayerUnit` always had `Health` through its `BaseUnit` parent prefab (found 2026-10-15). Dismount-on-damage has been live all along, and knockout (Phase 5) now handles 0 HP.
 - Raids are Phase 6, so nothing damages the station yet. Use the inspector to test losing.
 - Workstation state is not saved. After a load the station is gone but the ledger survives, so you can redeploy.
 - Summoned minions do not join a squad yet (Phase 3).
