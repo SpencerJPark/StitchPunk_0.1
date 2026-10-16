@@ -782,3 +782,6 @@ The brain library is indexed by `UnitType`; a type with no `BrainSO` in `_BrainL
 
 ### A leaned camera view matrix drops shadows unless culling stays upright
 `CameraWorldLean` leans the world through `camera.worldToCameraMatrix`. If `camera.cullingMatrix` is left to follow that leaned matrix, URP culls shadow casters wrongly and tall objects lose their shadows with no warning. The component sets the culling matrix from the upright view with a widened frustum (`cullingMargin`). Found in the 2026-10-15 lean study. Anything that lean-tilts sprites itself (a screen-aligned billboard) leans them twice, which is why `VisualBillboardSystem` is upright now.
+
+### Units and gather nodes must be scene ROOT objects in a subscene
+A unit or ResourceNode authored under a parent GameObject bakes with `Parent`, so its `LocalTransform` is parent-relative. Movement, awareness, leash and gather maths all read `LocalTransform.Position` as a world position, so a parented unit walks to the wrong points and mis-measures distances. In CampLoop the bandits under `BanditCamp` "walked off the map" and never noticed the player, because they were offset by the camp's ~27 m. Group with naming, not hierarchy. Static dressing (tents) can stay parented.
