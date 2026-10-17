@@ -38,6 +38,8 @@ public static class EnumLogNames
             case ActionType.Spawn:                return "Spawn";
             case ActionType.EquipWeapon:          return "EquipWeapon";
             case ActionType.UseHealingItem:       return "UseHealingItem";
+            case ActionType.EatFromSupplies:      return "EatFromSupplies";
+            case ActionType.ListenToMusic:        return "ListenToMusic";
             default:
             {
                 FixedString32Bytes fallback = default;
@@ -60,6 +62,8 @@ public static class EnumLogNames
             case BehaviorType.Talk:            return "Talk";
             case BehaviorType.MeleeContinuous: return "MeleeContinuous";
             case BehaviorType.MeleeSingle:     return "MeleeSingle";
+            case BehaviorType.EatFromSupplies: return "EatFromSupplies";
+            case BehaviorType.ListenToMusic:   return "ListenToMusic";
             default:
             {
                 FixedString32Bytes fallback = default;

@@ -1,4 +1,4 @@
-
+﻿
 public enum BehaviorPhase : byte
 {
     Approach,
@@ -154,6 +154,10 @@ public enum ActionType // used for animation linking
     // Item-awareness actions — appended; do not reorder existing values.
     EquipWeapon,
     UseHealingItem,
+
+    // Camp-life interactions (SmartHumanAI H1) — appended.
+    EatFromSupplies,
+    ListenToMusic,
 }
 
 public enum PersonalityTypes
@@ -206,6 +210,8 @@ public enum BehaviorType : byte
     Talk,
     MeleeContinuous,
     MeleeSingle,
+    EatFromSupplies,   // SmartHumanAI H1 — appended
+    ListenToMusic,
 }
 
 public enum StanceType

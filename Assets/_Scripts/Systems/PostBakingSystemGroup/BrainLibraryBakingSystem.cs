@@ -30,10 +30,26 @@ public partial struct BrainLibraryBakingSystem : ISystem
         // De-duplicate actions across all brains into one shared action-def table.
         Dictionary<UtilityActionSO, int> actionDefIndex = new Dictionary<UtilityActionSO, int>();
         List<UtilityActionSO> actionDefList = new List<UtilityActionSO>();
+        // Flatten base brain + modules once per brain; later passes reuse this so the blob matches what was validated.
+        Dictionary<BrainSO, List<UtilityActionSO>> flattenedActionsByBrain = new Dictionary<BrainSO, List<UtilityActionSO>>();
+        HashSet<string> loggedProblems = new HashSet<string>();
         foreach (BrainSO brainSO in brainSOs)
         {
-            if (brainSO.actions == null) continue;
-            foreach (UtilityActionSO action in brainSO.actions)
+            if (flattenedActionsByBrain.ContainsKey(brainSO)) continue;
+            List<UtilityActionSO> flattenedActions = new List<UtilityActionSO>();
+            List<string> problems = new List<string>();
+            brainSO.CollectActions(flattenedActions, problems);
+            flattenedActionsByBrain[brainSO] = flattenedActions;
+            foreach (string problem in problems)
+            {
+                if (loggedProblems.Add(problem))
+                    UnityEngine.Debug.LogWarning("[BrainLibraryBaking] " + problem);
+            }
+        }
+
+        foreach (BrainSO brainSO in brainSOs)
+        {
+            foreach (UtilityActionSO action in flattenedActionsByBrain[brainSO])
             {
                 if (action == null || actionDefIndex.ContainsKey(action)) continue;
                 actionDefIndex[action] = actionDefList.Count;
@@ -95,9 +111,9 @@ public partial struct BrainLibraryBakingSystem : ISystem
             brainsBuilder[unitIndex].unitType = (UnitType)unitIndex;
 
             List<int> indices = new List<int>();
-            if (brainBySlot.TryGetValue(unitIndex, out BrainSO brainSO) && brainSO.actions != null)
+            if (brainBySlot.TryGetValue(unitIndex, out BrainSO brainSO))
             {
-                foreach (UtilityActionSO action in brainSO.actions)
+                foreach (UtilityActionSO action in flattenedActionsByBrain[brainSO])
                 {
                     if (action != null && actionDefIndex.TryGetValue(action, out int resolvedIndex))
                         indices.Add(resolvedIndex);

@@ -18,6 +18,6 @@ MonoBehaviour:
   motivationSatisfaction:
     needType: 2
     value: 50
-  factionsThatCanInteractWith:
+  factionsThatCanInteractWith: 0a03
   range: 1.5
   duration: 8

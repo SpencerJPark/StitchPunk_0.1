@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: PlayerZombieBrain
   m_EditorClassIdentifier: StitchPunk.Data::BrainConfigSO
   unitType: 6
-  actions:
-  - {fileID: 11400000, guid: 79f119d1c12740642990f18c6c499045, type: 2}
-  - {fileID: 11400000, guid: 4ae5c294eb7b4988a7325b92665b7cc8, type: 2}
+  baseBrain: {fileID: 11400000, guid: 8aca96758557e2e448899627dfadddad, type: 2}
+  modules: []
+  actions: []

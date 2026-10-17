@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 37ae3b292cc59f347a88c9c4d609ca4e, type: 3}
+  m_Name: ZombieBaseBrain
+  m_EditorClassIdentifier: StitchPunk.Data::BrainSO
+  unitType: 0
+  baseBrain: {fileID: 0}
+  modules:
+  - {fileID: 11400000, guid: 0b20a50f9e4e0ba46b10acc3c03d8a0a, type: 2}
+  - {fileID: 11400000, guid: 11b7dfab92b5d0d4781025f881976bfa, type: 2}
+  actions: []

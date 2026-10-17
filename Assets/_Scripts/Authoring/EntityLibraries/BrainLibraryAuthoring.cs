@@ -19,20 +19,45 @@ public class BrainLibraryAuthoring : MonoBehaviour
             {
                 if (brain == null) continue;
 
-                // Depend on the brain and its actions so inline-curve edits re-trigger baking.
-                DependsOn(brain);
-                if (brain.actions != null)
+                DependOnBrainGraph(brain);
+                brainBuffer.Add(new BrainLibraryEntry { config = brain });
+            }
+
+            AddComponent(entity, new BrainLibrary());
+        }
+
+        // Depends on every brain in the base chain plus their actions and modules, so inline-curve
+        // edits anywhere in the inheritance graph re-trigger baking. Instance method: DependsOn is one.
+        private void DependOnBrainGraph(BrainSO libraryBrain)
+        {
+            HashSet<BrainSO> visitedBrains = new HashSet<BrainSO>();
+            BrainSO currentBrain = libraryBrain;
+
+            while (currentBrain != null && visitedBrains.Add(currentBrain))
+            {
+                DependsOn(currentBrain);
+
+                if (currentBrain.actions != null)
                 {
-                    foreach (UtilityActionSO action in brain.actions)
+                    foreach (UtilityActionSO action in currentBrain.actions)
                     {
                         if (action != null) DependsOn(action);
                     }
                 }
 
-                brainBuffer.Add(new BrainLibraryEntry { config = brain });
-            }
+                if (currentBrain.modules != null)
+                {
+                    foreach (BehaviourModuleSO module in currentBrain.modules)
+                    {
+                        if (module == null) continue;
 
-            AddComponent(entity, new BrainLibrary());
+                        DependsOn(module);
+                        if (module.action != null) DependsOn(module.action);
+                    }
+                }
+
+                currentBrain = currentBrain.baseBrain;
+            }
         }
     }
 }

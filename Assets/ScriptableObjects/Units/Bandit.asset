@@ -27,21 +27,21 @@ MonoBehaviour:
   gluttony: 0.5
   gluttonyVariance: 0.1
   motivations: 010000000200000003000000040000000500000006000000080000000a000000
-  randomMotivationsTotal: 3
-  randomMotivations: 0c0000000e0000000f000000100000001100000012000000130000001400000015000000
+  randomMotivationsTotal: 0
+  randomMotivations: 
   motivationDecayRates:
   - needType: 1
-    decayRate: 0.5
+    decayRate: 1.5
   - needType: 2
-    decayRate: 0.05
-  - needType: 3
-    decayRate: 0.5
-  - needType: 6
-    decayRate: 0.5
-  - needType: 4
-    decayRate: 0.3
-  - needType: 8
     decayRate: 1
+  - needType: 3
+    decayRate: 2
+  - needType: 4
+    decayRate: 1
+  - needType: 8
+    decayRate: 2
+  - needType: 6
+    decayRate: 0.3
   socialFactions: 0306080902
   actorProfile: {fileID: 11400000, guid: b68693475b98e0947817efc19bba73bb, type: 2}
   maxHealth: 100

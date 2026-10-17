@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 37ae3b292cc59f347a88c9c4d609ca4e, type: 3}
+  m_Name: HumanBaseBrain
+  m_EditorClassIdentifier: StitchPunk.Data::BrainSO
+  unitType: 0
+  baseBrain: {fileID: 0}
+  modules:
+  - {fileID: 11400000, guid: 0b20a50f9e4e0ba46b10acc3c03d8a0a, type: 2}
+  - {fileID: 11400000, guid: 11b7dfab92b5d0d4781025f881976bfa, type: 2}
+  - {fileID: 11400000, guid: 7dd9653444f113c44849db955c7bb361, type: 2}
+  - {fileID: 11400000, guid: 264f7bf262e56fc4abcad7ffb1d48f97, type: 2}
+  - {fileID: 11400000, guid: bf02f6ee4462b55429a5b0ad1e4d9db8, type: 2}
+  - {fileID: 11400000, guid: c64113f0ff0214740a18e344b32d5e14, type: 2}
+  - {fileID: 11400000, guid: 5e3be262b80ad2b4593e83e7cc7ab4fc, type: 2}
+  - {fileID: 11400000, guid: 4c13223a3c3f90d47975d2a164890ea3, type: 2}
+  - {fileID: 11400000, guid: d5560c8581e3f674bbcdc19588010d14, type: 2}
+  - {fileID: 11400000, guid: 476a1adef9ca9b34faf48e79ab16b944, type: 2}
+  - {fileID: 11400000, guid: 389b93c22eeac48439ed665abd2ff43c, type: 2}
+  actions: []
