@@ -785,3 +785,6 @@ The brain library is indexed by `UnitType`; a type with no `BrainSO` in `_BrainL
 
 ### Units and gather nodes must be scene ROOT objects in a subscene
 A unit or ResourceNode authored under a parent GameObject bakes with `Parent`, so its `LocalTransform` is parent-relative. Movement, awareness, leash and gather maths all read `LocalTransform.Position` as a world position, so a parented unit walks to the wrong points and mis-measures distances. In CampLoop the bandits under `BanditCamp` "walked off the map" and never noticed the player, because they were offset by the camp's ~27 m. Group with naming, not hierarchy. Static dressing (tents) can stay parented.
+
+### Motivation considerations only see x = 0.5–1
+`ConsiderationScoringSystem.GetMotivationRatio` is `(value+100)/200`, but motivations live in 0..100, so a need's curve input only spans **0.5 (empty) to 1.0 (full)**. A curve authored over 0..1 (like the original SitAction, 1 at x=0) peaks around 0.5 when starving, so need-driven actions lose to distance-only Wander. Author need curves from x=0.5 (urgent) to x=1 (satisfied). Sit, EatFromSupplies and ListenToMusic were re-curved on 2026-10-17; Eat, Drink and UseHealingItem still use the old shape.

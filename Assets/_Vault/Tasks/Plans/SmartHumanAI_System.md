@@ -149,4 +149,12 @@ Same as CampLoop: orchestrator plus parallel Sonnet `worker`s of two files max, 
 
 ## 11. Build log
 
-_(per phase)_
+**2026-10-17: H0 + H1 built** (51324624, plus the follow-up re-curve).
+- **H0, behaviour modules:** BehaviourModuleSO; BrainSO.baseBrain + modules + CollectActions; the bake flattens. 11 modules; HumanBaseBrain and ZombieBaseBrain. Flattened action sets were verified identical before and after, apart from the two new human modules. BrainCompositionTests go red when the base walk is skipped.
+- **H1, camp life:**
+  - EatFromSupplies and ListenToMusic, as ActionType, BehaviorType, actions, behaviours and interactions.
+  - Chair is now open to Bandits.
+  - Bandit needs decay on about a 1-minute cycle.
+  - CampLoop_Sub camp: 5 waypoints, 4 campfire seats, a crate and a gramophone, all root objects.
+- **Verifier finding:** motivation curves only see x = 0.5–1, so need actions lost to Wander. Sit, EatFromSupplies and ListenToMusic were re-curved (Gotchas.md). Occupancy (`maxOccupants`) is not enforced by InteractionAwareness; more bandits than slots may queue at one spot. Needs only decay while a unit is choosing (ActionRequest), which slows the cycle.
+- **Not played yet.** No animations until units get a profile again.
