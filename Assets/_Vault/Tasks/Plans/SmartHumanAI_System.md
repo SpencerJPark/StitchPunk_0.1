@@ -111,7 +111,7 @@ BehaviourModuleSO
   - `ThrowAwareness` emits a ProjectileSingle-tier option when holding a throwable and the target is within [min, max] range (rock: 3–12 m).
   - `ThrowBehaviour`: FaceTarget → PlayActionAnimation (throw) → WaitForAnimEvent (Release, fallback 0.35 s) → **`RequestThrow`** (new behaviour command).
   - `RequestThrow` detaches the held item and gives it `ThrownItem` velocity toward the target's predicted position. It reuses `ThrownItemSystem` / `ThrownItemHitSystem` (DamageBus). The landed rock becomes a loose pickable item again.
-  - ← DECISION: rock damage 15, 1.5 s cooldown (recommended; melee is ~25).
+  - **Rock damage uses the existing `Throw` attack (20)**, which is more than every melee attack: Punch 5, Claw 8, Slash 15. The owner's rule (SH-D9): a rock beats a fist. Cooldown 1.5 s; re-fetching the landed rock is the natural rate limiter.
 
 ## 8. H4–H6 sketch
 
@@ -141,6 +141,7 @@ BehaviourModuleSO
 | SH-D6 | Scale target **~50 smart humans + ~500 zombies**. |
 | SH-D7 | Modules are **Inspector assets now**; a visual brain/module editor is a separate later spec. |
 | SH-D8 | This comes **before CampLoop Phase 6** (raid). |
+| SH-D9 | **Thrown rocks out-damage melee**. They reuse the `Throw` attack (20) against Punch 5 / Claw 8 / Slash 15. |
 
 ## 10. Build approach
 
