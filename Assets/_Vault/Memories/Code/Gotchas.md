@@ -788,3 +788,12 @@ A unit or ResourceNode authored under a parent GameObject bakes with `Parent`, s
 
 ### Motivation considerations only see x = 0.5–1
 `ConsiderationScoringSystem.GetMotivationRatio` is `(value+100)/200`, but motivations live in 0..100, so a need's curve input only spans **0.5 (empty) to 1.0 (full)**. A curve authored over 0..1 (like the original SitAction, 1 at x=0) peaks around 0.5 when starving, so need-driven actions lose to distance-only Wander. Author need curves from x=0.5 (urgent) to x=1 (satisfied). Sit, EatFromSupplies and ListenToMusic were re-curved on 2026-10-17; Eat, Drink and UseHealingItem still use the old shape.
+
+### ActionRequest was never turned off; ThinkRate is what throttles it now
+Before 2026-10-17 no runtime system ever disabled `ActionRequest`, so every `[WithAll(ActionRequest)]` awareness job (Enemy, Item, Interaction, Navigation, Social, Throw) ran every frame for every brain unit. `ThinkScheduleSystem` now enables it for units with `ThinkRate` (from `UnitSO.thinkInterval`) only when idle or every interval, staggered. Do not gate needs or anything time-integrated on ActionRequest: `MotivationDecaySystem` was un-gated for this reason. Something that must force an immediate re-think should set `ThinkRate.timeUntilNextThink = 0`; enabling ActionRequest directly is overwritten next frame.
+
+### A pickable item needs PlayerInteractable or it can never fly
+`ThrownItemSystem` / `ThrownItemHitSystem` query `EnabledRefRW<PlayerInteractable>`, and the throw paths toggle it. Items without the component (every `ItemAuthoring` item before 2026-10-17) were thrown but never moved. `ItemAuthoring` now bakes it. An item also has `EquipBy.owner == Null` while airborne, so AI item scans must skip items with `ThrownItemRequest` enabled.
+
+### Rock used to sit on ItemType slot 2 (MedKit)
+`Rock.asset` and the DOTSTestScene rocks were serialized as `itemType: 2`, which is `MedKit` in today's enum, so `ItemAuthoring` gave them a `MedKit` component. They are now `ItemType.Rock` (appended). The other item SOs' ints (6–9) also don't match their names; check the serialized int before trusting an item's enum name.

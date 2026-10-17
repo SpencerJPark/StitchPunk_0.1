@@ -13,11 +13,19 @@ using Unity.Transforms;
 // Loose items are those with EquipBy.owner == Entity.Null; registered in SpatialHashRegistry.itemCells each frame.
 [BurstCompile]
 [UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
+[UpdateAfter(typeof(EnemyAwarenessSystem))]
+[UpdateAfter(typeof(SelfDefenceAwarenessSystem))]
+[UpdateAfter(typeof(AllyAlertSystem))]
 public partial struct ItemAwarenessSystem : ISystem
 {
+    public const float MID_FIGHT_GRAB_MAX_DISTANCE = 6f;
+    public const float MELEE_REACH_FOR_GRAB        = 2.5f;
+    public const int   MID_FIGHT_GRAB_PRIORITY     = 4;
+
     private ComponentLookup<UnitEquip>     _unitEquipLookup;
     private ComponentLookup<Item>          _itemLookup;
     private ComponentLookup<EquipBy>       _equipByLookup;
+    private ComponentLookup<ThrownItemRequest> _thrownItemRequestLookup;
     private ComponentLookup<LocalTransform> _transformLookup;
 
     [BurstCompile]
@@ -32,6 +40,7 @@ public partial struct ItemAwarenessSystem : ISystem
         _unitEquipLookup  = state.GetComponentLookup<UnitEquip>(true);
         _itemLookup       = state.GetComponentLookup<Item>(true);
         _equipByLookup    = state.GetComponentLookup<EquipBy>(true);
+        _thrownItemRequestLookup = state.GetComponentLookup<ThrownItemRequest>(true);
         _transformLookup  = state.GetComponentLookup<LocalTransform>(true);
     }
 
@@ -41,6 +50,7 @@ public partial struct ItemAwarenessSystem : ISystem
         _unitEquipLookup.Update(ref state);
         _itemLookup.Update(ref state);
         _equipByLookup.Update(ref state);
+        _thrownItemRequestLookup.Update(ref state);
         _transformLookup.Update(ref state);
 
         BlobAssetReference<ItemLibraryBlob> itemLibrary =
@@ -66,6 +76,7 @@ public partial struct ItemAwarenessSystem : ISystem
             itemCells       = registry.itemCells,
             itemLookup      = _itemLookup,
             equipByLookup   = _equipByLookup,
+            thrownItemRequestLookup = _thrownItemRequestLookup,
             transformLookup = _transformLookup,
             itemLibrary     = itemLibrary,
             effectLibrary   = effectLibrary,
@@ -87,6 +98,7 @@ public partial struct ItemAwarenessJob : IJobEntity
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity>      itemCells;
     [ReadOnly] public ComponentLookup<Item>                         itemLookup;
     [ReadOnly] public ComponentLookup<EquipBy>                      equipByLookup;
+    [ReadOnly] public ComponentLookup<ThrownItemRequest>            thrownItemRequestLookup;
     [ReadOnly] public ComponentLookup<LocalTransform>               transformLookup;
     [ReadOnly] public BlobAssetReference<ItemLibraryBlob>           itemLibrary;
     [ReadOnly] public BlobAssetReference<EffectLibraryBlob>         effectLibrary;
@@ -117,7 +129,22 @@ public partial struct ItemAwarenessJob : IJobEntity
         bool canEquip  = unitEquipLookup.TryGetComponent(self, out UnitEquip unitEquip);
         bool hasWeapon = canEquip && unitEquip.equipItemEntity != Entity.Null;
 
-        bool wantWeapon  = hasThreat && canEquip && !hasWeapon;
+        Entity combatTarget         = Entity.Null;
+        float  combatTargetDistance = float.MaxValue;
+        for (int optionIndex = 0; optionIndex < options.Length; optionIndex++)
+        {
+            UtilityActions option = options[optionIndex];
+            if (!option.actionType.IsCombatAction() || option.actionType == ActionType.Flee
+                || option.targetEntity == Entity.Null)
+                continue;
+            combatTarget = option.targetEntity;
+            if (transformLookup.TryGetComponent(combatTarget, out LocalTransform targetTransform))
+                combatTargetDistance = math.distance(transform.Position, targetTransform.Position);
+            break;
+        }
+        bool hostileEngaged = combatTarget != Entity.Null;
+
+        bool wantWeapon  = (hasThreat || hostileEngaged) && canEquip && !hasWeapon;
         bool wantHealing = healthRatio < 1f;
         bool wantConsume = !hasThreat && !inCombat;
 
@@ -151,6 +178,8 @@ public partial struct ItemAwarenessJob : IJobEntity
                 {
                     if (!equipByLookup.TryGetComponent(itemEntity, out EquipBy equip)) continue;
                     if (equip.owner != Entity.Null) continue;
+                    // A thrown item has no owner while airborne; claiming it mid-flight attaches a still-flying rock.
+                    if (thrownItemRequestLookup.HasComponent(itemEntity) && thrownItemRequestLookup.IsComponentEnabled(itemEntity)) continue;
 
                     if (!itemLookup.TryGetComponent(itemEntity, out Item item)) continue;
 
@@ -217,7 +246,16 @@ public partial struct ItemAwarenessJob : IJobEntity
         }
 
         // Weapon — urgent: arm up to defend. SelfDefence motivation drives the blob scoring curve.
-        if (nearestWeapon != Entity.Null)
+        bool emitWeapon = nearestWeapon != Entity.Null;
+        if (emitWeapon && hostileEngaged)
+        {
+            float weaponDistance = math.sqrt(nearestWeaponSq);
+            emitWeapon = weaponDistance <= ItemAwarenessSystem.MID_FIGHT_GRAB_MAX_DISTANCE
+                && (weaponDistance < combatTargetDistance
+                    || combatTargetDistance > ItemAwarenessSystem.MELEE_REACH_FOR_GRAB);
+        }
+
+        if (emitWeapon)
         {
             int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.EquipWeapon);
             if (defIndex >= 0)
@@ -229,6 +267,8 @@ public partial struct ItemAwarenessJob : IJobEntity
                     actionDefIndex  = defIndex,
                     needsValidation = false,
                     targetEntity    = nearestWeapon,
+                    // Outranks the tier-3 fight so the pickup preempts it; the unit re-picks combat once armed.
+                    priority        = hostileEngaged ? ItemAwarenessSystem.MID_FIGHT_GRAB_PRIORITY : 0,
                 });
                 if (loggingEnabled)
                     LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found weapon {nearestWeapon.Index}. Action: EquipWeapon", LogLevel.Info, timestamp, category: LogCategory.Items);

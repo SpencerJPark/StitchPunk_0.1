@@ -251,3 +251,9 @@ WaitForClipFinished(Action) → RequestPickup → StopAnimation`) → item gets 
 | `Utils/BehaviorCommandCatalog.cs` | `IsImplemented`/`IsBlocking` — the one source of truth both bake validation and the interpreter consult |
 | `Data/SOs/BehaviorSO.cs`, `Data/SOs/UtilityActionSO.cs`, `Data/SOs/BrainSO.cs` | authoring SOs |
 | `Tests/PlayMode/BehaviorExecutionSystemTests.cs` | first PlayMode World fixture over the interpreter — command-index progression |
+
+## Think rate, alarm and AI throws (SmartHumanAI H2/H3, 2026-10-17)
+- `ThinkScheduleSystem` (UtilityMotivation, OrderFirst) owns `ActionRequest` for units with `ThinkRate`: on when idle or every `interval`, off otherwise. Request-gated awareness therefore runs at ~4 Hz for humans. Ungated systems (SelfDefence, Flee, GuardPost, AllyAlert response) still run every frame. Force a re-think with `timeUntilNextThink = 0`.
+- `AllyAlertSystem` runs after Enemy/SelfDefence and before GuardPost: RaiseAlarm spotters broadcast an `AllyAlert`, and alerted allies emit attacks at priority 3.
+- **Priority 4 is now shared** by critical flee, the mid-fight weapon grab (ItemAwareness) and Throw (ThrowAwareness). The GuardPost leash at 5 still beats all of them.
+- `RequestThrow` command → `AiThrowRequest` → `AiThrowItemSystem` (ItemEquip group, before ItemEquip) → the existing `ThrownItemSystem`/`ThrownItemHitSystem`.

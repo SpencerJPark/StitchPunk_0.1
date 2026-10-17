@@ -64,6 +64,7 @@ public static class EnumLogNames
             case BehaviorType.MeleeSingle:     return "MeleeSingle";
             case BehaviorType.EatFromSupplies: return "EatFromSupplies";
             case BehaviorType.ListenToMusic:   return "ListenToMusic";
+            case BehaviorType.Throw:           return "Throw";
             default:
             {
                 FixedString32Bytes fallback = default;

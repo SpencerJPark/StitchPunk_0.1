@@ -293,7 +293,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53f476f47e3b83f45b9d04d47c190c22, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::ItemAuthoring
-  itemType: 2
+  itemType: 11
   gripPoint: {fileID: 1743135620}
 --- !u!114 &78402034
 MonoBehaviour:
@@ -970,7 +970,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53f476f47e3b83f45b9d04d47c190c22, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::ItemAuthoring
-  itemType: 2
+  itemType: 11
   gripPoint: {fileID: 992494973}
 --- !u!114 &288747659
 MonoBehaviour:
@@ -2881,7 +2881,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53f476f47e3b83f45b9d04d47c190c22, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::ItemAuthoring
-  itemType: 2
+  itemType: 11
   gripPoint: {fileID: 1822350936}
 --- !u!114 &1551899777
 MonoBehaviour:
@@ -2945,7 +2945,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53f476f47e3b83f45b9d04d47c190c22, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::ItemAuthoring
-  itemType: 2
+  itemType: 11
   gripPoint: {fileID: 188857076}
 --- !u!114 &1567443169
 MonoBehaviour:

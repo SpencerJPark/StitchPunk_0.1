@@ -309,6 +309,10 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 ItemCommands.RunRequestPickup(ref context, unit, ref stateMachine);
                 break;
 
+            case BehaviorCommandType.RequestThrow:
+                ItemCommands.RunRequestThrow(ref context, unit, in stateMachine);
+                break;
+
             case BehaviorCommandType.ModifyMotivation:
                 RequestCommands.RunModifyMotivation(ecb, entityIndex, unit, in cmd);
                 break;

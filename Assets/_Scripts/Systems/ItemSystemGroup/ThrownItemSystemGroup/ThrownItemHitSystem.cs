@@ -8,7 +8,7 @@ using Unity.Collections;
 /// While an item is in flight, checks each frame whether any entity with Health is within
 /// hitRadius of the item's position. No physics collider required on the target — works with
 /// quad-based characters that have no PhysicsCollider.
-/// On hit: Enqueues a source-agnostic DamageEvent (sourceEntity = Null, damageSource = Throw) into
+/// On hit: Enqueues a source-agnostic DamageEvent (sourceEntity = thrower, damageSource = Throw) into
 /// the recycled DamageBus and stops the item. This group runs earlier in the frame than
 /// CombatSystemGroup, and this is a synchronous main-thread write (no scheduled job), so the value
 /// is already in the raw queue before any parallel producer — DamageResolutionSystem + the consumer
@@ -20,6 +20,7 @@ using Unity.Collections;
 public partial struct ThrownItemHitSystem : ISystem
 {
     private ComponentLookup<LocalTransform> transformLookup;
+    private ComponentLookup<Faction> factionLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -28,12 +29,14 @@ public partial struct ThrownItemHitSystem : ISystem
         state.RequireForUpdate<ItemLibrary>();
         state.RequireForUpdate<DamageBus>();
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        factionLookup = state.GetComponentLookup<Faction>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         transformLookup.Update(ref state);
+        factionLookup.Update(ref state);
 
         BlobAssetReference<ItemLibraryBlob> itemLibrary = SystemAPI.GetSingleton<ItemLibrary>().library;
 
@@ -50,10 +53,13 @@ public partial struct ThrownItemHitSystem : ISystem
                 .WithAll<Health>()
                 .WithEntityAccess())
         {
+            bool targetHasFaction = factionLookup.HasComponent(entity);
             targets.Add(new TargetData
             {
-                entity   = entity,
-                position = transform.ValueRO.Position
+                entity           = entity,
+                position         = transform.ValueRO.Position,
+                hasFaction       = targetHasFaction,
+                factionType      = targetHasFaction ? factionLookup[entity].factionType : default
             });
         }
 
@@ -88,11 +94,18 @@ public partial struct ThrownItemHitSystem : ISystem
 
             ref ItemBlob itemBlob = ref itemLibrary.Value.items[(int)item.ValueRO.itemType];
 
+            Entity thrower = thrownItem.ValueRO.thrower;
+            bool throwerHasFaction = thrower != Entity.Null && factionLookup.HasComponent(thrower);
+            FactionType throwerFactionType = throwerHasFaction ? factionLookup[thrower].factionType : default;
+
             for (int i = 0; i < targets.Length; i++)
             {
                 TargetData target = targets[i];
 
-                if (target.entity == thrownItem.ValueRO.thrower)
+                if (target.entity == thrower)
+                    continue;
+
+                if (throwerHasFaction && target.hasFaction && target.factionType == throwerFactionType)
                     continue;
 
                 // 2.5D — ignore Y difference so height arc doesn't matter
@@ -106,7 +119,7 @@ public partial struct ThrownItemHitSystem : ISystem
                 damageQueue.Enqueue(new DamageEvent
                 {
                     targetEntity    = target.entity,
-                    sourceEntity    = Entity.Null,
+                    sourceEntity    = thrower,
                     damageSource    = DamageSource.Throw,
                     damageAmount    = itemBlob.throwDamage,
                     distance        = math.sqrt(distSq),
@@ -129,6 +142,8 @@ public partial struct ThrownItemHitSystem : ISystem
     {
         public Entity entity;
         public float3 position;
+        public bool hasFaction;
+        public FactionType factionType;
     }
 
     [BurstCompile]

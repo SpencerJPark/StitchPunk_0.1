@@ -299,6 +299,63 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &97312513
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 7.74
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 33.19519
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8995440563598542113, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_Name
+      value: Camp Rock 2
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
 --- !u!1 &100736916
 GameObject:
   m_ObjectHideFlags: 0
@@ -675,6 +732,120 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &386009738
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 1.9378793
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 32.338158
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8995440563598542113, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_Name
+      value: Camp Rock 3
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+--- !u!1001 &442384975
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.99469304
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 24.3756
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8995440563598542113, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_Name
+      value: Camp Rock 5
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
 --- !u!1 &456747642
 GameObject:
   m_ObjectHideFlags: 0
@@ -1277,6 +1448,63 @@ MonoBehaviour:
   camp: {fileID: 1800981998}
   idleRadius: 10
   leashRadius: 25
+--- !u!1001 &772250480
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 1.5958595
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 20.122152
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8995440563598542113, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_Name
+      value: Camp Rock 6
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
 --- !u!1001 &774688485
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1631,6 +1859,120 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &939543298
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -3.9973872
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 29.607172
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8995440563598542113, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_Name
+      value: Camp Rock 4
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+--- !u!1001 &942859251
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 8.489999
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 18.905771
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8995440563598542113, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_Name
+      value: Camp Rock 7
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
 --- !u!1001 &957401772
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2475,6 +2817,63 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1498375776
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 10.0980015
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 24.476868
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8995440563598542113, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_Name
+      value: Camp Rock 8
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
 --- !u!1 &1512332658
 GameObject:
   m_ObjectHideFlags: 0
@@ -3251,6 +3650,63 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1843968461
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 8.819629
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 27.994097
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8801751786422852886, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8995440563598542113, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
+      propertyPath: m_Name
+      value: Camp Rock 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 33740cc24a8b1514fb775d3e84e87793, type: 3}
 --- !u!1001 &1879416111
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4248,3 +4704,11 @@ SceneRoots:
   - {fileID: 456747644}
   - {fileID: 1086517943}
   - {fileID: 979160580}
+  - {fileID: 1843968461}
+  - {fileID: 97312513}
+  - {fileID: 386009738}
+  - {fileID: 939543298}
+  - {fileID: 442384975}
+  - {fileID: 772250480}
+  - {fileID: 942859251}
+  - {fileID: 1498375776}

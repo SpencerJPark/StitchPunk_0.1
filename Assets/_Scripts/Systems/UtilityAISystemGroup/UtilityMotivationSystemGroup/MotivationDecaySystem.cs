@@ -7,7 +7,7 @@ using Unity.Mathematics;
 /// Runs first in UtilityAwarenessSystemGroup each selection cycle.
 /// Resets contextMultiplier to 1.0 (pre-pass systems set it fresh each frame)
 /// and applies decay to motivation values.
-/// Only processes entities that currently need an action — mid-execution units skip decay.
+/// Decays every brain unit's motivations each frame.
 /// </summary>
 [BurstCompile]
 [UpdateInGroup(typeof(UtilityMotivationSystemGroup))]
@@ -32,7 +32,7 @@ public partial struct MotivationDecaySystem : ISystem
 }
 
 [BurstCompile]
-[WithAll(typeof(UtilityBrain), typeof(ActionRequest))]
+[WithAll(typeof(UtilityBrain))]
 public partial struct MotivationDecayJob : IJobEntity
 {
     public float deltaTime;

@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BrainConfigSO
   unitType: 9
   baseBrain: {fileID: 11400000, guid: 4f99189337326a04db13cde8a8c01a0c, type: 2}
-  modules: []
+  modules:
+  - {fileID: 11400000, guid: c34437dbc922b864f8aef316fe9ec97e, type: 2}
   actions: []

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2127f06a3585fc143ab2ee1cff04d7b7, type: 3}
   m_Name: Rock
   m_EditorClassIdentifier: StitchPunk.Data::ItemSO
-  itemType: 2
+  itemType: 11
   category: 1
   weaponAttack: 4
   onHitEffect: 0
@@ -20,3 +20,11 @@ MonoBehaviour:
   pickupRange: 1.5
   consumeDuration: 1
   baseUtility: 1
+  throwSpeed: 14
+  throwArc: 3
+  throwDamage: 20
+  throwRagdollForce: 1
+  throwLaunchForceY: 0
+  throwLaunchForceX: 0
+  aiThrowMinRange: 3
+  aiThrowMaxRange: 12

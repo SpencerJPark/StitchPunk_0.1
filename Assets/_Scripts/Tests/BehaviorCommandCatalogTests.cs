@@ -28,6 +28,7 @@ namespace StitchPunk.Tests
                 BehaviorCommandType.PlaySound,
                 BehaviorCommandType.WaitForAnimEvent,
                 BehaviorCommandType.WaitForClipFinished,
+                BehaviorCommandType.RequestThrow,
             };
 
         private static readonly HashSet<BehaviorCommandType> ExpectedBlocking =

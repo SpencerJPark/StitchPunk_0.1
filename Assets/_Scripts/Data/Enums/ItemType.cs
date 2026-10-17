@@ -11,6 +11,7 @@ public enum ItemType
     Wood,
     MetalScrap,
     Coins,
+    Rock,      // SmartHumanAI H3 — appended; the old Rock.asset sat on slot 2 (MedKit)
 }
 
 public enum WeaponType

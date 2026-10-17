@@ -18,6 +18,8 @@ MonoBehaviour:
   becomesUnitType: 6
   prefab: {fileID: 9101195342176660511, guid: c7df5a12f0afc5a4186c4dc99eba6f7f, type: 3}
   awarenessRange: 20
+  thinkInterval: 0.25
+  alertRadius: 0
   bravery: 0.5
   braveryVariance: 0.38
   socialAffinity: 0.5
@@ -52,3 +54,7 @@ MonoBehaviour:
   moveSpeed: 1
   runSpeed: 2.2
   rotationSpeed: 10
+  summonCost:
+    corpses: 1
+    scrapMetal: 1
+    electricity: 1

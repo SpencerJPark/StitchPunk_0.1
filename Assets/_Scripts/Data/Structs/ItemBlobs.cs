@@ -16,6 +16,8 @@ public struct ItemBlob
     public float        throwRagdollForce;
     public float        throwLaunchForceY;
     public float        throwLaunchForceX;
+    public float        aiThrowMinRange;   // AI throws only when the target is in [min, max]; max 0 = AI never throws it
+    public float        aiThrowMaxRange;
 }
 
 public struct ItemLibraryBlob

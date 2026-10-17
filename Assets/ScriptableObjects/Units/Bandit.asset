@@ -18,6 +18,8 @@ MonoBehaviour:
   becomesUnitType: 6
   prefab: {fileID: 585186993279967742, guid: 41c1405634395e546884c1f2c9aea6ca, type: 3}
   awarenessRange: 12
+  thinkInterval: 0.25
+  alertRadius: 15
   bravery: 1
   braveryVariance: 0
   socialAffinity: 0.5

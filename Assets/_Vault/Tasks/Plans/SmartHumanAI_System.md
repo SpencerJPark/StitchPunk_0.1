@@ -1,6 +1,6 @@
 # Smart Human AI + Behaviour Modules — Plan
 
-> **Status:** 📝 plan written 2026-10-17, **not approved for build yet**; the owner asked to plan before executing. Owner answers are SH-D1–SH-D8 (§9). The open ← DECISION markers are tuning numbers with recommended defaults.
+> **Status:** H0–H3 BUILT 2026-10-17 (see §11), not played yet. H4 next. Owner answers are SH-D1–SH-D9 (§9).
 > **Comes before:** CampLoop Phase 6 (raid). Smarter humans make the raid and the rival-engineer fight better.
 > **Read first:** `Memories/Code/Systems_AI.md` (pipeline, the "Adding a new behavior domain" checklist), `Plans/RangedCombat_System.md` (guns, phase H5), `Plans/CrowdScaleAwareness_System.md` (scale, phase H6).
 
@@ -158,3 +158,20 @@ Same as CampLoop: orchestrator plus parallel Sonnet `worker`s of two files max, 
   - CampLoop_Sub camp: 5 waypoints, 4 campfire seats, a crate and a gramophone, all root objects.
 - **Verifier finding:** motivation curves only see x = 0.5–1, so need actions lost to Wander. Sit, EatFromSupplies and ListenToMusic were re-curved (Gotchas.md). Occupancy (`maxOccupants`) is not enforced by InteractionAwareness; more bandits than slots may queue at one spot. Needs only decay while a unit is choosing (ActionRequest), which slows the cycle.
 - **Not played yet.** No animations until units get a profile again.
+
+**2026-10-17: H2 + H3 built.**
+- **H2 premise correction:** nothing ever disabled `ActionRequest`, so humans already thought every frame; the slow reaction was not request-gating. H2 therefore *throttles* instead: `ThinkRate` (from `UnitSO.thinkInterval`, Bandit + MaleCitizen 0.25 s, golden-ratio stagger) and `ThinkScheduleSystem` enable ActionRequest only when idle or due. `MotivationDecaySystem` is no longer gated on ActionRequest. Zombies keep thinking every frame until H6 sets their interval.
+- **Raise Alarm** is a `UnitSO.alertRadius` setting (Bandit 15 m), not a module: H0 modules carry actions only. `AllyAlertSystem`: a spotter with a combat target (not Flee) alerts same-faction allies in radius (5 s cooldown); an alerted ally emits its attacks at priority 3 against that target for 6 s, ignoring its own awareness range, and re-thinks immediately.
+- **H3 rocks:**
+  - `ItemType.Rock` is appended; Rock.asset deals 20 throw damage, speed 14, AI range 3–12 m (`ItemSO.aiThrowMin/MaxRange`).
+  - `Prefabs/Items/Rock.prefab` is built from the DOTSTestScene rock. 8 "Camp Rock" root objects sit 5–9 m around the camp.
+  - **Grab weapon:** ItemAwareness grabs mid-fight at priority 4 when the weapon is within 6 m and closer than the target, or the target is beyond 2.5 m. Before a fight it also grabs when only threatened or engaged. It skips items that are still airborne.
+  - **Throw:** `ThrowAwarenessSystem` emits `ActionType.Throw` at priority 4 when the unit holds an AI-throwable and the target is in range. `ThrowBehaviour` runs PlayActionAnimation → Wait 0.35 → `RequestThrow` → Wait 1.15. `AiThrowRequest` then goes to `AiThrowItemSystem`, which unparents the item and launches it at the target.
+  - **Module:** the Throw Rock module is on BanditBrain.
+- **Hit changes:** thrown hits now carry the thrower as the damage source, so victims fight back, and they skip same-faction targets.
+- **Fixed on the way:** items never baked `PlayerInteractable`, so thrown items didn't fly; see Gotchas.
+- **Tests:** SmartHumanAiTests has 4 PlayMode tests, all proven red with Burst off. EditMode passes 84/84 and PlayMode 63/63.
+- **Known gaps:**
+  - The throw aims at the target's current position, with no lead.
+  - There's no face-target command.
+  - A Throw chosen just as the target dies still waits out about 1.5 s.

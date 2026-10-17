@@ -21,6 +21,13 @@ public class UnitSO : ScriptableObject
     
     [Header("AI")]
     public float awarenessRange;
+
+    [Header("Thinking")]
+    [Tooltip("Seconds between mid-behaviour re-thinks (awareness re-runs). 0 = every frame. Humans 0.25.")]
+    public float thinkInterval = 0f;
+    [Tooltip("Radius in which this unit alerts same-faction allies when it picks a fight. 0 = never raises the alarm.")]
+    public float alertRadius = 0f;
+
     [Range(0f, 1f)]   public float bravery              = 0.5f;
     [Range(0f, 0.5f)] public float braveryVariance      = 0f;
     [Range(0f, 1f)]   public float socialAffinity       = 0.5f;

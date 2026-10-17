@@ -67,6 +67,10 @@ public enum BehaviorCommandType : byte
     // on ClipResolveFailed for that layer (a missing clip must not hang a behavior forever — same
     // missing-data-completes philosophy as WaitForAnimEvent). Duration = timeout seconds (0 = none).
     WaitForClipFinished,
+
+    // Fire-and-advance. Enables AiThrowRequest on the unit aimed at stateMachine.targetEntity;
+    // AiThrowItemSystem launches the held item through the thrown-item pipeline next frame.
+    RequestThrow,
 }
 
 // Exit conditions for LoopUntil (and later: early-exit on blocking commands).
@@ -212,6 +216,7 @@ public enum BehaviorType : byte
     MeleeSingle,
     EatFromSupplies,   // SmartHumanAI H1 — appended
     ListenToMusic,
+    Throw,             // SmartHumanAI H3 — appended
 }
 
 public enum StanceType

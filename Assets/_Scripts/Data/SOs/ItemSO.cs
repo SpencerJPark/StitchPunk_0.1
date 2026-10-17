@@ -45,4 +45,10 @@ public class ItemSO : ScriptableObject
 
     [Tooltip("Direct sideways launch velocity (units/s) when this item kills on impact. 0 = no drift.")]
     public float throwLaunchForceX = 0f;
+
+    [Header("AI Throw")]
+    [Tooltip("AI units throw this only when the target is at least this far away.")]
+    public float aiThrowMinRange = 0f;
+    [Tooltip("AI units throw this only when the target is within this range. 0 = AI never throws it.")]
+    public float aiThrowMaxRange = 0f;
 }

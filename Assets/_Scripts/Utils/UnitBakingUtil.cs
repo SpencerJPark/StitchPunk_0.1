@@ -16,6 +16,15 @@ public static class UnitBakingUtil
         baker.AddComponent<CurrentAction>(entity);
         baker.AddComponent<ActionRequest>(entity);
         baker.SetComponentEnabled<ActionRequest>(entity, active);
+        if (unitSo.thinkInterval > 0f)
+            baker.AddComponent(entity, new ThinkRate { interval = unitSo.thinkInterval, timeUntilNextThink = -1f }); // -1 = stagger on first run
+        if (unitSo.alertRadius > 0f)
+            baker.AddComponent(entity, new RaiseAlarm { radius = unitSo.alertRadius });
+        baker.AddComponent<AllyAlert>(entity);
+        baker.SetComponentEnabled<AllyAlert>(entity, false);
+        baker.AddComponent<AiThrowRequest>(entity);
+        baker.SetComponentEnabled<AiThrowRequest>(entity, false);
+
         baker.AddComponent<ActionSelectionValidationRequest>(entity);
         baker.SetComponentEnabled<ActionSelectionValidationRequest>(entity, false);
 

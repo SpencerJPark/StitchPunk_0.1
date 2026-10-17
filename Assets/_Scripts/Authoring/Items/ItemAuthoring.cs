@@ -26,6 +26,8 @@ public class ItemAuthoring : MonoBehaviour
 
             AddComponent(entity, new ThrownItemRequest());
             SetComponentEnabled<ThrownItemRequest>(entity, false);
+            // ThrownItemSystem/HitSystem and the throw paths toggle this bit; without it a thrown item never flies.
+            AddComponent(entity, new PlayerInteractable());
 
             if (authoring.gripPoint != null)
             {

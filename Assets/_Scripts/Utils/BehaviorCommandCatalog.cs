@@ -28,6 +28,7 @@ public static class BehaviorCommandCatalog
             case BehaviorCommandType.PlaySound:
             case BehaviorCommandType.WaitForAnimEvent:
             case BehaviorCommandType.WaitForClipFinished:
+            case BehaviorCommandType.RequestThrow:
                 return true;
             default:
                 // SpawnEntity / ModifyStat / StartDialogue / ApplyForce — declared, not implemented.
