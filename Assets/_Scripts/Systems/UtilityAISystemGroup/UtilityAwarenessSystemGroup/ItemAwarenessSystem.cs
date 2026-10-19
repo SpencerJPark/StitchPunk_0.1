@@ -20,7 +20,7 @@ public partial struct ItemAwarenessSystem : ISystem
 {
     public const float MID_FIGHT_GRAB_MAX_DISTANCE = 6f;
     public const float MELEE_REACH_FOR_GRAB        = 2.5f;
-    public const int   MID_FIGHT_GRAB_PRIORITY     = 4;
+    public const int   MID_FIGHT_GRAB_PRIORITY     = AIPriorityTier.Critical;
 
     private ComponentLookup<UnitEquip>     _unitEquipLookup;
     private ComponentLookup<Item>          _itemLookup;
@@ -31,7 +31,7 @@ public partial struct ItemAwarenessSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<TargetOccupancy>();
         state.RequireForUpdate<ItemLibrary>();
         state.RequireForUpdate<EffectLibrary>();
         state.RequireForUpdate<BrainLibrary>();
@@ -74,6 +74,7 @@ public partial struct ItemAwarenessSystem : ISystem
         state.Dependency = new ItemAwarenessJob
         {
             itemCells       = registry.itemCells,
+            occupantsByTarget = SystemAPI.GetSingleton<TargetOccupancy>().occupantsByTarget,
             itemLookup      = _itemLookup,
             equipByLookup   = _equipByLookup,
             thrownItemRequestLookup = _thrownItemRequestLookup,
@@ -96,6 +97,7 @@ public partial struct ItemAwarenessSystem : ISystem
 public partial struct ItemAwarenessJob : IJobEntity
 {
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity>      itemCells;
+    [ReadOnly] public NativeParallelMultiHashMap<Entity, Entity>    occupantsByTarget;
     [ReadOnly] public ComponentLookup<Item>                         itemLookup;
     [ReadOnly] public ComponentLookup<EquipBy>                      equipByLookup;
     [ReadOnly] public ComponentLookup<ThrownItemRequest>            thrownItemRequestLookup;
@@ -115,13 +117,13 @@ public partial struct ItemAwarenessJob : IJobEntity
         in Awareness                    awareness,
         in Health                       health,
         in UtilityBrain                 brain,
-        in CurrentAction                currentAction,
+        in StateMachine                 stateMachine,
         in DynamicBuffer<ThreatEntry>   threats,
         ref DynamicBuffer<Motivation>   motivations,
         ref DynamicBuffer<UtilityActions> options)
     {
         bool  hasThreat   = threats.Length > 0;
-        bool  inCombat    = currentAction.action.IsCombatAction();
+        bool  inCombat    = stateMachine.action.IsCombatAction();
         float healthRatio = health.healthAmountMax > 0
             ? (float)health.healthAmount / health.healthAmountMax
             : 1f;
@@ -178,6 +180,7 @@ public partial struct ItemAwarenessJob : IJobEntity
                 {
                     if (!equipByLookup.TryGetComponent(itemEntity, out EquipBy equip)) continue;
                     if (equip.owner != Entity.Null) continue;
+                    if (TargetReservationUtils.IsFullForUnit(in occupantsByTarget, itemEntity, self, 1)) continue;
                     // A thrown item has no owner while airborne; claiming it mid-flight attaches a still-flying rock.
                     if (thrownItemRequestLookup.HasComponent(itemEntity) && thrownItemRequestLookup.IsComponentEnabled(itemEntity)) continue;
 
@@ -265,7 +268,6 @@ public partial struct ItemAwarenessJob : IJobEntity
                 {
                     actionType      = ActionType.EquipWeapon,
                     actionDefIndex  = defIndex,
-                    needsValidation = false,
                     targetEntity    = nearestWeapon,
                     // Outranks the tier-3 fight so the pickup preempts it; the unit re-picks combat once armed.
                     priority        = hostileEngaged ? ItemAwarenessSystem.MID_FIGHT_GRAB_PRIORITY : 0,
@@ -287,7 +289,6 @@ public partial struct ItemAwarenessJob : IJobEntity
                 {
                     actionType      = ActionType.UseHealingItem,
                     actionDefIndex  = defIndex,
-                    needsValidation = false,
                     targetEntity    = nearestHeal,
                 });
                 if (loggingEnabled)
@@ -305,7 +306,6 @@ public partial struct ItemAwarenessJob : IJobEntity
                 {
                     actionType      = ActionType.Eat,
                     actionDefIndex  = defIndex,
-                    needsValidation = false,
                     targetEntity    = nearestFood,
                 });
                 if (loggingEnabled)
@@ -322,7 +322,6 @@ public partial struct ItemAwarenessJob : IJobEntity
                 {
                     actionType      = ActionType.Drink,
                     actionDefIndex  = defIndex,
-                    needsValidation = false,
                     targetEntity    = nearestDrink,
                 });
                 if (loggingEnabled)

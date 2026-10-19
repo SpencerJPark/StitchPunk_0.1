@@ -17,7 +17,7 @@ using Unity.Transforms;
 [UpdateAfter(typeof(SelfDefenceAwarenessSystem))]
 public partial struct FleeAwarenessSystem : ISystem
 {
-    public const int   FLEE_CRITICAL_PRIORITY = 4;     // above SELF_DEFENCE_PRIORITY (3)
+    public const int   FLEE_CRITICAL_PRIORITY = AIPriorityTier.Critical;
     public const float CRITICAL_HEALTH        = 0.3f;  // break-off considered below this ratio
     public const float BREAK_OFF_THRESHOLD    = 0.35f; // (1 − health) × (1 − bravery) must exceed
     public const float LOW_HEALTH_THRESHOLD   = 0.6f;  // flee is never offered above this ratio (legacy low bracket)
@@ -158,7 +158,6 @@ public partial struct FleeAwarenessJob : IJobEntity
             actionDefIndex  = defIndex,
             targetEntity    = topAggressor,
             priority        = priority,
-            needsValidation = false,
         });
 
         if (loggingEnabled)

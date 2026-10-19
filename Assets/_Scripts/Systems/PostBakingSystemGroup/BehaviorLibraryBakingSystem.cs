@@ -33,6 +33,7 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
         for (int typeIndex = 0; typeIndex < typeCount; typeIndex++)
         {
             behaviorsBuilder[typeIndex].behaviorType = (BehaviorType)typeIndex;
+            behaviorsBuilder[typeIndex].minimumInterruptPriority = 0;
 
             if (!soByType.TryGetValue(typeIndex, out BehaviorSO behaviorSO))
             {
@@ -40,6 +41,8 @@ public partial struct BehaviorLibraryBakingSystem : ISystem
                 builder.Allocate(ref behaviorsBuilder[typeIndex].interruptionCleanup, 0);
                 continue;
             }
+
+            behaviorsBuilder[typeIndex].minimumInterruptPriority = behaviorSO.minimumInterruptPriority;
 
             // Execution sequence
             List<BehaviorCommandAuthoring> execSource = behaviorSO.executionSequence;

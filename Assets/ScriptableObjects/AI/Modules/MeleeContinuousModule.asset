@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Melee Continuous
   description: 
-  action: {fileID: 11400000, guid: 4ae5c294eb7b4988a7325b92665b7cc8, type: 2}
+  actions:
+  - {fileID: 11400000, guid: 4ae5c294eb7b4988a7325b92665b7cc8, type: 2}
   requires: 0

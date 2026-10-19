@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Equip Weapon
   description: 
-  action: {fileID: 11400000, guid: ef19c92df76d489aa4f02db892ef679f, type: 2}
+  actions:
+  - {fileID: 11400000, guid: ef19c92df76d489aa4f02db892ef679f, type: 2}
   requires: 0

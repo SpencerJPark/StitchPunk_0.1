@@ -13,17 +13,19 @@ related: "[[Systems]], [[Components]], [[Systems_Movement]]"
 ## Overview: Pipeline
 
 ```
-UtilityAISystemGroup
-  ├── UtilityMotivationSystemGroup        (decay, MotivationChangeRequest, etc.)
-  └── UtilityAwarenessSystemGroup         (awareness → UtilityActions buffer entries)
+UtilityAISystemGroup                 (SENSE + OFFER)
+  ├── UtilityMotivationSystemGroup        (ThinkSchedule OrderFirst, decay, MotivationChangeRequest)
+  └── UtilityAwarenessSystemGroup         (ClearOptions/ThreatDecay/TargetOccupancy OrderFirst → awareness → UtilityActions)
         SocialResponseSystem         (after awareness — consumes SocialInvite)
 
 MinionActionSelectionSystemGroup     (player orders → UtilityActions, isPlayerOrdered=true)
 
-StateMachineSystemGroup
-  ├── ActionSelectionSystemGroup
-  │     ConsiderationScoringSystem   (blob curves → totalUtility, priority)
-  │     WinnerSelectionSystem        (OrderLast — picks winner → StateMachine)
+ActionSelectionSystemGroup           (DECIDE — top-level since AF-D12, 2026-10-17)
+  ConsiderationScoringSystem         (blob curves → totalUtility, priority)
+  WinnerSelectionSystem              (OrderLast — picks winner → StateMachine, via StateMachineTransitions)
+  TargetReservationSystem            (OrderLast, after WinnerSelection — exclusive-target arbitration, reverts losers)
+
+StateMachineSystemGroup              (EXECUTE)
   └── ActionExecutionSystemGroup
         BehaviorInterruptSystem      (OrderFirst — interrupts + pending swaps)
         BehaviorExecutionSystem      (walks BehaviorConfigBlob → emits requests)
@@ -37,14 +39,17 @@ AI is a **decision layer only** — awareness writes scored options; a single in
 All append `UtilityActions` entries. Every emission MUST set `actionDefIndex` via
 `BrainBlobUtils.GetActionDefIndex(ref blob, brain.unitType, actionType)` and **skip the Add when
 < 0** (unit's brain lacks the action). `ConsiderationScoringSystem` fills `priority` from the
-actionDef (`max(actionDef.priority, entry.priority)` — awareness may pre-bump it).
+actionDef (`max(actionDef.priority, entry.priority)`). **Plain detection emits priority 0** (the authored
+tier wins); awareness sets a tier only as a *context bump*, always by name from `AIPriorityTier`
+(`Data/Enums/AIPriorityTier.cs` — the one ladder: Idle 0, Ambient 1, Engage 2, Defend 3, Critical 4,
+Leash 5). Never write a raw tier number in a system.
 
 | System | Emits |
 |---|---|
 | `ClearOptionsSystem` (OrderFirst) | clears the buffer (skips dead units) |
 | `ThreatDecaySystem` (OrderFirst) | prunes stale `ThreatEntry` |
-| `EnemyAwarenessSystem` | attack options (priority 2) |
-| `SelfDefenceAwarenessSystem` | fight-back at priority 3 after 0.3s flinch (`ThreatEntry`) |
+| `EnemyAwarenessSystem` | attack options at the attack actions' authored tier (melee assets = Defend 3) |
+| `SelfDefenceAwarenessSystem` | fight-back bumped to Defend after the 0.3s flinch (`ThreatEntry.reactionDelay`, ticked by `ThreatDecaySystem` since AF-D9 — readers never tick it) |
 | `FleeAwarenessSystem` | Flee at tier 3; bumped to 4 when health<30% & `(1−hp)×(1−bravery)>0.35` (citizens only) |
 | `InteractionAwarenessSystem` | interact options from the interaction spatial hash (keyed by `satisfiedNeed`) |
 | `SocialAwarenessSystem` | Talk option, tier 1 |
@@ -68,8 +73,29 @@ activePriority, and `pending*` mirrors (incl. pendingTargetPosition/pendingHasTa
 3. Same-action guard: won't restart an identical action — EXCEPT a player order to a different
    target/position, which re-targets (safe: orders are one-shot consumed).
 4. Idle (`activeBehavior == None`) → direct assign (incl. position fields). Live behavior →
-   `pending*` fields only when winner outranks `activePriority`; `BehaviorInterruptSystem`
-   performs the swap same-frame.
+   `pending*` fields only when winner outranks `activePriority` **and** is >= the live behaviour's
+   `BehaviorSO.minimumInterruptPriority` (AF-D5; player orders ignore it); `BehaviorInterruptSystem`
+   performs the swap same-frame. **Tiers are the only preemption path** (owner, AF-D1) — a better
+   same-tier option waits for the live behaviour to finish.
+5. Every StateMachine start/pending/swap/idle write goes through `Utils/StateMachineTransitions.cs`
+   (AF-D13) — WinnerSelection, SocialResponse, BehaviorInterrupt, the Complete phase and arbitration.
+   A new StateMachine field gets reset there, nowhere else.
+
+## Exclusive targets — reservations (AF-D6/D7, 2026-10-17)
+
+- **Derived, never stored:** `TargetOccupancySystem` (awareness OrderFirst) rebuilds the `TargetOccupancy`
+  singleton each frame — target → every unit whose StateMachine active OR pending target is it. Nothing
+  releases a reservation: a unit that finishes, is interrupted, dies or retargets drops out next frame.
+- **Capacity** (`Utils/TargetReservationUtils.cs`): an `Interaction` uses its `InteractionSO.maxOccupants`
+  (0 = unlimited, for shared spots), an `Item` holds 1, anything else (units, waypoints) is never
+  reserved. Extend capacity rules there only (attack tokens would go here).
+- **Offer filter:** Interaction/Item awareness skip targets that are `IsFullForUnit`.
+- **Arbitration:** `TargetReservationSystem` (single-threaded on purpose) treats a reservable target the
+  unit is not yet listed on as a new claim; first in iteration order wins, player orders always accept
+  (may exceed capacity). Losers: fresh start → `ResetToIdle`, pending → `ClearPending`; both get
+  `ThinkRate.timeUntilNextThink = 0`, so they re-pick next frame with the full target filtered out.
+- This is also what makes `ItemCommands.RunRequestPickup`'s check-then-write safe in the parallel
+  execution job — only one unit can be targeting a loose item.
 
 ## Execution — BehaviorExecutionSystem
 
@@ -224,9 +250,16 @@ WaitForClipFinished(Action) → RequestPickup → StopAnimation`) → item gets 
 
 1. `BehaviorType.Foo` in `AiEnums.cs` (append-only) + `ActionType` if needed.
 2. Author `FooBehaviour.asset` (BehaviorSO): executionSequence + non-blocking interruptionCleanup.
-3. Author `FooAction.asset` (UtilityActionSO): actionType, priority tier, considerations
-   (Motivation ratio = `(value+100)/200`, 1 = satisfied → use inverse curves for needs).
-4. Add behavior to `_BehaviorLibrary.asset`, action to the relevant Brain asset.
+3. Author `FooAction.asset` (UtilityActionSO): actionType, priority tier (`AIPriorityTier`), considerations
+   (Motivation ratio = `value/100` since AF-D10 — the old `(value+100)/200` left half the axis dead and every
+   Motivation curve was remapped exactly; 1 = satisfied → use inverse curves for needs. Weight is 0–1
+   importance, `lerp(1, curve, weight)`; the makeup factor is applied per consideration).
+4. Add behavior to `_BehaviorLibrary.asset`; put the action in a `BehaviourModuleSO` (a module is a
+   *bundle* — `actions` list, AF-D2) and add the module to the brain. A brain that should treat the
+   action at another tier (e.g. an aggressive brain that drops tasks to fight) adds a
+   `BrainSO.priorityOverrides` entry (ActionType → tier, inherited, most-derived wins; the bake emits a
+   separate action def per (action, priority), AF-D3). A behaviour lower tiers must not break off sets
+   `BehaviorSO.minimumInterruptPriority`.
 5. Emit options from an awareness system (set actionDefIndex, skip when < 0).
 6. New command types go in `BehaviorCommandType` + a static handler in `Utils/BehaviorCommands/`
    (join an existing family file or add one) + the `BehaviorExecutionSystem.RunExecute` switch case
@@ -239,8 +272,11 @@ WaitForClipFinished(Action) → RequestPickup → StopAnimation`) → item gets 
 |---|---|
 | `Systems/SystemGroups.cs` | group ordering |
 | `Components/AI/UtilityAiComponents.cs` | UtilityActions, StateMachine, Motivation, ThreatEntry |
-| `Systems/StateMachineSystemGroup/ActionSelectionSystemGroup/ConsiderationScoringSystem.cs` | scoring |
-| `Systems/StateMachineSystemGroup/ActionSelectionSystemGroup/WinnerSelectionSystem.cs` | winner → StateMachine |
+| `Systems/ActionSelectionSystemGroup/ConsiderationScoringSystem.cs` | scoring |
+| `Systems/ActionSelectionSystemGroup/WinnerSelectionSystem.cs` | winner → StateMachine |
+| `Systems/ActionSelectionSystemGroup/TargetReservationSystem.cs` | exclusive-target arbitration |
+| `Systems/UtilityAISystemGroup/UtilityAwarenessSystemGroup/TargetOccupancySystem.cs` | occupancy singleton |
+| `Utils/StateMachineTransitions.cs`, `Utils/TargetReservationUtils.cs`, `Data/Enums/AIPriorityTier.cs` | transitions, capacity rules, tier ladder |
 | `Systems/StateMachineSystemGroup/ActionExecutionSystemGroup/BehaviorExecutionSystem.cs` | command interpreter |
 | `Systems/StateMachineSystemGroup/ActionExecutionSystemGroup/BehaviorInterruptSystem.cs` | teardown/preemption |
 | `Systems/MinionActionSelectionSystemGroup/MinionActionSelectionSystem.cs` | player orders |
@@ -253,7 +289,7 @@ WaitForClipFinished(Action) → RequestPickup → StopAnimation`) → item gets 
 | `Tests/PlayMode/BehaviorExecutionSystemTests.cs` | first PlayMode World fixture over the interpreter — command-index progression |
 
 ## Think rate, alarm and AI throws (SmartHumanAI H2/H3, 2026-10-17)
-- `ThinkScheduleSystem` (UtilityMotivation, OrderFirst) owns `ActionRequest` for units with `ThinkRate`: on when idle or every `interval`, off otherwise. Request-gated awareness therefore runs at ~4 Hz for humans. Ungated systems (SelfDefence, Flee, GuardPost, AllyAlert response) still run every frame. Force a re-think with `timeUntilNextThink = 0`.
+- `ThinkScheduleSystem` (UtilityMotivation, OrderFirst) owns `ActionRequest`. **Every brain unit bakes a `ThinkRate` since AF-D8** (`interval <= 0` = every frame, which zombies keep until SmartHumanAI H6). Busy units think every `interval`; idle units think the frame they become idle, then every `min(interval, ThinkRate.IDLE_THINK_INTERVAL = 0.1s)`, not every frame. Request-gated awareness therefore runs at ~4 Hz for humans. Ungated systems (SelfDefence, Flee, GuardPost, AllyAlert response) still run every frame; the rule for staying ungated is O(own threats) cheap AND must react mid-behaviour. Force a re-think with `timeUntilNextThink = 0`.
 - `AllyAlertSystem` runs after Enemy/SelfDefence and before GuardPost: RaiseAlarm spotters broadcast an `AllyAlert`, and alerted allies emit attacks at priority 3.
 - **Priority 4 is now shared** by critical flee, the mid-fight weapon grab (ItemAwareness) and Throw (ThrowAwareness). The GuardPost leash at 5 still beats all of them.
 - `RequestThrow` command → `AiThrowRequest` → `AiThrowItemSystem` (ItemEquip group, before ItemEquip) → the existing `ThrownItemSystem`/`ThrownItemHitSystem`.

@@ -12,7 +12,7 @@ using Unity.Transforms;
 public partial struct ThrowAwarenessSystem : ISystem
 {
     // Above the tier-3 fight so a unit closing to melee stops and throws; GuardPost's leash (5) still wins.
-    public const int THROW_PRIORITY = 4;
+    public const int THROW_PRIORITY = AIPriorityTier.Critical;
 
     private ComponentLookup<Item>           itemLookup;
     private ComponentLookup<LocalTransform> transformLookup;
@@ -113,7 +113,6 @@ public partial struct ThrowAwarenessJob : IJobEntity
             actionType      = ActionType.Throw,
             actionDefIndex  = defIndex,
             priority        = ThrowAwarenessSystem.THROW_PRIORITY,
-            needsValidation = false,
             targetEntity    = target,
         });
     }

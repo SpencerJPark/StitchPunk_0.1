@@ -4,17 +4,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-/// <summary>
-/// Detects hostiles within awareness range. When a hostile is found:
-///   - Sets CombatTarget to the nearest hostile
-///   - Sets BloodLust motivation value to 100 so MotivationScoringSystem scores attack actions appropriately
-///   - Injects one ActionOption per AvailableAttack entry, scored by range fit vs current distance
-///     (attacks whose range matches the actual distance score highest; out-of-range actions score lower)
-///   - Refreshes AggressiveState linger timer
-///
-/// ActionPrioritySystem applies a flat +1 tier bonus to all BloodLust actions, pushing them
-/// above civilian interaction scores (0-1) without hardcoding magic numbers.
-/// </summary>
+// Finds the nearest live hostile in awareness range from the faction registry and offers each of the unit's attacks against it at the action's authored tier.
+// Sets BloodLust to 100 so the attack curves score it (a stopgap until the perception cache, AF-P6).
 [BurstCompile]
 [UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct EnemyAwarenessSystem : ISystem
@@ -26,7 +17,6 @@ public partial struct EnemyAwarenessSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<FactionRegistry>();
         state.RequireForUpdate<AttackLibrary>();
         state.RequireForUpdate<UnitDataLibrary>();
@@ -57,10 +47,10 @@ public partial struct EnemyAwarenessSystem : ISystem
         bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
             || (loggingCfg.EnabledCategories & (int)LogCategory.AI) != 0;
 
-        EntityCommandBuffer ecb = loggingEnabled
-            ? SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
-                .CreateCommandBuffer(state.WorldUnmanaged)
-            : default;
+        EntityCommandBuffer.ParallelWriter ecb = SystemAPI
+            .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
+            .CreateCommandBuffer(state.WorldUnmanaged)
+            .AsParallelWriter();
 
         state.Dependency = new CombatAwarenessJob
         {
@@ -74,7 +64,7 @@ public partial struct EnemyAwarenessSystem : ISystem
             ecb                = ecb,
             loggingEnabled     = loggingEnabled,
             timestamp          = SystemAPI.Time.ElapsedTime,
-        }.Schedule(state.Dependency);
+        }.ScheduleParallel(state.Dependency);
     }
 }
 
@@ -91,11 +81,12 @@ public partial struct CombatAwarenessJob : IJobEntity
     [ReadOnly] public BlobAssetReference<AttackLibraryBlob>    attackLibrary;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>     aiConfig;
-    public EntityCommandBuffer ecb;
+    public EntityCommandBuffer.ParallelWriter ecb;
     public bool                loggingEnabled;
     public double              timestamp;
 
     public void Execute(
+        [EntityIndexInQuery] int entityIndex,
         Entity self,
         in UtilityBrain                  brain,
         in Awareness                     awareness,
@@ -111,11 +102,11 @@ public partial struct CombatAwarenessJob : IJobEntity
         Entity nearestHostile    = Entity.Null;
         float  nearestDistanceSq = float.MaxValue;
 
-        for (int f = 0; f < attackFactions.Length; f++)
+        for (int attackFactionIndex = 0; attackFactionIndex < attackFactions.Length; attackFactionIndex++)
         {
-            byte fKey = (byte)attackFactions[f].faction;
+            byte factionKey = (byte)attackFactions[attackFactionIndex].faction;
 
-            if (!factionEntities.TryGetFirstValue(fKey, out Entity candidate,
+            if (!factionEntities.TryGetFirstValue(factionKey, out Entity candidate,
                     out NativeParallelMultiHashMapIterator<byte> iterator))
                 continue;
 
@@ -162,14 +153,13 @@ public partial struct CombatAwarenessJob : IJobEntity
             ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
 
             int addedCount = 0;
-            for (int a = 0; a < unitBlob.attacks.Length; a++)
+            for (int attackEntryIndex = 0; attackEntryIndex < unitBlob.attacks.Length; attackEntryIndex++)
             {
-                ActionType   actionType   = unitBlob.attacks[a].action;
-                DamageSource damageSource = unitBlob.attacks[a].attack;
+                ActionType   actionType   = unitBlob.attacks[attackEntryIndex].action;
+                DamageSource damageSource = unitBlob.attacks[attackEntryIndex].attack;
                 int          attackIndex  = (int)damageSource;
                 if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length)
                     continue;
-                float attackRange = attackLibrary.Value.attacks[attackIndex].range;
 
                 int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, actionType);
                 if (defIndex < 0)
@@ -179,15 +169,13 @@ public partial struct CombatAwarenessJob : IJobEntity
                 {
                     actionType      = actionType,
                     actionDefIndex  = defIndex,
-                    priority = 3,
-                    needsValidation = false,
                     targetEntity    = nearestHostile,
                 });
                 addedCount++;
             }
 
             if (loggingEnabled)
-                LogUtil.Log(ref ecb,
+                LogUtil.Log(ref ecb, entityIndex,
                     $"[EnemyAwareness] Entity {self.Index} found hostile {nearestHostile.Index} at dist {math.round(nearestDist * 100f) / 100f}. Actions added: {addedCount}",
                     LogLevel.Info, timestamp, category: LogCategory.AI);
         }

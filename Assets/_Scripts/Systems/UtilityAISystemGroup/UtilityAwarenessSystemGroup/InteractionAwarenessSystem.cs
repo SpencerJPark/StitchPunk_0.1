@@ -14,7 +14,7 @@ public partial struct InteractionAwarenessSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
+        state.RequireForUpdate<TargetOccupancy>();
         state.RequireForUpdate<SpatialHashRegistry>();
         state.RequireForUpdate<InteractionLibrary>();
         state.RequireForUpdate<BrainLibrary>();
@@ -36,6 +36,7 @@ public partial struct InteractionAwarenessSystem : ISystem
         state.Dependency = new InteractionAwarenessJob
         {
             registry           = registry,
+            occupantsByTarget  = SystemAPI.GetSingleton<TargetOccupancy>().occupantsByTarget,
             transformLookup    = transformLookup,
             interactionLookup  = interactionLookup,
             interactionLibrary = interactionLib.library,
@@ -51,6 +52,7 @@ public partial struct InteractionAwarenessSystem : ISystem
 public partial struct InteractionAwarenessJob : IJobEntity
 {
     [ReadOnly] public SpatialHashRegistry                         registry;
+    [ReadOnly] public NativeParallelMultiHashMap<Entity, Entity>  occupantsByTarget;
     [ReadOnly] public ComponentLookup<LocalTransform>             transformLookup;
     [ReadOnly] public ComponentLookup<Interaction>                interactionLookup;
     [ReadOnly] public BlobAssetReference<InteractionLibraryBlob>  interactionLibrary;
@@ -88,7 +90,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
                     {
                         do
                         {
-                            AddActionIfValid(target, npcPos, awareness.range, currentNeed,
+                            AddActionIfValid(entity, target, npcPos, awareness.range, currentNeed,
                                 faction.factionType, brain.unitType, recentInteractions, ref options);
                         } while (registry.interactionCells.TryGetNextValue(out target, ref it));
                     }
@@ -98,6 +100,7 @@ public partial struct InteractionAwarenessJob : IJobEntity
     }
 
     private void AddActionIfValid(
+        Entity                                   self,
         Entity                                   target,
         float3                                   npcPos,
         float                                    maxRange,
@@ -135,7 +138,11 @@ public partial struct InteractionAwarenessJob : IJobEntity
                 return;
         }
 
-        int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, unitType, interactData.action);
+        if (TargetReservationUtils.IsFullForUnit(in occupantsByTarget, target, self,
+                TargetReservationUtils.CapacityFromMaxOccupants(blob.maxOccupants)))
+            return;
+
+        int defIndex =BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, unitType, interactData.action);
         if (defIndex < 0)
             return;
 
@@ -144,7 +151,6 @@ public partial struct InteractionAwarenessJob : IJobEntity
             actionType      = interactData.action,
             actionDefIndex  = defIndex,
             targetEntity    = target,
-            needsValidation = true,
         });
     }
 }

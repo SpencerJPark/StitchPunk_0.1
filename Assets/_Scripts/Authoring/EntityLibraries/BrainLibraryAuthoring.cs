@@ -52,7 +52,12 @@ public class BrainLibraryAuthoring : MonoBehaviour
                         if (module == null) continue;
 
                         DependsOn(module);
-                        if (module.action != null) DependsOn(module.action);
+                        if (module.actions == null) continue;
+
+                        foreach (UtilityActionSO moduleAction in module.actions)
+                        {
+                            if (moduleAction != null) DependsOn(moduleAction);
+                        }
                     }
                 }
 

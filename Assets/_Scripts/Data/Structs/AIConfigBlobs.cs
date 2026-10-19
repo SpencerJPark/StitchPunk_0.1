@@ -27,9 +27,7 @@ public struct ActionDefBlob
 {
     public ActionType    actionType;
     public int           priority;
-    public TargetingMode targeting;
     public BehaviorType  behavior;        // -> BehaviorLibrary, not an internal index
-    public int           maxCandidates;   // pool size: how many action entities to spawn per unit
     public BlobArray<ConsiderationBlob> considerations;
 }
 

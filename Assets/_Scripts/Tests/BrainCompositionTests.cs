@@ -100,6 +100,50 @@ namespace StitchPunk.Tests
                 "Expected a problem naming the duplicated ActionType");
         }
 
+        [Test]
+        public void CollectActions_ModuleBundleAddsEveryAction()
+        {
+            UtilityActionSO wanderAction = CreateAction(ActionType.Wander);
+            UtilityActionSO sitAction = CreateAction(ActionType.Sit);
+
+            BehaviourModuleSO bundleModule = CreateModule(wanderAction);
+            bundleModule.actions.Add(sitAction);
+
+            BrainSO brain = CreateBrain();
+            brain.modules.Add(bundleModule);
+
+            List<UtilityActionSO> collectedActions = new List<UtilityActionSO>();
+            List<string> problems = new List<string>();
+            brain.CollectActions(collectedActions, problems);
+
+            Assert.AreEqual(2, collectedActions.Count);
+            Assert.AreSame(wanderAction, collectedActions[0]);
+            Assert.AreSame(sitAction, collectedActions[1]);
+            Assert.AreEqual(0, problems.Count);
+        }
+
+        [Test]
+        public void TryGetPriorityOverride_MostDerivedBrainWins()
+        {
+            BrainSO baseBrain = CreateBrain();
+            baseBrain.priorityOverrides.Add(new ActionPriorityOverride { action = ActionType.Wander, priority = 2 });
+
+            BrainSO childBrain = CreateBrain();
+            childBrain.baseBrain = baseBrain;
+            childBrain.priorityOverrides.Add(new ActionPriorityOverride { action = ActionType.Wander, priority = 4 });
+
+            int childPriority;
+            int basePriority;
+            int missingPriority;
+
+            Assert.IsTrue(childBrain.TryGetPriorityOverride(ActionType.Wander, out childPriority));
+            Assert.AreEqual(4, childPriority);
+            Assert.IsTrue(baseBrain.TryGetPriorityOverride(ActionType.Wander, out basePriority));
+            Assert.AreEqual(2, basePriority);
+            Assert.IsFalse(childBrain.TryGetPriorityOverride(ActionType.Sit, out missingPriority));
+            Assert.AreEqual(0, missingPriority);
+        }
+
         private UtilityActionSO CreateAction(ActionType actionType)
         {
             UtilityActionSO action = ScriptableObject.CreateInstance<UtilityActionSO>();
@@ -118,7 +162,7 @@ namespace StitchPunk.Tests
         private BehaviourModuleSO CreateModule(UtilityActionSO action)
         {
             BehaviourModuleSO module = ScriptableObject.CreateInstance<BehaviourModuleSO>();
-            module.action = action;
+            module.actions.Add(action);
             createdAssets.Add(module);
             return module;
         }

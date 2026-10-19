@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Sit
   description: 
-  action: {fileID: 11400000, guid: b7ec99972c4d4a38a4f88973f79b7c3f, type: 2}
+  actions:
+  - {fileID: 11400000, guid: b7ec99972c4d4a38a4f88973f79b7c3f, type: 2}
   requires: 0

@@ -12,7 +12,7 @@ Notes live in `_Vault/Memories/Code/` and are named after the folder: `Authoring
 
 | Area | Note |
 |---|---|
-| `Systems/UtilityAISystemGroup/`, `MinionActionSelectionSystemGroup/`, `StateMachineSystemGroup/` | `Systems_AI.md` |
+| `Systems/UtilityAISystemGroup/`, `MinionActionSelectionSystemGroup/`, `ActionSelectionSystemGroup/`, `StateMachineSystemGroup/` | `Systems_AI.md` |
 | `Systems/AnimationSystemGroup/` | `Systems_Animation.md` |
 | `Systems/MovementSystemGroup/` | `Systems_Movement.md` |
 | `Shaders/` | `Shaders.md` (+ the `shader-edit` skill) |

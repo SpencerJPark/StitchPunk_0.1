@@ -38,6 +38,6 @@ Editor-driven; there is no CLI build for the game.
 
 **Every group is declared in [`Assets/_Scripts/Systems/SystemGroups.cs`](Assets/_Scripts/Systems/SystemGroups.cs)** — the single ordering manifest. Place new systems with `[UpdateInGroup]`, never ad-hoc ordering, and put the file in the folder named after its group. Scene gating is group-level; do not add per-system `RequireForUpdate<GameSceneTag>`.
 
-Sim order: `GameManager → Player → UtilityAI → MinionActionSelection → StateMachine → Item → Movement → Buildings → PlayerResource → Combat → Health → Design → Animation`. LateSim: `Spawn → SpawnInit → Ragdoll → Sound → Despawn → Save`.
+Sim order: `GameManager → Player → UtilityAI → MinionActionSelection → ActionSelection → StateMachine → Item → Movement → Buildings → PlayerResource → Combat → Health → Design → Animation`. LateSim: `Spawn → SpawnInit → Ragdoll → Sound → Despawn → Save`.
 
 **AI is a decision/execution split:** awareness systems in `UtilityAISystemGroup` score options into a `UtilityActions` buffer → the winner is written into the `StateMachine` component → `BehaviorExecutionSystem` interprets the chosen `BehaviorSO`'s blob-baked command sequence. Read `Systems_AI.md` before touching AI.

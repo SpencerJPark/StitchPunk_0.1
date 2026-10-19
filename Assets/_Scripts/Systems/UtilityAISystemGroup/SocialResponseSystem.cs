@@ -21,7 +21,6 @@ public partial struct SocialResponseSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BrainLibrary>();
         _stateMachineLookup = state.GetComponentLookup<StateMachine>(true);
         _deadLookup         = state.GetComponentLookup<Dead>(true);
@@ -121,28 +120,13 @@ public partial struct SocialResponseJob : IJobEntity
         {
             // Idle — assign directly. WinnerSelection runs later this frame and only writes
             // pending when outranked, so this won't be clobbered.
-            stateMachine.action              = ActionType.Talk;
-            stateMachine.activeBehavior      = BehaviorType.Talk;
-            stateMachine.targetEntity        = initiator;
-            stateMachine.targetPosition      = default;
-            stateMachine.hasTargetPosition   = false;
-            stateMachine.activePriority      = talkPriority;
-            stateMachine.currentPhase        = BehaviorPhase.Execute;
-            stateMachine.CurrentCommandIndex = 0;
-            stateMachine.CommandTimer        = 0f;
-            stateMachine.LoopTimer           = 0f;
-            stateMachine.LoopIterations      = 0;
+            StateMachineTransitions.StartBehavior(ref stateMachine, ActionType.Talk, BehaviorType.Talk, initiator, default, false, talkPriority);
         }
         else
         {
             // Mid-behavior (e.g. Wander) — go through the pending path so
             // BehaviorInterruptSystem runs the old behavior's cleanup before the swap.
-            stateMachine.pendingAction            = ActionType.Talk;
-            stateMachine.pendingBehavior          = BehaviorType.Talk;
-            stateMachine.pendingTarget            = initiator;
-            stateMachine.pendingTargetPosition    = default;
-            stateMachine.pendingHasTargetPosition = false;
-            stateMachine.pendingPriority          = talkPriority;
+            StateMachineTransitions.SetPending(ref stateMachine, ActionType.Talk, BehaviorType.Talk, initiator, default, false, talkPriority);
         }
 
         if (loggingEnabled)

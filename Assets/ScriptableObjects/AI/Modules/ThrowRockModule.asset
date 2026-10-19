@@ -15,5 +15,6 @@ MonoBehaviour:
   displayName: Throw Rock
   description: Throws a held throwable (rock) at a combat target 3-12 m away. Pair
     with Equip Weapon to pick rocks up.
-  action: {fileID: 11400000, guid: 785c31fc08ae69b4eb35294266b8af4b, type: 2}
+  actions:
+  - {fileID: 11400000, guid: 785c31fc08ae69b4eb35294266b8af4b, type: 2}
   requires: 35

@@ -37,7 +37,7 @@ public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
 // --------------------------------------------------------------------------------------------
 // SimulationSystemGroup pipeline:
-// GameManager → Player → Cutscene → UtilityAI → MinionActionSelection → StateMachine → Item
+// GameManager → Player → Cutscene → UtilityAI → MinionActionSelection → ActionSelection → StateMachine → Item
 //   → Movement → Buildings → PlayerResource → Combat → Health → Design → Animation
 // (Adjacent edges below are asserted by SystemGroupOrderTests — keep them explicit.)
 // --------------------------------------------------------------------------------------------
@@ -90,16 +90,19 @@ public partial class UtilityAISystemGroup : GameSceneSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(UtilityAISystemGroup))]
-[UpdateBefore(typeof(StateMachineSystemGroup))]
+[UpdateBefore(typeof(ActionSelectionSystemGroup))]
 public partial class MinionActionSelectionSystemGroup : GameSceneSystemGroup { }
+
+// Decide: scores the options UtilityAI + MinionActionSelection offered, commits one winner per unit,
+// then arbitrates exclusive targets. StateMachine only executes what was decided here.
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(MinionActionSelectionSystemGroup))]
+[UpdateBefore(typeof(StateMachineSystemGroup))]
+public partial class ActionSelectionSystemGroup : GameSceneSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(ItemSystemGroup))]
 public partial class StateMachineSystemGroup : GameSceneSystemGroup { }
-
-        [UpdateInGroup(typeof(StateMachineSystemGroup))]
-        [UpdateBefore(typeof(ActionExecutionSystemGroup))]
-        public partial class ActionSelectionSystemGroup : ComponentSystemGroup { }
 
         [UpdateInGroup(typeof(StateMachineSystemGroup))]
         public partial class ActionExecutionSystemGroup : ComponentSystemGroup { }

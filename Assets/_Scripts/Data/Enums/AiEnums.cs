@@ -195,13 +195,6 @@ public enum MotivationChangeType
     Set,
 }
 
-// Utility AI v2 — how an action picks its target.
-public enum TargetingMode : byte
-{
-    Self,          // action runs on the owner (Wander, Idle, Sleep)
-    SingleTarget,  // action needs one target entity (MeleeAttack, Talk, Pickup)
-}
-
 // Stable key for the BehaviorLibrary blob (enum-indexed). Append-only — never reorder.
 public enum BehaviorType : byte
 {

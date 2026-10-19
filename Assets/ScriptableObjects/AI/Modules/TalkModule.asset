@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Talk
   description: 
-  action: {fileID: 11400000, guid: 7f8d7ba1186f4988a17d6a51628eefe5, type: 2}
+  actions:
+  - {fileID: 11400000, guid: 7f8d7ba1186f4988a17d6a51628eefe5, type: 2}
   requires: 0

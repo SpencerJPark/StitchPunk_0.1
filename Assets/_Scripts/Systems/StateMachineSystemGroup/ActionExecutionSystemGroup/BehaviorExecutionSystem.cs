@@ -37,7 +37,6 @@ public partial struct BehaviorExecutionSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BehaviorLibrary>();
         state.RequireForUpdate<SpatialHashRegistry>();
         state.RequireForUpdate<UnitDataLibrary>();
@@ -203,18 +202,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
                         $"[BehaviorExecution] Entity {unit.Index} behavior {stateMachine.activeBehavior.Name()} complete (action: {stateMachine.action.Name()})",
                         LogLevel.Info, timestamp, category: LogCategory.StateMachine);
 
-                stateMachine.action              = ActionType.Idle;
-                stateMachine.activeBehavior      = BehaviorType.None;
-                stateMachine.targetEntity        = Entity.Null;
-                stateMachine.targetPosition      = default;
-                stateMachine.hasTargetPosition   = false;
-                stateMachine.activePriority      = 0;
-                stateMachine.currentPhase        = BehaviorPhase.Execute;
-                stateMachine.currentStance       = StanceType.Normal;
-                stateMachine.CurrentCommandIndex = 0;
-                stateMachine.CommandTimer        = 0f;
-                stateMachine.LoopTimer           = 0f;
-                stateMachine.LoopIterations      = 0;
+                StateMachineTransitions.ResetToIdle(ref stateMachine);
                 break;
         }
     }

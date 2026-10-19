@@ -17,7 +17,7 @@ using Unity.Transforms;
 [UpdateAfter(typeof(EnemyAwarenessSystem))]
 public partial struct SelfDefenceAwarenessSystem : ISystem
 {
-    public const int SELF_DEFENCE_PRIORITY = 3;
+    public const int SELF_DEFENCE_PRIORITY = AIPriorityTier.Defend;
 
     private ComponentLookup<Dead>           _deadLookup;
     private ComponentLookup<LocalTransform> _transformLookup;
@@ -25,7 +25,6 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<UnitDataLibrary>();
         state.RequireForUpdate<BrainLibrary>();
         _deadLookup      = state.GetComponentLookup<Dead>(true);
@@ -56,7 +55,6 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
             transformLookup = _transformLookup,
             unitLibrary     = unitLibrary,
             aiConfig        = brainLibrary.blob,
-            deltaTime       = SystemAPI.Time.DeltaTime,
             ecb             = ecb,
             loggingEnabled  = loggingEnabled,
             timestamp       = SystemAPI.Time.ElapsedTime,
@@ -74,7 +72,6 @@ public partial struct SelfDefenceAwarenessJob : IJobEntity
     [ReadOnly] public ComponentLookup<LocalTransform>       transformLookup;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>  aiConfig;
-    public float  deltaTime;
     public bool   loggingEnabled;
     public double timestamp;
     public EntityCommandBuffer.ParallelWriter ecb;
@@ -86,7 +83,7 @@ public partial struct SelfDefenceAwarenessJob : IJobEntity
         in Awareness                      awareness,
         in LocalTransform                 transform,
         in StateMachine                   stateMachine,
-        ref DynamicBuffer<ThreatEntry>    threats,
+        in DynamicBuffer<ThreatEntry>     threats,
         ref DynamicBuffer<Motivation>     motivations,
         ref DynamicBuffer<UtilityActions> actions)
     {
@@ -95,28 +92,19 @@ public partial struct SelfDefenceAwarenessJob : IJobEntity
         // No-reactivation guard: already fighting (or fleeing) — don't re-emit and churn targets.
         if (stateMachine.action.IsCombatAction()) return;
 
-        // Tick the flinch delay and pick the highest-threat attacker that is past it,
+        // Pick the highest-threat attacker that is past its flinch delay (ticked by ThreatDecaySystem),
         // still alive, and within awareness range (range gate prevents chase ping-pong
         // after the attacker escapes, since stale entries live for 4s).
         float  rangeSq      = awareness.range * awareness.range;
         Entity topAggressor = Entity.Null;
         float  topThreat    = 0f;
 
-        for (int i = 0; i < threats.Length; i++)
+        for (int threatIndex = 0; threatIndex < threats.Length; threatIndex++)
         {
-            ThreatEntry threat = threats[i];
+            ThreatEntry threat = threats[threatIndex];
 
             if (threat.reactionDelay > 0f)
-            {
-                threat.reactionDelay -= deltaTime;
-                threats[i]            = threat;
-                // Evaluate with the POST-tick value: FleeAwareness runs after this system and
-                // sees the updated buffer, so skipping the crossing frame here would let flee
-                // fire one frame before fight — flee would win tier 3 unopposed and lock in
-                // (Flee is a combat action, which then early-outs this system forever).
-                if (threat.reactionDelay > 0f)
-                    continue;
-            }
+                continue;
 
             if (threat.threatScore <= topThreat)
                 continue;
@@ -156,7 +144,6 @@ public partial struct SelfDefenceAwarenessJob : IJobEntity
                 actionType      = actionType,
                 actionDefIndex  = defIndex,
                 priority        = SelfDefenceAwarenessSystem.SELF_DEFENCE_PRIORITY,
-                needsValidation = false,
                 targetEntity    = topAggressor,
             });
             addedCount++;

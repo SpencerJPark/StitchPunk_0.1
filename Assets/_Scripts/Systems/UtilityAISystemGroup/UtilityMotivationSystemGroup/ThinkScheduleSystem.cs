@@ -2,18 +2,12 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 
-// Awareness systems gate on ActionRequest, so this throttles ThinkRate units to a few re-thinks per
-// second mid-behaviour while idle units still choose immediately. Units without ThinkRate keep ActionRequest as baked.
+// Awareness systems gate on ActionRequest, so this throttles ThinkRate units: busy units think every interval, idle units
+// on the frame they become idle and then every IDLE_THINK_INTERVAL. interval <= 0 thinks every frame.
 [BurstCompile]
 [UpdateInGroup(typeof(UtilityMotivationSystemGroup), OrderFirst = true)]
 public partial struct ThinkScheduleSystem : ISystem
 {
-    [BurstCompile]
-    public void OnCreate(ref SystemState state)
-    {
-        state.RequireForUpdate<GameSceneTag>();
-    }
-
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
@@ -38,11 +32,11 @@ public partial struct ThinkScheduleJob : IJobEntity
 
         if (thinkRate.interval <= 0f)
         {
+            thinkRate.wasIdle = idle;
             actionRequestEnabled.ValueRW = true;
             return;
         }
 
-        bool due = false;
         if (thinkRate.timeUntilNextThink < 0f)
         {
             // Negative is the baker's uninitialised marker; golden-ratio spread staggers units across the interval.
@@ -52,13 +46,21 @@ public partial struct ThinkScheduleJob : IJobEntity
         else
         {
             thinkRate.timeUntilNextThink -= deltaTime;
-            if (thinkRate.timeUntilNextThink <= 0f)
-            {
-                due = true;
-                thinkRate.timeUntilNextThink = math.max(thinkRate.timeUntilNextThink + thinkRate.interval, 0.0001f);
-            }
         }
 
-        actionRequestEnabled.ValueRW = idle || due;
+        bool becameIdle = idle && !thinkRate.wasIdle;
+        thinkRate.wasIdle = idle;
+        float effectiveInterval = idle ? math.min(thinkRate.interval, ThinkRate.IDLE_THINK_INTERVAL) : thinkRate.interval;
+        bool timerDue = thinkRate.timeUntilNextThink <= 0f;
+
+        if (timerDue)
+            thinkRate.timeUntilNextThink = math.max(thinkRate.timeUntilNextThink + effectiveInterval, 0.0001f);
+        else if (becameIdle)
+            thinkRate.timeUntilNextThink = effectiveInterval;
+
+        if (idle)
+            thinkRate.timeUntilNextThink = math.min(thinkRate.timeUntilNextThink, effectiveInterval);
+
+        actionRequestEnabled.ValueRW = becameIdle || timerDue;
     }
 }

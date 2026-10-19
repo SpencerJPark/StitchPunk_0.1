@@ -1,7 +1,9 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
+// Also ticks the ThreatEntry flinch delay (reactionDelay) so every reader sees the post-tick value.
 // Prunes stale ThreatEntry records before the awareness consumers (SelfDefence, Flee) read them.
 // Dead/despawned attackers are removed immediately so units never fight or flee a corpse; everything
 // else decays via staleTimer, which DamageEventSystem refreshes on each hit — so an actively
@@ -15,7 +17,6 @@ public partial struct ThreatDecaySystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
         deadLookup = state.GetComponentLookup<Dead>(true);
     }
 
@@ -41,16 +42,16 @@ public partial struct ThreatDecayJob : IJobEntity
 
     public void Execute(ref DynamicBuffer<ThreatEntry> threats)
     {
-        for (int i = threats.Length - 1; i >= 0; i--)
+        for (int threatIndex = threats.Length - 1; threatIndex >= 0; threatIndex--)
         {
-            ThreatEntry threat = threats[i];
+            ThreatEntry threat = threats[threatIndex];
 
             // Immediate removal: null ref, despawned attacker (no Dead component), or dead attacker.
             if (threat.attackerEntity == Entity.Null
                 || !deadLookup.HasComponent(threat.attackerEntity)
                 || deadLookup.IsComponentEnabled(threat.attackerEntity))
             {
-                threats.RemoveAt(i);
+                threats.RemoveAt(threatIndex);
                 continue;
             }
 
@@ -58,11 +59,14 @@ public partial struct ThreatDecayJob : IJobEntity
             threat.staleTimer -= deltaTime;
             if (threat.staleTimer <= 0f)
             {
-                threats.RemoveAt(i);
+                threats.RemoveAt(threatIndex);
                 continue;
             }
 
-            threats[i] = threat;
+            if (threat.reactionDelay > 0f)
+                threat.reactionDelay = math.max(0f, threat.reactionDelay - deltaTime);
+
+            threats[threatIndex] = threat;
         }
     }
 }

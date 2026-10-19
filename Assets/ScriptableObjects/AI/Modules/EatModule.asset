@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Eat
   description: 
-  action: {fileID: 11400000, guid: 64cc7dc826c74750a160739d979db55b, type: 2}
+  actions:
+  - {fileID: 11400000, guid: 64cc7dc826c74750a160739d979db55b, type: 2}
   requires: 0

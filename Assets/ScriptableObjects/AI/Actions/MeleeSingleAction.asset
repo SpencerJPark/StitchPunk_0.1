@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MeleeSingleAction
   m_EditorClassIdentifier: StitchPunk.Data::UtilityActionSO
   actionType: 18
-  priority: 2
+  priority: 3
   targeting: 1
   behavior: {fileID: 11400000, guid: 3cf08d1a99b7677448b1d2167463345e, type: 2}
   maxCandidates: 16

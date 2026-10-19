@@ -4,6 +4,7 @@ using Unity.Entities;
 public struct BehaviorConfigBlob
 {
     public BehaviorType behaviorType;
+    public int          minimumInterruptPriority; // a live behaviour is preempted only by a winner at or above this tier (0 = any higher tier)
     public BlobArray<BehaviorCommand> executionSequence;
     public BlobArray<BehaviorCommand> interruptionCleanup;
 }

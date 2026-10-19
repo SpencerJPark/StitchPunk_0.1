@@ -13,7 +13,6 @@ public struct PlayerUnitBrain : IComponentData, IEnableableComponent { }
 
 public struct ActionRequest : IComponentData, IEnableableComponent { }
 public struct ActionInterruptRequest : IComponentData, IEnableableComponent { }
-public struct ActionSelectionValidationRequest: IComponentData, IEnableableComponent {}
 
 
 public struct UtilityActions : IBufferElementData
@@ -24,18 +23,11 @@ public struct UtilityActions : IBufferElementData
     public int priority;
     public float totalUtility;
     public int actionDefIndex;
-    public bool needsValidation;
     public bool isPlayerOrdered;
     public bool hasTargetPosition;    // explicit flag — float3.zero is a legal position
 }
 
 
-public struct CurrentAction : IComponentData
-{
-    public Entity targetEntity;
-    public ActionType action;
-    public int priority;
-}
 public struct StateMachine : IComponentData
 {
     public ActionType    action;
@@ -119,25 +111,8 @@ public struct FactionRegistry : IComponentData
 {
     public NativeParallelMultiHashMap<byte, Entity> entities;
 }
-public struct GlobalContext : IComponentData
-{
-    public int playerWantedLevel;
-    public int weather;
-    public float timerOfDay;
-}
 
-public struct AngeryMobSignal : IComponentData
-{
-    public Entity targetEntity;
-    public float radius;
-}
 
-public struct DangerSignal : IComponentData
-{
-    public float3 position;
-    public float radius;
-    public float intensity; // Decays over time via a separate system
-}
 
 
 

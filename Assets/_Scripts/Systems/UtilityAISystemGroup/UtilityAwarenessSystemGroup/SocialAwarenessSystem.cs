@@ -141,7 +141,6 @@ public partial struct SocialAwarenessJob : IJobEntity
             actionType      = ActionType.Talk,
             actionDefIndex  = talkDefIndex,
             targetEntity    = nearestPartner,
-            needsValidation = false,
         });
     }
 

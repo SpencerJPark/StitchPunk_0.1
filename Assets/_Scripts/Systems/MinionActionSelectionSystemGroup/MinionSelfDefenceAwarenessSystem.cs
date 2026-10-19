@@ -60,7 +60,6 @@ public partial struct MinionSelfDefenceAwarenessSystem : ISystem
             transformLookup = _transformLookup,
             unitLibrary     = unitLibrary,
             aiConfig        = brainLibrary.blob,
-            deltaTime       = SystemAPI.Time.DeltaTime,
             ecb             = ecb,
             loggingEnabled  = loggingEnabled,
             timestamp       = SystemAPI.Time.ElapsedTime,
@@ -78,7 +77,6 @@ public partial struct MinionSelfDefenceAwarenessJob : IJobEntity
     [ReadOnly] public ComponentLookup<LocalTransform>       transformLookup;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>  aiConfig;
-    public float  deltaTime;
     public bool   loggingEnabled;
     public double timestamp;
     public EntityCommandBuffer.ParallelWriter ecb;
@@ -92,7 +90,7 @@ public partial struct MinionSelfDefenceAwarenessJob : IJobEntity
         in Awareness                      awareness,
         in LocalTransform                 transform,
         in StateMachine                   stateMachine,
-        ref DynamicBuffer<ThreatEntry>    threats,
+        in DynamicBuffer<ThreatEntry>     threats,
         ref DynamicBuffer<UtilityActions> actions)
     {
         if (threats.IsEmpty) return;
@@ -101,9 +99,9 @@ public partial struct MinionSelfDefenceAwarenessJob : IJobEntity
         // re-emit and churn targets.
         if (stateMachine.action.IsCombatAction()) return;
 
-        // Tick the flinch delay and pick the highest-threat attacker that is past it, still alive,
-        // and within awareness range (range gate prevents chasing an attacker that has escaped,
-        // since stale entries live for a few seconds).
+        // Pick the highest-threat attacker that is past its reaction delay (ThreatDecaySystem ticks
+        // it), still alive, and within awareness range (range gate prevents chasing an attacker
+        // that has escaped, since stale entries live for a few seconds).
         float  rangeSq      = awareness.range * awareness.range;
         Entity topAggressor = Entity.Null;
         float  topThreat    = 0f;
@@ -112,13 +110,7 @@ public partial struct MinionSelfDefenceAwarenessJob : IJobEntity
         {
             ThreatEntry threat = threats[i];
 
-            if (threat.reactionDelay > 0f)
-            {
-                threat.reactionDelay -= deltaTime;
-                threats[i]            = threat;
-                if (threat.reactionDelay > 0f)
-                    continue;
-            }
+            if (threat.reactionDelay > 0f) continue;
 
             if (threat.threatScore <= topThreat)
                 continue;
@@ -157,7 +149,6 @@ public partial struct MinionSelfDefenceAwarenessJob : IJobEntity
                 actionType      = actionType,
                 actionDefIndex  = defIndex,
                 priority        = SelfDefenceAwarenessSystem.SELF_DEFENCE_PRIORITY,
-                needsValidation = false,
                 targetEntity    = topAggressor,
             });
             addedCount++;

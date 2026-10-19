@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Eat From Supplies
   description: 
-  action: {fileID: 11400000, guid: fe3123d6a06c15a4f9991987c5ba490a, type: 2}
+  actions:
+  - {fileID: 11400000, guid: fe3123d6a06c15a4f9991987c5ba490a, type: 2}
   requires: 0

@@ -4,8 +4,11 @@ using Unity.Entities;
 // plus every frame they are between behaviours. Units without it keep ActionRequest as baked (always on).
 public struct ThinkRate : IComponentData
 {
+    public const float IDLE_THINK_INTERVAL = 0.1f; // idle units re-think this often instead of every frame (AF-D8)
+
     public float interval;
     public float timeUntilNextThink;
+    public bool  wasIdle;              // detects the frame a unit becomes idle so it thinks immediately
 }
 
 // A spotter that broadcasts AllyAlert to same-faction units within radius when it picks a combat target.

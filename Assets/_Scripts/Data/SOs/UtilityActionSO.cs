@@ -19,7 +19,7 @@ public class ConsiderationAuthoring
     [Tooltip("X: normalized input [0,1]; Y: score factor")]
     public AnimationCurve curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
-    [Tooltip("How strongly this consideration contributes to the action's total utility")]
+    [Tooltip("Importance 0–1: 1 applies the full curve, 0 ignores this consideration (score = lerp(1, curve, weight))")]
     public float weight = 1f;
 }
 
@@ -30,17 +30,11 @@ public class UtilityActionSO : ScriptableObject
     [Tooltip("Drives animation linking and downstream request routing")]
     public ActionType actionType;
 
-    [Tooltip("Higher-priority actions win the priority-tier gate during selection")]
+    [Tooltip("Priority tier (see AIPriorityTier): only a higher tier can preempt a live behaviour. Brains may override it per ActionType.")]
     public int priority;
-
-    [Tooltip("Self = runs on owner; SingleTarget = needs one target entity")]
-    public TargetingMode targeting;
 
     [Tooltip("The executed command sequence this action runs")]
     public BehaviorSO behavior;
-
-    [Tooltip("Max simultaneous candidates scored for this action. Self actions use 1. SingleTarget actions should match the expected max targets in range (e.g. 8 for waypoints, 16 for combat).")]
-    public int maxCandidates = 8;
 
     [Tooltip("Inline considerations (each with its own curve) that produce this action's utility")]
     public List<ConsiderationAuthoring> considerations = new List<ConsiderationAuthoring>();

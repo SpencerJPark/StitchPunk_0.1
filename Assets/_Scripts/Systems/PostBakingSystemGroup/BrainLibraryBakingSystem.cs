@@ -7,6 +7,22 @@ using Unity.Mathematics;
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct BrainLibraryBakingSystem : ISystem
 {
+    private readonly struct ActionDefVariant : System.IEquatable<ActionDefVariant>
+    {
+        public readonly UtilityActionSO action;
+        public readonly int priority;
+
+        public ActionDefVariant(UtilityActionSO action, int priority)
+        {
+            this.action = action;
+            this.priority = priority;
+        }
+
+        public bool Equals(ActionDefVariant other) => action == other.action && priority == other.priority;
+        public override bool Equals(object obj) => obj is ActionDefVariant other && Equals(other);
+        public override int GetHashCode() => (action != null ? action.GetHashCode() : 0) * 397 ^ priority;
+    }
+
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<BrainLibrary>();
@@ -28,8 +44,9 @@ public partial struct BrainLibraryBakingSystem : ISystem
         if (brainSOs.Count == 0) return;
 
         // De-duplicate actions across all brains into one shared action-def table.
-        Dictionary<UtilityActionSO, int> actionDefIndex = new Dictionary<UtilityActionSO, int>();
-        List<UtilityActionSO> actionDefList = new List<UtilityActionSO>();
+        // Keyed by (action, effective priority) so brains overriding a tier get their own def.
+        Dictionary<ActionDefVariant, int> actionDefIndex = new Dictionary<ActionDefVariant, int>();
+        List<ActionDefVariant> actionDefList = new List<ActionDefVariant>();
         // Flatten base brain + modules once per brain; later passes reuse this so the blob matches what was validated.
         Dictionary<BrainSO, List<UtilityActionSO>> flattenedActionsByBrain = new Dictionary<BrainSO, List<UtilityActionSO>>();
         HashSet<string> loggedProblems = new HashSet<string>();
@@ -47,13 +64,26 @@ public partial struct BrainLibraryBakingSystem : ISystem
             }
         }
 
+        Dictionary<BrainSO, List<int>> actionDefIndicesByBrain = new Dictionary<BrainSO, List<int>>();
         foreach (BrainSO brainSO in brainSOs)
         {
+            if (actionDefIndicesByBrain.ContainsKey(brainSO)) continue;
+            List<int> brainActionDefIndices = new List<int>();
+            actionDefIndicesByBrain[brainSO] = brainActionDefIndices;
             foreach (UtilityActionSO action in flattenedActionsByBrain[brainSO])
             {
-                if (action == null || actionDefIndex.ContainsKey(action)) continue;
-                actionDefIndex[action] = actionDefList.Count;
-                actionDefList.Add(action);
+                if (action == null) continue;
+                int effectivePriority = brainSO.TryGetPriorityOverride(action.actionType, out int overridePriority)
+                    ? overridePriority
+                    : action.priority;
+                ActionDefVariant variant = new ActionDefVariant(action, effectivePriority);
+                if (!actionDefIndex.TryGetValue(variant, out int variantIndex))
+                {
+                    variantIndex = actionDefList.Count;
+                    actionDefIndex[variant] = variantIndex;
+                    actionDefList.Add(variant);
+                }
+                brainActionDefIndices.Add(variantIndex);
             }
         }
 
@@ -71,13 +101,12 @@ public partial struct BrainLibraryBakingSystem : ISystem
 
         for (int defIndex = 0; defIndex < actionDefList.Count; defIndex++)
         {
-            UtilityActionSO action = actionDefList[defIndex];
+            ActionDefVariant variant = actionDefList[defIndex];
+            UtilityActionSO action = variant.action;
             actionDefsBuilder[defIndex].actionType     = action.actionType;
-            actionDefsBuilder[defIndex].priority       = action.priority;
-            actionDefsBuilder[defIndex].targeting      = action.targeting;
+            actionDefsBuilder[defIndex].priority       = variant.priority;
             actionDefsBuilder[defIndex].behavior       =
                 action.behavior != null ? action.behavior.behaviorType : BehaviorType.None;
-            actionDefsBuilder[defIndex].maxCandidates  = math.max(1, action.maxCandidates);
 
             int considerationCount = action.considerations != null ? action.considerations.Count : 0;
             BlobBuilderArray<ConsiderationBlob> considerationsBuilder =
@@ -113,11 +142,7 @@ public partial struct BrainLibraryBakingSystem : ISystem
             List<int> indices = new List<int>();
             if (brainBySlot.TryGetValue(unitIndex, out BrainSO brainSO))
             {
-                foreach (UtilityActionSO action in flattenedActionsByBrain[brainSO])
-                {
-                    if (action != null && actionDefIndex.TryGetValue(action, out int resolvedIndex))
-                        indices.Add(resolvedIndex);
-                }
+                indices.AddRange(actionDefIndicesByBrain[brainSO]);
             }
 
             BlobBuilderArray<int> indicesBuilder =

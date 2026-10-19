@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Wander
   description: 
-  action: {fileID: 11400000, guid: 79f119d1c12740642990f18c6c499045, type: 2}
+  actions:
+  - {fileID: 11400000, guid: 79f119d1c12740642990f18c6c499045, type: 2}
   requires: 0

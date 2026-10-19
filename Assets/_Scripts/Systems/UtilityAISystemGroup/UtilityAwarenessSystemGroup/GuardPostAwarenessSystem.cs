@@ -12,7 +12,7 @@ public partial struct GuardPostAwarenessSystem : ISystem
 {
     // Combat options use tier 3 (EnemyAwareness, SelfDefence, Flee) and critical flee uses 4;
     // 5 is the only value that preempts a live fight and still wins selection against every combat option.
-    public const int LEASH_RETURN_PRIORITY = 5;
+    public const int LEASH_RETURN_PRIORITY = AIPriorityTier.Leash;
 
     // Idle wander re-rolls its point every this many seconds so guards drift instead of twitching per frame.
     public const double IDLE_WANDER_BUCKET_SECONDS = 8.0;
@@ -96,7 +96,6 @@ public partial struct GuardPostAwarenessJob : IJobEntity
                 actionType        = ActionType.Wander,
                 actionDefIndex    = wanderDefIndex,
                 priority          = GuardPostAwarenessSystem.LEASH_RETURN_PRIORITY,
-                needsValidation   = false,
                 targetPosition    = guardPost.anchorPosition,
                 hasTargetPosition = true,
             });
@@ -117,7 +116,6 @@ public partial struct GuardPostAwarenessJob : IJobEntity
         {
             actionType        = ActionType.Wander,
             actionDefIndex    = wanderDefIndex,
-            needsValidation   = false,
             targetPosition    = guardPost.anchorPosition + new float3(pointInDisc.x, 0f, pointInDisc.y),
             hasTargetPosition = true,
         });

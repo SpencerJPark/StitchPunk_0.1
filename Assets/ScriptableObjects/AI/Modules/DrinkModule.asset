@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Drink
   description: 
-  action: {fileID: 11400000, guid: c89399e2f2bb44c59b055d9127aa0519, type: 2}
+  actions:
+  - {fileID: 11400000, guid: c89399e2f2bb44c59b055d9127aa0519, type: 2}
   requires: 0

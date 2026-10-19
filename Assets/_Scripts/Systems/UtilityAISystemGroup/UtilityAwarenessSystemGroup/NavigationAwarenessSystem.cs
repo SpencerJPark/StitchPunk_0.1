@@ -85,7 +85,6 @@ public partial struct NavigationAwarenessJob : IJobEntity
                     {
                         actionType      = ActionType.Wander,
                         actionDefIndex  = defIndex,
-                        needsValidation = false,
                         targetEntity    = waypoint,
                     });
                 }

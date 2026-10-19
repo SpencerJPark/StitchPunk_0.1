@@ -17,7 +17,7 @@ public partial struct AllyAlertSystem : ISystem
 {
     public const float ALERT_COOLDOWN_SECONDS = 5f;
     public const float ALERT_DURATION_SECONDS = 6f;
-    public const int   ALERT_RESPONSE_PRIORITY = 3;
+    public const int   ALERT_RESPONSE_PRIORITY = AIPriorityTier.Defend;
 
     private ComponentLookup<Dead>           _deadLookup;
     private ComponentLookup<LocalTransform> _transformLookup;
@@ -210,7 +210,6 @@ public partial struct AllyAlertResponseJob : IJobEntity
                 actionType       = actionType,
                 actionDefIndex   = defIndex,
                 priority         = AllyAlertSystem.ALERT_RESPONSE_PRIORITY,
-                needsValidation  = false,
                 targetEntity     = allyAlert.target,
             });
         }

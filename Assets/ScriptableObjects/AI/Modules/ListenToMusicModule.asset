@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Listen To Music
   description: 
-  action: {fileID: 11400000, guid: 39b7e888ebbc0564c97ecccb94534860, type: 2}
+  actions:
+  - {fileID: 11400000, guid: 39b7e888ebbc0564c97ecccb94534860, type: 2}
   requires: 0

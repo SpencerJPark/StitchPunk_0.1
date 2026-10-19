@@ -24,7 +24,6 @@ public partial struct BehaviorInterruptSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BehaviorLibrary>();
         _attackRequestLookup    = state.GetComponentLookup<AttackRequest>(false);
         _animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
@@ -126,18 +125,8 @@ public partial struct BehaviorInterruptJob : IJobEntity
                     $"[BehaviorInterrupt] Entity {unit.Index} interrupted {stateMachine.activeBehavior.Name()} (action: {stateMachine.action.Name()}) — reset to Idle",
                     LogLevel.Info, timestamp, category: LogCategory.StateMachine);
 
-            stateMachine.action                   = ActionType.Idle;
-            stateMachine.activeBehavior           = BehaviorType.None;
-            stateMachine.targetEntity             = Entity.Null;
-            stateMachine.targetPosition           = default;
-            stateMachine.hasTargetPosition        = false;
-            stateMachine.activePriority           = 0;
-            stateMachine.pendingAction            = ActionType.Idle;
-            stateMachine.pendingBehavior          = BehaviorType.None;
-            stateMachine.pendingTarget            = Entity.Null;
-            stateMachine.pendingTargetPosition    = default;
-            stateMachine.pendingHasTargetPosition = false;
-            stateMachine.pendingPriority          = 0;
+            StateMachineTransitions.ResetToIdle(ref stateMachine);
+            StateMachineTransitions.ClearPending(ref stateMachine);
 
             // ClearOptions excludes dead units, so a corpse would otherwise keep stale options.
             actions.Clear();
@@ -150,28 +139,8 @@ public partial struct BehaviorInterruptJob : IJobEntity
                     $"[BehaviorInterrupt] Entity {unit.Index} preempted {stateMachine.activeBehavior.Name()} (action: {stateMachine.action.Name()}) with {stateMachine.pendingBehavior.Name()} (action: {stateMachine.pendingAction.Name()})",
                     LogLevel.Info, timestamp, category: LogCategory.StateMachine);
 
-            stateMachine.action                   = stateMachine.pendingAction;
-            stateMachine.activeBehavior           = stateMachine.pendingBehavior;
-            stateMachine.targetEntity             = stateMachine.pendingTarget;
-            stateMachine.targetPosition           = stateMachine.pendingTargetPosition;
-            stateMachine.hasTargetPosition        = stateMachine.pendingHasTargetPosition;
-            stateMachine.activePriority           = stateMachine.pendingPriority;
-            stateMachine.pendingAction            = ActionType.Idle;
-            stateMachine.pendingBehavior          = BehaviorType.None;
-            stateMachine.pendingTarget            = Entity.Null;
-            stateMachine.pendingTargetPosition    = default;
-            stateMachine.pendingHasTargetPosition = false;
-            stateMachine.pendingPriority          = 0;
+            StateMachineTransitions.PromotePendingToActive(ref stateMachine);
         }
-
-        stateMachine.currentPhase        = BehaviorPhase.Execute;
-        // Back to walking — a swapped-in pending behavior re-sets stance via its own
-        // Approach/FleeFromTarget command on its first Execute tick.
-        stateMachine.currentStance       = StanceType.Normal;
-        stateMachine.CurrentCommandIndex = 0;
-        stateMachine.CommandTimer        = 0f;
-        stateMachine.LoopTimer           = 0f;
-        stateMachine.LoopIterations      = 0;
     }
 
     // Cleanup runs in one frame, so only non-blocking commands are legal here. Bake validation

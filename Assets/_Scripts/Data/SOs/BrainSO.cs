@@ -1,6 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
+public struct ActionPriorityOverride
+{
+    public ActionType action;
+    [Tooltip("Priority tier (see AIPriorityTier) this brain uses for the action instead of the UtilityActionSO's")]
+    public int priority;
+}
+
 // A unit archetype's action set. Baked into AISOBlob.brains, indexed by unitType.
 [CreateAssetMenu(fileName = "BrainSO", menuName = "AI/Brain SO")]
 public class BrainSO : ScriptableObject
@@ -16,6 +24,31 @@ public class BrainSO : ScriptableObject
 
     [Tooltip("Legacy/direct actions; prefer modules")]
     public List<UtilityActionSO> actions = new List<UtilityActionSO>();
+
+    [Tooltip("Per-ActionType tier overrides for this brain; inherited from baseBrain, the most-derived brain wins.")]
+    public List<ActionPriorityOverride> priorityOverrides = new List<ActionPriorityOverride>();
+
+    // Walks this brain, then its base chain; the first match (most-derived) wins. Cycle-safe.
+    public bool TryGetPriorityOverride(ActionType actionType, out int priority)
+    {
+        priority = 0;
+        HashSet<BrainSO> visitedBrains = new HashSet<BrainSO>();
+        BrainSO current = this;
+        while (current != null && visitedBrains.Add(current))
+        {
+            if (current.priorityOverrides != null)
+            {
+                foreach (ActionPriorityOverride priorityOverride in current.priorityOverrides)
+                {
+                    if (priorityOverride.action != actionType) continue;
+                    priority = priorityOverride.priority;
+                    return true;
+                }
+            }
+            current = current.baseBrain;
+        }
+        return false;
+    }
 
     // Flattens base chain (root first) then this brain; baking and the runtime lookup both rely on base-first order.
     public void CollectActions(List<UtilityActionSO> collectedActions, List<string> problems)
@@ -46,12 +79,13 @@ public class BrainSO : ScriptableObject
             foreach (BehaviourModuleSO module in brain.modules)
             {
                 if (module == null) continue;
-                if (module.action == null)
+                if (module.actions == null || module.actions.Count == 0)
                 {
-                    problems.Add("Module '" + module.name + "' on brain '" + brain.name + "' has no action");
+                    problems.Add("Module '" + module.name + "' on brain '" + brain.name + "' has no actions");
                     continue;
                 }
-                AddIfNewAction(collectedActions, module.action);
+                foreach (UtilityActionSO moduleAction in module.actions)
+                    AddIfNewAction(collectedActions, moduleAction);
             }
         }
 

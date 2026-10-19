@@ -46,12 +46,18 @@ namespace StitchPunk.Tests.PlayMode
         }
 
         [Test]
-        public void ThinkSchedule_IdleUnitAlwaysThinks()
+        public void ThinkSchedule_IdleUnitThinksOnBecomingIdleThenAtIdleInterval()
         {
             Entity unit = CreateThinkingUnit(BehaviorType.None, 10f);
 
             RunSystem<ThinkScheduleSystem>();
+            Assert.IsTrue(testWorld.EntityManager.IsComponentEnabled<ActionRequest>(unit));
 
+            RunSystem<ThinkScheduleSystem>();
+            Assert.IsFalse(testWorld.EntityManager.IsComponentEnabled<ActionRequest>(unit));
+
+            testWorld.SetTime(new TimeData(10.5, ThinkRate.IDLE_THINK_INTERVAL + 0.05f));
+            RunSystem<ThinkScheduleSystem>();
             Assert.IsTrue(testWorld.EntityManager.IsComponentEnabled<ActionRequest>(unit));
         }
 

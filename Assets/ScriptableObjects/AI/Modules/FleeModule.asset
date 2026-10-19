@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Flee
   description: 
-  action: {fileID: 11400000, guid: 1f2c014daa0a4180b48cc0b072263fb7, type: 2}
+  actions:
+  - {fileID: 11400000, guid: 1f2c014daa0a4180b48cc0b072263fb7, type: 2}
   requires: 0

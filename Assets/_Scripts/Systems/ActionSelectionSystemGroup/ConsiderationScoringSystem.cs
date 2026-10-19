@@ -6,7 +6,9 @@ using Unity.Transforms;
 
 // Scores each UtilityActions buffer entry on the owning unit using pre-sampled blob consideration curves.
 // Reads health, motivation, distance, and personality inline — no separate ContextAssemblySystem needed.
-// Uses Dave Mark's modification factor so adding more considerations doesn't collapse the total score.
+// Dave Mark's makeup factor is applied per consideration (not to the product) so extra considerations don't collapse the score.
+// Consideration weight is importance via lerp(1, curveScore, weight): 1 = full curve, 0 = ignored.
+// Motivation input is normalised as value / 100 (motivations are clamped 0-100).
 [BurstCompile]
 [UpdateInGroup(typeof(ActionSelectionSystemGroup))]
 [UpdateBefore(typeof(WinnerSelectionSystem))]
@@ -18,7 +20,6 @@ public partial struct ConsiderationScoringSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BrainLibrary>();
         _targetTransformLookup = state.GetComponentLookup<LocalTransform>(true);
         _personalityLookup     = state.GetBufferLookup<PersonalityAttributes>(true);
@@ -61,9 +62,9 @@ public partial struct ConsiderationScoringJob : IJobEntity
             ? (float)health.healthAmount / health.healthAmountMax
             : 1f;
 
-        for (int i = 0; i < actions.Length; i++)
+        for (int actionIndex = 0; actionIndex < actions.Length; actionIndex++)
         {
-            UtilityActions entry = actions[i];
+            UtilityActions entry = actions[actionIndex];
 
             if (entry.actionDefIndex < 0 || entry.actionDefIndex >= aiConfig.Value.actionDefs.Length)
                 continue;
@@ -77,30 +78,33 @@ public partial struct ConsiderationScoringJob : IJobEntity
             if (considerationCount == 0)
             {
                 entry.totalUtility = 1f;
-                actions[i] = entry;
+                actions[actionIndex] = entry;
                 continue;
             }
 
             float targetDist = 0f;
             if (entry.targetEntity != Entity.Null
-                && targetTransformLookup.TryGetComponent(entry.targetEntity, out LocalTransform tgt))
-                targetDist = math.distance(unitTransform.Position, tgt.Position);
+                && targetTransformLookup.TryGetComponent(entry.targetEntity, out LocalTransform targetTransform))
+                targetDist = math.distance(unitTransform.Position, targetTransform.Position);
 
             // 0 = on top of the target, 1 = at the edge of this unit's awareness range.
             float normalizedDist = math.saturate(targetDist / math.max(awareness.range, 0.001f));
 
+            float modificationFactor = 1f - (1f / considerationCount);
             float product = 1f;
-            for (int c = 0; c < considerationCount; c++)
+            for (int considerationIndex = 0; considerationIndex < considerationCount; considerationIndex++)
             {
-                ref ConsiderationBlob consideration = ref actionDef.considerations[c];
+                ref ConsiderationBlob consideration = ref actionDef.considerations[considerationIndex];
                 float inputValue = ReadInput(unit, ref consideration, healthRatio, normalizedDist, in motivations);
                 float curveScore = consideration.Evaluate(inputValue);
-                product *= curveScore * consideration.weight;
+                float weightedScore = math.lerp(1f, curveScore, math.saturate(consideration.weight));
+                float compensatedScore = weightedScore + (1f - weightedScore) * modificationFactor * weightedScore;
+                product *= compensatedScore;
+                if (product <= 0f) break;
             }
 
-            float modFactor = 1f - (1f / considerationCount);
-            entry.totalUtility = product + (1f - product) * modFactor * product;
-            actions[i] = entry;
+            entry.totalUtility = product;
+            actions[actionIndex] = entry;
         }
     }
 
@@ -135,7 +139,7 @@ public partial struct ConsiderationScoringJob : IJobEntity
         for (int i = 0; i < motivations.Length; i++)
         {
             if (motivations[i].needType == needType)
-                return (motivations[i].value + 100f) / 200f;
+                return math.saturate(motivations[i].value / 100f);
         }
         return 0f;
     }

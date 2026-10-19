@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Data::BehaviourModuleSO
   displayName: Use Healing Item
   description: 
-  action: {fileID: 11400000, guid: 58346af4b1c24859b8b7ed5b01abe13c, type: 2}
+  actions:
+  - {fileID: 11400000, guid: 58346af4b1c24859b8b7ed5b01abe13c, type: 2}
   requires: 0

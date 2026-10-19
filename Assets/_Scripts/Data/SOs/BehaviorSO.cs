@@ -44,6 +44,9 @@ public class BehaviorSO : ScriptableObject
     [Tooltip("Stable key into the BehaviorLibrary blob. Must be unique across all behaviors.")]
     public BehaviorType behaviorType;
 
+    [Tooltip("A live run of this behaviour is only preempted by a selection at or above this priority tier (see AIPriorityTier). 0 = any higher tier. Player orders always preempt.")]
+    public int minimumInterruptPriority;
+
     [Tooltip("The step-by-step command sequence. Use an Approach command to navigate — set FloatParam = stopping distance, IntParam = StanceType (0=walk, 2=run).")]
     public List<BehaviorCommandAuthoring> executionSequence = new List<BehaviorCommandAuthoring>();
 
