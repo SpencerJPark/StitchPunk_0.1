@@ -1,6 +1,7 @@
 # Game Performance Pass — Design Spec (PP)
 
 > **Status:** 🟡 specced 2026-10-19, not built. Comes from a read-only review where every finding was checked against the code. False alarms are recorded in §6 so nobody re-checks them.
+> **P0 done 2026-10-19 (small scene, from the MCP), see `Memories/Code/Performance.md`.** The biggest cost was one the review missed: `DStarLiteSystem` (movement toolkit) takes 1.1 ms of the 4.9 ms simulation, on the main thread, at only 21 agents (F9 → PP-P0b). Everything F2–F8 flagged measured under 0.15 ms at 7 AI units, so P1–P4 are cheap clean-ups, not wins at this scale. Re-measure them at a large crowd before P5/P6.
 > **Read first:** `Memories/Code/Systems.md`, `Memories/Code/Systems_AI.md`, `Memories/Code/Gotchas.md`, and [`../Plans/CrowdScaleAwareness_System.md`](../Plans/CrowdScaleAwareness_System.md) (PP-P5 builds it).
 > **Decisions:** all settled below (PP-D1–PP-D8) under the delegated-architecture rule. Do not re-ask. The owner is only needed for PP-P0 and the Play-mode checks.
 
@@ -26,6 +27,7 @@ Nobody has profiled the game. This pass takes a baseline, removes per-frame work
 | F5 | `RagdollLaunchInitSystem` (main thread, not Burst-compiled) visits **every** `Dead` corpse every frame and skips the ones already ragdolling with `IsComponentEnabled`. Cost grows with the number of corpses. | `RagdollLaunchInitSystem.cs:35-44` | P4 |
 | F6 | `EnemyAwarenessSystem`, `SocialAwarenessSystem` and `AllyAlertSystem` loop over the whole-faction `FactionRegistry` multimap, so cost is units × faction size. `FactionRegistrySystem` rebuilds that registry on the main thread every frame and is already marked `// to be deleted`. | `EnemyAwarenessSystem.cs:105`, `SocialAwarenessSystem.cs:103`, `AllyAlertSystem.cs:124`, `FactionRegistrySystem.cs:51` | P5 |
 | F7 | `DamageResolutionSystem` calls `state.Dependency.Complete()` every frame, **before** it knows whether any damage event exists. The underlying cause is that `DamageEventSystem` drains `resolved` on the main thread. | `DamageResolutionSystem.cs:48`, `DamageEventSystem.cs:73` | P6 (gated) |
+| F9 | **Measured, not found by review.** `DStarLiteSystem.OnUpdate` is not `[BurstCompile]` and loops over `PathRequest` + `LocalTransform` on the main thread. It cost at least 0.32 ms on every frame, even with no request enabled, which suggests it waits on `LocalTransform` writers. Each request resets every grid cell and searches with a linear-scan open set and linear removal. It is D* Lite in name, but it recomputes from scratch. | `Packages/com.dotsmovementtoolkit/Runtime/Systems/MovementRoutingSystemGroup/DStarLiteSystem.cs:67-100, 186-232, 329` | P0b |
 | F8 | `InteractionSpatialHashSystem` calls `.Complete()` every frame. **This is a correctness guard:** the maps live in a singleton, which ECS does not track for job dependencies, and the awareness jobs read them. Leave it alone unless the profile shows it matters. | `InteractionSpatialHashSystem.cs:61` | P6 (gated) |
 
 ---
@@ -52,6 +54,14 @@ Each task names its files. **[parallel-safe]** means its files are separate from
 - **T0.1** In `Assets/Scenes/Game.unity`, at the bandit camp, with at least 20 zombies and 10 bandits in combat, capture 300 frames in the Unity Profiler (Timeline + Hierarchy, deep profiling **off**).
 - **T0.2** Record in a new note, `Assets/_Vault/Memories/Code/Performance.md`: the scene setup, unit counts, total frame ms, the top 10 systems by ms, and the main-thread wait time for `DamageResolutionSystem`, `InteractionSpatialHashSystem`, `WaypointRegistrationSystem`, `FactionRegistrySystem` and `CorpseCellSystem`. Also record the `BodyPart` archetype's chunk capacity from the Entities Archetypes window (the open question in §5).
 - **Checkpoint C0:** the numbers are written down. Keep the note to measurements and traps. No lists of systems or files (they go stale).
+
+### PP-P0b — D* Lite off the main thread *(package change — first by measurement)*
+
+This changes `com.dotsmovementtoolkit`, so read `Memories/Code/Systems_Movement.md` and the package's own conventions first, and bump the package version.
+- **T0b.1** Return early, before the `foreach`, when no entity has `PathRequest` enabled with `requestedMode == DStarLite`. Check with an `EntityQuery` and `IsEmpty` (an enabled-bit query does not force a wait on `LocalTransform` writers). Re-measure. If the 0.32 ms minimum goes away, the wait theory is confirmed.
+- **T0b.2** Move the request processing into a Burst-compiled `IJobEntity`, or failing that add `[BurstCompile]` to `OnUpdate` (check `SystemAPI.GetComponentRW` inside `ProcessRequest` compiles under Burst). Scheduled single-threaded, because all paths share the `nodes` array.
+- **T0b.3** (only if requests are frequent) Replace the linear-scan open set with a binary heap, and stop resetting every cell per request (use a generation stamp per node).
+- **Verify:** re-measure with the 2026-10-19 setup in `Performance.md` and add a column. Agents still path around walls in CampLoop.
 
 ### PP-P1 — Zombie think rate *(asset only)*
 
