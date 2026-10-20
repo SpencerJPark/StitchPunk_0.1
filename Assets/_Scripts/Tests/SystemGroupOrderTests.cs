@@ -25,6 +25,7 @@ namespace StitchPunk.Tests
             typeof(MinionActionSelectionSystemGroup),
             typeof(ActionSelectionSystemGroup),
             typeof(StateMachineSystemGroup),
+            typeof(CrowdLifeSystemGroup),
             typeof(ItemSystemGroup),
             typeof(MovementSystemGroup),
             typeof(BuildingsSystemGroup),

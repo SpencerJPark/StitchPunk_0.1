@@ -31,6 +31,8 @@ public partial struct PersonalityRollSystem : ISystem
         state.Dependency = new PersonalityRollJob
         {
             seed = seed.value,
+            // Pool reuse keeps Index/Version, so salt by time or a recycled body would roll the same person again.
+            rollSalt = (uint)(SystemAPI.Time.ElapsedTime * 1000.0),
             viceDecayAtFullVice = ViceDecayAtFullVice,
             newlySpawnedLookup = SystemAPI.GetComponentLookup<NewlySpawned>(true),
             motivationLookup = SystemAPI.GetBufferLookup<Motivation>(),
@@ -47,6 +49,7 @@ public partial struct PersonalityRollSystem : ISystem
 public partial struct PersonalityRollJob : IJobEntity
 {
     public uint seed;
+    public uint rollSalt;
     public float viceDecayAtFullVice;
     [ReadOnly] public ComponentLookup<NewlySpawned> newlySpawnedLookup;
     [NativeDisableParallelForRestriction] public BufferLookup<Motivation> motivationLookup;
@@ -63,7 +66,7 @@ public partial struct PersonalityRollJob : IJobEntity
         if (!personalityRollPendingEnabled.ValueRO && !isPoolReuse)
             return;
 
-        Random random = Random.CreateFromIndex(math.hash(new uint3((uint)entity.Index, (uint)entity.Version, seed)));
+        Random random = Random.CreateFromIndex(math.hash(new uint4((uint)entity.Index, (uint)entity.Version, seed, rollSalt)));
 
         float vice = 0f;
         for (int traitIndex = 0; traitIndex < personalities.Length; traitIndex++)
