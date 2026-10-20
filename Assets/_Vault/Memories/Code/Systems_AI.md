@@ -55,6 +55,7 @@ Leash 5). Never write a raw tier number in a system.
 | `SocialAwarenessSystem` | Talk option, tier 1 |
 | `ItemAwarenessSystem` | EquipWeapon (threatened+unarmed), UseHealingItem (hurt), Eat/Drink (idle) — from `ItemLibrary`/`EffectLibrary` blobs |
 | `Schedule`/`Weather`/`Enviroment` AwarenessSystem | stubs — future phases |
+| `GuardPostAwarenessSystem` | leash (fixed 2026-10-19): judges the *target's* distance to the anchor. Combat inside the leash is kept even if the guard ran past it. A guard walking home (tier 5) turns back only for a hostile within `REENGAGE_LEASH_FRACTION` (0.8) of the leash, by enabling its own `ActionInterruptRequest`, because a tier-3 fight can't preempt the tier-5 return |
 
 ## UtilityActions / StateMachine (Components/AI/UtilityAiComponents.cs)
 
