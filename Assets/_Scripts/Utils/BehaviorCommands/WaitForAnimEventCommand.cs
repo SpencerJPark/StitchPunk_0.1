@@ -4,9 +4,9 @@ using Unity.Entities;
 
 // WaitForAnimEvent — blocking command that completes the frame the unit's AnimEventOutput buffer
 // carries key IntParam (cast to uint) on layer LayerIndex. Gated on AnimEventsPending so
-// event-less frames never pay for the buffer scan. Duration (0 = none) is the safety rail: same
-// missing-data-completes philosophy as the qualifier semantics — a clip that never fires the
-// event cannot hang the behavior forever.
+// event-less frames never pay for the buffer scan. Two rails stop a hang: a unit with no
+// AnimEventOutput buffer is skipped (it can never receive the event), and an unauthored Duration
+// falls back to WaitForClipFinishedCommand.DEFAULT_TIMEOUT_SECONDS.
 [BurstCompile]
 public static class WaitForAnimEventCommand
 {
@@ -17,6 +17,14 @@ public static class WaitForAnimEventCommand
         in BehaviorCommand         cmd)
     {
         stateMachine.CommandTimer += context.deltaTime;
+
+        bool unitCanReportAnimation = context.animEventOutputLookup.HasBuffer(unit);
+        if (!unitCanReportAnimation)
+        {
+            stateMachine.CurrentCommandIndex++;
+            stateMachine.CommandTimer = 0f;
+            return;
+        }
 
         bool eventFired = false;
         if (context.animEventsPendingLookup.HasComponent(unit)
@@ -35,7 +43,8 @@ public static class WaitForAnimEventCommand
             }
         }
 
-        bool timedOut = cmd.Duration > 0f && stateMachine.CommandTimer >= cmd.Duration;
+        float timeout = cmd.Duration > 0f ? cmd.Duration : WaitForClipFinishedCommand.DEFAULT_TIMEOUT_SECONDS;
+        bool timedOut = stateMachine.CommandTimer >= timeout;
 
         if (timedOut && !eventFired && context.loggingEnabled)
         {

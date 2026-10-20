@@ -25,10 +25,11 @@ namespace StitchPunk.Tests.PlayMode
             BlobBuilder blobBuilder = new BlobBuilder(Allocator.Temp);
             ref InteractionLibraryBlob root = ref blobBuilder.ConstructRoot<InteractionLibraryBlob>();
             BlobBuilderArray<InteractionBlob> interactions =
-                blobBuilder.Allocate(ref root.interactions, (int)ActionType.Sit + 1);
+                blobBuilder.Allocate(ref root.interactions, (int)ActionType.Sit + 1 + (int)ActionType.Talk);
             for (int index = 0; index < interactions.Length; index++)
                 blobBuilder.Allocate(ref interactions[index].allowedFactions, 0);
             interactions[(int)ActionType.Sit].maxOccupants = 1;
+            interactions[(int)ActionType.Talk].maxOccupants = 1;
             interactionLibraryBlob = blobBuilder.CreateBlobAssetReference<InteractionLibraryBlob>(Allocator.Persistent);
             blobBuilder.Dispose();
 
@@ -109,6 +110,36 @@ namespace StitchPunk.Tests.PlayMode
             StateMachine state = entityManager.GetComponentData<StateMachine>(wanderingUnit);
             Assert.AreEqual(BehaviorType.None, state.pendingBehavior);
             Assert.AreEqual(BehaviorType.Wander, state.activeBehavior);
+        }
+
+        [Test]
+        public void UnitsAttackingAUnitThatCarriesAnInteractionAreNeverReserved()
+        {
+            EntityManager entityManager = testWorld.EntityManager;
+            Entity talkingTarget = entityManager.CreateEntity(typeof(Interaction));
+            entityManager.SetComponentData(talkingTarget, new Interaction { action = ActionType.Talk });
+
+            Entity firstAttacker = CreateAttacker(talkingTarget);
+            Entity secondAttacker = CreateAttacker(talkingTarget);
+
+            RunReservationSystem();
+
+            foreach (Entity attacker in new Entity[] { firstAttacker, secondAttacker })
+            {
+                Assert.AreEqual(talkingTarget, entityManager.GetComponentData<StateMachine>(attacker).targetEntity);
+                Assert.AreNotEqual(0f, entityManager.GetComponentData<ThinkRate>(attacker).timeUntilNextThink);
+            }
+        }
+
+        private Entity CreateAttacker(Entity target)
+        {
+            return CreateUnit(new StateMachine
+            {
+                action = ActionType.MeleeContinuous,
+                activeBehavior = BehaviorType.MeleeContinuous,
+                targetEntity = target,
+                activePriority = 3,
+            });
         }
 
         private Entity CreateUnitSitting(Entity target, int priority)

@@ -74,7 +74,7 @@ public partial struct TargetReservationJob : IJobEntity
     {
         if (stateMachine.activeBehavior != BehaviorType.None && stateMachine.targetEntity != Entity.Null)
         {
-            if (!TryClaim(unit, stateMachine.targetEntity, stateMachine.activePriority))
+            if (!TryClaim(unit, stateMachine.targetEntity, stateMachine.activePriority, stateMachine.action))
             {
                 StateMachineTransitions.ResetToIdle(ref stateMachine);
                 ForceRethink(unit);
@@ -83,7 +83,7 @@ public partial struct TargetReservationJob : IJobEntity
 
         if (stateMachine.pendingBehavior != BehaviorType.None && stateMachine.pendingTarget != Entity.Null)
         {
-            if (!TryClaim(unit, stateMachine.pendingTarget, stateMachine.pendingPriority))
+            if (!TryClaim(unit, stateMachine.pendingTarget, stateMachine.pendingPriority, stateMachine.pendingAction))
             {
                 StateMachineTransitions.ClearPending(ref stateMachine);
                 ForceRethink(unit);
@@ -91,10 +91,10 @@ public partial struct TargetReservationJob : IJobEntity
         }
     }
 
-    bool TryClaim(Entity unit, Entity target, int priority)
+    bool TryClaim(Entity unit, Entity target, int priority, ActionType unitAction)
     {
         int capacity = TargetReservationUtils.GetCapacity(
-            target, in interactionLookup, in itemLookup, ref interactionLibrary.Value);
+            target, unitAction, in interactionLookup, in itemLookup, ref interactionLibrary.Value);
         if (capacity == TargetReservationUtils.UnlimitedCapacity) return true;
         if (TargetReservationUtils.IsOccupiedBy(in occupantsByTarget, target, unit)) return true;
 

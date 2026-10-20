@@ -90,7 +90,7 @@ public partial struct TargetOccupancySystem : ISystem
         {
             if (stateMachine.activeBehavior != BehaviorType.None
                 && stateMachine.targetEntity != Entity.Null
-                && IsReservable(stateMachine.targetEntity))
+                && IsReservable(stateMachine.targetEntity, stateMachine.action))
             {
                 occupantsWriter.Add(stateMachine.targetEntity, unit);
             }
@@ -98,15 +98,15 @@ public partial struct TargetOccupancySystem : ISystem
             if (stateMachine.pendingBehavior != BehaviorType.None
                 && stateMachine.pendingTarget != Entity.Null
                 && stateMachine.pendingTarget != stateMachine.targetEntity
-                && IsReservable(stateMachine.pendingTarget))
+                && IsReservable(stateMachine.pendingTarget, stateMachine.pendingAction))
             {
                 occupantsWriter.Add(stateMachine.pendingTarget, unit);
             }
         }
 
-        private bool IsReservable(Entity target)
+        private bool IsReservable(Entity target, ActionType unitAction)
         {
-            int capacity = TargetReservationUtils.GetCapacity(target, in interactionLookup, in itemLookup, ref interactionLibrary.Value);
+            int capacity = TargetReservationUtils.GetCapacity(target, unitAction, in interactionLookup, in itemLookup, ref interactionLibrary.Value);
             return capacity != TargetReservationUtils.UnlimitedCapacity;
         }
     }

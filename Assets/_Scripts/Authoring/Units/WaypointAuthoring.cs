@@ -27,7 +27,9 @@ public class WaypointAuthoring : MonoBehaviour
     {
         public override void Bake(WaypointAuthoring authoring)
         {
-            Entity entity = GetEntity(TransformUsageFlags.WorldSpace);
+            // Consumers read LocalTransform as a world position, so waypoints need it (WorldSpace gives only LocalToWorld).
+            // Keep waypoint GameObjects unparented: under a parent, LocalTransform would be parent-local.
+            Entity entity = GetEntity(TransformUsageFlags.Dynamic);
             AddComponent(entity, new NavigationWaypoint { radius = authoring.radius });
         }
     }

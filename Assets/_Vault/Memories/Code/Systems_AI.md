@@ -87,8 +87,22 @@ activePriority, and `pending*` mirrors (incl. pendingTargetPosition/pendingHasTa
   singleton each frame — target → every unit whose StateMachine active OR pending target is it. Nothing
   releases a reservation: a unit that finishes, is interrupted, dies or retargets drops out next frame.
 - **Capacity** (`Utils/TargetReservationUtils.cs`): an `Interaction` uses its `InteractionSO.maxOccupants`
-  (0 = unlimited, for shared spots), an `Item` holds 1, anything else (units, waypoints) is never
+  (0 = unlimited, for shared spots; an ActionType with no InteractionSO bakes 0) **only for units whose
+  action equals the interaction's action** (Sitting on a chair). An `Item` holds 1; anything else is never
   reserved. Extend capacity rules there only (attack tokens would go here).
+- **Trap (fixed 2026-10-19):** Bandit and all PlayerZombie prefabs are *variants of MaleCitizen*, which
+  carries `InteractionAuthoring(Talk)`, so every unit has an `Interaction`. Before the action match, every
+  unit was a one-attacker target. A second attacker was reverted every frame, and the ungated combat systems
+  re-offered the same target, so units froze and never broke off tasks to fight. Never make reservability
+  depend on "has an Interaction component" alone.
+- **Trap (fixed 2026-10-19), units froze after walking somewhere:** no unit has toolkit animation data
+  since MaleCitizen's actor profile was removed, so `WaitForClipFinished` (Pickup, Duration 0) waited
+  forever. Both anim-wait commands now complete at once when the unit has no `AnimEventOutput` buffer, and
+  fall back to `WaitForClipFinishedCommand.DEFAULT_TIMEOUT_SECONDS` (5 s) when Duration is unauthored.
+- **Trap (fixed 2026-10-19), nobody ever wandered:** `WaypointAuthoring` baked `TransformUsageFlags.WorldSpace`
+  (LocalToWorld only), but registration, NavigationAwareness and Approach/Flee read `LocalTransform`, so the
+  waypoint hash was always empty. It now bakes `Dynamic`. Keep waypoints unparented, because under a parent
+  LocalTransform is parent-local.
 - **Offer filter:** Interaction/Item awareness skip targets that are `IsFullForUnit`.
 - **Arbitration:** `TargetReservationSystem` (single-threaded on purpose) treats a reservable target the
   unit is not yet listed on as a new claim; first in iteration order wins, player orders always accept

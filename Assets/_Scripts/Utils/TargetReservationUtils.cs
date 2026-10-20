@@ -2,7 +2,9 @@ using Unity.Collections;
 using Unity.Entities;
 
 // Capacity rules for exclusive targets (AF-D6): an interaction holds InteractionSO.maxOccupants units
-// (0 = unlimited), a loose item holds one, anything else is unlimited and never reserved.
+// (0 = unlimited) but only for units performing THAT interaction's action, a loose item holds one, anything
+// else is unlimited. The action match matters: every unit prefab inherits Interaction(Talk) from MaleCitizen,
+// and keying on the component alone made each unit a one-attacker target, deadlocking every fight.
 public static class TargetReservationUtils
 {
     public const int UnlimitedCapacity = int.MaxValue;
@@ -14,6 +16,7 @@ public static class TargetReservationUtils
 
     public static int GetCapacity(
         Entity                         target,
+        ActionType                     unitAction,
         in ComponentLookup<Interaction> interactionLookup,
         in ComponentLookup<Item>       itemLookup,
         ref InteractionLibraryBlob     interactionLibrary)
@@ -22,6 +25,7 @@ public static class TargetReservationUtils
 
         if (interactionLookup.TryGetComponent(target, out Interaction interaction))
         {
+            if (interaction.action != unitAction) return UnlimitedCapacity;
             int interactionIndex = (int)interaction.action;
             if (interactionIndex < 0 || interactionIndex >= interactionLibrary.interactions.Length)
                 return UnlimitedCapacity;

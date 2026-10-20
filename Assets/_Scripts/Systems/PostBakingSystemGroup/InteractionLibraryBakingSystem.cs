@@ -54,7 +54,8 @@ public partial struct InteractionLibraryBakingSystem : ISystem
             {
                 interactionsBuilder[i].actionType          = (ActionType)i;
                 interactionsBuilder[i].priority            = 0;
-                interactionsBuilder[i].maxOccupants        = 1;
+                // No InteractionSO = no occupancy limit (0 = unlimited for TargetReservationUtils).
+                interactionsBuilder[i].maxOccupants        = 0;
                 interactionsBuilder[i].range               = 1.5f;
                 interactionsBuilder[i].satisfiedNeed = NeedType.None;
                 interactionsBuilder[i].restorationAmount   = 0f;
