@@ -13,6 +13,30 @@ Traps that cost time on the first run:
 - List the real names with `ProfilerRecorderHandle.GetAvailable` + `GetDescription` instead of guessing.
 - `Main Thread` includes Editor overhead. Compare `PlayerLoop` and `SimulationSystemGroup` between runs.
 
+**Reading the Profiler window instead:** while the window still holds frames (paused or stopped, same Editor session), `ProfilerDriver.firstFrameIndex..lastFrameIndex` plus `ProfilerDriver.GetHierarchyFrameDataView(frame, 0 /*main thread*/, ViewModes.MergeSamplesWithTheSameName, columnTotalTime, false)` reads every frame. 1,300 frames take about 2 s. To keep a capture, save it from the Profiler toolbar as a `.data` file under `Library/` (never `Assets/`). `ProfilerDriver.LoadProfile(path, false)` loads it back for the same read.
+
+## 2026-10-19 — CampLoop, zombies vs bandits (owner's capture)
+
+Setup: the owner's Profiler window capture of a fight, 1,301 frames read through `HierarchyFrameDataView`. At pause: 30 `UtilityBrain` units (6 enabled), 30 D* Lite agents, 31 with `Dead` (2 enabled), 1,597 entities.
+
+| Marker | avg ms | max ms | frames > 2 ms |
+|---|---|---|---|
+| PlayerLoop | 12.1 | 57.2 | |
+| SimulationSystemGroup | 4.9 | 36.6 | |
+| `JobHandle.Complete` (all main-thread waits, summed) | 1.17 | 17.7 | 105 (8%) |
+| DStarLiteSystem | 0.97 | 2.5 | 9 |
+| `DebugResourceMenu.OnGUI` (game debug IMGUI) | 0.85 | 6.0 | 10 |
+| UtilityAISystemGroup | 0.39 | 2.0 | |
+| ItemAttachSystem | 0.23 | 2.4 | 1 |
+| PlayerKnockoutSystem | 0.16 | 2.4 | 2 |
+| NavGridDebugRenderSystem | 0.075 | **12.0** | 6 |
+| NavGridSystem | 0.03 | **15.0** (waiting on jobs) | 2 |
+
+What it shows:
+- Simulation cost barely moved from 7 to 30 units (4.9 ms both times). The cost is fixed overhead, not per-unit scaling, so crowd-scale work (PP-P5) is not urgent.
+- The worst frames (14–30 ms) are movement-toolkit grid work: `NavGridDebugRenderSystem` (a debug overlay, running in play) and `NavGridSystem` waiting on a grid rebuild. They are rare but are the visible hitches.
+- `DebugResourceMenu.OnGUI` costs nearly as much as D* Lite. It is debug UI and should be off or toggleable outside debugging.
+
 ## 2026-10-19 — CampLoop, small scene (baseline)
 
 Setup: `Scenes/CampLoop.unity` in Play mode, Editor focused, about 580 frames. 7 `UtilityBrain` units, 21 D* Lite agents, 697 entities.
