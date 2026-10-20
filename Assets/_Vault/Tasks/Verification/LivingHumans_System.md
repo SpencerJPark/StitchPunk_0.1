@@ -1,6 +1,6 @@
 # Living Humans — Design Spec (LH)
 
-> **Status:** 🟡 specced 2026-10-20, not built. Owner product calls are LH-D1–LH-D4. Architecture calls LH-D5–LH-D18 were made under the delegated-architecture rule. All are settled; do not re-ask.
+> **Status:** 🔍 BUILT 2026-10-20 in 6 subagent waves (commits 1d1d1adb..7768b5e1); play checklist `verify-living-humans.md`. Build changes from the spec: the emote cull measures from the camera's ground focus, not the camera (LH-D9); `IntoxicationSystem` lives in `IntoxicationDecaySystem.cs` (Gotchas: Unity dropped the original file from compilation); pooled bodies reroll salted by time. Tuning notes after first watch: conversation mood is a ±0.15/beat random walk, so long friendly chats can drift grumpy (only temper starts an argument); the brawl victim doesn't fight back; LH-D18 cost not yet measured (game was paused). Owner product calls are LH-D1–LH-D4. Architecture calls LH-D5–LH-D18 were made under the delegated-architecture rule. All are settled; do not re-ask.
 > **Read first:** `Memories/Code/Systems_AI.md` (whole), `Memories/Code/RULES.md`, `Memories/Code/Gotchas.md`, `Plans/SmartHumanAI_System.md` §9 (SH-D1–D9), `Verification/AIFoundations_System.md` §2 (AF-D1: tiers are the only way to preempt).
 > **Relation to SmartHumanAI:** this is flavour that sits beside H4 (tactics), not a replacement for it. It touches different files except `ItemAwarenessSystem.cs` (LH-T3.2). If H4 is in flight, run T3.2 after it.
 

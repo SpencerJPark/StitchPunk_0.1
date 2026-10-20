@@ -797,3 +797,8 @@ Before 2026-10-17 no runtime system ever disabled `ActionRequest`, so every `[Wi
 
 ### Rock used to sit on ItemType slot 2 (MedKit)
 `Rock.asset` and the DOTSTestScene rocks were serialized as `itemType: 2`, which is `MedKit` in today's enum, so `ItemAuthoring` gave them a `MedKit` component. They are now `ItemType.Rock` (appended). The other item SOs' ints (6–9) also don't match their names; check the serialized int before trusting an item's enum name.
+
+## Unity can silently drop one `.cs` from an assembly's compile list (2026-10-20)
+`IntoxicationSystem.cs` compiled in the offline gate (144 files) but Unity's `CompilationPipeline` listed 143. The system was simply never created at runtime, with no error anywhere: not in the console, not in `Editor.log`. A ForceUpdate reimport, a clean-cache recompile and deleting the `.meta` (Unity reused the cached GUID) all failed. **Renaming the file fixed it.**
+- Detect: compare `grep -c '\.cs"' Library/Bee/artifacts/*.dag/<Assembly>.rsp` with the file count on disk (or `CompilationPipeline.GetAssemblies()[...].sourceFiles.Length`). A system that is "NOT CREATED" in `World.GetExistingSystem` despite compiling is the symptom.
+- Suspected trigger: the file was edited while Unity was mid-compile in the same minute it was created. Not confirmed.
