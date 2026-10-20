@@ -1,6 +1,6 @@
 # Smart Human AI + Behaviour Modules — Plan
 
-> **Status:** H0–H3 BUILT 2026-10-17 (see §11), not played yet. H4 next. Owner answers are SH-D1–SH-D9 (§9).
+> **Status:** H0–H3 BUILT 2026-10-17 (see §11). Played 2026-10-19 on top of the AI Foundations pass; the freezes, the leash and the fall-through bugs it exposed are fixed. **H4 next:** session prompt in `Assets/_Vault/Spencer/next-session-smart-ai-h4-prompt.md`. Owner answers are SH-D1–SH-D9 (§9).
 > **Comes before:** CampLoop Phase 6 (raid). Smarter humans make the raid and the rival-engineer fight better.
 > **Read first:** `Memories/Code/Systems_AI.md` (pipeline, the "Adding a new behavior domain" checklist), `Plans/RangedCombat_System.md` (guns, phase H5), `Plans/CrowdScaleAwareness_System.md` (scale, phase H6).
 
