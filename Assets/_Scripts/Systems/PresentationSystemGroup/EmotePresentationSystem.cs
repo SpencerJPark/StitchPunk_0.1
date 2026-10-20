@@ -59,11 +59,19 @@ public partial struct EmotePresentationSystem : ISystem
         NativeReference<int> visibleHumanCount = new NativeReference<int>(0, Allocator.TempJob);
         NativeReference<int> emoteBudget = new NativeReference<int>(0, Allocator.TempJob);
 
+        // Cull around the ground point the camera looks at (the screen centre), not the camera itself:
+        // the follow camera sits ~35 m from the player, so a camera-distance cull rejected everyone on screen.
+        float3 cameraForward = math.normalizesafe(camera.forward);
+        float3 viewFocus = cameraForward.y < -0.05f
+            ? camera.position + cameraForward * (-camera.position.y / cameraForward.y)
+            : camera.position;
+
         // Single-threaded on purpose: it appends to one list and one counter, and the crowd is a few hundred units.
         CollectVisibleEmotesJob collectJob = new CollectVisibleEmotesJob
         {
             cameraPosition = camera.position,
-            cameraForward = math.normalizesafe(camera.forward),
+            cameraForward = cameraForward,
+            viewFocus = viewFocus,
             viewDistance = config.viewDistance,
             headHeight = config.headHeight,
             candidates = candidates,
@@ -110,6 +118,7 @@ public partial struct CollectVisibleEmotesJob : IJobEntity
 {
     public float3 cameraPosition;
     public float3 cameraForward;
+    public float3 viewFocus;
     public float viewDistance;
     public float headHeight;
     public NativeList<EmoteCandidate> candidates;
@@ -118,12 +127,13 @@ public partial struct CollectVisibleEmotesJob : IJobEntity
     private void Execute(Entity entity, in EmoteState emoteState, in LocalToWorld localToWorld)
     {
         float3 toUnit = localToWorld.Position - cameraPosition;
-        float distance = math.length(toUnit);
-        if (distance > viewDistance || distance < 1e-4f)
+        float cameraDistance = math.length(toUnit);
+        if (cameraDistance < 1e-4f || math.dot(toUnit / cameraDistance, cameraForward) <= 0.2f)
         {
             return;
         }
-        if (math.dot(toUnit / distance, cameraForward) <= 0.2f)
+        float distance = math.distance(localToWorld.Position.xz, viewFocus.xz);
+        if (distance > viewDistance)
         {
             return;
         }
