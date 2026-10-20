@@ -1,6 +1,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Mathematics;
 
 // Single combat-reaction consumer (v2) — drains the recycled DamageBus.resolved queue. Producers
 // (AttackRequestSystem, ThrownItemHitSystem, HazardZoneSystem) Enqueue into DamageBus.raw;
@@ -19,6 +20,7 @@ public partial struct DamageEventSystem : ISystem
     // Same constants as the retired ThreatUpdateSystem.
     private const float REACTION_TIME = 0.3f;
     private const float THREAT_TTL    = 4f;
+    private const float BRAWL_HEALTH_FLOOR_FRACTION = 0.35f;
 
     private ComponentLookup<Health>       healthLookup;
     private BufferLookup<ThreatEntry>     threatLookup;
@@ -26,6 +28,7 @@ public partial struct DamageEventSystem : ISystem
     private ComponentLookup<CutsceneActor> cutsceneActorLookup;
     private ComponentLookup<Faction>      factionLookup;
     private BufferLookup<AttackFaction>   attackFactionLookup;
+    private ComponentLookup<StateMachine> stateMachineLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -39,6 +42,7 @@ public partial struct DamageEventSystem : ISystem
         cutsceneActorLookup = state.GetComponentLookup<CutsceneActor>(true);
         factionLookup       = state.GetComponentLookup<Faction>(true);
         attackFactionLookup = state.GetBufferLookup<AttackFaction>(true);
+        stateMachineLookup  = state.GetComponentLookup<StateMachine>(true);
     }
 
     [BurstCompile]
@@ -57,6 +61,7 @@ public partial struct DamageEventSystem : ISystem
         cutsceneActorLookup.Update(ref state);
         factionLookup.Update(ref state);
         attackFactionLookup.Update(ref state);
+        stateMachineLookup.Update(ref state);
 
         bool hasConfig = SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg);
         bool combatLogging = !hasConfig || (loggingCfg.EnabledCategories & (int)LogCategory.Combat) != 0;
@@ -135,7 +140,8 @@ public partial struct DamageEventSystem : ISystem
             // Damage — apply to Health and, on the lethal event, capture killing-blow knockback + die.
             Health health = healthLookup[target];
             int healthBefore = health.healthAmount;
-            health.healthAmount -= damageEvent.damageAmount;
+            int appliedDamage = ClampBrawlDamageToFloor(damageEvent.sourceEntity, target, health, damageEvent.damageAmount);
+            health.healthAmount -= appliedDamage;
 
             if (healthLogging)
                 LogUtil.Log(ref ecb,
@@ -169,6 +175,21 @@ public partial struct DamageEventSystem : ISystem
             LogUtil.Log(ref ecb,
                 $"[DamageBus] Applied {appliedCount} damage event(s) this frame.",
                 LogLevel.Info, timestamp, category: LogCategory.Combat);
+    }
+
+    // Brawls are drunk flavour and must never kill (LH-D14).
+    private int ClampBrawlDamageToFloor(Entity source, Entity target, Health health, int damageAmount)
+    {
+        if (source == Entity.Null || !factionLookup.HasComponent(source) || !factionLookup.HasComponent(target))
+            return damageAmount;
+        if (factionLookup[source].factionType != factionLookup[target].factionType)
+            return damageAmount;
+        if (!stateMachineLookup.HasComponent(source) || stateMachineLookup[source].action != ActionType.Brawl)
+            return damageAmount;
+
+        int brawlFloor = (int)math.ceil(BRAWL_HEALTH_FLOOR_FRACTION * health.healthAmountMax);
+        int allowedDamage = health.healthAmount - brawlFloor;
+        return math.clamp(damageAmount, 0, math.max(allowedDamage, 0));
     }
 
     // v2 hostility test — mirrors EnemyAwarenessSystem: a source is hostile to the target when the

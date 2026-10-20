@@ -15,7 +15,8 @@ public partial struct IntoxicationSystem : ISystem
         {
             deltaTime = SystemAPI.Time.DeltaTime,
             elapsedTime = (float)SystemAPI.Time.ElapsedTime,
-            movementLookup = SystemAPI.GetComponentLookup<Movement>(false)
+            movementLookup = SystemAPI.GetComponentLookup<Movement>(false),
+            stateMachineLookup = SystemAPI.GetComponentLookup<StateMachine>(true)
         };
         state.Dependency = job.ScheduleParallel(state.Dependency);
     }
@@ -26,9 +27,11 @@ public partial struct IntoxicationDecayJob : IJobEntity
 {
     const float DecayPerSecond = 0.015f;
     const float TipsyThreshold = 0.3f;
+    const float BrawlCooldownSeconds = 60f;
 
     public float deltaTime;
     public float elapsedTime;
+    [ReadOnly] public ComponentLookup<StateMachine> stateMachineLookup;
 
     // Looked up (not a ref param) so a disabled Movement cannot drop the unit from this job.
     [NativeDisableParallelForRestriction] public ComponentLookup<Movement> movementLookup;
@@ -40,14 +43,19 @@ public partial struct IntoxicationDecayJob : IJobEntity
         ref EmoteState emoteState)
     {
         intoxication.level = math.max(0f, intoxication.level - DecayPerSecond * deltaTime);
-        intoxication.brawlCooldown = math.max(0f, intoxication.brawlCooldown - deltaTime);
+
+        // The cooldown holds at full while brawling and counts down only after, so DrunkAwareness can't chain brawls (LH-D13).
+        bool isBrawling = stateMachineLookup.TryGetComponent(entity, out StateMachine stateMachine) && stateMachine.action == ActionType.Brawl;
+        intoxication.brawlCooldown = isBrawling ? BrawlCooldownSeconds : math.max(0f, intoxication.brawlCooldown - deltaTime);
 
         if (intoxication.level <= 0f)
         {
-            if (intoxication.baseMoveSpeed > 0f && movementLookup.HasComponent(entity))
+            if (movementLookup.HasComponent(entity))
             {
                 Movement movement = movementLookup[entity];
-                movement.moveSpeed = intoxication.baseMoveSpeed;
+                movement.targetPosition -= intoxication.appliedWobble;
+                if (intoxication.baseMoveSpeed > 0f)
+                    movement.moveSpeed = intoxication.baseMoveSpeed;
                 movementLookup[entity] = movement;
             }
             intoxication = default;

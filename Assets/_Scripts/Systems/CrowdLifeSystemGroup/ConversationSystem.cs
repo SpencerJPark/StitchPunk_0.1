@@ -80,6 +80,10 @@ public partial struct ConversationJob : IJobEntity
             return;
         }
 
+        // An argument just requested an interrupt; until it clears Talk, don't restart a fresh conversation (it would re-argue).
+        if (actionInterruptRequestEnabled.ValueRO)
+            return;
+
         bool selfIsLower = self.Index < partner.Index;
 
         if (!conversationEnabled.ValueRO || conversation.partner != partner)

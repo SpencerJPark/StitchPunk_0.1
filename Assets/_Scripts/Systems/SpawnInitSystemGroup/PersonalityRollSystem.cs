@@ -41,7 +41,9 @@ public partial struct PersonalityRollSystem : ISystem
     }
 }
 
+// WithPresent: an EnabledRefRW param alone skips entities whose flag is disabled (Gotchas), and pool reuse arrives with the flag off.
 [BurstCompile]
+[WithPresent(typeof(PersonalityRollPending))]
 public partial struct PersonalityRollJob : IJobEntity
 {
     public uint seed;

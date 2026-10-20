@@ -59,3 +59,15 @@ public struct EmotePoolConfig : IComponentData
     public float headHeight;
     public int firstIconMaterialIndex;
 }
+
+// Baked by EmotePoolAuthoring; EmotePoolSetupSystem builds the pooled quad entities from these once at runtime.
+public struct EmotePoolAssets : IComponentData
+{
+    public UnityObjectRef<UnityEngine.Mesh> quadMesh;
+}
+
+// One material per EmoteIcon (index = (int)icon - 1), all sharing the emote atlas.
+public struct EmoteIconMaterial : IBufferElementData
+{
+    public UnityObjectRef<UnityEngine.Material> material;
+}

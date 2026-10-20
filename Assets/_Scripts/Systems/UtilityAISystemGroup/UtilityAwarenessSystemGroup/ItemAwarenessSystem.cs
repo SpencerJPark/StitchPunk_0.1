@@ -18,7 +18,7 @@ using Unity.Transforms;
 [UpdateAfter(typeof(AllyAlertSystem))]
 public partial struct ItemAwarenessSystem : ISystem
 {
-    public const float MID_FIGHT_GRAB_MAX_DISTANCE = 6f;
+    public const float BASE_MID_FIGHT_GRAB_MAX_DISTANCE = 6f;
     public const float MELEE_REACH_FOR_GRAB        = 2.5f;
     public const int   MID_FIGHT_GRAB_PRIORITY     = AIPriorityTier.Critical;
 
@@ -119,6 +119,7 @@ public partial struct ItemAwarenessJob : IJobEntity
         in UtilityBrain                 brain,
         in StateMachine                 stateMachine,
         in DynamicBuffer<ThreatEntry>   threats,
+        in DynamicBuffer<PersonalityAttributes> personalityTraits,
         ref DynamicBuffer<Motivation>   motivations,
         ref DynamicBuffer<UtilityActions> options)
     {
@@ -253,7 +254,9 @@ public partial struct ItemAwarenessJob : IJobEntity
         if (emitWeapon && hostileEngaged)
         {
             float weaponDistance = math.sqrt(nearestWeaponSq);
-            emitWeapon = weaponDistance <= ItemAwarenessSystem.MID_FIGHT_GRAB_MAX_DISTANCE
+            float resourcefulness = PersonalityTraitLookup.Get(personalityTraits, PersonalityTypes.Resourceful);
+            float maxDetourMeters = ItemAwarenessSystem.BASE_MID_FIGHT_GRAB_MAX_DISTANCE * math.lerp(0.5f, 1.5f, resourcefulness);
+            emitWeapon = weaponDistance <= maxDetourMeters
                 && (weaponDistance < combatTargetDistance
                     || combatTargetDistance > ItemAwarenessSystem.MELEE_REACH_FOR_GRAB);
         }
