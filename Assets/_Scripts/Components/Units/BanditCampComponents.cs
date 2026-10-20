@@ -9,6 +9,7 @@ public struct GuardPost : IComponentData
     public float3 anchorPosition;
     public float idleRadius;     // ~10 m: wanders inside this when calm
     public float leashRadius;    // ~25 m: beyond this it drops the chase and returns
+    public float keepFightingWithinMeters; // a hostile this close to the guard is always fought, wherever the guard is
 }
 
 // On the camp entity. BanditCampSystem counts living guards; at zero the camp is cleared for good.

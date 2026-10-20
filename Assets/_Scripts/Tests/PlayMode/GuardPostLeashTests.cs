@@ -53,6 +53,7 @@ namespace StitchPunk.Tests.PlayMode
                 anchorPosition = float3.zero,
                 idleRadius = IDLE_RADIUS,
                 leashRadius = LEASH_RADIUS,
+                keepFightingWithinMeters = 6f,
             });
             entityManager.SetComponentData(guard, new UtilityBrain { unitType = UnitType.Bandit });
             entityManager.SetComponentData(guard, LocalTransform.FromPosition(new float3(GUARD_DISTANCE_FROM_ANCHOR, 0f, 0f)));
@@ -93,7 +94,7 @@ namespace StitchPunk.Tests.PlayMode
         public void ReturningGuardIgnoresHostileOnTheLeashEdge()
         {
             EntityManager entityManager = testWorld.EntityManager;
-            AddHostileOption(23f);
+            AddHostileOption(-23f);
 
             RunGuardPostAwareness();
 
@@ -110,6 +111,51 @@ namespace StitchPunk.Tests.PlayMode
             }
             Assert.IsTrue(foundLeashReturn, "a Wander option toward the anchor at Leash priority is expected");
             Assert.IsFalse(entityManager.IsComponentEnabled<ActionInterruptRequest>(guard));
+        }
+
+        [Test]
+        public void ReturningGuardKeepsFightingHostileRightNextToItEvenOutsideTheLeash()
+        {
+            EntityManager entityManager = testWorld.EntityManager;
+            entityManager.SetComponentData(guard, LocalTransform.FromPosition(new float3(28f, 0f, 0f)));
+            AddHostileOption(30f);
+
+            RunGuardPostAwareness();
+
+            DynamicBuffer<UtilityActions> actions = entityManager.GetBuffer<UtilityActions>(guard);
+            Assert.IsTrue(ContainsOption(actions, ActionType.MeleeContinuous), "combat option must survive");
+            for (int index = 0; index < actions.Length; index++)
+                Assert.AreNotEqual(AIPriorityTier.Leash, actions[index].priority, "no leash-return option expected");
+            Assert.IsTrue(entityManager.IsComponentEnabled<ActionInterruptRequest>(guard));
+        }
+
+        [Test]
+        public void GuardPastTheLeashGivesUpOnAFarHostile()
+        {
+            EntityManager entityManager = testWorld.EntityManager;
+            entityManager.SetComponentData(guard, LocalTransform.FromPosition(new float3(28f, 0f, 0f)));
+            entityManager.SetComponentData(guard, new StateMachine
+            {
+                action = ActionType.MeleeContinuous,
+                activeBehavior = BehaviorType.MeleeContinuous,
+                activePriority = 3,
+            });
+            AddHostileOption(40f);
+
+            RunGuardPostAwareness();
+
+            DynamicBuffer<UtilityActions> actions = entityManager.GetBuffer<UtilityActions>(guard);
+            Assert.IsFalse(ContainsOption(actions, ActionType.MeleeContinuous), "combat option must be dropped");
+            bool foundLeashReturn = false;
+            for (int index = 0; index < actions.Length; index++)
+            {
+                UtilityActions option = actions[index];
+                if (option.actionType != ActionType.Wander || option.priority != AIPriorityTier.Leash) continue;
+                Assert.IsTrue(option.hasTargetPosition);
+                Assert.AreEqual(0f, math.distance(option.targetPosition, float3.zero), 0.001f);
+                foundLeashReturn = true;
+            }
+            Assert.IsTrue(foundLeashReturn, "a Wander option toward the anchor at Leash priority is expected");
         }
 
         private void AddHostileOption(float distanceFromAnchor)

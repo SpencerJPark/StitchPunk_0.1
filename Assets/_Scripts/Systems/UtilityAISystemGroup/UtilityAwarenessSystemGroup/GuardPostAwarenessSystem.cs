@@ -92,11 +92,12 @@ public partial struct GuardPostAwarenessJob : IJobEntity
             && math.distancesq(stateMachine.targetPosition, guardPost.anchorPosition) < 1f
             && distanceToAnchor > guardPost.idleRadius;
 
-        // The leash judges the target's distance to the anchor: a fight inside the guarded area is never abandoned,
-        // a chase that dragged the guard out is. Returning guards use a tighter radius to avoid edge flip-flop.
+        // The guard gives up only when the hostile is outside the guarded area AND not right next to the guard,
+        // so a hostile in its face is never abandoned. Returning guards use a tighter radius to avoid edge flip-flop.
         float engageRadius = alreadyReturningHome
             ? guardPost.leashRadius * GuardPostAwarenessSystem.REENGAGE_LEASH_FRACTION
             : guardPost.leashRadius;
+        float keepFightingRadius = guardPost.keepFightingWithinMeters;
 
         int keptCombatOptionCount = 0;
         for (int index = actions.Length - 1; index >= 0; index--)
@@ -105,20 +106,25 @@ public partial struct GuardPostAwarenessJob : IJobEntity
             if (!option.actionType.IsCombatAction()) continue;
 
             bool insideGuardedArea;
+            bool rightNextToGuard;
             if (option.targetEntity == Entity.Null)
             {
                 insideGuardedArea = option.hasTargetPosition && IsWithinEngageRadius(option.targetPosition, guardPost.anchorPosition, engageRadius);
+                rightNextToGuard = option.hasTargetPosition && IsWithinEngageRadius(option.targetPosition, transform.Position, keepFightingRadius);
             }
             else if (transformLookup.HasComponent(option.targetEntity))
             {
-                insideGuardedArea = IsWithinEngageRadius(transformLookup[option.targetEntity].Position, guardPost.anchorPosition, engageRadius);
+                float3 targetPosition = transformLookup[option.targetEntity].Position;
+                insideGuardedArea = IsWithinEngageRadius(targetPosition, guardPost.anchorPosition, engageRadius);
+                rightNextToGuard = IsWithinEngageRadius(targetPosition, transform.Position, keepFightingRadius);
             }
             else
             {
                 insideGuardedArea = false;
+                rightNextToGuard = false;
             }
 
-            if (insideGuardedArea) keptCombatOptionCount++;
+            if (insideGuardedArea || rightNextToGuard) keptCombatOptionCount++;
             else actions.RemoveAt(index);
         }
 

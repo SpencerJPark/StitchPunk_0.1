@@ -8,6 +8,9 @@ public class GuardPostAuthoring : MonoBehaviour
     public float idleRadius = 10f;
     public float leashRadius = 25f;
 
+    [Tooltip("A hostile within this distance of the guard is always fought, even past the leash. The guard only gives up when it is past the leash AND the hostile is farther than this.")]
+    public float keepFightingWithinMeters = 6f;
+
     public class Baker : Baker<GuardPostAuthoring>
     {
         public override void Bake(GuardPostAuthoring authoring)
@@ -23,6 +26,7 @@ public class GuardPostAuthoring : MonoBehaviour
                 anchorPosition = hasCamp ? (float3)authoring.camp.transform.position : (float3)authoring.transform.position,
                 idleRadius     = authoring.idleRadius,
                 leashRadius    = authoring.leashRadius,
+                keepFightingWithinMeters = authoring.keepFightingWithinMeters,
             });
         }
     }
