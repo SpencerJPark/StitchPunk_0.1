@@ -71,6 +71,12 @@ public enum BehaviorCommandType : byte
     // Fire-and-advance. Enables AiThrowRequest on the unit aimed at stateMachine.targetEntity;
     // AiThrowItemSystem launches the held item through the thrown-item pipeline next frame.
     RequestThrow,
+
+    // Fire-and-advance. FloatParam = delta added to Intoxication.level (clamped 0..1); enables Intoxication on first use.
+    AddIntoxication,
+
+    // Fire-and-advance. IntParam = (int)EmoteIcon, FloatParam = seconds (0 = 2.5). Shows at priority 2 via EmoteRules.TryShow.
+    ShowEmote,
 }
 
 // Exit conditions for LoopUntil (and later: early-exit on blocking commands).
@@ -122,6 +128,7 @@ public enum NeedType
     SelfDefence,
     BloodLust,
     Work,
+    Vice,   // LivingHumans: alcohol / vice craving — appended
 }
 
 public enum ActionType // used for animation linking
@@ -162,6 +169,11 @@ public enum ActionType // used for animation linking
     // Camp-life interactions (SmartHumanAI H1) — appended.
     EatFromSupplies,
     ListenToMusic,
+
+    // Living Humans (LH) — appended.
+    DrinkAlcohol,
+    Brawl,
+    PassOut,
 }
 
 public enum PersonalityTypes
@@ -173,6 +185,7 @@ public enum PersonalityTypes
     Anger,
     Partier,
     Rest,
+    Resourceful,   // LivingHumans — appended
 }
 
 
@@ -210,6 +223,9 @@ public enum BehaviorType : byte
     EatFromSupplies,   // SmartHumanAI H1 — appended
     ListenToMusic,
     Throw,             // SmartHumanAI H3 — appended
+    DrinkAlcohol,      // LivingHumans — appended
+    Brawl,
+    PassOut,
 }
 
 public enum StanceType

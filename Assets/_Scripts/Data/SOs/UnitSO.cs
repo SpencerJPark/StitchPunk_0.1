@@ -36,6 +36,18 @@ public class UnitSO : ScriptableObject
     [Range(0f, 0.5f)] public float wanderlustVariance   = 0.1f;
     [Range(0f, 1f)]   public float gluttony             = 0.5f;
     [Range(0f, 0.5f)] public float gluttonyVariance     = 0.1f;
+
+    [Header("Living Humans")]
+    public bool hasLivingPersonality = false;
+    [Range(0f, 1f)]   public float temper                    = 0.5f;
+    [Range(0f, 0.5f)] public float temperVariance            = 0.1f;
+    [Range(0f, 1f)]   public float vice                      = 0.5f;
+    [Range(0f, 0.5f)] public float viceVariance              = 0.1f;
+    [Range(0f, 1f)]   public float humour                    = 0.5f;
+    [Range(0f, 0.5f)] public float humourVariance            = 0.1f;
+    [Range(0f, 1f)]   public float resourcefulness           = 0.5f;
+    [Range(0f, 0.5f)] public float resourcefulnessVariance   = 0.1f;
+
     [SearchableEnum] public NeedType[] motivations;
     public int randomMotivationsTotal;
     [SearchableEnum] public NeedType[] randomMotivations;

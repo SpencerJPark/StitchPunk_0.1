@@ -40,6 +40,9 @@ public static class EnumLogNames
             case ActionType.UseHealingItem:       return "UseHealingItem";
             case ActionType.EatFromSupplies:      return "EatFromSupplies";
             case ActionType.ListenToMusic:        return "ListenToMusic";
+            case ActionType.DrinkAlcohol:         return "DrinkAlcohol";
+            case ActionType.Brawl:                return "Brawl";
+            case ActionType.PassOut:              return "PassOut";
             default:
             {
                 FixedString32Bytes fallback = default;
@@ -64,6 +67,9 @@ public static class EnumLogNames
             case BehaviorType.MeleeSingle:     return "MeleeSingle";
             case BehaviorType.EatFromSupplies: return "EatFromSupplies";
             case BehaviorType.ListenToMusic:   return "ListenToMusic";
+            case BehaviorType.DrinkAlcohol:    return "DrinkAlcohol";
+            case BehaviorType.Brawl:           return "Brawl";
+            case BehaviorType.PassOut:         return "PassOut";
             case BehaviorType.Throw:           return "Throw";
             default:
             {
@@ -94,6 +100,8 @@ public static class EnumLogNames
             case BehaviorCommandType.StopAnimation:         return "StopAnimation";
             case BehaviorCommandType.PlayActionAnimation:   return "PlayActionAnimation";
             case BehaviorCommandType.RequestSocialResponse: return "RequestSocialResponse";
+            case BehaviorCommandType.AddIntoxication:       return "AddIntoxication";
+            case BehaviorCommandType.ShowEmote:             return "ShowEmote";
             default:
             {
                 FixedString32Bytes fallback = default;

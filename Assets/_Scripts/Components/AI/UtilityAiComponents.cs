@@ -59,11 +59,16 @@ public struct Awareness : IComponentData
 {
     public float range;
 }
-public struct PersonalityAttributes : IBufferElementData // random per unit
+// value is rolled at runtime by PersonalityRollSystem from baseValue ± variance (never in the baker).
+public struct PersonalityAttributes : IBufferElementData
 {
     public PersonalityTypes personality;
     public float value;
+    public float baseValue;
+    public float variance;
 }
+// Enabled at bake and on pool reuse; PersonalityRollSystem rolls the traits and disables it.
+public struct PersonalityRollPending : IComponentData, IEnableableComponent { }
 public struct Motivation : IBufferElementData // Shared and Common
 {
     public NeedType needType;           // drives curve + spatial hash key (Interaction mode)

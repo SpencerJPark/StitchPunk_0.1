@@ -29,6 +29,8 @@ public static class BehaviorCommandCatalog
             case BehaviorCommandType.WaitForAnimEvent:
             case BehaviorCommandType.WaitForClipFinished:
             case BehaviorCommandType.RequestThrow:
+            case BehaviorCommandType.AddIntoxication:
+            case BehaviorCommandType.ShowEmote:
                 return true;
             default:
                 // SpawnEntity / ModifyStat / StartDialogue / ApplyForce — declared, not implemented.

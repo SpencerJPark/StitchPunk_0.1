@@ -93,12 +93,6 @@ public static class UnitBakingUtil
             foreach (AttackActionMapping mapping in unitSo.attacks)
                 availableAttackBuffer.Add(new AvailableAttack { actionType = mapping.action, damageSource = mapping.attack });
 
-        System.Random braveRng       = new System.Random();
-        float         braveBase      = unitSo.bravery        + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.braveryVariance;
-        float         socialBase     = unitSo.socialAffinity + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.socialAffinityVariance;
-        float         wanderlustBase = unitSo.wanderlust     + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.wanderlustVariance;
-        float         gluttonyBase   = unitSo.gluttony       + (float)(braveRng.NextDouble() * 2.0 - 1.0) * unitSo.gluttonyVariance;
-
         baker.AddComponent(entity, new StateMachine
         {
             action              = ActionType.Idle,
@@ -111,8 +105,24 @@ public static class UnitBakingUtil
         });
 
         DynamicBuffer<PersonalityAttributes> personalityBuffer = baker.AddBuffer<PersonalityAttributes>(entity);
-        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Bravery,  value = braveBase });
-        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Friendly, value = socialBase });
+        // Deterministic: the per-instance roll happens at spawn (PersonalityRollPending), not in the baker.
+        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Bravery,     value = unitSo.bravery,         baseValue = unitSo.bravery,         variance = unitSo.braveryVariance });
+        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Friendly,    value = unitSo.socialAffinity,  baseValue = unitSo.socialAffinity,  variance = unitSo.socialAffinityVariance });
+        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Anger,       value = unitSo.temper,          baseValue = unitSo.temper,          variance = unitSo.temperVariance });
+        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Partier,     value = unitSo.vice,            baseValue = unitSo.vice,            variance = unitSo.viceVariance });
+        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Comedy,      value = unitSo.humour,          baseValue = unitSo.humour,          variance = unitSo.humourVariance });
+        personalityBuffer.Add(new PersonalityAttributes { personality = PersonalityTypes.Resourceful, value = unitSo.resourcefulness, baseValue = unitSo.resourcefulness, variance = unitSo.resourcefulnessVariance });
+
+        if (unitSo.hasLivingPersonality)
+        {
+            baker.AddComponent<PersonalityRollPending>(entity);
+            baker.AddComponent(entity, new EmoteState());
+            baker.AddComponent<Conversation>(entity);
+            baker.SetComponentEnabled<Conversation>(entity, false);
+            baker.AddComponent<Intoxication>(entity);
+            baker.SetComponentEnabled<Intoxication>(entity, false);
+            behaviourBuffer.Add(DefaultBehaviour(NeedType.Vice));
+        }
     }
 
     public static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
