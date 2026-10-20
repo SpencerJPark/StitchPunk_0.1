@@ -22,12 +22,21 @@ MonoBehaviour:
   alertRadius: 0
   bravery: 0.5
   braveryVariance: 0.38
-  socialAffinity: 0.5
-  socialAffinityVariance: 0.1
+  socialAffinity: 0.65
+  socialAffinityVariance: 0.3
   wanderlust: 0.5
   wanderlustVariance: 0.1
   gluttony: 0.5
   gluttonyVariance: 0.1
+  hasLivingPersonality: 1
+  temper: 0.3
+  temperVariance: 0.3
+  vice: 0.35
+  viceVariance: 0.35
+  humour: 0.5
+  humourVariance: 0.4
+  resourcefulness: 0.3
+  resourcefulnessVariance: 0.25
   motivations: 010000000200000003000000040000000500000006000000080000000a000000
   randomMotivationsTotal: 3
   randomMotivations: 0c0000000e0000000f000000100000001100000012000000130000001400000015000000
