@@ -15,6 +15,9 @@ using Unity.Collections.LowLevel.Unsafe;
 [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 public partial struct BehaviorExecutionSystem : ISystem
 {
+    private ComponentLookup<EmoteState>         _emoteStateLookup;
+    private ComponentLookup<Intoxication>       _intoxicationLookup;
+    private ComponentLookup<Movement>           _movementLookup;
     private ComponentLookup<LocalTransform>     _transformLookup;
     private ComponentLookup<AttackRequest>      _attackRequestLookup;
     private ComponentLookup<PickupRequest>      _pickupRequestLookup;
@@ -40,6 +43,9 @@ public partial struct BehaviorExecutionSystem : ISystem
         state.RequireForUpdate<BehaviorLibrary>();
         state.RequireForUpdate<SpatialHashRegistry>();
         state.RequireForUpdate<UnitDataLibrary>();
+        _emoteStateLookup        = state.GetComponentLookup<EmoteState>(false);
+        _intoxicationLookup      = state.GetComponentLookup<Intoxication>(false);
+        _movementLookup          = state.GetComponentLookup<Movement>(true);
         _transformLookup         = state.GetComponentLookup<LocalTransform>(true);
         _attackRequestLookup     = state.GetComponentLookup<AttackRequest>(false);
         _pickupRequestLookup     = state.GetComponentLookup<PickupRequest>(false);
@@ -63,6 +69,9 @@ public partial struct BehaviorExecutionSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        _emoteStateLookup.Update(ref state);
+        _intoxicationLookup.Update(ref state);
+        _movementLookup.Update(ref state);
         _transformLookup.Update(ref state);
         _attackRequestLookup.Update(ref state);
         _pickupRequestLookup.Update(ref state);
@@ -116,6 +125,9 @@ public partial struct BehaviorExecutionSystem : ISystem
             animEventOutputLookup    = _animEventOutputLookup,
             animEventsPendingLookup  = _animEventsPendingLookup,
             playbackLayerLookup      = _playbackLayerLookup,
+            emoteStateLookup         = _emoteStateLookup,
+            intoxicationLookup       = _intoxicationLookup,
+            movementLookup           = _movementLookup,
             waypointCells            = registry.waypointCells,
             deltaTime                = deltaTime,
             ecb                      = ecb,
@@ -163,6 +175,10 @@ public partial struct BehaviorExecutionJob : IJobEntity
     [NativeDisableParallelForRestriction] public ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
     [NativeDisableParallelForRestriction] public BufferLookup<AnimationCommand>     animationCommandLookup;
 
+    [NativeDisableParallelForRestriction] public ComponentLookup<EmoteState>   emoteStateLookup;
+    [NativeDisableParallelForRestriction] public ComponentLookup<Intoxication> intoxicationLookup;
+    [ReadOnly] public ComponentLookup<Movement> movementLookup;
+
     public float  deltaTime;
     public double timestamp;
     public bool   loggingEnabled;
@@ -205,6 +221,33 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 StateMachineTransitions.ResetToIdle(ref stateMachine);
                 break;
         }
+    }
+
+    private void RunShowEmote(Entity unit, in BehaviorCommand cmd)
+    {
+        if (!emoteStateLookup.HasComponent(unit)) return;
+        float seconds = cmd.FloatParam > 0f ? cmd.FloatParam : 2.5f;
+        EmoteState emoteState = emoteStateLookup[unit];
+        if (EmoteRules.TryShow(ref emoteState, (EmoteIcon)cmd.IntParam, seconds, EmoteRules.ConversationPriority))
+            emoteStateLookup[unit] = emoteState;
+    }
+
+    private void RunAddIntoxication(Entity unit, in BehaviorCommand cmd)
+    {
+        if (!intoxicationLookup.HasComponent(unit)) return;
+        float delta = cmd.FloatParam;
+        Intoxication intoxication = intoxicationLookup[unit];
+        bool wasEnabled = intoxicationLookup.IsComponentEnabled(unit);
+        intoxication.level = math.saturate(intoxication.level + delta);
+        // Capture the sober speed only on the sober -> drunk edge so the wobble system can restore it.
+        if (!wasEnabled && delta > 0f)
+        {
+            if (movementLookup.HasComponent(unit))
+                intoxication.baseMoveSpeed = movementLookup[unit].moveSpeed;
+            intoxication.nextDrunkEmoteIn = 2f;
+            intoxicationLookup.SetComponentEnabled(unit, true);
+        }
+        intoxicationLookup[unit] = intoxication;
     }
 
     private void RunExecute(
@@ -327,6 +370,14 @@ public partial struct BehaviorExecutionJob : IJobEntity
 
             case BehaviorCommandType.PlaySound:
                 MiscCommands.RunPlaySound(ref context, unit, in cmd);
+                break;
+
+            case BehaviorCommandType.ShowEmote:
+                RunShowEmote(unit, in cmd);
+                break;
+
+            case BehaviorCommandType.AddIntoxication:
+                RunAddIntoxication(unit, in cmd);
                 break;
 
             default:

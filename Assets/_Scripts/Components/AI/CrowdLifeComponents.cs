@@ -25,6 +25,8 @@ public struct Intoxication : IComponentData, IEnableableComponent
     public float baseMoveSpeed;
     public float brawlCooldown;
     public float nextDrunkEmoteIn;
+    // DrunkStumbleSystem removes last frame's wobble before adding this frame's, so the offset never accumulates on a target the follower didn't rewrite.
+    public Unity.Mathematics.float3 appliedWobble;
 }
 
 // Singleton written by EmotePresentationSystem: how crowded the view is, read to thin emotes.

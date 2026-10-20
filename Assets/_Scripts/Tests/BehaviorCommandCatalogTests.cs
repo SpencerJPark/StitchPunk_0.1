@@ -29,6 +29,8 @@ namespace StitchPunk.Tests
                 BehaviorCommandType.WaitForAnimEvent,
                 BehaviorCommandType.WaitForClipFinished,
                 BehaviorCommandType.RequestThrow,
+                BehaviorCommandType.AddIntoxication,
+                BehaviorCommandType.ShowEmote,
             };
 
         private static readonly HashSet<BehaviorCommandType> ExpectedBlocking =

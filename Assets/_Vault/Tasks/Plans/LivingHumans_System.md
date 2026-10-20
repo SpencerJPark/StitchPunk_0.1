@@ -156,11 +156,37 @@ public struct PersonalitySeed : IComponentData { public uint value; }
 public struct EmotePoolSlot : IComponentData { public int slotIndex; public float shownFor; public Entity owner; }
 public struct EmotePoolConfig : IComponentData { public int poolSize; public float viewDistance; public float headHeight; public int firstIconMaterialIndex; }
 
-// Utils/CrowdLife/ — NEW pure static, Burst-compatible, testable
-EmoteRules.TryShow(ref EmoteState state, EmoteIcon icon, float seconds, byte priority) -> bool
-ConversationEmoteRules.PairMood(in traitsA, in traitsB) / BeatMood(...) / PickEmote(...) / IsArgument(...)
-CrowdLifeBudget.Budget(int visibleHumans, int poolSize) / BeatIntervalScale(int visibleHumans)
-PersonalityTraitLookup.Get(in DynamicBuffer<PersonalityAttributes>, PersonalityTypes) -> float (0.5 if missing)
+// Utils/CrowdLife/ — NEW pure static, Burst-compatible, testable (pinned 2026-10-20 at W2 start)
+// File ConversationEmoteRules.cs:
+public struct ConversationTraits { public float sociability; public float temper; public float humour; }
+public static class PersonalityTraitLookup {
+    public static float Get(in DynamicBuffer<PersonalityAttributes> traits, PersonalityTypes trait);  // 0.5 if missing
+    public static ConversationTraits ConversationTraitsOf(in DynamicBuffer<PersonalityAttributes> traits);
+}
+public static class ConversationEmoteRules {
+    public const int MaxBeats = 64;
+    public static uint  Hash(uint pairSeed, int beatIndex);
+    public static float Hash01(uint pairSeed, int beatIndex);
+    public static float PairMood(in ConversationTraits a, in ConversationTraits b);           // LH-D11 formula, clamp -1..1
+    public static float BeatMood(float pairMood, uint pairSeed, int beatIndex);               // pairMood + Σ drift(0..beatIndex), clamp -1..1
+    public static float BeatLength(uint pairSeed, int beatIndex, float beatIntervalScale);
+    public static int   BeatIndexAt(double secondsSinceStart, uint pairSeed, float beatIntervalScale); // walks beats, capped at MaxBeats
+    public static bool  IsSpeaker(bool isLowerIndexOfPair, int beatIndex);                    // lower index speaks on even beats
+    public static EmoteIcon PickEmote(float mood, in ConversationTraits speaker, float intoxication, uint hash);
+    public static EmoteIcon PickReaction(float mood, in ConversationTraits listener, uint hash); // None about half the time
+    public static bool  IsArgument(float mood, in ConversationTraits a, in ConversationTraits b);
+}
+// File CrowdLifeBudget.cs:
+public static class CrowdLifeBudget {
+    public const int UncrowdedVisibleHumans = 12;
+    public static int   Budget(int visibleHumans, int poolSize);
+    public static float BeatIntervalScale(int visibleHumans);
+}
+public static class EmoteRules {
+    public const byte AmbientPriority = 1; public const byte ConversationPriority = 2; public const byte ArgumentPriority = 3;
+    public static bool TryShow(ref EmoteState state, EmoteIcon icon, float seconds, byte priority); // replaces if priority >= current or current expired; sets duration+remaining
+}
+// PersonalityRollSystem triggers on PersonalityRollPending enabled OR NewlySpawned enabled (pool reuse re-enables NewlySpawned), so UnitSpawnerSystem needs no edit.
 
 // Data/SOs/UnitSO.cs — ADD
 bool hasLivingPersonality; float temper, temperVariance, vice, viceVariance, humour, humourVariance, resourcefulness, resourcefulnessVariance;

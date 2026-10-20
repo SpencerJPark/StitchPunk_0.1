@@ -37,7 +37,7 @@ public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
 // --------------------------------------------------------------------------------------------
 // SimulationSystemGroup pipeline:
-// GameManager → Player → Cutscene → UtilityAI → MinionActionSelection → ActionSelection → StateMachine → Item
+// GameManager → Player → Cutscene → UtilityAI → MinionActionSelection → ActionSelection → StateMachine → CrowdLife → Item
 //   → Movement → Buildings → PlayerResource → Combat → Health → Design → Animation
 // (Adjacent edges below are asserted by SystemGroupOrderTests — keep them explicit.)
 // --------------------------------------------------------------------------------------------
@@ -106,6 +106,12 @@ public partial class StateMachineSystemGroup : GameSceneSystemGroup { }
 
         [UpdateInGroup(typeof(StateMachineSystemGroup))]
         public partial class ActionExecutionSystemGroup : ComponentSystemGroup { }
+
+// Living Humans flavour (conversation beats, intoxication, emote timers). After decisions/execution so it reacts to this frame's StateMachine; before items/movement.
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(StateMachineSystemGroup))]
+[UpdateBefore(typeof(ItemSystemGroup))]
+public partial class CrowdLifeSystemGroup : GameSceneSystemGroup { }
 
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateBefore(typeof(MovementSystemGroup))]
