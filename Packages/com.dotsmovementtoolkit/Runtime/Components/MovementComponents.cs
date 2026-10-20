@@ -22,6 +22,9 @@ namespace DotsMovementToolkit
         public float groundOffset;
         // Set by UnitGravitySystem each frame. Read by ThrownItemSystem to stop horizontal movement on landing.
         public bool isGrounded;
+        // Last position this entity stood on ground; UnitGravitySystem returns it there if it ever falls through the floor.
+        public float3 lastGroundedPosition;
+        public bool   hasLastGroundedPosition;
     }
 
     public struct SetupUnitMoverDefaultPosition : IComponentData {

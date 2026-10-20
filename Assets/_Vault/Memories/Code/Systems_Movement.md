@@ -146,3 +146,11 @@ Traps worth knowing:
   There is also a hard internal ceiling of 60k quads, since an extruded cell costs five.
 - In a player build `Hidden/DotsMovementToolkit/NavGridDebug` must be in Project Settings >
   Graphics > Always Included Shaders, or the system logs one warning and draws nothing.
+
+## Gravity cannot lose the floor (fixed 2026-10-19)
+- Units fell through the world forever after a frame hitch. A falling unit jumped straight to `y + v·dt`, so one 0.33 s frame carried it about 4.5 m under the floor. The ground ray started only 0.2 m above the feet, so from below the floor it never hit again.
+- `UnitGravitySystem` now delegates to the pure `GravityStep` helper (EditMode-tested in `GravityStepTests`):
+  - The ray starts `PROBE_HEIGHT` (0.5 m) above the feet and reaches `SweepDistance` below, which is always past this frame's fall step.
+  - `Resolve` lands the entity on any ground found this frame instead of passing it.
+  - A unit or item more than `RECOVERY_FALL_DISTANCE` (20 m) below `Gravity.lastGroundedPosition`, with nothing underneath, is put back there.
+- Raising `PROBE_HEIGHT` risks snapping units onto ground-layer ledges above their feet. Keep it near step height.

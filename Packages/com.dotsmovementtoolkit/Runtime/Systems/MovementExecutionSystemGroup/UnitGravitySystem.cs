@@ -38,8 +38,7 @@ public partial struct UnitGravitySystem : ISystem
             deltaTime       = deltaTime,
             collisionWorld  = collisionWorld,
             collisionFilter = filter,
-            maxCheckDist    = 3f,
-            snapTolerance   = 0.1f
+            maxCheckDist    = 3f
         };
 
         job.ScheduleParallel();
@@ -56,65 +55,48 @@ public partial struct UnitGravityJob : IJobEntity
     [ReadOnly] public CollisionFilter collisionFilter;
 
     public float maxCheckDist;
-    public float snapTolerance;
 
     public void Execute(
         ref LocalTransform transform,
         ref Gravity gravity)
     {
-        float3 pos = transform.Position;
-
-        // Cast down from just above feet
-        float3 rayStart = pos + new float3(0f, 0.2f, 0f);
-        float3 rayEnd   = pos - new float3(0f, maxCheckDist, 0f);
+        float3 position = transform.Position;
+        float3 up       = new float3(0f, 1f, 0f);
 
         RaycastInput input = new RaycastInput
         {
-            Start  = rayStart,
-            End    = rayEnd,
+            Start  = position + up * GravityStep.PROBE_HEIGHT,
+            End    = position - up * GravityStep.SweepDistance(gravity.verticalVelocity, gravity.fallSpeed, deltaTime, maxCheckDist),
             Filter = collisionFilter
         };
 
-        bool hitGround = collisionWorld.CastRay(input, out RaycastHit hit);
-
-        if (hitGround)
+        bool hasGround = collisionWorld.CastRay(input, out RaycastHit hit);
+        float groundY = 0f;
+        if (hasGround)
         {
             float3 hitPoint = math.lerp(input.Start, input.End, hit.Fraction);
-            float groundY = hitPoint.y + gravity.groundOffset;
-
-            float distToGround = pos.y - groundY;
-
-            if (distToGround > snapTolerance)
-            {
-                // We're above ground by more than tolerance → apply gravity
-                gravity.verticalVelocity -= gravity.fallSpeed * deltaTime;
-                pos.y += gravity.verticalVelocity * deltaTime;
-                gravity.isGrounded = false;
-            }
-            else if (distToGround < -snapTolerance)
-            {
-                // We somehow ended up inside ground → snap up
-                pos.y = groundY;
-                gravity.verticalVelocity = 0f;
-                gravity.isGrounded = true;
-            }
-            else
-            {
-                // We're close enough: snap & zero
-                pos.y = groundY;
-                gravity.verticalVelocity = 0f;
-                gravity.isGrounded = true;
-            }
+            groundY = hitPoint.y + gravity.groundOffset;
         }
-        else
+
+        GravityStepResult result = GravityStep.Resolve(position.y, gravity.verticalVelocity, gravity.fallSpeed, deltaTime, hasGround, groundY);
+
+        position.y               = result.positionY;
+        gravity.verticalVelocity = result.verticalVelocity;
+        gravity.isGrounded       = result.isGrounded;
+        transform.Position       = position;
+
+        if (result.isGrounded)
         {
-            // No ground below within range → freefall
-            gravity.verticalVelocity -= gravity.fallSpeed * deltaTime;
-            pos.y += gravity.verticalVelocity * deltaTime;
-            gravity.isGrounded = false;
+            gravity.lastGroundedPosition    = transform.Position;
+            gravity.hasLastGroundedPosition = true;
         }
-
-        transform.Position = pos;
+        else if (!hasGround && gravity.hasLastGroundedPosition
+                 && transform.Position.y < gravity.lastGroundedPosition.y - GravityStep.RECOVERY_FALL_DISTANCE)
+        {
+            // Last-resort net: a unit that fell through the world comes back instead of falling forever.
+            transform.Position       = gravity.lastGroundedPosition;
+            gravity.verticalVelocity = 0f;
+        }
     }
 }
 }
