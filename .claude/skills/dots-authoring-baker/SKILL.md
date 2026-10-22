@@ -7,7 +7,7 @@ description: Stitch Punk conventions for a MonoBehaviour + nested Baker under As
 
 Standard `TransformUsageFlags` / `AddComponent` / `DependsOn` usage is baseline DOTS — copy the shape of a
 neighbouring file. Category folders under `_Scripts/Authoring/`: `AI/ Animation/ EntityLibraries/ Hazards/
-Items/ Particles/ Player/ Registary/ Save/ Spawners/ Structures/ Tags/ Units/`.
+Items/ Particles/ Player/ Registry/ Save/ Spawners/ Structures/ Tags/ Units/`.
 
 ## Project rules
 

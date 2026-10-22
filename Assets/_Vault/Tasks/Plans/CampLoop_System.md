@@ -190,7 +190,7 @@ The library that feeds `UnitPrefabEntry` must list both. T0 finds the list.
 
   Each button writes its request onto the workstation or player entity. Reads ECS each `LateUpdate`, the way `MinionGroupHUD` does.
 - **`CampLoopGameOverUI`** (`UI/`): when `CampLoopGameOver` is enabled, a full-screen "Your workstation was destroyed" panel with a Restart button (`SceneManager.LoadScene` of the active scene).
-- **Input:** add `DeployWorkstation` to the `Player` map in `Assets/PlayerControlls.inputactions` (`<Keyboard>/b`, `<Gamepad>/select`), with an `OnDeployWorkstation` handler in `PlayerInputManager` and the binding on the scene's `PlayerInput` events.
+- **Input:** add `DeployWorkstation` to the `Player` map in `Assets/Settings/Input/PlayerControls.inputactions` (`<Keyboard>/b`, `<Gamepad>/select`), with an `OnDeployWorkstation` handler in `PlayerInputManager` and the binding on the scene's `PlayerInput` events.
 
 ## 7. Phase 2 — Playtest scene (CL-D13)
 
@@ -245,7 +245,7 @@ The workstation prefab is `Assets/Prefabs/Buildings/Workstation.prefab`: a place
 - `Prefabs/Buildings/Workstation.prefab`, `ScriptableObjects/Units/PlayerZombieBrute.asset`, `PlayerZombieRunner.asset`
 - `Scenes/CampLoop.unity`, `Scenes/SubScenes/CampLoop_Sub.unity`
 
-**Phase 2, edited:** `Authoring/Player/PlayerControllerAuthoring.cs`, `MonoBehaviours/Managers/PlayerInputManager.cs`, `Assets/PlayerControlls.inputactions`, `Components/Spawners/SpawnerComponents.cs`, `MonoBehaviours/DebugResourceMenu.cs` (station damage button), and the unit library asset. Vault: `Systems.md`, `Components.md`, `Contracts.md`, `Gotchas.md`, `Plans/README.md`.
+**Phase 2, edited:** `Authoring/Player/PlayerControllerAuthoring.cs`, `MonoBehaviours/Managers/PlayerInputManager.cs`, `Assets/Settings/Input/PlayerControls.inputactions`, `Components/Spawners/SpawnerComponents.cs`, `MonoBehaviours/DebugResourceMenu.cs` (station damage button), and the unit library asset. Vault: `Systems.md`, `Components.md`, `Contracts.md`, `Gotchas.md`, `Plans/README.md`.
 
 ## 10. Fixtures (PlayMode, manual `World`, revert-to-fail each)
 
