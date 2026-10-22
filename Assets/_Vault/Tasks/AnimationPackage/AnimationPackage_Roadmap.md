@@ -78,7 +78,7 @@ Binding reference: [`Docs/AnimationToolkit/EditorStyleGuide.md`](../../../../Doc
 
 - [x] **A109 — Consistency pass 3** (`0.61.0`, merged 2026-09-30) — one button height, boxed icon header actions, outlined destructive buttons, Flipbooks *Make editable*.
 
-> **Spec files cleared 2026-09-30.** Every spec above is built; the files were removed from this folder in `c64bb0b5`. Read one back with `git show c64bb0b5^:Assets/_Vault/Tasks/AnimationPackage/<name>`. **Next: RC1** — `Assets/_Vault/Spencer/next-session-rc1-spec-prompt.md`.
+> **Spec files cleared 2026-09-30.** Every spec above is built; the files were removed from this folder in `c64bb0b5`. Read one back with `git show c64bb0b5^:Assets/_Vault/Tasks/AnimationPackage/<name>`. **Next: RC1** — `Assets/_Vault/Spencer/Archive/next-session-rc1-spec-prompt.md`.
 
 ## 2. Standing owner calls these specs inherit (do not re-ask)
 

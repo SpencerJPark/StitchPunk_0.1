@@ -26,6 +26,7 @@ An [Obsidian](https://obsidian.md) vault; start at `_Vault/Home.md`.
 - `Memories/Code/` — the per-folder notes above. `Memories/Design/` — design thinking. `Memories/Marketing/` — copy and tone.
 - `Tasks/Plans/` — approved specs awaiting a build. `Tasks/Verification/` — built, awaiting a play-test. `Tasks/Completed/` — done. `Tasks/Claude/` — audits and handoffs.
 - `Raw/` — unprocessed ideas; drop pasted ideas here.
+- `Spencer/` — owner-only tasks and the next-session prompts still to run; spent prompts go to `Spencer/Archive/`.
 
 **Status lives in the vault note or the task file, never in a CLAUDE.md.** This file previously carried a per-system status section that drifted 211 commits out of date and contradicted `Systems_AI.md`; do not reintroduce one.
 

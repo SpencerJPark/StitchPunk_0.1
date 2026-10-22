@@ -18,7 +18,7 @@ Read, in order:
 2. `Docs/AnimationToolkit/EditorStyleGuide.md` whole, then both specs whole.
 3. `Assets/_Vault/Tasks/AnimationPackage/A104_StyleFoundation_Spec.md` §7 — the S3 audit table, findings F1–F9 and
    the `### For integration` block naming every shared class, builder and token the tabs must reuse.
-4. `Assets/_Vault/Spencer/next-session-a104-prompt.md`: its lead contract, gate syntax, cautions and inherited
+4. `Assets/_Vault/Spencer/Archive/next-session-a104-prompt.md`: its lead contract, gate syntax, cautions and inherited
    mechanics carry over verbatim, with the additions below.
 5. `Assets/_Vault/Memories/Code/AnimationToolkit.md` → the **A104 section** (token, selector and material traps) and
    "A session CAN see the editor UI" (capture recipe, focus trap, linear colour trap).

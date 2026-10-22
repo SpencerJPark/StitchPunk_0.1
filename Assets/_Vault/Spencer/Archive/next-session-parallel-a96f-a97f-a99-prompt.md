@@ -26,7 +26,7 @@ Read, in order:
 3. The three specs' §0, §2 and §5 only.
 4. The newest sections of `Assets/_Vault/Memories/Code/AnimationToolkit.md`: Materials (A96), Retarget (A97), Capture (A98) and all
    three "Parallel batch" lessons.
-5. The previous prompt, `Assets/_Vault/Spencer/next-session-parallel-a96-a98-prompt.md`: its lead contract, gate syntax, cautions and
+5. The previous prompt, `Assets/_Vault/Spencer/Archive/next-session-parallel-a96-a98-prompt.md`: its lead contract, gate syntax, cautions and
    inherited mechanics carry over unless this file says otherwise. Copy the lead contract into each lead's prompt verbatim.
 
 **Owner pre-answers:**

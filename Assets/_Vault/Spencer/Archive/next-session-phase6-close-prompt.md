@@ -19,10 +19,10 @@ a spec as written will rebuild finished work.** So this session reconciles first
    `Assets/_Vault/Memories/Code/WorktreeToolkit.md` (all the traps; 17, 18, 19 and 27 bite this run).
 2. `Assets/_Vault/Tasks/Claude/StyleGuideReferenceImage.png` — look at it first — then
    `Docs/AnimationToolkit/EditorStyleGuide.md` whole.
-3. `Assets/_Vault/Spencer/ui-pass-handoff-2026-09-15.md` whole: what the trunk passes already built (§1–§3b), the
+3. `Assets/_Vault/Spencer/Archive/ui-pass-handoff-2026-09-15.md` whole: what the trunk passes already built (§1–§3b), the
    facts that cost real time (§5), and my standing directions (§6). Then `HANDOFF.md` §4's A108 paragraph only.
 4. The three specs whole.
-5. `Assets/_Vault/Spencer/next-session-a105-a106-prompt.md` — reuse its lead contract, gate syntax, batch additions
+5. `Assets/_Vault/Spencer/Archive/next-session-a105-a106-prompt.md` — reuse its lead contract, gate syntax, batch additions
    and "already done" list verbatim; this prompt only adds what changed since.
 6. `Assets/_Vault/Memories/Code/AnimationToolkit.md` → the A104 and A108 sections and the capture recipe.
 

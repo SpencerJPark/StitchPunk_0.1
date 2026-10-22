@@ -172,7 +172,7 @@ mapped, 14 on unmapped nodes); Create wrote a `ToolkitSpriteUnlit` material with
 **Batch totals (2026-09-14, integration `e7ae55f9`):** EditMode 857 (Conformance_A the standing failure), PlayMode 285. The
 same day the owner accepted A93F T10, A94F T12 and A95F T10 ("these look good for now"). Answers the same day: A98 T13 accepted; A96 T13 and A97
 T11 "yes", reworked as A96F (`0.49.0`) and A97F (`0.50.0`). Next: A96F, A97F and A99 (`0.51.0`) in parallel, then A100 (`0.52.0`)
-(`Assets/_Vault/Spencer/next-session-parallel-a96f-a97f-a99-prompt.md`).
+(`Assets/_Vault/Spencer/Archive/next-session-parallel-a96f-a97f-a99-prompt.md`).
 
 **A95F (0.45.0), built 2026-09-14, T10 accepted 2026-09-14.** Sprite Sheets is a names layer over the project's existing
 Texture2DArrays. Every array appears in the catalog; opening one shows GPU-copied layer thumbnails with frames numbered
@@ -199,7 +199,7 @@ ping on click and open the owner through `EventsPanel.OpenOwnerRequested`, which
 the key-filter loop, and the owner's untracked damage system now reads `AnimEvents.Damage` through it.
 
 **Batch totals (2026-09-14, integration `f67b47e3`):** EditMode 851 (Conformance_A the standing failure), PlayMode
-285. Next: A96, A97 and A98 at `0.46.0`–`0.48.0` (`Assets/_Vault/Spencer/next-session-parallel-a96-a98-prompt.md`).
+285. Next: A96, A97 and A98 at `0.46.0`–`0.48.0` (`Assets/_Vault/Spencer/Archive/next-session-parallel-a96-a98-prompt.md`).
 
 **Owner answers (2026-09-14, later).** A87's follow-up, A88 T9 and A92 T10 are accepted without a look ("assume they
 pass unless something is really game breaking"). A94F now also gives the tab a "Health (n)" error count and removes the
@@ -214,7 +214,7 @@ deleted (`A93F_EventsTabRework_Spec.md`, `0.43.0`). Health: a big Scan button, a
 with fix actions, Delete behind confirmations for H01, H05 and stale H06 textures (`A94F_HealthTwoPanel_Spec.md`,
 `0.44.0`). Sprite Sheets: every project `Texture2DArray` listed, frames named by number until renamed, thumbnails by
 GPU `CopyTexture` (`A95F_SheetsFromArrays_Spec.md`, `0.45.0`). Batch prompt:
-`Assets/_Vault/Spencer/next-session-parallel-a93f-a95f-prompt.md`; A96–A98 follow at `0.46.0`–`0.48.0`.
+`Assets/_Vault/Spencer/Archive/next-session-parallel-a93f-a95f-prompt.md`; A96–A98 follow at `0.46.0`–`0.48.0`.
 
 **Built (2026-09-14): Amendment A95 — Sprite Sheets tab — 0.42.0**, **T15 owner checkpoint open.** Spec:
 `Assets/_Vault/Tasks/AnimationPackage/A95_SpriteSheetsTab_Spec.md` (§7: drifts, integration, drive). Built in a

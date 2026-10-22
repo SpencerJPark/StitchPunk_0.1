@@ -10,5 +10,8 @@ These are tasks only Spencer can do: art, audio, design decisions, and content r
 | [[Spencer/Art_Assets\|Art_Assets]] | Environments, characters, and animations needed per demo phase |
 | [[Spencer/Audio\|Audio]] | Music, SFX, voice acting needed |
 | [[Spencer/Content_Recording\|Content_Recording]] | Devlog videos and social content tied to development milestones |
+| [[Spencer/Animations_Needed\|Animations_Needed]] | Animation clips the game is waiting on |
+
+`next-session-*-prompt.md` files at this level are still to be run; once a prompt's work has landed it moves to `Archive/`.
 
 **Cross-reference:** See [[Demo/Phases]] for which scenes each asset is needed in.

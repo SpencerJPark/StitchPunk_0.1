@@ -1,6 +1,6 @@
 You are the **stage orchestrator** for a parallel batch on the DOTS Animation Toolkit package
 (Packages/com.dotsanimationtoolkit, version 0.45.0 after the A93F–A95F follow-up batch; run
-`Assets/_Vault/Spencer/next-session-parallel-a93f-a95f-prompt.md` first). Three specs run at once in their own
+`Assets/_Vault/Spencer/Archive/next-session-parallel-a93f-a95f-prompt.md` first). Three specs run at once in their own
 git worktrees, each under a `spec-lead`, through the Worktree Toolkit (`/worktree-run`,
 Packages/com.worktreetoolkit). You alone touch mcp__UnityMCP__*, merge, integrate, drive and close.
 

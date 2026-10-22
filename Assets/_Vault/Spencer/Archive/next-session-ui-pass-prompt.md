@@ -3,7 +3,7 @@ and the working tree is clean.
 
 **Read first, in this order:**
 
-1. `Assets/_Vault/Spencer/ui-pass-handoff-2026-09-15.md` — what shipped, what is left, the loop that works, and the
+1. `Assets/_Vault/Spencer/Archive/ui-pass-handoff-2026-09-15.md` — what shipped, what is left, the loop that works, and the
    facts that cost real time. Do not re-derive them.
 2. `Assets/_Vault/Tasks/Claude/StyleGuideReferenceImage.png` — my own capture of the rebuilt Ragdoll tab. **Look at
    the image.** It is the target composition.

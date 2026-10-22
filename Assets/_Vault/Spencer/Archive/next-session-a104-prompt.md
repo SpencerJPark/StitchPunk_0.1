@@ -17,7 +17,7 @@ Read, in order:
    `Assets/_Vault/Memories/Code/WorktreeToolkit.md` (all traps).
 2. `Docs/AnimationToolkit/EditorStyleGuide.md` whole, then the A104 spec whole.
 3. `Assets/_Vault/Tasks/AnimationPackage/AnimationPackage_Roadmap.md` §2 and §3.
-4. `Assets/_Vault/Spencer/next-session-a103-prompt.md`: its lead contract, gate syntax, cautions and inherited
+4. `Assets/_Vault/Spencer/Archive/next-session-a103-prompt.md`: its lead contract, gate syntax, cautions and inherited
    mechanics carry over verbatim, with the A104 additions below.
 5. `Assets/_Vault/Memories/Code/AnimationToolkit.md` → "A session CAN see the editor UI" (the capture recipe, the
    focus trap, the linear colour trap).
@@ -81,7 +81,7 @@ As in the A103 prompt: stay quiet; gates run through the broker; never refresh o
    Close texts go through a scratchpad Python file. Commit; push.
 4. **Checkpoint S5.** Show the owner four before/after pairs (Flipbooks, Ragdoll, Health, Clip Sets) and ask A104's
    Q1–Q3. Apply the answers as a follow-up commit, or record them in A105/A106 §1 before those specs run.
-5. **End:** write `Assets/_Vault/Spencer/next-session-a105-a106-prompt.md` for the parallel A105 + A106 batch, in this
+5. **End:** write `Assets/_Vault/Spencer/Archive/next-session-a105-a106-prompt.md` for the parallel A105 + A106 batch, in this
    file's shape with two leads and the owner's S5 answers folded in.
 
 ## Cautions

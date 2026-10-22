@@ -16,7 +16,7 @@ readiness, not features** (`Assets/_Vault/Tasks/Claude/Code_Audit_2026-09.md`).
 ## Steps
 
 1. **Decide the licence first.** Asset Store EULA only, or your own on top. It is the one call that blocks the rest.
-2. **Spec session.** Fresh session, paste `Assets/_Vault/Spencer/next-session-rc1-spec-prompt.md`. It writes
+2. **Spec session.** Fresh session, paste `Assets/_Vault/Spencer/Archive/next-session-rc1-spec-prompt.md`. It writes
    `RC1_ReleaseCandidate_Spec.md` in this folder plus the build prompt. It reconciles the defects table against
    `0.61.0` first, records settled calls as `RC1-D<n>`, and leaves a short "ask the owner first" list — answer it.
 3. **Build session.** Paste the build prompt; it runs `/worktree-run` (a spec-lead per worktree, Sonnet workers).

@@ -18,7 +18,7 @@ Read, in order:
 2. The spec **whole**. §11 holds the twelve settled decisions PR-D1–PR-D12; §12 the waves; §6 the three owner
    ← DECISION markers, which are HUD presentation only and never block code.
 3. `Assets/_Vault/Memories/Code/RULES.md`, `Systems.md`, `Components.md`, `Contracts.md`, `Gotchas.md`.
-4. `Assets/_Vault/Spencer/next-session-parallel-a102-despawn-minionorders-prompt.md`: the lead contract, the
+4. `Assets/_Vault/Spencer/Archive/next-session-parallel-a102-despawn-minionorders-prompt.md`: the lead contract, the
    game-side substitutions, the gate syntax and the hand-gated PlayMode mechanics carry over verbatim unless this
    file says otherwise. Copy the lead contract into the lead's prompt with those game-side substitutions applied.
 

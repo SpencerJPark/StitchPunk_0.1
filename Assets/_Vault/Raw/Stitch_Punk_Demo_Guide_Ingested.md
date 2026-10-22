@@ -16,10 +16,10 @@ The raw demo guide `.docx` has been fully ingested into the vault.
 - [[Tasks/Claude/Code_Bugs]] — known bugs with fix instructions
 - [[Tasks/Claude/Code_Systems]] — new systems in build order
 - [[Tasks/Claude/Marketing_Copy]] — copy + script tasks
-- [[Tasks/Spencer/Design_Decisions]] — open design questions blocking implementation
-- [[Tasks/Spencer/Art_Assets]] — all environments, characters, animations needed
-- [[Tasks/Spencer/Audio]] — music, SFX, voice acting
-- [[Tasks/Spencer/Content_Recording]] — devlog recording schedule
+- [[Spencer/Design_Decisions]] — open design questions blocking implementation
+- [[Spencer/Art_Assets]] — all environments, characters, animations needed
+- [[Spencer/Audio]] — music, SFX, voice acting
+- [[Spencer/Content_Recording]] — devlog recording schedule
 - [[Memories/Marketing/Strategy]] — audience building strategy
 
 ## Source Summary

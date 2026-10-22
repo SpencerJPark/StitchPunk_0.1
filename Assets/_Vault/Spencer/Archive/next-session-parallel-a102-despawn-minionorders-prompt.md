@@ -26,7 +26,7 @@ Read, in order:
 2. `Assets/_Vault/Tasks/AnimationPackage/AnimationPackage_Roadmap.md` §3 (the execution protocol) and §2.
 3. `Assets/_Vault/Tasks/Claude/Code_Audit_2026-09.md` §1, §3, §5.
 4. The three specs: A102 whole; the two game specs' §12 whole and §1–§2 for context. `Assets/_Vault/Memories/Code/RULES.md`.
-5. `Assets/_Vault/Spencer/next-session-parallel-a96f-a97f-a99-prompt.md` and the a96–a98 prompt it points at: the
+5. `Assets/_Vault/Spencer/Archive/next-session-parallel-a96f-a97f-a99-prompt.md` and the a96–a98 prompt it points at: the
    lead contract, gate syntax, cautions and inherited mechanics carry over unless this file says otherwise. Copy the
    lead contract into each lead's prompt verbatim, with the game-side substitutions below.
 

@@ -17,7 +17,7 @@ Why parallel:
 - The Unity probes A95F needs (S-D4 layer thumbnails, S-D9 grid import order and compressed import) were run on
   2026-09-14 and are recorded in that spec.
 
-**This file gives what differs from `Assets/_Vault/Spencer/next-session-parallel-a96-a98-prompt.md`.** Use that
+**This file gives what differs from `Assets/_Vault/Spencer/Archive/next-session-parallel-a96-a98-prompt.md`.** Use that
 file's **Lead contract** (verbatim, including the gate syntax with namespace-qualified names and
 `PackagingConformanceTests` in every wave gate), **Phase 2**, **Cautions** and **Inherited mechanics** sections
 unchanged. Read its Phase 3 for the merge, integration and close shape.
