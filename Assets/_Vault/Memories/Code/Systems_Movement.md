@@ -156,3 +156,10 @@ Traps worth knowing:
   - `Resolve` lands the entity on any ground found this frame instead of passing it.
   - A unit or item more than `RECOVERY_FALL_DISTANCE` (20 m) below `Gravity.lastGroundedPosition`, with nothing underneath, is put back there.
 - Raising `PROBE_HEIGHT` risks snapping units onto ground-layer ledges above their feet. Keep it near step height.
+
+## Characters path with A* (package 0.2.0, 2026-10-23)
+- `MovementAPI.BeginPathRequest` defaults to `PathfindingMode.AStar`, and `MaleCitizen.prefab` (the one prefab carrying `PathfindingAuthoring`; every unit is a variant) is set to it. D* Lite stays as an opt-in mode, single-agent only: all its agents share one search grid, so before this every unit but the latest requester walked someone else's path. The package README's "Pathfinding modes" section covers how the modes behave.
+- `DeathSystem` and `SpawnStateInitSystem` disable `AStarFollower` through a `ComponentLookup`, not a `[WithPresent]` parameter, so a unit baked before the component existed still dies and spawns. Keep it that way: a `[WithPresent(typeof(AStarFollower))]` would silently drop those units from `DeathJob`.
+- **Game code re-requests a path every frame.** `MovementCommands.RunMoveTo` reads `!pathRequestEnabled` as "not pathing yet", but every router disables the request when it consumes it. A* absorbs this (same goal cell on an unchanged cost map keeps the path), but a waypoint target with a `radius` gets a new random scatter point each frame, so wandering units re-aim every frame. The fix belongs in the game: track "path issued" through `PathfindingAgent.isActive` instead of the request bit.
+- Crowds: 8+ A* agents with targets within 4 m of each other (`NavGridAuthoring` › Crowds) share a flow field through `CrowdFlowFieldSwitchSystem`. Probed live on 2026-10-23 with the threshold lowered to 3. Not yet watched in a real fight.
+

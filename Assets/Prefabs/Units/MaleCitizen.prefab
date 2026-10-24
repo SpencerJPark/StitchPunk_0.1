@@ -4496,7 +4496,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ea61ffb4a284fc8919112b83f306acd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PathfindingAuthoring
-  preferredMode: 0
+  preferredMode: 3
   repathInterval: 0.5
   hordeFormationThreshold: 10
 --- !u!114 &3485874398458451963

@@ -24,5 +24,10 @@ namespace DotsMovementToolkit
         public byte wallCost;
         public byte heavyCost;
         public byte defaultCost;
+
+        // A* agents whose targets lie within crowdTargetRadius of each other share one flow field
+        // once there are at least crowdFlowFieldThreshold of them. 0 turns the switch off.
+        public int crowdFlowFieldThreshold;
+        public float crowdTargetRadius;
     }
 }

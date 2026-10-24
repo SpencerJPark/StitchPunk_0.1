@@ -9,9 +9,9 @@ namespace DotsMovementToolkit.Authoring
     {
         [Header("Pathfinding Settings")]
         [Tooltip("Preferred algorithm when not in a horde")]
-        public PathfindingMode preferredMode = PathfindingMode.DStarLite;
+        public PathfindingMode preferredMode = PathfindingMode.AStar;
 
-        [Header("D* Lite Settings (for individual pathfinding)")]
+        [Header("Individual Pathfinding")]
         public float repathInterval = 0.5f;
 
         [Header("Horde Settings")]
@@ -32,6 +32,10 @@ namespace DotsMovementToolkit.Authoring
                     timeSinceLastRepath = 0f,
                     hordeFormationThreshold = authoring.hordeFormationThreshold
                 });
+
+                AddComponent(entity, new AStarFollower());
+                SetComponentEnabled<AStarFollower>(entity, false);
+                AddBuffer<AStarPathWaypoint>(entity);
 
                 // Add D* Lite component (disabled by default)
                 AddComponent(entity, new DStarLiteFollower());

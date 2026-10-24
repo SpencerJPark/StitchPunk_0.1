@@ -31,6 +31,13 @@ namespace DotsMovementToolkit.Authoring
         public byte heavyCost = 50;
         public byte defaultCost = 1;
 
+        [Header("Crowds")]
+        [Tooltip("When this many A* agents head for the same spot, they share one flow field instead. 0 turns it off.")]
+        public int crowdFlowFieldThreshold = 8;
+
+        [Tooltip("World distance within which two agents' targets count as the same spot.")]
+        public float crowdTargetRadius = 4f;
+
         [Header("Debug View")]
         [Tooltip("Draws the live cost map in Play mode (Game and Scene view). Editor and development builds only.")]
         public NavGridDebugDisplayMode debugDisplayMode = NavGridDebugDisplayMode.Off;
@@ -109,6 +116,8 @@ namespace DotsMovementToolkit.Authoring
                     wallCost = authoring.wallCost,
                     heavyCost = authoring.heavyCost,
                     defaultCost = authoring.defaultCost,
+                    crowdFlowFieldThreshold = authoring.crowdFlowFieldThreshold,
+                    crowdTargetRadius = authoring.crowdTargetRadius,
                 });
 
                 AddComponent(entity, new NavGridDebugSettings

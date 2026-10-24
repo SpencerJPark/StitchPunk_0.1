@@ -18,6 +18,7 @@ public partial struct DeathSystem : ISystem
     private BufferLookup<RecentInteraction>          recentInteractionLookup;
     private BufferLookup<AnimationCommand>           animationCommandLookup;
     private ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
+    private ComponentLookup<AStarFollower>           aStarFollowerLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -33,6 +34,7 @@ public partial struct DeathSystem : ISystem
         recentInteractionLookup       = state.GetBufferLookup<RecentInteraction>(false);
         animationCommandLookup        = state.GetBufferLookup<AnimationCommand>(false);
         animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
+        aStarFollowerLookup           = state.GetComponentLookup<AStarFollower>(false);
     }
 
     [BurstCompile]
@@ -47,6 +49,7 @@ public partial struct DeathSystem : ISystem
         recentInteractionLookup.Update(ref state);
         animationCommandLookup.Update(ref state);
         animationCommandPendingLookup.Update(ref state);
+        aStarFollowerLookup.Update(ref state);
 
         bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
             || (loggingCfg.EnabledCategories & (int)LogCategory.Health) != 0;
@@ -70,6 +73,7 @@ public partial struct DeathSystem : ISystem
             recentInteractionLookup       = recentInteractionLookup,
             animationCommandLookup        = animationCommandLookup,
             animationCommandPendingLookup = animationCommandPendingLookup,
+            aStarFollowerLookup           = aStarFollowerLookup,
             unitLibrary                   = unitLibrary,
             ecb                     = ecb,
             loggingEnabled          = loggingEnabled,
@@ -96,6 +100,8 @@ public partial struct DeathJob : IJobEntity
     public BufferLookup<RecentInteraction>          recentInteractionLookup;
     public BufferLookup<AnimationCommand>           animationCommandLookup;
     public ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
+    // A lookup, not [WithPresent]: units baked before A* existed have no AStarFollower and must still die.
+    public ComponentLookup<AStarFollower>           aStarFollowerLookup;
     public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
     public EntityCommandBuffer ecb;
     public bool                loggingEnabled;
@@ -129,6 +135,8 @@ public partial struct DeathJob : IJobEntity
         pathRequestEnabled.ValueRW     = false;
         dStarLiteFollowerEnabled.ValueRW = false;
         flowFieldFollowerEnabled.ValueRW = false;
+        if (aStarFollowerLookup.HasComponent(entity))
+            aStarFollowerLookup.SetComponentEnabled(entity, false);
         hordeMembershipEnabled.ValueRW = false;
         // Movement/Gravity disabled on death — Ragdoll2DSystem drives the corpse from here.
         movementEnabled.ValueRW        = false;

@@ -157,6 +157,8 @@ public partial struct HordeSystem : ISystem
                 agent.ValueRW.currentMode = PathfindingMode.FlowField;
                 SystemAPI.SetComponentEnabled<FlowFieldFollower>(entity, true);
                 SystemAPI.SetComponentEnabled<DStarLiteFollower>(entity, false);
+                if (SystemAPI.HasComponent<AStarFollower>(entity))
+                    SystemAPI.SetComponentEnabled<AStarFollower>(entity, false);
             }
         }
     }

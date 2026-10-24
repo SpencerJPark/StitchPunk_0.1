@@ -6,6 +6,9 @@ using Unity.Transforms;
 
 namespace DotsMovementToolkit
 {
+// Optional single-agent strategy; characters default to AStar. Every D* Lite agent shares the one
+// `nodes` grid, so only the most recent request's path is valid at a time (README Known Issues).
+[BurstCompile]
 [UpdateInGroup(typeof(MovementRoutingSystemGroup))]
 public partial struct DStarLiteSystem : ISystem
 {
@@ -43,6 +46,9 @@ public partial struct DStarLiteSystem : ISystem
     }
 
     private bool isInitialized;
+    private bool hasWarnedAboutSharedGrid;
+    private EntityQuery pendingRequestQuery;
+    private EntityQuery activeFollowerQuery;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -51,6 +57,9 @@ public partial struct DStarLiteSystem : ISystem
         state.RequireForUpdate<NavGridCostMap>();
         state.RequireForUpdate<NavGridSettings>();
         isInitialized = false;
+        // PathRequestJob enables the follower on every D* request, so both bits on means one is pending.
+        pendingRequestQuery = SystemAPI.QueryBuilder().WithAll<PathRequest, DStarLiteFollower>().Build();
+        activeFollowerQuery = SystemAPI.QueryBuilder().WithAll<DStarLiteFollower>().Build();
     }
 
     [BurstCompile]
@@ -64,6 +73,7 @@ public partial struct DStarLiteSystem : ISystem
         }
     }
 
+    [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         if (!isInitialized)
@@ -72,6 +82,9 @@ public partial struct DStarLiteSystem : ISystem
             isInitialized = true;
         }
 
+        // An enabled-bit check, so a frame with no requests never waits on LocalTransform writers.
+        if (pendingRequestQuery.IsEmpty)
+            return;
         if (!SystemAPI.HasComponent<DStarLiteData>(state.SystemHandle))
             return;
 
@@ -101,6 +114,12 @@ public partial struct DStarLiteSystem : ISystem
         }
 
         SystemAPI.SetComponent(state.SystemHandle, dstarData);
+
+        if (!hasWarnedAboutSharedGrid && activeFollowerQuery.CalculateEntityCount() > 1)
+        {
+            hasWarnedAboutSharedGrid = true;
+            UnityEngine.Debug.LogWarning("[DOTS Movement Toolkit] More than one agent is following a D* Lite path. D* Lite agents share one search grid, so all but the latest follow the wrong path. Use PathfindingMode.AStar for groups of characters.");
+        }
     }
 
     private void ProcessRequest(

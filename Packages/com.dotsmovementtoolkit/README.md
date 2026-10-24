@@ -1,8 +1,8 @@
 # DOTS Movement Toolkit
 
-Grid-based pathfinding and movement for Unity Entities: a shared grid/cost-map, D* Lite for
-individual agents, flow fields for hordes/groups, formation offsets, stair/layer transitions,
-and a `PathRequest`-driven API. Bake one `NavGridAuthoring` and issue `PathRequest`s — no
+Grid-based pathfinding and movement for Unity Entities: a shared grid/cost-map, A* for
+individual characters (D* Lite kept as an optional single-agent mode), flow fields for
+hordes and crowds, formation offsets, stair/layer transitions, and a `PathRequest`-driven API. Bake one `NavGridAuthoring` and issue `PathRequest`s — no
 other project coupling.
 
 Extracted from Stitch Punk. This is an **internal-quality extraction** — decoupled, documented,
@@ -39,6 +39,7 @@ set:
 | `width` / `height` / `layerCount` | Grid extent. `layerCount` > 1 needs stairs (`StairUtils.AddStairConnection`) to connect layers — see Known Issues, layer support is half-plumbed. |
 | `cellSize` / `layerHeight` | World-unit size of one cell / vertical distance between layers. |
 | `wallLayerMask` / `heavyLayerMask` / `groundLayerMask` | Physics `LayerMask`s the grid samples against — walls block pathing entirely, "heavy" cells cost more, `groundLayerMask` is what `UnitGravitySystem` raycasts down onto. |
+| `crowdFlowFieldThreshold` / `crowdTargetRadius` | When this many A* agents head for targets within `crowdTargetRadius` of each other, their requests become one shared flow field; below it they return to A*. `0` turns the switch off. Default 8 agents within 4 m. |
 | `wallCost` / `heavyCost` / `defaultCost` | Byte cost-map values. `wallCost` doubles as the "impassable" sentinel every pathfinding/flow-field comparison in the package checks against — pick a value nothing else would realistically produce (`byte.MaxValue` by default). |
 
 **The grid is positioned by the authoring GameObject's transform.** With
@@ -49,8 +50,31 @@ Check the Scene-view gizmo actually covers your level: a grid that misses most o
 identical to one that works, right up until a unit walks through a wall.
 
 Then add `MovementAuthoring` (+ `GravityAuthoring` if the entity should fall) to any unit, and
-either `PathfindingAuthoring` (individual D* Lite / flow-field agent) or `HordeAuthoring`
+either `PathfindingAuthoring` (individual A* / flow-field agent) or `HordeAuthoring`
 (shared group target) depending on whether it moves alone or in a formation.
+
+## Pathfinding modes
+
+`MovementAPI.BeginPathRequest` defaults to `PathfindingMode.AStar`.
+
+- **`AStar` — individual characters.** `AStarSystem` searches each request in its own Burst job
+  (8-way, no diagonal corner cutting, `NavGridStairConnection` links between layers) and writes the
+  agent's own `AStarPathWaypoint` buffer. String-pulling then drops every corner that has a clear
+  straight line past it, but never one that would cut through cells costlier than the path the search
+  chose, so shortcuts don't wade through heavy terrain. `AStarFollowerSystem` walks the corners with no
+  physics raycasts. A repeat request for the same goal cell on an unchanged cost map keeps the current
+  path, so callers that re-request every frame cost almost nothing. A target inside a blocked cell paths
+  to the nearest open cell within 4 cells.
+- **`FlowField` — hordes and crowds.** `HordeSystem` routes horde members here, and
+  `CrowdFlowFieldSwitchSystem` moves A* requests here automatically once enough agents share a target
+  (see `crowdFlowFieldThreshold`). Agents it switched carry `PathfindingAgent.crowdFlowFieldActive` and go
+  back to A* when the crowd thins out.
+- **`DStarLite` — optional, one agent at a time.** Every D* Lite agent shares one search grid, so only the
+  most recent request's path is right; the system logs one warning when two agents follow it at once.
+
+**`PathRequest`'s enabled bit means "request pending", not "agent is pathing".** Every router disables it
+when it consumes the request. Read `PathfindingAgent.isActive` to know whether an agent is still moving
+along a path. A caller that treats a disabled request as "not started" re-requests every frame.
 
 ## Debug view
 
@@ -109,17 +133,19 @@ the enum is the intended way to grow it — this isn't a plug-in system for exte
 Not fixed in this pass — extraction and improvement are deliberately separate, so a play-test
 regression stays attributable to one or the other:
 
-- **D* Lite replan is main-thread and full-grid per request** (`DStarLiteSystem.ComputeDStarLitePath`)
-  — fine at today's scale, will not scale to many simultaneous individual pathfinders.
+- **D* Lite shares one search grid between all its agents** (`DStarLiteSystem.DStarLiteData.nodes`), and
+  each request resets the whole grid. Only the latest requester's path is valid, which is why
+  characters default to A*. A real per-agent D* Lite would need its own search state per agent.
 - **`NavGridSystem` uses physics `NumBodies` as a change proxy** plus a `CompleteDependency()` sync
   each time it changes (`NavGridSystem.cs`) — correct but coarse (any body add/remove anywhere
   rebuilds the whole cost map) and a hard sync point.
 - **Flow-field ring-buffer slot reuse can clobber a field still in use**
   (`FlowFieldSystem.FLOW_FIELD_MAP_COUNT` wraps without checking the old slot is done).
-- **Layer support is half-plumbed**: the cost map is layered end-to-end, but flow-field and
-  D* Lite indexing assume a single layer. Multi-layer buildings need stairs wired by hand via
+- **Layer support is half-plumbed**: the cost map is layered end-to-end and A* searches every layer
+  through `NavGridStairConnection` links, but flow-field and D* Lite indexing assume a single layer.
+  Doors are not modelled yet. Multi-layer buildings need stairs wired by hand via
   `StairUtils` and haven't been stress-tested.
-- **Per-entity line-of-sight raycasts every frame** in both follower systems — fine at current
+- **Per-entity line-of-sight raycasts every frame** in the D* Lite and flow-field follower systems (the A* follower uses none) — fine at current
   unit counts, a first target for batching/throttling if it shows up in a profile.
 - **`PathfindingUtils.GetFlowDirectionSmooth`** (bilinear flow sampling for smoother movement)
   and several `NavGridSystem`/`PathfindingUtils` static helpers (`IsWall`, `IsWalkable`,

@@ -30,6 +30,7 @@ public partial struct SpawnStateInitSystem : ISystem
     private ComponentLookup<Selected>          _selectedLookup;
     private ComponentLookup<PathRequest>       _pathRequestLookup;
     private ComponentLookup<DStarLiteFollower> _dStarLookup;
+    private ComponentLookup<AStarFollower>     _aStarLookup;
     private ComponentLookup<FlowFieldFollower> _flowFieldLookup;
     private ComponentLookup<HordeMembership>   _hordeLookup;
     private ComponentLookup<UtilityBrain>    _utilityBrainV2Lookup;
@@ -54,6 +55,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _selectedLookup        = state.GetComponentLookup<Selected>(false);
         _pathRequestLookup     = state.GetComponentLookup<PathRequest>(false);
         _dStarLookup           = state.GetComponentLookup<DStarLiteFollower>(false);
+        _aStarLookup           = state.GetComponentLookup<AStarFollower>(false);
         _flowFieldLookup       = state.GetComponentLookup<FlowFieldFollower>(false);
         _hordeLookup           = state.GetComponentLookup<HordeMembership>(false);
         _utilityBrainV2Lookup  = state.GetComponentLookup<UtilityBrain>(false);
@@ -81,6 +83,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _selectedLookup.Update(ref state);
         _pathRequestLookup.Update(ref state);
         _dStarLookup.Update(ref state);
+        _aStarLookup.Update(ref state);
         _flowFieldLookup.Update(ref state);
         _hordeLookup.Update(ref state);
         _utilityBrainV2Lookup.Update(ref state);
@@ -129,6 +132,8 @@ public partial struct SpawnStateInitSystem : ISystem
                 _pathRequestLookup.SetComponentEnabled(entity, false);
             if (_dStarLookup.HasComponent(entity))
                 _dStarLookup.SetComponentEnabled(entity, false);
+            if (_aStarLookup.HasComponent(entity))
+                _aStarLookup.SetComponentEnabled(entity, false);
             if (_flowFieldLookup.HasComponent(entity))
                 _flowFieldLookup.SetComponentEnabled(entity, false);
             if (_hordeLookup.HasComponent(entity))

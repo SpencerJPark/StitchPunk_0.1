@@ -15,7 +15,7 @@ namespace DotsMovementToolkit
             EnabledRefRW<PathRequest>  pathRequestEnabled,
             float3                     targetPosition,
             float                      stoppingDistance = 0f,
-            PathfindingMode            mode             = PathfindingMode.DStarLite)
+            PathfindingMode            mode             = PathfindingMode.AStar)
         {
             pathRequest.targetPosition   = targetPosition;
             pathRequest.requestedMode    = mode;

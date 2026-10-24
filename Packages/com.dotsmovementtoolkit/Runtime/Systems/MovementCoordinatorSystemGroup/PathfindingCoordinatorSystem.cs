@@ -1,4 +1,4 @@
-﻿using Unity.Burst;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -30,7 +30,8 @@ public partial struct PathfindingCoordinatorSystem : ISystem
         {
             deltaTime = deltaTime,
             arrivalDistance = gridConfig.cellSize * 0.5f,
-            ecb = ecb
+            ecb = ecb,
+            aStarFollowerLookup = SystemAPI.GetComponentLookup<AStarFollower>(true)
         };
         
         state.Dependency = job.ScheduleParallel(state.Dependency);
@@ -42,6 +43,7 @@ public partial struct PathfindingCoordinatorSystem : ISystem
         public float deltaTime;
         public float arrivalDistance;
         public EntityCommandBuffer.ParallelWriter ecb;
+        [ReadOnly] public ComponentLookup<AStarFollower> aStarFollowerLookup;
 
         public void Execute(
             ref PathfindingAgent agent,
@@ -82,6 +84,8 @@ public partial struct PathfindingCoordinatorSystem : ISystem
 
                 ecb.SetComponentEnabled<FlowFieldFollower>(sortKey, entity, false);
                 ecb.SetComponentEnabled<DStarLiteFollower>(sortKey, entity, false);
+                if (aStarFollowerLookup.HasComponent(entity))
+                    ecb.SetComponentEnabled<AStarFollower>(sortKey, entity, false);
             }
         }
     }

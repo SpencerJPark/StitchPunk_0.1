@@ -64,7 +64,15 @@ public partial struct StairTransitionSystem : ISystem
             transitionDistance = gridConfig.cellSize * 0.5f
         };
         state.Dependency = dstarJob.ScheduleParallel(state.Dependency);
-        
+
+        state.Dependency = new StairTransitionAStarJob
+        {
+            stairs = stairs,
+            cellSize = gridConfig.cellSize,
+            gridOrigin = gridConfig.gridOrigin,
+            transitionDistance = gridConfig.cellSize * 0.5f
+        }.ScheduleParallel(state.Dependency);
+
         // Dispose stairs array after jobs complete
         state.Dependency = stairs.Dispose(state.Dependency);
     }
@@ -180,6 +188,56 @@ public partial struct StairTransitionDStarJob : IJobEntity
                 movement.targetPosition = stair.entryWorldPosition;
             }
             
+            break;
+        }
+    }
+}
+
+// Only takes a stair the agent's own path crosses: an A* path puts the stair's two ends on consecutive
+// waypoints, so a follower merely walking past a stair cell stays on its floor.
+[BurstCompile]
+[WithAll(typeof(AStarFollower))]
+public partial struct StairTransitionAStarJob : IJobEntity
+{
+    [ReadOnly] public NativeArray<NavGridStairConnection> stairs;
+    [ReadOnly] public float cellSize;
+    [ReadOnly] public float3 gridOrigin;
+    [ReadOnly] public float transitionDistance;
+
+    public void Execute(
+        ref LocalTransform localTransform,
+        ref AStarFollower follower,
+        ref Movement movement,
+        in DynamicBuffer<AStarPathWaypoint> waypoints)
+    {
+        int waypointIndex = follower.currentWaypointIndex;
+        if (waypointIndex + 1 >= waypoints.Length)
+            return;
+        int nextLayer = waypoints[waypointIndex + 1].layer;
+        if (nextLayer == follower.currentLayer)
+            return;
+
+        float3 position = localTransform.Position;
+        int2 gridPosition = NavGridSystem.GetGridPosition(position, cellSize, gridOrigin);
+        for (int stairIndex = 0; stairIndex < stairs.Length; stairIndex++)
+        {
+            NavGridStairConnection stair = stairs[stairIndex];
+            if (!gridPosition.Equals(stair.gridPosition))
+                continue;
+            bool goingUp = follower.currentLayer == stair.fromLayer && nextLayer == stair.toLayer;
+            bool goingDown = stair.bidirectional && follower.currentLayer == stair.toLayer && nextLayer == stair.fromLayer;
+            if (!goingUp && !goingDown)
+                continue;
+
+            float3 stairStart = goingUp ? stair.entryWorldPosition : stair.exitWorldPosition;
+            if (math.distance(position.xz, stairStart.xz) > transitionDistance)
+                continue;
+
+            float3 stairEnd = goingUp ? stair.exitWorldPosition : stair.entryWorldPosition;
+            follower.currentLayer = nextLayer;
+            follower.currentWaypointIndex = waypointIndex + 1;
+            localTransform.Position = stairEnd;
+            movement.targetPosition = stairEnd;
             break;
         }
     }

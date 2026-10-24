@@ -15,6 +15,24 @@ Traps that cost time on the first run:
 
 **Reading the Profiler window instead:** while the window still holds frames (paused or stopped, same Editor session), `ProfilerDriver.firstFrameIndex..lastFrameIndex` plus `ProfilerDriver.GetHierarchyFrameDataView(frame, 0 /*main thread*/, ViewModes.MergeSamplesWithTheSameName, columnTotalTime, false)` reads every frame. 1,300 frames take about 2 s. To keep a capture, save it from the Profiler toolbar as a `.data` file under `Library/` (never `Assets/`). `ProfilerDriver.LoadProfile(path, false)` loads it back for the same read.
 
+## 2026-10-23 — CampLoop, after the spawn-init fix and A* (MCP recorders)
+
+Setup: `Scenes/CampLoop.unity` in Play mode, Editor focused, about 590 frames. 7 `PathfindingAgent` units, all on A*. Compare with the owner's 69-frame capture earlier the same day (30–60 ms frames).
+
+| Marker | before (capture) | after |
+|---|---|---|
+| SimulationSystemGroup | 16.6 | 3.4 |
+| SpawnInitSystemGroup | 5.2 (two exceptions thrown per frame) | 0.09 |
+| MovementSystemGroup | 3.55 | 0.65 |
+| DStarLiteSystem | 2.1 | 0.005 (early exit, no D* agents) |
+| AStarSystem (main thread) | — | 0.02 |
+| AStarPathJob (worker threads, summed) | — | 0.19 |
+
+What it shows:
+- The spawn-init exceptions were the largest fixable cost (`Gotchas.md`, main-thread lookup writes). D* Lite's cost is gone because characters no longer use it.
+- `AStarPathJob` runs on most frames because game code re-requests every frame (`Systems_Movement.md`). It is off the main thread and the same-goal reuse keeps it small.
+- An early-exit `IsEmpty` on an enabled bit still waits for the jobs that write that bit. `DStarLiteSystem` measured 0.10 ms of pure waiting until `AStarSystem` moved to `OrderLast`.
+
 ## 2026-10-19 — CampLoop, zombies vs bandits (owner's capture)
 
 Setup: the owner's Profiler window capture of a fight, 1,301 frames read through `HierarchyFrameDataView`. At pause: 30 `UtilityBrain` units (6 enabled), 30 D* Lite agents, 31 with `Dead` (2 enabled), 1,597 entities.

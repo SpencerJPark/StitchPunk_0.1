@@ -72,6 +72,8 @@ Each task names its files. **[parallel-safe]** means its files are separate from
 
 ### PP-P0b — D* Lite off the main thread *(package change — first by measurement)*
 
+> **Superseded 2026-10-23 (movement toolkit 0.2.0).** Characters now use per-agent Burst A*; D* Lite is opt-in, early-exits and is Burst-compiled. Measured in `Memories/Code/Performance.md` (2026-10-23). T0b.3 is not needed.
+
 This changes `com.dotsmovementtoolkit`, so read `Memories/Code/Systems_Movement.md` and the package's own conventions first, and bump the package version.
 - **T0b.1** Return early, before the `foreach`, when no entity has `PathRequest` enabled with `requestedMode == DStarLite`. Check with an `EntityQuery` and `IsEmpty` (an enabled-bit query does not force a wait on `LocalTransform` writers). Re-measure. If the 0.32 ms minimum goes away, the wait theory is confirmed.
 - **T0b.2** Move the request processing into a Burst-compiled `IJobEntity`, or failing that add `[BurstCompile]` to `OnUpdate` (check `SystemAPI.GetComponentRW` inside `ProcessRequest` compiles under Burst). Scheduled single-threaded, because all paths share the `nodes` array.
