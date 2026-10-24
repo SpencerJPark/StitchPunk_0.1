@@ -68,6 +68,9 @@ public partial struct SpawnStateInitSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        // Lookup writes on the main thread don't wait for in-flight jobs (ZombifyJob writes Undead/ZombifyRequest).
+        state.CompleteDependency();
+
         _deadLookup.Update(ref state);
         _ragdollActorLookup.Update(ref state);
         _ragdollLaunchLookup.Update(ref state);

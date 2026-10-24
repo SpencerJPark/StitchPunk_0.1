@@ -24,6 +24,9 @@ public partial struct SpawnInitCleanupSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        // Lookup writes on the main thread don't wait for in-flight readers (PersonalityRollJob reads NewlySpawned).
+        state.CompleteDependency();
+
         _newlySpawnedLookup.Update(ref state);
 
         foreach ((RefRO<NewlySpawned> _, Entity entity) in
