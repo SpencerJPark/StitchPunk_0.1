@@ -55,10 +55,33 @@ namespace StitchPunk.Tests.PlayMode
                     distanceCovered += entityManager.GetComponentData<Movement>(playerEntity).moveSpeed * FrameSeconds;
             }
 
-            Assert.AreEqual(rollSettings.rollDistance, distanceCovered, rollSettings.rollDistance * 0.02f,
+            // The frame crossing the end walks its leftover time, so allow up to one frame of walking on top.
+            Assert.AreEqual(rollSettings.rollDistance + WalkSpeed * FrameSeconds * 0.5f, distanceCovered,
+                rollSettings.rollDistance * 0.02f + WalkSpeed * FrameSeconds * 0.5f,
                 "Summed per-frame roll speed should cover rollDistance.");
             Assert.AreEqual(WalkSpeed, entityManager.GetComponentData<Movement>(playerEntity).moveSpeed, 0.0001f,
                 "Walk speed should be restored when the roll ends.");
+        }
+
+        // Regression: the curve used to ease out to zero, so the end of every roll crawled below walk speed.
+        [Test]
+        public void Roll_EndsAtWalkSpeed_SoWalkingCarriesOnWithoutAPause()
+        {
+            EntityManager entityManager = testWorld.EntityManager;
+            PlayerRollSettings rollSettings = DefaultRollSettings();
+            Entity playerEntity = CreatePlayer(entityManager, rollSettings);
+
+            PressRoll(entityManager, playerEntity, rollSettings);
+            float slowestRollSpeed = float.MaxValue;
+            for (int frameIndex = 0; frameIndex < 120 && !RollFinished(entityManager, playerEntity); frameIndex++)
+            {
+                StepFrame();
+                if (entityManager.IsComponentEnabled<PlayerRoll>(playerEntity))
+                    slowestRollSpeed = math.min(slowestRollSpeed, entityManager.GetComponentData<Movement>(playerEntity).moveSpeed);
+            }
+
+            Assert.GreaterOrEqual(slowestRollSpeed, WalkSpeed - 0.001f,
+                "No frame of the roll should move slower than walking.");
         }
 
         [Test]

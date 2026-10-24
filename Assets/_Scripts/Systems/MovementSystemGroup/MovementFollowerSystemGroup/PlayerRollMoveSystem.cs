@@ -91,11 +91,12 @@ public partial struct PlayerRollMoveSystem : ISystem
             playerRoll.ValueRW.elapsed += deltaTime;
             float currentFraction = math.saturate(playerRoll.ValueRO.elapsed / settings.rollDuration);
 
-            // Exact distance for this frame from the integral of the ease-out curve (RL-D3), so the roll
-            // covers rollDistance at any frame rate.
-            float distanceThisFrame = settings.rollDistance
-                * (RollDistanceCovered(currentFraction, settings.speedCurvePower)
-                   - RollDistanceCovered(previousFraction, settings.speedCurvePower));
+            // Exact slice of the curve's integral (RL-D3), so the roll covers rollDistance at any frame rate.
+            float distanceThisFrame = RollDistanceBetween(previousFraction, currentFraction, settings.rollDistance,
+                settings.rollDuration, playerRoll.ValueRO.restoreMoveSpeed, settings.speedCurvePower);
+            // The frame that crosses the end runs the leftover time at walk speed, or that frame hitches.
+            float secondsPastRollEnd = math.max(0f, playerRoll.ValueRO.elapsed - settings.rollDuration);
+            distanceThisFrame += playerRoll.ValueRO.restoreMoveSpeed * secondsPastRollEnd;
             movement.ValueRW.moveSpeed = distanceThisFrame / deltaTime;
             movement.ValueRW.isRunning = false;
             movement.ValueRW.targetPosition = playerTransform.ValueRO.Position
@@ -115,8 +116,19 @@ public partial struct PlayerRollMoveSystem : ISystem
         }
     }
 
-    // Fraction of the roll's distance covered at normalized time t for speed(t) = peak * (1 - t)^power.
-    public static float RollDistanceCovered(float normalizedTime, float speedCurvePower)
+    // speed(t) = walk + burst * (1 - t)^power: the burst eases out into walking speed rather than to zero,
+    // so a held direction carries straight on after landing with no dead stop. The burst is sized so the
+    // whole roll still covers rollDistance.
+    public static float RollDistanceBetween(float fromFraction, float toFraction, float rollDistance,
+        float rollDuration, float walkSpeed, float speedCurvePower)
+    {
+        float walkDistance = math.min(walkSpeed * rollDuration, rollDistance);
+        float burstDistance = rollDistance - walkDistance;
+        return walkDistance * (toFraction - fromFraction)
+            + burstDistance * (BurstCovered(toFraction, speedCurvePower) - BurstCovered(fromFraction, speedCurvePower));
+    }
+
+    private static float BurstCovered(float normalizedTime, float speedCurvePower)
     {
         return 1f - math.pow(1f - math.saturate(normalizedTime), speedCurvePower + 1f);
     }
@@ -133,8 +145,9 @@ public partial struct PlayerRollMoveSystem : ISystem
         EnabledRefRW<PlayerRoll> playerRollEnabled, RefRW<Movement> movement, LocalTransform playerTransform,
         bool queueAttack, bool playLanding, ref EntityCommandBuffer entityCommandBuffer)
     {
+        // Leave targetPosition alone: PlayerMoveSystem already wrote this frame's walk (or stop) target
+        // before this system ran, and overwriting it froze the player for a frame after every roll.
         movement.ValueRW.moveSpeed = playerRoll.ValueRO.restoreMoveSpeed;
-        movement.ValueRW.targetPosition = playerTransform.Position;
         playerRollEnabled.ValueRW = false;
         playerRoll.ValueRW.attackQueued = false;
         SystemAPI.SetComponentEnabled<DodgeInvulnerable>(playerEntity, false);
