@@ -802,3 +802,12 @@ Before 2026-10-17 no runtime system ever disabled `ActionRequest`, so every `[Wi
 `IntoxicationSystem.cs` compiled in the offline gate (144 files) but Unity's `CompilationPipeline` listed 143. The system was simply never created at runtime, with no error anywhere: not in the console, not in `Editor.log`. A ForceUpdate reimport, a clean-cache recompile and deleting the `.meta` (Unity reused the cached GUID) all failed. **Renaming the file fixed it.**
 - Detect: compare `grep -c '\.cs"' Library/Bee/artifacts/*.dag/<Assembly>.rsp` with the file count on disk (or `CompilationPipeline.GetAssemblies()[...].sourceFiles.Length`). A system that is "NOT CREATED" in `World.GetExistingSystem` despite compiling is the symptom.
 - Suspected trigger: the file was edited while Unity was mid-compile in the same minute it was created. Not confirmed.
+
+### `SystemAPI.Query` takes at most 7 type arguments (2026-10-23)
+`Entity` from `.WithEntityAccess()` doesn't count toward that limit. Past seven, read the extra components with `SystemAPI.GetComponent`/`IsComponentEnabled` inside the loop, but **never on a type the same query holds read-write**: use another source (e.g. `CollisionWorld.Bodies[...]` for a position) or move that type out of the query.
+
+### A new type in an upstream assembly breaks the offline gate and Burst until Unity recompiles (2026-10-23)
+`devloop gate` compiles the named assembly from source but links its references against Unity's last-built DLLs, so a new type or field in `StitchPunk.Components`/`Data` shows up as CS0246/CS0117 in every downstream gate. That's a stale reference, not a bug: refresh the Editor once and re-gate. On the same refresh Burst may log "Error while generating hash ... Could not find type <hash>" for a Burst method that calls a brand-new cross-assembly type (seen: `PlayerRollStartSystem` → new `VfxUtil.Play`). Find the method with `Module.ResolveMethod(<token>)` via execute_code. **It cleared on the next forced recompile**, with no code change and no Editor restart.
+
+### The player prefab draws nothing (2026-10-23)
+`PlayerUnit.prefab`'s `Visual` child holds only a Transform; the one mesh under `BaseUnit` is the selection ring at scale 0. Anything visual aimed at "the player's body" (roll squash/spin, afterimages) needs a renderer under `Visual` first.

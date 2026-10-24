@@ -30,7 +30,6 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     private const string PLAYER_ACTION_MAP_NAME = "Player";
     private const string CONTROL_UNITS_ACTION_MAP_NAME = "ControlUnits";
     private const string UI_ACTION_MAP_NAME = "UI";
-    private const float ROLL_DURATION = 0.5f;
     #endregion
 
     #region Initialization
@@ -264,7 +263,9 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     public void OnRoll(InputAction.CallbackContext context)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnRollPlayerInput { rollTime = ROLL_DURATION });
+        if (!entityManager.HasComponent<PlayerRollSettings>(playerEntity)) return;
+        float inputBufferWindow = entityManager.GetComponentData<PlayerRollSettings>(playerEntity).inputBufferWindow;
+        entityManager.SetComponentData(playerEntity, new OnRollPlayerInput { bufferRemaining = inputBufferWindow });
         entityManager.SetComponentEnabled<OnRollPlayerInput>(playerEntity, true);
     }
 

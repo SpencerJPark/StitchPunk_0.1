@@ -24,7 +24,7 @@ public partial struct PlayerAimSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach ((RefRW<LocalTransform> transform, RefRW<AimDirection> aimDir, RefRO<AimIndicatorRef> indicatorRef, EnabledRefRO<AimPlayerInput> aimPlayerInputEnabled, RefRO<LookPlayerInput> lookInput, EnabledRefRO<LookPlayerInput> lookPlayerInputEnabled) in
+        foreach ((RefRW<LocalTransform> transform, RefRW<AimDirection> aimDir, RefRO<AimIndicatorRef> indicatorRef, EnabledRefRO<AimPlayerInput> aimPlayerInputEnabled, RefRO<LookPlayerInput> lookInput, EnabledRefRO<LookPlayerInput> lookPlayerInputEnabled, Entity playerEntity) in
             SystemAPI.Query<
                 RefRW<LocalTransform>,
                 RefRW<AimDirection>,
@@ -33,7 +33,8 @@ public partial struct PlayerAimSystem : ISystem
                 RefRO<LookPlayerInput>,
                 EnabledRefRO<LookPlayerInput>>()
                     .WithAll<Player>()
-                    .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
+                    .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)
+                    .WithEntityAccess())
         {
             bool isAiming = aimPlayerInputEnabled.ValueRO;
 
@@ -46,6 +47,10 @@ public partial struct PlayerAimSystem : ISystem
             }
 
             if (!isAiming)
+                continue;
+
+            // PlayerRollStartSystem cancels aim on roll start; this keeps a held aim from turning the roll.
+            if (SystemAPI.HasComponent<PlayerRoll>(playerEntity) && SystemAPI.IsComponentEnabled<PlayerRoll>(playerEntity))
                 continue;
 
             // Update aim direction from look input (right stick or mouse direction via PlayerInputManager)

@@ -41,9 +41,47 @@ public struct OnAttackPlayerInput: IComponentData, IEnableableComponent {}
 
 public struct OnInteractPlayerInput: IComponentData, IEnableableComponent {}
 
+// Enabled = roll pressed and still buffered; PlayerRollStartSystem consumes it or lets it expire.
 public struct OnRollPlayerInput : IComponentData, IEnableableComponent
 {
-    public float rollTime;
+    public float bufferRemaining;
+}
+
+// Baked from PlayerControllerAuthoring [Header("Roll")]. See Tasks/Plans/PlayerRoll_System.md.
+public struct PlayerRollSettings : IComponentData
+{
+    public float rollDistance;
+    public float rollDuration;
+    public float speedCurvePower;
+    public float invulnerableUntilFraction;
+    public float cooldownAfterRoll;
+    public float inputBufferWindow;
+    public float attackBufferWindow;
+    public int afterimageCount;
+    public float afterimageLifetime;
+    public float4 afterimageTint;
+    public float spinTurns;
+    public float visualPivotHeight;
+    public float landingSquashDuration;
+    public float bodyBlockRadius;
+    public float bodyBlockPushSpeed;
+}
+
+// Enabled = mid-roll. The component stays present between rolls so the visual can finish its landing squash.
+public struct PlayerRoll : IComponentData, IEnableableComponent
+{
+    public float3 direction;
+    public float elapsed;
+    public float restoreMoveSpeed;
+    public int afterimagesSpawned;
+    public float landingSquashRemaining;
+    public bool attackQueued;
+}
+
+// Enabled = cooling down after a roll; PlayerRollMoveSystem ticks it.
+public struct RollCooldown : IComponentData, IEnableableComponent
+{
+    public float remaining;
 }
 
 public struct OnSneakPlayerInput: IComponentData, IEnableableComponent {}
@@ -131,7 +169,7 @@ public struct CombatTarget : IComponentData, IEnableableComponent
 
 // Per-swing cadence gate for the player melee (replaces the deleted ActionTimer).
 // Enabled = on cooldown; PlayerAttackCooldownSystem ticks `remaining` to 0 then disables.
-// Mirrors the OnRollPlayerInput cooldown pattern.
+// Same shape as RollCooldown.
 public struct AttackCooldown : IComponentData, IEnableableComponent
 {
     public float remaining;

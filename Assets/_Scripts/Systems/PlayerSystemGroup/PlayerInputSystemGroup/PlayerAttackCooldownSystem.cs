@@ -3,7 +3,7 @@ using Unity.Entities;
 
 /// <summary>
 /// Ticks the player's per-swing AttackCooldown down each frame and disables it when it expires.
-/// Enabled = on cooldown. Mirrors PlayerRollInputSystem's OnRollPlayerInput.rollTime tick.
+/// Enabled = on cooldown. Same shape as RollCooldown.
 /// PlayerAttackSystem starts the cooldown; this system clears it.
 /// </summary>
 [BurstCompile]

@@ -26,6 +26,7 @@ public partial struct DamageEventSystem : ISystem
     private BufferLookup<ThreatEntry>     threatLookup;
     private ComponentLookup<Dead>         deadLookup;
     private ComponentLookup<CutsceneActor> cutsceneActorLookup;
+    private ComponentLookup<DodgeInvulnerable> dodgeInvulnerableLookup;
     private ComponentLookup<Faction>      factionLookup;
     private BufferLookup<AttackFaction>   attackFactionLookup;
     private ComponentLookup<StateMachine> stateMachineLookup;
@@ -40,6 +41,7 @@ public partial struct DamageEventSystem : ISystem
         threatLookup        = state.GetBufferLookup<ThreatEntry>(false);
         deadLookup          = state.GetComponentLookup<Dead>(false);
         cutsceneActorLookup = state.GetComponentLookup<CutsceneActor>(true);
+        dodgeInvulnerableLookup = state.GetComponentLookup<DodgeInvulnerable>(true);
         factionLookup       = state.GetComponentLookup<Faction>(true);
         attackFactionLookup = state.GetBufferLookup<AttackFaction>(true);
         stateMachineLookup  = state.GetComponentLookup<StateMachine>(true);
@@ -59,6 +61,7 @@ public partial struct DamageEventSystem : ISystem
         threatLookup.Update(ref state);
         deadLookup.Update(ref state);
         cutsceneActorLookup.Update(ref state);
+        dodgeInvulnerableLookup.Update(ref state);
         factionLookup.Update(ref state);
         attackFactionLookup.Update(ref state);
         stateMachineLookup.Update(ref state);
@@ -96,6 +99,10 @@ public partial struct DamageEventSystem : ISystem
             bool targetIsPuppetedCutsceneActor = cutsceneActorLookup.HasComponent(target)
                 && cutsceneActorLookup.IsComponentEnabled(target);
             if (targetIsPuppetedCutsceneActor)
+                continue;
+
+            // Mid-dodge (the player's roll i-frames). Skipped before threat too: a dodged hit never landed.
+            if (dodgeInvulnerableLookup.HasComponent(target) && dodgeInvulnerableLookup.IsComponentEnabled(target))
                 continue;
 
             appliedCount++;

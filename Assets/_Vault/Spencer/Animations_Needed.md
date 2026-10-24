@@ -88,7 +88,7 @@ Loop: **L** = loops · **1** = plays once.
 | ✓ | Name | P | Loop | Used by / notes |
 |---|---|---|---|---|
 | ☐ | `Idle`, `Walk`, `RunningWalk` | P1 | L | PlayerMoveSystem |
-| ☐ | Dodge roll | P1 | 1 | PlayerRollInputSystem |
+| ☐ | Dodge roll | P1 | 1 | PlayerRollStartSystem. Code-driven squash/spin stands in today (`PlayerRollVisualSystem`); a clip should last ~0.34s to match `rollDuration` |
 | ☐ | Melee attack | P1 | 1 | PlayerAttackSystem (`Attack` event) |
 | ☐ | `Throw` | P1 | 1 | Player item throw (ThrownItemSystemGroup) |
 | ☐ | Aim idle / aim walk | P2 | L | PlayerAimSystem |

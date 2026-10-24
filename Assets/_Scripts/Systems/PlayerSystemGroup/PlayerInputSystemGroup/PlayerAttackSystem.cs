@@ -53,6 +53,17 @@ public partial struct PlayerAttackSystem : ISystem
             if (!onAttackPlayerInputEnabled.ValueRO) continue;
             onAttackPlayerInputEnabled.ValueRW = false;
 
+            // No swinging mid-roll. A press near the end is queued and PlayerRollMoveSystem re-raises it on landing.
+            if (SystemAPI.HasComponent<PlayerRoll>(selfEntity) && SystemAPI.IsComponentEnabled<PlayerRoll>(selfEntity))
+            {
+                PlayerRollSettings rollSettings = SystemAPI.GetComponent<PlayerRollSettings>(selfEntity);
+                RefRW<PlayerRoll> playerRoll = SystemAPI.GetComponentRW<PlayerRoll>(selfEntity);
+                float rollSecondsRemaining = rollSettings.rollDuration - playerRoll.ValueRO.elapsed;
+                if (rollSecondsRemaining <= rollSettings.attackBufferWindow)
+                    playerRoll.ValueRW.attackQueued = true;
+                continue;
+            }
+
             // Cadence gate — a live cooldown blocks the swing.
             if (SystemAPI.IsComponentEnabled<AttackCooldown>(selfEntity)) continue;
 

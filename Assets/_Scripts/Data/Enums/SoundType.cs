@@ -15,4 +15,6 @@ public enum SoundType
     FireCrackle,
     Wind,
     AmbientCrowd,
+    RollWhoosh,
+    RollLand,
 }
