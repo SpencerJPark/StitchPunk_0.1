@@ -17,6 +17,7 @@
     Hazard,
     Burn,
     Drown,
+    Vehicle,   // run over by the caravan (CaravanCrashSystem)
 }
 
 public enum DamageBehaviour // attack effect behaviour

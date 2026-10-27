@@ -29,6 +29,7 @@ public struct UnitDataBlob
     // Charged by the workstation when this unit is summoned (corpses included). Field revives charge a
     // RevivalRound instead (CampLoop_System.md CL-P3).
     public SummonCostBlob summonCost;
+    public CaravanExitStyle caravanExitStyle;
     public BlobArray<NeedType> motivation;
     public int randomMotivationAmount;
     public BlobArray<NeedType> randomMotivations;

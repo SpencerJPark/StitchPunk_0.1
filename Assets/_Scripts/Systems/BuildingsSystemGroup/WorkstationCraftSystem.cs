@@ -8,9 +8,11 @@ public partial struct WorkstationCraftSystem : ISystem
     private BufferLookup<ResourceStack> resourceStackLookup;
     private BufferLookup<ResourceChangeRequest> resourceChangeRequestLookup;
     private ComponentLookup<ResourceShortfall> resourceShortfallLookup;
+    private ComponentLookup<ResourceLedgerLink> resourceLedgerLinkLookup;
 
     public void OnCreate(ref SystemState state)
     {
+        resourceLedgerLinkLookup = state.GetComponentLookup<ResourceLedgerLink>(true);
         resourceStackLookup = state.GetBufferLookup<ResourceStack>(true);
         resourceChangeRequestLookup = state.GetBufferLookup<ResourceChangeRequest>();
         resourceShortfallLookup = state.GetComponentLookup<ResourceShortfall>();
@@ -29,6 +31,7 @@ public partial struct WorkstationCraftSystem : ISystem
         resourceStackLookup.Update(ref state);
         resourceChangeRequestLookup.Update(ref state);
         resourceShortfallLookup.Update(ref state);
+        resourceLedgerLinkLookup.Update(ref state);
         double elapsedTime = SystemAPI.Time.ElapsedTime;
 
         for (int workstationIndex = 0; workstationIndex < requestingWorkstations.Length; workstationIndex++)
@@ -38,8 +41,9 @@ public partial struct WorkstationCraftSystem : ISystem
             int requestedCount = math.max(1, SystemAPI.GetComponent<CraftRevivalRoundRequest>(workstationEntity).count);
             SystemAPI.SetComponentEnabled<CraftRevivalRoundRequest>(workstationEntity, false);
 
-            Entity owner = SystemAPI.GetComponent<Workstation>(workstationEntity).ownerPlayer;
-            if (owner == Entity.Null) continue;
+            Entity ownerPlayer = SystemAPI.GetComponent<Workstation>(workstationEntity).ownerPlayer;
+            if (ownerPlayer == Entity.Null) continue;
+            Entity owner = ResourceLedger.HolderOf(ownerPlayer, in resourceLedgerLinkLookup);
             if (!resourceStackLookup.TryGetBuffer(owner, out DynamicBuffer<ResourceStack> resourceStack)) continue;
             if (!resourceChangeRequestLookup.TryGetBuffer(owner, out DynamicBuffer<ResourceChangeRequest> resourceChangeRequests)) continue;
 

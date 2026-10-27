@@ -10,6 +10,7 @@ public partial struct WorkstationRepairSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         ComponentLookup<ResourceShortfall> shortfallLookup = SystemAPI.GetComponentLookup<ResourceShortfall>();
+        ComponentLookup<ResourceLedgerLink> resourceLedgerLinkLookup = SystemAPI.GetComponentLookup<ResourceLedgerLink>(true);
 
         foreach ((RefRO<Workstation> workstation,
                   RefRO<WorkstationRecipes> recipes,
@@ -28,15 +29,16 @@ public partial struct WorkstationRepairSystem : ISystem
             if (health.ValueRO.healthAmount >= health.ValueRO.healthAmountMax) continue;
 
             Entity ownerPlayer = workstation.ValueRO.ownerPlayer;
-            if (ownerPlayer == Entity.Null
-                || !SystemAPI.HasBuffer<ResourceStack>(ownerPlayer)
-                || !SystemAPI.HasBuffer<ResourceChangeRequest>(ownerPlayer)
-                || !SystemAPI.HasComponent<ResourceShortfall>(ownerPlayer)) continue;
+            if (ownerPlayer == Entity.Null) continue;
+            Entity ledgerHolder = ResourceLedger.HolderOf(ownerPlayer, in resourceLedgerLinkLookup);
+            if (!SystemAPI.HasBuffer<ResourceStack>(ledgerHolder)
+                || !SystemAPI.HasBuffer<ResourceChangeRequest>(ledgerHolder)
+                || !SystemAPI.HasComponent<ResourceShortfall>(ledgerHolder)) continue;
 
-            DynamicBuffer<ResourceStack> resourceStack = SystemAPI.GetBuffer<ResourceStack>(ownerPlayer);
-            DynamicBuffer<ResourceChangeRequest> resourceChangeRequests = SystemAPI.GetBuffer<ResourceChangeRequest>(ownerPlayer);
-            RefRW<ResourceShortfall> resourceShortfall = shortfallLookup.GetRefRW(ownerPlayer);
-            EnabledRefRW<ResourceShortfall> resourceShortfallEnabled = shortfallLookup.GetEnabledRefRW<ResourceShortfall>(ownerPlayer);
+            DynamicBuffer<ResourceStack> resourceStack = SystemAPI.GetBuffer<ResourceStack>(ledgerHolder);
+            DynamicBuffer<ResourceChangeRequest> resourceChangeRequests = SystemAPI.GetBuffer<ResourceChangeRequest>(ledgerHolder);
+            RefRW<ResourceShortfall> resourceShortfall = shortfallLookup.GetRefRW(ledgerHolder);
+            EnabledRefRW<ResourceShortfall> resourceShortfallEnabled = shortfallLookup.GetEnabledRefRW<ResourceShortfall>(ledgerHolder);
 
             // A failed spend stamps the shortfall; the repair simply does not happen.
             bool paid = ResourceLedger.TrySpendSingle(

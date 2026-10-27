@@ -4,6 +4,27 @@ using Unity.Entities;
 // pending deltas: two spends in one frame can both pass (accepted, see Gotchas.md).
 public static class ResourceLedger
 {
+    // The entity whose buffers ARE the player's ledger: the linked caravan, or the player itself.
+    public static Entity HolderOf(Entity playerEntity, in ComponentLookup<ResourceLedgerLink> resourceLedgerLinkLookup)
+    {
+        if (resourceLedgerLinkLookup.TryGetComponent(playerEntity, out ResourceLedgerLink ledgerLink)
+            && ledgerLink.ledgerHolder != Entity.Null)
+            return ledgerLink.ledgerHolder;
+        return playerEntity;
+    }
+
+    // Main-thread twin for the HUD and debug menus.
+    public static Entity HolderOf(EntityManager entityManager, Entity playerEntity)
+    {
+        if (entityManager.HasComponent<ResourceLedgerLink>(playerEntity))
+        {
+            Entity ledgerHolder = entityManager.GetComponentData<ResourceLedgerLink>(playerEntity).ledgerHolder;
+            if (ledgerHolder != Entity.Null && entityManager.Exists(ledgerHolder))
+                return ledgerHolder;
+        }
+        return playerEntity;
+    }
+
     public static int Get(in DynamicBuffer<ResourceStack> stack, ResourceType resourceType)
     {
         for (int rowIndex = 0; rowIndex < stack.Length; rowIndex++)

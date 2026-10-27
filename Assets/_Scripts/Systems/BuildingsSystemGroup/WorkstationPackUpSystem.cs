@@ -24,6 +24,13 @@ public partial struct WorkstationPackUpSystem : ISystem
         {
             workstationPackUpRequestEnabled.ValueRW = false;
 
+            // The caravan is never destroyed: driving off is how it packs up (Caravan_System.md CV-D1).
+            if (SystemAPI.HasComponent<Caravan>(workstationEntity))
+            {
+                Debug.Log("Caravan: drive off to pack up camp");
+                continue;
+            }
+
             if (summonQueue.Length > 0)
             {
                 Debug.Log("Workstation: finish or wait for the summon queue before packing up");

@@ -46,29 +46,31 @@ public class DebugResourceMenu : MonoBehaviour
             GUILayout.EndArea();
             return;
         }
+        // The caravan holds the ledger once it links.
+        Entity ledgerHolder = ResourceLedger.HolderOf(entityManager, playerEntity);
 
         foreach (ResourceType resourceType in DisplayedResourceTypes)
         {
-            DynamicBuffer<ResourceStack> resourceStacks = entityManager.GetBuffer<ResourceStack>(playerEntity, true);
+            DynamicBuffer<ResourceStack> resourceStacks = entityManager.GetBuffer<ResourceStack>(ledgerHolder, true);
             int currentAmount = ResourceLedger.Get(in resourceStacks, resourceType);
 
             GUILayout.BeginHorizontal();
             GUILayout.Label($"{resourceType}: {currentAmount}", GUILayout.Width(130f));
-            if (GUILayout.Button("+10")) QueueChange(playerEntity, resourceType, DeltaAmount);
-            if (GUILayout.Button("-10")) QueueChange(playerEntity, resourceType, -DeltaAmount);
-            if (GUILayout.Button($"Set cap {CapValue}")) SetCap(playerEntity, resourceType);
+            if (GUILayout.Button("+10")) QueueChange(ledgerHolder, resourceType, DeltaAmount);
+            if (GUILayout.Button("-10")) QueueChange(ledgerHolder, resourceType, -DeltaAmount);
+            if (GUILayout.Button($"Set cap {CapValue}")) SetCap(ledgerHolder, resourceType);
             GUILayout.EndHorizontal();
         }
 
         if (GUILayout.Button("Clear caps"))
-            entityManager.GetBuffer<StorageCapacity>(playerEntity).Clear();
+            entityManager.GetBuffer<StorageCapacity>(ledgerHolder).Clear();
 
         GUILayout.EndArea();
     }
 
-    private void QueueChange(Entity playerEntity, ResourceType resourceType, int amount)
+    private void QueueChange(Entity ledgerHolder, ResourceType resourceType, int amount)
     {
-        entityManager.GetBuffer<ResourceChangeRequest>(playerEntity).Add(new ResourceChangeRequest
+        entityManager.GetBuffer<ResourceChangeRequest>(ledgerHolder).Add(new ResourceChangeRequest
         {
             resourceType = resourceType,
             changeType   = ResourceChangeType.Add,
@@ -76,9 +78,9 @@ public class DebugResourceMenu : MonoBehaviour
         });
     }
 
-    private void SetCap(Entity playerEntity, ResourceType resourceType)
+    private void SetCap(Entity ledgerHolder, ResourceType resourceType)
     {
-        DynamicBuffer<StorageCapacity> capacities = entityManager.GetBuffer<StorageCapacity>(playerEntity);
+        DynamicBuffer<StorageCapacity> capacities = entityManager.GetBuffer<StorageCapacity>(ledgerHolder);
         for (int rowIndex = 0; rowIndex < capacities.Length; rowIndex++)
         {
             if (capacities[rowIndex].resourceType != resourceType)

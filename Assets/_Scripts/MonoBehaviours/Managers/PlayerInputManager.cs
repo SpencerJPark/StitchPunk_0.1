@@ -24,12 +24,18 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     private bool lastKnownMountedState;
     private InputAction deployWorkstationAction;
 
+    // The Vehicle map's actions are polled, like DeployWorkstation, so driving needs no scene event wiring.
+    private bool lastKnownDrivingState;
+    private InputAction vehicleSteerAction;
+    private InputAction exitVehicleAction;
+
     private bool menuOpen;
     private ActionMaps mapBeforeMenu;
 
     private const string PLAYER_ACTION_MAP_NAME = "Player";
     private const string CONTROL_UNITS_ACTION_MAP_NAME = "ControlUnits";
     private const string UI_ACTION_MAP_NAME = "UI";
+    private const string VEHICLE_ACTION_MAP_NAME = "Vehicle";
     #endregion
 
     #region Initialization
@@ -44,6 +50,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             Debug.LogError("PlayerInputManager: No PlayerInput component found on this GameObject.");
 
         deployWorkstationAction = playerInput.actions.FindAction("DeployWorkstation");
+        vehicleSteerAction = playerInput.actions.FindAction(VEHICLE_ACTION_MAP_NAME + "/Steer");
+        exitVehicleAction = playerInput.actions.FindAction(VEHICLE_ACTION_MAP_NAME + "/ExitVehicle");
         playerInput.actions.Disable();
         playerInput.SwitchCurrentActionMap(PLAYER_ACTION_MAP_NAME);
 
@@ -85,7 +93,9 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         if (TryResolvePlayerEntity())
         {
             WatchWorkstationMount();
+            WatchCaravanDriving();
             PollDeployWorkstationKey();
+            PollVehicleControls();
         }
 
         UpdateMouseAimDirection();
@@ -105,6 +115,35 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             mapBeforeMenu = mapForMountState;
         else
             ApplyActionMapSwitch(mapForMountState);
+    }
+
+    // Mirrors WatchWorkstationMount: ECS decides when the player is driving (board, park, wreck), this follows.
+    private void WatchCaravanDriving()
+    {
+        if (!entityManager.HasComponent<DrivingCaravan>(playerEntity)) return;
+
+        bool driving = entityManager.IsComponentEnabled<DrivingCaravan>(playerEntity);
+        if (driving == lastKnownDrivingState) return;
+        lastKnownDrivingState = driving;
+
+        ActionMaps mapForDrivingState = driving ? ActionMaps.Vehicle : ActionMaps.Player;
+        if (menuOpen)
+            mapBeforeMenu = mapForDrivingState;
+        else
+            ApplyActionMapSwitch(mapForDrivingState);
+    }
+
+    private void PollVehicleControls()
+    {
+        if (!entityManager.HasComponent<CaravanDriveInput>(playerEntity)) return;
+        if (entityManager.GetComponentData<PlayerActionMap>(playerEntity).activeActionMap != ActionMaps.Vehicle) return;
+
+        Vector2 steer = vehicleSteerAction != null ? vehicleSteerAction.ReadValue<Vector2>() : Vector2.zero;
+        entityManager.SetComponentData(playerEntity, new CaravanDriveInput { steer = new float2(steer.x, steer.y) });
+
+        if (exitVehicleAction != null && exitVehicleAction.WasPressedThisFrame()
+            && entityManager.HasComponent<OnExitVehicleInput>(playerEntity))
+            entityManager.SetComponentEnabled<OnExitVehicleInput>(playerEntity, true);
     }
 
     // Polled because the scene's PlayerInput uses Unity Events and a new action would need scene wiring.
@@ -169,6 +208,15 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         {
             playerInput?.SwitchCurrentActionMap(CONTROL_UNITS_ACTION_MAP_NAME);
             CameraManager.Instance.SwitchCamera(CinemachineCameraType.ControlUnits);
+        }
+        else if (newMap == ActionMaps.Vehicle)
+        {
+            playerInput?.SwitchCurrentActionMap(VEHICLE_ACTION_MAP_NAME);
+            // The game keeps one fixed camera angle (Design_Decisions: static rotation 3rd person); a scene
+            // without a vehicle vcam just keeps following the seated player with the player camera.
+            CameraManager.Instance.SwitchCamera(CameraManager.Instance.HasCamera(CinemachineCameraType.Vehicle)
+                ? CinemachineCameraType.Vehicle
+                : CinemachineCameraType.Player);
         }
         else if (newMap == ActionMaps.Menu)
         {

@@ -1,7 +1,7 @@
 # Caravan — Drive, Park, Crash, Storage, Spawn Exits, Chimney Smoke
 
-> **Status:** 📝 spec written 2026-10-23. Owner answered 12 questions (CV-D1–CV-D12, §10). The open `← DECISION` markers are listed in §11, and all of them must be resolved before Phase 1 starts.
-> **Builds on:** [`CampLoop_System.md`](CampLoop_System.md) Phases 0–5 (workstation, furnace, summon queue, gathering deposit, ledger). This spec turns that workstation into the caravan. It does not fork it.
+> **Status:** 🔍 Phases 0–5 built 2026-10-24/26 ("Do it" = the recommended answer for every CV-Q, §11). Compile clean, EditMode 12/12, PlayMode 30/30 on the touched fixtures. **Never played**: the play pass is [`verify-caravan.md`](verify-caravan.md). §12 records where the build departed from this spec.
+> **Builds on:** [`CampLoop_System.md`](../Plans/CampLoop_System.md) Phases 0–5 (workstation, furnace, summon queue, gathering deposit, ledger). This spec turns that workstation into the caravan. It does not fork it.
 > **Design source:** owner brief 2026-10-23 + `Spencer/Design_Decisions.md` → Caravan ("static rotation 3rd person"), Tournament (the hut is the stationary workstation, the caravan is the one in the wild).
 
 ## 1. Context
@@ -227,14 +227,28 @@ Scene `Scenes/CampLoop.unity`, rebake first.
 | CV-D11 | No new top-level group: systems spread across WorkstationInput / MovementExecution / Buildings / Spawn. |
 | CV-D12 | First milestone = drive + park + wheels/doors (Phases 0–1). |
 
-## 11. Open decisions
+## 11. Open decisions (all resolved 2026-10-24, the recommended option each time)
 
-- [ ] **CV-Q1** Board vs mount when both are in reach: board by proximity to the board point (recommended: the driver side and the work table are on opposite ends, so they never overlap) or by `Target`.
-- [ ] **CV-Q2** Walk-out AI gate: reuse the `CutsceneActor` gate (recommended: it already blocks AI, movement and damage, and immunity during the hop is fine) or a new `ScriptedMotion` bit.
-- [ ] **CV-Q3** Does the next summon's build timer pause while an exit plays? Recommended yes (simplest, and one exit at a time).
-- [ ] **CV-Q4** Chimney smoke: a looping `ParticleSystem` on the prefab toggled by the presenter (recommended) or puffs through `VfxRequest`.
-- [ ] **CV-Q5** Do minions get stunned when rammed, or only shoved? Recommended: shoved only, so your army doesn't freeze when you drive through it.
-- [ ] **CV-Q6** Caravan destroyed while driving: instant lose (recommended, today's rule) or a wreck you fight on foot.
-- [ ] **CV-Q7** Scenes with no caravan or hut: the Player keeps fallback ledger buffers (recommended).
-- [ ] **CV-Q8** Field revives far from the caravan still draw rounds from its ledger (recommended yes).
-- [ ] **CV-Q9** How the prefab splits between the baked entity and the presenter GameObject (check the existing hybrid pattern first).
+- [x] **CV-Q1** Board vs mount when both are in reach: board by proximity to the board point (recommended: the driver side and the work table are on opposite ends, so they never overlap) or by `Target`.
+- [x] **CV-Q2** Walk-out AI gate: reuse the `CutsceneActor` gate (recommended: it already blocks AI, movement and damage, and immunity during the hop is fine) or a new `ScriptedMotion` bit.
+- [x] **CV-Q3** Does the next summon's build timer pause while an exit plays? Recommended yes (simplest, and one exit at a time).
+- [x] **CV-Q4** Chimney smoke: a looping `ParticleSystem` on the prefab toggled by the presenter (recommended) or puffs through `VfxRequest`.
+- [x] **CV-Q5** Do minions get stunned when rammed, or only shoved? Recommended: shoved only, so your army doesn't freeze when you drive through it.
+- [x] **CV-Q6** Caravan destroyed while driving: instant lose (recommended, today's rule) or a wreck you fight on foot.
+- [x] **CV-Q7** Scenes with no caravan or hut: the Player keeps fallback ledger buffers (recommended).
+- [x] **CV-Q8** Field revives far from the caravan still draw rounds from its ledger (recommended yes).
+- [x] **CV-Q9** How the prefab splits between the baked entity and the presenter GameObject (check the existing hybrid pattern first).
+
+**CV-Q9 as built:** the baked side is `Prefabs/Vehicles/CaravanSim.prefab` in `CampLoop_Sub` (BoxCollider + kinematic Rigidbody on the Structures layer, `WorkstationAuthoring` + `CaravanAuthoring`, no renderers). The art stays a plain GameObject in `CampLoop.unity` (`Caravan.prefab`), and `CaravanPresenter` snaps it to the entity every LateUpdate. **CV-Q4 as built:** both smokes are ParticleSystems on `Caravan.prefab` (`Shakable/ChimneySmoke`, `SmokeBurst`), played by the presenter, so there's no `VfxType` and no `VfxManager` wiring.
+
+## 12. As built: where the code departs from §3–§7
+
+- **The crash producer lives in `CombatExecutionSystemGroup`** (before `AttackRequestSystem`, the `HazardZoneSystem` slot), not MovementExecution. That's the documented safe window for a main-thread `DamageBus.raw` Enqueue. It sees this frame's caravan position because Movement runs earlier in Simulation.
+- **`StunnedState` had no consumer anywhere.** The new generic `StunAndShoveSystem` (MovementExecution, before `UnitMoverSystem`) gives it one: a stunned unit, or one being slid by `ShoveMotion`, has `Movement.targetPosition` pinned to where it stands. It's **movement-only**: a stunned unit can still swing at what's in reach. Both components are added on first use by ECB, and units don't bake them.
+- **The doors rest Open while parked** and Closed while driving. The smoke burst shuts them first, then shakes and slams them open. `CaravanDoorControl` (`Utils/CaravanDoorStateMachine.cs`) is the one state machine both the sim and the presenter read.
+- **The player is not hidden while driving.** They sit visibly on `DriverAnchor` (seat `(0, 2.42, 2.72)`), placed after gravity each frame with `Movement.targetPosition` and `Gravity.verticalVelocity` pinned. The camera keeps following the player (`CameraTargetController`'s Vehicle case already does), and it uses `vehicleCam` only when the scene assigns one (`CameraManager.HasCamera`).
+- **The horse is not animated.** It's a Rive panel on a quad (`Horse Rive Panel`), not a mesh, so CV-O2 is still open: feeding it a speed input is a presenter job once the Rive file's state machine inputs are known.
+- **The ledger moves on link, it isn't copied:** `CaravanLinkSystem` moves the player's rows, caps and pending deltas onto the caravan and zeroes the player's rows, so a missed call site shows zeros rather than spending a ghost copy. The save snapshot stays on the Player (its save identity) and mirrors whichever entity `ResourceLedgerLink` names.
+- **Defaults measured off `Caravan.fbx`:** wheels pivot on their axles (radius 0.79), the axle bars pivot at the origin (so a new `Wheels/FrontAxlePivot` at `(0, 0.82, 1.21)` now parents the front axle and front wheels), and the door hinge controls sit on the outer hinge line. +Z is forward, and the back doors are at z ≈ −2.3 with the floor at y ≈ 1.93.
+- **CV-D9 board point:** driver side `(-2.6, 0, 3)`. The work table mount moved to the back, `(0, 0, -3.6)`, so the two never compete.
+

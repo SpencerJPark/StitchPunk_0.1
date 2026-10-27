@@ -108,6 +108,8 @@ public struct SelectionColor : IComponentData
 public struct AggressiveState : IComponentData, IEnableableComponent { public float duration; }
 public struct DrunkState      : IComponentData, IEnableableComponent { public float duration; }
 public struct StunnedState    : IComponentData, IEnableableComponent { public float duration; }
+// A short slide, e.g. knocked aside by the caravan. Applied by StunAndShoveSystem; added on first use.
+public struct ShoveMotion     : IComponentData, IEnableableComponent { public float3 velocity; public float remainingSeconds; }
 public struct PanickedState   : IComponentData, IEnableableComponent { public float duration; }
 public struct BerserkState    : IComponentData, IEnableableComponent { public float duration; }
 

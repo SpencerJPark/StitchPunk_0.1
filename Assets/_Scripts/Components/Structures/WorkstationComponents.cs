@@ -53,6 +53,9 @@ public struct PendingMinionSpawn : IBufferElementData
 {
     public UnitType unitType;
     public float3 position;
+    // Set by CaravanExitSequenceSystem for a walk-out summon: the spawn gets a CaravanExitWalker with these.
+    public bool walksOutOfCaravan;
+    public CaravanExitWalker caravanExitWalker;
 }
 
 public struct CraftRevivalRoundRequest : IComponentData, IEnableableComponent

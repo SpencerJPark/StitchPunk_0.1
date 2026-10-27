@@ -1,0 +1,263 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &964992688262013201
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7622708569500977482}
+  m_Layer: 0
+  m_Name: MountPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7622708569500977482
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 964992688262013201}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -3.6}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1533045731420397316}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1314619539159088526
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2686146699032008293}
+  m_Layer: 0
+  m_Name: RallyPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2686146699032008293
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314619539159088526}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -9}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1533045731420397316}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &3465788933600258007
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1061651402569568791}
+  m_Layer: 0
+  m_Name: SummonSpawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1061651402569568791
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3465788933600258007}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -4.2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1533045731420397316}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &5680844480917955111
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1533045731420397316}
+  - component: {fileID: 1790606975830884840}
+  - component: {fileID: 1160713189929059975}
+  - component: {fileID: 5711746852758833217}
+  - component: {fileID: 5800765911628685429}
+  m_Layer: 7
+  m_Name: CaravanSim
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1533045731420397316
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5680844480917955111}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 7622708569500977482}
+  - {fileID: 1061651402569568791}
+  - {fileID: 2686146699032008293}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &1790606975830884840
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5680844480917955111}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 3.47, y: 5.47, z: 10.04}
+  m_Center: {x: 0.03, y: 2.75, z: 1.97}
+--- !u!54 &1160713189929059975
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5680844480917955111}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!114 &5711746852758833217
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5680844480917955111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0e1a59877ca81142a35ca5db8de51cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::WorkstationAuthoring
+  mountPoint: {fileID: 7622708569500977482}
+  summonSpawnPoint: {fileID: 1061651402569568791}
+  rallyPoint: {fileID: 2686146699032008293}
+  maxHealth: 200
+  furnaceStartsBurning: 1
+  burnIntervalSeconds: 5
+  electricityPerWood: 2
+  revivalRoundScrapCost: 1
+  revivalRoundElectricityCost: 1
+  repairWoodCost: 2
+  repairHealthAmount: 25
+  summonOptions:
+  - unitType: 6
+    buildSeconds: 4
+  - unitType: 7
+    buildSeconds: 8
+  - unitType: 8
+    buildSeconds: 3
+--- !u!114 &5800765911628685429
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5680844480917955111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4cc944942dd11c74886347d5f1b8f627, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::CaravanAuthoring
+  driverSeat: {fileID: 0}
+  boardPoint: {fileID: 0}
+  interiorStart: {fileID: 0}
+  tailgateEdge: {fileID: 0}
+  hopLanding: {fileID: 0}
+  smokeBurstSpawn: {fileID: 0}
+  chimneyTop: {fileID: 0}
+  maxForwardSpeed: 7
+  maxReverseSpeed: 2.5
+  acceleration: 3.5
+  brakeDeceleration: 9
+  coastDeceleration: 1.5
+  turnDegreesPerSecondAtFullSpeed: 55
+  turnDegreesPerSecondAtLowSpeed: 25
+  parkMaxSpeed: 0.5
+  wheelRadius: 0.79
+  frontBumperLocalZ: 7
+  rearBumperLocalZ: -3
+  halfWidth: 1.75
+  bumperGroundClearance: 0.4
+  doorOpenSeconds: 0.6
+  doorCloseSeconds: 0.5
+  doorBurstSeconds: 0.35
+  minimumImpactSpeed: 2
+  damagePerMetrePerSecond: 6
+  stunSecondsPerMetrePerSecond: 0.25
+  shoveDistance: 2.5
+  shoveSeconds: 0.25
+  selfDamagePerHit: 1
+  speedLossPerHit: 0.15
+  rehitCooldownSeconds: 1
+  walkOutSeconds: 1.2
+  hopSeconds: 0.45
+  hopArcHeight: 0.5
+  shakeBeforeBurstSeconds: 1.2
+  shakeBeforeBurstAmplitude: 0.05
+  burstShakeSeconds: 0.3
+  burstShakeAmplitude: 0.14
+  smokeCoverDelaySeconds: 0.35
+  smokeLingerSeconds: 1.5

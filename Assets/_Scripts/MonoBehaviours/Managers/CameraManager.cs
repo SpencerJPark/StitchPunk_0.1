@@ -101,6 +101,11 @@ public class CameraManager : Singleton<CameraManager>
         SwitchCamera(_preCutsceneCamera);
     }
 
+    public bool HasCamera(CinemachineCameraType type)
+    {
+        return cameraMap != null && cameraMap.TryGetValue(type, out CinemachineCamera camera) && camera != null;
+    }
+
     public CinemachineCameraType GetCurrentCamera()
     {
         return currentCamera;

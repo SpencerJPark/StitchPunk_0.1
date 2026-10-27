@@ -81,7 +81,11 @@ public partial struct WorkstationSummonSpawnSystem : ISystem
                 // New summons join the owner's active squad.
                 ecb.SetComponent(newBody, new SquadMember { squadIndex = activeSquadIndex });
                 ecb.SetComponent(newBody, new OnMinionMoveCommand { destination = slotPosition });
-                ecb.SetComponentEnabled<OnMinionMoveCommand>(newBody, true);
+                // A walk-out summon takes its rally order only once CaravanExitWalkSystem lands it.
+                if (pendingSpawn.walksOutOfCaravan)
+                    ecb.AddComponent(newBody, pendingSpawn.caravanExitWalker);
+                else
+                    ecb.SetComponentEnabled<OnMinionMoveCommand>(newBody, true);
             }
 
             pendingSpawns.Clear();

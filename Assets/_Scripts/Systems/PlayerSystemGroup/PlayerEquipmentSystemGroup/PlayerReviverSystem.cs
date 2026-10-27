@@ -15,36 +15,39 @@ public partial struct PlayerReviverSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        ComponentLookup<ResourceLedgerLink> resourceLedgerLinkLookup = SystemAPI.GetComponentLookup<ResourceLedgerLink>(true);
+        ComponentLookup<ResourceShortfall> resourceShortfallLookup = SystemAPI.GetComponentLookup<ResourceShortfall>();
+
         foreach ((EnabledRefRW<OnPlayerReviverEquip> onPlayerReviverEquipEnabled,
                   RefRO<Target> target,
                   EnabledRefRO<Target> targetEnabled,
-                  DynamicBuffer<ResourceStack> resourceStack,
-                  DynamicBuffer<ResourceChangeRequest> resourceChangeRequests,
-                  RefRW<ResourceShortfall> resourceShortfall,
-                  EnabledRefRW<ResourceShortfall> resourceShortfallEnabled) in
+                  Entity playerEntity) in
             SystemAPI.Query<
                 EnabledRefRW<OnPlayerReviverEquip>,
                 RefRO<Target>,
-                EnabledRefRO<Target>,
-                DynamicBuffer<ResourceStack>,
-                DynamicBuffer<ResourceChangeRequest>,
-                RefRW<ResourceShortfall>,
-                EnabledRefRW<ResourceShortfall>>()
+                EnabledRefRO<Target>>()
                     .WithAll<Player>()
-                    .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState))
+                    .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)
+                    .WithEntityAccess())
         {
             if (!onPlayerReviverEquipEnabled.ValueRO) continue;
 
             if (targetEnabled.ValueRO)
             {
                 Entity targetEntity = target.ValueRO.entity;
-                if (SystemAPI.HasComponent<ReviveRequest>(targetEntity) && IsRevivable(ref state, targetEntity))
+                // Rounds are drawn from the caravan's ledger even far from it (Caravan_System.md CV-Q8).
+                Entity ledgerHolder = ResourceLedger.HolderOf(playerEntity, in resourceLedgerLinkLookup);
+                if (SystemAPI.HasComponent<ReviveRequest>(targetEntity) && IsRevivable(ref state, targetEntity)
+                    && SystemAPI.HasBuffer<ResourceStack>(ledgerHolder)
+                    && resourceShortfallLookup.HasComponent(ledgerHolder))
                 {
                     // A failed spend stamps the shortfall; the revive simply does not happen.
-                    DynamicBuffer<ResourceChangeRequest> requests = resourceChangeRequests;
+                    DynamicBuffer<ResourceStack> resourceStack = SystemAPI.GetBuffer<ResourceStack>(ledgerHolder);
+                    DynamicBuffer<ResourceChangeRequest> requests = SystemAPI.GetBuffer<ResourceChangeRequest>(ledgerHolder);
                     bool paid = ResourceLedger.TrySpendSingle(
                         in resourceStack, ref requests, ResourceType.RevivalRound, 1,
-                        SystemAPI.Time.ElapsedTime, ref resourceShortfall.ValueRW, resourceShortfallEnabled);
+                        SystemAPI.Time.ElapsedTime, ref resourceShortfallLookup.GetRefRW(ledgerHolder).ValueRW,
+                        resourceShortfallLookup.GetEnabledRefRW<ResourceShortfall>(ledgerHolder));
                     if (paid)
                         SystemAPI.SetComponentEnabled<ReviveRequest>(targetEntity, true);
                 }

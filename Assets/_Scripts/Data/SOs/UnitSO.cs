@@ -76,6 +76,8 @@ public class UnitSO : ScriptableObject
     [Header("Summon Cost")]
     [Tooltip("Charged when a workstation summons this unit (corpses included). Field revives charge a RevivalRound instead.")]
     public SummonCost summonCost = new SummonCost { corpses = 1, scrapMetal = 1, electricity = 1 };
+    [Tooltip("How this unit leaves the caravan when summoned: walk out of the back and hop down, or the shake + smoke-burst entrance for big units.")]
+    public CaravanExitStyle caravanExitStyle = CaravanExitStyle.WalkOutAndHop;
 
     // Whether this unit's declared actor profile disagrees with what its prefab's ActorAuthoring
     // actually carries. Shared by OnValidate and UnitLibraryBakingSystem so the inspector and the

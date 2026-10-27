@@ -397,6 +397,14 @@ Design and phase status: [[CampLoop_System]].
 - `PlayerReviverSystem` charges 1 `RevivalRound` and only revives corpses whose `becomesUnitType` is a different unit (humans).
 - `PlayerInputManager` watches `WorkstationMounted` to switch the ControlUnits map and camera. `requireWorkstationForUnitControl` (default on) blocks the old Tab-anywhere toggle.
 
+### Caravan (the mobile workstation)
+Design and as-built notes: [[Caravan_System]] (§12). The caravan **is** a workstation entity (`CaravanSim.prefab` in the subscene, which has both `WorkstationAuthoring` and `CaravanAuthoring`); the art is a scene GameObject (`Caravan.prefab`) driven by `CaravanPresenter`.
+- `WorkstationInputSystemGroup`: `CaravanLinkSystem` (OrderFirst; first frame: owner, parked, doors open, **moves the ledger onto the caravan**), then `CaravanBoardSystem` (before `WorkstationMountSystem`): E nearer the driver-side board point than the back mount point boards; `OnExitVehicleInput` below `parkMaxSpeed` parks.
+- `MovementExecutionSystemGroup`: `StunAndShoveSystem` (before `UnitMoverSystem`; generic `ShoveMotion` slide + `StunnedState` pin), `CaravanDriveSystem` and `CaravanExitWalkSystem` (both after `UnitGravitySystem`; they place their entities last).
+- `CombatExecutionSystemGroup`: `CaravanCrashSystem`, a sourceless DamageBus producer in the `HazardZoneSystem` slot.
+- `BuildingsSystemGroup`: `WorkstationSummonSystem` hands a finished caravan summon to `CaravanExitSequenceSystem` (walk-out vs smoke burst, per `UnitDataBlob.caravanExitStyle`), then `CaravanDoorSystem` advances doors and shake; `CaravanChimneySystem` follows the furnace.
+- `WorkstationPackUpSystem` refuses a caravan: driving off is its pack-up. Summons build only while `CaravanParked`, one exit at a time.
+
 ---
 
 ## Spawn Init Pattern

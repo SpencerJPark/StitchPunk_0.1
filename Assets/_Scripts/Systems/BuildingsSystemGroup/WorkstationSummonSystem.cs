@@ -10,6 +10,7 @@ public partial struct WorkstationSummonSystem : ISystem
     private BufferLookup<ResourceStack> resourceStackLookup;
     private BufferLookup<ResourceChangeRequest> resourceChangeRequestLookup;
     private ComponentLookup<ResourceShortfall> resourceShortfallLookup;
+    private ComponentLookup<ResourceLedgerLink> resourceLedgerLinkLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -18,6 +19,7 @@ public partial struct WorkstationSummonSystem : ISystem
         resourceStackLookup = state.GetBufferLookup<ResourceStack>(true);
         resourceChangeRequestLookup = state.GetBufferLookup<ResourceChangeRequest>();
         resourceShortfallLookup = state.GetComponentLookup<ResourceShortfall>();
+        resourceLedgerLinkLookup = state.GetComponentLookup<ResourceLedgerLink>(true);
     }
 
     [BurstCompile]
@@ -26,6 +28,7 @@ public partial struct WorkstationSummonSystem : ISystem
         resourceStackLookup.Update(ref state);
         resourceChangeRequestLookup.Update(ref state);
         resourceShortfallLookup.Update(ref state);
+        resourceLedgerLinkLookup.Update(ref state);
 
         BlobAssetReference<UnitLibraryBlob> unitLibrary = SystemAPI.GetSingleton<UnitDataLibrary>().library;
         double elapsedTime = SystemAPI.Time.ElapsedTime;
@@ -36,14 +39,16 @@ public partial struct WorkstationSummonSystem : ISystem
                   DynamicBuffer<WorkstationSummonOption> options,
                   DynamicBuffer<WorkstationSummonRequest> requests,
                   DynamicBuffer<WorkstationSummonQueueEntry> queue,
-                  DynamicBuffer<PendingMinionSpawn> pendingSpawns) in
+                  DynamicBuffer<PendingMinionSpawn> pendingSpawns,
+                  Entity workstationEntity) in
             SystemAPI.Query<
                 RefRO<Workstation>,
                 RefRO<LocalTransform>,
                 DynamicBuffer<WorkstationSummonOption>,
                 DynamicBuffer<WorkstationSummonRequest>,
                 DynamicBuffer<WorkstationSummonQueueEntry>,
-                DynamicBuffer<PendingMinionSpawn>>())
+                DynamicBuffer<PendingMinionSpawn>>()
+                .WithEntityAccess())
         {
             // One request per frame: TrySpend reads the live stack, so two in one frame could both pass.
             if (requests.Length > 0)
@@ -56,6 +61,12 @@ public partial struct WorkstationSummonSystem : ISystem
 
             if (queue.Length == 0) continue;
 
+            // A caravan builds only while parked, and one summon at a time leaves it (Caravan_System.md CV-Q3).
+            bool isCaravan = SystemAPI.HasComponent<CaravanExitSequence>(workstationEntity);
+            if (isCaravan
+                && (!SystemAPI.IsComponentEnabled<CaravanParked>(workstationEntity)
+                    || SystemAPI.IsComponentEnabled<CaravanExitSequence>(workstationEntity))) continue;
+
             WorkstationSummonQueueEntry head = queue[0];
             head.remainingSeconds -= deltaTime;
             if (head.remainingSeconds > 0f)
@@ -65,10 +76,23 @@ public partial struct WorkstationSummonSystem : ISystem
                 continue;
             }
 
+            queue.RemoveAt(0);
+
+            if (isCaravan)
+            {
+                // CaravanExitSequenceSystem releases the unit once the doors and smoke are ready for it.
+                int finishedUnitIndex = unitLibrary.Value.FindByUnitType(head.unitType);
+                CaravanExitStyle exitStyle = finishedUnitIndex >= 0
+                    ? unitLibrary.Value.units[finishedUnitIndex].caravanExitStyle
+                    : CaravanExitStyle.WalkOutAndHop;
+                SystemAPI.SetComponent(workstationEntity, new CaravanExitSequence { style = exitStyle, unitType = head.unitType });
+                SystemAPI.SetComponentEnabled<CaravanExitSequence>(workstationEntity, true);
+                continue;
+            }
+
             float3 spawnPosition = localTransform.ValueRO.Position
                 + math.rotate(localTransform.ValueRO.Rotation, workstation.ValueRO.summonSpawnLocalOffset);
             pendingSpawns.Add(new PendingMinionSpawn { unitType = head.unitType, position = spawnPosition });
-            queue.RemoveAt(0);
         }
     }
 
@@ -92,18 +116,19 @@ public partial struct WorkstationSummonSystem : ISystem
         int unitIndex = unitLibrary.Value.FindByUnitType(requestedType);
         if (unitIndex < 0) return;
 
-        if (ownerPlayer == Entity.Null
-            || !resourceStackLookup.HasBuffer(ownerPlayer)
-            || !resourceChangeRequestLookup.HasBuffer(ownerPlayer)
-            || !resourceShortfallLookup.HasComponent(ownerPlayer)) return;
+        if (ownerPlayer == Entity.Null) return;
+        Entity ledgerHolder = ResourceLedger.HolderOf(ownerPlayer, in resourceLedgerLinkLookup);
+        if (!resourceStackLookup.HasBuffer(ledgerHolder)
+            || !resourceChangeRequestLookup.HasBuffer(ledgerHolder)
+            || !resourceShortfallLookup.HasComponent(ledgerHolder)) return;
 
         SummonCostBlob cost = unitLibrary.Value.units[unitIndex].summonCost;
-        DynamicBuffer<ResourceStack> stack = resourceStackLookup[ownerPlayer];
-        DynamicBuffer<ResourceChangeRequest> changeRequests = resourceChangeRequestLookup[ownerPlayer];
+        DynamicBuffer<ResourceStack> stack = resourceStackLookup[ledgerHolder];
+        DynamicBuffer<ResourceChangeRequest> changeRequests = resourceChangeRequestLookup[ledgerHolder];
         bool paid = ResourceLedger.TrySpend(
             in stack, ref changeRequests, in cost, true, elapsedTime,
-            ref resourceShortfallLookup.GetRefRW(ownerPlayer).ValueRW,
-            resourceShortfallLookup.GetEnabledRefRW<ResourceShortfall>(ownerPlayer));
+            ref resourceShortfallLookup.GetRefRW(ledgerHolder).ValueRW,
+            resourceShortfallLookup.GetEnabledRefRW<ResourceShortfall>(ledgerHolder));
         if (!paid) return;
 
         queue.Add(new WorkstationSummonQueueEntry

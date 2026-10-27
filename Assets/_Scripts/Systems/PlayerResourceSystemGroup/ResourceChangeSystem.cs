@@ -20,8 +20,8 @@ public partial struct ResourceChangeSystem : ISystem
     }
 }
 
+// Runs on every ledger holder: the Player, or the caravan once it has taken the ledger over.
 [BurstCompile]
-[WithAll(typeof(Player))]
 public partial struct ResourceChangeJob : IJobEntity
 {
     public void Execute(

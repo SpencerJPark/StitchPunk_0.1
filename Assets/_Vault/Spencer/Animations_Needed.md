@@ -116,6 +116,8 @@ Zombies are melee only and cheap, so a short list. Each variant can reuse the ba
 | ☐ | `MeleeContinuous` | P2 | L | Gnawing / repeated claws |
 | ☐ | `Resurrection` | P1 | 1 | Rising from a corpse (ZombifySystem, revive). Huge for feel |
 | ☐ | `Spawn` | P2 | 1 | Summoned out of the workstation |
+| ☐ | `CaravanHopDown` | P2 | 1 | Small summons hop off the caravan's tailgate (`CaravanExitWalkSystem`, 0.45 s arc). Nothing plays it yet: wire it where the walker starts its hop once units animate |
+| ☐ | Knock-down / get-up | P3 | 1 | Hit by the caravan and survived (`StunnedState` from `CaravanCrashSystem`, 1–2 s). The stun only pins movement today |
 | ☐ | Follow / order acknowledge | P3 | 1 | Minion move orders |
 
 ## Props / buildings
@@ -128,6 +130,7 @@ Zombies are melee only and cheap, so a short list. Each variant can reuse the ba
 | ☐ | Workstation destroyed | P3 | 1 | WorkstationDestroyedSystem |
 | ☐ | Gramophone spin | P3 | L | ListenToMusic spot |
 | ☐ | Campfire flicker | P3 | L | Camp |
+| ☐ | Caravan horse walk / trot / idle | P1 | L | The horse is a Rive panel (`Caravan.prefab` → `Horse Rive Panel`). `CaravanPresenter` would feed it `CaravanDriveState.forwardSpeed` once the Rive state machine has a speed input (Caravan_System.md CV-O2) |
 
 ## Faces (face layer, every human)
 

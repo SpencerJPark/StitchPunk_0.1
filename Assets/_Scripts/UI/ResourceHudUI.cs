@@ -65,10 +65,11 @@ public class ResourceHudUI : MonoBehaviour
             return;
 
         Entity playerEntity = playerQuery.GetSingletonEntity();
-        if (!entityManager.HasBuffer<ResourceStack>(playerEntity))
+        Entity ledgerHolder = ResourceLedger.HolderOf(entityManager, playerEntity);
+        if (!entityManager.HasBuffer<ResourceStack>(ledgerHolder))
             return;
 
-        DynamicBuffer<ResourceStack> stacks = entityManager.GetBuffer<ResourceStack>(playerEntity, true);
+        DynamicBuffer<ResourceStack> stacks = entityManager.GetBuffer<ResourceStack>(ledgerHolder, true);
         for (int index = 0; index < LabelCount; index++)
         {
             if (labels[index] == null)
@@ -80,10 +81,10 @@ public class ResourceHudUI : MonoBehaviour
             labels[index].text = LabelPrefixes[index] + amount;
         }
 
-        UpdateShortfallTint(entityManager, playerEntity);
+        UpdateShortfallTint(entityManager, ledgerHolder);
     }
 
-    private void UpdateShortfallTint(EntityManager entityManager, Entity playerEntity)
+    private void UpdateShortfallTint(EntityManager entityManager, Entity ledgerHolder)
     {
         if (tintedLabelIndex >= 0 && Time.unscaledTime >= tintEndUnscaledTime)
         {
@@ -92,11 +93,11 @@ public class ResourceHudUI : MonoBehaviour
             tintedLabelIndex = -1;
         }
 
-        if (!entityManager.HasComponent<ResourceShortfall>(playerEntity)
-            || !entityManager.IsComponentEnabled<ResourceShortfall>(playerEntity))
+        if (!entityManager.HasComponent<ResourceShortfall>(ledgerHolder)
+            || !entityManager.IsComponentEnabled<ResourceShortfall>(ledgerHolder))
             return;
 
-        ResourceShortfall shortfall = entityManager.GetComponentData<ResourceShortfall>(playerEntity);
+        ResourceShortfall shortfall = entityManager.GetComponentData<ResourceShortfall>(ledgerHolder);
         if (shortfall.stampedTime == lastShownShortfallTime)
             return;
         lastShownShortfallTime = shortfall.stampedTime;

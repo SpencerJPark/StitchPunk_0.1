@@ -8,6 +8,13 @@ public struct ResourceStack : IBufferElementData
     public int amount;
 }
 
+// On the Player: which entity holds the ledger buffers. Entity.Null = the player holds them; the caravan
+// takes them over when it links (Caravan_System.md §5). Resolve it with ResourceLedger.HolderOf.
+public struct ResourceLedgerLink : IComponentData
+{
+    public Entity ledgerHolder;
+}
+
 // Missing row = uncapped.
 public struct StorageCapacity : IBufferElementData
 {

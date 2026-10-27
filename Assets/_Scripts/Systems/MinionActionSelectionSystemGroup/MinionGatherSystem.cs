@@ -21,6 +21,7 @@ public partial struct MinionGatherSystem : ISystem
     private ComponentLookup<ResourceNode>            _resourceNodeLookup;
     private ComponentLookup<Workstation>             _workstationLookup;
     private BufferLookup<ResourceChangeRequest>      _requestLookup;
+    private ComponentLookup<ResourceLedgerLink>      _resourceLedgerLinkLookup;
     private EntityQuery                              _resourceNodeQuery;
     private EntityQuery                              _corpseQuery;
 
@@ -36,6 +37,7 @@ public partial struct MinionGatherSystem : ISystem
         _resourceNodeLookup = state.GetComponentLookup<ResourceNode>(false);
         _workstationLookup  = state.GetComponentLookup<Workstation>(true);
         _requestLookup      = state.GetBufferLookup<ResourceChangeRequest>(false);
+        _resourceLedgerLinkLookup = state.GetComponentLookup<ResourceLedgerLink>(true);
         _resourceNodeQuery  = SystemAPI.QueryBuilder().WithAll<ResourceNode, LocalTransform>().Build();
         _corpseQuery        = SystemAPI.QueryBuilder().WithAll<Dead, UnitData, Faction, LocalTransform>().Build();
     }
@@ -51,6 +53,7 @@ public partial struct MinionGatherSystem : ISystem
         _resourceNodeLookup.Update(ref state);
         _workstationLookup.Update(ref state);
         _requestLookup.Update(ref state);
+        _resourceLedgerLinkLookup.Update(ref state);
 
         NativeArray<Entity>         nodeEntities  = _resourceNodeQuery.ToEntityArray(Allocator.TempJob);
         NativeArray<LocalTransform> nodeTransforms = _resourceNodeQuery.ToComponentDataArray<LocalTransform>(Allocator.TempJob);
@@ -71,6 +74,7 @@ public partial struct MinionGatherSystem : ISystem
             resourceNodeLookup  = _resourceNodeLookup,
             workstationLookup   = _workstationLookup,
             requestLookup       = _requestLookup,
+            resourceLedgerLinkLookup = _resourceLedgerLinkLookup,
             nodeEntities        = nodeEntities,
             nodeTransforms      = nodeTransforms,
             corpseEntities      = corpseEntities,
@@ -105,6 +109,7 @@ public partial struct MinionGatherJob : IJobEntity
     public ComponentLookup<Despawn>                         despawnLookup;
     public ComponentLookup<ResourceNode>                    resourceNodeLookup;
     public BufferLookup<ResourceChangeRequest>              requestLookup;
+    [ReadOnly] public ComponentLookup<ResourceLedgerLink>   resourceLedgerLinkLookup;
     [ReadOnly] public ComponentLookup<CampLootLocked>       campLootLockedLookup;
     [ReadOnly] public ComponentLookup<Dead>                 deadLookup;
     [ReadOnly] public ComponentLookup<Faction>              factionLookup;
@@ -151,7 +156,8 @@ public partial struct MinionGatherJob : IJobEntity
             {
                 if (gatherOrder.carriedAmount > 0)
                 {
-                    if (!requestLookup.TryGetBuffer(workstation.ownerPlayer, out DynamicBuffer<ResourceChangeRequest> playerRequests))
+                    Entity ledgerHolder = ResourceLedger.HolderOf(workstation.ownerPlayer, in resourceLedgerLinkLookup);
+                    if (!requestLookup.TryGetBuffer(ledgerHolder, out DynamicBuffer<ResourceChangeRequest> playerRequests))
                         return; // keep carrying until the ledger exists
                     ResourceLedger.QueueAdd(ref playerRequests, gatherOrder.resourceType, gatherOrder.carriedAmount);
                     gatherOrder.carriedAmount = 0;

@@ -1,4 +1,5 @@
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 
 [BurstCompile]
@@ -14,7 +15,11 @@ public partial struct ResourceLoadSyncSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        state.Dependency = new CopySnapshotIntoStackJob().Schedule(state.Dependency);
+        state.Dependency = new CopySnapshotIntoStackJob
+        {
+            resourceLedgerLinkLookup = SystemAPI.GetComponentLookup<ResourceLedgerLink>(true),
+            resourceStackLookup = SystemAPI.GetBufferLookup<ResourceStack>(),
+        }.Schedule(state.Dependency);
     }
 
     // The save mirror runs earlier this frame, so snapshot equals stack unless a load just overwrote
@@ -23,8 +28,13 @@ public partial struct ResourceLoadSyncSystem : ISystem
     [WithAll(typeof(Player))]
     private partial struct CopySnapshotIntoStackJob : IJobEntity
     {
-        private void Execute(ref DynamicBuffer<ResourceStack> resourceStacks, in PlayerResourcesSnapshot snapshot)
+        [ReadOnly] public ComponentLookup<ResourceLedgerLink> resourceLedgerLinkLookup;
+        public BufferLookup<ResourceStack> resourceStackLookup;
+
+        private void Execute(Entity playerEntity, in PlayerResourcesSnapshot snapshot)
         {
+            Entity ledgerHolder = ResourceLedger.HolderOf(playerEntity, in resourceLedgerLinkLookup);
+            if (!resourceStackLookup.TryGetBuffer(ledgerHolder, out DynamicBuffer<ResourceStack> resourceStacks)) return;
             for (int rowIndex = 0; rowIndex < resourceStacks.Length; rowIndex++)
             {
                 ResourceStack row = resourceStacks[rowIndex];

@@ -17,6 +17,9 @@ Built 2026-10-13 unattended:
 
 ## Before you start
 
+> **2026-10-26:** `CampLoop_Sub` now holds the caravan, which links as the player's workstation on the first frame, so B-key deploy just logs "already deployed" in this scene. Mount the caravan's work table (at its back) instead; see [verify-caravan.md](verify-caravan.md).
+
+
 - [ ] Open **`Assets/Scenes/CampLoop.unity`**. It is a copy of TestArea pointed at the new subscene `SubScenes/CampLoop_Sub.unity`, which is DOTSTestScene minus the test spheres.
 - [ ] **Rebake:** the player archetype, `UnitDataBlob` and the unit library all changed. Reopen the subscene once, or just enter Play.
 - [ ] `PlayerUnit.prefab` now references `Prefabs/Buildings/Workstation.prefab`. That prefab is a placeholder cube with a furnace cylinder, and is yours to dress.

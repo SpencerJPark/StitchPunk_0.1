@@ -1,4 +1,5 @@
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 
 public static class ResourceSnapshotMapping
@@ -44,15 +45,25 @@ public partial struct ResourceSaveSyncSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        state.Dependency = new CopyStackIntoSnapshotJob().Schedule(state.Dependency);
+        state.Dependency = new CopyStackIntoSnapshotJob
+        {
+            resourceLedgerLinkLookup = SystemAPI.GetComponentLookup<ResourceLedgerLink>(true),
+            resourceStackLookup = SystemAPI.GetBufferLookup<ResourceStack>(true),
+        }.Schedule(state.Dependency);
     }
 
+    // The snapshot stays on the Player (its save identity) while the stack may live on the caravan.
     [BurstCompile]
     [WithAll(typeof(Player))]
     private partial struct CopyStackIntoSnapshotJob : IJobEntity
     {
-        private void Execute(in DynamicBuffer<ResourceStack> resourceStacks, ref PlayerResourcesSnapshot snapshot)
+        [ReadOnly] public ComponentLookup<ResourceLedgerLink> resourceLedgerLinkLookup;
+        [ReadOnly] public BufferLookup<ResourceStack> resourceStackLookup;
+
+        private void Execute(Entity playerEntity, ref PlayerResourcesSnapshot snapshot)
         {
+            Entity ledgerHolder = ResourceLedger.HolderOf(playerEntity, in resourceLedgerLinkLookup);
+            if (!resourceStackLookup.TryGetBuffer(ledgerHolder, out DynamicBuffer<ResourceStack> resourceStacks)) return;
             for (int rowIndex = 0; rowIndex < resourceStacks.Length; rowIndex++)
             {
                 ResourceStack row = resourceStacks[rowIndex];

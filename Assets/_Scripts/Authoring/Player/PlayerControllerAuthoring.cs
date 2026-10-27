@@ -270,6 +270,8 @@ public class PlayerControllerAuthoring : MonoBehaviour
             AddBuffer<ResourceChangeRequest>(entity);
             AddComponent(entity, new ResourceShortfall());
             SetComponentEnabled<ResourceShortfall>(entity, false);
+            // Null = the player holds the ledger; a caravan takes it over when it links (Caravan_System.md §5).
+            AddComponent(entity, new ResourceLedgerLink { ledgerHolder = Entity.Null });
             AddComponent(entity, new PlayerResourcesSnapshot
             {
                 wood          = controllerAuthoring.startingWood,
@@ -295,6 +297,11 @@ public class PlayerControllerAuthoring : MonoBehaviour
             SetComponentEnabled<WorkstationMounted>(entity, false);
             AddComponent(entity, new WorkstationDismountRequest());
             SetComponentEnabled<WorkstationDismountRequest>(entity, false);
+            AddComponent(entity, new DrivingCaravan { caravan = Entity.Null });
+            SetComponentEnabled<DrivingCaravan>(entity, false);
+            AddComponent(entity, new CaravanDriveInput());
+            AddComponent(entity, new OnExitVehicleInput());
+            SetComponentEnabled<OnExitVehicleInput>(entity, false);
 
             // Health and Dead come from HealthAuthoring on the BaseUnit parent prefab (100 HP there);
             // adding them here is a duplicate-component bake error. PlayerKnockoutSystem clears Dead.
