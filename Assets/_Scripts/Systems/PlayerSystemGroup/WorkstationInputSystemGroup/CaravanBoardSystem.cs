@@ -57,9 +57,13 @@ public partial struct CaravanBoardSystem : ISystem
                     continue;
                 }
 
-                // A wrecked caravan throws the driver out; WorkstationDestroyedSystem has already latched the loss (CV-Q6).
+                // A wrecked caravan throws the driver out and stays broken until repaired (CV-D13).
                 bool caravanWrecked = SystemAPI.HasComponent<Health>(drivenCaravan)
                     && SystemAPI.GetComponent<Health>(drivenCaravan).healthAmount <= 0;
+                // Knocked out at the reins: off the seat, or the drive system would keep re-seating the body.
+                bool driverKnockedOut = SystemAPI.HasComponent<PlayerKnockedOut>(playerEntity)
+                    && SystemAPI.IsComponentEnabled<PlayerKnockedOut>(playerEntity);
+                caravanWrecked = caravanWrecked || driverKnockedOut;
                 if (!exitVehiclePressed && !caravanWrecked) continue;
 
                 float forwardSpeed = SystemAPI.GetComponent<CaravanDriveState>(drivenCaravan).forwardSpeed;
@@ -94,6 +98,12 @@ public partial struct CaravanBoardSystem : ISystem
 
             // Consumed even when refused, so a refused board never falls through to the work table.
             onInteractPlayerInputEnabled.ValueRW = false;
+
+            if (SystemAPI.IsComponentEnabled<CaravanBroken>(targetEntity))
+            {
+                Debug.Log("The caravan is broken: repair it with wood at the work table first.");
+                continue;
+            }
 
             bool summonInProgress = SystemAPI.GetBuffer<WorkstationSummonQueueEntry>(targetEntity).Length > 0
                 || SystemAPI.IsComponentEnabled<CaravanExitSequence>(targetEntity);

@@ -404,6 +404,8 @@ Design and as-built notes: [[Caravan_System]] (§12). The caravan **is** a works
 - `CombatExecutionSystemGroup`: `CaravanCrashSystem`, a sourceless DamageBus producer in the `HazardZoneSystem` slot.
 - `BuildingsSystemGroup`: `WorkstationSummonSystem` hands a finished caravan summon to `CaravanExitSequenceSystem` (walk-out vs smoke burst, per `UnitDataBlob.caravanExitStyle`), then `CaravanDoorSystem` advances doors and shake; `CaravanChimneySystem` follows the furnace.
 - `WorkstationPackUpSystem` refuses a caravan: driving off is its pack-up. Summons build only while `CaravanParked`, one exit at a time.
+- A caravan at 0 HP is **broken, not lost** (`CaravanBrokenSystem` → `CaravanBroken`): it can't drive or summon until repaired. `WorkstationDestroyedSystem` skips caravans. The only loss is the player going down while it's broken (`PlayerKnockoutSystem`).
+- **Fake ragdoll** (any unit with `FakeRagdollAuthoring`, i.e. every `MaleCitizen` variant): `FakeRagdollMotionSystem` (MovementExecution, after gravity) + `FakeRagdollPoseSystem` (Animation, after `VisualBillboardSystem`). Knock-downs come from the caravan, and deaths come from `FakeRagdollDeathSystem` (Health, after `DeathSystem`). See [[Contracts]].
 
 ---
 

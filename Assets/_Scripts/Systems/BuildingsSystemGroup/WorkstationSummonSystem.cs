@@ -50,6 +50,15 @@ public partial struct WorkstationSummonSystem : ISystem
                 DynamicBuffer<PendingMinionSpawn>>()
                 .WithEntityAccess())
         {
+            // A broken caravan can't summon (CV-D13): requests are dropped unpaid and the queue waits for the repair.
+            bool caravanBroken = SystemAPI.HasComponent<CaravanBroken>(workstationEntity)
+                && SystemAPI.IsComponentEnabled<CaravanBroken>(workstationEntity);
+            if (caravanBroken)
+            {
+                requests.Clear();
+                continue;
+            }
+
             // One request per frame: TrySpend reads the live stack, so two in one frame could both pass.
             if (requests.Length > 0)
             {

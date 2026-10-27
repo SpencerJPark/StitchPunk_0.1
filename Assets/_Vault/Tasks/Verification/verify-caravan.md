@@ -43,9 +43,17 @@ What was checked when it was built:
 
 ### Phase 3: crashing
 - [ ] Drive slowly (under 2 m/s) into bandits: they're pushed aside, with no damage.
-- [ ] Drive at full speed through bandits or citizens: each hit damages and stuns them (they stand still for 1–2 s), a lethal hit ragdolls them forward and to the side, and the caravan visibly slows per hit. Its health ticks down in the station menu.
-- [ ] Drive through your own minions: they're pushed aside, their health stays full, and they aren't stunned.
+- [ ] Drive at full speed through bandits or citizens: each hit damages them, and the caravan visibly slows per hit. Its health ticks down in the station menu.
+- [ ] At full speed every unit you hit is **flung on an arc**, topples over sideways on screen with its arms and legs flailing, lands flat, lies there for 1–2 s and **stands back up where it landed** (fake ragdoll, CV-D15). Under 2 m/s they're only pushed aside.
+- [ ] Your own minions get the same fling and get-up, and their health stays full.
+- [ ] A kill (by the caravan or a sword) flings the corpse, which **stays down**. Reviving it stands it back up.
 - [ ] A unit hit dead centre ends up clear of the caravan, not stuck inside it. If it does get stuck, raise `shoveDistance` on `CaravanSim`.
+
+### Broken caravan (CV-D13/CV-D14)
+- [ ] Use the debug menu (or crash a lot) to take the caravan to 0 HP while driving: you're thrown off, the console says it's broken, the body slumps and smokes black.
+- [ ] Try to board: refused. Queue a summon: nothing is spent and nothing builds. The furnace and crafting still work.
+- [ ] Repair at the work table (wood): the smoke stops, it drives again, and summoning resumes.
+- [ ] Go down yourself while it's working: knocked out, then you wake at the caravan. Go down while it's broken: game over.
 
 ### Phase 4: summon exits
 - [ ] Summon a **Zombie** or **Runner**: it appears inside, walks to the back edge, hops down in an arc, then walks to the rally formation.
@@ -58,4 +66,4 @@ What was checked when it was built:
 
 ## Known gaps (not bugs)
 - The horse doesn't animate: it's a Rive panel (spec CV-O2).
-- There's no hop-down or knock-down clip yet: `CaravanHopDown` is listed in `Spencer/Animations_Needed.md`. A stun only pins movement; a stunned unit can still attack what's in reach.
+- There's no hop-down clip yet: `CaravanHopDown` is listed in `Spencer/Animations_Needed.md`. The knock-down is the code-driven fake ragdoll until units get real ragdoll rigs. Units without a rig (none today) still get the old stun, which only pins movement.

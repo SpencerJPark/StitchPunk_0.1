@@ -4353,6 +4353,7 @@ GameObject:
   - component: {fileID: 5385637352373302489}
   - component: {fileID: 8157836579268367819}
   - component: {fileID: 4970892448338541378}
+  - component: {fileID: 5746543758714055047}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -4601,6 +4602,38 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::CharacterRigAuthoring
   reloadDesign: 0
   randomTags: []
+--- !u!114 &5746543758714055047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9101195342176660511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03bc3b71722770a43b5bed28228fd611, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::FakeRagdollAuthoring
+  visual: {fileID: 332314884621582417}
+  limbs:
+  - limb: {fileID: 6697204274583449756}
+    flailDegrees: 70
+  - limb: {fileID: 7246110960652423973}
+    flailDegrees: 70
+  - limb: {fileID: 2372267470411511248}
+    flailDegrees: 45
+  - limb: {fileID: 4604246331707058924}
+    flailDegrees: 45
+  - limb: {fileID: 601311761561155749}
+    flailDegrees: 40
+  - limb: {fileID: 1740319646291573547}
+    flailDegrees: 40
+  - limb: {fileID: 6720385877016036092}
+    flailDegrees: 30
+  - limb: {fileID: 2425429788073271666}
+    flailDegrees: 30
+  - limb: {fileID: 2994085987834843631}
+    flailDegrees: 20
 --- !u!1 &9122829769299922516
 GameObject:
   m_ObjectHideFlags: 0

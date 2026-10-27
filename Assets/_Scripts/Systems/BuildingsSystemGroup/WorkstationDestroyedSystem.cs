@@ -28,7 +28,8 @@ public partial struct WorkstationDestroyedSystem : ISystem
         }
         Entity gameOverEntity = gameOverEntities[0];
 
-        foreach ((RefRO<Health> health, RefRO<Workstation> workstation) in SystemAPI.Query<RefRO<Health>, RefRO<Workstation>>())
+        // A caravan at 0 HP only breaks (CaravanBrokenSystem); the stationary hut still ends the run.
+        foreach ((RefRO<Health> health, RefRO<Workstation> workstation) in SystemAPI.Query<RefRO<Health>, RefRO<Workstation>>().WithNone<Caravan>())
         {
             if (workstation.ValueRO.ownerPlayer == Entity.Null || health.ValueRO.healthAmount > 0)
             {

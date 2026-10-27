@@ -57,8 +57,12 @@ public partial struct PlayerKnockoutSystem : ISystem
             && entityManager.Exists(workstation)
             && entityManager.HasComponent<Workstation>(workstation)
             && entityManager.HasComponent<LocalTransform>(workstation);
+        // A broken caravan is no place to wake up: going down beside one is the loss (Caravan_System.md CV-D14).
+        bool caravanBroken = workstationExists
+            && entityManager.HasComponent<CaravanBroken>(workstation)
+            && entityManager.IsComponentEnabled<CaravanBroken>(workstation);
 
-        if (!workstationExists)
+        if (!workstationExists || caravanBroken)
         {
             // No respawn point: game over. The singleton is baked disabled, so a plain singleton query would throw.
             EntityQuery gameOverQuery = SystemAPI.QueryBuilder()
@@ -69,7 +73,9 @@ public partial struct PlayerKnockoutSystem : ISystem
                 if (gameOverEntities.Length > 0)
                     entityManager.SetComponentEnabled<CampLoopGameOver>(gameOverEntities[0], true);
             }
-            Debug.Log("[PlayerKnockout] Player down with no workstation deployed: game over.");
+            Debug.Log(caravanBroken
+                ? "[PlayerKnockout] Player down while the caravan is broken: game over."
+                : "[PlayerKnockout] Player down with no workstation deployed: game over.");
             return;
         }
 

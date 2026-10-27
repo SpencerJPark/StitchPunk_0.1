@@ -110,6 +110,10 @@ public struct CaravanExitSequence : IComponentData, IEnableableComponent
 
 public struct CaravanChimneySmoking : IComponentData, IEnableableComponent { }
 
+// Enabled while Health is 0 (CV-D13): no driving or summoning until wood repairs it. Losing the caravan is not
+// losing the game; going down yourself while it is broken is (CV-D14, PlayerKnockoutSystem).
+public struct CaravanBroken : IComponentData, IEnableableComponent { }
+
 // On a summoned unit while it walks out of the back and hops down. Added at spawn, removed on landing;
 // the unit only takes its rally move order once it is on the ground.
 public struct CaravanExitWalker : IComponentData

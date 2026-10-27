@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -87,18 +88,26 @@ public partial struct CaravanCrashSystem : ISystem
                 if (!SystemAPI.HasComponent<Health>(unitEntity)) continue;
                 if (SystemAPI.HasComponent<Dead>(unitEntity) && SystemAPI.IsComponentEnabled<Dead>(unitEntity)) continue;
                 if (WasHitRecently(recentHits, unitEntity)) continue;
+                // Already flying or lying from an earlier hit.
+                if (SystemAPI.HasComponent<FakeRagdoll>(unitEntity) && SystemAPI.IsComponentEnabled<FakeRagdoll>(unitEntity)) continue;
 
                 // The body's pose, not LocalTransform: this query already holds the caravan's LocalTransform.
                 float3 unitPosition = collisionWorld.Bodies[unitHits[overlapIndex].RigidBodyIndex].WorldFromBody.pos;
                 float sideOfCaravan = math.dot(unitPosition - caravanPose.Position, right) >= 0f ? 1f : -1f;
                 float3 shoveDirection = math.normalizesafe(right * sideOfCaravan + forward * math.sign(forwardSpeed) * 0.5f);
-                QueueShove(ref state, ref commandBuffer, unitEntity,
-                    shoveDirection * (crash.shoveDistance / math.max(crash.shoveSeconds, 0.01f)), crash.shoveSeconds);
 
                 recentHits.Add(new CaravanRecentHit { unit = unitEntity, hitTime = elapsedTime });
                 unitsHit++;
 
-                // Your own minions are only pushed aside (CV-D6, CV-Q5).
+                // Above impact speed anyone with a rig is knocked flying and gets back up (CV-D15); below it, or
+                // with no rig to fall over, they're pushed aside.
+                bool knockedOver = impactSpeed >= crash.minimumImpactSpeed
+                    && TryKnockOver(ref state, unitEntity, shoveDirection, impactSpeed, crash);
+                if (!knockedOver)
+                    QueueShove(ref state, ref commandBuffer, unitEntity,
+                        shoveDirection * (crash.shoveDistance / math.max(crash.shoveSeconds, 0.01f)), crash.shoveSeconds);
+
+                // Your own minions take no damage (CV-D6, CV-D15).
                 bool isPlayersMinion = SystemAPI.HasComponent<Minion>(unitEntity) && SystemAPI.IsComponentEnabled<Minion>(unitEntity);
                 if (isPlayersMinion || impactSpeed < crash.minimumImpactSpeed) continue;
 
@@ -119,7 +128,9 @@ public partial struct CaravanCrashSystem : ISystem
                     sourcePosition  = unitPosition - shoveDirection * 1.5f,
                     range           = 0f,
                 });
-                QueueStun(ref state, ref commandBuffer, unitEntity, impactSpeed * crash.stunSecondsPerMetrePerSecond);
+                // Lying on the ground is the stun for a knocked-over unit.
+                if (!knockedOver)
+                    QueueStun(ref state, ref commandBuffer, unitEntity, impactSpeed * crash.stunSecondsPerMetrePerSecond);
                 unitsHurt++;
             }
 
@@ -131,6 +142,45 @@ public partial struct CaravanCrashSystem : ISystem
         commandBuffer.Playback(state.EntityManager);
         commandBuffer.Dispose();
         unitHits.Dispose();
+    }
+
+    // Faster hits throw further and keep the unit down longer. A unit with real toolkit ragdoll bodies is
+    // launched through the toolkit; FakeRagdoll then only times its stand-up.
+    private bool TryKnockOver(ref SystemState state, Entity unitEntity, float3 shoveDirection, float impactSpeed,
+        in CaravanCrashTuning crash)
+    {
+        if (!SystemAPI.HasComponent<FakeRagdoll>(unitEntity)) return false;
+
+        float3 launchVelocity = shoveDirection * (2f + impactSpeed * 0.6f) + new float3(0f, 2.5f + impactSpeed * 0.3f, 0f);
+        float lieSeconds = 0.8f + impactSpeed * crash.stunSecondsPerMetrePerSecond;
+        bool hasToolkitRagdoll = SystemAPI.HasBuffer<RagdollBody>(unitEntity)
+            && SystemAPI.GetBuffer<RagdollBody>(unitEntity).Length > 0
+            && SystemAPI.HasComponent<RagdollActor>(unitEntity);
+
+        FakeRagdoll fakeRagdoll = SystemAPI.GetComponent<FakeRagdoll>(unitEntity);
+        FakeRagdollControl.Knock(ref fakeRagdoll, SystemAPI.GetComponent<LocalTransform>(unitEntity).Position,
+            launchVelocity, lieSeconds, hasToolkitRagdoll);
+        SystemAPI.SetComponent(unitEntity, fakeRagdoll);
+        SystemAPI.SetComponentEnabled<FakeRagdoll>(unitEntity, true);
+
+        if (hasToolkitRagdoll)
+        {
+            // Same impulse convention as RagdollLaunchInitSystem: authored as a velocity, so divide by the root's invMass.
+            DynamicBuffer<RagdollBody> ragdollBodies = SystemAPI.GetBuffer<RagdollBody>(unitEntity);
+            float rootInverseMass = ragdollBodies[0].parameters.invMass;
+            if (SystemAPI.HasComponent<RagdollLaunch>(unitEntity))
+            {
+                SystemAPI.SetComponent(unitEntity, new RagdollLaunch
+                {
+                    worldImpulse = rootInverseMass > 0f ? launchVelocity / rootInverseMass : launchVelocity,
+                    worldPoint = ragdollBodies[0].state.position,
+                    worldTorque = float3.zero,
+                });
+                SystemAPI.SetComponentEnabled<RagdollLaunch>(unitEntity, true);
+            }
+            SystemAPI.SetComponentEnabled<RagdollActor>(unitEntity, true);
+        }
+        return true;
     }
 
     private static bool WasHitRecently(DynamicBuffer<CaravanRecentHit> recentHits, Entity unitEntity)

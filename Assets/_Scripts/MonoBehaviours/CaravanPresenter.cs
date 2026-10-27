@@ -20,11 +20,15 @@ public class CaravanPresenter : MonoBehaviour
     [Header("Smoke")]
     [SerializeField] private ParticleSystem chimneySmoke;
     [SerializeField] private ParticleSystem smokeBurst;
+    [Tooltip("Loops while the caravan is broken (0 HP).")]
+    [SerializeField] private ParticleSystem brokenSmoke;
 
     [Header("Feel")]
     [SerializeField] private float doorOpenDegrees = 110f;
     [SerializeField] private float maxFrontAxleYawDegrees = 25f;
     [SerializeField] private float shakeFrequency = 22f;
+    [Tooltip("How far a broken caravan slumps onto one side.")]
+    [SerializeField] private float brokenSagDegrees = 4f;
 
     private Quaternion[] wheelRestRotations;
     private Vector3[] wheelSpinAxes;
@@ -107,7 +111,10 @@ public class CaravanPresenter : MonoBehaviour
         CaravanDriveState driveState = entityManager.GetComponentData<CaravanDriveState>(caravanEntity);
         ApplyWheels(driveState);
         ApplyDoors(entityManager.GetComponentData<CaravanDoors>(caravanEntity));
-        ApplyShake(entityManager.GetComponentData<CaravanShake>(caravanEntity));
+        bool broken = entityManager.HasComponent<CaravanBroken>(caravanEntity)
+            && entityManager.IsComponentEnabled<CaravanBroken>(caravanEntity);
+        ApplyShake(entityManager.GetComponentData<CaravanShake>(caravanEntity), broken);
+        ApplyLoopingSmoke(brokenSmoke, broken);
         ApplyChimney(entityManager.HasComponent<CaravanChimneySmoking>(caravanEntity)
             && entityManager.IsComponentEnabled<CaravanChimneySmoking>(caravanEntity));
         ApplySmokeBurst(entityManager.GetComponentData<CaravanPresentationEvents>(caravanEntity).smokeBurstCount);
@@ -138,13 +145,14 @@ public class CaravanPresenter : MonoBehaviour
             rightDoorHinge.localRotation = rightDoorRestRotation * Quaternion.AngleAxis(-openDegrees, rightDoorHingeAxis);
     }
 
-    private void ApplyShake(CaravanShake shake)
+    private void ApplyShake(CaravanShake shake, bool broken)
     {
         if (shakeRoot == null) return;
+        Quaternion sag = broken ? Quaternion.Euler(0f, 0f, brokenSagDegrees) : Quaternion.identity;
         if (shake.remainingSeconds <= 0f)
         {
             shakeRoot.localPosition = shakeRestPosition;
-            shakeRoot.localRotation = shakeRestRotation;
+            shakeRoot.localRotation = shakeRestRotation * sag;
             return;
         }
 
@@ -154,16 +162,21 @@ public class CaravanPresenter : MonoBehaviour
             Mathf.PerlinNoise(0.7f, noiseTime) - 0.5f,
             Mathf.PerlinNoise(noiseTime, 3.3f) - 0.5f) * (2f * shake.amplitude);
         shakeRoot.localPosition = shakeRestPosition + jitter;
-        shakeRoot.localRotation = shakeRestRotation * Quaternion.Euler(0f, 0f, jitter.x * 40f);
+        shakeRoot.localRotation = shakeRestRotation * sag * Quaternion.Euler(0f, 0f, jitter.x * 40f);
     }
 
     private void ApplyChimney(bool smoking)
     {
-        if (chimneySmoke == null) return;
-        if (smoking && !chimneySmoke.isEmitting)
-            chimneySmoke.Play(true);
-        else if (!smoking && chimneySmoke.isEmitting)
-            chimneySmoke.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+        ApplyLoopingSmoke(chimneySmoke, smoking);
+    }
+
+    private static void ApplyLoopingSmoke(ParticleSystem smoke, bool emitting)
+    {
+        if (smoke == null) return;
+        if (emitting && !smoke.isEmitting)
+            smoke.Play(true);
+        else if (!emitting && smoke.isEmitting)
+            smoke.Stop(true, ParticleSystemStopBehavior.StopEmitting);
     }
 
     private void ApplySmokeBurst(int smokeBurstCount)

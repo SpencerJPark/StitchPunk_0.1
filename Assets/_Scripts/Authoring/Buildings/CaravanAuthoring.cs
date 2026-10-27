@@ -143,6 +143,8 @@ public class CaravanAuthoring : MonoBehaviour
 
             AddComponent<CaravanChimneySmoking>(entity);
             SetComponentEnabled<CaravanChimneySmoking>(entity, false);
+            AddComponent<CaravanBroken>(entity);
+            SetComponentEnabled<CaravanBroken>(entity, false);
 
             // The caravan holds the ledger (CV-D5). Rows start empty; CaravanLinkSystem moves the player's stock in.
             AddBuffer<ResourceStack>(entity);

@@ -40,6 +40,7 @@ public partial struct SpawnStateInitSystem : ISystem
     private BufferLookup<AnimationCommand>     _animationCommandLookup;
     private ComponentLookup<CutsceneActor>     _cutsceneActorLookup;
     private ComponentLookup<CutsceneMarkIssued> _cutsceneMarkIssuedLookup;
+    private ComponentLookup<FakeRagdoll> _fakeRagdollLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -65,6 +66,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _animationCommandLookup = state.GetBufferLookup<AnimationCommand>(false);
         _cutsceneActorLookup   = state.GetComponentLookup<CutsceneActor>(false);
         _cutsceneMarkIssuedLookup = state.GetComponentLookup<CutsceneMarkIssued>(false);
+        _fakeRagdollLookup = state.GetComponentLookup<FakeRagdoll>(false);
     }
 
     [BurstCompile]
@@ -93,6 +95,7 @@ public partial struct SpawnStateInitSystem : ISystem
         _animationCommandLookup.Update(ref state);
         _cutsceneActorLookup.Update(ref state);
         _cutsceneMarkIssuedLookup.Update(ref state);
+        _fakeRagdollLookup.Update(ref state);
 
         foreach ((RefRO<NewlySpawned> _, Entity entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
@@ -126,6 +129,10 @@ public partial struct SpawnStateInitSystem : ISystem
                 _cutsceneActorLookup.SetComponentEnabled(entity, false);
             if (_cutsceneMarkIssuedLookup.HasComponent(entity))
                 _cutsceneMarkIssuedLookup.SetComponentEnabled(entity, false);
+            // A pool-reclaimed corpse still lying from its last life stands straight back up: Restoring makes
+            // FakeRagdollPoseSystem put its rest pose back and switch the knock-down off.
+            if (_fakeRagdollLookup.HasComponent(entity) && _fakeRagdollLookup.IsComponentEnabled(entity))
+                _fakeRagdollLookup.GetRefRW(entity).ValueRW.phase = FakeRagdollPhase.Restoring;
 
             // Pathfinding — disabled until a path is requested.
             if (_pathRequestLookup.HasComponent(entity))

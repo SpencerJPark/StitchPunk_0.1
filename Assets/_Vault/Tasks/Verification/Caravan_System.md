@@ -226,6 +226,9 @@ Scene `Scenes/CampLoop.unity`, rebake first.
 | CV-D10 | Exit style is a per-`UnitSO` enum `CaravanExitStyle { WalkOutAndHop, SmokeBurst }` baked to `UnitDataBlob`. |
 | CV-D11 | No new top-level group: systems spread across WorkstationInput / MovementExecution / Buildings / Spawn. |
 | CV-D12 | First milestone = drive + park + wheels/doors (Phases 0–1). |
+| CV-D13 | (2026-10-26, overturns CV-Q6) **A caravan at 0 HP breaks; it isn't lost.** While broken: no driving (the driver is thrown out, boarding is refused) and no summoning (requests are dropped unpaid, the queue waits). Storage, furnace, crafting and repair keep working; a wood repair brings it straight back. `WorkstationDestroyedSystem` skips caravans, and the hut keeps the old rule. |
+| CV-D14 | (2026-10-26) You lose by going down yourself, not by losing the caravan. The 5 s knockout and wake-at-the-caravan stay, but going down while the caravan is broken (or with no workstation) is game over (`PlayerKnockoutSystem`). |
+| CV-D15 | (2026-10-26, overturns CV-Q5) **Your minions are knocked flying and get back up, with no damage.** So is everyone else hit above `minimumImpactSpeed`: they take damage, and the dead stay down. Units with real toolkit ragdoll bodies use the toolkit ragdoll. The rest (all test units today) use the code-driven **fake ragdoll**: they arc, topple in screen space, flail, lie for `0.8 + speed × stunSecondsPerMetrePerSecond` s, then stand up where they landed. Kills from any source now fling a fake-ragdoll unit too (`FakeRagdollDeathSystem`). |
 
 ## 11. Open decisions (all resolved 2026-10-24, the recommended option each time)
 
@@ -233,8 +236,8 @@ Scene `Scenes/CampLoop.unity`, rebake first.
 - [x] **CV-Q2** Walk-out AI gate: reuse the `CutsceneActor` gate (recommended: it already blocks AI, movement and damage, and immunity during the hop is fine) or a new `ScriptedMotion` bit.
 - [x] **CV-Q3** Does the next summon's build timer pause while an exit plays? Recommended yes (simplest, and one exit at a time).
 - [x] **CV-Q4** Chimney smoke: a looping `ParticleSystem` on the prefab toggled by the presenter (recommended) or puffs through `VfxRequest`.
-- [x] **CV-Q5** Do minions get stunned when rammed, or only shoved? Recommended: shoved only, so your army doesn't freeze when you drive through it.
-- [x] **CV-Q6** Caravan destroyed while driving: instant lose (recommended, today's rule) or a wreck you fight on foot.
+- [x] **CV-Q5** ~~Do minions get stunned when rammed, or only shoved?~~ Superseded by CV-D15.
+- [x] **CV-Q6** ~~Caravan destroyed while driving: instant lose?~~ Superseded by CV-D13/CV-D14.
 - [x] **CV-Q7** Scenes with no caravan or hut: the Player keeps fallback ledger buffers (recommended).
 - [x] **CV-Q8** Field revives far from the caravan still draw rounds from its ledger (recommended yes).
 - [x] **CV-Q9** How the prefab splits between the baked entity and the presenter GameObject (check the existing hybrid pattern first).
@@ -251,4 +254,6 @@ Scene `Scenes/CampLoop.unity`, rebake first.
 - **The ledger moves on link, it isn't copied:** `CaravanLinkSystem` moves the player's rows, caps and pending deltas onto the caravan and zeroes the player's rows, so a missed call site shows zeros rather than spending a ghost copy. The save snapshot stays on the Player (its save identity) and mirrors whichever entity `ResourceLedgerLink` names.
 - **Defaults measured off `Caravan.fbx`:** wheels pivot on their axles (radius 0.79), the axle bars pivot at the origin (so a new `Wheels/FrontAxlePivot` at `(0, 0.82, 1.21)` now parents the front axle and front wheels), and the door hinge controls sit on the outer hinge line. +Z is forward, and the back doors are at z ≈ −2.3 with the floor at y ≈ 1.93.
 - **CV-D9 board point:** driver side `(-2.6, 0, 3)`. The work table mount moved to the back, `(0, 0, -3.6)`, so the two never compete.
+- **Fake ragdoll (CV-D15).** `FakeRagdollAuthoring` sits on `MaleCitizen.prefab`, so every test unit has it; the player (BaseUnit) doesn't. `FakeRagdollMotionSystem` (MovementExecution, after gravity) owns the root while the unit is down and gates AI with `CutsceneActor`. `FakeRagdollPoseSystem` (Animation, after `VisualBillboardSystem`) topples the Visual through its `PostTransformMatrix` and flails the limbs, then restores the rest pose it captured on the first frame down. A pooled corpse handed out again is reset by `SpawnStateInitSystem` (phase Restoring). The toolkit branch (`drivesToolkitRagdoll`) is written but can't be exercised: no unit has ragdoll bodies yet, and whether the toolkit's release snaps a body back to where it was hit is unverified.
+- **Broken (CV-D13).** `CaravanBrokenSystem` mirrors `Health ≤ 0` into `CaravanBroken`. The presenter slumps the body 4° and plays `Shakable/BrokenSmoke`.
 

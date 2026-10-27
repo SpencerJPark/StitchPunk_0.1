@@ -15,17 +15,19 @@ public partial struct WorkstationRepairSystem : ISystem
         foreach ((RefRO<Workstation> workstation,
                   RefRO<WorkstationRecipes> recipes,
                   RefRW<Health> health,
-                  EnabledRefRW<WorkstationRepairRequest> workstationRepairRequestEnabled) in
+                  EnabledRefRW<WorkstationRepairRequest> workstationRepairRequestEnabled,
+                  Entity workstationEntity) in
             SystemAPI.Query<
                 RefRO<Workstation>,
                 RefRO<WorkstationRecipes>,
                 RefRW<Health>,
-                EnabledRefRW<WorkstationRepairRequest>>())
+                EnabledRefRW<WorkstationRepairRequest>>()
+                .WithEntityAccess())
         {
             workstationRepairRequestEnabled.ValueRW = false;
 
-            // A destroyed station has already latched CampLoopGameOver; it cannot be repaired back.
-            if (health.ValueRO.healthAmount <= 0) continue;
+            // A destroyed hut has already latched CampLoopGameOver; a broken caravan is exactly what repair is for.
+            if (health.ValueRO.healthAmount <= 0 && !SystemAPI.HasComponent<Caravan>(workstationEntity)) continue;
             if (health.ValueRO.healthAmount >= health.ValueRO.healthAmountMax) continue;
 
             Entity ownerPlayer = workstation.ValueRO.ownerPlayer;
