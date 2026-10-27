@@ -25,13 +25,13 @@ What was checked when it was built:
 
 ### Phase 0–1: drive and park
 - [ ] On the first frame the caravan's back doors swing open (parked = camp).
-- [ ] Walk to the **back** of the caravan and press E: you mount the work table (the menu opens, as before).
-- [ ] Walk to the **driver's side, front left**, and press E: the doors close, you sit on the driver's seat, and the map switches to Vehicle.
+- [ ] Walk to the **back** of the caravan (behind the doors) and press E: the workstation opens (the menu, as before).
+- [ ] Walk up to **either side or the front**, even right by the horse, and press E: the doors close, you sit on the driver's seat, and the map switches to Vehicle.
 - [ ] W from a standstill: the caravan ramps up to about 7 m/s and all four wheels roll forward. S while rolling brakes hard, then reverses slowly with the wheels counter-rotating.
 - [ ] A/D at a standstill: no turn. While moving, the front axle visibly yaws and the caravan turns. Reversing swings the nose the other way.
 - [ ] Drive into a wall or building: it stops dead and doesn't clip through. Back away freely.
 - [ ] Drive over uneven ground: the caravan stays on the ground.
-- [ ] Press E at speed: refused ("Slow down to park the caravan." in the console). Stop and press E: you're put down beside the driver's side, the doors open, and you're back on foot.
+- [ ] Press E at speed: refused ("Slow down to park the caravan." in the console). Stop and press E: you're put down beside the driver's side (front left), the doors open, and you're back on foot.
 - [ ] Queue a summon, then try to board: refused ("Finish summoning before driving off.").
 
 ### Phase 2: the caravan holds the stock

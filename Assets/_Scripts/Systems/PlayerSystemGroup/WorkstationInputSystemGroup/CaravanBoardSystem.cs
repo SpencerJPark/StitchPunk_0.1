@@ -90,11 +90,10 @@ public partial struct CaravanBoardSystem : ISystem
             if (caravanWorkstation.ownerPlayer != playerEntity) continue;
             if (!SystemAPI.IsComponentEnabled<CaravanParked>(targetEntity)) continue;
 
+            // Behind the back doors, E is the workstation (WorkstationMountSystem); anywhere along the sides or the front it is the driver's seat (CV-D16).
             LocalTransform caravanTransform = SystemAPI.GetComponent<LocalTransform>(targetEntity);
-            float3 playerPosition = SystemAPI.GetComponent<LocalTransform>(playerEntity).Position;
-            float3 boardPoint = caravanTransform.TransformPoint(SystemAPI.GetComponent<Caravan>(targetEntity).boardPointLocalOffset);
-            float3 mountPoint = caravanTransform.TransformPoint(caravanWorkstation.mountLocalOffset);
-            if (math.distancesq(playerPosition.xz, boardPoint.xz) >= math.distancesq(playerPosition.xz, mountPoint.xz)) continue;
+            float3 playerLocalPosition = caravanTransform.InverseTransformPoint(SystemAPI.GetComponent<LocalTransform>(playerEntity).Position);
+            if (playerLocalPosition.z < SystemAPI.GetComponent<Caravan>(targetEntity).tailgateEdgeLocalOffset.z) continue;
 
             // Consumed even when refused, so a refused board never falls through to the work table.
             onInteractPlayerInputEnabled.ValueRW = false;

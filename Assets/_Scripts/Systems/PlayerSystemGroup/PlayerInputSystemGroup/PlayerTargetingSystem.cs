@@ -21,6 +21,8 @@ public partial struct PlayerTargetingSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        ComponentLookup<PlayerInteractableReach> reachLookup = SystemAPI.GetComponentLookup<PlayerInteractableReach>(true);
+
         foreach ((RefRO<LocalTransform> transform, RefRW<Target> target, EnabledRefRW<Target> targetEnabled) in
             SystemAPI.Query<RefRO<LocalTransform>, RefRW<Target>, EnabledRefRW<Target>>()
                 .WithAll<Player>()
@@ -37,9 +39,22 @@ public partial struct PlayerTargetingSystem : ISystem
                     .WithAll<PlayerInteractable>()
                     .WithEntityAccess())
             {
-                float3 toEnemy = enemyTransform.ValueRO.Position - playerPos;
-                toEnemy.y = 0f;
-                float distSq = math.lengthsq(toEnemy);
+                float distSq;
+                if (reachLookup.TryGetComponent(enemyEntity, out PlayerInteractableReach reach))
+                {
+                    // Range to the capsule's surface, so a 10 m caravan is reachable from anywhere along its side.
+                    float3 segmentStart = enemyTransform.ValueRO.TransformPoint(reach.localSegmentStart);
+                    float3 segmentEnd = enemyTransform.ValueRO.TransformPoint(reach.localSegmentEnd);
+                    float distanceToSurface = math.max(0f,
+                        PlanarDistanceToSegment(playerPos, segmentStart, segmentEnd) - reach.radius);
+                    distSq = distanceToSurface * distanceToSurface;
+                }
+                else
+                {
+                    float3 toEnemy = enemyTransform.ValueRO.Position - playerPos;
+                    toEnemy.y = 0f;
+                    distSq = math.lengthsq(toEnemy);
+                }
 
                 if (distSq > rangeSq) continue;
                 if (distSq < bestDistSq)
@@ -59,6 +74,16 @@ public partial struct PlayerTargetingSystem : ISystem
                 targetEnabled.ValueRW = false;
             }
         }
+    }
+
+    private static float PlanarDistanceToSegment(float3 point, float3 segmentStart, float3 segmentEnd)
+    {
+        float2 segment = segmentEnd.xz - segmentStart.xz;
+        float segmentLengthSquared = math.lengthsq(segment);
+        float alongSegment = segmentLengthSquared > 0.0001f
+            ? math.saturate(math.dot(point.xz - segmentStart.xz, segment) / segmentLengthSquared)
+            : 0f;
+        return math.distance(point.xz, segmentStart.xz + segment * alongSegment);
     }
 
     [BurstCompile]

@@ -146,6 +146,14 @@ public class CaravanAuthoring : MonoBehaviour
             AddComponent<CaravanBroken>(entity);
             SetComponentEnabled<CaravanBroken>(entity, false);
 
+            // Reachable from anywhere along the body (CV-D16), not just near the origin by the back axle.
+            AddComponent(entity, new PlayerInteractableReach
+            {
+                localSegmentStart = new float3(0f, 0f, authoring.rearBumperLocalZ + authoring.halfWidth),
+                localSegmentEnd = new float3(0f, 0f, authoring.frontBumperLocalZ - authoring.halfWidth),
+                radius = authoring.halfWidth,
+            });
+
             // The caravan holds the ledger (CV-D5). Rows start empty; CaravanLinkSystem moves the player's stock in.
             AddBuffer<ResourceStack>(entity);
             AddBuffer<StorageCapacity>(entity);
