@@ -117,6 +117,12 @@ public partial struct CaravanBoardSystem : ISystem
             SystemAPI.SetComponent(targetEntity, new CaravanDriving { driver = playerEntity });
             SystemAPI.SetComponentEnabled<CaravanDriving>(targetEntity, true);
             SystemAPI.SetComponentEnabled<CaravanParked>(targetEntity, false);
+            // Start heading the way the body already faces, or the first frame would swing it toward world +Z.
+            SystemAPI.SetComponent(targetEntity, new CaravanDriveState
+            {
+                headingDegrees = CaravanDriveMath.HeadingDegrees(math.rotate(caravanTransform.Rotation, new float3(0f, 0f, 1f))),
+                wheelSpinRadians = SystemAPI.GetComponent<CaravanDriveState>(targetEntity).wheelSpinRadians,
+            });
             CaravanDoorControl.RequestClose(ref SystemAPI.GetComponentRW<CaravanDoors>(targetEntity).ValueRW);
             SystemAPI.SetComponent(playerEntity, new CaravanDriveInput());
         }
@@ -130,6 +136,8 @@ public partial struct CaravanBoardSystem : ISystem
 
         RefRW<CaravanDriveState> driveState = SystemAPI.GetComponentRW<CaravanDriveState>(caravanEntity);
         driveState.ValueRW.forwardSpeed = 0f;
+        driveState.ValueRW.headingTurnVelocity = 0f;
+        driveState.ValueRW.yawRateDegrees = 0f;
         driveState.ValueRW.steerInput = 0f;
         CaravanDoorControl.RequestOpen(ref SystemAPI.GetComponentRW<CaravanDoors>(caravanEntity).ValueRW);
 

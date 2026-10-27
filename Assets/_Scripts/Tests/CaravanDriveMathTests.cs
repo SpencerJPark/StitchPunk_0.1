@@ -7,54 +7,71 @@ namespace StitchPunk.Tests
     {
         private const float FrameSeconds = 1f / 60f;
 
+        // The original CaravanMovementData numbers.
         private static CaravanDriveTuning DefaultTuning()
         {
             return new CaravanDriveTuning
             {
-                maxForwardSpeed = 7f,
-                maxReverseSpeed = 2.5f,
-                acceleration = 3.5f,
-                brakeDeceleration = 9f,
-                coastDeceleration = 1.5f,
-                turnDegreesPerSecondAtFullSpeed = 55f,
-                turnDegreesPerSecondAtLowSpeed = 25f,
-                wheelRadius = 0.79f,
+                moveSpeed = 7f,
+                turnSpeed = 50f,
+                forwardAcceleration = 1.2f,
+                forwardDeceleration = 3f,
+                idleTurnSpeedFactor = 0.4f,
+                turnSmoothTime = 2.44f,
+                wheelRadius = 1.2f,
             };
         }
 
-        // Pulling back at speed is the brake: it must stop the cart at brake strength, not merely
-        // accelerate backwards through zero, and then reverse no faster than maxReverseSpeed.
+        // The feel the owner tuned: a slow, heavy pull away and a quicker settle when you let go.
         [Test]
-        public void PullingBackWhileRollingForward_BrakesToAStopThenReversesNoFasterThanMaxReverse()
+        public void Speed_PullsAwayAtAccelerationAndSettlesAtTheFasterDeceleration()
         {
             CaravanDriveTuning tuning = DefaultTuning();
-            float forwardSpeed = tuning.maxForwardSpeed;
-            int framesToStop = -1;
+            float speed = 0f;
+            int framesToFullSpeed = 0;
+            while (speed < tuning.moveSpeed && framesToFullSpeed < 10000)
+            {
+                speed = CaravanDriveMath.IntegrateSpeed(speed, tuning.moveSpeed, in tuning, FrameSeconds);
+                framesToFullSpeed++;
+            }
+            int framesToStop = 0;
+            while (speed > 0f && framesToStop < 10000)
+            {
+                speed = CaravanDriveMath.IntegrateSpeed(speed, 0f, in tuning, FrameSeconds);
+                framesToStop++;
+            }
+
+            Assert.AreEqual(tuning.moveSpeed / tuning.forwardAcceleration, framesToFullSpeed * FrameSeconds, 0.05f);
+            Assert.AreEqual(tuning.moveSpeed / tuning.forwardDeceleration, framesToStop * FrameSeconds, 0.05f);
+        }
+
+        // Steering round past south must take the short way, never swing 340 degrees the long way round.
+        [Test]
+        public void Heading_TurnsTheShortWayAcrossTheWrap_AndNeverFasterThanTheTurnCap()
+        {
+            CaravanDriveTuning tuning = DefaultTuning();
+            float heading = 170f;
+            float turnVelocity = 0f;
+            float turnCap = CaravanDriveMath.TurnSpeedLimit(tuning.moveSpeed, in tuning);
 
             for (int frameIndex = 0; frameIndex < 600; frameIndex++)
             {
-                forwardSpeed = CaravanDriveMath.IntegrateForwardSpeed(forwardSpeed, -1f, in tuning, FrameSeconds);
-                if (framesToStop < 0 && forwardSpeed <= 0.1f) framesToStop = frameIndex + 1;
+                float previousHeading = heading;
+                heading = CaravanDriveMath.SmoothDampAngle(heading, -170f, ref turnVelocity, tuning.turnSmoothTime, turnCap, FrameSeconds);
+                float turnedThisFrame = CaravanDriveMath.DeltaAngle(previousHeading, heading);
+                Assert.GreaterOrEqual(turnedThisFrame, -0.0001f, "Turned the long way round on frame " + frameIndex);
+                Assert.LessOrEqual(turnedThisFrame, turnCap * FrameSeconds + 0.001f, "Beat the turn cap on frame " + frameIndex);
             }
-
-            int framesAtBrakeStrength = (int)System.Math.Ceiling(tuning.maxForwardSpeed / tuning.brakeDeceleration / FrameSeconds);
-            Assert.GreaterOrEqual(framesToStop, 1, "Never came to a stop");
-            Assert.LessOrEqual(framesToStop, framesAtBrakeStrength + 2, "Stopped at acceleration strength, not brake strength");
-            Assert.AreEqual(-tuning.maxReverseSpeed, forwardSpeed, 0.001f);
+            Assert.AreEqual(0f, CaravanDriveMath.DeltaAngle(heading, -170f), 1f);
         }
 
-        // A cart cannot spin on the spot, and backing up swings the nose the other way.
+        // Standing still you can still turn, but only at idleTurnSpeedFactor of the cap.
         [Test]
-        public void Yaw_IsZeroAtStandstill_AndFlipsWhenReversing()
+        public void TurnCap_AtStandstill_IsTheIdleFractionOfFullSpeed()
         {
             CaravanDriveTuning tuning = DefaultTuning();
-
-            Assert.AreEqual(0f, CaravanDriveMath.YawDegreesThisFrame(0f, 1f, in tuning, FrameSeconds), 0.0001f);
-
-            float forwardYaw = CaravanDriveMath.YawDegreesThisFrame(4f, 1f, in tuning, FrameSeconds);
-            float reverseYaw = CaravanDriveMath.YawDegreesThisFrame(-2f, 1f, in tuning, FrameSeconds);
-            Assert.Greater(forwardYaw, 0f);
-            Assert.Less(reverseYaw, 0f);
+            Assert.AreEqual(tuning.turnSpeed * tuning.idleTurnSpeedFactor, CaravanDriveMath.TurnSpeedLimit(0f, in tuning), 0.0001f);
+            Assert.AreEqual(tuning.turnSpeed, CaravanDriveMath.TurnSpeedLimit(tuning.moveSpeed, in tuning), 0.0001f);
         }
 
         // The slam is what sells the smoke-burst entrance: it must swing past fully open, then settle at Open.

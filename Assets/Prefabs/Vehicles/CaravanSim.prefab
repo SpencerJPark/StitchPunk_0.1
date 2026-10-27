@@ -236,7 +236,7 @@ MonoBehaviour:
   turnDegreesPerSecondAtFullSpeed: 55
   turnDegreesPerSecondAtLowSpeed: 25
   parkMaxSpeed: 0.5
-  wheelRadius: 0.79
+  wheelRadius: 1.2
   frontBumperLocalZ: 7
   rearBumperLocalZ: -3
   halfWidth: 1.75

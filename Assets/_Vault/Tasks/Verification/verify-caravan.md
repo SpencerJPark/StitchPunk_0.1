@@ -27,8 +27,10 @@ What was checked when it was built:
 - [ ] On the first frame the caravan's back doors swing open (parked = camp).
 - [ ] Walk to the **back** of the caravan (behind the doors) and press E: the workstation opens (the menu, as before).
 - [ ] Walk up to **either side or the front**, even right by the horse, and press E: the doors close, you sit on the driver's seat, and the map switches to Vehicle.
-- [ ] W from a standstill: the caravan ramps up to about 7 m/s and all four wheels roll forward. S while rolling brakes hard, then reverses slowly with the wheels counter-rotating.
-- [ ] A/D at a standstill: no turn. While moving, the front axle visibly yaws and the caravan turns. Reversing swings the nose the other way.
+- [ ] It should feel like your old `VehicleController` (CV-D17): push a direction and the caravan **heads that way on the map** (world axes, like walking), pulling away slowly (about 6 s to full speed) and settling faster when you let go (about 2 s). There's no reverse: pull back and it swings round.
+- [ ] Turns are lazy and wide (the heading eases round), and the body swings after it. You can still creep round from a standstill, just slower.
+- [ ] The wheels roll with speed, the front axle points where it's heading, and the body bounces with speed and leans into turns.
+- [ ] Tune the feel on `CaravanSim` → CaravanAuthoring (Driving) and on `Caravan.prefab` → CaravanPresenter (Ride).
 - [ ] Drive into a wall or building: it stops dead and doesn't clip through. Back away freely.
 - [ ] Drive over uneven ground: the caravan stays on the ground.
 - [ ] Press E at speed: refused ("Slow down to park the caravan." in the console). Stop and press E: you're put down beside the driver's side (front left), the doors open, and you're back on foot.

@@ -30,6 +30,18 @@ public class CaravanPresenter : MonoBehaviour
     [Tooltip("How far a broken caravan slumps onto one side.")]
     [SerializeField] private float brokenSagDegrees = 4f;
 
+    [Header("Ride (the original VehicleShakerAnimator)")]
+    [Tooltip("Speed at which the bounce is at full strength.")]
+    [SerializeField] private float rideMaxSpeed = 10f;
+    [SerializeField] private float speedTiltDegrees = 5f;
+    [SerializeField] private float rideNoiseFrequency = 1f;
+    [Tooltip("Lean into a turn at maxYawRate.")]
+    [SerializeField] private float turnTiltDegrees = 10f;
+    [Tooltip("Radians per second of body turn that gives the full lean.")]
+    [SerializeField] private float maxYawRate = 2f;
+    [SerializeField] private float pitchRangeDegrees = 8f;
+    [SerializeField] private float rollRangeDegrees = 12f;
+
     private Quaternion[] wheelRestRotations;
     private Vector3[] wheelSpinAxes;
     private Quaternion frontAxleRestRotation;
@@ -113,7 +125,7 @@ public class CaravanPresenter : MonoBehaviour
         ApplyDoors(entityManager.GetComponentData<CaravanDoors>(caravanEntity));
         bool broken = entityManager.HasComponent<CaravanBroken>(caravanEntity)
             && entityManager.IsComponentEnabled<CaravanBroken>(caravanEntity);
-        ApplyShake(entityManager.GetComponentData<CaravanShake>(caravanEntity), broken);
+        ApplyShake(entityManager.GetComponentData<CaravanShake>(caravanEntity), broken, RideTilt(driveState));
         ApplyLoopingSmoke(brokenSmoke, broken);
         ApplyChimney(entityManager.HasComponent<CaravanChimneySmoking>(caravanEntity)
             && entityManager.IsComponentEnabled<CaravanChimneySmoking>(caravanEntity));
@@ -145,10 +157,24 @@ public class CaravanPresenter : MonoBehaviour
             rightDoorHinge.localRotation = rightDoorRestRotation * Quaternion.AngleAxis(-openDegrees, rightDoorHingeAxis);
     }
 
-    private void ApplyShake(CaravanShake shake, bool broken)
+    // A bounce that grows with speed plus a lean into turns, clamped to the original pitch/roll ranges.
+    private Quaternion RideTilt(CaravanDriveState driveState)
+    {
+        float speedFraction = Mathf.Clamp01(driveState.forwardSpeed / rideMaxSpeed);
+        float pitchNoise = Mathf.PerlinNoise(Time.time * rideNoiseFrequency, 0f) - 0.5f;
+        float rollNoise = Mathf.PerlinNoise(1f, Time.time * rideNoiseFrequency) - 0.5f;
+        float yawFraction = Mathf.Clamp(driveState.yawRateDegrees * Mathf.Deg2Rad / maxYawRate, -1f, 1f);
+
+        float pitchDegrees = Mathf.Clamp(pitchNoise * 2f * speedTiltDegrees * speedFraction, -pitchRangeDegrees, pitchRangeDegrees);
+        float rollDegrees = Mathf.Clamp(rollNoise * 2f * speedTiltDegrees * speedFraction - yawFraction * turnTiltDegrees,
+            -rollRangeDegrees, rollRangeDegrees);
+        return Quaternion.Euler(pitchDegrees, 0f, 0f) * Quaternion.Euler(0f, 0f, rollDegrees);
+    }
+
+    private void ApplyShake(CaravanShake shake, bool broken, Quaternion rideTilt)
     {
         if (shakeRoot == null) return;
-        Quaternion sag = broken ? Quaternion.Euler(0f, 0f, brokenSagDegrees) : Quaternion.identity;
+        Quaternion sag = (broken ? Quaternion.Euler(0f, 0f, brokenSagDegrees) : Quaternion.identity) * rideTilt;
         if (shake.remainingSeconds <= 0f)
         {
             shakeRoot.localPosition = shakeRestPosition;

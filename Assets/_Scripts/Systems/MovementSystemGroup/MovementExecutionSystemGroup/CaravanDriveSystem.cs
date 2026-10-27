@@ -6,8 +6,8 @@ using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Transforms;
 
-// Arcade kinematic driving (Caravan_System.md CV-D4): speed and yaw from CaravanDriveMath, a sphere cast at the
-// leading bumper stops it at walls, a down-ray keeps it on the ground. Units are not walls here — running them
+// Kinematic driving with the original VehicleController's handling (Caravan_System.md CV-D4, CV-D17): heading and
+// speed from CaravanDriveMath, a sphere cast at the front bumper stops it at walls, a down-ray keeps it on the ground. Units are not walls here — running them
 // over is CaravanCrashSystem's job. Runs after gravity and body-block so the seated driver is placed last.
 [BurstCompile]
 [UpdateInGroup(typeof(MovementExecutionSystemGroup))]
@@ -72,11 +72,31 @@ public partial struct CaravanDriveSystem : ISystem
                 ? SystemAPI.GetComponent<CaravanDriveInput>(driverEntity).steer
                 : float2.zero;
 
-            float forwardSpeed = CaravanDriveMath.IntegrateForwardSpeed(driveState.ValueRO.forwardSpeed, steer.y, in tuning, deltaTime);
-            float yawDegrees = CaravanDriveMath.YawDegreesThisFrame(forwardSpeed, steer.x, in tuning, deltaTime);
-            quaternion rotation = math.mul(caravanTransform.ValueRO.Rotation, quaternion.RotateY(math.radians(yawDegrees)));
-            float3 forward = math.normalizesafe(math.rotate(rotation, new float3(0f, 0f, 1f)) * new float3(1f, 0f, 1f),
-                new float3(0f, 0f, 1f));
+            // The original VehicleController's feel (CV-D17): the stick is a world direction to head toward
+            // (world axes, like the player's own WASD) and its tilt is the target speed. There is no reverse.
+            float2 stick = math.lengthsq(steer) > 1f ? math.normalize(steer) : steer;
+            float forwardSpeed = CaravanDriveMath.IntegrateSpeed(driveState.ValueRO.forwardSpeed,
+                math.length(stick) * tuning.moveSpeed, in tuning, deltaTime);
+
+            float headingDegrees = driveState.ValueRO.headingDegrees;
+            float headingTurnVelocity = driveState.ValueRO.headingTurnVelocity;
+            float targetHeadingDegrees = math.lengthsq(stick) > 0.0001f
+                ? CaravanDriveMath.HeadingDegrees(new float3(stick.x, 0f, stick.y))
+                : headingDegrees;
+            headingDegrees = CaravanDriveMath.SmoothDampAngle(headingDegrees, targetHeadingDegrees, ref headingTurnVelocity,
+                tuning.turnSmoothTime, CaravanDriveMath.TurnSpeedLimit(forwardSpeed, in tuning), deltaTime);
+            float3 forward = CaravanDriveMath.HeadingDirection(headingDegrees);
+
+            // The body swings round after the heading at turnSpeed, and only while it is rolling.
+            float bodyYawDegrees = CaravanDriveMath.HeadingDegrees(math.rotate(caravanTransform.ValueRO.Rotation, new float3(0f, 0f, 1f)));
+            float newBodyYawDegrees = bodyYawDegrees;
+            if (forwardSpeed > 0.03f)
+            {
+                float maximumBodyTurn = tuning.turnSpeed * deltaTime;
+                newBodyYawDegrees += math.clamp(CaravanDriveMath.DeltaAngle(bodyYawDegrees, headingDegrees),
+                    -maximumBodyTurn, maximumBodyTurn);
+            }
+            quaternion rotation = quaternion.RotateY(math.radians(newBodyYawDegrees));
             float3 position = caravanTransform.ValueRO.Position;
 
             float stepLength = forwardSpeed * deltaTime;
@@ -98,7 +118,11 @@ public partial struct CaravanDriveSystem : ISystem
             caravanTransform.ValueRW.Position = position;
             caravanTransform.ValueRW.Rotation = rotation;
             driveState.ValueRW.forwardSpeed = forwardSpeed;
-            driveState.ValueRW.steerInput = math.clamp(steer.x, -1f, 1f);
+            driveState.ValueRW.headingDegrees = headingDegrees;
+            driveState.ValueRW.headingTurnVelocity = headingTurnVelocity;
+            driveState.ValueRW.yawRateDegrees = CaravanDriveMath.DeltaAngle(bodyYawDegrees, newBodyYawDegrees) / deltaTime;
+            // The front axle points where the caravan is heading, ahead of where the body faces.
+            driveState.ValueRW.steerInput = math.clamp(CaravanDriveMath.DeltaAngle(newBodyYawDegrees, headingDegrees) / 30f, -1f, 1f);
             driveState.ValueRW.wheelSpinRadians = CaravanDriveMath.AdvanceWheelSpin(
                 driveState.ValueRO.wheelSpinRadians, forwardSpeed, tuning.wheelRadius, deltaTime);
 

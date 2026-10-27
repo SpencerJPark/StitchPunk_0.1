@@ -17,18 +17,21 @@ public class CaravanAuthoring : MonoBehaviour
     public Transform smokeBurstSpawn;
     public Transform chimneyTop;
 
-    [Header("Driving")]
-    public float maxForwardSpeed = 7f;
-    public float maxReverseSpeed = 2.5f;
-    public float acceleration = 3.5f;
-    public float brakeDeceleration = 9f;
-    public float coastDeceleration = 1.5f;
-    public float turnDegreesPerSecondAtFullSpeed = 55f;
-    [Tooltip("A cart can't spin on the spot: turning fades to nothing as the caravan stops.")]
-    public float turnDegreesPerSecondAtLowSpeed = 25f;
+    [Header("Driving (defaults = the original CaravanMovementData)")]
+    [Tooltip("Full-stick speed. The stick's tilt scales it; its direction is where the caravan heads.")]
+    public float moveSpeed = 7f;
+    [Tooltip("Degrees per second: caps both the heading and how fast the body swings round after it.")]
+    public float turnSpeed = 50f;
+    public float forwardAcceleration = 1.2f;
+    public float forwardDeceleration = 3f;
+    [Tooltip("Fraction of turnSpeed allowed at a standstill.")]
+    [Range(0f, 1f)] public float idleTurnSpeedFactor = 0.4f;
+    [Tooltip("SmoothDampAngle time for the heading: higher = lazier, wider turns.")]
+    public float turnSmoothTime = 2.44f;
     [Tooltip("E only parks below this speed.")]
     public float parkMaxSpeed = 0.5f;
-    public float wheelRadius = 0.79f;
+    [Tooltip("The original wheel animator's radius; larger spins slower.")]
+    public float wheelRadius = 1.2f;
     [Tooltip("Local Z of the front of the horse and the back doors; the wall check and crash box run between them.")]
     public float frontBumperLocalZ = 7f;
     public float rearBumperLocalZ = -3f;
@@ -81,13 +84,12 @@ public class CaravanAuthoring : MonoBehaviour
             });
             AddComponent(entity, new CaravanDriveTuning
             {
-                maxForwardSpeed = authoring.maxForwardSpeed,
-                maxReverseSpeed = authoring.maxReverseSpeed,
-                acceleration = authoring.acceleration,
-                brakeDeceleration = authoring.brakeDeceleration,
-                coastDeceleration = authoring.coastDeceleration,
-                turnDegreesPerSecondAtFullSpeed = authoring.turnDegreesPerSecondAtFullSpeed,
-                turnDegreesPerSecondAtLowSpeed = authoring.turnDegreesPerSecondAtLowSpeed,
+                moveSpeed = authoring.moveSpeed,
+                turnSpeed = authoring.turnSpeed,
+                forwardAcceleration = authoring.forwardAcceleration,
+                forwardDeceleration = authoring.forwardDeceleration,
+                idleTurnSpeedFactor = authoring.idleTurnSpeedFactor,
+                turnSmoothTime = authoring.turnSmoothTime,
                 parkMaxSpeed = authoring.parkMaxSpeed,
                 wheelRadius = authoring.wheelRadius,
                 frontBumperLocalZ = authoring.frontBumperLocalZ,

@@ -14,15 +14,15 @@ public struct Caravan : IComponentData
     public float3 chimneyTopLocalOffset;
 }
 
+// Field names and defaults follow the original VehicleMovementData (CaravanMovementData.asset).
 public struct CaravanDriveTuning : IComponentData
 {
-    public float maxForwardSpeed;
-    public float maxReverseSpeed;
-    public float acceleration;
-    public float brakeDeceleration;
-    public float coastDeceleration;
-    public float turnDegreesPerSecondAtFullSpeed;
-    public float turnDegreesPerSecondAtLowSpeed;
+    public float moveSpeed;               // full-stick speed, metres per second
+    public float turnSpeed;               // degrees per second, the cap on both the heading and the body
+    public float forwardAcceleration;
+    public float forwardDeceleration;
+    public float idleTurnSpeedFactor;     // fraction of turnSpeed allowed at a standstill
+    public float turnSmoothTime;          // SmoothDampAngle time for the heading
     public float parkMaxSpeed;
     public float wheelRadius;
     public float frontBumperLocalZ;
@@ -33,9 +33,12 @@ public struct CaravanDriveTuning : IComponentData
 
 public struct CaravanDriveState : IComponentData
 {
-    public float forwardSpeed;        // signed, metres per second
-    public float steerInput;          // -1..1, the front axle's yaw
-    public float wheelSpinRadians;    // accumulated rolling angle, wrapped to one turn
+    public float forwardSpeed;            // metres per second along the heading; the caravan has no reverse
+    public float headingDegrees;          // the direction it is travelling; the body turns after it
+    public float headingTurnVelocity;     // SmoothDampAngle's velocity, degrees per second
+    public float yawRateDegrees;          // how fast the body turned this frame, for the presenter's lean
+    public float steerInput;              // -1..1, the front axle's yaw (heading ahead of the body)
+    public float wheelSpinRadians;        // accumulated rolling angle, wrapped to one turn
 }
 
 // Exactly one of CaravanDriving / CaravanParked is enabled once CaravanLinkSystem has run.
