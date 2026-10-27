@@ -102,4 +102,14 @@ public struct AnimSoundEventLibraryReference : IComponentData
     public UnityObjectRef<AnimSoundEventMappingSO> library;
 }
 
+// Vehicle profiles (enum-indexed by VehicleType): how each vehicle drives, crashes and rides, and where its
+// driver and puller sit per facing. Read by the caravan drive/board/crash systems and CaravanPresenter.
+public struct VehicleLibrary : IComponentData
+{
+    public BlobAssetReference<VehicleLibraryBlob> library;
+}
 
+public struct VehicleLibraryReference : IComponentData
+{
+    public UnityObjectRef<VehicleLibrarySO> library;
+}

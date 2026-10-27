@@ -30,17 +30,9 @@ public class CaravanPresenter : MonoBehaviour
     [Tooltip("How far a broken caravan slumps onto one side.")]
     [SerializeField] private float brokenSagDegrees = 4f;
 
-    [Header("Ride (the original VehicleShakerAnimator)")]
-    [Tooltip("Speed at which the bounce is at full strength.")]
-    [SerializeField] private float rideMaxSpeed = 10f;
-    [SerializeField] private float speedTiltDegrees = 5f;
-    [SerializeField] private float rideNoiseFrequency = 1f;
-    [Tooltip("Lean into a turn at maxYawRate.")]
-    [SerializeField] private float turnTiltDegrees = 10f;
-    [Tooltip("Radians per second of body turn that gives the full lean.")]
-    [SerializeField] private float maxYawRate = 2f;
-    [SerializeField] private float pitchRangeDegrees = 8f;
-    [SerializeField] private float rollRangeDegrees = 12f;
+    [Header("Puller")]
+    [Tooltip("The horse (or other puller). Placed at the VehicleProfileSO's offset for the current facing; empty for a car.")]
+    [SerializeField] private Transform puller;
 
     private Quaternion[] wheelRestRotations;
     private Vector3[] wheelSpinAxes;
@@ -54,6 +46,7 @@ public class CaravanPresenter : MonoBehaviour
     private Quaternion shakeRestRotation;
 
     private EntityQuery caravanQuery;
+    private EntityQuery vehicleLibraryQuery;
     private World queryWorld;
     private int lastSeenSmokeBurstCount;
     private bool hasSeenSmokeBurstCount;
@@ -100,6 +93,7 @@ public class CaravanPresenter : MonoBehaviour
         if (queryWorld != world)
         {
             queryWorld = world;
+            vehicleLibraryQuery = world.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<VehicleLibrary>());
             caravanQuery = world.EntityManager.CreateEntityQuery(
                 ComponentType.ReadOnly<Caravan>(),
                 ComponentType.ReadOnly<LocalTransform>(),
@@ -125,7 +119,14 @@ public class CaravanPresenter : MonoBehaviour
         ApplyDoors(entityManager.GetComponentData<CaravanDoors>(caravanEntity));
         bool broken = entityManager.HasComponent<CaravanBroken>(caravanEntity)
             && entityManager.IsComponentEnabled<CaravanBroken>(caravanEntity);
-        ApplyShake(entityManager.GetComponentData<CaravanShake>(caravanEntity), broken, RideTilt(driveState));
+        Quaternion rideTilt = Quaternion.identity;
+        if (TryGetProfile(entityManager, caravanEntity, out BlobAssetReference<VehicleLibraryBlob> vehicleLibrary, out int vehicleIndex))
+        {
+            ref VehicleProfileBlob profile = ref vehicleLibrary.Value.vehicles[vehicleIndex];
+            rideTilt = RideTilt(driveState, ref profile);
+            ApplyPuller(driveState, ref profile);
+        }
+        ApplyShake(entityManager.GetComponentData<CaravanShake>(caravanEntity), broken, rideTilt);
         ApplyLoopingSmoke(brokenSmoke, broken);
         ApplyChimney(entityManager.HasComponent<CaravanChimneySmoking>(caravanEntity)
             && entityManager.IsComponentEnabled<CaravanChimneySmoking>(caravanEntity));
@@ -158,16 +159,34 @@ public class CaravanPresenter : MonoBehaviour
     }
 
     // A bounce that grows with speed plus a lean into turns, clamped to the original pitch/roll ranges.
-    private Quaternion RideTilt(CaravanDriveState driveState)
+    private bool TryGetProfile(EntityManager entityManager, Entity caravanEntity,
+        out BlobAssetReference<VehicleLibraryBlob> vehicleLibrary, out int vehicleIndex)
     {
-        float speedFraction = Mathf.Clamp01(driveState.forwardSpeed / rideMaxSpeed);
-        float pitchNoise = Mathf.PerlinNoise(Time.time * rideNoiseFrequency, 0f) - 0.5f;
-        float rollNoise = Mathf.PerlinNoise(1f, Time.time * rideNoiseFrequency) - 0.5f;
-        float yawFraction = Mathf.Clamp(driveState.yawRateDegrees * Mathf.Deg2Rad / maxYawRate, -1f, 1f);
+        vehicleLibrary = default;
+        vehicleIndex = 0;
+        if (vehicleLibraryQuery.IsEmptyIgnoreFilter || !entityManager.HasComponent<Vehicle>(caravanEntity)) return false;
+        vehicleLibrary = vehicleLibraryQuery.GetSingleton<VehicleLibrary>().library;
+        vehicleIndex = (int)entityManager.GetComponentData<Vehicle>(caravanEntity).vehicleType;
+        return vehicleLibrary.IsCreated && vehicleIndex > 0 && vehicleIndex < vehicleLibrary.Value.vehicles.Length;
+    }
 
-        float pitchDegrees = Mathf.Clamp(pitchNoise * 2f * speedTiltDegrees * speedFraction, -pitchRangeDegrees, pitchRangeDegrees);
-        float rollDegrees = Mathf.Clamp(rollNoise * 2f * speedTiltDegrees * speedFraction - yawFraction * turnTiltDegrees,
-            -rollRangeDegrees, rollRangeDegrees);
+    private void ApplyPuller(CaravanDriveState driveState, ref VehicleProfileBlob profile)
+    {
+        if (puller == null || !profile.HasPuller) return;
+        float3 offset = profile.pullerOffsets[(int)driveState.facing];
+        puller.localPosition = new Vector3(offset.x, offset.y, offset.z);
+    }
+
+    private Quaternion RideTilt(CaravanDriveState driveState, ref VehicleProfileBlob profile)
+    {
+        float speedFraction = Mathf.Clamp01(driveState.forwardSpeed / Mathf.Max(profile.rideMaxSpeed, 0.0001f));
+        float pitchNoise = Mathf.PerlinNoise(Time.time * profile.rideNoiseFrequency, 0f) - 0.5f;
+        float rollNoise = Mathf.PerlinNoise(1f, Time.time * profile.rideNoiseFrequency) - 0.5f;
+        float yawFraction = Mathf.Clamp(driveState.yawRateDegrees * Mathf.Deg2Rad / Mathf.Max(profile.maxYawRate, 0.0001f), -1f, 1f);
+
+        float pitchDegrees = Mathf.Clamp(pitchNoise * 2f * profile.speedTiltDegrees * speedFraction, -profile.pitchRangeDegrees, profile.pitchRangeDegrees);
+        float rollDegrees = Mathf.Clamp(rollNoise * 2f * profile.speedTiltDegrees * speedFraction - yawFraction * profile.turnTiltDegrees,
+            -profile.rollRangeDegrees, profile.rollRangeDegrees);
         return Quaternion.Euler(pitchDegrees, 0f, 0f) * Quaternion.Euler(0f, 0f, rollDegrees);
     }
 

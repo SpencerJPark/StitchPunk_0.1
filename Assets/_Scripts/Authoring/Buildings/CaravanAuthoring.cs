@@ -7,8 +7,10 @@ using UnityEngine;
 [RequireComponent(typeof(WorkstationAuthoring))]
 public class CaravanAuthoring : MonoBehaviour
 {
+    [Tooltip("How it drives, crashes and rides, and where the driver and horse sit per facing (CV-D18).")]
+    public VehicleProfileSO profile;
+
     [Header("Points (empty = the default measured off Caravan.prefab)")]
-    public Transform driverSeat;
     [Tooltip("Stand here and press E to drive. Parking puts the player back here.")]
     public Transform boardPoint;
     public Transform interiorStart;
@@ -17,43 +19,10 @@ public class CaravanAuthoring : MonoBehaviour
     public Transform smokeBurstSpawn;
     public Transform chimneyTop;
 
-    [Header("Driving (defaults = the original CaravanMovementData)")]
-    [Tooltip("Full-stick speed. The stick's tilt scales it; its direction is where the caravan heads.")]
-    public float moveSpeed = 7f;
-    [Tooltip("Degrees per second: caps both the heading and how fast the body swings round after it.")]
-    public float turnSpeed = 50f;
-    public float forwardAcceleration = 1.2f;
-    public float forwardDeceleration = 3f;
-    [Tooltip("Fraction of turnSpeed allowed at a standstill.")]
-    [Range(0f, 1f)] public float idleTurnSpeedFactor = 0.4f;
-    [Tooltip("SmoothDampAngle time for the heading: higher = lazier, wider turns.")]
-    public float turnSmoothTime = 2.44f;
-    [Tooltip("E only parks below this speed.")]
-    public float parkMaxSpeed = 0.5f;
-    [Tooltip("The original wheel animator's radius; larger spins slower.")]
-    public float wheelRadius = 1.2f;
-    [Tooltip("Local Z of the front of the horse and the back doors; the wall check and crash box run between them.")]
-    public float frontBumperLocalZ = 7f;
-    public float rearBumperLocalZ = -3f;
-    public float halfWidth = 1.75f;
-    public float bumperGroundClearance = 0.4f;
-
     [Header("Doors")]
     public float doorOpenSeconds = 0.6f;
     public float doorCloseSeconds = 0.5f;
     public float doorBurstSeconds = 0.35f;
-
-    [Header("Crash")]
-    [Tooltip("Below this speed units are only pushed aside.")]
-    public float minimumImpactSpeed = 2f;
-    public float damagePerMetrePerSecond = 6f;
-    public float stunSecondsPerMetrePerSecond = 0.25f;
-    [Tooltip("Far enough that a unit hit dead centre clears the caravan's half-width.")]
-    public float shoveDistance = 2.5f;
-    public float shoveSeconds = 0.25f;
-    public int selfDamagePerHit = 1;
-    [Range(0f, 1f)] public float speedLossPerHit = 0.15f;
-    public float rehitCooldownSeconds = 1f;
 
     [Header("Summon exits")]
     public float walkOutSeconds = 1.2f;
@@ -74,7 +43,6 @@ public class CaravanAuthoring : MonoBehaviour
 
             AddComponent(entity, new Caravan
             {
-                driverSeatLocalOffset = LocalOffsetOf(authoring, authoring.driverSeat, new float3(0f, 2.42f, 2.72f)),
                 boardPointLocalOffset = LocalOffsetOf(authoring, authoring.boardPoint, new float3(-2.6f, 0f, 3f)),
                 interiorStartLocalOffset = LocalOffsetOf(authoring, authoring.interiorStart, new float3(0f, 1.93f, -0.6f)),
                 tailgateEdgeLocalOffset = LocalOffsetOf(authoring, authoring.tailgateEdge, new float3(0f, 1.93f, -2.35f)),
@@ -82,21 +50,10 @@ public class CaravanAuthoring : MonoBehaviour
                 smokeBurstSpawnLocalOffset = LocalOffsetOf(authoring, authoring.smokeBurstSpawn, new float3(0f, 0f, -4f)),
                 chimneyTopLocalOffset = LocalOffsetOf(authoring, authoring.chimneyTop, new float3(-0.92f, 5.4f, -0.39f)),
             });
-            AddComponent(entity, new CaravanDriveTuning
-            {
-                moveSpeed = authoring.moveSpeed,
-                turnSpeed = authoring.turnSpeed,
-                forwardAcceleration = authoring.forwardAcceleration,
-                forwardDeceleration = authoring.forwardDeceleration,
-                idleTurnSpeedFactor = authoring.idleTurnSpeedFactor,
-                turnSmoothTime = authoring.turnSmoothTime,
-                parkMaxSpeed = authoring.parkMaxSpeed,
-                wheelRadius = authoring.wheelRadius,
-                frontBumperLocalZ = authoring.frontBumperLocalZ,
-                rearBumperLocalZ = authoring.rearBumperLocalZ,
-                halfWidth = authoring.halfWidth,
-                bumperGroundClearance = authoring.bumperGroundClearance,
-            });
+            VehicleProfileSO profile = authoring.profile;
+            if (profile != null) DependsOn(profile);
+            else Debug.LogWarning($"[CaravanAuthoring] {authoring.name} has no VehicleProfileSO: it can't drive.", authoring);
+            AddComponent(entity, new Vehicle { vehicleType = profile != null ? profile.vehicleType : VehicleType.None });
             AddComponent(entity, new CaravanDriveState());
 
             AddComponent(entity, new CaravanDriving { driver = Entity.Null });
@@ -115,17 +72,6 @@ public class CaravanAuthoring : MonoBehaviour
             AddComponent(entity, new CaravanShake());
             AddComponent(entity, new CaravanPresentationEvents());
 
-            AddComponent(entity, new CaravanCrashTuning
-            {
-                minimumImpactSpeed = authoring.minimumImpactSpeed,
-                damagePerMetrePerSecond = authoring.damagePerMetrePerSecond,
-                stunSecondsPerMetrePerSecond = authoring.stunSecondsPerMetrePerSecond,
-                shoveDistance = authoring.shoveDistance,
-                shoveSeconds = authoring.shoveSeconds,
-                selfDamagePerHit = authoring.selfDamagePerHit,
-                speedLossPerHit = authoring.speedLossPerHit,
-                rehitCooldownSeconds = authoring.rehitCooldownSeconds,
-            });
             AddBuffer<CaravanRecentHit>(entity);
 
             AddComponent(entity, new CaravanExitTuning
@@ -149,12 +95,15 @@ public class CaravanAuthoring : MonoBehaviour
             SetComponentEnabled<CaravanBroken>(entity, false);
 
             // Reachable from anywhere along the body (CV-D16), not just near the origin by the back axle.
-            AddComponent(entity, new PlayerInteractableReach
+            if (profile != null)
             {
-                localSegmentStart = new float3(0f, 0f, authoring.rearBumperLocalZ + authoring.halfWidth),
-                localSegmentEnd = new float3(0f, 0f, authoring.frontBumperLocalZ - authoring.halfWidth),
-                radius = authoring.halfWidth,
-            });
+                AddComponent(entity, new PlayerInteractableReach
+                {
+                    localSegmentStart = new float3(0f, 0f, profile.rearBumperLocalZ + profile.halfWidth),
+                    localSegmentEnd = new float3(0f, 0f, profile.frontBumperLocalZ - profile.halfWidth),
+                    radius = profile.halfWidth,
+                });
+            }
 
             // The caravan holds the ledger (CV-D5). Rows start empty; CaravanLinkSystem moves the player's stock in.
             AddBuffer<ResourceStack>(entity);

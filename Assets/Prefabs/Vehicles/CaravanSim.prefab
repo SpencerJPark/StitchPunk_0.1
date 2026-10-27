@@ -221,37 +221,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4cc944942dd11c74886347d5f1b8f627, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::CaravanAuthoring
-  driverSeat: {fileID: 0}
+  profile: {fileID: 11400000, guid: 3688ae4c6bf06834db1f792c890f1c66, type: 2}
   boardPoint: {fileID: 0}
   interiorStart: {fileID: 0}
   tailgateEdge: {fileID: 0}
   hopLanding: {fileID: 0}
   smokeBurstSpawn: {fileID: 0}
   chimneyTop: {fileID: 0}
-  maxForwardSpeed: 7
-  maxReverseSpeed: 2.5
-  acceleration: 3.5
-  brakeDeceleration: 9
-  coastDeceleration: 1.5
-  turnDegreesPerSecondAtFullSpeed: 55
-  turnDegreesPerSecondAtLowSpeed: 25
-  parkMaxSpeed: 0.5
-  wheelRadius: 1.2
-  frontBumperLocalZ: 7
-  rearBumperLocalZ: -3
-  halfWidth: 1.75
-  bumperGroundClearance: 0.4
   doorOpenSeconds: 0.6
   doorCloseSeconds: 0.5
   doorBurstSeconds: 0.35
-  minimumImpactSpeed: 2
-  damagePerMetrePerSecond: 6
-  stunSecondsPerMetrePerSecond: 0.25
-  shoveDistance: 2.5
-  shoveSeconds: 0.25
-  selfDamagePerHit: 1
-  speedLossPerHit: 0.15
-  rehitCooldownSeconds: 1
   walkOutSeconds: 1.2
   hopSeconds: 0.45
   hopArcHeight: 0.5

@@ -67,7 +67,7 @@ public partial struct CaravanBoardSystem : ISystem
                 if (!exitVehiclePressed && !caravanWrecked) continue;
 
                 float forwardSpeed = SystemAPI.GetComponent<CaravanDriveState>(drivenCaravan).forwardSpeed;
-                float parkMaxSpeed = SystemAPI.GetComponent<CaravanDriveTuning>(drivenCaravan).parkMaxSpeed;
+                float parkMaxSpeed = ParkMaxSpeedOf(ref state, drivenCaravan);
                 if (!caravanWrecked && math.abs(forwardSpeed) > parkMaxSpeed)
                 {
                     Debug.Log("Slow down to park the caravan.");
@@ -126,6 +126,15 @@ public partial struct CaravanBoardSystem : ISystem
             CaravanDoorControl.RequestClose(ref SystemAPI.GetComponentRW<CaravanDoors>(targetEntity).ValueRW);
             SystemAPI.SetComponent(playerEntity, new CaravanDriveInput());
         }
+    }
+
+    // From the caravan's VehicleProfileSO; with no profile there is no speed limit on parking.
+    private float ParkMaxSpeedOf(ref SystemState state, Entity caravanEntity)
+    {
+        if (!SystemAPI.TryGetSingleton(out VehicleLibrary vehicleLibrary) || !vehicleLibrary.library.IsCreated) return float.MaxValue;
+        int vehicleIndex = (int)SystemAPI.GetComponent<Vehicle>(caravanEntity).vehicleType;
+        if (vehicleIndex <= 0 || vehicleIndex >= vehicleLibrary.library.Value.vehicles.Length) return float.MaxValue;
+        return vehicleLibrary.library.Value.vehicles[vehicleIndex].parkMaxSpeed;
     }
 
     private void ParkAndStepOut(ref SystemState state, Entity playerEntity, Entity caravanEntity)

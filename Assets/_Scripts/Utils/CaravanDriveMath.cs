@@ -1,21 +1,23 @@
 using Unity.Mathematics;
 
-// The caravan's handling, ported from the pre-DOTS VehicleController the owner tuned (Caravan_System.md CV-D17):
+// Vehicle handling, ported from the pre-DOTS VehicleController the owner tuned (Caravan_System.md CV-D17); the numbers
+// come from each vehicle's VehicleProfileSO:
 // the stick is a world direction to head toward and its tilt is the target speed; the heading eases round with a
 // smoothed angle, and the body follows the heading at a capped turn rate. Pure so it can be tested without a World.
 public static class CaravanDriveMath
 {
-    public static float IntegrateSpeed(float currentSpeed, float targetSpeed, in CaravanDriveTuning tuning, float deltaTime)
+    public static float IntegrateSpeed(float currentSpeed, float targetSpeed, float forwardAcceleration,
+        float forwardDeceleration, float deltaTime)
     {
-        float rate = targetSpeed > currentSpeed ? tuning.forwardAcceleration : tuning.forwardDeceleration;
+        float rate = targetSpeed > currentSpeed ? forwardAcceleration : forwardDeceleration;
         return MoveTowards(currentSpeed, targetSpeed, rate * deltaTime);
     }
 
     // Turning is still possible from a standstill, just slower (idleTurnSpeedFactor), as in the original.
-    public static float TurnSpeedLimit(float currentSpeed, in CaravanDriveTuning tuning)
+    public static float TurnSpeedLimit(float currentSpeed, float moveSpeed, float turnSpeed, float idleTurnSpeedFactor)
     {
-        float speedFraction = math.saturate(currentSpeed / math.max(tuning.moveSpeed, 0.0001f));
-        return tuning.turnSpeed * math.lerp(tuning.idleTurnSpeedFactor, 1f, speedFraction);
+        float speedFraction = math.saturate(currentSpeed / math.max(moveSpeed, 0.0001f));
+        return turnSpeed * math.lerp(idleTurnSpeedFactor, 1f, speedFraction);
     }
 
     // Unity's Mathf.SmoothDampAngle, ported so Burst can run it. Degrees.

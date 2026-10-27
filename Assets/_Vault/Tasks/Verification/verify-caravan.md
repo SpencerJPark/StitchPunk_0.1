@@ -30,7 +30,8 @@ What was checked when it was built:
 - [ ] It should feel like your old `VehicleController` (CV-D17): push a direction and the caravan **heads that way on the map** (world axes, like walking), pulling away slowly (about 6 s to full speed) and settling faster when you let go (about 2 s). There's no reverse: pull back and it swings round.
 - [ ] Turns are lazy and wide (the heading eases round), and the body swings after it. You can still creep round from a standstill, just slower.
 - [ ] The wheels roll with speed, the front axle points where it's heading, and the body bounces with speed and leans into turns.
-- [ ] Tune the feel on `CaravanSim` → CaravanAuthoring (Driving) and on `Caravan.prefab` → CaravanPresenter (Ride).
+- [ ] Tune the feel on **`ScriptableObjects/Vehicles/Caravan.asset`** (the VehicleProfileSO: driving, crash, ride, and the per-direction driver seat and horse offsets). Changes need a rebake (re-enter Play).
+- [ ] As the caravan turns, the horse shifts between its eight per-direction positions (the old `HorseCaravanOffset` values).
 - [ ] Drive into a wall or building: it stops dead and doesn't clip through. Back away freely.
 - [ ] Drive over uneven ground: the caravan stays on the ground.
 - [ ] Press E at speed: refused ("Slow down to park the caravan." in the console). Stop and press E: you're put down beside the driver's side (front left), the doors open, and you're back on foot.

@@ -11516,6 +11516,7 @@ MonoBehaviour:
   maxFrontAxleYawDegrees: 25
   shakeFrequency: 22
   brokenSagDegrees: 4
+  puller: {fileID: 3942219430862374319}
 --- !u!1 &4450904372252791348
 GameObject:
   m_ObjectHideFlags: 0

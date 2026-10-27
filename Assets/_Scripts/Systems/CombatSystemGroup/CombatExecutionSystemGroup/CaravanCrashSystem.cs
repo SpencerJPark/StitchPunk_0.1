@@ -26,6 +26,7 @@ public partial struct CaravanCrashSystem : ISystem
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<Caravan>();
+        state.RequireForUpdate<VehicleLibrary>();
         state.RequireForUpdate<PhysicsWorldSingleton>();
         state.RequireForUpdate<DamageBus>();
     }
@@ -36,6 +37,8 @@ public partial struct CaravanCrashSystem : ISystem
         if (SystemAPI.QueryBuilder().WithAll<CaravanDriving>().Build().IsEmpty) return;
         // Main-thread lookup reads/writes on other entities wait for nothing on their own (Gotchas.md).
         state.CompleteDependency();
+        BlobAssetReference<VehicleLibraryBlob> vehicleLibrary = SystemAPI.GetSingleton<VehicleLibrary>().library;
+        if (!vehicleLibrary.IsCreated) return;
         CollisionWorld collisionWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>().CollisionWorld;
         CollisionFilter unitsOnlyFilter = new CollisionFilter
         {
@@ -47,17 +50,20 @@ public partial struct CaravanCrashSystem : ISystem
         EntityCommandBuffer commandBuffer = new EntityCommandBuffer(Allocator.Temp);
         double elapsedTime = SystemAPI.Time.ElapsedTime;
 
-        foreach ((RefRO<LocalTransform> caravanTransform, RefRW<CaravanDriveState> driveState,
-                     RefRO<CaravanDriveTuning> driveTuning, RefRO<CaravanCrashTuning> crashTuning,
+        foreach ((RefRO<LocalTransform> caravanTransform, RefRW<CaravanDriveState> driveState, RefRO<Vehicle> vehicle,
                      RefRO<CaravanDriving> caravanDriving, DynamicBuffer<CaravanRecentHit> recentHits,
                      RefRW<Health> caravanHealth, Entity caravanEntity)
-                 in SystemAPI.Query<RefRO<LocalTransform>, RefRW<CaravanDriveState>, RefRO<CaravanDriveTuning>,
-                         RefRO<CaravanCrashTuning>, RefRO<CaravanDriving>, DynamicBuffer<CaravanRecentHit>, RefRW<Health>>()
+                 in SystemAPI.Query<RefRO<LocalTransform>, RefRW<CaravanDriveState>, RefRO<Vehicle>,
+                         RefRO<CaravanDriving>, DynamicBuffer<CaravanRecentHit>, RefRW<Health>>()
                      .WithEntityAccess())
         {
+            int vehicleIndex = (int)vehicle.ValueRO.vehicleType;
+            if (vehicleIndex <= 0 || vehicleIndex >= vehicleLibrary.Value.vehicles.Length) continue;
+            ref VehicleProfileBlob profile = ref vehicleLibrary.Value.vehicles[vehicleIndex];
+
             for (int hitIndex = recentHits.Length - 1; hitIndex >= 0; hitIndex--)
             {
-                if (elapsedTime - recentHits[hitIndex].hitTime > crashTuning.ValueRO.rehitCooldownSeconds)
+                if (elapsedTime - recentHits[hitIndex].hitTime > profile.rehitCooldownSeconds)
                     recentHits.RemoveAt(hitIndex);
             }
 
@@ -66,15 +72,13 @@ public partial struct CaravanCrashSystem : ISystem
             if (impactSpeed < CREEPING_SPEED) continue;
 
             LocalTransform caravanPose = caravanTransform.ValueRO;
-            CaravanDriveTuning tuning = driveTuning.ValueRO;
-            CaravanCrashTuning crash = crashTuning.ValueRO;
             float3 forward = math.rotate(caravanPose.Rotation, new float3(0f, 0f, 1f));
             float3 right = math.rotate(caravanPose.Rotation, new float3(1f, 0f, 0f));
-            float3 crashBoxRear = caravanPose.TransformPoint(new float3(0f, CRASH_BOX_HEIGHT, tuning.rearBumperLocalZ + tuning.halfWidth));
-            float3 crashBoxFront = caravanPose.TransformPoint(new float3(0f, CRASH_BOX_HEIGHT, tuning.frontBumperLocalZ - tuning.halfWidth));
+            float3 crashBoxRear = caravanPose.TransformPoint(new float3(0f, CRASH_BOX_HEIGHT, profile.rearBumperLocalZ + profile.halfWidth));
+            float3 crashBoxFront = caravanPose.TransformPoint(new float3(0f, CRASH_BOX_HEIGHT, profile.frontBumperLocalZ - profile.halfWidth));
 
             unitHits.Clear();
-            collisionWorld.OverlapCapsule(crashBoxRear, crashBoxFront, tuning.halfWidth, ref unitHits, unitsOnlyFilter,
+            collisionWorld.OverlapCapsule(crashBoxRear, crashBoxFront, profile.halfWidth, ref unitHits, unitsOnlyFilter,
                 QueryInteraction.IgnoreTriggers);
 
             Entity driverEntity = caravanDriving.ValueRO.driver;
@@ -101,22 +105,22 @@ public partial struct CaravanCrashSystem : ISystem
 
                 // Above impact speed anyone with a rig is knocked flying and gets back up (CV-D15); below it, or
                 // with no rig to fall over, they're pushed aside.
-                bool knockedOver = impactSpeed >= crash.minimumImpactSpeed
-                    && TryKnockOver(ref state, unitEntity, shoveDirection, impactSpeed, crash);
+                bool knockedOver = impactSpeed >= profile.minimumImpactSpeed
+                    && TryKnockOver(ref state, unitEntity, shoveDirection, impactSpeed, profile.stunSecondsPerMetrePerSecond);
                 if (!knockedOver)
                     QueueShove(ref state, ref commandBuffer, unitEntity,
-                        shoveDirection * (crash.shoveDistance / math.max(crash.shoveSeconds, 0.01f)), crash.shoveSeconds);
+                        shoveDirection * (profile.shoveDistance / math.max(profile.shoveSeconds, 0.01f)), profile.shoveSeconds);
 
                 // Your own minions take no damage (CV-D6, CV-D15).
                 bool isPlayersMinion = SystemAPI.HasComponent<Minion>(unitEntity) && SystemAPI.IsComponentEnabled<Minion>(unitEntity);
-                if (isPlayersMinion || impactSpeed < crash.minimumImpactSpeed) continue;
+                if (isPlayersMinion || impactSpeed < profile.minimumImpactSpeed) continue;
 
                 damageQueue.Enqueue(new DamageEvent
                 {
                     targetEntity    = unitEntity,
                     sourceEntity    = Entity.Null,
                     damageSource    = DamageSource.Vehicle,
-                    damageAmount    = (int)math.ceil(impactSpeed * crash.damagePerMetrePerSecond),
+                    damageAmount    = (int)math.ceil(impactSpeed * profile.damagePerMetrePerSecond),
                     distance        = 0f,
                     ragdollForce    = 1.5f,
                     launchForceY    = 2.5f + impactSpeed * 0.35f,
@@ -130,13 +134,13 @@ public partial struct CaravanCrashSystem : ISystem
                 });
                 // Lying on the ground is the stun for a knocked-over unit.
                 if (!knockedOver)
-                    QueueStun(ref state, ref commandBuffer, unitEntity, impactSpeed * crash.stunSecondsPerMetrePerSecond);
+                    QueueStun(ref state, ref commandBuffer, unitEntity, impactSpeed * profile.stunSecondsPerMetrePerSecond);
                 unitsHurt++;
             }
 
             if (unitsHit == 0) continue;
-            driveState.ValueRW.forwardSpeed = forwardSpeed * math.pow(1f - crash.speedLossPerHit, unitsHit);
-            caravanHealth.ValueRW.healthAmount = math.max(0, caravanHealth.ValueRO.healthAmount - crash.selfDamagePerHit * unitsHurt);
+            driveState.ValueRW.forwardSpeed = forwardSpeed * math.pow(1f - profile.speedLossPerHit, unitsHit);
+            caravanHealth.ValueRW.healthAmount = math.max(0, caravanHealth.ValueRO.healthAmount - profile.selfDamagePerHit * unitsHurt);
         }
 
         commandBuffer.Playback(state.EntityManager);
@@ -147,12 +151,12 @@ public partial struct CaravanCrashSystem : ISystem
     // Faster hits throw further and keep the unit down longer. A unit with real toolkit ragdoll bodies is
     // launched through the toolkit; FakeRagdoll then only times its stand-up.
     private bool TryKnockOver(ref SystemState state, Entity unitEntity, float3 shoveDirection, float impactSpeed,
-        in CaravanCrashTuning crash)
+        float stunSecondsPerMetrePerSecond)
     {
         if (!SystemAPI.HasComponent<FakeRagdoll>(unitEntity)) return false;
 
         float3 launchVelocity = shoveDirection * (2f + impactSpeed * 0.6f) + new float3(0f, 2.5f + impactSpeed * 0.3f, 0f);
-        float lieSeconds = 0.8f + impactSpeed * crash.stunSecondsPerMetrePerSecond;
+        float lieSeconds = 0.8f + impactSpeed * stunSecondsPerMetrePerSecond;
         bool hasToolkitRagdoll = SystemAPI.HasBuffer<RagdollBody>(unitEntity)
             && SystemAPI.GetBuffer<RagdollBody>(unitEntity).Length > 0
             && SystemAPI.HasComponent<RagdollActor>(unitEntity);

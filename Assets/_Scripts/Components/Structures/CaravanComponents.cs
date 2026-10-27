@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using Unity.Entities;
 using Unity.Mathematics;
 
@@ -5,7 +6,6 @@ using Unity.Mathematics;
 // making camp, and its Health is the workstation's Health.
 public struct Caravan : IComponentData
 {
-    public float3 driverSeatLocalOffset;
     public float3 boardPointLocalOffset;       // stand here and press E to drive; also where parking puts the player
     public float3 interiorStartLocalOffset;    // a walk-out summon appears here, inside the back doors
     public float3 tailgateEdgeLocalOffset;     // ...walks to here
@@ -14,21 +14,10 @@ public struct Caravan : IComponentData
     public float3 chimneyTopLocalOffset;
 }
 
-// Field names and defaults follow the original VehicleMovementData (CaravanMovementData.asset).
-public struct CaravanDriveTuning : IComponentData
+// Which VehicleProfileSO drives this entity: its numbers live in the VehicleLibrary blob (CV-D18).
+public struct Vehicle : IComponentData
 {
-    public float moveSpeed;               // full-stick speed, metres per second
-    public float turnSpeed;               // degrees per second, the cap on both the heading and the body
-    public float forwardAcceleration;
-    public float forwardDeceleration;
-    public float idleTurnSpeedFactor;     // fraction of turnSpeed allowed at a standstill
-    public float turnSmoothTime;          // SmoothDampAngle time for the heading
-    public float parkMaxSpeed;
-    public float wheelRadius;
-    public float frontBumperLocalZ;
-    public float rearBumperLocalZ;
-    public float halfWidth;
-    public float bumperGroundClearance;   // the wall-check sphere rides this high, so kerbs and slopes don't stop it
+    public VehicleType vehicleType;
 }
 
 public struct CaravanDriveState : IComponentData
@@ -38,6 +27,8 @@ public struct CaravanDriveState : IComponentData
     public float headingTurnVelocity;     // SmoothDampAngle's velocity, degrees per second
     public float yawRateDegrees;          // how fast the body turned this frame, for the presenter's lean
     public float steerInput;              // -1..1, the front axle's yaw (heading ahead of the body)
+    public Direction facing;              // which of the eight views the body shows; picks the seat/puller offsets
+    public VehicleGait pullerGait;        // what the puller should be playing, from speed
     public float wheelSpinRadians;        // accumulated rolling angle, wrapped to one turn
 }
 
@@ -68,18 +59,6 @@ public struct CaravanShake : IComponentData
 public struct CaravanPresentationEvents : IComponentData
 {
     public int smokeBurstCount;
-}
-
-public struct CaravanCrashTuning : IComponentData
-{
-    public float minimumImpactSpeed;
-    public float damagePerMetrePerSecond;
-    public float stunSecondsPerMetrePerSecond;
-    public float shoveDistance;
-    public float shoveSeconds;
-    public int selfDamagePerHit;
-    public float speedLossPerHit;
-    public float rehitCooldownSeconds;
 }
 
 // One row per unit hit recently, so a unit dragged along the bumper isn't hit every frame.

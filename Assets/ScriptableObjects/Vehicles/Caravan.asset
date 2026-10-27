@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe667e612cced6849b341d1f9a812766, type: 3}
+  m_Name: Caravan
+  m_EditorClassIdentifier: StitchPunk.Data::VehicleProfileSO
+  vehicleType: 1
+  propulsion: 0
+  moveSpeed: 7
+  turnSpeed: 50
+  forwardAcceleration: 1.2
+  forwardDeceleration: 3
+  idleTurnSpeedFactor: 0.4
+  turnSmoothTime: 2.44
+  parkMaxSpeed: 0.5
+  wheelRadius: 1.2
+  frontBumperLocalZ: 7
+  rearBumperLocalZ: -3
+  halfWidth: 1.75
+  bumperGroundClearance: 0.4
+  minimumImpactSpeed: 2
+  damagePerMetrePerSecond: 6
+  stunSecondsPerMetrePerSecond: 0.25
+  shoveDistance: 2.5
+  shoveSeconds: 0.25
+  selfDamagePerHit: 1
+  speedLossPerHit: 0.15
+  rehitCooldownSeconds: 1
+  rideMaxSpeed: 10
+  speedTiltDegrees: 5
+  rideNoiseFrequency: 1
+  turnTiltDegrees: 10
+  maxYawRate: 2
+  pitchRangeDegrees: 8
+  rollRangeDegrees: 12
+  driverSeat:
+    north: {x: 0, y: 2.42, z: 2.72}
+    northEast: {x: 0, y: 2.42, z: 2.72}
+    east: {x: 0, y: 2.42, z: 2.72}
+    southEast: {x: 0, y: 2.42, z: 2.72}
+    south: {x: 0, y: 2.42, z: 2.72}
+    southWest: {x: 0, y: 2.42, z: 2.72}
+    west: {x: 0, y: 2.42, z: 2.72}
+    northWest: {x: 0, y: 2.42, z: 2.72}
+  puller:
+    north: {x: 0, y: 0, z: 5.98}
+    northEast: {x: 0.65, y: 0, z: 5.98}
+    east: {x: 0.71, y: 0, z: 6.48}
+    southEast: {x: 0.58, y: 0, z: 6.6}
+    south: {x: 0, y: 0, z: 6.84}
+    southWest: {x: -0.74, y: 0, z: 6.6}
+    west: {x: -0.7, y: 0, z: 6.48}
+    northWest: {x: -0.6, y: 0, z: 5.98}
+  walkThreshold: 0.1
+  runThreshold: 0.7

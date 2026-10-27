@@ -1,3 +1,4 @@
+using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Collections;
@@ -6,9 +7,10 @@ using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Transforms;
 
-// Kinematic driving with the original VehicleController's handling (Caravan_System.md CV-D4, CV-D17): heading and
-// speed from CaravanDriveMath, a sphere cast at the front bumper stops it at walls, a down-ray keeps it on the ground. Units are not walls here — running them
-// over is CaravanCrashSystem's job. Runs after gravity and body-block so the seated driver is placed last.
+// Kinematic driving with the original VehicleController's handling (Caravan_System.md CV-D17), tuned per vehicle
+// by its VehicleProfileSO (CV-D18). Heading and speed come from CaravanDriveMath, a sphere cast at the front bumper
+// stops it at walls, a down-ray keeps it on the ground. Units are not walls here: running them over is
+// CaravanCrashSystem's job. Runs after gravity and body-block so the seated driver is placed last.
 [BurstCompile]
 [UpdateInGroup(typeof(MovementExecutionSystemGroup))]
 [UpdateAfter(typeof(UnitGravitySystem))]
@@ -22,11 +24,16 @@ public partial struct CaravanDriveSystem : ISystem
     private const float WALL_STOP_GAP = 0.05f;
     private const float GROUND_PROBE_ABOVE = 3f;
     private const float GROUND_PROBE_BELOW = 4f;
+    // The body only swings round after the heading while it is actually rolling.
+    private const float ROLLING_SPEED = 0.03f;
+    // Heading this far ahead of the body puts the front axle at full lock.
+    private const float FULL_LOCK_DEGREES = 30f;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<Caravan>();
+        state.RequireForUpdate<VehicleLibrary>();
         state.RequireForUpdate<PhysicsWorldSingleton>();
         state.RequireForUpdate<NavGridSettings>();
     }
@@ -40,6 +47,9 @@ public partial struct CaravanDriveSystem : ISystem
         if (SystemAPI.QueryBuilder().WithAll<CaravanDriving>().Build().IsEmpty) return;
         // Main-thread lookup reads/writes on other entities wait for nothing on their own (Gotchas.md).
         state.CompleteDependency();
+
+        BlobAssetReference<VehicleLibraryBlob> vehicleLibrary = SystemAPI.GetSingleton<VehicleLibrary>().library;
+        if (!vehicleLibrary.IsCreated) return;
 
         CollisionWorld collisionWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>().CollisionWorld;
         CollisionFilter wallFilter = new CollisionFilter
@@ -59,40 +69,43 @@ public partial struct CaravanDriveSystem : ISystem
         float3 seatPosition = float3.zero;
         quaternion seatRotation = quaternion.identity;
 
-        foreach ((RefRW<LocalTransform> caravanTransform, RefRW<CaravanDriveState> driveState,
-                     RefRO<CaravanDriveTuning> driveTuning, RefRO<Caravan> caravan, RefRO<CaravanDriving> caravanDriving,
-                     Entity caravanEntity)
-                 in SystemAPI.Query<RefRW<LocalTransform>, RefRW<CaravanDriveState>, RefRO<CaravanDriveTuning>,
-                         RefRO<Caravan>, RefRO<CaravanDriving>>()
+        foreach ((RefRW<LocalTransform> caravanTransform, RefRW<CaravanDriveState> driveState, RefRO<Vehicle> vehicle,
+                     RefRO<CaravanDriving> caravanDriving, Entity caravanEntity)
+                 in SystemAPI.Query<RefRW<LocalTransform>, RefRW<CaravanDriveState>, RefRO<Vehicle>, RefRO<CaravanDriving>>()
+                     .WithAll<Caravan>()
                      .WithEntityAccess())
         {
-            CaravanDriveTuning tuning = driveTuning.ValueRO;
+            int vehicleIndex = (int)vehicle.ValueRO.vehicleType;
+            if (vehicleIndex <= 0 || vehicleIndex >= vehicleLibrary.Value.vehicles.Length) continue;
+            ref VehicleProfileBlob profile = ref vehicleLibrary.Value.vehicles[vehicleIndex];
+
             Entity driverEntity = caravanDriving.ValueRO.driver;
             float2 steer = SystemAPI.HasComponent<CaravanDriveInput>(driverEntity)
                 ? SystemAPI.GetComponent<CaravanDriveInput>(driverEntity).steer
                 : float2.zero;
 
-            // The original VehicleController's feel (CV-D17): the stick is a world direction to head toward
-            // (world axes, like the player's own WASD) and its tilt is the target speed. There is no reverse.
+            // The stick is a world direction to head toward (world axes, like the player's own WASD) and its tilt is
+            // the target speed. There is no reverse.
             float2 stick = math.lengthsq(steer) > 1f ? math.normalize(steer) : steer;
             float forwardSpeed = CaravanDriveMath.IntegrateSpeed(driveState.ValueRO.forwardSpeed,
-                math.length(stick) * tuning.moveSpeed, in tuning, deltaTime);
+                math.length(stick) * profile.moveSpeed, profile.forwardAcceleration, profile.forwardDeceleration, deltaTime);
 
             float headingDegrees = driveState.ValueRO.headingDegrees;
             float headingTurnVelocity = driveState.ValueRO.headingTurnVelocity;
             float targetHeadingDegrees = math.lengthsq(stick) > 0.0001f
                 ? CaravanDriveMath.HeadingDegrees(new float3(stick.x, 0f, stick.y))
                 : headingDegrees;
+            float turnSpeedLimit = CaravanDriveMath.TurnSpeedLimit(forwardSpeed, profile.moveSpeed, profile.turnSpeed,
+                profile.idleTurnSpeedFactor);
             headingDegrees = CaravanDriveMath.SmoothDampAngle(headingDegrees, targetHeadingDegrees, ref headingTurnVelocity,
-                tuning.turnSmoothTime, CaravanDriveMath.TurnSpeedLimit(forwardSpeed, in tuning), deltaTime);
-            float3 forward = CaravanDriveMath.HeadingDirection(headingDegrees);
+                profile.turnSmoothTime, turnSpeedLimit, deltaTime);
+            float3 travelDirection = CaravanDriveMath.HeadingDirection(headingDegrees);
 
-            // The body swings round after the heading at turnSpeed, and only while it is rolling.
             float bodyYawDegrees = CaravanDriveMath.HeadingDegrees(math.rotate(caravanTransform.ValueRO.Rotation, new float3(0f, 0f, 1f)));
             float newBodyYawDegrees = bodyYawDegrees;
-            if (forwardSpeed > 0.03f)
+            if (forwardSpeed > ROLLING_SPEED)
             {
-                float maximumBodyTurn = tuning.turnSpeed * deltaTime;
+                float maximumBodyTurn = profile.turnSpeed * deltaTime;
                 newBodyYawDegrees += math.clamp(CaravanDriveMath.DeltaAngle(bodyYawDegrees, headingDegrees),
                     -maximumBodyTurn, maximumBodyTurn);
             }
@@ -100,20 +113,25 @@ public partial struct CaravanDriveSystem : ISystem
             float3 position = caravanTransform.ValueRO.Position;
 
             float stepLength = forwardSpeed * deltaTime;
-            if (math.abs(stepLength) > 0.00001f)
+            if (stepLength > 0.00001f)
             {
-                float allowedFraction = LeadingBumperClearFraction(collisionWorld, wallFilter, ref wallHits, position, rotation,
-                    forward, stepLength, in tuning, caravanEntity, driverEntity);
+                float allowedFraction = FrontBumperClearFraction(collisionWorld, wallFilter, ref wallHits, position, rotation,
+                    travelDirection, stepLength, ref profile, caravanEntity, driverEntity);
                 if (allowedFraction < 1f)
                 {
                     // Walls stop a cart dead; there is no slide along them.
-                    stepLength *= math.max(0f, allowedFraction - WALL_STOP_GAP / math.abs(stepLength));
+                    stepLength *= math.max(0f, allowedFraction - WALL_STOP_GAP / stepLength);
                     forwardSpeed = 0f;
                 }
-                position += forward * stepLength;
+                position += travelDirection * stepLength;
             }
 
             position.y = GroundHeightUnder(collisionWorld, groundFilter, ref groundHits, position, caravanEntity, driverEntity);
+
+            // The facing the body shows the camera picks the seat and puller offsets, quantised the way units are.
+            float3 bodyForward = CaravanDriveMath.HeadingDirection(newBodyYawDegrees);
+            float2 bodyForwardXY = new float2(bodyForward.x, bodyForward.z);
+            Direction facing = FacingResolver.FromMovement(in bodyForwardXY, AnimationDirections.Eight, driveState.ValueRO.facing);
 
             caravanTransform.ValueRW.Position = position;
             caravanTransform.ValueRW.Rotation = rotation;
@@ -122,12 +140,14 @@ public partial struct CaravanDriveSystem : ISystem
             driveState.ValueRW.headingTurnVelocity = headingTurnVelocity;
             driveState.ValueRW.yawRateDegrees = CaravanDriveMath.DeltaAngle(bodyYawDegrees, newBodyYawDegrees) / deltaTime;
             // The front axle points where the caravan is heading, ahead of where the body faces.
-            driveState.ValueRW.steerInput = math.clamp(CaravanDriveMath.DeltaAngle(newBodyYawDegrees, headingDegrees) / 30f, -1f, 1f);
+            driveState.ValueRW.steerInput = math.clamp(CaravanDriveMath.DeltaAngle(newBodyYawDegrees, headingDegrees) / FULL_LOCK_DEGREES, -1f, 1f);
+            driveState.ValueRW.facing = facing;
+            driveState.ValueRW.pullerGait = profile.Gait(forwardSpeed);
             driveState.ValueRW.wheelSpinRadians = CaravanDriveMath.AdvanceWheelSpin(
-                driveState.ValueRO.wheelSpinRadians, forwardSpeed, tuning.wheelRadius, deltaTime);
+                driveState.ValueRO.wheelSpinRadians, forwardSpeed, profile.wheelRadius, deltaTime);
 
             seatedDriver = driverEntity;
-            seatPosition = position + math.rotate(rotation, caravan.ValueRO.driverSeatLocalOffset);
+            seatPosition = position + math.rotate(rotation, profile.DriverSeatOffset(facing));
             seatRotation = rotation;
         }
 
@@ -148,29 +168,25 @@ public partial struct CaravanDriveSystem : ISystem
         groundHits.Dispose();
     }
 
-    // Fraction of this frame's step the leading bumper can travel before it meets a wall (1 = clear).
-    private static float LeadingBumperClearFraction(
+    // Fraction of this frame's step the front bumper can travel before it meets a wall (1 = clear).
+    private static float FrontBumperClearFraction(
         in CollisionWorld collisionWorld,
         CollisionFilter wallFilter,
         ref NativeList<ColliderCastHit> wallHits,
         float3 position,
         quaternion rotation,
-        float3 forward,
+        float3 travelDirection,
         float stepLength,
-        in CaravanDriveTuning tuning,
+        ref VehicleProfileBlob profile,
         Entity caravanEntity,
         Entity driverEntity)
     {
-        float bumperRadius = tuning.halfWidth;
-        float bumperLocalZ = stepLength > 0f
-            ? tuning.frontBumperLocalZ - bumperRadius
-            : tuning.rearBumperLocalZ + bumperRadius;
+        float bumperRadius = profile.halfWidth;
         float3 bumperCentre = position + math.rotate(rotation,
-            new float3(0f, tuning.bumperGroundClearance + bumperRadius, bumperLocalZ));
-        float3 travelDirection = forward * math.sign(stepLength);
+            new float3(0f, profile.bumperGroundClearance + bumperRadius, profile.frontBumperLocalZ - bumperRadius));
 
         wallHits.Clear();
-        collisionWorld.SphereCastAll(bumperCentre, bumperRadius, travelDirection, math.abs(stepLength), ref wallHits,
+        collisionWorld.SphereCastAll(bumperCentre, bumperRadius, travelDirection, stepLength, ref wallHits,
             wallFilter, QueryInteraction.IgnoreTriggers);
 
         float allowedFraction = 1f;
@@ -179,7 +195,7 @@ public partial struct CaravanDriveSystem : ISystem
             ColliderCastHit wallHit = wallHits[hitIndex];
             if (wallHit.Entity == caravanEntity || wallHit.Entity == driverEntity) continue;
             if (wallHit.SurfaceNormal.y > WALL_NORMAL_MAX_Y) continue;
-            // Already touching and backing away from it: not a block.
+            // Already touching and moving away from it: not a block.
             if (math.dot(wallHit.SurfaceNormal, travelDirection) > 0f) continue;
             allowedFraction = math.min(allowedFraction, wallHit.Fraction);
         }

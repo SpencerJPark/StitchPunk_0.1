@@ -1667,6 +1667,7 @@ GameObject:
   - component: {fileID: 795723644}
   - component: {fileID: 795723643}
   - component: {fileID: 795723645}
+  - component: {fileID: 795723646}
   m_Layer: 0
   m_Name: EntityLibraries
   m_TagString: Untagged
@@ -1757,6 +1758,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::SoundLibraryAuthoring
   library: {fileID: 11400000, guid: 4f505c160197d164bb9898afe331f479, type: 2}
+--- !u!114 &795723646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 795723639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47e8e96b332344f419ad263cefa877b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::VehicleLibraryAuthoring
+  library: {fileID: 11400000, guid: 24741651df0bdf34088e0f4026d48b88, type: 2}
 --- !u!1001 &899217116
 PrefabInstance:
   m_ObjectHideFlags: 0
