@@ -68,8 +68,12 @@ public partial struct VehicleLibraryBakingSystem : ISystem
             blob.shoveDistance = profile.shoveDistance;
             blob.shoveSeconds = profile.shoveSeconds;
             blob.selfDamagePerHit = profile.selfDamagePerHit;
-            blob.speedLossPerHit = profile.speedLossPerHit;
+            blob.speedLossPerHeavyUnit = profile.speedLossPerHeavyUnit;
             blob.rehitCooldownSeconds = profile.rehitCooldownSeconds;
+
+            blob.thrownDamageMultiplier = profile.thrownDamageMultiplier;
+            blob.heavyHitDamageThreshold = profile.heavyHitDamageThreshold;
+            blob.fullStopHitDamage = profile.fullStopHitDamage;
 
             blob.rideMaxSpeed = profile.rideMaxSpeed;
             blob.speedTiltDegrees = profile.speedTiltDegrees;

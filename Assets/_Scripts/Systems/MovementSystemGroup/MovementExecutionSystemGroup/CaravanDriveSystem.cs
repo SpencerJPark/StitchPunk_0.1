@@ -62,6 +62,8 @@ public partial struct CaravanDriveSystem : ISystem
             BelongsTo = ~0u,
             CollidesWith = SystemAPI.GetSingleton<NavGridSettings>().groundLayerMask,
         };
+        // Rocks and other dropped items are rolled straight through, never treated as walls.
+        ComponentLookup<Item> itemLookup = SystemAPI.GetComponentLookup<Item>(true);
         NativeList<ColliderCastHit> wallHits = new NativeList<ColliderCastHit>(16, Allocator.Temp);
         NativeList<Unity.Physics.RaycastHit> groundHits = new NativeList<Unity.Physics.RaycastHit>(8, Allocator.Temp);
 
@@ -116,7 +118,7 @@ public partial struct CaravanDriveSystem : ISystem
             if (stepLength > 0.00001f)
             {
                 float allowedFraction = FrontBumperClearFraction(collisionWorld, wallFilter, ref wallHits, position, rotation,
-                    travelDirection, stepLength, ref profile, caravanEntity, driverEntity);
+                    travelDirection, stepLength, ref profile, caravanEntity, driverEntity, in itemLookup);
                 if (allowedFraction < 1f)
                 {
                     // Walls stop a cart dead; there is no slide along them.
@@ -179,7 +181,8 @@ public partial struct CaravanDriveSystem : ISystem
         float stepLength,
         ref VehicleProfileBlob profile,
         Entity caravanEntity,
-        Entity driverEntity)
+        Entity driverEntity,
+        in ComponentLookup<Item> itemLookup)
     {
         float bumperRadius = profile.halfWidth;
         float3 bumperCentre = position + math.rotate(rotation,
@@ -194,6 +197,7 @@ public partial struct CaravanDriveSystem : ISystem
         {
             ColliderCastHit wallHit = wallHits[hitIndex];
             if (wallHit.Entity == caravanEntity || wallHit.Entity == driverEntity) continue;
+            if (itemLookup.HasComponent(wallHit.Entity)) continue;
             if (wallHit.SurfaceNormal.y > WALL_NORMAL_MAX_Y) continue;
             // Already touching and moving away from it: not a block.
             if (math.dot(wallHit.SurfaceNormal, travelDirection) > 0f) continue;

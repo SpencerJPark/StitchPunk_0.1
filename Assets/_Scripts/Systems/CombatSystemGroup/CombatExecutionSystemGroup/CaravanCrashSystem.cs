@@ -39,6 +39,10 @@ public partial struct CaravanCrashSystem : ISystem
         state.CompleteDependency();
         BlobAssetReference<VehicleLibraryBlob> vehicleLibrary = SystemAPI.GetSingleton<VehicleLibrary>().library;
         if (!vehicleLibrary.IsCreated) return;
+        // Only heavy units (UnitSO.isHeavy) eat momentum; without the library nobody counts as heavy.
+        BlobAssetReference<UnitLibraryBlob> unitLibrary = SystemAPI.TryGetSingleton(out UnitDataLibrary unitDataLibrary)
+            ? unitDataLibrary.library
+            : default;
         CollisionWorld collisionWorld = SystemAPI.GetSingleton<PhysicsWorldSingleton>().CollisionWorld;
         CollisionFilter unitsOnlyFilter = new CollisionFilter
         {
@@ -83,6 +87,7 @@ public partial struct CaravanCrashSystem : ISystem
 
             Entity driverEntity = caravanDriving.ValueRO.driver;
             int unitsHit = 0;
+            int heavyUnitsHit = 0;
             int unitsHurt = 0;
             for (int overlapIndex = 0; overlapIndex < unitHits.Length; overlapIndex++)
             {
@@ -102,6 +107,7 @@ public partial struct CaravanCrashSystem : ISystem
 
                 recentHits.Add(new CaravanRecentHit { unit = unitEntity, hitTime = elapsedTime });
                 unitsHit++;
+                if (IsHeavyUnit(ref state, unitEntity, unitLibrary)) heavyUnitsHit++;
 
                 // Above impact speed anyone with a rig is knocked flying and gets back up (CV-D15); below it, or
                 // with no rig to fall over, they're pushed aside.
@@ -139,7 +145,8 @@ public partial struct CaravanCrashSystem : ISystem
             }
 
             if (unitsHit == 0) continue;
-            driveState.ValueRW.forwardSpeed = forwardSpeed * math.pow(1f - profile.speedLossPerHit, unitsHit);
+            // Ploughing through light units costs nothing; a heavy one is like hitting a wall in part.
+            driveState.ValueRW.forwardSpeed = forwardSpeed * math.pow(1f - profile.speedLossPerHeavyUnit, heavyUnitsHit);
             caravanHealth.ValueRW.healthAmount = math.max(0, caravanHealth.ValueRO.healthAmount - profile.selfDamagePerHit * unitsHurt);
         }
 
@@ -185,6 +192,13 @@ public partial struct CaravanCrashSystem : ISystem
             SystemAPI.SetComponentEnabled<RagdollActor>(unitEntity, true);
         }
         return true;
+    }
+
+    private bool IsHeavyUnit(ref SystemState state, Entity unitEntity, BlobAssetReference<UnitLibraryBlob> unitLibrary)
+    {
+        if (!unitLibrary.IsCreated || !SystemAPI.HasComponent<UnitData>(unitEntity)) return false;
+        int unitIndex = unitLibrary.Value.FindByUnitType(SystemAPI.GetComponent<UnitData>(unitEntity).unitType);
+        return unitIndex >= 0 && unitLibrary.Value.units[unitIndex].isHeavy;
     }
 
     private static bool WasHitRecently(DynamicBuffer<CaravanRecentHit> recentHits, Entity unitEntity)

@@ -30,6 +30,7 @@ public struct UnitDataBlob
     // RevivalRound instead (CampLoop_System.md CL-P3).
     public SummonCostBlob summonCost;
     public CaravanExitStyle caravanExitStyle;
+    public bool isHeavy;
     public BlobArray<NeedType> motivation;
     public int randomMotivationAmount;
     public BlobArray<NeedType> randomMotivations;

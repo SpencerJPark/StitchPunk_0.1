@@ -78,6 +78,8 @@ public class UnitSO : ScriptableObject
     public SummonCost summonCost = new SummonCost { corpses = 1, scrapMetal = 1, electricity = 1 };
     [Tooltip("How this unit leaves the caravan when summoned: walk out of the back and hop down, or the shake + smoke-burst entrance for big units.")]
     public CaravanExitStyle caravanExitStyle = CaravanExitStyle.WalkOutAndHop;
+    [Tooltip("Heavy units (a brute) cost a vehicle momentum when it rams them; light ones are just knocked aside.")]
+    public bool isHeavy;
 
     // Whether this unit's declared actor profile disagrees with what its prefab's ActorAuthoring
     // actually carries. Shared by OnValidate and UnitLibraryBakingSystem so the inspector and the

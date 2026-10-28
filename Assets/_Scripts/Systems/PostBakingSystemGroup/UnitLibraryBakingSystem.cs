@@ -72,6 +72,7 @@ public partial struct UnitLibraryBakingSystem : ISystem
                 electricity = unitSO.summonCost.electricity,
             };
             unitsArray[i].caravanExitStyle = unitSO.caravanExitStyle;
+            unitsArray[i].isHeavy = unitSO.isHeavy;
 
             // Validate-only (ActorProfileCutover_System.md G5): the prefab's ActorAuthoring stays
             // the runtime source of truth, so a disagreement is reported here rather than pushed

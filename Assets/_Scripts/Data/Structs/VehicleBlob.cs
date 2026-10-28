@@ -34,8 +34,12 @@ public struct VehicleProfileBlob
     public float shoveDistance;
     public float shoveSeconds;
     public int selfDamagePerHit;
-    public float speedLossPerHit;
+    public float speedLossPerHeavyUnit;
     public float rehitCooldownSeconds;
+
+    public float thrownDamageMultiplier;
+    public int heavyHitDamageThreshold;
+    public int fullStopHitDamage;
 
     public float rideMaxSpeed;
     public float speedTiltDegrees;

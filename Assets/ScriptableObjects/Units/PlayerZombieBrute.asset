@@ -56,3 +56,4 @@ MonoBehaviour:
     scrapMetal: 3
     electricity: 2
   caravanExitStyle: 1
+  isHeavy: 1

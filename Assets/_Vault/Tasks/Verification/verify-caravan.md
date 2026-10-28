@@ -49,6 +49,8 @@ What was checked when it was built:
 - [ ] Drive at full speed through bandits or citizens: each hit damages them, and the caravan visibly slows per hit. Its health ticks down in the station menu.
 - [ ] At full speed every unit you hit is **flung on an arc**, topples over sideways on screen with its arms and legs flailing, lands flat, lies there for 1–2 s and **stands back up where it landed** (fake ragdoll, CV-D15). Under 2 m/s they're only pushed aside.
 - [ ] Your own minions get the same fling and get-up, and their health stays full.
+- [ ] Ploughing through citizens or zombies doesn't slow the caravan. Ramming a **Brute** (heavy) costs a big chunk of speed.
+- [ ] A rock lying in the road is driven straight through. Rocks thrown at the caravan barely dent its health and never slow it.
 - [ ] A kill (by the caravan or a sword) flings the corpse, which **stays down**. Reviving it stands it back up.
 - [ ] A unit hit dead centre ends up clear of the caravan, not stuck inside it. If it does get stuck, raise `shoveDistance` on `CaravanSim`.
 

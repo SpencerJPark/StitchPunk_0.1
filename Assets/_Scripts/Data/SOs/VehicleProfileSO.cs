@@ -42,8 +42,17 @@ public class VehicleProfileSO : ScriptableObject
     public float shoveDistance = 2.5f;
     public float shoveSeconds = 0.25f;
     public int selfDamagePerHit = 1;
-    [Range(0f, 1f)] public float speedLossPerHit = 0.15f;
+    [Tooltip("Fraction of speed lost ramming a unit whose UnitSO is marked heavy. Light units cost nothing.")]
+    [Range(0f, 1f)] public float speedLossPerHeavyUnit = 0.35f;
     public float rehitCooldownSeconds = 1f;
+
+    [Header("Taking hits")]
+    [Tooltip("Thrown things (rocks) barely scratch a vehicle: their damage is multiplied by this. They never slow it.")]
+    [Range(0f, 1f)] public float thrownDamageMultiplier = 0.1f;
+    [Tooltip("A single hit this strong or stronger starts eating the vehicle's momentum.")]
+    public int heavyHitDamageThreshold = 30;
+    [Tooltip("A single hit this strong stops it dead; between the two, speed is lost in proportion.")]
+    public int fullStopHitDamage = 120;
 
     [Header("Ride (bounce with speed, lean into turns)")]
     [Tooltip("Speed at which the bounce is at full strength.")]
