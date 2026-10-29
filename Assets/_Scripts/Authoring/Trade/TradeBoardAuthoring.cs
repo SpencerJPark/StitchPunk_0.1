@@ -8,6 +8,16 @@ public class TradeBoardAuthoring : MonoBehaviour
     [Tooltip("0 = pick a random seed on the first weekly roll. Any other value makes every run roll the same weeks.")]
     public uint worldSeed;
 
+    [Header("Carrier pigeon")]
+    public GameObject pigeonPrefab;
+    [Tooltip("Where the pigeon lands, in the caravan's local space.")]
+    public Vector3 perchLocalOffset = new Vector3(0f, 2.4f, -3f);
+    public float flyInStartDistance = 45f;
+    public float flyInStartHeight = 18f;
+    public float flyInSeconds = 5f;
+    public float flyOffSeconds = 3f;
+    public float arcHeight = 4f;
+
     public class Baker : Baker<TradeBoardAuthoring>
     {
         public override void Bake(TradeBoardAuthoring authoring)
@@ -42,6 +52,22 @@ public class TradeBoardAuthoring : MonoBehaviour
             AddBuffer<TradeOrder>(entity);
             AddBuffer<ClientRelationship>(entity);
             AddBuffer<PendingPigeon>(entity);
+            AddBuffer<TradeOrderResponseRequest>(entity);
+            AddComponent<TradeLetterOpen>(entity);
+            SetComponentEnabled<TradeLetterOpen>(entity, false);
+            if (authoring.pigeonPrefab != null)
+            {
+                AddComponent(entity, new TradePigeonSettings
+                {
+                    prefab = GetEntity(authoring.pigeonPrefab, TransformUsageFlags.Dynamic),
+                    perchLocalOffset = authoring.perchLocalOffset,
+                    flyInStartDistance = authoring.flyInStartDistance,
+                    flyInStartHeight = authoring.flyInStartHeight,
+                    flyInSeconds = authoring.flyInSeconds,
+                    flyOffSeconds = authoring.flyOffSeconds,
+                    arcHeight = authoring.arcHeight,
+                });
+            }
             AddComponent<TradeRerollRequest>(entity);
             SetComponentEnabled<TradeRerollRequest>(entity, false);
             AddComponent(entity, new ClientLibraryReference { library = authoring.library });

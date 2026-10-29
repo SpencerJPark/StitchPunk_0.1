@@ -903,6 +903,51 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &607902809
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 607902811}
+  - component: {fileID: 607902810}
+  m_Layer: 0
+  m_Name: TradeOrderMarkers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &607902810
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607902809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f37093a5746fa3d49b6cc32693a8d9c0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::TradeOrderMarkerPresenter
+  library: {fileID: 11400000, guid: f119b4738280f8d47a3a052cd7985d87, type: 2}
+--- !u!4 &607902811
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 607902809}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &674096964
 GameObject:
   m_ObjectHideFlags: 0
@@ -2148,6 +2193,76 @@ MonoBehaviour:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_WorldSpaceCollider: {fileID: 0}
+--- !u!1 &1252336023
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1252336026}
+  - component: {fileID: 1252336025}
+  - component: {fileID: 1252336024}
+  m_Layer: 0
+  m_Name: TradeLetterUI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1252336024
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1252336023}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8131acddea3ebd84aa756a4afac37557, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.UI::TradeLetterUI
+  letterDocument: {fileID: 1252336025}
+  library: {fileID: 11400000, guid: f119b4738280f8d47a3a052cd7985d87, type: 2}
+--- !u!114 &1252336025
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1252336023}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
+  m_PanelSettings: {fileID: 11400000, guid: c39cfbbc66436fe4a9ae86b57024f706, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 9197481963319205126, guid: a36982c07ad66a04ca617363c9ad8a2a, type: 3}
+  m_SortingOrder: 10
+  m_Position: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
+--- !u!4 &1252336026
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1252336023}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1298202564
 GameObject:
   m_ObjectHideFlags: 0
@@ -2617,6 +2732,7 @@ GameObject:
   - component: {fileID: 1638209200}
   - component: {fileID: 1638209199}
   - component: {fileID: 1638209201}
+  - component: {fileID: 1638209202}
   m_Layer: 0
   m_Name: ResourceHud
   m_TagString: Untagged
@@ -2688,6 +2804,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.UI::WorldClockHudUI
   hudDocument: {fileID: 1638209200}
+--- !u!114 &1638209202
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1638209197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 352541cc673dad34ab71215cb950c111, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.UI::TradeOrdersHudUI
+  hudDocument: {fileID: 1638209200}
+  library: {fileID: 11400000, guid: f119b4738280f8d47a3a052cd7985d87, type: 2}
 --- !u!1 &1716599629
 GameObject:
   m_ObjectHideFlags: 0
@@ -3305,6 +3435,10 @@ PrefabInstance:
     - target: {fileID: 7164724970293339916, guid: 6e55a71b9be805e46b754aa858a22345, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.572
+      objectReference: {fileID: 0}
+    - target: {fileID: 7433306085257252032, guid: 6e55a71b9be805e46b754aa858a22345, type: 3}
+      propertyPath: puller
+      value: 
       objectReference: {fileID: 0}
     - target: {fileID: 7507029002616583917, guid: 6e55a71b9be805e46b754aa858a22345, type: 3}
       propertyPath: m_Layer
@@ -4192,31 +4326,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.00000071525574
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 26.28247
+      value: 16.031418
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -28.721838
+      value: -31.307806
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.934715
+      value: 0.97433645
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.35539827
+      value: 0.22509661
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0.000000027335227
+      value: -5.487388e-10
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0.000000010393428
+      value: 1.2677268e-10
       objectReference: {fileID: 0}
     - target: {fileID: 6254910006454939351, guid: d022bff62d5c4f946afc06c423270bfe, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -4961,3 +5095,5 @@ SceneRoots:
   - {fileID: 1716599631}
   - {fileID: 1732386187}
   - {fileID: 953916254}
+  - {fileID: 1252336026}
+  - {fileID: 607902811}

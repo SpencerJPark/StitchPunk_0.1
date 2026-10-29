@@ -123,23 +123,6 @@ public class DebugTradeMenu : MonoBehaviour
 
     private string ClientNameOf(int clientId)
     {
-        if (library == null)
-            return $"client {clientId}";
-
-        if (clientId < 0)
-        {
-            string[] householdNames = library.household != null ? library.household.householdNames : null;
-            if (householdNames == null || householdNames.Length == 0)
-                return $"household {clientId}";
-            return householdNames[TradeMath.HouseholdNameIndex(clientId, householdNames.Length)];
-        }
-
-        foreach (ClientSO client in library.clients)
-        {
-            if (client != null && client.clientId == clientId)
-                return client.displayName;
-        }
-
-        return $"client {clientId}";
+        return TradeTextLookup.ClientName(library, clientId);
     }
 }

@@ -8,4 +8,8 @@
         <ui:Label name="currency-label" text="Currency 0" style="color: rgb(240, 230, 200); font-size: 16px;" />
     </ui:VisualElement>
     <ui:Label name="clock-label" text="Week 1 · Mon 06:00" style="position: absolute; top: 52px; left: 12px; color: rgb(240, 230, 200); font-size: 14px; background-color: rgba(20, 20, 20, 0.7); padding: 3px 6px;" />
+    <ui:VisualElement name="orders-hud" style="position: absolute; top: 84px; left: 12px; background-color: rgba(20, 20, 20, 0.7); padding: 4px 6px; min-width: 220px;">
+        <ui:Button name="letter-button" text="Letter" style="min-height: 28px; font-size: 14px; margin-bottom: 4px; display: none;" />
+        <ui:VisualElement name="orders-list" />
+    </ui:VisualElement>
 </ui:UXML>

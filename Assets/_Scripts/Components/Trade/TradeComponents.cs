@@ -58,3 +58,49 @@ public struct TradeDropOff : IComponentData
     public float3     standPoint;
     public byte       dangerRating;   // 0..3, feeds difficulty
 }
+
+// Written by TradeLetterUI; drained by TradeOrderResponseSystem.
+[InternalBufferCapacity(0)]
+public struct TradeOrderResponseRequest : IBufferElementData
+{
+    public int  orderId;
+    public bool accept;
+}
+
+// On the TradeBoard. Enabled while the letter is on screen; the UI toggles it, PigeonReadSystem sends perched pigeons off when it rises.
+public struct TradeLetterOpen : IComponentData, IEnableableComponent { }
+
+// On the TradeBoard (baked from TradeBoardAuthoring). The perch is an offset in the caravan's local space, so no prefab edit is needed.
+public struct TradePigeonSettings : IComponentData
+{
+    public Entity prefab;
+    public float3 perchLocalOffset;
+    public float flyInStartDistance;
+    public float flyInStartHeight;
+    public float flyInSeconds;
+    public float flyOffSeconds;
+    public float arcHeight;
+}
+
+public struct CarrierPigeon : IComponentData
+{
+    public int weekNumber;
+}
+
+public enum PigeonFlightPhase : byte { FlyingIn, Perched, FlyingOff }
+
+public struct PigeonFlight : IComponentData
+{
+    public PigeonFlightPhase phase;
+    public float3 startPosition;
+    public float3 fallbackPerchPosition;   // used when no caravan exists
+    public float3 flyOffVelocity;
+    public float elapsedSeconds;
+}
+
+// Optional, read by PlayerTargetingSystem: inside priorityRadius (planar, from the origin) this beats a nearer interactable,
+// so a pigeon perched on the caravan can still be picked over the caravan's own reach capsule.
+public struct PlayerInteractablePriority : IComponentData
+{
+    public float priorityRadius;
+}

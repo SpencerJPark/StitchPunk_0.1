@@ -10,10 +10,46 @@ using UnityEngine.InputSystem;
 // StitchPunk.UI references this assembly, so the menu registers itself here instead of being referenced directly.
 public static class VirtualCursorUiRouter
 {
-    public static System.Func<Vector2, bool> isScreenPositionOverUi;
-    public static System.Func<Vector2, bool> tryClickAtScreenPosition;
+    private static readonly System.Collections.Generic.List<System.Func<Vector2, bool>> overUiHandlers =
+        new System.Collections.Generic.List<System.Func<Vector2, bool>>();
+    private static readonly System.Collections.Generic.List<System.Func<Vector2, bool>> clickHandlers =
+        new System.Collections.Generic.List<System.Func<Vector2, bool>>();
+
     // Set by QuickCommandRadialUI: while the radial is held, clicks pick a wedge, not units.
     public static bool isRadialOpen;
+
+    // Several panels can be live at once (workstation menu, trade letter, HUD buttons); each registers its own pair.
+    public static void Register(System.Func<Vector2, bool> isScreenPositionOverUi, System.Func<Vector2, bool> tryClickAtScreenPosition)
+    {
+        overUiHandlers.Add(isScreenPositionOverUi);
+        clickHandlers.Add(tryClickAtScreenPosition);
+    }
+
+    public static void Unregister(System.Func<Vector2, bool> isScreenPositionOverUi, System.Func<Vector2, bool> tryClickAtScreenPosition)
+    {
+        overUiHandlers.Remove(isScreenPositionOverUi);
+        clickHandlers.Remove(tryClickAtScreenPosition);
+    }
+
+    public static bool IsScreenPositionOverUi(Vector2 screenPosition)
+    {
+        for (int handlerIndex = 0; handlerIndex < overUiHandlers.Count; handlerIndex++)
+        {
+            if (overUiHandlers[handlerIndex](screenPosition))
+                return true;
+        }
+        return false;
+    }
+
+    public static bool TryClickAtScreenPosition(Vector2 screenPosition)
+    {
+        for (int handlerIndex = 0; handlerIndex < clickHandlers.Count; handlerIndex++)
+        {
+            if (clickHandlers[handlerIndex](screenPosition))
+                return true;
+        }
+        return false;
+    }
 }
 
 public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IUpdateObserver
@@ -59,8 +95,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             // The virtual cursor is not the OS pointer, so UI Toolkit never sees it; route clicks over the menu
             // ourselves. Select is the left button (CL-D19), so it is the one that presses menu buttons.
             if (!selectInput.isReleased && (VirtualCursorUiRouter.isRadialOpen
-                || (VirtualCursorUiRouter.tryClickAtScreenPosition != null
-                    && VirtualCursorUiRouter.tryClickAtScreenPosition(GetCursorScreenPosition()))))
+                || VirtualCursorUiRouter.TryClickAtScreenPosition(GetCursorScreenPosition())))
             {
                 selectionStartedOverUi = true;
             }
@@ -101,8 +136,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         {
             // A right click over the menu is swallowed (no minion order) but presses nothing.
             bool clickConsumedByUi = VirtualCursorUiRouter.isRadialOpen
-                || (VirtualCursorUiRouter.isScreenPositionOverUi != null
-                    && VirtualCursorUiRouter.isScreenPositionOverUi(GetCursorScreenPosition()));
+                || VirtualCursorUiRouter.IsScreenPositionOverUi(GetCursorScreenPosition());
             if (!clickConsumedByUi)
                 HandleCommand();
             entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, false);

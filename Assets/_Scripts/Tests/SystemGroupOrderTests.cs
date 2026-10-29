@@ -53,6 +53,7 @@ namespace StitchPunk.Tests
         {
             { typeof(PlayerInputSystemGroup),         typeof(PlayerSystemGroup) },
             { typeof(WorkstationInputSystemGroup),    typeof(PlayerSystemGroup) },
+            { typeof(TradeInputSystemGroup),          typeof(PlayerSystemGroup) },
             { typeof(NarrativeSystemGroup),           typeof(PlayerSystemGroup) },
             { typeof(DialogueSystemGroup),            typeof(PlayerSystemGroup) },
             { typeof(PlayerEquipmentSystemGroup),     typeof(PlayerSystemGroup) },

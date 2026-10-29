@@ -816,3 +816,7 @@ Before 2026-10-17 no runtime system ever disabled `ActionRequest`, so every `[Wi
 
 ### The player prefab draws nothing (2026-10-23)
 `PlayerUnit.prefab`'s `Visual` child holds only a Transform; the one mesh under `BaseUnit` is the selection ring at scale 0. Anything visual aimed at "the player's body" (roll squash/spin, afterimages) needs a renderer under `Visual` first.
+
+## `PlayerPickupJob` clears the E press for everyone (2026-10-28)
+
+`OnInteractPlayerInput` is a one-frame flag with no owner, and `PlayerPickupJob` (`ItemEquipSystemGroup`) sets it false every frame it is set, whatever the target is. Any system that reads the E press must therefore run before `ItemSystemGroup`: put it in `WorkstationInputSystemGroup` or `TradeInputSystemGroup`, never in a later feature group. A system in `TradeSystemGroup` sees the flag already cleared and silently never fires (found by play-testing the pigeon, which no compile gate or unit test could catch).

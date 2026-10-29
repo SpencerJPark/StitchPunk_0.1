@@ -1897,6 +1897,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::TradeBoardAuthoring
   library: {fileID: 11400000, guid: f119b4738280f8d47a3a052cd7985d87, type: 2}
   worldSeed: 0
+  pigeonPrefab: {fileID: 5577060405969263306, guid: 50709fafffe0e1b498727578cb6267f2, type: 3}
+  perchLocalOffset: {x: 0, y: 2.4, z: -3}
+  flyInStartDistance: 45
+  flyInStartHeight: 18
+  flyInSeconds: 5
+  flyOffSeconds: 3
+  arcHeight: 4
 --- !u!4 &849218994
 Transform:
   m_ObjectHideFlags: 0

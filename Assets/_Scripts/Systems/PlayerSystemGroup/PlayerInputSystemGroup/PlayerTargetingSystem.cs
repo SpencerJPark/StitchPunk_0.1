@@ -11,6 +11,8 @@ using Unity.Transforms;
 public partial struct PlayerTargetingSystem : ISystem
 {
     private const float TARGET_RANGE = 5f;
+    // Larger than any squared in-range distance, so a priority interactable inside its radius always wins.
+    private const float PRIORITY_RANK_BONUS = 1000000f;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -22,6 +24,7 @@ public partial struct PlayerTargetingSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         ComponentLookup<PlayerInteractableReach> reachLookup = SystemAPI.GetComponentLookup<PlayerInteractableReach>(true);
+        ComponentLookup<PlayerInteractablePriority> priorityLookup = SystemAPI.GetComponentLookup<PlayerInteractablePriority>(true);
 
         foreach ((RefRO<LocalTransform> transform, RefRW<Target> target, EnabledRefRW<Target> targetEnabled) in
             SystemAPI.Query<RefRO<LocalTransform>, RefRW<Target>, EnabledRefRW<Target>>()
@@ -32,7 +35,7 @@ public partial struct PlayerTargetingSystem : ISystem
             float rangeSq = TARGET_RANGE * TARGET_RANGE;
 
             Entity bestTarget = Entity.Null;
-            float bestDistSq = float.MaxValue;
+            float bestRank = float.MaxValue;
 
             foreach ((RefRO<LocalTransform> enemyTransform, Entity enemyEntity) in
                 SystemAPI.Query<RefRO<LocalTransform>>()
@@ -57,9 +60,19 @@ public partial struct PlayerTargetingSystem : ISystem
                 }
 
                 if (distSq > rangeSq) continue;
-                if (distSq < bestDistSq)
+
+                float rank = distSq;
+                if (priorityLookup.TryGetComponent(enemyEntity, out PlayerInteractablePriority priority))
                 {
-                    bestDistSq = distSq;
+                    float3 toOrigin = enemyTransform.ValueRO.Position - playerPos;
+                    toOrigin.y = 0f;
+                    if (math.lengthsq(toOrigin) <= priority.priorityRadius * priority.priorityRadius)
+                        rank -= PRIORITY_RANK_BONUS;
+                }
+
+                if (rank < bestRank)
+                {
+                    bestRank = rank;
                     bestTarget = enemyEntity;
                 }
             }

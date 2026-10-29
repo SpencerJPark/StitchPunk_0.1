@@ -60,8 +60,7 @@ public class WorkstationMenuUI : MonoBehaviour
         dismountButton = root.Q<Button>("dismount-button");
 
         ActiveInstance = this;
-        VirtualCursorUiRouter.isScreenPositionOverUi = IsScreenPositionOverMenu;
-        VirtualCursorUiRouter.tryClickAtScreenPosition = TryClickAtScreenPosition;
+        VirtualCursorUiRouter.Register(IsScreenPositionOverMenu, TryClickAtScreenPosition);
         buttonActions.Clear();
         hoveredButton = null;
 
@@ -79,8 +78,7 @@ public class WorkstationMenuUI : MonoBehaviour
     {
         if (ActiveInstance == this)
             ActiveInstance = null;
-        VirtualCursorUiRouter.isScreenPositionOverUi = null;
-        VirtualCursorUiRouter.tryClickAtScreenPosition = null;
+        VirtualCursorUiRouter.Unregister(IsScreenPositionOverMenu, TryClickAtScreenPosition);
         SetHoveredButton(null);
         buttonActions.Clear();
         UnregisterClick(craftRoundButton, OnCraftRoundClicked);
