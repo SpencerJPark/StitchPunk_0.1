@@ -1,6 +1,6 @@
 # Trade System — Weekly Orders by Carrier Pigeon
 
-> **Status:** 📝 spec written 2026-10-28, not built. The owner answered eight product questions (TR-D1–TR-D8, §11). Architecture calls were made under the standing delegation (TR-A1–TR-A12). Open tuning and content questions are marked **← DECISION** inline and collected in §12.
+> **Status:** 🔨 Phases 0–1 in build 2026-10-28; all open questions resolved (TR-D9–D16). The owner answered eight product questions (TR-D1–TR-D8, §11). Architecture calls were made under the standing delegation (TR-A1–TR-A12). Open tuning and content questions are marked **← DECISION** inline and collected in §12.
 > **Inspiration:** GTA Chinatown Wars' dealer economy, cut down to **orders only**: clients ask for something, you make it, you deliver it, you get paid. There is no buy-low/sell-high market in v1 (TR-D5).
 
 ---
@@ -44,15 +44,15 @@ Week ends (Day 7 → Day 1) → unaccepted offers expire silently; the next week
 
 ## 2. Phases
 
-| # | Phase | Milestone |
-|---|---|---|
-| 0 | **World clock**: `WorldClock` singleton, `WorldTimeSystemGroup`, day/week rollover signals, HUD clock, debug skip-day/skip-week | the HUD shows "Week 1 · Mon 06:00", and skipping a week fires `WeekStarted` once |
-| 1 | **Clients + order generation**: `ClientSO`, `OrderTemplateSO`, `ClientLibrary` blob, drop-off points, `TradeBoard` singleton, weekly roll, difficulty + reward maths | a debug menu lists the week's offers with difficulty and payout; same seed → same week |
-| 2 | **Pigeon + letter**: pigeon prefab lands on the caravan perch, interacting opens the letter (UI Toolkit placeholder), accept/decline, drop-off markers | accepted orders show markers in the world |
-| 3 | **Delivery**: hand-over interaction, validation, payout, squad removal, walk to the client, out-of-sight despawn | deliver 2 Brutes to the Army → Currency goes up, the Brutes stand at the barracks, and they are gone when you come back |
-| 4 | **Deadlines + reputation**: due-day expiry, reputation tiers changing payout, order count and order size | failing an order drops the tier, and the next week's letter from that client is smaller |
-| 5 | **Content pass**: the first recurring clients, household templates, drop-offs placed in the game scene, new order-only unit types | ← DECISION TR-Q6 |
-| 6 | **Save**: clock + board + relationships survive a save/load | load mid-week → same day, same accepted orders, same reputation |
+| # | Phase | Status | Milestone |
+|---|---|---|---|
+| 0 | **World clock**: `WorldClock` singleton, `WorldTimeSystemGroup`, day/week rollover signals, HUD clock, debug skip-day/skip-week | 🔨 built 2026-10-28, awaiting play check | the HUD shows "Week 1 · Mon 06:00", and skipping a week fires `WeekStarted` once |
+| 1 | **Clients + order generation**: `ClientSO`, `OrderTemplateSO`, `ClientLibrary` blob, drop-off points, `TradeBoard` singleton, weekly roll, difficulty + reward maths | 🔨 built 2026-10-28, awaiting play check | a debug menu lists the week's offers with difficulty and payout; same seed → same week |
+| 2 | **Pigeon + letter**: pigeon prefab lands on the caravan perch, interacting opens the letter (UI Toolkit placeholder), accept/decline, drop-off markers | ⬜ | accepted orders show markers in the world |
+| 3 | **Delivery**: hand-over interaction, validation, payout, squad removal, walk to the client, out-of-sight despawn | ⬜ | deliver 2 Brutes to the Army → Currency goes up, the Brutes stand at the barracks, and they are gone when you come back |
+| 4 | **Deadlines + reputation**: due-day expiry, reputation tiers changing payout, order count and order size | ⬜ | failing an order drops the tier, and the next week's letter from that client is smaller |
+| 5 | **Content pass**: the first recurring clients, household templates, drop-offs placed in the game scene, new order-only unit types | ⬜ | settled: TR-D14 (flavour on existing types) |
+| 6 | **Save**: clock + board + relationships survive a save/load | ⬜ | load mid-week → same day, same accepted orders, same reputation |
 
 Phases 0 → 1 → 2 → 3 run in order. Phase 4 needs 3, and phase 6 can be built any time after 4. Phase 5 is content and runs alongside the rest once 1 lands.
 
@@ -73,7 +73,6 @@ TradeSystemGroup (NEW, GameSceneSystemGroup, after Buildings, before PlayerResou
     TradeOrderResponseSystem       accept/decline requests from the letter UI → order state
     TradeDeliverySystem            hand-over request at a drop-off → validate → pay (ResourceChangeRequest) + reputation + release the units
     TradeOrderExpirySystem         DayStarted → fail accepted orders past their due day → reputation penalty
-    ReputationDecaySystem          (optional, ← DECISION TR-Q4) WeekStarted → drift toward neutral for clients you ignored
 
 PlayerResourceSystemGroup
     ResourceChangeSystem           drains the payout deltas the same frame
@@ -129,9 +128,9 @@ public struct WorldClock : IComponentData
     public float timeOfDay01;          // 0 = midnight. Schedules reads this unchanged.
     public int   dayOfWeek;            // 0..6, 0 = Monday
     public int   weekNumber;           // 1-based
-    public float secondsPerDay;        // default 240 (4 real minutes) ← DECISION TR-Q1
+    public float secondsPerDay;        // default 1440 (24 real minutes, TR-D9)
     public float dayStartTimeOfDay01;  // 0.25 (06:00): a new week starts at Mon 06:00, not midnight
-    public bool  isPaused;             // pause menu / letter UI open ← DECISION TR-Q2
+    public bool  isPaused;             // letter UI or any menu open (TR-D10)
 }
 public struct DayStarted  : IComponentData, IEnableableComponent { }   // on TradeBoard, one frame
 public struct WeekStarted : IComponentData, IEnableableComponent { }   // on TradeBoard, one frame
@@ -233,8 +232,8 @@ difficulty = quantity × unitTierWeight[unitType]       // from UnitDataBlob.sum
            + dropOff.dangerRating × dangerWeight
 
 currencyReward = round(difficulty × currencyPerDifficulty × reputationPayoutMultiplier[tier])
-payout at hand-over = currencyReward × conditionBonus
-conditionBonus = lerp(1.0, 1.25, average health fraction above the minimum)   ← DECISION TR-Q3
+payout at hand-over = currencyReward
+(no condition bonus, TR-D11)
 ```
 
 `unitTierWeight` comes from the existing `summonCost`, so no second price list has to be kept in sync. All weights live on a `TradeTuningSO` → `TradeTuningBlob`.
@@ -248,14 +247,14 @@ conditionBonus = lerp(1.0, 1.25, average health fraction above the minimum)   �
 | Trusted | 50–79 | 1.25 | 1–2 | full range, unlocks `minimumTier = Trusted` templates |
 | Partner | 80–100 | 1.4 | 2 | full range, prefers the big templates |
 
-Deltas: delivered **+8** (+4 more if early), failed (accepted, past due) **−15**, declined **0**, ignored (never opened the letter) **−2** ← DECISION TR-Q4.
+Deltas: delivered **+8** (+4 more if early), failed (accepted, past due) **−15**, declined **0**, ignored (never opened the letter) **−2**  (TR-D12: no decay).
 
 ## 5. Systems
 
 | System | Group | Behaviour |
 |---|---|---|
 | `WorldClockSystem` | `WorldTimeSystemGroup` | First: disable `DayStarted`/`WeekStarted` from last frame. If not paused: `timeOfDay01 += dt / secondsPerDay`. On crossing `dayStartTimeOfDay01`: `dayOfWeek++`, enable `DayStarted`. When `dayOfWeek` wraps 6 → 0: `weekNumber++`, enable `WeekStarted`. On the first frame of a new game, raise `WeekStarted` for week 1. |
-| `WeeklyOrderGenerationSystem` | `TradeSystemGroup` | On `WeekStarted`: mark leftover `Offered` orders `Expired`; remove `Delivered`/`Failed`/`Expired`/`Declined` rows older than one week. Roll: for each recurring client, `chance = baseOrderChancePerWeek × tierFrequency`; pick templates by weight, filtered by `minimumTier`; roll quantity, due day, condition (scaled by tier). Then add `householdOffersPerWeek` (default 2, ← TR-Q5) household one-offs. Freeze `difficulty` + `currencyReward`. Append `PendingPigeon`. |
+| `WeeklyOrderGenerationSystem` | `TradeSystemGroup` | On `WeekStarted`: mark leftover `Offered` orders `Expired`; remove `Delivered`/`Failed`/`Expired`/`Declined` rows older than one week. Roll: for each recurring client, `chance = baseOrderChancePerWeek × tierFrequency`; pick templates by weight, filtered by `minimumTier`; roll quantity, due day, condition (scaled by tier). Then add `householdOffersPerWeek` (default 2, TR-D13) household one-offs. Freeze `difficulty` + `currencyReward`. Append `PendingPigeon`. |
 | `TradeOrderResponseSystem` | same | Drains `TradeOrderResponseRequest`: `Offered` → `Accepted` / `Declined`. On acceptance, `dueDayOfWeek = min(today + rolled days, 6)`. Any other state is ignored (logged). |
 | `TradeDeliverySystem` | same | For each drop-off with `TradeHandOverRequest` enabled: find the oldest `Accepted` order at that drop-off. Collect player `Minion`s of `unitType` within `handOverRadius` whose `Health.current / max ≥ minHealthFraction`, closest first. If the count is short of `quantity`, refuse (`TradeHandOverRefused` toast: "Need 2 more Brutes (fresh)"). Otherwise take exactly `quantity` units → release them (TR-A6) → queue `ResourceChangeRequest{Currency, payout}` + bonus resources on the ledger via `ResourceLedgerLink` → reputation + stats → state `Delivered`. Disable the request. |
 | `TradeOrderExpirySystem` | same | On `DayStarted`: an `Accepted` order with `dueDayOfWeek < dayOfWeek` (or one from an earlier week) → `Failed`, reputation penalty, `TradeOrderFailed` toast. |
@@ -276,12 +275,12 @@ Edited: `SystemGroups.cs` (two groups), `CLAUDE.md` Sim order, `Contracts.md` (f
 
 | Client | Kind | Home | Wants | Notes |
 |---|---|---|---|---|
-| The Crown Army, 3rd Garrison | Recurring | Barracks drop-off (Military, danger 2) | Brutes ×2–4, Runners ×3–5 (scouts), fresh at Trusted+ | The big earner; specialised soldiers arrive with TR-Q6 |
+| The Crown Army, 3rd Garrison | Recurring | Barracks drop-off (Military, danger 2) | Brutes ×2–4, Runners ×3–5 (scouts), fresh at Trusted+ | The big earner; flavour only, TR-D14 |
 | Lady Ashgrove's House | Recurring | Manor (Noble, danger 0) | one unit, high condition, generous deadline | A small, steady relationship |
 | The Bellfounders' Guild | Recurring | Foundry (Industrial, danger 1) | Brutes for hauling, any condition | Pays in scrap + electricity on top of Currency |
 | Households | One-off | any Household drop-off | one basic zombie "to do the chores" | 2 a week, low pay, low risk |
 
-← **DECISION TR-Q6: order-only unit types.** The "undead maid" and "specialised soldier" don't exist yet. Options: (a) v1 orders only use the three summonable types and flavour text carries the fiction (recommended, zero new art), (b) add `UndeadMaid` / `UndeadSoldier` to `UnitType` (append only) as station-summon recipes unlocked by the client's tier, (c) a "specialisation" applied at the station on top of a base type (equipment/design), which needs the Design system and is post-v1.
+**TR-D14:** v1 orders only use the three summonable types; flavour text carries the fiction.
 
 ## 8. File manifest
 
@@ -333,14 +332,24 @@ No fixtures for the clock tick, the UI or the pigeon: play-test those (the proje
 | TR-D6 | **Authored recurring clients + randomly generated household one-offs.** |
 | TR-D7 | **A pigeon lands at the caravan; interacting opens a letter** to accept/decline each order; accepted orders get map markers. |
 | TR-D8 | A delivered unit **stays in the world until the player is far away and can't see it**, then despawns. |
+| TR-D9 (Q1) | `secondsPerDay` = **1440** (24 real minutes per day, 1 real minute = 1 game hour). A week is 2 h 48 min of real time. Stays a tuning field on `TradeBoardAuthoring`. |
+| TR-D10 (Q2) | The clock **pauses for the letter and for any menu** (settings / pause / station). Driven by a managed "UI blocks time" flag feeding `WorldClock.isPaused`. |
+| TR-D11 (Q3) | **No condition bonus.** `minHealthFraction` is strict pass/fail; payout = `currencyReward`. |
+| TR-D12 (Q4) | Reputation deltas as in §4; **no decay**, no `ReputationDecaySystem` in v1. |
+| TR-D13 (Q5) | **2** household one-offs per week; recurring clients add 0–2 each. |
+| TR-D14 (Q6) | **Flavour on existing types**; no new `UnitType`s in v1. |
+| TR-D15 (Q7) | **All at once**; no partial hand-over. |
+| TR-D16 (Q8) | A delivered unit is a **normal unit** until it despawns; no reputation effect. |
 
 ## 12. Open decisions
 
-- [ ] **TR-Q1** `secondsPerDay`: 240 (4 min/day, a 28-minute week) recommended. Too short makes deliveries frantic; too long makes the pigeon rare.
-- [ ] **TR-Q2** Does the clock pause while the letter / station menu is open? Recommended: **pause on the letter only**, and keep running in the station menu (summoning takes time, and that should cost time).
-- [ ] **TR-Q3** Condition bonus: a reward for over-delivering health (recommended, up to +25%) vs a strict pass/fail minimum only.
-- [ ] **TR-Q4** The reputation delta table in §4, and whether ignored clients drift back toward neutral each week (`ReputationDecaySystem`). Recommended: no decay in v1.
-- [ ] **TR-Q5** Household one-offs per week: 2 recommended; recurring clients add 0–2 each.
-- [ ] **TR-Q6** Order-only unit types (maid, specialised soldier): (a) flavour on existing types (recommended for v1), (b) new `UnitType`s unlocked by tier, (c) station specialisation.
-- [ ] **TR-Q7** Can one hand-over fill an order **partially** (deliver 2 of 4 now, 2 later)? Recommended: no, all at once, to keep v1 simple.
-- [ ] **TR-Q8** Can a delivered unit be **attacked/killed** while it stands at the client? Recommended: yes, it is a normal unit until it despawns; no reputation effect.
+All resolved 2026-10-28 (recorded in §11 as TR-D9–TR-D16).
+
+### Build deviations (Phases 0-1, 2026-10-28)
+
+- **Signals live on the `WorldClock` entity, not `TradeBoard`** (TR-A4): the clock is a world service and must not depend on Trade. `WorldClockAuthoring` and `TradeBoardAuthoring` are two separate singletons. `WorldClockSkipRequest` (debug) and `TradeRerollRequest` (debug, proves same seed -> same week) are new enableables.
+- **`TradeBoard` is `{ worldSeed }` only.** `orderId = weekNumber * 100 + index`, so a re-roll of the same week reproduces ids; household client ids are `-orderId`. `TradeOrder` gains `daysAllowed` (rolled at generation) next to `dueDayOfWeek` (set on acceptance); `minHealthFraction` is a `float`, not `half`.
+- **Pause:** the existing pause/settings menus set `Time.timeScale = 0`, and `WorldClockSystem` ticks off the simulation delta time, so they stop the clock with no extra code. `WorldClock.isPaused` is the hook the letter UI (Phase 2) sets.
+- **Reputation is read, not written, in Phase 1:** generation already filters templates by tier and scales offer count, order size and payout from `ClientRelationship.reputation`; the delivery/expiry systems that change it are Phases 3-4.
+- **Roll logic is `Utils/TradeOrderRoller.cs`** (a pure function over the board buffers, so F2 can call it without the system); data SOs sit in `Data/SOs/` + `Data/Structs/TradeBlobs.cs`, matching the existing layout rather than a `Data/Trade/` folder. The client library is baked onto the `TradeBoard` entity by `TradeBoardAuthoring` (no separate library authoring).
+- Per-tier health-condition scaling from the §5 roll description is not implemented; the template's `minHealthFraction` is used as authored.

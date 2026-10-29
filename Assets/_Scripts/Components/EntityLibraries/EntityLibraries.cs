@@ -113,3 +113,15 @@ public struct VehicleLibraryReference : IComponentData
 {
     public UnityObjectRef<VehicleLibrarySO> library;
 }
+
+// Trade clients, order templates and tuning (Trade_System.md section 4). Lives on the TradeBoard entity; read by
+// WeeklyOrderGenerationSystem.
+public struct ClientLibrary : IComponentData
+{
+    public BlobAssetReference<ClientLibraryBlob> library;
+}
+
+public struct ClientLibraryReference : IComponentData
+{
+    public UnityObjectRef<ClientLibrarySO> library;
+}

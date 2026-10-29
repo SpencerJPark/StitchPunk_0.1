@@ -14,6 +14,7 @@ All game logic lives here. Read the context file for each sub-group before worki
 ```
 PostBakingSystemGroup        — SOs → BlobAssets + cross-entity component distribution (runs once at bake time)
 GameManagerSystemGroup       — WORLD SERVICES (not scene-gated): registries, spatial hashes, DamageBus reset, floating origin, horde state
+WorldTimeSystemGroup         — WorldClockSystem: ticks the shared WorldClock, raises DayStarted/WeekStarted (Trade_System.md TR-A2)
 PlayerSystemGroup            — all player-driven logic
   ├── PlayerInputSystemGroup (OrderFirst)  — input events → ECS components, targeting, attacks, aim, equipment dispatch
   ├── WorkstationInputSystemGroup — placement/deploy/mount on E, before NarrativeSystemGroup (see Camp Loop)
@@ -38,6 +39,7 @@ MovementSystemGroup          — PACKAGE-OWNED (com.dotsmovementtoolkit, ns Dots
   ├── MovementSteeringSystemGroup    — empty, declared slot for future arrival easing/avoidance
   └── MovementExecutionSystemGroup   — writes final position/rotation to transforms (+ game's LocomotionStanceSystem)
 BuildingsSystemGroup         — workstation loop (furnace, craft, repair, summon, pack-up); factory loop still parked in Core/Unused/
+TradeSystemGroup             — weekly orders (Trade_System.md): WeeklyOrderGenerationSystem on WeekStarted; delivery/expiry/pigeon systems land in later phases
 PlayerResourceSystemGroup    — ResourceChangeSystem applies ledger deltas (see Camp Loop)
 CombatSystemGroup
   ├── CombatExecutionSystemGroup — AttackRequestSystem, HazardZoneSystem (DamageBus producers)

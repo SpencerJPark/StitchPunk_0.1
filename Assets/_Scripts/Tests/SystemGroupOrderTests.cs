@@ -19,6 +19,7 @@ namespace StitchPunk.Tests
         private static readonly Type[] SimulationPipeline =
         {
             typeof(GameManagerSystemGroup),
+            typeof(WorldTimeSystemGroup),
             typeof(PlayerSystemGroup),
             typeof(CutsceneSystemGroup),
             typeof(UtilityAISystemGroup),
@@ -29,6 +30,7 @@ namespace StitchPunk.Tests
             typeof(ItemSystemGroup),
             typeof(MovementSystemGroup),
             typeof(BuildingsSystemGroup),
+            typeof(TradeSystemGroup),
             typeof(PlayerResourceSystemGroup),
             typeof(CombatSystemGroup),
             typeof(HealthSystemGroup),

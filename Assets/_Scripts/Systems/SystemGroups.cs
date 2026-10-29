@@ -37,12 +37,20 @@ public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
 // --------------------------------------------------------------------------------------------
 // SimulationSystemGroup pipeline:
-// GameManager → Player → Cutscene → UtilityAI → MinionActionSelection → ActionSelection → StateMachine → CrowdLife → Item
-//   → Movement → Buildings → PlayerResource → Combat → Health → Design → Animation
+// GameManager → WorldTime → Player → Cutscene → UtilityAI → MinionActionSelection → ActionSelection → StateMachine → CrowdLife → Item
+//   → Movement → Buildings → Trade → PlayerResource → Combat → Health → Design → Animation
 // (Adjacent edges below are asserted by SystemGroupOrderTests — keep them explicit.)
 // --------------------------------------------------------------------------------------------
 
+// The world clock (Trade_System.md TR-A2): other features (Schedules, shop hours, night spawns) read WorldClock, so
+// time is not part of Trade. Derives from GameSceneSystemGroup, so menus and non-game scenes never advance it.
 [UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(GameManagerSystemGroup))]
+[UpdateBefore(typeof(PlayerSystemGroup))]
+public partial class WorldTimeSystemGroup : GameSceneSystemGroup { }
+
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(WorldTimeSystemGroup))]
 [UpdateBefore(typeof(UtilityAISystemGroup))]
 public partial class PlayerSystemGroup : GameSceneSystemGroup { }
 
@@ -130,13 +138,20 @@ public partial class ItemSystemGroup : GameSceneSystemGroup { }
 // declared from game code, so the game-relative edges below live on ITEM/BUILDINGS instead.
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(MovementSystemGroup))]
-[UpdateBefore(typeof(PlayerResourceSystemGroup))]
+[UpdateBefore(typeof(TradeSystemGroup))]
 public partial class BuildingsSystemGroup : GameSceneSystemGroup { }
+
+// Weekly orders by carrier pigeon (Trade_System.md). After Buildings so units the workstation finished this frame
+// count for a hand-over; before PlayerResource so a payout reaches the HUD the same frame.
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(BuildingsSystemGroup))]
+[UpdateBefore(typeof(PlayerResourceSystemGroup))]
+public partial class TradeSystemGroup : GameSceneSystemGroup { }
 
 // Applies the player's ResourceChangeRequest deltas. After Buildings so producers/spenders queued
 // this frame (workstation, reviver) land this frame; before Combat so later groups read settled stock.
 [UpdateInGroup(typeof(SimulationSystemGroup))]
-[UpdateAfter(typeof(BuildingsSystemGroup))]
+[UpdateAfter(typeof(TradeSystemGroup))]
 [UpdateBefore(typeof(CombatSystemGroup))]
 public partial class PlayerResourceSystemGroup : GameSceneSystemGroup { }
 
