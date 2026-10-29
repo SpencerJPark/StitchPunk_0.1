@@ -4,7 +4,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 
 // Settles what every door does this frame from its zones and any script override, then swings it (CV-D20).
-// Hybrid art (CaravanPresenter) mirrors Door.angleDegrees onto its own hinge.
+// A door with clips (DoorAnimationKeys) is left to its actor's Open/Close/Slam clips (VehicleAnimationSystem).
 [BurstCompile]
 [UpdateInGroup(typeof(BuildingsSystemGroup))]
 [UpdateAfter(typeof(CaravanExitSequenceSystem))]
@@ -28,7 +28,7 @@ public partial struct DoorSystem : ISystem
         }
 
         foreach ((RefRW<LocalTransform> doorTransform, RefRO<Door> door, RefRO<DoorHinge> doorHinge)
-                 in SystemAPI.Query<RefRW<LocalTransform>, RefRO<Door>, RefRO<DoorHinge>>())
+                 in SystemAPI.Query<RefRW<LocalTransform>, RefRO<Door>, RefRO<DoorHinge>>().WithNone<DoorAnimationKeys>())
         {
             quaternion swing = quaternion.AxisAngle(math.up(), math.radians(door.ValueRO.angleDegrees));
             doorTransform.ValueRW.Rotation = math.mul(swing, doorHinge.ValueRO.restRotation);

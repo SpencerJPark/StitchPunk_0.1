@@ -2,8 +2,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
-// Goes beside WorkstationAuthoring on the caravan's simulation object (Caravan_System.md). The art lives
-// in the scene on Caravan.prefab and follows this entity through CaravanPresenter.
+// Goes beside WorkstationAuthoring and VehicleRigAuthoring on CaravanSim.prefab (Caravan_System.md). The art is
+// part of the same prefab and bakes with it (CV-D21).
 [RequireComponent(typeof(WorkstationAuthoring))]
 public class CaravanAuthoring : MonoBehaviour
 {

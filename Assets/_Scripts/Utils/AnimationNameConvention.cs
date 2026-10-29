@@ -15,4 +15,13 @@ public static class AnimationNameConvention
     public static string ForStanceIdle(StanceType stance) => stance + Idle;
 
     public static string ForStanceWalk(StanceType stance) => stance + Walk;
+
+    // Vehicle clips (Caravan_System.md CV-D21), played on the vehicle's own actor. A name the owner hasn't
+    // registered bakes key 0 and the code fallback runs instead.
+    public static string ForDoorOpen(string doorAnimationName) => doorAnimationName + "Open";
+    public static string ForDoorClose(string doorAnimationName) => doorAnimationName + "Close";
+    public static string ForDoorSlam(string doorAnimationName) => doorAnimationName + "Slam";
+    public const string VehicleShakeBuildUp = "VehicleShakeBuildUp";
+    public const string VehicleShakeBurst = "VehicleShakeBurst";
+    public const string VehicleBroken = "VehicleBroken";
 }

@@ -24,6 +24,9 @@ What was checked when it was built:
 ## Play checks
 
 ### Phase 0–1: drive and park
+- [ ] The caravan is now one baked object (CV-D21): it renders from the subscene, there is no separate `Caravan` object in `CampLoop`, and it sits where you placed the art (z ≈ −7.35). The wheels roll, the axle steers, it bounces and leans, the chimney smokes and the lamp lights, exactly as before.
+- [ ] Side doors (`CarrageDriverLeft/Right`): they swing open in their zones. If one swings into the body, flip the sign of its `Open Degrees` on the `DoorAuthoring`.
+- [ ] Once you've set up the actor and keyed `BackLeftOpen` (etc.), `VehicleShakeBuildUp`, `VehicleShakeBurst` or `VehicleBroken`, they replace the code motion. A missing name keeps the code version.
 - [ ] Doors stay shut until you walk into a zone (CV-D20). Walk behind the caravan: the back doors swing open. Walk away: they close. Do the same at each side door's zone (once the side-door art is hooked up in `CaravanPresenter.doors`).
 - [ ] Minions and bandits walking through the zones don't open anything (the caravan zones are player-only; change `openers` on a zone to test the others).
 - [ ] While driving, standing in any zone opens nothing.

@@ -50,6 +50,7 @@ public struct CaravanShake : IComponentData
 {
     public float remainingSeconds;
     public float amplitude;
+    public CaravanShakeKind kind;
 }
 
 // Counters the presenter compares against its last-seen value, so a one-off effect never needs an event entity.

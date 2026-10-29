@@ -11272,7 +11272,6 @@ GameObject:
   - component: {fileID: 753404905456159833}
   - component: {fileID: 776853103052774478}
   - component: {fileID: 3299783111394073637}
-  - component: {fileID: 7433306085257252032}
   m_Layer: 6
   m_Name: Caravan
   m_TagString: Vehicle
@@ -11347,41 +11346,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &7433306085257252032
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4320109915508575037}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cb9222c5ee63a444599f7dc412c4bab2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::CaravanPresenter
-  wheels:
-  - {fileID: 2277254353823070517}
-  - {fileID: 4176544564925178529}
-  - {fileID: 2152849765678283471}
-  - {fileID: 6703238597937178128}
-  frontAxlePivot: {fileID: 5928247520986644274}
-  shakeRoot: {fileID: 266947837185427633}
-  doors:
-  - doorName: BackLeft
-    hinge: {fileID: 3297332381161038986}
-  - doorName: BackRight
-    hinge: {fileID: 8175537191250724304}
-  - doorName: SideLeft
-    hinge: {fileID: 0}
-  - doorName: SideRight
-    hinge: {fileID: 0}
-  chimneySmoke: {fileID: 7107126541397801499}
-  smokeBurst: {fileID: 6915655710027568935}
-  brokenSmoke: {fileID: 5495262052738325518}
-  maxFrontAxleYawDegrees: 25
-  shakeFrequency: 22
-  brokenSagDegrees: 4
-  puller: {fileID: 3942219430862374319}
 --- !u!1 &4450904372252791348
 GameObject:
   m_ObjectHideFlags: 0

@@ -2,13 +2,14 @@ using Unity.Collections;
 using Unity.Entities;
 using UnityEngine;
 
-// A door that DoorZoneAuthoring zones and scripts swing open (Caravan_System.md CV-D20). Baked onto a real door
-// mesh, DoorSystem swings this object about its parent's up axis. For hybrid art (the caravan), put it on the
-// simulation object and give the art's hinge the same Door Name in CaravanPresenter.
+// A door that DoorZoneAuthoring zones and scripts swing open (Caravan_System.md CV-D20). Put it on the door's
+// hinge. With no clips, DoorSystem swings it about its parent's up axis; once the owner's actor has
+// "<Animation Name>Open/Close/Slam" clips, those play instead (CV-D21) and the hinge must be a rig target.
 public class DoorAuthoring : MonoBehaviour
 {
-    [Tooltip("Hybrid art finds its hinge by this name, so it must be unique among this owner's doors.")]
     public string doorName = "Door";
+    [Tooltip("Clip names are this + Open / Close / Slam, on the owner's actor. Empty = Door Name. Give two doors the same name to animate them as a pair.")]
+    public string animationName;
     [Tooltip("How far it swings open. The sign picks the direction.")]
     public float openDegrees = 110f;
     public float openSeconds = 0.6f;
@@ -35,6 +36,20 @@ public class DoorAuthoring : MonoBehaviour
             GameObject ownerObject = ResolveOwner(this, authoring.gameObject, authoring.owner);
             AddComponent(entity, new DoorOwner { owner = GetEntity(ownerObject, TransformUsageFlags.Dynamic) });
             AddComponent(entity, new DoorHinge { restRotation = authoring.transform.localRotation });
+
+            string animationName = string.IsNullOrEmpty(authoring.animationName) ? authoring.doorName : authoring.animationName;
+            DoorAnimationKeys animationKeys = new DoorAnimationKeys
+            {
+                open = AnimationNameKeys.Resolve(AnimationNameConvention.ForDoorOpen(animationName)),
+                close = AnimationNameKeys.Resolve(AnimationNameConvention.ForDoorClose(animationName)),
+                slam = AnimationNameKeys.Resolve(AnimationNameConvention.ForDoorSlam(animationName)),
+                lastAnimatedPhase = DoorPhase.Closed,
+            };
+            bool anyClip = animationKeys.open != 0 || animationKeys.close != 0 || animationKeys.slam != 0;
+            if (!anyClip) return;
+            if (animationKeys.open == 0 || animationKeys.close == 0 || animationKeys.slam == 0)
+                Debug.LogWarning($"[DoorAuthoring] {authoring.name}: {animationName}Open/Close/Slam are only partly registered; the missing ones won't move the door.", authoring);
+            AddComponent(entity, animationKeys);
         }
     }
 

@@ -53,7 +53,7 @@ public partial struct CaravanExitSequenceSystem : ISystem
                 float revealAtSeconds = burstAtSeconds + tuning.smokeCoverDelaySeconds;
 
                 if (previousSeconds <= 0f)
-                    caravanShake.ValueRW = new CaravanShake { remainingSeconds = tuning.shakeBeforeBurstSeconds, amplitude = tuning.shakeBeforeBurstAmplitude };
+                    caravanShake.ValueRW = new CaravanShake { remainingSeconds = tuning.shakeBeforeBurstSeconds, amplitude = tuning.shakeBeforeBurstAmplitude, kind = CaravanShakeKind.BuildUp };
 
                 if (Crossed(previousSeconds, elapsedSeconds, burstAtSeconds))
                 {
@@ -61,7 +61,7 @@ public partial struct CaravanExitSequenceSystem : ISystem
                     for (int doorIndex = 0; doorIndex < exitDoors.Length; doorIndex++)
                         if (SystemAPI.HasComponent<Door>(exitDoors[doorIndex].door))
                             SystemAPI.GetComponentRW<Door>(exitDoors[doorIndex].door).ValueRW.burstRequested = true;
-                    caravanShake.ValueRW = new CaravanShake { remainingSeconds = tuning.burstShakeSeconds, amplitude = tuning.burstShakeAmplitude };
+                    caravanShake.ValueRW = new CaravanShake { remainingSeconds = tuning.burstShakeSeconds, amplitude = tuning.burstShakeAmplitude, kind = CaravanShakeKind.Burst };
                     presentationEvents.ValueRW.smokeBurstCount++;
                 }
 

@@ -1,7 +1,7 @@
 using Unity.Burst;
 using Unity.Entities;
 
-// Counts down the body shake the summon sequence started; CaravanPresenter jitters the art while it runs.
+// Counts down the body shake the summon sequence started; VehicleAnimationSystem / VehiclePoseSystem show it.
 [BurstCompile]
 [UpdateInGroup(typeof(BuildingsSystemGroup))]
 [UpdateAfter(typeof(CaravanExitSequenceSystem))]

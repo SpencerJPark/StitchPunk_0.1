@@ -4,9 +4,6 @@ using Unity.Entities;
 using Unity.Collections;
 using System;
 using System.Collections.Generic;
-#if UNITY_EDITOR
-using System.IO;
-#endif
 
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
@@ -168,51 +165,9 @@ public partial struct UnitLibraryBakingSystem : ISystem
         return blobRef;
     }
 
-    // ---- Animation name resolution (G5 P2) ----
-    //
-    // VocabularyRegistryProvider.AnimationNames lives in DotsAnimationToolkit.Editor, which this
-    // baking system's assembly (StitchPunk.Systems) does not reference. AnimationNameRegistry
-    // itself lives in DotsAnimationToolkit.Authoring — already referenced here for ActorProfileAsset
-    // — so this reads the same ProjectSettings JSON file directly instead of adding an
-    // editor-assembly bridge. Only the read side is replicated; nothing here ever writes the file.
-#if UNITY_EDITOR
-    private const string AnimationNameRegistryPath = "ProjectSettings/DotsAnimationToolkitAnimationNameRegistry.asset";
-    private static AnimationNameRegistry cachedAnimationNameRegistry;
-
-    private static AnimationNameRegistry LoadAnimationNameRegistry()
-    {
-        if (cachedAnimationNameRegistry == null)
-        {
-            cachedAnimationNameRegistry = UnityEngine.ScriptableObject.CreateInstance<AnimationNameRegistry>();
-            cachedAnimationNameRegistry.hideFlags = UnityEngine.HideFlags.DontSave;
-            if (File.Exists(AnimationNameRegistryPath))
-            {
-                string storedJson = File.ReadAllText(AnimationNameRegistryPath);
-                UnityEditor.EditorJsonUtility.FromJsonOverwrite(storedJson, cachedAnimationNameRegistry);
-            }
-        }
-        return cachedAnimationNameRegistry;
-    }
-#endif
-
     private static uint ResolveAnimationKey(string animationName, List<string> unresolvedAnimationNames)
     {
-        uint animationKey = 0;
-#if UNITY_EDITOR
-        AnimationNameRegistry registry = LoadAnimationNameRegistry();
-        if (registry.entries != null)
-        {
-            for (int entryIndex = 0; entryIndex < registry.entries.Count; entryIndex++)
-            {
-                AnimationNameEntry entry = registry.entries[entryIndex];
-                if (entry != null && entry.name == animationName)
-                {
-                    animationKey = entry.animationKey;
-                    break;
-                }
-            }
-        }
-#endif
+        uint animationKey = AnimationNameKeys.Resolve(animationName);
         if (animationKey == 0)
             unresolvedAnimationNames.Add(animationName);
         return animationKey;
