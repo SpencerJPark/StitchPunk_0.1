@@ -18,6 +18,7 @@ WorldTimeSystemGroup         — WorldClockSystem: ticks the shared WorldClock, 
 PlayerSystemGroup            — all player-driven logic
   ├── PlayerInputSystemGroup (OrderFirst)  — input events → ECS components, targeting, attacks, aim, equipment dispatch
   ├── WorkstationInputSystemGroup — placement/deploy/mount on E, before NarrativeSystemGroup (see Camp Loop)
+  ├── TradeInputSystemGroup  — Trade's E-press consumer (DropOffInteractSystem), after WorkstationInput, before Narrative
   ├── NarrativeSystemGroup   — proximity trigger detection and dialogue→narrative bridge (before DialogueSystemGroup)
   ├── DialogueSystemGroup    — dialogue start detection and event relay (after NarrativeSystemGroup)
   └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions (reviver)
@@ -39,7 +40,7 @@ MovementSystemGroup          — PACKAGE-OWNED (com.dotsmovementtoolkit, ns Dots
   ├── MovementSteeringSystemGroup    — empty, declared slot for future arrival easing/avoidance
   └── MovementExecutionSystemGroup   — writes final position/rotation to transforms (+ game's LocomotionStanceSystem)
 BuildingsSystemGroup         — workstation loop (furnace, craft, repair, summon, pack-up); factory loop still parked in Core/Unused/
-TradeSystemGroup             — weekly orders (Trade_System.md): WeeklyOrderGenerationSystem (WeekStarted/reroll), TradeOrderResponseSystem, PigeonLetterSystem + PigeonFlightSystem; delivery/expiry land in later phases
+TradeSystemGroup             — weekly orders (Trade_System.md): WeeklyOrderGenerationSystem (WeekStarted/reroll), TradeOrderResponseSystem, PigeonLetterSystem + PigeonFlightSystem, TradeDeliverySystem + DeliveredUnitWalkSystem; expiry lands in Phase 4 (DeliveredUnitDespawnSystem lives in DespawnSystemGroup)
 PlayerResourceSystemGroup    — ResourceChangeSystem applies ledger deltas (see Camp Loop)
 CombatSystemGroup
   ├── CombatExecutionSystemGroup — AttackRequestSystem, HazardZoneSystem (DamageBus producers)
@@ -400,12 +401,13 @@ Design and phase status: [[CampLoop_System]].
 - `PlayerInputManager` watches `WorkstationMounted` to switch the ControlUnits map and camera. `requireWorkstationForUnitControl` (default on) blocks the old Tab-anywhere toggle.
 
 ### Caravan (the mobile workstation)
-Design and as-built notes: [[Caravan_System]] (§12). The caravan **is** a workstation entity (`CaravanSim.prefab` in the subscene, which has both `WorkstationAuthoring` and `CaravanAuthoring`); the art is a scene GameObject (`Caravan.prefab`) driven by `CaravanPresenter`.
+Design and as-built notes: [[Caravan_System]] (§12). The caravan **is** a workstation entity (`CaravanSim.prefab` in the subscene, which has both `WorkstationAuthoring` and `CaravanAuthoring`); the art is baked with it under `CaravanSim/Art` (CV-D21; the hybrid `CaravanPresenter` is gone).
 - `WorkstationInputSystemGroup`: `CaravanLinkSystem` (OrderFirst; first frame: owner, parked, **moves the ledger onto the caravan**), then `CaravanBoardSystem` (before `WorkstationMountSystem`): E nearer the driver-side board point than the back mount point boards; `OnExitVehicleInput` below `parkMaxSpeed` parks.
 - `MovementExecutionSystemGroup`: `StunAndShoveSystem` (before `UnitMoverSystem`; generic `ShoveMotion` slide + `StunnedState` pin), `CaravanDriveSystem` and `CaravanExitWalkSystem` (both after `UnitGravitySystem`; they place their entities last).
 - `CombatExecutionSystemGroup`: `CaravanCrashSystem`, a sourceless DamageBus producer in the `HazardZoneSystem` slot.
 - `BuildingsSystemGroup`: `WorkstationSummonSystem` hands a finished caravan summon to `CaravanExitSequenceSystem` (walk-out vs smoke burst, per `UnitDataBlob.caravanExitStyle`), then `CaravanShakeSystem` counts the shake down; `CaravanChimneySystem` follows the furnace.
-- **Doors are generic** (CV-D20): `DoorZoneSystem` (zones → `Door.zoneWantsOpen`) then `DoorSystem` (after `CaravanExitSequenceSystem`: override > zone, swing, rotate a baked door's `LocalTransform`). The caravan art isn't baked, so `CaravanPresenter.doors` matches hinges to `DoorName` among doors whose `DoorOwner` is the caravan. ⚠ A hinge whose name matches no `DoorAuthoring` silently never moves.
+- **Doors are generic** (CV-D20): `DoorZoneSystem` (zones → `Door.zoneWantsOpen`) then `DoorSystem` (after `CaravanExitSequenceSystem`: override > zone, swing, rotate a baked door's `LocalTransform`). `DoorAuthoring` sits on the real hinge. A door whose `<name>Open/Close/Slam` animation names resolve at bake gets `DoorAnimationKeys`; `VehicleAnimationSystem` plays them on the owner's actor and `DoorSystem` stops swinging that hinge.
+- **Vehicle art (CV-D21):** `VehiclePoseSystem` (AnimationSystemGroup) drives wheels/axle/`Ride`/`Puller` from `VehicleRig`; `VehicleAnimationSystem` (AnimationSystemGroup) sends door/shake/broken clips to the vehicle's own actor; `VehicleSmokeSystem` (PresentationSystemGroup, managed) plays the companion ParticleSystems. ⚠ A code-driven part must never be a rig target: `TransformApplySystem` overwrites rig targets' `LocalTransform` every frame. ⚠ Animation names are read from the registry file at bake; that file is no bake dependency, so after registering a new name, reimport `CaravanSim.prefab` or reopen the subscene.
 - `WorkstationPackUpSystem` refuses a caravan: driving off is its pack-up. Summons build only while `CaravanParked`, one exit at a time.
 - **Vehicle numbers come from `VehicleProfileSO`** (`ScriptableObjects/Vehicles/`, `VehicleLibrary` blob, indexed by the entity's `Vehicle.vehicleType`). Drive, board (park speed), crash and `CaravanPresenter` (ride, puller offset) all read it; never re-add tuning components to the caravan.
 - A caravan at 0 HP is **broken, not lost** (`CaravanBrokenSystem` → `CaravanBroken`): it can't drive or summon until repaired. `WorkstationDestroyedSystem` skips caravans. The only loss is the player going down while it's broken (`PlayerKnockoutSystem`).

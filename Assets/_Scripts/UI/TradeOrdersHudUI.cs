@@ -9,11 +9,13 @@ public class TradeOrdersHudUI : MonoBehaviour
     private static readonly Color CreamColor = new Color(0.94f, 0.9f, 0.78f);
     private static readonly Color DueTodayColor = new Color(1f, 0.35f, 0.3f);
     private const float BlinkSeconds = 0.5f;
+    private const float ToastSeconds = 4f;
 
     [SerializeField] private UIDocument hudDocument;
     [SerializeField] private ClientLibrarySO library;
 
     private Button letterButton;
+    private Label toastLabel;
     private VisualElement ordersList;
     private VirtualCursorPanel cursorPanel;
     private VisualElement ordersHudRoot;
@@ -26,6 +28,8 @@ public class TradeOrdersHudUI : MonoBehaviour
     private uint lastRenderedSignature;
     private bool letterButtonShown;
     private System.Action openLetterAction;
+    private int lastToastSequence;
+    private float toastHideUnscaledTime;
 
     private void OnEnable()
     {
@@ -36,6 +40,8 @@ public class TradeOrdersHudUI : MonoBehaviour
         ordersHudRoot = root.Q<VisualElement>("orders-hud");
         letterButton = root.Q<Button>("letter-button");
         ordersList = root.Q<VisualElement>("orders-list");
+        toastLabel = root.Q<Label>("toast-label");
+        lastToastSequence = -1;
 
         cursorPanel = new VirtualCursorPanel(ordersHudRoot, () => letterButtonShown);
         cursorPanel.Register();
@@ -112,8 +118,57 @@ public class TradeOrdersHudUI : MonoBehaviour
             RebuildOrdersList(orders, clock);
         }
 
+        UpdateToast(entityManager, boardEntity, orders);
+
         Entity playerEntity = playerQuery.IsEmptyIgnoreFilter ? Entity.Null : playerQuery.GetSingletonEntity();
         cursorPanel.UpdateHover(entityManager, playerEntity);
+    }
+
+    private void UpdateToast(EntityManager entityManager, Entity boardEntity, DynamicBuffer<TradeOrder> orders)
+    {
+        if (toastLabel == null)
+            return;
+
+        TradeToast toast = entityManager.GetComponentData<TradeToast>(boardEntity);
+        // The first read only adopts the current sequence, so a message from before this HUD existed is not replayed.
+        if (lastToastSequence < 0)
+            lastToastSequence = toast.sequence;
+
+        if (toast.sequence != lastToastSequence)
+        {
+            lastToastSequence = toast.sequence;
+            string text = BuildToastText(toast, orders);
+            if (text != null)
+            {
+                toastLabel.text = text;
+                toastLabel.style.display = DisplayStyle.Flex;
+                toastHideUnscaledTime = Time.unscaledTime + ToastSeconds;
+            }
+        }
+
+        if (toastLabel.style.display == DisplayStyle.Flex && Time.unscaledTime >= toastHideUnscaledTime)
+            toastLabel.style.display = DisplayStyle.None;
+    }
+
+    private static string BuildToastText(TradeToast toast, DynamicBuffer<TradeOrder> orders)
+    {
+        if (toast.kind == TradeToastKind.HandOverDone)
+            return $"Delivered — +{toast.amount} Currency";
+
+        TradeOrder order = default;
+        for (int orderIndex = 0; orderIndex < orders.Length; orderIndex++)
+        {
+            if (orders[orderIndex].orderId == toast.orderId)
+                order = orders[orderIndex];
+        }
+
+        if (toast.kind == TradeToastKind.HandOverRefused)
+        {
+            string condition = order.minHealthFraction > 0f ? $" (at least {order.minHealthFraction * 100f:0}% health)" : "";
+            return $"Need {toast.amount} more {TradeTextLookup.UnitLabel(order.unitType)}{condition}";
+        }
+
+        return null;
     }
 
     private bool PerchedPigeonExists(EntityManager entityManager)

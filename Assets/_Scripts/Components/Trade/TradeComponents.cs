@@ -102,3 +102,28 @@ public struct PigeonFlight : IComponentData
     public float elapsedSeconds;     // time in the current phase
     public bool letterDelivered;     // the letter has been opened; closing it sends the pigeon off
 }
+
+// Enabled on a drop-off when the player presses E at it (DropOffInteractSystem); TradeDeliverySystem answers and disables it.
+public struct TradeHandOverRequest : IComponentData, IEnableableComponent { }
+
+// On a unit the player handed over. It is no longer a Minion: it walks to its stand point, idles, and is despawned once the
+// player is far away and cannot see it (DeliveredUnitDespawnSystem). It stays a normal unit meanwhile (TR-D16).
+public struct DeliveredToClient : IComponentData
+{
+    public int dropOffId;
+    public int orderId;
+    public float3 standPoint;
+    public float secondsSinceHandOver;
+    public bool walkOrdered;
+}
+
+public enum TradeToastKind : byte { None, HandOverRefused, HandOverDone, OrderFailed }
+
+// Last notable trade result, shown for a few seconds by TradeOrdersHudUI. A new sequence number means a new message.
+public struct TradeToast : IComponentData
+{
+    public int sequence;
+    public TradeToastKind kind;
+    public int orderId;
+    public int amount;   // refused: units still missing; done: Currency paid
+}

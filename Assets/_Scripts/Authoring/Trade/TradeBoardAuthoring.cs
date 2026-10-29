@@ -55,6 +55,7 @@ public class TradeBoardAuthoring : MonoBehaviour
             AddBuffer<ClientRelationship>(entity);
             AddBuffer<PendingPigeon>(entity);
             AddBuffer<TradeOrderResponseRequest>(entity);
+            AddComponent(entity, new TradeToast());
             AddComponent<TradeLetterOpen>(entity);
             SetComponentEnabled<TradeLetterOpen>(entity, false);
             if (authoring.pigeonPrefab != null)

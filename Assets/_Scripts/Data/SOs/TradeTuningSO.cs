@@ -24,6 +24,9 @@ public class TradeTuningSO : ScriptableObject
 
     [Header("Relationships")]
     public int startingReputation = 10;
+    public int reputationGainDelivered = 8;
+    public int reputationGainDeliveredEarly = 4;
+    public int reputationLossFailed = 15;
 
     public float4 PayoutMultipliers() => ToFloat4(payoutMultiplierByTier, 1f);
     public int4 MinOffers() => ToInt4(minOffersByTier);

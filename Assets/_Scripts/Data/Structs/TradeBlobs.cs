@@ -16,6 +16,9 @@ public struct TradeTuningBlob
     public int4 maxOffersByTier;
     public int householdOffersPerWeek;
     public int startingReputation;
+    public int reputationGainDelivered;
+    public int reputationGainDeliveredEarly;
+    public int reputationLossFailed;
 }
 
 public struct BonusResourceBlob

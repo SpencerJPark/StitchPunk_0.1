@@ -3,7 +3,7 @@ using Unity.Entities;
 using UnityEngine;
 
 // World marker over the drop-off of every accepted order: a beacon pole plus a camera-facing text line. Placeholder
-// geometry until real marker art exists. Delivery progress ("1/2 Brutes") arrives with Phase 3.
+// geometry until real marker art exists. Shows delivery progress ("1/2 Brutes") from the player's minions in range.
 public class TradeOrderMarkerPresenter : MonoBehaviour
 {
     private const float PoleHeight = 3f;
@@ -16,6 +16,7 @@ public class TradeOrderMarkerPresenter : MonoBehaviour
 
     private EntityQuery boardQuery;
     private EntityQuery dropOffQuery;
+    private EntityQuery minionQuery;
     private World queryWorld;
     private Font labelFont;
 
@@ -35,7 +36,10 @@ public class TradeOrderMarkerPresenter : MonoBehaviour
         {
             queryWorld = world;
             boardQuery = world.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<TradeBoard>());
-            dropOffQuery = world.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<TradeDropOff>());
+            dropOffQuery = world.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<TradeDropOff>(), ComponentType.ReadOnly<Unity.Transforms.LocalTransform>());
+            minionQuery = world.EntityManager.CreateEntityQuery(
+                ComponentType.ReadOnly<Minion>(), ComponentType.ReadOnly<UnitData>(), ComponentType.ReadOnly<Health>(),
+                ComponentType.ReadOnly<Unity.Transforms.LocalTransform>(), ComponentType.Exclude<DeliveredToClient>());
         }
 
         if (boardQuery.IsEmptyIgnoreFilter)
@@ -44,12 +48,16 @@ public class TradeOrderMarkerPresenter : MonoBehaviour
         EntityManager entityManager = world.EntityManager;
         DynamicBuffer<TradeOrder> orders = entityManager.GetBuffer<TradeOrder>(boardQuery.GetSingletonEntity(), true);
         using (Unity.Collections.NativeArray<TradeDropOff> dropOffs = dropOffQuery.ToComponentDataArray<TradeDropOff>(Unity.Collections.Allocator.Temp))
+        using (Unity.Collections.NativeArray<Unity.Transforms.LocalTransform> dropOffTransforms = dropOffQuery.ToComponentDataArray<Unity.Transforms.LocalTransform>(Unity.Collections.Allocator.Temp))
+        using (Unity.Collections.NativeArray<UnitData> minionUnits = minionQuery.ToComponentDataArray<UnitData>(Unity.Collections.Allocator.Temp))
+        using (Unity.Collections.NativeArray<Health> minionHealths = minionQuery.ToComponentDataArray<Health>(Unity.Collections.Allocator.Temp))
+        using (Unity.Collections.NativeArray<Unity.Transforms.LocalTransform> minionTransforms = minionQuery.ToComponentDataArray<Unity.Transforms.LocalTransform>(Unity.Collections.Allocator.Temp))
         {
             seenDropOffIds.Clear();
             for (int dropOffIndex = 0; dropOffIndex < dropOffs.Length; dropOffIndex++)
             {
                 TradeDropOff dropOff = dropOffs[dropOffIndex];
-                string markerText = BuildMarkerText(orders, dropOff.dropOffId);
+                string markerText = BuildMarkerText(orders, dropOff, dropOffTransforms[dropOffIndex].Position, minionUnits, minionHealths, minionTransforms);
                 if (markerText == null)
                     continue;
 
@@ -89,19 +97,50 @@ public class TradeOrderMarkerPresenter : MonoBehaviour
         markersByDropOffId.Clear();
     }
 
-    private string BuildMarkerText(DynamicBuffer<TradeOrder> orders, int dropOffId)
+    private string BuildMarkerText(
+        DynamicBuffer<TradeOrder> orders, TradeDropOff dropOff, Vector3 dropOffPosition,
+        Unity.Collections.NativeArray<UnitData> minionUnits, Unity.Collections.NativeArray<Health> minionHealths,
+        Unity.Collections.NativeArray<Unity.Transforms.LocalTransform> minionTransforms)
     {
         string text = null;
         for (int orderIndex = 0; orderIndex < orders.Length; orderIndex++)
         {
             TradeOrder order = orders[orderIndex];
-            if (order.state != TradeOrderState.Accepted || order.dropOffId != dropOffId)
+            if (order.state != TradeOrderState.Accepted || order.dropOffId != dropOff.dropOffId)
                 continue;
 
-            string line = $"{TradeTextLookup.ClientName(library, order.clientId)}\n{TradeTextLookup.Requirement(order)} · by {TradeTextLookup.DayName(order.dueDayOfWeek)}";
+            int readyCount = CountReadyMinions(order, dropOff.handOverRadius, dropOffPosition, minionUnits, minionHealths, minionTransforms);
+            string progress = readyCount >= order.quantity
+                ? $"{order.quantity}/{order.quantity} {TradeTextLookup.UnitLabel(order.unitType)} ready, press E"
+                : $"{readyCount}/{order.quantity} {TradeTextLookup.UnitLabel(order.unitType)}";
+            if (order.minHealthFraction > 0f)
+                progress += $" (at least {order.minHealthFraction * 100f:0}% health)";
+
+            string line = $"{TradeTextLookup.ClientName(library, order.clientId)}\n{progress} · by {TradeTextLookup.DayName(order.dueDayOfWeek)}";
             text = text == null ? line : text + "\n" + line;
         }
         return text;
+    }
+
+    // Mirrors TradeDeliverySystem's candidate rules so the number on the marker is the number a hand-over would use.
+    private static int CountReadyMinions(
+        TradeOrder order, float handOverRadius, Vector3 dropOffPosition,
+        Unity.Collections.NativeArray<UnitData> minionUnits, Unity.Collections.NativeArray<Health> minionHealths,
+        Unity.Collections.NativeArray<Unity.Transforms.LocalTransform> minionTransforms)
+    {
+        int readyCount = 0;
+        for (int minionIndex = 0; minionIndex < minionUnits.Length; minionIndex++)
+        {
+            if (minionUnits[minionIndex].unitType != order.unitType)
+                continue;
+            if (((Vector3)minionTransforms[minionIndex].Position - dropOffPosition).sqrMagnitude > handOverRadius * handOverRadius)
+                continue;
+
+            float healthFraction = minionHealths[minionIndex].healthAmount / (float)Mathf.Max(minionHealths[minionIndex].healthAmountMax, 1);
+            if (healthFraction >= order.minHealthFraction)
+                readyCount++;
+        }
+        return readyCount;
     }
 
     private Marker CreateMarker(int dropOffId)

@@ -824,3 +824,7 @@ Before 2026-10-17 no runtime system ever disabled `ActionRequest`, so every `[Wi
 ## `SystemAPI.GetSingleton<T>` threw in a system that also had a `Query` (2026-10-29)
 
 `PigeonFlightSystem` died every frame with "GetSingleton() ... but there are 0" and "required component type was not declared in the EntityQuery" on `GetSingleton<TradePigeonSettings>()` while the entity existed, after a `SystemAPI.Query<RefRO<LocalToWorld>>().WithAll<PigeonArmTarget>()` was added to it. `GetSingletonEntity<T>()` + `GetComponent<T>(entity)` in the same system fixed it. Cause unproven (a source-generator query mix-up is the suspect); if a Burst system's singleton read throws impossibly, switch to that pair before debugging the data.
+
+## PlayMode test runs swap the open scene (2026-10-29)
+
+`run_tests` in PlayMode leaves the Editor on a temporary `InitTestScene<guid>.unity`. Entering Play mode after it runs an empty world (no Player, no subscene entities), and every singleton query fails. Reload your scene (`manage_scene load`) before any in-scene Play check, and note the subscene is closed again until you reopen it.

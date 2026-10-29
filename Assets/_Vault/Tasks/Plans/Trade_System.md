@@ -49,7 +49,7 @@ Week ends (Day 7 → Day 1) → unaccepted offers expire silently; the next week
 | 0 | **World clock**: `WorldClock` singleton, `WorldTimeSystemGroup`, day/week rollover signals, HUD clock, debug skip-day/skip-week | 🔨 built 2026-10-28, smoke-tested headless, awaiting owner play check | the HUD shows "Week 1 · Mon 06:00", and skipping a week fires `WeekStarted` once |
 | 1 | **Clients + order generation**: `ClientSO`, `OrderTemplateSO`, `ClientLibrary` blob, drop-off points, `TradeBoard` singleton, weekly roll, difficulty + reward maths | 🔨 built 2026-10-28, smoke-tested headless, awaiting owner play check | a debug menu lists the week's offers with difficulty and payout; same seed → same week |
 | 2 | **Pigeon + letter**: pigeon flies to the player's arm and the letter opens by itself (UI Toolkit placeholder), accept/decline, drop-off markers | 🔨 built 2026-10-28, reworked 2026-10-29, headless-tested, awaiting owner play check | accepted orders show markers in the world |
-| 3 | **Delivery**: hand-over interaction, validation, payout, squad removal, walk to the client, out-of-sight despawn | ⬜ | deliver 2 Brutes to the Army → Currency goes up, the Brutes stand at the barracks, and they are gone when you come back |
+| 3 | **Delivery**: hand-over interaction, validation, payout, squad removal, walk to the client, out-of-sight despawn | 🔨 built 2026-10-29, awaiting owner play check | deliver 2 Brutes to the Army → Currency goes up, the Brutes stand at the barracks, and they are gone when you come back |
 | 4 | **Deadlines + reputation**: due-day expiry, reputation tiers changing payout, order count and order size | ⬜ | failing an order drops the tier, and the next week's letter from that client is smaller |
 | 5 | **Content pass**: the first recurring clients, household templates, drop-offs placed in the game scene, new order-only unit types | ⬜ | settled: TR-D14 (flavour on existing types) |
 | 6 | **Save**: clock + board + relationships survive a save/load | ⬜ | load mid-week → same day, same accepted orders, same reputation |
@@ -364,3 +364,18 @@ All resolved 2026-10-28 (recorded in §11 as TR-D9–TR-D16).
 - **No Esc to close** yet (Esc is the game menu): there is a Close button. Buttons are clickable under the virtual cursor via `VirtualCursorPanel` + the router change in Contracts.md.
 - **Markers** are a pole and camera-facing `TextMesh` per drop-off with accepted orders; the "2/2 Brutes" progress count waits for Phase 3.
 - Fixture **F5 `TradeOrderResponseTests`** (PlayMode, revert-to-fail proven on the state guard) covers the due-day clamp and the Offered-only guard.
+
+### Build deviations (Phase 3, 2026-10-29)
+
+- **`DropOffInteractSystem` lives in `TradeInputSystemGroup`** (re-added: Player group, after `WorkstationInputSystemGroup`) because `PlayerPickupJob` clears the E press inside Item. `TradeDeliverySystem` stays in `TradeSystemGroup`.
+- **A drop-off is only `PlayerInteractable` while an accepted order waits there**, so an idle marker never swallows E. Targeting is the existing nearest-within-5 m rule: with the caravan parked beside the marker, whichever is nearer gets the press.
+- **Every accepted order at the drop-off is tried, oldest first**, not just the oldest: an order that cannot be filled does not block a later one that can. If none can be filled the toast names the first. Units are claimed once, so two orders never share a unit.
+- **Reputation is paid on delivery** (+8, +4 if delivered before the due day, `TradeTuningSO.reputation*`), already part of Phase 4's table; the failed-order loss (`reputationLossFailed`) waits for the expiry system.
+- **"Cannot see it" uses the `CameraView` singleton** (view circle + 6 m), not `CameraVisible`, which is presentation-only (RULES.md). Despawn needs the player >60 m away, the unit >= 3 s at the client, and the unit outside the view circle.
+- **Release is deferred until every buffer write is done**: `AddComponent` on a unit invalidates the `DynamicBuffer`s the system holds.
+- The walk order is issued 0.3 s after hand-over so the `ActionInterruptRequest` raised at release finishes tearing the old behavior down first. Units get a spiral of spots around `standPoint`.
+- Markers now show `n/N Unit` from the player's minions in range ("ready, press E" when full); a toast shows `Need 2 more Brutes (at least 75% health)` / `Delivered — +130 Currency`.
+- Fixture **F3 `TradeDeliveryTests`** (PlayMode): closest N taken and one payout, and a unit below the health floor is refused.
+- Fixture **F6 `DeliveredUnitDespawnTests`** (PlayMode, revert-to-fail proven on the out-of-view condition): far-but-in-view stays, far-and-out-of-view despawns and loses the marker.
+- **Smoke test 2026-10-29 (execute_code in Play mode):** accepting #102 then a hand-over request with a staged unit gave state Delivered, +48 Currency on the ledger, toast `HandOverDone`, and the unit left the squad as `DeliveredToClient`. A unit with its utility brain off (as a real minion has) reached its stand point; a borrowed bandit with a live brain wandered back to its own post, which is the AI, not the delivery. Despawn at 60 m was covered by F6 rather than driven in the scene. The E press itself and the on-screen marker/toast were not looked at.
+- **Test-run gotcha:** a PlayMode run replaces the open scene with a temporary `InitTestScene...`; reload `Assets/Scenes/CampLoop.unity` before entering Play mode afterwards (the subscene is not baked into the temp scene, so the world has no Player and no board).

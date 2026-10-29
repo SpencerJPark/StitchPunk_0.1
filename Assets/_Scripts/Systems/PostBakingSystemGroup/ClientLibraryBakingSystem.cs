@@ -44,6 +44,9 @@ public partial struct ClientLibraryBakingSystem : ISystem
             maxOffersByTier = tuning.MaxOffers(),
             householdOffersPerWeek = tuning.householdOffersPerWeek,
             startingReputation = tuning.startingReputation,
+            reputationGainDelivered = tuning.reputationGainDelivered,
+            reputationGainDeliveredEarly = tuning.reputationGainDeliveredEarly,
+            reputationLossFailed = tuning.reputationLossFailed,
         };
 
         int clientCount = librarySO.clients != null ? librarySO.clients.Length : 0;
