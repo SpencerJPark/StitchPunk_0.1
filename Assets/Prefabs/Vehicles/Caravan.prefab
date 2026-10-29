@@ -11506,13 +11506,19 @@ MonoBehaviour:
   - {fileID: 2152849765678283471}
   - {fileID: 6703238597937178128}
   frontAxlePivot: {fileID: 5928247520986644274}
-  leftDoorHinge: {fileID: 3297332381161038986}
-  rightDoorHinge: {fileID: 8175537191250724304}
   shakeRoot: {fileID: 266947837185427633}
+  doors:
+  - doorName: BackLeft
+    hinge: {fileID: 3297332381161038986}
+  - doorName: BackRight
+    hinge: {fileID: 8175537191250724304}
+  - doorName: SideLeft
+    hinge: {fileID: 0}
+  - doorName: SideRight
+    hinge: {fileID: 0}
   chimneySmoke: {fileID: 7107126541397801499}
   smokeBurst: {fileID: 6915655710027568935}
   brokenSmoke: {fileID: 5495262052738325518}
-  doorOpenDegrees: 110
   maxFrontAxleYawDegrees: 25
   shakeFrequency: 22
   brokenSagDegrees: 4
