@@ -2616,6 +2616,7 @@ GameObject:
   - component: {fileID: 1638209198}
   - component: {fileID: 1638209200}
   - component: {fileID: 1638209199}
+  - component: {fileID: 1638209201}
   m_Layer: 0
   m_Name: ResourceHud
   m_TagString: Untagged
@@ -2674,6 +2675,19 @@ MonoBehaviour:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_WorldSpaceCollider: {fileID: 0}
+--- !u!114 &1638209201
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1638209197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3029942bf3b7b31419eb0e03fc1e86f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.UI::WorldClockHudUI
+  hudDocument: {fileID: 1638209200}
 --- !u!1 &1716599629
 GameObject:
   m_ObjectHideFlags: 0
@@ -2685,6 +2699,7 @@ GameObject:
   - component: {fileID: 1716599631}
   - component: {fileID: 1716599630}
   - component: {fileID: 1716599632}
+  - component: {fileID: 1716599633}
   m_Layer: 0
   m_Name: CampLoopUI
   m_TagString: Untagged
@@ -2738,6 +2753,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aad392a6eaed8da4eb700ca2125c800b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::SquadCommandManager
+--- !u!114 &1716599633
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1716599629}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6901f7dfc9178cd4e8a5b896260aedfa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::DebugTradeMenu
+  library: {fileID: 11400000, guid: f119b4738280f8d47a3a052cd7985d87, type: 2}
 --- !u!1 &1732386185
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c1c009b2c1af9e44bbba1c419158632, type: 3}
+  m_Name: Client_CrownArmy
+  m_EditorClassIdentifier: StitchPunk.Data::ClientSO
+  clientId: 1
+  displayName: The Crown Army, 3rd Garrison
+  kind: 1
+  homeDropOffId: 1
+  letterSeal: {fileID: 0}
+  baseOrderChancePerWeek: 0.7
+  orderPool:
+  - {fileID: 11400000, guid: a3f26dd8a5224024382fff6dd7a7c8ca, type: 2}
+  - {fileID: 11400000, guid: b930b131e242bc145aa91fa944d9bd19, type: 2}
+  tiers:
+    known: 25
+    trusted: 50
+    partner: 80
