@@ -20,9 +20,8 @@ public class CaravanAuthoring : MonoBehaviour
     public Transform chimneyTop;
 
     [Header("Doors")]
-    public float doorOpenSeconds = 0.6f;
-    public float doorCloseSeconds = 0.5f;
-    public float doorBurstSeconds = 0.35f;
+    [Tooltip("The doors a summon leaves through: held shut for a smoke burst, then slammed open, or held open for a walk-out.")]
+    public DoorAuthoring[] summonExitDoors;
 
     [Header("Summon exits")]
     public float walkOutSeconds = 1.2f;
@@ -62,13 +61,14 @@ public class CaravanAuthoring : MonoBehaviour
             AddComponent<CaravanParked>(entity);
             SetComponentEnabled<CaravanParked>(entity, false);
 
-            AddComponent(entity, new CaravanDoors
+            DynamicBuffer<CaravanSummonExitDoor> exitDoors = AddBuffer<CaravanSummonExitDoor>(entity);
+            if (authoring.summonExitDoors != null)
             {
-                phase = CaravanDoorPhase.Closed,
-                openSeconds = authoring.doorOpenSeconds,
-                closeSeconds = authoring.doorCloseSeconds,
-                burstSeconds = authoring.doorBurstSeconds,
-            });
+                foreach (DoorAuthoring door in authoring.summonExitDoors)
+                {
+                    if (door != null) exitDoors.Add(new CaravanSummonExitDoor { door = GetEntity(door, TransformUsageFlags.Dynamic) });
+                }
+            }
             AddComponent(entity, new CaravanShake());
             AddComponent(entity, new CaravanPresentationEvents());
 

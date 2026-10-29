@@ -68,19 +68,38 @@ namespace StitchPunk.Tests
         [Test]
         public void BurstOpenDoors_OvershootFullyOpen_ThenSettleOpen()
         {
-            CaravanDoors doors = new CaravanDoors { phase = CaravanDoorPhase.Closed, openSeconds = 0.6f, closeSeconds = 0.5f, burstSeconds = 0.35f };
-            CaravanDoorControl.BurstOpen(ref doors);
+            Door door = new Door { phase = DoorPhase.Closed, openSeconds = 0.6f, closeSeconds = 0.5f, burstSeconds = 0.35f };
+            DoorControl.BurstOpen(ref door);
 
             float largestOpenness = 0f;
             for (int frameIndex = 0; frameIndex < 60; frameIndex++)
             {
-                largestOpenness = System.Math.Max(largestOpenness, CaravanDoorControl.Openness(in doors));
-                CaravanDoorControl.Advance(ref doors, FrameSeconds);
+                largestOpenness = System.Math.Max(largestOpenness, DoorControl.Openness(in door));
+                DoorControl.Advance(ref door, FrameSeconds);
             }
 
             Assert.Greater(largestOpenness, 1.05f);
-            Assert.AreEqual(CaravanDoorPhase.Open, doors.phase);
-            Assert.AreEqual(1f, CaravanDoorControl.Openness(in doors), 0.0001f);
+            Assert.AreEqual(DoorPhase.Open, door.phase);
+            Assert.AreEqual(1f, DoorControl.Openness(in door), 0.0001f);
+        }
+
+        // A smoke burst needs shut doors to burst through, so a script hold must beat a player standing in the zone.
+        [Test]
+        public void ScriptOverride_BeatsTheZone_AndNoneHandsItBack()
+        {
+            Door door = new Door { phase = DoorPhase.Open, openSeconds = 0.6f, closeSeconds = 0.5f, zoneWantsOpen = true };
+
+            door.scriptOverride = DoorOverride.HoldShut;
+            DoorControl.ApplyRequests(ref door);
+            Assert.AreEqual(DoorPhase.Closing, door.phase);
+
+            door = new Door { phase = DoorPhase.Closed, zoneWantsOpen = false, scriptOverride = DoorOverride.HoldOpen };
+            DoorControl.ApplyRequests(ref door);
+            Assert.AreEqual(DoorPhase.Opening, door.phase);
+
+            door = new Door { phase = DoorPhase.Closed, zoneWantsOpen = true, scriptOverride = DoorOverride.None };
+            DoorControl.ApplyRequests(ref door);
+            Assert.AreEqual(DoorPhase.Opening, door.phase);
         }
     }
 }

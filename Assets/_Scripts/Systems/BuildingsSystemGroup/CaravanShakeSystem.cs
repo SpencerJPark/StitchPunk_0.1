@@ -1,21 +1,19 @@
 using Unity.Burst;
 using Unity.Entities;
 
-// Advances the back doors and the body shake; whoever wants them moved has already asked this frame.
+// Counts down the body shake the summon sequence started; CaravanPresenter jitters the art while it runs.
 [BurstCompile]
 [UpdateInGroup(typeof(BuildingsSystemGroup))]
 [UpdateAfter(typeof(CaravanExitSequenceSystem))]
-public partial struct CaravanDoorSystem : ISystem
+public partial struct CaravanShakeSystem : ISystem
 {
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         float deltaTime = SystemAPI.Time.DeltaTime;
 
-        foreach ((RefRW<CaravanDoors> caravanDoors, RefRW<CaravanShake> caravanShake)
-                 in SystemAPI.Query<RefRW<CaravanDoors>, RefRW<CaravanShake>>())
+        foreach (RefRW<CaravanShake> caravanShake in SystemAPI.Query<RefRW<CaravanShake>>())
         {
-            CaravanDoorControl.Advance(ref caravanDoors.ValueRW, deltaTime);
             if (caravanShake.ValueRO.remainingSeconds > 0f)
                 caravanShake.ValueRW.remainingSeconds -= deltaTime;
         }

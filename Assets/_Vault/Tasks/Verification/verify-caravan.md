@@ -24,9 +24,11 @@ What was checked when it was built:
 ## Play checks
 
 ### Phase 0–1: drive and park
-- [ ] On the first frame the caravan's back doors swing open (parked = camp).
+- [ ] Doors stay shut until you walk into a zone (CV-D20). Walk behind the caravan: the back doors swing open. Walk away: they close. Do the same at each side door's zone (once the side-door art is hooked up in `CaravanPresenter.doors`).
+- [ ] Minions and bandits walking through the zones don't open anything (the caravan zones are player-only; change `openers` on a zone to test the others).
+- [ ] While driving, standing in any zone opens nothing.
 - [ ] Walk to the **back** of the caravan (behind the doors) and press E: the workstation opens (the menu, as before).
-- [ ] Walk up to **either side or the front**, even right by the horse, and press E: the doors close, you sit on the driver's seat, and the map switches to Vehicle.
+- [ ] Walk up to **either side or the front**, even right by the horse, and press E: you sit on the driver's seat, and the map switches to Vehicle.
 - [ ] It should feel like your old `VehicleController` (CV-D17): push a direction and the caravan **heads that way on the map** (world axes, like walking), pulling away slowly (about 6 s to full speed) and settling faster when you let go (about 2 s). There's no reverse: pull back and it swings round.
 - [ ] Turns are lazy and wide (the heading eases round), and the body swings after it. You can still creep round from a standstill, just slower.
 - [ ] The wheels roll with speed, the front axle points where it's heading, and the body bounces with speed and leans into turns.
@@ -34,7 +36,7 @@ What was checked when it was built:
 - [ ] As the caravan turns, the horse shifts between its eight per-direction positions (the old `HorseCaravanOffset` values).
 - [ ] Drive into a wall or building: it stops dead and doesn't clip through. Back away freely.
 - [ ] Drive over uneven ground: the caravan stays on the ground.
-- [ ] Press E at speed: refused ("Slow down to park the caravan." in the console). Stop and press E: you're put down beside the driver's side (front left), the doors open, and you're back on foot.
+- [ ] Press E at speed: refused ("Slow down to park the caravan." in the console). Stop and press E: you're put down beside the driver's side (front left) and you're back on foot. The side door there opens because you're standing in its zone.
 - [ ] Queue a summon, then try to board: refused ("Finish summoning before driving off.").
 
 ### Phase 2: the caravan holds the stock

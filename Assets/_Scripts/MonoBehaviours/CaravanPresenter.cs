@@ -1,3 +1,4 @@
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -5,17 +6,19 @@ using UnityEngine;
 
 // The caravan's art (Caravan.prefab, a scene object) following the baked caravan entity (Caravan_System.md CV-D7).
 // ECS owns every number; this only turns them into transforms and particles: body pose, rolling wheels, the
-// steering front axle, the back doors, the shake and the chimney/burst smoke. Pivots are measured once in Awake.
+// steering front axle, the doors, the shake and the chimney/burst smoke. Pivots are measured once in Awake.
 public class CaravanPresenter : MonoBehaviour
 {
     [Header("Rig")]
     [SerializeField] private Transform[] wheels;
     [Tooltip("Parent of the front axle and front wheels, placed on the axle centre; yawed by steering.")]
     [SerializeField] private Transform frontAxlePivot;
-    [SerializeField] private Transform leftDoorHinge;
-    [SerializeField] private Transform rightDoorHinge;
     [Tooltip("Everything above the wheels; jittered while the caravan shakes.")]
     [SerializeField] private Transform shakeRoot;
+
+    [Header("Doors")]
+    [Tooltip("Each art hinge mirrors the DoorAuthoring with the same Door Name on the caravan's simulation object.")]
+    [SerializeField] private ArtDoorHinge[] doors;
 
     [Header("Smoke")]
     [SerializeField] private ParticleSystem chimneySmoke;
@@ -24,7 +27,6 @@ public class CaravanPresenter : MonoBehaviour
     [SerializeField] private ParticleSystem brokenSmoke;
 
     [Header("Feel")]
-    [SerializeField] private float doorOpenDegrees = 110f;
     [SerializeField] private float maxFrontAxleYawDegrees = 25f;
     [SerializeField] private float shakeFrequency = 22f;
     [Tooltip("How far a broken caravan slumps onto one side.")]
@@ -38,15 +40,15 @@ public class CaravanPresenter : MonoBehaviour
     private Vector3[] wheelSpinAxes;
     private Quaternion frontAxleRestRotation;
     private Vector3 frontAxleYawAxis;
-    private Quaternion leftDoorRestRotation;
-    private Vector3 leftDoorHingeAxis;
-    private Quaternion rightDoorRestRotation;
-    private Vector3 rightDoorHingeAxis;
+    private Quaternion[] doorRestRotations;
+    private Vector3[] doorHingeAxes;
+    private FixedString32Bytes[] doorNames;
     private Vector3 shakeRestPosition;
     private Quaternion shakeRestRotation;
 
     private EntityQuery caravanQuery;
     private EntityQuery vehicleLibraryQuery;
+    private EntityQuery doorQuery;
     private World queryWorld;
     private int lastSeenSmokeBurstCount;
     private bool hasSeenSmokeBurstCount;
@@ -68,15 +70,16 @@ public class CaravanPresenter : MonoBehaviour
             frontAxleRestRotation = frontAxlePivot.localRotation;
             frontAxleYawAxis = AxisInLocalSpace(frontAxlePivot, transform.up);
         }
-        if (leftDoorHinge != null)
+        int doorCount = doors != null ? doors.Length : 0;
+        doorRestRotations = new Quaternion[doorCount];
+        doorHingeAxes = new Vector3[doorCount];
+        doorNames = new FixedString32Bytes[doorCount];
+        for (int doorIndex = 0; doorIndex < doorCount; doorIndex++)
         {
-            leftDoorRestRotation = leftDoorHinge.localRotation;
-            leftDoorHingeAxis = AxisInLocalSpace(leftDoorHinge, transform.up);
-        }
-        if (rightDoorHinge != null)
-        {
-            rightDoorRestRotation = rightDoorHinge.localRotation;
-            rightDoorHingeAxis = AxisInLocalSpace(rightDoorHinge, transform.up);
+            doorNames[doorIndex] = new FixedString32Bytes(doors[doorIndex].doorName ?? string.Empty);
+            if (doors[doorIndex].hinge == null) continue;
+            doorRestRotations[doorIndex] = doors[doorIndex].hinge.localRotation;
+            doorHingeAxes[doorIndex] = AxisInLocalSpace(doors[doorIndex].hinge, transform.up);
         }
         if (shakeRoot != null)
         {
@@ -94,11 +97,12 @@ public class CaravanPresenter : MonoBehaviour
         {
             queryWorld = world;
             vehicleLibraryQuery = world.EntityManager.CreateEntityQuery(ComponentType.ReadOnly<VehicleLibrary>());
+            doorQuery = world.EntityManager.CreateEntityQuery(
+                ComponentType.ReadOnly<Door>(), ComponentType.ReadOnly<DoorName>(), ComponentType.ReadOnly<DoorOwner>());
             caravanQuery = world.EntityManager.CreateEntityQuery(
                 ComponentType.ReadOnly<Caravan>(),
                 ComponentType.ReadOnly<LocalTransform>(),
                 ComponentType.ReadOnly<CaravanDriveState>(),
-                ComponentType.ReadOnly<CaravanDoors>(),
                 ComponentType.ReadOnly<CaravanShake>(),
                 ComponentType.ReadOnly<CaravanPresentationEvents>());
         }
@@ -116,7 +120,7 @@ public class CaravanPresenter : MonoBehaviour
 
         CaravanDriveState driveState = entityManager.GetComponentData<CaravanDriveState>(caravanEntity);
         ApplyWheels(driveState);
-        ApplyDoors(entityManager.GetComponentData<CaravanDoors>(caravanEntity));
+        ApplyDoors(caravanEntity);
         bool broken = entityManager.HasComponent<CaravanBroken>(caravanEntity)
             && entityManager.IsComponentEnabled<CaravanBroken>(caravanEntity);
         Quaternion rideTilt = Quaternion.identity;
@@ -148,14 +152,29 @@ public class CaravanPresenter : MonoBehaviour
                 * Quaternion.AngleAxis(driveState.steerInput * maxFrontAxleYawDegrees, frontAxleYawAxis);
     }
 
-    // The doors hinge on their outer edges and swing out backwards: +angle opens the left one, -angle the right.
-    private void ApplyDoors(CaravanDoors doors)
+    // The swing direction is the sign of the DoorAuthoring's Open Degrees, so the art only needs the hinge.
+    private void ApplyDoors(Entity caravanEntity)
     {
-        float openDegrees = CaravanDoorControl.Openness(in doors) * doorOpenDegrees;
-        if (leftDoorHinge != null)
-            leftDoorHinge.localRotation = leftDoorRestRotation * Quaternion.AngleAxis(openDegrees, leftDoorHingeAxis);
-        if (rightDoorHinge != null)
-            rightDoorHinge.localRotation = rightDoorRestRotation * Quaternion.AngleAxis(-openDegrees, rightDoorHingeAxis);
+        if (doorNames.Length == 0 || doorQuery.IsEmptyIgnoreFilter) return;
+        NativeArray<Door> doorStates = doorQuery.ToComponentDataArray<Door>(Allocator.Temp);
+        NativeArray<DoorName> doorStateNames = doorQuery.ToComponentDataArray<DoorName>(Allocator.Temp);
+        NativeArray<DoorOwner> doorOwners = doorQuery.ToComponentDataArray<DoorOwner>(Allocator.Temp);
+
+        for (int stateIndex = 0; stateIndex < doorStates.Length; stateIndex++)
+        {
+            if (doorOwners[stateIndex].owner != caravanEntity) continue;
+            for (int doorIndex = 0; doorIndex < doorNames.Length; doorIndex++)
+            {
+                Transform hinge = doors[doorIndex].hinge;
+                if (hinge == null || doorNames[doorIndex] != doorStateNames[stateIndex].value) continue;
+                hinge.localRotation = doorRestRotations[doorIndex]
+                    * Quaternion.AngleAxis(doorStates[stateIndex].angleDegrees, doorHingeAxes[doorIndex]);
+            }
+        }
+
+        doorStates.Dispose();
+        doorStateNames.Dispose();
+        doorOwners.Dispose();
     }
 
     // A bounce that grows with speed plus a lean into turns, clamped to the original pitch/roll ranges.
@@ -242,5 +261,12 @@ public class CaravanPresenter : MonoBehaviour
     private static Vector3 AxisInLocalSpace(Transform pivot, Vector3 worldAxis)
     {
         return Quaternion.Inverse(pivot.rotation) * worldAxis;
+    }
+
+    [System.Serializable]
+    private struct ArtDoorHinge
+    {
+        public string doorName;
+        public Transform hinge;
     }
 }

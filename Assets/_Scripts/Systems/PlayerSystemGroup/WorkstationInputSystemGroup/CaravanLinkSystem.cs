@@ -19,9 +19,8 @@ public partial struct CaravanLinkSystem : ISystem
     {
         Entity playerEntity = SystemAPI.GetSingletonEntity<Player>();
 
-        foreach ((RefRW<Workstation> workstation, RefRW<CaravanDoors> caravanDoors,
-                     EnabledRefRW<CaravanParked> caravanParkedEnabled, Entity caravanEntity)
-                 in SystemAPI.Query<RefRW<Workstation>, RefRW<CaravanDoors>, EnabledRefRW<CaravanParked>>()
+        foreach ((RefRW<Workstation> workstation, EnabledRefRW<CaravanParked> caravanParkedEnabled, Entity caravanEntity)
+                 in SystemAPI.Query<RefRW<Workstation>, EnabledRefRW<CaravanParked>>()
                      .WithAll<Caravan>()
                      .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)
                      .WithEntityAccess())
@@ -32,7 +31,6 @@ public partial struct CaravanLinkSystem : ISystem
             state.CompleteDependency();
             workstation.ValueRW.ownerPlayer = playerEntity;
             caravanParkedEnabled.ValueRW = true;
-            CaravanDoorControl.RequestOpen(ref caravanDoors.ValueRW);
 
             if (SystemAPI.HasComponent<PlayerWorkstationLink>(playerEntity))
                 SystemAPI.SetComponent(playerEntity, new PlayerWorkstationLink { workstation = caravanEntity });

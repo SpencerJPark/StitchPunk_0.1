@@ -40,13 +40,10 @@ public struct CaravanDriving : IComponentData, IEnableableComponent
 
 public struct CaravanParked : IComponentData, IEnableableComponent { }
 
-public struct CaravanDoors : IComponentData
+// The doors a summon leaves through (CV-D20). CaravanExitSequenceSystem overrides their zones while it plays.
+public struct CaravanSummonExitDoor : IBufferElementData
 {
-    public CaravanDoorPhase phase;
-    public float phaseSeconds;
-    public float openSeconds;
-    public float closeSeconds;
-    public float burstSeconds;
+    public Entity door;
 }
 
 public struct CaravanShake : IComponentData

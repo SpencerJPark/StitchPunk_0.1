@@ -24,10 +24,10 @@ public partial struct CaravanExitSequenceSystem : ISystem
         state.CompleteDependency();
 
         foreach ((RefRW<CaravanExitSequence> exitSequence, EnabledRefRW<CaravanExitSequence> caravanExitSequenceEnabled,
-                     RefRW<CaravanDoors> caravanDoors, RefRW<CaravanShake> caravanShake,
+                     DynamicBuffer<CaravanSummonExitDoor> exitDoors, RefRW<CaravanShake> caravanShake,
                      RefRW<CaravanPresentationEvents> presentationEvents, RefRO<CaravanExitTuning> exitTuning,
                      DynamicBuffer<PendingMinionSpawn> pendingSpawns, Entity caravanEntity)
-                 in SystemAPI.Query<RefRW<CaravanExitSequence>, EnabledRefRW<CaravanExitSequence>, RefRW<CaravanDoors>,
+                 in SystemAPI.Query<RefRW<CaravanExitSequence>, EnabledRefRW<CaravanExitSequence>, DynamicBuffer<CaravanSummonExitDoor>,
                      RefRW<CaravanShake>, RefRW<CaravanPresentationEvents>, RefRO<CaravanExitTuning>,
                      DynamicBuffer<PendingMinionSpawn>>()
                      .WithEntityAccess())
@@ -39,10 +39,10 @@ public partial struct CaravanExitSequenceSystem : ISystem
             if (exitSequence.ValueRO.style == CaravanExitStyle.SmokeBurst)
             {
                 // The burst needs shut doors to burst through; hold the clock until they are.
-                if (exitSequence.ValueRO.elapsedSeconds <= 0f && caravanDoors.ValueRO.phase != CaravanDoorPhase.Closed)
+                if (exitSequence.ValueRO.elapsedSeconds <= 0f)
                 {
-                    CaravanDoorControl.RequestClose(ref caravanDoors.ValueRW);
-                    continue;
+                    OverrideExitDoors(ref state, exitDoors, DoorOverride.HoldShut);
+                    if (!AllExitDoorsAre(ref state, exitDoors, DoorPhase.Closed)) continue;
                 }
 
                 float previousSeconds = exitSequence.ValueRO.elapsedSeconds;
@@ -57,7 +57,10 @@ public partial struct CaravanExitSequenceSystem : ISystem
 
                 if (Crossed(previousSeconds, elapsedSeconds, burstAtSeconds))
                 {
-                    CaravanDoorControl.BurstOpen(ref caravanDoors.ValueRW);
+                    OverrideExitDoors(ref state, exitDoors, DoorOverride.HoldOpen);
+                    for (int doorIndex = 0; doorIndex < exitDoors.Length; doorIndex++)
+                        if (SystemAPI.HasComponent<Door>(exitDoors[doorIndex].door))
+                            SystemAPI.GetComponentRW<Door>(exitDoors[doorIndex].door).ValueRW.burstRequested = true;
                     caravanShake.ValueRW = new CaravanShake { remainingSeconds = tuning.burstShakeSeconds, amplitude = tuning.burstShakeAmplitude };
                     presentationEvents.ValueRW.smokeBurstCount++;
                 }
@@ -73,15 +76,15 @@ public partial struct CaravanExitSequenceSystem : ISystem
                 }
 
                 if (elapsedSeconds >= revealAtSeconds + tuning.smokeLingerSeconds)
+                {
+                    OverrideExitDoors(ref state, exitDoors, DoorOverride.None);
                     caravanExitSequenceEnabled.ValueRW = false;
+                }
                 continue;
             }
 
-            if (caravanDoors.ValueRO.phase != CaravanDoorPhase.Open)
-            {
-                CaravanDoorControl.RequestOpen(ref caravanDoors.ValueRW);
-                continue;
-            }
+            OverrideExitDoors(ref state, exitDoors, DoorOverride.HoldOpen);
+            if (!AllExitDoorsAre(ref state, exitDoors, DoorPhase.Open)) continue;
 
             if (!exitSequence.ValueRO.unitReleased)
             {
@@ -108,8 +111,33 @@ public partial struct CaravanExitSequenceSystem : ISystem
 
             exitSequence.ValueRW.elapsedSeconds += deltaTime;
             if (exitSequence.ValueRO.elapsedSeconds >= tuning.walkOutSeconds + tuning.hopSeconds + WALK_OUT_SETTLE_SECONDS)
+            {
+                OverrideExitDoors(ref state, exitDoors, DoorOverride.None);
                 caravanExitSequenceEnabled.ValueRW = false;
+            }
         }
+    }
+
+    // While set, this beats the doors' zones; None hands them back.
+    private void OverrideExitDoors(ref SystemState state, DynamicBuffer<CaravanSummonExitDoor> exitDoors, DoorOverride doorOverride)
+    {
+        for (int doorIndex = 0; doorIndex < exitDoors.Length; doorIndex++)
+        {
+            Entity doorEntity = exitDoors[doorIndex].door;
+            if (SystemAPI.HasComponent<Door>(doorEntity))
+                SystemAPI.GetComponentRW<Door>(doorEntity).ValueRW.scriptOverride = doorOverride;
+        }
+    }
+
+    // True with no exit doors authored, so a caravan without doors still summons.
+    private bool AllExitDoorsAre(ref SystemState state, DynamicBuffer<CaravanSummonExitDoor> exitDoors, DoorPhase phase)
+    {
+        for (int doorIndex = 0; doorIndex < exitDoors.Length; doorIndex++)
+        {
+            Entity doorEntity = exitDoors[doorIndex].door;
+            if (SystemAPI.HasComponent<Door>(doorEntity) && SystemAPI.GetComponent<Door>(doorEntity).phase != phase) return false;
+        }
+        return true;
     }
 
     private static bool Crossed(float previousSeconds, float elapsedSeconds, float markSeconds)
