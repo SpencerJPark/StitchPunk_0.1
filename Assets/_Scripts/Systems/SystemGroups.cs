@@ -64,13 +64,6 @@ public partial class PlayerSystemGroup : GameSceneSystemGroup { }
         [UpdateBefore(typeof(NarrativeSystemGroup))]
         public partial class WorkstationInputSystemGroup : ComponentSystemGroup { }
 
-        // Trade's E-press consumers (the perched pigeon now, the drop-off hand-over in Phase 3). PlayerPickupJob clears
-        // OnInteractPlayerInput unconditionally inside ItemEquipSystemGroup, so anything that reads E must run before Item.
-        [UpdateInGroup(typeof(PlayerSystemGroup))]
-        [UpdateAfter(typeof(WorkstationInputSystemGroup))]
-        [UpdateBefore(typeof(NarrativeSystemGroup))]
-        public partial class TradeInputSystemGroup : ComponentSystemGroup { }
-
         [UpdateInGroup(typeof(PlayerSystemGroup))]
         [UpdateAfter(typeof(PlayerInputSystemGroup))]
         [UpdateBefore(typeof(DialogueSystemGroup))]

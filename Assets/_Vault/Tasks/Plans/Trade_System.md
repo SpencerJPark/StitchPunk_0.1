@@ -8,7 +8,7 @@
 **Skills Needed:**
 - `dots-feature-group`: two new top-level groups, `WorldTimeSystemGroup` and `TradeSystemGroup` (TR-A2)
 - `dots-blob-library`: `ClientSO` + `OrderTemplateSO` → `ClientLibrary` blob (§4)
-- `dots-authoring-baker`: `TradeDropOffAuthoring`, `PigeonPerchAuthoring`, `TradeBoardAuthoring`
+- `dots-authoring-baker`: `TradeDropOffAuthoring`, `PigeonArmTargetAuthoring`, `TradeBoardAuthoring`
 - `dots-system-scaffold`: every system in §5
 - `dots-test`: the EditMode reward/generation fixtures and the PlayMode delivery/expiry fixtures (§10)
 
@@ -31,7 +31,7 @@ What already exists and gets reused (checked 2026-10-28):
 ```
 Week N starts (Day 1, 06:00)
   └─ WeeklyOrderGenerationSystem rolls the week's offers onto the TradeBoard
-  └─ a pigeon flies in and lands on the caravan's perch
+  └─ a pigeon flies to the player and lands on their arm
 Player interacts with the pigeon → Letter UI: accept / decline each offer
   └─ accepted orders get a map marker at their drop-off
 Player builds the units (summon / revive) and brings them to the drop-off (on foot or in the caravan)
@@ -48,7 +48,7 @@ Week ends (Day 7 → Day 1) → unaccepted offers expire silently; the next week
 |---|---|---|---|
 | 0 | **World clock**: `WorldClock` singleton, `WorldTimeSystemGroup`, day/week rollover signals, HUD clock, debug skip-day/skip-week | 🔨 built 2026-10-28, smoke-tested headless, awaiting owner play check | the HUD shows "Week 1 · Mon 06:00", and skipping a week fires `WeekStarted` once |
 | 1 | **Clients + order generation**: `ClientSO`, `OrderTemplateSO`, `ClientLibrary` blob, drop-off points, `TradeBoard` singleton, weekly roll, difficulty + reward maths | 🔨 built 2026-10-28, smoke-tested headless, awaiting owner play check | a debug menu lists the week's offers with difficulty and payout; same seed → same week |
-| 2 | **Pigeon + letter**: pigeon prefab lands on the caravan perch, interacting opens the letter (UI Toolkit placeholder), accept/decline, drop-off markers | 🔨 built 2026-10-28, headless-tested, awaiting owner play check | accepted orders show markers in the world |
+| 2 | **Pigeon + letter**: pigeon flies to the player's arm and the letter opens by itself (UI Toolkit placeholder), accept/decline, drop-off markers | 🔨 built 2026-10-28, reworked 2026-10-29, headless-tested, awaiting owner play check | accepted orders show markers in the world |
 | 3 | **Delivery**: hand-over interaction, validation, payout, squad removal, walk to the client, out-of-sight despawn | ⬜ | deliver 2 Brutes to the Army → Currency goes up, the Brutes stand at the barracks, and they are gone when you come back |
 | 4 | **Deadlines + reputation**: due-day expiry, reputation tiers changing payout, order count and order size | ⬜ | failing an order drops the tier, and the next week's letter from that client is smaller |
 | 5 | **Content pass**: the first recurring clients, household templates, drop-offs placed in the game scene, new order-only unit types | ⬜ | settled: TR-D14 (flavour on existing types) |
@@ -78,7 +78,7 @@ PlayerResourceSystemGroup
     ResourceChangeSystem           drains the payout deltas the same frame
 
 LateSim: SpawnSystemGroup
-    PigeonSpawnSystem              PendingPigeon → instantiate the pigeon prefab at the caravan perch
+    PigeonSpawnSystem              PendingPigeon → instantiate the pigeon prefab, flying toward the player's arm
 
 LateSim: DespawnSystemGroup
     DeliveredUnitDespawnSystem     DeliveredToClient + far from the player + outside the camera view → Despawn
@@ -114,7 +114,7 @@ Presentation (MonoBehaviour)
 
 **TR-A10: save goes through snapshots**, the same way as `ResourceSaveSyncSystem`: `WorldClockSnapshot : IPersist` and `TradeBoardSnapshot : IPersist` with `FixedList512Bytes<TradeOrderSaved>` + `FixedList128Bytes<ClientRelationshipSaved>`. That gives a cap of about 16 orders and 30 clients, which is fine for v1. Log a warning if either overflows.
 
-**TR-A11: the pigeon is an entity with `PlayerInteractable`**, so the existing interaction highlight and reach work unchanged. It is spawned at `PigeonPerch` (a child transform on `Caravan.prefab`) and destroyed once the letter is read. If no caravan exists, it lands next to the player.
+**TR-A11 (reworked 2026-10-29): the pigeon is an entity that flies to a `PigeonArmTarget` child of the player**, lands, opens the letter after a short delay, and flies off and is destroyed once the letter is closed. No interaction is involved.
 
 **TR-A12: UI is a UI Toolkit placeholder** (CL-D11 precedent), built so a Rive letter artboard can replace it later.
 
@@ -258,11 +258,11 @@ Deltas: delivered **+8** (+4 more if early), failed (accepted, past due) **−15
 | `TradeOrderResponseSystem` | same | Drains `TradeOrderResponseRequest`: `Offered` → `Accepted` / `Declined`. On acceptance, `dueDayOfWeek = min(today + rolled days, 6)`. Any other state is ignored (logged). |
 | `TradeDeliverySystem` | same | For each drop-off with `TradeHandOverRequest` enabled: find the oldest `Accepted` order at that drop-off. Collect player `Minion`s of `unitType` within `handOverRadius` whose `Health.current / max ≥ minHealthFraction`, closest first. If the count is short of `quantity`, refuse (`TradeHandOverRefused` toast: "Need 2 more Brutes (fresh)"). Otherwise take exactly `quantity` units → release them (TR-A6) → queue `ResourceChangeRequest{Currency, payout}` + bonus resources on the ledger via `ResourceLedgerLink` → reputation + stats → state `Delivered`. Disable the request. |
 | `TradeOrderExpirySystem` | same | On `DayStarted`: an `Accepted` order with `dueDayOfWeek < dayOfWeek` (or one from an earlier week) → `Failed`, reputation penalty, `TradeOrderFailed` toast. |
-| `PigeonSpawnSystem` | `SpawnSystemGroup` | Drains `PendingPigeon` → instantiates the baked pigeon prefab at the caravan's `PigeonPerch` (or next to the player) with `CarrierPigeon` + `PlayerInteractable`. Only one pigeon at a time: a still-unread pigeon is reused for the new week. |
+| `PigeonSpawnSystem` | `SpawnSystemGroup` | Drains `PendingPigeon` → instantiates the baked pigeon prefab with `CarrierPigeon` + `PigeonFlight`; `PigeonFlightSystem` flies it to the arm and `PigeonLetterSystem` opens the letter. Only one pigeon at a time: a still-unread pigeon is reused for the new week. |
 | `PigeonReadSystem` | `TradeSystemGroup` | Player interaction on a `CarrierPigeon` → opens the letter (sets a managed flag the UI polls, or a `TradeLetterOpen` singleton tag) → the pigeon flies off (presenter) and is destroyed. |
 | `DeliveredUnitDespawnSystem` | `DespawnSystemGroup` | TR-A7. |
 
-Edited: `SystemGroups.cs` (two groups), `CLAUDE.md` Sim order, `Contracts.md` (four new requests/signals), and `Caravan.prefab` (a `PigeonPerch` child).
+Edited: `SystemGroups.cs` (two groups), `CLAUDE.md` Sim order, `Contracts.md` (four new requests/signals), and `PlayerUnit.prefab` (a `PigeonArmTarget` child).
 
 ## 6. UI (UI Toolkit placeholders, TR-A12)
 
@@ -288,7 +288,7 @@ Edited: `SystemGroups.cs` (two groups), `CLAUDE.md` Sim order, `Contracts.md` (f
 - `Components/Trade/TradeComponents.cs`
 - `Data/Trade/ClientSO.cs`, `OrderTemplateSO.cs`, `HouseholdOrderTablesSO.cs`, `TradeTuningSO.cs`, `TradeBlobs.cs`
 - `Components/EntityLibraries.cs` (append the `ClientLibrary` component pair)
-- `Authoring/Trade/TradeBoardAuthoring.cs` (clock settings, seed, library SO refs), `TradeDropOffAuthoring.cs`, `PigeonPerchAuthoring.cs`
+- `Authoring/Trade/TradeBoardAuthoring.cs` (clock settings, seed, library SO refs), `TradeDropOffAuthoring.cs`, `PigeonArmTargetAuthoring.cs`
 - `Systems/PostBakingSystemGroup/ClientLibraryBakingSystem.cs`
 - `Systems/WorldTimeSystemGroup/WorldClockSystem.cs`
 - `Systems/TradeSystemGroup/WeeklyOrderGenerationSystem.cs`, `TradeOrderResponseSystem.cs`, `TradeDeliverySystem.cs`, `TradeOrderExpirySystem.cs`, `PigeonReadSystem.cs`
@@ -355,11 +355,12 @@ All resolved 2026-10-28 (recorded in §11 as TR-D9–TR-D16).
 - Per-tier health-condition scaling from the §5 roll description is not implemented; the template's `minHealthFraction` is used as authored.
 - **Smoke test 2026-10-28 (execute_code in Play mode):** week 1 rolled on frame one; a 7-day skip raised `WeekStarted` once (week 2 rolled, week-1 offers `Expired`); re-rolling with seed 777 twice gave identical rows. F1 + order/placement fixtures: 13/13. Test content lives in `Assets/ScriptableObjects/Trade/` (Phase 5 replaces it); the CampLoop subscene has `WorldClock`, `TradeBoard` and three drop-offs (ids 1 Military, 2 Noble, 10 Household).
 
-### Build deviations (Phase 2, 2026-10-28)
+### Build deviations (Phase 2, 2026-10-28; reworked 2026-10-29)
 
-- **No `PigeonPerch` child on `Caravan.prefab`** (it was being edited by another session): the perch is `TradePigeonSettings.perchLocalOffset` on the board, in the caravan's local space. A `PigeonPresenter` Mono was not needed either: `PigeonFlightSystem` (Burst, `TradeSystemGroup`) flies the placeholder sphere in, keeps it on the moving caravan and flies it off.
-- **`PigeonReadSystem` lives in a new `TradeInputSystemGroup`** (nested in `PlayerSystemGroup`, after `WorkstationInputSystemGroup`), not `TradeSystemGroup`: `PlayerPickupJob` clears the E press inside Item, so a Trade-group reader never sees it. Phase 3's hand-over system belongs there too.
-- **`PlayerInteractablePriority`** (new, read by `PlayerTargetingSystem`): the caravan's reach capsule always beat a pigeon sitting on it, so inside 4 m planar the pigeon wins. While an unread pigeon is perched, the caravan's own E (board/mount) is shadowed within that radius until the letter is read.
-- **Opening routes:** E on the pigeon, or the new `Letter` button in the HUD (`TradeOrdersHudUI`, blinks red while a pigeon is perched). Opening the letter by either route sends the pigeon off. **No Esc to close** yet (Esc is the game menu): there is a Close button. Both are clickable under the virtual cursor via `VirtualCursorPanel` + the router change in Contracts.md.
+- **Owner call 2026-10-29: the pigeon flies to the player and lands on their arm** (replaces the caravan perch and the E interaction). The landing point is a `PigeonArmTarget` child on `PlayerUnit.prefab` (`PigeonArmTargetAuthoring`, gizmo-drawn, default local (0.45, 1.25, 0)); move it to where the reach pose puts the hand, or parent it to an animated bone. Without one the pigeon uses `TradePigeonSettings.fallbackArmLocalOffset` on the player root.
+- **The letter opens by itself** `letterOpenDelaySeconds` (1.2) after landing: that gap is reserved for the player's reach animation. `PigeonLetterSystem` (`TradeSystemGroup`) opens it, and sends the pigeon off once the letter is closed. The HUD `Letter` button still reopens the letter later (and counts as delivery if the pigeon is on the arm).
+- **Removed:** `PlayerInteractablePriority`, the targeting change, `PigeonReadSystem` and `TradeInputSystemGroup`. Phase 3's hand-over still needs an early E-press group (see Gotchas.md).
+- `PigeonFlightSystem` (Burst, `TradeSystemGroup`) replaces a presenter Mono; the pigeon is a placeholder sphere.
+- **No Esc to close** yet (Esc is the game menu): there is a Close button. Buttons are clickable under the virtual cursor via `VirtualCursorPanel` + the router change in Contracts.md.
 - **Markers** are a pole and camera-facing `TextMesh` per drop-off with accepted orders; the "2/2 Brutes" progress count waits for Phase 3.
-- Fixture **F5 `TradeOrderResponseTests`** (PlayMode, revert-to-fail proven on the state guard) was added for the due-day clamp and the Offered-only guard.
+- Fixture **F5 `TradeOrderResponseTests`** (PlayMode, revert-to-fail proven on the state guard) covers the due-day clamp and the Offered-only guard.

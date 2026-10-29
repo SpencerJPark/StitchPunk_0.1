@@ -3,13 +3,12 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Drains PendingPigeon: one pigeon at a time, so a still-unread letter is reused for the new week (Trade_System.md TR-A11).
+// Drains PendingPigeon: one pigeon at a time, so a still-undelivered letter is reused for the new week (Trade_System.md TR-A11).
 [BurstCompile]
 [UpdateInGroup(typeof(SpawnSystemGroup))]
 public partial struct PigeonSpawnSystem : ISystem
 {
     private static readonly float3 FlyInDirection = math.normalize(new float3(-1f, 0f, 1f));
-    private static readonly float3 NoCaravanLandingOffset = new float3(2f, 1.2f, 0f);
 
     public void OnCreate(ref SystemState state)
     {
@@ -24,6 +23,10 @@ public partial struct PigeonSpawnSystem : ISystem
         if (pendingPigeons.Length == 0)
             return;
 
+        // No player yet (loading): keep the request for the next frame.
+        if (!SystemAPI.TryGetSingletonEntity<Player>(out Entity playerEntity))
+            return;
+
         int weekNumber = pendingPigeons[pendingPigeons.Length - 1].weekNumber;
         pendingPigeons.Clear();
 
@@ -34,21 +37,8 @@ public partial struct PigeonSpawnSystem : ISystem
         }
 
         TradePigeonSettings settings = SystemAPI.GetComponent<TradePigeonSettings>(boardEntity);
-        float3 landingPosition;
-        if (SystemAPI.TryGetSingletonEntity<Caravan>(out Entity caravanEntity))
-        {
-            landingPosition = SystemAPI.GetComponent<LocalTransform>(caravanEntity).TransformPoint(settings.perchLocalOffset);
-        }
-        else if (SystemAPI.TryGetSingletonEntity<Player>(out Entity playerEntity))
-        {
-            landingPosition = SystemAPI.GetComponent<LocalTransform>(playerEntity).Position + NoCaravanLandingOffset;
-        }
-        else
-        {
-            return;
-        }
-
-        float3 startPosition = landingPosition + FlyInDirection * settings.flyInStartDistance + new float3(0f, settings.flyInStartHeight, 0f);
+        float3 armPosition = SystemAPI.GetComponent<LocalTransform>(playerEntity).TransformPoint(settings.fallbackArmLocalOffset);
+        float3 startPosition = armPosition + FlyInDirection * settings.flyInStartDistance + new float3(0f, settings.flyInStartHeight, 0f);
 
         Entity pigeonEntity = state.EntityManager.Instantiate(settings.prefab);
         LocalTransform pigeonTransform = SystemAPI.GetComponent<LocalTransform>(pigeonEntity);
@@ -59,7 +49,6 @@ public partial struct PigeonSpawnSystem : ISystem
         {
             phase = PigeonFlightPhase.FlyingIn,
             startPosition = startPosition,
-            fallbackPerchPosition = landingPosition,
         });
     }
 }

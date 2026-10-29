@@ -18,7 +18,6 @@ WorldTimeSystemGroup         — WorldClockSystem: ticks the shared WorldClock, 
 PlayerSystemGroup            — all player-driven logic
   ├── PlayerInputSystemGroup (OrderFirst)  — input events → ECS components, targeting, attacks, aim, equipment dispatch
   ├── WorkstationInputSystemGroup — placement/deploy/mount on E, before NarrativeSystemGroup (see Camp Loop)
-  ├── TradeInputSystemGroup  — E-press consumers for Trade (PigeonReadSystem; Phase 3 hand-over), after WorkstationInput, before Narrative
   ├── NarrativeSystemGroup   — proximity trigger detection and dialogue→narrative bridge (before DialogueSystemGroup)
   ├── DialogueSystemGroup    — dialogue start detection and event relay (after NarrativeSystemGroup)
   └── PlayerEquipmentSystemGroup (OrderLast) — equipment actions (reviver)
@@ -40,7 +39,7 @@ MovementSystemGroup          — PACKAGE-OWNED (com.dotsmovementtoolkit, ns Dots
   ├── MovementSteeringSystemGroup    — empty, declared slot for future arrival easing/avoidance
   └── MovementExecutionSystemGroup   — writes final position/rotation to transforms (+ game's LocomotionStanceSystem)
 BuildingsSystemGroup         — workstation loop (furnace, craft, repair, summon, pack-up); factory loop still parked in Core/Unused/
-TradeSystemGroup             — weekly orders (Trade_System.md): WeeklyOrderGenerationSystem (WeekStarted/reroll), TradeOrderResponseSystem, PigeonFlightSystem; delivery/expiry land in later phases
+TradeSystemGroup             — weekly orders (Trade_System.md): WeeklyOrderGenerationSystem (WeekStarted/reroll), TradeOrderResponseSystem, PigeonLetterSystem + PigeonFlightSystem; delivery/expiry land in later phases
 PlayerResourceSystemGroup    — ResourceChangeSystem applies ledger deltas (see Camp Loop)
 CombatSystemGroup
   ├── CombatExecutionSystemGroup — AttackRequestSystem, HazardZoneSystem (DamageBus producers)

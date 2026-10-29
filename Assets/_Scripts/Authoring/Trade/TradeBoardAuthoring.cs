@@ -10,8 +10,10 @@ public class TradeBoardAuthoring : MonoBehaviour
 
     [Header("Carrier pigeon")]
     public GameObject pigeonPrefab;
-    [Tooltip("Where the pigeon lands, in the caravan's local space.")]
-    public Vector3 perchLocalOffset = new Vector3(0f, 2.4f, -3f);
+    [Tooltip("Used only when the player has no PigeonArmTarget child. In the player's local space.")]
+    public Vector3 fallbackArmLocalOffset = new Vector3(0.4f, 1.3f, 0.3f);
+    [Tooltip("Seconds between the pigeon landing and the letter opening: the window for the player's reach animation.")]
+    public float letterOpenDelaySeconds = 1.2f;
     public float flyInStartDistance = 45f;
     public float flyInStartHeight = 18f;
     public float flyInSeconds = 5f;
@@ -60,7 +62,8 @@ public class TradeBoardAuthoring : MonoBehaviour
                 AddComponent(entity, new TradePigeonSettings
                 {
                     prefab = GetEntity(authoring.pigeonPrefab, TransformUsageFlags.Dynamic),
-                    perchLocalOffset = authoring.perchLocalOffset,
+                    fallbackArmLocalOffset = authoring.fallbackArmLocalOffset,
+                    letterOpenDelaySeconds = authoring.letterOpenDelaySeconds,
                     flyInStartDistance = authoring.flyInStartDistance,
                     flyInStartHeight = authoring.flyInStartHeight,
                     flyInSeconds = authoring.flyInSeconds,

@@ -70,17 +70,22 @@ public struct TradeOrderResponseRequest : IBufferElementData
 // On the TradeBoard. Enabled while the letter is on screen; the UI toggles it, PigeonReadSystem sends perched pigeons off when it rises.
 public struct TradeLetterOpen : IComponentData, IEnableableComponent { }
 
-// On the TradeBoard (baked from TradeBoardAuthoring). The perch is an offset in the caravan's local space, so no prefab edit is needed.
+// On the TradeBoard (baked from TradeBoardAuthoring).
 public struct TradePigeonSettings : IComponentData
 {
     public Entity prefab;
-    public float3 perchLocalOffset;
+    public float3 fallbackArmLocalOffset;   // in the player's local space, used when the scene has no PigeonArmTarget
     public float flyInStartDistance;
     public float flyInStartHeight;
     public float flyInSeconds;
     public float flyOffSeconds;
     public float arcHeight;
+    public float letterOpenDelaySeconds;    // landed -> letter opens; the window the player's reach animation will fill
 }
+
+// Tag on a child entity of the player (PigeonArmTargetAuthoring). Its world position is where the pigeon lands, so it can be
+// moved in the editor and later driven by the arm-out animation.
+public struct PigeonArmTarget : IComponentData { }
 
 public struct CarrierPigeon : IComponentData
 {
@@ -93,14 +98,7 @@ public struct PigeonFlight : IComponentData
 {
     public PigeonFlightPhase phase;
     public float3 startPosition;
-    public float3 fallbackPerchPosition;   // used when no caravan exists
     public float3 flyOffVelocity;
-    public float elapsedSeconds;
-}
-
-// Optional, read by PlayerTargetingSystem: inside priorityRadius (planar, from the origin) this beats a nearer interactable,
-// so a pigeon perched on the caravan can still be picked over the caravan's own reach capsule.
-public struct PlayerInteractablePriority : IComponentData
-{
-    public float priorityRadius;
+    public float elapsedSeconds;     // time in the current phase
+    public bool letterDelivered;     // the letter has been opened; closing it sends the pigeon off
 }

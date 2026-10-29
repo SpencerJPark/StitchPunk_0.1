@@ -819,4 +819,8 @@ Before 2026-10-17 no runtime system ever disabled `ActionRequest`, so every `[Wi
 
 ## `PlayerPickupJob` clears the E press for everyone (2026-10-28)
 
-`OnInteractPlayerInput` is a one-frame flag with no owner, and `PlayerPickupJob` (`ItemEquipSystemGroup`) sets it false every frame it is set, whatever the target is. Any system that reads the E press must therefore run before `ItemSystemGroup`: put it in `WorkstationInputSystemGroup` or `TradeInputSystemGroup`, never in a later feature group. A system in `TradeSystemGroup` sees the flag already cleared and silently never fires (found by play-testing the pigeon, which no compile gate or unit test could catch).
+`OnInteractPlayerInput` is a one-frame flag with no owner, and `PlayerPickupJob` (`ItemEquipSystemGroup`) sets it false every frame it is set, whatever the target is. Any system that reads the E press must run before `ItemSystemGroup` (`WorkstationInputSystemGroup` is the precedent); a reader in a later feature group such as `TradeSystemGroup` sees the flag already cleared and silently never fires. Found by play-testing the Trade pigeon, which no compile gate or unit test could catch. Trade's Phase 3 hand-over needs this.
+
+## `SystemAPI.GetSingleton<T>` threw in a system that also had a `Query` (2026-10-29)
+
+`PigeonFlightSystem` died every frame with "GetSingleton() ... but there are 0" and "required component type was not declared in the EntityQuery" on `GetSingleton<TradePigeonSettings>()` while the entity existed, after a `SystemAPI.Query<RefRO<LocalToWorld>>().WithAll<PigeonArmTarget>()` was added to it. `GetSingletonEntity<T>()` + `GetComponent<T>(entity)` in the same system fixed it. Cause unproven (a source-generator query mix-up is the suspect); if a Burst system's singleton read throws impossibly, switch to that pair before debugging the data.
