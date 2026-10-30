@@ -32,6 +32,9 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     private bool menuOpen;
     private ActionMaps mapBeforeMenu;
 
+    // Polled (like DeployWorkstation) so opening the menu needs no PlayerInput event wiring in the scene.
+    private InputAction[] toggleMenuActions;
+
     private const string PLAYER_ACTION_MAP_NAME = "Player";
     private const string CONTROL_UNITS_ACTION_MAP_NAME = "ControlUnits";
     private const string UI_ACTION_MAP_NAME = "UI";
@@ -49,7 +52,15 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         if (playerInput == null)
             Debug.LogError("PlayerInputManager: No PlayerInput component found on this GameObject.");
 
+        InputRebinding.Register(playerInput.actions);
         deployWorkstationAction = playerInput.actions.FindAction("DeployWorkstation");
+        toggleMenuActions = new InputAction[]
+        {
+            playerInput.actions.FindAction(PLAYER_ACTION_MAP_NAME + "/ToggleMenu"),
+            playerInput.actions.FindAction(CONTROL_UNITS_ACTION_MAP_NAME + "/ToggleMenu"),
+            playerInput.actions.FindAction(VEHICLE_ACTION_MAP_NAME + "/ToggleMenu"),
+            playerInput.actions.FindAction(UI_ACTION_MAP_NAME + "/Cancel"),
+        };
         vehicleSteerAction = playerInput.actions.FindAction(VEHICLE_ACTION_MAP_NAME + "/Steer");
         exitVehicleAction = playerInput.actions.FindAction(VEHICLE_ACTION_MAP_NAME + "/ExitVehicle");
         playerInput.actions.Disable();
@@ -99,6 +110,20 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         }
 
         UpdateMouseAimDirection();
+        PollToggleMenuKeys();
+    }
+
+    private void PollToggleMenuKeys()
+    {
+        for (int actionIndex = 0; actionIndex < toggleMenuActions.Length; actionIndex++)
+        {
+            InputAction toggleAction = toggleMenuActions[actionIndex];
+            if (toggleAction != null && toggleAction.WasPressedThisFrame())
+            {
+                ToggleMenu();
+                return;
+            }
+        }
     }
 
     private void WatchWorkstationMount()
@@ -232,6 +257,13 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     public void OnToggleMenu(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
+        ToggleMenu();
+    }
+
+    private void ToggleMenu()
+    {
+        // Escape cancels a rebind and is also this action's key; that press must not close the menu under the player.
+        if (InputRebinding.IsRebinding || Time.frameCount - InputRebinding.LastRebindEndFrame <= 1) return;
 
         if (menuOpen)
             CloseMenu();

@@ -2397,6 +2397,105 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f34444f6532799840be87f35bb8dc42e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::CutsceneCameraBridge
+--- !u!1 &1355442983
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1355442988}
+  - component: {fileID: 1355442987}
+  - component: {fileID: 1355442986}
+  - component: {fileID: 1355442985}
+  - component: {fileID: 1355442984}
+  m_Layer: 0
+  m_Name: SettingsMenu
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1355442984
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355442983}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b322f447d2908246a4d7a5ceb7a25b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::GameMenuManager
+  menuRoot: {fileID: 0}
+  saveLoadBridge: {fileID: 0}
+  slot: 1
+--- !u!114 &1355442985
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355442983}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55893f5754d3e12478dd12c100438860, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.MonoBehaviours::SaveLoadBridge
+--- !u!114 &1355442986
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355442983}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd82f88cfc893724ab170316107cc3f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.UI::SettingsMenuUI
+  menuDocument: {fileID: 1355442987}
+  fallbackInputActions: {fileID: 0}
+--- !u!114 &1355442987
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355442983}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
+  m_PanelSettings: {fileID: 11400000, guid: c39cfbbc66436fe4a9ae86b57024f706, type: 2}
+  m_ParentUI: {fileID: 0}
+  sourceAsset: {fileID: 0}
+  m_SortingOrder: 100
+  m_Position: 0
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_WorldSpaceCollider: {fileID: 0}
+--- !u!4 &1355442988
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1355442983}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1378997545 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8213933009921552898, guid: af00876333d15584da2cd4c777ae644b, type: 3}
@@ -2849,6 +2948,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5564d744f9d4c0441b54c36d23d5312b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.MonoBehaviours::DebugResourceMenu
+  toggleVisibilityKey: 4
+  isMenuVisible: 1
 --- !u!4 &1716599631
 Transform:
   m_ObjectHideFlags: 0
@@ -4826,3 +4927,4 @@ SceneRoots:
   - {fileID: 953916254}
   - {fileID: 1252336026}
   - {fileID: 607902811}
+  - {fileID: 1355442988}

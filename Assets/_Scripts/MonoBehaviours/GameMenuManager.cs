@@ -12,6 +12,9 @@ public class GameMenuManager : MonoBehaviour
 {
     public static GameMenuManager Instance { get; private set; }
 
+    // The settings menu view (UI assembly) subscribes; true = opened, false = closed.
+    public static event System.Action<bool> VisibilityChanged;
+
     [Header("Wiring")]
     [Tooltip("The panel/root GameObject to toggle on/off. Starts hidden.")]
     [SerializeField] private GameObject menuRoot;
@@ -53,6 +56,7 @@ public class GameMenuManager : MonoBehaviour
 
         Time.timeScale = 0f;
         IsOpen = true;
+        VisibilityChanged?.Invoke(true);
     }
 
     /// <summary>Hides the panel and unpauses. Called by PlayerInputManager.</summary>
@@ -63,6 +67,7 @@ public class GameMenuManager : MonoBehaviour
 
         Time.timeScale = 1f;
         IsOpen = false;
+        VisibilityChanged?.Invoke(false);
     }
 
     // --- Button hooks (wire these to the UGUI Button OnClick events) ---

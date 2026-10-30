@@ -10,7 +10,7 @@ using UnityEngine.Audio;
 /// it writes the ListenerPosition + CameraView singletons from the active camera, reads the
 /// ResolvedVoices the ECS mix produced, and drives a pool of AudioSources: one-shots fire on a free
 /// voice, loops are kept alive by stableVoiceKey and stopped when they drop out of the list. It also
-/// crossfades the music stems toward MusicState and applies the persisted GameSettings volumes to the
+/// crossfades the music stems toward MusicState and applies the per-machine UserSettings volumes to the
 /// AudioMixer. Backend-agnostic — swap this layer for FMOD/Wwise without touching any ECS system.
 /// </summary>
 public class AudioManager : PersistentSingleton<AudioManager>
@@ -66,7 +66,6 @@ public class AudioManager : PersistentSingleton<AudioManager>
     private EntityQuery _listenerQuery;
     private EntityQuery _cameraViewQuery;
     private EntityQuery _musicQuery;
-    private EntityQuery _settingsQuery;
 
     protected override void Awake()
     {
@@ -145,7 +144,6 @@ public class AudioManager : PersistentSingleton<AudioManager>
         _listenerQuery   = _entityManager.CreateEntityQuery(typeof(ListenerPosition));
         _cameraViewQuery = _entityManager.CreateEntityQuery(typeof(CameraView));
         _musicQuery      = _entityManager.CreateEntityQuery(typeof(MusicState));
-        _settingsQuery   = _entityManager.CreateEntityQuery(typeof(GameSettings));
         _worldReady = true;
         return true;
     }
@@ -203,13 +201,12 @@ public class AudioManager : PersistentSingleton<AudioManager>
 
     private void ApplyMixerVolumes()
     {
-        if (mixer == null || _settingsQuery.CalculateEntityCount() != 1) return;
+        if (mixer == null) return;
 
-        GameSettings settings = _settingsQuery.GetSingleton<GameSettings>();
-        SetMixerDb(masterParam, settings.masterVolume);
-        SetMixerDb(musicParam, settings.musicVolume);
-        SetMixerDb(sfxParam, settings.sfxVolume);
-        SetMixerDb(ambientParam, settings.ambientVolume);
+        SetMixerDb(masterParam, UserSettings.MasterVolume);
+        SetMixerDb(musicParam, UserSettings.MusicVolume);
+        SetMixerDb(sfxParam, UserSettings.SfxVolume);
+        SetMixerDb(ambientParam, UserSettings.AmbientVolume);
     }
 
     private void SetMixerDb(string param, float linear)
