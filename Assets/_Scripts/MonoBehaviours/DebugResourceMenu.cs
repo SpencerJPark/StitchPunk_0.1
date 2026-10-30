@@ -22,7 +22,8 @@ public class DebugResourceMenu : MonoBehaviour
         ResourceType.RevivalRound,
     };
 
-    [SerializeField] private Key toggleVisibilityKey = Key.F1;
+    // Not F1: laptop keyboards send media keys on the F row unless Fn is held.
+    [SerializeField] private Key toggleVisibilityKey = Key.Backquote;
     [SerializeField] private bool isMenuVisible = true;
 
     private EntityManager entityManager;
@@ -93,7 +94,7 @@ public class DebugResourceMenu : MonoBehaviour
             Event.current.Use();
 
         GUILayout.BeginArea(MenuAreaRect, GUI.skin.box);
-        GUILayout.Label($"Resources (debug) — {toggleVisibilityKey} hides");
+        GUILayout.Label($"Resources (debug) — press {toggleVisibilityKey} to hide");
 
         // The caravan holds the ledger once it links.
         Entity ledgerHolder = ResourceLedger.HolderOf(entityManager, playerEntity);
