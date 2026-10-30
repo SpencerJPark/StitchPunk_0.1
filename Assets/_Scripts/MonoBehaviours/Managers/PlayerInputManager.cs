@@ -2,7 +2,9 @@ using UnityEngine;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 
 public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 {
@@ -74,6 +76,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             playerInput.actions.FindAction(VEHICLE_ACTION_MAP_NAME + "/ToggleMenu"),
             playerInput.actions.FindAction(UI_ACTION_MAP_NAME + "/Cancel"),
         };
+        ConfigureUiInputModule();
         vehicleSteerAction = playerInput.actions.FindAction(VEHICLE_ACTION_MAP_NAME + "/Steer");
         exitVehicleAction = playerInput.actions.FindAction(VEHICLE_ACTION_MAP_NAME + "/ExitVehicle");
         openLetterAction = playerInput.actions.FindAction(PLAYER_ACTION_MAP_NAME + "/OpenLetter");
@@ -102,6 +105,37 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
             Time.timeScale = timeScaleBeforeModalUi;
     }
     #endregion
+
+    // The scene has an EventSystem but no input module, and with an EventSystem present UI Toolkit's own fallback input is off, so
+    // no mouse, key or pad press reached any UI Toolkit panel. This gives it a module fed by THIS PlayerInput's UI map, so UI input
+    // flows exactly while that map is current (the pause menu and any modal panel) and nowhere else.
+    private void ConfigureUiInputModule()
+    {
+        EventSystem eventSystem = FindFirstObjectByType<EventSystem>();
+        if (eventSystem == null) return;
+
+        InputSystemUIInputModule uiModule = eventSystem.GetComponent<InputSystemUIInputModule>();
+        if (uiModule == null)
+            uiModule = eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
+
+        uiModule.actionsAsset = playerInput.actions;
+        uiModule.point = UiActionReference("Point");
+        uiModule.leftClick = UiActionReference("Click");
+        uiModule.rightClick = UiActionReference("RightClick");
+        uiModule.middleClick = UiActionReference("MiddleClick");
+        uiModule.scrollWheel = UiActionReference("ScrollWheel");
+        uiModule.move = UiActionReference("Navigate");
+        uiModule.submit = UiActionReference("Submit");
+        uiModule.cancel = UiActionReference("Cancel");
+        uiModule.trackedDevicePosition = UiActionReference("TrackedDevicePosition");
+        uiModule.trackedDeviceOrientation = UiActionReference("TrackedDeviceOrientation");
+    }
+
+    private InputActionReference UiActionReference(string actionName)
+    {
+        InputAction action = playerInput.actions.FindAction(UI_ACTION_MAP_NAME + "/" + actionName);
+        return action != null ? InputActionReference.Create(action) : null;
+    }
 
     private bool TryResolvePlayerEntity()
     {

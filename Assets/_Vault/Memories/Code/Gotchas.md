@@ -836,3 +836,11 @@ The virtual cursor (`CursorPlayerInput`/`CursorScreenPosition`) and the Select/C
 ## Saving a buffer: mirror it into a `FixedList` on an `IPersist` snapshot (2026-10-30)
 
 The generic save only copies `IComponentData` structs (no buffers). `FixedList512Bytes<T>` / `FixedList4096Bytes<T>` of unmanaged elements round-trip through the raw-byte encoder (checked by `TradeSaveTests.TheSnapshotsSurviveTheGenericSaveEncoder`; copy it for the next one), so a buffer is saved by a sync system that fills a snapshot component before `PersistentSaveSystem` and refills the buffer after `PersistentLoadSystem`. A snapshot can only be restored into a component the entity already has, so add it to the entity from the first frame. Make the load side compare snapshot with live state: a save frame leaves the snapshot flagged "pending" but equal to live, and must not re-apply (it would re-queue side effects).
+
+## UI Toolkit panels got no mouse/key/pad input at all: the scene's EventSystem had no input module (2026-10-30)
+
+`CampLoop` has an `EventSystem` on the Main Camera but no `InputSystemUIInputModule`. With an EventSystem present UI Toolkit's own fallback input is switched off, so real pointer, key and pad presses never reached any UITK panel (the trade letter could not be clicked or closed). `PlayerInputManager.ConfigureUiInputModule` now adds a module at startup and feeds it THIS PlayerInput's `UI` map, so UI input flows exactly while that map is current (pause menu, modal panels). **Do not trust a UITK panel test that sends `NavigationSubmitEvent`/`ClickEvent` straight at a button**: that bypasses the whole input path and passed while the panel was dead in the game. Check `EventSystem.current.currentInputModule` is not null, and that the module's `point`/`leftClick` actions are enabled in the map you expect.
+
+## A fixed-size UITK panel can run off the screen: lay it out with max-height and a ScrollView (2026-10-30)
+
+The trade letter used `top: 50%; margin-top: -260px` and grew with its offers; four cards made it 926 px tall at y=280, so Close sat at y=1148 on a 1080 px screen. Anchor from the top, set `max-height: 92%`, put the variable list in a `ScrollView` and pin the title/footer/Close buttons with `flex-shrink: 0`. Measure `worldBound` against `Screen.height` when a panel's content count can vary.

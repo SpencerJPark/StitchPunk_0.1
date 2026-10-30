@@ -28,7 +28,7 @@ What was checked when it was built:
 
 ### The pigeon and the letter
 - [ ] A pigeon (a grey ball for now) flies in from off screen to the player and lands on the arm. Where it lands is the `PigeonArmTarget` child of `PlayerUnit.prefab`: move it if it looks wrong.
-- [ ] About a second after it lands the letter opens by itself and the world holds still. The mouse cursor appears and **both buttons on a card (Accept, Decline) and Close are clickable**.
+- [ ] About a second after it lands the letter opens by itself and the world holds still. The whole letter fits on screen with Close visible at the bottom; with several offers the offers list scrolls (mouse wheel). The mouse cursor appears and **both buttons on a card (Accept, Decline) and Close are clickable**.
 - [ ] Keyboard / gamepad: the first Accept is highlighted and Submit presses it; **E** (gamepad North) closes the letter. **Esc opens the pause menu over the letter** (the letter hides underneath); Esc again returns to it.
 - [ ] Closing the letter lets time run again and the pigeon flies away and disappears.
 - [ ] The HUD **Letter** button reopens the letter later; on foot **L** (gamepad right-stick press) does too. It blinks red only while a pigeon is waiting.
