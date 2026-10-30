@@ -1,7 +1,9 @@
+using DotsMovementToolkit;
+using Unity.Entities;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// One action shows and hides every OnGUI debug menu at once; each menu polls it from Update.
+// One action shows and hides every OnGUI debug menu, plus the nav-grid debug tiles, at once; each menu polls it from Update.
 public static class DebugMenuVisibility
 {
     // Its own map so it works whichever gameplay map PlayerInput has switched to (backquote, or L3 + R3 on a gamepad).
@@ -12,6 +14,10 @@ public static class DebugMenuVisibility
     private static int lastPolledFrame = -1;
     private static InputActionAsset resolvedFromAsset;
     private static InputAction toggleDebugMenuAction;
+
+    private static World navGridDebugQueryWorld;
+    private static EntityQuery navGridDebugSettingsQuery;
+    private static NavGridDebugDisplayMode navGridDisplayModeBeforeHiding = NavGridDebugDisplayMode.Off;
 
     public static string ToggleBindingDisplayText =>
         toggleDebugMenuAction != null ? toggleDebugMenuAction.GetBindingDisplayString() : "(no Debug/ToggleDebugMenu action)";
@@ -26,6 +32,36 @@ public static class DebugMenuVisibility
         ResolveToggleActionFromRegisteredAsset();
         if (toggleDebugMenuAction != null && toggleDebugMenuAction.WasPressedThisFrame())
             AreDebugMenusVisible = !AreDebugMenusVisible;
+
+        ApplyVisibilityToNavGridDebugTiles();
+    }
+
+    // Enforced every frame, not only on toggle: a subscene re-bake restores the authored display mode.
+    private static void ApplyVisibilityToNavGridDebugTiles()
+    {
+        World world = World.DefaultGameObjectInjectionWorld;
+        if (world == null || !world.IsCreated)
+            return;
+
+        if (navGridDebugQueryWorld != world)
+        {
+            navGridDebugQueryWorld = world;
+            navGridDebugSettingsQuery = world.EntityManager.CreateEntityQuery(ComponentType.ReadWrite<NavGridDebugSettings>());
+        }
+
+        if (!navGridDebugSettingsQuery.TryGetSingletonRW(out RefRW<NavGridDebugSettings> debugSettings))
+            return;
+
+        if (!AreDebugMenusVisible && debugSettings.ValueRO.displayMode != NavGridDebugDisplayMode.Off)
+        {
+            navGridDisplayModeBeforeHiding = debugSettings.ValueRO.displayMode;
+            debugSettings.ValueRW.displayMode = NavGridDebugDisplayMode.Off;
+        }
+        else if (AreDebugMenusVisible && navGridDisplayModeBeforeHiding != NavGridDebugDisplayMode.Off)
+        {
+            debugSettings.ValueRW.displayMode = navGridDisplayModeBeforeHiding;
+            navGridDisplayModeBeforeHiding = NavGridDebugDisplayMode.Off;
+        }
     }
 
     // PlayerInputManager registers the scene's asset in Awake and disables every map there, so enable lazily on first poll.
@@ -52,5 +88,7 @@ public static class DebugMenuVisibility
         lastPolledFrame = -1;
         resolvedFromAsset = null;
         toggleDebugMenuAction = null;
+        navGridDebugQueryWorld = null;
+        navGridDisplayModeBeforeHiding = NavGridDebugDisplayMode.Off;
     }
 }
