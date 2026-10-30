@@ -88,10 +88,10 @@ public class TradeLetterUI : MonoBehaviour
             if (shouldShow)
             {
                 BindCloseButton(entityManager, boardEntity);
-                // The player is on foot, where there is no pointer: borrow the pause menu's mode so the mouse, gamepad
-                // navigation and Esc all work, and the world holds still while the letter is read.
+                // The player is on foot, where there is no pointer: borrow the pause menu's mode so the mouse and gamepad
+                // navigation work, and the world holds still while the letter is read. Esc stays the pause-menu toggle.
                 if (PlayerInputManager.Instance != null)
-                    PlayerInputManager.Instance.OpenModalUi(closeAction);
+                    PlayerInputManager.Instance.OpenModalUi();
             }
             else if (PlayerInputManager.Instance != null)
             {
@@ -101,6 +101,15 @@ public class TradeLetterUI : MonoBehaviour
 
         if (!isShown)
             return;
+
+        // The pause menu opens over the letter (Esc); hide the letter under it so the two never overlap.
+        bool pauseMenuIsOpen = GameMenuManager.Instance != null && GameMenuManager.Instance.IsOpen;
+        letterRoot.style.display = pauseMenuIsOpen ? DisplayStyle.None : DisplayStyle.Flex;
+        if (pauseMenuIsOpen)
+            return;
+
+        if (PlayerInputManager.Instance != null && PlayerInputManager.Instance.CloseLetterPressedThisFrame())
+            closeAction?.Invoke();
 
         Refresh(entityManager, boardEntity);
     }
