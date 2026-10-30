@@ -58,7 +58,8 @@ namespace PaintedGround
 
         /// <param name="waterLevel">hits below this height are skipped</param>
         /// <param name="scorchAt">optional world point that gets a scorch mark (a campfire)</param>
-        public static void Scatter(GameObject ground, int count, float waterLevel, Vector3? scorchAt, int seed = 12345)
+        /// <param name="decalParent">where the decals go; null = a "Decals" child of the ground</param>
+        public static void Scatter(GameObject ground, int count, float waterLevel, Vector3? scorchAt, int seed = 12345, Transform decalParent = null)
         {
             string folder = FindFolder();
             if (folder == null) { Debug.LogError("[Painted Ground] folder not found"); return; }
@@ -85,7 +86,24 @@ namespace PaintedGround
             Color[] vcols = (mesh != null && mesh.colors != null && mesh.colors.Length == mesh.vertexCount) ? mesh.colors : null;
             int[] tris = mesh != null ? mesh.triangles : null;
 
-            var parent = ground.transform.Find("Decals");
+            // World Texture splat mode: biome comes from the tile's SDF mask, not vertex colours
+            Texture2D worldSplat = null;
+            Vector4 worldSplatBounds = Vector4.zero;
+            MeshRenderer groundRenderer = ground.GetComponent<MeshRenderer>();
+            Material groundMaterial = groundRenderer != null ? groundRenderer.sharedMaterial : null;
+            if (vcols == null && groundMaterial != null && groundMaterial.HasProperty("_SplatMap") && groundMaterial.GetFloat("_Splat") > 0.5f)
+            {
+                Texture splatAsset = groundMaterial.GetTexture("_SplatMap");
+                string splatPath = splatAsset != null ? AssetDatabase.GetAssetPath(splatAsset) : null;
+                if (!string.IsNullOrEmpty(splatPath))
+                {
+                    worldSplat = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+                    worldSplat.LoadImage(File.ReadAllBytes(splatPath));
+                    worldSplatBounds = groundMaterial.GetVector("_SplatBounds");
+                }
+            }
+
+            var parent = decalParent != null ? decalParent : ground.transform.Find("Decals");
             if (parent == null)
             {
                 var p = new GameObject("Decals");
@@ -118,6 +136,15 @@ namespace PaintedGround
                     var bc = hit.barycentricCoordinate;
                     Color c = vcols[tris[t]] * bc.x + vcols[tris[t + 1]] * bc.y + vcols[tris[t + 2]] * bc.z;
                     grass = c.r; forest = c.g; stone = c.b;
+                }
+                else if (worldSplat != null)
+                {
+                    float splatU = (hit.point.x - worldSplatBounds.x) / worldSplatBounds.z;
+                    float splatV = (hit.point.z - worldSplatBounds.y) / worldSplatBounds.w;
+                    Color sdf = worldSplat.GetPixelBilinear(splatU, splatV);
+                    grass = sdf.r > 0.5f ? 1f : 0f;
+                    forest = sdf.g > 0.5f ? 1f : 0f;
+                    stone = sdf.b > 0.5f ? 1f : 0f;
                 }
                 float dirt = Mathf.Clamp01(1f - grass - forest - stone);
 
@@ -163,7 +190,9 @@ namespace PaintedGround
                 }
             }
 
-            Debug.Log($"[Painted Ground] Scattered {placed} decals under '{ground.name}/Decals'.");
+            if (worldSplat != null) Object.DestroyImmediate(worldSplat);
+
+            Debug.Log($"[Painted Ground] Scattered {placed} decals under '{parent.name}'.");
         }
 
         // ---- helpers ----
