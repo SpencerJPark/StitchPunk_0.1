@@ -150,7 +150,7 @@ public class TradeOrdersHudUI : MonoBehaviour
             toastLabel.style.display = DisplayStyle.None;
     }
 
-    private static string BuildToastText(TradeToast toast, DynamicBuffer<TradeOrder> orders)
+    private string BuildToastText(TradeToast toast, DynamicBuffer<TradeOrder> orders)
     {
         if (toast.kind == TradeToastKind.HandOverDone)
             return $"Delivered — +{toast.amount} Currency";
@@ -166,6 +166,12 @@ public class TradeOrdersHudUI : MonoBehaviour
         {
             string condition = order.minHealthFraction > 0f ? $" (at least {order.minHealthFraction * 100f:0}% health)" : "";
             return $"Need {toast.amount} more {TradeTextLookup.UnitLabel(order.unitType)}{condition}";
+        }
+
+        if (toast.kind == TradeToastKind.OrderFailed)
+        {
+            string client = TradeTextLookup.ClientName(library, order.clientId);
+            return toast.amount > 0 ? $"Order failed — {client}: -{toast.amount} reputation" : $"Order failed — {client}";
         }
 
         return null;

@@ -40,6 +40,12 @@ public static class TradeMath
         return quantityRange.y;
     }
 
+    // An order is overdue once its due day has passed in its own week, or its week is over (Accepted orders survive the weekly roll).
+    public static bool IsOrderOverdue(int weekIssued, int dueDayOfWeek, int currentWeek, int currentDayOfWeek)
+    {
+        return weekIssued < currentWeek || dueDayOfWeek < currentDayOfWeek;
+    }
+
     public static float UnitTierWeight(int corpses, int scrapMetal, int electricity, in TradeTuningBlob tuning)
     {
         return corpses * tuning.corpseValue

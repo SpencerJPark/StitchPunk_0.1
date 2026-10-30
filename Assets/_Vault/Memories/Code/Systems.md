@@ -40,7 +40,7 @@ MovementSystemGroup          — PACKAGE-OWNED (com.dotsmovementtoolkit, ns Dots
   ├── MovementSteeringSystemGroup    — empty, declared slot for future arrival easing/avoidance
   └── MovementExecutionSystemGroup   — writes final position/rotation to transforms (+ game's LocomotionStanceSystem)
 BuildingsSystemGroup         — workstation loop (furnace, craft, repair, summon, pack-up); factory loop still parked in Core/Unused/
-TradeSystemGroup             — weekly orders (Trade_System.md): WeeklyOrderGenerationSystem (WeekStarted/reroll), TradeOrderResponseSystem, PigeonLetterSystem + PigeonFlightSystem, TradeDeliverySystem + DeliveredUnitWalkSystem; expiry lands in Phase 4 (DeliveredUnitDespawnSystem lives in DespawnSystemGroup)
+TradeSystemGroup             — weekly orders (Trade_System.md): WeeklyOrderGenerationSystem (WeekStarted/reroll), TradeOrderResponseSystem, PigeonLetterSystem + PigeonFlightSystem, TradeDeliverySystem + DeliveredUnitWalkSystem; TradeOrderExpirySystem (DayStarted: an accepted order past its due day fails, costs reputation) (DeliveredUnitDespawnSystem lives in DespawnSystemGroup)
 PlayerResourceSystemGroup    — ResourceChangeSystem applies ledger deltas (see Camp Loop)
 CombatSystemGroup
   ├── CombatExecutionSystemGroup — AttackRequestSystem, HazardZoneSystem (DamageBus producers)
