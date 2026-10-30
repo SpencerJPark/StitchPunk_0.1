@@ -14,6 +14,7 @@ namespace StitchPunk.Tests.PlayMode
         private Entity boardEntity;
         private Entity playerEntity;
         private Entity dropOffEntity;
+        private BlobAssetReference<ClientLibraryBlob> libraryBlob;
 
         [SetUp]
         public void SetUp()
@@ -42,13 +43,39 @@ namespace StitchPunk.Tests.PlayMode
             if (testWorld != null && testWorld.IsCreated)
                 testWorld.Dispose();
             testWorld = null;
+            if (libraryBlob.IsCreated)
+                libraryBlob.Dispose();
         }
 
-        private void AddAcceptedOrder(int quantity, float minHealthFraction, int reward)
+        // One recurring client (id 3) and one household template, each paying a bonus on top of Currency.
+        private void AddLibraryWithBonuses()
+        {
+            using (BlobBuilder builder = new BlobBuilder(Allocator.Temp))
+            {
+                ref ClientLibraryBlob root = ref builder.ConstructRoot<ClientLibraryBlob>();
+                BlobBuilderArray<ClientBlob> clients = builder.Allocate(ref root.clients, 1);
+                clients[0].clientId = 3;
+                BlobBuilderArray<OrderTemplateBlob> pool = builder.Allocate(ref clients[0].orderPool, 1);
+                BlobBuilderArray<BonusResourceBlob> clientBonus = builder.Allocate(ref pool[0].bonusResources, 2);
+                clientBonus[0] = new BonusResourceBlob { resourceType = ResourceType.ScrapMetal, amount = 10 };
+                clientBonus[1] = new BonusResourceBlob { resourceType = ResourceType.Electricity, amount = 6 };
+
+                BlobBuilderArray<OrderTemplateBlob> householdTemplates = builder.Allocate(ref root.household.templates, 1);
+                BlobBuilderArray<BonusResourceBlob> householdBonus = builder.Allocate(ref householdTemplates[0].bonusResources, 1);
+                householdBonus[0] = new BonusResourceBlob { resourceType = ResourceType.Wood, amount = 4 };
+
+                libraryBlob = builder.CreateBlobAssetReference<ClientLibraryBlob>(Allocator.Persistent);
+            }
+
+            Entity libraryEntity = entityManager.CreateEntity(typeof(ClientLibrary));
+            entityManager.SetComponentData(libraryEntity, new ClientLibrary { library = libraryBlob });
+        }
+
+        private void AddAcceptedOrder(int quantity, float minHealthFraction, int reward, int clientId = -101)
         {
             entityManager.GetBuffer<TradeOrder>(boardEntity).Add(new TradeOrder
             {
-                orderId = 101, clientId = -101, dropOffId = 1, unitType = UnitType.PlayerZombieBrute,
+                orderId = 101, clientId = clientId, dropOffId = 1, unitType = UnitType.PlayerZombieBrute,
                 quantity = (byte)quantity, minHealthFraction = minHealthFraction, currencyReward = reward,
                 dueDayOfWeek = 4, state = TradeOrderState.Accepted,
             });
@@ -93,6 +120,36 @@ namespace StitchPunk.Tests.PlayMode
             Assert.AreEqual(ResourceType.Currency, ledgerRequests[0].resourceType);
             Assert.AreEqual(130, ledgerRequests[0].value);
             Assert.AreEqual(TradeToastKind.HandOverDone, entityManager.GetComponentData<TradeToast>(boardEntity).kind);
+        }
+
+        [Test]
+        public void RecurringClientsBonusResources_ArePaidOnTopOfCurrency()
+        {
+            AddLibraryWithBonuses();
+            AddAcceptedOrder(quantity: 1, minHealthFraction: 0f, reward: 90, clientId: 3);
+            AddBrute(1f, 100);
+
+            RunHandOver();
+
+            DynamicBuffer<ResourceChangeRequest> ledgerRequests = entityManager.GetBuffer<ResourceChangeRequest>(playerEntity);
+            Assert.AreEqual(3, ledgerRequests.Length);
+            Assert.AreEqual((ResourceType.Currency, 90), (ledgerRequests[0].resourceType, ledgerRequests[0].value));
+            Assert.AreEqual((ResourceType.ScrapMetal, 10), (ledgerRequests[1].resourceType, ledgerRequests[1].value));
+            Assert.AreEqual((ResourceType.Electricity, 6), (ledgerRequests[2].resourceType, ledgerRequests[2].value));
+        }
+
+        [Test]
+        public void HouseholdOneOffs_ReadTheHouseholdTemplateForTheirBonus()
+        {
+            AddLibraryWithBonuses();
+            AddAcceptedOrder(quantity: 1, minHealthFraction: 0f, reward: 30, clientId: -101);
+            AddBrute(1f, 100);
+
+            RunHandOver();
+
+            DynamicBuffer<ResourceChangeRequest> ledgerRequests = entityManager.GetBuffer<ResourceChangeRequest>(playerEntity);
+            Assert.AreEqual(2, ledgerRequests.Length);
+            Assert.AreEqual((ResourceType.Wood, 4), (ledgerRequests[1].resourceType, ledgerRequests[1].value));
         }
 
         [Test]

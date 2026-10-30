@@ -12,15 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296b472c3a8eb0040896c3004363a7cc, type: 3}
   m_Name: Order_Ashgrove_Zombie
   m_EditorClassIdentifier: StitchPunk.Data::OrderTemplateSO
-  flavourText: One presentable servant, in good condition.
+  flavourText: One presentable servant, in good condition. Her Ladyship is particular.
   unitType: 6
   quantityRange:
     x: 1
     y: 1
-  minHealthFraction: 0.75
+  minHealthFraction: 0.9
   dueDayRange:
-    x: 4
-    y: 6
+    x: 5
+    y: 7
   minimumTier: 0
-  weight: 1
+  weight: 3
   bonusResources: []

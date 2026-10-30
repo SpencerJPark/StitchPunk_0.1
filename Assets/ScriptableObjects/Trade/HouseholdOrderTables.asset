@@ -16,5 +16,12 @@ MonoBehaviour:
   - The Pemberton household
   - The Hargreave household
   - The Wicklow household
+  - The Ashby-Crane household
+  - The Dunmore household
+  - The Fennimore household
+  - The Gaunt household
+  - The Holloway household
   templates:
   - {fileID: 11400000, guid: b8e050248699b5c4abd1d73f8d7cd875, type: 2}
+  - {fileID: 11400000, guid: 8c07ad7008e50644cbc0a1d457fe22f3, type: 2}
+  - {fileID: 11400000, guid: 8b9c60aaf025a304f839a5b70ee5c7fc, type: 2}

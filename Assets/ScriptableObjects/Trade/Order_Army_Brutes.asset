@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296b472c3a8eb0040896c3004363a7cc, type: 3}
   m_Name: Order_Army_Brutes
   m_EditorClassIdentifier: StitchPunk.Data::OrderTemplateSO
-  flavourText: We need muscle for the bridge.
+  flavourText: We need muscle for the bridge. Strong, and no questions asked.
   unitType: 7
   quantityRange:
     x: 2
@@ -22,5 +22,5 @@ MonoBehaviour:
     x: 3
     y: 5
   minimumTier: 0
-  weight: 1
+  weight: 3
   bonusResources: []

@@ -20,6 +20,7 @@ MonoBehaviour:
   baseOrderChancePerWeek: 0.5
   orderPool:
   - {fileID: 11400000, guid: 0eec0293fab0ffa4cbfdcc9e810b7e23, type: 2}
+  - {fileID: 11400000, guid: 4f7f6347256e3e541b95b4f4b9bb2d46, type: 2}
   tiers:
     known: 25
     trusted: 50
