@@ -9,6 +9,7 @@
         "StitchPunk.Data",
         "StitchPunk.Generated",
         "StitchPunk.Components",
+        "StitchPunk.MonoBehaviours",
         "UnityEditor.UI",
         "DotsAnimationToolkit.Runtime",
         "DotsAnimationToolkit.Authoring",

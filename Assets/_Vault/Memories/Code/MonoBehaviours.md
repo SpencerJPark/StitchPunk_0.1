@@ -16,6 +16,7 @@ These are `RegulatorSingleton<T>` or `PersistentSingleton<T>` instances that liv
 | Manager | Responsibility |
 |---|---|
 | `PlayerInputManager` | Reads Unity Input System actions; fires events to ECS via `DOTSEventsManager`. Also handles mouse aim direction each update: while `AimPlayerInput` is enabled and scheme is Keyboard&Mouse, converts mouse world position to XZ aim direction and writes `LookPlayerInput` directly to ECS |
+| `Terrain/TerrainTile` | Marks a 100 m ground tile: grid coordinate, mask + SDF references, world-rect helpers (tile (x, z) is centred on x*100, z*100). No logic beyond coordinate maths; streaming will read it. |
 | `DOTSEventsManager` | Bridge — writes player intent (click targets, selections) into ECS singleton components |
 | `UnitSelectionManager` | Drag/click selects `Minion`-enabled bodies; writes `OnMinionMoveCommand` / `OnMinionInteractCommand` to the player entity on right-click command. Reads `PlayerActionMap` to check for `ControlUnits` mode. ⚠ Needs revamp — currently has dead references to `BuildingPlacementManager`, `BuildingBarracks`, and old `PlayerInputData` singleton. |
 | `CameraManager` | Controls cinemachine camera state, target switching |
