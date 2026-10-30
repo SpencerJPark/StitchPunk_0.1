@@ -127,3 +127,22 @@ public struct TradeToast : IComponentData
     public int orderId;
     public int amount;   // refused: units still missing; done: Currency paid
 }
+
+// Save mirrors, on the Player (its save identity), added at runtime by TradeSaveSyncSystem. The generic save copies IPersist
+// components byte for byte, so they are flat unmanaged structs (no Entity), flags are bytes, and the board buffers ride in FixedLists
+// (Trade_System.md TR-A10). hasData is 1 while a snapshot is waiting to be applied by TradeLoadSyncSystem.
+public struct WorldClockSnapshot : IComponentData, IPersist
+{
+    public byte  hasData;
+    public float timeOfDay01;
+    public int   dayOfWeek;
+    public int   weekNumber;
+}
+
+public struct TradeBoardSnapshot : IComponentData, IPersist
+{
+    public byte hasData;
+    public uint worldSeed;
+    public Unity.Collections.FixedList4096Bytes<TradeOrder> orders;               // about 90 orders; a week holds about 12
+    public Unity.Collections.FixedList512Bytes<ClientRelationship> relationships; // about 30 clients
+}

@@ -1,6 +1,6 @@
 # Trade System — Weekly Orders by Carrier Pigeon
 
-> **Status:** 🔨 Phases 0–1 in build 2026-10-28; all open questions resolved (TR-D9–D16). The owner answered eight product questions (TR-D1–TR-D8, §11). Architecture calls were made under the standing delegation (TR-A1–TR-A12). Open tuning and content questions are marked **← DECISION** inline and collected in §12.
+> **Status:** 🔍 all six phases built 2026-10-28 to 2026-10-30; headless-tested (EditMode `TradeMathTests` + 14 PlayMode fixtures + Play-mode smoke through `execute_code`). Waiting on the owner's play pass: [verify-trade.md](verify-trade.md). All open questions resolved (TR-D9–D16).
 > **Inspiration:** GTA Chinatown Wars' dealer economy, cut down to **orders only**: clients ask for something, you make it, you deliver it, you get paid. There is no buy-low/sell-high market in v1 (TR-D5).
 
 ---
@@ -52,7 +52,7 @@ Week ends (Day 7 → Day 1) → unaccepted offers expire silently; the next week
 | 3 | **Delivery**: hand-over interaction, validation, payout, squad removal, walk to the client, out-of-sight despawn | 🔨 built 2026-10-29, awaiting owner play check | deliver 2 Brutes to the Army → Currency goes up, the Brutes stand at the barracks, and they are gone when you come back |
 | 4 | **Deadlines + reputation**: due-day expiry, reputation tiers changing payout, order count and order size | 🔨 built 2026-10-30, awaiting owner play check | failing an order drops the tier, and the next week's letter from that client is smaller |
 | 5 | **Content pass**: the first recurring clients, household templates, drop-offs placed in the game scene, new order-only unit types | 🔨 built 2026-10-30, awaiting owner play check | settled: TR-D14 (flavour on existing types) |
-| 6 | **Save**: clock + board + relationships survive a save/load | ⬜ | load mid-week → same day, same accepted orders, same reputation |
+| 6 | **Save**: clock + board + relationships survive a save/load | 🔨 built 2026-10-30, awaiting owner play check | load mid-week → same day, same accepted orders, same reputation |
 
 Phases 0 → 1 → 2 → 3 run in order. Phase 4 needs 3, and phase 6 can be built any time after 4. Phase 5 is content and runs alongside the rest once 1 lands.
 
@@ -403,3 +403,11 @@ All resolved 2026-10-28 (recorded in §11 as TR-D9–TR-D16).
 - **Sampled over 200 weeks** (`execute_code`, unit-cost weight left at 1): about 3.7 offers/week at Stranger (one Army, half an Ashgrove, 0.6 Bellfounders, two households), about 8 at Partner; Runners never appear below Trusted.
 - **Two fixtures that Phase 1-3 owed were added**: **F2 `TradeRollTests`** (same seed + week -> identical orders; a Trusted-only template is never offered to a Stranger, while a Trusted client does see it) and two bonus-payout cases in **F3** (a recurring client's template bonus and the household table's bonus are both queued after the Currency). All three fail when their fix is removed.
 - **Not done, on purpose:** the "Hand over 2 Brutes" interaction prompt (no prompt UI exists; the marker text says "ready, press E"), and a letter seal image (`letterSeal` is unused by the placeholder letter).
+
+### Build notes (Phase 6, 2026-10-30)
+
+- **Save is two snapshot components on the Player** (`WorldClockSnapshot`, `TradeBoardSnapshot`, both `IPersist`), added at runtime by `TradeSaveSyncSystem` so no shared authoring changed. The generic save already writes the Player record, so they round-trip with no new save code. `TradeBoardSnapshot` stores the existing `TradeOrder` / `ClientRelationship` structs in `FixedList4096Bytes` / `FixedList512Bytes` (about 90 orders, about 30 clients; a warning is logged on overflow) rather than the planned separate `*Saved` structs.
+- **Saved:** week, day, time of day, world seed, every order (all states, with due days), and every client's reputation / completed / failed. **Not saved:** the pigeon, the open letter, delivered units (they are not minions), the authored clock config (`secondsPerDay`).
+- **`TradeSaveSyncSystem`** copies live -> snapshot only while a `SaveRequest` is enabled. **`TradeLoadSyncSystem`** (after `PersistentLoadSystem`) applies snapshot -> live when `hasData` is set and the snapshot differs from live; a save frame sets `hasData` too but the snapshot equals live then, so it changes nothing and queues no pigeon. After a real load, a week that still has unanswered `Offered` orders queues a `PendingPigeon`, so the letter comes again.
+- **Check made:** a `FixedList` of unmanaged elements survives the byte encoder (fixture `TheSnapshotsSurviveTheGenericSaveEncoder`). (An earlier draft of these notes claimed a `bool` field would break the encoder; that was tested and is false in this runtime, so the snapshots use byte flags only by habit.)
+- Fixture **F7 `TradeSaveTests`** (PlayMode): the snapshots survive the generic encoder; a load restores the clock, orders and reputations and re-queues the pigeon; a save frame sends no pigeon. Revert-to-fail was run on the match check and on the relationship restore. Real round trip in `CampLoop` through the real save system and a real JSON file (slot 99, deleted afterwards): accepted order #101 with its due day, Army reputation 55 with 2 completed, and the other offers all came back after the live state was wrecked.
