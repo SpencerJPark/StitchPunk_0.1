@@ -32,6 +32,13 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     private bool menuOpen;
     private ActionMaps mapBeforeMenu;
 
+    // A panel that needs the real pointer (the trade letter) borrows the pause menu's mode: UI map, free cursor, world frozen.
+    private bool modalUiOpen;
+    private System.Action modalUiCancelHandler;
+    private float timeScaleBeforeModalUi = 1f;
+    private bool cursorVisibleBeforeModalUi;
+    private CursorLockMode cursorLockBeforeModalUi;
+
     // Polled (like DeployWorkstation) so opening the menu needs no PlayerInput event wiring in the scene.
     private InputAction[] toggleMenuActions;
 
@@ -81,6 +88,10 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     {
         if (Instance == this)
             Instance = null;
+
+        // Never leave the game frozen if this is torn down while a modal panel is up.
+        if (modalUiOpen)
+            Time.timeScale = timeScaleBeforeModalUi;
     }
     #endregion
 
@@ -136,7 +147,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         lastKnownMountedState = mounted;
 
         ActionMaps mapForMountState = mounted ? ActionMaps.ControlUnits : ActionMaps.Player;
-        if (menuOpen)
+        if (menuOpen || modalUiOpen)
             mapBeforeMenu = mapForMountState;
         else
             ApplyActionMapSwitch(mapForMountState);
@@ -152,7 +163,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         lastKnownDrivingState = driving;
 
         ActionMaps mapForDrivingState = driving ? ActionMaps.Vehicle : ActionMaps.Player;
-        if (menuOpen)
+        if (menuOpen || modalUiOpen)
             mapBeforeMenu = mapForDrivingState;
         else
             ApplyActionMapSwitch(mapForDrivingState);
@@ -265,6 +276,13 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         // Escape cancels a rebind and is also this action's key; that press must not close the menu under the player.
         if (InputRebinding.IsRebinding || Time.frameCount - InputRebinding.LastRebindEndFrame <= 1) return;
 
+        // Esc / Cancel belongs to the open modal panel, not the pause menu.
+        if (modalUiOpen)
+        {
+            modalUiCancelHandler?.Invoke();
+            return;
+        }
+
         if (menuOpen)
             CloseMenu();
         else
@@ -291,6 +309,38 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         menuOpen = false;
         ApplyActionMapSwitch(mapBeforeMenu);
         GameMenuManager.Instance?.Hide();
+    }
+
+    public bool IsModalUiOpen => modalUiOpen;
+
+    public void OpenModalUi(System.Action onCancel)
+    {
+        if (modalUiOpen || menuOpen || !TryResolvePlayerEntity()) return;
+
+        PlayerActionMap actionMap = entityManager.GetComponentData<PlayerActionMap>(playerEntity);
+        mapBeforeMenu = actionMap.activeActionMap;
+
+        modalUiOpen = true;
+        modalUiCancelHandler = onCancel;
+        timeScaleBeforeModalUi = Time.timeScale;
+        cursorVisibleBeforeModalUi = Cursor.visible;
+        cursorLockBeforeModalUi = Cursor.lockState;
+        Time.timeScale = 0f;
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+        ApplyActionMapSwitch(ActionMaps.Menu);
+    }
+
+    public void CloseModalUi()
+    {
+        if (!modalUiOpen) return;
+
+        modalUiOpen = false;
+        modalUiCancelHandler = null;
+        ApplyActionMapSwitch(mapBeforeMenu);
+        Time.timeScale = timeScaleBeforeModalUi;
+        Cursor.visible = cursorVisibleBeforeModalUi;
+        Cursor.lockState = cursorLockBeforeModalUi;
     }
 
     #endregion

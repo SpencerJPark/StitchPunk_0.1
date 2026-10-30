@@ -828,3 +828,7 @@ Before 2026-10-17 no runtime system ever disabled `ActionRequest`, so every `[Wi
 ## PlayMode test runs swap the open scene (2026-10-29)
 
 `run_tests` in PlayMode leaves the Editor on a temporary `InitTestScene<guid>.unity`. Entering Play mode after it runs an empty world (no Player, no subscene entities), and every singleton query fails. Reload your scene (`manage_scene load`) before any in-scene Play check, and note the subscene is closed again until you reopen it.
+
+## On foot there is no pointer: UI that opens on foot must be modal (2026-10-30)
+
+The virtual cursor (`CursorPlayerInput`/`CursorScreenPosition`) and the Select/Command clicks exist only in the `ControlUnits` action map, i.e. while mounted at the workstation. The Player (on foot) map has no cursor, so a UI Toolkit panel that appears on foot is unclickable and cannot be closed unless it takes over input. `WorkstationMenuUI` gets away with `VirtualCursorUiRouter` only because it is shown while mounted. Anything that can appear on foot (the trade letter) uses `PlayerInputManager.OpenModalUi`, which reuses the pause menu's UI-map mode. Found by the owner in play; the first Phase 2 version routed clicks through the virtual cursor and was dead on foot.

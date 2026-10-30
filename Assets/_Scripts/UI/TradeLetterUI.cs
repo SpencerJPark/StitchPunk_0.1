@@ -17,7 +17,6 @@ public class TradeLetterUI : MonoBehaviour
     private VisualElement offerList;
     private Label footerLabel;
     private Button closeButton;
-    private VirtualCursorPanel cursorPanel;
 
     private EntityQuery boardQuery;
     private EntityQuery clockQuery;
@@ -38,19 +37,21 @@ public class TradeLetterUI : MonoBehaviour
         footerLabel = root.Q<Label>("client-footer");
         closeButton = root.Q<Button>("close-button");
 
-        cursorPanel = new VirtualCursorPanel(letterRoot, () => isShown);
-        cursorPanel.Register();
         lastRenderedSignature = 0u;
     }
 
     private void OnDisable()
     {
         if (isShown)
+        {
             SetClockPaused(false);
+            if (PlayerInputManager.Instance != null)
+                PlayerInputManager.Instance.CloseModalUi();
+        }
         isShown = false;
-        if (cursorPanel != null)
-            cursorPanel.Unregister();
-        cursorPanel = null;
+        if (closeButton != null && closeAction != null)
+            closeButton.clicked -= closeAction;
+        closeAction = null;
     }
 
     private void LateUpdate()
@@ -85,15 +86,23 @@ public class TradeLetterUI : MonoBehaviour
             SetClockPaused(shouldShow);
             lastRenderedSignature = 0u;
             if (shouldShow)
+            {
                 BindCloseButton(entityManager, boardEntity);
+                // The player is on foot, where there is no pointer: borrow the pause menu's mode so the mouse, gamepad
+                // navigation and Esc all work, and the world holds still while the letter is read.
+                if (PlayerInputManager.Instance != null)
+                    PlayerInputManager.Instance.OpenModalUi(closeAction);
+            }
+            else if (PlayerInputManager.Instance != null)
+            {
+                PlayerInputManager.Instance.CloseModalUi();
+            }
         }
 
         if (!isShown)
             return;
 
         Refresh(entityManager, boardEntity);
-        Entity playerEntity = playerQuery.IsEmptyIgnoreFilter ? Entity.Null : playerQuery.GetSingletonEntity();
-        cursorPanel.UpdateHover(entityManager, playerEntity);
     }
 
     private void SetClockPaused(bool paused)
@@ -110,10 +119,10 @@ public class TradeLetterUI : MonoBehaviour
 
     private void BindCloseButton(EntityManager entityManager, Entity boardEntity)
     {
-        cursorPanel.ClearTrackedButtons();
-        closeButton.clicked -= closeAction;
+        if (closeAction != null)
+            closeButton.clicked -= closeAction;
         closeAction = () => entityManager.SetComponentEnabled<TradeLetterOpen>(boardEntity, false);
-        cursorPanel.Track(closeButton, closeAction);
+        closeButton.clicked += closeAction;
     }
 
     private System.Action closeAction;
@@ -134,8 +143,6 @@ public class TradeLetterUI : MonoBehaviour
         lastRenderedSignature = signature;
 
         offerList.Clear();
-        cursorPanel.ClearTrackedButtons();
-        cursorPanel.MapForVirtualCursor(closeButton, closeAction);
 
         int shownCount = 0;
         for (int orderIndex = 0; orderIndex < orders.Length; orderIndex++)
@@ -152,6 +159,10 @@ public class TradeLetterUI : MonoBehaviour
             offerList.Add(MakeLabel("No offers this week.", 15, FontStyle.Italic, MutedInkColor));
 
         footerLabel.text = BuildFooter(relationships);
+
+        // Keyboard and gamepad navigation need something focused to start from.
+        Button firstOfferButton = offerList.Q<Button>();
+        (firstOfferButton != null ? firstOfferButton : closeButton).Focus();
     }
 
     private VisualElement BuildCard(EntityManager entityManager, Entity boardEntity, TradeOrder order)
@@ -234,7 +245,7 @@ public class TradeLetterUI : MonoBehaviour
         button.style.fontSize = 15f;
         button.style.flexGrow = flexGrow;
         button.style.flexBasis = 0f;
-        cursorPanel.Track(button, handler);
+        button.clicked += handler;
         return button;
     }
 

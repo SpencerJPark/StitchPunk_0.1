@@ -387,3 +387,9 @@ All resolved 2026-10-28 (recorded in §11 as TR-D9–TR-D16).
 - **The "ignored letter" penalty (-2) is dropped**: the letter now opens by itself when the pigeon lands, so a letter can no longer be ignored. TR-D12 already ruled out decay.
 - **Tier effects on offers/size/payout were already live from Phase 1** (the roll reads `ClientRelationship.reputation`); Phase 4 only added the thing that lowers it. No new roll code.
 - Fixture **F4 `TradeOrderExpiryTests`** (PlayMode, revert-to-fail proven on the Accepted-only guard). Smoke 2026-10-30: accepted #101 (Army), skipped 5 days, it went Failed, reputation 40 -> 25, `OrderFailed` toast. Same seed re-rolled at Partner (80) gave two Army orders of 4 and 3 units at x1.4 pay (317/246), at Stranger (0) one order of 2 units (130).
+
+### Fix (2026-10-30): the letter was unclickable on foot
+
+- **Owner report:** no way to click the letter's buttons or exit it. Cause: the letter opens on foot, where there is no virtual cursor, no Select click and no pointer (see Gotchas.md).
+- **Now** `TradeLetterUI` calls `PlayerInputManager.OpenModalUi` when it appears: UI action map (real mouse, gamepad/keyboard navigation with the first button focused, Submit), free cursor, world frozen (`timeScale` 0, which also covers TR-D10), and **Esc/Cancel closes the letter**. Closing restores the map, time scale and cursor. The HUD `Letter` button opens with **L** on foot (it still clicks under the virtual cursor while mounted).
+- Verified in Play mode with UI Toolkit navigation events (Accept -> order Accepted, Close -> letter shut, timeScale back to 1, Player map, pigeon leaves). A physical mouse click could not be simulated (the Editor window is not truly focused), so the real-mouse hit-test is unverified; it uses the same panel settings and input map as the working pause/settings menu.

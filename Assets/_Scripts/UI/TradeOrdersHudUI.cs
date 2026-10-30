@@ -1,5 +1,6 @@
 using Unity.Entities;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 // Corner list of accepted orders (red on the due day) plus the button that opens the letter. The button blinks while a pigeon
@@ -107,7 +108,7 @@ public class TradeOrdersHudUI : MonoBehaviour
         }
 
         bool unreadLetterWaiting = PerchedPigeonExists(entityManager);
-        letterButton.text = unreadLetterWaiting ? "Letter (new)" : "Letter";
+        letterButton.text = unreadLetterWaiting ? "Letter (new) [L]" : "Letter [L]";
         letterButton.style.color = unreadLetterWaiting && Mathf.FloorToInt(Time.unscaledTime / BlinkSeconds) % 2 == 0
             ? DueTodayColor
             : new StyleColor(StyleKeyword.Null);
@@ -117,6 +118,10 @@ public class TradeOrdersHudUI : MonoBehaviour
             lastRenderedSignature = signature;
             RebuildOrdersList(orders, clock);
         }
+
+        // On foot there is no pointer for the button, so L opens it (not while a menu has frozen the world).
+        if (letterButtonShown && Time.timeScale > 0f && Keyboard.current != null && Keyboard.current.lKey.wasPressedThisFrame)
+            openLetterAction?.Invoke();
 
         UpdateToast(entityManager, boardEntity, orders);
 
