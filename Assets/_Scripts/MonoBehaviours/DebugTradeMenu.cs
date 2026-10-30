@@ -6,6 +6,7 @@ using UnityEngine;
 // Delete once the pigeon letter UI exists.
 public class DebugTradeMenu : MonoBehaviour
 {
+    private static readonly Rect MenuAreaRect = new Rect(10f, 300f, 560f, 420f);
     private static readonly string[] DayNames = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
 
     [SerializeField] private ClientLibrarySO library;
@@ -13,6 +14,7 @@ public class DebugTradeMenu : MonoBehaviour
     private EntityManager entityManager;
     private EntityQuery clockQuery;
     private EntityQuery boardQuery;
+    private DebugMenuVirtualCursorInput virtualCursorInput;
     private bool worldReady;
     private string rerollSeedText = "12345";
     private Vector2 scrollPosition;
@@ -26,15 +28,27 @@ public class DebugTradeMenu : MonoBehaviour
         entityManager = world.EntityManager;
         clockQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<WorldClock>());
         boardQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<TradeBoard>());
+        virtualCursorInput = new DebugMenuVirtualCursorInput(entityManager, MenuAreaRect, IsMenuShown);
         worldReady = true;
+    }
+
+    private void OnEnable()  => virtualCursorInput?.Register();
+    private void OnDisable() => virtualCursorInput?.Unregister();
+
+    private void Update() => DebugMenuVisibility.PollToggleKey();
+
+    private bool IsMenuShown()
+    {
+        return worldReady && DebugMenuVisibility.AreDebugMenusVisible;
     }
 
     private void OnGUI()
     {
-        if (!worldReady || World.DefaultGameObjectInjectionWorld == null)
+        if (!IsMenuShown() || World.DefaultGameObjectInjectionWorld == null)
             return;
 
-        GUILayout.BeginArea(new Rect(10f, 300f, 560f, 420f), GUI.skin.box);
+        virtualCursorInput.BeginMenuGui();
+        GUILayout.BeginArea(MenuAreaRect, GUI.skin.box);
         GUILayout.Label("Trade (debug)");
 
         if (clockQuery.TryGetSingletonEntity<WorldClock>(out Entity clockEntity))
@@ -57,8 +71,8 @@ public class DebugTradeMenu : MonoBehaviour
         GUILayout.Label($"Week {clock.weekNumber} · {DayNames[Mathf.Clamp(clock.dayOfWeek, 0, 6)]} {minuteOfDay / 60:00}:{minuteOfDay % 60:00}  (day = {clock.secondsPerDay:0} s)");
 
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Skip day")) QueueSkip(clockEntity, 1);
-        if (GUILayout.Button("Skip to next week")) QueueSkip(clockEntity, WorldClockMath.DaysPerWeek - clock.dayOfWeek);
+        if (virtualCursorInput.Button("Skip day")) QueueSkip(clockEntity, 1);
+        if (virtualCursorInput.Button("Skip to next week")) QueueSkip(clockEntity, WorldClockMath.DaysPerWeek - clock.dayOfWeek);
         GUILayout.EndHorizontal();
     }
 
@@ -76,7 +90,7 @@ public class DebugTradeMenu : MonoBehaviour
         GUILayout.BeginHorizontal();
         GUILayout.Label($"Seed {board.worldSeed}  ·  signature {Signature(orders):X8}");
         rerollSeedText = GUILayout.TextField(rerollSeedText, GUILayout.Width(90f));
-        if (GUILayout.Button("Re-roll week with seed") && uint.TryParse(rerollSeedText, out uint rerollSeed))
+        if (virtualCursorInput.Button("Re-roll week with seed") && uint.TryParse(rerollSeedText, out uint rerollSeed))
         {
             entityManager.SetComponentData(boardEntity, new TradeRerollRequest { seed = rerollSeed });
             entityManager.SetComponentEnabled<TradeRerollRequest>(boardEntity, true);
