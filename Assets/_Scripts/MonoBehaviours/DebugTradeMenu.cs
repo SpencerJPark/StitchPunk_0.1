@@ -35,7 +35,7 @@ public class DebugTradeMenu : MonoBehaviour
     private void OnEnable()  => virtualCursorInput?.Register();
     private void OnDisable() => virtualCursorInput?.Unregister();
 
-    private void Update() => DebugMenuVisibility.PollToggleKey();
+    private void Update() => DebugMenuVisibility.PollToggleAction();
 
     private bool IsMenuShown()
     {

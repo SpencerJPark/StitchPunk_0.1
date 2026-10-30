@@ -39,7 +39,7 @@ public class DebugResourceMenu : MonoBehaviour
     private void OnEnable()  => virtualCursorInput?.Register();
     private void OnDisable() => virtualCursorInput?.Unregister();
 
-    private void Update() => DebugMenuVisibility.PollToggleKey();
+    private void Update() => DebugMenuVisibility.PollToggleAction();
 
     private bool IsMenuShown()
     {
@@ -53,7 +53,7 @@ public class DebugResourceMenu : MonoBehaviour
 
         virtualCursorInput.BeginMenuGui();
         GUILayout.BeginArea(MenuAreaRect, GUI.skin.box);
-        GUILayout.Label($"Resources (debug) — press {DebugMenuVisibility.ToggleKey} to hide");
+        GUILayout.Label($"Resources (debug) — {DebugMenuVisibility.ToggleBindingDisplayText} hides");
 
         if (!playerQuery.TryGetSingletonEntity<Player>(out Entity playerEntity))
         {

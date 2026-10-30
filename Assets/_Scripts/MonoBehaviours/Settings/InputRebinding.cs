@@ -20,6 +20,7 @@ public static class InputRebinding
     public const string GamepadGroup = "Gamepad";
 
     private const string UiMapName = "UI";
+    private const string DebugMapName = "Debug";
     private const float RebindTimeoutSeconds = 15f;
 
     private static InputActionAsset asset;
@@ -61,7 +62,7 @@ public static class InputRebinding
 
         foreach (InputActionMap actionMap in asset.actionMaps)
         {
-            if (actionMap.name == UiMapName)
+            if (actionMap.name == UiMapName || actionMap.name == DebugMapName)
                 continue;
 
             foreach (InputAction action in actionMap.actions)
