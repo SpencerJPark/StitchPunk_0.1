@@ -1,7 +1,7 @@
 ---
 tags: [plan, terrain, streaming, nav, tooling]
 related: "[[Editor]], [[Shaders]], [[Systems_Movement]], [[RULES]]"
-status: spikes done, P1-P4 and P3c (procedural base + regions) built 2026-10-30; P3c checkpoint passed headless (3 x 3 mountain, paint survived a regenerate, seams exact); next P5 roads
+status: spikes done, P1-P4, P3c and P5 (spline roads + road graph) built 2026-10-30; P5 checkpoint passed headless (road across a tile border, knot drag rebakes); decal rules on roads wait for P6; next P5b water, P6 decals, P7 scatter
 supersedes: TerrainTiles_System.md (T0/T1 history kept there)
 ---
 

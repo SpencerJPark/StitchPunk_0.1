@@ -77,6 +77,30 @@ public class TerrainTileData : ScriptableObject
         return Mathf.Lerp(lowRow, highRow, fractionZ);
     }
 
+    // Terrain as the road baker needs it: roads carve a delta on top of this, so it must not read that delta back
+    public float HeightExcludingRoadAt(int sampleX, int sampleZ)
+    {
+        int clampedX = Mathf.Clamp(sampleX, 0, HeightSamplesPerSide - 1);
+        int clampedZ = Mathf.Clamp(sampleZ, 0, HeightSamplesPerSide - 1);
+        int index = clampedZ * HeightSamplesPerSide + clampedX;
+        return ValueOrZero(baseHeights, index) + ValueOrZero(handHeightDelta, index) + ValueOrZero(riverHeightDelta, index);
+    }
+
+    public float SampleBilinearExcludingRoad(float worldX, float worldZ)
+    {
+        Vector2 minCorner = WorldMinCorner();
+        float maxLocal = HeightSamplesPerSide - 1;
+        float localX = Mathf.Clamp(worldX - minCorner.x, 0f, maxLocal);
+        float localZ = Mathf.Clamp(worldZ - minCorner.y, 0f, maxLocal);
+        int lowX = Mathf.Min((int)localX, HeightSamplesPerSide - 2);
+        int lowZ = Mathf.Min((int)localZ, HeightSamplesPerSide - 2);
+        float fractionX = localX - lowX;
+        float fractionZ = localZ - lowZ;
+        float lowRow = Mathf.Lerp(HeightExcludingRoadAt(lowX, lowZ), HeightExcludingRoadAt(lowX + 1, lowZ), fractionX);
+        float highRow = Mathf.Lerp(HeightExcludingRoadAt(lowX, lowZ + 1), HeightExcludingRoadAt(lowX + 1, lowZ + 1), fractionX);
+        return Mathf.Lerp(lowRow, highRow, fractionZ);
+    }
+
     public Vector2 WorldMinCorner()
     {
         return new Vector2(coordinate.x * TileSizeMetres - 50f, coordinate.y * TileSizeMetres - 50f);

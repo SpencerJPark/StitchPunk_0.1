@@ -167,3 +167,24 @@
 .terrain-footer-item {
     margin-right: 16px;
 }
+
+.terrain-warning {
+    font-size: 11px;
+    margin-bottom: 8px;
+    color: var(--unity-colors-warning-text, var(--unity-colors-default-text));
+    white-space: normal;
+}
+
+.terrain-list-row {
+    flex-direction: row;
+    align-items: center;
+    height: 24px;
+    margin-bottom: 2px;
+    padding: 0 8px;
+    -unity-text-align: middle-left;
+}
+
+.terrain-list-row--selected {
+    background-color: var(--unity-colors-highlight-background);
+    color: var(--unity-colors-highlight-text);
+}

@@ -28,6 +28,12 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - `TerrainRegion` (persistent scene): bounds are WORLD coordinates (moving the transform does not move the box). `TerrainGenerateTool.Generate` writes only `baseHeights` and the base mask PNG (+ region palette), then composites and rebuilds; it never touches hand, river, road or paint layers, so Hand/Procedural/Mixed behave the same for now. A hand-authored tile is skipped unless confirmed. Generate rail tool + panel in the window.
 - Measured: 9 tiles generate in about 20 s (BC7 reimport, mesh and collider cook each); creating 9 tile scenes takes about 18 s.
 
+## Roads (P5)
+- `TerrainRoad` (SplineContainer + `TerrainRoadProfile` + priority) raises `TerrainRoadEvents.RoadChanged` on spline edit, move, validate and disable. `TerrainRoadBaker` debounces 0.25 s, then per overlapped OPEN tile: rasterise the coverage mask (`TerrainRoadRasterizer`, pure, stamp-based), write `Tile_x_z_RoadMask.png`, carve `roadHeightDelta` (bed = terrain WITHOUT road, smoothed along the road by `heightSmoothingMetres`), Composite, rebuild mesh when heights changed, save the tile scene. Unopened tiles go to `StaleTiles`; `RebakeAllRoads(true)` opens them. Roads panel is the rail tab.
+- `SplineContainer.EvaluatePosition` already returns WORLD space; do not TransformPoint it again.
+- Road graph: `TerrainRoadGraphBuilder` (Utils, pure) merges junctions within 2 m, `TerrainRoadGraphAuthoring` (baker, drop one in the persistent subscene) emits `RoadGraphSingleton`, `RoadGraphQuery.TryFindRoute` (Burst) snaps both ends within 30 m and A*s over nodes. The blob parameter is `ref RoadGraphBlob`: the DOTS source generator rejects `in` (EA0009). The authoring component has NOT been added to CampLoop_Sub yet.
+- Not built yet: decal rules on the road profile (P6), `TerrainRoad` crossing missing tiles only warns.
+
 ## Traps
 - `CopySerialized(newMesh, existingMesh)` overwrites the mesh name; the tile builder re-names the sub-asset right after, or the next Rebuild no longer recognises it and tries to destroy an asset.
 - The Scene view in authoring mode drew a flat plane for tiles whose heights are right (render bounds in Play show the real 81 m mountain); judge height in Play or by data, not by the authoring Scene view.

@@ -5,6 +5,8 @@
         "Unity.Entities",
         "Unity.Entities.Hybrid",
         "Unity.Scenes",
+        "Unity.Splines",
+        "Unity.Splines.Editor",
         "Unity.Scenes.Editor",
         "Unity.Mathematics",
         "Unity.Collections",
