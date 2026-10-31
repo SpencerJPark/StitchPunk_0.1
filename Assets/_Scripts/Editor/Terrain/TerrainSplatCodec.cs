@@ -3,14 +3,6 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-public enum TerrainSplatLayer
-{
-    Dirt,
-    Grass,
-    Forest,
-    Stone
-}
-
 // Pixel work for a tile's splat mask. The mask is the source of truth; the signed-distance
 // field is derived from it and is what the ground material actually samples.
 public static class TerrainSplatCodec

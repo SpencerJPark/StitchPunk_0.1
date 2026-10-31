@@ -27,6 +27,8 @@ public static class TerrainTileBuilder
         if (IsTerrainSubAssetOf(existingMesh, tile))
         {
             EditorUtility.CopySerialized(newMesh, existingMesh);
+            // CopySerialized overwrites the name too, and the sub-asset lookup keys on it
+            existingMesh.name = TerrainMeshName;
             Object.DestroyImmediate(newMesh);
             return existingMesh;
         }
@@ -46,15 +48,15 @@ public static class TerrainTileBuilder
         {
             mesh.name = TerrainMeshName;
             Mesh persistedMesh = FindTerrainSubAsset(tile.tileCoordinate);
-            if (persistedMesh != null)
+            if (persistedMesh == null)
+            {
+                AssetDatabase.AddObjectToAsset(mesh, tileData);
+            }
+            else if (persistedMesh != mesh)
             {
                 EditorUtility.CopySerialized(mesh, persistedMesh);
                 Object.DestroyImmediate(mesh);
                 mesh = persistedMesh;
-            }
-            else
-            {
-                AssetDatabase.AddObjectToAsset(mesh, tileData);
             }
             meshFilter.sharedMesh = mesh;
         }

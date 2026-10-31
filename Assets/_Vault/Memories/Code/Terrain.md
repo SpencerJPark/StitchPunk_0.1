@@ -22,7 +22,15 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - `TerrainTilesPanel`: Painter2D tile map of the world rect (click open, plus cell creates, right click close / select / delete). `TerrainTileCreator.CreateTileScene` makes a tile scene (AutoLoad false) and welds its seam heights to existing neighbours (read from their data assets, so unloaded ones count). Open tiles are remembered in `SessionState` `TerrainEditor.OpenTiles` and reopened after a reload.
 - A clicked rail button can't be driven by a synthetic `ClickEvent`; send `NavigationSubmitEvent` to the Button.
 
+## Procedural base + regions (P3c)
+- `TerrainGenerationProfile` (Data): fbm height layers + `heightRemap`, one mountain (centre, radius, height, profile), `flattenBelowMetres`, ordered biome rules (a passing later rule wins; passes when `noise01 * weight >= threshold` and height and slope are in range). `TerrainSplatLayer` now lives in Data.
+- `TerrainProceduralGenerator` (Editor, pure): noise is sampled in WORLD coordinates (adjacent tiles share edges exactly) and mask slope comes from the analytic height at +-1 m, never from a neighbour tile.
+- `TerrainRegion` (persistent scene): bounds are WORLD coordinates (moving the transform does not move the box). `TerrainGenerateTool.Generate` writes only `baseHeights` and the base mask PNG (+ region palette), then composites and rebuilds; it never touches hand, river, road or paint layers, so Hand/Procedural/Mixed behave the same for now. A hand-authored tile is skipped unless confirmed. Generate rail tool + panel in the window.
+- Measured: 9 tiles generate in about 20 s (BC7 reimport, mesh and collider cook each); creating 9 tile scenes takes about 18 s.
+
 ## Traps
+- `CopySerialized(newMesh, existingMesh)` overwrites the mesh name; the tile builder re-names the sub-asset right after, or the next Rebuild no longer recognises it and tries to destroy an asset.
+- The Scene view in authoring mode drew a flat plane for tiles whose heights are right (render bounds in Play show the real 81 m mountain); judge height in Play or by data, not by the authoring Scene view.
 - A domain reload (any recompile) clears the Undo stack and closes tile subscenes.
 - Sculpt only ever writes `handHeightDelta`. An edge sample exists in 2 (corner: 4) tiles and every copy must hold the same value; `TerrainHeightBrush` computes it once and writes all copies (test: `TerrainHeightBrushTests`).
 - `ConvertToTileScene` closes the new scene with `removeScene`, which destroys the tile GameObject in the editor session; reopen with `SubSceneUtility.EditScene(subScene)`.
