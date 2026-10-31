@@ -11,7 +11,13 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - Editor: see the `Terrain/` row in `Editor.md`. Tile (0,0) lives in its own subscene `Assets/Terrain/Tiles/Tile_0_0/Tile_0_0.unity` (AutoLoad true until P9 streaming), under a `TerrainWorld` object in `CampLoop`.
 - Collider is a legacy `MeshCollider` on the tile (S1: a heightfield is 10x smaller, 76 KB vs 807 KB, but needs a custom baker; deferred).
 
+## Paint (P3)
+- Sources per tile: base mask PNG (hard RGB, opaque), `PaintOverlay.png` (RGB layer colour, A = painted), optional `RoadMask.png`. `TerrainCompositor` (base, then overlay, then road wins; river layer not built) writes the SDF PNG; it never writes a source layer or a height array.
+- Live painting (`Brushes/TerrainPaintBrush`): per-stroke session per tile with its own uncompressed RGBA32 SDF texture on the material (the imported SDF is BC7 and cannot be edited), dirty-rect encode `EncodeSignedDistanceFieldRegion`, PNG + recomposite only on mouse-up. Undo = revision match + saved overlay rect.
+- Mask resolution is per tile (`TerrainTileAssets.MaskResolutionFor`; tile (0,0) stays 512); SDF PNGs are stamped BC7 on first creation, `Compress Selected Tile SDF (BC7)` fixes an old one.
+
 ## Traps
+- A domain reload (any recompile) clears the Undo stack and closes tile subscenes.
 - Sculpt only ever writes `handHeightDelta`. An edge sample exists in 2 (corner: 4) tiles and every copy must hold the same value; `TerrainHeightBrush` computes it once and writes all copies (test: `TerrainHeightBrushTests`).
 - `ConvertToTileScene` closes the new scene with `removeScene`, which destroys the tile GameObject in the editor session; reopen with `SubSceneUtility.EditScene(subScene)`.
 - A hand-built `Unity.Physics.PhysicsWorld` needs `RigidBody.Scale = 1` or every ray misses.

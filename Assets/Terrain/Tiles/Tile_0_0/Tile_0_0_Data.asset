@@ -41001,9 +41001,10 @@ MonoBehaviour:
   - 0
   - 0
   baseMask: {fileID: 0}
-  paintOverlay: {fileID: 0}
+  paintOverlay: {fileID: 2800000, guid: 58c5e6d507cfbd94f8c279c8eb7f36b9, type: 3}
   roadMask: {fileID: 0}
   surfaceOverlay: {fileID: 0}
-  compositeSdf: {fileID: 0}
+  compositeSdf: {fileID: 2800000, guid: 3e92c2a9b676855469189c0face001ba, type: 3}
   handAuthored: 0
-  revision: 2
+  revision: 3
+  compositedRevision: 3

@@ -28,6 +28,9 @@ public class TerrainTileData : ScriptableObject
     public bool handAuthored;
     public int revision;
 
+    [Tooltip("revision the compositor last built compositeSdf from; differs from revision when the tile needs a re-composite")]
+    public int compositedRevision = -1;
+
     public void EnsureHeightArrays()
     {
         if (baseHeights == null || baseHeights.Length != HeightSampleCount)

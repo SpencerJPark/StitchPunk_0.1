@@ -15,7 +15,7 @@ public enum TerrainSplatLayer
 // field is derived from it and is what the ground material actually samples.
 public static class TerrainSplatCodec
 {
-    public const int MaskResolution = 512;
+    public const int FallbackMaskResolution = 256;
 
     // Must stay below the ground material's fringe width; matches PaintedGround's SplatBaker.SdfRange
     public const float SignedDistanceRangeMetres = 4f;
@@ -65,11 +65,41 @@ public static class TerrainSplatCodec
         if (existedBefore) return;
         TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
         if (importer == null) return;
+        if (isSignedDistanceField)
+        {
+            StampSignedDistanceFieldImportSettings(assetPath, resolution);
+            return;
+        }
+
         importer.sRGBTexture = false;
         importer.wrapMode = TextureWrapMode.Clamp;
-        importer.filterMode = isSignedDistanceField ? FilterMode.Bilinear : FilterMode.Point;
+        importer.filterMode = FilterMode.Point;
         importer.mipmapEnabled = false;
         importer.textureCompression = TextureImporterCompression.Uncompressed;
+        importer.SaveAndReimport();
+    }
+
+    // BC7 measured about 0.3 m off the true distance; DXT1/DXT5 were 1.3 m off, so never use those for the SDF.
+    public static void StampSignedDistanceFieldImportSettings(string assetPath, int resolution)
+    {
+        TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+        if (importer == null) return;
+        importer.sRGBTexture = false;
+        importer.wrapMode = TextureWrapMode.Clamp;
+        importer.filterMode = FilterMode.Bilinear;
+        importer.mipmapEnabled = false;
+        importer.isReadable = false;
+        importer.npotScale = TextureImporterNPOTScale.None;
+        importer.textureCompression = TextureImporterCompression.Compressed;
+        importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings
+        {
+            name = "DefaultTexturePlatform",
+            overridden = true,
+            maxTextureSize = Mathf.Max(resolution, 32),
+            format = TextureImporterFormat.BC7,
+            textureCompression = TextureImporterCompression.Compressed,
+            compressionQuality = 100
+        });
         importer.SaveAndReimport();
     }
 
@@ -77,25 +107,68 @@ public static class TerrainSplatCodec
     // 0.5 + signedMetres / (2 * range). 0.5 is the painted border, 1.0 is range metres or more inside.
     public static Color32[] EncodeSignedDistanceField(Color32[] mask, int resolution, float tileSizeMetres)
     {
-        int texelCount = resolution * resolution;
         float texelSizeMetres = tileSizeMetres / resolution;
+        return EncodeSignedDistanceFieldWindow(mask, resolution, new RectInt(0, 0, resolution, resolution), texelSizeMetres);
+    }
+
+    // Re-encodes only the texels an edit can change; sdfInOut must hold the SDF of the mask before the edit.
+    // Texels further than the range from the edit saturate, so a window padded by the range twice is exact.
+    public static void EncodeSignedDistanceFieldRegion(Color32[] mask, int resolution, float tileSizeMetres, RectInt dirtyTexels, Color32[] sdfInOut)
+    {
+        if (dirtyTexels.width <= 0 || dirtyTexels.height <= 0) return;
+
+        float texelSizeMetres = tileSizeMetres / resolution;
+        int padTexels = Mathf.CeilToInt(SignedDistanceRangeMetres / texelSizeMetres) + 2;
+        RectInt outputRect = PaddedAndClamped(dirtyTexels, padTexels, resolution);
+        if (outputRect.width <= 0 || outputRect.height <= 0) return;
+        RectInt windowRect = PaddedAndClamped(outputRect, padTexels, resolution);
+
+        Color32[] windowEncoded = EncodeSignedDistanceFieldWindow(mask, resolution, windowRect, texelSizeMetres);
+        for (int row = outputRect.yMin; row < outputRect.yMax; row++)
+        {
+            for (int column = outputRect.xMin; column < outputRect.xMax; column++)
+            {
+                int windowIndex = (row - windowRect.yMin) * windowRect.width + (column - windowRect.xMin);
+                sdfInOut[row * resolution + column] = windowEncoded[windowIndex];
+            }
+        }
+    }
+
+    static RectInt PaddedAndClamped(RectInt rect, int padTexels, int resolution)
+    {
+        int minX = Mathf.Max(rect.xMin - padTexels, 0);
+        int minY = Mathf.Max(rect.yMin - padTexels, 0);
+        int maxX = Mathf.Min(rect.xMax + padTexels, resolution);
+        int maxY = Mathf.Min(rect.yMax + padTexels, resolution);
+        return new RectInt(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    static Color32[] EncodeSignedDistanceFieldWindow(Color32[] mask, int resolution, RectInt window, float texelSizeMetres)
+    {
+        int width = window.width;
+        int height = window.height;
+        int texelCount = width * height;
         Color32[] encoded = new Color32[texelCount];
         bool[] isInside = new bool[texelCount];
         bool[] isOutside = new bool[texelCount];
 
         for (int channel = 0; channel < 3; channel++)
         {
-            for (int texelIndex = 0; texelIndex < texelCount; texelIndex++)
+            for (int row = 0; row < height; row++)
             {
-                Color32 maskTexel = mask[texelIndex];
-                byte channelValue = channel == 0 ? maskTexel.r : channel == 1 ? maskTexel.g : maskTexel.b;
-                bool insideChannel = channelValue > 127;
-                isInside[texelIndex] = insideChannel;
-                isOutside[texelIndex] = !insideChannel;
+                for (int column = 0; column < width; column++)
+                {
+                    Color32 maskTexel = mask[(window.yMin + row) * resolution + window.xMin + column];
+                    byte channelValue = channel == 0 ? maskTexel.r : channel == 1 ? maskTexel.g : maskTexel.b;
+                    bool insideChannel = channelValue > 127;
+                    int texelIndex = row * width + column;
+                    isInside[texelIndex] = insideChannel;
+                    isOutside[texelIndex] = !insideChannel;
+                }
             }
 
-            float[] distanceFromInsideToBorder = DistanceToNearestFalse(isInside, resolution);
-            float[] distanceFromOutsideToBorder = DistanceToNearestFalse(isOutside, resolution);
+            float[] distanceFromInsideToBorder = DistanceToNearestFalse(isInside, width, height);
+            float[] distanceFromOutsideToBorder = DistanceToNearestFalse(isOutside, width, height);
 
             for (int texelIndex = 0; texelIndex < texelCount; texelIndex++)
             {
@@ -118,33 +191,34 @@ public static class TerrainSplatCodec
     }
 
     // Exact Euclidean distance (in texels) from every true texel to the nearest false texel
-    static float[] DistanceToNearestFalse(bool[] isTrue, int resolution)
+    static float[] DistanceToNearestFalse(bool[] isTrue, int width, int height)
     {
         const float Unreachable = 1e10f;
-        float[] baseCost = new float[resolution];
-        float[] squaredDistance = new float[resolution];
-        int[] parabolaVertices = new int[resolution];
-        float[] parabolaBoundaries = new float[resolution + 1];
+        int longestSide = Mathf.Max(width, height);
+        float[] baseCost = new float[longestSide];
+        float[] squaredDistance = new float[longestSide];
+        int[] parabolaVertices = new int[longestSide];
+        float[] parabolaBoundaries = new float[longestSide + 1];
 
-        float[] rowPass = new float[resolution * resolution];
-        for (int row = 0; row < resolution; row++)
+        float[] rowPass = new float[width * height];
+        for (int row = 0; row < height; row++)
         {
-            int rowStart = row * resolution;
-            for (int column = 0; column < resolution; column++)
+            int rowStart = row * width;
+            for (int column = 0; column < width; column++)
                 baseCost[column] = isTrue[rowStart + column] ? Unreachable : 0f;
-            SquaredDistanceTransform1D(baseCost, resolution, squaredDistance, parabolaVertices, parabolaBoundaries);
-            for (int column = 0; column < resolution; column++)
+            SquaredDistanceTransform1D(baseCost, width, squaredDistance, parabolaVertices, parabolaBoundaries);
+            for (int column = 0; column < width; column++)
                 rowPass[rowStart + column] = squaredDistance[column];
         }
 
-        float[] distance = new float[resolution * resolution];
-        for (int column = 0; column < resolution; column++)
+        float[] distance = new float[width * height];
+        for (int column = 0; column < width; column++)
         {
-            for (int row = 0; row < resolution; row++)
-                baseCost[row] = rowPass[row * resolution + column];
-            SquaredDistanceTransform1D(baseCost, resolution, squaredDistance, parabolaVertices, parabolaBoundaries);
-            for (int row = 0; row < resolution; row++)
-                distance[row * resolution + column] = Mathf.Sqrt(squaredDistance[row]);
+            for (int row = 0; row < height; row++)
+                baseCost[row] = rowPass[row * width + column];
+            SquaredDistanceTransform1D(baseCost, height, squaredDistance, parabolaVertices, parabolaBoundaries);
+            for (int row = 0; row < height; row++)
+                distance[row * width + column] = Mathf.Sqrt(squaredDistance[row]);
         }
 
         return distance;

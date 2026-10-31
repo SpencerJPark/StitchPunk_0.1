@@ -32,3 +32,6 @@ Run through the Unity MCP, 2026-10-30. Each finding is the answer plus the TT-D 
 - Compression, measured as round-trip error in SDF levels (1 level = 0.031 m): **DXT1/DXT5 max error 41 levels = 1.3 m at 256 px, unusable** (visible stepping at borders). **BC7 max 10 levels = 0.3 m at 256 px and 7 levels at 512 px, mean 0.5 levels**, memory 64 KB at 256 px, 256 KB at 512 px.
 - **Decision (TT-D8/D28): the SDF import setting is BC7 (`TextureImporterFormat.BC7`), mipmaps off, set in P3-0.** 256 px tile costs 64 KB resident. Height 4 arrays x 40 KB = 160 KB, tile mesh about 450 KB, so a wilderness tile lands near 0.7 MB, inside the 1.2 MB budget.
 - Not measured: PNG import time and the mesh collider baked size (S1 gives 807 KB).
+
+## S5 follow-up (P3 built)
+- Live paint on tile (0,0) at 512 px, measured through the real brush events: first stamp 215 ms (session creation), later stamps about 15 ms each (region encode plus the whole-texture upload), stroke end 860 ms (PNG + full composite + BC7 reimport). Holds 30 fps; a 1024 px hero tile would need a partial texture upload.

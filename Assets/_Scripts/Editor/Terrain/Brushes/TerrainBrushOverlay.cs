@@ -19,6 +19,7 @@ public static class BrushState
     public static float hardness = 0.5f;
     public static float strength = 0.5f;
     public static TerrainBrushTool activeTool = TerrainBrushTool.None;
+    public static TerrainSplatLayer paintLayer = TerrainSplatLayer.Grass;
 }
 
 [InitializeOnLoad]
@@ -242,5 +243,30 @@ public static class TerrainBrushOverlay
     [MenuItem(MenuRoot + "Noise", true)] static bool ValidateNoise() { return ToolIsActive(MenuRoot + "Noise", TerrainBrushTool.Noise); }
     [MenuItem(MenuRoot + "Ramp")] static void SelectRamp() { SelectTool(TerrainBrushTool.Ramp); }
     [MenuItem(MenuRoot + "Ramp", true)] static bool ValidateRamp() { return ToolIsActive(MenuRoot + "Ramp", TerrainBrushTool.Ramp); }
+    [MenuItem(MenuRoot + "Paint")] static void SelectPaint() { SelectTool(TerrainBrushTool.Paint); }
+    [MenuItem(MenuRoot + "Paint", true)] static bool ValidatePaint() { return ToolIsActive(MenuRoot + "Paint", TerrainBrushTool.Paint); }
+
+    const string PaintLayerRoot = MenuRoot + "Paint Layer/";
+
+    static void SelectPaintLayer(TerrainSplatLayer layer)
+    {
+        BrushState.paintLayer = layer;
+        SceneView.RepaintAll();
+    }
+
+    static bool PaintLayerIsActive(string menuPath, TerrainSplatLayer layer)
+    {
+        Menu.SetChecked(menuPath, BrushState.paintLayer == layer);
+        return true;
+    }
+
+    [MenuItem(PaintLayerRoot + "Dirt")] static void SelectPaintLayerDirt() { SelectPaintLayer(TerrainSplatLayer.Dirt); }
+    [MenuItem(PaintLayerRoot + "Dirt", true)] static bool ValidatePaintLayerDirt() { return PaintLayerIsActive(PaintLayerRoot + "Dirt", TerrainSplatLayer.Dirt); }
+    [MenuItem(PaintLayerRoot + "Grass")] static void SelectPaintLayerGrass() { SelectPaintLayer(TerrainSplatLayer.Grass); }
+    [MenuItem(PaintLayerRoot + "Grass", true)] static bool ValidatePaintLayerGrass() { return PaintLayerIsActive(PaintLayerRoot + "Grass", TerrainSplatLayer.Grass); }
+    [MenuItem(PaintLayerRoot + "Forest")] static void SelectPaintLayerForest() { SelectPaintLayer(TerrainSplatLayer.Forest); }
+    [MenuItem(PaintLayerRoot + "Forest", true)] static bool ValidatePaintLayerForest() { return PaintLayerIsActive(PaintLayerRoot + "Forest", TerrainSplatLayer.Forest); }
+    [MenuItem(PaintLayerRoot + "Stone")] static void SelectPaintLayerStone() { SelectPaintLayer(TerrainSplatLayer.Stone); }
+    [MenuItem(PaintLayerRoot + "Stone", true)] static bool ValidatePaintLayerStone() { return PaintLayerIsActive(PaintLayerRoot + "Stone", TerrainSplatLayer.Stone); }
 }
 #endif

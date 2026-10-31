@@ -29,6 +29,47 @@ public static class TerrainTileAssets
         return FolderOf(coordinate) + "/Tile_" + coordinate.x + "_" + coordinate.y + "_RoadMask.png";
     }
 
+    public static string PaintOverlayPath(Vector2Int coordinate)
+    {
+        return FolderOf(coordinate) + "/Tile_" + coordinate.x + "_" + coordinate.y + "_PaintOverlay.png";
+    }
+
+    // An existing mask file wins so a tile never changes resolution under its own paint.
+    public static int MaskResolutionFor(TerrainTile tile)
+    {
+        string existingMaskPath = MaskPath(tile.tileCoordinate);
+        if (File.Exists(existingMaskPath))
+        {
+            int existingResolution;
+            TerrainSplatCodec.ReadPng(existingMaskPath, out existingResolution);
+            return existingResolution;
+        }
+
+        if (tile.tileData != null && tile.tileData.maskResolution > 0) return tile.tileData.maskResolution;
+        TerrainWorldProfile profile = TerrainWorldProfile.FindInProject();
+        if (profile != null) return profile.defaultMaskResolution;
+        return TerrainSplatCodec.FallbackMaskResolution;
+    }
+
+    public static void StampExistingSignedDistanceFields(TerrainTile tile)
+    {
+        TerrainSplatCodec.StampSignedDistanceFieldImportSettings(SignedDistanceFieldPath(tile.tileCoordinate), MaskResolutionFor(tile));
+    }
+
+    [MenuItem("Stitch Punk/Terrain/Compress Selected Tile SDF (BC7)")]
+    static void CompressSelectedTileSignedDistanceField()
+    {
+        GameObject selectedObject = Selection.activeGameObject;
+        TerrainTile tile = selectedObject != null ? selectedObject.GetComponent<TerrainTile>() : null;
+        if (tile == null)
+        {
+            EditorUtility.DisplayDialog("Terrain", "Select a tile with a TerrainTile component.", "OK");
+            return;
+        }
+
+        StampExistingSignedDistanceFields(tile);
+    }
+
     public static string MaskPath(Vector2Int coordinate)
     {
         return PreferNewUnlessOnlyLegacyExists(NewMaskPath(coordinate), LegacyMaskPath(coordinate));
@@ -101,8 +142,9 @@ public static class TerrainTileAssets
         string maskPath = MaskPath(coordinate);
         if (!File.Exists(maskPath))
         {
-            Color32[] filledMask = TerrainSplatCodec.CreateFilledMask(TerrainSplatCodec.MaskResolution, fillWhenMaskIsNew);
-            TerrainSplatCodec.WritePng(maskPath, filledMask, TerrainSplatCodec.MaskResolution, false);
+            int newMaskResolution = MaskResolutionFor(tile);
+            Color32[] filledMask = TerrainSplatCodec.CreateFilledMask(newMaskResolution, fillWhenMaskIsNew);
+            TerrainSplatCodec.WritePng(maskPath, filledMask, newMaskResolution, false);
         }
 
         tile.splatMask = AssetDatabase.LoadAssetAtPath<Texture2D>(maskPath);
@@ -125,7 +167,8 @@ public static class TerrainTileAssets
         }
 
         tileData.coordinate = coordinate;
-        tileData.maskResolution = tile.splatMask != null ? tile.splatMask.width : TerrainSplatCodec.MaskResolution;
+        tileData.maskResolution = tile.splatMask != null ? tile.splatMask.width : MaskResolutionFor(tile);
+        if (tileData.baseMask == null) tileData.baseMask = tile.splatMask;
         tileData.EnsureHeightArrays();
         EditorUtility.SetDirty(tileData);
 
