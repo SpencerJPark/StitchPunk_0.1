@@ -18,6 +18,7 @@ public partial struct UnitSpawnerSystem : ISystem
     // sees a unit pop in. Larger than CameraVisibilitySystem's paddings on purpose.
     private const float SPAWN_VIEW_PADDING = 10f;
     private const int SPAWN_POSITION_ATTEMPTS = 8;
+    private const float TERRAIN_TILE_SIZE_METRES = 100f;
 
     private EntityQuery _poolQuery;
     private Random _random;
@@ -72,6 +73,8 @@ public partial struct UnitSpawnerSystem : ISystem
         float noSpawnRadius = avoidCameraView ? cameraView.viewRadius + SPAWN_VIEW_PADDING : 0f;
         float noSpawnRadiusSq = noSpawnRadius * noSpawnRadius;
 
+        ComponentLookup<TerrainSpawnMarkerData> markerLookup = SystemAPI.GetComponentLookup<TerrainSpawnMarkerData>(true);
+
         // --- Snapshot the current pool ---
         NativeArray<Entity> pooledEntities    = _poolQuery.ToEntityArray(Allocator.Temp);
         NativeArray<PoolOwner> pooledOwners   = _poolQuery.ToComponentDataArray<PoolOwner>(Allocator.Temp);
@@ -86,6 +89,19 @@ public partial struct UnitSpawnerSystem : ISystem
             int needed          = spawnerCounts[s];
             float3 center       = spawnerPositions[s];
             float range         = spawnerRanges[s];
+
+            // A terrain marker's units are stamped so they can leave with their tile (on-demand) or be counted against the tile budget.
+            bool fromMarker = markerLookup.TryGetComponent(spawnerEntities[s], out TerrainSpawnMarkerData marker);
+            SpawnedByMarker markerStamp = default;
+            if (fromMarker)
+            {
+                markerStamp = new SpawnedByMarker
+                {
+                    markerKey = marker.markerKey,
+                    homeTile = TerrainNavWindowMath.TileCoordinateOf(center, TERRAIN_TILE_SIZE_METRES),
+                    despawnWithTile = !marker.persistent
+                };
+            }
 
             Entity bodyPrefab  = GetBodyPrefabForType(prefabs, targetType);
             
@@ -105,6 +121,10 @@ public partial struct UnitSpawnerSystem : ISystem
                 ecb.RemoveComponent<Disabled>(pooledEntities[i]);
                 ecb.SetComponent(pooledEntities[i], LocalTransform.FromPosition(pos));
                 ecb.SetComponentEnabled<NewlySpawned>(pooledEntities[i], true);
+                // A reclaimed body may still carry the stamp of its previous life.
+                ecb.RemoveComponent<SpawnedByMarker>(pooledEntities[i]);
+                if (fromMarker)
+                    ecb.AddComponent(pooledEntities[i], markerStamp);
                
                 reclaimed.Set(i, true);
                 spawned++;
@@ -119,6 +139,8 @@ public partial struct UnitSpawnerSystem : ISystem
                 Entity newBody = ecb.Instantiate(bodyPrefab);
                 ecb.SetComponent(newBody, LocalTransform.FromPosition(pos));
                 ecb.AddComponent(newBody, new PoolOwner { unitType = targetType });
+                if (fromMarker)
+                    ecb.AddComponent(newBody, markerStamp);
 
                 ecb.SetComponentEnabled<NewlySpawned>(newBody, true);
                 ecb.SetComponentEnabled<ActionRequest>(newBody, true);

@@ -1,4 +1,5 @@
 using Unity.Entities;
+using Unity.Mathematics;
 using UnityEngine;
 
 // Place inside a tile subscene: the terrain spawn system reads the baked data when that tile loads.
@@ -21,14 +22,21 @@ public class TerrainSpawnMarkerAuthoring : MonoBehaviour
         public override void Bake(TerrainSpawnMarkerAuthoring authoring)
         {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);
+            Vector3 position = authoring.transform.position;
             AddComponent(entity, new TerrainSpawnMarkerData
             {
                 unitType = authoring.unitType,
                 count = authoring.count,
                 radiusMetres = authoring.radiusMetres,
                 persistent = authoring.persistent,
-                respawnAfterGameDays = authoring.respawnAfterGameDays
+                respawnAfterGameDays = authoring.respawnAfterGameDays,
+                markerKey = math.hash(new int4(
+                    (int)math.round(position.x * 10f), (int)math.round(position.y * 10f), (int)math.round(position.z * 10f), (int)authoring.unitType))
             });
+            AddComponent(entity, new UnitSpawner { unitType = authoring.unitType, spawnCount = authoring.count, range = authoring.radiusMetres });
+            SetComponentEnabled<UnitSpawner>(entity, false);
+            AddComponent<TerrainSpawnMarkerHandled>(entity);
+            SetComponentEnabled<TerrainSpawnMarkerHandled>(entity, false);
         }
     }
 }
