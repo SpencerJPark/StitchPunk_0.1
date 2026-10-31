@@ -48,7 +48,7 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - Legacy: the 500 camp decals are still plain GameObjects in `CampLoop`.
 
 ## Traps
-- A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter/generator tests now run in their own additive scene; check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.
+- A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter tests run in `EditorSceneManager.NewPreviewScene()` (an additive `NewScene` throws "untitled scene unsaved" because the test runner leaves an untitled scene open); check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.
 - `Assets/_Scripts/Tests/StitchPunk.Tests.asmdef` edits: apply one change at a time and re-validate the JSON; two overlapping edits once corrupted it and the test list silently became empty (0 tests, run "succeeded").
 - `CopySerialized(newMesh, existingMesh)` overwrites the mesh name; the tile builder re-names the sub-asset right after, or the next Rebuild no longer recognises it and tries to destroy an asset.
 - The Scene view in authoring mode drew a flat plane for tiles whose heights are right (render bounds in Play show the real 81 m mountain); judge height in Play or by data, not by the authoring Scene view.
