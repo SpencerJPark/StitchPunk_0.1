@@ -134,6 +134,21 @@ public partial struct AbstractTransitionJob : IJobEntity
         if ((uint)entity.Index % FramesBetweenUnitChecks != frameCounter % FramesBetweenUnitChecks)
             return;
 
+        // A route handed to a live unit (AbstractTravel.BeginRoute) leaves its simulation running; park it like a normal transition.
+        if (abstractSimulationEnabled.ValueRO && movementEnabled.ValueRO)
+        {
+            savedState = new AbstractSavedState
+            {
+                hadMovementEnabled = true,
+                hadGravityEnabled = gravityEnabled.ValueRO,
+                hadUtilityBrainEnabled = utilityBrainEnabled.ValueRO
+            };
+            SwitchSimulationOff(
+                entity, ref movement, movementEnabled, gravityEnabled, pathRequestEnabled,
+                dStarLiteFollowerEnabled, flowFieldFollowerEnabled, utilityBrainEnabled);
+            return;
+        }
+
         if (!abstractSimulationEnabled.ValueRO)
         {
             TryGoAbstract(
@@ -192,6 +207,22 @@ public partial struct AbstractTransitionJob : IJobEntity
         if (TryResolveDestination(in stateMachine, out float3 destination))
             BuildRoute(transform.Position, destination, waypoints, ref route);
 
+        SwitchSimulationOff(
+            entity, ref movement, movementEnabled, gravityEnabled, pathRequestEnabled,
+            dStarLiteFollowerEnabled, flowFieldFollowerEnabled, utilityBrainEnabled);
+        abstractSimulationEnabled.ValueRW = true;
+    }
+
+    private void SwitchSimulationOff(
+        Entity entity,
+        ref Movement movement,
+        EnabledRefRW<Movement> movementEnabled,
+        EnabledRefRW<Gravity> gravityEnabled,
+        EnabledRefRW<PathRequest> pathRequestEnabled,
+        EnabledRefRW<DStarLiteFollower> dStarLiteFollowerEnabled,
+        EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled,
+        EnabledRefRW<UtilityBrain> utilityBrainEnabled)
+    {
         movement.isMoving = false;
         movementEnabled.ValueRW = false;
         gravityEnabled.ValueRW = false;
@@ -202,7 +233,6 @@ public partial struct AbstractTransitionJob : IJobEntity
         utilityBrainEnabled.ValueRW = false;
         if (aStarFollowerLookup.HasComponent(entity))
             aStarFollowerLookup.SetComponentEnabled(entity, false);
-        abstractSimulationEnabled.ValueRW = true;
     }
 
     private void TryGoActive(

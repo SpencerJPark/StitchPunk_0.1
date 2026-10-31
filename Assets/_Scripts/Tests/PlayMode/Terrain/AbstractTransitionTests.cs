@@ -120,6 +120,29 @@ namespace StitchPunk.Tests.PlayMode
         }
 
         [Test]
+        public void ARouteHandedToALiveUnitParksItsSimulationAndKeepsTheRoute()
+        {
+            EntityManager entityManager = testWorld.EntityManager;
+            NativeArray<float3> routePositions = new NativeArray<float3>(2, Allocator.Temp);
+            routePositions[0] = new float3(500f, 0f, 0f);
+            routePositions[1] = float3.zero;
+            EntityCommandBuffer commandBuffer = new EntityCommandBuffer(Allocator.Temp);
+            AbstractTravel.BeginRoute(commandBuffer, unitEntity, in routePositions, UnitSpeedMetresPerSecond, 0.0, AbstractRouteEnd.Stop);
+            commandBuffer.Playback(entityManager);
+            commandBuffer.Dispose();
+            routePositions.Dispose();
+
+            RunOneTurnOfEveryUnit();
+
+            Assert.IsTrue(IsEnabled<AbstractSimulation>());
+            Assert.IsFalse(IsEnabled<Movement>());
+            Assert.IsFalse(IsEnabled<Gravity>());
+            Assert.IsFalse(IsEnabled<UtilityBrain>());
+            Assert.IsTrue(entityManager.GetComponentData<AbstractSavedState>(unitEntity).hadMovementEnabled);
+            Assert.AreEqual(2, entityManager.GetBuffer<AbstractRouteWaypoint>(unitEntity).Length);
+        }
+
+        [Test]
         public void APinnedUnitNeverGoesAbstract()
         {
             testWorld.EntityManager.AddComponent<PinnedActive>(unitEntity);
