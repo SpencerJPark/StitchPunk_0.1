@@ -1,0 +1,246 @@
+#if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+
+public enum TerrainBrushTool { None, Raise, Lower, Smooth, Flatten, Noise, Ramp, Paint }
+
+public struct BrushHit
+{
+    public Vector3 worldPoint;
+    public Vector3 surfaceNormal;
+    public Vector2Int tileCoordinate;
+}
+
+public static class BrushState
+{
+    public static float radiusMetres = 8f;
+    public static float hardness = 0.5f;
+    public static float strength = 0.5f;
+    public static TerrainBrushTool activeTool = TerrainBrushTool.None;
+}
+
+[InitializeOnLoad]
+public static class TerrainBrushOverlay
+{
+    public static event Action<BrushHit, bool> BrushStroke;
+    public static event Action BrushStrokeEnded;
+
+    const float MarchStepMetres = 1f;
+    const float MaxMarchDistanceMetres = 3000f;
+    const int BisectionIterations = 6;
+    const double TileCacheLifetimeSeconds = 0.5;
+
+    static readonly Dictionary<Vector2Int, TerrainTileData> tileDataByCoordinate = new Dictionary<Vector2Int, TerrainTileData>();
+    static double tileCacheBuiltAt = -1000.0;
+    static bool strokeInProgress;
+    static bool hasHit;
+    static BrushHit currentHit;
+
+    static TerrainBrushOverlay()
+    {
+        SceneView.duringSceneGui += OnSceneGui;
+        EditorApplication.hierarchyChanged += InvalidateTileCache;
+    }
+
+    static void InvalidateTileCache()
+    {
+        tileCacheBuiltAt = -1000.0;
+    }
+
+    static void RefreshTileCacheIfStale()
+    {
+        if (EditorApplication.timeSinceStartup - tileCacheBuiltAt < TileCacheLifetimeSeconds) return;
+        tileCacheBuiltAt = EditorApplication.timeSinceStartup;
+        tileDataByCoordinate.Clear();
+        TerrainTile[] tiles = UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Exclude);
+        foreach (TerrainTile tile in tiles)
+        {
+            if (tile.tileData == null) continue;
+            tileDataByCoordinate[tile.tileCoordinate] = tile.tileData;
+        }
+    }
+
+    static bool TryGetGroundHeight(float worldX, float worldZ, out float height)
+    {
+        Vector2Int coordinate = TerrainTile.CoordinateContaining(new Vector3(worldX, 0f, worldZ));
+        TerrainTileData data;
+        if (!tileDataByCoordinate.TryGetValue(coordinate, out data))
+        {
+            height = 0f;
+            return false;
+        }
+        height = data.SampleBilinear(worldX, worldZ) + TerrainTileCreator.GroundTopHeight;
+        return true;
+    }
+
+    static float GroundHeightOrFallback(float worldX, float worldZ, float fallback)
+    {
+        float height;
+        return TryGetGroundHeight(worldX, worldZ, out height) ? height : fallback;
+    }
+
+    static bool IsBelowGround(Vector3 point)
+    {
+        float height;
+        return TryGetGroundHeight(point.x, point.z, out height) && point.y < height;
+    }
+
+    static bool TryRaycastHeightmap(Ray ray, out BrushHit hit)
+    {
+        hit = new BrushHit();
+        if (tileDataByCoordinate.Count == 0) return false;
+
+        for (float distance = MarchStepMetres; distance <= MaxMarchDistanceMetres; distance += MarchStepMetres)
+        {
+            Vector3 point = ray.origin + ray.direction * distance;
+            if (IsBelowGround(point))
+            {
+                float nearDistance = distance - MarchStepMetres;
+                float farDistance = distance;
+                for (int iteration = 0; iteration < BisectionIterations; iteration++)
+                {
+                    float middleDistance = (nearDistance + farDistance) * 0.5f;
+                    if (IsBelowGround(ray.origin + ray.direction * middleDistance)) farDistance = middleDistance;
+                    else nearDistance = middleDistance;
+                }
+                Vector3 hitPoint = ray.origin + ray.direction * farDistance;
+                float hitHeight;
+                if (TryGetGroundHeight(hitPoint.x, hitPoint.z, out hitHeight)) hitPoint.y = hitHeight;
+                hit.worldPoint = hitPoint;
+                hit.surfaceNormal = SurfaceNormalAt(hitPoint);
+                hit.tileCoordinate = TerrainTile.CoordinateContaining(hitPoint);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static Vector3 SurfaceNormalAt(Vector3 point)
+    {
+        float centre = point.y;
+        float heightEast = GroundHeightOrFallback(point.x + 1f, point.z, centre);
+        float heightWest = GroundHeightOrFallback(point.x - 1f, point.z, centre);
+        float heightNorth = GroundHeightOrFallback(point.x, point.z + 1f, centre);
+        float heightSouth = GroundHeightOrFallback(point.x, point.z - 1f, centre);
+        float slopeX = (heightEast - heightWest) * 0.5f;
+        float slopeZ = (heightNorth - heightSouth) * 0.5f;
+        return new Vector3(-slopeX, 1f, -slopeZ).normalized;
+    }
+
+    static Color ColourForTool(TerrainBrushTool tool)
+    {
+        switch (tool)
+        {
+            case TerrainBrushTool.Raise: return Color.green;
+            case TerrainBrushTool.Lower: return Color.red;
+            case TerrainBrushTool.Smooth: return Color.cyan;
+            case TerrainBrushTool.Flatten: return Color.yellow;
+            case TerrainBrushTool.Noise: return Color.magenta;
+            case TerrainBrushTool.Ramp: return new Color(1f, 0.5f, 0f);
+            default: return Color.white;
+        }
+    }
+
+    static void OnSceneGui(SceneView sceneView)
+    {
+        if (Application.isPlaying) return;
+        if (BrushState.activeTool == TerrainBrushTool.None)
+        {
+            strokeInProgress = false;
+            return;
+        }
+
+        Event currentEvent = Event.current;
+        RefreshTileCacheIfStale();
+
+        if (currentEvent.type == EventType.Layout)
+        {
+            HandleUtility.AddDefaultControl(GUIUtility.GetControlID(FocusType.Passive));
+            return;
+        }
+
+        bool pointerEvent = currentEvent.type == EventType.MouseMove
+            || currentEvent.type == EventType.MouseDrag
+            || currentEvent.type == EventType.MouseDown
+            || currentEvent.type == EventType.MouseUp;
+        if (pointerEvent)
+        {
+            Ray ray = HandleUtility.GUIPointToWorldRay(currentEvent.mousePosition);
+            hasHit = TryRaycastHeightmap(ray, out currentHit);
+            if (currentEvent.type == EventType.MouseMove) SceneView.RepaintAll();
+        }
+
+        if (currentEvent.type == EventType.Repaint)
+        {
+            DrawBrush();
+            return;
+        }
+
+        if (currentEvent.button != 0 || currentEvent.alt) return;
+
+        if (currentEvent.type == EventType.MouseDown && hasHit)
+        {
+            strokeInProgress = true;
+            BrushStroke?.Invoke(currentHit, false);
+            currentEvent.Use();
+        }
+        else if (currentEvent.type == EventType.MouseDrag && strokeInProgress)
+        {
+            if (hasHit) BrushStroke?.Invoke(currentHit, true);
+            currentEvent.Use();
+        }
+        else if (currentEvent.type == EventType.MouseUp && strokeInProgress)
+        {
+            strokeInProgress = false;
+            BrushStrokeEnded?.Invoke();
+            currentEvent.Use();
+        }
+    }
+
+    static void DrawBrush()
+    {
+        if (!hasHit) return;
+        Color toolColour = ColourForTool(BrushState.activeTool);
+        Quaternion discRotation = Quaternion.FromToRotation(Vector3.up, currentHit.surfaceNormal);
+        Vector3 normal = currentHit.surfaceNormal;
+        Vector3 centre = currentHit.worldPoint + normal * 0.05f;
+
+        Handles.color = new Color(toolColour.r, toolColour.g, toolColour.b, 0.9f);
+        Handles.DrawWireDisc(centre, normal, BrushState.radiusMetres);
+        Handles.color = new Color(toolColour.r, toolColour.g, toolColour.b, 0.5f);
+        Handles.DrawWireDisc(centre, normal, BrushState.radiusMetres * BrushState.hardness);
+        Handles.DrawLine(centre, centre + discRotation * Vector3.up * 1.5f);
+    }
+
+    static void SelectTool(TerrainBrushTool tool)
+    {
+        BrushState.activeTool = tool;
+        SceneView.RepaintAll();
+    }
+
+    static bool ToolIsActive(string menuPath, TerrainBrushTool tool)
+    {
+        Menu.SetChecked(menuPath, BrushState.activeTool == tool);
+        return true;
+    }
+
+    const string MenuRoot = "Stitch Punk/Terrain/Brush/";
+
+    [MenuItem(MenuRoot + "Off")] static void SelectOff() { SelectTool(TerrainBrushTool.None); }
+    [MenuItem(MenuRoot + "Off", true)] static bool ValidateOff() { return ToolIsActive(MenuRoot + "Off", TerrainBrushTool.None); }
+    [MenuItem(MenuRoot + "Raise")] static void SelectRaise() { SelectTool(TerrainBrushTool.Raise); }
+    [MenuItem(MenuRoot + "Raise", true)] static bool ValidateRaise() { return ToolIsActive(MenuRoot + "Raise", TerrainBrushTool.Raise); }
+    [MenuItem(MenuRoot + "Lower")] static void SelectLower() { SelectTool(TerrainBrushTool.Lower); }
+    [MenuItem(MenuRoot + "Lower", true)] static bool ValidateLower() { return ToolIsActive(MenuRoot + "Lower", TerrainBrushTool.Lower); }
+    [MenuItem(MenuRoot + "Smooth")] static void SelectSmooth() { SelectTool(TerrainBrushTool.Smooth); }
+    [MenuItem(MenuRoot + "Smooth", true)] static bool ValidateSmooth() { return ToolIsActive(MenuRoot + "Smooth", TerrainBrushTool.Smooth); }
+    [MenuItem(MenuRoot + "Flatten")] static void SelectFlatten() { SelectTool(TerrainBrushTool.Flatten); }
+    [MenuItem(MenuRoot + "Flatten", true)] static bool ValidateFlatten() { return ToolIsActive(MenuRoot + "Flatten", TerrainBrushTool.Flatten); }
+    [MenuItem(MenuRoot + "Noise")] static void SelectNoise() { SelectTool(TerrainBrushTool.Noise); }
+    [MenuItem(MenuRoot + "Noise", true)] static bool ValidateNoise() { return ToolIsActive(MenuRoot + "Noise", TerrainBrushTool.Noise); }
+    [MenuItem(MenuRoot + "Ramp")] static void SelectRamp() { SelectTool(TerrainBrushTool.Ramp); }
+    [MenuItem(MenuRoot + "Ramp", true)] static bool ValidateRamp() { return ToolIsActive(MenuRoot + "Ramp", TerrainBrushTool.Ramp); }
+}
+#endif

@@ -3,6 +3,8 @@ tags: [plan, terrain, tooling]
 related: "[[Editor]], [[Shaders]]"
 ---
 
+> **Superseded 2026-10-30 by `Terrain_System.md`** (full architecture, spikes, Sonnet task list). This file stays as the T0/T1 record and the home of TT-D1 to TT-D5.
+
 # Terrain Tiles — painted ground you can author and stream
 
 Open-world goal: the world is a grid of **100 x 100 m tiles**. Tile (x, z) is centred on (x*100, z*100); tile (0,0) is the camp-centred square -50..50. Ground look comes from `Assets/PaintedGround` (world-projected layers, painted turf borders, projected decals). Streaming loads whole tiles.

@@ -1,8 +1,11 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
+using Unity.Scenes;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 // Stitch Punk > Terrain > Create Tile / Adopt Selected Ground As Tile
@@ -11,6 +14,7 @@ public static class TerrainTileCreator
     // Top face of every tile sits here, matching the original CampLoop Ground
     public const float GroundTopHeight = -0.03f;
     const string GroundLayerName = "Ground";
+    const string TerrainWorldRootName = "TerrainWorld";
 
     public static TerrainTile FindTileAt(Vector2Int coordinate)
     {
@@ -93,6 +97,76 @@ public static class TerrainTileCreator
         tile.tileCoordinate = coordinate;
         TerrainTileAssets.EnsureAssets(tile, TerrainSplatLayer.Grass);
         EditorSceneDirty(groundObject);
+    }
+
+    [MenuItem("Stitch Punk/Terrain/Convert Selected Tile To Subscene")]
+    static void ConvertSelectedTileToSubscene()
+    {
+        TerrainTile tile = Selection.activeGameObject != null ? Selection.activeGameObject.GetComponent<TerrainTile>() : null;
+        if (tile == null)
+        {
+            EditorUtility.DisplayDialog("Terrain", "Select a terrain tile.", "OK");
+            return;
+        }
+        ConvertToTileScene(tile);
+    }
+
+    // autoLoadScene stays true only until tile streaming exists in a later phase
+    public static SubScene ConvertToTileScene(TerrainTile tile, bool autoLoadScene = true)
+    {
+        string scenePath = TerrainTileAssets.TileScenePath(tile.tileCoordinate);
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) != null)
+        {
+            Debug.LogWarning("[Terrain] A tile scene already exists at " + scenePath + "; not overwriting.", tile);
+            return null;
+        }
+
+        EnsureFolderExistsForAsset(TerrainTileAssets.FolderOf(tile.tileCoordinate));
+
+        Scene originalScene = tile.gameObject.scene;
+        Scene tileScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+        tile.transform.SetParent(null, true);
+        SceneManager.MoveGameObjectToScene(tile.gameObject, tileScene);
+        EditorSceneManager.SaveScene(tileScene, scenePath);
+        EditorSceneManager.CloseScene(tileScene, true);
+        if (originalScene.IsValid()) EditorSceneManager.MarkSceneDirty(originalScene);
+
+        Scene activeScene = SceneManager.GetActiveScene();
+        GameObject worldRoot = null;
+        foreach (GameObject rootObject in activeScene.GetRootGameObjects())
+        {
+            if (rootObject.name == TerrainWorldRootName)
+            {
+                worldRoot = rootObject;
+                break;
+            }
+        }
+        if (worldRoot == null)
+        {
+            worldRoot = new GameObject(TerrainWorldRootName);
+            Undo.RegisterCreatedObjectUndo(worldRoot, "Create TerrainWorld");
+        }
+
+        GameObject subSceneObject = new GameObject("Tile_" + tile.tileCoordinate.x + "_" + tile.tileCoordinate.y);
+        Undo.RegisterCreatedObjectUndo(subSceneObject, "Create Tile Subscene");
+        subSceneObject.transform.SetParent(worldRoot.transform, false);
+        SubScene subScene = subSceneObject.AddComponent<SubScene>();
+        subScene.SceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath);
+        subScene.AutoLoadScene = autoLoadScene;
+        EditorSceneManager.MarkSceneDirty(activeScene);
+        return subScene;
+    }
+
+    static void EnsureFolderExistsForAsset(string folderPath)
+    {
+        string[] segments = folderPath.Split('/');
+        string builtPath = segments[0];
+        for (int index = 1; index < segments.Length; index++)
+        {
+            string nextPath = builtPath + "/" + segments[index];
+            if (!AssetDatabase.IsValidFolder(nextPath)) AssetDatabase.CreateFolder(builtPath, segments[index]);
+            builtPath = nextPath;
+        }
     }
 
     static void EditorSceneDirty(GameObject tileObject)

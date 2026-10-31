@@ -15,6 +15,12 @@ public class TerrainTile : MonoBehaviour
     [Tooltip("Signed-distance encode of the mask; this is what the ground material samples")]
     public Texture2D splatSignedDistanceField;
 
+    [Tooltip("Source layers (heights, paint, roads). Null on a tile that predates the data foundation")]
+    public TerrainTileData tileData;
+
+    [Tooltip("Layer textures and fringe for this tile's ground material")]
+    public TerrainPalette palette;
+
     public static Vector2 CenterOfTile(Vector2Int coordinate)
     {
         return new Vector2(coordinate.x * TileSizeMetres, coordinate.y * TileSizeMetres);
