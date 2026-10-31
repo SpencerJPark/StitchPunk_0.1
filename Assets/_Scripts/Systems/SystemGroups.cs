@@ -1,6 +1,7 @@
 using DotsAnimationToolkit;
 using DotsMovementToolkit;
 using Unity.Entities;
+using Unity.Physics.Systems;
 
 // ============================================================================================
 // SystemGroups.cs — the single manifest for every StitchPunk ComponentSystemGroup.
@@ -37,7 +38,7 @@ public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 
 // --------------------------------------------------------------------------------------------
 // SimulationSystemGroup pipeline:
-// GameManager → WorldTime → Player → Cutscene → UtilityAI → MinionActionSelection → ActionSelection → StateMachine → CrowdLife → Item
+// GameManager → WorldTime → Terrain → Player → Cutscene → UtilityAI → MinionActionSelection → ActionSelection → StateMachine → CrowdLife → Item
 //   → Movement → Buildings → Trade → PlayerResource → Combat → Health → Design → Animation
 // (Adjacent edges below are asserted by SystemGroupOrderTests — keep them explicit.)
 // --------------------------------------------------------------------------------------------
@@ -49,8 +50,15 @@ public partial class GameManagerSystemGroup : ComponentSystemGroup { }
 [UpdateBefore(typeof(PlayerSystemGroup))]
 public partial class WorldTimeSystemGroup : GameSceneSystemGroup { }
 
+// Tile streaming and the abstract (off-screen) unit tier. Early so a unit that materialises this frame is already active for
+// AI and movement, and so tile loads are decided from the focus position before anything moves it.
 [UpdateInGroup(typeof(SimulationSystemGroup))]
 [UpdateAfter(typeof(WorldTimeSystemGroup))]
+[UpdateBefore(typeof(PlayerSystemGroup))]
+public partial class TerrainSystemGroup : GameSceneSystemGroup { }
+
+[UpdateInGroup(typeof(SimulationSystemGroup))]
+[UpdateAfter(typeof(TerrainSystemGroup))]
 [UpdateBefore(typeof(UtilityAISystemGroup))]
 public partial class PlayerSystemGroup : GameSceneSystemGroup { }
 
@@ -222,6 +230,12 @@ public partial class SoundSystemGroup : GameSceneSystemGroup { }
 
 [UpdateInGroup(typeof(LateSimulationSystemGroup))]
 public partial class DespawnSystemGroup : GameSceneSystemGroup { }
+
+// Tile scene load/unload, inside the fixed step right before physics rebuilds. Unloading releases the tile's collider blob, and the
+// physics world is only rebuilt on a fixed step, so unloading anywhere else leaves a stale world that ray casts (UnitGravityJob) read freed blobs from.
+[UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
+[UpdateBefore(typeof(PhysicsSystemGroup))]
+public partial class TerrainStreamingSystemGroup : GameSceneSystemGroup { }
 
 // Runs last in LateSimulationSystemGroup — all spawns, despawns, and game logic are settled.
 [UpdateInGroup(typeof(LateSimulationSystemGroup), OrderLast = true)]

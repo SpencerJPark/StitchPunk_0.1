@@ -20,6 +20,7 @@ namespace StitchPunk.Tests
         {
             typeof(GameManagerSystemGroup),
             typeof(WorldTimeSystemGroup),
+            typeof(TerrainSystemGroup),
             typeof(PlayerSystemGroup),
             typeof(CutsceneSystemGroup),
             typeof(UtilityAISystemGroup),
@@ -51,6 +52,7 @@ namespace StitchPunk.Tests
         // Every nested group and the parent it must declare via [UpdateInGroup].
         private static readonly Dictionary<Type, Type> ChildToParent = new Dictionary<Type, Type>
         {
+            { typeof(TerrainStreamingSystemGroup),    typeof(FixedStepSimulationSystemGroup) },
             { typeof(PlayerInputSystemGroup),         typeof(PlayerSystemGroup) },
             { typeof(WorkstationInputSystemGroup),    typeof(PlayerSystemGroup) },
             { typeof(TradeInputSystemGroup),          typeof(PlayerSystemGroup) },

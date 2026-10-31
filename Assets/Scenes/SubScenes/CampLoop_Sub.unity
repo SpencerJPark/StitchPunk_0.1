@@ -2696,6 +2696,72 @@ Transform:
   - {fileID: 481433714}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1095994294
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1095994296}
+  - component: {fileID: 1095994295}
+  m_Layer: 0
+  m_Name: TerrainStreaming
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1095994295
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1095994294}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63e00d3ab14041a418d90c999220c8b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::TerrainWorldAuthoring
+  loadRadiusTiles: 1
+  unloadRadiusTiles: 2
+  maxLoadsPerFrame: 1
+  tiles:
+  - coordinate: {x: -1, y: -1}
+    sceneGuid: 01eab5ae42255fd4e8b2c9ca2673f42b
+  - coordinate: {x: 0, y: -1}
+    sceneGuid: 39fd564e606031041b3bbe032795c554
+  - coordinate: {x: 1, y: -1}
+    sceneGuid: f5d6847d4be443f4dbf8ac84adf9c5a9
+  - coordinate: {x: -1, y: 0}
+    sceneGuid: 5c6361798f2b4834d9b7b7474078ef52
+  - coordinate: {x: 0, y: 0}
+    sceneGuid: 6e66ebfb80c540a4fabf939e9ffc5d83
+  - coordinate: {x: 1, y: 0}
+    sceneGuid: 96da512452d148641b13ea88b59603f5
+  - coordinate: {x: -1, y: 1}
+    sceneGuid: 459db14f759d87c498090fcc2b44f700
+  - coordinate: {x: 0, y: 1}
+    sceneGuid: b63dc52d6691d7e4b959f7ba16d04b44
+  - coordinate: {x: 1, y: 1}
+    sceneGuid: edfaa871052fc4d4e80604736ae7ebea
+--- !u!4 &1095994296
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1095994294}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1101823223
 GameObject:
   m_ObjectHideFlags: 0
@@ -5389,3 +5455,4 @@ SceneRoots:
   - {fileID: 1119806681}
   - {fileID: 1744145108}
   - {fileID: 1038563630}
+  - {fileID: 1095994296}
