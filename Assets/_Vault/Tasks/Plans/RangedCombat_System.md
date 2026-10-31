@@ -17,7 +17,7 @@
 | RC-D5 | **How humans get guns:** they spawn holding one (a new `UnitSO` starting-weapon field, equipped at spawn) or pick one up from the world. v1 places guns in the CampLoop camp for a few bandits. | Owner |
 | RC-D6 | **A gun is a weapon option in the existing grab.** ItemAwareness' EquipWeapon (pre- and mid-fight) considers guns alongside rocks. When several are in reach, the unit takes the one with the highest `ItemSO.aiWeaponValue` (gun > rock), with distance breaking ties. | Owner → recorded |
 | RC-D7 | **The hit test is a swept XZ segment against unit radii**, not a point-distance check and not Unity.Physics. At 25 m/s a bullet moves ~0.4 m per frame, so a point test would tunnel through units. The rock path moves onto the same test. | Recorded |
-| RC-D8 | **Friendly hits make no `ThreatEntry`** (unchanged rule), so allies don't start infighting over a stray shot; the damage still lands. | Recorded |
+| RC-D8 | **For H5 only:** a friendly hit makes no `ThreatEntry`; the damage still lands. **Superseded by `DamageReaction_System.md`** (owner 2026-10-31): friendly hits go through the same fight/flee/help/forgive appraisal, damped by grudges. | Recorded → superseded |
 | RC-D9 | **Firing is a `Shoot` module:** a ShootAwareness option at `Critical` (like Throw) when holding a gun with the target in [min, max]. ShootBehaviour runs `RequestShoot` → Wait(gun cooldown) (no face-target command yet, same gap as Throw). Keep Range reuses the gun's AI min/max range unchanged. | Recorded |
 | RC-D10 | **Out of v1:** ammo, reload animation, arcs, piercing, homing, the player gun. | SH §8 |
 
