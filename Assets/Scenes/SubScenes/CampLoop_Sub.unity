@@ -3732,10 +3732,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e2f12f7ccd6f7b74eba7fd375f3a4a15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: DotsMovementToolkit.Authoring::DotsMovementToolkit.Authoring.GridConfigAuthoring
-  width: 100
-  height: 100
+  width: 500
+  height: 500
   layerCount: 1
-  cellSize: 2
+  cellSize: 1
   layerHeight: 3
   centerGridOnThisTransform: 1
   wallLayerMask:
@@ -3752,6 +3752,7 @@ MonoBehaviour:
   defaultCost: 1
   crowdFlowFieldThreshold: 8
   crowdTargetRadius: 4
+  externalCostRegions: 1
   debugDisplayMode: 2
   debugLayerToDraw: 0
   debugHeightOffset: 0.05
@@ -4083,13 +4084,28 @@ PrefabInstance:
     - {fileID: 8531026633397421860, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6406896981973988313, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1794040444}
   m_SourcePrefab: {fileID: 100100000, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
 --- !u!1 &1794040443 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6406896981973988313, guid: 046ffd801a0dda547bfbcc039c7f6e75, type: 3}
   m_PrefabInstance: {fileID: 1794040442}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1794040444
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1794040443}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bda9327391a8a40468d94385f758701d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::TerrainNavFocusAuthoring
 --- !u!1 &1800981998
 GameObject:
   m_ObjectHideFlags: 0
