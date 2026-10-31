@@ -7,7 +7,7 @@ area: AI
 
 # Damage Reaction System — fight, flee, retreat, help or forgive
 
-> **Status:** 📝 spec drafted 2026-10-31. **Four owner product calls are open (DR-Q1–Q4, §9).** Architecture calls DR-D1–D10 are recorded. Build after SmartHumanAI H5; this spec **replaces RC-D8** ("friendly hits make no ThreatEntry").
+> **Status:** ✅ spec ready 2026-10-31. Owner calls DR-Q1–Q4 settled (§9). Architecture calls DR-D1–D10 are recorded. Build after SmartHumanAI H5; this spec **replaces RC-D8** ("friendly hits make no ThreatEntry").
 > **Read first:** `Memories/Code/Systems_AI.md` (tiers, SelfDefence/Flee/Retreat/AllyAlert, Living Humans), `SmartHumanAI_H4_System.md`, `RangedCombat_System.md` §0.
 > **Absorbs:** AF-P6 (perception cache) and `CrowdScaleAwareness_System.md` for the "who is near me" queries this needs.
 
@@ -65,7 +65,7 @@ Their hard thresholds become appraisal inputs. The tiers stay: the response maps
 
 **3.5 Friendly fire, with a damper.**
 - A friendly hit adds to a per-ally `Grudge { Entity ally; float score; double lastHitTime; }` buffer. A deliberate hit adds 1.0 and an accidental one 0.35 (the attacker was targeting someone else). Grudges decay at 0.1/s.
-- Below 1, Forgive dominates (glare/curse emote via the existing emote pool). Between 1 and 2, Brawl wins: the existing non-lethal 35 % clamp, a fistfight. Above 2, if deliberate, it becomes a hostile ThreatEntry and a lethal Fight, per DR-Q3.
+- Below 1, Forgive dominates (glare/curse emote via the existing emote pool). Between 1 and 2, Brawl wins: the existing non-lethal 35 % clamp, a fistfight. Above 2 it becomes a hostile ThreatEntry and a lethal Fight, whether the hits were deliberate or accidental (DR-Q3).
 - Temper and drink shift those thresholds down.
 
 **3.6 Commitment.** A chosen response holds for at least `committedUntil` (2 s). It can be dropped early only on a large change: a health drop of ≥ 20 %, a new attacker, or the target dying. This keeps fight/flee flip-flopping out of the tier system.
@@ -104,7 +104,7 @@ Their hard thresholds become appraisal inputs. The tiers stay: the response maps
 ## 7. Tests
 
 - An appraisal with fitted curves picks the same response as today's Flee/Retreat formulas across a grid of health × bravery.
-- A friendly accidental hit → Forgive; a second and third deliberate hit → Brawl, then Fight (DR-Q3).
+- A friendly accidental hit → Forgive; repeated hits → Brawl, then a lethal Fight once the grudge passes 2, including from accidents alone (DR-Q3); decay over 20 s resets it.
 - A witness within 8 m of an attack gets a WitnessedAttack; a brave armed witness picks DefendOther, a coward picks Flee.
 - The commitment window holds a response for 2 s unless health drops by ≥ 20 %.
 
@@ -114,9 +114,11 @@ Their hard thresholds become appraisal inputs. The tiers stay: the response maps
 - **Tuning debt:** curves replace 4 hand formulas. Phase 2 therefore fits them to today's behaviour first.
 - **Cost:** witness fan-out on mass melee. It's capped at N witnesses per event (8) and only humans witness.
 
-## 9. Open owner decisions ← DECISION
+## 9. Owner decisions (settled 2026-10-31)
 
-- [ ] **DR-Q1: How readily do citizens help?** *Recommended:* citizens step in only when armed, or brave (> 0.6) with the victim a conversation partner; otherwise they CallHelp (run for a guard) or Flee. Bandits and guards help readily.
-- [ ] **DR-Q2: Is the necro a special attacker?** *Recommended:* yes, "dread". Being hit by the player or a zombie raises Flee and CallHelp for citizens; bandits treat it as a normal enemy.
-- [ ] **DR-Q3: Can friendly fire turn lethal?** *Recommended:* only after repeated **deliberate** hits (grudge > 2). Accidents top out at a brawl.
-- [ ] **DR-Q4: Who gets the system?** *Recommended:* every human (citizens, bandits, guards). Zombies and minions are excluded (DR-D7).
+| Id | Decision |
+|---|---|
+| DR-Q1 | **Citizens help often if they're brave enough.** A citizen with bravery above ~0.5 can pick DefendOther whether or not it's armed. Being unarmed lowers the score but doesn't rule it out, and the less brave CallHelp or Flee. Bandits and guards help readily. Expect lively mobs; the witness cap (8 per event) and "witnesses of a brawl don't DefendOther" keep riots bounded. |
+| DR-Q2 | **Citizens dread the necro.** Being hit by the player or a zombie raises Flee and CallHelp for citizens (an "attacker is necro/undead" consideration on the citizen profile). Bandits treat you as a normal enemy. |
+| DR-Q3 | **Enough accidents can turn lethal.** It isn't limited to deliberate hits: once a grudge passes 2, the ally becomes a hostile ThreatEntry and a lethal Fight, however the hits happened. Accidents still add less (0.35 against 1.0), and grudges decay at 0.1/s, so it takes several accidental hits close together (about 6 within ~20 s). Brawl (1–2) is the usual outcome. Baiting enemies into hitting each other repeatedly is a real way to break a camp. |
+| DR-Q4 | **All humans** (citizens, bandits, guards). Zombies and minions are excluded (DR-D7). |
