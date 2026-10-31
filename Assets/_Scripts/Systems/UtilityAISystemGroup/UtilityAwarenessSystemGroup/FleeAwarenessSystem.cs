@@ -22,6 +22,12 @@ public partial struct FleeAwarenessSystem : ISystem
     public const float BREAK_OFF_THRESHOLD    = 0.35f; // (1 − health) × (1 − bravery) must exceed
     public const float LOW_HEALTH_THRESHOLD   = 0.6f;  // flee is never offered above this ratio (legacy low bracket)
 
+    // The one break-off rule; RetreatAwarenessSystem skips any unit this holds for, so cowards flee and brave units retreat (H4-D8).
+    public static bool WouldBreakOffToFlee(float healthRatio, float bravery)
+    {
+        return healthRatio < CRITICAL_HEALTH && (1f - healthRatio) * (1f - bravery) > BREAK_OFF_THRESHOLD;
+    }
+
     private ComponentLookup<Dead>           _deadLookup;
     private ComponentLookup<LocalTransform> _transformLookup;
 
@@ -147,8 +153,7 @@ public partial struct FleeAwarenessJob : IJobEntity
         // priority 0 → scoring promotes to the FleeAction actionDef's tier (3); the critical
         // break-off bump outranks an active fight so a hurt coward disengages mid-combat.
         int priority = 0;
-        bool breakOff = healthRatio < FleeAwarenessSystem.CRITICAL_HEALTH
-            && (1f - healthRatio) * (1f - bravery) > FleeAwarenessSystem.BREAK_OFF_THRESHOLD;
+        bool breakOff = FleeAwarenessSystem.WouldBreakOffToFlee(healthRatio, bravery);
         if (breakOff)
             priority = FleeAwarenessSystem.FLEE_CRITICAL_PRIORITY;
 

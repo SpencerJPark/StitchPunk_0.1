@@ -17,6 +17,7 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<ActionRequest>(entity, active);
         // Every brain gets a ThinkRate (AF-D8); interval <= 0 keeps every-frame thinking.
         baker.AddComponent(entity, new ThinkRate { interval = unitSo.thinkInterval, timeUntilNextThink = -1f }); // -1 = stagger on first run
+        baker.AddComponent(entity, new TacticsCooldown());
         if (unitSo.alertRadius > 0f)
             baker.AddComponent(entity, new RaiseAlarm { radius = unitSo.alertRadius });
         baker.AddComponent<AllyAlert>(entity);

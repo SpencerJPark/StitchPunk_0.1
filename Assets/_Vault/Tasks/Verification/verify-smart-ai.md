@@ -18,6 +18,13 @@ Scene: `Assets/Scenes/CampLoop.unity`. Re-enter Play mode so the subscene rebake
 - [ ] A rock that hits a fellow bandit does nothing; one that hits a citizen or zombie makes it react to the thrower.
 - [ ] Player throws (aim + attack) still fly. They were silently broken before this pass because items lacked PlayerInteractable.
 
+## H4: tactics (CampLoop, rebake first)
+- [ ] Walk right up to a rock-holding bandit (under 3 m). It runs back about 5–6 m, then throws. Several throwers spread out instead of stacking.
+- [ ] It backs off at most once every ~4 s. Chasing it doesn't make it run backwards forever.
+- [ ] Hurt a bandit below ~35 % and stand back (over 3 m). It runs to a camp bandage by the supply crate and heals.
+- [ ] Hurt a bandit below 30 % with two zombies on it and other bandits at the camp. It runs to them, then fights again alongside them.
+- [ ] A cowardly hurt bandit still flees as before; it doesn't retreat.
+
 ## Known gaps
 - No throw lead and no face-target command, so throws aim at where you were.
 - Zombies still think every frame (H6 sets their interval).

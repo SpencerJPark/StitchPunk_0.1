@@ -306,8 +306,15 @@ WaitForClipFinished(Action) → RequestPickup → StopAnimation`) → item gets 
 ## Think rate, alarm and AI throws (SmartHumanAI H2/H3, 2026-10-17)
 - `ThinkScheduleSystem` (UtilityMotivation, OrderFirst) owns `ActionRequest`. **Every brain unit bakes a `ThinkRate` since AF-D8** (`interval <= 0` = every frame, which zombies keep until SmartHumanAI H6). Busy units think every `interval`; idle units think the frame they become idle, then every `min(interval, ThinkRate.IDLE_THINK_INTERVAL = 0.1s)`, not every frame. Request-gated awareness therefore runs at ~4 Hz for humans. Ungated systems (SelfDefence, Flee, GuardPost, AllyAlert response) still run every frame; the rule for staying ungated is O(own threats) cheap AND must react mid-behaviour. Force a re-think with `timeUntilNextThink = 0`.
 - `AllyAlertSystem` runs after Enemy/SelfDefence and before GuardPost: RaiseAlarm spotters broadcast an `AllyAlert`, and alerted allies emit attacks at priority 3.
-- **Priority 4 is now shared** by critical flee, the mid-fight weapon grab (ItemAwareness) and Throw (ThrowAwareness). The GuardPost leash at 5 still beats all of them.
+- **Priority 4 is now shared** by critical flee, the mid-fight weapon grab (ItemAwareness), Throw (ThrowAwareness) and the three H4 tactics below. The GuardPost leash at 5 still beats all of them.
 - `RequestThrow` command → `AiThrowRequest` → `AiThrowItemSystem` (ItemEquip group, before ItemEquip) → the existing `ThrownItemSystem`/`ThrownItemHitSystem`.
+
+## Tactics: Keep Range, Heal When Hurt, Retreat (SmartHumanAI H4, 2026-10-31)
+Spec: `Tasks/Plans/SmartHumanAI_H4_System.md` (H4-D1–D10). All three are awareness options at `Critical`, using no new commands or groups.
+- **Keep Range** (`ThrowAwarenessSystem`): a throwable holder whose target is inside `aiThrowMinRange` gets `ActionType.KeepRange` to a point at `lerp(min, max, 0.3)` from the target. The point is fanned ±40° by entity index and clamped to 0.8 × leash for guards. `TacticsCooldown.keepRangeReadyAtSeconds` (4 s, baked on every brain) stops endless kiting. It never coexists with Throw: below vs at/above min range.
+- **Heal When Hurt** (`ItemAwarenessSystem`): UseHealingItem goes Ambient → Critical when in combat, below 35 % HP, the item ≤ 8 m away and no live hostile within 3 m.
+- **Retreat** (`RetreatAwarenessSystem`, after Flee, before GuardPost, ActionRequest-gated): below 30 % HP, in danger, and hostiles within 10 m > allies within 10 m. The unit goes to the nearest ally ≥ 3 m safer from the nearest hostile, plus a formation slot, else the guard anchor. It skips any unit for which `FleeAwarenessSystem.WouldBreakOffToFlee` holds: cowards flee, brave units retreat.
+- KeepRange/Retreat are **not** `IsCombatAction` (the leash never strips them) and not Wander (GuardPost would read a Wander to the anchor as the leash walk home). Modules are on BanditBrain only.
 
 ## Living Humans: personality, conversation emotes, drunk behaviour (2026-10-20)
 Spec: `Tasks/Verification/LivingHumans_System.md` (LH-D1–D18). Only units with `UnitSO.hasLivingPersonality` (MaleCitizen, Bandit) get the components; zombies get none.

@@ -7,7 +7,8 @@ using Unity.Transforms;
 // Aware of loose items nearby and what they offer (weapon vs consumable).
 // Appends ActionOption entries; never touches action tags or requests.
 //   - Threatened + unarmed -> seek nearest Weapon item (SelfDefence, priority 2).
-//   - Hurt (health < 100%) -> seek nearest Consumable with EffectType.Healing (SelfPreservation, priority 0).
+//   - Hurt (health < 100%) -> seek nearest Consumable with EffectType.Healing (SelfPreservation, priority 0;
+//                             Critical mid-fight when badly hurt, item close and no hostile in arm's reach).
 //   - Nothing urgent       -> seek nearest Consumable with EffectType.Feed/Hydrate, gated by need (priority 0).
 // Consumable effects are resolved via EffectLibraryBlob — EffectType decides the slot, behaviours[0] the motivation.
 // Loose items are those with EquipBy.owner == Entity.Null; registered in SpatialHashRegistry.itemCells each frame.
@@ -21,12 +22,17 @@ public partial struct ItemAwarenessSystem : ISystem
     public const float BASE_MID_FIGHT_GRAB_MAX_DISTANCE = 6f;
     public const float MELEE_REACH_FOR_GRAB        = 2.5f;
     public const int   MID_FIGHT_GRAB_PRIORITY     = AIPriorityTier.Critical;
+    public const float HEAL_IN_COMBAT_HEALTH_RATIO         = 0.35f;
+    public const float HEAL_IN_COMBAT_MAX_ITEM_DISTANCE    = 8f;
+    public const float HEAL_IN_COMBAT_MIN_HOSTILE_DISTANCE = 3f;
+    public const int   HEAL_IN_COMBAT_PRIORITY             = AIPriorityTier.Critical;
 
     private ComponentLookup<UnitEquip>     _unitEquipLookup;
     private ComponentLookup<Item>          _itemLookup;
     private ComponentLookup<EquipBy>       _equipByLookup;
     private ComponentLookup<ThrownItemRequest> _thrownItemRequestLookup;
     private ComponentLookup<LocalTransform> _transformLookup;
+    private ComponentLookup<Dead>          _deadLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -42,6 +48,7 @@ public partial struct ItemAwarenessSystem : ISystem
         _equipByLookup    = state.GetComponentLookup<EquipBy>(true);
         _thrownItemRequestLookup = state.GetComponentLookup<ThrownItemRequest>(true);
         _transformLookup  = state.GetComponentLookup<LocalTransform>(true);
+        _deadLookup       = state.GetComponentLookup<Dead>(true);
     }
 
     [BurstCompile]
@@ -52,6 +59,7 @@ public partial struct ItemAwarenessSystem : ISystem
         _equipByLookup.Update(ref state);
         _thrownItemRequestLookup.Update(ref state);
         _transformLookup.Update(ref state);
+        _deadLookup.Update(ref state);
 
         BlobAssetReference<ItemLibraryBlob> itemLibrary =
             SystemAPI.GetSingleton<ItemLibrary>().library;
@@ -79,6 +87,7 @@ public partial struct ItemAwarenessSystem : ISystem
             equipByLookup   = _equipByLookup,
             thrownItemRequestLookup = _thrownItemRequestLookup,
             transformLookup = _transformLookup,
+            deadLookup      = _deadLookup,
             itemLibrary     = itemLibrary,
             effectLibrary   = effectLibrary,
             aiConfig        = aiConfig,
@@ -102,6 +111,7 @@ public partial struct ItemAwarenessJob : IJobEntity
     [ReadOnly] public ComponentLookup<EquipBy>                      equipByLookup;
     [ReadOnly] public ComponentLookup<ThrownItemRequest>            thrownItemRequestLookup;
     [ReadOnly] public ComponentLookup<LocalTransform>               transformLookup;
+    [ReadOnly] public ComponentLookup<Dead>                         deadLookup;
     [ReadOnly] public BlobAssetReference<ItemLibraryBlob>           itemLibrary;
     [ReadOnly] public BlobAssetReference<EffectLibraryBlob>         effectLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>          aiConfig;
@@ -288,11 +298,32 @@ public partial struct ItemAwarenessJob : IJobEntity
             {
                 float urgency = (1f - healthRatio) * 100f;
                 SetMotivationAtLeast(ref motivations, NeedType.SelfPreservation, urgency);
+
+                float nearestHostileDistance = combatTargetDistance;
+                for (int threatIndex = 0; threatIndex < threats.Length; threatIndex++)
+                {
+                    Entity attacker = threats[threatIndex].attackerEntity;
+                    if (!transformLookup.TryGetComponent(attacker, out LocalTransform attackerTransform))
+                        continue;
+                    if (deadLookup.HasComponent(attacker) && deadLookup.IsComponentEnabled(attacker))
+                        continue;
+                    nearestHostileDistance = math.min(nearestHostileDistance,
+                        math.distance(transform.Position, attackerTransform.Position));
+                }
+
+                bool inCombatContext = hasThreat || hostileEngaged || inCombat;
+                bool healMidFight = inCombatContext
+                    && healthRatio < ItemAwarenessSystem.HEAL_IN_COMBAT_HEALTH_RATIO
+                    && math.sqrt(nearestHealSq) <= ItemAwarenessSystem.HEAL_IN_COMBAT_MAX_ITEM_DISTANCE
+                    && nearestHostileDistance > ItemAwarenessSystem.HEAL_IN_COMBAT_MIN_HOSTILE_DISTANCE;
+
                 options.Add(new UtilityActions
                 {
                     actionType      = ActionType.UseHealingItem,
                     actionDefIndex  = defIndex,
                     targetEntity    = nearestHeal,
+                    // Critical beats a live Defend fight; never with a hostile in arm's reach.
+                    priority        = healMidFight ? ItemAwarenessSystem.HEAL_IN_COMBAT_PRIORITY : 0,
                 });
                 if (loggingEnabled)
                     LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found heal item {nearestHeal.Index}. Action: UseHealingItem", LogLevel.Info, timestamp, category: LogCategory.Items);

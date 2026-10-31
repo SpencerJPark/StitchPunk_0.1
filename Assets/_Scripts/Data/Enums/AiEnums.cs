@@ -174,6 +174,10 @@ public enum ActionType // used for animation linking
     DrinkAlcohol,
     Brawl,
     PassOut,
+
+    // SmartHumanAI H4 tactics — appended.
+    KeepRange,
+    Retreat,
 }
 
 public enum PersonalityTypes
@@ -226,6 +230,8 @@ public enum BehaviorType : byte
     DrinkAlcohol,      // LivingHumans — appended
     Brawl,
     PassOut,
+    KeepRange,         // SmartHumanAI H4 — appended
+    Retreat,
 }
 
 public enum StanceType

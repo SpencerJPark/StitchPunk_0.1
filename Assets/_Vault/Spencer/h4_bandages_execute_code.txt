@@ -1,0 +1,43 @@
+string rockPath = "Assets/Prefabs/Items/Rock.prefab";
+string bandagePath = "Assets/Prefabs/Items/Bandage.prefab";
+string subScenePath = "Assets/Scenes/SubScenes/CampLoop_Sub.unity";
+System.Text.StringBuilder log = new System.Text.StringBuilder();
+
+if (AssetDatabase.LoadAssetAtPath<GameObject>(bandagePath) == null)
+{
+    AssetDatabase.CopyAsset(rockPath, bandagePath);
+    GameObject contents = PrefabUtility.LoadPrefabContents(bandagePath);
+    contents.name = "Bandage";
+    ItemAuthoring itemAuthoring = contents.GetComponent<ItemAuthoring>();
+    itemAuthoring.itemType = (ItemType)6; // Bandage.asset sits on library slot 6
+    contents.transform.localScale = contents.transform.localScale * 0.6f;
+    PrefabUtility.SaveAsPrefabAsset(contents, bandagePath);
+    PrefabUtility.UnloadPrefabContents(contents);
+    log.AppendLine("created " + bandagePath);
+}
+GameObject bandagePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(bandagePath);
+
+UnityEngine.SceneManagement.Scene subScene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(subScenePath);
+bool wasLoaded = subScene.IsValid() && subScene.isLoaded;
+if (!wasLoaded)
+    subScene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(subScenePath, UnityEditor.SceneManagement.OpenSceneMode.Additive);
+
+Vector3[] positions = { new Vector3(1.4f, 0.3f, 24.9f), new Vector3(1.0f, 0.3f, 26.3f), new Vector3(-2.3f, 0.3f, 23.8f) };
+for (int index = 0; index < positions.Length; index++)
+{
+    string objectName = "Camp Bandage " + (index + 1);
+    bool exists = false;
+    foreach (GameObject rootObject in subScene.GetRootGameObjects())
+        if (rootObject.name == objectName) exists = true;
+    if (exists) continue;
+    GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(bandagePrefab, subScene);
+    instance.name = objectName;
+    instance.transform.position = positions[index];
+    log.AppendLine("placed " + objectName);
+}
+
+UnityEditor.SceneManagement.EditorSceneManager.SaveScene(subScene);
+if (!wasLoaded)
+    UnityEditor.SceneManagement.EditorSceneManager.CloseScene(subScene, true);
+log.AppendLine("saved " + subScenePath + (wasLoaded ? " (was open)" : " (closed again)"));
+return log.ToString();
