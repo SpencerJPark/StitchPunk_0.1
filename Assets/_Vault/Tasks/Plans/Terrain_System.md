@@ -1,7 +1,7 @@
 ---
 tags: [plan, terrain, streaming, nav, tooling]
 related: "[[Editor]], [[Shaders]], [[Systems_Movement]], [[RULES]]"
-status: spikes done, P1-P4, P3c, P5, P5b, P6 (decals) and P7 (scatter) built 2026-10-30; the editor tooling half of the plan is complete; terrain EditMode tests 50/50 green at 7070774d (scatterer tests moved to a preview scene); spikes S2/S4/S8/S9/S10 done 2026-10-31 (see Terrain_Spikes.md; P8-1 should also make FLOW_FIELD_MAP_COUNT a baked setting, S9 means the lighting bridge must also drive day/night); P8 nav window built 2026-10-31 (baked flow-field map count still open, panel not looked at); next P9 streaming
+status: spikes done, P1-P4, P3c, P5, P5b, P6 (decals) and P7 (scatter) built 2026-10-30; the editor tooling half of the plan is complete; terrain EditMode tests 50/50 green at 7070774d (scatterer tests moved to a preview scene); spikes S2/S4/S8/S9/S10 done 2026-10-31 (see Terrain_Spikes.md; P8-1 should also make FLOW_FIELD_MAP_COUNT a baked setting, S9 means the lighting bridge must also drive day/night); P8 nav window built 2026-10-31 (baked flow-field map count still open, panel not looked at); P9 streaming built through P9-3/4a/4b (tiles stream live in the test scene; abstract transition P9-4c/d, audit and spawn markers still open)
 supersedes: TerrainTiles_System.md (T0/T1 history kept there)
 ---
 
