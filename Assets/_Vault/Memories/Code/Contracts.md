@@ -70,6 +70,7 @@ Keep this file current: add a row when you add a request component; delete the r
 | `CraftRevivalRoundRequest`, `WorkstationRepairRequest`, `WorkstationPackUpRequest`, `WorkstationFurnaceToggleRequest` (enableables on workstation) | WorkstationMenuUI | Matching `BuildingsSystemGroup` systems |
 | `WorkstationDismountRequest` (enableable on Player) | PlayerInputManager (Tab while mounted), WorkstationMenuUI, WorkstationPackUpSystem | `WorkstationMountSystem` |
 | `PendingMinionSpawn` (buffer on workstation) | Summon path (`WorkstationSummonSystem`) | `WorkstationSummonSpawnSystem` (SpawnSystemGroup) → adds `SpawnAsPlayerMinion` tag → `PlayerMinionSpawnInitSystem` (SpawnInitSystemGroup, after SpawnStateInitSystem) |
+| `AbstractRouteCompleted` (enableable on any unit with `AbstractRoute`, one frame) | `AbstractArrivalSystem` (`TerrainSystemGroup`, scans at 1 Hz, clears itself the next update) | Trade scheduler / AI (none yet). Read it in a system ordered after `TerrainSystemGroup`; the unit is snapped to the route end and now rests on its `AbstractRestAnchor`. Start a route with `AbstractTravel.BeginRoute`, plan legs with `RoadGraphQuery.TryFindRoute` |
 
 Camp loop contracts: spec [[CampLoop_System]].
 

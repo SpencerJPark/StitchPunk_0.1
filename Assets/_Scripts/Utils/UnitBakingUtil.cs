@@ -124,6 +124,15 @@ public static class UnitBakingUtil
             baker.SetComponentEnabled<Intoxication>(entity, false);
             behaviourBuffer.Add(DefaultBehaviour(NeedType.Vice));
         }
+
+        baker.AddComponent<AbstractSimulation>(entity);
+        baker.SetComponentEnabled<AbstractSimulation>(entity, false);
+        baker.AddComponent<AbstractSavedState>(entity);
+        baker.AddComponent<AbstractRoute>(entity);
+        baker.AddComponent<AbstractRestAnchor>(entity);
+        baker.AddComponent<AbstractRouteCompleted>(entity);
+        baker.SetComponentEnabled<AbstractRouteCompleted>(entity, false);
+        baker.AddBuffer<AbstractRouteWaypoint>(entity);
     }
 
     public static void AddAction<TAuthoring, TTask>(Baker<TAuthoring> baker, Entity entity)
@@ -220,6 +229,7 @@ public static class UnitBakingUtil
     {
         baker.AddComponent<PlayerUnitBrain>(entity);
         baker.SetComponentEnabled<PlayerUnitBrain>(entity, startControlled);
+        baker.AddComponent<PinnedActive>(entity);
 
         // Per-minion command slots — UnitSelectionManager fans commands out to selected minions;
         // MinionActionSelectionSystem consumes them one-shot (disables after emitting an option).

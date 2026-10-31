@@ -44,3 +44,6 @@ public struct AbstractRestAnchor : IComponentData
 
 // Companions, squad, the caravan the player drives and cutscene actors never go abstract.
 public struct PinnedActive : IComponentData { }
+
+// One-frame event: AbstractArrivalSystem enables it on the frame a route finishes and clears it at the start of the next update. Baked disabled.
+public struct AbstractRouteCompleted : IComponentData, IEnableableComponent { }
