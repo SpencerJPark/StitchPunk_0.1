@@ -12,6 +12,8 @@ public partial struct AiThrowItemSystem : ISystem
     {
         public Entity thrower;
         public Entity target;
+        public float3 aimPoint;
+        public bool hasAimPoint;
     }
 
     public void OnCreate(ref SystemState state)
@@ -30,7 +32,13 @@ public partial struct AiThrowItemSystem : ISystem
             SystemAPI.Query<RefRO<AiThrowRequest>, EnabledRefRW<AiThrowRequest>>().WithEntityAccess())
         {
             aiThrowRequestEnabled.ValueRW = false;
-            pendingThrows.Add(new PendingThrow { thrower = unitEntity, target = throwRequest.ValueRO.target });
+            pendingThrows.Add(new PendingThrow
+            {
+                thrower = unitEntity,
+                target = throwRequest.ValueRO.target,
+                aimPoint = throwRequest.ValueRO.aimPoint,
+                hasAimPoint = throwRequest.ValueRO.hasAimPoint
+            });
         }
 
         if (pendingThrows.Length == 0)
@@ -74,7 +82,12 @@ public partial struct AiThrowItemSystem : ISystem
 
             float3 aimDirection = unitTransform.Forward();
             Entity targetEntity = pendingThrow.target;
-            if (targetEntity != Entity.Null && entityManager.Exists(targetEntity)
+            if (pendingThrow.hasAimPoint)
+            {
+                // Fire at the point locked when the wind-up began so a target that steps aside dodges.
+                aimDirection = pendingThrow.aimPoint - worldPos;
+            }
+            else if (targetEntity != Entity.Null && entityManager.Exists(targetEntity)
                 && entityManager.HasComponent<LocalTransform>(targetEntity))
             {
                 aimDirection = entityManager.GetComponentData<LocalTransform>(targetEntity).Position - worldPos;

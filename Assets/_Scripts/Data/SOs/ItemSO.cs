@@ -51,4 +51,6 @@ public class ItemSO : ScriptableObject
     public float aiThrowMinRange = 0f;
     [Tooltip("AI units throw this only when the target is within this range. 0 = AI never throws it.")]
     public float aiThrowMaxRange = 0f;
+    [Tooltip("Seconds the unit visibly winds up (swell + flash) before releasing. 0 = the WindUp command's FloatParam.")]
+    public float aiWindUpSeconds = 0f;
 }

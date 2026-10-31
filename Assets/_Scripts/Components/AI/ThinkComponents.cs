@@ -1,4 +1,5 @@
 using Unity.Entities;
+using Unity.Mathematics;
 
 // Units with ThinkRate re-run awareness (enable ActionRequest) only every `interval` seconds, staggered,
 // plus every frame they are between behaviours. Units without it keep ActionRequest as baked (always on).
@@ -29,6 +30,8 @@ public struct AllyAlert : IComponentData, IEnableableComponent
 public struct AiThrowRequest : IComponentData, IEnableableComponent
 {
     public Entity target;
+    public float3 aimPoint;
+    public bool   hasAimPoint; // false = fall back to the target's live position
 }
 
 // Per-unit tactic cooldowns (SmartHumanAI H4). Keep Range stops a thrower kiting a chaser forever (H4-D5).

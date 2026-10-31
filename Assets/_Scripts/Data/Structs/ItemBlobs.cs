@@ -18,6 +18,7 @@ public struct ItemBlob
     public float        throwLaunchForceX;
     public float        aiThrowMinRange;   // AI throws only when the target is in [min, max]; max 0 = AI never throws it
     public float        aiThrowMaxRange;
+    public float        aiWindUpSeconds; // the telegraph before a throw or shot (H5-D8)
 }
 
 public struct ItemLibraryBlob

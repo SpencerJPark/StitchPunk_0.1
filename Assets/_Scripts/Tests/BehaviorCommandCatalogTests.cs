@@ -31,6 +31,7 @@ namespace StitchPunk.Tests
                 BehaviorCommandType.RequestThrow,
                 BehaviorCommandType.AddIntoxication,
                 BehaviorCommandType.ShowEmote,
+                BehaviorCommandType.WindUp,
             };
 
         private static readonly HashSet<BehaviorCommandType> ExpectedBlocking =
@@ -42,6 +43,7 @@ namespace StitchPunk.Tests
                 BehaviorCommandType.LoopUntil,
                 BehaviorCommandType.WaitForAnimEvent,
                 BehaviorCommandType.WaitForClipFinished,
+                BehaviorCommandType.WindUp,
             };
 
         [Test]

@@ -77,6 +77,10 @@ public enum BehaviorCommandType : byte
 
     // Fire-and-advance. IntParam = (int)EmoteIcon, FloatParam = seconds (0 = 2.5). Shows at priority 2 via EmoteRules.TryShow.
     ShowEmote,
+
+    // Blocking. Locks RangedAim.aimPoint to the target's position on its first frame and waits the held item's
+    // ItemBlob.aiWindUpSeconds (FloatParam when the item has none). WindUpPresentationSystem shows it.
+    WindUp,
 }
 
 // Exit conditions for LoopUntil (and later: early-exit on blocking commands).

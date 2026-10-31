@@ -20,6 +20,7 @@ public partial struct BehaviorInterruptSystem : ISystem
     private ComponentLookup<AnimationCommandPending> _animationCommandPendingLookup;
     private BufferLookup<AnimationCommand>    _animationCommandLookup;
     private BufferLookup<PlaybackLayer>       _playbackLayerLookup;
+    private ComponentLookup<RangedAim>        _rangedAimLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -29,6 +30,7 @@ public partial struct BehaviorInterruptSystem : ISystem
         _animationCommandPendingLookup = state.GetComponentLookup<AnimationCommandPending>(false);
         _animationCommandLookup = state.GetBufferLookup<AnimationCommand>(false);
         _playbackLayerLookup    = state.GetBufferLookup<PlaybackLayer>(true);
+        _rangedAimLookup        = state.GetComponentLookup<RangedAim>(false);
     }
 
     [BurstCompile]
@@ -38,6 +40,7 @@ public partial struct BehaviorInterruptSystem : ISystem
         _animationCommandPendingLookup.Update(ref state);
         _animationCommandLookup.Update(ref state);
         _playbackLayerLookup.Update(ref state);
+        _rangedAimLookup.Update(ref state);
 
         BehaviorLibrary behaviorLib = SystemAPI.GetSingleton<BehaviorLibrary>();
         EntityCommandBuffer.ParallelWriter ecb = SystemAPI
@@ -55,7 +58,8 @@ public partial struct BehaviorInterruptSystem : ISystem
             animationCommandPendingLookup = _animationCommandPendingLookup,
             animationCommandLookup = _animationCommandLookup,
             playbackLayerLookup    = _playbackLayerLookup,
-            ecb                    = ecb,
+            rangedAimLookup        = _rangedAimLookup,
+            ecb                   = ecb,
             timestamp              = SystemAPI.Time.ElapsedTime,
             loggingEnabled         = loggingEnabled,
         }.ScheduleParallel(state.Dependency);
@@ -78,6 +82,7 @@ public partial struct BehaviorInterruptJob : IJobEntity
     [NativeDisableParallelForRestriction] public ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
     [NativeDisableParallelForRestriction] public BufferLookup<AnimationCommand>    animationCommandLookup;
     [ReadOnly] public BufferLookup<PlaybackLayer> playbackLayerLookup;
+    [NativeDisableParallelForRestriction] public ComponentLookup<RangedAim> rangedAimLookup;
 
     public EntityCommandBuffer.ParallelWriter ecb;
     public double timestamp;
@@ -115,6 +120,10 @@ public partial struct BehaviorInterruptJob : IJobEntity
             if (attackRequestLookup.HasComponent(unit))
                 attackRequestLookup.SetComponentEnabled(unit, false);
         }
+
+        // An interrupted wind-up must not leave the unit swollen/flashing; not every unit carries RangedAim.
+        if (rangedAimLookup.HasComponent(unit))
+            rangedAimLookup.SetComponentEnabled(unit, false);
 
         // Interrupt beats pending: death/revive/stuck resets the unit to Idle and re-decides;
         // a pending preemption carries the chosen action straight into execution.

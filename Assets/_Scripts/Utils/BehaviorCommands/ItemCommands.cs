@@ -1,9 +1,11 @@
 using Unity.Burst;
 using Unity.Entities;
+using Unity.Mathematics;
 
 // RequestPickup — claims a loose item (EquipBy/AttachedTo) and enables PickupRequest +
 // AttachItemRequest for ItemEquipSystemGroup to consume next frame. Fire-and-advance.
-// RequestThrow — enables AiThrowRequest on the unit aimed at the target; skipped if nothing held. Fire-and-advance.
+// RequestThrow — enables AiThrowRequest on the unit aimed at the target (at the RangedAim point locked by WindUp,
+// if enabled; RangedAim is always consumed); skipped if nothing held. Fire-and-advance.
 [BurstCompile]
 public static class ItemCommands
 {
@@ -42,12 +44,26 @@ public static class ItemCommands
         Entity                     unit,
         in StateMachine            stateMachine)
     {
+        bool   hasAimPoint = false;
+        float3 aimPoint    = float3.zero;
+        if (context.rangedAimLookup.HasComponent(unit) && context.rangedAimLookup.IsComponentEnabled(unit))
+        {
+            aimPoint    = context.rangedAimLookup[unit].aimPoint;
+            hasAimPoint = true;
+            context.rangedAimLookup.SetComponentEnabled(unit, false);
+        }
+
         if (stateMachine.targetEntity == Entity.Null) return;
         if (!context.unitEquipLookup.TryGetComponent(unit, out UnitEquip unitEquip)
             || unitEquip.equipItemEntity == Entity.Null)
             return;
 
-        context.ecb.SetComponent(context.entityIndex, unit, new AiThrowRequest { target = stateMachine.targetEntity });
+        context.ecb.SetComponent(context.entityIndex, unit, new AiThrowRequest
+        {
+            target      = stateMachine.targetEntity,
+            aimPoint    = aimPoint,
+            hasAimPoint = hasAimPoint,
+        });
         context.ecb.SetComponentEnabled<AiThrowRequest>(context.entityIndex, unit, true);
     }
 }

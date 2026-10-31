@@ -89,5 +89,6 @@ public partial struct ItemLibraryBakingSystem : ISystem
         throwLaunchForceX = so.throwLaunchForceX,
         aiThrowMinRange   = so.aiThrowMinRange,
         aiThrowMaxRange   = so.aiThrowMaxRange,
+        aiWindUpSeconds   = so.aiWindUpSeconds,
     };
 }

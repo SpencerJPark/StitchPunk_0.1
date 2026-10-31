@@ -20,6 +20,8 @@ public partial struct BehaviorExecutionSystem : ISystem
     private ComponentLookup<Movement>           _movementLookup;
     private ComponentLookup<LocalTransform>     _transformLookup;
     private ComponentLookup<AttackRequest>      _attackRequestLookup;
+    private ComponentLookup<Item>               _itemLookup;
+    private ComponentLookup<RangedAim>          _rangedAimLookup;
     private ComponentLookup<PickupRequest>      _pickupRequestLookup;
     private ComponentLookup<EquipBy>            _equipByLookup;
     private ComponentLookup<AttachedTo>         _attachedToLookup;
@@ -48,6 +50,8 @@ public partial struct BehaviorExecutionSystem : ISystem
         _movementLookup          = state.GetComponentLookup<Movement>(true);
         _transformLookup         = state.GetComponentLookup<LocalTransform>(true);
         _attackRequestLookup     = state.GetComponentLookup<AttackRequest>(false);
+        _itemLookup              = state.GetComponentLookup<Item>(true);
+        _rangedAimLookup         = state.GetComponentLookup<RangedAim>(false);
         _pickupRequestLookup     = state.GetComponentLookup<PickupRequest>(false);
         _equipByLookup           = state.GetComponentLookup<EquipBy>(false);
         _attachedToLookup        = state.GetComponentLookup<AttachedTo>(false);
@@ -74,6 +78,8 @@ public partial struct BehaviorExecutionSystem : ISystem
         _movementLookup.Update(ref state);
         _transformLookup.Update(ref state);
         _attackRequestLookup.Update(ref state);
+        _itemLookup.Update(ref state);
+        _rangedAimLookup.Update(ref state);
         _pickupRequestLookup.Update(ref state);
         _equipByLookup.Update(ref state);
         _attachedToLookup.Update(ref state);
@@ -94,6 +100,8 @@ public partial struct BehaviorExecutionSystem : ISystem
         BehaviorLibrary      behaviorLib  = SystemAPI.GetSingleton<BehaviorLibrary>();
         SpatialHashRegistry  registry     = SystemAPI.GetSingleton<SpatialHashRegistry>();
         BlobAssetReference<UnitLibraryBlob> unitLibrary = SystemAPI.GetSingleton<UnitDataLibrary>().library;
+        BlobAssetReference<ItemLibraryBlob> itemLibrary = SystemAPI.TryGetSingleton<ItemLibrary>(out ItemLibrary itemLibrarySingleton)
+            ? itemLibrarySingleton.library : default;
         float                deltaTime    = SystemAPI.Time.DeltaTime;
         EntityCommandBuffer.ParallelWriter ecb = SystemAPI
             .GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>()
@@ -109,6 +117,9 @@ public partial struct BehaviorExecutionSystem : ISystem
             unitLibrary              = unitLibrary,
             transformLookup          = _transformLookup,
             attackRequestLookup      = _attackRequestLookup,
+            itemLookup               = _itemLookup,
+            rangedAimLookup          = _rangedAimLookup,
+            itemLibrary              = itemLibrary,
             pickupRequestLookup      = _pickupRequestLookup,
             equipByLookup            = _equipByLookup,
             attachedToLookup         = _attachedToLookup,
@@ -150,6 +161,8 @@ public partial struct BehaviorExecutionJob : IJobEntity
     [ReadOnly] public BlobAssetReference<BehaviorLibraryBlob>       behaviorLib;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>           unitLibrary;
     [ReadOnly] public ComponentLookup<LocalTransform>                transformLookup;
+    [ReadOnly] public ComponentLookup<Item>                          itemLookup;
+    [ReadOnly] public BlobAssetReference<ItemLibraryBlob>            itemLibrary;
     [ReadOnly] public ComponentLookup<UnitEquip>                     unitEquipLookup;
     [ReadOnly] public NativeParallelMultiHashMap<int2, Entity>        waypointCells;
     [ReadOnly] public ComponentLookup<NavigationWaypoint>            waypointLookup;
@@ -170,6 +183,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
     // NativeDisableParallelForRestriction is safe: each unit/item is owned by at most one
     // executing behavior at a time, so no two threads write to the same component.
     [NativeDisableParallelForRestriction] public ComponentLookup<AttackRequest>     attackRequestLookup;
+    [NativeDisableParallelForRestriction] public ComponentLookup<RangedAim>         rangedAimLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<PickupRequest>     pickupRequestLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<EquipBy>           equipByLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<AttachedTo>        attachedToLookup;
@@ -293,6 +307,9 @@ public partial struct BehaviorExecutionJob : IJobEntity
             waypointCells                 = waypointCells,
             unitLibrary                   = unitLibrary,
             attackRequestLookup           = attackRequestLookup,
+            rangedAimLookup               = rangedAimLookup,
+            itemLookup                    = itemLookup,
+            itemLibrary                   = itemLibrary,
             pickupRequestLookup           = pickupRequestLookup,
             equipByLookup                 = equipByLookup,
             attachedToLookup              = attachedToLookup,
@@ -316,6 +333,10 @@ public partial struct BehaviorExecutionJob : IJobEntity
             case BehaviorCommandType.WaitTime:
                 WaitLoopCommands.RunWaitTime(ref context, unit, ref stateMachine, in cmd, in transform);
                 return; // blocking — owns its advancement
+
+            case BehaviorCommandType.WindUp:
+                RangedCommands.RunWindUp(ref context, unit, ref stateMachine, in cmd);
+                return; // blocking - owns its advancement
 
             case BehaviorCommandType.FleeFromTarget:
                 MovementCommands.RunFlee(ref context, ref stateMachine, ref pathRequest, pathRequestEnabled,
