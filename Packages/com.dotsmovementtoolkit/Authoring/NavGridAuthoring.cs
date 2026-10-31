@@ -38,6 +38,10 @@ namespace DotsMovementToolkit.Authoring
         [Tooltip("World distance within which two agents' targets count as the same spot.")]
         public float crowdTargetRadius = 4f;
 
+        [Header("Cost Map Ownership")]
+        [Tooltip("Something else (a streaming nav window) owns the cost map. The grid then starts as all wall and is never rebuilt from physics bodies. Leave off for a fixed grid.")]
+        public bool externalCostRegions = false;
+
         [Header("Debug View")]
         [Tooltip("Draws the live cost map in Play mode (Game and Scene view). Editor and development builds only.")]
         public NavGridDebugDisplayMode debugDisplayMode = NavGridDebugDisplayMode.Off;
@@ -118,6 +122,7 @@ namespace DotsMovementToolkit.Authoring
                     defaultCost = authoring.defaultCost,
                     crowdFlowFieldThreshold = authoring.crowdFlowFieldThreshold,
                     crowdTargetRadius = authoring.crowdTargetRadius,
+                    externalCostRegions = authoring.externalCostRegions,
                 });
 
                 AddComponent(entity, new NavGridDebugSettings

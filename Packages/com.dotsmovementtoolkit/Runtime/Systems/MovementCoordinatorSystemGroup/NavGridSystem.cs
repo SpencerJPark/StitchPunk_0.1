@@ -11,12 +11,14 @@ namespace DotsMovementToolkit
 /// Owns the navigation grid: builds NavGridConfig/NavGridCostMap from the baked NavGridSettings,
 /// then rebuilds the cost map from physics whenever the collision world changes. Also the home of
 /// the package's grid math (world↔cell, index, bounds) that FlowFieldSystem and DStarLiteSystem share.
+/// The physics rebuild is skipped entirely when NavGridSettings.externalCostRegions is set.
 /// </summary>
 [UpdateInGroup(typeof(MovementCoordinatorSystemGroup), OrderFirst = true)]
 public partial struct NavGridSystem : ISystem
 {
     private bool isInitialized;
     private bool costMapDirty;
+    private bool externalCostRegions;
     private int lastPhysicsVersion;
     private byte wallCost;
     private byte heavyCost;
@@ -52,6 +54,9 @@ public partial struct NavGridSystem : ISystem
 
         NavGridConfig gridConfig = SystemAPI.GetComponent<NavGridConfig>(state.SystemHandle);
         NavGridCostMap gridCostMap = SystemAPI.GetComponent<NavGridCostMap>(state.SystemHandle);
+
+        // The window owner writes costs; a physics rebuild would erase them.
+        if (externalCostRegions) return;
 
         // Check if physics world changed
         if (SystemAPI.HasSingleton<PhysicsWorldSingleton>())
@@ -116,6 +121,7 @@ public partial struct NavGridSystem : ISystem
     // subscene, so it does not exist yet when OnCreate runs at world creation.
     private void InitializeFromSettings(ref SystemState state, NavGridSettings settings)
     {
+        externalCostRegions = settings.externalCostRegions;
         wallCost = settings.wallCost;
         heavyCost = settings.heavyCost;
         defaultCost = settings.defaultCost;
@@ -141,10 +147,11 @@ public partial struct NavGridSystem : ISystem
             costs = new NativeArray<byte>(totalCells, Allocator.Persistent)
         };
 
-        // Initialize to default walkable
+        // Initialize to default walkable (or solid when an external owner writes the walkable regions)
+        byte initialCost = settings.externalCostRegions ? settings.wallCost : settings.defaultCost;
         for (int i = 0; i < totalCells; i++)
         {
-            costMap.costs[i] = settings.defaultCost;
+            costMap.costs[i] = initialCost;
         }
 
         state.EntityManager.AddComponent<NavGridCostMap>(state.SystemHandle);
@@ -154,7 +161,7 @@ public partial struct NavGridSystem : ISystem
         Entity stairEntity = state.EntityManager.CreateEntity();
         state.EntityManager.AddBuffer<NavGridStairConnection>(stairEntity);
 
-        costMapDirty = true;
+        costMapDirty = !settings.externalCostRegions;
         lastPhysicsVersion = 0;
     }
     

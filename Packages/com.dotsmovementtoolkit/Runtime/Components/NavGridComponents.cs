@@ -20,6 +20,7 @@ namespace DotsMovementToolkit
         /// <summary>
         /// World position of cell (0,0)'s corner, and of layer 0's floor. The grid extends into
         /// +X/+Z from here, so a grid centred on the authoring transform has a negative origin.
+        /// With NavGridSettings.externalCostRegions the window owner may move this at runtime.
         /// </summary>
         public float3 gridOrigin;
     }
@@ -35,6 +36,10 @@ namespace DotsMovementToolkit
         // cache anything derived from costs (the debug renderer's mesh) compare against this
         // instead of diffing 10k+ bytes per frame.
         public uint costMapVersion;
+
+        // Bumped together with costMapVersion by whoever moves NavGridConfig.gridOrigin at runtime
+        // (the terrain nav window), so a consumer can tell "same cells, new costs" from "cells now mean other ground".
+        public uint windowVersion;
     }
 
     /// <summary>Stair/portal connection between two layers.</summary>

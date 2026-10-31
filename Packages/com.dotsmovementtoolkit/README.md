@@ -138,7 +138,10 @@ regression stays attributable to one or the other:
   characters default to A*. A real per-agent D* Lite would need its own search state per agent.
 - **`NavGridSystem` uses physics `NumBodies` as a change proxy** plus a `CompleteDependency()` sync
   each time it changes (`NavGridSystem.cs`) — correct but coarse (any body add/remove anywhere
-  rebuilds the whole cost map) and a hard sync point.
+  rebuilds the whole cost map) and a hard sync point. Set `NavGridAuthoring.externalCostRegions` and
+  the physics rebuild is skipped entirely: the grid starts all wall and its owner (a streaming window)
+  writes `NavGridCostMap.costs`, may move `NavGridConfig.gridOrigin`, and bumps `costMapVersion` and
+  `windowVersion`. Only the A* follower repaths on a version bump; flow fields and D* Lite do not.
 - **Flow-field ring-buffer slot reuse can clobber a field still in use**
   (`FlowFieldSystem.FLOW_FIELD_MAP_COUNT` wraps without checking the old slot is done).
 - **Layer support is half-plumbed**: the cost map is layered end-to-end and A* searches every layer

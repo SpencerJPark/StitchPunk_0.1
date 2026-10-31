@@ -29,5 +29,9 @@ namespace DotsMovementToolkit
         // once there are at least crowdFlowFieldThreshold of them. 0 turns the switch off.
         public int crowdFlowFieldThreshold;
         public float crowdTargetRadius;
+
+        // True when something else owns the cost map (a streaming window): NavGridSystem then starts it
+        // all wallCost and never rebuilds it from physics bodies.
+        public bool externalCostRegions;
     }
 }
