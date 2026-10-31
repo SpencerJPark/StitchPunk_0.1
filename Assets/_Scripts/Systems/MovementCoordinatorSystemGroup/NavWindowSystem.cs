@@ -66,8 +66,13 @@ public partial struct NavWindowSystem : ISystem
 
         int2 focusTile = TerrainNavWindowMath.TileCoordinateOf(focusPosition, windowSettings.tileSizeMetres);
         int tileComponentOrderVersion = state.EntityManager.GetComponentOrderVersion<TileNavCost>();
-        if (hasBuilt && math.all(focusTile == lastFocusTile) && tileComponentOrderVersion == lastTileComponentOrderVersion)
+        if (hasBuilt && !windowSettings.rebuildRequested && math.all(focusTile == lastFocusTile) && tileComponentOrderVersion == lastTileComponentOrderVersion)
             return;
+        if (windowSettings.rebuildRequested)
+        {
+            windowSettings.rebuildRequested = false;
+            SystemAPI.SetSingleton(windowSettings);
+        }
 
         int2 minTile = TerrainNavWindowMath.WindowMinTile(focusTile, windowSettings.radiusTiles);
         NativeArray<TileNavCost> loadedTiles = loadedTileQuery.ToComponentDataArray<TileNavCost>(state.WorldUpdateAllocator);

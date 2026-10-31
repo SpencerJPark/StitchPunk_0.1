@@ -7,6 +7,9 @@ public struct TerrainNavWindowSettings : IComponentData
     public int radiusTiles;
     public float tileSizeMetres;
     public int cellsPerTile;
+
+    // Set by the footprint change detector; NavWindowSystem rebuilds on it and clears it.
+    public bool rebuildRequested;
 }
 
 // The nav window follows the first entity carrying this (the player or the driven caravan).

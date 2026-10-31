@@ -14,8 +14,11 @@
         "StitchPunk.Data",
         "StitchPunk.Generated",
         "StitchPunk.Components",
+        "StitchPunk.Authoring",
         "StitchPunk.MonoBehaviours",
         "UnityEditor.UI",
+        "DotsMovementToolkit.Runtime",
+        "DotsMovementToolkit.Authoring",
         "DotsAnimationToolkit.Runtime",
         "DotsAnimationToolkit.Authoring",
         "DotsAnimationToolkit.Editor"
