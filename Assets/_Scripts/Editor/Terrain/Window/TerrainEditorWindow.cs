@@ -13,8 +13,8 @@ public class TerrainEditorWindow : EditorWindow
     static readonly string[] ToolLabels = { "Tiles", "Paint", "Height", "Generate", "Roads", "Water", "Decals", "Scatter", "Nav", "Stream" };
     static readonly string[] ToolDisabledTooltips =
     {
-        null, null, null, null, null, null,
-        "Built in phase P6", "Built in phase P7", "Built in phase P8", "Built in phase P9"
+        null, null, null, null, null, null, null, null,
+        "Built in phase P8", "Built in phase P9"
     };
 
     readonly TerrainToolPanel[] panelsByToolIndex = new TerrainToolPanel[ToolLabels.Length];
@@ -111,7 +111,7 @@ public class TerrainEditorWindow : EditorWindow
 
     static bool HasPanel(int toolIndex)
     {
-        return toolIndex >= 0 && toolIndex <= 5;
+        return toolIndex >= 0 && toolIndex <= 7;
     }
 
     static Label CreateFooterLabel(VisualElement footer)
@@ -134,6 +134,8 @@ public class TerrainEditorWindow : EditorWindow
                 case 3: panelsByToolIndex[toolIndex] = new TerrainGeneratePanel(); break;
                 case 4: panelsByToolIndex[toolIndex] = new TerrainRoadsPanel(); break;
                 case 5: panelsByToolIndex[toolIndex] = new TerrainWaterPanel(); break;
+                case 6: panelsByToolIndex[toolIndex] = new TerrainDecalPanel(); break;
+                case 7: panelsByToolIndex[toolIndex] = new TerrainScatterPanel(); break;
             }
         }
         return panelsByToolIndex[toolIndex];

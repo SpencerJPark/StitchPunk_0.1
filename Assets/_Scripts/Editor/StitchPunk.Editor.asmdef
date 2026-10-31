@@ -6,6 +6,7 @@
         "Unity.Entities.Hybrid",
         "Unity.Scenes",
         "Unity.Splines",
+        "PaintedGround.Runtime",
         "Unity.Splines.Editor",
         "Unity.Scenes.Editor",
         "Unity.Mathematics",

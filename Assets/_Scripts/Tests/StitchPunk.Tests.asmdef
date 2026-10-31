@@ -20,6 +20,8 @@
         "DotsAnimationToolkit.Runtime",
         "DotsAnimationToolkit.Authoring",
         "UnityEngine.TestRunner",
+        "PaintedGround.Runtime",
+        "GUID:c95a7648b65e55b4596f0b63bed42a28",
         "UnityEditor.TestRunner"
     ],
     "includePlatforms": [

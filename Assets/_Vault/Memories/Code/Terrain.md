@@ -40,7 +40,16 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - Road and river deltas read each other (the road bed ignores the road delta but includes the river delta and vice versa), so bake both after a big change to settle.
 - The live paint brush still composites with the old 6-argument `CompositeTexels`, so water texels show their painted colour until mouse-up.
 
+## Decals and scatter (P6, P7)
+- One pure `TerrainScatterPlanner` (Editor) serves both: biome-weighted rules, slope and height ranges, spacing grid shared across rules, cluster noise, obstacles (locked instances), deterministic per `seed` + tile (`TerrainDecalScatterer.SeedFor`). `TerrainTileSampler` feeds it a tile's composite mask (water texels and off-tile are blocked).
+- Decals: `TerrainDecalSet` (default rows copied from the old `DecalScatter`, density about 5 per 100 m^2) -> `PaintedDecal` children under the tile's `Decals`, each with a `TerrainDecalMarker` (locked flag). Props: `TerrainScatterSet` rules -> prefab instances under `Scatter` with `TerrainScatterMarker`; `blocksNavigation` rules put the instance on the `PathfindingWalls` layer (layer 8, the nav wall layer). `Regenerate` keeps locked ones and steers around them, but locked ones are EXTRA: density is not reduced to count them.
+- Brush tools (`TerrainBrushTool.Decal*`, `Scatter*`), panels Decals and Scatter, `BrushState.activeDecalSet/decalEntryIndex/activeScatterSet/scatterRuleIndex`.
+- S3: `PAINTED_ENTITIES` is now defined (`PaintedEntitiesDefine`, saved in ProjectSettings) so tile decals bake with per-instance `_Tile`/`_Tint`. `PaintedGround.Runtime.asmdef` was added so `StitchPunk.Editor` can reference `PaintedDecal` (Assembly-CSharp types are invisible to asmdef assemblies); tests reference it too. Adding the define the first time recompiles everything and the Editor stalled about 10 minutes.
+- Legacy: the 500 camp decals are still plain GameObjects in `CampLoop`.
+
 ## Traps
+- A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter/generator tests now run in their own additive scene; check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.
+- `Assets/_Scripts/Tests/StitchPunk.Tests.asmdef` edits: apply one change at a time and re-validate the JSON; two overlapping edits once corrupted it and the test list silently became empty (0 tests, run "succeeded").
 - `CopySerialized(newMesh, existingMesh)` overwrites the mesh name; the tile builder re-names the sub-asset right after, or the next Rebuild no longer recognises it and tries to destroy an asset.
 - The Scene view in authoring mode drew a flat plane for tiles whose heights are right (render bounds in Play show the real 81 m mountain); judge height in Play or by data, not by the authoring Scene view.
 - A domain reload (any recompile) clears the Undo stack and closes tile subscenes.

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-public enum TerrainBrushTool { None, Raise, Lower, Smooth, Flatten, Noise, Ramp, Paint }
+public enum TerrainBrushTool { None, Raise, Lower, Smooth, Flatten, Noise, Ramp, Paint, Decal, DecalErase, DecalRegion, ScatterPlace, ScatterPaint, ScatterErase }
 
 public struct BrushHit
 {
@@ -20,6 +20,10 @@ public static class BrushState
     public static float strength = 0.5f;
     public static TerrainBrushTool activeTool = TerrainBrushTool.None;
     public static TerrainSplatLayer paintLayer = TerrainSplatLayer.Grass;
+    public static TerrainDecalSet activeDecalSet;
+    public static int decalEntryIndex;
+    public static TerrainScatterSet activeScatterSet;
+    public static int scatterRuleIndex;
 }
 
 [InitializeOnLoad]
