@@ -844,3 +844,11 @@ The generic save only copies `IComponentData` structs (no buffers). `FixedList51
 ## A fixed-size UITK panel can run off the screen: lay it out with max-height and a ScrollView (2026-10-30)
 
 The trade letter used `top: 50%; margin-top: -260px` and grew with its offers; four cards made it 926 px tall at y=280, so Close sat at y=1148 on a 1080 px screen. Anchor from the top, set `max-height: 92%`, put the variable list in a `ScrollView` and pin the title/footer/Close buttons with `flex-shrink: 0`. Measure `worldBound` against `Screen.height` when a panel's content count can vary.
+
+## Terrain streaming (2026-10-31) — full list in [[Terrain]]
+
+- Unload tile subscenes only inside the fixed step, before physics (`TerrainStreamingSystemGroup`). Anywhere else leaves a stale physics world holding a freed collider blob and `UnitGravityJob` throws "BlobAssetReference is not valid" from a Burst job.
+- `SceneSystem.LoadSceneAsync` / `UnloadScene` are structural changes: re-fetch every `DynamicBuffer` from `SystemAPI.GetBuffer` after them, or the buffer is invalidated and the system silently stops working.
+- The first streaming update must load the ring with `BlockOnImport | BlockOnStreamIn`; units simulate from frame one and fall through ground that is still streaming.
+- A new `.cs` whose `.meta` is written after Unity's compile started can be left out of its assembly for good, with no error. `AssetDatabase.MoveAsset` re-registers it.
+- A test that creates GameObjects in the ACTIVE scene can leak them into `CampLoop.unity` on the next `SaveScene(active)` (it once grew 100k lines). Run such tests in `EditorSceneManager.NewPreviewScene()` and check `git diff --stat Assets/Scenes/CampLoop.unity` afterwards.

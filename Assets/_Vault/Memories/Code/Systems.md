@@ -15,6 +15,8 @@ All game logic lives here. Read the context file for each sub-group before worki
 PostBakingSystemGroup        — SOs → BlobAssets + cross-entity component distribution (runs once at bake time)
 GameManagerSystemGroup       — WORLD SERVICES (not scene-gated): registries, spatial hashes, DamageBus reset, floating origin, horde state
 WorldTimeSystemGroup         — WorldClockSystem: ticks the shared WorldClock, raises DayStarted/WeekStarted (Trade_System.md TR-A2)
+TerrainSystemGroup           — abstract-tier transition systems (empty until P9-4c/d); see [[Terrain]]
+TerrainStreamingSystemGroup  — in FixedStepSimulationSystemGroup, BEFORE PhysicsSystemGroup: TerrainStreamingSystem loads/unloads tile subscenes around TerrainNavFocus; see [[Terrain]]
 PlayerSystemGroup            — all player-driven logic
   ├── PlayerInputSystemGroup (OrderFirst)  — input events → ECS components, targeting, attacks, aim, equipment dispatch
   ├── WorkstationInputSystemGroup — placement/deploy/mount on E, before NarrativeSystemGroup (see Camp Loop)
