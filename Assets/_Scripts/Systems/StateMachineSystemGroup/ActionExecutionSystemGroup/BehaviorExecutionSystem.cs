@@ -143,6 +143,8 @@ public partial struct BehaviorExecutionSystem : ISystem
 // the player, the brain is off). brain.unitType stays readable under WithPresent.
 [WithPresent(typeof(UtilityBrain))]
 [WithPresent(typeof(PathRequest))]
+// An abstract unit's position is a route, not a transform: running commands on it would re-enable the PathRequest the tier switched off.
+[WithNone(typeof(AbstractSimulation))]
 public partial struct BehaviorExecutionJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BehaviorLibraryBlob>       behaviorLib;

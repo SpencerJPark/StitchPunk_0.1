@@ -50,7 +50,7 @@ public partial struct FactionRegistrySystem : ISystem
         registry.ValueRW.entities.Clear();
 
         foreach ((RefRO<Faction> faction, Entity entity) in
-            SystemAPI.Query<RefRO<Faction>>().WithEntityAccess())
+            SystemAPI.Query<RefRO<Faction>>().WithNone<AbstractSimulation>().WithEntityAccess())
         {
             // Skip entities that are dead (if they have the Dead component and it is enabled)
             if (deadLookup.HasComponent(entity) && deadLookup.IsComponentEnabled(entity))

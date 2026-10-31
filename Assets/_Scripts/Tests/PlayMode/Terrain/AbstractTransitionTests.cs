@@ -64,6 +64,7 @@ namespace StitchPunk.Tests.PlayMode
             Assert.IsTrue(IsEnabled<AbstractSimulation>());
             Assert.IsFalse(IsEnabled<Movement>());
             Assert.IsFalse(IsEnabled<Gravity>());
+            Assert.IsFalse(IsEnabled<UtilityBrain>());
             AbstractSavedState savedState = testWorld.EntityManager.GetComponentData<AbstractSavedState>(unitEntity);
             Assert.IsTrue(savedState.hadMovementEnabled);
             Assert.IsTrue(savedState.hadGravityEnabled);
@@ -96,6 +97,7 @@ namespace StitchPunk.Tests.PlayMode
             Assert.IsFalse(IsEnabled<AbstractSimulation>());
             Assert.IsTrue(IsEnabled<Movement>());
             Assert.IsTrue(IsEnabled<Gravity>());
+            Assert.IsTrue(IsEnabled<UtilityBrain>());
             Assert.IsTrue(IsEnabled<PathRequest>());
             float3 position = entityManager.GetComponentData<LocalTransform>(unitEntity).Position;
             Assert.AreEqual(60f, position.x, 0.01f);
@@ -206,7 +208,7 @@ namespace StitchPunk.Tests.PlayMode
             Entity unit = entityManager.CreateEntity(
                 typeof(LocalTransform), typeof(StateMachine), typeof(Movement), typeof(Gravity), typeof(PathRequest),
                 typeof(DStarLiteFollower), typeof(FlowFieldFollower), typeof(AbstractSimulation), typeof(AbstractSavedState),
-                typeof(AbstractRoute), typeof(AbstractRestAnchor), typeof(Dead));
+                typeof(AbstractRoute), typeof(AbstractRestAnchor), typeof(Dead), typeof(UtilityBrain));
             entityManager.AddBuffer<AbstractRouteWaypoint>(unit);
 
             entityManager.SetComponentData(unit, LocalTransform.FromPosition(position));

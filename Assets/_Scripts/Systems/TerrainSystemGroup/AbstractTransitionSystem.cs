@@ -84,6 +84,7 @@ public partial struct AbstractTransitionSystem : ISystem
 [WithPresent(typeof(PathRequest))]
 [WithPresent(typeof(DStarLiteFollower))]
 [WithPresent(typeof(FlowFieldFollower))]
+[WithPresent(typeof(UtilityBrain))]
 [WithNone(typeof(PinnedActive), typeof(TerrainNavFocus), typeof(Dead), typeof(CutsceneActor), typeof(Parent))]
 public partial struct AbstractTransitionJob : IJobEntity
 {
@@ -127,7 +128,8 @@ public partial struct AbstractTransitionJob : IJobEntity
         EnabledRefRW<Gravity> gravityEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<DStarLiteFollower> dStarLiteFollowerEnabled,
-        EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled)
+        EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled,
+        EnabledRefRW<UtilityBrain> utilityBrainEnabled)
     {
         if ((uint)entity.Index % FramesBetweenUnitChecks != frameCounter % FramesBetweenUnitChecks)
             return;
@@ -137,14 +139,14 @@ public partial struct AbstractTransitionJob : IJobEntity
             TryGoAbstract(
                 entity, ref transform, in stateMachine, ref movement, ref savedState, ref route, ref restAnchor,
                 waypoints, abstractSimulationEnabled, movementEnabled, gravityEnabled, pathRequestEnabled,
-                dStarLiteFollowerEnabled, flowFieldFollowerEnabled);
+                dStarLiteFollowerEnabled, flowFieldFollowerEnabled, utilityBrainEnabled);
         }
         else
         {
             TryGoActive(
                 ref transform, ref movement, ref gravity, ref pathRequest, in savedState, ref route, in restAnchor,
                 waypoints, abstractSimulationEnabled, movementEnabled, gravityEnabled, pathRequestEnabled,
-                dStarLiteFollowerEnabled, flowFieldFollowerEnabled);
+                dStarLiteFollowerEnabled, flowFieldFollowerEnabled, utilityBrainEnabled);
         }
     }
 
@@ -162,7 +164,8 @@ public partial struct AbstractTransitionJob : IJobEntity
         EnabledRefRW<Gravity> gravityEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<DStarLiteFollower> dStarLiteFollowerEnabled,
-        EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled)
+        EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled,
+        EnabledRefRW<UtilityBrain> utilityBrainEnabled)
     {
         int tileIndex = FindTileIndex(TerrainNavWindowMath.TileCoordinateOf(transform.Position, TileSizeMetres));
         // A unit outside every known tile (no streaming data for it) is left alone rather than frozen.
@@ -172,7 +175,8 @@ public partial struct AbstractTransitionJob : IJobEntity
         savedState = new AbstractSavedState
         {
             hadMovementEnabled = movementEnabled.ValueRO,
-            hadGravityEnabled = gravityEnabled.ValueRO
+            hadGravityEnabled = gravityEnabled.ValueRO,
+            hadUtilityBrainEnabled = utilityBrainEnabled.ValueRO
         };
 
         restAnchor = new AbstractRestAnchor { position = transform.Position };
@@ -194,6 +198,8 @@ public partial struct AbstractTransitionJob : IJobEntity
         pathRequestEnabled.ValueRW = false;
         dStarLiteFollowerEnabled.ValueRW = false;
         flowFieldFollowerEnabled.ValueRW = false;
+        // Decisions are cut off like in DeathSystem: the awareness and scoring half all require UtilityBrain.
+        utilityBrainEnabled.ValueRW = false;
         if (aStarFollowerLookup.HasComponent(entity))
             aStarFollowerLookup.SetComponentEnabled(entity, false);
         abstractSimulationEnabled.ValueRW = true;
@@ -213,7 +219,8 @@ public partial struct AbstractTransitionJob : IJobEntity
         EnabledRefRW<Gravity> gravityEnabled,
         EnabledRefRW<PathRequest> pathRequestEnabled,
         EnabledRefRW<DStarLiteFollower> dStarLiteFollowerEnabled,
-        EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled)
+        EnabledRefRW<FlowFieldFollower> flowFieldFollowerEnabled,
+        EnabledRefRW<UtilityBrain> utilityBrainEnabled)
     {
         if (!hasPhysics)
             return;
@@ -254,6 +261,7 @@ public partial struct AbstractTransitionJob : IJobEntity
         // Every bit is written explicitly: enableable bits are not preserved across structural changes or pool reclaim.
         movementEnabled.ValueRW = savedState.hadMovementEnabled;
         gravityEnabled.ValueRW = savedState.hadGravityEnabled;
+        utilityBrainEnabled.ValueRW = savedState.hadUtilityBrainEnabled;
         dStarLiteFollowerEnabled.ValueRW = false;
         flowFieldFollowerEnabled.ValueRW = false;
 

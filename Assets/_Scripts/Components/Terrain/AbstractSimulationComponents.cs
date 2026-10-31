@@ -11,6 +11,7 @@ public struct AbstractSavedState : IComponentData
 {
     public bool hadMovementEnabled;
     public bool hadGravityEnabled;
+    public bool hadUtilityBrainEnabled;
 }
 
 public enum AbstractRouteEnd : byte
