@@ -35,3 +35,9 @@ Run through the Unity MCP, 2026-10-30. Each finding is the answer plus the TT-D 
 
 ## S5 follow-up (P3 built)
 - Live paint on tile (0,0) at 512 px, measured through the real brush events: first stamp 215 ms (session creation), later stamps about 15 ms each (region encode plus the whole-texture upload), stroke end 860 ms (PNG + full composite + BC7 reimport). Holds 30 fps; a 1024 px hero tile would need a partial texture upload.
+
+## S3 Decals bake to entities with per-instance tile and tint: PASS once PAINTED_ENTITIES is defined
+- The define was not set. Without it the baked decals have no `_Tile`/`_Tint` entity components, and Entities Graphics ignores `MaterialPropertyBlock`, so every decal in a tile subscene would draw atlas tile 0.
+- `PaintedGround/Editor/PaintedEntitiesDefine.cs` (`[InitializeOnLoad]`) adds `PAINTED_ENTITIES` to the Standalone defines when Entities Graphics is present; `PaintedDecalEntities.cs` then compiles into Assembly-CSharp. Adding it recompiles everything and the Editor stalled for about 10 minutes the first time (MCP link lost until the owner restarted it): expect that once on a fresh checkout.
+- Probe: 16 decals (atlas tiles 0-7, opacity 0.5-0.8) in a tile scene gave 16 entities with `PaintedDecalTile` 0..7 (two each) and tint alpha 0.50..0.80 in Play. Rendering of the instanced `_Tile` was not looked at (owner check).
+- TT-D11 stands: decals bake to entities. The 500 legacy decals in `CampLoop` stay GameObjects in the main scene (they are not in a subscene).
