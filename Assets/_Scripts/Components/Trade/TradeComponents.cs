@@ -137,6 +137,7 @@ public struct WorldClockSnapshot : IComponentData, IPersist
     public float timeOfDay01;
     public int   dayOfWeek;
     public int   weekNumber;
+    public double totalWorldSeconds;   // abstract route positions are a function of it
 }
 
 public struct TradeBoardSnapshot : IComponentData, IPersist

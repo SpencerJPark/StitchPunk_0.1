@@ -42,6 +42,7 @@ public partial struct TradeSaveSyncSystem : ISystem
             timeOfDay01 = clock.timeOfDay01,
             dayOfWeek = clock.dayOfWeek,
             weekNumber = clock.weekNumber,
+            totalWorldSeconds = clock.totalWorldSeconds,
         });
 
         TradeBoardSnapshot boardSnapshot = default;

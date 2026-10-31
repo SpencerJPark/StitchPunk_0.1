@@ -9,6 +9,8 @@ public struct WorldClock : IComponentData
     public float secondsPerDay;        // 1440 = 24 real minutes per day (TR-D9)
     public float dayStartTimeOfDay01;  // 0.25 = 06:00: a day (and a new week) begins here, not at midnight
     public bool  isPaused;             // UI that wants the clock stopped without touching Time.timeScale
+    // Monotonic game seconds since the world began; advances with timeOfDay01 and on a day skip. The abstract tier computes route positions from it. Baked 0.
+    public double totalWorldSeconds;
 }
 
 // One-frame signals on the WorldClock entity. WorldClockSystem raises them and clears them at the start of its next update.

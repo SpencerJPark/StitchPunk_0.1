@@ -38,6 +38,7 @@ public partial struct WorldClockSystem : ISystem
         {
             int skipDays = SystemAPI.GetComponent<WorldClockSkipRequest>(clockEntity).days;
             SystemAPI.SetComponentEnabled<WorldClockSkipRequest>(clockEntity, false);
+            clock.ValueRW.totalWorldSeconds += (double)skipDays * clock.ValueRO.secondsPerDay;
             for (int skipIndex = 0; skipIndex < skipDays; skipIndex++)
             {
                 weekStarted |= WorldClockMath.AdvanceDay(ref clock.ValueRW);
@@ -55,6 +56,7 @@ public partial struct WorldClockSystem : ISystem
                 previousTimeOfDay, advancedTimeOfDay, clock.ValueRO.dayStartTimeOfDay01);
 
             clock.ValueRW.timeOfDay01 = advancedTimeOfDay - math.floor(advancedTimeOfDay);
+            clock.ValueRW.totalWorldSeconds += SystemAPI.Time.DeltaTime;
             for (int boundaryIndex = 0; boundaryIndex < dayBoundaries; boundaryIndex++)
             {
                 weekStarted |= WorldClockMath.AdvanceDay(ref clock.ValueRW);

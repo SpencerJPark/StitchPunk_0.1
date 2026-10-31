@@ -48,6 +48,7 @@ public partial struct TradeLoadSyncSystem : ISystem
             clock.timeOfDay01 = clockSnapshot.timeOfDay01;
             clock.dayOfWeek = clockSnapshot.dayOfWeek;
             clock.weekNumber = clockSnapshot.weekNumber;
+            clock.totalWorldSeconds = clockSnapshot.totalWorldSeconds;
             SystemAPI.SetComponent(clockEntity, clock);
         }
 
