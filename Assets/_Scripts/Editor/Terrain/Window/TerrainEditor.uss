@@ -1,0 +1,169 @@
+.terrain-window {
+    flex-grow: 1;
+    background-color: var(--unity-colors-window-background);
+    color: var(--unity-colors-default-text);
+}
+
+.terrain-main {
+    flex-grow: 1;
+    flex-direction: row;
+}
+
+.terrain-rail {
+    width: 96px;
+    flex-shrink: 0;
+    padding: 8px 4px;
+    border-right-width: 1px;
+    border-right-color: var(--unity-colors-button-border);
+}
+
+.terrain-rail-button {
+    height: 32px;
+    margin: 0 0 4px 0;
+    -unity-text-align: middle-left;
+    padding-left: 8px;
+    font-size: 12px;
+}
+
+.terrain-rail-button--active {
+    background-color: var(--unity-colors-highlight-background);
+    color: var(--unity-colors-highlight-text);
+}
+
+.terrain-content {
+    flex-grow: 1;
+}
+
+.terrain-panel {
+    flex-grow: 1;
+    padding: 12px;
+}
+
+.terrain-panel-title {
+    font-size: 13px;
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+
+.terrain-panel-hint {
+    font-size: 11px;
+    opacity: 0.7;
+    white-space: normal;
+    margin-bottom: 8px;
+}
+
+.terrain-row {
+    flex-direction: row;
+    align-items: center;
+    height: 24px;
+    margin-bottom: 4px;
+}
+
+.terrain-label {
+    width: 80px;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.terrain-row > Slider,
+.terrain-row > SliderInt {
+    flex-grow: 1;
+}
+
+.terrain-primary-button {
+    height: 36px;
+    margin-top: 8px;
+    font-size: 13px;
+    -unity-font-style: bold;
+    background-color: var(--unity-colors-highlight-background);
+    color: var(--unity-colors-highlight-text);
+}
+
+.terrain-segment-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.terrain-segment-button {
+    height: 28px;
+    min-width: 72px;
+    margin: 0 4px 4px 0;
+}
+
+.terrain-segment-button--active {
+    background-color: var(--unity-colors-highlight-background);
+    color: var(--unity-colors-highlight-text);
+}
+
+.terrain-swatch-row {
+    flex-direction: row;
+    margin-bottom: 8px;
+}
+
+.terrain-swatch {
+    width: 72px;
+    margin-right: 8px;
+    padding: 4px;
+    align-items: center;
+    border-width: 2px;
+    border-color: var(--unity-colors-button-border);
+    background-color: var(--unity-colors-button-background);
+}
+
+.terrain-swatch--selected {
+    border-color: var(--unity-colors-highlight-background);
+}
+
+.terrain-swatch-chip {
+    width: 56px;
+    height: 40px;
+    margin-bottom: 4px;
+}
+
+.terrain-grid {
+    flex-grow: 1;
+    min-height: 200px;
+    border-width: 1px;
+    border-color: var(--unity-colors-button-border);
+}
+
+.terrain-legend {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    font-size: 11px;
+}
+
+.terrain-legend-item {
+    flex-direction: row;
+    align-items: center;
+    margin-right: 12px;
+}
+
+.terrain-legend-chip {
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+}
+
+.terrain-empty {
+    padding: 24px;
+    white-space: normal;
+    opacity: 0.8;
+}
+
+.terrain-footer {
+    flex-direction: row;
+    align-items: center;
+    height: 28px;
+    flex-shrink: 0;
+    padding: 0 12px;
+    font-size: 11px;
+    border-top-width: 1px;
+    border-top-color: var(--unity-colors-button-border);
+}
+
+.terrain-footer-item {
+    margin-right: 16px;
+}

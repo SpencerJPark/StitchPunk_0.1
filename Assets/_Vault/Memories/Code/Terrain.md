@@ -16,6 +16,12 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - Live painting (`Brushes/TerrainPaintBrush`): per-stroke session per tile with its own uncompressed RGBA32 SDF texture on the material (the imported SDF is BC7 and cannot be edited), dirty-rect encode `EncodeSignedDistanceFieldRegion`, PNG + recomposite only on mouse-up. Undo = revision match + saved overlay rect.
 - Mask resolution is per tile (`TerrainTileAssets.MaskResolutionFor`; tile (0,0) stays 512); SDF PNGs are stamped BC7 on first creation, `Compress Selected Tile SDF (BC7)` fixes an old one.
 
+## Terrain Editor window (P4, `Editor/Terrain/Window/`)
+- `Stitch Punk > Terrain > Terrain Editor`: left rail (Tiles, Paint, Height live; Roads/Decals/Scatter/Nav/Stream disabled until their phase), panel host, footer (active tile, brush, panel status). Panels derive `TerrainToolPanel`; every visual lives in `TerrainEditor.uss` (shared class vocabulary, `--unity-colors-*` only), none in C#.
+- Panels arm and disarm `BrushState.activeTool` in `OnShown`/`OnHidden`; the Brush menu still works and the panels re-sync every 250 ms.
+- `TerrainTilesPanel`: Painter2D tile map of the world rect (click open, plus cell creates, right click close / select / delete). `TerrainTileCreator.CreateTileScene` makes a tile scene (AutoLoad false) and welds its seam heights to existing neighbours (read from their data assets, so unloaded ones count). Open tiles are remembered in `SessionState` `TerrainEditor.OpenTiles` and reopened after a reload.
+- A clicked rail button can't be driven by a synthetic `ClickEvent`; send `NavigationSubmitEvent` to the Button.
+
 ## Traps
 - A domain reload (any recompile) clears the Undo stack and closes tile subscenes.
 - Sculpt only ever writes `handHeightDelta`. An edge sample exists in 2 (corner: 4) tiles and every copy must hold the same value; `TerrainHeightBrush` computes it once and writes all copies (test: `TerrainHeightBrushTests`).

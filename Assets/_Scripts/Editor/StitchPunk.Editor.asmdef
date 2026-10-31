@@ -5,6 +5,7 @@
         "Unity.Entities",
         "Unity.Entities.Hybrid",
         "Unity.Scenes",
+        "Unity.Scenes.Editor",
         "Unity.Mathematics",
         "Unity.Collections",
         "StitchPunk.Data",

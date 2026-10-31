@@ -1,7 +1,7 @@
 ---
 tags: [plan, terrain, streaming, nav, tooling]
 related: "[[Editor]], [[Shaders]], [[Systems_Movement]], [[RULES]]"
-status: spikes done, P1 + P2 + P3 (paint) built 2026-10-30; P3 checkpoint passed headless (live stamp about 15 ms at 512 px, undo/redo verified); next P4 window then P3c
+status: spikes done, P1 + P2 + P3 + P4 (Terrain Editor window) built 2026-10-30; next P3c procedural base + regions, then P5 roads
 supersedes: TerrainTiles_System.md (T0/T1 history kept there)
 ---
 

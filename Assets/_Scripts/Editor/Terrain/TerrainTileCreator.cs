@@ -63,6 +63,102 @@ public static class TerrainTileCreator
         return tile;
     }
 
+    // Creates a tile, welds its edge heights to every existing neighbour, and files it as an unloaded subscene.
+    public static SubScene CreateTileScene(Vector2Int coordinate, TerrainSplatLayer fill)
+    {
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(TerrainTileAssets.TileScenePath(coordinate)) != null)
+        {
+            Debug.LogWarning("[Terrain] A tile scene already exists at " + coordinate + "; not creating.");
+            return null;
+        }
+
+        ActivatePersistentScene();
+        TerrainTile tile = CreateTile(coordinate, fill);
+        if (tile == null || tile.tileData == null) return null;
+
+        CopyNeighbourSeamHeights(tile.tileData, coordinate);
+        EditorUtility.SetDirty(tile.tileData);
+        AssetDatabase.SaveAssets();
+        TerrainTileBuilder.Rebuild(tile);
+        return ConvertToTileScene(tile, false);
+    }
+
+    // ConvertToTileScene parents its SubScene into the ACTIVE scene, which may be an open tile scene.
+    static void ActivatePersistentScene()
+    {
+        Scene persistentScene = default(Scene);
+        for (int sceneIndex = 0; sceneIndex < SceneManager.sceneCount; sceneIndex++)
+        {
+            Scene candidate = SceneManager.GetSceneAt(sceneIndex);
+            if (!candidate.isLoaded) continue;
+            foreach (GameObject rootObject in candidate.GetRootGameObjects())
+            {
+                if (rootObject.name == TerrainWorldRootName)
+                {
+                    persistentScene = candidate;
+                    break;
+                }
+            }
+            if (persistentScene.IsValid()) break;
+        }
+
+        if (!persistentScene.IsValid())
+        {
+            foreach (SubScene subScene in Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
+            {
+                if (subScene.name.StartsWith("Tile_"))
+                {
+                    persistentScene = subScene.gameObject.scene;
+                    break;
+                }
+            }
+        }
+
+        if (persistentScene.IsValid() && persistentScene.isLoaded) SceneManager.SetActiveScene(persistentScene);
+    }
+
+    static void CopyNeighbourSeamHeights(TerrainTileData newData, Vector2Int coordinate)
+    {
+        int last = TerrainTileData.HeightSamplesPerSide - 1;
+        TerrainTileData eastData = LoadNeighbourData(coordinate + Vector2Int.right);
+        TerrainTileData westData = LoadNeighbourData(coordinate + Vector2Int.left);
+        TerrainTileData northData = LoadNeighbourData(coordinate + Vector2Int.up);
+        TerrainTileData southData = LoadNeighbourData(coordinate + Vector2Int.down);
+
+        for (int sample = 0; sample <= last; sample++)
+        {
+            if (eastData != null) MatchSample(newData, last, sample, eastData, 0, sample);
+            if (westData != null) MatchSample(newData, 0, sample, westData, last, sample);
+            if (northData != null) MatchSample(newData, sample, last, northData, sample, 0);
+            if (southData != null) MatchSample(newData, sample, 0, southData, sample, last);
+        }
+
+        // A corner touched only by a diagonal neighbour is not covered by the four sides above.
+        MatchDiagonalCorner(newData, coordinate, new Vector2Int(1, 1), last, last, 0, 0, eastData, northData);
+        MatchDiagonalCorner(newData, coordinate, new Vector2Int(-1, 1), 0, last, last, 0, westData, northData);
+        MatchDiagonalCorner(newData, coordinate, new Vector2Int(1, -1), last, 0, 0, last, eastData, southData);
+        MatchDiagonalCorner(newData, coordinate, new Vector2Int(-1, -1), 0, 0, last, last, westData, southData);
+    }
+
+    static void MatchDiagonalCorner(TerrainTileData newData, Vector2Int coordinate, Vector2Int offset, int newX, int newZ, int neighbourX, int neighbourZ, TerrainTileData firstSide, TerrainTileData secondSide)
+    {
+        if (firstSide != null || secondSide != null) return;
+        TerrainTileData diagonalData = LoadNeighbourData(coordinate + offset);
+        if (diagonalData != null) MatchSample(newData, newX, newZ, diagonalData, neighbourX, neighbourZ);
+    }
+
+    static TerrainTileData LoadNeighbourData(Vector2Int coordinate)
+    {
+        return AssetDatabase.LoadAssetAtPath<TerrainTileData>(TerrainTileAssets.TileDataPath(coordinate));
+    }
+
+    static void MatchSample(TerrainTileData newData, int newX, int newZ, TerrainTileData neighbourData, int neighbourX, int neighbourZ)
+    {
+        newData.SetHandHeightDelta(newX, newZ, 0f);
+        float baselineHeight = newData.HeightAt(newX, newZ);
+        newData.SetHandHeightDelta(newX, newZ, neighbourData.HeightAt(neighbourX, neighbourZ) - baselineHeight);
+    }
+
     [MenuItem("Stitch Punk/Terrain/Create Tile...")]
     static void OpenCreateTileWindow()
     {

@@ -1,0 +1,519 @@
+#if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
+using Unity.Scenes;
+using SubSceneEditorUtility = Unity.Scenes.Editor.SubSceneUtility;
+using SubSceneEditorInspectorUtility = Unity.Scenes.Editor.SubSceneInspectorUtility;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
+
+public enum TerrainTileCellState
+{
+    Empty,
+    Exists,
+    Open,
+    Unsaved
+}
+
+// One painted element for the whole world rectangle; per-cell elements would be 900 layout nodes.
+public sealed class TerrainTileMapElement : VisualElement
+{
+    public const float CellSizePixels = 14f;
+    const float WorldBoundsLineWidth = 2f;
+
+    public static readonly Color EmptyColor = new Color(0.14f, 0.14f, 0.14f, 1f);
+    public static readonly Color ExistsColor = new Color(0.35f, 0.55f, 0.35f, 1f);
+    public static readonly Color OpenColor = new Color(0.30f, 0.60f, 0.95f, 1f);
+    public static readonly Color UnsavedColor = new Color(0.95f, 0.70f, 0.20f, 1f);
+    public static readonly Color PlusColor = new Color(0.55f, 0.85f, 0.55f, 1f);
+    static readonly Color CellOutlineColor = new Color(0.30f, 0.30f, 0.30f, 1f);
+    static readonly Color WorldBoundsColor = new Color(0.85f, 0.85f, 0.85f, 1f);
+    static readonly Color HoverColor = new Color(1f, 1f, 1f, 0.35f);
+
+    Vector2Int originTile = new Vector2Int(-15, -15);
+    int countX = 30;
+    int countZ = 30;
+    bool isHovering;
+    Vector2Int hoveredCell;
+
+    public Func<Vector2Int, TerrainTileCellState> StateOfCell;
+    public event Action<Vector2Int> CellPrimaryClicked;
+    public event Action<Vector2Int> CellSecondaryClicked;
+    public event Action HoverChanged;
+
+    public bool IsHovering => isHovering;
+    public Vector2Int HoveredCell => hoveredCell;
+
+    public TerrainTileMapElement()
+    {
+        AddToClassList("terrain-grid");
+        generateVisualContent += DrawMap;
+        RegisterCallback<PointerMoveEvent>(OnPointerMove);
+        RegisterCallback<PointerLeaveEvent>(OnPointerLeave);
+        RegisterCallback<PointerDownEvent>(OnPointerDown);
+        ApplyWorldSize();
+    }
+
+    public void Configure(Vector2Int newOriginTile, int newCountX, int newCountZ)
+    {
+        originTile = newOriginTile;
+        countX = newCountX;
+        countZ = newCountZ;
+        ApplyWorldSize();
+        MarkDirtyRepaint();
+    }
+
+    void ApplyWorldSize()
+    {
+        style.width = countX * CellSizePixels;
+        style.height = countZ * CellSizePixels;
+        style.flexGrow = 0f;
+        style.flexShrink = 0f;
+    }
+
+    Vector2 CellTopLeft(Vector2Int cell)
+    {
+        int column = cell.x - originTile.x;
+        int row = countZ - 1 - (cell.y - originTile.y);
+        return new Vector2(column * CellSizePixels, row * CellSizePixels);
+    }
+
+    bool TryCellAt(Vector2 localPosition, out Vector2Int cell)
+    {
+        int column = Mathf.FloorToInt(localPosition.x / CellSizePixels);
+        int row = Mathf.FloorToInt(localPosition.y / CellSizePixels);
+        cell = new Vector2Int(originTile.x + column, originTile.y + (countZ - 1 - row));
+        return column >= 0 && column < countX && row >= 0 && row < countZ;
+    }
+
+    TerrainTileCellState StateOf(Vector2Int cell)
+    {
+        return StateOfCell != null ? StateOfCell(cell) : TerrainTileCellState.Empty;
+    }
+
+    bool IsPlusCell(Vector2Int cell)
+    {
+        if (StateOf(cell) != TerrainTileCellState.Empty) return false;
+        return StateOf(cell + Vector2Int.right) != TerrainTileCellState.Empty
+            || StateOf(cell + Vector2Int.left) != TerrainTileCellState.Empty
+            || StateOf(cell + Vector2Int.up) != TerrainTileCellState.Empty
+            || StateOf(cell + Vector2Int.down) != TerrainTileCellState.Empty;
+    }
+
+    public bool IsCreatableCell(Vector2Int cell)
+    {
+        bool insideWorld = cell.x >= originTile.x && cell.x < originTile.x + countX
+            && cell.y >= originTile.y && cell.y < originTile.y + countZ;
+        return insideWorld && IsPlusCell(cell);
+    }
+
+    static Color ColorOf(TerrainTileCellState state)
+    {
+        switch (state)
+        {
+            case TerrainTileCellState.Exists: return ExistsColor;
+            case TerrainTileCellState.Open: return OpenColor;
+            case TerrainTileCellState.Unsaved: return UnsavedColor;
+            default: return EmptyColor;
+        }
+    }
+
+    static void FillRectangle(Painter2D painter, Vector2 topLeft, float width, float height, Color color)
+    {
+        painter.fillColor = color;
+        painter.BeginPath();
+        painter.MoveTo(topLeft);
+        painter.LineTo(topLeft + new Vector2(width, 0f));
+        painter.LineTo(topLeft + new Vector2(width, height));
+        painter.LineTo(topLeft + new Vector2(0f, height));
+        painter.ClosePath();
+        painter.Fill();
+    }
+
+    static void StrokeRectangle(Painter2D painter, Vector2 topLeft, float width, float height, Color color, float lineWidth)
+    {
+        painter.strokeColor = color;
+        painter.lineWidth = lineWidth;
+        painter.BeginPath();
+        painter.MoveTo(topLeft);
+        painter.LineTo(topLeft + new Vector2(width, 0f));
+        painter.LineTo(topLeft + new Vector2(width, height));
+        painter.LineTo(topLeft + new Vector2(0f, height));
+        painter.ClosePath();
+        painter.Stroke();
+    }
+
+    void DrawMap(MeshGenerationContext context)
+    {
+        Painter2D painter = context.painter2D;
+        for (int column = 0; column < countX; column++)
+        {
+            for (int row = 0; row < countZ; row++)
+            {
+                Vector2Int cell = new Vector2Int(originTile.x + column, originTile.y + (countZ - 1 - row));
+                Vector2 topLeft = new Vector2(column * CellSizePixels, row * CellSizePixels);
+                TerrainTileCellState state = StateOf(cell);
+                FillRectangle(painter, topLeft, CellSizePixels, CellSizePixels, ColorOf(state));
+                if (state == TerrainTileCellState.Empty)
+                {
+                    StrokeRectangle(painter, topLeft, CellSizePixels, CellSizePixels, CellOutlineColor, 1f);
+                    if (IsPlusCell(cell)) DrawPlus(painter, topLeft);
+                }
+            }
+        }
+
+        if (isHovering)
+            FillRectangle(painter, CellTopLeft(hoveredCell), CellSizePixels, CellSizePixels, HoverColor);
+
+        float inset = WorldBoundsLineWidth * 0.5f;
+        StrokeRectangle(painter, new Vector2(inset, inset), countX * CellSizePixels - WorldBoundsLineWidth, countZ * CellSizePixels - WorldBoundsLineWidth, WorldBoundsColor, WorldBoundsLineWidth);
+    }
+
+    static void DrawPlus(Painter2D painter, Vector2 topLeft)
+    {
+        float middle = CellSizePixels * 0.5f;
+        float arm = CellSizePixels * 0.25f;
+        painter.strokeColor = PlusColor;
+        painter.lineWidth = 2f;
+        painter.BeginPath();
+        painter.MoveTo(topLeft + new Vector2(middle - arm, middle));
+        painter.LineTo(topLeft + new Vector2(middle + arm, middle));
+        painter.MoveTo(topLeft + new Vector2(middle, middle - arm));
+        painter.LineTo(topLeft + new Vector2(middle, middle + arm));
+        painter.Stroke();
+    }
+
+    void OnPointerMove(PointerMoveEvent pointerEvent)
+    {
+        Vector2Int cell;
+        bool insideMap = TryCellAt(pointerEvent.localPosition, out cell);
+        if (insideMap == isHovering && (!insideMap || cell == hoveredCell)) return;
+        isHovering = insideMap;
+        hoveredCell = cell;
+        MarkDirtyRepaint();
+        HoverChanged?.Invoke();
+    }
+
+    void OnPointerLeave(PointerLeaveEvent pointerEvent)
+    {
+        if (!isHovering) return;
+        isHovering = false;
+        MarkDirtyRepaint();
+        HoverChanged?.Invoke();
+    }
+
+    void OnPointerDown(PointerDownEvent pointerEvent)
+    {
+        Vector2Int cell;
+        if (!TryCellAt(pointerEvent.localPosition, out cell)) return;
+        if (pointerEvent.button == 0) CellPrimaryClicked?.Invoke(cell);
+        else if (pointerEvent.button == 1) CellSecondaryClicked?.Invoke(cell);
+    }
+}
+
+public sealed class TerrainTilesPanel : TerrainToolPanel
+{
+    const string OpenTilesSessionKey = "TerrainEditor.OpenTiles";
+
+    readonly TerrainTileMapElement mapElement = new TerrainTileMapElement();
+    readonly VisualElement mapGroup = new VisualElement();
+    readonly VisualElement emptyState = new VisualElement();
+    readonly HashSet<Vector2Int> tilesWithSceneAsset = new HashSet<Vector2Int>();
+    readonly Dictionary<Vector2Int, bool> openTilesAndDirtyFlag = new Dictionary<Vector2Int, bool>();
+    Vector2Int worldOriginTile = new Vector2Int(-15, -15);
+    int worldTilesX = 30;
+    int worldTilesZ = 30;
+    IVisualElementScheduledItem refreshTimer;
+    string statusText = string.Empty;
+
+    public override string DisplayName => "Tiles";
+    public override string StatusText => statusText;
+
+    public TerrainTilesPanel()
+    {
+        AddToClassList("terrain-panel");
+
+        Label title = new Label("Tiles");
+        title.AddToClassList("terrain-panel-title");
+        Add(title);
+
+        Label hint = new Label("Click a tile to edit it, a plus to grow the world, right click for more.");
+        hint.AddToClassList("terrain-panel-hint");
+        Add(hint);
+
+        ScrollView mapScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
+        mapScroll.Add(mapElement);
+        mapGroup.Add(mapScroll);
+        mapGroup.Add(BuildLegend());
+        Add(mapGroup);
+
+        emptyState.AddToClassList("terrain-empty");
+        Label emptyTitle = new Label("No terrain tiles yet");
+        emptyTitle.AddToClassList("terrain-panel-title");
+        Label emptyWhy = new Label("The world is built from 100 m tiles. Create the first one to start sculpting and painting.");
+        emptyWhy.AddToClassList("terrain-panel-hint");
+        emptyState.Add(emptyTitle);
+        emptyState.Add(emptyWhy);
+        Add(emptyState);
+
+        Button createButton = new Button(TerrainTileCreatorWindow.Open);
+        createButton.text = "Create Tile...";
+        createButton.AddToClassList("terrain-primary-button");
+        Add(createButton);
+
+        mapElement.StateOfCell = StateOfCell;
+        mapElement.CellPrimaryClicked += OnCellPrimaryClicked;
+        mapElement.CellSecondaryClicked += OnCellSecondaryClicked;
+        mapElement.HoverChanged += OnHoverChanged;
+    }
+
+    static VisualElement BuildLegend()
+    {
+        VisualElement legend = new VisualElement();
+        legend.AddToClassList("terrain-legend");
+        legend.Add(BuildLegendItem("Empty", TerrainTileMapElement.EmptyColor));
+        legend.Add(BuildLegendItem("Exists", TerrainTileMapElement.ExistsColor));
+        legend.Add(BuildLegendItem("Open", TerrainTileMapElement.OpenColor));
+        legend.Add(BuildLegendItem("Unsaved", TerrainTileMapElement.UnsavedColor));
+        legend.Add(BuildLegendItem("Plus (create)", TerrainTileMapElement.PlusColor));
+        return legend;
+    }
+
+    static VisualElement BuildLegendItem(string labelText, Color chipColor)
+    {
+        VisualElement item = new VisualElement();
+        item.AddToClassList("terrain-legend-item");
+        VisualElement chip = new VisualElement();
+        chip.AddToClassList("terrain-legend-chip");
+        chip.style.backgroundColor = chipColor;
+        item.Add(chip);
+        item.Add(new Label(labelText));
+        return item;
+    }
+
+    public override void OnShown()
+    {
+        EditorApplication.projectChanged -= RefreshAll;
+        EditorApplication.projectChanged += RefreshAll;
+        if (refreshTimer == null) refreshTimer = schedule.Execute(RefreshOpenTiles).Every(500);
+        else refreshTimer.Resume();
+        RefreshAll();
+    }
+
+    public override void OnHidden()
+    {
+        EditorApplication.projectChanged -= RefreshAll;
+        if (refreshTimer != null) refreshTimer.Pause();
+    }
+
+    void RefreshAll()
+    {
+        TerrainWorldProfile profile = TerrainWorldProfile.FindInProject();
+        if (profile != null)
+        {
+            worldOriginTile = profile.worldOriginTile;
+            worldTilesX = profile.worldTilesX;
+            worldTilesZ = profile.worldTilesZ;
+        }
+        mapElement.Configure(worldOriginTile, worldTilesX, worldTilesZ);
+
+        tilesWithSceneAsset.Clear();
+        for (int column = 0; column < worldTilesX; column++)
+        {
+            for (int row = 0; row < worldTilesZ; row++)
+            {
+                Vector2Int coordinate = new Vector2Int(worldOriginTile.x + column, worldOriginTile.y + row);
+                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(TerrainTileAssets.TileScenePath(coordinate)) != null)
+                    tilesWithSceneAsset.Add(coordinate);
+            }
+        }
+        RefreshOpenTiles();
+    }
+
+    void RefreshOpenTiles()
+    {
+        openTilesAndDirtyFlag.Clear();
+        foreach (TerrainTile tile in UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include))
+            openTilesAndDirtyFlag[tile.tileCoordinate] = tile.gameObject.scene.isDirty;
+
+        bool anyTile = tilesWithSceneAsset.Count > 0 || openTilesAndDirtyFlag.Count > 0;
+        mapGroup.style.display = anyTile ? DisplayStyle.Flex : DisplayStyle.None;
+        emptyState.style.display = anyTile ? DisplayStyle.None : DisplayStyle.Flex;
+        mapElement.MarkDirtyRepaint();
+    }
+
+    TerrainTileCellState StateOfCell(Vector2Int coordinate)
+    {
+        bool isDirty;
+        if (openTilesAndDirtyFlag.TryGetValue(coordinate, out isDirty))
+            return isDirty ? TerrainTileCellState.Unsaved : TerrainTileCellState.Open;
+        return tilesWithSceneAsset.Contains(coordinate) ? TerrainTileCellState.Exists : TerrainTileCellState.Empty;
+    }
+
+    void OnHoverChanged()
+    {
+        if (mapElement.IsHovering)
+        {
+            Vector2Int cell = mapElement.HoveredCell;
+            string stateName = StateOfCell(cell) == TerrainTileCellState.Empty ? "empty" : StateOfCell(cell) == TerrainTileCellState.Exists ? "exists" : "open";
+            statusText = "(" + cell.x + ", " + cell.y + ") " + stateName;
+        }
+        else statusText = string.Empty;
+        RaiseStatusChanged();
+    }
+
+    void OnCellPrimaryClicked(Vector2Int cell)
+    {
+        if (StateOfCell(cell) != TerrainTileCellState.Empty)
+        {
+            OpenTileForEdit(cell);
+            return;
+        }
+        if (!mapElement.IsCreatableCell(cell)) return;
+
+        SubScene created = TerrainTileCreator.CreateTileScene(cell, TerrainSplatLayer.Grass);
+        if (created != null) SubSceneEditorUtility.EditScene(created);
+        RefreshAll();
+    }
+
+    void OnCellSecondaryClicked(Vector2Int cell)
+    {
+        if (StateOfCell(cell) == TerrainTileCellState.Empty) return;
+        GenericMenu menu = new GenericMenu();
+        menu.AddItem(new GUIContent("Close"), false, () => CloseTile(cell));
+        menu.AddItem(new GUIContent("Select in Hierarchy"), false, () => SelectTileInHierarchy(cell));
+        menu.AddItem(new GUIContent("Delete..."), false, () => DeleteTile(cell));
+        menu.ShowAsContext();
+    }
+
+    public static SubScene FindSubSceneFor(Vector2Int coordinate)
+    {
+        string subSceneName = "Tile_" + coordinate.x + "_" + coordinate.y;
+        foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
+            if (subScene.name == subSceneName) return subScene;
+        return null;
+    }
+
+    public static bool OpenTileForEdit(Vector2Int coordinate)
+    {
+        SubScene subScene = FindSubSceneFor(coordinate);
+        if (subScene == null)
+        {
+            Debug.LogWarning("[Terrain] No SubScene named Tile_" + coordinate.x + "_" + coordinate.y + " in the loaded scenes; open the scene holding TerrainWorld first.");
+            return false;
+        }
+        if (!subScene.EditingScene.isLoaded) SubSceneEditorUtility.EditScene(subScene);
+        return true;
+    }
+
+    static void CloseTile(Vector2Int coordinate)
+    {
+        SubScene subScene = FindSubSceneFor(coordinate);
+        if (subScene == null || !subScene.EditingScene.isLoaded) return;
+        EditorSceneManager.SaveScene(subScene.EditingScene);
+        SubSceneEditorInspectorUtility.CloseSceneWithoutSaving(subScene);
+    }
+
+    static void SelectTileInHierarchy(Vector2Int coordinate)
+    {
+        TerrainTile tile = TerrainTileCreator.FindTileAt(coordinate);
+        if (tile != null)
+        {
+            Selection.activeGameObject = tile.gameObject;
+            return;
+        }
+        SubScene subScene = FindSubSceneFor(coordinate);
+        if (subScene != null) Selection.activeGameObject = subScene.gameObject;
+    }
+
+    void DeleteTile(Vector2Int coordinate)
+    {
+        string folder = TerrainTileAssets.FolderOf(coordinate);
+        if (!EditorUtility.DisplayDialog("Delete tile", "Delete the folder " + folder + " and the tile scene, mask and data inside it? This cannot be undone.", "Delete", "Cancel")) return;
+
+        SubScene subScene = FindSubSceneFor(coordinate);
+        if (subScene != null)
+        {
+            Scene persistentScene = subScene.gameObject.scene;
+            if (subScene.EditingScene.isLoaded) SubSceneEditorInspectorUtility.CloseSceneWithoutSaving(subScene);
+            UnityEngine.Object.DestroyImmediate(subScene.gameObject);
+            EditorSceneManager.MarkSceneDirty(persistentScene);
+        }
+        AssetDatabase.DeleteAsset(folder);
+        RefreshAll();
+    }
+
+    public static bool TryGetActiveTile(out TerrainTile tile)
+    {
+        tile = null;
+        if (Selection.activeGameObject != null)
+        {
+            tile = Selection.activeGameObject.GetComponentInParent<TerrainTile>();
+            if (tile != null) return true;
+        }
+        TerrainTile[] openTiles = UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Exclude);
+        if (openTiles.Length == 0) return false;
+        tile = openTiles[0];
+        return true;
+    }
+
+    public static string EncodeOpenTileCoordinates()
+    {
+        List<string> parts = new List<string>();
+        foreach (TerrainTile tile in UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include))
+        {
+            SubScene subScene = FindSubSceneFor(tile.tileCoordinate);
+            if (subScene != null && subScene.EditingScene.isLoaded) parts.Add(tile.tileCoordinate.x + "," + tile.tileCoordinate.y);
+        }
+        return string.Join(";", parts);
+    }
+
+    public static string SessionKey => OpenTilesSessionKey;
+}
+
+[InitializeOnLoad]
+public static class TerrainOpenTilesSessionRestore
+{
+    static TerrainOpenTilesSessionRestore()
+    {
+        AssemblyReloadEvents.beforeAssemblyReload += RecordOpenTiles;
+        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+        EditorApplication.delayCall += ReopenRecordedTiles;
+    }
+
+    static void OnPlayModeStateChanged(PlayModeStateChange change)
+    {
+        if (change == PlayModeStateChange.ExitingEditMode) RecordOpenTiles();
+        else if (change == PlayModeStateChange.EnteredEditMode) EditorApplication.delayCall += ReopenRecordedTiles;
+    }
+
+    static void RecordOpenTiles()
+    {
+        if (Application.isPlaying) return;
+        SessionState.SetString(TerrainTilesPanel.SessionKey, TerrainTilesPanel.EncodeOpenTileCoordinates());
+    }
+
+    static void ReopenRecordedTiles()
+    {
+        if (Application.isPlaying) return;
+        string recorded = SessionState.GetString(TerrainTilesPanel.SessionKey, string.Empty);
+        if (string.IsNullOrEmpty(recorded)) return;
+        SessionState.EraseString(TerrainTilesPanel.SessionKey);
+
+        foreach (string entry in recorded.Split(';'))
+        {
+            string[] numbers = entry.Split(',');
+            int coordinateX;
+            int coordinateZ;
+            if (numbers.Length != 2 || !int.TryParse(numbers[0], out coordinateX) || !int.TryParse(numbers[1], out coordinateZ)) continue;
+
+            Vector2Int coordinate = new Vector2Int(coordinateX, coordinateZ);
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(TerrainTileAssets.TileScenePath(coordinate)) == null) continue;
+            TerrainTilesPanel.OpenTileForEdit(coordinate);
+        }
+    }
+}
+#endif
