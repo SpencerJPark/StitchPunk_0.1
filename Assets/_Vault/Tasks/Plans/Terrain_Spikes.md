@@ -59,9 +59,20 @@ Run through the Unity MCP, 2026-10-30. Each finding is the answer plus the TT-D 
 - `PinnedActive`: Player, `Minion` / `PlayerUnitBrain` units, the player's caravan while driven or parked, any unit with `CutsceneActor` enabled. Abstractable: persistent camp and town units, NPC traders, and non-persistent wildlife and enemies (which just despawn on unload).
 - Not resolved: `UnitSO` home/work/goal fields (greps found none), whether a trader NPC entity with a destination exists, whether the `AbstractRoute` struct exists yet. Check at P9-4.
 
-## S2 Tile subscene load by coordinate: API confirmed, hitch NOT measured (2026-10-31)
-- Entities 6.5 `SceneSystem` (`Unity.Scenes/SceneSystem.cs`): `LoadSceneAsync(WorldUnmanaged, EntitySceneReference, LoadParameters)` (:381) returns the scene entity, `LoadParameters.AutoLoad` / `Flags` / `Priority`, `UnloadScene(world, sceneEntity, UnloadParameters)` (:503; the default keeps the meta entities so a reload is faster, `DestroyMetaEntities` fully unloads), `IsSceneLoaded(world, entity)` (:167), `GetSceneEntity(world, Hash128)` (:609). So P9-1 can store an `EntitySceneReference` per tile in the buffer. The repo has no existing `SceneSystem` or `EntitySceneReference` use.
-- Open: the load/unload hitch for a real tile (a measurement in Play), and whether `EntitySceneReference` bakes from a SubScene child on the `TerrainWorld` object.
+## S2 Tile subscene load by coordinate: PASS (2026-10-31)
+- Entities 6.5 `SceneSystem` (`Unity.Scenes/SceneSystem.cs`): `LoadSceneAsync(WorldUnmanaged, EntitySceneReference, LoadParameters)` (:381, or by `Hash128` :407) returns the scene entity, `LoadParameters.AutoLoad` / `Flags` / `Priority`, `UnloadScene(world, sceneEntity, UnloadParameters)` (:503; the default keeps the meta entities so a reload is faster, `DestroyMetaEntities` fully unloads), `IsSceneLoaded(world, entity)` (:167), `GetSceneEntity(world, Hash128)` (:609). The repo had no `SceneSystem` use before this. P9-1 stores an `EntitySceneReference` (or the scene GUID) per tile.
+- Measured in Play in the Editor (Tile_0_0, a 100 x 100 sample tile, about 10k vertices plus its MeshCollider): `GetSceneEntity` by GUID found the auto-loaded scene, `UnloadScene` (default) then 30 frames later `LoadSceneAsync(guid)` with default parameters. **Reload took 81 ms wall over 4 frames, worst frame 30 ms; the unload's worst frame was 19.8 ms (about the normal frame). Entity count was identical before and after (792).** One run, Editor overhead included, so a built player should be better. That is one visible hitch per tile, so P9 should cap `maxLoadsPerFrame` at 1 and the ring should load ahead of the player, not on top of them.
+- Not checked: whether `EntitySceneReference` bakes from a SubScene child on the `TerrainWorld` object (P9-2 does that), and the hitch for a tile full of decals and props.
 
-## S4 Nav cost on a large grid: NOT run
-- Needs a profiled Play run with a temporarily enlarged `NavGridAuthoring` (`Packages/com.dotsmovementtoolkit`). Still open.
+## S4 Nav cost on a large grid: PASS for the 500 x 500 window, flow fields are the memory problem (2026-10-31)
+- The planned window (TT-D12 revised, R = 1) is 5 x 5 tiles = 500 x 500 cells, not 800 x 800. Both were measured, Burst-compiled `AStarSearch.FindNodePath` on a synthetic one-layer grid (throwaway fixture, deleted):
+
+| Case | 500 x 500 | 800 x 800 |
+|---|---|---|
+| Open ground, corner to corner | 0.40 ms | 0.85 ms |
+| Wall across the middle with the only gap at the far end (worst case) | 29 ms | 75 ms |
+| Window rebuild: fill 250k cells with wall + 25 tile blits | 0.57 ms | not run |
+
+- A* allocates three temp arrays of `NodeCount` per search (`float` + `int` + `bool`, 9 bytes a cell, about 2.2 MB at 500 x 500), so many simultaneous long searches are an allocation cost, not only a time cost. A 29 ms worst-case path is more than one frame, so run long requests through the toolkit's existing path-request throttle and rely on the road graph for long trips (already TT-D plan).
+- **Flow fields:** `FlowFieldSystem` allocates `FLOW_FIELD_MAP_COUNT = 50` maps up front (`FlowFieldSystem.cs:16,164-170`): `int` best cost + `float2` vector per cell per map, 12 bytes. **500 x 500 = 150 MB persistent, 800 x 800 = 384 MB.** Each BFS also allocates a `cellsPerLayer` temp queue (1 MB at 500 x 500). D* Lite persistent nodes are 28 bytes a cell (7 MB at 500 x 500). The cost map is 1 byte a cell (250 KB).
+- **Consequence for P8-1:** the window itself is cheap (0.57 ms rebuild, well under a frame), so TT-D12 revised stands. But `FLOW_FIELD_MAP_COUNT` is a const in the package, so before P8 ships either make the map count a baked setting in `NavGridSettings` (default 50, the game sets about 8, which is 24 MB) or accept 150 MB. Recommend the setting; it is a package edit, which P8-1 already makes. This does not contradict a decision three or more tasks depend on.
