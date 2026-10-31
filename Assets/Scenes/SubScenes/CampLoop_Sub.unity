@@ -3752,6 +3752,7 @@ MonoBehaviour:
   defaultCost: 1
   crowdFlowFieldThreshold: 8
   crowdTargetRadius: 4
+  flowFieldMapCount: 8
   externalCostRegions: 1
   debugDisplayMode: 2
   debugLayerToDraw: 0

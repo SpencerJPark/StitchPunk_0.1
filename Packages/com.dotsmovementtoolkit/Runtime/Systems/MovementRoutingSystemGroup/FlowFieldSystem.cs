@@ -13,6 +13,7 @@ namespace DotsMovementToolkit
 [UpdateInGroup(typeof(MovementRoutingSystemGroup))]
 public partial struct FlowFieldSystem : ISystem
 {
+    // Default map count, used when NavGridSettings.flowFieldMapCount is 0; the live count is flowFieldData.targets.Length.
     public const int FLOW_FIELD_MAP_COUNT = 50;
     private const int MAX_ITERATIONS = 10000;
     
@@ -84,12 +85,13 @@ public partial struct FlowFieldSystem : ISystem
     {
         NavGridConfig gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
         NavGridCostMap gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
-        byte wallCost = SystemAPI.GetSingleton<NavGridSettings>().wallCost;
+        NavGridSettings gridSettings = SystemAPI.GetSingleton<NavGridSettings>();
+        byte wallCost = gridSettings.wallCost;
 
         // Initialize flow field data on first update
         if (!SystemAPI.HasComponent<FlowFieldData>(state.SystemHandle))
         {
-            InitializeFlowFieldData(ref state, gridConfig);
+            InitializeFlowFieldData(ref state, gridConfig, gridSettings.flowFieldMapCount);
         }
         
         FlowFieldSystemData flowFieldSystemData = SystemAPI.GetComponent<FlowFieldSystemData>(state.SystemHandle);
@@ -115,7 +117,7 @@ public partial struct FlowFieldSystem : ISystem
             
             // Allocate new flow field slot
             int flowFieldIndex = flowFieldSystemData.nextFlowFieldIndex;
-            flowFieldSystemData.nextFlowFieldIndex = (flowFieldSystemData.nextFlowFieldIndex + 1) % FLOW_FIELD_MAP_COUNT;
+            flowFieldSystemData.nextFlowFieldIndex = (flowFieldSystemData.nextFlowFieldIndex + 1) % flowFieldData.targets.Length;
             
             // Initialize flow field
             InitializeFlowFieldJob initJob = new InitializeFlowFieldJob
@@ -158,16 +160,17 @@ public partial struct FlowFieldSystem : ISystem
         state.Dependency = flowFieldHandle;
     }
     
-    private void InitializeFlowFieldData(ref SystemState state, NavGridConfig gridConfig)
+    private void InitializeFlowFieldData(ref SystemState state, NavGridConfig gridConfig, int configuredMapCount)
     {
+        int mapCount = configuredMapCount > 0 ? configuredMapCount : FLOW_FIELD_MAP_COUNT;
         int cellsPerLayer = gridConfig.width * gridConfig.height;
-        int totalCells = cellsPerLayer * FLOW_FIELD_MAP_COUNT;
+        int totalCells = cellsPerLayer * mapCount;
         
         FlowFieldData flowFieldData = new FlowFieldData
         {
             bestCosts = new NativeArray<int>(totalCells, Allocator.Persistent),
             vectors = new NativeArray<float2>(totalCells, Allocator.Persistent),
-            targets = new NativeArray<FlowFieldTarget>(FLOW_FIELD_MAP_COUNT, Allocator.Persistent)
+            targets = new NativeArray<FlowFieldTarget>(mapCount,Allocator.Persistent)
         };
         
         state.EntityManager.AddComponent<FlowFieldSystemData>(state.SystemHandle);
@@ -209,7 +212,7 @@ public partial struct FlowFieldSystem : ISystem
     
     private int FindExistingFlowField(int2 targetPos, int layer, FlowFieldData data)
     {
-        for (int i = 0; i < FLOW_FIELD_MAP_COUNT; i++)
+        for (int i = 0; i < data.targets.Length; i++)
         {
             FlowFieldTarget target = data.targets[i];
             if (target.isValid && target.gridPosition.Equals(targetPos) && target.layer == layer)
@@ -235,7 +238,7 @@ public partial struct FlowFieldSystem : ISystem
     /// </summary>
     public static void InvalidateAllFlowFields(ref FlowFieldData data)
     {
-        for (int i = 0; i < FLOW_FIELD_MAP_COUNT; i++)
+        for (int i = 0; i < data.targets.Length; i++)
         {
             FlowFieldTarget target = data.targets[i];
             target.isValid = false;

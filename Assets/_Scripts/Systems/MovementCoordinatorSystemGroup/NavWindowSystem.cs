@@ -97,6 +97,14 @@ public partial struct NavWindowSystem : ISystem
         SystemAPI.SetComponent(gridEntity, gridConfig);
         SystemAPI.SetComponent(gridEntity, gridCostMap);
 
+        // Cached flow fields index cells that now mean other ground; only A* repaths on the version bump.
+        if (SystemAPI.TryGetSingletonEntity<FlowFieldSystem.FlowFieldData>(out Entity flowFieldEntity))
+        {
+            FlowFieldSystem.FlowFieldData flowFieldData = SystemAPI.GetComponent<FlowFieldSystem.FlowFieldData>(flowFieldEntity);
+            if (flowFieldData.targets.IsCreated)
+                FlowFieldSystem.InvalidateAllFlowFields(ref flowFieldData);
+        }
+
         lastTileComponentOrderVersion = tileComponentOrderVersion;
         lastFocusTile = focusTile;
         hasBuilt = true;

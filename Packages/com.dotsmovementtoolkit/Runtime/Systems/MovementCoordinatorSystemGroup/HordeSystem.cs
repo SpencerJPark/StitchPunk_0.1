@@ -165,7 +165,7 @@ public partial struct HordeSystem : ISystem
     
     private int FindExistingFlowField(int2 targetGridPosition, int layer, FlowFieldSystem.FlowFieldData flowFieldData)
     {
-        for (int i = 0; i < FlowFieldSystem.FLOW_FIELD_MAP_COUNT; i++)
+        for (int i = 0; i < flowFieldData.targets.Length; i++)
         {
             FlowFieldSystem.FlowFieldTarget target = flowFieldData.targets[i];
             if (target.isValid && target.gridPosition.Equals(targetGridPosition) && target.layer == layer)

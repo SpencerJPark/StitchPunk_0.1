@@ -135,7 +135,7 @@ public partial struct FlowFieldFollowerSystem : ISystem
                 return;
 
             // Validate flow field
-            if (follower.flowFieldIndex < 0 || follower.flowFieldIndex >= FlowFieldSystem.FLOW_FIELD_MAP_COUNT)
+            if (follower.flowFieldIndex < 0 || follower.flowFieldIndex >= targets.Length)
             {
                 flowFieldFollowerEnabled.ValueRW = false;
                 return;

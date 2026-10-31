@@ -143,7 +143,8 @@ regression stays attributable to one or the other:
   writes `NavGridCostMap.costs`, may move `NavGridConfig.gridOrigin`, and bumps `costMapVersion` and
   `windowVersion`. Only the A* follower repaths on a version bump; flow fields and D* Lite do not.
 - **Flow-field ring-buffer slot reuse can clobber a field still in use**
-  (`FlowFieldSystem.FLOW_FIELD_MAP_COUNT` wraps without checking the old slot is done).
+  (the slot ring, `NavGridAuthoring.flowFieldMapCount` slots, default 50, wraps without checking the old
+  slot is done). Each slot costs `width x height x 12` bytes, so a big grid wants a small count.
 - **Layer support is half-plumbed**: the cost map is layered end-to-end and A* searches every layer
   through `NavGridStairConnection` links, but flow-field and D* Lite indexing assume a single layer.
   Doors are not modelled yet. Multi-layer buildings need stairs wired by hand via

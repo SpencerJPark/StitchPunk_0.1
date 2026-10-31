@@ -30,6 +30,9 @@ namespace DotsMovementToolkit
         public int crowdFlowFieldThreshold;
         public float crowdTargetRadius;
 
+        // Flow fields kept alive at once; each costs width * height * 12 bytes, so a big grid wants few. 0 = FlowFieldSystem default.
+        public int flowFieldMapCount;
+
         // True when something else owns the cost map (a streaming window): NavGridSystem then starts it
         // all wallCost and never rebuilds it from physics bodies.
         public bool externalCostRegions;

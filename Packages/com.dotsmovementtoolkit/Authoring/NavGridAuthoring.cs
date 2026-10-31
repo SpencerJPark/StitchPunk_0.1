@@ -38,6 +38,10 @@ namespace DotsMovementToolkit.Authoring
         [Tooltip("World distance within which two agents' targets count as the same spot.")]
         public float crowdTargetRadius = 4f;
 
+        [Min(0)]
+        [Tooltip("Flow fields kept alive at once; each costs width x height x 12 bytes (50 maps on a 500 x 500 grid is 150 MB). 0 uses the default of 50.")]
+        public int flowFieldMapCount = 0;
+
         [Header("Cost Map Ownership")]
         [Tooltip("Something else (a streaming nav window) owns the cost map. The grid then starts as all wall and is never rebuilt from physics bodies. Leave off for a fixed grid.")]
         public bool externalCostRegions = false;
@@ -122,6 +126,7 @@ namespace DotsMovementToolkit.Authoring
                     defaultCost = authoring.defaultCost,
                     crowdFlowFieldThreshold = authoring.crowdFlowFieldThreshold,
                     crowdTargetRadius = authoring.crowdTargetRadius,
+                    flowFieldMapCount = authoring.flowFieldMapCount,
                     externalCostRegions = authoring.externalCostRegions,
                 });
 

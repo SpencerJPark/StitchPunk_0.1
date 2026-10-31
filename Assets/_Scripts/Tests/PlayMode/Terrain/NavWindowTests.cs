@@ -112,6 +112,54 @@ namespace StitchPunk.Tests.PlayMode
         }
 
         [Test]
+        public void WindowRebuildInvalidatesCachedFlowFields()
+        {
+            BuildWorld(true);
+            CreateTile(new int2(0, 0), 10);
+            SetFocusPosition(float3.zero);
+            UpdateBothSystems();
+
+            const int targetCount = 3;
+            NativeArray<int> bestCosts = new NativeArray<int>(1, Allocator.Persistent);
+            NativeArray<float2> vectors = new NativeArray<float2>(1, Allocator.Persistent);
+            NativeArray<FlowFieldSystem.FlowFieldTarget> targets =
+                new NativeArray<FlowFieldSystem.FlowFieldTarget>(targetCount, Allocator.Persistent);
+            try
+            {
+                for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
+                    targets[targetIndex] = new FlowFieldSystem.FlowFieldTarget
+                    {
+                        gridPosition = new int2(targetIndex, 0),
+                        layer = 0,
+                        isValid = true
+                    };
+                Entity flowFieldEntity = testWorld.EntityManager.CreateEntity(typeof(FlowFieldSystem.FlowFieldData));
+                testWorld.EntityManager.SetComponentData(flowFieldEntity, new FlowFieldSystem.FlowFieldData
+                {
+                    bestCosts = bestCosts,
+                    vectors = vectors,
+                    targets = targets
+                });
+
+                UpdateBothSystems();
+                for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
+                    Assert.IsTrue(targets[targetIndex].isValid, "idle update must not invalidate target " + targetIndex);
+
+                SetFocusPosition(new float3(TileSizeMetres, 0f, 0f));
+                UpdateBothSystems();
+
+                for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
+                    Assert.IsFalse(targets[targetIndex].isValid, "rebuild must invalidate target " + targetIndex);
+            }
+            finally
+            {
+                bestCosts.Dispose();
+                vectors.Dispose();
+                targets.Dispose();
+            }
+        }
+
+        [Test]
         public void ExternalCostRegionsOff_LeavesTheWindowAlone()
         {
             BuildWorld(false);
