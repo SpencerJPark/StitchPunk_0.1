@@ -47,6 +47,12 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - S3: `PAINTED_ENTITIES` is now defined (`PaintedEntitiesDefine`, saved in ProjectSettings) so tile decals bake with per-instance `_Tile`/`_Tint`. `PaintedGround.Runtime.asmdef` was added so `StitchPunk.Editor` can reference `PaintedDecal` (Assembly-CSharp types are invisible to asmdef assemblies); tests reference it too. Adding the define the first time recompiles everything and the Editor stalled about 10 minutes.
 - Legacy: the 500 camp decals are still plain GameObjects in `CampLoop`.
 
+## Nav window (P8, partly built 2026-10-31)
+- Built: `NavGridSettings.externalCostRegions` (toolkit; grid starts all wall, no physics rebuild) + `NavGridCostMap.windowVersion`; `TileNavCost` blob/component + `TerrainTileNavAuthoring` (per-tile `costs`/`surface` bytes, layout `[layer*n*n + z*n + x]`, `TerrainSurface` Normal/Road/Shallow/Deep); `TerrainNavCellRules` (pure: deep and 45 degrees = wall, 25 degrees = heavy 50, shallow beats road, bridge/ford overrides); `NavWindowSystem` (`Systems/MovementCoordinatorSystemGroup/`, in the package group after `NavGridSystem`) re-centres a (2R+3)^2-tile window on the first `TerrainNavFocus` entity and blits loaded tiles' blobs, bumping `costMapVersion` and `windowVersion`; `TerrainNavWindowMath` (Utils) owns the tile/window arithmetic. Window min tile = focus - (R+1), origin = min tile corner (centre*100 - 50).
+- Scene wiring NOT done: `NavGridAuthoring` in CampLoop_Sub must be width = height = 500 (R = 1, cells 1 m) with `externalCostRegions` on, a `TerrainNavFocus` must go on the player or caravan, and tile scenes need `TerrainTileNavAuthoring` filled by the (unbuilt) P8-2b baker. A size mismatch makes `NavWindowSystem` silently inert.
+- Not built yet: P8-2b baker, P8-5 footprints, P8-6 surface speed (S10 design: transient `SurfaceSpeedFactor` applied before and reverted after `UnitMoverSystem`), P8-7 nav panel, a baked flow-field map count (S4: 50 maps = 150 MB at 500 x 500).
+- Only the A* follower repaths on `costMapVersion`; flow fields and D* Lite never read it, so they keep stale cells after a window move.
+
 ## Traps
 - A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter tests run in `EditorSceneManager.NewPreviewScene()` (an additive `NewScene` throws "untitled scene unsaved" because the test runner leaves an untitled scene open); check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.
 - `Assets/_Scripts/Tests/StitchPunk.Tests.asmdef` edits: apply one change at a time and re-validate the JSON; two overlapping edits once corrupted it and the test list silently became empty (0 tests, run "succeeded").
@@ -59,3 +65,4 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - DXT1/DXT5 break the SDF (1.3 m error); the SDF import format is BC7 (P3-0).
 - Full SDF encode is 236 ms at 512 px (62 ms at 256), so live painting needs the dirty-rect encode (P3-1).
 - Nothing has been done in the Scene view with the mouse yet (brush overlay and sculptor are compile + logic checked only); drive them once by hand.
+- Burst can keep serving a stale compiled copy of an `ISystem` after you revert a mutation (same source text, old code): a forced refresh does not fix it. Edit something that changes the IL (reorder two independent assignments) and recompile; `EnableBurstCompilation = false` via `execute_code` shows the source's true behaviour.
