@@ -29,6 +29,11 @@ public static class TerrainTileAssets
         return FolderOf(coordinate) + "/Tile_" + coordinate.x + "_" + coordinate.y + "_RoadMask.png";
     }
 
+    public static string SurfaceOverlayPath(Vector2Int coordinate)
+    {
+        return FolderOf(coordinate) + "/Tile_" + coordinate.x + "_" + coordinate.y + "_SurfaceOverlay.png";
+    }
+
     public static string PaintOverlayPath(Vector2Int coordinate)
     {
         return FolderOf(coordinate) + "/Tile_" + coordinate.x + "_" + coordinate.y + "_PaintOverlay.png";

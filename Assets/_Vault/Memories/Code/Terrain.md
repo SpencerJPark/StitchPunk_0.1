@@ -34,6 +34,12 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - Road graph: `TerrainRoadGraphBuilder` (Utils, pure) merges junctions within 2 m, `TerrainRoadGraphAuthoring` (baker, drop one in the persistent subscene) emits `RoadGraphSingleton`, `RoadGraphQuery.TryFindRoute` (Burst) snaps both ends within 30 m and A*s over nodes. The blob parameter is `ref RoadGraphBlob`: the DOTS source generator rejects `in` (EA0009). The authoring component has NOT been added to CampLoop_Sub yet.
 - Not built yet: decal rules on the road profile (P6), `TerrainRoad` crossing missing tiles only warns.
 
+## Water (P5b)
+- `TerrainRiver` (spline + `TerrainWaterProfile`), `TerrainWaterBody` (fixed level, WORLD-coordinate bounds box, fills wherever ground < level) and `TerrainCrossing` (Bridge/Ford oriented rectangle) raise `TerrainWaterEvents`; `TerrainWaterBaker` debounces like the road baker. Per open tile it writes `riverHeightDelta` (channel carve, never raises ground), `Tile_x_z_SurfaceOverlay.png` (R shallow, G deep, deep wins), water meshes as children `Water/Water_<n>` with sub-assets `Water_<n>` of the tile data asset (no collider; deep cells become walls through the nav bake in P8, not physics), then Composite and mesh rebuild.
+- River levels never rise downstream (`level[i] = min(level[i-1], terrain[i] - 0.3)`, so a rise is dug through, not climbed). The compositor paints water-covered texels as Dirt (river bed) above the paint overlay and below roads. A Ford turns deep texels in its footprint shallow; a Bridge clears both flags under the deck. Nav and speed consumption of the overlay is P8.
+- Road and river deltas read each other (the road bed ignores the road delta but includes the river delta and vice versa), so bake both after a big change to settle.
+- The live paint brush still composites with the old 6-argument `CompositeTexels`, so water texels show their painted colour until mouse-up.
+
 ## Traps
 - `CopySerialized(newMesh, existingMesh)` overwrites the mesh name; the tile builder re-names the sub-asset right after, or the next Rebuild no longer recognises it and tries to destroy an asset.
 - The Scene view in authoring mode drew a flat plane for tiles whose heights are right (render bounds in Play show the real 81 m mountain); judge height in Play or by data, not by the authoring Scene view.

@@ -1,7 +1,7 @@
 ---
 tags: [plan, terrain, streaming, nav, tooling]
 related: "[[Editor]], [[Shaders]], [[Systems_Movement]], [[RULES]]"
-status: spikes done, P1-P4, P3c and P5 (spline roads + road graph) built 2026-10-30; P5 checkpoint passed headless (road across a tile border, knot drag rebakes); decal rules on roads wait for P6; next P5b water, P6 decals, P7 scatter
+status: spikes done, P1-P4, P3c, P5 and P5b (water: rivers, lakes, fords/bridges) built 2026-10-30; P5b checkpoint passed headless; next P6 decals, P7 scatter, then the spike-gated P8+ phases
 supersedes: TerrainTiles_System.md (T0/T1 history kept there)
 ---
 

@@ -70,6 +70,39 @@ namespace StitchPunk.Tests
         }
 
         [Test]
+        public void SurfaceWater_PaintsDirtOverGrassBase_AndRoadStillWins()
+        {
+            Color32[] baseMask = FilledArray(GrassColour);
+            Color32[] surface = FilledArray(new Color32(0, 0, 0, 0));
+            Color32[] road = FilledArray(UnpaintedColour);
+            surface[10] = new Color32(255, 0, 0, 255);
+            surface[20] = new Color32(0, 255, 0, 255);
+            road[20] = StoneColour;
+            Color32[] composite = new Color32[Resolution * Resolution];
+
+            TerrainCompositor.CompositeTexels(baseMask, null, surface, road, Resolution, FullRect(), composite);
+
+            Assert.AreEqual(new Color32(0, 0, 0, 255), composite[10]);
+            Assert.AreEqual(StoneColour, composite[20]);
+            Assert.AreEqual(GrassColour, composite[11]);
+        }
+
+        [Test]
+        public void SurfaceWater_BeatsThePaintOverlay()
+        {
+            Color32[] baseMask = FilledArray(GrassColour);
+            Color32[] overlay = FilledArray(UnpaintedColour);
+            Color32[] surface = FilledArray(new Color32(0, 0, 0, 0));
+            overlay[7] = StoneColour;
+            surface[7] = new Color32(255, 0, 0, 255);
+            Color32[] composite = new Color32[Resolution * Resolution];
+
+            TerrainCompositor.CompositeTexels(baseMask, overlay, surface, null, Resolution, FullRect(), composite);
+
+            Assert.AreEqual(new Color32(0, 0, 0, 255), composite[7]);
+        }
+
+        [Test]
         public void NullOverlayAndRoad_ReturnsBaseUnchanged()
         {
             Color32[] baseMask = FilledArray(StoneColour);

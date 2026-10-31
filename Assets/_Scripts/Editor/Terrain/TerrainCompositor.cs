@@ -9,9 +9,25 @@ public static class TerrainCompositor
 {
     private const byte PaintedAlphaThreshold = 127;
 
+    private const byte WaterChannelThreshold = 127;
+    private static readonly Color32 RiverBedDirtColour = new Color32(0, 0, 0, 255);
+
     public static void CompositeTexels(
         Color32[] baseMask,
         Color32[] paintOverlay,
+        Color32[] roadMask,
+        int resolution,
+        RectInt texelRect,
+        Color32[] compositeInOut)
+    {
+        CompositeTexels(baseMask, paintOverlay, null, roadMask, resolution, texelRect, compositeInOut);
+    }
+
+    // Surface overlay: R = shallow water, G = deep water. Water-covered ground paints as the Dirt river bed.
+    public static void CompositeTexels(
+        Color32[] baseMask,
+        Color32[] paintOverlay,
+        Color32[] surfaceOverlay,
         Color32[] roadMask,
         int resolution,
         RectInt texelRect,
@@ -30,6 +46,9 @@ public static class TerrainCompositor
                 Color32 chosen = baseMask[texelIndex];
                 if (paintOverlay != null && paintOverlay[texelIndex].a > PaintedAlphaThreshold)
                     chosen = paintOverlay[texelIndex];
+                if (surfaceOverlay != null
+                    && (surfaceOverlay[texelIndex].r > WaterChannelThreshold || surfaceOverlay[texelIndex].g > WaterChannelThreshold))
+                    chosen = RiverBedDirtColour;
                 if (roadMask != null && roadMask[texelIndex].a > PaintedAlphaThreshold)
                     chosen = roadMask[texelIndex];
                 compositeInOut[texelIndex] = new Color32(chosen.r, chosen.g, chosen.b, 255);
@@ -50,10 +69,11 @@ public static class TerrainCompositor
         int resolution;
         Color32[] baseMask = TerrainSplatCodec.ReadPng(baseMaskPath, out resolution);
         Color32[] paintOverlay = ReadOptionalSource(TerrainTileAssets.PaintOverlayPath(coordinate), resolution);
+        Color32[] surfaceOverlay = ReadOptionalSource(TerrainTileAssets.SurfaceOverlayPath(coordinate), resolution);
         Color32[] roadMask = ReadOptionalSource(TerrainTileAssets.RoadMaskPath(coordinate), resolution);
 
         Color32[] composite = new Color32[resolution * resolution];
-        CompositeTexels(baseMask, paintOverlay, roadMask, resolution, new RectInt(0, 0, resolution, resolution), composite);
+        CompositeTexels(baseMask, paintOverlay, surfaceOverlay, roadMask, resolution, new RectInt(0, 0, resolution, resolution), composite);
 
         Color32[] signedDistanceField = TerrainSplatCodec.EncodeSignedDistanceField(composite, resolution, TerrainTile.TileSizeMetres);
         string signedDistanceFieldPath = TerrainTileAssets.SignedDistanceFieldPath(coordinate);
