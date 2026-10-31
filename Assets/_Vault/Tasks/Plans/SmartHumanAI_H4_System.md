@@ -8,7 +8,7 @@ parent: "[[SmartHumanAI_System]]"
 
 # SmartHumanAI H4 — Tactics (Keep Range, Heal When Hurt, Retreat to Allies)
 
-> **Status:** ✅ spec ready 2026-10-31. Decisions H4-D1–D10 are architecture calls recorded under the standing delegation rule. None needed the owner, because SH-D4 already settles the product side ("keep range with ranged weapons, heal/retreat when hurt").
+> **Status:** 🔨 built 2026-10-31. The code, assets and 3 camp bandages are in, PlayMode 133/133 and EditMode 204/204 pass, and the 5 new tests were proven red with Burst off. The owner play pass is owed (`verify-smart-ai.md` § H4). Decisions H4-D1–D10 are architecture calls recorded under the standing delegation rule. None needed the owner, because SH-D4 already settles the product side ("keep range with ranged weapons, heal/retreat when hurt").
 > **Parent:** `SmartHumanAI_System.md` §8 (sketch), §9 (SH-D1–D9). **Read first:** `Memories/Code/Systems_AI.md`.
 
 ## 1. Context

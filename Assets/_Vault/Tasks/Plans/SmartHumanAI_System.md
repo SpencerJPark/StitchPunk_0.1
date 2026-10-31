@@ -1,6 +1,6 @@
 # Smart Human AI + Behaviour Modules — Plan
 
-> **Status:** H0–H3 BUILT 2026-10-17 (see §11). Played 2026-10-19 on top of the AI Foundations pass; the freezes, the leash and the fall-through bugs it exposed are fixed. **H4 next:** session prompt in `Assets/_Vault/Spencer/next-session-smart-ai-h4-prompt.md`. Owner answers are SH-D1–SH-D9 (§9).
+> **Status:** H0–H3 BUILT 2026-10-17 (see §11). Played 2026-10-19 on top of the AI Foundations pass; the freezes, the leash and the fall-through bugs it exposed are fixed. **H4 built 2026-10-31** (`SmartHumanAI_H4_System.md`, play pass owed); H5 guns next. Owner answers are SH-D1–SH-D9 (§9).
 > **Comes before:** CampLoop Phase 6 (raid). Smarter humans make the raid and the rival-engineer fight better.
 > **Read first:** `Memories/Code/Systems_AI.md` (pipeline, the "Adding a new behavior domain" checklist), `Plans/RangedCombat_System.md` (guns, phase H5), `Plans/CrowdScaleAwareness_System.md` (scale, phase H6).
 
@@ -175,3 +175,10 @@ Same as CampLoop: orchestrator plus parallel Sonnet `worker`s of two files max, 
   - The throw aims at the target's current position, with no lead.
   - There's no face-target command.
   - A Throw chosen just as the target dies still waits out about 1.5 s.
+
+**2026-10-31: H4 built** (spec `SmartHumanAI_H4_System.md`, H4-D1–D10). Built in worktree `spec/smart-ai-h4` and merged to main.
+- **Keep Range** (ThrowAwareness): when the target is inside the throwable's minimum range, the unit backs off to `lerp(min, max, 0.3)`. Throwers fan out, guards are clamped to their leash, and a 4 s `TacticsCooldown` stops kiting.
+- **Heal When Hurt** (ItemAwareness): goes to Critical mid-fight below 35 % HP, with the item ≤ 8 m away and no hostile within 3 m. `Bandage.prefab` was added, with 3 "Camp Bandage" root objects by the CampLoop supply crate.
+- **Retreat** (new RetreatAwarenessSystem): below 30 % HP and outnumbered, the unit goes to a safer ally or the guard anchor. Cowards still flee (`WouldBreakOffToFlee`).
+- KeepRange/Retreat modules are on BanditBrain. SmartHumanAiTacticsTests has 5 tests, all proven red with Burst off. PlayMode passes 133/133 and EditMode 204/204.
+- **Not played yet.** The owner checks are in `verify-smart-ai.md` § H4.
