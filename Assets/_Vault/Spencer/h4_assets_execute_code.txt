@@ -1,0 +1,77 @@
+string behaviourDirectory = "Assets/ScriptableObjects/AI/Behaviours/";
+string actionDirectory = "Assets/ScriptableObjects/AI/Actions/";
+string moduleDirectory = "Assets/ScriptableObjects/AI/Modules/";
+System.Text.StringBuilder log = new System.Text.StringBuilder();
+
+UtilityActionSO throwAction = AssetDatabase.LoadAssetAtPath<UtilityActionSO>(actionDirectory + "ThrowAction.asset");
+BehaviourModuleSO throwModule = AssetDatabase.LoadAssetAtPath<BehaviourModuleSO>(moduleDirectory + "ThrowRockModule.asset");
+BehaviorLibrarySO behaviourLibrary = AssetDatabase.LoadAssetAtPath<BehaviorLibrarySO>(behaviourDirectory + "_BehaviorLibrary.asset");
+BrainSO banditBrain = AssetDatabase.LoadAssetAtPath<BrainSO>("Assets/ScriptableObjects/AI/Brains/BanditBrain.asset");
+
+string[] names = { "KeepRange", "Retreat" };
+BehaviorType[] behaviourTypes = { BehaviorType.KeepRange, BehaviorType.Retreat };
+ActionType[] actionTypes = { ActionType.KeepRange, ActionType.Retreat };
+float[] stopDistances = { 0.5f, 1.0f };
+string[] descriptions = {
+    "Backs off to a throwing distance when a combat target is inside the held throwable's minimum range. Pair with Throw Rock.",
+    "Below 30% health and outnumbered, falls back to a safer ally or the guard anchor. Cowards flee instead." };
+
+for (int index = 0; index < names.Length; index++)
+{
+    string behaviourPath = behaviourDirectory + names[index] + "Behaviour.asset";
+    BehaviorSO behaviour = AssetDatabase.LoadAssetAtPath<BehaviorSO>(behaviourPath);
+    if (behaviour == null)
+    {
+        behaviour = ScriptableObject.CreateInstance<BehaviorSO>();
+        behaviour.behaviorType = behaviourTypes[index];
+        BehaviorCommandAuthoring approach = new BehaviorCommandAuthoring();
+        approach.type = BehaviorCommandType.Approach;
+        approach.FloatParam = stopDistances[index];
+        approach.IntParam = (int)StanceType.Running;
+        behaviour.executionSequence.Add(approach);
+        AssetDatabase.CreateAsset(behaviour, behaviourPath);
+        log.AppendLine("created " + behaviourPath);
+    }
+    if (!behaviourLibrary.behaviors.Contains(behaviour)) { behaviourLibrary.behaviors.Add(behaviour); log.AppendLine("library += " + names[index]); }
+
+    string actionPath = actionDirectory + names[index] + "Action.asset";
+    UtilityActionSO action = AssetDatabase.LoadAssetAtPath<UtilityActionSO>(actionPath);
+    if (action == null)
+    {
+        action = ScriptableObject.CreateInstance<UtilityActionSO>();
+        action.actionType = actionTypes[index];
+        action.priority = AIPriorityTier.Defend;
+        action.behavior = behaviour;
+        foreach (ConsiderationAuthoring source in throwAction.considerations)
+        {
+            ConsiderationAuthoring copy = new ConsiderationAuthoring();
+            copy.input = source.input;
+            copy.needType = source.needType;
+            copy.traitType = source.traitType;
+            copy.curve = new AnimationCurve(source.curve.keys);
+            copy.weight = source.weight;
+            action.considerations.Add(copy);
+        }
+        AssetDatabase.CreateAsset(action, actionPath);
+        log.AppendLine("created " + actionPath);
+    }
+
+    string modulePath = moduleDirectory + names[index] + "Module.asset";
+    BehaviourModuleSO module = AssetDatabase.LoadAssetAtPath<BehaviourModuleSO>(modulePath);
+    if (module == null)
+    {
+        module = ScriptableObject.CreateInstance<BehaviourModuleSO>();
+        module.displayName = index == 0 ? "Keep Range" : "Retreat to Allies";
+        module.description = descriptions[index];
+        module.actions.Add(action);
+        module.requires = index == 0 ? throwModule.requires : (ModuleTags)0;
+        AssetDatabase.CreateAsset(module, modulePath);
+        log.AppendLine("created " + modulePath);
+    }
+    if (!banditBrain.modules.Contains(module)) { banditBrain.modules.Add(module); log.AppendLine("BanditBrain += " + names[index]); }
+}
+
+EditorUtility.SetDirty(behaviourLibrary);
+EditorUtility.SetDirty(banditBrain);
+AssetDatabase.SaveAssets();
+return log.ToString();

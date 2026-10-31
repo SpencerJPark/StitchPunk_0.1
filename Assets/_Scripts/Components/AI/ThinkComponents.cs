@@ -30,3 +30,9 @@ public struct AiThrowRequest : IComponentData, IEnableableComponent
 {
     public Entity target;
 }
+
+// Per-unit tactic cooldowns (SmartHumanAI H4). Keep Range stops a thrower kiting a chaser forever (H4-D5).
+public struct TacticsCooldown : IComponentData
+{
+    public double keepRangeReadyAtSeconds;
+}
