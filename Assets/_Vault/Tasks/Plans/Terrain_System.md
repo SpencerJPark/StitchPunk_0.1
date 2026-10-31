@@ -1,7 +1,7 @@
 ---
 tags: [plan, terrain, streaming, nav, tooling]
 related: "[[Editor]], [[Shaders]], [[Systems_Movement]], [[RULES]]"
-status: specced 2026-10-30, owner vision interview done the same day (section 0), nothing past T1 built
+status: spikes S1/S5/S6/S7/S11 done and P1 + P2 built 2026-10-30 (see Terrain_Spikes.md); P2 checkpoint passed numerically, next P3 paint; P3-0 stamps BC7 on the SDF
 supersedes: TerrainTiles_System.md (T0/T1 history kept there)
 ---
 
