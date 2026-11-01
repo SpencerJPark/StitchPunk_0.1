@@ -57,7 +57,7 @@ MonoBehaviour:
   - type: 5
     IntParam: 0
     FloatParam: 0
-    Duration: 1.15
+    Duration: 0.3
     Qualifier: 0
     QualifierIntParam: 0
     QualifierFloatParam: 0

@@ -37,7 +37,7 @@ namespace StitchPunk.Tests.PlayMode
         {
             Entity unit = CreateThrowerSetup(out Entity target);
 
-            RunSystem<ThrowAwarenessSystem>();
+            RunSystem<RangedAttackAwarenessSystem>();
 
             DynamicBuffer<UtilityActions> actions = testWorld.EntityManager.GetBuffer<UtilityActions>(unit);
             Assert.AreEqual(1, CountActionsOfType(actions, ActionType.KeepRange));
@@ -46,7 +46,7 @@ namespace StitchPunk.Tests.PlayMode
             Assert.AreEqual(AIPriorityTier.Critical, keepRange.priority);
             Assert.IsTrue(keepRange.hasTargetPosition);
             float3 targetPosition = testWorld.EntityManager.GetComponentData<LocalTransform>(target).Position;
-            float expectedRange = math.lerp(3f, 12f, ThrowAwarenessSystem.KEEP_RANGE_PREFERRED_FRACTION);
+            float expectedRange = math.lerp(3f, 12f, RangedAttackAwarenessSystem.KEEP_RANGE_PREFERRED_FRACTION);
             Assert.AreEqual(expectedRange, math.distance(keepRange.targetPosition, targetPosition), 0.05f);
             Assert.Less(keepRange.targetPosition.x, targetPosition.x);
         }
@@ -56,12 +56,12 @@ namespace StitchPunk.Tests.PlayMode
         {
             Entity unit = CreateThrowerSetup(out Entity target);
 
-            RunSystem<ThrowAwarenessSystem>();
+            RunSystem<RangedAttackAwarenessSystem>();
             DynamicBuffer<UtilityActions> actions = testWorld.EntityManager.GetBuffer<UtilityActions>(unit);
             Assert.AreEqual(1, CountActionsOfType(actions, ActionType.KeepRange));
             actions.Clear();
 
-            RunSystem<ThrowAwarenessSystem>();
+            RunSystem<RangedAttackAwarenessSystem>();
 
             actions = testWorld.EntityManager.GetBuffer<UtilityActions>(unit);
             Assert.AreEqual(0, CountActionsOfType(actions, ActionType.KeepRange));

@@ -26,5 +26,11 @@ MonoBehaviour:
   throwRagdollForce: 1
   throwLaunchForceY: 0
   throwLaunchForceX: 0
-  aiThrowMinRange: 3
-  aiThrowMaxRange: 12
+  aiRangedMinRange: 3
+  aiRangedMaxRange: 12
+  aiWindUpSeconds: 0.35
+  rangedKind: 1
+  projectileSpeed: 0
+  rangedCooldownSeconds: 1.2
+  aiWeaponValue: 1
+  projectilePrefab: {fileID: 0}

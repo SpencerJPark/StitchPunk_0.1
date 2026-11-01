@@ -167,7 +167,7 @@ public partial struct ItemAwarenessJob : IJobEntity
         float3 myPos   = transform.Position;
         float  rangeSq = awareness.range * awareness.range;
 
-        Entity nearestWeapon = Entity.Null; float nearestWeaponSq = float.MaxValue;
+        Entity nearestWeapon = Entity.Null; float nearestWeaponSq = float.MaxValue; float bestWeaponValue = float.MinValue;
         Entity nearestHeal   = Entity.Null; float nearestHealSq   = float.MaxValue;
         Entity nearestFood   = Entity.Null; float nearestFoodSq   = float.MaxValue;
         Entity nearestDrink  = Entity.Null; float nearestDrinkSq  = float.MaxValue;
@@ -210,8 +210,12 @@ public partial struct ItemAwarenessJob : IJobEntity
 
                     if (blob.category == ItemCategory.Weapon)
                     {
-                        if (wantWeapon && distSq < nearestWeaponSq)
+                        // Highest aiWeaponValue in reach wins (a gun over a rock, H5-D10); distance breaks a tie.
+                        bool betterWeapon = blob.aiWeaponValue > bestWeaponValue
+                            || (blob.aiWeaponValue == bestWeaponValue && distSq < nearestWeaponSq);
+                        if (wantWeapon && betterWeapon)
                         {
+                            bestWeaponValue = blob.aiWeaponValue;
                             nearestWeaponSq = distSq;
                             nearestWeapon   = itemEntity;
                         }
