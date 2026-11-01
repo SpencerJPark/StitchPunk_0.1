@@ -24,10 +24,20 @@ MonoBehaviour:
     Looping: 0
     AnimationKey: 0
     LayerIndex: 0
-  - type: 5
-    IntParam: 0
+  - type: 16
+    IntParam: 2
     FloatParam: 0
-    Duration: 0.35
+    Duration: 0
+    Qualifier: 0
+    QualifierIntParam: 0
+    QualifierFloatParam: 0
+    Looping: 0
+    AnimationKey: 0
+    LayerIndex: 0
+  - type: 22
+    IntParam: 0
+    FloatParam: 0.35
+    Duration: 0
     Qualifier: 0
     QualifierIntParam: 0
     QualifierFloatParam: 0
@@ -47,7 +57,7 @@ MonoBehaviour:
   - type: 5
     IntParam: 0
     FloatParam: 0
-    Duration: 1.15
+    Duration: 0.3
     Qualifier: 0
     QualifierIntParam: 0
     QualifierFloatParam: 0

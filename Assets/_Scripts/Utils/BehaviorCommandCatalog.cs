@@ -31,6 +31,8 @@ public static class BehaviorCommandCatalog
             case BehaviorCommandType.RequestThrow:
             case BehaviorCommandType.AddIntoxication:
             case BehaviorCommandType.ShowEmote:
+            case BehaviorCommandType.WindUp:
+            case BehaviorCommandType.RequestShoot:
                 return true;
             default:
                 // SpawnEntity / ModifyStat / StartDialogue / ApplyForce — declared, not implemented.
@@ -49,6 +51,7 @@ public static class BehaviorCommandCatalog
             || commandType == BehaviorCommandType.FleeFromTarget
             || commandType == BehaviorCommandType.LoopUntil
             || commandType == BehaviorCommandType.WaitForAnimEvent
-            || commandType == BehaviorCommandType.WaitForClipFinished;
+            || commandType == BehaviorCommandType.WaitForClipFinished
+            || commandType == BehaviorCommandType.WindUp;
     }
 }

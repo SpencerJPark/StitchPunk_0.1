@@ -23,10 +23,13 @@ public struct BehaviorCommandContext
     public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
     public BufferLookup<AnimEventOutput>            animEventOutputLookup;
     public ComponentLookup<AnimEventsPending>       animEventsPendingLookup;
+    public ComponentLookup<Item>                    itemLookup;
+    public BlobAssetReference<ItemLibraryBlob>      itemLibrary; // may be uncreated - check IsCreated
 
     // Write lookups — each entity is owned by at most one executing behavior at a time, so no two
     // handler calls ever write the same entity's data (matches the job's own field annotations).
     public ComponentLookup<AttackRequest>           attackRequestLookup;
+    public ComponentLookup<RangedAim>               rangedAimLookup;
     public ComponentLookup<PickupRequest>           pickupRequestLookup;
     public ComponentLookup<EquipBy>                 equipByLookup;
     public ComponentLookup<AttachedTo>              attachedToLookup;

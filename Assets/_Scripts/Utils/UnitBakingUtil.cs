@@ -24,6 +24,10 @@ public static class UnitBakingUtil
         baker.SetComponentEnabled<AllyAlert>(entity, false);
         baker.AddComponent<AiThrowRequest>(entity);
         baker.SetComponentEnabled<AiThrowRequest>(entity, false);
+        baker.AddComponent<RangedAim>(entity);
+        baker.SetComponentEnabled<RangedAim>(entity, false);
+        baker.AddComponent<AiShootRequest>(entity);
+        baker.SetComponentEnabled<AiShootRequest>(entity, false);
 
         baker.AddComponent(entity, new Awareness { range = unitSo.awarenessRange });
 

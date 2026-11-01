@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(fileName = "Item", menuName = "Items/Item")]
 public class ItemSO : ScriptableObject
@@ -46,9 +47,23 @@ public class ItemSO : ScriptableObject
     [Tooltip("Direct sideways launch velocity (units/s) when this item kills on impact. 0 = no drift.")]
     public float throwLaunchForceX = 0f;
 
-    [Header("AI Throw")]
-    [Tooltip("AI units throw this only when the target is at least this far away.")]
-    public float aiThrowMinRange = 0f;
-    [Tooltip("AI units throw this only when the target is within this range. 0 = AI never throws it.")]
-    public float aiThrowMaxRange = 0f;
+    [Header("AI Ranged")]
+    [Tooltip("AI units throw or shoot this only when the target is at least this far away.")]
+    [FormerlySerializedAs("aiThrowMinRange")]
+    public float aiRangedMinRange = 0f;
+    [Tooltip("AI units throw or shoot this only when the target is within this range. 0 = AI never throws or shoots it.")]
+    [FormerlySerializedAs("aiThrowMaxRange")]
+    public float aiRangedMaxRange = 0f;
+    [Tooltip("Whether the AI throws this item (it leaves the hand) or shoots a projectile from it.")]
+    public RangedKind rangedKind = RangedKind.None;
+    [Tooltip("Bullet speed in m/s. Shoot only.")]
+    public float projectileSpeed = 0f;
+    [Tooltip("Seconds between this weapon's shots or throws.")]
+    public float rangedCooldownSeconds = 0f;
+    [Tooltip("Weapon grab picks the highest value; gun > rock.")]
+    public float aiWeaponValue = 0f;
+    [Tooltip("Projectile spawned on a shot. Shoot only; baked into the ItemProjectilePrefab buffer because a prefab cannot live in a blob.")]
+    public GameObject projectilePrefab;
+    [Tooltip("Seconds the unit visibly winds up (swell + flash) before releasing. 0 = the WindUp command's FloatParam.")]
+    public float aiWindUpSeconds = 0f;
 }

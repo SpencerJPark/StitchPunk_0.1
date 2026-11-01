@@ -77,6 +77,13 @@ public enum BehaviorCommandType : byte
 
     // Fire-and-advance. IntParam = (int)EmoteIcon, FloatParam = seconds (0 = 2.5). Shows at priority 2 via EmoteRules.TryShow.
     ShowEmote,
+
+    // Blocking. Locks RangedAim.aimPoint to the target's position on its first frame and waits the held item's
+    // ItemBlob.aiWindUpSeconds (FloatParam when the item has none). WindUpPresentationSystem shows it.
+    WindUp,
+
+    // Fire-and-advance. Enables AiShootRequest aimed at the locked RangedAim point (else the target); AiShootSystem spawns the bullet.
+    RequestShoot,
 }
 
 // Exit conditions for LoopUntil (and later: early-exit on blocking commands).
@@ -232,6 +239,7 @@ public enum BehaviorType : byte
     PassOut,
     KeepRange,         // SmartHumanAI H4 — appended
     Retreat,
+    Shoot,             // SmartHumanAI H5 — appended
 }
 
 public enum StanceType

@@ -116,6 +116,7 @@ public class BodyPartAuthoring : MonoBehaviour
                 float layerAlpha = authoring.useLayerChannels ? 1f : 0f;
                 AddComponent(entity, new BodyPartSecondaryTint { Value = new float4(1f, 1f, 1f, layerAlpha) });
                 AddComponent(entity, new BodyPartTertiaryTint { Value = new float4(1f, 1f, 1f, layerAlpha) });
+                AddComponent(entity, new BodyPartFlash { Value = new float4(1f, 1f, 1f, 0f) });
             }
         }
 

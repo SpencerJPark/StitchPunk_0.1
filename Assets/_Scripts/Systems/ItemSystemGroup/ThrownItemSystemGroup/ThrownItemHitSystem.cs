@@ -5,13 +5,13 @@ using Unity.Transforms;
 using Unity.Collections;
 
 /// <summary>
-/// While an item is in flight, checks each frame whether any entity with Health is within
-/// hitRadius of the item's position. No physics collider required on the target — works with
-/// quad-based characters that have no PhysicsCollider.
+/// While an item is in flight, sweeps its last-frame path against every living, non-dodging entity
+/// with Health using the shared ProjectileHitUtils test (friendly fire is on). No physics collider
+/// required on the target.
 /// On hit: Enqueues a source-agnostic DamageEvent (sourceEntity = thrower, damageSource = Throw) into
 /// the recycled DamageBus and stops the item. This group runs earlier in the frame than
 /// CombatSystemGroup, and this is a synchronous main-thread write (no scheduled job), so the value
-/// is already in the raw queue before any parallel producer — DamageResolutionSystem + the consumer
+/// is already in the raw queue before any parallel producer - DamageResolutionSystem + the consumer
 /// apply it the same frame with no handle registration needed.
 /// </summary>
 [BurstCompile]
@@ -19,8 +19,11 @@ using Unity.Collections;
 [UpdateAfter(typeof(ThrownItemSystem))]
 public partial struct ThrownItemHitSystem : ISystem
 {
+    private const float THROWN_ITEM_RADIUS = 0.2f;
+
     private ComponentLookup<LocalTransform> transformLookup;
-    private ComponentLookup<Faction> factionLookup;
+    private ComponentLookup<Dead> deadLookup;
+    private ComponentLookup<DodgeInvulnerable> dodgeInvulnerableLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -29,14 +32,16 @@ public partial struct ThrownItemHitSystem : ISystem
         state.RequireForUpdate<ItemLibrary>();
         state.RequireForUpdate<DamageBus>();
         transformLookup = state.GetComponentLookup<LocalTransform>(true);
-        factionLookup = state.GetComponentLookup<Faction>(true);
+        deadLookup = state.GetComponentLookup<Dead>(true);
+        dodgeInvulnerableLookup = state.GetComponentLookup<DodgeInvulnerable>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
         transformLookup.Update(ref state);
-        factionLookup.Update(ref state);
+        deadLookup.Update(ref state);
+        dodgeInvulnerableLookup.Update(ref state);
 
         BlobAssetReference<ItemLibraryBlob> itemLibrary = SystemAPI.GetSingleton<ItemLibrary>().library;
 
@@ -44,27 +49,31 @@ public partial struct ThrownItemHitSystem : ISystem
         // queue melee uses. Direct main-thread Enqueue: no other raw writer runs before ItemSystemGroup.
         NativeQueue<DamageEvent> damageQueue = SystemAPI.GetSingleton<DamageBus>().raw;
 
-        // Collect all hittable entities (have Health and a position) into a temp list so the inner
-        // loop can be a simple distance check. "Hittable" == has Health (the Hurt buffer is gone).
-        NativeList<TargetData> targets = new NativeList<TargetData>(64, state.WorldUpdateAllocator);
+        // Hittable == has Health and is neither dead nor mid-dodge.
+        NativeList<ProjectileHitCandidate> targets = new NativeList<ProjectileHitCandidate>(64, state.WorldUpdateAllocator);
 
         foreach ((RefRO<LocalTransform> transform, Entity entity) in
             SystemAPI.Query<RefRO<LocalTransform>>()
                 .WithAll<Health>()
                 .WithEntityAccess())
         {
-            bool targetHasFaction = factionLookup.HasComponent(entity);
-            targets.Add(new TargetData
+            if (deadLookup.HasComponent(entity) && deadLookup.IsComponentEnabled(entity))
+                continue;
+            if (dodgeInvulnerableLookup.HasComponent(entity) && dodgeInvulnerableLookup.IsComponentEnabled(entity))
+                continue;
+
+            targets.Add(new ProjectileHitCandidate
             {
-                entity           = entity,
-                position         = transform.ValueRO.Position,
-                hasFaction       = targetHasFaction,
-                factionType      = targetHasFaction ? factionLookup[entity].factionType : default
+                entity   = entity,
+                position = transform.ValueRO.Position
             });
         }
 
         if (targets.Length == 0)
             return;
+
+        NativeArray<ProjectileHitCandidate> targetArray = targets.AsArray();
+        float deltaTime = SystemAPI.Time.DeltaTime;
 
         foreach ((RefRO<LocalTransform> transform,
                   RefRO<ThrownItemRequest> thrownItem,
@@ -80,70 +89,42 @@ public partial struct ThrownItemHitSystem : ISystem
             .WithPresent<PlayerInteractable>())
         {
             float3 itemPos = transform.ValueRO.Position;
-            const float hitRadius = 0.6f;
-            float hitRadiusSq = hitRadius * hitRadius;
+            float3 horizontalVelocity = new float3(thrownItem.ValueRO.velocity.x, 0f, thrownItem.ValueRO.velocity.z);
+            float3 previousPos = itemPos - horizontalVelocity * deltaTime;
+            float3 throwOrigin = thrownItem.ValueRO.throwOrigin;
+            Entity thrower = thrownItem.ValueRO.thrower;
 
-            // Skip hit detection until item has traveled past nearby units.
-            // Prevents standing next to a body from immediately blocking the throw.
-            // Walls are not entities with Health so they are unaffected.
-            const float minTravelDist = 1.2f;
-            float3 originDelta = itemPos - thrownItem.ValueRO.throwOrigin;
-            float travelDistSq = originDelta.x * originDelta.x + originDelta.z * originDelta.z;
-            if (travelDistSq < minTravelDist * minTravelDist)
+            int hitIndex;
+            float hitFraction;
+            if (!ProjectileHitUtils.FindFirstHitAlongSegment(
+                    in previousPos, in itemPos, THROWN_ITEM_RADIUS, thrower, in throwOrigin,
+                    in targetArray, out hitIndex, out hitFraction))
                 continue;
 
             ref ItemBlob itemBlob = ref itemLibrary.Value.items[(int)item.ValueRO.itemType];
 
-            Entity thrower = thrownItem.ValueRO.thrower;
-            bool throwerHasFaction = thrower != Entity.Null && factionLookup.HasComponent(thrower);
-            FactionType throwerFactionType = throwerHasFaction ? factionLookup[thrower].factionType : default;
+            ProjectileHitCandidate target = targetArray[hitIndex];
+            float3 hitPoint = math.lerp(previousPos, itemPos, hitFraction);
+            float2 hitToTarget = hitPoint.xz - target.position.xz;
 
-            for (int i = 0; i < targets.Length; i++)
+            damageQueue.Enqueue(new DamageEvent
             {
-                TargetData target = targets[i];
+                targetEntity    = target.entity,
+                sourceEntity    = thrower,
+                damageSource    = DamageSource.Throw,
+                damageAmount    = itemBlob.throwDamage,
+                distance        = math.length(hitToTarget),
+                ragdollForce    = itemBlob.throwRagdollForce,
+                launchForceY    = itemBlob.throwLaunchForceY,
+                launchForceX    = itemBlob.throwLaunchForceX,
+                damageBehaviour = DamageBehaviour.SinlgeTarget,
+                sourcePosition  = hitPoint,
+                range           = 0f,
+            });
 
-                if (target.entity == thrower)
-                    continue;
-
-                if (throwerHasFaction && target.hasFaction && target.factionType == throwerFactionType)
-                    continue;
-
-                // 2.5D — ignore Y difference so height arc doesn't matter
-                float dx = itemPos.x - target.position.x;
-                float dz = itemPos.z - target.position.z;
-                float distSq = dx * dx + dz * dz;
-
-                if (distSq > hitRadiusSq)
-                    continue;
-
-                damageQueue.Enqueue(new DamageEvent
-                {
-                    targetEntity    = target.entity,
-                    sourceEntity    = thrower,
-                    damageSource    = DamageSource.Throw,
-                    damageAmount    = itemBlob.throwDamage,
-                    distance        = math.sqrt(distSq),
-                    ragdollForce    = itemBlob.throwRagdollForce,
-                    launchForceY    = itemBlob.throwLaunchForceY,
-                    launchForceX    = itemBlob.throwLaunchForceX,
-                    damageBehaviour = DamageBehaviour.SinlgeTarget,
-                    sourcePosition  = itemPos,
-                    range           = 0f,
-                });
-
-                thrownItemRequestEnabled.ValueRW = false;
-                playerInteractableEnabled.ValueRW = true;
-                break;
-            }
+            thrownItemRequestEnabled.ValueRW = false;
+            playerInteractableEnabled.ValueRW = true;
         }
-    }
-
-    private struct TargetData
-    {
-        public Entity entity;
-        public float3 position;
-        public bool hasFaction;
-        public FactionType factionType;
     }
 
     [BurstCompile]

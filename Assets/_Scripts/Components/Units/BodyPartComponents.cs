@@ -113,3 +113,11 @@ public struct BodyPartTertiaryTint : IComponentData
 {
     public float4 Value; // RGB layer tint, A = blend strength
 }
+
+// Per-instance wind-up flash (H5-D2). BodyPartTint multiplies and can't whiten, so the 2D graphs lerp the final colour
+// toward rgb by alpha. Baked (1,1,1,0) = no flash; WindUpPresentationSystem writes it.
+[MaterialProperty("_FlashColor")]
+public struct BodyPartFlash : IComponentData
+{
+    public float4 Value;
+}
