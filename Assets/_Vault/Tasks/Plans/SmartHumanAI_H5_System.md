@@ -8,7 +8,7 @@ parent: "[[SmartHumanAI_System]]"
 
 # SmartHumanAI H5 — Guns, Wind-Up Telegraph, Line of Fire
 
-> **Status:** ✅ spec ready 2026-10-31. Product calls come from `RangedCombat_System.md` §0 (RC-D1–D10) and the owner's 2026-10-31 notes (telegraph, aim around allies). H5-D1–D12 below are recorded architecture calls. One owner checkpoint is open: the telegraph look, judged from a capture (H5-D3).
+> **Status:** ✅ **built 2026-11-01** (build log: `SmartHumanAI_System.md` §11; owner checks: `verify-smart-ai.md` § H5). Spec ready 2026-10-31. Product calls come from `RangedCombat_System.md` §0 (RC-D1–D10) and the owner's 2026-10-31 notes (telegraph, aim around allies). H5-D1–D12 below are recorded architecture calls. One owner checkpoint is open: the telegraph look, judged from a capture (H5-D3).
 > **Read first:** `Memories/Code/Systems_AI.md` (tiers, Keep Range, Throw), `RangedCombat_System.md` §0.
 > **Comes before:** `DamageReaction_System.md` (fight/flee/help on any hit, friendly fire included). Until that lands, a friendly hit deals damage but makes no `ThreatEntry` (RC-D8 stays in force for H5).
 
