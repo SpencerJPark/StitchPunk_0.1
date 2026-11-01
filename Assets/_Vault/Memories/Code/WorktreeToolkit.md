@@ -144,3 +144,12 @@ Run the fixtures (temp repos only, never the real project):
       leaves the other side waiting forever, which is worse than a non-atomic one.
     - The broker being alive is *not* evidence the write path is healthy: the heartbeat had a current mtime
       the whole time this was throwing. Check the console.
+28. **The offline gate *can* run inside a source-only worktree** (SmartHumanAI H5, 2026-11-01). `devloop gate` only needs
+    `Library/Bee` + `Library/PackageCache` (the harvested rsp uses project-relative paths) and re-globs the `.cs` sources from
+    its own checkout. So: `New-Item -ItemType Junction -Path <worktree>\Library -Target <main>\Library`, then backdate the
+    worktree's asmdefs (`touch -d "2026-10-30" <worktree>/Assets/_Scripts/**/*.asmdef`) — checkout gives them a fresh mtime,
+    and the staleness check reads that as "newer than the rsp" (`gate game` checks every asmdef against every rsp, which
+    also trips on main). Only do this for asmdefs whose content matches main. Then
+    `(cd <worktree> && python Tools/devloop/devloop.py gate game)` compiles all 11 game assemblies from the worktree in
+    ~15 s, so workers gate before any merge. **Remove the junction first** (`cmd /c rmdir <worktree>\Library` — rmdir on a
+    junction removes only the link) before `worktree.py remove`, or trap 1 applies to main's whole Library.

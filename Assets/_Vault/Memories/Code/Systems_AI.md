@@ -122,9 +122,9 @@ in `Utils/BehaviorCommands/*.cs`** (2026-08-29 split, one static handler class p
 `MiscCommands`, `WaitForAnimEventCommand`, `WaitForClipFinishedCommand`, plus the `BehaviorCommandContext`
 struct bundling lookups/ECB/blob refs). Add a new `BehaviorCommandType` arm there, not inline in the
 switch. Blocking commands: Approach, WaitTime, FleeFromTarget, LoopUntil, WaitForAnimEvent,
-WaitForClipFinished (each owns its own `CurrentCommandIndex`/timer advancement). Fire-and-advance:
-PlayAnimation, PlayActionAnimation, RequestAttack, RequestPickup, ModifyMotivation, ReleaseInteraction,
-StopAnimation, RequestSocialResponse, PlaySound. `BehaviorInterruptSystem.RunCleanupCommand` reuses the
+WaitForClipFinished, WindUp (each owns its own `CurrentCommandIndex`/timer advancement). Fire-and-advance:
+PlayAnimation, PlayActionAnimation, RequestAttack, RequestPickup, RequestThrow, RequestShoot, ModifyMotivation,
+ReleaseInteraction, StopAnimation, RequestSocialResponse, PlaySound. `BehaviorInterruptSystem.RunCleanupCommand` reuses the
 `ModifyMotivation`/`ReleaseInteraction`/`StopAnimation` handlers directly (no more duplicated bodies).
 
 ### Animation event timing (2026-08-29, `AnimationEventTiming_System.md`)
@@ -306,15 +306,24 @@ WaitForClipFinished(Action) → RequestPickup → StopAnimation`) → item gets 
 ## Think rate, alarm and AI throws (SmartHumanAI H2/H3, 2026-10-17)
 - `ThinkScheduleSystem` (UtilityMotivation, OrderFirst) owns `ActionRequest`. **Every brain unit bakes a `ThinkRate` since AF-D8** (`interval <= 0` = every frame, which zombies keep until SmartHumanAI H6). Busy units think every `interval`; idle units think the frame they become idle, then every `min(interval, ThinkRate.IDLE_THINK_INTERVAL = 0.1s)`, not every frame. Request-gated awareness therefore runs at ~4 Hz for humans. Ungated systems (SelfDefence, Flee, GuardPost, AllyAlert response) still run every frame; the rule for staying ungated is O(own threats) cheap AND must react mid-behaviour. Force a re-think with `timeUntilNextThink = 0`.
 - `AllyAlertSystem` runs after Enemy/SelfDefence and before GuardPost: RaiseAlarm spotters broadcast an `AllyAlert`, and alerted allies emit attacks at priority 3.
-- **Priority 4 is now shared** by critical flee, the mid-fight weapon grab (ItemAwareness), Throw (ThrowAwareness) and the three H4 tactics below. The GuardPost leash at 5 still beats all of them.
+- **Priority 4 is now shared** by critical flee, the mid-fight weapon grab (ItemAwareness), Throw/Shoot (RangedAttackAwareness) and the three H4 tactics below. The GuardPost leash at 5 still beats all of them.
 - `RequestThrow` command → `AiThrowRequest` → `AiThrowItemSystem` (ItemEquip group, before ItemEquip) → the existing `ThrownItemSystem`/`ThrownItemHitSystem`.
 
 ## Tactics: Keep Range, Heal When Hurt, Retreat (SmartHumanAI H4, 2026-10-31)
 Spec: `Tasks/Plans/SmartHumanAI_H4_System.md` (H4-D1–D10). All three are awareness options at `Critical`, using no new commands or groups.
-- **Keep Range** (`ThrowAwarenessSystem`): a throwable holder whose target is inside `aiThrowMinRange` gets `ActionType.KeepRange` to a point at `lerp(min, max, 0.3)` from the target. The point is fanned ±40° by entity index and clamped to 0.8 × leash for guards. `TacticsCooldown.keepRangeReadyAtSeconds` (4 s, baked on every brain) stops endless kiting. It never coexists with Throw: below vs at/above min range.
+- **Keep Range** (`RangedAttackAwarenessSystem`, was ThrowAwarenessSystem until H5): a ranged-weapon holder whose target is inside `aiRangedMinRange` gets `ActionType.KeepRange` to a point at `lerp(min, max, 0.3)` from the target. The point is fanned ±40° by entity index and clamped to 0.8 × leash for guards. `TacticsCooldown.keepRangeReadyAtSeconds` (4 s, baked on every brain) stops endless kiting. It never coexists with Throw: below vs at/above min range.
 - **Heal When Hurt** (`ItemAwarenessSystem`): UseHealingItem goes Ambient → Critical when in combat, below 35 % HP, the item ≤ 8 m away and no live hostile within 3 m.
 - **Retreat** (`RetreatAwarenessSystem`, after Flee, before GuardPost, ActionRequest-gated): below 30 % HP, in danger, and hostiles within 10 m > allies within 10 m. The unit goes to the nearest ally ≥ 3 m safer from the nearest hostile, plus a formation slot, else the guard anchor. It skips any unit for which `FleeAwarenessSystem.WouldBreakOffToFlee` holds: cowards flee, brave units retreat.
 - KeepRange/Retreat are **not** `IsCombatAction` (the leash never strips them) and not Wander (GuardPost would read a Wander to the anchor as the leash walk home). Modules are on BanditBrain only.
+
+## Ranged: guns, wind-up telegraph, line of fire (SmartHumanAI H5, 2026-11-01)
+Spec: `Tasks/Plans/SmartHumanAI_H5_System.md` (H5-D1–D12); build log `SmartHumanAI_System.md` §11.
+- **One ranged awareness:** `RangedAttackAwarenessSystem` emits Throw or Shoot by the held item's `ItemBlob.rangedKind` (anything not Shoot throws) once `TacticsCooldown.rangedReadyAtSeconds` has passed, plus Keep Range below `aiRangedMinRange`. The cooldown is stamped by `AiThrowItemSystem`/`AiShootSystem` when the shot actually fires (`ItemBlob.rangedCooldownSeconds`), so the behaviour only waits a 0.3 s recovery.
+- **Wind-up:** Throw/Shoot behaviours run `PlayActionAnimation → PlaySound(AttackSwing) → WindUp → RequestThrow|RequestShoot → WaitTime 0.3`. `WindUp` (blocking) locks `RangedAim.aimPoint` on its first frame (CommandTimer == 0) and waits `ItemBlob.aiWindUpSeconds` (FloatParam fallback). The Request commands fire at the locked point and **always** disable RangedAim, even on their early returns; `BehaviorInterruptSystem` disables it on any teardown/swap. Stepping aside during a wind-up dodges by design.
+- **Presentation:** `WindUpPresentationSystem` (AnimationSystemGroup, after VisualBillboard) eases the unit's `Visual` child `LocalTransform.Scale` and every body-part quad's per-instance `BodyPartFlash` (`_FlashColor`: rgb colour, a strength; the 2D graphs lerp the final colour toward it). Tunables: `WindUpPresentationConfig` (authoring object "Wind Up Presentation" in CampLoop_Sub). `BodyPartTint` multiplies and can never whiten.
+- **Line of fire:** before Throw/Shoot, a live same-faction unit within 0.4 + 0.3 m of the shot segment blocks it. `LineOfFireDiscipline` = Resourceful (−0.5 above half drunk); ≥ 0.35 emits a 2.5 m KeepRange side-step toward the side with fewer allies (shares Keep Range's cooldown) and does not fire; below that it fires anyway. Decision-time positions only.
+- **Projectiles:** rocks stay on the ThrownItem path; bullets are `Projectile` entities from the gun's `projectilePrefab` (baked into the `ItemProjectilePrefab` buffer on the ItemLibrary entity, indexed by ItemType). Both use `ProjectileHitUtils.FindFirstHitAlongSegment` (swept XZ, first hit along the path, shooter skipped, nothing within 1.2 m of the origin, dead/dodging pass through). **Friendly fire is on** (RC-D1); a friendly hit makes no ThreatEntry until DamageReaction lands.
+- **Getting a gun:** ItemAwareness' weapon grab takes the highest `aiWeaponValue` in reach (distance breaks ties). `StartingWeaponAuthoring` on a placed unit instance equips one at spawn via its own enableable pending flag (subscene units never see NewlySpawned).
 
 ## Living Humans: personality, conversation emotes, drunk behaviour (2026-10-20)
 Spec: `Tasks/Verification/LivingHumans_System.md` (LH-D1–D18). Only units with `UnitSO.hasLivingPersonality` (MaleCitizen, Bandit) get the components; zombies get none.

@@ -26,7 +26,7 @@ Scene: `Assets/Scenes/CampLoop.unity`. Re-enter Play mode so the subscene rebake
 - [ ] A cowardly hurt bandit still flees as before; it doesn't retreat.
 
 ## H5: guns, wind-up, line of fire (CampLoop, rebake first)
-- [ ] Every throw and shot is preceded by a visible swell + white flash and a sound; side-stepping during it dodges.
+- [ ] Every throw and shot is preceded by a visible swell + white flash and a sound; side-stepping during it dodges. (H5-D3 was closed unseen: if a white flash doesn't read on the pale placeholder bodies, change the colour on the `Wind Up Presentation` object in CampLoop_Sub.)
 - [ ] A bandit picks up the camp rifle over a rock; the starting gunman (Bandit 1) shoots from range and backs off when you close in.
 - [ ] Stand so a bandit is between you and a shooter: a careful shooter side-steps, a careless one shoots its friend.
 - [ ] A rock or bullet that hits a fellow bandit hurts it (no fight breaks out yet; that comes with DamageReaction).
