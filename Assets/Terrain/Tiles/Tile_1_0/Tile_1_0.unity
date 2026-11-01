@@ -297,7 +297,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bec51d842b9495d458589704054574c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::TerrainSpawnMarkerAuthoring
-  unitType: 3
+  unitType: 2
   count: 3
   radiusMetres: 10
   persistent: 0

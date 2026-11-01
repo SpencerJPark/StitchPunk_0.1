@@ -229,7 +229,6 @@ public static class UnitBakingUtil
     {
         baker.AddComponent<PlayerUnitBrain>(entity);
         baker.SetComponentEnabled<PlayerUnitBrain>(entity, startControlled);
-        baker.AddComponent<PinnedActive>(entity);
 
         // Per-minion command slots — UnitSelectionManager fans commands out to selected minions;
         // MinionActionSelectionSystem consumes them one-shot (disables after emitting an option).
