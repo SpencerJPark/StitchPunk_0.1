@@ -32,6 +32,7 @@ public static class BehaviorCommandCatalog
             case BehaviorCommandType.AddIntoxication:
             case BehaviorCommandType.ShowEmote:
             case BehaviorCommandType.WindUp:
+            case BehaviorCommandType.RequestShoot:
                 return true;
             default:
                 // SpawnEntity / ModifyStat / StartDialogue / ApplyForce — declared, not implemented.

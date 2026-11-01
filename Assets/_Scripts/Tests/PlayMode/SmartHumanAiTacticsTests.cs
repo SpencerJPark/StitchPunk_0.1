@@ -206,7 +206,7 @@ namespace StitchPunk.Tests.PlayMode
         {
             EntityManager entityManager = testWorld.EntityManager;
             CreateBrainLibrarySingleton(ActionType.KeepRange);
-            CreateItemLibrarySingleton(ItemType.Rock, new ItemBlob { aiThrowMinRange = 3f, aiThrowMaxRange = 12f });
+            CreateItemLibrarySingleton(ItemType.Rock, new ItemBlob { aiRangedMinRange = 3f, aiRangedMaxRange = 12f });
 
             target = entityManager.CreateEntity(typeof(LocalTransform));
             entityManager.SetComponentData(target, LocalTransform.FromPosition(new float3(1.5f, 0f, 0f)));

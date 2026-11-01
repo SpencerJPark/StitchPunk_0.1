@@ -5,7 +5,8 @@ using Unity.Transforms;
 
 // WindUp - blocking telegraph before a ranged attack. On its first frame it locks the target's position
 // into RangedAim (enabled, never updated afterwards), then runs CommandTimer up to the held item's
-// aiWindUpSeconds (or cmd.FloatParam). RangedAim stays enabled for RequestThrow to consume.
+// aiWindUpSeconds (or cmd.FloatParam). RangedAim stays enabled for RequestThrow / RequestShoot to consume.
+// RequestShoot - fire-and-advance; enables AiShootRequest at the locked aim point. The gun stays in hand.
 [BurstCompile]
 public static class RangedCommands
 {
@@ -47,6 +48,35 @@ public static class RangedCommands
             stateMachine.CurrentCommandIndex++;
             stateMachine.CommandTimer = 0f;
         }
+    }
+
+    public static void RunRequestShoot(
+        ref BehaviorCommandContext context,
+        Entity                     unit,
+        in StateMachine            stateMachine)
+    {
+        bool   hasAimPoint = false;
+        float3 aimPoint    = float3.zero;
+        // Cleared before the early returns so a flash can never stick on a unit that can't fire.
+        if (context.rangedAimLookup.HasComponent(unit) && context.rangedAimLookup.IsComponentEnabled(unit))
+        {
+            aimPoint    = context.rangedAimLookup[unit].aimPoint;
+            hasAimPoint = true;
+            context.rangedAimLookup.SetComponentEnabled(unit, false);
+        }
+
+        if (stateMachine.targetEntity == Entity.Null) return;
+        if (!context.unitEquipLookup.TryGetComponent(unit, out UnitEquip unitEquip)
+            || unitEquip.equipItemEntity == Entity.Null)
+            return;
+
+        context.ecb.SetComponent(context.entityIndex, unit, new AiShootRequest
+        {
+            target      = stateMachine.targetEntity,
+            aimPoint    = aimPoint,
+            hasAimPoint = hasAimPoint,
+        });
+        context.ecb.SetComponentEnabled<AiShootRequest>(context.entityIndex, unit, true);
     }
 
     private static float ResolveWindUpSeconds(ref BehaviorCommandContext context, Entity unit, float fallbackSeconds)

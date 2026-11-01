@@ -106,6 +106,13 @@ public partial struct AiThrowItemSystem : ISystem
             });
             ecb.SetComponentEnabled<ThrownItemRequest>(itemEntity, true);
 
+            if (entityManager.HasComponent<TacticsCooldown>(unitEntity))
+            {
+                TacticsCooldown tacticsCooldown = entityManager.GetComponentData<TacticsCooldown>(unitEntity);
+                tacticsCooldown.rangedReadyAtSeconds = SystemAPI.Time.ElapsedTime + itemBlob.rangedCooldownSeconds;
+                entityManager.SetComponentData(unitEntity, tacticsCooldown);
+            }
+
             if (entityManager.HasComponent<Gravity>(itemEntity))
             {
                 Gravity gravity = entityManager.GetComponentData<Gravity>(itemEntity);

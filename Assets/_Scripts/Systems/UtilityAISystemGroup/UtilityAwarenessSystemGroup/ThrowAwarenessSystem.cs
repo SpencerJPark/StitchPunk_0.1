@@ -92,7 +92,7 @@ public partial struct ThrowAwarenessJob : IJobEntity
         if (itemIndex < 0 || itemIndex >= itemLibrary.Value.items.Length) return;
 
         ref ItemBlob blob = ref itemLibrary.Value.items[itemIndex];
-        if (blob.aiThrowMaxRange <= 0f) return;
+        if (blob.aiRangedMaxRange <= 0f) return;
 
         Entity target = Entity.Null;
         for (int index = 0; index < actions.Length; index++)
@@ -122,10 +122,10 @@ public partial struct ThrowAwarenessJob : IJobEntity
 
         float3 offset   = targetTransform.Position - transform.Position;
         float  distance = math.length(new float2(offset.x, offset.z));
-        if (distance > blob.aiThrowMaxRange) return;
+        if (distance > blob.aiRangedMaxRange) return;
 
         // KeepRange and Throw share Critical but never coexist: below vs at/above min range.
-        if (distance < blob.aiThrowMinRange)
+        if (distance < blob.aiRangedMinRange)
         {
             EmitKeepRange(self, brain, transform, stateMachine, targetTransform, ref blob, ref actions);
             return;
@@ -168,7 +168,7 @@ public partial struct ThrowAwarenessJob : IJobEntity
         float  fanRadians  = math.radians(fanStep * ThrowAwarenessSystem.KEEP_RANGE_FAN_STEP_DEGREES);
         float3 rotatedAway = math.mul(quaternion.RotateY(fanRadians), away);
 
-        float  preferredRange = math.lerp(blob.aiThrowMinRange, blob.aiThrowMaxRange, ThrowAwarenessSystem.KEEP_RANGE_PREFERRED_FRACTION);
+        float  preferredRange = math.lerp(blob.aiRangedMinRange, blob.aiRangedMaxRange, ThrowAwarenessSystem.KEEP_RANGE_PREFERRED_FRACTION);
         float3 destination    = targetTransform.Position + rotatedAway * preferredRange;
         destination.y         = transform.Position.y;
 

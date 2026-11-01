@@ -32,6 +32,7 @@ namespace StitchPunk.Tests
                 BehaviorCommandType.AddIntoxication,
                 BehaviorCommandType.ShowEmote,
                 BehaviorCommandType.WindUp,
+                BehaviorCommandType.RequestShoot,
             };
 
         private static readonly HashSet<BehaviorCommandType> ExpectedBlocking =

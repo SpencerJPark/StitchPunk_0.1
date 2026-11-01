@@ -367,6 +367,10 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 ItemCommands.RunRequestThrow(ref context, unit, in stateMachine);
                 break;
 
+            case BehaviorCommandType.RequestShoot:
+                RangedCommands.RunRequestShoot(ref context, unit, in stateMachine);
+                break;
+
             case BehaviorCommandType.ModifyMotivation:
                 RequestCommands.RunModifyMotivation(ecb, entityIndex, unit, in cmd);
                 break;

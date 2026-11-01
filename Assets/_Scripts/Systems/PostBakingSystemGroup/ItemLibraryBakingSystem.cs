@@ -87,8 +87,12 @@ public partial struct ItemLibraryBakingSystem : ISystem
         throwRagdollForce = so.throwRagdollForce,
         throwLaunchForceY = so.throwLaunchForceY,
         throwLaunchForceX = so.throwLaunchForceX,
-        aiThrowMinRange   = so.aiThrowMinRange,
-        aiThrowMaxRange   = so.aiThrowMaxRange,
+        aiRangedMinRange  = so.aiRangedMinRange,
+        aiRangedMaxRange  = so.aiRangedMaxRange,
+        rangedKind        = so.rangedKind,
+        projectileSpeed   = so.projectileSpeed,
+        rangedCooldownSeconds = so.rangedCooldownSeconds,
+        aiWeaponValue     = so.aiWeaponValue,
         aiWindUpSeconds   = so.aiWindUpSeconds,
     };
 }

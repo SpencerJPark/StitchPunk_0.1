@@ -71,6 +71,9 @@ public static class EnumLogNames
             case BehaviorType.Brawl:           return "Brawl";
             case BehaviorType.PassOut:         return "PassOut";
             case BehaviorType.Throw:           return "Throw";
+            case BehaviorType.KeepRange:       return "KeepRange";
+            case BehaviorType.Retreat:         return "Retreat";
+            case BehaviorType.Shoot:           return "Shoot";
             default:
             {
                 FixedString32Bytes fallback = default;

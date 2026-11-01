@@ -38,4 +38,5 @@ public struct AiThrowRequest : IComponentData, IEnableableComponent
 public struct TacticsCooldown : IComponentData
 {
     public double keepRangeReadyAtSeconds;
+    public double rangedReadyAtSeconds;   // set when a throw or shot fires, so the weapon's rangedCooldownSeconds is per unit (H5-D9)
 }
