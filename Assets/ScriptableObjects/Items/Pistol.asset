@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2127f06a3585fc143ab2ee1cff04d7b7, type: 3}
+  m_Name: Pistol
+  m_EditorClassIdentifier: StitchPunk.Data::ItemSO
+  itemType: 12
+  category: 1
+  weaponAttack: 9
+  onHitEffect: 0
+  consumeEffect: 0
+  pickupRange: 1.5
+  consumeDuration: 1
+  baseUtility: 1
+  throwSpeed: 14
+  throwArc: 3
+  throwDamage: 20
+  throwRagdollForce: 1
+  throwLaunchForceY: 0
+  throwLaunchForceX: 0
+  aiRangedMinRange: 4
+  aiRangedMaxRange: 14
+  rangedKind: 2
+  projectileSpeed: 24
+  rangedCooldownSeconds: 1.6
+  aiWeaponValue: 3
+  projectilePrefab: {fileID: 1637852350750643074, guid: f5498f5d9d9c7bd459fc8c6f120395a4, type: 3}
+  aiWindUpSeconds: 0.45
