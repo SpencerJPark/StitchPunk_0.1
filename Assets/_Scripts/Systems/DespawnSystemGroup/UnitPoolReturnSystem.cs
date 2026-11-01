@@ -15,16 +15,23 @@ public partial struct UnitPoolReturnSystem : ISystem
     // Tune upward if large battles at range are common.
     private const float PoolReturnDistance = 200f;
 
+    private ComponentLookup<SpawnedByMarker> spawnedByMarkerLookup;
+    private ComponentLookup<Despawn> despawnLookup;
+
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<Player>();
+        spawnedByMarkerLookup = state.GetComponentLookup<SpawnedByMarker>(true);
+        despawnLookup = state.GetComponentLookup<Despawn>(false);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        spawnedByMarkerLookup.Update(ref state);
+        despawnLookup.Update(ref state);
         float3 playerPos = SystemAPI.GetComponent<LocalTransform>(
             SystemAPI.GetSingletonEntity<Player>()).Position;
 
@@ -36,8 +43,16 @@ public partial struct UnitPoolReturnSystem : ISystem
                 .WithAll<PoolOwner>()
                 .WithEntityAccess())
         {
-            if (math.distancesq(transform.ValueRO.Position, playerPos) > thresholdSq)
-                ecb.AddComponent<Disabled>(entity);
+            if (math.distancesq(transform.ValueRO.Position, playerPos) <= thresholdSq)
+                continue;
+            // Persistent marker units live on through the abstract tier; pooling them would hand their bodies to other spawners.
+            if (spawnedByMarkerLookup.TryGetComponent(entity, out SpawnedByMarker markerStamp) && !markerStamp.despawnWithTile)
+                continue;
+
+            ecb.AddComponent<Disabled>(entity);
+            // A pending Despawn would otherwise survive in the pool and re-pool the body the moment it is reclaimed.
+            if (despawnLookup.HasComponent(entity))
+                despawnLookup.SetComponentEnabled(entity, false);
         }
 
         ecb.Playback(state.EntityManager);

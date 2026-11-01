@@ -154,6 +154,19 @@ namespace StitchPunk.Tests.PlayMode
         }
 
         [Test]
+        public void AUnitUnderPlayerControlNeverGoesAbstractButAPlayerUnitBrainThatIsOffDoes()
+        {
+            testWorld.EntityManager.AddComponent<PlayerUnitBrain>(unitEntity);
+            testWorld.EntityManager.SetComponentEnabled<PlayerUnitBrain>(unitEntity, true);
+            RunOneTurnOfEveryUnit();
+            Assert.IsFalse(IsEnabled<AbstractSimulation>(), "an enabled PlayerUnitBrain is a minion");
+
+            testWorld.EntityManager.SetComponentEnabled<PlayerUnitBrain>(unitEntity, false);
+            RunOneTurnOfEveryUnit();
+            Assert.IsTrue(IsEnabled<AbstractSimulation>(), "a revivable citizen that is not under control is abstractable");
+        }
+
+        [Test]
         public void ADeadUnitIsLeftExactlyAsItIs()
         {
             testWorld.EntityManager.SetComponentEnabled<Dead>(unitEntity, true);

@@ -173,6 +173,36 @@ namespace StitchPunk.Tests.PlayMode
             Assert.AreEqual(3, entityManager.CreateEntityQuery(typeof(PoolOwner)).CalculateEntityCount(), "two marker units and one plain unit");
         }
 
+        [Test]
+        public void DistancePoolingSkipsPersistentMarkerUnitsAndClearsAPendingDespawnOnTheOthers()
+        {
+            EntityManager entityManager = testWorld.EntityManager;
+            entityManager.CreateEntity(typeof(GameSceneTag));
+            Entity player = entityManager.CreateEntity(typeof(Player), typeof(LocalTransform));
+            entityManager.SetComponentData(player, LocalTransform.FromPosition(float3.zero));
+
+            Entity persistentUnit = CreateFarPoolUnit(new float3(500f, 0f, 0f));
+            entityManager.AddComponentData(persistentUnit, new SpawnedByMarker { markerKey = 1u, despawnWithTile = false });
+            Entity onDemandUnit = CreateFarPoolUnit(new float3(-500f, 0f, 0f));
+            entityManager.AddComponentData(onDemandUnit, new SpawnedByMarker { markerKey = 2u, despawnWithTile = true });
+            entityManager.SetComponentEnabled<Despawn>(onDemandUnit, true);
+
+            testWorld.GetOrCreateSystem<UnitPoolReturnSystem>().Update(testWorld.Unmanaged);
+
+            Assert.IsFalse(entityManager.HasComponent<Disabled>(persistentUnit), "a persistent marker unit must not be pooled by distance");
+            Assert.IsTrue(entityManager.HasComponent<Disabled>(onDemandUnit));
+            Assert.IsFalse(entityManager.IsComponentEnabled<Despawn>(onDemandUnit), "a pooled body must not keep a pending Despawn");
+        }
+
+        private Entity CreateFarPoolUnit(float3 position)
+        {
+            EntityManager entityManager = testWorld.EntityManager;
+            Entity unit = entityManager.CreateEntity(typeof(LocalTransform), typeof(PoolOwner), typeof(Despawn));
+            entityManager.SetComponentData(unit, LocalTransform.FromPosition(position));
+            entityManager.SetComponentEnabled<Despawn>(unit, false);
+            return unit;
+        }
+
         private Entity CreateMarker(float3 position, bool persistent, int count, uint markerKey, float respawnAfterGameDays = 0f)
         {
             EntityManager entityManager = testWorld.EntityManager;

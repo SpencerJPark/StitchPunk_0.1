@@ -85,7 +85,8 @@ public partial struct AbstractTransitionSystem : ISystem
 [WithPresent(typeof(DStarLiteFollower))]
 [WithPresent(typeof(FlowFieldFollower))]
 [WithPresent(typeof(UtilityBrain))]
-[WithNone(typeof(PinnedActive), typeof(TerrainNavFocus), typeof(Dead), typeof(CutsceneActor), typeof(Parent))]
+// An enabled PlayerUnitBrain is a minion or companion: it follows the player, so it never goes abstract (and a revived citizen becomes one at runtime).
+[WithNone(typeof(PinnedActive), typeof(PlayerUnitBrain), typeof(TerrainNavFocus), typeof(Dead), typeof(CutsceneActor), typeof(Parent))]
 public partial struct AbstractTransitionJob : IJobEntity
 {
     private const float TileSizeMetres = 100f;

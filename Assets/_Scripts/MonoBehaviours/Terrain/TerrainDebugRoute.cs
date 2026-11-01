@@ -6,13 +6,16 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Throwaway P9 play-check tool: sends the unit nearest the player on a straight route across the streamed world
+/// Throwaway P9 play-check tool: sends the unit nearest the player (abstract or active) on a straight route across the streamed world
 /// (AbstractTravel.BeginRoute), then shows whether it is abstract or active. Drop it on any scene object; F9 or the button.
 /// </summary>
 public class TerrainDebugRoute : MonoBehaviour
 {
     [Tooltip("The route ends this far from the world centre on the opposite side of the unit.")]
     [SerializeField] private float routeEndDistanceFromCentreMetres = 140f;
+
+    [Tooltip("Walking speed of the route. A quick test wants more than a citizen's stroll.")]
+    [SerializeField] private float routeSpeedMetresPerSecond = 4f;
 
     private EntityManager entityManager;
     private EntityQuery candidateQuery;
@@ -65,6 +68,18 @@ public class TerrainDebugRoute : MonoBehaviour
         GUILayout.EndArea();
     }
 
+    // An abstract unit's transform is stale; its rest anchor is where it really is. One already on a route is left alone.
+    private bool TryGetUnitPosition(Entity unit, out float3 position)
+    {
+        position = entityManager.GetComponentData<LocalTransform>(unit).Position;
+        if (!entityManager.IsComponentEnabled<AbstractSimulation>(unit))
+            return true;
+        if (entityManager.GetComponentData<AbstractRoute>(unit).totalLengthMetres > 0f)
+            return false;
+        position = entityManager.GetComponentData<AbstractRestAnchor>(unit).position;
+        return true;
+    }
+
     private void SendNearestUnitOnRoute()
     {
         if (focusQuery.IsEmpty || clockQuery.IsEmpty)
@@ -79,9 +94,11 @@ public class TerrainDebugRoute : MonoBehaviour
         float nearestDistanceSquared = float.MaxValue;
         foreach (Entity candidate in candidates)
         {
-            if (entityManager.IsComponentEnabled<Dead>(candidate) || entityManager.IsComponentEnabled<AbstractSimulation>(candidate))
+            if (entityManager.IsComponentEnabled<Dead>(candidate) || entityManager.IsComponentEnabled<PlayerUnitBrain>(candidate))
                 continue;
-            float distanceSquared = math.distancesq(entityManager.GetComponentData<LocalTransform>(candidate).Position, playerPosition);
+            if (!TryGetUnitPosition(candidate, out float3 candidatePosition))
+                continue;
+            float distanceSquared = math.distancesq(candidatePosition, playerPosition);
             if (distanceSquared < nearestDistanceSquared)
             {
                 nearestDistanceSquared = distanceSquared;
@@ -96,12 +113,10 @@ public class TerrainDebugRoute : MonoBehaviour
             return;
         }
 
-        float3 start = entityManager.GetComponentData<LocalTransform>(nearestUnit).Position;
+        TryGetUnitPosition(nearestUnit, out float3 start);
         float sideSign = start.x >= 0f ? -1f : 1f;
         float3 destination = new float3(sideSign * routeEndDistanceFromCentreMetres, start.y, start.z);
-        float speed = 2f;
-        if (entityManager.HasComponent<DotsMovementToolkit.Movement>(nearestUnit))
-            speed = math.max(0.5f, entityManager.GetComponentData<DotsMovementToolkit.Movement>(nearestUnit).moveSpeed);
+        float speed = routeSpeedMetresPerSecond;
 
         NativeArray<float3> waypoints = new NativeArray<float3>(2, Allocator.Temp);
         waypoints[0] = start;
