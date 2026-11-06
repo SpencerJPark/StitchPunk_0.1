@@ -152,7 +152,9 @@ public partial struct CaravanBoardSystem : ISystem
         float3 stepOutPosition = caravanTransform.TransformPoint(SystemAPI.GetComponent<Caravan>(caravanEntity).boardPointLocalOffset);
         LocalTransform playerTransform = SystemAPI.GetComponent<LocalTransform>(playerEntity);
         playerTransform.Position = stepOutPosition;
-        playerTransform.Rotation = caravanTransform.Rotation;
+        // Yaw only: the caravan body is tilted on a slope, the player is not.
+        playerTransform.Rotation = quaternion.RotateY(math.radians(
+            CaravanDriveMath.HeadingDegrees(math.rotate(caravanTransform.Rotation, new float3(0f, 0f, 1f)))));
         SystemAPI.SetComponent(playerEntity, playerTransform);
 
         // The mover would otherwise walk the player back to wherever it last aimed before boarding.

@@ -28,6 +28,9 @@ public partial struct CaravanDriveSystem : ISystem
     private const float ROLLING_SPEED = 0.03f;
     // Heading this far ahead of the body puts the front axle at full lock.
     private const float FULL_LOCK_DEGREES = 30f;
+    private const float MAX_PITCH_RADIANS = 0.61f;
+    // Per second; keeps the nose from snapping over triangle edges of the ground mesh.
+    private const float PITCH_FOLLOW_RATE = 10f;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -115,18 +118,19 @@ public partial struct CaravanDriveSystem : ISystem
                 newBodyYawDegrees += math.clamp(CaravanDriveMath.DeltaAngle(bodyYawDegrees, headingDegrees),
                     -maximumBodyTurn, maximumBodyTurn);
             }
-            quaternion rotation = quaternion.RotateY(math.radians(newBodyYawDegrees));
+            // Yaw only: the wall cast and travel stay flat; the slope tilt is added to the written pose below.
+            quaternion yawRotation = quaternion.RotateY(math.radians(newBodyYawDegrees));
             float3 position = caravanTransform.ValueRO.Position;
 
             float stepLength = forwardSpeed * deltaTime;
             if (stepLength > 0.00001f)
             {
                 // On a rising hill the fixed-height bumper sphere ends up buried in the slope and reads it as a wall.
-                float3 bumperFootprint = position + math.rotate(rotation,
+                float3 bumperFootprint = position + math.rotate(yawRotation,
                     new float3(0f, 0f, profile.frontBumperLocalZ - profile.halfWidth));
                 float groundHeightAtBumper = math.max(position.y,
                     GroundHeightUnder(collisionWorld, groundFilter, ref groundHits, bumperFootprint, caravanEntity, driverEntity));
-                float allowedFraction = FrontBumperClearFraction(collisionWorld, wallFilter, ref wallHits, position, rotation,
+                float allowedFraction = FrontBumperClearFraction(collisionWorld, wallFilter, ref wallHits, position, yawRotation,
                     groundHeightAtBumper - position.y, travelDirection, stepLength, ref profile, caravanEntity, driverEntity, in itemLookup);
                 if (allowedFraction < 1f)
                 {
@@ -137,10 +141,25 @@ public partial struct CaravanDriveSystem : ISystem
                 position += travelDirection * stepLength;
             }
 
-            position.y = GroundHeightUnder(collisionWorld, groundFilter, ref groundHits, position, caravanEntity, driverEntity);
+            float3 bodyForward = CaravanDriveMath.HeadingDirection(newBodyYawDegrees);
+
+            // Tilt to the slope under the wheelbase so the nose rides up a hill instead of sinking into it; the body sits
+            // no lower than the ground under its middle on a crest.
+            float wheelbaseMetres = math.max(profile.frontBumperLocalZ - profile.rearBumperLocalZ, 0.01f);
+            float rearGroundHeight = GroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
+                position + bodyForward * profile.rearBumperLocalZ, caravanEntity, driverEntity);
+            float frontGroundHeight = GroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
+                position + bodyForward * profile.frontBumperLocalZ, caravanEntity, driverEntity);
+            float middleGroundHeight = GroundHeightUnder(collisionWorld, groundFilter, ref groundHits, position, caravanEntity, driverEntity);
+            float slopeRadians = math.clamp(math.atan2(frontGroundHeight - rearGroundHeight, wheelbaseMetres),
+                -MAX_PITCH_RADIANS, MAX_PITCH_RADIANS);
+            float pitchRadians = math.lerp(driveState.ValueRO.pitchRadians, slopeRadians, 1f - math.exp(-PITCH_FOLLOW_RATE * deltaTime));
+            float groundHeightAtOrigin = math.lerp(rearGroundHeight, frontGroundHeight, -profile.rearBumperLocalZ / wheelbaseMetres);
+            position.y = math.max(middleGroundHeight, groundHeightAtOrigin);
+            // Positive X rotation tips the nose down, so the nose-up tilt is negated.
+            quaternion rotation = math.mul(yawRotation, quaternion.RotateX(-pitchRadians));
 
             // The facing the body shows the camera picks the seat and puller offsets, quantised the way units are.
-            float3 bodyForward = CaravanDriveMath.HeadingDirection(newBodyYawDegrees);
             float2 bodyForwardXY = new float2(bodyForward.x, bodyForward.z);
             Direction facing = FacingResolver.FromMovement(in bodyForwardXY, AnimationDirections.Eight, driveState.ValueRO.facing);
 
@@ -153,13 +172,14 @@ public partial struct CaravanDriveSystem : ISystem
             // The front axle points where the caravan is heading, ahead of where the body faces.
             driveState.ValueRW.steerInput = math.clamp(CaravanDriveMath.DeltaAngle(newBodyYawDegrees, headingDegrees) / FULL_LOCK_DEGREES, -1f, 1f);
             driveState.ValueRW.facing = facing;
+            driveState.ValueRW.pitchRadians = pitchRadians;
             driveState.ValueRW.pullerGait = profile.Gait(forwardSpeed);
             driveState.ValueRW.wheelSpinRadians = CaravanDriveMath.AdvanceWheelSpin(
                 driveState.ValueRO.wheelSpinRadians, forwardSpeed, profile.wheelRadius, deltaTime);
 
             seatedDriver = driverEntity;
             seatPosition = position + math.rotate(rotation, profile.DriverSeatOffset(facing));
-            seatRotation = rotation;
+            seatRotation = yawRotation;
         }
 
         // Written after the loop: the query above holds LocalTransform read-write.

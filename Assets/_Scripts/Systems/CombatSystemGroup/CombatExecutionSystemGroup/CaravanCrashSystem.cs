@@ -76,8 +76,9 @@ public partial struct CaravanCrashSystem : ISystem
             if (impactSpeed < CREEPING_SPEED) continue;
 
             LocalTransform caravanPose = caravanTransform.ValueRO;
-            float3 forward = math.rotate(caravanPose.Rotation, new float3(0f, 0f, 1f));
-            float3 right = math.rotate(caravanPose.Rotation, new float3(1f, 0f, 0f));
+            // Flattened: the body tilts on a slope but units are shoved along the ground.
+            float3 forward = math.normalizesafe(math.rotate(caravanPose.Rotation, new float3(0f, 0f, 1f)) * new float3(1f, 0f, 1f));
+            float3 right = math.normalizesafe(math.rotate(caravanPose.Rotation, new float3(1f, 0f, 0f)) * new float3(1f, 0f, 1f));
             float3 crashBoxRear = caravanPose.TransformPoint(new float3(0f, CRASH_BOX_HEIGHT, profile.rearBumperLocalZ + profile.halfWidth));
             float3 crashBoxFront = caravanPose.TransformPoint(new float3(0f, CRASH_BOX_HEIGHT, profile.frontBumperLocalZ - profile.halfWidth));
 
