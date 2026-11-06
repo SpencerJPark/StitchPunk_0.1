@@ -1,5 +1,5 @@
 ---
-status: spec, not built; owner answered the scoping questions 2026-11-06 (see section 0); open questions below carry defaults
+status: built 2026-11-06 (UN-1..UN-9 except the spikes, which need a play look; checklist verify-unit-inspector.md); original status: spec; owner answered the scoping questions 2026-11-06 (see section 0); open questions below carry defaults
 replaces: the nav-grid debug overlay as the way to understand navigation (the overlay stays available from the debug panel, default off)
 ---
 
