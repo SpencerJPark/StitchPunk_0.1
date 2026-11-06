@@ -141,6 +141,20 @@ public static class TerrainBrushOverlay
         return false;
     }
 
+    // For tools that point at the ground without being a brush (the road tool): same heightmap march the brushes use.
+    public static bool TryRaycastGround(Ray ray, out Vector3 groundPoint)
+    {
+        RefreshTileCacheIfStale();
+        BrushHit hit;
+        if (TryRaycastHeightmap(ray, out hit))
+        {
+            groundPoint = hit.worldPoint;
+            return true;
+        }
+        groundPoint = Vector3.zero;
+        return false;
+    }
+
     static Vector3 SurfaceNormalAt(Vector3 point)
     {
         float centre = point.y;

@@ -167,6 +167,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "ToggleStrategicView",
+                    "type": "Button",
+                    "id": "05a60269-e071-4799-b7a0-c6f22bd4aaaf",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -662,6 +671,17 @@
                     "processors": "",
                     "groups": "Gamepad",
                     "action": "OpenLetter",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "38796372-bd4b-4287-a408-a64980f21469",
+                    "path": "<Keyboard>/m",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "ToggleStrategicView",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
@@ -1329,6 +1349,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "ToggleStrategicView",
+                    "type": "Button",
+                    "id": "7b99bd1c-725c-4a61-b08d-797e1bc58ce3",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -1604,6 +1633,28 @@
                     "processors": "",
                     "groups": "Keyboard&Mouse",
                     "action": "Speed",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "8f34e0be-cd72-4a83-baff-6f8e1e7165eb",
+                    "path": "<Keyboard>/m",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "ToggleStrategicView",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "c7aa83f6-618a-408b-80ac-3cf9053a2149",
+                    "path": "<Gamepad>/rightStickPress",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "ToggleStrategicView",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

@@ -106,7 +106,7 @@ public static class TerrainRoadRibbonBaker
                 TerrainRoadRibbonInput input = new TerrainRoadRibbonInput();
                 input.centrelineXZ = centrelines[splineIndex];
                 input.closedLoop = container.Splines[splineIndex].Closed;
-                input.widthMetres = road.profile.widthMetres;
+                input.widthMetres = road.EffectiveWidthMetres;
                 input.style = road.profile.ribbonStyle;
                 input.tileRectXZ = tileRect;
                 input.groundHeightAt = groundHeightAt;
@@ -245,7 +245,7 @@ public static class TerrainRoadRibbonBaker
                 continue;
             }
 
-            float halfWidth = other.profile.widthMetres * 0.5f;
+            float halfWidth = other.EffectiveHalfWidthMetres;
             float halfWidthSquared = halfWidth * halfWidth;
             List<List<Vector2>> otherCentrelines = CentrelinesOf(other, centrelineCache);
             for (int knotIndex = 0; knotIndex < spline.Count; knotIndex++)

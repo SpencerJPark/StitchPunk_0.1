@@ -1,141 +1,198 @@
 #if UNITY_EDITOR
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEditor;
-using UnityEditor.EditorTools;
-using UnityEditor.Splines;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.Splines;
 using UnityEngine.UIElements;
+using DotsAnimationToolkit.Editor;
 
 public sealed class TerrainRoadsPanel : TerrainToolPanel
 {
-    const float DefaultRoadLengthMetres = 40f;
-    const string DefaultProfileFolder = "Assets/Terrain/Profiles";
-    const string DefaultProfilePath = DefaultProfileFolder + "/DefaultRoadProfile.asset";
+    const int RefreshIntervalMilliseconds = 500;
+    const float MinimumWidthMetres = 1f;
+    const float MaximumWidthMetres = 24f;
+    const int MinimumKnotsPerRoad = 2;
 
-    readonly VisualElement roadListContainer = new VisualElement();
-    readonly VisualElement emptyState = new VisualElement();
-    readonly VisualElement detailGroup = new VisualElement();
-    readonly ObjectField profileField = new ObjectField("Profile");
+    static readonly TerrainKeyHint[] Hints =
+    {
+        new TerrainKeyHint { keys = "Click line", action = "add point" },
+        new TerrainKeyHint { keys = "Drag", action = "move" },
+        new TerrainKeyHint { keys = "Del", action = "remove point" },
+        new TerrainKeyHint { keys = "Shift+click", action = "extend" },
+        new TerrainKeyHint { keys = "Esc", action = "deselect" }
+    };
+
+    readonly VisualElement emptyHost = new VisualElement();
+    readonly VisualElement cardsHost = new VisualElement();
+    readonly VisualElement listBody;
+    readonly VisualElement roadCard;
+    readonly VisualElement pointCard;
     readonly Label warningLabel = new Label();
     readonly Label ribbonVertexLabel = new Label();
-    TerrainRoad selectedRoad;
+    readonly Label pointLabel;
+    readonly Label lengthBadge;
+    readonly Label knotCountBadge;
+    readonly ObjectField profileField = new ObjectField();
+    readonly IntegerField priorityField = new IntegerField();
+    readonly Button useProfileWidthButton;
+    readonly Button deletePointButton;
+    readonly System.Action widthRefresh;
     IVisualElementScheduledItem refreshTimer;
     int lastReportedRoadCount = -1;
+    int lastListSignature;
 
     public override string DisplayName => "Roads";
-    public override string StatusText => "Roads: " + Mathf.Max(lastReportedRoadCount, 0);
+    public override string StatusText => TerrainRoadTool.SelectedRoad != null ? TerrainRoadTool.SelectedRoad.name : "no road selected";
+    public override IReadOnlyList<TerrainKeyHint> KeyHints => Hints;
 
     public TerrainRoadsPanel()
     {
-        AddToClassList("terrain-panel");
+        style.flexGrow = 1f;
 
-        Label title = new Label("Roads");
-        title.AddToClassList("terrain-panel-title");
-        Add(title);
+        VisualElement actions;
+        VisualElement body;
+        VisualElement pane = TerrainUi.MakePane("Roads", out actions, out body);
+        Add(pane);
 
-        Label hint = new Label("Roads are splines. Drag the knots; the ground follows.");
-        hint.AddToClassList("terrain-panel-hint");
-        Add(hint);
+        actions.Add(TerrainUi.MakePrimary("New Road", ToolkitIcons.Plus, "Add a road in front of the Scene view, then drag its dots or click its line to add more", CreateRoad));
 
-        warningLabel.AddToClassList("terrain-warning");
-        Add(warningLabel);
+        emptyHost.Add(TerrainUi.MakeEmpty("No roads yet", "Add a road, then click its line in the Scene view to add points, drag a point to move it, and drag the square handles to set the width.", "New Road", CreateRoad));
 
-        ribbonVertexLabel.AddToClassList("terrain-panel-hint");
-        ribbonVertexLabel.style.display = DisplayStyle.None;
-        Add(ribbonVertexLabel);
+        VisualElement listCard = TerrainUi.MakeCard("Roads", out listBody);
+        cardsHost.Add(listCard);
 
-        Add(roadListContainer);
-
-        emptyState.AddToClassList("terrain-empty");
-        Label emptyTitle = new Label("No roads");
-        emptyTitle.AddToClassList("terrain-panel-title");
-        Label emptyWhy = new Label("A road is a spline the terrain carves and paints along. Create one to start.");
-        emptyWhy.AddToClassList("terrain-panel-hint");
-        Button emptyCreateButton = new Button(CreateRoad);
-        emptyCreateButton.text = "New Road";
-        emptyCreateButton.AddToClassList("terrain-primary-button");
-        emptyState.Add(emptyTitle);
-        emptyState.Add(emptyWhy);
-        emptyState.Add(emptyCreateButton);
-        Add(emptyState);
-
-        VisualElement buttonRow = new VisualElement();
-        buttonRow.AddToClassList("terrain-row");
-        Button selectButton = new Button(FrameSelectedRoad);
-        selectButton.text = "Select";
-        selectButton.AddToClassList("terrain-segment-button");
-        Button deleteButton = new Button(DeleteSelectedRoad);
-        deleteButton.text = "Delete";
-        deleteButton.AddToClassList("terrain-segment-button");
-        buttonRow.Add(selectButton);
-        buttonRow.Add(deleteButton);
-        detailGroup.Add(buttonRow);
-
+        VisualElement roadCardBody;
+        roadCard = TerrainUi.MakeCard("Road", out roadCardBody);
+        profileField.label = "Profile";
         profileField.objectType = typeof(TerrainRoadProfile);
         profileField.allowSceneObjects = false;
-        profileField.AddToClassList("terrain-row");
         profileField.RegisterValueChangedCallback(OnProfileChanged);
-        detailGroup.Add(profileField);
-        Add(detailGroup);
+        roadCardBody.Add(profileField);
+        roadCardBody.Add(TerrainUi.MakeSliderRow("Width", MinimumWidthMetres, MaximumWidthMetres, ReadWidth, WriteWidth, "Full road width in metres", out widthRefresh));
+        useProfileWidthButton = TerrainUi.MakeGhost("Use profile width", null, "Drop the width override and use the profile's width", UseProfileWidth);
+        roadCardBody.Add(useProfileWidthButton);
+        priorityField.label = "Priority";
+        priorityField.RegisterValueChangedCallback(OnPriorityChanged);
+        roadCardBody.Add(priorityField);
+        VisualElement badgeRow = new VisualElement();
+        badgeRow.AddToClassList("terrain-badge-row");
+        lengthBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+        knotCountBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);
+        badgeRow.Add(lengthBadge);
+        badgeRow.Add(knotCountBadge);
+        roadCardBody.Add(badgeRow);
+        ribbonVertexLabel.AddToClassList("toolkit-hint");
+        roadCardBody.Add(ribbonVertexLabel);
+        warningLabel.AddToClassList("toolkit-hint");
+        roadCardBody.Add(warningLabel);
+        cardsHost.Add(roadCard);
 
-        Button newRoadButton = new Button(CreateRoad);
-        newRoadButton.text = "New Road";
-        newRoadButton.AddToClassList("terrain-primary-button");
-        Add(newRoadButton);
+        VisualElement pointCardBody;
+        pointCard = TerrainUi.MakeCard("Point", out pointCardBody);
+        pointLabel = new Label();
+        pointCardBody.Add(pointLabel);
+        deletePointButton = TerrainUi.MakeGhost("Delete point", ToolkitIcons.Trash, "Remove the selected point (a road keeps at least two)", TerrainRoadTool.DeleteSelectedKnot);
+        pointCardBody.Add(deletePointButton);
+        cardsHost.Add(pointCard);
 
-        Button rebakeButton = new Button(() => TerrainRoadBaker.RebakeAllRoads(true));
-        rebakeButton.text = "Rebake All Roads";
-        rebakeButton.AddToClassList("terrain-segment-button");
-        Add(rebakeButton);
+        VisualElement actionsCardBody;
+        VisualElement actionsCard = TerrainUi.MakeCard("Actions", out actionsCardBody);
+        actionsCardBody.Add(TerrainUi.MakeSecondary("Rebake all roads", null, "Rebake every tile under a road", () => TerrainRoadBaker.RebakeAllRoads(true)));
+        actionsCardBody.Add(TerrainUi.MakeDestructive("Delete road", ToolkitIcons.Trash, "Delete the selected road", DeleteSelectedRoad));
+        cardsHost.Add(actionsCard);
+
+        body.Add(emptyHost);
+        body.Add(cardsHost);
     }
 
     public override void OnShown()
     {
-        TerrainRoadBaker.BakeFinished += RefreshRoadList;
+        TerrainRoadTool.IsActive = true;
+        TerrainRoadTool.SelectionChanged += RefreshAll;
+        TerrainRoadBaker.BakeFinished += RefreshAll;
         TerrainRoadBaker.BakeFinished += RefreshRibbonVertexLabel;
-        if (refreshTimer == null) refreshTimer = schedule.Execute(RefreshRoadList).Every(1000);
+        if (refreshTimer == null) refreshTimer = schedule.Execute(RefreshAll).Every(RefreshIntervalMilliseconds);
         else refreshTimer.Resume();
-        RefreshRoadList();
+        RefreshAll();
         RefreshRibbonVertexLabel();
     }
 
     public override void OnHidden()
     {
-        TerrainRoadBaker.BakeFinished -= RefreshRoadList;
+        TerrainRoadTool.IsActive = false;
+        TerrainRoadTool.SelectionChanged -= RefreshAll;
+        TerrainRoadBaker.BakeFinished -= RefreshAll;
         TerrainRoadBaker.BakeFinished -= RefreshRibbonVertexLabel;
         if (refreshTimer != null) refreshTimer.Pause();
     }
 
-    void RefreshRoadList()
+    void RefreshAll()
     {
         TerrainRoad[] roads = Object.FindObjectsByType<TerrainRoad>(FindObjectsInactive.Include);
-        if (selectedRoad != null && System.Array.IndexOf(roads, selectedRoad) < 0) selectedRoad = null;
-        if (selectedRoad == null && roads.Length > 0) selectedRoad = roads[0];
+        TerrainRoad selectedRoad = TerrainRoadTool.SelectedRoad;
 
-        roadListContainer.Clear();
-        foreach (TerrainRoad road in roads)
+        emptyHost.style.display = roads.Length == 0 ? DisplayStyle.Flex : DisplayStyle.None;
+        cardsHost.style.display = roads.Length == 0 ? DisplayStyle.None : DisplayStyle.Flex;
+
+        RebuildListIfChanged(roads, selectedRoad);
+
+        roadCard.style.display = selectedRoad != null ? DisplayStyle.Flex : DisplayStyle.None;
+        if (selectedRoad != null)
         {
-            TerrainRoad capturedRoad = road;
-            Button row = new Button(() => SelectRoad(capturedRoad));
-            row.text = road.name + ", " + (road.profile != null ? road.profile.name : "no profile");
-            row.AddToClassList("terrain-list-row");
-            if (road == selectedRoad) row.AddToClassList("terrain-list-row--selected");
-            roadListContainer.Add(row);
+            profileField.SetValueWithoutNotify(selectedRoad.profile);
+            priorityField.SetValueWithoutNotify(selectedRoad.priority);
+            widthRefresh();
+            useProfileWidthButton.style.display = selectedRoad.widthOverrideMetres > 0f ? DisplayStyle.Flex : DisplayStyle.None;
+            int knotCount = selectedRoad.Container != null ? selectedRoad.Container.Spline.Count : 0;
+            float lengthMetres = selectedRoad.Container != null ? selectedRoad.Container.CalculateLength(0) : 0f;
+            lengthBadge.text = lengthMetres.ToString("F0") + " m long";
+            knotCountBadge.text = knotCount + " points";
+            RefreshWarning();
+
+            int knotIndex = TerrainRoadTool.SelectedKnotIndex;
+            bool knotSelected = knotIndex >= 0 && knotIndex < knotCount;
+            pointCard.style.display = knotSelected ? DisplayStyle.Flex : DisplayStyle.None;
+            pointLabel.text = "Point " + (knotIndex + 1) + " of " + knotCount;
+            deletePointButton.SetEnabled(knotCount > MinimumKnotsPerRoad);
         }
-
-        emptyState.style.display = roads.Length == 0 ? DisplayStyle.Flex : DisplayStyle.None;
-        detailGroup.style.display = selectedRoad != null ? DisplayStyle.Flex : DisplayStyle.None;
-        profileField.SetValueWithoutNotify(selectedRoad != null ? selectedRoad.profile : null);
-
-        RefreshWarning();
+        else
+        {
+            pointCard.style.display = DisplayStyle.None;
+        }
 
         if (roads.Length != lastReportedRoadCount)
         {
             lastReportedRoadCount = roads.Length;
             RaiseStatusChanged();
+        }
+    }
+
+    // Rows are rebuilt only when names, widths or the selection change, so a double-click is not eaten by a rebuild between clicks.
+    void RebuildListIfChanged(TerrainRoad[] roads, TerrainRoad selectedRoad)
+    {
+        int signature = selectedRoad != null ? selectedRoad.GetEntityId().GetHashCode() : 0;
+        foreach (TerrainRoad road in roads)
+            signature = signature * 31 + road.name.GetHashCode() + road.GetEntityId().GetHashCode() + (int)(road.EffectiveWidthMetres * 10f);
+        if (signature == lastListSignature && listBody.childCount == roads.Length) return;
+        lastListSignature = signature;
+
+        listBody.Clear();
+        foreach (TerrainRoad road in roads)
+        {
+            TerrainRoad capturedRoad = road;
+            VisualElement row = new VisualElement();
+            row.AddToClassList("toolkit-list-row");
+            row.AddToClassList("terrain-road-row");
+            row.EnableInClassList("toolkit-list-row--selected", road == selectedRoad);
+            Label name = new Label(road.name);
+            name.AddToClassList("terrain-road-name");
+            Label meta = new Label(road.EffectiveWidthMetres.ToString("F1") + " m wide");
+            meta.AddToClassList("toolkit-hint");
+            row.Add(name);
+            row.Add(meta);
+            row.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => SelectRoad(capturedRoad, clickEvent.clickCount >= 2));
+            listBody.Add(row);
         }
     }
 
@@ -157,8 +214,7 @@ public sealed class TerrainRoadsPanel : TerrainToolPanel
             }
             lines.Add(line);
         }
-        ribbonVertexLabel.text = string.Join("\n", lines);
-        ribbonVertexLabel.style.color = anyOverBudget ? new StyleColor(new Color(0.9f, 0.25f, 0.25f)) : new StyleColor(StyleKeyword.Null);
+        ToolkitChrome.SetStatus(ribbonVertexLabel, string.Join("\n", lines), anyOverBudget ? ToolkitStatusTone.Error : ToolkitStatusTone.Neutral);
         ribbonVertexLabel.style.display = lines.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
@@ -170,90 +226,77 @@ public sealed class TerrainRoadsPanel : TerrainToolPanel
         if (missingTileCount > 0)
             lines.Add(missingTileCount + " tiles under roads do not exist yet; create them in the Tiles tab");
         if (staleTileCount > 0)
-            lines.Add(staleTileCount + " tiles need a rebake; open them or press Rebake All Roads");
+            lines.Add(staleTileCount + " tiles need a rebake; open them or press Rebake all roads");
         warningLabel.text = string.Join("\n", lines);
         warningLabel.style.display = lines.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
-    void SelectRoad(TerrainRoad road)
+    void SelectRoad(TerrainRoad road, bool frame)
     {
-        selectedRoad = road;
-        RefreshRoadList();
-    }
-
-    void FrameSelectedRoad()
-    {
-        if (selectedRoad == null) return;
-        Selection.activeGameObject = selectedRoad.gameObject;
-        if (SceneView.lastActiveSceneView != null) SceneView.lastActiveSceneView.Frame(selectedRoad.WorldBounds());
-    }
-
-    void DeleteSelectedRoad()
-    {
-        if (selectedRoad == null) return;
-        if (!EditorUtility.DisplayDialog("Delete road", "Delete " + selectedRoad.name + "?", "Delete", "Cancel")) return;
-        Undo.DestroyObjectImmediate(selectedRoad.gameObject);
-        selectedRoad = null;
-        RefreshRoadList();
-    }
-
-    void OnProfileChanged(ChangeEvent<Object> changeEvent)
-    {
-        if (selectedRoad == null) return;
-        Undo.RecordObject(selectedRoad, "Set Terrain Road Profile");
-        selectedRoad.profile = changeEvent.newValue as TerrainRoadProfile;
-        EditorUtility.SetDirty(selectedRoad);
-        RefreshRoadList();
+        TerrainRoadTool.SelectedRoad = road;
+        if (frame) TerrainRoadTool.FrameSelected();
+        RefreshAll();
     }
 
     void CreateRoad()
     {
-        Vector3 center;
-        TerrainTile activeTile;
-        if (TerrainTilesPanel.TryGetActiveTile(out activeTile))
-        {
-            Vector2 tileCenter = TerrainTile.CenterOfTile(activeTile.tileCoordinate);
-            center = new Vector3(tileCenter.x, 0f, tileCenter.y);
-        }
-        else
-        {
-            Vector3 pivot = SceneView.lastActiveSceneView != null ? SceneView.lastActiveSceneView.pivot : Vector3.zero;
-            center = new Vector3(pivot.x, 0f, pivot.z);
-        }
-
-        GameObject roadObject = new GameObject("TerrainRoad");
-        roadObject.transform.position = center;
-        SplineContainer container = roadObject.AddComponent<SplineContainer>();
-        TerrainRoad createdRoad = roadObject.AddComponent<TerrainRoad>();
-
-        Spline spline = container.Spline;
-        spline.Clear();
-        float halfLength = DefaultRoadLengthMetres * 0.5f;
-        spline.Add(new BezierKnot(new float3(-halfLength, 0f, 0f)), TangentMode.AutoSmooth);
-        spline.Add(new BezierKnot(new float3(halfLength, 0f, 0f)), TangentMode.AutoSmooth);
-
-        createdRoad.profile = FindOrCreateDefaultProfile();
-        EditorUtility.SetDirty(createdRoad);
-
-        Undo.RegisterCreatedObjectUndo(roadObject, "Create Terrain Road");
-        Selection.activeGameObject = roadObject;
-        selectedRoad = createdRoad;
-        ToolManager.SetActiveContext<SplineToolContext>();
-        RefreshRoadList();
+        TerrainRoadTool.CreateRoadInFrontOfSceneView();
+        RefreshAll();
     }
 
-    static TerrainRoadProfile FindOrCreateDefaultProfile()
+    float ReadWidth()
     {
-        string[] guids = AssetDatabase.FindAssets("t:TerrainRoadProfile");
-        if (guids.Length > 0)
-            return AssetDatabase.LoadAssetAtPath<TerrainRoadProfile>(AssetDatabase.GUIDToAssetPath(guids[0]));
+        TerrainRoad road = TerrainRoadTool.SelectedRoad;
+        return road != null ? road.EffectiveWidthMetres : MinimumWidthMetres;
+    }
 
-        if (!AssetDatabase.IsValidFolder("Assets/Terrain")) AssetDatabase.CreateFolder("Assets", "Terrain");
-        if (!AssetDatabase.IsValidFolder(DefaultProfileFolder)) AssetDatabase.CreateFolder("Assets/Terrain", "Profiles");
-        TerrainRoadProfile createdProfile = ScriptableObject.CreateInstance<TerrainRoadProfile>();
-        AssetDatabase.CreateAsset(createdProfile, DefaultProfilePath);
-        AssetDatabase.SaveAssets();
-        return createdProfile;
+    void WriteWidth(float widthMetres)
+    {
+        TerrainRoad road = TerrainRoadTool.SelectedRoad;
+        if (road == null) return;
+        Undo.RecordObject(road, "Set Terrain Road Width");
+        road.widthOverrideMetres = widthMetres;
+        EditorUtility.SetDirty(road);
+        useProfileWidthButton.style.display = DisplayStyle.Flex;
+    }
+
+    void UseProfileWidth()
+    {
+        TerrainRoad road = TerrainRoadTool.SelectedRoad;
+        if (road == null) return;
+        Undo.RecordObject(road, "Use Profile Road Width");
+        road.widthOverrideMetres = 0f;
+        EditorUtility.SetDirty(road);
+        RefreshAll();
+    }
+
+    void OnPriorityChanged(ChangeEvent<int> changeEvent)
+    {
+        TerrainRoad road = TerrainRoadTool.SelectedRoad;
+        if (road == null) return;
+        Undo.RecordObject(road, "Set Terrain Road Priority");
+        road.priority = changeEvent.newValue;
+        EditorUtility.SetDirty(road);
+    }
+
+    void OnProfileChanged(ChangeEvent<Object> changeEvent)
+    {
+        TerrainRoad road = TerrainRoadTool.SelectedRoad;
+        if (road == null) return;
+        Undo.RecordObject(road, "Set Terrain Road Profile");
+        road.profile = changeEvent.newValue as TerrainRoadProfile;
+        EditorUtility.SetDirty(road);
+        RefreshAll();
+    }
+
+    void DeleteSelectedRoad()
+    {
+        TerrainRoad road = TerrainRoadTool.SelectedRoad;
+        if (road == null) return;
+        if (!EditorUtility.DisplayDialog("Delete road", "Delete " + road.name + "?", "Delete", "Cancel")) return;
+        Undo.DestroyObjectImmediate(road.gameObject);
+        TerrainRoadTool.SelectedRoad = null;
+        RefreshAll();
     }
 }
 #endif

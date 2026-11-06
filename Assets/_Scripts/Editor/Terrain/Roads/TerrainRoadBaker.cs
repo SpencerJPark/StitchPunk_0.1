@@ -147,7 +147,7 @@ public static class TerrainRoadBaker
 
         TerrainRoadStamp stamp = new TerrainRoadStamp();
         stamp.points = pointArray;
-        stamp.widthMetres = profile.widthMetres;
+        stamp.widthMetres = road.EffectiveWidthMetres;
         stamp.shoulderMetres = profile.shoulderMetres;
         stamp.edgeNoiseMetres = profile.edgeNoiseMetres;
         stamp.carveShoulderMetres = profile.carveShoulderMetres;

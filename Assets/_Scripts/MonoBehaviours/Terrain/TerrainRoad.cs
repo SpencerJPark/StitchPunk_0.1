@@ -31,6 +31,22 @@ public class TerrainRoad : MonoBehaviour
     [Tooltip("Highest priority wins where roads overlap")]
     public int priority;
 
+    [Tooltip("Full road width in metres. 0 uses the profile's width.")]
+    [Min(0f)]
+    public float widthOverrideMetres;
+
+    // Full width in metres; the one value the carve, the painted road and the ribbon all read.
+    public float EffectiveWidthMetres
+    {
+        get
+        {
+            if (widthOverrideMetres > 0f) return widthOverrideMetres;
+            return profile != null ? profile.widthMetres : FallbackHalfExtentMetres * 2f;
+        }
+    }
+
+    public float EffectiveHalfWidthMetres => EffectiveWidthMetres * 0.5f;
+
     private SplineContainer cachedContainer;
     private Vector3 lastPosition;
     private Quaternion lastRotation;
@@ -79,7 +95,7 @@ public class TerrainRoad : MonoBehaviour
         }
 
         float horizontalExpand = profile != null
-            ? profile.HalfWidthMetres + profile.carveShoulderMetres
+            ? EffectiveHalfWidthMetres + profile.carveShoulderMetres
             : FallbackHalfExtentMetres;
         bounds.Expand(new Vector3(horizontalExpand * 2f, 2f, horizontalExpand * 2f));
         return bounds;
