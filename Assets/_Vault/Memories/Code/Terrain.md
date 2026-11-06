@@ -3,7 +3,7 @@ tags: [memory, code, terrain]
 related: "[[Editor]], [[Data]], [[Gotchas]]"
 ---
 
-# Terrain (plan: `Tasks/Plans/Terrain_System.md`, spikes: `Terrain_Spikes.md`)
+# Terrain (plan: `Tasks/Verification/Terrain_System.md`, spikes: `Terrain_Spikes.md`)
 
 ## What exists (P1 + P2)
 - Data (`Data/Terrain/`): `TerrainWorldProfile` (30 x 30 tiles from -15), `TerrainPalette` (`ApplyToMaterial` names match `Painted/Ground`), `TerrainTileData` (one SO per tile, every source layer a separate array; final height = sum of base + hand + river + road, 101 x 101 samples, index `z * 101 + x`, sample 0 = min corner).
@@ -62,7 +62,14 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - Spawn markers (P9-10/11): `TerrainSpawnMarkerAuthoring` bakes `TerrainSpawnMarkerData` (with a position-hash `markerKey`), a disabled `UnitSpawner` and a disabled `TerrainSpawnMarkerHandled`. `TerrainSpawnSystem` waits for the marker's tile to be `Loaded`, then enables the marker's own `UnitSpawner` (the normal pipeline) once; a tile reload bakes a fresh, unhandled marker. Persistent markers record their key and time in a runtime ledger buffer (singleton created in `OnCreate`) and skip while it holds the key, until `respawnAfterGameDays` has passed. Per-tile cap 64 marker units (counted from `SpawnedByMarker.homeTile`), warns when capped. `UnitSpawnerSystem` stamps every unit of a marker spawner with `SpawnedByMarker` (and removes a stale stamp from reclaimed pool bodies); `TerrainSpawnDespawnSystem` enables `Despawn` on on-demand units whose home tile is no longer `Loaded`. The ledger is NOT saved: NPC units are not saved either, so a persisted flag would stop a loaded game from ever respawning the camp. Save both together when NPC persistence exists.
 - Known gaps from the P9-5 audit, left on purpose: an abstract unit in a `Loading` tile still draws at its stale spot for a few frames; animation/facing/billboard/health-bar jobs still run on abstract units (waste, not wrong); `HordeSystem` member counts include abstract members; `TargetReservation`/`TargetOccupancy` may hold a destroyed target entity (guards unread).
 
+## P10 tools (2026-11-02)
+- Menu `Stitch Punk/Terrain/Verify Seams` (`TerrainSeamVerifier`), `Report Data Size` (`TerrainDataReport`); `TerrainBudgetCheck` feeds the Tiles panel (hover summary + red "Over budget" line). 9 test tiles: 12 seam pairs clean, 10.5 MB disk, 15 MB resident. Authoring `TerrainTileData` is 1.1 MB per tile against the 1.2 MB baked-tile budget: measure the BAKED size before trusting that pass.
+- No hero-tile flag exists, so the budget check only flags masks above 512.
+- `TerrainLightingBridge` (MonoBehaviour, ExecuteAlways) sets globals `_TerrainAmbientColor` (rgb tint, a = blend, 0 = no effect) and `_TerrainLightningFlash`, declared outside the CBUFFER in `PaintedGroundCore.hlsl`; unset globals read 0 so the look is unchanged without the bridge. It is in no scene yet and there is no day/night driver. Only the ground shader uses `PaintedLighting_float` in `Assets/`.
+- Not built: P10-2 hitch re-measure (S2 saw a 30 ms worst frame for one empty tile in the Editor, target 5 ms), P10-5 ribbon roads (owner-gated). Plan moved to `Tasks/Verification/Terrain_System.md`; owner checklist `verify-terrain.md`.
+
 ## Traps
+- Tile subscenes are `AutoLoadScene=false` and draw nothing in the Scene view when closed; `TerrainOpenTilesSessionRestore` (TerrainTilesPanel.cs) reopens every `Tile_*` subscene for ~10 s after a reload, scene open or Play exit. Closing a tile on purpose lasts until the next one of those.
 - A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter tests run in `EditorSceneManager.NewPreviewScene()` (an additive `NewScene` throws "untitled scene unsaved" because the test runner leaves an untitled scene open); check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.
 - `Assets/_Scripts/Tests/StitchPunk.Tests.asmdef` edits: apply one change at a time and re-validate the JSON; two overlapping edits once corrupted it and the test list silently became empty (0 tests, run "succeeded").
 - `CopySerialized(newMesh, existingMesh)` overwrites the mesh name; the tile builder re-names the sub-asset right after, or the next Rebuild no longer recognises it and tries to destroy an asset.

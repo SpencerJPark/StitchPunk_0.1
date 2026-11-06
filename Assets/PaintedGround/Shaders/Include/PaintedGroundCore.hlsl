@@ -120,6 +120,11 @@ void PaintedFinish_float(float3 col, float macroNoise, float3 macroDark, float3 
 //    _CLUSTER_LIGHT_LOOP, _SHADOWS_SOFT to the blackboard (Global, multi-compile) so URP
 //    can drive them. screenUV = Screen Position node (Default).
 // ---------------------------------------------------------------------------------------------
+// Set by a C# bridge via Shader.SetGlobalVector/Float. Unset globals read (0,0,0,0): alpha 0 blends
+// to no ambient change and flash 0 adds nothing, so the look is unchanged when the bridge is absent.
+float4 _TerrainAmbientColor;   // rgb = ambient multiplier, a = blend amount (0 = off)
+float _TerrainLightningFlash;  // added to the final lighting
+
 void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
                            float3 ambientTint, float shadowStrength, float ndotlInfluence,
                            float pointBoost, out float3 lighting)
@@ -143,7 +148,7 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
     float shade = lerp(1.0, mainLight.shadowAttenuation, shadowStrength);
     float ndl   = lerp(1.0, saturate(dot(normalWS, mainLight.direction)), ndotlInfluence);
 
-    lighting = SampleSH(half3(0, 1, 0)) * ambientTint;
+    lighting = SampleSH(half3(0, 1, 0)) * ambientTint * lerp(float3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
     lighting += mainLight.color * (shade * ndl);
 
     #if defined(_ADDITIONAL_LIGHTS) || defined(_ADDITIONAL_LIGHTS_VERTEX)
@@ -162,6 +167,8 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
             lighting += l.color * atten;
         LIGHT_LOOP_END
     #endif
+
+    lighting += _TerrainLightningFlash.xxx;
 #endif
 }
 

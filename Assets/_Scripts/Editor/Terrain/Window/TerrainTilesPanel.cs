@@ -216,11 +216,10 @@ public sealed class TerrainTileMapElement : VisualElement
 
 public sealed class TerrainTilesPanel : TerrainToolPanel
 {
-    const string OpenTilesSessionKey = "TerrainEditor.OpenTiles";
-
     readonly TerrainTileMapElement mapElement = new TerrainTileMapElement();
     readonly VisualElement mapGroup = new VisualElement();
     readonly VisualElement emptyState = new VisualElement();
+    readonly Label overBudgetLabel = new Label();
     readonly HashSet<Vector2Int> tilesWithSceneAsset = new HashSet<Vector2Int>();
     readonly Dictionary<Vector2Int, bool> openTilesAndDirtyFlag = new Dictionary<Vector2Int, bool>();
     Vector2Int worldOriginTile = new Vector2Int(-15, -15);
@@ -248,6 +247,9 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
         mapScroll.Add(mapElement);
         mapGroup.Add(mapScroll);
         mapGroup.Add(BuildLegend());
+        overBudgetLabel.style.color = new Color(0.9f, 0.25f, 0.25f);
+        overBudgetLabel.style.display = DisplayStyle.None;
+        mapGroup.Add(overBudgetLabel);
         Add(mapGroup);
 
         emptyState.AddToClassList("terrain-empty");
@@ -331,6 +333,21 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
             }
         }
         RefreshOpenTiles();
+        RefreshOverBudgetLabel();
+    }
+
+    // Counting markers walks every open tile's hierarchy, so this runs on refresh only, not on the 500 ms timer.
+    void RefreshOverBudgetLabel()
+    {
+        List<string> overBudgetTiles = new List<string>();
+        foreach (Vector2Int coordinate in openTilesAndDirtyFlag.Keys)
+        {
+            TerrainTileBudgetResult budget;
+            if (TerrainBudgetCheck.TryEvaluateByCoordinate(coordinate, out budget) && budget.isOverBudget)
+                overBudgetTiles.Add("(" + coordinate.x + ", " + coordinate.y + ") " + budget.summary);
+        }
+        overBudgetLabel.text = "Over budget: " + string.Join("; ", overBudgetTiles);
+        overBudgetLabel.style.display = overBudgetTiles.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
     void RefreshOpenTiles()
@@ -360,6 +377,8 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
             Vector2Int cell = mapElement.HoveredCell;
             string stateName = StateOfCell(cell) == TerrainTileCellState.Empty ? "empty" : StateOfCell(cell) == TerrainTileCellState.Exists ? "exists" : "open";
             statusText = "(" + cell.x + ", " + cell.y + ") " + stateName;
+            TerrainTileBudgetResult budget;
+            if (TerrainBudgetCheck.TryEvaluateByCoordinate(cell, out budget)) statusText += "  " + budget.summary;
         }
         else statusText = string.Empty;
         RaiseStatusChanged();
@@ -460,18 +479,6 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
         return true;
     }
 
-    public static string EncodeOpenTileCoordinates()
-    {
-        List<string> parts = new List<string>();
-        foreach (TerrainTile tile in UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include))
-        {
-            SubScene subScene = FindSubSceneFor(tile.tileCoordinate);
-            if (subScene != null && subScene.EditingScene.isLoaded) parts.Add(tile.tileCoordinate.x + "," + tile.tileCoordinate.y);
-        }
-        return string.Join(";", parts);
-    }
-
-    public static string SessionKey => OpenTilesSessionKey;
 }
 
 [InitializeOnLoad]
@@ -479,40 +486,39 @@ public static class TerrainOpenTilesSessionRestore
 {
     static TerrainOpenTilesSessionRestore()
     {
-        AssemblyReloadEvents.beforeAssemblyReload += RecordOpenTiles;
-        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
-        EditorApplication.delayCall += ReopenRecordedTiles;
-    }
-
-    static void OnPlayModeStateChanged(PlayModeStateChange change)
-    {
-        if (change == PlayModeStateChange.ExitingEditMode) RecordOpenTiles();
-        else if (change == PlayModeStateChange.EnteredEditMode) EditorApplication.delayCall += ReopenRecordedTiles;
-    }
-
-    static void RecordOpenTiles()
-    {
-        if (Application.isPlaying) return;
-        SessionState.SetString(TerrainTilesPanel.SessionKey, TerrainTilesPanel.EncodeOpenTileCoordinates());
-    }
-
-    static void ReopenRecordedTiles()
-    {
-        if (Application.isPlaying) return;
-        string recorded = SessionState.GetString(TerrainTilesPanel.SessionKey, string.Empty);
-        if (string.IsNullOrEmpty(recorded)) return;
-        SessionState.EraseString(TerrainTilesPanel.SessionKey);
-
-        foreach (string entry in recorded.Split(';'))
+        EditorApplication.update += RetryWhileWindowOpen;
+        BeginRetryWindow();
+        EditorApplication.playModeStateChanged += (PlayModeStateChange change) =>
         {
-            string[] numbers = entry.Split(',');
-            int coordinateX;
-            int coordinateZ;
-            if (numbers.Length != 2 || !int.TryParse(numbers[0], out coordinateX) || !int.TryParse(numbers[1], out coordinateZ)) continue;
+            if (change == PlayModeStateChange.EnteredEditMode) BeginRetryWindow();
+        };
+        EditorSceneManager.sceneOpened += (Scene openedScene, OpenSceneMode openMode) => BeginRetryWindow();
+    }
 
-            Vector2Int coordinate = new Vector2Int(coordinateX, coordinateZ);
-            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(TerrainTileAssets.TileScenePath(coordinate)) == null) continue;
-            TerrainTilesPanel.OpenTileForEdit(coordinate);
+    // The subscenes are not always loaded yet when the reload finishes, so keep trying for a few seconds.
+    const double RETRY_SECONDS = 10.0;
+    static double retryUntilTime;
+
+    static void BeginRetryWindow()
+    {
+        retryUntilTime = EditorApplication.timeSinceStartup + RETRY_SECONDS;
+    }
+
+    static void RetryWhileWindowOpen()
+    {
+        if (EditorApplication.timeSinceStartup > retryUntilTime) return;
+        OpenEveryTileInLoadedScenes();
+    }
+
+    // Closed tile subscenes draw nothing in the Scene view, so every tile is kept open while editing.
+    static void OpenEveryTileInLoadedScenes()
+    {
+        if (Application.isPlaying) return;
+        foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
+        {
+            if (!subScene.name.StartsWith("Tile_") || subScene.EditingScene.isLoaded) continue;
+            if (subScene.SceneAsset == null) continue;
+            SubSceneEditorUtility.EditScene(subScene);
         }
     }
 }
