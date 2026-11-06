@@ -28,5 +28,8 @@ public class TerrainRoadProfile : ScriptableObject
     [Tooltip("255 means leave the nav default alone.")]
     public byte navCostByte = 255;
 
+    [Tooltip("Optional draped mesh road drawn on top of the painted road; null = painted road only.")]
+    public TerrainRoadRibbonStyle ribbonStyle;
+
     public float HalfWidthMetres => widthMetres * 0.5f;
 }

@@ -19,6 +19,13 @@ Plan: [[Terrain_System]] (moved here at P10). Code note: `Memories/Code/Terrain.
 - [ ] Caravan: drive up a terrain hill. It should roll over the slope, and when it is blocked it should still be able to pivot away (fixed 2026-11-02, untested).
 - [ ] Lighting bridge: add `TerrainLightingBridge` to a scene object, use the "Test Lightning" context menu; the ground flashes once. With no bridge the ground looks as before.
 
+## Ribbon roads (built 2026-11-07, see RibbonRoads_System.md)
+Ribbons draw only for a road whose profile has a ribbon style: use `Assets/ScriptableObjects/Terrain/Roads/DirtTrack_RoadProfile.asset` (style `DirtTrack_RibbonStyle`, material `M_PaintedRibbon` with the dirt texture). Nothing has been looked at yet; a headless test road across the (0,0)/(1,0) border baked 574 + 567 vertices with a matching border ring.
+- [ ] Roads tab: New Road with the DirtTrack profile, add knots across a tile border; the ribbon follows after the 0.25 s debounce. The panel shows "(x, z): N ribbon verts".
+- [ ] Judge the look at the normal camera: edge softness (RB-S3 dither), ruts, wear, no z-fight shimmer on slopes (RB-S1: tune `Offset -1,-1` in PaintedRibbon.shader if it floats or flickers), the painted road showing as a fringe.
+- [ ] Ford and bridge: a `TerrainCrossing` Bridge cuts the ribbon, a Ford keeps it with a wet tint and no ruts.
+- [ ] Junction of two roads with different priority: the lower-priority ribbon fades out within 3 m.
+- [ ] `Verify Seams` and `Report Data Size` still pass with ribbons present; the Tiles panel flags a tile over 4,000 ribbon vertices.
+
 ## Decisions left open
-- P10-5 ribbon roads: only if the splat + decal roads look wrong to you.
 - Day/night cycle: nothing drives the sun or ambient; the bridge only exposes the terrain tint and the lightning flash.

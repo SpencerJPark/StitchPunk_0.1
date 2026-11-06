@@ -316,6 +316,16 @@ public static class TerrainRoadBaker
                         staleTiles.Remove(tilesToBake[tileIndex]);
                     }
                 }
+
+                // Second pass: ribbon heights sample neighbour tiles, whose roadHeightDelta is stale until they are baked.
+                foreach (Vector2Int bakedCoordinate in tilesToBake)
+                {
+                    TerrainTile bakedTile = TerrainTileCreator.FindTileAt(bakedCoordinate);
+                    if (bakedTile != null)
+                    {
+                        TerrainRoadRibbonBaker.BakeTileRibbons(bakedTile);
+                    }
+                }
             }
             finally
             {

@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_PaintedRibbon
+  m_Shader: {fileID: 4800000, guid: d44791411485d7444b8fae2ce79dbc7e, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _NoiseTex:
+        m_Texture: {fileID: 2800000, guid: 96002c62d614dfb499be8005b40df249, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SurfaceTex:
+        m_Texture: {fileID: 2800000, guid: ee7ed0f16e3acb74c983e71312fd6415, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _EdgeDitherSoftness: 0.6
+    - _EdgeWearAmount: 0.5
+    - _EdgeWearNoiseScale: 0.35
+    - _MetresPerTile: 4
+    - _NdotLInfluence: 0.15
+    - _NoiseMetres: 6
+    - _PointLightBoost: 1
+    - _RidgeLighten: 0.08
+    - _RutDarkness: 0.5
+    - _RutSharpness: 3
+    - _ShadowStrength: 0.6
+    - _WetDarkness: 0.5
+    m_Colors:
+    - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
+    - _EdgeWearColor: {r: 0.34999996, g: 0.39999998, b: 0.19999996, a: 1}
+    - _RutTint: {r: 0.34999996, g: 0.27999997, b: 0.19999996, a: 1}
+    - _SurfaceTint: {r: 1, g: 1, b: 1, a: 1}
+    - _WetTint: {r: 0.54999995, g: 0.6, b: 0.7, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

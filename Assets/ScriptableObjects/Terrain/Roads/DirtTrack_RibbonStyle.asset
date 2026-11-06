@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: feacfb34dc62b684ba77f7db86fab4c9, type: 3}
+  m_Name: DirtTrack_RibbonStyle
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainRoadRibbonStyle
+  material: {fileID: 2100000, guid: d192333cec2cc3840ab2eefc0f313c8c, type: 2}
+  ribbonInsetMetres: 0.4
+  fadeBandMetres: 0.5
+  rutSpacingMetres: 1.4
+  rutWidthMetres: 0.5
+  rutDarkness: 0.5
+  edgeWearWidthMetres: 0.6
+  edgeWearNoiseScale: 0.35
+  textureMetresPerTile: 4
+  verticalLiftMetres: 0.02
+  ringSpacingMetres: 1
+  fadeRutsOnFord: 1

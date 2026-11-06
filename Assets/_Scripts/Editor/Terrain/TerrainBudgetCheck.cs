@@ -7,6 +7,7 @@ public struct TerrainTileBudgetResult
     public int propCount;
     public int maskResolution;
     public int meshVertexCount;
+    public int ribbonVertexCount;
     public string summary;
 }
 
@@ -18,6 +19,8 @@ public static class TerrainBudgetCheck
     private const int MaxMaskResolution = 512;
     // TT-D28: 101x101 ground grid plus 10 percent slack.
     private const int MaxMeshVertices = 10201 + 1020;
+    // TT-D28/RB-D6: combined vertices of every ribbon road mesh on a tile.
+    private const int MaxRibbonVerticesPerTile = 4000;
 
     public static TerrainTileBudgetResult Evaluate(TerrainTile tile)
     {
@@ -29,16 +32,29 @@ public static class TerrainBudgetCheck
         result.meshVertexCount = hasMesh ? groundMeshFilter.sharedMesh.vertexCount : 0;
         result.maskResolution = TerrainTileAssets.MaskResolutionFor(tile);
 
+        Transform ribbonsRoot = tile.transform.Find("Ribbons");
+        if (ribbonsRoot != null)
+        {
+            foreach (MeshFilter ribbonMeshFilter in ribbonsRoot.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (ribbonMeshFilter.sharedMesh != null)
+                    result.ribbonVertexCount += ribbonMeshFilter.sharedMesh.vertexCount;
+            }
+        }
+
         int decalsPlusProps = result.decalCount + result.propCount;
         bool overMarkers = decalsPlusProps > MaxDecalsPlusPropsPerTile;
         bool overMask = result.maskResolution > MaxMaskResolution;
         bool overMesh = result.meshVertexCount > MaxMeshVertices;
-        result.isOverBudget = overMarkers || overMask || overMesh;
+        bool overRibbons = result.ribbonVertexCount > MaxRibbonVerticesPerTile;
+        result.isOverBudget = overMarkers || overMask || overMesh || overRibbons;
 
         string markerPart = decalsPlusProps + " / " + MaxDecalsPlusPropsPerTile + " decals+props" + (overMarkers ? " OVER" : "");
         string maskPart = "mask " + result.maskResolution + (overMask ? " OVER" : "");
         string meshPart = result.meshVertexCount + " verts" + (overMesh ? " OVER" : "");
         result.summary = markerPart + ", " + maskPart + ", " + meshPart;
+        if (result.ribbonVertexCount > 0)
+            result.summary += ", " + result.ribbonVertexCount + " ribbon verts" + (overRibbons ? " OVER" : "");
         return result;
     }
 

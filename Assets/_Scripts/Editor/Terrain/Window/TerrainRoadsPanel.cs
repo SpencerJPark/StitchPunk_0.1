@@ -20,6 +20,7 @@ public sealed class TerrainRoadsPanel : TerrainToolPanel
     readonly VisualElement detailGroup = new VisualElement();
     readonly ObjectField profileField = new ObjectField("Profile");
     readonly Label warningLabel = new Label();
+    readonly Label ribbonVertexLabel = new Label();
     TerrainRoad selectedRoad;
     IVisualElementScheduledItem refreshTimer;
     int lastReportedRoadCount = -1;
@@ -41,6 +42,10 @@ public sealed class TerrainRoadsPanel : TerrainToolPanel
 
         warningLabel.AddToClassList("terrain-warning");
         Add(warningLabel);
+
+        ribbonVertexLabel.AddToClassList("terrain-panel-hint");
+        ribbonVertexLabel.style.display = DisplayStyle.None;
+        Add(ribbonVertexLabel);
 
         Add(roadListContainer);
 
@@ -90,14 +95,17 @@ public sealed class TerrainRoadsPanel : TerrainToolPanel
     public override void OnShown()
     {
         TerrainRoadBaker.BakeFinished += RefreshRoadList;
+        TerrainRoadBaker.BakeFinished += RefreshRibbonVertexLabel;
         if (refreshTimer == null) refreshTimer = schedule.Execute(RefreshRoadList).Every(1000);
         else refreshTimer.Resume();
         RefreshRoadList();
+        RefreshRibbonVertexLabel();
     }
 
     public override void OnHidden()
     {
         TerrainRoadBaker.BakeFinished -= RefreshRoadList;
+        TerrainRoadBaker.BakeFinished -= RefreshRibbonVertexLabel;
         if (refreshTimer != null) refreshTimer.Pause();
     }
 
@@ -129,6 +137,29 @@ public sealed class TerrainRoadsPanel : TerrainToolPanel
             lastReportedRoadCount = roads.Length;
             RaiseStatusChanged();
         }
+    }
+
+    // Counting walks every open tile's hierarchy, so this runs on bake finish and panel show only, never on the timer.
+    void RefreshRibbonVertexLabel()
+    {
+        List<string> lines = new List<string>();
+        bool anyOverBudget = false;
+        foreach (TerrainTile tile in Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include))
+        {
+            TerrainTileBudgetResult budget;
+            if (!TerrainBudgetCheck.TryEvaluateByCoordinate(tile.tileCoordinate, out budget)) continue;
+            if (budget.ribbonVertexCount <= 0) continue;
+            string line = "(" + tile.tileCoordinate.x + ", " + tile.tileCoordinate.y + "): " + budget.ribbonVertexCount + " ribbon verts";
+            if (budget.isOverBudget)
+            {
+                line += " OVER";
+                anyOverBudget = true;
+            }
+            lines.Add(line);
+        }
+        ribbonVertexLabel.text = string.Join("\n", lines);
+        ribbonVertexLabel.style.color = anyOverBudget ? new StyleColor(new Color(0.9f, 0.25f, 0.25f)) : new StyleColor(StyleKeyword.Null);
+        ribbonVertexLabel.style.display = lines.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
     void RefreshWarning()

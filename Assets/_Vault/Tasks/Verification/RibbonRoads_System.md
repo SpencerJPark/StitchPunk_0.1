@@ -1,5 +1,5 @@
 ---
-status: spec, not built, grounded in code 2026-11-06; owner wants ruts, edge wear and richer detail; open questions below carry defaults
+status: built 2026-11-07 (R1-R4; 14 EditMode tests green incl. border mutation check; R5 notes written; spikes RB-S1/S3 and Checkpoint R need a play look; RB-S4 answered: formula exact); original: spec grounded in code 2026-11-06; owner wants ruts, edge wear and richer detail; open questions below carry defaults
 parent: Terrain_System.md P10-5 (Tasks/Verification/Terrain_System.md)
 ---
 
