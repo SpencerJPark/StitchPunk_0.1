@@ -4121,7 +4121,7 @@ MonoBehaviour:
   crowdTargetRadius: 4
   flowFieldMapCount: 8
   externalCostRegions: 1
-  debugDisplayMode: 2
+  debugDisplayMode: 0
   debugLayerToDraw: 0
   debugHeightOffset: 0.05
   debugCellPadding: 0.08

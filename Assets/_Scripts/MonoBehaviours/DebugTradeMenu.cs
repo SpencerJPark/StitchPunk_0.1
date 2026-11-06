@@ -21,6 +21,7 @@ public class DebugTradeMenu : MonoBehaviour
 
     private void Awake()
     {
+        DebugMenuVisibility.RegisterToggle("Trade");
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null)
             return;
@@ -39,7 +40,7 @@ public class DebugTradeMenu : MonoBehaviour
 
     private bool IsMenuShown()
     {
-        return worldReady && DebugMenuVisibility.AreDebugMenusVisible;
+        return worldReady && DebugMenuVisibility.IsToggleOn("Trade");
     }
 
     private void OnGUI()

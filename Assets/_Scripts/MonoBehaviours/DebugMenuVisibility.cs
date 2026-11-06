@@ -1,15 +1,21 @@
+using System.Collections.Generic;
 using DotsMovementToolkit;
 using Unity.Entities;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// One action shows and hides every OnGUI debug menu, plus the nav-grid debug tiles, at once; each menu polls it from Update.
+// Everything debug is off by default; one action opens the DebugMenuPanel, which owns a toggle per registered tool.
 public static class DebugMenuVisibility
 {
     // Its own map so it works whichever gameplay map PlayerInput has switched to (backquote, or L3 + R3 on a gamepad).
     private const string ToggleDebugMenuActionPath = "Debug/ToggleDebugMenu";
 
-    public static bool AreDebugMenusVisible { get; private set; } = true;
+    public static bool IsPanelOpen { get; private set; }
+
+    public static NavGridDebugDisplayMode NavGridMode { get; set; } = NavGridDebugDisplayMode.Off;
+
+    private static readonly List<string> registeredToggleNames = new List<string>();
+    private static readonly Dictionary<string, bool> toggleValuesByName = new Dictionary<string, bool>();
 
     private static int lastPolledFrame = -1;
     private static InputActionAsset resolvedFromAsset;
@@ -17,12 +23,34 @@ public static class DebugMenuVisibility
 
     private static World navGridDebugQueryWorld;
     private static EntityQuery navGridDebugSettingsQuery;
-    private static NavGridDebugDisplayMode navGridDisplayModeBeforeHiding = NavGridDebugDisplayMode.Off;
+
+    public static IReadOnlyList<string> RegisteredToggleNames => registeredToggleNames;
 
     public static string ToggleBindingDisplayText =>
         toggleDebugMenuAction != null ? toggleDebugMenuAction.GetBindingDisplayString() : "(no Debug/ToggleDebugMenu action)";
 
-    // Several menus poll in the same frame; only the first one may flip the state.
+    public static bool IsToggleOn(string toggleName)
+    {
+        return toggleName != null && toggleValuesByName.TryGetValue(toggleName, out bool isOn) && isOn;
+    }
+
+    public static void RegisterToggle(string toggleName)
+    {
+        if (string.IsNullOrEmpty(toggleName) || toggleValuesByName.ContainsKey(toggleName))
+            return;
+        registeredToggleNames.Add(toggleName);
+        toggleValuesByName[toggleName] = false;
+    }
+
+    public static void SetToggle(string toggleName, bool isOn)
+    {
+        if (string.IsNullOrEmpty(toggleName))
+            return;
+        RegisterToggle(toggleName);
+        toggleValuesByName[toggleName] = isOn;
+    }
+
+    // Several callers poll in the same frame; only the first one may flip the state.
     public static void PollToggleAction()
     {
         if (lastPolledFrame == Time.frameCount)
@@ -31,13 +59,13 @@ public static class DebugMenuVisibility
 
         ResolveToggleActionFromRegisteredAsset();
         if (toggleDebugMenuAction != null && toggleDebugMenuAction.WasPressedThisFrame())
-            AreDebugMenusVisible = !AreDebugMenusVisible;
+            IsPanelOpen = !IsPanelOpen;
 
-        ApplyVisibilityToNavGridDebugTiles();
+        EnforceNavGridMode();
     }
 
-    // Enforced every frame, not only on toggle: a subscene re-bake restores the authored display mode.
-    private static void ApplyVisibilityToNavGridDebugTiles()
+    // Every frame, not only on change: a subscene re-bake restores the authored display mode.
+    private static void EnforceNavGridMode()
     {
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null || !world.IsCreated)
@@ -52,16 +80,8 @@ public static class DebugMenuVisibility
         if (!navGridDebugSettingsQuery.TryGetSingletonRW(out RefRW<NavGridDebugSettings> debugSettings))
             return;
 
-        if (!AreDebugMenusVisible && debugSettings.ValueRO.displayMode != NavGridDebugDisplayMode.Off)
-        {
-            navGridDisplayModeBeforeHiding = debugSettings.ValueRO.displayMode;
-            debugSettings.ValueRW.displayMode = NavGridDebugDisplayMode.Off;
-        }
-        else if (AreDebugMenusVisible && navGridDisplayModeBeforeHiding != NavGridDebugDisplayMode.Off)
-        {
-            debugSettings.ValueRW.displayMode = navGridDisplayModeBeforeHiding;
-            navGridDisplayModeBeforeHiding = NavGridDebugDisplayMode.Off;
-        }
+        if (debugSettings.ValueRO.displayMode != NavGridMode)
+            debugSettings.ValueRW.displayMode = NavGridMode;
     }
 
     // PlayerInputManager registers the scene's asset in Awake and disables every map there, so enable lazily on first poll.
@@ -84,11 +104,14 @@ public static class DebugMenuVisibility
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForPlayMode()
     {
-        AreDebugMenusVisible = true;
+        IsPanelOpen = false;
+        NavGridMode = NavGridDebugDisplayMode.Off;
+        registeredToggleNames.Clear();
+        toggleValuesByName.Clear();
         lastPolledFrame = -1;
         resolvedFromAsset = null;
         toggleDebugMenuAction = null;
         navGridDebugQueryWorld = null;
-        navGridDisplayModeBeforeHiding = NavGridDebugDisplayMode.Off;
+        navGridDebugSettingsQuery = default;
     }
 }

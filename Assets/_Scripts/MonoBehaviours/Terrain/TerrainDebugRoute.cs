@@ -17,6 +17,8 @@ public class TerrainDebugRoute : MonoBehaviour
     [Tooltip("Walking speed of the route. A quick test wants more than a citizen's stroll.")]
     [SerializeField] private float routeSpeedMetresPerSecond = 4f;
 
+    private const string ToggleName = "Terrain route test";
+
     private EntityManager entityManager;
     private EntityQuery candidateQuery;
     private EntityQuery focusQuery;
@@ -28,6 +30,7 @@ public class TerrainDebugRoute : MonoBehaviour
 
     private void Awake()
     {
+        DebugMenuVisibility.RegisterToggle(ToggleName);
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null)
             return;
@@ -45,13 +48,16 @@ public class TerrainDebugRoute : MonoBehaviour
 
     private void Update()
     {
+        if (!DebugMenuVisibility.IsToggleOn(ToggleName))
+            return;
+
         if (worldReady && Keyboard.current != null && Keyboard.current.f9Key.wasPressedThisFrame)
             SendNearestUnitOnRoute();
     }
 
     private void OnGUI()
     {
-        if (!worldReady)
+        if (!worldReady || !DebugMenuVisibility.IsToggleOn(ToggleName))
             return;
 
         GUILayout.BeginArea(new Rect(10f, 220f, 260f, 150f), GUI.skin.box);

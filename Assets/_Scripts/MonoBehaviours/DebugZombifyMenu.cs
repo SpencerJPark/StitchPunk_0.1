@@ -24,6 +24,7 @@ public class DebugZombifyMenu : MonoBehaviour
 
     private void Awake()
     {
+        DebugMenuVisibility.RegisterToggle("Zombify");
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null)
             return;
@@ -42,6 +43,9 @@ public class DebugZombifyMenu : MonoBehaviour
 
     private void OnGUI()
     {
+        if (!DebugMenuVisibility.IsToggleOn("Zombify"))
+            return;
+
         if (!worldReady || World.DefaultGameObjectInjectionWorld == null)
             return;
 

@@ -14,6 +14,7 @@ public class DebugSaveMenu : MonoBehaviour
 
     private void Awake()
     {
+        DebugMenuVisibility.RegisterToggle("Save");
         bridge = GetComponent<SaveLoadBridge>();
         if (bridge == null)
             bridge = gameObject.AddComponent<SaveLoadBridge>();
@@ -21,6 +22,9 @@ public class DebugSaveMenu : MonoBehaviour
 
     private void OnGUI()
     {
+        if (!DebugMenuVisibility.IsToggleOn("Save"))
+            return;
+
         GUILayout.BeginArea(new Rect(10f, 10f, 160f, 200f), GUI.skin.box);
         GUILayout.Label($"Save System (slot {slot})");
 

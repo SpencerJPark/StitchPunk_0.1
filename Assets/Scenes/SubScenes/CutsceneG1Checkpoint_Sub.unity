@@ -3262,7 +3262,7 @@ MonoBehaviour:
   wallCost: 255
   heavyCost: 50
   defaultCost: 1
-  debugDisplayMode: 2
+  debugDisplayMode: 0
   debugLayerToDraw: 0
   debugHeightOffset: 0.05
   debugCellPadding: 0.08

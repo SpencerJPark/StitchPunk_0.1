@@ -26,6 +26,7 @@ public class DebugResourceMenu : MonoBehaviour
 
     private void Awake()
     {
+        DebugMenuVisibility.RegisterToggle("Resources");
         World world = World.DefaultGameObjectInjectionWorld;
         if (world == null)
             return;
@@ -43,7 +44,7 @@ public class DebugResourceMenu : MonoBehaviour
 
     private bool IsMenuShown()
     {
-        return worldReady && DebugMenuVisibility.AreDebugMenusVisible;
+        return worldReady && DebugMenuVisibility.IsToggleOn("Resources");
     }
 
     private void OnGUI()
@@ -53,7 +54,7 @@ public class DebugResourceMenu : MonoBehaviour
 
         virtualCursorInput.BeginMenuGui();
         GUILayout.BeginArea(MenuAreaRect, GUI.skin.box);
-        GUILayout.Label($"Resources (debug) — {DebugMenuVisibility.ToggleBindingDisplayText} hides");
+        GUILayout.Label("Resources (debug)");
 
         if (!playerQuery.TryGetSingletonEntity<Player>(out Entity playerEntity))
         {
