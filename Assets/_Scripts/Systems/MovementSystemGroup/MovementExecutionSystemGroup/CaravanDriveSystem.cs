@@ -22,7 +22,7 @@ public partial struct CaravanDriveSystem : ISystem
     // Anything flatter than this is ground to roll over, not a wall to stop at.
     private const float WALL_NORMAL_MAX_Y = 0.6f;
     private const float WALL_STOP_GAP = 0.05f;
-    private const float GROUND_PROBE_ABOVE = 3f;
+    private const float GROUND_PROBE_ABOVE = 6f;
     private const float GROUND_PROBE_BELOW = 4f;
     // The body only swings round after the heading while it is actually rolling.
     private const float ROLLING_SPEED = 0.03f;
@@ -105,9 +105,13 @@ public partial struct CaravanDriveSystem : ISystem
 
             float bodyYawDegrees = CaravanDriveMath.HeadingDegrees(math.rotate(caravanTransform.ValueRO.Rotation, new float3(0f, 0f, 1f)));
             float newBodyYawDegrees = bodyYawDegrees;
-            if (forwardSpeed > ROLLING_SPEED)
+            // A held stick still swings the body at the idle rate, or a caravan stopped dead by an obstacle (speed
+            // reset to ~0 every frame) could never turn away from it.
+            bool stickHeld = math.lengthsq(stick) > 0.0001f;
+            if (forwardSpeed > ROLLING_SPEED || stickHeld)
             {
-                float maximumBodyTurn = profile.turnSpeed * deltaTime;
+                float turnRateFactor = forwardSpeed > ROLLING_SPEED ? 1f : profile.idleTurnSpeedFactor;
+                float maximumBodyTurn = profile.turnSpeed * turnRateFactor * deltaTime;
                 newBodyYawDegrees += math.clamp(CaravanDriveMath.DeltaAngle(bodyYawDegrees, headingDegrees),
                     -maximumBodyTurn, maximumBodyTurn);
             }
@@ -117,8 +121,13 @@ public partial struct CaravanDriveSystem : ISystem
             float stepLength = forwardSpeed * deltaTime;
             if (stepLength > 0.00001f)
             {
+                // On a rising hill the fixed-height bumper sphere ends up buried in the slope and reads it as a wall.
+                float3 bumperFootprint = position + math.rotate(rotation,
+                    new float3(0f, 0f, profile.frontBumperLocalZ - profile.halfWidth));
+                float groundHeightAtBumper = math.max(position.y,
+                    GroundHeightUnder(collisionWorld, groundFilter, ref groundHits, bumperFootprint, caravanEntity, driverEntity));
                 float allowedFraction = FrontBumperClearFraction(collisionWorld, wallFilter, ref wallHits, position, rotation,
-                    travelDirection, stepLength, ref profile, caravanEntity, driverEntity, in itemLookup);
+                    groundHeightAtBumper - position.y, travelDirection, stepLength, ref profile, caravanEntity, driverEntity, in itemLookup);
                 if (allowedFraction < 1f)
                 {
                     // Walls stop a cart dead; there is no slide along them.
@@ -177,6 +186,7 @@ public partial struct CaravanDriveSystem : ISystem
         ref NativeList<ColliderCastHit> wallHits,
         float3 position,
         quaternion rotation,
+        float groundRiseAtBumper,
         float3 travelDirection,
         float stepLength,
         ref VehicleProfileBlob profile,
@@ -186,7 +196,7 @@ public partial struct CaravanDriveSystem : ISystem
     {
         float bumperRadius = profile.halfWidth;
         float3 bumperCentre = position + math.rotate(rotation,
-            new float3(0f, profile.bumperGroundClearance + bumperRadius, profile.frontBumperLocalZ - bumperRadius));
+            new float3(0f, groundRiseAtBumper + profile.bumperGroundClearance + bumperRadius, profile.frontBumperLocalZ - bumperRadius));
 
         wallHits.Clear();
         collisionWorld.SphereCastAll(bumperCentre, bumperRadius, travelDirection, stepLength, ref wallHits,
