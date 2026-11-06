@@ -31,6 +31,7 @@ public struct CaravanDriveState : IComponentData
     public VehicleGait pullerGait;        // what the puller should be playing, from speed
     public float wheelSpinRadians;        // accumulated rolling angle, wrapped to one turn
     public float pitchRadians;            // nose-up tilt that follows the ground slope under the wheelbase
+    public float rollRadians;             // right-side-up tilt that follows the ground across the track
 }
 
 // Exactly one of CaravanDriving / CaravanParked is enabled once CaravanLinkSystem has run.

@@ -22,13 +22,15 @@ public partial struct CaravanDriveSystem : ISystem
     // Anything flatter than this is ground to roll over, not a wall to stop at.
     private const float WALL_NORMAL_MAX_Y = 0.6f;
     private const float WALL_STOP_GAP = 0.05f;
-    private const float GROUND_PROBE_ABOVE = 6f;
-    private const float GROUND_PROBE_BELOW = 4f;
+    // Long enough that the front probe of a pitched body still finds the ground on a steep descent.
+    private const float GROUND_PROBE_ABOVE = 8f;
+    private const float GROUND_PROBE_BELOW = 14f;
     // The body only swings round after the heading while it is actually rolling.
     private const float ROLLING_SPEED = 0.03f;
     // Heading this far ahead of the body puts the front axle at full lock.
     private const float FULL_LOCK_DEGREES = 30f;
     private const float MAX_PITCH_RADIANS = 0.61f;
+    private const float MAX_ROLL_RADIANS = 0.45f;
     // Per second; keeps the nose from snapping over triangle edges of the ground mesh.
     private const float PITCH_FOLLOW_RATE = 10f;
 
@@ -143,21 +145,49 @@ public partial struct CaravanDriveSystem : ISystem
 
             float3 bodyForward = CaravanDriveMath.HeadingDirection(newBodyYawDegrees);
 
-            // Tilt to the slope under the wheelbase so the nose rides up a hill instead of sinking into it; the body sits
-            // no lower than the ground under its middle on a crest.
+            // Tilt to the plane through the ground under the wheelbase (pitch) and under both sides (roll), so the nose
+            // rides up a hill and all four wheels sit on the ground; the body sits no lower than the ground under its
+            // middle on a crest. A probe that misses (a steep drop, a hole) holds the last tilt instead of snapping flat.
+            float3 bodyRight = new float3(bodyForward.z, 0f, -bodyForward.x);
             float wheelbaseMetres = math.max(profile.frontBumperLocalZ - profile.rearBumperLocalZ, 0.01f);
-            float rearGroundHeight = GroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
-                position + bodyForward * profile.rearBumperLocalZ, caravanEntity, driverEntity);
-            float frontGroundHeight = GroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
-                position + bodyForward * profile.frontBumperLocalZ, caravanEntity, driverEntity);
-            float middleGroundHeight = GroundHeightUnder(collisionWorld, groundFilter, ref groundHits, position, caravanEntity, driverEntity);
-            float slopeRadians = math.clamp(math.atan2(frontGroundHeight - rearGroundHeight, wheelbaseMetres),
-                -MAX_PITCH_RADIANS, MAX_PITCH_RADIANS);
-            float pitchRadians = math.lerp(driveState.ValueRO.pitchRadians, slopeRadians, 1f - math.exp(-PITCH_FOLLOW_RATE * deltaTime));
-            float groundHeightAtOrigin = math.lerp(rearGroundHeight, frontGroundHeight, -profile.rearBumperLocalZ / wheelbaseMetres);
-            position.y = math.max(middleGroundHeight, groundHeightAtOrigin);
-            // Positive X rotation tips the nose down, so the nose-up tilt is negated.
-            quaternion rotation = math.mul(yawRotation, quaternion.RotateX(-pitchRadians));
+            float trackMetres = math.max(profile.halfWidth * 2f, 0.01f);
+            bool foundRear = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
+                position + bodyForward * profile.rearBumperLocalZ, caravanEntity, driverEntity, out float rearGroundHeight);
+            bool foundFront = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
+                position + bodyForward * profile.frontBumperLocalZ, caravanEntity, driverEntity, out float frontGroundHeight);
+            bool foundLeft = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
+                position - bodyRight * profile.halfWidth, caravanEntity, driverEntity, out float leftGroundHeight);
+            bool foundRight = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
+                position + bodyRight * profile.halfWidth, caravanEntity, driverEntity, out float rightGroundHeight);
+            bool foundMiddle = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
+                position, caravanEntity, driverEntity, out float middleGroundHeight);
+
+            float pitchRadians = driveState.ValueRO.pitchRadians;
+            float rollRadians = driveState.ValueRO.rollRadians;
+            float followBlend = 1f - math.exp(-PITCH_FOLLOW_RATE * deltaTime);
+            if (foundRear && foundFront)
+            {
+                float slopeRadians = math.clamp(math.atan2(frontGroundHeight - rearGroundHeight, wheelbaseMetres),
+                    -MAX_PITCH_RADIANS, MAX_PITCH_RADIANS);
+                pitchRadians = math.lerp(pitchRadians, slopeRadians, followBlend);
+            }
+            if (foundLeft && foundRight)
+            {
+                float camberRadians = math.clamp(math.atan2(rightGroundHeight - leftGroundHeight, trackMetres),
+                    -MAX_ROLL_RADIANS, MAX_ROLL_RADIANS);
+                rollRadians = math.lerp(rollRadians, camberRadians, followBlend);
+            }
+            if (foundRear && foundFront && foundMiddle)
+            {
+                float groundHeightAtOrigin = math.lerp(rearGroundHeight, frontGroundHeight, -profile.rearBumperLocalZ / wheelbaseMetres);
+                if (foundLeft && foundRight)
+                    groundHeightAtOrigin = 0.5f * (groundHeightAtOrigin + 0.5f * (leftGroundHeight + rightGroundHeight));
+                position.y = math.max(middleGroundHeight, groundHeightAtOrigin);
+            }
+            else if (foundMiddle)
+                position.y = middleGroundHeight;
+            // Positive X rotation tips the nose down (negated for nose-up); positive Z rotation lifts the right side.
+            quaternion rotation = math.mul(yawRotation, math.mul(quaternion.RotateX(-pitchRadians), quaternion.RotateZ(rollRadians)));
 
             // The facing the body shows the camera picks the seat and puller offsets, quantised the way units are.
             float2 bodyForwardXY = new float2(bodyForward.x, bodyForward.z);
@@ -173,6 +203,7 @@ public partial struct CaravanDriveSystem : ISystem
             driveState.ValueRW.steerInput = math.clamp(CaravanDriveMath.DeltaAngle(newBodyYawDegrees, headingDegrees) / FULL_LOCK_DEGREES, -1f, 1f);
             driveState.ValueRW.facing = facing;
             driveState.ValueRW.pitchRadians = pitchRadians;
+            driveState.ValueRW.rollRadians = rollRadians;
             driveState.ValueRW.pullerGait = profile.Gait(forwardSpeed);
             driveState.ValueRW.wheelSpinRadians = CaravanDriveMath.AdvanceWheelSpin(
                 driveState.ValueRO.wheelSpinRadians, forwardSpeed, profile.wheelRadius, deltaTime);
@@ -244,6 +275,20 @@ public partial struct CaravanDriveSystem : ISystem
         Entity caravanEntity,
         Entity driverEntity)
     {
+        TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits, position, caravanEntity, driverEntity, out float groundHeight);
+        return groundHeight;
+    }
+
+    // groundHeight is position.y when nothing was hit.
+    private static bool TryGroundHeightUnder(
+        in CollisionWorld collisionWorld,
+        CollisionFilter groundFilter,
+        ref NativeList<Unity.Physics.RaycastHit> groundHits,
+        float3 position,
+        Entity caravanEntity,
+        Entity driverEntity,
+        out float groundHeight)
+    {
         float3 up = new float3(0f, 1f, 0f);
         RaycastInput groundRay = new RaycastInput
         {
@@ -256,7 +301,8 @@ public partial struct CaravanDriveSystem : ISystem
         collisionWorld.CastRay(groundRay, ref groundHits);
 
         float bestFraction = 2f;
-        float groundHeight = position.y;
+        groundHeight = position.y;
+        bool foundGround = false;
         for (int hitIndex = 0; hitIndex < groundHits.Length; hitIndex++)
         {
             Unity.Physics.RaycastHit groundHit = groundHits[hitIndex];
@@ -264,7 +310,8 @@ public partial struct CaravanDriveSystem : ISystem
             if (groundHit.Fraction >= bestFraction) continue;
             bestFraction = groundHit.Fraction;
             groundHeight = groundHit.Position.y;
+            foundGround = true;
         }
-        return groundHeight;
+        return foundGround;
     }
 }
