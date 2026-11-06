@@ -28,6 +28,10 @@ Editor-driven; there is no CLI build for the game.
 - **Every finished agent gets a ledger line** injected into your context by `.claude/hooks/agent_result_ledger.py` (rows in `.claude/subagent-ledger.tsv`): peak tokens, turns, guard denials, verdict. HIGH or OVER means the next brief in that family gets split further.
 - **If a subagent's output needs checking, spawn a `verifier`** rather than re-deriving the work in the orchestrator's own context.
 
+## Editor UI (hard rule)
+
+Any editor window, panel, overlay or Scene-view tool, in a package or in `StitchPunk.Editor`, is built to `Docs/AnimationToolkit/EditorStyleGuide.md` (rules R01–R22, shadcn/ui + Blender, approved by the owner; do not re-litigate its look). A brief for UI work must (1) name the guide and the rule ids to audit, (2) require a before/after capture of every affected tab (recipe: `Memories/Code/AnimationToolkit.md`, "A session CAN see the editor UI"; repaint ~20 times before `GrabPixels`), and (3) be judged by the orchestrator reading those captures, never by a green gate. The owner should be able to do the task by pointing at the world: direct manipulation in the Scene view first, panels second, no tab that is only a form. If a task has no capture, it is not done.
+
 ## Architecture
 
 `Assets/_Scripts/` splits into `StitchPunk.*` assemblies by folder: `Components/` (data only, no logic), `Authoring/` (MonoBehaviour + nested `Baker`, no game logic), `Data/` (SOs + blob structs), `Systems/` (all gameplay), `MonoBehaviours/` (hybrid bridge), plus `UI/ Core/ Utils/ Editor/ Tests/`. `Core/Unused/` is legacy parking — never reference it.

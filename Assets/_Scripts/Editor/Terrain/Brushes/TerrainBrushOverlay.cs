@@ -24,6 +24,25 @@ public static class BrushState
     public static int decalEntryIndex;
     public static TerrainScatterSet activeScatterSet;
     public static int scatterRuleIndex;
+
+    // Held-modifier state, refreshed from every Scene-view event: Ctrl inverts (Raise <-> Lower), Shift smooths.
+    public static bool invert;
+    public static bool smoothHeld;
+
+    public const float MinimumRadiusMetres = 1f;
+    public const float MaximumRadiusMetres = 40f;
+    const float RadiusStepMetres = 1f;
+    const float StrengthStep = 0.05f;
+
+    public static void StepRadius(int direction)
+    {
+        radiusMetres = Mathf.Clamp(radiusMetres + direction * RadiusStepMetres, MinimumRadiusMetres, MaximumRadiusMetres);
+    }
+
+    public static void StepStrength(int direction)
+    {
+        strength = Mathf.Clamp01(Mathf.Round((strength + direction * StrengthStep) * 100f) / 100f);
+    }
 }
 
 [InitializeOnLoad]
@@ -159,6 +178,15 @@ public static class TerrainBrushOverlay
 
         Event currentEvent = Event.current;
         RefreshTileCacheIfStale();
+        BrushState.invert = currentEvent.control || currentEvent.command;
+        BrushState.smoothHeld = currentEvent.shift;
+
+        if (currentEvent.type == EventType.KeyDown && HandleBrushKey(currentEvent.keyCode))
+        {
+            currentEvent.Use();
+            SceneView.RepaintAll();
+            return;
+        }
 
         if (currentEvent.type == EventType.Layout)
         {
@@ -204,10 +232,41 @@ public static class TerrainBrushOverlay
         }
     }
 
+    // One shortcut set for every brush tool: [ ] size, - = strength.
+    static bool HandleBrushKey(KeyCode keyCode)
+    {
+        switch (keyCode)
+        {
+            case KeyCode.LeftBracket: BrushState.StepRadius(-1); return true;
+            case KeyCode.RightBracket: BrushState.StepRadius(1); return true;
+            case KeyCode.Minus: BrushState.StepStrength(-1); return true;
+            case KeyCode.Equals: BrushState.StepStrength(1); return true;
+            default: return false;
+        }
+    }
+
+    // What the held modifiers turn the active tool into, for the cursor tint and the sculptor.
+    public static TerrainBrushTool EffectiveSculptTool(TerrainBrushTool tool, bool invert, bool smoothHeld)
+    {
+        bool canSmooth = tool == TerrainBrushTool.Raise || tool == TerrainBrushTool.Lower
+            || tool == TerrainBrushTool.Flatten || tool == TerrainBrushTool.Noise;
+        if (smoothHeld && canSmooth) return TerrainBrushTool.Smooth;
+        if (invert && tool == TerrainBrushTool.Raise) return TerrainBrushTool.Lower;
+        if (invert && tool == TerrainBrushTool.Lower) return TerrainBrushTool.Raise;
+        return tool;
+    }
+
     static void DrawBrush()
     {
-        if (!hasHit) return;
-        Color toolColour = ColourForTool(BrushState.activeTool);
+        if (!hasHit)
+        {
+            TerrainSceneHud.SetCursorInfo(string.Empty);
+            return;
+        }
+        TerrainSceneHud.SetCursorInfo("Tile (" + currentHit.tileCoordinate.x + ", " + currentHit.tileCoordinate.y + ")   height "
+            + (currentHit.worldPoint.y - TerrainTileCreator.GroundTopHeight).ToString("0.0") + " m   brush "
+            + BrushState.radiusMetres.ToString("0") + " m");
+        Color toolColour = ColourForTool(EffectiveSculptTool(BrushState.activeTool, BrushState.invert, BrushState.smoothHeld));
         Quaternion discRotation = Quaternion.FromToRotation(Vector3.up, currentHit.surfaceNormal);
         Vector3 normal = currentHit.surfaceNormal;
         Vector3 centre = currentHit.worldPoint + normal * 0.05f;

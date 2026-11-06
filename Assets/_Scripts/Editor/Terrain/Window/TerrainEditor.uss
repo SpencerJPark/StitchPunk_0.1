@@ -1,53 +1,85 @@
+﻿/* Terrain Editor. Tokens and shared chrome come from the toolkit sheets (Docs/AnimationToolkit/EditorStyleGuide.md). */
+
 .terrain-window {
     flex-grow: 1;
-    background-color: var(--unity-colors-window-background);
-    color: var(--unity-colors-default-text);
-}
-
-.terrain-main {
-    flex-grow: 1;
-    flex-direction: row;
-}
-
-.terrain-rail {
-    width: 96px;
-    flex-shrink: 0;
-    padding: 8px 4px;
-    border-right-width: 1px;
-    border-right-color: var(--unity-colors-button-border);
-}
-
-.terrain-rail-button {
-    height: 32px;
-    margin: 0 0 4px 0;
-    -unity-text-align: middle-left;
-    padding-left: 8px;
-    font-size: 12px;
-}
-
-.terrain-rail-button--active {
-    background-color: var(--unity-colors-highlight-background);
-    color: var(--unity-colors-highlight-text);
+    background-color: var(--toolkit-surface);
+    color: var(--toolkit-text);
 }
 
 .terrain-content {
     flex-grow: 1;
+    background-color: var(--toolkit-surface);
 }
 
+.terrain-content > .unity-scroll-view__content-container {
+    flex-grow: 1;
+}
+
+.terrain-content > .unity-scroll-view__content-viewport {
+    flex-grow: 1;
+}
+
+/* Pane and kit classes */
+.terrain-ui-pane-body {
+    padding: var(--toolkit-inset);
+    flex-grow: 1;
+}
+
+.terrain-ui-pane-body > * {
+    margin-bottom: 8px;
+}
+
+.terrain-ui-slider-row {
+    flex-direction: row;
+    align-items: center;
+    height: var(--toolkit-height-control);
+    margin-bottom: 8px;
+}
+
+.terrain-ui-slider-row > * {
+    margin-right: 8px;
+}
+
+.terrain-ui-slider-label {
+    width: 96px;
+    flex-shrink: 0;
+    flex-grow: 0;
+    color: var(--toolkit-color-muted);
+    font-size: var(--toolkit-text-body);
+    -unity-text-align: middle-left;
+}
+
+.terrain-ui-slider-row > Slider,
+.terrain-ui-slider-row > SliderInt {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.terrain-ui-number-field {
+    width: 56px;
+    flex-shrink: 0;
+    height: var(--toolkit-height-field);
+    background-color: var(--toolkit-field);
+    border-color: var(--toolkit-field-border);
+    border-radius: var(--toolkit-radius-field);
+}
+
+/* Legacy panel classes, restyled to the guide */
 .terrain-panel {
     flex-grow: 1;
-    padding: 12px;
+    padding: var(--toolkit-inset);
 }
 
 .terrain-panel-title {
-    font-size: 13px;
+    font-size: var(--toolkit-text-title);
     -unity-font-style: bold;
     margin-bottom: 4px;
+    color: var(--toolkit-text);
 }
 
 .terrain-panel-hint {
-    font-size: 11px;
-    opacity: 0.7;
+    font-size: var(--toolkit-text-meta);
+    color: var(--toolkit-color-muted);
     white-space: normal;
     margin-bottom: 8px;
 }
@@ -55,14 +87,15 @@
 .terrain-row {
     flex-direction: row;
     align-items: center;
-    height: 24px;
-    margin-bottom: 4px;
+    height: var(--toolkit-height-control);
+    margin-bottom: 8px;
 }
 
 .terrain-label {
-    width: 80px;
+    width: 96px;
     flex-shrink: 0;
-    font-size: 12px;
+    font-size: var(--toolkit-text-body);
+    color: var(--toolkit-color-muted);
 }
 
 .terrain-row > Slider,
@@ -71,12 +104,18 @@
 }
 
 .terrain-primary-button {
-    height: 36px;
+    height: var(--toolkit-height-primary);
     margin-top: 8px;
-    font-size: 13px;
+    font-size: var(--toolkit-text-body);
     -unity-font-style: bold;
-    background-color: var(--unity-colors-highlight-background);
-    color: var(--unity-colors-highlight-text);
+    border-width: 0;
+    border-radius: var(--toolkit-radius-button);
+    background-color: var(--toolkit-text);
+    color: var(--toolkit-window);
+}
+
+.terrain-primary-button:hover {
+    background-color: var(--toolkit-label);
 }
 
 .terrain-segment-row {
@@ -86,14 +125,19 @@
 }
 
 .terrain-segment-button {
-    height: 28px;
+    height: var(--toolkit-height-control);
     min-width: 72px;
     margin: 0 4px 4px 0;
+    border-radius: var(--toolkit-radius-button);
+    font-size: var(--toolkit-text-body);
 }
 
-.terrain-segment-button--active {
-    background-color: var(--unity-colors-highlight-background);
-    color: var(--unity-colors-highlight-text);
+.terrain-segment-button--active,
+.terrain-segment-button--active:hover {
+    background-color: var(--toolkit-raised);
+    color: var(--toolkit-text);
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
 }
 
 .terrain-swatch-row {
@@ -106,13 +150,16 @@
     margin-right: 8px;
     padding: 4px;
     align-items: center;
-    border-width: 2px;
-    border-color: var(--unity-colors-button-border);
-    background-color: var(--unity-colors-button-background);
+    border-width: 1px;
+    border-radius: var(--toolkit-radius-card);
+    border-color: var(--toolkit-divider);
+    background-color: var(--toolkit-field);
 }
 
-.terrain-swatch--selected {
-    border-color: var(--unity-colors-highlight-background);
+.terrain-swatch--selected,
+.terrain-swatch--selected:hover {
+    background-color: var(--toolkit-raised);
+    border-color: var(--toolkit-color-hairline);
 }
 
 .terrain-swatch-chip {
@@ -125,14 +172,15 @@
     flex-grow: 1;
     min-height: 200px;
     border-width: 1px;
-    border-color: var(--unity-colors-button-border);
+    border-color: var(--toolkit-divider);
 }
 
 .terrain-legend {
     flex-direction: row;
     flex-wrap: wrap;
     margin-top: 8px;
-    font-size: 11px;
+    font-size: var(--toolkit-text-meta);
+    color: var(--toolkit-color-muted);
 }
 
 .terrain-legend-item {
@@ -150,41 +198,213 @@
 .terrain-empty {
     padding: 24px;
     white-space: normal;
-    opacity: 0.8;
-}
-
-.terrain-footer {
-    flex-direction: row;
-    align-items: center;
-    height: 28px;
-    flex-shrink: 0;
-    padding: 0 12px;
-    font-size: 11px;
-    border-top-width: 1px;
-    border-top-color: var(--unity-colors-button-border);
-}
-
-.terrain-footer-item {
-    margin-right: 16px;
+    color: var(--toolkit-color-muted);
 }
 
 .terrain-warning {
-    font-size: 11px;
+    font-size: var(--toolkit-text-meta);
     margin-bottom: 8px;
-    color: var(--unity-colors-warning-text, var(--unity-colors-default-text));
+    color: var(--toolkit-color-warning);
     white-space: normal;
 }
 
 .terrain-list-row {
     flex-direction: row;
     align-items: center;
-    height: 24px;
+    height: var(--toolkit-height-control);
     margin-bottom: 2px;
     padding: 0 8px;
+    font-size: var(--toolkit-text-body);
     -unity-text-align: middle-left;
 }
 
 .terrain-list-row--selected {
-    background-color: var(--unity-colors-highlight-background);
-    color: var(--unity-colors-highlight-text);
+    background-color: var(--toolkit-selection);
+    color: var(--toolkit-text);
+}
+
+/* TerrainUi kit helpers */
+.terrain-ui-pane {
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.terrain-ui-segmented-fit {
+    align-self: flex-start;
+    flex-grow: 0;
+}
+
+.terrain-ui-icon-square {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+}
+
+.terrain-ui-toggle-row {
+    flex-direction: row;
+    align-items: center;
+    height: 24px;
+}
+
+/* Chrome rules the package keeps in ClipEditorWindow.uss (not the shared sheet), copied so the shared helpers render here */
+.toolkit-pane-title {
+    font-size: var(--toolkit-text-title);
+    -unity-font-style: bold;
+    padding: 0;
+    margin: 0;
+}
+
+.toolkit-pane-header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    min-height: var(--toolkit-height-pane-header);
+}
+
+.toolkit-pane-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    flex-shrink: 1;
+}
+
+.toolkit-pane-actions > .unity-button,
+.toolkit-pane-actions > .unity-toolbar-toggle {
+    margin-left: 4px;
+    margin-right: 0;
+}
+
+.toolkit-hint {
+    white-space: normal;
+    margin: 2px 0;
+    color: var(--toolkit-color-muted);
+}
+
+.toolkit-heading {
+    -unity-font-style: bold;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.toolkit-status-row {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    padding-left: 4px;
+    padding-right: var(--toolkit-inset);
+}
+
+.toolkit-status-row--footer {
+    min-height: var(--toolkit-height-control);
+    border-top-width: 1px;
+    border-top-color: var(--toolkit-divider);
+}
+
+.toolkit-status-row > .toolkit-status.unity-label {
+    flex-shrink: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    margin: 0 0 0 8px;
+}
+
+.toolkit-status-row > .toolkit-status.toolkit-status--dotted.unity-label {
+    margin-left: 6px;
+}
+
+.toolkit-status-actions {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: auto;
+    margin-right: 0;
+}
+
+.toolkit-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    flex-shrink: 0;
+    background-color: var(--toolkit-color-muted);
+}
+
+.toolkit-status-dot--warning {
+    background-color: var(--toolkit-color-warning);
+}
+
+.toolkit-status-dot--error {
+    background-color: var(--toolkit-color-error);
+}
+
+.toolkit-status-dot--ok {
+    background-color: var(--toolkit-color-clean);
+}
+
+/* Paint layer list */
+.terrain-paint-row {
+    flex-direction: row;
+    align-items: center;
+    height: 28px;
+    padding: 0 8px;
+}
+
+.terrain-paint-chip {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    border-width: 1px;
+    border-color: var(--toolkit-color-hairline);
+}
+
+.terrain-paint-name {
+    font-size: var(--toolkit-text-body);
+    -unity-text-align: middle-left;
+}
+
+/* Icon + word buttons and the pane header inset (package keeps these in ClipEditorWindow.uss) */
+.toolkit-icon-button {
+    width: 28px;
+    height: 22px;
+    padding: 2px;
+    margin-left: 2px;
+    margin-right: 2px;
+    justify-content: center;
+    align-items: center;
+    background-color: transparent;
+    border-width: 0;
+    border-radius: var(--toolkit-radius-button);
+}
+
+.toolkit-icon-button--with-text {
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    padding-left: 4px;
+    padding-right: 8px;
+}
+
+.toolkit-icon-button--with-text > .toolkit-icon-button__icon {
+    margin-right: 4px;
+}
+
+.toolkit-icon-button__label {
+    white-space: nowrap;
+}
+
+.toolkit-icon-button__icon {
+    width: 16px;
+    height: 16px;
+}
+
+.terrain-ui-pane > .toolkit-pane-header {
+    padding-left: var(--toolkit-inset);
+    padding-right: var(--toolkit-inset);
 }

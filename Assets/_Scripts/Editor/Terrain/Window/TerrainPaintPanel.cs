@@ -1,10 +1,13 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 public sealed class TerrainPaintPanel : TerrainToolPanel
 {
+    const int RefreshIntervalMilliseconds = 250;
+
     static readonly TerrainSplatLayer[] LayerOrder =
     {
         TerrainSplatLayer.Dirt, TerrainSplatLayer.Grass, TerrainSplatLayer.Forest, TerrainSplatLayer.Stone
@@ -16,55 +19,64 @@ public sealed class TerrainPaintPanel : TerrainToolPanel
         new Color(0.12f, 0.33f, 0.15f), new Color(0.55f, 0.55f, 0.58f)
     };
 
-    readonly VisualElement[] swatches = new VisualElement[LayerOrder.Length];
-    readonly VisualElement[] swatchChips = new VisualElement[LayerOrder.Length];
-    Slider radiusSlider;
-    Slider hardnessSlider;
-    Slider strengthSlider;
+    static readonly TerrainKeyHint[] Hints =
+    {
+        new TerrainKeyHint { keys = "Drag", action = "paint" },
+        new TerrainKeyHint { keys = "[ ]", action = "size" },
+        new TerrainKeyHint { keys = "- =", action = "strength" }
+    };
+
+    readonly VisualElement[] layerRows = new VisualElement[LayerOrder.Length];
+    readonly VisualElement[] layerChips = new VisualElement[LayerOrder.Length];
+    readonly VisualElement cardsHost = new VisualElement();
+    readonly VisualElement emptyHost = new VisualElement();
+    Action brushRefresh;
     TerrainSplatLayer lastReportedLayer;
 
     public override string DisplayName => "Paint";
     public override string StatusText => "Paint: " + BrushState.paintLayer;
+    public override IReadOnlyList<TerrainKeyHint> KeyHints => Hints;
 
     public TerrainPaintPanel()
     {
-        AddToClassList("terrain-panel");
+        style.flexGrow = 1f;
 
-        Label title = new Label("Paint");
-        title.AddToClassList("terrain-panel-title");
-        Add(title);
+        VisualElement actions;
+        VisualElement body;
+        VisualElement pane = TerrainUi.MakePane("Paint", out actions, out body);
+        Add(pane);
 
-        Label hint = new Label("Drag in the Scene view. The brush paints the layer you pick.");
-        hint.AddToClassList("terrain-panel-hint");
-        Add(hint);
-
-        VisualElement swatchRow = new VisualElement();
-        swatchRow.AddToClassList("terrain-swatch-row");
-        Add(swatchRow);
+        VisualElement layerCardBody;
+        VisualElement layerCard = TerrainUi.MakeCard("Layer", out layerCardBody);
         for (int layerIndex = 0; layerIndex < LayerOrder.Length; layerIndex++)
         {
             TerrainSplatLayer layer = LayerOrder[layerIndex];
-            VisualElement swatch = new VisualElement();
-            swatch.AddToClassList("terrain-swatch");
+            VisualElement row = new VisualElement();
+            row.AddToClassList("toolkit-list-row");
+            row.AddToClassList("terrain-paint-row");
             VisualElement chip = new VisualElement();
-            chip.AddToClassList("terrain-swatch-chip");
+            chip.AddToClassList("terrain-paint-chip");
             Label name = new Label(layer.ToString());
-            name.AddToClassList("terrain-label");
-            swatch.Add(chip);
-            swatch.Add(name);
-            swatch.RegisterCallback<ClickEvent>(clickEvent => SelectLayer(layer));
-            swatchRow.Add(swatch);
-            swatches[layerIndex] = swatch;
-            swatchChips[layerIndex] = chip;
+            name.AddToClassList("terrain-paint-name");
+            row.Add(chip);
+            row.Add(name);
+            row.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => SelectLayer(layer));
+            layerCardBody.Add(row);
+            layerRows[layerIndex] = row;
+            layerChips[layerIndex] = chip;
         }
+        layerCardBody.Add(TerrainUi.MakeHint("Pick a layer, then drag in the Scene view. The ground blends between the four layers."));
+        cardsHost.Add(layerCard);
+        cardsHost.Add(TerrainBrushCard.Make(out brushRefresh));
 
-        radiusSlider = AddSliderRow("Radius", 1f, 40f, value => BrushState.radiusMetres = value);
-        hardnessSlider = AddSliderRow("Hardness", 0f, 1f, value => BrushState.hardness = value);
-        strengthSlider = AddSliderRow("Strength", 0f, 1f, value => BrushState.strength = value);
+        emptyHost.Add(TerrainUi.MakeEmpty("No tile open", "Open a tile in the World tab, then drag in the Scene view to paint it.", null, null));
+
+        body.Add(cardsHost);
+        body.Add(emptyHost);
 
         lastReportedLayer = BrushState.paintLayer;
         RefreshControls();
-        schedule.Execute(RefreshControls).Every(250);
+        schedule.Execute(RefreshControls).Every(RefreshIntervalMilliseconds);
     }
 
     public override void OnShown()
@@ -79,37 +91,21 @@ public sealed class TerrainPaintPanel : TerrainToolPanel
             BrushState.activeTool = TerrainBrushTool.None;
     }
 
-    Slider AddSliderRow(string labelText, float low, float high, Action<float> apply)
-    {
-        VisualElement row = new VisualElement();
-        row.AddToClassList("terrain-row");
-        Label label = new Label(labelText);
-        label.AddToClassList("terrain-label");
-        Slider slider = new Slider(low, high);
-        slider.showInputField = true;
-        slider.RegisterValueChangedCallback(changeEvent => apply(changeEvent.newValue));
-        row.Add(label);
-        row.Add(slider);
-        Add(row);
-        return slider;
-    }
-
     void SelectLayer(TerrainSplatLayer layer)
     {
         BrushState.paintLayer = layer;
+        BrushState.activeTool = TerrainBrushTool.Paint;
         RefreshControls();
     }
 
     void RefreshControls()
     {
-        radiusSlider.SetValueWithoutNotify(BrushState.radiusMetres);
-        hardnessSlider.SetValueWithoutNotify(BrushState.hardness);
-        strengthSlider.SetValueWithoutNotify(BrushState.strength);
+        TerrainTile tile = null;
+        bool hasTile = TerrainTilesPanel.TryGetActiveTile(out tile) && tile != null;
+        cardsHost.style.display = hasTile ? DisplayStyle.Flex : DisplayStyle.None;
+        emptyHost.style.display = hasTile ? DisplayStyle.None : DisplayStyle.Flex;
 
-        TerrainPalette palette = null;
-        if (TerrainTilesPanel.TryGetActiveTile(out TerrainTile tile) && tile != null)
-            palette = tile.palette;
-
+        TerrainPalette palette = hasTile ? tile.palette : null;
         for (int layerIndex = 0; layerIndex < LayerOrder.Length; layerIndex++)
         {
             Color chipColour = FallbackLayerColours[layerIndex];
@@ -119,9 +115,10 @@ public sealed class TerrainPaintPanel : TerrainToolPanel
                 if (tint != Color.white)
                     chipColour = tint;
             }
-            swatchChips[layerIndex].style.backgroundColor = chipColour;
-            swatches[layerIndex].EnableInClassList("terrain-swatch--selected", LayerOrder[layerIndex] == BrushState.paintLayer);
+            layerChips[layerIndex].style.backgroundColor = chipColour;
+            layerRows[layerIndex].EnableInClassList("toolkit-list-row--selected", LayerOrder[layerIndex] == BrushState.paintLayer);
         }
+        brushRefresh?.Invoke();
 
         if (lastReportedLayer != BrushState.paintLayer)
         {

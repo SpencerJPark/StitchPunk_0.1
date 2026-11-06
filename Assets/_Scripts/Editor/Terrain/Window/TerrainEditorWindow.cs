@@ -1,29 +1,26 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
+using DotsAnimationToolkit.Editor;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 public class TerrainEditorWindow : EditorWindow
 {
-    const string StylesheetPath = "Assets/_Scripts/Editor/Terrain/Window/TerrainEditor.uss";
     const string ToolIndexSessionKey = "TerrainEditor.ToolIndex";
     const int FooterRefreshMilliseconds = 500;
+    const int PanelCount = 9;
+    const string FooterSeparator = "  \u2022  ";
 
-    static readonly string[] ToolLabels = { "Tiles", "Paint", "Height", "Generate", "Roads", "Water", "Decals", "Scatter", "Nav", "Stream" };
-    static readonly string[] ToolDisabledTooltips =
-    {
-        null, null, null, null, null, null, null, null,
-        null, "Built in phase P9"
-    };
+    static readonly string[] TabLabels = { "World", "Sculpt", "Paint", "Roads", "Water", "Decals", "Props", "Generate", "Nav" };
+    // Display position -> panel index (0 Tiles, 1 Paint, 2 Height, 3 Generate, 4 Roads, 5 Water, 6 Decals, 7 Scatter, 8 Nav).
+    static readonly int[] PanelIndexByTabPosition = { 0, 2, 1, 4, 5, 6, 7, 3, 8 };
 
-    readonly TerrainToolPanel[] panelsByToolIndex = new TerrainToolPanel[ToolLabels.Length];
-    readonly Button[] railButtons = new Button[ToolLabels.Length];
+    readonly TerrainToolPanel[] panelsByToolIndex = new TerrainToolPanel[PanelCount];
 
-    VisualElement contentHost;
-    Label tileFooterLabel;
-    Label brushFooterLabel;
-    Label statusFooterLabel;
+    ScrollView contentHost;
+    Label footerLabel;
+    Action<int> setSelectedTabPosition;
     IVisualElementScheduledItem footerRefreshTimer;
     TerrainToolPanel shownPanel;
     int selectedToolIndex = -1;
@@ -33,51 +30,24 @@ public class TerrainEditorWindow : EditorWindow
     {
         TerrainEditorWindow window = GetWindow<TerrainEditorWindow>();
         window.titleContent = new GUIContent("Terrain Editor");
-        window.minSize = new Vector2(560f, 420f);
+        window.minSize = new Vector2(520f, 420f);
     }
 
     void CreateGUI()
     {
         VisualElement root = rootVisualElement;
         root.Clear();
-        StyleSheet stylesheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(StylesheetPath);
-        if (stylesheet != null)
-        {
-            root.styleSheets.Add(stylesheet);
-        }
+        TerrainUi.ApplyStyles(root);
         root.AddToClassList("terrain-window");
 
-        VisualElement main = new VisualElement();
-        main.AddToClassList("terrain-main");
-        VisualElement rail = new VisualElement();
-        rail.AddToClassList("terrain-rail");
-        contentHost = new VisualElement();
+        VisualElement tabBar = TerrainUi.MakeTabBar(TabLabels, SelectTabPosition, out setSelectedTabPosition);
+        contentHost = new ScrollView(ScrollViewMode.Vertical);
         contentHost.AddToClassList("terrain-content");
-        main.Add(rail);
-        main.Add(contentHost);
 
-        for (int toolIndex = 0; toolIndex < ToolLabels.Length; toolIndex++)
-        {
-            int capturedIndex = toolIndex;
-            Button railButton = new Button(() => SelectTool(capturedIndex));
-            railButton.text = ToolLabels[toolIndex];
-            railButton.AddToClassList("terrain-rail-button");
-            if (!HasPanel(toolIndex))
-            {
-                railButton.SetEnabled(false);
-                railButton.tooltip = ToolDisabledTooltips[toolIndex];
-            }
-            railButtons[toolIndex] = railButton;
-            rail.Add(railButton);
-        }
+        VisualElement footer = ToolkitChrome.MakeStatusRow(out footerLabel, out VisualElement footerActions, true);
 
-        VisualElement footer = new VisualElement();
-        footer.AddToClassList("terrain-footer");
-        tileFooterLabel = CreateFooterLabel(footer);
-        brushFooterLabel = CreateFooterLabel(footer);
-        statusFooterLabel = CreateFooterLabel(footer);
-
-        root.Add(main);
+        root.Add(tabBar);
+        root.Add(contentHost);
         root.Add(footer);
 
         Selection.selectionChanged -= RefreshFooter;
@@ -107,19 +77,17 @@ public class TerrainEditorWindow : EditorWindow
             shownPanel.OnHidden();
             shownPanel = null;
         }
+        TerrainSceneHud.Clear();
     }
 
     static bool HasPanel(int toolIndex)
     {
-        return toolIndex >= 0 && toolIndex <= 8;
+        return toolIndex >= 0 && toolIndex < PanelCount;
     }
 
-    static Label CreateFooterLabel(VisualElement footer)
+    void SelectTabPosition(int tabPosition)
     {
-        Label label = new Label();
-        label.AddToClassList("terrain-footer-item");
-        footer.Add(label);
-        return label;
+        SelectTool(PanelIndexByTabPosition[tabPosition]);
     }
 
     TerrainToolPanel GetOrCreatePanel(int toolIndex)
@@ -160,11 +128,9 @@ public class TerrainEditorWindow : EditorWindow
         contentHost.Add(shownPanel);
         shownPanel.StatusChanged += RefreshFooter;
         shownPanel.OnShown();
+        TerrainSceneHud.SetActiveTool(shownPanel.DisplayName, shownPanel.KeyHints);
 
-        for (int buttonIndex = 0; buttonIndex < railButtons.Length; buttonIndex++)
-        {
-            railButtons[buttonIndex].EnableInClassList("terrain-rail-button--active", buttonIndex == toolIndex);
-        }
+        setSelectedTabPosition(Array.IndexOf(PanelIndexByTabPosition, toolIndex));
 
         selectedToolIndex = toolIndex;
         SessionState.SetInt(ToolIndexSessionKey, toolIndex);
@@ -173,17 +139,23 @@ public class TerrainEditorWindow : EditorWindow
 
     void RefreshFooter()
     {
-        if (tileFooterLabel == null)
+        if (footerLabel == null)
         {
             return;
         }
 
         TerrainTile activeTile;
-        tileFooterLabel.text = TerrainTilesPanel.TryGetActiveTile(out activeTile)
+        string tileText = TerrainTilesPanel.TryGetActiveTile(out activeTile)
             ? "Tile (" + activeTile.tileCoordinate.x + ", " + activeTile.tileCoordinate.y + ")"
             : "No tile open";
-        brushFooterLabel.text = "Brush " + BrushState.radiusMetres.ToString("F0") + " m";
-        statusFooterLabel.text = shownPanel != null ? shownPanel.StatusText : string.Empty;
+        string toolName = shownPanel != null ? shownPanel.DisplayName : string.Empty;
+        string statusText = shownPanel != null ? shownPanel.StatusText : string.Empty;
+        string line = toolName + FooterSeparator + tileText + FooterSeparator + "Brush " + BrushState.radiusMetres.ToString("F0") + " m";
+        if (!string.IsNullOrEmpty(statusText))
+        {
+            line += FooterSeparator + statusText;
+        }
+        ToolkitChrome.SetStatus(footerLabel, line, ToolkitStatusTone.Neutral);
     }
 }
 #endif

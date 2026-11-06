@@ -31,7 +31,7 @@ public static class TerrainHeightSculptor
 
     static void OnBrushStroke(BrushHit hit, bool isDragging)
     {
-        TerrainBrushTool tool = BrushState.activeTool;
+        TerrainBrushTool tool = TerrainBrushOverlay.EffectiveSculptTool(BrushState.activeTool, BrushState.invert, BrushState.smoothHeld);
         bool isSculptTool = tool == TerrainBrushTool.Raise || tool == TerrainBrushTool.Lower
             || tool == TerrainBrushTool.Smooth || tool == TerrainBrushTool.Flatten
             || tool == TerrainBrushTool.Noise;

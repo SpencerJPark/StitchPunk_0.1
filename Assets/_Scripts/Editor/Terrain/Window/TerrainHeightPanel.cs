@@ -1,5 +1,7 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
+using DotsAnimationToolkit.Editor;
 using UnityEngine.UIElements;
 
 public sealed class TerrainHeightPanel : TerrainToolPanel
@@ -10,50 +12,69 @@ public sealed class TerrainHeightPanel : TerrainToolPanel
         TerrainBrushTool.Flatten, TerrainBrushTool.Noise, TerrainBrushTool.Ramp
     };
 
-    readonly Button[] toolButtons = new Button[HeightTools.Length];
-    Slider radiusSlider;
-    Slider hardnessSlider;
-    Slider strengthSlider;
-    Button rebuildButton;
-    TerrainBrushTool lastReportedTool;
+    static readonly string[] HeightToolLabels = { "Raise", "Lower", "Smooth", "Flatten", "Noise", "Ramp" };
 
-    public override string DisplayName => "Height";
-    public override string StatusText => "Height: " + BrushState.activeTool;
+    static readonly string[] HeightToolHints =
+    {
+        "Drag to raise the ground. Hold Ctrl to lower.",
+        "Drag to lower the ground. Hold Ctrl to raise.",
+        "Drag to even out bumps. Strength is how much it blends.",
+        "Press where the ground should level to, then drag. It levels to the height under your first click.",
+        "Drag to add small random bumps.",
+        "Press at the bottom, drag to the top: cuts a slope between the two points. Strength sets how wide it is."
+    };
+
+    static readonly TerrainKeyHint[] Hints =
+    {
+        new TerrainKeyHint { keys = "Drag", action = "sculpt" },
+        new TerrainKeyHint { keys = "Ctrl", action = "invert" },
+        new TerrainKeyHint { keys = "Shift", action = "smooth" },
+        new TerrainKeyHint { keys = "[ ]", action = "size" },
+        new TerrainKeyHint { keys = "- =", action = "strength" }
+    };
+
+    readonly Button rebuildButton;
+    readonly VisualElement segmented;
+    readonly VisualElement modeCard;
+    readonly VisualElement brushCard;
+    readonly VisualElement emptyState;
+    readonly Label modeHint;
+    readonly Action refreshBrushCard;
+    TerrainBrushTool lastReportedTool;
+    int lastSegmentedIndex = -1;
+
+    public override string DisplayName => "Sculpt";
+    public override string StatusText => BrushState.activeTool.ToString();
+    public override IReadOnlyList<TerrainKeyHint> KeyHints => Hints;
 
     public TerrainHeightPanel()
     {
-        AddToClassList("terrain-panel");
+        VisualElement actions;
+        VisualElement body;
+        VisualElement pane = TerrainUi.MakePane("Sculpt", out actions, out body);
+        pane.style.flexGrow = 1f;
+        Add(pane);
 
-        Label title = new Label("Height");
-        title.AddToClassList("terrain-panel-title");
-        Add(title);
+        rebuildButton = TerrainUi.MakeGhost(
+            "Rebuild mesh", ToolkitIcons.Loop,
+            "Rebuild the open tile's mesh from its height data (use after a Generate preview).", RebuildActiveTile);
+        actions.Add(rebuildButton);
 
-        Label hint = new Label(
-            "Drag in the Scene view. Strength is the rate for Raise, Lower and Noise, the blend for Smooth and Flatten, and the width for Ramp.");
-        hint.AddToClassList("terrain-panel-hint");
-        Add(hint);
+        segmented = TerrainUi.MakeSegmented(HeightToolLabels, SelectedIndexForActiveTool(), SelectTool);
+        body.Add(segmented);
 
-        VisualElement segmentRow = new VisualElement();
-        segmentRow.AddToClassList("terrain-segment-row");
-        Add(segmentRow);
-        for (int toolIndex = 0; toolIndex < HeightTools.Length; toolIndex++)
-        {
-            TerrainBrushTool tool = HeightTools[toolIndex];
-            Button button = new Button(() => SelectTool(tool));
-            button.text = tool.ToString();
-            button.AddToClassList("terrain-segment-button");
-            segmentRow.Add(button);
-            toolButtons[toolIndex] = button;
-        }
+        VisualElement modeBody;
+        modeCard = TerrainUi.MakeCard("Mode", out modeBody);
+        modeHint = TerrainUi.MakeHint(string.Empty);
+        modeBody.Add(modeHint);
+        body.Add(modeCard);
 
-        radiusSlider = AddSliderRow("Radius", 1f, 40f, value => BrushState.radiusMetres = value);
-        hardnessSlider = AddSliderRow("Hardness", 0f, 1f, value => BrushState.hardness = value);
-        strengthSlider = AddSliderRow("Strength", 0f, 1f, value => BrushState.strength = value);
+        brushCard = TerrainBrushCard.Make(out refreshBrushCard);
+        body.Add(brushCard);
 
-        rebuildButton = new Button(RebuildActiveTile);
-        rebuildButton.text = "Rebuild Tile Mesh";
-        rebuildButton.AddToClassList("terrain-primary-button");
-        Add(rebuildButton);
+        emptyState = TerrainUi.MakeEmpty(
+            "No tile open", "Open a tile in the World tab, then drag in the Scene view to sculpt it.", null, null);
+        body.Add(emptyState);
 
         lastReportedTool = BrushState.activeTool;
         RefreshControls();
@@ -73,24 +94,15 @@ public sealed class TerrainHeightPanel : TerrainToolPanel
             BrushState.activeTool = TerrainBrushTool.None;
     }
 
-    Slider AddSliderRow(string labelText, float low, float high, Action<float> apply)
+    static int SelectedIndexForActiveTool()
     {
-        VisualElement row = new VisualElement();
-        row.AddToClassList("terrain-row");
-        Label label = new Label(labelText);
-        label.AddToClassList("terrain-label");
-        Slider slider = new Slider(low, high);
-        slider.showInputField = true;
-        slider.RegisterValueChangedCallback(changeEvent => apply(changeEvent.newValue));
-        row.Add(label);
-        row.Add(slider);
-        Add(row);
-        return slider;
+        return Math.Max(0, Array.IndexOf(HeightTools, BrushState.activeTool));
     }
 
-    void SelectTool(TerrainBrushTool tool)
+    void SelectTool(int toolIndex)
     {
-        BrushState.activeTool = tool;
+        BrushState.activeTool = HeightTools[toolIndex];
+        lastSegmentedIndex = toolIndex;
         RefreshControls();
     }
 
@@ -102,16 +114,21 @@ public sealed class TerrainHeightPanel : TerrainToolPanel
 
     void RefreshControls()
     {
-        radiusSlider.SetValueWithoutNotify(BrushState.radiusMetres);
-        hardnessSlider.SetValueWithoutNotify(BrushState.hardness);
-        strengthSlider.SetValueWithoutNotify(BrushState.strength);
-
-        for (int toolIndex = 0; toolIndex < HeightTools.Length; toolIndex++)
-            toolButtons[toolIndex].EnableInClassList("terrain-segment-button--active", HeightTools[toolIndex] == BrushState.activeTool);
-
         bool hasTile = TerrainTilesPanel.TryGetActiveTile(out TerrainTile tile) && tile != null;
         rebuildButton.SetEnabled(hasTile);
-        rebuildButton.tooltip = hasTile ? "Rebuild the open tile's mesh from its height data." : "Open a tile in the Tiles panel first.";
+        segmented.style.display = hasTile ? DisplayStyle.Flex : DisplayStyle.None;
+        modeCard.style.display = hasTile ? DisplayStyle.Flex : DisplayStyle.None;
+        brushCard.style.display = hasTile ? DisplayStyle.Flex : DisplayStyle.None;
+        emptyState.style.display = hasTile ? DisplayStyle.None : DisplayStyle.Flex;
+
+        int toolIndex = SelectedIndexForActiveTool();
+        if (toolIndex != lastSegmentedIndex)
+        {
+            lastSegmentedIndex = toolIndex;
+            ToolkitChrome.SetSegmentedSelection(segmented, toolIndex);
+        }
+        modeHint.text = HeightToolHints[toolIndex];
+        refreshBrushCard();
 
         if (lastReportedTool != BrushState.activeTool)
         {
