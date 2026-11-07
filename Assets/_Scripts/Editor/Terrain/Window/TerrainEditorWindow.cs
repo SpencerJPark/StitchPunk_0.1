@@ -13,6 +13,12 @@ public class TerrainEditorWindow : EditorWindow
     const string FooterSeparator = "  \u2022  ";
 
     static readonly string[] TabLabels = { "World", "Sculpt", "Paint", "Roads", "Water", "Decals", "Props", "Generate", "Nav" };
+    // Monochrome editor built-in icons (verified to resolve), one weight like the rest of the rail (R21).
+    static readonly string[] TabIcons =
+    {
+        "Grid.Default", "TerrainInspector.TerrainToolRaise", "TerrainInspector.TerrainToolSplat", "TerrainInspector.TerrainToolSmoothHeight", "d_Particle Effect",
+        "d_Image Icon", "TerrainInspector.TerrainToolTrees", "d_Profiler.Rendering", "TerrainInspector.TerrainToolSettings"
+    };
     // Display position -> panel index (0 Tiles, 1 Paint, 2 Height, 3 Generate, 4 Roads, 5 Water, 6 Decals, 7 Scatter, 8 Nav).
     static readonly int[] PanelIndexByTabPosition = { 0, 2, 1, 4, 5, 6, 7, 3, 8 };
 
@@ -30,7 +36,7 @@ public class TerrainEditorWindow : EditorWindow
     {
         TerrainEditorWindow window = GetWindow<TerrainEditorWindow>();
         window.titleContent = new GUIContent("Terrain Editor");
-        window.minSize = new Vector2(520f, 420f);
+        window.minSize = new Vector2(280f, 360f);
     }
 
     void CreateGUI()
@@ -40,14 +46,18 @@ public class TerrainEditorWindow : EditorWindow
         TerrainUi.ApplyStyles(root);
         root.AddToClassList("terrain-window");
 
-        VisualElement tabBar = TerrainUi.MakeTabBar(TabLabels, SelectTabPosition, out setSelectedTabPosition);
+        VisualElement tabBar = TerrainUi.MakeTabRail(TabLabels, TabIcons, SelectTabPosition, out setSelectedTabPosition);
         contentHost = new ScrollView(ScrollViewMode.Vertical);
         contentHost.AddToClassList("terrain-content");
 
         VisualElement footer = ToolkitChrome.MakeStatusRow(out footerLabel, out VisualElement footerActions, true);
 
-        root.Add(tabBar);
-        root.Add(contentHost);
+        VisualElement main = new VisualElement();
+        main.AddToClassList("terrain-main");
+        main.Add(tabBar);
+        main.Add(contentHost);
+
+        root.Add(main);
         root.Add(footer);
 
         Selection.selectionChanged -= RefreshFooter;

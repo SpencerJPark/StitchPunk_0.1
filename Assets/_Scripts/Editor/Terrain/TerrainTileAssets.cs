@@ -7,11 +7,14 @@ using UnityEngine;
 public static class TerrainTileAssets
 {
     public const string TileFolder = "Assets/Terrain/Tiles";
+    // Set by the test world builder so its tiles never share assets with the real tile folder
+    public static string RootFolderOverride;
+    static string ActiveTileFolder { get { return string.IsNullOrEmpty(RootFolderOverride) ? TileFolder : RootFolderOverride; } }
     const string MaterialTemplatePath = "Assets/PaintedGround/Materials/M_PaintedGround.mat";
 
     public static string FolderOf(Vector2Int coordinate)
     {
-        return TileFolder + "/Tile_" + coordinate.x + "_" + coordinate.y;
+        return ActiveTileFolder + "/Tile_" + coordinate.x + "_" + coordinate.y;
     }
 
     public static string TileScenePath(Vector2Int coordinate)
@@ -107,17 +110,17 @@ public static class TerrainTileAssets
 
     static string LegacyMaskPath(Vector2Int coordinate)
     {
-        return TileFolder + "/Tile_" + coordinate.x + "_" + coordinate.y + "_Mask.png";
+        return ActiveTileFolder + "/Tile_" + coordinate.x + "_" + coordinate.y + "_Mask.png";
     }
 
     static string LegacySignedDistanceFieldPath(Vector2Int coordinate)
     {
-        return TileFolder + "/Tile_" + coordinate.x + "_" + coordinate.y + "_Splat_SDF.png";
+        return ActiveTileFolder + "/Tile_" + coordinate.x + "_" + coordinate.y + "_Splat_SDF.png";
     }
 
     static string LegacyMaterialPath(Vector2Int coordinate)
     {
-        return TileFolder + "/M_Ground_Tile_" + coordinate.x + "_" + coordinate.y + ".mat";
+        return ActiveTileFolder + "/M_Ground_Tile_" + coordinate.x + "_" + coordinate.y + ".mat";
     }
 
     // Before migration runs, a tile that only has the loose legacy file keeps using it.

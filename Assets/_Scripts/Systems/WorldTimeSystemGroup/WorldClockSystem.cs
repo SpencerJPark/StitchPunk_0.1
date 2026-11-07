@@ -51,12 +51,15 @@ public partial struct WorldClockSystem : ISystem
         else if (!clock.ValueRO.isPaused && clock.ValueRO.secondsPerDay > 0f)
         {
             float previousTimeOfDay = clock.ValueRO.timeOfDay01;
-            float advancedTimeOfDay = previousTimeOfDay + SystemAPI.Time.DeltaTime / clock.ValueRO.secondsPerDay;
+            float clockDeltaSeconds = SystemAPI.TryGetSingleton<WorldTimeScaleDelta>(out WorldTimeScaleDelta scaledDelta)
+                ? scaledDelta.scaledDeltaSeconds
+                : SystemAPI.Time.DeltaTime;
+            float advancedTimeOfDay = previousTimeOfDay + clockDeltaSeconds / clock.ValueRO.secondsPerDay;
             int dayBoundaries = WorldClockMath.CountDayBoundaries(
                 previousTimeOfDay, advancedTimeOfDay, clock.ValueRO.dayStartTimeOfDay01);
 
             clock.ValueRW.timeOfDay01 = advancedTimeOfDay - math.floor(advancedTimeOfDay);
-            clock.ValueRW.totalWorldSeconds += SystemAPI.Time.DeltaTime;
+            clock.ValueRW.totalWorldSeconds += clockDeltaSeconds;
             for (int boundaryIndex = 0; boundaryIndex < dayBoundaries; boundaryIndex++)
             {
                 weekStarted |= WorldClockMath.AdvanceDay(ref clock.ValueRW);

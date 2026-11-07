@@ -12,10 +12,9 @@ public static class TerrainUi
     public const string StylesheetPath = "Assets/_Scripts/Editor/Terrain/Window/TerrainEditor.uss";
 
     private const int WideRangeThreshold = 20;
-    private const string TabListBarClassName = "toolkit-tablist-bar";
-    private const string TabListClassName = "toolkit-tablist";
-    private const string TabClassName = "toolkit-tablist__tab";
-    private const string TabActiveClassName = "toolkit-tablist__tab--active";
+    private const string RailClassName = "terrain-ui-rail";
+    private const string RailButtonClassName = "terrain-ui-rail-button";
+    private const string RailButtonActiveClassName = "terrain-ui-rail-button--active";
     private const string SliderFieldClassName = "terrain-ui-slider-field";
     private const string NumberFieldClassName = "terrain-ui-number-field";
     private const string PaneBodyClassName = "terrain-ui-pane-body";
@@ -39,51 +38,41 @@ public static class TerrainUi
         ToolkitChrome.AddToolkitStyleSheets(root);
     }
 
-    public static VisualElement MakeTabBar(IReadOnlyList<string> labels, Action<int> onSelected, out Action<int> setSelectedIndex)
+    // Blender-style navigation: a vertical rail of icon buttons down the left edge of the panel, so the full width stays free for the
+    // controls. Names live in the tooltips and the pane title; an icon that fails to resolve falls back to the first letter.
+    public static VisualElement MakeTabRail(IReadOnlyList<string> labels, IReadOnlyList<string> iconNames, Action<int> onSelected, out Action<int> setSelectedIndex)
     {
-        Toolbar tabBar = new Toolbar();
-        tabBar.AddToClassList(TabListBarClassName);
+        VisualElement rail = new VisualElement();
+        rail.AddToClassList(RailClassName);
 
-        VisualElement tabList = new VisualElement();
-        tabList.AddToClassList(TabListClassName);
-        tabBar.Add(tabList);
-
-        List<ToolbarToggle> toggles = new List<ToolbarToggle>();
-        bool isApplying = false;
-
+        List<Button> buttons = new List<Button>();
         Action<int> applyActive = (int activeIndex) =>
         {
-            isApplying = true;
-            for (int toggleIndex = 0; toggleIndex < toggles.Count; toggleIndex++)
+            for (int buttonIndex = 0; buttonIndex < buttons.Count; buttonIndex++)
             {
-                bool isActive = toggleIndex == activeIndex;
-                toggles[toggleIndex].SetValueWithoutNotify(isActive);
-                toggles[toggleIndex].EnableInClassList(TabActiveClassName, isActive);
+                buttons[buttonIndex].EnableInClassList(RailButtonActiveClassName, buttonIndex == activeIndex);
             }
-            isApplying = false;
         };
 
         for (int labelIndex = 0; labelIndex < labels.Count; labelIndex++)
         {
             int capturedIndex = labelIndex;
-            ToolbarToggle toggle = new ToolbarToggle { text = labels[labelIndex] };
-            toggle.AddToClassList(TabClassName);
-            toggle.RegisterValueChangedCallback((ChangeEvent<bool> changeEvent) =>
+            string iconName = iconNames != null && labelIndex < iconNames.Count ? iconNames[labelIndex] : null;
+            string fallbackText = labels[labelIndex].Substring(0, 1);
+            Button button = ToolkitIcons.MakeIconButton(() =>
             {
-                if (isApplying)
-                {
-                    return;
-                }
                 applyActive(capturedIndex);
                 onSelected?.Invoke(capturedIndex);
-            });
-            toggles.Add(toggle);
-            tabList.Add(toggle);
+            }, iconName, labels[labelIndex], fallbackText);
+            ToolkitChrome.StyleButton(button, ToolkitButtonVariant.Ghost);
+            button.AddToClassList(RailButtonClassName);
+            buttons.Add(button);
+            rail.Add(button);
         }
 
         setSelectedIndex = applyActive;
         applyActive(0);
-        return tabBar;
+        return rail;
     }
 
     public static VisualElement MakePane(string title, out VisualElement actions, out VisualElement body)

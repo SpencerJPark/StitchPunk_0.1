@@ -6,12 +6,12 @@ using UnityEngine;
 public class CameraManager : Singleton<CameraManager>
 {
     [Header("Virtual Cameras")]
-    [SerializeField] private CinemachineCamera playerCam;
-    [SerializeField] private CinemachineCamera playerZoomCam;
-    [SerializeField] private CinemachineCamera vehicleCam;
-    [SerializeField] private CinemachineCamera controllUnitsCam;
-    [SerializeField] private CinemachineCamera mapCam;
-    [SerializeField] private CinemachineCamera cinematicCam;
+    [SerializeField] private CinemachineVirtualCameraBase playerCam;
+    [SerializeField] private CinemachineVirtualCameraBase playerZoomCam;
+    [SerializeField] private CinemachineVirtualCameraBase vehicleCam;
+    [SerializeField] private CinemachineVirtualCameraBase controllUnitsCam;
+    [SerializeField] private CinemachineVirtualCameraBase mapCam;
+    [SerializeField] private CinemachineVirtualCameraBase cinematicCam;
     [SerializeField] private CinemachineCamera cutsceneCam;
 
     [Header("Cinematic")]
@@ -21,12 +21,12 @@ public class CameraManager : Singleton<CameraManager>
     /// <summary>Fired whenever the active camera changes. Subscribe to recenter follow targets.</summary>
     public static event Action<CinemachineCameraType> OnCameraSwitch;
 
-    private Dictionary<CinemachineCameraType, CinemachineCamera> cameraMap;
+    private Dictionary<CinemachineCameraType, CinemachineVirtualCameraBase> cameraMap;
     private CinemachineCameraType currentCamera;
     private CinemachineCameraType _preCinematicCamera;
     private CinemachineCameraType _preCutsceneCamera;
 
-    /// <summary>The cutscene vcam — CutsceneCameraBridge drives its transform/lens directly, never Follow/LookAt.</summary>
+    /// <summary>The cutscene vcam â€” CutsceneCameraBridge drives its transform/lens directly, never Follow/LookAt.</summary>
     public CinemachineCamera CutsceneCamera => cutsceneCam;
 
     private const int ACTIVE_PRIORITY = 20;
@@ -34,7 +34,7 @@ public class CameraManager : Singleton<CameraManager>
 
     private void Start()
     {
-        cameraMap = new Dictionary<CinemachineCameraType, CinemachineCamera>
+        cameraMap = new Dictionary<CinemachineCameraType, CinemachineVirtualCameraBase>
         {
             { CinemachineCameraType.Player,       playerCam },
             { CinemachineCameraType.PlayerZoom,   playerZoomCam },
@@ -53,7 +53,7 @@ public class CameraManager : Singleton<CameraManager>
     {
         currentCamera = type;
 
-        foreach (KeyValuePair<CinemachineCameraType, CinemachineCamera> pair in cameraMap)
+        foreach (KeyValuePair<CinemachineCameraType, CinemachineVirtualCameraBase> pair in cameraMap)
         {
             if (pair.Value == null)
                 continue;
@@ -85,7 +85,7 @@ public class CameraManager : Singleton<CameraManager>
     }
 
     /// <summary>
-    /// Activates the cutscene vcam. Unlike EnterCinematic, this does not move a follow target —
+    /// Activates the cutscene vcam. Unlike EnterCinematic, this does not move a follow target â€”
     /// CutsceneCameraBridge writes the vcam's transform/lens directly every frame from
     /// CutsceneCameraPose. Call ExitCutscene() to return to the previous camera.
     /// </summary>
@@ -103,7 +103,7 @@ public class CameraManager : Singleton<CameraManager>
 
     public bool HasCamera(CinemachineCameraType type)
     {
-        return cameraMap != null && cameraMap.TryGetValue(type, out CinemachineCamera camera) && camera != null;
+        return cameraMap != null && cameraMap.TryGetValue(type, out CinemachineVirtualCameraBase camera) && camera != null;
     }
 
     public CinemachineCameraType GetCurrentCamera()

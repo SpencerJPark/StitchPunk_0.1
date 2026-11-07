@@ -456,3 +456,48 @@
 .terrain-ui-pane-body > .toolkit-segmented {
     align-self: flex-start;
 }
+
+/* Side rail: icon tabs down the left edge, content takes the rest of the width */
+.terrain-main {
+    flex-grow: 1;
+    flex-direction: row;
+    min-height: 0;
+}
+
+.terrain-main > .terrain-content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.terrain-ui-rail {
+    width: 36px;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 0;
+    background-color: var(--toolkit-surface);
+    border-right-width: 1px;
+    border-right-color: var(--toolkit-divider);
+}
+
+.terrain-ui-rail-button.unity-button {
+    width: var(--toolkit-height-control);
+    height: var(--toolkit-height-control);
+    min-height: var(--toolkit-height-control);
+    margin: 0 0 4px 0;
+    padding: 0;
+    border-width: 1px;
+    border-color: transparent;
+    border-radius: var(--toolkit-radius-button);
+    background-color: transparent;
+}
+
+.terrain-ui-rail-button.unity-button:hover {
+    background-color: var(--toolkit-hover);
+}
+
+.terrain-ui-rail-button.terrain-ui-rail-button--active.unity-button,
+.terrain-ui-rail-button.terrain-ui-rail-button--active.unity-button:hover {
+    background-color: var(--toolkit-raised);
+    border-color: var(--toolkit-color-hairline);
+}
