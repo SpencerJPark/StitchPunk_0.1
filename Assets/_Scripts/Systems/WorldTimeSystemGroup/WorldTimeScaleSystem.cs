@@ -10,22 +10,23 @@ public partial struct WorldTimeScaleSystem : ISystem
         return WorldTimeScaleMath.EaseTimeScale(current, target, smoothingPerSecond, deltaSeconds);
     }
 
+    // Not Burst-compiled: CreateEntity takes a managed ComponentType[] (BC1028).
+    public void OnCreate(ref SystemState state)
+    {
+        Entity timeScaleEntity = state.EntityManager.CreateEntity(
+            ComponentType.ReadWrite<WorldTimeScale>(),
+            ComponentType.ReadWrite<WorldTimeScaleDelta>());
+        state.EntityManager.SetComponentData(timeScaleEntity, new WorldTimeScale
+        {
+            current = 1f,
+            target = 1f,
+            smoothingPerSecond = 4f,
+        });
+    }
+
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        if (!SystemAPI.HasSingleton<WorldTimeScale>())
-        {
-            Entity timeScaleEntity = state.EntityManager.CreateEntity(
-                ComponentType.ReadWrite<WorldTimeScale>(),
-                ComponentType.ReadWrite<WorldTimeScaleDelta>());
-            state.EntityManager.SetComponentData(timeScaleEntity, new WorldTimeScale
-            {
-                current = 1f,
-                target = 1f,
-                smoothingPerSecond = 4f,
-            });
-        }
-
         float deltaSeconds = SystemAPI.Time.DeltaTime;
         RefRW<WorldTimeScale> timeScale = SystemAPI.GetSingletonRW<WorldTimeScale>();
         timeScale.ValueRW.current = EaseTimeScale(
