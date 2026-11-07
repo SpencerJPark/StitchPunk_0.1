@@ -59,22 +59,20 @@ public sealed class TerrainRoadsPanel : TerrainToolPanel
 
         emptyHost.Add(TerrainUi.MakeEmpty("No roads yet", "Add a road, then click its line in the Scene view to add points, drag a point to move it, and drag the square handles to set the width.", "New Road", CreateRoad));
 
-        VisualElement listCard = TerrainUi.MakeCard("Roads", out listBody);
+        VisualElement listCard = TerrainUi.MakeCard("In this scene", out listBody);
         cardsHost.Add(listCard);
 
         VisualElement roadCardBody;
         roadCard = TerrainUi.MakeCard("Road", out roadCardBody);
-        profileField.label = "Profile";
         profileField.objectType = typeof(TerrainRoadProfile);
         profileField.allowSceneObjects = false;
         profileField.RegisterValueChangedCallback(OnProfileChanged);
-        roadCardBody.Add(profileField);
+        roadCardBody.Add(ToolkitChrome.MakePropertyRow("Profile", profileField, "What this road looks like and how it carves the ground"));
         roadCardBody.Add(TerrainUi.MakeSliderRow("Width", MinimumWidthMetres, MaximumWidthMetres, ReadWidth, WriteWidth, "Full road width in metres", out widthRefresh));
         useProfileWidthButton = TerrainUi.MakeGhost("Use profile width", null, "Drop the width override and use the profile's width", UseProfileWidth);
         roadCardBody.Add(useProfileWidthButton);
-        priorityField.label = "Priority";
         priorityField.RegisterValueChangedCallback(OnPriorityChanged);
-        roadCardBody.Add(priorityField);
+        roadCardBody.Add(ToolkitChrome.MakePropertyRow("Priority", priorityField, "Where roads overlap, the higher priority wins"));
         VisualElement badgeRow = new VisualElement();
         badgeRow.AddToClassList("terrain-badge-row");
         lengthBadge = ToolkitChrome.MakeBadge(string.Empty, ToolkitStatusTone.Neutral);

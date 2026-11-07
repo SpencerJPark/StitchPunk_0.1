@@ -16,14 +16,12 @@ public static class TerrainUi
     private const string TabListClassName = "toolkit-tablist";
     private const string TabClassName = "toolkit-tablist__tab";
     private const string TabActiveClassName = "toolkit-tablist__tab--active";
-    private const string SliderRowClassName = "terrain-ui-slider-row";
-    private const string SliderLabelClassName = "terrain-ui-slider-label";
+    private const string SliderFieldClassName = "terrain-ui-slider-field";
     private const string NumberFieldClassName = "terrain-ui-number-field";
     private const string PaneBodyClassName = "terrain-ui-pane-body";
     private const string PaneClassName = "terrain-ui-pane";
     private const string SegmentedFitClassName = "terrain-ui-segmented-fit";
     private const string IconSquareClassName = "terrain-ui-icon-square";
-    private const string ToggleRowClassName = "terrain-ui-toggle-row";
 
     public static void ApplyStyles(VisualElement root)
     {
@@ -112,12 +110,9 @@ public static class TerrainUi
 
     public static VisualElement MakeSliderRow(string label, float minimum, float maximum, Func<float> read, Action<float> write, string tooltip, out Action refresh)
     {
-        VisualElement row = new VisualElement();
-        row.AddToClassList(SliderRowClassName);
-        row.tooltip = tooltip;
-
-        Label labelElement = new Label(label);
-        labelElement.AddToClassList(SliderLabelClassName);
+        // The toolkit property row owns the label column, so sliders, fields and pickers share one aligned grid (R08).
+        VisualElement field = new VisualElement();
+        field.AddToClassList(SliderFieldClassName);
 
         Slider slider = new Slider(minimum, maximum);
         slider.showInputField = false;
@@ -140,9 +135,9 @@ public static class TerrainUi
             write?.Invoke(clamped);
         });
 
-        row.Add(labelElement);
-        row.Add(slider);
-        row.Add(numberField);
+        field.Add(slider);
+        field.Add(numberField);
+        VisualElement row = ToolkitChrome.MakePropertyRow(label, field, tooltip);
 
         refresh = () =>
         {
@@ -156,19 +151,9 @@ public static class TerrainUi
 
     public static VisualElement MakeToggleRow(string label, Func<bool> read, Action<bool> write, string tooltip, out Action refresh)
     {
-        VisualElement row = new VisualElement();
-        row.AddToClassList(SliderRowClassName);
-        row.AddToClassList(ToggleRowClassName);
-        row.tooltip = tooltip;
-
-        Label labelElement = new Label(label);
-        labelElement.AddToClassList(SliderLabelClassName);
-
         Toggle toggle = new Toggle();
         toggle.RegisterValueChangedCallback((ChangeEvent<bool> changeEvent) => write?.Invoke(changeEvent.newValue));
-
-        row.Add(labelElement);
-        row.Add(toggle);
+        VisualElement row = ToolkitChrome.MakePropertyRow(label, toggle, tooltip);
 
         refresh = () => toggle.SetValueWithoutNotify(read());
         refresh();

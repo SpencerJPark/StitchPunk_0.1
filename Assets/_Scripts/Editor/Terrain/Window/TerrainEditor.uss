@@ -428,3 +428,31 @@
     flex-wrap: wrap;
     align-items: center;
 }
+
+/* Slider + number field inside a toolkit property row */
+.terrain-ui-slider-field {
+    flex-direction: row;
+    flex-grow: 1;
+    align-items: center;
+    min-width: 0;
+}
+
+.terrain-ui-slider-field > .unity-slider {
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.terrain-badge-row > .toolkit-badge {
+    margin-right: 4px;
+}
+
+/* Muted meta text stays readable on a selected (blue) row */
+.toolkit-list-row--selected .toolkit-hint,
+.toolkit-list-row--selected .unity-label {
+    color: var(--toolkit-text);
+}
+
+/* A mode switcher sits on the same left edge as the cards under it */
+.terrain-ui-pane-body > .toolkit-segmented {
+    align-self: flex-start;
+}

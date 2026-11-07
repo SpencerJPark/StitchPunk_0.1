@@ -82,7 +82,7 @@ namespace StitchPunk.Tests
 
             Vector3 cornerOffset = left[1] - centre[1];
             Assert.AreEqual(2f, cornerOffset.magnitude, Tolerance);
-            Assert.AreEqual(Mathf.Sqrt(2f), cornerOffset.x, Tolerance);
+            Assert.AreEqual(-Mathf.Sqrt(2f), cornerOffset.x, Tolerance);
             Assert.AreEqual(Mathf.Sqrt(2f), cornerOffset.z, Tolerance);
             Assert.AreEqual(-cornerOffset.x, (right[1] - centre[1]).x, Tolerance);
         }

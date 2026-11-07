@@ -38,6 +38,8 @@ public static class TerrainRoadTool
     private static TerrainRoad[] cachedRoads = new TerrainRoad[0];
     private static double roadListRefreshTime = -1000.0;
 
+    // GetControlID is order-dependent and other Scene-view handlers run in between, so the id seen at mouse-down is what the drag is compared against.
+    private static int dragControlId;
     private static DragKind dragKind = DragKind.None;
     private static int hoverKnotIndex = -1;
     private static bool hoverLineValid;
@@ -306,7 +308,7 @@ public static class TerrainRoadTool
                 }
                 break;
             case EventType.MouseDrag:
-                if (dragKind != DragKind.None && GUIUtility.hotControl == controlId)
+                if (dragKind != DragKind.None && GUIUtility.hotControl == dragControlId)
                 {
                     HandleDrag(currentEvent);
                     currentEvent.Use();
@@ -317,7 +319,7 @@ public static class TerrainRoadTool
                 }
                 break;
             case EventType.MouseUp:
-                if (dragKind != DragKind.None && GUIUtility.hotControl == controlId)
+                if (dragKind != DragKind.None && GUIUtility.hotControl == dragControlId)
                 {
                     dragKind = DragKind.None;
                     GUIUtility.hotControl = 0;
@@ -450,6 +452,7 @@ public static class TerrainRoadTool
                 Undo.RecordObject(selectedRoad, "Change Road Width");
                 dragKind = DragKind.Width;
                 GUIUtility.hotControl = controlId;
+                dragControlId = controlId;
                 currentEvent.Use();
                 return;
             }
@@ -463,6 +466,7 @@ public static class TerrainRoadTool
                 selectedKnotIndex = InsertKnotAtFraction(selectedRoad, splineFraction, TangentMode.AutoSmooth);
                 dragKind = DragKind.Knot;
                 GUIUtility.hotControl = controlId;
+                dragControlId = controlId;
                 SelectionChanged?.Invoke();
                 currentEvent.Use();
                 return;
@@ -498,6 +502,7 @@ public static class TerrainRoadTool
         Undo.RecordObject(selectedRoad.Container, undoName);
         dragKind = kind;
         GUIUtility.hotControl = controlId;
+        dragControlId = controlId;
     }
 
     private static void HandleDrag(Event currentEvent)
