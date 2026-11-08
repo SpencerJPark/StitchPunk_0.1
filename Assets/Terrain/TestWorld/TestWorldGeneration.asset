@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e86d538f42f333e4795aacb96f4c13c7, type: 3}
+  m_Name: TestWorldGeneration
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainGenerationProfile
+  seed: 20261107
+  heightLayers:
+  - frequencyPerMetre: 0.006
+    amplitudeMetres: 7
+    octaves: 3
+    lacunarity: 2
+    gain: 0.45
+  - frequencyPerMetre: 0.02
+    amplitudeMetres: 1.2
+    octaves: 2
+    lacunarity: 2
+    gain: 0.5
+  heightRemap:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.45
+      value: 0.1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  baseHeightMetres: 0
+  flattenBelowMetres: -1000
+  mountainCentreWorld: {x: 280, y: 280}
+  mountainRadiusMetres: 150
+  mountainHeightMetres: 200
+  mountainProfile:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  biomeRules:
+  - layer: 1
+    heightRange: {x: -1000, y: 1000}
+    slopeRangeDegrees: {x: 0, y: 90}
+    noiseFrequency: 0.01
+    noiseThreshold: 0
+    weight: 1
+  - layer: 2
+    heightRange: {x: -1000, y: 1000}
+    slopeRangeDegrees: {x: 0, y: 30}
+    noiseFrequency: 0.02
+    noiseThreshold: 0.62
+    weight: 1
+  - layer: 3
+    heightRange: {x: -1000, y: 1000}
+    slopeRangeDegrees: {x: 35, y: 90}
+    noiseFrequency: 0.05
+    noiseThreshold: 0
+    weight: 1
