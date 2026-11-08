@@ -9,6 +9,7 @@ using UnityEngine.SceneManagement;
 
 public static class TerrainStrategicBaker
 {
+    private const int MaximumCapturePixels = 2048;
     private const string StrategicFolder = "Assets/Terrain/Strategic";
     private const string ProfileFolder = "Assets/Terrain/Profiles";
     private const string ProfilePath = ProfileFolder + "/TerrainStrategicProfile.asset";
@@ -119,6 +120,21 @@ public static class TerrainStrategicBaker
         {
             return 0;
         }
+
+        // The real ground, rendered from above, replaces the mask-built colours so the fallback looks like the tiles it stands in for.
+        float chunkSizeMetres = profile.superChunkTiles * TerrainTileData.TileSizeMetres;
+        int capturePixels = Mathf.Min(maxTexturePixels, MaximumCapturePixels);
+        Color missingTileColour = TerrainStrategicBuilder.LoadLayerColoursFromProject()[0];
+        Texture2D capturedTexture = TerrainStrategicTopDownCapture.TryCapture(
+            TerrainStrategicBuilder.SuperChunkWorldMin(profile, superChunk), chunkSizeMetres, capturePixels, missingTileColour);
+        if (capturedTexture != null)
+        {
+            TerrainStrategicTopDownCapture.MatchBrightness(capturedTexture, builtTexture, missingTileColour);
+            Object.DestroyImmediate(builtTexture);
+            builtTexture = capturedTexture;
+        }
+
+        Debug.Log("[Terrain] Strategic chunk " + superChunk + ": ground capture " + (capturedTexture != null ? "used" : "NOT used") + ", colour texture " + builtTexture.width + " px.");
 
         // Dimensions must be multiples of four for block compression; the builder emits power-of-two sizes.
         EditorUtility.CompressTexture(builtTexture, TextureFormat.DXT1, TextureCompressionQuality.Normal);
