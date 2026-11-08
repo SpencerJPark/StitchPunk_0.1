@@ -2855,8 +2855,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63e00d3ab14041a418d90c999220c8b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::TerrainWorldAuthoring
-  loadRadiusTiles: 0
-  unloadRadiusTiles: 1
+  loadRadiusTiles: 1
+  unloadRadiusTiles: 2
   maxLoadsPerFrame: 1
   tiles:
   - coordinate: {x: -3, y: -3}

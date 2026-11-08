@@ -137,11 +137,29 @@ Shader "Painted/Ground"
         static const float StrategicHandoverSpeed = 1.6;
         static const float StrategicProxyDepthPushFraction = 0.0025;
 
-        void StrategicHandoverClip(float4 positionCS)
+        // Globals, set by TerrainTileResidencyShaderSystem: one texel per tile, 1 = the real tile is drawn; grid zw = 0 means nothing published.
+        TEXTURE2D(_TerrainTileResidency);
+        float4 _TerrainTileResidencyGrid;
+        static const float TerrainTileSizeMetres = 100.0;
+
+        // A tile that is still loading, or outside the load radius, has no real ground: the stand-in fills it at any zoom instead of a hole.
+        float StrategicStandInFillsTile(float2 positionXZ)
+        {
+            if (_TerrainTileResidencyGrid.z < 0.5)
+                return 0.0;
+            int2 localTile = (int2)floor(positionXZ / TerrainTileSizeMetres + 0.5) - (int2)_TerrainTileResidencyGrid.xy;
+            if (any(localTile < 0) || any(localTile >= (int2)_TerrainTileResidencyGrid.zw))
+                return 0.0;
+            return 1.0 - LOAD_TEXTURE2D(_TerrainTileResidency, localTile).r;
+        }
+
+        void StrategicHandoverClip(float4 positionCS, float2 positionXZ)
         {
             float2 pixel = floor(positionCS.xy);
             float noise = frac(52.9829189 * frac(dot(pixel, float2(0.06711056, 0.00583715))));
             float standInVisibility = saturate(_StrategicLayerFade * StrategicHandoverSpeed);
+            if (_StrategicProxy > 0.5)
+                standInVisibility = max(standInVisibility, StrategicStandInFillsTile(positionXZ));
             clip(_StrategicProxy > 0.5 ? standInVisibility - noise - 0.0001 : noise - standInVisibility + 0.0001);
         }
 
@@ -266,7 +284,7 @@ Shader "Painted/Ground"
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
-                StrategicHandoverClip(IN.positionCS);
+                StrategicHandoverClip(IN.positionCS, IN.positionWS.xz);
 
                 float3 posWS = IN.positionWS;
                 float2 wxz   = posWS.xz;
@@ -425,6 +443,7 @@ Shader "Painted/Ground"
             struct Varyings
             {
                 float4 positionCS : SV_POSITION;
+                float2 positionXZ : TEXCOORD0;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -433,13 +452,15 @@ Shader "Painted/Ground"
                 Varyings OUT = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionCS = TransformWorldToHClip(StrategicProxyPushAway(TransformObjectToWorld(IN.positionOS.xyz)));
+                float3 positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                OUT.positionCS = TransformWorldToHClip(StrategicProxyPushAway(positionWS));
+                OUT.positionXZ = positionWS.xz;
                 return OUT;
             }
 
             half frag(Varyings IN) : SV_Target
             {
-                StrategicHandoverClip(IN.positionCS);
+                StrategicHandoverClip(IN.positionCS, IN.positionXZ);
                 return IN.positionCS.z;
             }
             ENDHLSL
@@ -470,6 +491,7 @@ Shader "Painted/Ground"
             {
                 float4 positionCS : SV_POSITION;
                 half3  normalWS   : TEXCOORD0;
+                float2 positionXZ : TEXCOORD1;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -478,14 +500,16 @@ Shader "Painted/Ground"
                 Varyings OUT = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionCS = TransformWorldToHClip(StrategicProxyPushAway(TransformObjectToWorld(IN.positionOS.xyz)));
+                float3 positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                OUT.positionCS = TransformWorldToHClip(StrategicProxyPushAway(positionWS));
+                OUT.positionXZ = positionWS.xz;
                 OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
                 return OUT;
             }
 
             half4 frag(Varyings IN) : SV_Target
             {
-                StrategicHandoverClip(IN.positionCS);
+                StrategicHandoverClip(IN.positionCS, IN.positionXZ);
                 return half4(normalize(IN.normalWS), 0);
             }
             ENDHLSL
