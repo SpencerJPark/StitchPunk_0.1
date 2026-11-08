@@ -13,11 +13,11 @@ public static class StrategicCameraRigBuilder
     private const string ZoomProfilePath = ProfileFolder + "/StrategicZoomProfile.asset";
     private const string LookProfilePath = ProfileFolder + "/StrategicLook.asset";
     private const string DepthOfFieldProfilePath = ProfileFolder + "/StrategicDoF.asset";
-    private const float StrategicPitchDegrees = 40f;
-    private const float StrategicFieldOfView = 22f;
+    private const float StrategicPitchDegrees = 28f;
+    private const float StrategicFieldOfView = 20f;
     // The reference frame shows roughly 600 m of ground: a long lens far enough back that the strategic layer, not just the detail ring, fills the view.
     private const float StrategicFarClipMetres = 4000f;
-    private const float MinimumStrategicDistance = 1000f;
+    private const float MinimumStrategicDistance = 900f;
 
     [MenuItem("Stitch Punk/Terrain/Create Strategic Camera Rig")]
     public static void CreateStrategicCameraRig()
@@ -72,6 +72,7 @@ public static class StrategicCameraRigBuilder
         SetReference(driver, "zoomProfile", zoomProfile);
         SetReference(driver, "depthOfFieldVolume", depthOfFieldVolume);
         SetReference(driver, "focusTarget", caravanCamera.Follow);
+        StrategicTiltShiftSetup.EnsureAndWire(driver);
 
         ReportCameraManagerField(managerObject, mixingCamera);
         EditorSceneManager.MarkSceneDirty(rigObject.scene);
@@ -130,8 +131,8 @@ public static class StrategicCameraRigBuilder
     {
         VolumeProfile profile = ScriptableObject.CreateInstance<VolumeProfile>();
         ColorAdjustments colorAdjustments = profile.Add<ColorAdjustments>(true);
-        colorAdjustments.colorFilter.Override(new Color(1f, 0.9f, 0.75f));
-        colorAdjustments.saturation.Override(-15f);
+        colorAdjustments.colorFilter.Override(new Color(1f, 0.96f, 0.85f));
+        colorAdjustments.saturation.Override(10f);
         colorAdjustments.contrast.Override(10f);
         Vignette vignette = profile.Add<Vignette>(true);
         vignette.intensity.Override(0.35f);

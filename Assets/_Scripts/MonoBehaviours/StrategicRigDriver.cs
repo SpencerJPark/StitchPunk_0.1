@@ -9,6 +9,11 @@ public class StrategicRigDriver : MonoBehaviour
     private static readonly int StrategicLayerFadeId = Shader.PropertyToID("_StrategicLayerFade");
     private static readonly int TerrainDirectionalStrengthId = Shader.PropertyToID("_TerrainDirectionalStrength");
     private static readonly int TerrainFocusPositionId = Shader.PropertyToID("_TerrainFocusPosition");
+    private static readonly int TiltShiftStrengthId = Shader.PropertyToID("_TiltShiftStrength");
+    private static readonly int TiltShiftCenterYId = Shader.PropertyToID("_TiltShiftCenterY");
+    private static readonly int TiltShiftBandHalfHeightId = Shader.PropertyToID("_TiltShiftBandHalfHeight");
+    private static readonly int TiltShiftFalloffId = Shader.PropertyToID("_TiltShiftFalloff");
+    private static readonly int TiltShiftMaxPixelsId = Shader.PropertyToID("_TiltShiftMaxPixels");
 
     [SerializeField] private CinemachineMixingCamera mixingCamera;
     [SerializeField] private CinemachineCamera caravanCamera;
@@ -16,19 +21,21 @@ public class StrategicRigDriver : MonoBehaviour
     [SerializeField] private StrategicZoomProfile zoomProfile;
     [SerializeField] private Volume depthOfFieldVolume;
     [SerializeField] private Transform focusTarget;
+    [SerializeField] private ScriptableRendererFeature tiltShiftFeature;
+    [Tooltip("Edge-detect outline passes: fine at ground level, thick black borders from the miniature camera.")]
+    [SerializeField] private ScriptableRendererFeature[] outlineFeaturesOffWhileZoomed;
 
     public float ScatterDistanceMultiplier { get; private set; } = 1f;
     public float HudFade { get; private set; }
 
     // Above the camera manager's active priority so the miniature view is live on foot as well as in the caravan.
     private const int LivePriorityWhileZoomed = 500;
-    private const float SharpBandEndFraction = 1.05f;
-    private const float BlurFullFraction = 1.9f;
-    private const float GaussianBlurMaxRadius = 1.5f;
+    private const float TiltShiftBandHalfHeight = 0.18f;
+    private const float TiltShiftFalloff = 0.40f;
+    private const float TiltShiftMaxPixels = 12f;
 
     private World cachedSizeWorld;
     private EntityQuery sizeScalesQuery;
-    private DepthOfField depthOfField;
     private bool takenOver;
     private PrioritySettings originalPriority;
     private Transform originalCaravanFollow;
@@ -40,6 +47,8 @@ public class StrategicRigDriver : MonoBehaviour
         Shader.SetGlobalFloat(TerrainDirectionalStrengthId, 1f);
         ScatterDistanceMultiplier = 1f;
         HudFade = 0f;
+        Shader.SetGlobalFloat(TiltShiftStrengthId, 0f);
+        SetRendererFeaturesForZoom(false);
         if (depthOfFieldVolume != null)
             depthOfFieldVolume.enabled = false;
     }
@@ -144,46 +153,38 @@ public class StrategicRigDriver : MonoBehaviour
         mixingCamera.SetWeight(strategicIndex, mix);
     }
 
-    // The gradient-blur fallback tier keeps DoF off; a gradient blur pass is future work.
+    // Screen-Y band blur and grade live in the Painted Post pass (cheap enough for Switch); the physical depth-of-field volume stays off.
     private void ApplyDepthOfField(float strength)
     {
-        if (depthOfFieldVolume == null)
-            return;
-
-        TerrainPlatformProfile platformProfile = TerrainPlatformProfile.Active;
-        bool allowed = platformProfile != null && platformProfile.useDepthOfField && !platformProfile.useGradientBlurFallback;
-        if (!allowed || strength <= 0f)
-        {
+        if (depthOfFieldVolume != null)
             depthOfFieldVolume.enabled = false;
+
+        Shader.SetGlobalFloat(TiltShiftStrengthId, strength);
+        SetRendererFeaturesForZoom(strength > 0f);
+        if (strength <= 0f)
             return;
-        }
 
-        if (depthOfField == null && !ResolveDepthOfFieldOverride())
-            return;
-
-        depthOfFieldVolume.enabled = true;
-        depthOfFieldVolume.weight = strength;
-        depthOfField.active = true;
-        // Gaussian, not Bokeh: physical lens values give no visible blur at 700 m, and it is the Switch-affordable mode.
-        depthOfField.mode.Override(DepthOfFieldMode.Gaussian);
-        depthOfField.gaussianMaxRadius.Override(GaussianBlurMaxRadius);
-
+        float centerViewportY = 0.5f;
         Camera activeCamera = Camera.main;
         if (activeCamera != null && focusTarget != null)
-        {
-            float focusDistance = Mathf.Max(1f, Vector3.Distance(activeCamera.transform.position, focusTarget.position));
-            depthOfField.gaussianStart.Override(focusDistance * SharpBandEndFraction);
-            depthOfField.gaussianEnd.Override(focusDistance * BlurFullFraction);
-        }
+            centerViewportY = Mathf.Clamp01(activeCamera.WorldToViewportPoint(focusTarget.position).y);
+        Shader.SetGlobalFloat(TiltShiftCenterYId, centerViewportY);
+        Shader.SetGlobalFloat(TiltShiftBandHalfHeightId, TiltShiftBandHalfHeight);
+        Shader.SetGlobalFloat(TiltShiftFalloffId, TiltShiftFalloff);
+        Shader.SetGlobalFloat(TiltShiftMaxPixelsId, TiltShiftMaxPixels);
     }
 
-    private bool ResolveDepthOfFieldOverride()
+    // Renderer features are shared assets, so the on/off state is restored whenever the zoom ends or this component is disabled.
+    private void SetRendererFeaturesForZoom(bool zoomed)
     {
-        VolumeProfile profile = depthOfFieldVolume.profile;
-        if (profile == null)
-            return false;
-        if (!profile.TryGet(out depthOfField))
-            depthOfField = profile.Add<DepthOfField>(true);
-        return depthOfField != null;
+        if (tiltShiftFeature != null && tiltShiftFeature.isActive != zoomed)
+            tiltShiftFeature.SetActive(zoomed);
+        if (outlineFeaturesOffWhileZoomed == null)
+            return;
+        foreach (ScriptableRendererFeature outlineFeature in outlineFeaturesOffWhileZoomed)
+        {
+            if (outlineFeature != null && outlineFeature.isActive == zoomed)
+                outlineFeature.SetActive(!zoomed);
+        }
     }
 }

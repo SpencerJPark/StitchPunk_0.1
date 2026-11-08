@@ -80,7 +80,8 @@ namespace StitchPunk.Tests
                 Assert.AreEqual(4f, profile.EvaluateTimeScaleTarget(1f), Tolerance);
                 Assert.AreEqual(0f, profile.EvaluateDofStrength(0f));
                 Assert.AreEqual(0f, profile.EvaluateDofStrength(0.5f));
-                Assert.AreEqual(0f, profile.EvaluateDofStrength(0.75f));
+                Assert.AreEqual(0f, profile.EvaluateDofStrength(profile.dofStartMix01));
+                Assert.Greater(profile.EvaluateDofStrength(0.75f), 0f);
                 Assert.AreEqual(1f, profile.EvaluateDofStrength(1f), Tolerance);
                 Assert.AreEqual(1f, profile.EvaluateVisualLoadRadiusTiles(1f, 1), Tolerance);
             }

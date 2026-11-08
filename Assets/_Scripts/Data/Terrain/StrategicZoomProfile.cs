@@ -15,12 +15,12 @@ public class StrategicZoomProfile : ScriptableObject
 
     [Header("Zoomed-out size at full zoom (1 = true size). Each category eases from 1 as the view pulls back.")]
     [Min(1f)] public float wandererZoomedScale = 1f;
-    [Min(1f)] public float hordeZoomedScale = 2.5f;
-    [Min(1f)] public float vehicleZoomedScale = 3.5f;
-    [Min(1f)] public float landmarkZoomedScale = 3f;
-    [Min(1f)] public float playerZoomedScale = 4f;
+    [Min(1f)] public float hordeZoomedScale = 2f;
+    [Min(1f)] public float vehicleZoomedScale = 3f;
+    [Min(1f)] public float landmarkZoomedScale = 2f;
+    [Min(1f)] public float playerZoomedScale = 3.5f;
 
-    [Range(0f, 1f)] public float dofStartMix01 = 0.75f;
+    [Range(0f, 1f)] public float dofStartMix01 = 0.5f;
     [Min(0.05f)] public float transitionSeconds = 1.5f;
     public AnimationCurve transitionEase;
 
@@ -90,7 +90,7 @@ public class StrategicZoomProfile : ScriptableObject
 
     private void ApplyDefaults()
     {
-        dofStartMix01 = 0.75f;
+        dofStartMix01 = 0.5f;
         transitionSeconds = 1.5f;
         dofStrength = new AnimationCurve(
             new Keyframe(0f, 0f, 0f, 0f),

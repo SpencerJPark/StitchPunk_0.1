@@ -97,6 +97,9 @@ Shader "Painted/Ground"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+        // Global, set by StrategicRigDriver; deliberately outside the material CBUFFER.
+        float _StrategicLayerFade;
+
         // One CBUFFER shared by every pass keeps the shader SRP Batcher compatible.
         CBUFFER_START(UnityPerMaterial)
             float4 _TileSizes;
@@ -276,7 +279,10 @@ Shader "Painted/Ground"
             #endif
 
                 // ---- macro variation, rim, ink --------------------------------------------
-                PaintedFinish_float(col, macroNoise, _MacroDark.rgb, _MacroLight.rgb, _MacroStrength, rim, _RimColor, ink, _InkColor, col);
+                // Ink lines are drawn for ground-level viewing; in the zoomed-out miniature they read as thick black borders, so they fade out.
+                half4 inkColorForView = _InkColor;
+                inkColorForView.a *= 1.0 - 0.95 * saturate(_StrategicLayerFade);
+                PaintedFinish_float(col, macroNoise, _MacroDark.rgb, _MacroLight.rgb, _MacroStrength, rim, _RimColor, ink, inkColorForView, col);
 
                 // ---- lighting -------------------------------------------------------------
                 float3 lighting;
