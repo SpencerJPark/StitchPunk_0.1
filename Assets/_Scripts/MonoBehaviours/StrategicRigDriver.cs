@@ -19,7 +19,17 @@ public class StrategicRigDriver : MonoBehaviour
     public float ScatterDistanceMultiplier { get; private set; } = 1f;
     public float HudFade { get; private set; }
 
+    // Above the camera manager's active priority so the miniature view is live on foot as well as in the caravan.
+    private const int LivePriorityWhileZoomed = 500;
+    private const float SharpBandEndFraction = 1.05f;
+    private const float BlurFullFraction = 1.9f;
+    private const float GaussianBlurMaxRadius = 1.5f;
+
     private DepthOfField depthOfField;
+    private bool takenOver;
+    private PrioritySettings originalPriority;
+    private Transform originalCaravanFollow;
+    private Transform originalStrategicFollow;
 
     private void OnDisable()
     {
@@ -34,6 +44,7 @@ public class StrategicRigDriver : MonoBehaviour
     private void LateUpdate()
     {
         float mix = StrategicZoomState.Mix01;
+        UpdateTakeover(mix > 0.001f);
         ApplyMixingWeights(mix);
 
         if (focusTarget != null)
@@ -48,6 +59,52 @@ public class StrategicRigDriver : MonoBehaviour
         HudFade = zoomProfile.EvaluateHudFade(mix);
 
         ApplyDepthOfField(zoomProfile.EvaluateDofStrength(mix));
+    }
+
+    // While zoomed the whole rig follows the player's camera target (it sits on the caravan seat when driving), whichever camera the
+    // manager had live, and everything is put back when the view returns to normal.
+    private void UpdateTakeover(bool zoomed)
+    {
+        if (mixingCamera == null || caravanCamera == null || strategicCamera == null)
+            return;
+
+        if (zoomed && !takenOver)
+        {
+            takenOver = true;
+            originalPriority = mixingCamera.Priority;
+            originalCaravanFollow = caravanCamera.Follow;
+            originalStrategicFollow = strategicCamera.Follow;
+            PrioritySettings live = mixingCamera.Priority;
+            live.Enabled = true;
+            live.Value = LivePriorityWhileZoomed;
+            mixingCamera.Priority = live;
+
+            Transform playerTarget = ResolvePlayerFollowTarget();
+            if (playerTarget != null)
+            {
+                caravanCamera.Follow = playerTarget;
+                strategicCamera.Follow = playerTarget;
+                focusTarget = playerTarget;
+            }
+        }
+        else if (!zoomed && takenOver)
+        {
+            takenOver = false;
+            mixingCamera.Priority = originalPriority;
+            caravanCamera.Follow = originalCaravanFollow;
+            strategicCamera.Follow = originalStrategicFollow;
+        }
+    }
+
+    private static Transform ResolvePlayerFollowTarget()
+    {
+        CameraManager manager = CameraManager.Instance;
+        if (manager == null)
+            return null;
+        System.Reflection.FieldInfo playerCamField = typeof(CameraManager).GetField("playerCam",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        CinemachineVirtualCameraBase playerCamera = playerCamField != null ? playerCamField.GetValue(manager) as CinemachineVirtualCameraBase : null;
+        return playerCamera != null ? playerCamera.Follow : null;
     }
 
     private void ApplyMixingWeights(float mix)
@@ -85,13 +142,16 @@ public class StrategicRigDriver : MonoBehaviour
         depthOfFieldVolume.enabled = true;
         depthOfFieldVolume.weight = strength;
         depthOfField.active = true;
-        depthOfField.mode.Override(DepthOfFieldMode.Bokeh);
+        // Gaussian, not Bokeh: physical lens values give no visible blur at 700 m, and it is the Switch-affordable mode.
+        depthOfField.mode.Override(DepthOfFieldMode.Gaussian);
+        depthOfField.gaussianMaxRadius.Override(GaussianBlurMaxRadius);
 
         Camera activeCamera = Camera.main;
         if (activeCamera != null && focusTarget != null)
         {
-            float focusDistance = Vector3.Distance(activeCamera.transform.position, focusTarget.position);
-            depthOfField.focusDistance.Override(Mathf.Max(0.1f, focusDistance));
+            float focusDistance = Mathf.Max(1f, Vector3.Distance(activeCamera.transform.position, focusTarget.position));
+            depthOfField.gaussianStart.Override(focusDistance * SharpBandEndFraction);
+            depthOfField.gaussianEnd.Override(focusDistance * BlurFullFraction);
         }
     }
 

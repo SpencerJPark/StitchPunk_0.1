@@ -50,6 +50,8 @@ public static class TerrainTestWorldContent
         {
             ReportStep("Generating hills and the mountain", 0.05f);
             GenerateTerrain(layout);
+            ReportStep("Levelling the camp", 0.32f);
+            FlattenCampArea();
             ReportStep("Building roads", 0.35f);
             Transform roadsRoot = CreateRoadNetwork(layout, worldScene);
             ReportStep("Building the river", 0.4f);
@@ -95,6 +97,41 @@ public static class TerrainTestWorldContent
         region.mode = TerrainRegionMode.Procedural;
         region.profile = profile;
         TerrainGenerateTool.Generate(region, true, (progress, label) => ReportStep("Generating: " + label, 0.05f + progress * 0.25f));
+    }
+
+    // The player, caravan and camp start near the origin at ground level, so the generator's hills must fade to flat ground there.
+    // Weighting by world position keeps the shared edge samples of neighbouring tiles identical.
+    const float CampFlatRadiusMetres = 45f;
+    const float CampBlendEndMetres = 110f;
+    const float GeneratedLandLiftMetres = 15f;
+
+    static void FlattenCampArea()
+    {
+        foreach (TerrainTile tile in UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include))
+        {
+            TerrainTileData data = tile.tileData;
+            if (data == null || data.baseHeights == null) continue;
+            Vector2 minCorner = data.WorldMinCorner();
+            bool changed = false;
+            for (int sampleZ = 0; sampleZ < TerrainTileData.HeightSamplesPerSide; sampleZ++)
+            {
+                for (int sampleX = 0; sampleX < TerrainTileData.HeightSamplesPerSide; sampleX++)
+                {
+                    float worldX = minCorner.x + sampleX;
+                    float worldZ = minCorner.y + sampleZ;
+                    float distance = Mathf.Sqrt(worldX * worldX + worldZ * worldZ);
+                    float weight = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(CampFlatRadiusMetres, CampBlendEndMetres, distance));
+                    int sampleIndex = sampleZ * TerrainTileData.HeightSamplesPerSide + sampleX;
+                    // The generator's noise is signed and sits mostly below 0, which would read as sea everywhere: lift it so land is dry.
+                    data.baseHeights[sampleIndex] = (data.baseHeights[sampleIndex] + GeneratedLandLiftMetres) * weight;
+                    changed = true;
+                }
+            }
+            if (!changed) continue;
+            data.BumpRevision();
+            EditorUtility.SetDirty(data);
+            TerrainTileBuilder.Rebuild(tile);
+        }
     }
 
     static TerrainGenerationProfile CreateGenerationProfile(WorldLayout layout)

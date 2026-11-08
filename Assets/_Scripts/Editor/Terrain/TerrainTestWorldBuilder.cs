@@ -13,6 +13,10 @@ public static class TerrainTestWorldBuilder
     const string CampLoopScenePath = "Assets/Scenes/CampLoop.unity";
     const string TerrainWorldRootName = "TerrainWorld";
     const string TileObjectPrefix = "Tile_";
+    const string SharedSubSceneName = "CampLoop_Sub";
+    const string SharedSubScenePath = "Assets/Scenes/SubScenes/CampLoop_Sub.unity";
+    const string TestWorldSubSceneName = "TerrainWorld_Sub";
+    const string TestWorldSubScenePath = "Assets/Scenes/SubScenes/TerrainWorld_Sub.unity";
 
     [MenuItem("Stitch Punk/Terrain/Create Test World (7 x 7)")]
     static void CreateSevenBySevenFromMenu()
@@ -76,6 +80,8 @@ public static class TerrainTestWorldBuilder
                 afterTilesCreated(tilesPerSide);
             }
 
+            ForkSharedSubScene();
+            AddFastTravel();
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
             AssetDatabase.SaveAssets();
@@ -86,6 +92,81 @@ public static class TerrainTestWorldBuilder
             EditorUtility.ClearProgressBar();
         }
         return "Test world built: " + tilesCreated + " tiles under " + TestWorldTileFolder + ", scene " + TestWorldScenePath;
+    }
+
+    // Fast travel = the zoomed-out miniature view: bake the always-loaded strategic layer, build the camera blend rig (assigned to the
+    // caravan camera slot) and add the LOD driver that raises the world time scale.
+    public static void AddFastTravel()
+    {
+        EditorApplication.ExecuteMenuItem("Stitch Punk/Terrain/Bake Strategic Layer");
+        EditorApplication.ExecuteMenuItem("Stitch Punk/Terrain/Create Strategic Camera Rig");
+        GameObject rig = GameObject.Find("StrategicZoomRig");
+        if (rig == null)
+        {
+            Debug.LogWarning("[Terrain] Test world: the strategic camera rig was not created, fast travel is not wired.");
+            return;
+        }
+        StrategicLodDriver lodDriver = rig.GetComponent<StrategicLodDriver>();
+        if (lodDriver == null) lodDriver = rig.AddComponent<StrategicLodDriver>();
+        StrategicRigDriver rigDriver = rig.GetComponent<StrategicRigDriver>();
+        if (rigDriver == null) return;
+        SerializedProperty rigProfile = new SerializedObject(rigDriver).FindProperty("zoomProfile");
+        SerializedObject lodObject = new SerializedObject(lodDriver);
+        SerializedProperty lodProfile = lodObject.FindProperty("zoomProfile");
+        if (rigProfile == null || lodProfile == null) return;
+        lodProfile.objectReferenceValue = rigProfile.objectReferenceValue;
+        lodObject.ApplyModifiedProperties();
+    }
+
+    // The tile registry (TerrainWorldAuthoring.tiles) is serialized inside CampLoop_Sub, which CampLoop uses too: the test world gets its own copy
+    // of that sub-scene, so filling in 49 tiles never changes CampLoop's nine.
+    public static void ForkSharedSubScene()
+    {
+        SubScene subScene = null;
+        foreach (SubScene candidate in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
+        {
+            if (candidate.gameObject.name == SharedSubSceneName || candidate.gameObject.name == TestWorldSubSceneName) { subScene = candidate; break; }
+        }
+        if (subScene == null)
+        {
+            Debug.LogWarning("[Terrain] Test world: no '" + SharedSubSceneName + "' SubScene to fork; the tile registry was not updated.");
+            return;
+        }
+
+        if (subScene.gameObject.name == SharedSubSceneName)
+        {
+            AssetDatabase.DeleteAsset(TestWorldSubScenePath);
+            if (!AssetDatabase.CopyAsset(SharedSubScenePath, TestWorldSubScenePath))
+            {
+                Debug.LogError("[Terrain] Test world: could not copy " + SharedSubScenePath + " to " + TestWorldSubScenePath);
+                return;
+            }
+            SceneAsset copy = AssetDatabase.LoadAssetAtPath<SceneAsset>(TestWorldSubScenePath);
+            SerializedObject serializedSubScene = new SerializedObject(subScene);
+            SerializedProperty sceneAssetProperty = serializedSubScene.FindProperty("_SceneAsset");
+            if (sceneAssetProperty == null)
+            {
+                Debug.LogError("[Terrain] Test world: SubScene has no _SceneAsset property in this Entities version.");
+                return;
+            }
+            sceneAssetProperty.objectReferenceValue = copy;
+            serializedSubScene.ApplyModifiedProperties();
+            subScene.gameObject.name = TestWorldSubSceneName;
+        }
+
+        Unity.Scenes.Editor.SubSceneUtility.EditScene(subScene);
+        UnityEngine.SceneManagement.Scene editingScene = subScene.EditingScene;
+        if (!editingScene.IsValid() || !editingScene.isLoaded)
+        {
+            Debug.LogError("[Terrain] Test world: the forked sub-scene could not be opened for editing.");
+            return;
+        }
+        foreach (GameObject rootObject in editingScene.GetRootGameObjects())
+        {
+            TerrainWorldAuthoring world = rootObject.GetComponentInChildren<TerrainWorldAuthoring>(true);
+            if (world != null) TerrainWorldIndexBuilder.Refresh(world);
+        }
+        EditorSceneManager.SaveScene(editingScene);
     }
 
     // Only the scene's SubScene objects are removed; the tile scene assets of CampLoop stay on disk

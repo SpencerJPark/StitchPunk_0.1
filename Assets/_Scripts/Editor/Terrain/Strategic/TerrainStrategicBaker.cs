@@ -31,9 +31,22 @@ public static class TerrainStrategicBaker
         Debug.Log("[Terrain] Baked " + chunkCount + " strategic super-chunk(s).");
     }
 
-    public static int BakeAll(TerrainStrategicProfile profile, int maxTexturePixels)
+    // Two worlds (CampLoop and the test world) reuse the same tile coordinates, so scanning every asset in the project mixes them.
+    private static Dictionary<Vector2Int, TerrainTileData> CollectTilesOfOpenScene()
     {
         Dictionary<Vector2Int, TerrainTileData> tiles = new Dictionary<Vector2Int, TerrainTileData>();
+        foreach (TerrainTile tile in Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include))
+        {
+            if (tile.tileData != null)
+            {
+                tiles[tile.tileData.coordinate] = tile.tileData;
+            }
+        }
+        if (tiles.Count > 0)
+        {
+            return tiles;
+        }
+
         foreach (string guid in AssetDatabase.FindAssets("t:TerrainTileData"))
         {
             TerrainTileData tileData = AssetDatabase.LoadAssetAtPath<TerrainTileData>(AssetDatabase.GUIDToAssetPath(guid));
@@ -42,6 +55,12 @@ public static class TerrainStrategicBaker
                 tiles[tileData.coordinate] = tileData;
             }
         }
+        return tiles;
+    }
+
+    public static int BakeAll(TerrainStrategicProfile profile, int maxTexturePixels)
+    {
+        Dictionary<Vector2Int, TerrainTileData> tiles = CollectTilesOfOpenScene();
 
         HashSet<Vector2Int> superChunks = new HashSet<Vector2Int>();
         foreach (Vector2Int tileCoordinate in tiles.Keys)

@@ -14,8 +14,10 @@ public static class StrategicCameraRigBuilder
     private const string LookProfilePath = ProfileFolder + "/StrategicLook.asset";
     private const string DepthOfFieldProfilePath = ProfileFolder + "/StrategicDoF.asset";
     private const float StrategicPitchDegrees = 40f;
-    private const float StrategicFieldOfView = 25f;
-    private const float MinimumStrategicDistance = 60f;
+    private const float StrategicFieldOfView = 22f;
+    // The reference frame shows roughly 600 m of ground: a long lens far enough back that the strategic layer, not just the detail ring, fills the view.
+    private const float StrategicFarClipMetres = 4000f;
+    private const float MinimumStrategicDistance = 700f;
 
     [MenuItem("Stitch Punk/Terrain/Create Strategic Camera Rig")]
     public static void CreateStrategicCameraRig()
@@ -102,6 +104,7 @@ public static class StrategicCameraRigBuilder
         strategicCamera.LookAt = caravanCamera.LookAt;
         LensSettings lens = strategicCamera.Lens;
         lens.FieldOfView = StrategicFieldOfView;
+        lens.FarClipPlane = StrategicFarClipMetres;
         strategicCamera.Lens = lens;
 
         float distance = MinimumStrategicDistance;
