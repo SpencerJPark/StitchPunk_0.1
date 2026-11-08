@@ -3,7 +3,9 @@ using UnityEngine;
 
 public class StrategicLodDriver : MonoBehaviour
 {
-    private const float MixFallingEpsilon = 0.0001f;
+    // The target already follows the eased zoom, so this only rounds off kinks; a real-time lock (cutscene) eases in more gently.
+    private const float FollowSmoothingPerSecond = 6f;
+    private const float LockedSmoothingPerSecond = 3f;
 
     public static bool ForceRealTime;
     public static float CurrentHudFade { get; private set; } = 1f;
@@ -16,7 +18,6 @@ public class StrategicLodDriver : MonoBehaviour
 
     private World cachedWorld;
     private EntityQuery worldTimeScaleQuery;
-    private float previousMix01;
     private bool ownsUnityTimeScale;
 
     public static void PushRealTimeLock()
@@ -29,14 +30,15 @@ public class StrategicLodDriver : MonoBehaviour
         realTimeLockCount = Mathf.Max(0, realTimeLockCount - 1);
     }
 
-    // Cutscenes and dialogue need 1x, and the pull back toward the ground must not run fast either.
-    public static float ResolveTimeScaleTarget(float profileTarget, float manualOverride, bool realTimeLocked, bool mixFalling)
+    // Cutscenes and dialogue need 1x. Otherwise the speed is a pure function of the zoom amount, so it rises and falls exactly as
+    // smoothly as the camera does (no snap to 1x when zooming back in).
+    public static float ResolveTimeScaleTarget(float profileTarget, float manualOverride, bool realTimeLocked)
     {
         if (manualOverride > 0f)
         {
             return manualOverride;
         }
-        if (realTimeLocked || mixFalling)
+        if (realTimeLocked)
         {
             return 1f;
         }
@@ -54,8 +56,6 @@ public class StrategicLodDriver : MonoBehaviour
     private void Update()
     {
         float mix01 = StrategicZoomState.Mix01;
-        bool mixFalling = mix01 < previousMix01 - MixFallingEpsilon;
-        previousMix01 = mix01;
 
         CurrentHudFade = zoomProfile.EvaluateHudFade(mix01);
         CurrentScatterDistanceMultiplier = zoomProfile.EvaluateScatterDistanceMultiplier(mix01);
@@ -77,7 +77,8 @@ public class StrategicLodDriver : MonoBehaviour
 
         bool realTimeLocked = ForceRealTime || realTimeLockCount > 0;
         WorldTimeScale worldTimeScale = worldTimeScaleQuery.GetSingleton<WorldTimeScale>();
-        worldTimeScale.target = ResolveTimeScaleTarget(zoomProfile.EvaluateTimeScaleTarget(mix01), manualTimeScaleOverride, realTimeLocked, mixFalling);
+        worldTimeScale.target = ResolveTimeScaleTarget(zoomProfile.EvaluateTimeScaleTarget(mix01), manualTimeScaleOverride, realTimeLocked);
+        worldTimeScale.smoothingPerSecond = realTimeLocked ? LockedSmoothingPerSecond : FollowSmoothingPerSecond;
         worldTimeScaleQuery.SetSingleton(worldTimeScale);
         MirrorIntoUnityTimeScale(worldTimeScale.current);
     }

@@ -17,10 +17,9 @@ namespace StitchPunk.Tests
         [Test]
         public void ResolveTimeScaleTarget_PrefersOverrideThenRealTimeThenProfile()
         {
-            Assert.AreEqual(2f, StrategicLodDriver.ResolveTimeScaleTarget(3f, 2f, true, true), Tolerance);
-            Assert.AreEqual(1f, StrategicLodDriver.ResolveTimeScaleTarget(3f, 0f, true, false), Tolerance);
-            Assert.AreEqual(1f, StrategicLodDriver.ResolveTimeScaleTarget(3f, 0f, false, true), Tolerance);
-            Assert.AreEqual(3f, StrategicLodDriver.ResolveTimeScaleTarget(3f, 0f, false, false), Tolerance);
+            Assert.AreEqual(2f, StrategicLodDriver.ResolveTimeScaleTarget(3f, 2f, true), Tolerance);
+            Assert.AreEqual(1f, StrategicLodDriver.ResolveTimeScaleTarget(3f, 0f, true), Tolerance);
+            Assert.AreEqual(3f, StrategicLodDriver.ResolveTimeScaleTarget(3f, 0f, false), Tolerance);
         }
 
         [Test]

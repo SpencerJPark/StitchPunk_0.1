@@ -10,6 +10,7 @@ public static class TerrainStrategicBuilder
     private const float ShadowMarchStepMetres = 8f;
     private const int ShadowMarchStepCount = 6;
     private const float DeepWaterDepthMetres = 4f;
+    private const float SeaLevelToleranceMetres = 0.25f;
     private const float RoadAlphaThreshold = 0.5f;
     private const float ChannelThreshold = 0.5f;
     private const float FieldPatchSizeMetres = 40f;
@@ -357,7 +358,8 @@ public static class TerrainStrategicBuilder
             input.roadCoverage = 1f;
         }
 
-        float waterDepth = height < 0f ? -height : 0f;
+        // Ground sits GroundTopHeight (-0.03) under zero when flat, so only clearly sunken ground counts as water; a flat camp read as a lake.
+        float waterDepth = height < -SeaLevelToleranceMetres ? -height : 0f;
         Color surfaceSample;
         if (TryReadMask(tile.surfaceOverlay, coordinateU, coordinateV, out surfaceSample))
         {
@@ -412,7 +414,14 @@ public static class TerrainStrategicBuilder
         return texture;
     }
 
-    // No strategicColour field exists on the palette yet, so the layer tint is used; a white (unset) tint falls back to a muted default.
+    // Measured 2026-11-07 from a capture of a strategic tile next to real ground (111,107,16 against 97,83,22): the unlit strategic
+    // shader reads greener and brighter than the lit painted ground, so the layer averages are pulled toward it.
+    private static readonly Color GroundMatchTint = new Color(0.87f, 0.78f, 1.35f, 1f);
+
+    private static readonly string[] GroundLayerTextureProperties = { "_BaseTex", "_LayerRTex", "_LayerGTex", "_LayerBTex" };
+
+    // The strategic layer has to read like the real ground it stands in for, so each layer colour is the average of the texture the
+    // tile ground material actually uses (dirt, grass, forest, stone). Any layer without a texture keeps a muted default.
     public static Color[] LoadLayerColoursFromProject()
     {
         Color[] fallback =
@@ -422,23 +431,50 @@ public static class TerrainStrategicBuilder
             new Color(0.12f, 0.26f, 0.12f, 1f),
             new Color(0.5f, 0.5f, 0.5f, 1f),
         };
-        string[] guids = AssetDatabase.FindAssets("t:TerrainPalette");
-        if (guids.Length == 0)
-        {
-            return fallback;
-        }
-        TerrainPalette palette = AssetDatabase.LoadAssetAtPath<TerrainPalette>(AssetDatabase.GUIDToAssetPath(guids[0]));
-        if (palette == null)
+
+        Material groundMaterial = FindTileGroundMaterial();
+        if (groundMaterial == null)
         {
             return fallback;
         }
         Color[] colours = new Color[4];
         for (int layerIndex = 0; layerIndex < colours.Length; layerIndex++)
         {
-            Color tint = palette.GetLayer(layerIndex).tint;
-            colours[layerIndex] = tint == Color.white ? fallback[layerIndex] : tint;
+            Texture2D layerTexture = groundMaterial.GetTexture(GroundLayerTextureProperties[layerIndex]) as Texture2D;
+            colours[layerIndex] = layerTexture != null ? AverageColour(layerTexture) * GroundMatchTint : fallback[layerIndex];
         }
         return colours;
+    }
+
+    private static Material FindTileGroundMaterial()
+    {
+        foreach (string guid in AssetDatabase.FindAssets("t:Material M_Ground_Tile"))
+        {
+            Material candidate = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
+            if (candidate != null && candidate.HasProperty(GroundLayerTextureProperties[0]) && candidate.GetTexture(GroundLayerTextureProperties[0]) != null)
+            {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static Color AverageColour(Texture2D texture)
+    {
+        Color[] pixels = GetReadableMask(texture).GetPixels();
+        int stride = Mathf.Max(1, pixels.Length / 4096);
+        float red = 0f;
+        float green = 0f;
+        float blue = 0f;
+        int counted = 0;
+        for (int pixelIndex = 0; pixelIndex < pixels.Length; pixelIndex += stride)
+        {
+            red += pixels[pixelIndex].r;
+            green += pixels[pixelIndex].g;
+            blue += pixels[pixelIndex].b;
+            counted++;
+        }
+        return new Color(red / counted, green / counted, blue / counted, 1f);
     }
 }
 #endif
