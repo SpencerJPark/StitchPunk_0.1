@@ -10,6 +10,7 @@ using UnityEngine.SceneManagement;
 public static class TerrainStrategicBaker
 {
     private const int MaximumCapturePixels = 2048;
+    private const int MaximumSplatPixels = 2048;
     private const string StrategicFolder = "Assets/Terrain/Strategic";
     private const string ProfileFolder = "Assets/Terrain/Profiles";
     private const string ProfilePath = ProfileFolder + "/TerrainStrategicProfile.asset";
@@ -59,9 +60,12 @@ public static class TerrainStrategicBaker
         return tiles;
     }
 
+    private static Dictionary<Vector2Int, TerrainTile> tilesInOpenScene;
+
     public static int BakeAll(TerrainStrategicProfile profile, int maxTexturePixels)
     {
         Dictionary<Vector2Int, TerrainTileData> tiles = CollectTilesOfOpenScene();
+        tilesInOpenScene = TerrainStrategicGroundProxy.CollectTilesOfOpenScene();
 
         HashSet<Vector2Int> superChunks = new HashSet<Vector2Int>();
         foreach (Vector2Int tileCoordinate in tiles.Keys)
@@ -121,23 +125,22 @@ public static class TerrainStrategicBaker
             return 0;
         }
 
-        // The real ground, rendered from above, replaces the mask-built colours so the fallback looks like the tiles it stands in for.
         float chunkSizeMetres = profile.superChunkTiles * TerrainTileData.TileSizeMetres;
-        int capturePixels = Mathf.Min(maxTexturePixels, MaximumCapturePixels);
-        Color missingTileColour = TerrainStrategicBuilder.LoadLayerColoursFromProject()[0];
-        Texture2D capturedTexture = TerrainStrategicTopDownCapture.TryCapture(
-            TerrainStrategicBuilder.SuperChunkWorldMin(profile, superChunk), chunkSizeMetres, capturePixels, missingTileColour);
-        if (capturedTexture != null)
+        Vector2 chunkMinMetres = TerrainStrategicBuilder.SuperChunkWorldMin(profile, superChunk);
+        Material groundTemplate = TerrainStrategicGroundProxy.FindTemplateGroundMaterial(tilesInOpenScene, chunkMinMetres + Vector2.one * (chunkSizeMetres * 0.5f));
+        bool drawWithGroundMaterial = groundTemplate != null;
+        if (drawWithGroundMaterial)
         {
-            TerrainStrategicTopDownCapture.MatchBrightness(capturedTexture, builtTexture, missingTileColour);
+            // Same material as the real tiles, so zoomed out is exactly zoomed in; only the splat map is stitched per chunk.
             Object.DestroyImmediate(builtTexture);
-            builtTexture = capturedTexture;
+            builtTexture = TerrainStrategicGroundProxy.BuildSplatComposite(tilesInOpenScene, chunkMinMetres, chunkSizeMetres, Mathf.Min(maxTexturePixels, MaximumSplatPixels));
+            EditorUtility.CompressTexture(builtTexture, TextureFormat.BC7, TextureCompressionQuality.Normal);
+            Debug.Log("[Terrain] Strategic chunk " + superChunk + ": drawn with the real ground material '" + groundTemplate.name + "', splat " + builtTexture.width + " px.");
         }
-
-        Debug.Log("[Terrain] Strategic chunk " + superChunk + ": ground capture " + (capturedTexture != null ? "used" : "NOT used") + ", colour texture " + builtTexture.width + " px.");
-
-        // Dimensions must be multiples of four for block compression; the builder emits power-of-two sizes.
-        EditorUtility.CompressTexture(builtTexture, TextureFormat.DXT1, TextureCompressionQuality.Normal);
+        else
+        {
+            builtTexture = BuildFlatColourFallback(builtTexture, profile, superChunk, chunkSizeMetres, maxTexturePixels);
+        }
 
         string dataPath = DataPath(superChunk);
         chunkData = AssetDatabase.LoadAssetAtPath<TerrainStrategicChunkData>(dataPath);
@@ -159,18 +162,27 @@ public static class TerrainStrategicBaker
 
         persistedMesh = PersistSubAsset(builtMesh, persistedMesh, MeshSubAssetName, chunkData);
         persistedTexture = PersistSubAsset(builtTexture, persistedTexture, ColourSubAssetName, chunkData);
+        Material materialSource = drawWithGroundMaterial ? groundTemplate : sharedMaterial;
         if (persistedMaterial == null)
         {
-            persistedMaterial = new Material(sharedMaterial);
+            persistedMaterial = new Material(materialSource);
             persistedMaterial.name = MaterialSubAssetName;
             AssetDatabase.AddObjectToAsset(persistedMaterial, chunkData);
         }
         else
         {
-            persistedMaterial.shader = sharedMaterial.shader;
-            persistedMaterial.CopyPropertiesFromMaterial(sharedMaterial);
+            persistedMaterial.shader = materialSource.shader;
+            persistedMaterial.CopyPropertiesFromMaterial(materialSource);
         }
-        persistedMaterial.SetTexture(ColourTextureProperty, persistedTexture);
+        persistedMaterial.shaderKeywords = materialSource.shaderKeywords;
+        if (drawWithGroundMaterial)
+        {
+            TerrainStrategicGroundProxy.ConfigureStandInMaterial(persistedMaterial, persistedTexture, chunkMinMetres, chunkSizeMetres);
+        }
+        else
+        {
+            persistedMaterial.SetTexture(ColourTextureProperty, persistedTexture);
+        }
 
         chunkData.superChunkCoordinate = superChunk;
         chunkData.worldMin = TerrainStrategicBuilder.SuperChunkWorldMin(profile, superChunk);
@@ -180,6 +192,23 @@ public static class TerrainStrategicBaker
         EditorUtility.SetDirty(chunkData);
         AssetDatabase.SaveAssetIfDirty(chunkData);
         return UnityEngine.Profiling.Profiler.GetRuntimeMemorySizeLong(persistedTexture);
+    }
+
+    // Only when no tile in the open scene uses Painted/Ground: the old top-down capture, so a chunk still gets some colour.
+    private static Texture2D BuildFlatColourFallback(Texture2D builtTexture, TerrainStrategicProfile profile, Vector2Int superChunk, float chunkSizeMetres, int maxTexturePixels)
+    {
+        int capturePixels = Mathf.Min(maxTexturePixels, MaximumCapturePixels);
+        Color missingTileColour = TerrainStrategicBuilder.LoadLayerColoursFromProject()[0];
+        Texture2D capturedTexture = TerrainStrategicTopDownCapture.TryCapture(
+            TerrainStrategicBuilder.SuperChunkWorldMin(profile, superChunk), chunkSizeMetres, capturePixels, missingTileColour);
+        if (capturedTexture != null)
+        {
+            TerrainStrategicTopDownCapture.MatchBrightness(capturedTexture, builtTexture, missingTileColour);
+            Object.DestroyImmediate(builtTexture);
+            builtTexture = capturedTexture;
+        }
+        EditorUtility.CompressTexture(builtTexture, TextureFormat.DXT1, TextureCompressionQuality.Normal);
+        return builtTexture;
     }
 
     private static TAsset PersistSubAsset<TAsset>(TAsset built, TAsset existing, string subAssetName, Object owner) where TAsset : Object

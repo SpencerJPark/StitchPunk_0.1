@@ -78,6 +78,10 @@ Shader "Painted/Ground"
         _CliffStart ("Cliff fully on below normal.y", Range(0, 1)) = 0.45
         _CliffEnd   ("Cliff fully off above normal.y", Range(0, 1)) = 0.70
 
+        [Header(Far view)]
+        // 1 on the coarse mesh that stands in for unloaded tiles when zoomed out: same material, so it looks exactly like the real ground.
+        [Toggle] _StrategicProxy ("Far-view stand-in for the real tiles", Float) = 0
+
         [Header(Lighting)]
         _AmbientTint     ("Ambient tint", Color) = (1, 1, 1, 1)
         _ShadowStrength  ("Main light shadow strength", Range(0, 1)) = 0.6
@@ -99,17 +103,6 @@ Shader "Painted/Ground"
 
         // Global, set by StrategicRigDriver; deliberately outside the material CBUFFER.
         float _StrategicLayerFade;
-
-        // Zoomed out, the baked strategic layer replaces this ground completely, so streaming tiles never swap look as the camera moves.
-        // Same noise and same handover speed as Painted/Strategic, which keeps only the pixels this one discards.
-        static const float StrategicHandoverSpeed = 1.6;
-
-        void StrategicHandoverClip(float4 positionCS)
-        {
-            float2 pixel = floor(positionCS.xy);
-            float noise = frac(52.9829189 * frac(dot(pixel, float2(0.06711056, 0.00583715))));
-            clip(noise - saturate(_StrategicLayerFade * StrategicHandoverSpeed) + 0.0001);
-        }
 
         // One CBUFFER shared by every pass keeps the shader SRP Batcher compatible.
         CBUFFER_START(UnityPerMaterial)
@@ -136,7 +129,28 @@ Shader "Painted/Ground"
             half   _ShadowStrength;
             half   _NdotLInfluence;
             half   _PointLightBoost;
+            float  _StrategicProxy;
         CBUFFER_END
+
+        // Zoomed out, the far-view stand-in (same material on a coarse mesh) replaces the real tiles completely, so streaming never swaps the look.
+        // Same noise on both, so the stand-in keeps exactly the pixels the real ground discards.
+        static const float StrategicHandoverSpeed = 1.6;
+        static const float StrategicProxyDepthPushFraction = 0.0025;
+
+        void StrategicHandoverClip(float4 positionCS)
+        {
+            float2 pixel = floor(positionCS.xy);
+            float noise = frac(52.9829189 * frac(dot(pixel, float2(0.06711056, 0.00583715))));
+            float standInVisibility = saturate(_StrategicLayerFade * StrategicHandoverSpeed);
+            clip(_StrategicProxy > 0.5 ? standInVisibility - noise - 0.0001 : noise - standInVisibility + 0.0001);
+        }
+
+        // The coarse stand-in pokes through the 1 m real ground on bumps; sliding each vertex away from the camera along its view ray keeps
+        // it where it is on screen but puts it behind the real ground.
+        float3 StrategicProxyPushAway(float3 positionWS)
+        {
+            return _StrategicProxy > 0.5 ? positionWS + (positionWS - _WorldSpaceCameraPos) * StrategicProxyDepthPushFraction : positionWS;
+        }
 
         // Entities Graphics / BatchRendererGroup: the shader must declare at least one DOTS
         // instanced property. The ground has no per-instance overrides, so this just
@@ -214,7 +228,7 @@ Shader "Painted/Ground"
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 
-                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                OUT.positionWS = StrategicProxyPushAway(TransformObjectToWorld(IN.positionOS.xyz));
                 OUT.positionCS = TransformWorldToHClip(OUT.positionWS);
                 OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.color      = IN.color;
@@ -405,7 +419,7 @@ Shader "Painted/Ground"
                 Varyings OUT = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.positionCS = TransformWorldToHClip(StrategicProxyPushAway(TransformObjectToWorld(IN.positionOS.xyz)));
                 return OUT;
             }
 
@@ -450,7 +464,7 @@ Shader "Painted/Ground"
                 Varyings OUT = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                OUT.positionCS = TransformWorldToHClip(StrategicProxyPushAway(TransformObjectToWorld(IN.positionOS.xyz)));
                 OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
                 return OUT;
             }
