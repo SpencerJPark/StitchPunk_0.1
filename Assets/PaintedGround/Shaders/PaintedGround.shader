@@ -152,6 +152,15 @@ Shader "Painted/Ground"
             return _StrategicProxy > 0.5 ? positionWS + (positionWS - _WorldSpaceCameraPos) * StrategicProxyDepthPushFraction : positionWS;
         }
 
+        // The 4 m stand-in mesh sags below the 1 m real ground on bumps and would read the real ground's own shadow; lifting the
+        // shadow lookup clear of it keeps the stand-in lit like the ground it replaces.
+        static const float StrategicProxyShadowLiftMetres = 0.5;
+
+        float3 StrategicProxyShadingPosition(float3 positionWS, float3 normalWS)
+        {
+            return _StrategicProxy > 0.5 ? positionWS + normalWS * StrategicProxyShadowLiftMetres : positionWS;
+        }
+
         // Entities Graphics / BatchRendererGroup: the shader must declare at least one DOTS
         // instanced property. The ground has no per-instance overrides, so this just
         // mirrors one material value and keeps the DOTS_INSTANCING_ON variant valid.
@@ -228,8 +237,10 @@ Shader "Painted/Ground"
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
 
-                OUT.positionWS = StrategicProxyPushAway(TransformObjectToWorld(IN.positionOS.xyz));
-                OUT.positionCS = TransformWorldToHClip(OUT.positionWS);
+                // Only the depth is pushed: texturing and lighting at the pushed spot shifted the paint and put the stand-in under the
+                // real ground's shadow, so mid-zoom the two layers did not match.
+                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                OUT.positionCS = TransformWorldToHClip(StrategicProxyPushAway(OUT.positionWS));
                 OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.color      = IN.color;
                 OUT.fogFactor  = ComputeFogFactor(OUT.positionCS.z);
@@ -305,14 +316,13 @@ Shader "Painted/Ground"
             #endif
 
                 // ---- macro variation, rim, ink --------------------------------------------
-                // Ink lines are drawn for ground-level viewing; in the zoomed-out miniature they read as thick black borders, so they fade out.
+                // Ink stays at full strength zoomed out too: fading it made the painted marks vanish when zooming.
                 half4 inkColorForView = _InkColor;
-                inkColorForView.a *= 1.0 - 0.95 * saturate(_StrategicLayerFade);
                 PaintedFinish_float(col, macroNoise, _MacroDark.rgb, _MacroLight.rgb, _MacroStrength, rim, _RimColor, ink, inkColorForView, col);
 
                 // ---- lighting -------------------------------------------------------------
                 float3 lighting;
-                PaintedLighting_float(posWS, n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
+                PaintedLighting_float(StrategicProxyShadingPosition(posWS, n), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
                                       _ShadowStrength, _NdotLInfluence, _PointLightBoost, lighting);
 
                 col *= lighting;

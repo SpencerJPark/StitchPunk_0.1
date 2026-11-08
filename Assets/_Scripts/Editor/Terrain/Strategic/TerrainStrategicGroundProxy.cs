@@ -11,6 +11,7 @@ public static class TerrainStrategicGroundProxy
     private const string SplatMapProperty = "_SplatMap";
     private const string SplatBoundsProperty = "_SplatBounds";
     private const string StrategicProxyProperty = "_StrategicProxy";
+    private static readonly Rect FlippedSourceRect = new Rect(0f, 1f, 1f, -1f);
 
     public static Dictionary<Vector2Int, TerrainTile> CollectTilesOfOpenScene()
     {
@@ -98,7 +99,9 @@ public static class TerrainStrategicGroundProxy
             {
                 continue;
             }
-            Graphics.DrawTexture(pixelRect, splat);
+            // DrawTexture under a pixel matrix lands each tile upside down in its slot (mirrored north-south, so zoomed out showed
+            // different turf shapes than the real tiles); the flipped source rect cancels that.
+            Graphics.DrawTexture(pixelRect, splat, FlippedSourceRect, 0, 0, 0, 0);
         }
         GL.PopMatrix();
 

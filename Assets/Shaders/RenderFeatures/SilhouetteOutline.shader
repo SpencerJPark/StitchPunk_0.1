@@ -46,6 +46,8 @@ Shader "Hidden/SilhouetteOutline"
             float _OuterGlowOpacity;
             float _DebugSilhouette;
             float4 _SilhouetteTexture_TexelSize;
+            // Global from StrategicRigDriver: 0 = full outline, 1 = gone (zoomed out). Fading instead of toggling the feature avoids a pop.
+            float _ZoomOutlineSuppression;
 
             float SampleAlpha(float2 uv)
             {
@@ -160,7 +162,7 @@ Shader "Hidden/SilhouetteOutline"
                 glow *= _OuterGlowOpacity;
 
                 float finalEdge = saturate(hardLine + glow);
-                return lerp(sceneColor, _OutlineColor, finalEdge * _OutlineColor.a);
+                return lerp(sceneColor, _OutlineColor, finalEdge * _OutlineColor.a * (1.0 - _ZoomOutlineSuppression));
             }
             ENDHLSL
         }

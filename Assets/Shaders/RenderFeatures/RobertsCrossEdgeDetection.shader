@@ -43,6 +43,9 @@ Shader "Custom/RobertsCrossOutline"
                 float _DepthThreshold;
                 float _NormalThreshold;
             CBUFFER_END
+
+            // Global from StrategicRigDriver: 0 = full outline, 1 = gone (zoomed out). Fading instead of toggling the feature avoids a pop.
+            float _ZoomOutlineSuppression;
             
             // Roberts Cross kernels
             // Kernel X:  | 1  0 |    Kernel Y:  | 0  1 |
@@ -139,7 +142,7 @@ Shader "Custom/RobertsCrossOutline"
                 edge *= max(mask, maskNeighbor);
                 
                 // Blend outline color with scene
-                float4 finalColor = lerp(sceneColor, _OutlineColor, edge * _OutlineColor.a);
+                float4 finalColor = lerp(sceneColor, _OutlineColor, edge * _OutlineColor.a * (1.0 - _ZoomOutlineSuppression));
                 
                 return finalColor;
             }

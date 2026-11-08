@@ -14,6 +14,7 @@ public class StrategicRigDriver : MonoBehaviour
     private static readonly int TiltShiftBandHalfHeightId = Shader.PropertyToID("_TiltShiftBandHalfHeight");
     private static readonly int TiltShiftFalloffId = Shader.PropertyToID("_TiltShiftFalloff");
     private static readonly int TiltShiftMaxPixelsId = Shader.PropertyToID("_TiltShiftMaxPixels");
+    private static readonly int ZoomOutlineSuppressionId = Shader.PropertyToID("_ZoomOutlineSuppression");
 
     [SerializeField] private CinemachineMixingCamera mixingCamera;
     [SerializeField] private CinemachineCamera caravanCamera;
@@ -47,7 +48,9 @@ public class StrategicRigDriver : MonoBehaviour
         ScatterDistanceMultiplier = 1f;
         HudFade = 0f;
         Shader.SetGlobalFloat(TiltShiftStrengthId, 0f);
-        SetRendererFeaturesForZoom(false);
+        Shader.SetGlobalFloat(ZoomOutlineSuppressionId, 0f);
+        SetTiltShiftActive(false);
+        SetOutlinesActive(true);
         if (depthOfFieldVolume != null)
             depthOfFieldVolume.enabled = false;
     }
@@ -70,6 +73,7 @@ public class StrategicRigDriver : MonoBehaviour
         HudFade = zoomProfile.EvaluateHudFade(mix);
 
         ApplyDepthOfField(zoomProfile.EvaluateDofStrength(mix));
+        ApplyOutlineFade(mix, zoomProfile.dofStartMix01);
         StrategicSizeScales sizeScales = new StrategicSizeScales();
         zoomProfile.EvaluateSizeScales(mix, out sizeScales.wandererScale, out sizeScales.hordeScale, out sizeScales.vehicleScale,
             out sizeScales.landmarkScale, out sizeScales.playerScale);
@@ -179,7 +183,7 @@ public class StrategicRigDriver : MonoBehaviour
             depthOfFieldVolume.enabled = false;
 
         Shader.SetGlobalFloat(TiltShiftStrengthId, strength);
-        SetRendererFeaturesForZoom(strength > 0f);
+        SetTiltShiftActive(strength > 0f);
         if (strength <= 0f)
             return;
 
@@ -193,17 +197,30 @@ public class StrategicRigDriver : MonoBehaviour
         Shader.SetGlobalFloat(TiltShiftMaxPixelsId, TiltShiftMaxPixels);
     }
 
-    // Renderer features are shared assets, so the on/off state is restored whenever the zoom ends or this component is disabled.
-    private void SetRendererFeaturesForZoom(bool zoomed)
+    // Outlines fade out over the first part of the zoom (switching them off in one frame flashed black lines across the hills);
+    // the passes are only switched off once fully faded, so zoomed out still saves their cost.
+    private void ApplyOutlineFade(float mix, float fullyFadedAtMix)
     {
-        if (tiltShiftFeature != null && tiltShiftFeature.isActive != zoomed)
-            tiltShiftFeature.SetActive(zoomed);
+        float suppression = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(mix / Mathf.Max(fullyFadedAtMix, 0.01f)));
+        Shader.SetGlobalFloat(ZoomOutlineSuppressionId, suppression);
+        SetOutlinesActive(suppression < 1f);
+    }
+
+    // Renderer features are shared assets, so the on/off state is restored whenever the zoom ends or this component is disabled.
+    private void SetTiltShiftActive(bool active)
+    {
+        if (tiltShiftFeature != null && tiltShiftFeature.isActive != active)
+            tiltShiftFeature.SetActive(active);
+    }
+
+    private void SetOutlinesActive(bool active)
+    {
         if (outlineFeaturesOffWhileZoomed == null)
             return;
         foreach (ScriptableRendererFeature outlineFeature in outlineFeaturesOffWhileZoomed)
         {
-            if (outlineFeature != null && outlineFeature.isActive == zoomed)
-                outlineFeature.SetActive(!zoomed);
+            if (outlineFeature != null && outlineFeature.isActive != active)
+                outlineFeature.SetActive(active);
         }
     }
 }
