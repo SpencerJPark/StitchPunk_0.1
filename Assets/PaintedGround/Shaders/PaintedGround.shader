@@ -100,6 +100,17 @@ Shader "Painted/Ground"
         // Global, set by StrategicRigDriver; deliberately outside the material CBUFFER.
         float _StrategicLayerFade;
 
+        // Zoomed out, the baked strategic layer replaces this ground completely, so streaming tiles never swap look as the camera moves.
+        // Same noise and same handover speed as Painted/Strategic, which keeps only the pixels this one discards.
+        static const float StrategicHandoverSpeed = 1.6;
+
+        void StrategicHandoverClip(float4 positionCS)
+        {
+            float2 pixel = floor(positionCS.xy);
+            float noise = frac(52.9829189 * frac(dot(pixel, float2(0.06711056, 0.00583715))));
+            clip(noise - saturate(_StrategicLayerFade * StrategicHandoverSpeed) + 0.0001);
+        }
+
         // One CBUFFER shared by every pass keeps the shader SRP Batcher compatible.
         CBUFFER_START(UnityPerMaterial)
             float4 _TileSizes;
@@ -229,6 +240,7 @@ Shader "Painted/Ground"
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
+                StrategicHandoverClip(IN.positionCS);
 
                 float3 posWS = IN.positionWS;
                 float2 wxz   = posWS.xz;
@@ -399,6 +411,7 @@ Shader "Painted/Ground"
 
             half frag(Varyings IN) : SV_Target
             {
+                StrategicHandoverClip(IN.positionCS);
                 return IN.positionCS.z;
             }
             ENDHLSL
@@ -444,6 +457,7 @@ Shader "Painted/Ground"
 
             half4 frag(Varyings IN) : SV_Target
             {
+                StrategicHandoverClip(IN.positionCS);
                 return half4(normalize(IN.normalWS), 0);
             }
             ENDHLSL

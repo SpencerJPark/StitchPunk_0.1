@@ -7,6 +7,9 @@ Shader "Painted/Strategic"
         [NoScaleOffset] _ColourTex ("Baked colour", 2D) = "white" {}
         _Tint ("Tint", Color) = (1, 1, 1, 1)
         _ShadeStrength ("Light colour influence", Range(0, 1)) = 0.5
+        // The baked texture has no fringes, ink or macro noise, so its tones sit closer together than the real ground's; measured ~1.4x in Play.
+        _Contrast ("Contrast about the pivot", Range(1, 2)) = 1.4
+        _ContrastPivot ("Contrast pivot (lit ground mean)", Color) = (0.215, 0.19, 0.108, 1)
         _FadeStartMetres ("Distance fade start (m from focus)", Float) = 0
         _FadeEndMetres ("Distance fade end (m from focus), 0 = off", Float) = 0
     }
@@ -28,6 +31,8 @@ Shader "Painted/Strategic"
             float _FadeStartMetres;
             float _FadeEndMetres;
             half  _ShadeStrength;
+            half  _Contrast;
+            half4 _ContrastPivot;
         CBUFFER_END
 
         // Globals stay outside the CBUFFER so a script can drive them for every material at once.
@@ -61,7 +66,8 @@ Shader "Painted/Strategic"
                 // Hidden under the detail ring, fully shown beyond it; the old direction hid it exactly where the real tiles unload.
                 distanceFactor = saturate((focusDistance - _FadeStartMetres) / max(_FadeEndMetres - _FadeStartMetres, 0.001));
             }
-            return saturate(_StrategicLayerFade) * distanceFactor;
+            // Must match StrategicHandoverSpeed in Painted/Ground, which discards exactly the pixels this one keeps.
+            return saturate(_StrategicLayerFade * 1.6) * distanceFactor;
         }
 
         void StrategicDitherClip(float4 positionCS, float visibility)
@@ -130,6 +136,7 @@ Shader "Painted/Strategic"
                 half3 lightColour = min(GetMainLight().color, half3(1, 1, 1));
                 half3 ambientTint = lerp(half3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
                 half3 colour = albedo * lerp(half3(1, 1, 1), lightColour, _ShadeStrength) * ambientTint;
+                colour = max(_ContrastPivot.rgb + (colour - _ContrastPivot.rgb) * _Contrast, 0);
                 return half4(colour, 1);
             }
             ENDHLSL

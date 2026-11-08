@@ -1,4 +1,4 @@
-// Zoomed-out miniature look: a screen-Y band stays sharp, everything above and below blurs, plus a warm, saturated lift.
+// Zoomed-out miniature look: a screen-Y band stays sharp, everything above and below blurs. Colours are left untouched.
 // A FullScreenPassRendererFeature runs it only while StrategicRigDriver has switched the feature on; the driver writes the globals.
 Shader "Painted/StrategicTiltShift"
 {
@@ -54,11 +54,7 @@ Shader "Painted/StrategicTiltShift"
                     colour = accumulated / (TILT_SHIFT_TAPS + 1);
                 }
 
-                half grey = Luminance(colour);
-                colour = lerp(grey.xxx, colour, 1.0 + 0.45 * _TiltShiftStrength);
-                // Gamma lift first so the dark ground opens up without blowing out the already bright props.
-                colour = pow(max(colour, 0.0001h), lerp(1.0h, 0.78h, _TiltShiftStrength));
-                colour *= lerp(half3(1, 1, 1), half3(1.35h, 1.25h, 1.0h), _TiltShiftStrength);
+                // Blur only: any grade here would recolour the whole world when zooming out.
                 return half4(colour, 1);
             }
             ENDHLSL
