@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67ceabcae69c0634693d1abb764fa13a, type: 3}
+  m_Name: TerrainStrategicProfile
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainStrategicProfile
+  superChunkTiles: 10
+  coarseCellMetres: 4
+  colourTexelMetres: 1
+  fadeStartMetres: 160
+  fadeEndMetres: 260
+  hillShadeStrength: 0.6
+  bakedSunEuler: {x: 35, y: -40, z: 0}
+  bakedShadowStrength: 0.45
+  canopySpeckleContrast: 0.35
+  canopySpeckleScaleMetres: 3
+  fieldPatchTintStrength: 0.5
+  roadWidthMetres: 3
+  riverWidthMetres: 5
+  buildingDotSizeMetres: 4
+  buildingDotColour: {r: 0.55, g: 0.42, b: 0.34, a: 1}
+  buildingDotRoofColour: {r: 0.36, g: 0.24, b: 0.2, a: 1}
+  waterShallowColour: {r: 0.2, g: 0.4, b: 0.45, a: 1}
+  waterDeepColour: {r: 0.06, g: 0.17, b: 0.28, a: 1}

@@ -417,11 +417,13 @@ public static class TerrainStrategicBuilder
     // Measured 2026-11-07 from a capture of a strategic tile next to real ground (111,107,16 against 97,83,22): the unlit strategic
     // shader reads greener and brighter than the lit painted ground, so red and green are pulled toward it on the earth layers.
     // Stone is bluish grey and the same cut turned it lavender, so it is warmed instead.
+    // Retuned from a strategic-only capture against a real-ground-only capture of the same view (real/strategic channel ratios were about
+    // 0.93, 0.89, 1.9): grass was too lime, forest far too dark and contrasty, which read as a different surface next to loaded tiles.
     private static readonly Color[] GroundMatchTintPerLayer =
     {
         new Color(0.87f, 0.78f, 1f, 1f),
-        new Color(0.87f, 0.78f, 1f, 1f),
-        new Color(0.87f, 0.78f, 1f, 1f),
+        new Color(0.94f, 0.81f, 1.15f, 1f),
+        new Color(1.25f, 1.2f, 1.15f, 1f),
         new Color(1.05f, 1f, 0.82f, 1f),
     };
 
@@ -448,9 +450,21 @@ public static class TerrainStrategicBuilder
         for (int layerIndex = 0; layerIndex < colours.Length; layerIndex++)
         {
             Texture2D layerTexture = groundMaterial.GetTexture(GroundLayerTextureProperties[layerIndex]) as Texture2D;
-            colours[layerIndex] = layerTexture != null ? AverageColour(layerTexture) * GroundMatchTintPerLayer[layerIndex] : fallback[layerIndex];
+            colours[layerIndex] = layerTexture != null ? MatchToLitGround(AverageColour(layerTexture) * GroundMatchTintPerLayer[layerIndex]) : fallback[layerIndex];
         }
         return colours;
+    }
+
+    // Second calibration pass (strategic centre band 122,105,9 against real 101,85,25): still brighter and yellower than the lit, mottled
+    // ground, so every layer is pulled a little toward grey and darkened.
+    private const float GroundMatchDesaturate = 0.3f;
+    private const float GroundMatchBrightness = 0.86f;
+
+    private static Color MatchToLitGround(Color colour)
+    {
+        float grey = colour.r * 0.299f + colour.g * 0.587f + colour.b * 0.114f;
+        Color desaturated = Color.Lerp(colour, new Color(grey, grey, grey, 1f), GroundMatchDesaturate);
+        return new Color(desaturated.r * GroundMatchBrightness, desaturated.g * GroundMatchBrightness, desaturated.b * GroundMatchBrightness, 1f);
     }
 
     private static Material FindTileGroundMaterial()
