@@ -30,6 +30,9 @@ public class WorldAtmosphereDriver : MonoBehaviour
     private const float SunriseHour = 6f;
     private const float SunsetHour = 18f;
     private const float MaxSunElevationDegrees = 62f;
+    // Yaw is the direction the light travels: 315 = sun in the southeast, 405 = sun in the southwest.
+    private const float SunriseLightYawDegrees = 315f;
+    private const float SunsetLightYawDegrees = 405f;
     private const float HorizonSunElevationDegrees = 9f;
     private const float MoonElevationDegrees = 38f;
     private const float MoonYawDegrees = 205f;
@@ -183,8 +186,9 @@ public class WorldAtmosphereDriver : MonoBehaviour
         }
         float dayFraction = (hour - SunriseHour) / (SunsetHour - SunriseHour);
         float elevation = Mathf.Max(HorizonSunElevationDegrees, Mathf.Sin(dayFraction * Mathf.PI) * MaxSunElevationDegrees);
-        // Light travels west in the morning and east in the evening, so shadows swing round with the day.
-        return Quaternion.Euler(elevation, 270f + 180f * dayFraction, 0f);
+        // The sun stays in the southern sky (the camera looks north), so the flat 2.5D characters are lit from the front all day
+        // while shadows still swing from northwest to northeast.
+        return Quaternion.Euler(elevation, Mathf.Lerp(SunriseLightYawDegrees, SunsetLightYawDegrees, dayFraction), 0f);
     }
 
     private static Color Desaturate(Color colour, float saturation)
