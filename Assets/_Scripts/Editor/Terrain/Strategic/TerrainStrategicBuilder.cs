@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -282,14 +282,57 @@ public static class TerrainStrategicBuilder
         return Mathf.Clamp(hillShade, 0.3f, 1.5f) * shadowMultiplier;
     }
 
+    private static readonly Dictionary<Texture2D, Texture2D> readableMaskCopies = new Dictionary<Texture2D, Texture2D>();
+
+    public static void ReleaseReadableMaskCopies()
+    {
+        foreach (Texture2D copy in readableMaskCopies.Values)
+        {
+            if (copy != null)
+            {
+                Object.DestroyImmediate(copy);
+            }
+        }
+        readableMaskCopies.Clear();
+    }
+
+    // Tile masks import with Read/Write off, and skipping them silently turned every texel to bare dirt (all chunks baked brown),
+    // so an unreadable mask is read back through the GPU into a readable copy.
+    private static Texture2D GetReadableMask(Texture2D mask)
+    {
+        if (mask.isReadable)
+        {
+            return mask;
+        }
+        Texture2D copy;
+        if (readableMaskCopies.TryGetValue(mask, out copy) && copy != null)
+        {
+            return copy;
+        }
+
+        RenderTextureReadWrite colourSpace = mask.isDataSRGB ? RenderTextureReadWrite.sRGB : RenderTextureReadWrite.Linear;
+        RenderTexture target = RenderTexture.GetTemporary(mask.width, mask.height, 0, RenderTextureFormat.ARGB32, colourSpace);
+        RenderTexture previousActive = RenderTexture.active;
+        Graphics.Blit(mask, target);
+        RenderTexture.active = target;
+        copy = new Texture2D(mask.width, mask.height, TextureFormat.RGBA32, false, !mask.isDataSRGB);
+        copy.ReadPixels(new Rect(0f, 0f, mask.width, mask.height), 0, 0);
+        copy.Apply(false, false);
+        copy.wrapMode = TextureWrapMode.Clamp;
+        RenderTexture.active = previousActive;
+        RenderTexture.ReleaseTemporary(target);
+        readableMaskCopies[mask] = copy;
+        return copy;
+    }
+
     private static bool TryReadMask(Texture2D mask, float coordinateU, float coordinateV, out Color sample)
     {
         sample = default;
-        if (mask == null || !mask.isReadable)
+        if (mask == null)
         {
             return false;
         }
-        sample = mask.GetPixelBilinear(coordinateU, coordinateV);
+        sample = GetReadableMask(mask).GetPixelBilinear(coordinateU, coordinateV);
         return true;
     }
 

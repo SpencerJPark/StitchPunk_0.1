@@ -3,7 +3,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Drains PendingPigeon: one pigeon at a time, so a still-undelivered letter is reused for the new week (Trade_System.md TR-A11).
+// Drains PendingPigeon once the player has pressed the mail button (PigeonSummonRequest): one pigeon at a time, so a still-undelivered
+// letter is reused for the new week (Trade_System.md TR-A11). A board baked before the request existed keeps the old send-at-once behaviour.
 [BurstCompile]
 [UpdateInGroup(typeof(SpawnSystemGroup))]
 public partial struct PigeonSpawnSystem : ISystem
@@ -23,12 +24,18 @@ public partial struct PigeonSpawnSystem : ISystem
         if (pendingPigeons.Length == 0)
             return;
 
+        bool summonGateExists = SystemAPI.HasComponent<PigeonSummonRequest>(boardEntity);
+        if (summonGateExists && !SystemAPI.IsComponentEnabled<PigeonSummonRequest>(boardEntity))
+            return;
+
         // No player yet (loading): keep the request for the next frame.
         if (!SystemAPI.TryGetSingletonEntity<Player>(out Entity playerEntity))
             return;
 
         int weekNumber = pendingPigeons[pendingPigeons.Length - 1].weekNumber;
         pendingPigeons.Clear();
+        if (summonGateExists)
+            SystemAPI.SetComponentEnabled<PigeonSummonRequest>(boardEntity, false);
 
         foreach (RefRW<CarrierPigeon> existingPigeon in SystemAPI.Query<RefRW<CarrierPigeon>>())
         {

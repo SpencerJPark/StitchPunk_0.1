@@ -43,6 +43,10 @@ public struct PendingPigeon : IBufferElementData
     public int weekNumber;
 }
 
+// On the TradeBoard. The player pressed the mail button: PigeonSpawnSystem sends the pending letter's pigeon, then disables this.
+// Without it, mail just waits (the HUD shows a notification) instead of the pigeon arriving on its own.
+public struct PigeonSummonRequest : IComponentData, IEnableableComponent { }
+
 // Throws the current week away and rolls it again with this seed (debug menu; proves same seed -> same week).
 public struct TradeRerollRequest : IComponentData, IEnableableComponent
 {

@@ -58,6 +58,8 @@ public class TradeBoardAuthoring : MonoBehaviour
             AddComponent(entity, new TradeToast());
             AddComponent<TradeLetterOpen>(entity);
             SetComponentEnabled<TradeLetterOpen>(entity, false);
+            AddComponent<PigeonSummonRequest>(entity);
+            SetComponentEnabled<PigeonSummonRequest>(entity, false);
             if (authoring.pigeonPrefab != null)
             {
                 AddComponent(entity, new TradePigeonSettings

@@ -28,6 +28,7 @@ public class TradeOrdersHudUI : MonoBehaviour
     private uint lastRenderedSignature;
     private bool letterButtonShown;
     private System.Action openLetterAction;
+    private bool mailWaiting;
     private int lastToastSequence;
     private float toastHideUnscaledTime;
 
@@ -94,21 +95,32 @@ public class TradeOrdersHudUI : MonoBehaviour
             signature = signature * 31u + (uint)orders[orderIndex].orderId * 7u + (uint)orders[orderIndex].state;
         }
 
-        bool showLetterButton = hasThisWeeksOffers && !letterIsOpen;
+        // Mail waits in the HUD until the player asks for it; the pigeon only flies in after the button press, and the letter
+        // can only be opened once it has landed (or has already been read this week).
+        mailWaiting = entityManager.GetBuffer<PendingPigeon>(boardEntity, true).Length > 0;
+        bool pigeonInFlight = PigeonInFlightExists(entityManager);
+        bool showLetterButton = !letterIsOpen && !pigeonInFlight && (mailWaiting || hasThisWeeksOffers);
         if (showLetterButton != letterButtonShown)
         {
             letterButtonShown = showLetterButton;
             letterButton.style.display = showLetterButton ? DisplayStyle.Flex : DisplayStyle.None;
             if (openLetterAction != null)
                 letterButton.clicked -= openLetterAction;
-            openLetterAction = () => entityManager.SetComponentEnabled<TradeLetterOpen>(boardEntity, true);
+            openLetterAction = () =>
+            {
+                if (mailWaiting)
+                    entityManager.SetComponentEnabled<PigeonSummonRequest>(boardEntity, true);
+                else
+                    entityManager.SetComponentEnabled<TradeLetterOpen>(boardEntity, true);
+            };
             cursorPanel.ClearTrackedButtons();
             cursorPanel.Track(letterButton, openLetterAction);
         }
 
         bool unreadLetterWaiting = PerchedPigeonExists(entityManager);
-        letterButton.text = unreadLetterWaiting ? "Letter (new)" : "Letter";
-        letterButton.style.color = unreadLetterWaiting && Mathf.FloorToInt(Time.unscaledTime / BlinkSeconds) % 2 == 0
+        bool needsAttention = mailWaiting || unreadLetterWaiting;
+        letterButton.text = mailWaiting ? "Mail (new)" : unreadLetterWaiting ? "Letter (new)" : "Letter";
+        letterButton.style.color = needsAttention && Mathf.FloorToInt(Time.unscaledTime / BlinkSeconds) % 2 == 0
             ? DueTodayColor
             : new StyleColor(StyleKeyword.Null);
 
@@ -180,6 +192,22 @@ public class TradeOrdersHudUI : MonoBehaviour
         }
 
         return null;
+    }
+
+    private bool PigeonInFlightExists(EntityManager entityManager)
+    {
+        if (pigeonQuery.IsEmptyIgnoreFilter)
+            return false;
+
+        using (Unity.Collections.NativeArray<PigeonFlight> flights = pigeonQuery.ToComponentDataArray<PigeonFlight>(Unity.Collections.Allocator.Temp))
+        {
+            for (int flightIndex = 0; flightIndex < flights.Length; flightIndex++)
+            {
+                if (flights[flightIndex].phase != PigeonFlightPhase.Perched)
+                    return true;
+            }
+        }
+        return false;
     }
 
     private bool PerchedPigeonExists(EntityManager entityManager)

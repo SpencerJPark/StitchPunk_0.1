@@ -48,7 +48,8 @@ Shader "Painted/Strategic"
             if (_FadeStartMetres != 0.0 || _FadeEndMetres != 0.0)
             {
                 float focusDistance = distance(positionWS.xz, _TerrainFocusPosition.xz);
-                distanceFactor = 1.0 - saturate((focusDistance - _FadeStartMetres) / max(_FadeEndMetres - _FadeStartMetres, 0.001));
+                // Hidden under the detail ring, fully shown beyond it; the old direction hid it exactly where the real tiles unload.
+                distanceFactor = saturate((focusDistance - _FadeStartMetres) / max(_FadeEndMetres - _FadeStartMetres, 0.001));
             }
             return saturate(_StrategicLayerFade) * distanceFactor;
         }

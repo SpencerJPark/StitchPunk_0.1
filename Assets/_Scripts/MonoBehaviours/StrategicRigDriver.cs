@@ -37,7 +37,6 @@ public class StrategicRigDriver : MonoBehaviour
     private World cachedSizeWorld;
     private EntityQuery sizeScalesQuery;
     private bool takenOver;
-    private PrioritySettings originalPriority;
     private Transform originalCaravanFollow;
     private Transform originalStrategicFollow;
 
@@ -93,18 +92,22 @@ public class StrategicRigDriver : MonoBehaviour
     }
 
     // While zoomed the whole rig follows the player's camera target (it sits on the caravan seat when driving), whichever camera the
-    // manager had live, and everything is put back when the view returns to normal.
+    // manager had live. CameraManager.SwitchCamera rewrites the mixing camera's priority on every vehicle enter and exit, so the
+    // priority and follow target are re-asserted every zoomed frame; otherwise the view drops to ground level with everything still scaled up.
     private void UpdateTakeover(bool zoomed)
     {
         if (mixingCamera == null || caravanCamera == null || strategicCamera == null)
             return;
 
-        if (zoomed && !takenOver)
+        if (zoomed)
         {
-            takenOver = true;
-            originalPriority = mixingCamera.Priority;
-            originalCaravanFollow = caravanCamera.Follow;
-            originalStrategicFollow = strategicCamera.Follow;
+            if (!takenOver)
+            {
+                takenOver = true;
+                originalCaravanFollow = caravanCamera.Follow;
+                originalStrategicFollow = strategicCamera.Follow;
+            }
+
             PrioritySettings live = mixingCamera.Priority;
             live.Enabled = true;
             live.Value = LivePriorityWhileZoomed;
@@ -113,17 +116,22 @@ public class StrategicRigDriver : MonoBehaviour
             Transform playerTarget = ResolvePlayerFollowTarget();
             if (playerTarget != null)
             {
-                caravanCamera.Follow = playerTarget;
-                strategicCamera.Follow = playerTarget;
+                if (caravanCamera.Follow != playerTarget)
+                    caravanCamera.Follow = playerTarget;
+                if (strategicCamera.Follow != playerTarget)
+                    strategicCamera.Follow = playerTarget;
                 focusTarget = playerTarget;
             }
         }
-        else if (!zoomed && takenOver)
+        else if (takenOver)
         {
             takenOver = false;
-            mixingCamera.Priority = originalPriority;
             caravanCamera.Follow = originalCaravanFollow;
             strategicCamera.Follow = originalStrategicFollow;
+            // Hand the priorities back to whichever camera the manager considers live right now.
+            CameraManager manager = CameraManager.Instance;
+            if (manager != null)
+                manager.SwitchCamera(manager.GetCurrentCamera());
         }
     }
 

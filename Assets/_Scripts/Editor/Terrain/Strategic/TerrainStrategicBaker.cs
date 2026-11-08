@@ -95,6 +95,7 @@ public static class TerrainStrategicBaker
             chunkScenes.Add(WriteChunkScene(superChunk, chunkData));
         }
 
+        TerrainStrategicBuilder.ReleaseReadableMaskCopies();
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         EnsureSubScenes(chunkScenes);
