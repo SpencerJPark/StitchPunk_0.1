@@ -16,8 +16,8 @@ Shader "Painted/Strategic"
         // The baked texture has no fringes, ink or macro noise, so its tones sit closer together than the real ground's; measured ~1.4x in Play.
         _Contrast ("Contrast about the pivot", Range(1, 2)) = 1.4
         _ContrastPivot ("Contrast pivot (lit ground mean)", Color) = (0.215, 0.19, 0.108, 1)
-        // Final per-channel mean match against the real ground (R 0.95, G 0.88, B 0.92 measured); _Tint is DOTS-instanced so it cannot carry this.
-        _ColourGain ("Colour gain after contrast", Color) = (0.95, 0.88, 0.92, 1)
+        // Final per-channel mean match against the real ground (re-measured against the real ground and the zoomed-in view after the zoom-out colour grade was removed); _Tint is DOTS-instanced so it cannot carry this.
+        _ColourGain ("Colour gain after contrast", Color) = (0.97, 0.97, 0.96, 1)
         _FadeStartMetres ("Distance fade start (m from focus)", Float) = 0
         _FadeEndMetres ("Distance fade end (m from focus), 0 = off", Float) = 0
     }

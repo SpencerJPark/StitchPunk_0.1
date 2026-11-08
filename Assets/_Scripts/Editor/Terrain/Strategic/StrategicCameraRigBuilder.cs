@@ -130,12 +130,9 @@ public static class StrategicCameraRigBuilder
     private static VolumeProfile CreateLookProfile()
     {
         VolumeProfile profile = ScriptableObject.CreateInstance<VolumeProfile>();
-        ColorAdjustments colorAdjustments = profile.Add<ColorAdjustments>(true);
-        colorAdjustments.colorFilter.Override(new Color(1f, 0.96f, 0.85f));
-        colorAdjustments.saturation.Override(10f);
-        colorAdjustments.contrast.Override(10f);
+        // No colour grade: zoomed out must be the same colour as zoomed in (the time-of-day lighting carries the mood).
         Vignette vignette = profile.Add<Vignette>(true);
-        vignette.intensity.Override(0.35f);
+        vignette.intensity.Override(0.2f);
         return profile;
     }
 
