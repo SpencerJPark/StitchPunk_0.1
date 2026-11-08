@@ -415,8 +415,15 @@ public static class TerrainStrategicBuilder
     }
 
     // Measured 2026-11-07 from a capture of a strategic tile next to real ground (111,107,16 against 97,83,22): the unlit strategic
-    // shader reads greener and brighter than the lit painted ground, so the layer averages are pulled toward it.
-    private static readonly Color GroundMatchTint = new Color(0.87f, 0.78f, 1.35f, 1f);
+    // shader reads greener and brighter than the lit painted ground, so red and green are pulled toward it on the earth layers.
+    // Stone is bluish grey and the same cut turned it lavender, so it is warmed instead.
+    private static readonly Color[] GroundMatchTintPerLayer =
+    {
+        new Color(0.87f, 0.78f, 1f, 1f),
+        new Color(0.87f, 0.78f, 1f, 1f),
+        new Color(0.87f, 0.78f, 1f, 1f),
+        new Color(1.05f, 1f, 0.82f, 1f),
+    };
 
     private static readonly string[] GroundLayerTextureProperties = { "_BaseTex", "_LayerRTex", "_LayerGTex", "_LayerBTex" };
 
@@ -441,7 +448,7 @@ public static class TerrainStrategicBuilder
         for (int layerIndex = 0; layerIndex < colours.Length; layerIndex++)
         {
             Texture2D layerTexture = groundMaterial.GetTexture(GroundLayerTextureProperties[layerIndex]) as Texture2D;
-            colours[layerIndex] = layerTexture != null ? AverageColour(layerTexture) * GroundMatchTint : fallback[layerIndex];
+            colours[layerIndex] = layerTexture != null ? AverageColour(layerTexture) * GroundMatchTintPerLayer[layerIndex] : fallback[layerIndex];
         }
         return colours;
     }
