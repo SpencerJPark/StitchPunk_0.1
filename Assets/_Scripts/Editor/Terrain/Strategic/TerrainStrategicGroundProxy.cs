@@ -57,6 +57,21 @@ public static class TerrainStrategicGroundProxy
         return null;
     }
 
+    // One texel per tile-splat texel, so the stitched splat keeps exactly the painted shapes the tiles have.
+    public static int NativeSplatPixelsPerSide(IReadOnlyDictionary<Vector2Int, TerrainTile> tiles, int tilesPerSide, int maximumPixels)
+    {
+        int tileSplatPixels = 256;
+        foreach (KeyValuePair<Vector2Int, TerrainTile> entry in tiles)
+        {
+            if (entry.Value.splatSignedDistanceField != null)
+            {
+                tileSplatPixels = entry.Value.splatSignedDistanceField.width;
+                break;
+            }
+        }
+        return Mathf.Min(maximumPixels, tilesPerSide * tileSplatPixels);
+    }
+
     // Row 0 is the minimum z, like the tile splats, so the ground shader samples it with the same world-to-uv mapping.
     public static Texture2D BuildSplatComposite(IReadOnlyDictionary<Vector2Int, TerrainTile> tiles, Vector2 chunkMinMetres, float chunkSizeMetres, int pixelsPerSide)
     {
@@ -87,11 +102,12 @@ public static class TerrainStrategicGroundProxy
         }
         GL.PopMatrix();
 
-        Texture2D composite = new Texture2D(pixelsPerSide, pixelsPerSide, TextureFormat.RGBA32, true, true);
+        Texture2D composite = new Texture2D(pixelsPerSide, pixelsPerSide, TextureFormat.RGBA32, false, true);
         composite.ReadPixels(new Rect(0, 0, pixelsPerSide, pixelsPerSide), 0, 0);
         composite.wrapMode = TextureWrapMode.Clamp;
         composite.filterMode = FilterMode.Bilinear;
-        composite.Apply(true);
+        // No mip chain, like the tile splats: averaging signed-distance weights in lower mips turns the painted shapes to mush.
+        composite.Apply(false);
 
         RenderTexture.active = previousActive;
         RenderTexture.ReleaseTemporary(target);

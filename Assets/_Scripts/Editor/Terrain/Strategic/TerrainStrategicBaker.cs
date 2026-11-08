@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 public static class TerrainStrategicBaker
 {
     private const int MaximumCapturePixels = 2048;
-    private const int MaximumSplatPixels = 2048;
+    private const int MaximumSplatPixels = 4096;
     private const string StrategicFolder = "Assets/Terrain/Strategic";
     private const string ProfileFolder = "Assets/Terrain/Profiles";
     private const string ProfilePath = ProfileFolder + "/TerrainStrategicProfile.asset";
@@ -133,7 +133,7 @@ public static class TerrainStrategicBaker
         {
             // Same material as the real tiles, so zoomed out is exactly zoomed in; only the splat map is stitched per chunk.
             Object.DestroyImmediate(builtTexture);
-            builtTexture = TerrainStrategicGroundProxy.BuildSplatComposite(tilesInOpenScene, chunkMinMetres, chunkSizeMetres, Mathf.Min(maxTexturePixels, MaximumSplatPixels));
+            builtTexture = TerrainStrategicGroundProxy.BuildSplatComposite(tilesInOpenScene, chunkMinMetres, chunkSizeMetres, TerrainStrategicGroundProxy.NativeSplatPixelsPerSide(tilesInOpenScene, profile.superChunkTiles, MaximumSplatPixels));
             EditorUtility.CompressTexture(builtTexture, TextureFormat.BC7, TextureCompressionQuality.Normal);
             Debug.Log("[Terrain] Strategic chunk " + superChunk + ": drawn with the real ground material '" + groundTemplate.name + "', splat " + builtTexture.width + " px.");
         }
