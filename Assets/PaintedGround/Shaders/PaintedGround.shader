@@ -152,13 +152,14 @@ Shader "Painted/Ground"
             return _StrategicProxy > 0.5 ? positionWS + (positionWS - _WorldSpaceCameraPos) * StrategicProxyDepthPushFraction : positionWS;
         }
 
-        // The 4 m stand-in mesh sags below the 1 m real ground on bumps and would read the real ground's own shadow; lifting the
-        // shadow lookup clear of it keeps the stand-in lit like the ground it replaces.
+        // The 4 m stand-in mesh sags below the 1 m real ground on bumps and would read the real ground's own shadow. The lookup is
+        // lifted toward the sun: along the light ray it lands on the same shadow-map texel, so shadow edges stay exactly where the real
+        // ground has them (a lift along the normal slid them metres sideways under a low sun and left dither grain on every edge).
         static const float StrategicProxyShadowLiftMetres = 0.5;
 
-        float3 StrategicProxyShadingPosition(float3 positionWS, float3 normalWS)
+        float3 StrategicProxyShadingPosition(float3 positionWS)
         {
-            return _StrategicProxy > 0.5 ? positionWS + normalWS * StrategicProxyShadowLiftMetres : positionWS;
+            return _StrategicProxy > 0.5 ? positionWS + _MainLightPosition.xyz * StrategicProxyShadowLiftMetres : positionWS;
         }
 
         // Entities Graphics / BatchRendererGroup: the shader must declare at least one DOTS
@@ -322,7 +323,7 @@ Shader "Painted/Ground"
 
                 // ---- lighting -------------------------------------------------------------
                 float3 lighting;
-                PaintedLighting_float(StrategicProxyShadingPosition(posWS, n), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
+                PaintedLighting_float(StrategicProxyShadingPosition(posWS), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
                                       _ShadowStrength, _NdotLInfluence, _PointLightBoost, lighting);
 
                 col *= lighting;
@@ -385,6 +386,9 @@ Shader "Painted/Ground"
             #else
                 positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
             #endif
+                // The stand-in casts the hill shadows only once zooming starts (real tiles cover ground level); collapsed vertices draw nothing.
+                if (_StrategicProxy > 0.5 && _StrategicLayerFade <= 0.0001)
+                    positionCS = float4(0.0, 0.0, -2.0, 1.0);
                 OUT.positionCS = positionCS;
                 return OUT;
             }

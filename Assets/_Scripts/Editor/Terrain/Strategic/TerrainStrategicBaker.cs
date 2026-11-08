@@ -234,8 +234,9 @@ public static class TerrainStrategicBaker
         chunkObject.transform.position = new Vector3(chunkData.worldMin.x, 0f, chunkData.worldMin.y);
         chunkObject.GetComponent<MeshFilter>().sharedMesh = chunkData.mesh;
         MeshRenderer meshRenderer = chunkObject.GetComponent<MeshRenderer>();
-        meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
-        meshRenderer.receiveShadows = false;
+        // Casts the hill shadows of the zoomed-out view; the ground shader keeps it from casting while at ground level.
+        meshRenderer.shadowCastingMode = ShadowCastingMode.On;
+        meshRenderer.receiveShadows = true;
         meshRenderer.sharedMaterial = LoadChunkMaterial(chunkData);
         SceneManager.MoveGameObjectToScene(chunkObject, chunkScene);
 

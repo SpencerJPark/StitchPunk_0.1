@@ -49,6 +49,10 @@ public class TerrainPlatformProfile : ScriptableObject
     [Tooltip("Cheap screen-Y gradient blur instead of depth of field.")]
     public bool useGradientBlurFallback;
 
+    [Min(50f)]
+    [Tooltip("Furthest main-light shadow distance while zoomed out; shadows stay on in the miniature view up to this range.")]
+    public float maxZoomedShadowDistanceMetres = 2500f;
+
     [Min(0.1f)]
     [Tooltip("Main-thread time one tile load may spend per frame.")]
     public float maxTileLoadMainThreadMilliseconds = 5f;
@@ -102,6 +106,7 @@ public class TerrainPlatformProfile : ScriptableObject
                 profile.defaultMaskResolution = 256;
                 profile.useDepthOfField = true;
                 profile.useGradientBlurFallback = false;
+                profile.maxZoomedShadowDistanceMetres = 2000f;
                 profile.maxTileLoadsPerFrame = 1;
                 profile.maxRibbonVerticesPerTile = 4000;
                 profile.targetFrameMilliseconds = 16.6f;
@@ -116,6 +121,7 @@ public class TerrainPlatformProfile : ScriptableObject
                 profile.defaultMaskResolution = 256;
                 profile.useDepthOfField = false;
                 profile.useGradientBlurFallback = true;
+                profile.maxZoomedShadowDistanceMetres = 1500f;
                 profile.maxTileLoadsPerFrame = 1;
                 profile.maxRibbonVerticesPerTile = 3000;
                 profile.targetFrameMilliseconds = 33.3f;

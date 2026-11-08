@@ -125,9 +125,6 @@ void PaintedFinish_float(float3 col, float macroNoise, float3 macroDark, float3 
 float4 _TerrainAmbientColor;   // rgb = ambient multiplier, a = blend amount (0 = off)
 float _TerrainLightningFlash;  // added to the final lighting
 float _TerrainGroundExposureBoost;  // lighting is multiplied by 1 + this (0 = off); set by WorldAtmosphereDriver
-// Set by StrategicRigDriver (0 = full shadows). Zooming out carries the ground past the shadow distance; easing shadows out with the
-// zoom keeps the cut-off edge from sweeping across the screen like a dark filter.
-float _ZoomGroundShadowSuppression;
 
 void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
                            float3 ambientTint, float shadowStrength, float ndotlInfluence,
@@ -150,7 +147,7 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
 
     // The positionWS overload applies URP's soft fade near the shadow distance; the shadowCoord-only one cuts shadows off in a hard line.
     Light mainLight = GetMainLight(shadowCoord, positionWS, half4(1, 1, 1, 1));
-    float shade = lerp(1.0, mainLight.shadowAttenuation, shadowStrength * (1.0 - saturate(_ZoomGroundShadowSuppression)));
+    float shade = lerp(1.0, mainLight.shadowAttenuation, shadowStrength);
     float ndl   = lerp(1.0, saturate(dot(normalWS, mainLight.direction)), ndotlInfluence);
 
     lighting = SampleSH(half3(0, 1, 0)) * ambientTint * lerp(float3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);

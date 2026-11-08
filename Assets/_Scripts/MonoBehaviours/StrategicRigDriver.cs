@@ -15,9 +15,6 @@ public class StrategicRigDriver : MonoBehaviour
     private static readonly int TiltShiftFalloffId = Shader.PropertyToID("_TiltShiftFalloff");
     private static readonly int TiltShiftMaxPixelsId = Shader.PropertyToID("_TiltShiftMaxPixels");
     private static readonly int ZoomOutlineSuppressionId = Shader.PropertyToID("_ZoomOutlineSuppression");
-    private static readonly int ZoomGroundShadowSuppressionId = Shader.PropertyToID("_ZoomGroundShadowSuppression");
-    // Measured in TerrainWorld: by this mix the ground in view is past the 150 m shadow distance, so shadows are gone anyway.
-    private const float GroundShadowsGoneAtMix = 0.3f;
 
     [SerializeField] private CinemachineMixingCamera mixingCamera;
     [SerializeField] private CinemachineCamera caravanCamera;
@@ -41,6 +38,7 @@ public class StrategicRigDriver : MonoBehaviour
     private World cachedSizeWorld;
     private EntityQuery sizeScalesQuery;
     private bool takenOver;
+    private readonly ZoomedShadowRange zoomedShadowRange = new ZoomedShadowRange();
     private Transform originalCaravanFollow;
     private Transform originalStrategicFollow;
 
@@ -52,7 +50,7 @@ public class StrategicRigDriver : MonoBehaviour
         HudFade = 0f;
         Shader.SetGlobalFloat(TiltShiftStrengthId, 0f);
         Shader.SetGlobalFloat(ZoomOutlineSuppressionId, 0f);
-        Shader.SetGlobalFloat(ZoomGroundShadowSuppressionId, 0f);
+        zoomedShadowRange.Restore();
         SetTiltShiftActive(false);
         SetOutlinesActive(true);
         if (depthOfFieldVolume != null)
@@ -62,12 +60,12 @@ public class StrategicRigDriver : MonoBehaviour
     private void LateUpdate()
     {
         float mix = StrategicZoomState.Mix01;
-        Shader.SetGlobalFloat(ZoomGroundShadowSuppressionId, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(mix / GroundShadowsGoneAtMix)));
         UpdateTakeover(mix > 0.001f);
         ApplyMixingWeights(mix);
 
         if (focusTarget != null)
             Shader.SetGlobalVector(TerrainFocusPositionId, focusTarget.position);
+        UpdateShadowRange(mix > 0.001f);
 
         if (zoomProfile == null)
             return;
@@ -200,6 +198,18 @@ public class StrategicRigDriver : MonoBehaviour
         Shader.SetGlobalFloat(TiltShiftBandHalfHeightId, TiltShiftBandHalfHeight);
         Shader.SetGlobalFloat(TiltShiftFalloffId, TiltShiftFalloff);
         Shader.SetGlobalFloat(TiltShiftMaxPixelsId, TiltShiftMaxPixels);
+    }
+
+    private void UpdateShadowRange(bool zoomed)
+    {
+        Camera activeCamera = Camera.main;
+        if (!zoomed || activeCamera == null || focusTarget == null)
+        {
+            zoomedShadowRange.Restore();
+            return;
+        }
+        float cameraToFocusMetres = Vector3.Distance(activeCamera.transform.position, focusTarget.position);
+        zoomedShadowRange.Apply(cameraToFocusMetres, TerrainPlatformProfile.Active.maxZoomedShadowDistanceMetres);
     }
 
     // Outlines fade out over the first part of the zoom (switching them off in one frame flashed black lines across the hills);
