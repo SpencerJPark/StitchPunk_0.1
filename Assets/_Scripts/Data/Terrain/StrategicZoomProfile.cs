@@ -16,9 +16,9 @@ public class StrategicZoomProfile : ScriptableObject
     [Header("Zoomed-out size at full zoom (1 = true size). Each category eases from 1 as the view pulls back.")]
     [Min(1f)] public float wandererZoomedScale = 1f;
     [Min(1f)] public float hordeZoomedScale = 2f;
-    [Min(1f)] public float vehicleZoomedScale = 2.4f;
+    [Min(1f)] public float vehicleZoomedScale = 2f;
     [Min(1f)] public float landmarkZoomedScale = 2f;
-    [Min(1f)] public float playerZoomedScale = 2.8f;
+    [Min(1f)] public float playerZoomedScale = 2.4f;
 
     [Range(0f, 1f)] public float dofStartMix01 = 0.5f;
     [Min(0.05f)] public float transitionSeconds = 1.5f;

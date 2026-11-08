@@ -113,14 +113,14 @@ public class StrategicRigDriver : MonoBehaviour
             live.Value = LivePriorityWhileZoomed;
             mixingCamera.Priority = live;
 
-            Transform playerTarget = ResolvePlayerFollowTarget();
-            if (playerTarget != null)
+            Transform followTarget = ResolveZoomedFollowTarget();
+            if (followTarget != null)
             {
-                if (caravanCamera.Follow != playerTarget)
-                    caravanCamera.Follow = playerTarget;
-                if (strategicCamera.Follow != playerTarget)
-                    strategicCamera.Follow = playerTarget;
-                focusTarget = playerTarget;
+                if (caravanCamera.Follow != followTarget)
+                    caravanCamera.Follow = followTarget;
+                if (strategicCamera.Follow != followTarget)
+                    strategicCamera.Follow = followTarget;
+                focusTarget = followTarget;
             }
         }
         else if (takenOver)
@@ -133,6 +133,17 @@ public class StrategicRigDriver : MonoBehaviour
             if (manager != null)
                 manager.SwitchCamera(manager.GetCurrentCamera());
         }
+    }
+
+    // While driving, the player's own camera target stays where they boarded; the caravan's target is the one that moves, so following
+    // the player's would park the view at the boarding spot and snap it back on exit.
+    private Transform ResolveZoomedFollowTarget()
+    {
+        CameraManager manager = CameraManager.Instance;
+        bool driving = manager != null && manager.GetCurrentCamera() == CinemachineCameraType.Vehicle;
+        if (driving && originalCaravanFollow != null)
+            return originalCaravanFollow;
+        return ResolvePlayerFollowTarget();
     }
 
     private static Transform ResolvePlayerFollowTarget()

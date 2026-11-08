@@ -209,9 +209,9 @@ MonoBehaviour:
     m_RotationOrder: 4
   wandererZoomedScale: 1
   hordeZoomedScale: 2
-  vehicleZoomedScale: 2.4
+  vehicleZoomedScale: 2
   landmarkZoomedScale: 2
-  playerZoomedScale: 2.8
+  playerZoomedScale: 2.4
   dofStartMix01: 0.5
   transitionSeconds: 1.5
   transitionEase:

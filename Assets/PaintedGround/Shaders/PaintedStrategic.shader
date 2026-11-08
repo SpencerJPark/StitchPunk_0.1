@@ -42,6 +42,16 @@ Shader "Painted/Strategic"
         #define _Tint UNITY_ACCESS_DOTS_INSTANCED_PROP_WITH_DEFAULT(float4, _Tint)
         #endif
 
+        // The coarse 4 m strategic mesh pokes through the 1 m real ground on bumps, and a fixed depth Offset is useless at 1000 m. Sliding each
+        // vertex away from the camera along its own view ray leaves it where it is on screen but puts it behind the real ground.
+        static const float StrategicDepthPushFraction = 0.0025;
+
+        float3 PushAwayFromCamera(float3 positionWS)
+        {
+            float3 toVertex = positionWS - _WorldSpaceCameraPos;
+            return positionWS + toVertex * StrategicDepthPushFraction;
+        }
+
         float StrategicVisibility(float3 positionWS)
         {
             float distanceFactor = 1.0;
@@ -104,7 +114,7 @@ Shader "Painted/Strategic"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                OUT.positionWS = PushAwayFromCamera(TransformObjectToWorld(IN.positionOS.xyz));
                 OUT.positionCS = TransformWorldToHClip(OUT.positionWS);
                 OUT.uv = IN.uv;
                 return OUT;
@@ -160,7 +170,7 @@ Shader "Painted/Strategic"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                OUT.positionWS = PushAwayFromCamera(TransformObjectToWorld(IN.positionOS.xyz));
                 OUT.positionCS = TransformWorldToHClip(OUT.positionWS);
                 return OUT;
             }
