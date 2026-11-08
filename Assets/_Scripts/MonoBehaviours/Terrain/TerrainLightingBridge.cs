@@ -15,6 +15,8 @@ public class TerrainLightingBridge : MonoBehaviour
     float currentFlash;
     float flashDecayPerSecond;
 
+    public float CurrentFlash => currentFlash;
+
     public void TriggerLightning(float strength, float seconds)
     {
         // A strike landing mid-flash keeps the brighter of the two.

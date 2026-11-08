@@ -124,6 +124,7 @@ void PaintedFinish_float(float3 col, float macroNoise, float3 macroDark, float3 
 // to no ambient change and flash 0 adds nothing, so the look is unchanged when the bridge is absent.
 float4 _TerrainAmbientColor;   // rgb = ambient multiplier, a = blend amount (0 = off)
 float _TerrainLightningFlash;  // added to the final lighting
+float _TerrainGroundExposureBoost;  // lighting is multiplied by 1 + this (0 = off); set by WorldAtmosphereDriver
 
 void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
                            float3 ambientTint, float shadowStrength, float ndotlInfluence,
@@ -168,6 +169,7 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
         LIGHT_LOOP_END
     #endif
 
+    lighting *= 1.0 + _TerrainGroundExposureBoost;
     lighting += _TerrainLightningFlash.xxx;
 #endif
 }

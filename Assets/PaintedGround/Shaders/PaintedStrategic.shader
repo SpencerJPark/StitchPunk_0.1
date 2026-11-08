@@ -7,6 +7,12 @@ Shader "Painted/Strategic"
         [NoScaleOffset] _ColourTex ("Baked colour", 2D) = "white" {}
         _Tint ("Tint", Color) = (1, 1, 1, 1)
         _ShadeStrength ("Light colour influence", Range(0, 1)) = 0.5
+        // The baked colour was captured under this lighting. Time of day and weather scale it by (lighting now / lighting then), which is the
+        // same ambient + sun*N.L the real ground sums, so both change colour together.
+        _ReferenceSunColour ("Baked-under sun colour (colour x intensity)", Color) = (0.962, 0.904, 0.867, 1)
+        _ReferenceAmbient ("Baked-under ambient", Color) = (0.212, 0.227, 0.259, 1)
+        _ReferenceSunDirection ("Baked-under direction towards the sun", Vector) = (-0.4455, 0.766, -0.4633, 0)
+        _NdotLInfluence ("Sun N.L influence (match the ground material)", Range(0, 1)) = 0.15
         // The baked texture has no fringes, ink or macro noise, so its tones sit closer together than the real ground's; measured ~1.4x in Play.
         _Contrast ("Contrast about the pivot", Range(1, 2)) = 1.4
         _ContrastPivot ("Contrast pivot (lit ground mean)", Color) = (0.215, 0.19, 0.108, 1)
@@ -36,12 +42,18 @@ Shader "Painted/Strategic"
             half  _Contrast;
             half4 _ContrastPivot;
             half4 _ColourGain;
+            half4 _ReferenceSunColour;
+            half4 _ReferenceAmbient;
+            float4 _ReferenceSunDirection;
+            half  _NdotLInfluence;
         CBUFFER_END
 
         // Globals stay outside the CBUFFER so a script can drive them for every material at once.
         float _StrategicLayerFade;
         float4 _TerrainFocusPosition;
         float4 _TerrainAmbientColor;   // rgb = ambient multiplier, a = blend amount (0 = off)
+        float _TerrainLightningFlash;  // added to the lighting, same as the ground
+        float _TerrainGroundExposureBoost;
 
         #ifdef UNITY_DOTS_INSTANCING_ENABLED
         UNITY_DOTS_INSTANCING_START(MaterialPropertyMetadata)
@@ -104,6 +116,7 @@ Shader "Painted/Strategic"
             struct Attributes
             {
                 float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
                 float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -113,6 +126,7 @@ Shader "Painted/Strategic"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 float2 uv : TEXCOORD1;
+                float3 normalWS : TEXCOORD2;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -125,6 +139,7 @@ Shader "Painted/Strategic"
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
                 OUT.positionWS = PushAwayFromCamera(TransformObjectToWorld(IN.positionOS.xyz));
                 OUT.positionCS = TransformWorldToHClip(OUT.positionWS);
+                OUT.normalWS = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.uv = IN.uv;
                 return OUT;
             }
@@ -136,10 +151,20 @@ Shader "Painted/Strategic"
                 StrategicDitherClip(IN.positionCS, StrategicVisibility(IN.positionWS));
 
                 half3 albedo = SAMPLE_TEXTURE2D(_ColourTex, sampler_linear_clamp, IN.uv).rgb * _Tint.rgb;
-                half3 lightColour = min(GetMainLight().color, half3(1, 1, 1));
-                half3 ambientTint = lerp(half3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
-                half3 colour = albedo * lerp(half3(1, 1, 1), lightColour, _ShadeStrength) * ambientTint;
+                // Look under the baked-under lighting (what the contrast and gain below were measured against), then re-lit to the current lighting.
+                half3 bakedUnderSun = min(_ReferenceSunColour.rgb, half3(1, 1, 1));
+                half3 colour = albedo * lerp(half3(1, 1, 1), bakedUnderSun, _ShadeStrength);
                 colour = max(_ContrastPivot.rgb + (colour - _ContrastPivot.rgb) * _Contrast, 0) * _ColourGain.rgb;
+
+                float3 normalWS = normalize(IN.normalWS);
+                Light mainLight = GetMainLight();
+                half3 ambientTint = lerp(half3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
+                half3 lightingNow = (SampleSH(half3(0, 1, 0)) * ambientTint
+                    + mainLight.color * lerp(1.0, saturate(dot(normalWS, mainLight.direction)), _NdotLInfluence)) * (1.0 + _TerrainGroundExposureBoost)
+                    + _TerrainLightningFlash.xxx;
+                half3 lightingBakedUnder = _ReferenceAmbient.rgb
+                    + _ReferenceSunColour.rgb * lerp(1.0, saturate(dot(normalWS, _ReferenceSunDirection.xyz)), _NdotLInfluence);
+                colour *= lightingNow / max(lightingBakedUnder, 0.001);
                 return half4(colour, 1);
             }
             ENDHLSL
