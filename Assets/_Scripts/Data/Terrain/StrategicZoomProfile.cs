@@ -13,6 +13,13 @@ public class StrategicZoomProfile : ScriptableObject
     public AnimationCurve hudFade;
     public AnimationCurve timeScaleTarget;
 
+    [Header("Zoomed-out size at full zoom (1 = true size). Each category eases from 1 as the view pulls back.")]
+    [Min(1f)] public float wandererZoomedScale = 1f;
+    [Min(1f)] public float hordeZoomedScale = 4f;
+    [Min(1f)] public float vehicleZoomedScale = 6f;
+    [Min(1f)] public float landmarkZoomedScale = 8f;
+    [Min(1f)] public float playerZoomedScale = 7f;
+
     [Range(0f, 1f)] public float dofStartMix01 = 0.75f;
     [Min(0.05f)] public float transitionSeconds = 1.5f;
     public AnimationCurve transitionEase;
@@ -65,6 +72,17 @@ public class StrategicZoomProfile : ScriptableObject
         return Mathf.Clamp01(hudFade.Evaluate(Mathf.Clamp01(mix01)));
     }
 
+    // Out parameters because the Data assembly cannot see the ECS component that carries these.
+    public void EvaluateSizeScales(float mix01, out float wanderer, out float horde, out float vehicle, out float landmark, out float player)
+    {
+        float eased = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(mix01));
+        wanderer = Mathf.Lerp(1f, wandererZoomedScale, eased);
+        horde = Mathf.Lerp(1f, hordeZoomedScale, eased);
+        vehicle = Mathf.Lerp(1f, vehicleZoomedScale, eased);
+        landmark = Mathf.Lerp(1f, landmarkZoomedScale, eased);
+        player = Mathf.Lerp(1f, playerZoomedScale, eased);
+    }
+
     public float EvaluateTimeScaleTarget(float mix01)
     {
         return timeScaleTarget.Evaluate(Mathf.Clamp01(mix01));
@@ -89,7 +107,7 @@ public class StrategicZoomProfile : ScriptableObject
             new Keyframe(0f, 0f),
             new Keyframe(0.6f, 0f),
             new Keyframe(1f, 1f));
-        timeScaleTarget = AnimationCurve.Linear(0f, 1f, 1f, 3f);
+        timeScaleTarget = AnimationCurve.Linear(0f, 1f, 1f, 4f);
         transitionEase = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
     }
 }

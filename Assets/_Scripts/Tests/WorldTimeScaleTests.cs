@@ -50,13 +50,34 @@ namespace StitchPunk.Tests
         }
 
         [Test]
+        public void ZoomProfile_SizeScalesAreTrueSizeAtGroundAndTheCategoryTargetWhenZoomedOut()
+        {
+            StrategicZoomProfile profile = StrategicZoomProfile.CreateDefault();
+            try
+            {
+                float wanderer, horde, vehicle, landmark, player;
+                profile.EvaluateSizeScales(0f, out wanderer, out horde, out vehicle, out landmark, out player);
+                Assert.AreEqual(1f, vehicle, Tolerance);
+                Assert.AreEqual(1f, player, Tolerance);
+                profile.EvaluateSizeScales(1f, out wanderer, out horde, out vehicle, out landmark, out player);
+                Assert.AreEqual(profile.vehicleZoomedScale, vehicle, Tolerance);
+                Assert.AreEqual(profile.landmarkZoomedScale, landmark, Tolerance);
+                Assert.Greater(vehicle, wanderer);
+            }
+            finally
+            {
+                Object.DestroyImmediate(profile);
+            }
+        }
+
+        [Test]
         public void DefaultZoomProfile_MapsTimeScaleAndDofAtTheEnds()
         {
             StrategicZoomProfile profile = StrategicZoomProfile.CreateDefault();
             try
             {
                 Assert.AreEqual(1f, profile.EvaluateTimeScaleTarget(0f), Tolerance);
-                Assert.AreEqual(3f, profile.EvaluateTimeScaleTarget(1f), Tolerance);
+                Assert.AreEqual(4f, profile.EvaluateTimeScaleTarget(1f), Tolerance);
                 Assert.AreEqual(0f, profile.EvaluateDofStrength(0f));
                 Assert.AreEqual(0f, profile.EvaluateDofStrength(0.5f));
                 Assert.AreEqual(0f, profile.EvaluateDofStrength(0.75f));

@@ -11886,6 +11886,7 @@ GameObject:
   - component: {fileID: 5711746852758833217}
   - component: {fileID: 5800765911628685429}
   - component: {fileID: 498359247650478904}
+  - component: {fileID: 7879019816854570537}
   m_Layer: 10
   m_Name: CaravanSim
   m_TagString: Untagged
@@ -12048,6 +12049,19 @@ MonoBehaviour:
   maxFrontAxleYawDegrees: 25
   shakeFrequency: 22
   brokenSagDegrees: 4
+--- !u!114 &7879019816854570537
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5680844480917955111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d25b5b3fb2c21b46a94df8831ceae7d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::StrategicSizeAuthoring
+  category: 2
 --- !u!1 &5762575867171013603
 GameObject:
   m_ObjectHideFlags: 0

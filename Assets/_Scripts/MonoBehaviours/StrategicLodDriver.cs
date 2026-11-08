@@ -17,6 +17,7 @@ public class StrategicLodDriver : MonoBehaviour
     private World cachedWorld;
     private EntityQuery worldTimeScaleQuery;
     private float previousMix01;
+    private bool ownsUnityTimeScale;
 
     public static void PushRealTimeLock()
     {
@@ -78,5 +79,33 @@ public class StrategicLodDriver : MonoBehaviour
         WorldTimeScale worldTimeScale = worldTimeScaleQuery.GetSingleton<WorldTimeScale>();
         worldTimeScale.target = ResolveTimeScaleTarget(zoomProfile.EvaluateTimeScaleTarget(mix01), manualTimeScaleOverride, realTimeLocked, mixFalling);
         worldTimeScaleQuery.SetSingleton(worldTimeScale);
+        MirrorIntoUnityTimeScale(worldTimeScale.current);
+    }
+
+    // A paused game (timeScale 0) is never overridden; we only write while we own the value or the game is at normal speed.
+    private void MirrorIntoUnityTimeScale(float currentScale)
+    {
+        bool atNormalSpeed = Mathf.Approximately(Time.timeScale, 1f);
+        if (!ownsUnityTimeScale && !atNormalSpeed)
+        {
+            return;
+        }
+        if (Time.timeScale <= 0f)
+        {
+            ownsUnityTimeScale = false;
+            return;
+        }
+        bool backToNormal = Mathf.Abs(currentScale - 1f) < 0.01f;
+        Time.timeScale = backToNormal ? 1f : currentScale;
+        ownsUnityTimeScale = !backToNormal;
+    }
+
+    private void OnDisable()
+    {
+        if (ownsUnityTimeScale && Time.timeScale > 0f)
+        {
+            Time.timeScale = 1f;
+        }
+        ownsUnityTimeScale = false;
     }
 }

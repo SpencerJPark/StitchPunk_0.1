@@ -1,7 +1,8 @@
 using Unity.Entities;
 using Unity.Mathematics;
 
-// Singleton driven by camera zoom (TT-D20). Only the world clock follows it; physics and animation stay real-time.
+// Singleton driven by camera zoom (TT-D20). StrategicLodDriver mirrors `current` into UnityEngine.Time.timeScale, so the caravan, AI and the
+// clock all run fast together (owner call 2026-11-07: JRPG overworld feel). Pause (timeScale 0) always wins.
 public struct WorldTimeScale : IComponentData
 {
     public float current;
@@ -9,7 +10,7 @@ public struct WorldTimeScale : IComponentData
     public float smoothingPerSecond;
 }
 
-// Real frame delta multiplied by WorldTimeScale.current; WorldClockSystem advances by this when present.
+// The simulation delta, which Time.timeScale has already multiplied by WorldTimeScale.current; WorldClockSystem advances by this when present.
 public struct WorldTimeScaleDelta : IComponentData
 {
     public float scaledDeltaSeconds;

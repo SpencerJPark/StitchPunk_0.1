@@ -33,6 +33,7 @@ public partial struct WorldTimeScaleSystem : ISystem
             timeScale.ValueRO.current, timeScale.ValueRO.target, timeScale.ValueRO.smoothingPerSecond, deltaSeconds);
 
         RefRW<WorldTimeScaleDelta> scaledDelta = SystemAPI.GetSingletonRW<WorldTimeScaleDelta>();
-        scaledDelta.ValueRW.scaledDeltaSeconds = deltaSeconds * timeScale.ValueRO.current;
+        // Not multiplied again: StrategicLodDriver already put the scale into Time.timeScale.
+        scaledDelta.ValueRW.scaledDeltaSeconds = deltaSeconds;
     }
 }

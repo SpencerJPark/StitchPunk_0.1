@@ -1,4 +1,5 @@
 using Unity.Cinemachine;
+using Unity.Entities;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -25,6 +26,8 @@ public class StrategicRigDriver : MonoBehaviour
     private const float BlurFullFraction = 1.9f;
     private const float GaussianBlurMaxRadius = 1.5f;
 
+    private World cachedSizeWorld;
+    private EntityQuery sizeScalesQuery;
     private DepthOfField depthOfField;
     private bool takenOver;
     private PrioritySettings originalPriority;
@@ -59,6 +62,25 @@ public class StrategicRigDriver : MonoBehaviour
         HudFade = zoomProfile.EvaluateHudFade(mix);
 
         ApplyDepthOfField(zoomProfile.EvaluateDofStrength(mix));
+        StrategicSizeScales sizeScales = new StrategicSizeScales();
+        zoomProfile.EvaluateSizeScales(mix, out sizeScales.wandererScale, out sizeScales.hordeScale, out sizeScales.vehicleScale,
+            out sizeScales.landmarkScale, out sizeScales.playerScale);
+        PublishSizeScales(sizeScales);
+    }
+
+    private void PublishSizeScales(StrategicSizeScales scales)
+    {
+        World defaultWorld = World.DefaultGameObjectInjectionWorld;
+        if (defaultWorld == null || !defaultWorld.IsCreated)
+            return;
+        if (cachedSizeWorld != defaultWorld)
+        {
+            cachedSizeWorld = defaultWorld;
+            sizeScalesQuery = defaultWorld.EntityManager.CreateEntityQuery(ComponentType.ReadWrite<StrategicSizeScales>());
+        }
+        if (sizeScalesQuery.CalculateEntityCount() == 0)
+            defaultWorld.EntityManager.CreateSingleton(StrategicSizeScales.Identity());
+        sizeScalesQuery.SetSingleton(scales);
     }
 
     // While zoomed the whole rig follows the player's camera target (it sits on the caravan seat when driving), whichever camera the
