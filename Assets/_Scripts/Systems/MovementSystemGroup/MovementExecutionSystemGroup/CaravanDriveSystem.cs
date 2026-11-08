@@ -29,6 +29,7 @@ public partial struct CaravanDriveSystem : ISystem
     private const float ROLLING_SPEED = 0.03f;
     // Heading this far ahead of the body puts the front axle at full lock.
     private const float FULL_LOCK_DEGREES = 30f;
+    private const float SeatedSizeHoldSeconds = 0.25f;
     private const float MAX_PITCH_RADIANS = 0.61f;
     private const float MAX_ROLL_RADIANS = 0.45f;
     // Per second; keeps the nose from snapping over triangle edges of the ground mesh.
@@ -209,7 +210,9 @@ public partial struct CaravanDriveSystem : ISystem
                 driveState.ValueRO.wheelSpinRadians, forwardSpeed, profile.wheelRadius, deltaTime);
 
             seatedDriver = driverEntity;
-            seatPosition = position + math.rotate(rotation, profile.DriverSeatOffset(facing));
+            // The zoomed-out view grows the caravan about its pivot, so the seat has to move out with it.
+            float seatVisualScale = SystemAPI.TryGetSingleton(out StrategicSizeScales sizeScales) ? sizeScales.vehicleScale : 1f;
+            seatPosition = position + math.rotate(rotation, profile.DriverSeatOffset(facing) * seatVisualScale);
             seatRotation = yawRotation;
         }
 
@@ -220,6 +223,11 @@ public partial struct CaravanDriveSystem : ISystem
             driverTransform.Position = seatPosition;
             driverTransform.Rotation = seatRotation;
             SystemAPI.SetComponent(seatedDriver, driverTransform);
+            if (SystemAPI.HasComponent<StrategicSizeTag>(seatedDriver))
+            {
+                RefRW<StrategicSizeTag> driverSizeTag = SystemAPI.GetComponentRW<StrategicSizeTag>(seatedDriver);
+                driverSizeTag.ValueRW.seatedUntilSeconds = SystemAPI.Time.ElapsedTime + SeatedSizeHoldSeconds;
+            }
             if (SystemAPI.HasComponent<Movement>(seatedDriver))
                 SystemAPI.GetComponentRW<Movement>(seatedDriver).ValueRW.targetPosition = seatPosition;
             if (SystemAPI.HasComponent<Gravity>(seatedDriver))

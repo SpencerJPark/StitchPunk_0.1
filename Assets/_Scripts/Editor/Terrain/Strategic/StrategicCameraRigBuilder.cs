@@ -17,7 +17,7 @@ public static class StrategicCameraRigBuilder
     private const float StrategicFieldOfView = 22f;
     // The reference frame shows roughly 600 m of ground: a long lens far enough back that the strategic layer, not just the detail ring, fills the view.
     private const float StrategicFarClipMetres = 4000f;
-    private const float MinimumStrategicDistance = 700f;
+    private const float MinimumStrategicDistance = 1000f;
 
     [MenuItem("Stitch Punk/Terrain/Create Strategic Camera Rig")]
     public static void CreateStrategicCameraRig()

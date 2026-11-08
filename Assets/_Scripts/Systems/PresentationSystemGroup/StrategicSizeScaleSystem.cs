@@ -17,17 +17,20 @@ public partial struct StrategicSizeScaleSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         StrategicSizeScales scales = SystemAPI.GetSingleton<StrategicSizeScales>();
-        new ApplyStrategicSizeJob { scales = scales }.ScheduleParallel();
+        new ApplyStrategicSizeJob { scales = scales, elapsedSeconds = SystemAPI.Time.ElapsedTime }.ScheduleParallel();
     }
 
     [BurstCompile]
     private partial struct ApplyStrategicSizeJob : IJobEntity
     {
         public StrategicSizeScales scales;
+        public double elapsedSeconds;
 
         private void Execute(in StrategicSizeTag sizeTag, ref PostTransformMatrix postTransformMatrix)
         {
-            postTransformMatrix.Value = float4x4.Scale(scales.ScaleFor(sizeTag.category));
+            bool seated = elapsedSeconds < sizeTag.seatedUntilSeconds;
+            float scale = seated ? scales.vehicleScale : scales.ScaleFor(sizeTag.category);
+            postTransformMatrix.Value = float4x4.Scale(scale);
         }
     }
 }

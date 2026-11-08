@@ -13,6 +13,8 @@ public enum StrategicSizeCategory : byte
 public struct StrategicSizeTag : IComponentData
 {
     public StrategicSizeCategory category;
+    // The caravan's drive system keeps pushing this forward while someone sits on the seat; a seated body scales with the vehicle, not as a lone player.
+    public double seatedUntilSeconds;
 }
 
 // Already blended by zoom mix (1 at ground level), written each frame by StrategicRigDriver from the StrategicZoomProfile.
