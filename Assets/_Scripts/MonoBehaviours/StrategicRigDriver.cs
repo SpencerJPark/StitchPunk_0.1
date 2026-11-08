@@ -15,6 +15,9 @@ public class StrategicRigDriver : MonoBehaviour
     private static readonly int TiltShiftFalloffId = Shader.PropertyToID("_TiltShiftFalloff");
     private static readonly int TiltShiftMaxPixelsId = Shader.PropertyToID("_TiltShiftMaxPixels");
     private static readonly int ZoomOutlineSuppressionId = Shader.PropertyToID("_ZoomOutlineSuppression");
+    private static readonly int ZoomGroundShadowSuppressionId = Shader.PropertyToID("_ZoomGroundShadowSuppression");
+    // Measured in TerrainWorld: by this mix the ground in view is past the 150 m shadow distance, so shadows are gone anyway.
+    private const float GroundShadowsGoneAtMix = 0.3f;
 
     [SerializeField] private CinemachineMixingCamera mixingCamera;
     [SerializeField] private CinemachineCamera caravanCamera;
@@ -49,6 +52,7 @@ public class StrategicRigDriver : MonoBehaviour
         HudFade = 0f;
         Shader.SetGlobalFloat(TiltShiftStrengthId, 0f);
         Shader.SetGlobalFloat(ZoomOutlineSuppressionId, 0f);
+        Shader.SetGlobalFloat(ZoomGroundShadowSuppressionId, 0f);
         SetTiltShiftActive(false);
         SetOutlinesActive(true);
         if (depthOfFieldVolume != null)
@@ -58,6 +62,7 @@ public class StrategicRigDriver : MonoBehaviour
     private void LateUpdate()
     {
         float mix = StrategicZoomState.Mix01;
+        Shader.SetGlobalFloat(ZoomGroundShadowSuppressionId, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(mix / GroundShadowsGoneAtMix)));
         UpdateTakeover(mix > 0.001f);
         ApplyMixingWeights(mix);
 

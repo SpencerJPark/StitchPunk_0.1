@@ -208,7 +208,7 @@ Shader "Painted/Ground"
             TEXTURE2D(_BlendNoiseTex);
             TEXTURE2D(_FringeTex);
             TEXTURE2D(_SplatMap);
-            SAMPLER(sampler_linear_repeat);
+            SAMPLER(sampler_trilinear_repeat);   // trilinear: bilinear mips switch in hard lines that slide down the screen while zooming
             SAMPLER(sampler_linear_clamp);
 
             struct Attributes
@@ -272,9 +272,9 @@ Shader "Painted/Ground"
                 half3  n     = normalize(IN.normalWS);
 
                 // ---- noises -------------------------------------------------------------
-                half  macroNoise = SAMPLE_TEXTURE2D(_MacroTex, sampler_linear_repeat, wxz / _MacroSize).r;
-                half  patchNoise = SAMPLE_TEXTURE2D(_MacroTex, sampler_linear_repeat, wxz / _PatchSize + 0.37).g;
-                half3 brush = SAMPLE_TEXTURE2D(_BlendNoiseTex, sampler_linear_repeat, wxz / _BlendNoiseSize).rgb;
+                half  macroNoise = SAMPLE_TEXTURE2D(_MacroTex, sampler_trilinear_repeat, wxz / _MacroSize).r;
+                half  patchNoise = SAMPLE_TEXTURE2D(_MacroTex, sampler_trilinear_repeat, wxz / _PatchSize + 0.37).g;
+                half3 brush = SAMPLE_TEXTURE2D(_BlendNoiseTex, sampler_trilinear_repeat, wxz / _BlendNoiseSize).rgb;
                 half  patchMask = smoothstep(0.4h, 0.6h, patchNoise) * _SecondBlend;
 
                 // ---- splat weights and border directions --------------------------------
@@ -296,11 +296,11 @@ Shader "Painted/Ground"
                 float fringeWid = _FringeSize / FRINGE_ASPECT * _FringeStretch;
                 float3 col = Layer(TEXTURE2D_ARGS(_BaseTex, sampler_BaseTex), wxz, _TileSizes.x, patchMask);
                 float  ink = 0, rim = 0;
-                PaintedFringe_float(_FringeTex, sampler_linear_repeat, w.r, gR, wxz, 0, FRINGE_ROWS, fringeWid, fringeLen, brush.r, _BlendNoiseAmount,
+                PaintedFringe_float(_FringeTex, sampler_BaseTex, w.r, gR, wxz, 0, FRINGE_ROWS, fringeWid, fringeLen, brush.r, _BlendNoiseAmount,
                                     Layer(TEXTURE2D_ARGS(_LayerRTex, sampler_BaseTex), wxz, _TileSizes.y, patchMask), col, ink, rim, col, ink, rim);
-                PaintedFringe_float(_FringeTex, sampler_linear_repeat, w.g, gG, wxz, 1, FRINGE_ROWS, fringeWid, fringeLen, brush.g, _BlendNoiseAmount,
+                PaintedFringe_float(_FringeTex, sampler_BaseTex, w.g, gG, wxz, 1, FRINGE_ROWS, fringeWid, fringeLen, brush.g, _BlendNoiseAmount,
                                     Layer(TEXTURE2D_ARGS(_LayerGTex, sampler_BaseTex), wxz, _TileSizes.z, patchMask), col, ink, rim, col, ink, rim);
-                PaintedFringe_float(_FringeTex, sampler_linear_repeat, w.b, gB, wxz, 2, FRINGE_ROWS, fringeWid, fringeLen, brush.b, _BlendNoiseAmount,
+                PaintedFringe_float(_FringeTex, sampler_BaseTex, w.b, gB, wxz, 2, FRINGE_ROWS, fringeWid, fringeLen, brush.b, _BlendNoiseAmount,
                                     Layer(TEXTURE2D_ARGS(_LayerBTex, sampler_BaseTex), wxz, _TileSizes.w, patchMask), col, ink, rim, col, ink, rim);
 
             #if defined(_CLIFFS)
@@ -311,7 +311,7 @@ Shader "Painted/Ground"
                     SAMPLE_TEXTURE2D(_CliffTex, sampler_BaseTex, posWS.xy / _CliffTileSize).rgb * cw.y;
                 float steep = 1.0 - smoothstep(_CliffStart, _CliffEnd, n.y);
                 float2 gC; DerivativeGradient_float(steep, wxz, gC);
-                PaintedFringe_float(_FringeTex, sampler_linear_repeat, steep, gC, wxz, 3, FRINGE_ROWS, fringeWid, fringeLen, brush.r, _BlendNoiseAmount,
+                PaintedFringe_float(_FringeTex, sampler_BaseTex, steep, gC, wxz, 3, FRINGE_ROWS, fringeWid, fringeLen, brush.r, _BlendNoiseAmount,
                                     cliffCol, col, ink, rim, col, ink, rim);
             #endif
 
