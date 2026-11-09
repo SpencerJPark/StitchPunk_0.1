@@ -28,6 +28,10 @@ public struct VehicleProfileBlob
     public float halfWidth;
     public float bumperGroundClearance;
 
+    public float wheelFrontAxleLocalZ;
+    public float wheelRearAxleLocalZ;
+    public float wheelHalfTrack;
+
     public float minimumImpactSpeed;
     public float damagePerMetrePerSecond;
     public float stunSecondsPerMetrePerSecond;

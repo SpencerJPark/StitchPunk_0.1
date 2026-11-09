@@ -26,6 +26,9 @@ MonoBehaviour:
   rearBumperLocalZ: -3
   halfWidth: 1.75
   bumperGroundClearance: 0.4
+  wheelFrontAxleLocalZ: 1.25
+  wheelRearAxleLocalZ: -1.29
+  wheelHalfTrack: 1.51
   minimumImpactSpeed: 2
   damagePerMetrePerSecond: 6
   stunSecondsPerMetrePerSecond: 0.25

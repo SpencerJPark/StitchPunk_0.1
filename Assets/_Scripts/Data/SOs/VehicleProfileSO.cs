@@ -33,6 +33,12 @@ public class VehicleProfileSO : ScriptableObject
     [Tooltip("The wall-check sphere rides this high, so kerbs and slopes don't stop it.")]
     public float bumperGroundClearance = 0.4f;
 
+    [Header("Wheels (vehicle-local ground contact points; the body tilts to and rests on these)")]
+    public float wheelFrontAxleLocalZ = 1.25f;
+    public float wheelRearAxleLocalZ = -1.29f;
+    [Tooltip("Sideways distance from the centre line to each wheel's contact point.")]
+    public float wheelHalfTrack = 1.51f;
+
     [Header("Crash")]
     [Tooltip("Below this speed units are only pushed aside.")]
     public float minimumImpactSpeed = 2f;

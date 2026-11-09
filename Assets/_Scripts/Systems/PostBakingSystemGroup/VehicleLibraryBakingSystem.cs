@@ -61,6 +61,9 @@ public partial struct VehicleLibraryBakingSystem : ISystem
             blob.rearBumperLocalZ = profile.rearBumperLocalZ;
             blob.halfWidth = profile.halfWidth;
             blob.bumperGroundClearance = profile.bumperGroundClearance;
+            blob.wheelFrontAxleLocalZ = profile.wheelFrontAxleLocalZ;
+            blob.wheelRearAxleLocalZ = profile.wheelRearAxleLocalZ;
+            blob.wheelHalfTrack = profile.wheelHalfTrack;
 
             blob.minimumImpactSpeed = profile.minimumImpactSpeed;
             blob.damagePerMetrePerSecond = profile.damagePerMetrePerSecond;
