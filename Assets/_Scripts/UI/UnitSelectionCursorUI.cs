@@ -44,8 +44,6 @@ public class UnitSelectionCursorUI : MonoBehaviour, IUpdateObserver
 
         if (cursorImageRectTransform != null)
         {
-            // The flag tip at the image's top-left corner is the click point, like the OS arrow.
-            cursorImageRectTransform.pivot = new Vector2(0f, 1f);
             Canvas cursorCanvas = cursorImageRectTransform.GetComponent<Canvas>();
             if (cursorCanvas == null) cursorCanvas = cursorImageRectTransform.gameObject.AddComponent<Canvas>();
             cursorCanvas.overrideSorting = true;
