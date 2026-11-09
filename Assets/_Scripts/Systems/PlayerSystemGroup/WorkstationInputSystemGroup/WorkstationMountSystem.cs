@@ -1,4 +1,5 @@
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -12,6 +13,7 @@ public partial struct WorkstationMountSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        EntityCommandBuffer commandBuffer = new EntityCommandBuffer(Allocator.Temp);
         foreach ((
             RefRW<WorkstationMounted> workstationMounted,
             EnabledRefRW<WorkstationMounted> workstationMountedEnabled,
@@ -44,6 +46,24 @@ public partial struct WorkstationMountSystem : ISystem
                 if (dismountRequested || tookDamage || workstationGone)
                 {
                     workstationMountedEnabled.ValueRW = false;
+                    // Mounted inside the caravan: leave the way summons do, out of the back and down to the ground.
+                    if (!workstationGone && SystemAPI.HasComponent<Caravan>(mountedWorkstation)
+                        && SystemAPI.HasComponent<CaravanExitTuning>(mountedWorkstation))
+                    {
+                        LocalTransform caravanPose = SystemAPI.GetComponent<LocalTransform>(mountedWorkstation);
+                        Caravan caravan = SystemAPI.GetComponent<Caravan>(mountedWorkstation);
+                        CaravanExitTuning exitTuning = SystemAPI.GetComponent<CaravanExitTuning>(mountedWorkstation);
+                        commandBuffer.AddComponent(playerEntity, new CaravanExitWalker
+                        {
+                            caravan = mountedWorkstation,
+                            interiorPoint = SystemAPI.GetComponent<LocalTransform>(playerEntity).Position,
+                            tailgatePoint = caravanPose.TransformPoint(caravan.tailgateEdgeLocalOffset),
+                            landingPoint = caravanPose.TransformPoint(caravan.hopLandingLocalOffset),
+                            walkOutSeconds = exitTuning.walkOutSeconds,
+                            hopSeconds = exitTuning.hopSeconds,
+                            hopArcHeight = exitTuning.hopArcHeight,
+                        });
+                    }
                 }
 
                 continue;
@@ -85,5 +105,8 @@ public partial struct WorkstationMountSystem : ISystem
             workstationMountedEnabled.ValueRW = true;
             onInteractPlayerInputEnabled.ValueRW = false;
         }
+
+        commandBuffer.Playback(state.EntityManager);
+        commandBuffer.Dispose();
     }
 }

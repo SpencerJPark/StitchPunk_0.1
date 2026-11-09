@@ -96,10 +96,11 @@ public struct CaravanChimneySmoking : IComponentData, IEnableableComponent { }
 // losing the game; going down yourself while it is broken is (CV-D14, PlayerKnockoutSystem).
 public struct CaravanBroken : IComponentData, IEnableableComponent { }
 
-// On a summoned unit while it walks out of the back and hops down. Added at spawn, removed on landing;
-// the unit only takes its rally move order once it is on the ground.
+// On a summoned unit (or the player leaving the workstation) while it walks out of the back and hops down. Added at
+// spawn or dismount, removed on landing; a summon only takes its rally move order once it is on the ground.
 public struct CaravanExitWalker : IComponentData
 {
+    public Entity caravan;                // set for the player only: holds the back doors open until they land
     public float3 interiorPoint;
     public float3 tailgatePoint;
     public float3 landingPoint;
