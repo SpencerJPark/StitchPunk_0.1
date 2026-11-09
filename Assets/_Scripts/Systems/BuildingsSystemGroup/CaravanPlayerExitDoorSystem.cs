@@ -2,12 +2,12 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
-// Holds the back doors open while the player is inside the caravan at the workstation or walking out of it, so the
-// player stays visible. A running summon exit sequence owns the doors instead (a smoke burst still shuts them first).
+// Holds the back doors open while the player walks out of the caravan after leaving the workstation. Sitting inside
+// keeps them shut (owner call 2026-11-08); the back zone opens them on the way in, and a summon sequence owns them.
 [BurstCompile]
 [UpdateInGroup(typeof(BuildingsSystemGroup))]
 [UpdateBefore(typeof(CaravanExitSequenceSystem))]
-public partial struct CaravanPlayerInsideDoorSystem : ISystem
+public partial struct CaravanPlayerExitDoorSystem : ISystem
 {
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -21,11 +21,9 @@ public partial struct CaravanPlayerInsideDoorSystem : ISystem
         // Main-thread lookup writes to the doors wait for nothing on their own (Gotchas.md).
         state.CompleteDependency();
 
-        NativeList<Entity> caravansWithPlayerInside = new NativeList<Entity>(2, Allocator.Temp);
-        foreach (RefRO<WorkstationMounted> workstationMounted in SystemAPI.Query<RefRO<WorkstationMounted>>().WithAll<Player>())
-            caravansWithPlayerInside.Add(workstationMounted.ValueRO.workstation);
+        NativeList<Entity> caravansWithPlayerWalkingOut = new NativeList<Entity>(2, Allocator.Temp);
         foreach (RefRO<CaravanExitWalker> exitWalker in SystemAPI.Query<RefRO<CaravanExitWalker>>().WithAll<Player>())
-            caravansWithPlayerInside.Add(exitWalker.ValueRO.caravan);
+            caravansWithPlayerWalkingOut.Add(exitWalker.ValueRO.caravan);
 
         foreach ((DynamicBuffer<CaravanSummonExitDoor> exitDoors, Entity caravanEntity)
                  in SystemAPI.Query<DynamicBuffer<CaravanSummonExitDoor>>()
@@ -33,7 +31,7 @@ public partial struct CaravanPlayerInsideDoorSystem : ISystem
                      .WithDisabled<CaravanExitSequence>()
                      .WithEntityAccess())
         {
-            DoorOverride wantedOverride = caravansWithPlayerInside.Contains(caravanEntity) ? DoorOverride.HoldOpen : DoorOverride.None;
+            DoorOverride wantedOverride = caravansWithPlayerWalkingOut.Contains(caravanEntity) ? DoorOverride.HoldOpen : DoorOverride.None;
             for (int doorIndex = 0; doorIndex < exitDoors.Length; doorIndex++)
             {
                 Entity doorEntity = exitDoors[doorIndex].door;
@@ -44,6 +42,6 @@ public partial struct CaravanPlayerInsideDoorSystem : ISystem
             }
         }
 
-        caravansWithPlayerInside.Dispose();
+        caravansWithPlayerWalkingOut.Dispose();
     }
 }
