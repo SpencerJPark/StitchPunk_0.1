@@ -27,15 +27,6 @@ public class WorldAtmosphereDriver : MonoBehaviour
     private static readonly int GroundExposureBoostId = Shader.PropertyToID("_TerrainGroundExposureBoost");
     private const string DebugToggleName = "Atmosphere";
     private const float WeatherEasePerSecond = 0.4f;
-    private const float SunriseHour = 6f;
-    private const float SunsetHour = 18f;
-    private const float MaxSunElevationDegrees = 62f;
-    // Yaw is the direction the light travels: 315 = sun in the southeast, 405 = sun in the southwest.
-    private const float SunriseLightYawDegrees = 315f;
-    private const float SunsetLightYawDegrees = 405f;
-    private const float HorizonSunElevationDegrees = 9f;
-    private const float MoonElevationDegrees = 38f;
-    private const float MoonYawDegrees = 205f;
     private const float FlashAmbientBoost = 0.3f;
     private const float RainBoxMetresAtGround = 70f;
     private const float RainBoxMetresZoomedOut = 900f;
@@ -66,6 +57,12 @@ public class WorldAtmosphereDriver : MonoBehaviour
     };
     public bool autoWeather = true;
     public Vector2 autoWeatherMinutesRange = new Vector2(5f, 12f);
+
+    [Header("Sun direction (fixed all day and night; only colour and brightness follow the clock)")]
+    [Tooltip("Compass direction the light travels, 0 = north. 180 = sun in the north, shadows point south toward the camera.")]
+    [Range(0f, 360f)] public float sunLightTravelYawDegrees = 180f;
+    [Tooltip("Lower = longer shadows.")]
+    [Range(10f, 90f)] public float sunElevationDegrees = 50f;
 
     [Header("Debug override")]
     public bool useManualTimeOfDay;
@@ -158,7 +155,7 @@ public class WorldAtmosphereDriver : MonoBehaviour
         {
             sun.color = Desaturate(sunColour.Evaluate(timeOfDay01), saturation);
             sun.intensity = sunIntensity.Evaluate(timeOfDay01) * blendedLook.sunScale;
-            sun.transform.rotation = SunRotation(timeOfDay01);
+            sun.transform.rotation = Quaternion.Euler(sunElevationDegrees, sunLightTravelYawDegrees, 0f);
         }
 
         Color ambient = Desaturate(ambientColour.Evaluate(timeOfDay01), saturation) * blendedLook.ambientScale;
@@ -175,20 +172,6 @@ public class WorldAtmosphereDriver : MonoBehaviour
         {
             cachedCamera.backgroundColor = Desaturate(backgroundColour.Evaluate(timeOfDay01), saturation) * blendedLook.ambientScale;
         }
-    }
-
-    private static Quaternion SunRotation(float timeOfDay01)
-    {
-        float hour = timeOfDay01 * 24f;
-        if (hour < SunriseHour || hour > SunsetHour)
-        {
-            return Quaternion.Euler(MoonElevationDegrees, MoonYawDegrees, 0f);
-        }
-        float dayFraction = (hour - SunriseHour) / (SunsetHour - SunriseHour);
-        float elevation = Mathf.Max(HorizonSunElevationDegrees, Mathf.Sin(dayFraction * Mathf.PI) * MaxSunElevationDegrees);
-        // The sun stays in the southern sky (the camera looks north), so the flat 2.5D characters are lit from the front all day
-        // while shadows still swing from northwest to northeast.
-        return Quaternion.Euler(elevation, Mathf.Lerp(SunriseLightYawDegrees, SunsetLightYawDegrees, dayFraction), 0f);
     }
 
     private static Color Desaturate(Color colour, float saturation)
