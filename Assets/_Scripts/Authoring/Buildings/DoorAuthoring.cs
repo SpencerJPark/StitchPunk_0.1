@@ -19,6 +19,7 @@ public class DoorAuthoring : MonoBehaviour
     [Tooltip("The vehicle or building this door belongs to. Empty = the nearest parent with a CaravanAuthoring, else the top of the hierarchy.")]
     public GameObject owner;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<DoorAuthoring>
     {
         public override void Bake(DoorAuthoring authoring)

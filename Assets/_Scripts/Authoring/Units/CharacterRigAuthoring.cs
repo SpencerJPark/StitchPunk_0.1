@@ -36,6 +36,7 @@ public class CharacterRigAuthoring : MonoBehaviour
         public List<string> tags = new();
     }
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<CharacterRigAuthoring>
     {
         public override void Bake(CharacterRigAuthoring authoring)

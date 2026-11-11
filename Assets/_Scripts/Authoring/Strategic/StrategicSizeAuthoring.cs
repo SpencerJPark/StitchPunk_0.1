@@ -8,6 +8,7 @@ public class StrategicSizeAuthoring : MonoBehaviour
 {
     public StrategicSizeCategory category = StrategicSizeCategory.Wanderer;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<StrategicSizeAuthoring>
     {
         public override void Bake(StrategicSizeAuthoring authoring)

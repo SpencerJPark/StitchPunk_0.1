@@ -7,6 +7,7 @@ public class StartingWeaponAuthoring : MonoBehaviour
     [Tooltip("Weapon item prefab (e.g. Pistol) equipped through the normal pickup path when the unit spawns.")]
     public GameObject weaponPrefab;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<StartingWeaponAuthoring>
     {
         public override void Bake(StartingWeaponAuthoring authoring)

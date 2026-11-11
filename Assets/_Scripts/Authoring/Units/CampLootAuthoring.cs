@@ -6,6 +6,7 @@ public class CampLootAuthoring : MonoBehaviour
 {
     public GameObject camp;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<CampLootAuthoring>
     {
         public override void Bake(CampLootAuthoring authoring)

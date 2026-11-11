@@ -12,6 +12,7 @@ public class TerrainTileNavAuthoring : MonoBehaviour
     public int layerCount = 1;
     public Vector2Int coordinate;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<TerrainTileNavAuthoring>
     {
         public override void Bake(TerrainTileNavAuthoring authoring)

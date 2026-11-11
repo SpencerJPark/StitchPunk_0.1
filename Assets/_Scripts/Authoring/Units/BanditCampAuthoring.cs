@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class BanditCampAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<BanditCampAuthoring>
     {
         public override void Bake(BanditCampAuthoring authoring)

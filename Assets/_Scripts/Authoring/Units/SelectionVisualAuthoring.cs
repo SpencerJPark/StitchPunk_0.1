@@ -7,6 +7,7 @@ using UnityEngine;
 // the _SelectionColor shader property at runtime without any cross-entity lookup.
 public class SelectionVisualAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<SelectionVisualAuthoring>
     {
         public override void Bake(SelectionVisualAuthoring authoring)

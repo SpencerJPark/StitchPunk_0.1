@@ -6,6 +6,7 @@ using Unity.Entities;
 // hand-built. Tag/group strings are copied into FixedString32Bytes (Burst-safe). Every slot gets a
 // safe default so a missing SO can never index out of range at runtime. DESIGN only — ragdoll
 // config bakes through RagdollJointAuthoring on the joint empties, never through this blob.
+[BakingVersion("stitchpunk", 1)]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct PartLibraryBakingSystem : ISystem

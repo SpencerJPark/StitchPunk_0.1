@@ -11,6 +11,7 @@ using UnityEngine;
 /// </summary>
 public class NarrativeEventAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<NarrativeEventAuthoring>
     {
         public override void Bake(NarrativeEventAuthoring authoring)

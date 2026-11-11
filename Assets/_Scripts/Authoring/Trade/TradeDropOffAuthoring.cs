@@ -11,6 +11,7 @@ public class TradeDropOffAuthoring : MonoBehaviour
     [Tooltip("Where delivered units go and idle. Empty = this object's own position.")]
     public Transform standPoint;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<TradeDropOffAuthoring>
     {
         public override void Bake(TradeDropOffAuthoring authoring)

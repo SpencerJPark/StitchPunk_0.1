@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class InteractionVisualAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<InteractionVisualAuthoring>
     {
         public override void Bake(InteractionVisualAuthoring authoring)

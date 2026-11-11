@@ -5,6 +5,7 @@ public class SoundLibraryAuthoring : MonoBehaviour
 {
     public SoundLibrarySO library;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<SoundLibraryAuthoring>
     {
         public override void Bake(SoundLibraryAuthoring authoring)

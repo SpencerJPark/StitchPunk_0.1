@@ -8,6 +8,7 @@ using Unity.Entities;
 // Ragdoll component stamping (formerly section 2 here, Ragdoll2D/Ragdoll2DJoint) is gone — the
 // toolkit's own ActorBaker stamps RagdollActor/RagdollLaunch/RagdollBody from the rig's authored
 // ragdoll bodies, nothing for this system to do.
+[BakingVersion("stitchpunk", 1)]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct CharacterRigBakingSystem : ISystem

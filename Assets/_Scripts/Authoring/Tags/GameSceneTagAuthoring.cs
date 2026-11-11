@@ -4,6 +4,7 @@ using UnityEngine;
 public class GameSceneTagAuthoring : MonoBehaviour {
 
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<GameSceneTagAuthoring> {
 
 

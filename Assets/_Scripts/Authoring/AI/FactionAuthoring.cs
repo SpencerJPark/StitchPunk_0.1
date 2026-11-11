@@ -18,6 +18,7 @@ public class FactionAuthoring : MonoBehaviour
 {
     public FactionType factionType;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<FactionAuthoring>
     {
         public override void Bake(FactionAuthoring authoring)

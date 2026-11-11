@@ -8,6 +8,7 @@ using UnityEngine;
 /// </summary>
 public class DialogueManagerAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<DialogueManagerAuthoring>
     {
         public override void Bake(DialogueManagerAuthoring authoring)

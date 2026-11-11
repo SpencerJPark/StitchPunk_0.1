@@ -23,6 +23,7 @@ public class WaypointAuthoring : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, radius);
     }
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<WaypointAuthoring>
     {
         public override void Bake(WaypointAuthoring authoring)

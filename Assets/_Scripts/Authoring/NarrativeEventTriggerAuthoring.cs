@@ -24,6 +24,7 @@ public class NarrativeEventTriggerAuthoring : MonoBehaviour
              "When false it fires once and stays disabled permanently.")]
     public bool repeatable;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<NarrativeEventTriggerAuthoring>
     {
         public override void Bake(NarrativeEventTriggerAuthoring authoring)

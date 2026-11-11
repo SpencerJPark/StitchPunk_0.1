@@ -5,6 +5,7 @@ using Unity.Collections;
 using System;
 using System.Collections.Generic;
 
+[BakingVersion("stitchpunk", 1)]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct UnitLibraryBakingSystem : ISystem

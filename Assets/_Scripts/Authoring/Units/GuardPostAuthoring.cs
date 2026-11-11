@@ -11,6 +11,7 @@ public class GuardPostAuthoring : MonoBehaviour
     [Tooltip("A hostile within this distance of the guard is always fought, even past the leash. The guard only gives up when it is past the leash AND the hostile is farther than this.")]
     public float keepFightingWithinMeters = 6f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<GuardPostAuthoring>
     {
         public override void Bake(GuardPostAuthoring authoring)

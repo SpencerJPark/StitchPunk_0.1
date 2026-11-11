@@ -8,6 +8,7 @@ public class UndeadAuthoring : MonoBehaviour
 {
     public bool startUndead;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<UndeadAuthoring>
     {
         public override void Bake(UndeadAuthoring authoring)

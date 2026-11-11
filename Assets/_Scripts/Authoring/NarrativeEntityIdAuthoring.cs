@@ -18,6 +18,7 @@ public class NarrativeEntityIdAuthoring : MonoBehaviour
              "Never reuse an ID — each entity must have a unique value.")]
     public int id;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<NarrativeEntityIdAuthoring>
     {
         public override void Bake(NarrativeEntityIdAuthoring authoring)

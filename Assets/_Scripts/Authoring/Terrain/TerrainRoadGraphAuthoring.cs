@@ -10,6 +10,7 @@ public class TerrainRoadGraphAuthoring : MonoBehaviour
 {
     private const float SampleSpacingMetres = 1f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<TerrainRoadGraphAuthoring>
     {
         public override void Bake(TerrainRoadGraphAuthoring authoring)

@@ -7,6 +7,7 @@ public class ProjectileAuthoring : MonoBehaviour
     [Tooltip("Hit radius added to each unit's 0.4 m circle in the swept hit test.")]
     public float radius = 0.05f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<ProjectileAuthoring>
     {
         public override void Bake(ProjectileAuthoring authoring)

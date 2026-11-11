@@ -8,6 +8,7 @@ public class ItemAuthoring : MonoBehaviour
     [Tooltip("Drag the child GameObject that has ItemAttachPointAuthoring here.")]
     public GameObject gripPoint;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<ItemAuthoring>
     {
         public override void Bake(ItemAuthoring authoring)

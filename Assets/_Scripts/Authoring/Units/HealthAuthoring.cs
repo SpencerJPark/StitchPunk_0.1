@@ -15,6 +15,7 @@ public class HealthAuthoring : MonoBehaviour {
     [Tooltip("Fallback only — see Health Amount.")]
     public int healthAmountMax;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<HealthAuthoring> {
         public override void Bake(HealthAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);

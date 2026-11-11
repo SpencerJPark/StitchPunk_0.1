@@ -12,7 +12,7 @@ using UnityEngine.UIElements;
 public static class TerrainTileCreator
 {
     // Top face of every tile sits here, matching the original CampLoop Ground
-    public const float GroundTopHeight = -0.03f;
+    public const float GroundTopHeight = TerrainTileData.GroundTopHeightMetres;
     const string GroundLayerName = "Ground";
     const string TerrainWorldRootName = "TerrainWorld";
 

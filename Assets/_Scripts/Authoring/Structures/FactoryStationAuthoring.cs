@@ -9,6 +9,7 @@ public class FactoryStationAuthoring : MonoBehaviour
     public int gridZ;
     public int workerSlots;   // how many workers can be assigned to this station (0 = automatic)
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<FactoryStationAuthoring>
     {
         public override void Bake(FactoryStationAuthoring authoring)

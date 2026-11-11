@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class PlayerImmuneAuthoring : MonoBehaviour 
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<PlayerImmuneAuthoring> {
         
         public override void Bake(PlayerImmuneAuthoring authoring) {

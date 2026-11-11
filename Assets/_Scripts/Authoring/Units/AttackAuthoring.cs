@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class AttackAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<AttackAuthoring>
     {
         public override void Bake(AttackAuthoring authoring)

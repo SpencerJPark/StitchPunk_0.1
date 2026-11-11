@@ -7,6 +7,7 @@ public class UnitSpawnerAuthoring : MonoBehaviour
     public int spawnCount;
     public float range;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<UnitSpawnerAuthoring>
     {
         public override void Bake(UnitSpawnerAuthoring authoring)

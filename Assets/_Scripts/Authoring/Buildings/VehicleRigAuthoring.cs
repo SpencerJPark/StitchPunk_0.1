@@ -29,6 +29,7 @@ public class VehicleRigAuthoring : MonoBehaviour
     [Tooltip("Code slump only (no VehicleBroken clip).")]
     public float brokenSagDegrees = 4f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<VehicleRigAuthoring>
     {
         public override void Bake(VehicleRigAuthoring authoring)

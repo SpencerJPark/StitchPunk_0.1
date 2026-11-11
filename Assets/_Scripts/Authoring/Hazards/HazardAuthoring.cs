@@ -26,6 +26,7 @@ public class HazardAuthoring : MonoBehaviour
     [Tooltip("Sideways launch on a lethal hit, away from the hazard. 0 = none.")]
     public float launchForceX = 0f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<HazardAuthoring>
     {
         public override void Bake(HazardAuthoring authoring)

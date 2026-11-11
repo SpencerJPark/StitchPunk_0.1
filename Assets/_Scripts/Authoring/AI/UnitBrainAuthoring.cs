@@ -10,6 +10,7 @@ public class UnitBrainAuthoring : MonoBehaviour
     [Tooltip("Optional hand-socket child GO. Leave null if unit cannot hold items.")]
     public GameObject handSocket;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<UnitBrainAuthoring>
     {
         public override void Bake(UnitBrainAuthoring authoring)

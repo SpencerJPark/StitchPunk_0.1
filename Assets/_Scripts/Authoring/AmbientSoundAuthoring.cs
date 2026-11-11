@@ -14,6 +14,7 @@ public class AmbientSoundAuthoring : MonoBehaviour
     [Tooltip("Start the loop playing on spawn.")]
     public bool startEnabled = true;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<AmbientSoundAuthoring>
     {
         public override void Bake(AmbientSoundAuthoring authoring)

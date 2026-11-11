@@ -41,6 +41,7 @@ public class WorkstationAuthoring : MonoBehaviour
         public float buildSeconds;
     }
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<WorkstationAuthoring>
     {
         public override void Bake(WorkstationAuthoring authoring)

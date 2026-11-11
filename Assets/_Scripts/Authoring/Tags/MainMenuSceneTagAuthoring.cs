@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class MainMenuSceneTagAuthoring : MonoBehaviour {
     
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<MainMenuSceneTagAuthoring> {
         
         public override void Bake(MainMenuSceneTagAuthoring authoring) {

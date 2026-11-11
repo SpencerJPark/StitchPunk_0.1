@@ -5,6 +5,7 @@ public class InteractionLibraryAuthoring : MonoBehaviour
 {
     public InteractionLibrarySO library;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<InteractionLibraryAuthoring>
     {
         public override void Bake(InteractionLibraryAuthoring authoring)

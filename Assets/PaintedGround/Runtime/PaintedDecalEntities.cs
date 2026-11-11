@@ -33,6 +33,7 @@ namespace PaintedGround
         public float4 Value;
     }
 
+    [BakingVersion("stitchpunk", 1)]
     public class PaintedDecalBaker : Baker<PaintedDecal>
     {
         public override void Bake(PaintedDecal authoring)

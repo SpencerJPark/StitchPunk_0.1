@@ -20,6 +20,7 @@ public class TradeBoardAuthoring : MonoBehaviour
     public float flyOffSeconds = 3f;
     public float arcHeight = 4f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<TradeBoardAuthoring>
     {
         public override void Bake(TradeBoardAuthoring authoring)

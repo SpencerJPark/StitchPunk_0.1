@@ -20,6 +20,7 @@ public class FeatureConfigAuthoring : MonoBehaviour
     [Tooltip("SaveSystemGroup — play time tracking, auto-save, save/load to disk")]
     public bool saveEnabled = true;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<FeatureConfigAuthoring>
     {
         public override void Bake(FeatureConfigAuthoring authoring)

@@ -9,6 +9,7 @@ using Unity.Entities;
 // unit after all bakers complete, so the pipeline runs once on load and the unit gets a random design.
 // Prefabs are excluded (default query skips the Prefab tag): runtime spawns get NewlySpawned from
 // the spawner already. The DesignReloadOnBake marker is [BakingType] and stripped from the runtime world.
+[BakingVersion("stitchpunk", 1)]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct DesignReloadBakingSystem : ISystem

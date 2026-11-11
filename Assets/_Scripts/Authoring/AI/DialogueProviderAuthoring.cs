@@ -16,6 +16,7 @@ public class DialogueProviderAuthoring : MonoBehaviour
     [Tooltip("The primary dialogue sequence for this NPC. Must have a unique ID set in DialogueIds.Sequences.")]
     public DialogueSequenceSO dialogueSequence;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<DialogueProviderAuthoring>
     {
         public override void Bake(DialogueProviderAuthoring authoring)
