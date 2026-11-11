@@ -43,6 +43,14 @@ public sealed class TerrainTileMapElement : VisualElement
     public event Action<Vector2Int> CellPrimaryClicked;
     public event Action<Vector2Int> CellSecondaryClicked;
     public event Action HoverChanged;
+    public event Action<List<Vector2Int>> cellsDragSelected;
+
+    readonly Label dragCountLabel;
+    bool isDragArmed;
+    bool isDragSpanningCells;
+    int dragPointerId;
+    Vector2Int dragAnchorCell;
+    Vector2Int dragCurrentCell;
 
     public bool IsHovering => isHovering;
     public Vector2Int HoveredCell => hoveredCell;
@@ -54,6 +62,21 @@ public sealed class TerrainTileMapElement : VisualElement
         RegisterCallback<PointerMoveEvent>(OnPointerMove);
         RegisterCallback<PointerLeaveEvent>(OnPointerLeave);
         RegisterCallback<PointerDownEvent>(OnPointerDown);
+        RegisterCallback<PointerMoveEvent>(OnDragPointerMove);
+        RegisterCallback<PointerUpEvent>(OnPointerUp);
+        RegisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut);
+        RegisterCallback<KeyDownEvent>(OnKeyDown);
+        focusable = true;
+
+        dragCountLabel = new Label();
+        dragCountLabel.pickingMode = PickingMode.Ignore;
+        dragCountLabel.style.position = Position.Absolute;
+        dragCountLabel.style.display = DisplayStyle.None;
+        dragCountLabel.style.color = PlusColor;
+        dragCountLabel.style.backgroundColor = EmptyColor;
+        dragCountLabel.style.paddingLeft = 4f;
+        dragCountLabel.style.paddingRight = 4f;
+        Add(dragCountLabel);
         ApplyWorldSize();
     }
 
@@ -165,7 +188,8 @@ public sealed class TerrainTileMapElement : VisualElement
             }
         }
 
-        if (isHovering)
+        if (isDragArmed && isDragSpanningCells) DrawDragRectangle(painter);
+        else if (isHovering)
             FillRectangle(painter, CellTopLeft(hoveredCell), CellSizePixels, CellSizePixels, HoverColor);
 
         float inset = WorldBoundsLineWidth * 0.5f;
@@ -207,10 +231,121 @@ public sealed class TerrainTileMapElement : VisualElement
 
     void OnPointerDown(PointerDownEvent pointerEvent)
     {
+        if (isDragArmed)
+        {
+            if (pointerEvent.button == 1) CancelDrag();
+            return;
+        }
+
         Vector2Int cell;
         if (!TryCellAt(pointerEvent.localPosition, out cell)) return;
-        if (pointerEvent.button == 0) CellPrimaryClicked?.Invoke(cell);
+        if (pointerEvent.button == 0)
+        {
+            if (!IsCreatableCell(cell))
+            {
+                CellPrimaryClicked?.Invoke(cell);
+                return;
+            }
+            // A creatable cell waits for pointer up: no movement past one cell is a plain click.
+            isDragArmed = true;
+            isDragSpanningCells = false;
+            dragAnchorCell = cell;
+            dragCurrentCell = cell;
+            dragPointerId = pointerEvent.pointerId;
+            this.CapturePointer(dragPointerId);
+            Focus();
+            pointerEvent.StopPropagation();
+        }
         else if (pointerEvent.button == 1) CellSecondaryClicked?.Invoke(cell);
+    }
+
+    void OnDragPointerMove(PointerMoveEvent pointerEvent)
+    {
+        if (!isDragArmed) return;
+        Vector2Int cell = CellAtClamped(pointerEvent.localPosition);
+        if (cell != dragCurrentCell || !isDragSpanningCells)
+        {
+            dragCurrentCell = cell;
+            if (cell != dragAnchorCell) isDragSpanningCells = true;
+            UpdateDragCountLabel(pointerEvent.localPosition);
+            MarkDirtyRepaint();
+        }
+        else if (isDragSpanningCells) UpdateDragCountLabel(pointerEvent.localPosition);
+    }
+
+    void OnPointerUp(PointerUpEvent pointerEvent)
+    {
+        if (!isDragArmed || pointerEvent.button != 0) return;
+        bool wasSpanningCells = isDragSpanningCells;
+        Vector2Int anchorCell = dragAnchorCell;
+        List<Vector2Int> cellsToCreate = CellsInDragRectangle();
+        CancelDrag();
+        if (!wasSpanningCells) CellPrimaryClicked?.Invoke(anchorCell);
+        else if (cellsToCreate.Count > 0) cellsDragSelected?.Invoke(cellsToCreate);
+    }
+
+    void OnPointerCaptureOut(PointerCaptureOutEvent captureEvent)
+    {
+        if (isDragArmed) CancelDrag();
+    }
+
+    void OnKeyDown(KeyDownEvent keyEvent)
+    {
+        if (isDragArmed && keyEvent.keyCode == KeyCode.Escape)
+        {
+            CancelDrag();
+            keyEvent.StopPropagation();
+        }
+    }
+
+    void CancelDrag()
+    {
+        bool wasArmed = isDragArmed;
+        isDragArmed = false;
+        isDragSpanningCells = false;
+        dragCountLabel.style.display = DisplayStyle.None;
+        if (wasArmed && this.HasPointerCapture(dragPointerId)) this.ReleasePointer(dragPointerId);
+        MarkDirtyRepaint();
+    }
+
+    Vector2Int CellAtClamped(Vector2 localPosition)
+    {
+        int column = Mathf.Clamp(Mathf.FloorToInt(localPosition.x / CellSizePixels), 0, countX - 1);
+        int row = Mathf.Clamp(Mathf.FloorToInt(localPosition.y / CellSizePixels), 0, countZ - 1);
+        return new Vector2Int(originTile.x + column, originTile.y + (countZ - 1 - row));
+    }
+
+    List<Vector2Int> CellsInDragRectangle()
+    {
+        List<Vector2Int> cells = new List<Vector2Int>();
+        int minX = Mathf.Min(dragAnchorCell.x, dragCurrentCell.x);
+        int maxX = Mathf.Max(dragAnchorCell.x, dragCurrentCell.x);
+        int minZ = Mathf.Min(dragAnchorCell.y, dragCurrentCell.y);
+        int maxZ = Mathf.Max(dragAnchorCell.y, dragCurrentCell.y);
+        for (int cellZ = minZ; cellZ <= maxZ; cellZ++)
+            for (int cellX = minX; cellX <= maxX; cellX++)
+                if (StateOf(new Vector2Int(cellX, cellZ)) == TerrainTileCellState.Empty) cells.Add(new Vector2Int(cellX, cellZ));
+        return cells;
+    }
+
+    void UpdateDragCountLabel(Vector2 localPosition)
+    {
+        int tileCount = CellsInDragRectangle().Count;
+        dragCountLabel.text = tileCount + (tileCount == 1 ? " tile" : " tiles");
+        dragCountLabel.style.left = localPosition.x + 12f;
+        dragCountLabel.style.top = localPosition.y + 12f;
+        dragCountLabel.style.display = DisplayStyle.Flex;
+    }
+
+    void DrawDragRectangle(Painter2D painter)
+    {
+        Vector2 anchorTopLeft = CellTopLeft(dragAnchorCell);
+        Vector2 currentTopLeft = CellTopLeft(dragCurrentCell);
+        Vector2 rectangleTopLeft = new Vector2(Mathf.Min(anchorTopLeft.x, currentTopLeft.x), Mathf.Min(anchorTopLeft.y, currentTopLeft.y));
+        float width = Mathf.Abs(anchorTopLeft.x - currentTopLeft.x) + CellSizePixels;
+        float height = Mathf.Abs(anchorTopLeft.y - currentTopLeft.y) + CellSizePixels;
+        FillRectangle(painter, rectangleTopLeft, width, height, HoverColor);
+        StrokeRectangle(painter, rectangleTopLeft, width, height, PlusColor, 2f);
     }
 }
 
@@ -269,6 +404,7 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
         mapElement.StateOfCell = StateOfCell;
         mapElement.CellPrimaryClicked += OnCellPrimaryClicked;
         mapElement.CellSecondaryClicked += OnCellSecondaryClicked;
+        mapElement.cellsDragSelected += OnCellsDragSelected;
         mapElement.HoverChanged += OnHoverChanged;
     }
 
@@ -398,6 +534,12 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
         RefreshAll();
     }
 
+    void OnCellsDragSelected(List<Vector2Int> cells)
+    {
+        TerrainTileCreator.CreateTileScenes(cells, TerrainSplatLayer.Grass);
+        RefreshAll();
+    }
+
     void OnCellSecondaryClicked(Vector2Int cell)
     {
         if (StateOfCell(cell) == TerrainTileCellState.Empty) return;
@@ -426,6 +568,11 @@ public sealed class TerrainTilesPanel : TerrainToolPanel
         }
         if (!subScene.EditingScene.isLoaded) SubSceneEditorUtility.EditScene(subScene);
         return true;
+    }
+
+    public static void SaveAndCloseTile(Vector2Int coordinate)
+    {
+        CloseTile(coordinate);
     }
 
     static void CloseTile(Vector2Int coordinate)
@@ -504,22 +651,46 @@ public static class TerrainOpenTilesSessionRestore
         retryUntilTime = EditorApplication.timeSinceStartup + RETRY_SECONDS;
     }
 
+    const string OPEN_TILES_SESSION_KEY = "TerrainEditor.OpenTiles";
+    const double RECORD_POLL_SECONDS = 1.0;
+    static double nextRecordPollTime;
+
     static void RetryWhileWindowOpen()
     {
-        if (EditorApplication.timeSinceStartup > retryUntilTime) return;
-        OpenEveryTileInLoadedScenes();
+        if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+        if (EditorApplication.timeSinceStartup <= retryUntilTime)
+        {
+            ReopenRecordedTilesInLoadedScenes();
+            return;
+        }
+        // Recording is skipped inside the retry window: a reload would otherwise record "none open" before the restore runs.
+        if (EditorApplication.timeSinceStartup < nextRecordPollTime) return;
+        nextRecordPollTime = EditorApplication.timeSinceStartup + RECORD_POLL_SECONDS;
+        RecordOpenTilesInLoadedScenes();
     }
 
-    // Closed tile subscenes draw nothing in the Scene view, so every tile is kept open while editing.
-    static void OpenEveryTileInLoadedScenes()
+    // Tiles stay closed by default (a closed tile is drawn by TerrainClosedTilePreview); only tiles the user had open are reopened.
+    static void ReopenRecordedTilesInLoadedScenes()
     {
-        if (Application.isPlaying) return;
+        string recordedNames = SessionState.GetString(OPEN_TILES_SESSION_KEY, "");
+        if (recordedNames.Length == 0) return;
+        HashSet<string> recordedNameSet = new HashSet<string>(recordedNames.Split('\n'));
         foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
         {
-            if (!subScene.name.StartsWith("Tile_") || subScene.EditingScene.isLoaded) continue;
+            if (!recordedNameSet.Contains(subScene.name) || subScene.EditingScene.isLoaded) continue;
             if (subScene.SceneAsset == null) continue;
             SubSceneEditorUtility.EditScene(subScene);
         }
+    }
+
+    static void RecordOpenTilesInLoadedScenes()
+    {
+        List<string> openTileNames = new List<string>();
+        foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
+            if (subScene.name.StartsWith("Tile_") && subScene.EditingScene.isLoaded) openTileNames.Add(subScene.name);
+        openTileNames.Sort();
+        string joinedNames = string.Join("\n", openTileNames);
+        if (joinedNames != SessionState.GetString(OPEN_TILES_SESSION_KEY, "")) SessionState.SetString(OPEN_TILES_SESSION_KEY, joinedNames);
     }
 }
 #endif

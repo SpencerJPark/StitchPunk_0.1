@@ -17,6 +17,43 @@ public static class TerrainTestWorldBuilder
     const string SharedSubScenePath = "Assets/Scenes/SubScenes/CampLoop_Sub.unity";
     const string TestWorldSubSceneName = "TerrainWorld_Sub";
     const string TestWorldSubScenePath = "Assets/Scenes/SubScenes/TerrainWorld_Sub.unity";
+    const string RequiredTileFolderPrefix = "Assets/Terrain/";
+
+    public struct TerrainWorldBuildTarget
+    {
+        public string scenePath;
+        public string tileFolder;
+        public string subSceneName;
+        public string subScenePath;
+        public string progressTitle;
+    }
+
+    public static readonly TerrainWorldBuildTarget TestWorldTarget = new TerrainWorldBuildTarget
+    {
+        scenePath = TestWorldScenePath,
+        tileFolder = TestWorldTileFolder,
+        subSceneName = TestWorldSubSceneName,
+        subScenePath = TestWorldSubScenePath,
+        progressTitle = "Create Test World"
+    };
+
+    public static readonly TerrainWorldBuildTarget RandomWorldTarget = new TerrainWorldBuildTarget
+    {
+        scenePath = "Assets/Scenes/RandomWorld.unity",
+        tileFolder = "Assets/Terrain/RandomWorld",
+        subSceneName = "RandomWorld_Sub",
+        subScenePath = "Assets/Scenes/SubScenes/RandomWorld_Sub.unity",
+        progressTitle = "Create Random World"
+    };
+
+    static TerrainWorldBuildTarget activeTarget = TestWorldTarget;
+
+    // Content steps read their folder and scene from here while a build runs
+    public static TerrainWorldBuildTarget ActiveTarget
+    {
+        get { return activeTarget; }
+        private set { activeTarget = value; }
+    }
 
     [MenuItem("Stitch Punk/Terrain/Create Test World (7 x 7)")]
     static void CreateSevenBySevenFromMenu()
@@ -47,18 +84,26 @@ public static class TerrainTestWorldBuilder
 
     public static string BuildTestWorld(int tilesPerSide, Action<int> afterTilesCreated)
     {
+        return BuildWorld(TestWorldTarget, tilesPerSide, afterTilesCreated);
+    }
+
+    public static string BuildWorld(TerrainWorldBuildTarget target, int tilesPerSide, Action<int> afterTilesCreated)
+    {
+        if (string.IsNullOrEmpty(target.tileFolder) || target.tileFolder == "Assets" || !target.tileFolder.StartsWith(RequiredTileFolderPrefix))
+            return "Refused: the tile folder '" + target.tileFolder + "' must be under " + RequiredTileFolderPrefix + " because a build deletes it.";
         if (tilesPerSide < 1 || tilesPerSide % 2 == 0) return "Tiles per side must be a positive odd number.";
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return "Cancelled: the open scene was not saved.";
 
-        TerrainTileAssets.RootFolderOverride = TestWorldTileFolder;
+        ActiveTarget = target;
+        TerrainTileAssets.RootFolderOverride = target.tileFolder;
         int tilesCreated = 0;
         try
         {
-            EditorUtility.DisplayProgressBar("Create Test World", "Copying CampLoop", 0f);
-            if (AssetDatabase.DeleteAsset(TestWorldTileFolder)) AssetDatabase.Refresh();
-            EnsureFolder(TestWorldTileFolder);
-            if (!AssetDatabase.CopyAsset(CampLoopScenePath, TestWorldScenePath)) return "Could not copy " + CampLoopScenePath + " to " + TestWorldScenePath;
-            EditorSceneManager.OpenScene(TestWorldScenePath, OpenSceneMode.Single);
+            EditorUtility.DisplayProgressBar(target.progressTitle, "Copying CampLoop", 0f);
+            if (AssetDatabase.DeleteAsset(target.tileFolder)) AssetDatabase.Refresh();
+            EnsureFolder(target.tileFolder);
+            if (!AssetDatabase.CopyAsset(CampLoopScenePath, target.scenePath)) return "Could not copy " + CampLoopScenePath + " to " + target.scenePath;
+            EditorSceneManager.OpenScene(target.scenePath, OpenSceneMode.Single);
 
             DetachCopiedTilesAndRoads();
 
@@ -68,7 +113,7 @@ public static class TerrainTestWorldBuilder
             {
                 for (int tileX = range.x; tileX <= range.y; tileX++)
                 {
-                    EditorUtility.DisplayProgressBar("Create Test World", "Tile " + tileX + ", " + tileZ, tilesCreated / (float)totalTiles);
+                    EditorUtility.DisplayProgressBar(target.progressTitle, "Tile " + tileX + ", " + tileZ, tilesCreated / (float)totalTiles);
                     SubScene created = TerrainTileCreator.CreateTileScene(new Vector2Int(tileX, tileZ), TerrainSplatLayer.Grass);
                     if (created != null) tilesCreated++;
                 }
@@ -76,7 +121,7 @@ public static class TerrainTestWorldBuilder
 
             if (afterTilesCreated != null)
             {
-                EditorUtility.DisplayProgressBar("Create Test World", "Adding content", 1f);
+                EditorUtility.DisplayProgressBar(target.progressTitle, "Adding content", 1f);
                 afterTilesCreated(tilesPerSide);
             }
 
@@ -89,9 +134,10 @@ public static class TerrainTestWorldBuilder
         finally
         {
             TerrainTileAssets.RootFolderOverride = null;
+            ActiveTarget = TestWorldTarget;
             EditorUtility.ClearProgressBar();
         }
-        return "Test world built: " + tilesCreated + " tiles under " + TestWorldTileFolder + ", scene " + TestWorldScenePath;
+        return "World built: " + tilesCreated + " tiles under " + target.tileFolder + ", scene " + target.scenePath;
     }
 
     // Fast travel = the zoomed-out miniature view: bake the always-loaded strategic layer, build the camera blend rig (assigned to the
@@ -125,7 +171,7 @@ public static class TerrainTestWorldBuilder
         SubScene subScene = null;
         foreach (SubScene candidate in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
         {
-            if (candidate.gameObject.name == SharedSubSceneName || candidate.gameObject.name == TestWorldSubSceneName) { subScene = candidate; break; }
+            if (candidate.gameObject.name == SharedSubSceneName || candidate.gameObject.name == ActiveTarget.subSceneName) { subScene = candidate; break; }
         }
         if (subScene == null)
         {
@@ -135,13 +181,13 @@ public static class TerrainTestWorldBuilder
 
         if (subScene.gameObject.name == SharedSubSceneName)
         {
-            AssetDatabase.DeleteAsset(TestWorldSubScenePath);
-            if (!AssetDatabase.CopyAsset(SharedSubScenePath, TestWorldSubScenePath))
+            AssetDatabase.DeleteAsset(ActiveTarget.subScenePath);
+            if (!AssetDatabase.CopyAsset(SharedSubScenePath, ActiveTarget.subScenePath))
             {
-                Debug.LogError("[Terrain] Test world: could not copy " + SharedSubScenePath + " to " + TestWorldSubScenePath);
+                Debug.LogError("[Terrain] Test world: could not copy " + SharedSubScenePath + " to " + ActiveTarget.subScenePath);
                 return;
             }
-            SceneAsset copy = AssetDatabase.LoadAssetAtPath<SceneAsset>(TestWorldSubScenePath);
+            SceneAsset copy = AssetDatabase.LoadAssetAtPath<SceneAsset>(ActiveTarget.subScenePath);
             SerializedObject serializedSubScene = new SerializedObject(subScene);
             SerializedProperty sceneAssetProperty = serializedSubScene.FindProperty("_SceneAsset");
             if (sceneAssetProperty == null)
@@ -151,7 +197,7 @@ public static class TerrainTestWorldBuilder
             }
             sceneAssetProperty.objectReferenceValue = copy;
             serializedSubScene.ApplyModifiedProperties();
-            subScene.gameObject.name = TestWorldSubSceneName;
+            subScene.gameObject.name = ActiveTarget.subSceneName;
         }
 
         Unity.Scenes.Editor.SubSceneUtility.EditScene(subScene);

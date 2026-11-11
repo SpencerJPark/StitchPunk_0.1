@@ -83,6 +83,78 @@ public static class TerrainTileCreator
         return ConvertToTileScene(tile, false);
     }
 
+    public static int CreateTileScenes(IReadOnlyList<Vector2Int> coordinates, TerrainSplatLayer fill)
+    {
+        List<Vector2Int> pendingCoordinates = new List<Vector2Int>();
+        foreach (Vector2Int coordinate in coordinates)
+            if (!pendingCoordinates.Contains(coordinate) && !TileSceneAssetExists(coordinate))
+                pendingCoordinates.Add(coordinate);
+
+        int totalCount = pendingCoordinates.Count;
+        int createdCount = 0;
+        List<Vector2Int> createdCoordinates = new List<Vector2Int>();
+        try
+        {
+            while (pendingCoordinates.Count > 0)
+            {
+                Vector2Int next = TakeTileTouchingExistingTileFirst(pendingCoordinates);
+                bool cancelled = EditorUtility.DisplayCancelableProgressBar("Create Tiles",
+                    "Tile " + next.x + ", " + next.y + " (" + (createdCount + 1) + " of " + totalCount + ")",
+                    createdCount / (float)totalCount);
+                if (cancelled) break;
+
+                if (CreateTileScene(next, fill) != null)
+                {
+                    createdCount++;
+                    createdCoordinates.Add(next);
+                }
+            }
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+        }
+
+        if (createdCount > 0)
+        {
+            TerrainWorldAuthoring world = Object.FindFirstObjectByType<TerrainWorldAuthoring>(FindObjectsInactive.Include);
+            if (world != null) TerrainWorldIndexBuilder.Refresh(world);
+            TerrainGenerateTool.GenerateNewTilesInsideRegions(createdCoordinates);
+        }
+        return createdCount;
+    }
+
+    static bool TileSceneAssetExists(Vector2Int coordinate)
+    {
+        return AssetDatabase.LoadAssetAtPath<SceneAsset>(TerrainTileAssets.TileScenePath(coordinate)) != null;
+    }
+
+    // Prefers a tile whose 8-neighbourhood already has a tile so the seam weld in CreateTileScene always has something to match.
+    static Vector2Int TakeTileTouchingExistingTileFirst(List<Vector2Int> pendingCoordinates)
+    {
+        int chosenIndex = 0;
+        for (int index = 0; index < pendingCoordinates.Count; index++)
+        {
+            if (TouchesExistingTile(pendingCoordinates[index])) { chosenIndex = index; break; }
+        }
+        Vector2Int chosen = pendingCoordinates[chosenIndex];
+        pendingCoordinates.RemoveAt(chosenIndex);
+        return chosen;
+    }
+
+    static bool TouchesExistingTile(Vector2Int coordinate)
+    {
+        for (int offsetX = -1; offsetX <= 1; offsetX++)
+        {
+            for (int offsetZ = -1; offsetZ <= 1; offsetZ++)
+            {
+                if (offsetX == 0 && offsetZ == 0) continue;
+                if (TileSceneAssetExists(coordinate + new Vector2Int(offsetX, offsetZ))) return true;
+            }
+        }
+        return false;
+    }
+
     // ConvertToTileScene parents its SubScene into the ACTIVE scene, which may be an open tile scene.
     static void ActivatePersistentScene()
     {

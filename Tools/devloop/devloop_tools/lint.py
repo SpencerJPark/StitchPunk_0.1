@@ -76,6 +76,11 @@ _PACKAGE_EDITOR_BANNED_API_PATTERN: re.Pattern[str] = re.compile(
     r"\bHandles\.|\bOnGUI\b|\bGUILayout\b"
 )
 
+# With [BakingVersion] Unity rebakes subscenes only when the number changes, so a baker or baking system
+# without it forces a rebake on every change, and an edited one whose number was not bumped stays stale.
+_BAKER_OR_BAKING_SYSTEM_PATTERN: re.Pattern[str] = re.compile(r":\s*Baker\s*<|WorldSystemFilterFlags\.BakingSystem")
+_BAKING_VERSION_ATTRIBUTE_PATTERN: re.Pattern[str] = re.compile(r"\[\s*BakingVersion\s*\(")
+
 _MAXIMUM_OFFENDING_LINE_LENGTH: int = 100
 _MAXIMUM_FINDING_LINES_IN_REPORT: int = 40
 
@@ -208,7 +213,60 @@ def _lint_file_text(file_path: str, source_text: str) -> list[LintFinding]:
         if is_package_editor_file and _PACKAGE_EDITOR_BANNED_API_PATTERN.search(code_only_line):
             findings.append(LintFinding(file_path, line_number, "no-handles-in-package-editor", offending_text))
 
+    findings.extend(_missing_baking_version_findings(file_path, source_lines))
     return findings
+
+
+def _missing_baking_version_findings(file_path: str, source_lines: list[str]) -> list[LintFinding]:
+    first_baking_line_number: int = 0
+    has_baking_version_attribute: bool = False
+    for line_index, raw_line in enumerate(source_lines):
+        code_only_line: str = _strip_comments_and_literals(raw_line)
+        if _BAKING_VERSION_ATTRIBUTE_PATTERN.search(code_only_line):
+            has_baking_version_attribute = True
+        if first_baking_line_number == 0 and _BAKER_OR_BAKING_SYSTEM_PATTERN.search(code_only_line):
+            first_baking_line_number = line_index + 1
+    if first_baking_line_number == 0 or has_baking_version_attribute:
+        return []
+    return [
+        LintFinding(
+            file_path,
+            first_baking_line_number,
+            "baking-version",
+            "baker or baking system without [BakingVersion]; the whole assembly falls back to rebaking on every change",
+        )
+    ]
+
+
+def _unbumped_baking_version_findings(
+    file_path: str, source_text: str, changed_line_texts: list[str]
+) -> list[LintFinding]:
+    if "[BakingVersion(" not in source_text:
+        return []
+    if any("BakingVersion" in changed_line_text for changed_line_text in changed_line_texts):
+        return []
+    return [
+        LintFinding(
+            file_path,
+            1,
+            "baking-version",
+            "baker changed without bumping BakingVersion; cached subscene bakes stay stale "
+            "(bump the number, or ignore if the change cannot alter baked output)",
+        )
+    ]
+
+
+def _git_diff_changed_line_texts(project_root: str, relative_path: str) -> list[str]:
+    """Added and removed line texts of one file against HEAD (staged and unstaged together)."""
+    completed_process = subprocess.run(
+        ["git", "diff", "-U0", "HEAD", "--", relative_path],
+        cwd=project_root, capture_output=True, text=True, check=False,
+    )
+    return [
+        diff_line[1:]
+        for diff_line in completed_process.stdout.splitlines()
+        if diff_line[:1] in ("+", "-") and not diff_line.startswith(("+++", "---"))
+    ]
 
 
 def _git_diff_scoped_csharp_files(project_root: str) -> list[str]:
@@ -262,7 +320,14 @@ def lint_paths(project_root: str, paths: list[str]) -> LintReport:
         absolute_file_path = os.path.join(project_root, relative_file_path)
         with open(absolute_file_path, "r", encoding="utf-8", errors="replace") as file_handle:
             source_text: str = file_handle.read()
-        all_findings.extend(_lint_file_text(relative_file_path.replace(os.sep, "/"), source_text))
+        normalized_file_path: str = relative_file_path.replace(os.sep, "/")
+        all_findings.extend(_lint_file_text(normalized_file_path, source_text))
+        if not paths:
+            all_findings.extend(
+                _unbumped_baking_version_findings(
+                    normalized_file_path, source_text, _git_diff_changed_line_texts(project_root, relative_file_path)
+                )
+            )
 
     return LintReport(
         findings=all_findings, files_checked=len(resolved_relative_paths), passed=not all_findings

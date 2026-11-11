@@ -125,6 +125,77 @@ namespace StitchPunk.Tests
             Assert.AreNotEqual(TerrainSplatCodec.ColourOfLayer(TerrainSplatLayer.Stone), flatMask[50 * 100 + 50]);
         }
 
+        private void MakeFlatNoiselessProfile()
+        {
+            profile.heightLayers.Clear();
+            profile.baseHeightMetres = 0f;
+            profile.landLiftMetres = 0f;
+            profile.mountainRadiusMetres = 0f;
+            profile.flattenBelowMetres = -1000f;
+            profile.mountains = new System.Collections.Generic.List<TerrainMountainFeature>();
+            profile.flatAreas = new System.Collections.Generic.List<TerrainFlatArea>();
+        }
+
+        private float HeightAt(float worldX, float worldZ)
+        {
+            return TerrainProceduralGenerator.AnalyticHeightAt(profile, worldX, worldZ);
+        }
+
+        [Test]
+        public void Ridge_RaisesSegmentMidpointByItsHeight_AndNothingBeyondRadius()
+        {
+            MakeFlatNoiselessProfile();
+            float heightWithoutRidge = HeightAt(50f, 0f);
+            float farHeightWithoutRidge = HeightAt(50f, 40f);
+
+            profile.mountains.Add(new TerrainMountainFeature
+            {
+                startWorld = new Vector2(0f, 0f),
+                endWorld = new Vector2(100f, 0f),
+                radiusMetres = 20f,
+                heightMetres = 30f
+            });
+
+            Assert.AreEqual(heightWithoutRidge + 30f, HeightAt(50f, 0f), 1e-3f);
+            Assert.AreEqual(farHeightWithoutRidge, HeightAt(50f, 40f));
+        }
+
+        [Test]
+        public void OverlappingPeaks_TakeTheMaximumNotTheSum()
+        {
+            MakeFlatNoiselessProfile();
+            profile.mountains.Add(new TerrainMountainFeature { startWorld = Vector2.zero, endWorld = Vector2.zero, radiusMetres = 50f, heightMetres = 20f });
+            profile.mountains.Add(new TerrainMountainFeature { startWorld = Vector2.zero, endWorld = Vector2.zero, radiusMetres = 50f, heightMetres = 35f });
+
+            Assert.AreEqual(35f, HeightAt(0f, 0f), 1e-3f);
+        }
+
+        [Test]
+        public void FlatArea_PinsHeightInsideFlatRadius_AndLeavesBeyondBlendEndUntouched()
+        {
+            MakeFlatNoiselessProfile();
+            profile.mountains.Add(new TerrainMountainFeature { startWorld = Vector2.zero, endWorld = Vector2.zero, radiusMetres = 80f, heightMetres = 60f });
+            float untouchedFar = HeightAt(70f, 0f);
+            float untouchedNear = HeightAt(5f, 0f);
+            Assert.AreNotEqual(5f, untouchedNear);
+
+            profile.flatAreas.Add(new TerrainFlatArea { centreWorld = Vector2.zero, flatRadiusMetres = 10f, blendEndRadiusMetres = 40f, heightMetres = 5f });
+
+            Assert.AreEqual(5f, HeightAt(5f, 0f));
+            Assert.AreEqual(5f, HeightAt(0f, 0f));
+            Assert.AreEqual(untouchedFar, HeightAt(70f, 0f));
+        }
+
+        [Test]
+        public void NullMountainAndFlatAreaLists_DoNotThrow()
+        {
+            MakeFlatNoiselessProfile();
+            profile.mountains = null;
+            profile.flatAreas = null;
+
+            Assert.DoesNotThrow(() => HeightAt(12f, 34f));
+        }
+
         private float[] GenerateTile(Vector2Int tileCoordinate)
         {
             float[] heights = new float[TerrainTileData.HeightSampleCount];

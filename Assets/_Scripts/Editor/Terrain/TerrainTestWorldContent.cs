@@ -43,7 +43,7 @@ public static class TerrainTestWorldContent
             roadHalfExtent = half * TerrainTile.TileSizeMetres + 30f,
             mountainCentre = new Vector2(half * TerrainTile.TileSizeMetres - 20f, half * TerrainTile.TileSizeMetres - 20f)
         };
-        Scene worldScene = EditorSceneManager.GetSceneByPath(TerrainTestWorldBuilder.TestWorldScenePath);
+        Scene worldScene = EditorSceneManager.GetSceneByPath(TerrainTestWorldBuilder.ActiveTarget.scenePath);
         if (!worldScene.IsValid()) worldScene = EditorSceneManager.GetActiveScene();
 
         try
@@ -153,8 +153,8 @@ public static class TerrainTestWorldContent
 
     static TAsset CreateAssetInTestFolder<TAsset>(TAsset asset, string fileName) where TAsset : ScriptableObject
     {
-        string assetPath = TerrainTestWorldBuilder.TestWorldTileFolder + "/" + fileName;
-        if (!AssetDatabase.IsValidFolder(TerrainTestWorldBuilder.TestWorldTileFolder))
+        string assetPath = TerrainTestWorldBuilder.ActiveTarget.tileFolder + "/" + fileName;
+        if (!AssetDatabase.IsValidFolder(TerrainTestWorldBuilder.ActiveTarget.tileFolder))
         {
             Debug.LogWarning("[Terrain] Test world folder missing, cannot create " + assetPath);
             return null;
