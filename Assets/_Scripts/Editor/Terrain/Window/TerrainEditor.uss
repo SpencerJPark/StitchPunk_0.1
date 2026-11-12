@@ -506,3 +506,12 @@
     background-color: var(--toolkit-raised);
     border-color: var(--toolkit-color-hairline);
 }
+
+/* Small enough that the seed row and Build World stay on screen with the map */
+.terrain-world-preview {
+    width: 240px;
+    height: 240px;
+    align-self: center;
+    margin-top: 4px;
+    margin-bottom: 6px;
+}

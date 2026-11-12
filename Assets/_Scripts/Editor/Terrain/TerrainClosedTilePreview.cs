@@ -69,6 +69,7 @@ public static class TerrainClosedTilePreview
 
         EntityManager entityManager = world.EntityManager;
         wantedSceneGuids.Clear();
+        bool anyPreviewStillStreaming = false;
         foreach (SubScene subScene in Object.FindObjectsByType<SubScene>(FindObjectsInactive.Exclude))
         {
             if (!subScene.name.StartsWith("Tile_")) continue;
@@ -76,13 +77,14 @@ public static class TerrainClosedTilePreview
             if (!sceneGuid.IsValid || subScene.EditingScene.isLoaded) continue;
             wantedSceneGuids.Add(sceneGuid);
 
-            bool needsLoadRequest = true;
+            // Asked again until it is really loaded: right after a reload the scene entity exists but its sections are
+            // not resolved yet, and a request made then never reaches them.
             if (previewedSceneEntities.TryGetValue(sceneGuid, out Entity trackedEntity)
                 && entityManager.Exists(trackedEntity)
-                && entityManager.HasComponent<RequestSceneLoaded>(trackedEntity))
-                needsLoadRequest = false;
-            if (!needsLoadRequest) continue;
+                && SceneSystem.IsSceneLoaded(world.Unmanaged, trackedEntity))
+                continue;
 
+            anyPreviewStillStreaming = true;
             Entity sceneEntity = SceneSystem.LoadSceneAsync(world.Unmanaged, sceneGuid, new SceneSystem.LoadParameters());
             if (sceneEntity != Entity.Null) previewedSceneEntities[sceneGuid] = sceneEntity;
         }
@@ -93,6 +95,14 @@ public static class TerrainClosedTilePreview
         foreach (KeyValuePair<Unity.Entities.Hash128, Entity> previewed in previewedSceneEntities)
             if (!wantedSceneGuids.Contains(previewed.Key)) staleSceneGuids.Add(previewed.Key);
         foreach (Unity.Entities.Hash128 staleGuid in staleSceneGuids) previewedSceneEntities.Remove(staleGuid);
+
+        // An idle edit-mode world only ticks when something repaints, so the requested tiles would sit unloaded
+        // (an empty Scene view) until the mouse moved.
+        if (anyPreviewStillStreaming)
+        {
+            EditorApplication.QueuePlayerLoopUpdate();
+            SceneView.RepaintAll();
+        }
     }
 
     static void UnloadAllPreviews()

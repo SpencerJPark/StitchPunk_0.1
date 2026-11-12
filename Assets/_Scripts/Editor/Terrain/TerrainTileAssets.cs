@@ -1,7 +1,9 @@
 #if UNITY_EDITOR
 using System.IO;
+using Unity.Scenes;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 // Where a tile's mask, SDF and material live, and the wiring between them
 public static class TerrainTileAssets
@@ -9,7 +11,30 @@ public static class TerrainTileAssets
     public const string TileFolder = "Assets/Terrain/Tiles";
     // Set by the test world builder so its tiles never share assets with the real tile folder
     public static string RootFolderOverride;
-    static string ActiveTileFolder { get { return string.IsNullOrEmpty(RootFolderOverride) ? TileFolder : RootFolderOverride; } }
+    static string ActiveTileFolder { get { return string.IsNullOrEmpty(RootFolderOverride) ? TileFolderOfOpenWorld() : RootFolderOverride; } }
+
+    static string cachedWorldScenePath;
+    static string cachedWorldTileFolder;
+
+    // Each world scene keeps its tiles in its own folder. Without this, editing tile (0,0) of the test world read and
+    // wrote the masks of the camp world's tile (0,0), and the tile map showed the camp world's grid.
+    static string TileFolderOfOpenWorld()
+    {
+        string activeScenePath = SceneManager.GetActiveScene().path;
+        if (cachedWorldTileFolder != null && activeScenePath == cachedWorldScenePath) return cachedWorldTileFolder;
+
+        string worldTileFolder = TileFolder;
+        foreach (SubScene subScene in Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
+        {
+            if (!subScene.name.StartsWith("Tile_") || subScene.SceneAsset == null) continue;
+            string tileScenePath = AssetDatabase.GetAssetPath(subScene.SceneAsset);
+            worldTileFolder = Path.GetDirectoryName(Path.GetDirectoryName(tileScenePath)).Replace('\\', '/');
+            break;
+        }
+        cachedWorldScenePath = activeScenePath;
+        cachedWorldTileFolder = worldTileFolder;
+        return worldTileFolder;
+    }
     const string MaterialTemplatePath = "Assets/PaintedGround/Materials/M_PaintedGround.mat";
 
     public static string FolderOf(Vector2Int coordinate)

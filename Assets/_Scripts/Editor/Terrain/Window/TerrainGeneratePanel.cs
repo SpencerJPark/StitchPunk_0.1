@@ -114,11 +114,7 @@ public sealed class TerrainGeneratePanel : TerrainToolPanel
         cardBody.Add(TerrainUi.MakeHint("Reroll until the map looks right, then build it. Hills are shaded, mountains are pale, red dots are locations, white is the camp."));
 
         worldPreviewImage.scaleMode = ScaleMode.ScaleToFit;
-        worldPreviewImage.RegisterCallback<GeometryChangedEvent>((GeometryChangedEvent geometryChanged) =>
-        {
-            float width = worldPreviewImage.layout.width;
-            if (width > 0f && !Mathf.Approximately(worldPreviewImage.style.height.value.value, width)) worldPreviewImage.style.height = width;
-        });
+        worldPreviewImage.AddToClassList("terrain-world-preview");
         cardBody.Add(worldPreviewImage);
 
         VisualElement seedRow = new VisualElement();
