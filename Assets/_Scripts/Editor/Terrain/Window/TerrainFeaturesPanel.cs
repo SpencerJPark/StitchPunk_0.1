@@ -114,7 +114,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         gridBody.Add(TerrainUi.MakeHint("Click a recipe to draw its outline in the Scene view, or the box to drag out a rectangle."));
 
         VisualElement tileWrap = new VisualElement();
-        tileWrap.AddToClassList("terrain-legend");
+        tileWrap.AddToClassList("terrain-feature-grid");
         foreach (TerrainAreaRecipe recipe in recipes)
             tileWrap.Add(BuildRecipeTile(recipe));
         gridBody.Add(tileWrap);
@@ -131,6 +131,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
 
         VisualElement tile = new VisualElement();
         tile.AddToClassList("terrain-swatch");
+        tile.AddToClassList("terrain-feature-tile");
         tile.EnableInClassList("terrain-swatch--selected", isArmed);
         tile.tooltip = "Draw an outline for " + recipe.name;
 
@@ -141,9 +142,11 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
 
         Label nameLabel = new Label(recipe.name);
         nameLabel.AddToClassList("toolkit-hint");
+        nameLabel.AddToClassList("terrain-feature-tile-name");
         tile.Add(nameLabel);
 
         Button boxButton = TerrainUi.MakeIconSquare(BoxIconName, "Drag out a rectangle for " + recipe.name, () => ArmBox(recipe));
+        boxButton.AddToClassList("terrain-feature-tile-box");
         boxButton.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => clickEvent.StopPropagation());
         tile.Add(boxButton);
 
@@ -231,7 +234,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         cardBody.Add(ToolkitChrome.MakePropertyRow("Recipe", recipeField, "What this feature grows and paints"));
 
         VisualElement seedRow = new VisualElement();
-        seedRow.AddToClassList("terrain-road-row");
+        seedRow.AddToClassList("terrain-seed-row");
         IntegerField seedField = new IntegerField();
         seedField.SetValueWithoutNotify(area.seed);
         seedField.RegisterValueChangedCallback((ChangeEvent<int> changeEvent) =>
