@@ -114,36 +114,8 @@ public partial struct AttackRequestJob : IJobEntity
         // so keep it above the authored event time. elapsed is reset at swing start (FireAction / PlayerAttackSystem).
         attackRequest.elapsed += deltaTime;
 
-        // Match by playing animation key, not a fixed layer, so an attack on any layer still lands.
-        uint attackAnimationKey = 0;
-        if (unitDataLookup.TryGetComponent(attackerEntity, out UnitData attackerUnitData))
-        {
-            int unitIndex = unitLibrary.Value.FindByUnitType(attackerUnitData.unitType);
-            if (unitIndex >= 0)
-            {
-                ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
-                ActionType actionType = AIUtils.GetActionByAttack(ref unitBlob, attackRequest.damageSource);
-                attackAnimationKey = AIUtils.GetAnimationKeyByAction(ref unitBlob, actionType);
-            }
-        }
-
-        bool attackEventFired = false;
-        if (attackAnimationKey != 0
-            && animEventsPendingLookup.HasComponent(attackerEntity)
-            && animEventsPendingLookup.IsComponentEnabled(attackerEntity)
-            && animEventOutputLookup.HasBuffer(attackerEntity))
-        {
-            DynamicBuffer<AnimEventOutput> attackerEvents = animEventOutputLookup[attackerEntity];
-            for (int eventIndex = 0; eventIndex < attackerEvents.Length; eventIndex++)
-            {
-                if (attackerEvents[eventIndex].eventKey == AnimEvents.Attack
-                    && attackerEvents[eventIndex].animationKey == attackAnimationKey)
-                {
-                    attackEventFired = true;
-                    break;
-                }
-            }
-        }
+        uint attackAnimationKey = ResolveAttackAnimationKey(attackerEntity, attackRequest.damageSource);
+        bool attackEventFired = HasAttackAnimationEventFired(attackerEntity, attackAnimationKey);
 
         bool timedOut = attackRequest.elapsed >= attackBlob.hitTime;
         if (!attackEventFired && !timedOut)
@@ -156,60 +128,105 @@ public partial struct AttackRequestJob : IJobEntity
                 LogLevel.Warning, timestamp, category: LogCategory.Combat);
         }
 
-        Entity victim = attackRequest.targetEntity;
-
-        // Alive means Dead is present but disabled.
-        bool victimAlive = deadLookup.HasComponent(victim) &&
-                           !deadLookup.IsComponentEnabled(victim);
-
-        if (victimAlive &&
-            transformLookup.TryGetComponent(victim, out LocalTransform victimTransform))
-        {
-            float distanceSq = math.distancesq(attackerTransform.Position, victimTransform.Position);
-            float hitRange   = attackBlob.range * HIT_RANGE_MULT;
-
-            if (distanceSq <= hitRange * hitRange)
-            {
-                // Validation is producer-side so whiffs never enqueue; DamageResolutionSystem expands AOE.
-                damageWriter.Enqueue(new DamageEvent
-                {
-                    targetEntity    = victim,
-                    sourceEntity    = attackerEntity,
-                    damageSource    = attackBlob.damageSource,
-                    damageAmount    = attackBlob.damageAmount,
-                    distance        = math.sqrt(distanceSq),
-                    ragdollForce    = attackBlob.ragdollForce,
-                    launchForceY    = attackBlob.launchForceY,
-                    launchForceX    = attackBlob.launchForceX,
-                    flailIntensity  = attackBlob.flailIntensity,
-                    spin            = attackBlob.spin,
-                    restitution     = attackBlob.restitution,
-                    damageBehaviour = attackBlob.damageBehaviour,
-                    sourcePosition  = attackerTransform.Position,
-                    range           = attackBlob.range,
-                });
-
-                if (loggingEnabled)
-                    LogUtil.Log(ref logEcb, sortKey,
-                        $"[Attack] Hit {victim.Index} for {attackBlob.damageAmount} dmg (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f})",
-                        LogLevel.Info, timestamp, category: LogCategory.Combat);
-            }
-            else if (loggingEnabled)
-            {
-                LogUtil.Log(ref logEcb, sortKey,
-                    $"[Attack] Whiffed on {victim.Index} — out of range (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f} > {hitRange})",
-                    LogLevel.Info, timestamp, category: LogCategory.Combat);
-            }
-        }
-        else if (loggingEnabled)
-        {
-            LogUtil.Log(ref logEcb, sortKey,
-                $"[Attack] Skipped — target {victim.Index} not alive or invalid",
-                LogLevel.Info, timestamp, category: LogCategory.Combat);
-        }
+        ResolveHitAgainstVictim(sortKey, attackerEntity, in attackerTransform, attackRequest.targetEntity, in attackBlob);
 
         // Mark fired even on a whiff so a target stepping out of range is not retried.
         attackRequest.hitFired       = true;
         attackRequestEnabled.ValueRW = false;
+    }
+
+    // Match by playing animation key, not a fixed layer, so an attack on any layer still lands.
+    private uint ResolveAttackAnimationKey(Entity attackerEntity, DamageSource damageSource)
+    {
+        if (!unitDataLookup.TryGetComponent(attackerEntity, out UnitData attackerUnitData))
+            return 0;
+
+        int unitIndex = unitLibrary.Value.FindByUnitType(attackerUnitData.unitType);
+        if (unitIndex < 0)
+            return 0;
+
+        ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
+        ActionType actionType = AIUtils.GetActionByAttack(ref unitBlob, damageSource);
+        return AIUtils.GetAnimationKeyByAction(ref unitBlob, actionType);
+    }
+
+    private bool HasAttackAnimationEventFired(Entity attackerEntity, uint attackAnimationKey)
+    {
+        if (attackAnimationKey == 0
+            || !animEventsPendingLookup.HasComponent(attackerEntity)
+            || !animEventsPendingLookup.IsComponentEnabled(attackerEntity)
+            || !animEventOutputLookup.HasBuffer(attackerEntity))
+            return false;
+
+        DynamicBuffer<AnimEventOutput> attackerEvents = animEventOutputLookup[attackerEntity];
+        for (int eventIndex = 0; eventIndex < attackerEvents.Length; eventIndex++)
+        {
+            if (attackerEvents[eventIndex].eventKey == AnimEvents.Attack
+                && attackerEvents[eventIndex].animationKey == attackAnimationKey)
+                return true;
+        }
+        return false;
+    }
+
+    private void ResolveHitAgainstVictim(
+        int sortKey, Entity attackerEntity, in LocalTransform attackerTransform,
+        Entity victim, in AttackBlob attackBlob)
+    {
+        // Alive means Dead is present but disabled.
+        bool victimAlive = deadLookup.HasComponent(victim) &&
+                           !deadLookup.IsComponentEnabled(victim);
+
+        if (!victimAlive ||
+            !transformLookup.TryGetComponent(victim, out LocalTransform victimTransform))
+        {
+            if (loggingEnabled)
+                LogUtil.Log(ref logEcb, sortKey,
+                    $"[Attack] Skipped — target {victim.Index} not alive or invalid",
+                    LogLevel.Info, timestamp, category: LogCategory.Combat);
+            return;
+        }
+
+        float distanceSq = math.distancesq(attackerTransform.Position, victimTransform.Position);
+        float hitRange   = attackBlob.range * HIT_RANGE_MULT;
+
+        if (!(distanceSq <= hitRange * hitRange))
+        {
+            if (loggingEnabled)
+                LogUtil.Log(ref logEcb, sortKey,
+                    $"[Attack] Whiffed on {victim.Index} — out of range (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f} > {hitRange})",
+                    LogLevel.Info, timestamp, category: LogCategory.Combat);
+            return;
+        }
+
+        // Validation is producer-side so whiffs never enqueue; DamageResolutionSystem expands AOE.
+        damageWriter.Enqueue(BuildDamageEventFromAttack(
+            in attackBlob, victim, attackerEntity, attackerTransform.Position, math.sqrt(distanceSq)));
+
+        if (loggingEnabled)
+            LogUtil.Log(ref logEcb, sortKey,
+                $"[Attack] Hit {victim.Index} for {attackBlob.damageAmount} dmg (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f})",
+                LogLevel.Info, timestamp, category: LogCategory.Combat);
+    }
+
+    private static DamageEvent BuildDamageEventFromAttack(
+        in AttackBlob attackBlob, Entity victim, Entity attackerEntity, float3 attackerPosition, float distance)
+    {
+        return new DamageEvent
+        {
+            targetEntity    = victim,
+            sourceEntity    = attackerEntity,
+            damageSource    = attackBlob.damageSource,
+            damageAmount    = attackBlob.damageAmount,
+            distance        = distance,
+            ragdollForce    = attackBlob.ragdollForce,
+            launchForceY    = attackBlob.launchForceY,
+            launchForceX    = attackBlob.launchForceX,
+            flailIntensity  = attackBlob.flailIntensity,
+            spin            = attackBlob.spin,
+            restitution     = attackBlob.restitution,
+            damageBehaviour = attackBlob.damageBehaviour,
+            sourcePosition  = attackerPosition,
+            range           = attackBlob.range,
+        };
     }
 }

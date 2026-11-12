@@ -168,9 +168,9 @@ public partial struct ItemAwarenessJob : IJobEntity
         float  rangeSq = awareness.range * awareness.range;
 
         Entity nearestWeapon = Entity.Null; float nearestWeaponSq = float.MaxValue; float bestWeaponValue = float.MinValue;
-        Entity nearestHeal   = Entity.Null; float nearestHealSq   = float.MaxValue;
-        Entity nearestFood   = Entity.Null; float nearestFoodSq   = float.MaxValue;
-        Entity nearestDrink  = Entity.Null; float nearestDrinkSq  = float.MaxValue;
+        NearestCandidate nearestHeal  = NearestCandidate.None;
+        NearestCandidate nearestFood  = NearestCandidate.None;
+        NearestCandidate nearestDrink = NearestCandidate.None;
         NeedType foodMotivation  = NeedType.Hunger; float foodDelta  = 0f;
         NeedType drinkMotivation = NeedType.Hunger; float drinkDelta = 0f;
 
@@ -189,24 +189,10 @@ public partial struct ItemAwarenessJob : IJobEntity
 
                 do
                 {
-                    if (!equipByLookup.TryGetComponent(itemEntity, out EquipBy equip)) continue;
-                    if (equip.owner != Entity.Null) continue;
-                    if (TargetReservationUtils.IsFullForUnit(in occupantsByTarget, itemEntity, self, 1)) continue;
-                    // A thrown item has no owner while airborne; claiming it mid-flight attaches a still-flying rock.
-                    if (thrownItemRequestLookup.HasComponent(itemEntity) && thrownItemRequestLookup.IsComponentEnabled(itemEntity)) continue;
-
-                    if (!itemLookup.TryGetComponent(itemEntity, out Item item)) continue;
-
-                    int typeIndex = (int)item.itemType;
-                    if (typeIndex < 0 || typeIndex >= itemLibrary.Value.items.Length) continue;
+                    if (!PassesItemFilters(self, itemEntity, myPos, rangeSq, out int typeIndex, out float distSq))
+                        continue;
 
                     ref ItemBlob blob = ref itemLibrary.Value.items[typeIndex];
-                    if (blob.category == ItemCategory.None) continue;
-
-                    if (!transformLookup.TryGetComponent(itemEntity, out LocalTransform xf)) continue;
-
-                    float distSq = math.distancesq(myPos, xf.Position);
-                    if (distSq > rangeSq) continue;
 
                     if (blob.category == ItemCategory.Weapon)
                     {
@@ -231,29 +217,20 @@ public partial struct ItemAwarenessJob : IJobEntity
                     switch (effectBlob.effectType)
                     {
                         case EffectType.Healing:
-                            if (wantHealing && distSq < nearestHealSq)
-                            {
-                                nearestHealSq = distSq;
-                                nearestHeal   = itemEntity;
-                            }
+                            if (wantHealing)
+                                ConsiderCandidate(ref nearestHeal, itemEntity, distSq);
                             break;
                         case EffectType.Feed:
-                            if (wantConsume && distSq < nearestFoodSq)
+                            if (wantConsume && ConsiderCandidate(ref nearestFood, itemEntity, distSq))
                             {
-                                nearestFoodSq  = distSq;
-                                nearestFood    = itemEntity;
-                                foodMotivation = effectBlob.behaviours.Length > 0 && effectBlob.behaviours[0] != NeedType.None
-                                    ? effectBlob.behaviours[0] : NeedType.Hunger;
+                                foodMotivation = PrimaryNeedOf(ref effectBlob);
                                 foodDelta      = effectBlob.value;
                             }
                             break;
                         case EffectType.Hydrate:
-                            if (wantConsume && distSq < nearestDrinkSq)
+                            if (wantConsume && ConsiderCandidate(ref nearestDrink, itemEntity, distSq))
                             {
-                                nearestDrinkSq  = distSq;
-                                nearestDrink    = itemEntity;
-                                drinkMotivation = effectBlob.behaviours.Length > 0 && effectBlob.behaviours[0] != NeedType.None
-                                    ? effectBlob.behaviours[0] : NeedType.Hunger;
+                                drinkMotivation = PrimaryNeedOf(ref effectBlob);
                                 drinkDelta      = effectBlob.value;
                             }
                             break;
@@ -295,7 +272,7 @@ public partial struct ItemAwarenessJob : IJobEntity
         }
 
         // Healing — SelfPreservation motivation drives the blob scoring curve.
-        if (nearestHeal != Entity.Null)
+        if (nearestHeal.entity != Entity.Null)
         {
             int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.UseHealingItem);
             if (defIndex >= 0)
@@ -318,24 +295,24 @@ public partial struct ItemAwarenessJob : IJobEntity
                 bool inCombatContext = hasThreat || hostileEngaged || inCombat;
                 bool healMidFight = inCombatContext
                     && healthRatio < ItemAwarenessSystem.HEAL_IN_COMBAT_HEALTH_RATIO
-                    && math.sqrt(nearestHealSq) <= ItemAwarenessSystem.HEAL_IN_COMBAT_MAX_ITEM_DISTANCE
+                    && math.sqrt(nearestHeal.distanceSquared) <= ItemAwarenessSystem.HEAL_IN_COMBAT_MAX_ITEM_DISTANCE
                     && nearestHostileDistance > ItemAwarenessSystem.HEAL_IN_COMBAT_MIN_HOSTILE_DISTANCE;
 
                 options.Add(new UtilityActions
                 {
                     actionType      = ActionType.UseHealingItem,
                     actionDefIndex  = defIndex,
-                    targetEntity    = nearestHeal,
+                    targetEntity    = nearestHeal.entity,
                     // Critical beats a live Defend fight; never with a hostile in arm's reach.
                     priority        = healMidFight ? ItemAwarenessSystem.HEAL_IN_COMBAT_PRIORITY : 0,
                 });
                 if (loggingEnabled)
-                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found heal item {nearestHeal.Index}. Action: UseHealingItem", LogLevel.Info, timestamp, category: LogCategory.Items);
+                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found heal item {nearestHeal.entity.Index}. Action: UseHealingItem", LogLevel.Info, timestamp, category: LogCategory.Items);
             }
         }
 
         // Food — Hunger motivation drives blob scoring curve.
-        if (nearestFood != Entity.Null)
+        if (nearestFood.entity != Entity.Null)
         {
             int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Eat);
             if (defIndex >= 0)
@@ -344,14 +321,14 @@ public partial struct ItemAwarenessJob : IJobEntity
                 {
                     actionType      = ActionType.Eat,
                     actionDefIndex  = defIndex,
-                    targetEntity    = nearestFood,
+                    targetEntity    = nearestFood.entity,
                 });
                 if (loggingEnabled)
-                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found food {nearestFood.Index}. Action: Eat", LogLevel.Info, timestamp, category: LogCategory.Items);
+                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found food {nearestFood.entity.Index}. Action: Eat", LogLevel.Info, timestamp, category: LogCategory.Items);
             }
         }
 
-        if (nearestDrink != Entity.Null)
+        if (nearestDrink.entity != Entity.Null)
         {
             int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Drink);
             if (defIndex >= 0)
@@ -360,12 +337,61 @@ public partial struct ItemAwarenessJob : IJobEntity
                 {
                     actionType      = ActionType.Drink,
                     actionDefIndex  = defIndex,
-                    targetEntity    = nearestDrink,
+                    targetEntity    = nearestDrink.entity,
                 });
                 if (loggingEnabled)
-                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found drink {nearestDrink.Index}. Action: Drink", LogLevel.Info, timestamp, category: LogCategory.Items);
+                    LogUtil.Log(ref ecb, entityIndex, $"[ItemAwareness] Entity {self.Index} found drink {nearestDrink.entity.Index}. Action: Drink", LogLevel.Info, timestamp, category: LogCategory.Items);
             }
         }
+    }
+
+    private struct NearestCandidate
+    {
+        public Entity entity;
+        public float  distanceSquared;
+
+        public static NearestCandidate None => new NearestCandidate { entity = Entity.Null, distanceSquared = float.MaxValue };
+    }
+
+    // Strictly nearer wins, so the first item found keeps a tie.
+    private static bool ConsiderCandidate(ref NearestCandidate current, Entity candidate, float distanceSquared)
+    {
+        if (distanceSquared >= current.distanceSquared)
+            return false;
+        current.entity          = candidate;
+        current.distanceSquared = distanceSquared;
+        return true;
+    }
+
+    private static NeedType PrimaryNeedOf(ref EffectBlob effectBlob)
+    {
+        return effectBlob.behaviours.Length > 0 && effectBlob.behaviours[0] != NeedType.None
+            ? effectBlob.behaviours[0] : NeedType.Hunger;
+    }
+
+    private bool PassesItemFilters(Entity self, Entity itemEntity, float3 myPos, float rangeSq, out int typeIndex, out float distSq)
+    {
+        typeIndex = 0;
+        distSq    = 0f;
+
+        if (!equipByLookup.TryGetComponent(itemEntity, out EquipBy equip)) return false;
+        if (equip.owner != Entity.Null) return false;
+        if (TargetReservationUtils.IsFullForUnit(in occupantsByTarget, itemEntity, self, 1)) return false;
+        // A thrown item has no owner while airborne; claiming it mid-flight attaches a still-flying rock.
+        if (thrownItemRequestLookup.HasComponent(itemEntity) && thrownItemRequestLookup.IsComponentEnabled(itemEntity)) return false;
+
+        if (!itemLookup.TryGetComponent(itemEntity, out Item item)) return false;
+
+        typeIndex = (int)item.itemType;
+        if (typeIndex < 0 || typeIndex >= itemLibrary.Value.items.Length) return false;
+
+        ref ItemBlob blob = ref itemLibrary.Value.items[typeIndex];
+        if (blob.category == ItemCategory.None) return false;
+
+        if (!transformLookup.TryGetComponent(itemEntity, out LocalTransform xf)) return false;
+
+        distSq = math.distancesq(myPos, xf.Position);
+        return !(distSq > rangeSq);
     }
 
     // Raises a motivation toward value without lowering it (avoids stomping FleeAwareness' SelfPreservation = 100).

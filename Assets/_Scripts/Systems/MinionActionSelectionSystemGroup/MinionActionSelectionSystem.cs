@@ -119,126 +119,137 @@ public partial struct MinionActionWriteJob : IJobEntity
         in UtilityBrain                  brain,
         ref DynamicBuffer<UtilityActions> options)
     {
-        // Move: Wander toward a raw ground position.
-        if (moveCmdLookup.HasComponent(unit) && moveCmdLookup.IsComponentEnabled(unit))
-        {
-            float3 destination = moveCmdLookup[unit].destination;
-            int    defIndex    = BrainBlobUtils.GetActionDefIndex(
-                ref aiConfig.Value, brain.unitType, ActionType.Wander);
-            options.Add(new UtilityActions
-            {
-                actionType        = ActionType.Wander,
-                targetEntity      = Entity.Null,
-                targetPosition    = destination,
-                hasTargetPosition = true,
-                actionDefIndex    = defIndex,
-                isPlayerOrdered   = true,
-            });
-            moveCmdLookup.SetComponentEnabled(unit, false);
-            ClearPersistentOrders(unit);
-            // A unit type with no BrainSO has no Wander def, so the order would silently do nothing.
-            if (defIndex < 0)
-                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} cannot Move: no Wander action in the brain for {brain.unitType.Name()}", LogLevel.Warning, timestamp, category: LogCategory.AI);
-            else if (loggingEnabled)
-                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Move to ({destination.x:G}, {destination.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
-        }
+        if (IsCommandPending(ref moveCmdLookup, unit))     ConsumeMoveCommand(unit, brain, ref options);
+        if (IsCommandPending(ref attackCmdLookup, unit))   ConsumeAttackCommand(unit, brain, ref options);
+        if (IsCommandPending(ref interactCmdLookup, unit)) ConsumeInteractCommand(unit, brain, ref options);
+        if (IsCommandPending(ref followCmdLookup, unit))   ConsumeFollowCommand(unit, brain, ref options);
+        if (IsCommandPending(ref returnCmdLookup, unit))   ConsumeReturnCommand(unit, brain, ref options);
+        if (IsCommandPending(ref stopCmdLookup, unit))     ConsumeStopCommand(unit, ref options);
+    }
 
-        // Attack: resolved from the unit's own AvailableAttack buffer; no usable attack logs a refusal.
-        if (attackCmdLookup.HasComponent(unit) && attackCmdLookup.IsComponentEnabled(unit))
-        {
-            Entity     target             = attackCmdLookup[unit].targetEntity;
-            bool       attackResolved     = false;
-            ActionType orderedAttackType  = ActionType.Idle;
-            int        defIndex           = -1;
-            if (availableAttackLookup.TryGetBuffer(unit, out DynamicBuffer<AvailableAttack> availableAttacks))
-                attackResolved = AIUtils.ResolveOrderedAttack(
-                    ref aiConfig.Value, brain.unitType, availableAttacks.AsNativeArray(), out orderedAttackType, out defIndex);
+    private static bool IsCommandPending<TCommand>(ref ComponentLookup<TCommand> commandLookup, Entity unit)
+        where TCommand : unmanaged, IComponentData, IEnableableComponent
+    {
+        return commandLookup.HasComponent(unit) && commandLookup.IsComponentEnabled(unit);
+    }
 
-            attackCmdLookup.SetComponentEnabled(unit, false);
-            ClearPersistentOrders(unit);
-            if (attackResolved)
-            {
-                options.Add(new UtilityActions
-                {
-                    actionType      = orderedAttackType,
-                    targetEntity    = target,
-                    actionDefIndex  = defIndex,
-                    isPlayerOrdered = true,
-                });
-                if (loggingEnabled)
-                    LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Attack {target.Index} with {orderedAttackType.Name()}", LogLevel.Info, timestamp, category: LogCategory.AI);
-            }
-            else if (loggingEnabled)
-            {
-                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} refused Attack {target.Index}: no AvailableAttack entry has an action def for {brain.unitType.Name()}", LogLevel.Warning, timestamp, category: LogCategory.AI);
-            }
-        }
-
-        if (interactCmdLookup.HasComponent(unit) && interactCmdLookup.IsComponentEnabled(unit))
+    private static void AppendPlayerOrderedOption(
+        ref DynamicBuffer<UtilityActions> options,
+        ActionType                        actionType,
+        Entity                            targetEntity,
+        int                               actionDefIndex)
+    {
+        options.Add(new UtilityActions
         {
-            Entity target   = interactCmdLookup[unit].targetEntity;
-            int    defIndex = BrainBlobUtils.GetActionDefIndex(
-                ref aiConfig.Value, brain.unitType, ActionType.Interact);
-            options.Add(new UtilityActions
-            {
-                actionType      = ActionType.Interact,
-                targetEntity    = target,
-                actionDefIndex  = defIndex,
-                isPlayerOrdered = true,
-            });
-            interactCmdLookup.SetComponentEnabled(unit, false);
-            ClearPersistentOrders(unit);
+            actionType      = actionType,
+            targetEntity    = targetEntity,
+            actionDefIndex  = actionDefIndex,
+            isPlayerOrdered = true,
+        });
+    }
+
+    private static void AppendPlayerOrderedPositionOption(
+        ref DynamicBuffer<UtilityActions> options,
+        ActionType                        actionType,
+        float3                            targetPosition,
+        int                               actionDefIndex)
+    {
+        options.Add(new UtilityActions
+        {
+            actionType        = actionType,
+            targetEntity      = Entity.Null,
+            targetPosition    = targetPosition,
+            hasTargetPosition = true,
+            actionDefIndex    = actionDefIndex,
+            isPlayerOrdered   = true,
+        });
+    }
+
+    // Move: Wander toward a raw ground position.
+    private void ConsumeMoveCommand(Entity unit, in UtilityBrain brain, ref DynamicBuffer<UtilityActions> options)
+    {
+        float3 destination = moveCmdLookup[unit].destination;
+        int    defIndex    = BrainBlobUtils.GetActionDefIndex(
+            ref aiConfig.Value, brain.unitType, ActionType.Wander);
+        AppendPlayerOrderedPositionOption(ref options, ActionType.Wander, destination, defIndex);
+        moveCmdLookup.SetComponentEnabled(unit, false);
+        ClearPersistentOrders(unit);
+        // A unit type with no BrainSO has no Wander def, so the order would silently do nothing.
+        if (defIndex < 0)
+            LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} cannot Move: no Wander action in the brain for {brain.unitType.Name()}", LogLevel.Warning, timestamp, category: LogCategory.AI);
+        else if (loggingEnabled)
+            LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Move to ({destination.x:G}, {destination.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
+    }
+
+    // Attack: resolved from the unit's own AvailableAttack buffer; no usable attack logs a refusal.
+    private void ConsumeAttackCommand(Entity unit, in UtilityBrain brain, ref DynamicBuffer<UtilityActions> options)
+    {
+        Entity     target             = attackCmdLookup[unit].targetEntity;
+        bool       attackResolved     = false;
+        ActionType orderedAttackType  = ActionType.Idle;
+        int        defIndex           = -1;
+        if (availableAttackLookup.TryGetBuffer(unit, out DynamicBuffer<AvailableAttack> availableAttacks))
+            attackResolved = AIUtils.ResolveOrderedAttack(
+                ref aiConfig.Value, brain.unitType, availableAttacks.AsNativeArray(), out orderedAttackType, out defIndex);
+
+        attackCmdLookup.SetComponentEnabled(unit, false);
+        ClearPersistentOrders(unit);
+        if (attackResolved)
+        {
+            AppendPlayerOrderedOption(ref options, orderedAttackType, target, defIndex);
             if (loggingEnabled)
-                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Interact {target.Index}", LogLevel.Info, timestamp, category: LogCategory.AI);
+                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Attack {target.Index} with {orderedAttackType.Name()}", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
-
-        // Follow: Wander toward the player entity. UnitSelectionManager re-enables it every frame while F is held.
-        if (followCmdLookup.HasComponent(unit) && followCmdLookup.IsComponentEnabled(unit))
+        else if (loggingEnabled)
         {
-            int defIndex = BrainBlobUtils.GetActionDefIndex(
-                ref aiConfig.Value, brain.unitType, ActionType.Wander);
-            options.Add(new UtilityActions
-            {
-                actionType      = ActionType.Wander,
-                targetEntity    = playerEntity,
-                actionDefIndex  = defIndex,
-                isPlayerOrdered = true,
-            });
-            followCmdLookup.SetComponentEnabled(unit, false);
-            if (loggingEnabled)
-                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Follow player", LogLevel.Info, timestamp, category: LogCategory.AI);
+            LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} refused Attack {target.Index}: no AvailableAttack entry has an action def for {brain.unitType.Name()}", LogLevel.Warning, timestamp, category: LogCategory.AI);
         }
+    }
 
-        // ReturnToPlayer: one-shot move to where the player stands now.
-        if (returnCmdLookup.HasComponent(unit) && returnCmdLookup.IsComponentEnabled(unit))
-        {
-            int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Wander);
-            options.Add(new UtilityActions
-            {
-                actionType        = ActionType.Wander,
-                targetEntity      = Entity.Null,
-                targetPosition    = playerPosition,
-                hasTargetPosition = true,
-                actionDefIndex    = defIndex,
-                isPlayerOrdered   = true,
-            });
-            returnCmdLookup.SetComponentEnabled(unit, false);
-            ClearPersistentOrders(unit);
-            if (loggingEnabled)
-                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Return to player ({playerPosition.x:G}, {playerPosition.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
-        }
+    private void ConsumeInteractCommand(Entity unit, in UtilityBrain brain, ref DynamicBuffer<UtilityActions> options)
+    {
+        Entity target   = interactCmdLookup[unit].targetEntity;
+        int    defIndex = BrainBlobUtils.GetActionDefIndex(
+            ref aiConfig.Value, brain.unitType, ActionType.Interact);
+        AppendPlayerOrderedOption(ref options, ActionType.Interact, target, defIndex);
+        interactCmdLookup.SetComponentEnabled(unit, false);
+        ClearPersistentOrders(unit);
+        if (loggingEnabled)
+            LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Interact {target.Index}", LogLevel.Info, timestamp, category: LogCategory.AI);
+    }
 
-        // Stop: interrupt and drop this frame's options so the unit falls back to Idle.
-        if (stopCmdLookup.HasComponent(unit) && stopCmdLookup.IsComponentEnabled(unit))
-        {
-            options.Clear();
-            if (interruptRequestLookup.HasComponent(unit))
-                interruptRequestLookup.SetComponentEnabled(unit, true);
-            stopCmdLookup.SetComponentEnabled(unit, false);
-            ClearPersistentOrders(unit);
-            if (loggingEnabled)
-                LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Stop", LogLevel.Info, timestamp, category: LogCategory.AI);
-        }
+    // Follow: Wander toward the player entity. UnitSelectionManager re-enables it every frame while F is held.
+    private void ConsumeFollowCommand(Entity unit, in UtilityBrain brain, ref DynamicBuffer<UtilityActions> options)
+    {
+        int defIndex = BrainBlobUtils.GetActionDefIndex(
+            ref aiConfig.Value, brain.unitType, ActionType.Wander);
+        AppendPlayerOrderedOption(ref options, ActionType.Wander, playerEntity, defIndex);
+        followCmdLookup.SetComponentEnabled(unit, false);
+        if (loggingEnabled)
+            LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Follow player", LogLevel.Info, timestamp, category: LogCategory.AI);
+    }
+
+    // ReturnToPlayer: one-shot move to where the player stands now.
+    private void ConsumeReturnCommand(Entity unit, in UtilityBrain brain, ref DynamicBuffer<UtilityActions> options)
+    {
+        int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Wander);
+        AppendPlayerOrderedPositionOption(ref options, ActionType.Wander, playerPosition, defIndex);
+        returnCmdLookup.SetComponentEnabled(unit, false);
+        ClearPersistentOrders(unit);
+        if (loggingEnabled)
+            LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Return to player ({playerPosition.x:G}, {playerPosition.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
+    }
+
+    // Stop: interrupt and drop this frame's options so the unit falls back to Idle.
+    private void ConsumeStopCommand(Entity unit, ref DynamicBuffer<UtilityActions> options)
+    {
+        options.Clear();
+        if (interruptRequestLookup.HasComponent(unit))
+            interruptRequestLookup.SetComponentEnabled(unit, true);
+        stopCmdLookup.SetComponentEnabled(unit, false);
+        ClearPersistentOrders(unit);
+        if (loggingEnabled)
+            LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Stop", LogLevel.Info, timestamp, category: LogCategory.AI);
     }
 
     private void ClearPersistentOrders(Entity unit)
