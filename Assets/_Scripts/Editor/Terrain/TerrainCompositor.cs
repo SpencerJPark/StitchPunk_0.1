@@ -33,6 +33,22 @@ public static class TerrainCompositor
         RectInt texelRect,
         Color32[] compositeInOut)
     {
+        CompositeTexels(baseMask, null, null, paintOverlay, surfaceOverlay, roadMask, resolution, texelRect, compositeInOut);
+    }
+
+    // Area mask: R = areaIndex (0 = none), G = edge distance byte, A = 255 where the area paints ground.
+    // areaLayerColourByIndex: 256 entries, the mask colour of the owning area's ground layer (built with TerrainSplatCodec.ColourOfLayer).
+    public static void CompositeTexels(
+        Color32[] baseMask,
+        Color32[] areaMask,
+        Color32[] areaLayerColourByIndex,
+        Color32[] paintOverlay,
+        Color32[] surfaceOverlay,
+        Color32[] roadMask,
+        int resolution,
+        RectInt texelRect,
+        Color32[] compositeInOut)
+    {
         int minimumX = Mathf.Max(texelRect.xMin, 0);
         int minimumY = Mathf.Max(texelRect.yMin, 0);
         int maximumXExclusive = Mathf.Min(texelRect.xMax, resolution);
@@ -44,6 +60,9 @@ public static class TerrainCompositor
             {
                 int texelIndex = texelY * resolution + texelX;
                 Color32 chosen = baseMask[texelIndex];
+                if (areaMask != null && areaLayerColourByIndex != null
+                    && areaMask[texelIndex].r != 0 && areaMask[texelIndex].a > PaintedAlphaThreshold)
+                    chosen = areaLayerColourByIndex[areaMask[texelIndex].r];
                 if (paintOverlay != null && paintOverlay[texelIndex].a > PaintedAlphaThreshold)
                     chosen = paintOverlay[texelIndex];
                 if (surfaceOverlay != null
@@ -71,9 +90,11 @@ public static class TerrainCompositor
         Color32[] paintOverlay = ReadOptionalSource(TerrainTileAssets.PaintOverlayPath(coordinate), resolution);
         Color32[] surfaceOverlay = ReadOptionalSource(TerrainTileAssets.SurfaceOverlayPath(coordinate), resolution);
         Color32[] roadMask = ReadOptionalSource(TerrainTileAssets.RoadMaskPath(coordinate), resolution);
+        Color32[] areaMask = ReadAreaMask(tileData, resolution);
+        Color32[] areaLayerColourByIndex = AreaLayerColoursFor(tileData);
 
         Color32[] composite = new Color32[resolution * resolution];
-        CompositeTexels(baseMask, paintOverlay, surfaceOverlay, roadMask, resolution, new RectInt(0, 0, resolution, resolution), composite);
+        CompositeTexels(baseMask, areaMask, areaLayerColourByIndex, paintOverlay, surfaceOverlay, roadMask, resolution, new RectInt(0, 0, resolution, resolution), composite);
 
         Color32[] signedDistanceField = TerrainSplatCodec.EncodeSignedDistanceField(composite, resolution, TerrainTile.TileSizeMetres);
         string signedDistanceFieldPath = TerrainTileAssets.SignedDistanceFieldPath(coordinate);
@@ -89,6 +110,30 @@ public static class TerrainCompositor
         EditorUtility.SetDirty(tile);
         EditorUtility.SetDirty(tileData);
         return heightsNeedMeshRebuild;
+    }
+
+    // Null when the tile has no area mask; the path comes from the asset because the baker owns the file name.
+    public static Color32[] ReadAreaMask(TerrainTileData tileData, int expectedResolution)
+    {
+        if (tileData == null || tileData.areaMask == null) return null;
+        string areaMaskPath = AssetDatabase.GetAssetPath(tileData.areaMask);
+        if (string.IsNullOrEmpty(areaMaskPath)) return null;
+        return ReadOptionalSource(areaMaskPath, expectedResolution);
+    }
+
+    // Index 0 is "no area"; entry n of areaEntries is areaIndex n + 1.
+    public static Color32[] AreaLayerColoursFor(TerrainTileData tileData)
+    {
+        if (tileData == null || tileData.areaEntries == null || tileData.areaEntries.Count == 0) return null;
+        Color32[] colourByAreaIndex = new Color32[256];
+        int entryCount = Mathf.Min(tileData.areaEntries.Count, 255);
+        for (int entryIndex = 0; entryIndex < entryCount; entryIndex++)
+        {
+            TerrainAreaRecipe recipe = tileData.areaEntries[entryIndex].recipe;
+            if (recipe != null)
+                colourByAreaIndex[entryIndex + 1] = TerrainSplatCodec.ColourOfLayer(recipe.groundLayer);
+        }
+        return colourByAreaIndex;
     }
 
     private static Color32[] ReadOptionalSource(string assetPath, int expectedResolution)

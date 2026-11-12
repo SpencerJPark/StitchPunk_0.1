@@ -70,6 +70,10 @@ public static class TerrainScatterGenerator
         for (int placementIndex = 0; placementIndex < placements.Count; placementIndex++)
         {
             TerrainScatterPlacement placement = placements[placementIndex];
+            if (set.rules[placement.ruleIndex].tier == TerrainScatterTier.Dressing)
+            {
+                continue;
+            }
             System.Random pickRandom = new System.Random(unchecked(seed * 73856093) ^ (placementIndex * 19349663));
             GameObject prefab = set.PickPrefab(placement.ruleIndex, (float)pickRandom.NextDouble());
             if (prefab == null)

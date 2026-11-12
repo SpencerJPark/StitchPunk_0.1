@@ -69,6 +69,10 @@ public class TerrainPlatformProfile : ScriptableObject
     [Tooltip("Frame time this platform aims for.")]
     public float targetFrameMilliseconds = 8.3f;
 
+    [Min(1)]
+    [Tooltip("Interactable props (scatter markers) allowed on one tile.")]
+    public int maxInteractablePropsPerTile = 600;
+
     private static TerrainPlatformProfile cachedDefault;
 
     public static TerrainPlatformProfile Active
@@ -110,6 +114,7 @@ public class TerrainPlatformProfile : ScriptableObject
                 profile.maxTileLoadsPerFrame = 1;
                 profile.maxRibbonVerticesPerTile = 4000;
                 profile.targetFrameMilliseconds = 16.6f;
+                profile.maxInteractablePropsPerTile = 300;
                 break;
             case TerrainPlatformTier.Switch:
                 profile.maxResidentTerrainMegabytesForNineTiles = 96;
@@ -125,6 +130,7 @@ public class TerrainPlatformProfile : ScriptableObject
                 profile.maxTileLoadsPerFrame = 1;
                 profile.maxRibbonVerticesPerTile = 3000;
                 profile.targetFrameMilliseconds = 33.3f;
+                profile.maxInteractablePropsPerTile = 150;
                 break;
             default:
                 break;

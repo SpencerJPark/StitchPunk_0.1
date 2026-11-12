@@ -9,5 +9,7 @@ public class TerrainScatterMarker : MonoBehaviour
 
     public int ruleIndex;
 
+    public string sourceFeatureId;
+
     public float footprintRadiusMetres = 1f;
 }

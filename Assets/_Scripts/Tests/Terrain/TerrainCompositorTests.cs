@@ -54,6 +54,55 @@ namespace StitchPunk.Tests
             Assert.AreEqual(StoneColour, composite[5]);
         }
 
+        private static Color32[] AreaLayerColoursWithIndexOneAs(Color32 colour)
+        {
+            Color32[] colours = new Color32[256];
+            colours[1] = colour;
+            return colours;
+        }
+
+        [Test]
+        public void Area_PaintsItsLayerColour_WhereAreaAlphaIsSet()
+        {
+            Color32[] areaMask = FilledArray(UnpaintedColour);
+            areaMask[7] = new Color32(1, 0, 0, 255);
+            Color32[] composite = new Color32[Resolution * Resolution];
+
+            TerrainCompositor.CompositeTexels(FilledArray(GrassColour), areaMask, AreaLayerColoursWithIndexOneAs(ForestColour),
+                null, null, null, Resolution, FullRect(), composite);
+
+            Assert.AreEqual(ForestColour, composite[7]);
+            Assert.AreEqual(GrassColour, composite[8]);
+        }
+
+        [Test]
+        public void Area_DoesNotPaint_WhereAreaAlphaIsZero()
+        {
+            Color32[] areaMask = FilledArray(UnpaintedColour);
+            areaMask[7] = new Color32(1, 0, 0, 0);
+            Color32[] composite = new Color32[Resolution * Resolution];
+
+            TerrainCompositor.CompositeTexels(FilledArray(GrassColour), areaMask, AreaLayerColoursWithIndexOneAs(ForestColour),
+                null, null, null, Resolution, FullRect(), composite);
+
+            Assert.AreEqual(GrassColour, composite[7]);
+        }
+
+        [Test]
+        public void PaintOverlay_BeatsArea_WhereBothAreSet()
+        {
+            Color32[] areaMask = FilledArray(UnpaintedColour);
+            areaMask[7] = new Color32(1, 0, 0, 255);
+            Color32[] overlay = FilledArray(UnpaintedColour);
+            overlay[7] = StoneColour;
+            Color32[] composite = new Color32[Resolution * Resolution];
+
+            TerrainCompositor.CompositeTexels(FilledArray(GrassColour), areaMask, AreaLayerColoursWithIndexOneAs(ForestColour),
+                overlay, null, null, Resolution, FullRect(), composite);
+
+            Assert.AreEqual(StoneColour, composite[7]);
+        }
+
         [Test]
         public void TexelRect_OnlyTouchesItsOwnTexels()
         {

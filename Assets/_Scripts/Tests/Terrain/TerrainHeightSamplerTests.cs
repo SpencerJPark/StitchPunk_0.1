@@ -39,6 +39,28 @@ namespace StitchPunk.Tests
         }
 
         [Test]
+        public void TileDataSampleBilinearIncludesAreaHeightDelta()
+        {
+            TerrainTileData tileData = UnityEngine.ScriptableObject.CreateInstance<TerrainTileData>();
+            try
+            {
+                tileData.EnsureHeightArrays();
+                const int sampleX = 40;
+                const int sampleZ = 25;
+                tileData.areaHeightDelta[sampleZ * TerrainTileData.HeightSamplesPerSide + sampleX] = 2.5f;
+                UnityEngine.Vector2 minCorner = tileData.WorldMinCorner();
+
+                float sampled = tileData.SampleBilinear(minCorner.x + sampleX, minCorner.y + sampleZ);
+
+                Assert.AreEqual(2.5f, sampled, Tolerance);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(tileData);
+            }
+        }
+
+        [Test]
         public void SampleOnGridVertexReturnsThatVertexsStoredHeight()
         {
             BlobAssetReference<TerrainTileHeightBlob> blob = BuildBlob((vertexX, vertexZ) => ((vertexX * 7 + vertexZ * 13) % 17) * 0.25f);

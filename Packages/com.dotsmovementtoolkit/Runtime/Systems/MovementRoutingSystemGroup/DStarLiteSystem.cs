@@ -47,6 +47,7 @@ public partial struct DStarLiteSystem : ISystem
 
     private bool isInitialized;
     private bool hasWarnedAboutSharedGrid;
+    private uint lastSeenCostMapVersion;
     private EntityQuery pendingRequestQuery;
     private EntityQuery activeFollowerQuery;
 
@@ -80,7 +81,10 @@ public partial struct DStarLiteSystem : ISystem
         {
             InitializeFromNavGrid(ref state);
             isInitialized = true;
+            lastSeenCostMapVersion = SystemAPI.GetSingleton<NavGridCostMap>().costMapVersion;
         }
+
+        ReplanActiveFollowersIfCostMapChanged(ref state);
 
         // An enabled-bit check, so a frame with no requests never waits on LocalTransform writers.
         if (pendingRequestQuery.IsEmpty)
@@ -120,6 +124,46 @@ public partial struct DStarLiteSystem : ISystem
             hasWarnedAboutSharedGrid = true;
             UnityEngine.Debug.LogWarning("[DOTS Movement Toolkit] More than one agent is following a D* Lite path. D* Lite agents share one search grid, so all but the latest follow the wrong path. Use PathfindingMode.AStar for groups of characters.");
         }
+    }
+
+    // The shared `nodes` grid and each follower's waypoint were built on the old costs (and old grid origin
+    // when the window re-centred), so re-issue every active follower's goal through ProcessRequest.
+    private void ReplanActiveFollowersIfCostMapChanged(ref SystemState state)
+    {
+        NavGridCostMap gridCostMap = SystemAPI.GetSingleton<NavGridCostMap>();
+        if (gridCostMap.costMapVersion == lastSeenCostMapVersion)
+            return;
+        lastSeenCostMapVersion = gridCostMap.costMapVersion;
+
+        if (!SystemAPI.HasComponent<DStarLiteData>(state.SystemHandle))
+            return;
+
+        DStarLiteData dstarData = SystemAPI.GetComponent<DStarLiteData>(state.SystemHandle);
+        NavGridConfig gridConfig = SystemAPI.GetSingleton<NavGridConfig>();
+        dstarData.gridOrigin = gridConfig.gridOrigin;
+        dstarData.nodeSize   = gridConfig.cellSize;
+        byte wallCost = SystemAPI.GetSingleton<NavGridSettings>().wallCost;
+
+        NativeList<Entity>  followerEntities = new NativeList<Entity>(8, Allocator.Temp);
+        NativeList<float3>  followerGoals    = new NativeList<float3>(8, Allocator.Temp);
+        foreach ((RefRO<DStarLiteFollower> follower, Entity entity) in
+            SystemAPI.Query<RefRO<DStarLiteFollower>>().WithEntityAccess())
+        {
+            followerEntities.Add(entity);
+            followerGoals.Add(follower.ValueRO.targetPosition);
+        }
+
+        for (int index = 0; index < followerEntities.Length; index++)
+        {
+            Entity entity = followerEntities[index];
+            if (!SystemAPI.HasComponent<LocalTransform>(entity)) continue;
+            ProcessRequest(ref state, ref dstarData, gridCostMap, wallCost, entity,
+                SystemAPI.GetComponent<LocalTransform>(entity).Position, followerGoals[index]);
+        }
+
+        SystemAPI.SetComponent(state.SystemHandle, dstarData);
+        followerEntities.Dispose();
+        followerGoals.Dispose();
     }
 
     private void ProcessRequest(
