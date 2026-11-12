@@ -4,14 +4,9 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
-// The single teardown path for a live behavior. Triggered by either:
-//   (a) ActionInterruptRequest — death / revive / path-stuck — resets the unit to Idle, or
-//   (b) StateMachine pending fields — WinnerSelection preemption — swaps to the pending behavior.
-// Runs OrderFirst in ActionExecutionSystemGroup: after WinnerSelection (selection group precedes
-// execution group) and before BehaviorExecutionSystem, so pending never lingers past the frame.
-// Executes the active behavior's interruptionCleanup blob in one pass (non-blocking commands only;
-// bake validation flags blocking types), then halts pathing and cancels any in-flight attack.
-// Does NOT exclude Dead — death interrupts must process.
+// Single teardown path for a live behavior: ActionInterruptRequest resets to Idle, pending fields swap behaviors.
+// OrderFirst so pending never lingers past the frame (runs before BehaviorExecutionSystem).
+// Does NOT exclude Dead: death interrupts must process.
 [BurstCompile]
 [UpdateInGroup(typeof(ActionExecutionSystemGroup), OrderFirst = true)]
 public partial struct BehaviorInterruptSystem : ISystem
@@ -102,8 +97,6 @@ public partial struct BehaviorInterruptJob : IJobEntity
         bool hasPending  = stateMachine.pendingBehavior != BehaviorType.None;
         if (!interrupted && !hasPending) return;
 
-        // Tear down the live behavior: authored cleanup first, then the generic teardown that
-        // every behavior needs regardless of authoring.
         if (stateMachine.activeBehavior != BehaviorType.None)
         {
             ref BehaviorConfigBlob behavior =
@@ -152,10 +145,7 @@ public partial struct BehaviorInterruptJob : IJobEntity
         }
     }
 
-    // Cleanup runs in one frame, so only non-blocking commands are legal here. Bake validation
-    // (BehaviorLibraryBakingSystem) flags blocking types at author time; this is the runtime guard.
-    // Reuses the same handlers BehaviorExecutionSystem's interpreter calls (Utils/BehaviorCommands) —
-    // this used to duplicate their bodies verbatim.
+    // Cleanup runs in one frame, so only non-blocking commands are legal; bake validation flags the rest at author time.
     private void RunCleanupCommand(
         int                                  entityIndex,
         Entity                               unit,

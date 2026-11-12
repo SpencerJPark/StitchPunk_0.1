@@ -4,15 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-/// <summary>
-/// Player melee attack (v1). On OnAttackPlayerInput (and off cooldown), swings at the current
-/// CombatTarget maintained by PlayerCombatTargetingSystem: snap-faces the target, writes an
-/// AttackRequest (consumed the same frame by AttackRequestSystem in CombatExecutionSystemGroup),
-/// pushes the swing animation onto the Action layer, and starts AttackCooldown.
-///
-/// The player is directly controlled, so it bypasses the AI decision/execution split and writes
-/// AttackRequest itself — no StateMachine / behavior commands. Melee only in v1 (ranged is deferred).
-/// </summary>
+// Player bypasses the AI decision/execution split and writes AttackRequest itself. Melee only.
 [BurstCompile]
 [UpdateInGroup(typeof(PlayerInputSystemGroup))]
 public partial struct PlayerAttackSystem : ISystem
@@ -46,7 +38,6 @@ public partial struct PlayerAttackSystem : ISystem
                 .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)
                 .WithEntityAccess())
         {
-            // Only swing while on-foot controls are active.
             if (SystemAPI.GetComponent<PlayerActionMap>(selfEntity).activeActionMap != ActionMaps.Player)
                 continue;
 
@@ -64,7 +55,6 @@ public partial struct PlayerAttackSystem : ISystem
                 continue;
             }
 
-            // Cadence gate — a live cooldown blocks the swing.
             if (SystemAPI.IsComponentEnabled<AttackCooldown>(selfEntity)) continue;
 
             if (!SystemAPI.HasComponent<UnitData>(selfEntity)) continue;
@@ -76,7 +66,7 @@ public partial struct PlayerAttackSystem : ISystem
             ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
             if (unitBlob.attacks.Length == 0) continue;
 
-            // Resolve the attack: the player's selected attack, else the unit's first melee entry.
+            // Selected attack, else the unit's first entry.
             PlayerSelectedAttack selectedAttack = SystemAPI.GetComponent<PlayerSelectedAttack>(selfEntity);
             DamageSource damageSource = selectedAttack.damageSource != DamageSource.None
                 ? selectedAttack.damageSource
@@ -87,16 +77,13 @@ public partial struct PlayerAttackSystem : ISystem
             if (attackIndex <= 0 || attackIndex >= attackLibrary.Value.attacks.Length) continue;
             ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
-            // Target comes from the separate combat-targeting pass; require a live, alive victim.
             if (!SystemAPI.IsComponentEnabled<CombatTarget>(selfEntity)) continue;
             Entity targetEntity = SystemAPI.GetComponent<CombatTarget>(selfEntity).entity;
             if (targetEntity == Entity.Null) continue;
-            // Present-and-not-dead: Dead present but disabled = alive.
+            // Dead present but disabled = alive.
             if (!SystemAPI.HasComponent<Dead>(targetEntity)) continue;
             if (SystemAPI.IsComponentEnabled<Dead>(targetEntity)) continue;
-            // The CutsceneActiveTag return above already covers the ordinary case; this catches the
-            // rendezvous hold, the one window where the player has input back while a cutscene is
-            // still running and its actors are immune (DamageEventSystem).
+            // Rendezvous hold: player has input while cutscene actors are still immune (DamageEventSystem).
             if (SystemAPI.HasComponent<CutsceneActor>(targetEntity)
                 && SystemAPI.IsComponentEnabled<CutsceneActor>(targetEntity)) continue;
             if (!SystemAPI.HasComponent<LocalTransform>(targetEntity)) continue;
@@ -108,10 +95,9 @@ public partial struct PlayerAttackSystem : ISystem
             toTarget.y = 0f;
             float distanceSq = math.lengthsq(toTarget);
 
-            // No auto-step-in in v1 — out of swing range means no swing.
+            // No auto-step-in: out of range means no swing.
             if (distanceSq > attackBlob.range * attackBlob.range) continue;
 
-            // Snap-face the target on the XZ plane.
             float3 facingDir = math.normalizesafe(toTarget);
             if (math.lengthsq(facingDir) > 0.0001f)
             {
@@ -120,7 +106,7 @@ public partial struct PlayerAttackSystem : ISystem
                 playerTransformRW.ValueRW.Rotation = quaternion.LookRotationSafe(facingDir, math.up());
             }
 
-            // Fire — AttackRequestSystem validates range again at hitTime and Enqueues the DamageEvent.
+            // AttackRequestSystem re-validates range at hitTime and enqueues the DamageEvent.
             RefRW<AttackRequest> attackRequest = SystemAPI.GetComponentRW<AttackRequest>(selfEntity);
             attackRequest.ValueRW.targetEntity = targetEntity;
             attackRequest.ValueRW.damageSource = damageSource;
@@ -128,8 +114,7 @@ public partial struct PlayerAttackSystem : ISystem
             attackRequest.ValueRW.elapsed      = 0f;
             SystemAPI.SetComponentEnabled<AttackRequest>(selfEntity, true);
 
-            // Swing animation, played by name — the toolkit re-picks the directional clip against
-            // the actor's own ActorFacing, so the game no longer resolves a facing here.
+            // The toolkit picks the directional clip from the actor's ActorFacing.
             uint animationKey = AIUtils.GetAnimationKeyByAction(ref unitBlob, actionType);
             if (animationKey != 0 && SystemAPI.HasBuffer<AnimationCommand>(selfEntity)
                 && animationCommandPendingLookup.HasComponent(selfEntity))
@@ -142,8 +127,7 @@ public partial struct PlayerAttackSystem : ISystem
                     animationKey);
             }
 
-            // Start cooldown — the authored value is game feel, not clip sync (the Hit event
-            // trigger no longer needs a hitTime floor to guarantee the swing lands first).
+            // Cooldown is game feel, not clip sync.
             RefRW<AttackCooldown> attackCooldown = SystemAPI.GetComponentRW<AttackCooldown>(selfEntity);
             attackCooldown.ValueRW.remaining = attackBlob.cooldown;
             SystemAPI.SetComponentEnabled<AttackCooldown>(selfEntity, true);

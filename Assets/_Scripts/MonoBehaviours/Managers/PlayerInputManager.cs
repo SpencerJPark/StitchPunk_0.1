@@ -31,8 +31,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     private InputAction vehicleSteerAction;
     private InputAction exitVehicleAction;
 
-    // Trade letter: open it from the HUD on foot (Player map), close it while it is up (UI map). Polled by TradeLetterUI /
-    // TradeOrdersHudUI through the two methods below, so both are ordinary rebindable actions.
+    // Trade letter open (Player map) and close (UI map) are polled by TradeLetterUI / TradeOrdersHudUI as rebindable actions.
     private InputAction openLetterAction;
     private InputAction closeLetterAction;
 
@@ -106,9 +105,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     }
     #endregion
 
-    // The scene has an EventSystem but no input module, and with an EventSystem present UI Toolkit's own fallback input is off, so
-    // no mouse, key or pad press reached any UI Toolkit panel. This gives it a module fed by THIS PlayerInput's UI map, so UI input
-    // flows exactly while that map is current (the pause menu and any modal panel) and nowhere else.
+    // An EventSystem without an input module turns UI Toolkit's fallback input off; this module is fed by the UI map so UI input flows only while it is current.
     private void ConfigureUiInputModule()
     {
         EventSystem eventSystem = FindFirstObjectByType<EventSystem>();
@@ -188,13 +185,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         if (mounted == lastKnownMountedState) return;
         lastKnownMountedState = mounted;
 
-        ActionMaps mapForMountState = mounted ? ActionMaps.ControlUnits : ActionMaps.Player;
-        if (modalUiOpen)
-            mapBeforeModalUi = mapForMountState;
-        else if (menuOpen)
-            mapBeforeMenu = mapForMountState;
-        else
-            ApplyActionMapSwitch(mapForMountState);
+        RouteActionMapChange(mounted ? ActionMaps.ControlUnits : ActionMaps.Player);
     }
 
     // Mirrors WatchWorkstationMount: ECS decides when the player is driving (board, park, wreck), this follows.
@@ -206,13 +197,17 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         if (driving == lastKnownDrivingState) return;
         lastKnownDrivingState = driving;
 
-        ActionMaps mapForDrivingState = driving ? ActionMaps.Vehicle : ActionMaps.Player;
+        RouteActionMapChange(driving ? ActionMaps.Vehicle : ActionMaps.Player);
+    }
+
+    private void RouteActionMapChange(ActionMaps newMap)
+    {
         if (modalUiOpen)
-            mapBeforeModalUi = mapForDrivingState;
+            mapBeforeModalUi = newMap;
         else if (menuOpen)
-            mapBeforeMenu = mapForDrivingState;
+            mapBeforeMenu = newMap;
         else
-            ApplyActionMapSwitch(mapForDrivingState);
+            ApplyActionMapSwitch(newMap);
     }
 
     private void PollVehicleControls()
@@ -239,9 +234,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentEnabled<OnDeployWorkstationInput>(playerEntity, true);
     }
 
-    // When aiming with a mouse, compute the world-space direction from the player to the
-    // cursor and write it into LookPlayerInput so PlayerAimSystem can use it identically
-    // to the gamepad right-stick path.
+    // Writes the player-to-cursor direction into LookPlayerInput so PlayerAimSystem treats it like the right stick.
     private void UpdateMouseAimDirection()
     {
         if (!TryResolvePlayerEntity()) return;
@@ -400,17 +393,32 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
     #region PlayerControl
 
+    private void EnablePlayerComponentWhenPerformed<TComponent>(InputAction.CallbackContext context)
+        where TComponent : unmanaged, IComponentData, IEnableableComponent
+    {
+        if (!context.performed || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentEnabled<TComponent>(playerEntity, true);
+    }
+
+    private void EnablePlayerComponentWhenStarted<TComponent>(InputAction.CallbackContext context)
+        where TComponent : unmanaged, IComponentData, IEnableableComponent
+    {
+        if (!context.started || !TryResolvePlayerEntity()) return;
+        entityManager.SetComponentEnabled<TComponent>(playerEntity, true);
+    }
+
+    private static float2 ReadVector2OrZero(InputAction.CallbackContext context)
+    {
+        if (!(context.performed || context.canceled)) return float2.zero;
+        Vector2 rawValue = context.ReadValue<Vector2>();
+        return new float2(rawValue.x, rawValue.y);
+    }
+
     public void OnMove(InputAction.CallbackContext context)
     {
         if (!TryResolvePlayerEntity()) return;
 
-        float2 value = float2.zero;
-        if (context.performed || context.canceled)
-        {
-            Vector2 moveRawValue = context.ReadValue<Vector2>();
-            value = new float2(moveRawValue.x, moveRawValue.y);
-        }
-
+        float2 value = ReadVector2OrZero(context);
         entityManager.SetComponentData(playerEntity, new MovePlayerInput { moveInput = value });
         entityManager.SetComponentEnabled<MovePlayerInput>(playerEntity, math.lengthsq(value) > 0f);
     }
@@ -419,29 +427,17 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     {
         if (!TryResolvePlayerEntity()) return;
 
-        float2 value = float2.zero;
-        if (context.performed || context.canceled)
-        {
-            Vector2 lookRawValue = context.ReadValue<Vector2>();
-            value = new float2(lookRawValue.x, lookRawValue.y);
-        }
-
+        float2 value = ReadVector2OrZero(context);
         entityManager.SetComponentData(playerEntity, new LookPlayerInput { lookInput = value });
         entityManager.SetComponentEnabled<LookPlayerInput>(playerEntity, math.lengthsq(value) > 0f);
     }
-   
+
 
     public void OnAttack(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentEnabled<OnAttackPlayerInput>(playerEntity, true);
-    }
+        => EnablePlayerComponentWhenPerformed<OnAttackPlayerInput>(context);
 
     public void OnInteract(InputAction.CallbackContext context)
-    {
-        if (!context.started || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentEnabled<OnInteractPlayerInput>(playerEntity, true);
-    }
+        => EnablePlayerComponentWhenStarted<OnInteractPlayerInput>(context);
 
     public void OnRoll(InputAction.CallbackContext context)
     {
@@ -453,16 +449,10 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     }
 
     public void OnSneak(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentEnabled<OnSneakPlayerInput>(playerEntity, true);
-    }
+        => EnablePlayerComponentWhenPerformed<OnSneakPlayerInput>(context);
 
     public void OnDrop(InputAction.CallbackContext context)
-    {
-        if (!context.started || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentEnabled<OnDropPlayerInput>(playerEntity, true);
-    }
+        => EnablePlayerComponentWhenStarted<OnDropPlayerInput>(context);
 
     public void OnAim(InputAction.CallbackContext context)
     {
@@ -501,35 +491,19 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         hasPendingMapSwitch = true;
     }
 
-    public void OnItemSlot1(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        
-        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 1 });
-        entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
-    }
-    
-    public void OnItemSlot2(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        
-        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 2 });
-        entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
-    }
-    
-    public void OnItemSlot3(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        
-        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 3 });
-        entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
-    }
-    
-    public void OnItemSlot4(InputAction.CallbackContext context)
+    public void OnItemSlot1(InputAction.CallbackContext context) => EnableEquipmentSlot(context, 1);
+
+    public void OnItemSlot2(InputAction.CallbackContext context) => EnableEquipmentSlot(context, 2);
+
+    public void OnItemSlot3(InputAction.CallbackContext context) => EnableEquipmentSlot(context, 3);
+
+    public void OnItemSlot4(InputAction.CallbackContext context) => EnableEquipmentSlot(context, 4);
+
+    private void EnableEquipmentSlot(InputAction.CallbackContext context, int slotIndex)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
 
-        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = 4 });
+        entityManager.SetComponentData(playerEntity, new OnEquipmentSlotPlayerInput { slot = slotIndex });
         entityManager.SetComponentEnabled<OnEquipmentSlotPlayerInput>(playerEntity, true);
     }
 
@@ -541,13 +515,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     {
         if (!TryResolvePlayerEntity()) return;
 
-        float2 value = float2.zero;
-        if (context.performed || context.canceled)
-        {
-            Vector2 cursorRawValue = context.ReadValue<Vector2>();
-            value = new float2(cursorRawValue.x, cursorRawValue.y);
-        }
-
+        float2 value = ReadVector2OrZero(context);
         entityManager.SetComponentData(playerEntity, new CursorPlayerInput { cursorInput = value });
         entityManager.SetComponentEnabled<CursorPlayerInput>(playerEntity, math.lengthsq(value) > 0f);
     }
@@ -580,16 +548,10 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     }
     
     public void OnCommand(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, true);
-    }
+        => EnablePlayerComponentWhenPerformed<OnCommandPlayerInput>(context);
 
     public void OnSnapCameraBack(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentEnabled<OnSnapCameraBackInput>(playerEntity, true);
-    }
+        => EnablePlayerComponentWhenPerformed<OnSnapCameraBackInput>(context);
 
     public void OnCycleGroupUp(InputAction.CallbackContext context)
     {
@@ -605,31 +567,18 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentEnabled<OnCycleGroupInput>(playerEntity, true);
     }
 
-    public void OnQuickCommand1(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = 1 });
-        entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, true);
-    }
+    public void OnQuickCommand1(InputAction.CallbackContext context) => EnableQuickCommand(context, 1);
 
-    public void OnQuickCommand2(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = 2 });
-        entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, true);
-    }
+    public void OnQuickCommand2(InputAction.CallbackContext context) => EnableQuickCommand(context, 2);
 
-    public void OnQuickCommand3(InputAction.CallbackContext context)
-    {
-        if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = 3 });
-        entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, true);
-    }
+    public void OnQuickCommand3(InputAction.CallbackContext context) => EnableQuickCommand(context, 3);
 
-    public void OnQuickCommand4(InputAction.CallbackContext context)
+    public void OnQuickCommand4(InputAction.CallbackContext context) => EnableQuickCommand(context, 4);
+
+    private void EnableQuickCommand(InputAction.CallbackContext context, int commandIndex)
     {
         if (!context.performed || !TryResolvePlayerEntity()) return;
-        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = 4 });
+        entityManager.SetComponentData(playerEntity, new OnQuickCommandInput { commandIndex = commandIndex });
         entityManager.SetComponentEnabled<OnQuickCommandInput>(playerEntity, true);
     }
 

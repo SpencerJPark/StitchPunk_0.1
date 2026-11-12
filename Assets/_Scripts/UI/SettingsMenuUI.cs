@@ -231,42 +231,7 @@ public class SettingsMenuUI : MonoBehaviour
         };
 
         for (int slot = AutosaveSlot; slot <= LastManualSlot; slot++)
-        {
-            int rowSlot = slot;
-            VisualElement row = CreateRow();
-            Label slotLabel = CreateLabel("", 20f, CreamColor);
-            slotLabel.style.flexGrow = 1f;
-            row.Add(slotLabel);
-            slotLabels.Add(slotLabel);
-
-            if (rowSlot != AutosaveSlot)
-            {
-                Button saveButton = CreateButton("Save", () =>
-                {
-                    saveLoadBridge.RequestSave(rowSlot);
-                    statusLabel.text = "Saving to slot " + rowSlot + "...";
-                    overlay.schedule.Execute(() =>
-                    {
-                        statusLabel.text = "Saved to slot " + rowSlot + ".";
-                        refreshSlots();
-                    }).StartingIn(700);
-                }, TileColor, 18f);
-                saveButton.style.width = 110f;
-                row.Add(saveButton);
-            }
-
-            Button loadButton = CreateButton("Load", () =>
-            {
-                statusLabel.text = "Loading slot " + rowSlot + "...";
-                saveLoadBridge.RequestLoad(rowSlot);
-            }, TileColor, 18f);
-            loadButton.style.width = 110f;
-            loadButton.style.marginLeft = 8f;
-            row.Add(loadButton);
-            loadButtons.Add(loadButton);
-
-            contentHost.Add(row);
-        }
+            contentHost.Add(BuildSaveSlotRow(slot, statusLabel, slotLabels, loadButtons, refreshSlots));
 
         refreshSlots();
         contentHost.Add(statusLabel);
@@ -275,6 +240,43 @@ public class SettingsMenuUI : MonoBehaviour
         contentHost.Add(CreateConfirmButton("Quit to Main Menu", QuitToMainMenu));
         contentHost.Add(CreateSpacer(8f));
         contentHost.Add(CreateConfirmButton("Quit to Desktop", QuitToDesktop));
+    }
+
+    private VisualElement BuildSaveSlotRow(int rowSlot, Label statusLabel, List<Label> slotLabels, List<Button> loadButtons, Action refreshSlots)
+    {
+        VisualElement row = CreateRow();
+        Label slotLabel = CreateLabel("", 20f, CreamColor);
+        slotLabel.style.flexGrow = 1f;
+        row.Add(slotLabel);
+        slotLabels.Add(slotLabel);
+
+        if (rowSlot != AutosaveSlot)
+        {
+            Button saveButton = CreateButton("Save", () =>
+            {
+                saveLoadBridge.RequestSave(rowSlot);
+                statusLabel.text = "Saving to slot " + rowSlot + "...";
+                overlay.schedule.Execute(() =>
+                {
+                    statusLabel.text = "Saved to slot " + rowSlot + ".";
+                    refreshSlots();
+                }).StartingIn(700);
+            }, TileColor, 18f);
+            saveButton.style.width = 110f;
+            row.Add(saveButton);
+        }
+
+        Button loadButton = CreateButton("Load", () =>
+        {
+            statusLabel.text = "Loading slot " + rowSlot + "...";
+            saveLoadBridge.RequestLoad(rowSlot);
+        }, TileColor, 18f);
+        loadButton.style.width = 110f;
+        loadButton.style.marginLeft = 8f;
+        row.Add(loadButton);
+        loadButtons.Add(loadButton);
+
+        return row;
     }
 
     private static string DescribeSlot(int slot)

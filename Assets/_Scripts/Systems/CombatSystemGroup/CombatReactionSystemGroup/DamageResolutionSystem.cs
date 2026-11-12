@@ -5,20 +5,11 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// AOE expand pre-pass (v2). Sits between the producers and DamageEventSystem: it drains the raw
-// DamageBus queue, expands every AreaOfEffect event into one single-target event per in-range,
-// non-source, alive victim, and copies single-target events straight through — writing the result
-// into DamageBus.resolved for the consumer to apply.
-//
-// A NativeQueue handed through a singleton bypasses ECS automatic dependency tracking, so this
-// system combines DamageBusSystem.ProducerHandle into its dependency and completes it before reading
-// raw on the main thread (the EntityCommandBufferSystem pattern). The heavy per-event work — the
-// radius scan for AOE — runs in a Burst ScheduleParallel job; this system then completes that job so
-// the immediately-following main-thread consumer can drain `resolved` safely.
-//
-// Friendly fire: AOE hits EVERYONE in radius except the source entity (no faction filter on damage —
-// the faction gate lives in DamageEventSystem's threat step). Cone/Line/Chain have no dedicated
-// resolver yet and fall back to single-target on their pre-set targetEntity.
+// Expands raw AOE events into single-target events in DamageBus.resolved.
+// A NativeQueue in a singleton bypasses ECS dependency tracking, so ProducerHandle is combined and
+// completed by hand before raw is read.
+// AOE hits everyone in radius except the source (faction gate is in DamageEventSystem).
+// Cone/Line/Chain fall back to single-target.
 [BurstCompile]
 [UpdateInGroup(typeof(CombatReactionSystemGroup))]
 [UpdateBefore(typeof(DamageEventSystem))]
@@ -40,8 +31,7 @@ public partial struct DamageResolutionSystem : ISystem
     {
         DamageBus bus = SystemAPI.GetSingleton<DamageBus>();
 
-        // Manual dependency: fold in every producer's write handle, then complete so `raw` is safe to
-        // read on the main thread below (producers ScheduleParallel-write it in other system groups).
+        // Producers ScheduleParallel-write raw in other groups, so complete before reading it here.
         state.Dependency = JobHandle.CombineDependencies(
             state.Dependency,
             state.World.GetExistingSystemManaged<DamageBusSystem>().ProducerHandle);
@@ -54,8 +44,7 @@ public partial struct DamageResolutionSystem : ISystem
             return;
         }
 
-        // Only gather the target snapshot when an AOE event is actually present — the common
-        // all-single-target case skips the gather entirely.
+        // Skip the target gather when no AOE event is present.
         bool hasAreaOfEffect = false;
         for (int i = 0; i < rawEvents.Length; i++)
         {
@@ -92,11 +81,9 @@ public partial struct DamageResolutionSystem : ISystem
             resolvedWriter = bus.resolved.AsParallelWriter(),
         }.Schedule(rawEvents.Length, 16, state.Dependency);
 
-        // The consumer drains `resolved` on the main thread right after this, so join here — the
-        // expand still parallelised the radius scans across worker threads.
+        // DamageEventSystem drains `resolved` on the main thread right after this.
         expandHandle.Complete();
 
-        // raw is copied into rawEvents; clear it now (DamageBusSystem also clears next frame).
         bus.raw.Clear();
 
         rawEvents.Dispose();
@@ -106,8 +93,6 @@ public partial struct DamageResolutionSystem : ISystem
     }
 }
 
-// Entity + position snapshot of a possible AOE victim, gathered on the main thread and read by the
-// parallel expand job (top-level so the job struct can reference it).
 public struct DamageTargetSnapshot
 {
     public Entity entity;
@@ -128,15 +113,13 @@ public struct DamageExpandJob : IJobParallelFor
 
         if (damageEvent.damageBehaviour != DamageBehaviour.AreaOfEffect)
         {
-            // SingleTarget (and, until dedicated resolvers exist, Cone/Line/Chain/None) flow straight
-            // through on their pre-resolved targetEntity — normalised so the consumer sees one shape.
+            // Everything non-AOE passes through on its pre-set targetEntity, normalised to SinlgeTarget.
             damageEvent.damageBehaviour = DamageBehaviour.SinlgeTarget;
             resolvedWriter.Enqueue(damageEvent);
             return;
         }
 
-        // AreaOfEffect — one single-target event per in-range, non-source, alive victim. XZ radius
-        // (2.5D: ignore height). Friendly fire: no faction filter, only the source is exempt.
+        // XZ radius only (2.5D ignores height).
         float rangeSq = damageEvent.range * damageEvent.range;
         for (int t = 0; t < targets.Length; t++)
         {

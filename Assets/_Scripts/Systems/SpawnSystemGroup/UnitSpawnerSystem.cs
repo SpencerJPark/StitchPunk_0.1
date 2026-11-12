@@ -3,14 +3,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Runs once per enabled UnitSpawner.
-// First tries to reclaim dormant (Disabled) pool units of the matching type,
-// then instantiates new ones for any shortfall.
-//
-// All AI state (Brain, MotivationState, ActionOptions, PlayerControlled, etc.)
-// lives on the unit entity itself — no separate brain entity or BrainLink needed.
-//
-// Disables the UnitSpawner component after fulfilling its spawn count.
+// Reclaims dormant pooled units of the matching type first, then instantiates the shortfall.
+// Disables the UnitSpawner once its spawn count is fulfilled.
 [UpdateInGroup(typeof(SpawnSystemGroup))]
 public partial struct UnitSpawnerSystem : ISystem
 {
@@ -29,7 +23,6 @@ public partial struct UnitSpawnerSystem : ISystem
         state.RequireForUpdate<UnitDataLibrary>();
         _random = Random.CreateFromIndex(1234u);
 
-        // Only entities that are explicitly in the pool: have PoolOwner AND are disabled.
         _poolQuery = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<PoolOwner, Disabled>()
             .WithOptions(EntityQueryOptions.IncludeDisabledEntities)
@@ -38,12 +31,10 @@ public partial struct UnitSpawnerSystem : ISystem
 
     public void OnUpdate(ref SystemState state)
     {
-        // UnitPrefabEntry is a DynamicBuffer on the UnitDataLibrary singleton entity.
-        // Look up by entity to avoid ambiguity with any other entity that may carry this buffer.
         Entity libraryEntity = SystemAPI.GetSingletonEntity<UnitDataLibrary>();
         DynamicBuffer<UnitPrefabEntry> prefabs = SystemAPI.GetBuffer<UnitPrefabEntry>(libraryEntity);
 
-        // --- Collect spawner data before any structural changes ---
+        // Collect spawner data before any structural changes.
         NativeList<Entity> spawnerEntities    = new NativeList<Entity>(Allocator.Temp);
         NativeList<UnitType> spawnerTypes     = new NativeList<UnitType>(Allocator.Temp);
         NativeList<int> spawnerCounts         = new NativeList<int>(Allocator.Temp);
@@ -75,10 +66,9 @@ public partial struct UnitSpawnerSystem : ISystem
 
         ComponentLookup<TerrainSpawnMarkerData> markerLookup = SystemAPI.GetComponentLookup<TerrainSpawnMarkerData>(true);
 
-        // --- Snapshot the current pool ---
         NativeArray<Entity> pooledEntities    = _poolQuery.ToEntityArray(Allocator.Temp);
         NativeArray<PoolOwner> pooledOwners   = _poolQuery.ToComponentDataArray<PoolOwner>(Allocator.Temp);
-        // Tracks which pool slots have been claimed this frame so we don't double-assign.
+        // Pool slots claimed this frame, so none is assigned twice.
         NativeBitArray reclaimed = new NativeBitArray(pooledEntities.Length, Allocator.Temp);
 
         EntityCommandBuffer ecb = new EntityCommandBuffer(Allocator.Temp);
@@ -90,7 +80,7 @@ public partial struct UnitSpawnerSystem : ISystem
             float3 center       = spawnerPositions[s];
             float range         = spawnerRanges[s];
 
-            // A terrain marker's units are stamped so they can leave with their tile (on-demand) or be counted against the tile budget.
+            // Terrain marker units are stamped so they can leave with their tile or count against its budget.
             bool fromMarker = markerLookup.TryGetComponent(spawnerEntities[s], out TerrainSpawnMarkerData marker);
             SpawnedByMarker markerStamp = default;
             if (fromMarker)
@@ -109,7 +99,6 @@ public partial struct UnitSpawnerSystem : ISystem
 
             int spawned = 0;
 
-            // Reclaim dormant pool units first (cheaper than instantiating).
             for (int i = 0; i < pooledEntities.Length && spawned < needed; i++)
             {
                 if (reclaimed.IsSet(i) || pooledOwners[i].unitType != targetType)
@@ -117,7 +106,7 @@ public partial struct UnitSpawnerSystem : ISystem
 
                 float3 pos = RandomSpawnPosition(center, range, ref _random,
                     avoidCameraView, cameraView.center, noSpawnRadiusSq);
-                // Re-enable and reposition. ECB is FIFO, so Remove runs before SetComponent.
+                // ECB is FIFO, so Remove runs before SetComponent.
                 ecb.RemoveComponent<Disabled>(pooledEntities[i]);
                 ecb.SetComponent(pooledEntities[i], LocalTransform.FromPosition(pos));
                 ecb.SetComponentEnabled<NewlySpawned>(pooledEntities[i], true);
@@ -130,7 +119,6 @@ public partial struct UnitSpawnerSystem : ISystem
                 spawned++;
             }
 
-            // Instantiate new entities for any remaining shortfall.
             for (int i = spawned; i < needed; i++)
             {
                 float3 pos = RandomSpawnPosition(center, range, ref _random,
@@ -146,7 +134,6 @@ public partial struct UnitSpawnerSystem : ISystem
                 ecb.SetComponentEnabled<ActionRequest>(newBody, true);
             }
 
-            // Spawner has done its job — disable it until something re-activates it.
             ecb.SetComponentEnabled<UnitSpawner>(spawnerEntities[s], false);
         }
 

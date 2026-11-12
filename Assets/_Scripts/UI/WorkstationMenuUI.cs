@@ -137,19 +137,10 @@ public class WorkstationMenuUI : MonoBehaviour
         currentPlayer = Entity.Null;
         currentWorkstation = Entity.Null;
 
-        if (!playerQuery.IsEmptyIgnoreFilter)
+        if (TryGetMountedWorkstation(entityManager, out Entity mountedPlayerEntity, out Entity mountedWorkstationEntity))
         {
-            Entity playerEntity = playerQuery.GetSingletonEntity();
-            if (entityManager.HasComponent<WorkstationMounted>(playerEntity)
-                && entityManager.IsComponentEnabled<WorkstationMounted>(playerEntity))
-            {
-                Entity workstation = entityManager.GetComponentData<WorkstationMounted>(playerEntity).workstation;
-                if (entityManager.Exists(workstation))
-                {
-                    currentPlayer = playerEntity;
-                    currentWorkstation = workstation;
-                }
-            }
+            currentPlayer = mountedPlayerEntity;
+            currentWorkstation = mountedWorkstationEntity;
         }
 
         bool shouldShow = currentWorkstation != Entity.Null;
@@ -175,6 +166,28 @@ public class WorkstationMenuUI : MonoBehaviour
         RefreshHealth(entityManager);
         RefreshQueue(entityManager);
         RefreshRecipeButtons(entityManager);
+    }
+
+    private bool TryGetMountedWorkstation(EntityManager entityManager, out Entity playerEntity, out Entity workstationEntity)
+    {
+        playerEntity = Entity.Null;
+        workstationEntity = Entity.Null;
+
+        if (playerQuery.IsEmptyIgnoreFilter)
+            return false;
+
+        Entity candidatePlayer = playerQuery.GetSingletonEntity();
+        if (!entityManager.HasComponent<WorkstationMounted>(candidatePlayer)
+            || !entityManager.IsComponentEnabled<WorkstationMounted>(candidatePlayer))
+            return false;
+
+        Entity mountedWorkstation = entityManager.GetComponentData<WorkstationMounted>(candidatePlayer).workstation;
+        if (!entityManager.Exists(mountedWorkstation))
+            return false;
+
+        playerEntity = candidatePlayer;
+        workstationEntity = mountedWorkstation;
+        return true;
     }
 
     private bool IsMenuVisible()

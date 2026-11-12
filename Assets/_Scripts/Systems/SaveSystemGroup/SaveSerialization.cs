@@ -7,35 +7,19 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using UnityEngine;
 
-/// <summary>
-/// Generic, marker-driven (de)serializer for ECS components. Managed / main-thread only —
-/// no [BurstCompile] (reflection, Marshal, Convert.ToBase64String). Save/load is infrequent
-/// and off the hot path, so the reflection cost is irrelevant.
-///
-/// Encoder (v1): each component is an unmanaged blittable struct, so its raw bytes are copied
-/// to a Base64 string and copied straight back on load — fully generic, handles any math type,
-/// zero per-type code. The encoder is the single seam to swap later (e.g. for named-field JSON
-/// with migration resilience) without touching the systems.
-///
-/// See <see cref="PersistRegistry"/> for which types are saved and the v1 exclusions.
-/// </summary>
+// Main-thread only, no Burst (reflection, Marshal). Components are stored as raw struct bytes in Base64,
+// so a struct layout change invalidates old saves (ApplyEntity skips on size mismatch).
 public static class SaveSerialization
 {
-    // Cached open generic method handles, resolved once.
     private static readonly MethodInfo GetComponentDataOpen = ResolveEntityManagerMethod("GetComponentData", 1);
     private static readonly MethodInfo SetComponentDataOpen = ResolveEntityManagerMethod("SetComponentData", 2);
     private static readonly MethodInfo SizeOfOpen = typeof(UnsafeUtility).GetMethods()
         .First(method => method.Name == "SizeOf" && method.IsGenericMethodDefinition && method.GetParameters().Length == 0);
 
-    // Per-type closed-method caches.
     private static readonly Dictionary<Type, MethodInfo> getByType = new Dictionary<Type, MethodInfo>();
     private static readonly Dictionary<Type, MethodInfo> setByType = new Dictionary<Type, MethodInfo>();
     private static readonly Dictionary<Type, int> sizeByType = new Dictionary<Type, int>();
 
-    /// <summary>
-    /// Snapshots every saveable component present on <paramref name="entity"/> into an
-    /// <see cref="EntityRecord"/>.
-    /// </summary>
     public static EntityRecord WriteEntity(EntityManager entityManager, Entity entity, string role)
     {
         List<ComponentRecord> records = new List<ComponentRecord>();
@@ -67,11 +51,7 @@ public static class SaveSerialization
         };
     }
 
-    /// <summary>
-    /// Restores each saved component from <paramref name="record"/> onto <paramref name="entity"/>.
-    /// Records whose type can't be resolved, or that the entity doesn't have, are skipped
-    /// (forward/backward compatibility).
-    /// </summary>
+    // Records with an unresolvable type or a component the entity lacks are skipped, so old saves still load.
     public static void ApplyEntity(EntityManager entityManager, Entity entity, EntityRecord record)
     {
         if (record?.components == null)
@@ -106,11 +86,7 @@ public static class SaveSerialization
         }
     }
 
-    /// <summary>
-    /// Decodes a single component of type <typeparamref name="T"/> from a record, if present.
-    /// Used at minion-instantiate time to place the body (LocalTransform) before the deferred
-    /// <see cref="ApplyEntity"/> runs.
-    /// </summary>
+    // Used at minion-instantiate time to read LocalTransform before the deferred ApplyEntity runs.
     public static bool TryReadComponent<T>(EntityRecord record, out T value) where T : unmanaged
     {
         value = default;
@@ -131,8 +107,6 @@ public static class SaveSerialization
         }
         return false;
     }
-
-    // --- raw-byte encoder -------------------------------------------------
 
     private static byte[] StructToBytes(object boxedStruct, int size)
     {
@@ -163,8 +137,6 @@ public static class SaveSerialization
         }
         return boxed;
     }
-
-    // --- reflection caches ------------------------------------------------
 
     private static MethodInfo ClosedGet(Type type)
     {

@@ -6,10 +6,8 @@ using Unity.Mathematics;
 using Unity.Physics;
 using Unity.Transforms;
 
-// Running units over (Caravan_System.md CV-D6). Every unit the moving caravan touches is shoved out of its path;
-// above minimumImpactSpeed anyone but the player's own minions also takes speed-scaled damage and a stun, and a
-// lethal hit launches the ragdoll along the shove. Each hit costs the caravan a little health and speed.
-// A sourceless DamageBus producer: main-thread Enqueue before AttackRequestSystem, the HazardZoneSystem slot.
+// Units the moving caravan touches are shoved aside; above minimumImpactSpeed non-minions also take damage and a stun.
+// Sourceless DamageBus producer: main-thread Enqueue must stay before AttackRequestSystem.
 [BurstCompile]
 [UpdateInGroup(typeof(CombatExecutionSystemGroup))]
 [UpdateBefore(typeof(AttackRequestSystem))]
@@ -110,15 +108,13 @@ public partial struct CaravanCrashSystem : ISystem
                 unitsHit++;
                 if (IsHeavyUnit(ref state, unitEntity, unitLibrary)) heavyUnitsHit++;
 
-                // Above impact speed anyone with a rig is knocked flying and gets back up (CV-D15); below it, or
-                // with no rig to fall over, they're pushed aside.
+                // Below impact speed, or with no rig to fall over, the unit is just pushed aside.
                 bool knockedOver = impactSpeed >= profile.minimumImpactSpeed
                     && TryKnockOver(ref state, unitEntity, shoveDirection, impactSpeed, profile.stunSecondsPerMetrePerSecond);
                 if (!knockedOver)
                     QueueShove(ref state, ref commandBuffer, unitEntity,
                         shoveDirection * (profile.shoveDistance / math.max(profile.shoveSeconds, 0.01f)), profile.shoveSeconds);
 
-                // Your own minions take no damage (CV-D6, CV-D15).
                 bool isPlayersMinion = SystemAPI.HasComponent<Minion>(unitEntity) && SystemAPI.IsComponentEnabled<Minion>(unitEntity);
                 if (isPlayersMinion || impactSpeed < profile.minimumImpactSpeed) continue;
 
@@ -156,8 +152,7 @@ public partial struct CaravanCrashSystem : ISystem
         unitHits.Dispose();
     }
 
-    // Faster hits throw further and keep the unit down longer. A unit with real toolkit ragdoll bodies is
-    // launched through the toolkit; FakeRagdoll then only times its stand-up.
+    // With real toolkit ragdoll bodies the launch goes through the toolkit; FakeRagdoll then only times the stand-up.
     private bool TryKnockOver(ref SystemState state, Entity unitEntity, float3 shoveDirection, float impactSpeed,
         float stunSecondsPerMetrePerSecond)
     {

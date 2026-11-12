@@ -6,9 +6,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Derives facing from movement (or the to-target direction while attacking) and pushes it onto
-// every part's PartFacing. Must resolve before UnitAnimationAssignmentSystem so the same-frame clip
-// pick sees the new facing. See DirectionFacing_System.md §5.
+// Derives facing from movement (or the target direction while attacking) and writes every part's
+// PartFacing. Runs before UnitAnimationAssignmentSystem so the same-frame clip pick sees it.
 [BurstCompile]
 [UpdateInGroup(typeof(AnimationAssignmentSystemGroup), OrderFirst = true)]
 [UpdateBefore(typeof(UnitAnimationAssignmentSystem))]
@@ -42,9 +41,8 @@ public partial struct UnitFacingSystem : ISystem
 }
 
 [BurstCompile]
-// Cutscene actors are in the query, not excluded from it (G2 §3.4): while a cutscene puppets an
-// actor its Movement.targetPosition is stale, so the facing either comes from the cutscene's own
-// CutsceneFacing or is left exactly as it was when the cutscene started.
+// Cutscene actors stay in the query: their Movement.targetPosition is stale, so facing comes from
+// CutsceneFacing or is left as it was.
 [WithPresent(typeof(CutsceneActor))]
 public partial struct UnitFacingJob : IJobEntity
 {
@@ -54,15 +52,13 @@ public partial struct UnitFacingJob : IJobEntity
     [ReadOnly] public ComponentLookup<CutsceneFacing> cutsceneFacingLookup;
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
 
-    // Every unit's body parts are its own — no two units ever write the same part entity, so this
-    // is safe across parallel workers despite the lookup spanning the whole world.
+    // Safe in parallel: no two units share a part entity.
     [NativeDisableParallelForRestriction] public ComponentLookup<PartFacing> partFacingLookup;
 
-    // Each unit only ever writes its own root entity's ActorFacing, never another unit's.
+    // Safe in parallel: each unit writes only its own ActorFacing.
     [NativeDisableParallelForRestriction] public ComponentLookup<ActorFacing> actorFacingLookup;
 
-    // Turn granularity now lives on the actor's baked profile, not UnitDataBlob (ActorProfileCutover
-    // P1/P5) — a unit with no baked profile yet falls back to the finest (Six) granularity.
+    // Turn granularity comes from the baked profile; no profile falls back to Six.
     [ReadOnly] public ComponentLookup<ActorProfile> actorProfileLookup;
 
     public void Execute(
@@ -78,8 +74,7 @@ public partial struct UnitFacingJob : IJobEntity
         bool hasCutsceneFacing = cutsceneFacingLookup.HasComponent(unitEntity)
             && cutsceneFacingLookup.IsComponentEnabled(unitEntity);
 
-        // A cutscene actor the cutscene has no facing answer for keeps the one it had: deriving it
-        // from Movement.targetPosition would read a target nothing is walking toward any more.
+        // No cutscene facing: keep the old one, since Movement.targetPosition is stale.
         if (cutsceneActorEnabled.ValueRO && !hasCutsceneFacing)
             return;
 
@@ -112,8 +107,7 @@ public partial struct UnitFacingJob : IJobEntity
         Direction desiredFacing = FacingResolver.FromMovement(
             in movementXY, turnDirections, unitFacing.current);
 
-        // Synced against the actor's own value, not against the change below: at bake ActorFacing
-        // starts at SouthEast while UnitFacing may already say something else.
+        // Compared to ActorFacing itself: it bakes as SouthEast while UnitFacing may differ.
         if (actorFacingLookup.HasComponent(unitEntity))
         {
             ActorFacing actorFacing = actorFacingLookup[unitEntity];
@@ -149,8 +143,7 @@ public partial struct UnitFacingJob : IJobEntity
         }
     }
 
-    // The precedence a facing is decided by: a cutscene's own answer, then an attack's aim, then
-    // where the unit is walking. Public (not private) so FacingSpaceTests can pin it directly.
+    // Precedence: cutscene, then attack aim, then walking. Public for FacingSpaceTests.
     public static float2 ResolveMovementXY(
         bool hasCutsceneFacing,
         float cutsceneAngleDegrees,
@@ -164,26 +157,22 @@ public partial struct UnitFacingJob : IJobEntity
         return hasAimOverride ? aimDirectionXY : WorldToFacingSpace(movementDelta);
     }
 
-    // CutsceneFacing.angleDegrees is measured FROM +X TOWARD +Z — 0 east, 90 north — which is the
-    // same space FacingResolver reads, so (cos, sin) lands in it directly. It is NOT a LocalTransform
-    // Y euler, which measures from +Z: the two are a reflection about 45 degrees, and mixing them
-    // turns an actor walking east into one facing north (toolkit A65's own bug, Gotchas.md).
+    // angleDegrees runs from +X toward +Z (0 east, 90 north), FacingResolver's space. It is NOT a
+    // LocalTransform Y euler (from +Z); mixing them turns an east walker into a north facer.
     public static float2 CutsceneAngleToFacingSpace(float angleDegrees)
     {
         float angleRadians = math.radians(angleDegrees);
         return new float2(math.cos(angleRadians), math.sin(angleRadians));
     }
 
-    // World-fixed velocity.xz mapped straight onto facing space (+x east, +y away from camera),
-    // stamped in DirectionFacing_System.md §2 — revisit only if the Cinemachine rig ever yaws.
-    // Public (not private) so FacingSpaceTests can pin the mapping directly.
+    // World xz maps straight onto facing space (+x east, +y away from camera); revisit if the
+    // Cinemachine rig ever yaws. Public for FacingSpaceTests.
     public static float2 WorldToFacingSpace(float3 worldXZ)
     {
         return new float2(worldXZ.x, worldXZ.z);
     }
 
-    // While unitAction.current is an attack and a live CombatTarget exists, the unit should face its
-    // target rather than its movement — the same seam a future talking-partner facing will reuse.
+    // While attacking with a live CombatTarget, face the target instead of the movement direction.
     private bool TryGetAimDirection(
         Entity unitEntity,
         ref UnitDataBlob unitBlob,

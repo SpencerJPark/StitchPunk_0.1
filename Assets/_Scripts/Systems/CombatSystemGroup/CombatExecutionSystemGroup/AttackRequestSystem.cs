@@ -42,8 +42,6 @@ public partial struct AttackRequestSystem : ISystem
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
 
-        // Recycled DamageBus queue (v2) — each attacker Enqueues its own DamageEvent value; no entity
-        // create/destroy. NativeQueue.ParallelWriter is safe from ScheduleParallel.
         NativeQueue<DamageEvent>.ParallelWriter damageWriter =
             SystemAPI.GetSingleton<DamageBus>().raw.AsParallelWriter();
 
@@ -72,9 +70,7 @@ public partial struct AttackRequestSystem : ISystem
             unitDataLookup          = unitDataLookup,
         }.ScheduleParallel(state.Dependency);
 
-        // Manual dependency wiring — a NativeQueue through a singleton bypasses ECS auto-tracking,
-        // so hand this producer's write handle to the bus owner (the EntityCommandBufferSystem
-        // pattern). Fetch the managed owner here rather than storing a GC reference in the struct.
+        // A NativeQueue behind a singleton bypasses ECS dependency tracking, so hand the handle to the bus owner.
         state.World.GetExistingSystemManaged<DamageBusSystem>()
             .AddJobHandleForProducer(state.Dependency);
     }
@@ -83,9 +79,7 @@ public partial struct AttackRequestSystem : ISystem
 [BurstCompile]
 public partial struct AttackRequestJob : IJobEntity
 {
-    // Lunge tolerance: a swing is only ever fired against a target the action system
-    // already confirmed in range, so allow this much drift before the hit lands rather
-    // than whiffing on minor repath jitter. A target that genuinely fled is still missed.
+    // Lunge tolerance: absorbs repath jitter after the action system confirmed range; a fled target still whiffs.
     private const float HIT_RANGE_MULT = 1.5f;
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
@@ -116,46 +110,12 @@ public partial struct AttackRequestJob : IJobEntity
             return;
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
-        // Hit timing: the swing's clip is the source of truth — fire the instant the attacker's
-        // AnimEventOutput carries AnimEvents.Attack on the Action layer, so retiming the clip retimes
-        // the damage moment for free. attackBlob.hitTime is the fallback/timeout ceiling: elapsed
-        // is reset to 0 at the start of each swing (FireAction / PlayerAttackSystem) and advances
-        // here, frame-rate-correct and independent of system ordering. A clip with no Attack event
-        // authored always lands damage via this timeout; one that has it should keep hitTime
-        // comfortably above the authored event's time so the event — not the timeout — decides.
+        // The clip's AnimEvents.Attack event decides hit timing; hitTime is only the timeout fallback,
+        // so keep it above the authored event time. elapsed is reset at swing start (FireAction / PlayerAttackSystem).
         attackRequest.elapsed += deltaTime;
 
-        // Match by the animation key that's actually playing rather than a fixed layer index (D3,
-        // ActorProfileCutover_System.md §6) — an attack authored on any layer still lands damage.
-        uint attackAnimationKey = 0;
-        if (unitDataLookup.TryGetComponent(attackerEntity, out UnitData attackerUnitData))
-        {
-            int unitIndex = unitLibrary.Value.FindByUnitType(attackerUnitData.unitType);
-            if (unitIndex >= 0)
-            {
-                ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
-                ActionType actionType = AIUtils.GetActionByAttack(ref unitBlob, attackRequest.damageSource);
-                attackAnimationKey = AIUtils.GetAnimationKeyByAction(ref unitBlob, actionType);
-            }
-        }
-
-        bool attackEventFired = false;
-        if (attackAnimationKey != 0
-            && animEventsPendingLookup.HasComponent(attackerEntity)
-            && animEventsPendingLookup.IsComponentEnabled(attackerEntity)
-            && animEventOutputLookup.HasBuffer(attackerEntity))
-        {
-            DynamicBuffer<AnimEventOutput> attackerEvents = animEventOutputLookup[attackerEntity];
-            for (int eventIndex = 0; eventIndex < attackerEvents.Length; eventIndex++)
-            {
-                if (attackerEvents[eventIndex].eventKey == AnimEvents.Attack
-                    && attackerEvents[eventIndex].animationKey == attackAnimationKey)
-                {
-                    attackEventFired = true;
-                    break;
-                }
-            }
-        }
+        uint attackAnimationKey = ResolveAttackAnimationKey(attackerEntity, attackRequest.damageSource);
+        bool attackEventFired = HasAttackAnimationEventFired(attackerEntity, attackAnimationKey);
 
         bool timedOut = attackRequest.elapsed >= attackBlob.hitTime;
         if (!attackEventFired && !timedOut)
@@ -168,63 +128,105 @@ public partial struct AttackRequestJob : IJobEntity
                 LogLevel.Warning, timestamp, category: LogCategory.Combat);
         }
 
-        Entity victim = attackRequest.targetEntity;
+        ResolveHitAgainstVictim(sortKey, attackerEntity, in attackerTransform, attackRequest.targetEntity, in attackBlob);
 
-        // Present-and-not-dead: Dead is the sole life-state, so a valid victim has the
-        // Dead component present but disabled.
+        // Mark fired even on a whiff so a target stepping out of range is not retried.
+        attackRequest.hitFired       = true;
+        attackRequestEnabled.ValueRW = false;
+    }
+
+    // Match by playing animation key, not a fixed layer, so an attack on any layer still lands.
+    private uint ResolveAttackAnimationKey(Entity attackerEntity, DamageSource damageSource)
+    {
+        if (!unitDataLookup.TryGetComponent(attackerEntity, out UnitData attackerUnitData))
+            return 0;
+
+        int unitIndex = unitLibrary.Value.FindByUnitType(attackerUnitData.unitType);
+        if (unitIndex < 0)
+            return 0;
+
+        ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[unitIndex];
+        ActionType actionType = AIUtils.GetActionByAttack(ref unitBlob, damageSource);
+        return AIUtils.GetAnimationKeyByAction(ref unitBlob, actionType);
+    }
+
+    private bool HasAttackAnimationEventFired(Entity attackerEntity, uint attackAnimationKey)
+    {
+        if (attackAnimationKey == 0
+            || !animEventsPendingLookup.HasComponent(attackerEntity)
+            || !animEventsPendingLookup.IsComponentEnabled(attackerEntity)
+            || !animEventOutputLookup.HasBuffer(attackerEntity))
+            return false;
+
+        DynamicBuffer<AnimEventOutput> attackerEvents = animEventOutputLookup[attackerEntity];
+        for (int eventIndex = 0; eventIndex < attackerEvents.Length; eventIndex++)
+        {
+            if (attackerEvents[eventIndex].eventKey == AnimEvents.Attack
+                && attackerEvents[eventIndex].animationKey == attackAnimationKey)
+                return true;
+        }
+        return false;
+    }
+
+    private void ResolveHitAgainstVictim(
+        int sortKey, Entity attackerEntity, in LocalTransform attackerTransform,
+        Entity victim, in AttackBlob attackBlob)
+    {
+        // Alive means Dead is present but disabled.
         bool victimAlive = deadLookup.HasComponent(victim) &&
                            !deadLookup.IsComponentEnabled(victim);
 
-        if (victimAlive &&
-            transformLookup.TryGetComponent(victim, out LocalTransform victimTransform))
+        if (!victimAlive ||
+            !transformLookup.TryGetComponent(victim, out LocalTransform victimTransform))
         {
-            float distanceSq = math.distancesq(attackerTransform.Position, victimTransform.Position);
-            float hitRange   = attackBlob.range * HIT_RANGE_MULT;
+            if (loggingEnabled)
+                LogUtil.Log(ref logEcb, sortKey,
+                    $"[Attack] Skipped — target {victim.Index} not alive or invalid",
+                    LogLevel.Info, timestamp, category: LogCategory.Combat);
+            return;
+        }
 
-            if (distanceSq <= hitRange * hitRange)
-            {
-                // Confirmed hit — Enqueue a DamageEvent value into the bus (range/alive validation
-                // stays producer-side, so whiffs never enqueue). AOE-tagged attacks are expanded to
-                // per-target events by DamageResolutionSystem; SingleTarget flows straight through.
-                damageWriter.Enqueue(new DamageEvent
-                {
-                    targetEntity    = victim,
-                    sourceEntity    = attackerEntity,
-                    damageSource    = attackBlob.damageSource,
-                    damageAmount    = attackBlob.damageAmount,
-                    distance        = math.sqrt(distanceSq),
-                    ragdollForce    = attackBlob.ragdollForce,
-                    launchForceY    = attackBlob.launchForceY,
-                    launchForceX    = attackBlob.launchForceX,
-                    flailIntensity  = attackBlob.flailIntensity,
-                    spin            = attackBlob.spin,
-                    restitution     = attackBlob.restitution,
-                    damageBehaviour = attackBlob.damageBehaviour,
-                    sourcePosition  = attackerTransform.Position,
-                    range           = attackBlob.range,
-                });
+        float distanceSq = math.distancesq(attackerTransform.Position, victimTransform.Position);
+        float hitRange   = attackBlob.range * HIT_RANGE_MULT;
 
-                if (loggingEnabled)
-                    LogUtil.Log(ref logEcb, sortKey,
-                        $"[Attack] Hit {victim.Index} for {attackBlob.damageAmount} dmg (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f})",
-                        LogLevel.Info, timestamp, category: LogCategory.Combat);
-            }
-            else if (loggingEnabled)
-            {
+        if (!(distanceSq <= hitRange * hitRange))
+        {
+            if (loggingEnabled)
                 LogUtil.Log(ref logEcb, sortKey,
                     $"[Attack] Whiffed on {victim.Index} — out of range (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f} > {hitRange})",
                     LogLevel.Info, timestamp, category: LogCategory.Combat);
-            }
-        }
-        else if (loggingEnabled)
-        {
-            LogUtil.Log(ref logEcb, sortKey,
-                $"[Attack] Skipped — target {victim.Index} not alive or invalid",
-                LogLevel.Info, timestamp, category: LogCategory.Combat);
+            return;
         }
 
-        // Mark fired regardless — prevents re-attempts if target stepped out of range
-        attackRequest.hitFired       = true;
-        attackRequestEnabled.ValueRW = false;
+        // Validation is producer-side so whiffs never enqueue; DamageResolutionSystem expands AOE.
+        damageWriter.Enqueue(BuildDamageEventFromAttack(
+            in attackBlob, victim, attackerEntity, attackerTransform.Position, math.sqrt(distanceSq)));
+
+        if (loggingEnabled)
+            LogUtil.Log(ref logEcb, sortKey,
+                $"[Attack] Hit {victim.Index} for {attackBlob.damageAmount} dmg (dist {math.round(math.sqrt(distanceSq) * 100f) / 100f})",
+                LogLevel.Info, timestamp, category: LogCategory.Combat);
+    }
+
+    private static DamageEvent BuildDamageEventFromAttack(
+        in AttackBlob attackBlob, Entity victim, Entity attackerEntity, float3 attackerPosition, float distance)
+    {
+        return new DamageEvent
+        {
+            targetEntity    = victim,
+            sourceEntity    = attackerEntity,
+            damageSource    = attackBlob.damageSource,
+            damageAmount    = attackBlob.damageAmount,
+            distance        = distance,
+            ragdollForce    = attackBlob.ragdollForce,
+            launchForceY    = attackBlob.launchForceY,
+            launchForceX    = attackBlob.launchForceX,
+            flailIntensity  = attackBlob.flailIntensity,
+            spin            = attackBlob.spin,
+            restitution     = attackBlob.restitution,
+            damageBehaviour = attackBlob.damageBehaviour,
+            sourcePosition  = attackerPosition,
+            range           = attackBlob.range,
+        };
     }
 }

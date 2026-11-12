@@ -11,85 +11,62 @@ public enum BehaviorPhase : byte
 public enum BehaviorCommandType : byte
 {
     PlayAnimation,
-    SpawnEntity,       // e.g., Spawn a projectile / bullet
-    ModifyStat,        // e.g., Hurt health, add money, satisfy hunger
+    SpawnEntity,
+    ModifyStat,
     StartDialogue,
-    ApplyForce,        // e.g., Dodge, knockback, dash
-    WaitTime,          // Pause execution for a set duration. Duration = seconds.
-    Approach,          // Navigate to stateMachine.targetEntity. FloatParam = stopping distance. IntParam = (int)StanceType.
+    ApplyForce,
+    WaitTime,          // Duration = seconds.
+    Approach,          // FloatParam = stopping distance. IntParam = (int)StanceType.
 
-    // Request emitters — enable a request component and advance immediately.
-    // BehaviorExecutionSystem emits these; downstream systems handle the rest.
-    RequestAttack,     // Enables AttackRequest on the unit. IntParam unused.
-    RequestPickup,     // Enables PickupRequest on stateMachine.targetEntity (item). Sets EquipBy + AttachedTo first.
-    ModifyMotivation,  // Appends MotivationChangeRequest. IntParam = (int)NeedType. FloatParam = Add delta.
+    // Request emitters: enable a request component and advance immediately.
+    RequestAttack,
+    RequestPickup,     // Sets EquipBy + AttachedTo before enabling PickupRequest.
+    ModifyMotivation,  // IntParam = (int)NeedType. FloatParam = Add delta.
 
-    // Flee — blocking navigate-away command.
-    // stateMachine.targetEntity must be the aggressor entity.
-    // Scans nearby waypoints, paths at Running speed to the one FARTHEST from the aggressor.
-    // Replaces stateMachine.targetEntity with the chosen waypoint on arrival so PushRecent works.
+    // Blocking. stateMachine.targetEntity must be the aggressor; swaps it for the chosen waypoint on arrival so PushRecent works.
     FleeFromTarget,
 
-    // Writes the interaction target to RecentInteraction so the unit won't immediately re-select it.
-    // IntParam = unused. FloatParam = cooldown seconds (default 30 if 0).
+    // FloatParam = cooldown seconds (default 30 if 0).
     ReleaseInteraction,
 
-    // Jump back to command index IntParam until ANY ticked Qualifier flag is true (OR semantics).
-    // FloatParam = range for TargetOutOfRange. Duration = loop timeout seconds (0 = global default).
-    // Guards: timeout + iteration cap — a loop can never hang a unit.
+    // Jumps back to command index IntParam until any ticked LoopQualifier is true.
+    // FloatParam = range for TargetOutOfRange. Duration = timeout seconds (0 = global default); timeout and iteration cap stop a hung loop.
     LoopUntil,
 
-    // Deactivates the Action animation layer (plays AnimationType.None). Non-blocking;
-    // legal in interruptionCleanup. IntParam/FloatParam/Duration unused.
+    // Non-blocking; legal in interruptionCleanup.
     StopAnimation,
 
-    // Plays the unit's own animation for stateMachine.action, resolved per-unit from
-    // UnitDataBlob.actionAnimations (zombie claws, citizen punches — same behavior asset).
-    // FloatParam = speed (0 = 1x). Looping = loop the clip. IntParam/Duration unused.
+    // Clip is resolved per unit from UnitDataBlob.actionAnimations. FloatParam = speed (0 = 1x).
     PlayActionAnimation,
 
-    // Enables SocialInvite on stateMachine.targetEntity (via ECB — multiple initiators may target
-    // the same invitee in one frame). SocialResponseSystem accepts or declines next frame.
-    // Non-blocking. IntParam/FloatParam/Duration unused.
+    // Enabled via ECB because several initiators may target one invitee in a frame.
     RequestSocialResponse,
 
-    // Emits a one-shot PlaySound following the unit (a behaviour-level audio cue, e.g. a yell on Flee).
-    // IntParam = (int)SoundType. Fire-and-advance. Append-only — never reorder existing values.
+    // IntParam = (int)SoundType. Append-only, never reorder existing values.
     PlaySound,
 
-    // Blocking — completes the frame the unit's AnimEventOutput carries key IntParam (cast to
-    // uint; see AnimEvents generated constants) on layer LayerIndex. Duration = timeout seconds
-    // (0 = none); on timeout, completes anyway with a warning so a clip missing its event can
-    // never hang a behavior forever. Gated on AnimEventsPending — event-less frames cost nothing.
+    // Blocking. IntParam = anim event key on layer LayerIndex. Duration = timeout seconds (0 = none);
+    // timeout completes with a warning so a clip missing its event cannot hang a behavior.
     WaitForAnimEvent,
 
-    // Blocking — completes on ReservedEventKeys.ClipFinished for layer LayerIndex; also completes
-    // on ClipResolveFailed for that layer (a missing clip must not hang a behavior forever — same
-    // missing-data-completes philosophy as WaitForAnimEvent). Duration = timeout seconds (0 = none).
+    // Blocking. Also completes on ClipResolveFailed so a missing clip cannot hang a behavior. Duration = timeout seconds (0 = none).
     WaitForClipFinished,
 
-    // Fire-and-advance. Enables AiThrowRequest on the unit aimed at stateMachine.targetEntity;
-    // AiThrowItemSystem launches the held item through the thrown-item pipeline next frame.
     RequestThrow,
 
-    // Fire-and-advance. FloatParam = delta added to Intoxication.level (clamped 0..1); enables Intoxication on first use.
+    // FloatParam = delta added to Intoxication.level (clamped 0..1).
     AddIntoxication,
 
-    // Fire-and-advance. IntParam = (int)EmoteIcon, FloatParam = seconds (0 = 2.5). Shows at priority 2 via EmoteRules.TryShow.
+    // IntParam = (int)EmoteIcon, FloatParam = seconds (0 = 2.5).
     ShowEmote,
 
-    // Blocking. Locks RangedAim.aimPoint to the target's position on its first frame and waits the held item's
-    // ItemBlob.aiWindUpSeconds (FloatParam when the item has none). WindUpPresentationSystem shows it.
+    // Blocking. Waits ItemBlob.aiWindUpSeconds, or FloatParam when the item has none.
     WindUp,
 
-    // Fire-and-advance. Enables AiShootRequest aimed at the locked RangedAim point (else the target); AiShootSystem spawns the bullet.
     RequestShoot,
 }
 
-// Exit conditions for LoopUntil (and later: early-exit on blocking commands).
-// OR semantics — exit when ANY ticked flag evaluates true.
-// Missing-data convention: a qualifier whose referenced data is gone evaluates TRUE (exit),
-// so loops can never spin on a despawned target. Append-only.
+// OR semantics. A qualifier whose data is gone evaluates true so loops never spin on a despawned target. Append-only.
 [System.Flags]
 public enum LoopQualifier : ushort
 {
@@ -135,13 +112,13 @@ public enum NeedType
     SelfDefence,
     BloodLust,
     Work,
-    Vice,   // LivingHumans: alcohol / vice craving — appended
+    Vice,
 }
 
 public enum ActionType // used for animation linking
 {
     Idle,
-    Wander, // picks a random spot around the waypoint to move to, meant for simulating controlled city walking
+    Wander,
     Interact,
     Death,
     Resurrection,
@@ -169,20 +146,14 @@ public enum ActionType // used for animation linking
     Shoot,
     Spawn,
 
-    // Item-awareness actions — appended; do not reorder existing values.
+    // Values below were appended; do not reorder existing values.
     EquipWeapon,
     UseHealingItem,
-
-    // Camp-life interactions (SmartHumanAI H1) — appended.
     EatFromSupplies,
     ListenToMusic,
-
-    // Living Humans (LH) — appended.
     DrinkAlcohol,
     Brawl,
     PassOut,
-
-    // SmartHumanAI H4 tactics — appended.
     KeepRange,
     Retreat,
 }
@@ -196,7 +167,7 @@ public enum PersonalityTypes
     Anger,
     Partier,
     Rest,
-    Resourceful,   // LivingHumans — appended
+    Resourceful,
 }
 
 
@@ -219,7 +190,7 @@ public enum MotivationChangeType
     Set,
 }
 
-// Stable key for the BehaviorLibrary blob (enum-indexed). Append-only — never reorder.
+// Index into the BehaviorLibrary blob. Append-only, never reorder.
 public enum BehaviorType : byte
 {
     None,
@@ -231,15 +202,15 @@ public enum BehaviorType : byte
     Talk,
     MeleeContinuous,
     MeleeSingle,
-    EatFromSupplies,   // SmartHumanAI H1 — appended
+    EatFromSupplies,
     ListenToMusic,
-    Throw,             // SmartHumanAI H3 — appended
-    DrinkAlcohol,      // LivingHumans — appended
+    Throw,
+    DrinkAlcohol,
     Brawl,
     PassOut,
-    KeepRange,         // SmartHumanAI H4 — appended
+    KeepRange,
     Retreat,
-    Shoot,             // SmartHumanAI H5 — appended
+    Shoot,
 }
 
 public enum StanceType

@@ -1,84 +1,33 @@
 using Unity.Entities;
 
-// ---------------------------------------------------------------------------
-// Singleton entity components (baked by NarrativeEventAuthoring)
-// Note: "Manager" suffix is reserved for MonoBehaviours in this project.
-//       ECS singletons use "Tag" suffix.
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// Singleton marker for the narrative event entity.
-/// Use SystemAPI.GetSingletonEntity&lt;NarrativeEventTag&gt;() to locate the entity.
-/// Baked by NarrativeEventAuthoring — place one per scene that uses narrative events.
-/// </summary>
 public struct NarrativeEventTag : IComponentData { }
 
-/// <summary>
-/// Enabled by ECS systems (proximity or dialogue bridge) when a narrative event should run.
-/// NarrativeEventManager (MonoBehaviour) reads and consumes this each Update().
-/// Disabled again after the MonoBehaviour reads it so it fires exactly once.
-/// </summary>
+// Enabled by proximity or dialogue systems; NarrativeEventManager consumes it each Update and disables it so it fires once.
 public struct OnNarrativeEvent : IComponentData, IEnableableComponent
 {
-    /// <summary>Which narrative event to run. Maps to a constant in NarrativeIds.Events.</summary>
     public int eventId;
 }
 
-/// <summary>
-/// Enabled by NarrativeEventManager while a narrative event is executing.
-/// NarrativeProximitySystem checks this to prevent triggering a new event mid-sequence.
-/// Disabled by NarrativeEventManager when the event finishes or is cancelled.
-/// </summary>
+// Set by NarrativeEventManager while an event runs; stops NarrativeProximitySystem starting another.
 public struct ActiveNarrativeEvent : IComponentData, IEnableableComponent { }
 
-// ---------------------------------------------------------------------------
-// Trigger entity components (baked by NarrativeEventTriggerAuthoring)
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// Marks an entity as a proximity trigger for a narrative event.
-/// When the player enters range, NarrativeProximitySystem enables OnNarrativeEvent
-/// on the singleton entity and disables this component to prevent re-firing.
-///
-/// Set repeatable = true if the event should be retriggerable after it finishes.
-/// NarrativeEventManager re-enables the trigger once the event is complete.
-/// </summary>
+// Proximity trigger; disables itself on fire. repeatable makes NarrativeEventManager re-enable it after the event.
 public struct NarrativeTrigger : IComponentData, IEnableableComponent
 {
-    /// <summary>Which narrative event to fire. Maps to a constant in NarrativeIds.Events.</summary>
     public int eventId;
 
-    /// <summary>How close (in world units) the player must be for the trigger to fire.</summary>
+    // World units.
     public float range;
 
-    /// <summary>
-    /// When true, NarrativeEventManager re-enables this trigger after the event completes
-    /// so it can fire again. When false the trigger stays disabled after the first fire.
-    /// </summary>
     public bool repeatable;
 }
 
-// ---------------------------------------------------------------------------
-// Addressable entity component (baked by NarrativeEntityIdAuthoring)
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// Enabled by NarrativeEventManager while a narrative event with blockPlayerInput = true is running.
-/// Input and action-selection systems that should be suppressed during cutscenes check for this tag.
-/// Disabled automatically when the event finishes or is cancelled.
-/// Baked (disabled) by NarrativeEventAuthoring on the same entity as NarrativeEventTag.
-/// </summary>
+// Enabled while an event with blockPlayerInput runs; input and action-selection systems skip actors while set.
+// Baked disabled on the NarrativeEventTag entity.
 public struct CutsceneActiveTag : IComponentData, IEnableableComponent { }
 
-/// <summary>
-/// Gives an NPC or waypoint a stable integer ID so NarrativeEventSO actions can
-/// reference it without storing an Entity handle in the ScriptableObject.
-///
-/// IDs must match constants in NarrativeIds.Entities.
-/// NarrativeEventManager builds a Dictionary&lt;int, Entity&gt; at startup using these.
-/// </summary>
+// Stable id so NarrativeEventSO can reference an entity without an Entity handle; must match NarrativeIds.Entities.
 public struct NarrativeEntityId : IComponentData
 {
-    /// <summary>Unique entity ID. Must match a constant in NarrativeIds.Entities.</summary>
     public int id;
 }

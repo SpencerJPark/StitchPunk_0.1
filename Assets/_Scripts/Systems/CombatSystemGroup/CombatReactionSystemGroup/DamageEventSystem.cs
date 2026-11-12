@@ -3,21 +3,13 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-// Single combat-reaction consumer (v2) — drains the recycled DamageBus.resolved queue. Producers
-// (AttackRequestSystem, ThrownItemHitSystem, HazardZoneSystem) Enqueue into DamageBus.raw;
-// DamageResolutionSystem (just before this) expands AOE into single-target events in `resolved` and
-// completes that job, so this drain is a safe Burst MAIN-THREAD loop. No entity create/destroy — the
-// queue is recycled each frame by DamageBusSystem. Cost is O(hits-that-happened), not O(all units).
-//
-// Per event: skip already-Dead victims; register threat ONLY when the source is a hostile attacker
-// (v2 faction gate — friendly-fire and environmental/sourceless damage never create a ThreatEntry);
-// apply damage to Health; on the lethal event capture killing-blow knockback into Health.kill* and
-// enable Dead (read later by RagdollLaunchInitSystem).
+// Drains DamageBus.resolved. DamageResolutionSystem completes its expand job first, so this
+// main-thread drain is safe.
+// Threat registers only for a hostile attacker source; friendly-fire and sourceless damage never do.
 [BurstCompile]
 [UpdateInGroup(typeof(CombatReactionSystemGroup))]
 public partial struct DamageEventSystem : ISystem
 {
-    // Same constants as the retired ThreatUpdateSystem.
     private const float REACTION_TIME = 0.3f;
     private const float THREAT_TTL    = 4f;
     private const float BRAWL_HEALTH_FLOOR_FRACTION = 0.35f;
@@ -52,8 +44,6 @@ public partial struct DamageEventSystem : ISystem
     {
         DamageBus bus = SystemAPI.GetSingleton<DamageBus>();
 
-        // resolved was fully written + its expand job completed by DamageResolutionSystem, so Count
-        // and the drain below are safe on the main thread. Empty on frames with no hits.
         if (bus.resolved.Count == 0)
             return;
 
@@ -85,17 +75,11 @@ public partial struct DamageEventSystem : ISystem
             if (!healthLookup.HasComponent(target))
                 continue;
 
-            // Already-dead victim (e.g. killed by an earlier event this frame) — avoid double-kill.
             if (deadLookup.HasComponent(target) && deadLookup.IsComponentEnabled(target))
                 continue;
 
-            // A cutscene actor cannot be hurt while it is being puppeted. The cutscene is what took
-            // its brain away (CutsceneActor gates every awareness system, WinnerSelection and
-            // MinionActionSelection), so it can neither flee nor fight back — leaving it damageable
-            // makes a bound NPC a free kill for any hostile that wanders past mid-scene, and a unit
-            // that dies here is still a corpse when the cutscene hands it back. Killing a character
-            // on camera has to be authored, not incidental: it belongs in a narrative action that
-            // runs after the release, not in whoever happened to be nearby.
+            // A puppeted cutscene actor cannot flee or fight back, so it is immune; an on-camera death
+            // must be authored in a narrative action after release.
             bool targetIsPuppetedCutsceneActor = cutsceneActorLookup.HasComponent(target)
                 && cutsceneActorLookup.IsComponentEnabled(target);
             if (targetIsPuppetedCutsceneActor)
@@ -107,9 +91,7 @@ public partial struct DamageEventSystem : ISystem
 
             appliedCount++;
 
-            // Threat — v2 faction gate. Only a hostile attacker source registers: sourceless
-            // (environmental) damage and friendly-fire (source not in the victim's AttackFaction
-            // list) never create a ThreatEntry, so allies caught in an AOE don't turn on the caster.
+            // Faction gate: allies caught in an AOE must not turn on the caster.
             if (SourceHostileToTarget(damageEvent.sourceEntity, target) && threatLookup.HasBuffer(target))
             {
                 DynamicBuffer<ThreatEntry> threatBuffer = threatLookup[target];
@@ -144,7 +126,6 @@ public partial struct DamageEventSystem : ISystem
                 }
             }
 
-            // Damage — apply to Health and, on the lethal event, capture killing-blow knockback + die.
             Health health = healthLookup[target];
             int healthBefore = health.healthAmount;
             int appliedDamage = ClampBrawlDamageToFloor(damageEvent.sourceEntity, target, health, damageEvent.damageAmount);
@@ -177,7 +158,6 @@ public partial struct DamageEventSystem : ISystem
             healthLookup[target] = health;
         }
 
-        // Debug counter — the recycled bus has no inspectable event entities, so surface throughput.
         if (combatLogging && appliedCount > 0)
             LogUtil.Log(ref ecb,
                 $"[DamageBus] Applied {appliedCount} damage event(s) this frame.",
@@ -199,9 +179,7 @@ public partial struct DamageEventSystem : ISystem
         return math.clamp(damageAmount, 0, math.max(allowedDamage, 0));
     }
 
-    // v2 hostility test — mirrors EnemyAwarenessSystem: a source is hostile to the target when the
-    // source has a Faction whose type appears in the target's AttackFaction buffer. Null / factionless
-    // sources (thrown items, hazards) and non-hostile sources (friendly fire) are never hostile.
+    // Mirrors EnemyAwarenessSystem: hostile means the source's faction is in the target's AttackFaction buffer.
     private bool SourceHostileToTarget(Entity source, Entity target)
     {
         if (source == Entity.Null)

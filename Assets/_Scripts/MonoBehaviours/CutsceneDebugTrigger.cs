@@ -5,32 +5,19 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// Debug trigger for the G3 acceptance cutscene — press <see cref="key"/> to fire the narrative
-/// event (<see cref="narrativeEventId"/>, run through NarrativeEventManager's PlayCutsceneAction)
-/// rather than the raw CutsceneRequest signal, so the narrative path is exercised too. Press
-/// <see cref="skipKey"/> mid-run to request a skip on whichever cutscene is currently playing.
-/// <see cref="autoWalkPlayerToMark"/> snaps the player onto their mark the instant one is issued —
-/// the toolkit never auto-paths the Player by design (G2 §4), so testing solo means either walking
-/// there by hand every run or opting into this. Project's active input handler is the new Input
-/// System only (activeInputHandler: 1 in ProjectSettings) — polls Keyboard.current directly rather
-/// than KeyCode/legacy Input.
-/// </summary>
+// Debug keys for cutscene testing: fire the narrative event, skip the playing cutscene, dump actor gate state.
+// Polls Keyboard.current because the project uses the new Input System only.
 public class CutsceneDebugTrigger : MonoBehaviour
 {
     [Tooltip("NarrativeIds.Events constant to fire — the enclosing NarrativeEventSO's PlayCutsceneAction owns the actual cutscene.")]
     [SerializeField] private int narrativeEventId = NarrativeIds.Events.RendezvousTest;
-    // NOT any function key. F9 is Unity's own reserved Editor shortcut (Profiling/Profiler/
-    // RecordToggle — confirmed against all 1121 shortcuts ShortcutManager.instance registers
-    // project-wide) and never reaches the running game at all. F11, tried next, reached Unity fine
-    // but as Key.Home, not Key.F11 — a laptop keyboard sharing the F-row with Home/End/PgUp/PgDn
-    // (no Fn-lock), confirmed live via a diagnostic that logged every key Unity's Input System
-    // actually saw. Backquote/Backslash are dedicated physical keys on every keyboard, with no
-    // Editor shortcut and no secondary Fn function to collide with.
+    // Deliberately no function keys: F9 is an Editor shortcut that never reaches the game, and F11 arrives as
+    // Key.Home on laptops sharing the F-row. Letter and punctuation keys have no such collision.
     [SerializeField] private Key key = Key.H;
     [SerializeField] private Key skipKey = Key.Backslash;
     [SerializeField] private Key dumpActorStateKey = Key.Semicolon;
 
+    // The toolkit never auto-paths the Player, so this teleports them onto an issued mark for solo testing.
     [Tooltip("Debug convenience only: the instant the toolkit issues the player a mark, teleport them onto it instead of requiring a manual walk. The toolkit itself never auto-paths the Player (G2 §4) — this is purely for solo testing.")]
     [SerializeField] private bool autoWalkPlayerToMark = true;
 
@@ -68,10 +55,8 @@ public class CutsceneDebugTrigger : MonoBehaviour
             TryAutoWalkPlayerToMark(entityManager);
     }
 
-    // Every EntityQuery this component uses is created exactly once and reused — CreateEntityQuery
-    // allocates unmanaged query-matching state that is never reclaimed unless the query is disposed,
-    // so building a fresh one every frame (or every keypress) leaks. Rebuilt only if the World itself
-    // changed (a domain reload / re-entering Play mode swaps it out from under a surviving instance).
+    // Queries are created once and reused: an undisposed CreateEntityQuery leaks unmanaged state.
+    // Rebuilt only when the World changes (entering Play mode swaps it under a surviving instance).
     private void EnsureQueries(World world)
     {
         if (cachedWorld == world) return;
@@ -83,9 +68,7 @@ public class CutsceneDebugTrigger : MonoBehaviour
         cutscenePlayQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<CutscenePlay>());
         playerQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Player>());
 
-        // IgnoreComponentEnabledState is the whole point: the question this dump answers is
-        // "which gate is still stuck ON after the cutscene", and the default query would hide
-        // exactly the entities whose CutsceneActor is stuck enabled behind the ones it is not.
+        // IgnoreComponentEnabledState so the dump also sees actors whose CutsceneActor is stuck on or off.
         cutsceneActorQuery = new EntityQueryBuilder(Unity.Collections.Allocator.Temp)
             .WithAll<CutsceneActor>()
             .WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)
@@ -101,11 +84,8 @@ public class CutsceneDebugTrigger : MonoBehaviour
         if (cutsceneActorQuery != default) cutsceneActorQuery.Dispose();
     }
 
-    // Every gate that can stop a unit walking, in one line per actor, so "it still can't move after
-    // the cutscene" becomes a specific stuck flag instead of a guess. Read it in this order: a unit
-    // that cannot move at all has Movement disabled or CutsceneActor still enabled; one whose AI is
-    // frozen shows behavior=None phase=Execute forever; one the pathing gave up on shows
-    // mode=Stop with agent inactive; one the toolkit never let go of still has Parent/mark set.
+    // One line per actor listing every gate that can stop it walking. Movement off or CutsceneActor ON means
+    // no movement; behavior=None phase=Execute forever means frozen AI; mode=Stop with agent inactive means pathing gave up.
     private void DumpCutsceneActorState(EntityManager entityManager)
     {
         Unity.Collections.NativeArray<Entity> actorEntities =
@@ -125,11 +105,8 @@ public class CutsceneDebugTrigger : MonoBehaviour
         Debug.Log(report.ToString());
     }
 
-    // The half that says WHY an actor is still gated: CutsceneEndSystem only releases actors once
-    // ActiveCutscene is enabled AND the playback reports complete, so an activeCutscene=ON line here
-    // means nobody was ever released — and pausedOnHold=True names the rendezvous hold as the reason
-    // the cutscene never finished (the hold hands the player their input back while it waits, which
-    // is exactly how the player can be free while every bound NPC is still frozen).
+    // CutsceneEndSystem releases actors only once playback is complete, so activeCutscene=ON means nobody was
+    // released. pausedOnHold=True names the rendezvous hold, which frees the player while bound NPCs stay frozen.
     private string DescribeCutsceneState(EntityManager entityManager)
     {
         if (narrativeQuery.IsEmpty)
@@ -199,9 +176,7 @@ public class CutsceneDebugTrigger : MonoBehaviour
         AppendFlag(line, entityManager, actorEntity, "markIssued");
         AppendFlag(line, entityManager, actorEntity, "cutsceneFacing");
 
-        // DamageEventSystem stamps Health.kill* on the lethal event, so a corpse still names what
-        // killed it long after the fact — the difference between "the cutscene did this" and
-        // "ordinary combat did this to a unit the cutscene happened to bind".
+        // Health.kill* is stamped on the lethal event, so a corpse names its killer (cutscene vs ordinary combat).
         if (entityManager.HasComponent<Health>(actorEntity))
         {
             Health health = entityManager.GetComponentData<Health>(actorEntity);
@@ -252,8 +227,7 @@ public class CutsceneDebugTrigger : MonoBehaviour
         return line.ToString();
     }
 
-    // "-" absent, "off" present-but-disabled, "ON" enabled — the three states that matter, since a
-    // component the unit never had and one that is switched off fail queries for different reasons.
+    // "-" absent, "off" present but disabled, "ON" enabled.
     private void AppendFlag(System.Text.StringBuilder line, EntityManager entityManager, Entity entity, string label)
     {
         bool present;
@@ -287,10 +261,8 @@ public class CutsceneDebugTrigger : MonoBehaviour
         DisposeQueries();
     }
 
-    // Teleports rather than paths: CutsceneMoveToMarkSystem's own arrival check is a pure XZ-distance
-    // test each frame (A64), so it reads a teleport as "arrived" exactly like a real walk — no need
-    // to replicate PathRequest plumbing for a debug convenience. Fires once per issued mark, tracked
-    // by the component's own enabled-bit transition, so a player who then walks away isn't fought.
+    // Teleports rather than paths: the arrival check is a pure XZ-distance test, so it reads a teleport as arrived.
+    // Fires once per issued mark, so a player who then walks away is not fought.
     private void TryAutoWalkPlayerToMark(EntityManager entityManager)
     {
         if (playerEntity == Entity.Null || !entityManager.Exists(playerEntity))
@@ -330,10 +302,8 @@ public class CutsceneDebugTrigger : MonoBehaviour
 
         Entity narrativeEntity = narrativeQuery.GetSingletonEntity();
 
-        // A re-fire while the last one is still running stacks a second ExecuteEventAsync on the
-        // first. Both share the one CutsceneActiveTag: the second re-locks player input after the
-        // first's finally released it, and nothing releases it again — input is dead for good. Drop
-        // the press instead. OnNarrativeEvent covers the frame between signal and pickup.
+        // A re-fire while running stacks a second ExecuteEventAsync on the shared CutsceneActiveTag,
+        // which re-locks player input after the first releases it and leaves input dead. Drop the press.
         if (entityManager.IsComponentEnabled<ActiveNarrativeEvent>(narrativeEntity)
             || entityManager.IsComponentEnabled<OnNarrativeEvent>(narrativeEntity))
         {
@@ -346,8 +316,7 @@ public class CutsceneDebugTrigger : MonoBehaviour
         Debug.Log("CutsceneDebugTrigger: fired narrative event " + narrativeEventId + " on " + narrativeEntity);
     }
 
-    // One cutscene plays at a time in this checkpoint; ToEntityArray rather than GetSingletonEntity
-    // so an unexpected second CutscenePlay skips the first found instead of throwing.
+    // ToEntityArray rather than GetSingletonEntity so a second CutscenePlay does not throw.
     private void RequestSkipOfActiveCutscene(EntityManager entityManager)
     {
         Unity.Collections.NativeArray<Entity> playEntities =

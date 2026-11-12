@@ -1,57 +1,30 @@
 using Unity.Entities;
 
-// ---------------------------------------------------------------------------
-// One-frame signal entity (baked by nothing — spawned by NarrativeEventManager's
-// PlayCutsceneAction or CutsceneDebugTrigger). CutsceneStartSystem consumes and
-// destroys it the same frame (the LoggingSystem lifecycle: create, read once, destroy).
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// Requests that a baked <c>DotsAnimationToolkit.CutsceneStage</c> start playing. Consumed and
-/// destroyed by <c>CutsceneStartSystem</c> the same frame.
-/// </summary>
+// One-frame signal entity, never baked: spawned by PlayCutsceneAction or CutsceneDebugTrigger, destroyed by CutsceneStartSystem the same frame.
 public struct CutsceneRequest : IComponentData
 {
-    /// <summary>The <c>CutsceneAsset.StableId</c> of the stage to play — how <c>CutsceneApi.TryFindStage</c> finds it.</summary>
+    // CutsceneAsset.StableId of the stage to play.
     public ulong cutsceneKey;
 
-    /// <summary>Initial playback speed; 1 is normal.</summary>
+    // 1 is normal.
     public float speed;
 }
 
-/// <summary>
-/// One binding override on a <see cref="CutsceneRequest"/> entity — wins over the stage's own
-/// baked <c>CutsceneStageBinding</c> for the same slot. For actors spawned at runtime rather than
-/// staged in the subscene.
-/// </summary>
+// Wins over the stage's baked CutsceneStageBinding for the same slot; for actors spawned at runtime.
 public struct CutsceneRequestBindingOverride : IBufferElementData
 {
     public uint slotId;
     public Entity target;
 }
 
-/// <summary>
-/// Baked disabled on every unit (see <c>UnitBakingUtil.BakeRequirements</c>) and on the player.
-/// Enabled by <c>CutsceneStartSystem</c> on every entity a running cutscene binds — the single gate
-/// that suppresses AI decision-making, movement input, and facing while a cutscene puppets an actor.
-/// </summary>
+// Baked disabled on units and the player; CutsceneStartSystem enables it on every bound entity. The single gate that suppresses AI, movement input and facing.
 public struct CutsceneActor : IComponentData, IEnableableComponent { }
 
-/// <summary>
-/// Enabled while a game-side path request is out for the toolkit's <c>CutsceneMoveToMark</c> order.
-/// It is the edge detector: the mark's own enabled bit says "walk there", this says "we already
-/// asked", so one order becomes exactly one <c>BeginPathRequest</c> and one <c>HaltPathing</c>.
-/// Baked disabled on every unit (<c>UnitBakingUtil.BakeRequirements</c>), reset by
-/// <c>SpawnStateInitSystem</c>. Never set on the <c>Player</c>, who walks to their mark by hand.
-/// </summary>
+// Edge detector for the toolkit's CutsceneMoveToMark: one order becomes exactly one BeginPathRequest and one HaltPathing.
+// Reset by SpawnStateInitSystem. Never set on the Player, who walks to the mark by hand.
 public struct CutsceneMarkIssued : IComponentData, IEnableableComponent { }
 
-/// <summary>
-/// Baked disabled on the <c>NarrativeEventTag</c> singleton (see <c>NarrativeEventAuthoring</c>).
-/// Enabled by <c>CutsceneStartSystem</c> while a cutscene is running; <c>playRequest</c> is the
-/// toolkit's own request entity (carries <c>CutscenePlaybackState</c>). Only one cutscene may run
-/// at a time — a second request while this is enabled is dropped with a warning.
-/// </summary>
+// On the NarrativeEventTag singleton, baked disabled. Only one cutscene runs at a time; a second request while enabled is dropped with a warning.
 public struct ActiveCutscene : IComponentData, IEnableableComponent
 {
     public Entity playRequest;

@@ -4,21 +4,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Self-defence for player-controlled minions. A revived minion is driven by player commands
-// (PlayerUnitBrain) with its utility AI off (UtilityBrain disabled), so the normal
-// SelfDefenceAwarenessSystem — gated on UtilityBrain — never fires for it. This is the minion-side
-// equivalent: when the minion has taken hits (ThreatEntry, written by DamageEventSystem which is
-// not gated on any brain), emit combat options against the highest-threat attacker at
-// SELF_DEFENCE_PRIORITY (3).
-//
-// "Self-defend unless commanded": a player order runs at activePriority = int.MaxValue, so
-// WinnerSelection never lets a priority-3 self-defence option preempt a live player behavior.
-// Self-defence therefore only takes effect when the minion is idle / uncommanded; issuing an order
-// overrides it. No explicit "has command" test is needed — the priority gate handles it.
-//
-// Runs in MinionActionSelectionSystemGroup (after UtilityAISystemGroup cleared the buffer, before
-// StateMachine selection), alongside MinionActionSelectionSystem. Gated [WithDisabled(UtilityBrain)]
-// so it is mutually exclusive with the UtilityBrain-gated SelfDefenceAwarenessSystem.
+// Minion-side twin of SelfDefenceAwarenessSystem (which needs UtilityBrain, off on minions).
+// Player orders run at activePriority int.MaxValue, so this priority-3 option only wins when uncommanded.
 [BurstCompile]
 [UpdateInGroup(typeof(MinionActionSelectionSystemGroup))]
 public partial struct MinionSelfDefenceAwarenessSystem : ISystem
@@ -81,8 +68,7 @@ public partial struct MinionSelfDefenceAwarenessJob : IJobEntity
     public double timestamp;
     public EntityCommandBuffer.ParallelWriter ecb;
 
-    // UtilityBrain is disabled on a minion, so read unitType from UnitData (kept in sync by the
-    // baker and SwapBrainSystem) rather than the brain.
+    // UtilityBrain is disabled on a minion, so unitType comes from UnitData, not the brain.
     public void Execute(
         [EntityIndexInQuery] int          entityIndex,
         Entity                            self,
@@ -95,13 +81,10 @@ public partial struct MinionSelfDefenceAwarenessJob : IJobEntity
     {
         if (threats.IsEmpty) return;
 
-        // No-reactivation guard: already fighting (or executing a player attack order) — don't
-        // re-emit and churn targets.
+        // Already fighting (or on a player attack order): don't re-emit and churn targets.
         if (stateMachine.action.IsCombatAction()) return;
 
-        // Pick the highest-threat attacker that is past its reaction delay (ThreatDecaySystem ticks
-        // it), still alive, and within awareness range (range gate prevents chasing an attacker
-        // that has escaped, since stale entries live for a few seconds).
+        // Range gate stops chasing an escaped attacker, since stale threat entries live a few seconds.
         float  rangeSq      = awareness.range * awareness.range;
         Entity topAggressor = Entity.Null;
         float  topThreat    = 0f;
@@ -142,8 +125,7 @@ public partial struct MinionSelfDefenceAwarenessJob : IJobEntity
             if (defIndex < 0)
                 continue;
 
-            // priority only — not isPlayerOrdered. A real player order (int.MaxValue) always wins
-            // over this, which is exactly the "self-defend unless commanded" rule.
+            // Priority only, not isPlayerOrdered, so a real player order always wins.
             actions.Add(new UtilityActions
             {
                 actionType      = actionType,

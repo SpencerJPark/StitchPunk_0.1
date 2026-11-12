@@ -57,6 +57,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     private EntityManager entityManager;
     private EntityQuery playerQuery;
     private EntityQuery physicsQuery;
+    private EntityQuery selectedMinionsQuery;
     private Entity playerEntity;
     private bool playerEntityResolved;
 
@@ -74,6 +75,9 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         entityManager = World.DefaultGameObjectInjectionWorld.EntityManager;
         playerQuery   = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Player>());
         physicsQuery  = entityManager.CreateEntityQuery(typeof(PhysicsWorldSingleton));
+        EntityQueryBuilder selectedMinionsBuilder = new EntityQueryBuilder(Allocator.Temp).WithAll<Selected, Minion>();
+        selectedMinionsQuery = selectedMinionsBuilder.Build(entityManager);
+        selectedMinionsBuilder.Dispose();
     }
 
     private void OnEnable()  => UpdateManager.RegisterObserver(this);
@@ -142,7 +146,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, false);
         }
 
-        // Was a hard-coded Tab, which also dismounts the workstation in this map.
         InputAction cycleFormationInput = ResolveCycleFormationAction();
         if (cycleFormationInput != null && cycleFormationInput.WasPressedThisFrame())
             CycleFormationForSelectedHordes();
@@ -238,7 +241,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         entityManager.SetComponentEnabled<Selected>(entity, selected);
     }
 
-    // Called by UI to draw the drag box.
     public Rect GetSelectionAreaRect()
     {
         return BuildSelectionRect(selectionStartScreenPosition, GetCursorScreenPosition());
@@ -279,72 +281,103 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     private void HandleCommand()
     {
-        // Only issue commands if at least one minion is selected. Commands are stamped on each
-        // selected minion (baked by UnitBakingUtil.AddPlayerControlled) and consumed one-shot by
-        // MinionActionSelectionSystem.
-        EntityQuery selectedMinions = new EntityQueryBuilder(Allocator.Temp)
-            .WithAll<Selected, Minion>()
-            .Build(entityManager);
-        if (selectedMinions.IsEmpty) return;
+        // Commands are stamped on each selected minion and consumed one-shot by MinionActionSelectionSystem.
+        if (selectedMinionsQuery.IsEmpty) return;
 
-        NativeArray<Entity> minions = selectedMinions.ToEntityArray(Allocator.Temp);
+        NativeArray<Entity> minions = selectedMinionsQuery.ToEntityArray(Allocator.Temp);
+        try
+        {
+            DispatchCommand(minions);
+        }
+        finally
+        {
+            minions.Dispose();
+        }
+    }
 
-        // F key → follow player regardless of cursor position.
+    private void DispatchCommand(NativeArray<Entity> minions)
+    {
         if (Keyboard.current[Key.F].isPressed)
         {
-            // Slot 0 stays the player's own spot, so followers start at slot 1.
-            int followOrdinal = 0;
-            for (int i = 0; i < minions.Length; i++)
-            {
-                if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
-                SquadCommandManager.EndGather(entityManager, minions[i]);
-                entityManager.SetComponentData(minions[i], new MinionStandingOrder
-                {
-                    type = StandingOrderType.FollowCommander,
-                    formationSlotIndex = followOrdinal + 1,
-                    engageRadius = 8f,
-                    lastIssuedDestination = new float3(float.MaxValue),
-                    lastIssuedTime = -1000,
-                });
-                followOrdinal++;
-                if (entityManager.HasComponent<PlayerUnitBrain>(minions[i]))
-                    entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
-            }
-            minions.Dispose();
+            IssueFollowCommand(minions);
             return;
         }
 
-        // X key → stop: cancel the current behavior and idle.
         if (Keyboard.current[Key.X].isPressed)
         {
-            for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
-            {
-                if (!entityManager.HasComponent<OnMinionStopCommand>(minions[minionIndex])) continue;
-                entityManager.SetComponentEnabled<OnMinionStopCommand>(minions[minionIndex], true);
-                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[minionIndex], true);
-            }
-            minions.Dispose();
+            IssueStopCommand(minions);
             return;
         }
 
-        // R key → return: one-shot move to the player's current position.
         if (Keyboard.current[Key.R].isPressed)
         {
-            for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
-            {
-                if (!entityManager.HasComponent<OnMinionReturnCommand>(minions[minionIndex])) continue;
-                entityManager.SetComponentEnabled<OnMinionReturnCommand>(minions[minionIndex], true);
-                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[minionIndex], true);
-            }
-            minions.Dispose();
+            IssueReturnCommand(minions);
             return;
         }
 
-        if (physicsQuery.IsEmpty)
+        if (physicsQuery.IsEmpty) return;
+
+        if (TryIssueCommandOnRaycastTarget(minions)) return;
+
+        Vector3 worldPos = CursorToWorldPosition(GetCursorScreenPosition());
+
+        if (Keyboard.current[Key.LeftShift].isPressed || Keyboard.current[Key.RightShift].isPressed)
         {
-            minions.Dispose();
+            IssueHoldPositionCommand(minions, worldPos);
             return;
         }
+
+        IssueMoveCommand(minions, worldPos);
+    }
+
+    // F key → follow player regardless of cursor position.
+    private void IssueFollowCommand(NativeArray<Entity> minions)
+    {
+        // Slot 0 stays the player's own spot, so followers start at slot 1.
+        int followOrdinal = 0;
+        for (int i = 0; i < minions.Length; i++)
+        {
+            if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
+            SquadCommandManager.EndGather(entityManager, minions[i]);
+            entityManager.SetComponentData(minions[i], new MinionStandingOrder
+            {
+                type = StandingOrderType.FollowCommander,
+                formationSlotIndex = followOrdinal + 1,
+                engageRadius = 8f,
+                lastIssuedDestination = new float3(float.MaxValue),
+                lastIssuedTime = -1000,
+            });
+            followOrdinal++;
+            if (entityManager.HasComponent<PlayerUnitBrain>(minions[i]))
+                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+        }
+    }
+
+    // X key → stop: cancel the current behavior and idle.
+    private void IssueStopCommand(NativeArray<Entity> minions)
+    {
+        for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
+        {
+            if (!entityManager.HasComponent<OnMinionStopCommand>(minions[minionIndex])) continue;
+            entityManager.SetComponentEnabled<OnMinionStopCommand>(minions[minionIndex], true);
+            entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[minionIndex], true);
+        }
+    }
+
+    // R key → return: one-shot move to the player's current position.
+    private void IssueReturnCommand(NativeArray<Entity> minions)
+    {
+        for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
+        {
+            if (!entityManager.HasComponent<OnMinionReturnCommand>(minions[minionIndex])) continue;
+            entityManager.SetComponentEnabled<OnMinionReturnCommand>(minions[minionIndex], true);
+            entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[minionIndex], true);
+        }
+    }
+
+    // Returns true when the cursor hit a gather, attack or interact target and the command was issued.
+    private bool TryIssueCommandOnRaycastTarget(NativeArray<Entity> minions)
+    {
         PhysicsWorldSingleton physics = physicsQuery.GetSingleton<PhysicsWorldSingleton>();
         UnityEngine.Ray ray = Camera.main.ScreenPointToRay(GetCursorScreenPosition());
 
@@ -360,91 +393,98 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             }
         };
 
-        if (physics.CollisionWorld.CastRay(rayInput, out Unity.Physics.RaycastHit hit))
+        if (!physics.CollisionWorld.CastRay(rayInput, out Unity.Physics.RaycastHit hit)) return false;
+
+        Entity target = hit.Entity;
+
+        // Resource nodes and hostile corpses start a gather job, checked before attack/interact.
+        if (SquadCommandManager.IsGatherTarget(entityManager, target))
         {
-            Entity target    = hit.Entity;
-
-            // Resource nodes and hostile corpses start a gather job, checked before attack/interact.
-            if (SquadCommandManager.IsGatherTarget(entityManager, target))
+            if (!SquadCommandManager.PlayerHasDeployedWorkstation(entityManager, playerEntity))
             {
-                if (!SquadCommandManager.PlayerHasDeployedWorkstation(entityManager, playerEntity))
-                {
-                    Debug.Log("Deploy your workstation first \u2014 gatherers need somewhere to deliver.");
-                }
-                else
-                {
-                    for (int i = 0; i < minions.Length; i++)
-                        SquadCommandManager.StartGather(entityManager, minions[i], playerEntity, target);
-                }
-                minions.Dispose();
-                return;
+                Debug.Log("Deploy your workstation first — gatherers need somewhere to deliver.");
             }
-            bool   isHostile = entityManager.HasComponent<Dead>(target)
-                            && !entityManager.IsComponentEnabled<Dead>(target)
-                            && !entityManager.HasComponent<PlayerImmune>(target)
-                            && (!entityManager.HasComponent<Minion>(target)
-                                || !entityManager.IsComponentEnabled<Minion>(target));
-
-            if (isHostile)
-            {
-                // Right-click hostile → attack command (minion retains control even if hit).
-                for (int i = 0; i < minions.Length; i++)
-                {
-                    if (!entityManager.HasComponent<OnMinionAttackCommand>(minions[i])) continue;
-                    entityManager.SetComponentData(minions[i], new OnMinionAttackCommand { targetEntity = target });
-                    entityManager.SetComponentEnabled<OnMinionAttackCommand>(minions[i], true);
-                    entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
-                }
-                minions.Dispose();
-                return;
-            }
-
-            // Right-click interactable entity (non-hostile, non-minion) → interact command.
-            if (entityManager.HasComponent<Interaction>(target))
+            else
             {
                 for (int i = 0; i < minions.Length; i++)
-                {
-                    if (!entityManager.HasComponent<OnMinionInteractCommand>(minions[i])) continue;
-                    entityManager.SetComponentData(minions[i], new OnMinionInteractCommand { targetEntity = target });
-                    entityManager.SetComponentEnabled<OnMinionInteractCommand>(minions[i], true);
-                    entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
-                }
-                minions.Dispose();
-                return;
+                    SquadCommandManager.StartGather(entityManager, minions[i], playerEntity, target);
             }
+            return true;
         }
+        bool   isHostile = entityManager.HasComponent<Dead>(target)
+                        && !entityManager.IsComponentEnabled<Dead>(target)
+                        && !entityManager.HasComponent<PlayerImmune>(target)
+                        && (!entityManager.HasComponent<Minion>(target)
+                            || !entityManager.IsComponentEnabled<Minion>(target));
 
-        Vector3 worldPos = CursorToWorldPosition(GetCursorScreenPosition());
-
-        // Shift + right-click on ground → defend position.
-        if (Keyboard.current[Key.LeftShift].isPressed || Keyboard.current[Key.RightShift].isPressed)
+        if (isHostile)
         {
-            // Each unit holds its own slot around the click so a group holds a spread, not one point.
-            int holdOrdinal = 0;
-            for (int i = 0; i < minions.Length; i++)
-            {
-                if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
-                float3 holdAnchor = (float3)worldPos + FormationSlots.RoundedSlotOffset(holdOrdinal, FormationSlots.DefaultSpacing);
-                holdOrdinal++;
-                SquadCommandManager.EndGather(entityManager, minions[i]);
-                entityManager.SetComponentData(minions[i], new MinionStandingOrder
-                {
-                    type = StandingOrderType.HoldPosition,
-                    anchorPosition = holdAnchor,
-                    engageRadius = 5f,
-                    lastIssuedDestination = new float3(float.MaxValue),
-                    lastIssuedTime = -1000,
-                });
-                if (entityManager.HasComponent<PlayerUnitBrain>(minions[i]))
-                    entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
-            }
-            minions.Dispose();
-            return;
+            IssueAttackCommand(minions, target);
+            return true;
         }
 
-        // Default: move to ground position under the cursor.
-        // Each unit gets its own formation slot; whoever arrives first takes the front, so late
-        // arrivals never walk through units already standing.
+        // Right-click interactable entity (non-hostile, non-minion) → interact command.
+        if (entityManager.HasComponent<Interaction>(target))
+        {
+            IssueInteractCommand(minions, target);
+            return true;
+        }
+
+        return false;
+    }
+
+    // Right-click hostile → attack command (minion retains control even if hit).
+    private void IssueAttackCommand(NativeArray<Entity> minions, Entity target)
+    {
+        for (int i = 0; i < minions.Length; i++)
+        {
+            if (!entityManager.HasComponent<OnMinionAttackCommand>(minions[i])) continue;
+            entityManager.SetComponentData(minions[i], new OnMinionAttackCommand { targetEntity = target });
+            entityManager.SetComponentEnabled<OnMinionAttackCommand>(minions[i], true);
+            entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+        }
+    }
+
+    private void IssueInteractCommand(NativeArray<Entity> minions, Entity target)
+    {
+        for (int i = 0; i < minions.Length; i++)
+        {
+            if (!entityManager.HasComponent<OnMinionInteractCommand>(minions[i])) continue;
+            entityManager.SetComponentData(minions[i], new OnMinionInteractCommand { targetEntity = target });
+            entityManager.SetComponentEnabled<OnMinionInteractCommand>(minions[i], true);
+            entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+        }
+    }
+
+    // Shift + right-click on ground → defend position.
+    private void IssueHoldPositionCommand(NativeArray<Entity> minions, Vector3 worldPos)
+    {
+        // Each unit holds its own slot around the click so a group holds a spread, not one point.
+        int holdOrdinal = 0;
+        for (int i = 0; i < minions.Length; i++)
+        {
+            if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
+            float3 holdAnchor = (float3)worldPos + FormationSlots.RoundedSlotOffset(holdOrdinal, FormationSlots.DefaultSpacing);
+            holdOrdinal++;
+            SquadCommandManager.EndGather(entityManager, minions[i]);
+            entityManager.SetComponentData(minions[i], new MinionStandingOrder
+            {
+                type = StandingOrderType.HoldPosition,
+                anchorPosition = holdAnchor,
+                engageRadius = 5f,
+                lastIssuedDestination = new float3(float.MaxValue),
+                lastIssuedTime = -1000,
+            });
+            if (entityManager.HasComponent<PlayerUnitBrain>(minions[i]))
+                entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
+        }
+    }
+
+    // Default: move to ground position under the cursor.
+    // Each unit gets its own formation slot; whoever arrives first takes the front, so late
+    // arrivals never walk through units already standing.
+    private void IssueMoveCommand(NativeArray<Entity> minions, Vector3 worldPos)
+    {
         NativeList<Entity> movableMinions = new NativeList<Entity>(minions.Length, Allocator.Temp);
         for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
         {
@@ -477,7 +517,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         unitSpeeds.Dispose();
         slotDestinations.Dispose();
         movableMinions.Dispose();
-        minions.Dispose();
     }
 
     #endregion

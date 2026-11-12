@@ -2,18 +2,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// One complete dialogue sequence stored as a node graph.
-///
-/// Assign this to a DialogueProviderAuthoring component on an NPC to wire up dialogue.
-/// Open this asset in Window > Stitch Punk > Dialogue Editor to build the graph visually.
-///
-/// The graph must have exactly one Start node. Add one or more End nodes to close the
-/// conversation. Connect nodes left-to-right to define the flow.
-///
-/// After a sequence plays in full it is marked in the PlayedDialogue buffer.
-/// On the next trigger the runtime starts from the Refresher node instead of Start (if one is present).
-/// </summary>
+// Exactly one Start node per graph. After a full play it is marked in the PlayedDialogue buffer,
+// and the next trigger starts from the Refresher node instead of Start (if present).
 [CreateAssetMenu(fileName = "Dialogue_New", menuName = "Dialogue/Dialogue Sequence")]
 public class DialogueSequenceSO : ScriptableObject
 {
@@ -32,14 +22,6 @@ public class DialogueSequenceSO : ScriptableObject
 
 }
 
-// ---------------------------------------------------------------------------
-// Node data — abstract base and five concrete types
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// Base class shared by all dialogue node types. Stores the node's unique ID and its
-/// position in the editor canvas. Do not instantiate directly — use a concrete subclass.
-/// </summary>
 [Serializable]
 public abstract class DialogueNodeData
 {
@@ -52,49 +34,25 @@ public abstract class DialogueNodeData
     public Vector2 editorPosition;
 }
 
-/// <summary>
-/// Entry point for the dialogue sequence.
-/// Every tree must have exactly one Start node.
-/// Connect its single output port to the first Line, Decision, or Event node.
-/// </summary>
 [Serializable]
 public class DialogueStartNodeData : DialogueNodeData
 {
-    // Output port name: "out"
-    // No input ports.
+    // Output port "out"; no input ports.
 }
 
-/// <summary>
-/// Alternate entry point used on repeat visits after the primary sequence has already played once.
-/// If no Refresher node is present the manager defaults to Start as usual.
-/// Connect its single output port to the first Line, Decision, or Event node of the shorter repeat path.
-/// </summary>
+// Played on repeat visits; without one the manager falls back to Start.
 [Serializable]
 public class DialogueRefresherNodeData : DialogueNodeData
 {
-    // Output port name: "out"
-    // No input ports.
+    // Output port "out"; no input ports.
 }
 
-/// <summary>
-/// Exit point for the dialogue sequence.
-/// Connect any terminal node's output port to an End node to close the conversation.
-/// A tree can have multiple End nodes — one per path that ends the dialogue.
-/// </summary>
 [Serializable]
 public class DialogueEndNodeData : DialogueNodeData
 {
-    // Input port name: "in"
-    // No output ports.
+    // Input port "in"; no output ports.
 }
 
-/// <summary>
-/// Displays a single subtitle line to the player.
-/// The player presses Interact to advance to the next connected node.
-///
-/// Set speakerName to show a name label above the subtitle.
-/// Leave speakerName empty to show only the subtitle text with no label.
-/// </summary>
 [Serializable]
 public class DialogueLineNodeData : DialogueNodeData
 {
@@ -107,16 +65,9 @@ public class DialogueLineNodeData : DialogueNodeData
     [TextArea(3, 8)]
     public string dialogueText;
 
-    // Input port name:  "in"  — accepts connections from any prior node
-    // Output port name: "out" — single connection to the next node
+    // Ports: "in", "out".
 }
 
-/// <summary>
-/// Presents the player with a set of labeled choice buttons.
-/// Each branch in this node is one choice. Add branches in the Dialogue Editor
-/// using the + Add Branch button. Each branch becomes a separate output port.
-/// Connect each branch port to the node that should play when the player picks that choice.
-/// </summary>
 [Serializable]
 public class DialogueDecisionNodeData : DialogueNodeData
 {
@@ -125,15 +76,9 @@ public class DialogueDecisionNodeData : DialogueNodeData
              "Add or remove branches using the editor buttons — do not edit this list manually.")]
     public List<DialogueDecisionBranch> branches = new List<DialogueDecisionBranch>();
 
-    // Input port name:  "in"           — accepts connections from any prior node
-    // Output port names: branch.portId — one per branch, identified by the branch's unique portId
+    // Ports: "in"; one output per branch, named by branch.portId.
 }
 
-/// <summary>
-/// One selectable choice inside a Decision node.
-/// choiceText is shown on the player's choice button.
-/// portId is a unique identifier for this branch's output port (do not edit manually).
-/// </summary>
 [Serializable]
 public class DialogueDecisionBranch
 {
@@ -147,16 +92,7 @@ public class DialogueDecisionBranch
     public string portId = Guid.NewGuid().ToString();
 }
 
-/// <summary>
-/// Fires a game event and immediately continues to the next connected node.
-/// The player does not see or interact with this node — it is invisible to them.
-///
-/// Use Event nodes to trigger camera changes, unlock systems, update game state,
-/// or any other effect that should happen mid-conversation without pausing dialogue.
-///
-/// The eventId must match a constant in DialogueIds.Events.
-/// Use -1 for no event (passes through silently — useful as a waypoint node).
-/// </summary>
+// Invisible to the player; fires eventId and continues without pausing dialogue. -1 passes through silently.
 [Serializable]
 public class DialogueEventNodeData : DialogueNodeData
 {
@@ -169,19 +105,9 @@ public class DialogueEventNodeData : DialogueNodeData
              "Not used at runtime — just a reminder for yourself while building the graph.")]
     public string eventDescription;
 
-    // Input port name:  "in"  — accepts connections from any prior node
-    // Output port name: "out" — single connection to the next node
+    // Ports: "in", "out".
 }
 
-// ---------------------------------------------------------------------------
-// Connection data
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// One directed connection between an output port on one node and an input port on another.
-/// Connections define how dialogue flows from step to step.
-/// Managed automatically by the Dialogue Editor — do not edit manually.
-/// </summary>
 [Serializable]
 public class DialogueConnectionData
 {
