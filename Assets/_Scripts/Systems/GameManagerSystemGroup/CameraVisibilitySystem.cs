@@ -5,18 +5,14 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Flips the CameraVisible enableable tag on character rig roots + their BodyPart children from the
-// CameraView singleton (camera ground center + view radius, written by AudioManager each LateUpdate,
-// so it is one frame stale — the hysteresis padding absorbs that). World service: presentation
-// systems downstream chunk-filter on the tag; UnitSpawnerSystem reads CameraView directly to place
-// spawns out of view. PRESENTATION ONLY — simulation systems must never gate on CameraVisible.
+// Flips CameraVisible on rig roots and their BodyPart children from the CameraView singleton, which
+// AudioManager writes each LateUpdate (one frame stale; the padding absorbs that).
+// PRESENTATION ONLY: simulation systems must never gate on CameraVisible.
 [BurstCompile]
 [UpdateInGroup(typeof(GameManagerSystemGroup))]
 public partial struct CameraVisibilitySystem : ISystem
 {
-    // Hysteresis band beyond the (screen-circumscribing) view radius: entities become visible
-    // inside radius + ENABLE, and only go invisible again outside radius + DISABLE. The gap
-    // prevents edge-of-screen flicker and covers the one-frame-stale CameraView.
+    // Hysteresis: visible inside radius + ENABLE, invisible only outside radius + DISABLE (stops edge flicker).
     private const float ENABLE_PADDING = 5f;
     private const float DISABLE_PADDING = 10f;
 
@@ -52,16 +48,12 @@ public partial struct CameraVisibilitySystem : ISystem
             disableRadiusSq = disableRadius * disableRadius,
         }.ScheduleParallel(state.Dependency);
 
-        // Toolkit actors additionally carry AnimVisible (opt-in via ActorAuthoring) — mirror the
-        // root's own CameraVisible decision onto it so there is one visibility authority instead of
-        // two. WithAll<AnimVisible> naturally excludes every non-toolkit actor, so this costs nothing
-        // until a rig is authored with the toolkit's ActorAuthoring.
+        // Toolkit actors also carry AnimVisible; mirror the root's CameraVisible onto it so there is one authority.
         state.Dependency = new AnimVisibleMirrorJob().ScheduleParallel(state.Dependency);
     }
 }
 
-// Keeps the toolkit's per-frame presentation gate in lockstep with the game's own camera-visibility
-// decision, computed above. Runs after CameraVisibilityJob so it reads this frame's result.
+// Must run after CameraVisibilityJob so it reads this frame's result.
 [BurstCompile]
 [WithAll(typeof(AnimVisible))]
 public partial struct AnimVisibleMirrorJob : IJobEntity
@@ -73,16 +65,10 @@ public partial struct AnimVisibleMirrorJob : IJobEntity
     }
 }
 
-// Iterates rig roots (BodyPart buffer + CameraVisible). IgnoreComponentEnabledState so disabled
-// (off-screen) roots are still iterated and can be re-enabled. Root → parts is a unique pairing
-// (each part belongs to exactly one root), so parallel part writes are safe.
-//
-// CameraVisible is deliberately NOT an Execute parameter (no EnabledRefRW/RO<CameraVisible>): any
-// direct query-level access to a type also touched through a writable ComponentLookup<T> of the
-// SAME type throws "two containers may not be the same (aliasing)" at schedule time, RO or RW —
-// measured live, both ways, first surfacing 2026-09-07 once real BodyPart buffers existed to drive
-// this job for the first time. [WithAll] is presence-only filtering, no handle of its own; the
-// root's own bit is read/written through partVisibleLookup exactly like a part's.
+// IgnoreComponentEnabledState so off-screen roots are still iterated and can be re-enabled. Each part
+// belongs to one root, so parallel part writes are safe.
+// CameraVisible is deliberately not an Execute parameter: query access to a type also held by a
+// writable ComponentLookup of the same type throws an aliasing error at schedule time, RO or RW.
 [BurstCompile]
 [WithAll(typeof(CameraVisible))]
 [WithOptions(EntityQueryOptions.IgnoreComponentEnabledState)]
@@ -111,9 +97,8 @@ public partial struct CameraVisibilityJob : IJobEntity
         if (shouldBeVisible != currentlyVisible)
             partVisibleLookup.SetComponentEnabled(rootEntity, shouldBeVisible);
 
-        // Propagate to parts when the root transitioned, or when parts drifted out of sync — on the
-        // spawn frame the BodyPart buffer still holds the PREFAB's part entities (refs are not
-        // remapped until BodyPartInitSystem rebuilds it), so a transition can be missed there.
+        // Also resync drifted parts: on the spawn frame the buffer still holds the PREFAB's part
+        // entities (until BodyPartInitSystem rebuilds it), so a transition can be missed.
         bool needsPropagate = shouldBeVisible != currentlyVisible;
 
         if (!needsPropagate)
@@ -136,8 +121,7 @@ public partial struct CameraVisibilityJob : IJobEntity
         {
             Entity partEntity = bodyParts[partIndex].entity;
 
-            // Prefab guard: stale spawn-frame refs point at the source prefab's parts — writing
-            // through them would permanently corrupt the prefab's baked enable state.
+            // Prefab guard: stale spawn-frame refs would corrupt the prefab's baked enable state.
             if (!partVisibleLookup.HasComponent(partEntity) || prefabLookup.HasComponent(partEntity))
                 continue;
 

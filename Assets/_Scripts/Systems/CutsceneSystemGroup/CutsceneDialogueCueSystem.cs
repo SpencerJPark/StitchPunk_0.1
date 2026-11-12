@@ -2,30 +2,17 @@ using DotsAnimationToolkit;
 using Unity.Collections;
 using Unity.Entities;
 
-/// <summary>
-/// Turns a cutscene's <c>AnimEvents.Dialogue</c> cue into a real dialogue, and gives the clock back
-/// when the player closes it. The payload is the one G2 §4 fixed: <c>intParam</c> is the sequence id,
-/// <c>floatParam</c> is the speaker's slot index (−1 for nobody).
-///
-/// The cue's hold is named after the event itself (A65), so the id to release is literally
-/// "Dialogue" — <c>CutsceneApi.TryGetCurrentHoldId</c> is what confirms the clock is actually
-/// waiting on it. A cue authored without <c>holdUntilReleased</c> still opens a dialogue; it just
-/// does not stop the cutscene.
-///
-/// Reads last frame's events: <c>CutsceneTimelineSystem</c> writes <c>AnimEventOutput</c> from the
-/// toolkit group, which runs after this one — the one-frame latency documented in Contracts.md.
-/// Not [BurstCompile] — managed EntityManager reads and the toolkit's playback API.
-/// </summary>
+// Dialogue cue payload: intParam is the sequence id, floatParam is the speaker slot index (-1 for nobody).
+// Reads last frame's AnimEventOutput (the toolkit group runs after this one), so cues have one frame of latency.
+// Not [BurstCompile]: managed EntityManager reads and the toolkit playback API.
 [UpdateInGroup(typeof(CutsceneSystemGroup))]
 [UpdateAfter(typeof(CutsceneStartSystem))]
 public partial struct CutsceneDialogueCueSystem : ISystem
 {
-    // The hold a Dialogue cue derives, which is the event's own registry name (A65 §3.1).
+    // A Dialogue cue's hold id is the event's own registry name.
     private const string DialogueHoldId = "Dialogue";
 
-    // Whether a cue this system started is still on screen. Clock state cannot answer this: a hold
-    // is released the moment the dialogue closes, and a cue that never held one has no clock trace
-    // at all.
+    // Clock state cannot say whether the dialogue is still open: a cue with no hold leaves no trace.
     private bool _cuedDialogueIsOpen;
 
     public void OnCreate(ref SystemState state)
@@ -63,8 +50,7 @@ public partial struct CutsceneDialogueCueSystem : ISystem
         }
     }
 
-    // The same write NarrativeEventManager.ExecuteDialogueTriggerAsync makes, so the UI manager
-    // cannot tell a cutscene cue from an authored dialogue trigger.
+    // Same write as NarrativeEventManager.ExecuteDialogueTriggerAsync, so the UI cannot tell the two apart.
     private static void StartCuedDialogues(
         EntityManager entityManager,
         Entity playRequestEntity,
@@ -99,9 +85,7 @@ public partial struct CutsceneDialogueCueSystem : ISystem
         entityManager.SetComponentEnabled<CutsceneHoldRelease>(playRequestEntity, true);
     }
 
-    // The payload carries a slot INDEX, because that is what an author picks in the cutscene editor;
-    // bindings are keyed by slot id, and blob.slots is in authored order, so the index resolves
-    // through it rather than by position in a binding buffer a host is free to append to.
+    // The payload is a slot index into blob.slots (authored order), not a position in the binding buffer, which hosts may append to.
     private static Entity ResolveSpeakerEntity(
         EntityManager entityManager, Entity playRequestEntity, int speakerSlotIndex)
     {

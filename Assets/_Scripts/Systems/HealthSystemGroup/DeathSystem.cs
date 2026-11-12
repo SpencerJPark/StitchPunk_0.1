@@ -122,15 +122,11 @@ public partial struct DeathJob : IJobEntity
         EnabledRefRW<Movement>         movementEnabled,
         EnabledRefRW<Gravity>          gravityEnabled)
     {
-        // Guard: only run the first-death-frame work once. The job itself sets
-        // unitAction.current = Death below, so this self-latches; subsequent frames the
-        // unit is already fully in death state — skip to avoid re-triggering
-        // ActionInterruptRequest every frame while dead. Revive resets current to Idle,
-        // which re-arms this latch for a re-killed reanimated minion.
+        // Self-latching: unitAction.current = Death below stops re-firing the interrupt each frame.
+        // Revive resets current to Idle, which re-arms it.
         if (unitAction.current == ActionType.Death)
             return;
 
-        // 1. Flip life/death state flags
         unitAction.current             = ActionType.Death;
         pathRequestEnabled.ValueRW     = false;
         dStarLiteFollowerEnabled.ValueRW = false;
@@ -138,42 +134,33 @@ public partial struct DeathJob : IJobEntity
         if (aStarFollowerLookup.HasComponent(entity))
             aStarFollowerLookup.SetComponentEnabled(entity, false);
         hordeMembershipEnabled.ValueRW = false;
-        // Movement/Gravity disabled on death — Ragdoll2DSystem drives the corpse from here.
+        // Ragdoll2DSystem drives the corpse from here.
         movementEnabled.ValueRW        = false;
         gravityEnabled.ValueRW         = false;
 
-        // 2. Stop movement and snap target
         mover.isMoving       = false;
         mover.targetPosition = transform.Position;
 
-        // 2b. Corpse becomes targetable by the player's reviver (PlayerTargetingSystem scans
-        //     PlayerInteractable). Only revivable units (UndeadAuthoring) carry the component,
-        //     so this is a no-op on everything else.
+        // Makes the corpse targetable by the reviver (PlayerTargetingSystem); only UndeadAuthoring units carry it.
         if (playerInteractableLookup.HasComponent(entity))
             playerInteractableLookup.SetComponentEnabled(entity, true);
 
-        // 3. Fire ActionInterruptRequest — the interrupt system will disable the current
-        //    action tag cleanly and transition to DeathAction next frame.
+        // The interrupt system disables the current action tag and transitions to DeathAction next frame.
         if (interruptLookup.HasComponent(entity))
             interruptLookup.SetComponentEnabled(entity, true);
 
-        // 4. Cancel any in-flight attack — reset the fields AND disable it, so no stale
-        //    targetEntity/hitFired/elapsed survives into a revived minion (ghost hits).
+        // Reset fields AND disable, so no stale targetEntity/hitFired/elapsed survives a revive (ghost hits).
         if (pendingAttackLookup.HasComponent(entity))
         {
             pendingAttackLookup[entity] = default;
             pendingAttackLookup.SetComponentEnabled(entity, false);
         }
 
-        // 5. Disable the UtilityBrain — death cuts off the decision/awareness half (the "utility AI").
-        //    The StateMachine/execution half keeps running (BehaviorExecution/Interrupt are
-        //    WithPresent, not WithAll), so the death behavior still plays. A blank slate: a player
-        //    revive re-routes decisions through PlayerUnitBrain, not the utility brain.
+        // Only the decision half stops; the execution half is WithPresent so the death behavior still plays.
         if (utilityBrainLookup.HasComponent(entity))
             utilityBrainLookup.SetComponentEnabled(entity, false);
 
-        // 6. Wipe stale per-unit decision state so a revived minion starts clean — old threats,
-        //    queued motivation changes, and interaction cooldowns must not carry across death.
+        // Threats, queued motivation changes and interaction cooldowns must not carry across death.
         if (threatLookup.HasBuffer(entity))
             threatLookup[entity].Clear();
         if (motivationRequestLookup.HasBuffer(entity))
@@ -181,8 +168,7 @@ public partial struct DeathJob : IJobEntity
         if (recentInteractionLookup.HasBuffer(entity))
             recentInteractionLookup[entity].Clear();
 
-        // 7. Play the profile's Death body animation and, if authored, the DeathFace clip — the
-        //    ragdoll Start/Stop triggers ride on the Death clip itself. Both are optional (key 0).
+        // Ragdoll Start/Stop triggers ride on the Death clip itself. Both keys are optional (0).
         int unitIndex = unitLibrary.Value.FindByUnitType(unitData.unitType);
         if (unitIndex >= 0
             && animationCommandLookup.HasBuffer(entity)

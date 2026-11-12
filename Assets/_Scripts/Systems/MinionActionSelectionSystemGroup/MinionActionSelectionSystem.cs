@@ -4,14 +4,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// Translates active player commands into high-priority UtilityActions buffer entries for
-// player-controlled units. Runs AFTER UtilityAwarenessSystemGroup (buffer already cleared this frame)
-// and BEFORE StateMachineSystemGroup. isPlayerOrdered = true causes WinnerSelectionSystem to
-// skip scoring and pick this entry unconditionally.
-//
-// Commands are consumed one-shot: disabled the frame they are translated into an option. The
-// order lives on in StateMachine after WinnerSelection — no per-frame re-emit needed (and
-// re-emitting would re-preempt every frame under WinnerSelection's player-retarget exemption).
+// Runs after UtilityAwarenessSystemGroup cleared the buffer. isPlayerOrdered makes WinnerSelectionSystem skip scoring.
+// Commands are one-shot: re-emitting each frame would re-preempt under WinnerSelection's player-retarget exemption.
 [BurstCompile]
 [UpdateInGroup(typeof(MinionActionSelectionSystemGroup))]
 public partial struct MinionActionSelectionSystem : ISystem
@@ -95,8 +89,7 @@ public partial struct MinionActionSelectionSystem : ISystem
 }
 
 [BurstCompile]
-// Gate on PlayerUnitBrain only (player decisions). WithPresent(UtilityBrain) keeps brain.unitType
-// readable while UtilityBrain is disabled — a player minion's utility AI no longer drives it.
+// WithPresent(UtilityBrain) keeps brain.unitType readable while UtilityBrain is disabled on player minions.
 [WithAll(typeof(PlayerUnitBrain))]
 [WithPresent(typeof(UtilityBrain))]
 [WithDisabled(typeof(CutsceneActor))]
@@ -104,7 +97,7 @@ public partial struct MinionActionWriteJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>    aiConfig;
     [ReadOnly] public BufferLookup<AvailableAttack>           availableAttackLookup;
-    // Read-write: commands are disabled (consumed) after being translated into an option.
+    // Read-write: commands are disabled once translated.
     public ComponentLookup<OnMinionMoveCommand>     moveCmdLookup;
     public ComponentLookup<OnMinionAttackCommand>   attackCmdLookup;
     public ComponentLookup<OnMinionInteractCommand> interactCmdLookup;
@@ -126,7 +119,7 @@ public partial struct MinionActionWriteJob : IJobEntity
         in UtilityBrain                  brain,
         ref DynamicBuffer<UtilityActions> options)
     {
-        // Move — Wander behavior toward a raw ground position (no target entity).
+        // Move: Wander toward a raw ground position.
         if (moveCmdLookup.HasComponent(unit) && moveCmdLookup.IsComponentEnabled(unit))
         {
             float3 destination = moveCmdLookup[unit].destination;
@@ -150,7 +143,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Move to ({destination.x:G}, {destination.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
 
-        // Attack — resolve the ordered attack from the unit's own AvailableAttack buffer; a unit with no usable attack refuses loudly.
+        // Attack: resolved from the unit's own AvailableAttack buffer; no usable attack logs a refusal.
         if (attackCmdLookup.HasComponent(unit) && attackCmdLookup.IsComponentEnabled(unit))
         {
             Entity     target             = attackCmdLookup[unit].targetEntity;
@@ -181,7 +174,6 @@ public partial struct MinionActionWriteJob : IJobEntity
             }
         }
 
-        // Interact — path to target entity.
         if (interactCmdLookup.HasComponent(unit) && interactCmdLookup.IsComponentEnabled(unit))
         {
             Entity target   = interactCmdLookup[unit].targetEntity;
@@ -200,8 +192,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Interact {target.Index}", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
 
-        // Follow — shadow the player by using Wander toward the player entity.
-        // UnitSelectionManager re-enables this every frame while F is held.
+        // Follow: Wander toward the player entity. UnitSelectionManager re-enables it every frame while F is held.
         if (followCmdLookup.HasComponent(unit) && followCmdLookup.IsComponentEnabled(unit))
         {
             int defIndex = BrainBlobUtils.GetActionDefIndex(
@@ -218,7 +209,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Follow player", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
 
-        // ReturnToPlayer — one-shot move to where the player stands now (Follow stays the continuous verb).
+        // ReturnToPlayer: one-shot move to where the player stands now.
         if (returnCmdLookup.HasComponent(unit) && returnCmdLookup.IsComponentEnabled(unit))
         {
             int defIndex = BrainBlobUtils.GetActionDefIndex(ref aiConfig.Value, brain.unitType, ActionType.Wander);
@@ -237,7 +228,7 @@ public partial struct MinionActionWriteJob : IJobEntity
                 LogUtil.Log(ref ecb, $"[MinionOrder] Unit {unit.Index} -> Return to player ({playerPosition.x:G}, {playerPosition.z:G})", LogLevel.Info, timestamp, category: LogCategory.AI);
         }
 
-        // Stop — interrupt the running behavior and drop this frame's options so the unit falls back to Idle.
+        // Stop: interrupt and drop this frame's options so the unit falls back to Idle.
         if (stopCmdLookup.HasComponent(unit) && stopCmdLookup.IsComponentEnabled(unit))
         {
             options.Clear();
@@ -260,8 +251,7 @@ public partial struct MinionActionWriteJob : IJobEntity
             standingOrderLookup[unit] = standingOrder;
         }
 
-        // An explicit order also ends a gather job (the gatherer's own Wander moves are emitted as
-        // options by MinionGatherSystem, never as move commands, so they don't land here).
+        // An explicit order ends a gather job; MinionGatherSystem's own Wander moves are options, not commands, so they never land here.
         if (!gatherOrderLookup.HasComponent(unit)) return;
         MinionGatherOrder gatherOrder = gatherOrderLookup[unit];
         if (gatherOrder.phase == GatherPhase.None) return;

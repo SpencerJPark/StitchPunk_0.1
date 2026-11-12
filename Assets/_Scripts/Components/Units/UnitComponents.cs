@@ -17,16 +17,13 @@ public struct Target : IComponentData, IEnableableComponent
     public Entity entity;
 }
 
-// Health
 // Life-state is a single enableable: Dead enabled = dead, Dead disabled = alive.
-// (The former `Alive` component was deprecated — see MinionRevival_System.)
 public struct Dead : IComponentData, IEnableableComponent { }
 public struct Health : IComponentData, IPersist
 {
     public int healthAmount;
     public int healthAmountMax;
-    // Snapshot of the killing blow — written by DamageEventSystem on the lethal
-    // DamageEvent, then read by RagdollLaunchInitSystem.
+    // Killing blow snapshot: written by DamageEventSystem, read by RagdollLaunchInitSystem.
     public float3 killSourcePosition;
     public float killRagdollForce;
     public float killLaunchForceY;
@@ -53,33 +50,23 @@ public struct HitVisual : IComponentData
     public float Value;
 }
 
-// Prevents the player from targeting this entity with attacks.
-// Use on friendly vehicles, allied units, or anything else that shouldn't take player damage.
+// Player attacks cannot target this entity (friendly vehicles, allied units).
 public struct PlayerImmune : IComponentData, IEnableableComponent { }
-
 
 public struct LocomotionStance : IComponentData
 {
     public StanceType stance;
 }
 
-
-
-
-
-// Player actions
 public struct Undead : IComponentData, IEnableableComponent { }
 public struct ReviveRequest : IComponentData, IEnableableComponent { }
 
-// Turns a LIVING unit into its converted (zombie) form. Enabled by any trigger — debug menu,
-// narrative ZombifyAction, a future bite hook — and consumed by ZombifySystem, which composes the
-// brain swap and the re-skin that already exist. Corpses convert through ReviveRequest instead.
-// targetUnitType None = use the unit's authored UnitSO.becomesUnitType, the same field the revive
-// path converts through, so a trigger never has to know the human→zombie mapping.
+// Converts a LIVING unit to its zombie form, consumed by ZombifySystem. Corpses use ReviveRequest instead.
+// targetUnitType None = use the authored UnitSO.becomesUnitType.
 public struct ZombifyRequest : IComponentData, IEnableableComponent
 {
     public UnitType targetUnitType;
-    // Counts down inside the request; conversion applies on the frame it reaches zero (0 = instant).
+    // Conversion applies when this reaches zero (0 = instant).
     public float delaySeconds;
 }
 public struct Minion: IComponentData, IEnableableComponent, IPersist { }
@@ -87,28 +74,23 @@ public struct Selected : IComponentData, IEnableableComponent
 {
     public Entity visualEntity;
     public float showScale;
-    // Updated by MinionCommandSystem when a new order is issued.
-    // Read by SelectedVisualSystem to drive ring color.
+    // Written by MinionCommandSystem on a new order, read by SelectedVisualSystem for ring color.
     public CommandType commandType;
 }
 
-// Lives on the selection ring visual entity. Drives the _SelectionColor shader property.
-// Add this component (alongside LocalTransform) to the selection ring prefab quad.
+// Lives on the selection ring visual entity.
 [MaterialProperty("_SelectionColor")]
 public struct SelectionColor : IComponentData
 {
     public float4 Value; // RGBA
 }
 
-// ─── Behavioral State Components ──────────────────────────────────────────────
-// Each state is an IEnableableComponent with a duration (seconds; -1 = permanent).
-// UnitStateExpirySystem ticks duration and disables the component when it hits 0.
+// State durations are seconds (-1 = permanent); UnitStateExpirySystem disables the component at 0.
 // CombatAwarenessSystem refreshes AggressiveState.duration each frame a hostile is in range.
-
 public struct AggressiveState : IComponentData, IEnableableComponent { public float duration; }
 public struct DrunkState      : IComponentData, IEnableableComponent { public float duration; }
 public struct StunnedState    : IComponentData, IEnableableComponent { public float duration; }
-// A short slide, e.g. knocked aside by the caravan. Applied by StunAndShoveSystem; added on first use.
+// Short slide (e.g. shoved by the caravan). Applied by StunAndShoveSystem; added on first use.
 public struct ShoveMotion     : IComponentData, IEnableableComponent { public float3 velocity; public float remainingSeconds; }
 public struct PanickedState   : IComponentData, IEnableableComponent { public float duration; }
 public struct BerserkState    : IComponentData, IEnableableComponent { public float duration; }

@@ -142,7 +142,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
             entityManager.SetComponentEnabled<OnCommandPlayerInput>(playerEntity, false);
         }
 
-        // Was a hard-coded Tab, which also dismounts the workstation in this map.
         InputAction cycleFormationInput = ResolveCycleFormationAction();
         if (cycleFormationInput != null && cycleFormationInput.WasPressedThisFrame())
             CycleFormationForSelectedHordes();
@@ -238,7 +237,6 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         entityManager.SetComponentEnabled<Selected>(entity, selected);
     }
 
-    // Called by UI to draw the drag box.
     public Rect GetSelectionAreaRect()
     {
         return BuildSelectionRect(selectionStartScreenPosition, GetCursorScreenPosition());
@@ -279,9 +277,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
 
     private void HandleCommand()
     {
-        // Only issue commands if at least one minion is selected. Commands are stamped on each
-        // selected minion (baked by UnitBakingUtil.AddPlayerControlled) and consumed one-shot by
-        // MinionActionSelectionSystem.
+        // Commands are stamped on each selected minion and consumed one-shot by MinionActionSelectionSystem.
         EntityQuery selectedMinions = new EntityQueryBuilder(Allocator.Temp)
             .WithAll<Selected, Minion>()
             .Build(entityManager);

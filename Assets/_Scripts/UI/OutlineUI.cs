@@ -2,10 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using Unity.Entities;
 
-/// <summary>
-/// UI component that renders outline effect to screen
-/// Queries DOTS Player entity to determine if outline should render
-/// </summary>
 [RequireComponent(typeof(RawImage))]
 public class OutlineUI : MonoBehaviour, IUpdateObserver
 {
@@ -25,13 +21,10 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
     private Entity playerEntity;
     private bool dotsWorldInitialized;
     
-    // initialize
     private void Awake()
     {
-        // Get RawImage component
         rawImage = GetComponent<RawImage>();
-        
-        // Create material from shader
+
         if (outlineShader != null)
         {
             outlineMaterial = new Material(outlineShader);
@@ -41,7 +34,6 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
             Debug.LogError("[OutlineUI] Outline shader not assigned!");
         }
         
-        // Set up RawImage
         if (rawImage != null)
         {
             rawImage.texture = outlineRenderTexture;
@@ -57,12 +49,10 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
         {
             Debug.LogWarning("[OutlineUI] DOTS world not initialized yet");
         }
-        
-        // Ensure UI is stretched to fill screen
+
         AdjustToScreenSize();
     }
-    
-    
+
     private void OnEnable() => UpdateManager.RegisterObserver(this);
     private void OnDisable() => UpdateManager.UnregisterObserver(this);
     
@@ -72,7 +62,6 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
         
         AdjustToScreenSize();
         
-        // Enable UI rendering
         if (rawImage != null && !rawImage.enabled)
         {
             rawImage.enabled = true;
@@ -83,13 +72,11 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
 
     private bool EarlyOut()
     {
-        // Early out if no render texture or material
         if (outlineRenderTexture == null || outlineMaterial == null)
         {
             return true;
         }
         
-        // Early out if DOTS world not ready
         if (!dotsWorldInitialized)
         {
             TryInitializeDOTS();
@@ -99,10 +86,8 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
             }
         }
         
-        // Early out if no player entity or no interactable
         if (!ShouldRenderOutline())
         {
-            // Optionally hide the UI when not needed
             if (rawImage != null)
             {
                 rawImage.enabled = false;
@@ -126,7 +111,6 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
     
     private bool ShouldRenderOutline()
     {
-        // Find player entity if we don't have it
         if (playerEntity == Entity.Null || !entityManager.Exists(playerEntity))
         {
             EntityQuery playerQuery = entityManager.CreateEntityQuery(typeof(Player));
@@ -139,18 +123,15 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
             playerEntity = playerQuery.GetSingletonEntity();
         }
         
-        // Check if player has an interactable entity assigned
         if (entityManager.HasComponent<Player>(playerEntity))
         {
             Player playerData = entityManager.GetComponentData<Player>(playerEntity);
-            
-            // Early out if no interactable
+
             if (playerData.interactableEntity == Entity.Null)
             {
                 return false;
             }
-            
-            // Check if interactable entity still exists
+
             if (!entityManager.Exists(playerData.interactableEntity))
             {
                 return false;
@@ -168,7 +149,6 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
         
         RectTransform rectTransform = rawImage.rectTransform;
         
-        // Stretch to fill entire screen
         rectTransform.anchorMin = Vector2.zero;
         rectTransform.anchorMax = Vector2.one;
         rectTransform.offsetMin = Vector2.zero;
@@ -180,11 +160,9 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
     {
         if (outlineMaterial == null) return;
         
-        // Update shader properties
         outlineMaterial.SetColor("_OutlineColor", outlineColor);
         outlineMaterial.SetFloat("_OutlineWidth", outlineWidth);
-        
-        // Assign material to RawImage
+
         if (rawImage != null)
         {
             rawImage.material = outlineMaterial;
@@ -193,7 +171,6 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
     
     private void OnDestroy()
     {
-        // Clean up material
         if (outlineMaterial != null)
         {
             Destroy(outlineMaterial);
@@ -202,7 +179,6 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
     
     private void OnValidate()
     {
-        // Update material in editor when values change
         if (Application.isPlaying && outlineMaterial != null)
         {
             UpdateMaterialProperties();

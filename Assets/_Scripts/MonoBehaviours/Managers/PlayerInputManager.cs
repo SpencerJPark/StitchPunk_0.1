@@ -31,8 +31,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     private InputAction vehicleSteerAction;
     private InputAction exitVehicleAction;
 
-    // Trade letter: open it from the HUD on foot (Player map), close it while it is up (UI map). Polled by TradeLetterUI /
-    // TradeOrdersHudUI through the two methods below, so both are ordinary rebindable actions.
+    // Trade letter open (Player map) and close (UI map) are polled by TradeLetterUI / TradeOrdersHudUI as rebindable actions.
     private InputAction openLetterAction;
     private InputAction closeLetterAction;
 
@@ -106,9 +105,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     }
     #endregion
 
-    // The scene has an EventSystem but no input module, and with an EventSystem present UI Toolkit's own fallback input is off, so
-    // no mouse, key or pad press reached any UI Toolkit panel. This gives it a module fed by THIS PlayerInput's UI map, so UI input
-    // flows exactly while that map is current (the pause menu and any modal panel) and nowhere else.
+    // An EventSystem without an input module turns UI Toolkit's fallback input off; this module is fed by the UI map so UI input flows only while it is current.
     private void ConfigureUiInputModule()
     {
         EventSystem eventSystem = FindFirstObjectByType<EventSystem>();
@@ -239,9 +236,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
         entityManager.SetComponentEnabled<OnDeployWorkstationInput>(playerEntity, true);
     }
 
-    // When aiming with a mouse, compute the world-space direction from the player to the
-    // cursor and write it into LookPlayerInput so PlayerAimSystem can use it identically
-    // to the gamepad right-stick path.
+    // Writes the player-to-cursor direction into LookPlayerInput so PlayerAimSystem treats it like the right stick.
     private void UpdateMouseAimDirection()
     {
         if (!TryResolvePlayerEntity()) return;

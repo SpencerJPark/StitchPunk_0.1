@@ -7,15 +7,8 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-// One per part GameObject in a character rig — quad or item socket. Replaces
-// AnimationTargetAuthoring + AnimationTargetNoIndexAuthoring + BaseParentAuthoring on rig parts:
-//   • bakes BodyPartInfo (self-description: target + partDef + role flags),
-//   • bakes BaseParent so the root can rebuild its BodyPart buffer after Instantiate,
-//   • bakes PostTransformMatrix (non-uniform scale support) and the tint components for every part.
-// CharacterRigBakingSystem assembles the root's BodyPart buffer from these. Ragdoll bodies are
-// authored directly on the toolkit's RigAsset (Clip Editor) — nothing for this baker to flag. Rest
-// pose and rest sprite slice are the toolkit's own RigTargetAuthoring (added alongside this one) —
-// not this baker's job any more.
+// One per part GameObject in a character rig (quad or item socket). CharacterRigBakingSystem
+// assembles the root's BodyPart buffer from these. Rest pose and ragdoll bodies belong to the toolkit.
 public class BodyPartAuthoring : MonoBehaviour
 {
     [Tooltip("Which body part this GameObject is. Stays the single part-identity key everywhere.")]
@@ -82,38 +75,26 @@ public class BodyPartAuthoring : MonoBehaviour
 
             AddComponent(entity, new PostTransformMatrix { Value = float4x4.identity });
 
-            // Camera-visibility gate (starts visible; CameraVisibilitySystem propagates the root's
-            // state here so part-level presentation jobs can chunk-filter on it).
+            // Starts visible; CameraVisibilitySystem propagates the root's state here.
             AddComponent<CameraVisible>(entity);
             SetComponentEnabled<CameraVisible>(entity, true);
 
             if (hasRenderer)
             {
-                // Facing (DirectionFacing_System.md §4): opt-in in the toolkit, so the game bakes it
-                // wherever turning should apply — every quad part. Written only by UnitFacingSystem.
-                // Skipped where RigTargetBaker already added it (Faces Direction ticked on this part's
-                // rig target) — adding it twice is a duplicate-component bake error, not a merge.
+                // Skipped where RigTargetBaker already added it: a duplicate component is a bake error.
                 if (!FacesDirectionAlreadyBaked(authoring))
                 {
                     AddComponent(entity, new PartFacing { viewOffset = 0, mirrorX = false });
                 }
 
-                // Per-instance tint (drives _BaseColor, Hybrid Per Instance). Set per-part in the
-                // authoring inspector; white leaves the authored sprite unchanged. A future global
-                // palette/skin system will overwrite this at runtime.
-                // Convert sRGB → linear: the DOTS MaterialProperty upload is raw (unlike the material
-                // inspector, which auto-converts colour properties), and the project renders in Linear.
+                // sRGB to linear: the DOTS MaterialProperty upload is raw and the project renders in Linear.
                 Color linearTint = authoring.tintColor.linear;
                 AddComponent(entity, new BodyPartTint
                 {
                     Value = new float4(linearTint.r, linearTint.g, linearTint.b, linearTint.a),
                 });
-                // Packed-recolor layer tints (_SecondaryColor/_TertiaryColor). Alpha = layer blend
-                // strength in PackedChannelRecolor: parts whose masks don't use G/B bake alpha 0 so
-                // stray channel data (e.g. greyscale sources copied into every channel) can never
-                // composite. DesignApplyUtil.ApplyDesign writes palette colours over these on
-                // design-slot parts; keeping the components on every rendering part keeps one
-                // batchable archetype.
+                // Alpha is layer blend strength in PackedChannelRecolor; 0 stops stray G/B data compositing.
+                // Present on every rendering part to keep one batchable archetype.
                 float layerAlpha = authoring.useLayerChannels ? 1f : 0f;
                 AddComponent(entity, new BodyPartSecondaryTint { Value = new float4(1f, 1f, 1f, layerAlpha) });
                 AddComponent(entity, new BodyPartTertiaryTint { Value = new float4(1f, 1f, 1f, layerAlpha) });
@@ -121,9 +102,8 @@ public class BodyPartAuthoring : MonoBehaviour
             }
         }
 
-        // Mirrors RigTargetBaker's own rig/target resolution (rig target's own rig, else the actor's)
-        // so the two bakers agree on which target definition a part means without sharing code across
-        // the package boundary.
+        // Mirrors RigTargetBaker's rig resolution (target's own rig, else the actor's) so the two
+        // bakers agree without sharing code across the package boundary.
         private bool FacesDirectionAlreadyBaked(BodyPartAuthoring authoring)
         {
             RigTargetAuthoring rigTarget = GetComponent<RigTargetAuthoring>();

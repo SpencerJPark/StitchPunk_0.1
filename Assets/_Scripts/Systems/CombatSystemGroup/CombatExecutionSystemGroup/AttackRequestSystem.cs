@@ -42,8 +42,6 @@ public partial struct AttackRequestSystem : ISystem
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
 
-        // Recycled DamageBus queue (v2) — each attacker Enqueues its own DamageEvent value; no entity
-        // create/destroy. NativeQueue.ParallelWriter is safe from ScheduleParallel.
         NativeQueue<DamageEvent>.ParallelWriter damageWriter =
             SystemAPI.GetSingleton<DamageBus>().raw.AsParallelWriter();
 
@@ -72,9 +70,7 @@ public partial struct AttackRequestSystem : ISystem
             unitDataLookup          = unitDataLookup,
         }.ScheduleParallel(state.Dependency);
 
-        // Manual dependency wiring — a NativeQueue through a singleton bypasses ECS auto-tracking,
-        // so hand this producer's write handle to the bus owner (the EntityCommandBufferSystem
-        // pattern). Fetch the managed owner here rather than storing a GC reference in the struct.
+        // A NativeQueue behind a singleton bypasses ECS dependency tracking, so hand the handle to the bus owner.
         state.World.GetExistingSystemManaged<DamageBusSystem>()
             .AddJobHandleForProducer(state.Dependency);
     }
@@ -83,9 +79,7 @@ public partial struct AttackRequestSystem : ISystem
 [BurstCompile]
 public partial struct AttackRequestJob : IJobEntity
 {
-    // Lunge tolerance: a swing is only ever fired against a target the action system
-    // already confirmed in range, so allow this much drift before the hit lands rather
-    // than whiffing on minor repath jitter. A target that genuinely fled is still missed.
+    // Lunge tolerance: absorbs repath jitter after the action system confirmed range; a fled target still whiffs.
     private const float HIT_RANGE_MULT = 1.5f;
 
     [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
@@ -116,17 +110,11 @@ public partial struct AttackRequestJob : IJobEntity
             return;
         ref AttackBlob attackBlob = ref attackLibrary.Value.attacks[attackIndex];
 
-        // Hit timing: the swing's clip is the source of truth — fire the instant the attacker's
-        // AnimEventOutput carries AnimEvents.Attack on the Action layer, so retiming the clip retimes
-        // the damage moment for free. attackBlob.hitTime is the fallback/timeout ceiling: elapsed
-        // is reset to 0 at the start of each swing (FireAction / PlayerAttackSystem) and advances
-        // here, frame-rate-correct and independent of system ordering. A clip with no Attack event
-        // authored always lands damage via this timeout; one that has it should keep hitTime
-        // comfortably above the authored event's time so the event — not the timeout — decides.
+        // The clip's AnimEvents.Attack event decides hit timing; hitTime is only the timeout fallback,
+        // so keep it above the authored event time. elapsed is reset at swing start (FireAction / PlayerAttackSystem).
         attackRequest.elapsed += deltaTime;
 
-        // Match by the animation key that's actually playing rather than a fixed layer index (D3,
-        // ActorProfileCutover_System.md §6) — an attack authored on any layer still lands damage.
+        // Match by playing animation key, not a fixed layer, so an attack on any layer still lands.
         uint attackAnimationKey = 0;
         if (unitDataLookup.TryGetComponent(attackerEntity, out UnitData attackerUnitData))
         {
@@ -170,8 +158,7 @@ public partial struct AttackRequestJob : IJobEntity
 
         Entity victim = attackRequest.targetEntity;
 
-        // Present-and-not-dead: Dead is the sole life-state, so a valid victim has the
-        // Dead component present but disabled.
+        // Alive means Dead is present but disabled.
         bool victimAlive = deadLookup.HasComponent(victim) &&
                            !deadLookup.IsComponentEnabled(victim);
 
@@ -183,9 +170,7 @@ public partial struct AttackRequestJob : IJobEntity
 
             if (distanceSq <= hitRange * hitRange)
             {
-                // Confirmed hit — Enqueue a DamageEvent value into the bus (range/alive validation
-                // stays producer-side, so whiffs never enqueue). AOE-tagged attacks are expanded to
-                // per-target events by DamageResolutionSystem; SingleTarget flows straight through.
+                // Validation is producer-side so whiffs never enqueue; DamageResolutionSystem expands AOE.
                 damageWriter.Enqueue(new DamageEvent
                 {
                     targetEntity    = victim,
@@ -223,7 +208,7 @@ public partial struct AttackRequestJob : IJobEntity
                 LogLevel.Info, timestamp, category: LogCategory.Combat);
         }
 
-        // Mark fired regardless — prevents re-attempts if target stepped out of range
+        // Mark fired even on a whiff so a target stepping out of range is not retried.
         attackRequest.hitFired       = true;
         attackRequestEnabled.ValueRW = false;
     }
