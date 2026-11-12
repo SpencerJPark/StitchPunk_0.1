@@ -278,6 +278,16 @@ public static class TerrainFeatureTool
     public static void DeleteSelectedKnot();
 }
 ```
+```csharp
+// Editor/Terrain/Features/TerrainFeaturePreview.cs (static; pinned 2026-11-12 so WF-4-2 and WF-4-3 can be built in one wave)
+public static class TerrainFeaturePreview
+{
+    public const int MaxDots = 2000;
+    public static void SetOutline(IReadOnlyList<Vector2> outlineXZ, TerrainAreaRecipe recipe, int seed);   // throttled: re-plans at most every 100 ms
+    public static void Clear();
+    public static void Draw();   // call from duringSceneGui on Repaint; draws fill + dots for the last outline
+}
+```
 `TerrainFeaturePreview` draws the outline fill and the planned placement dots from an un-baked `Plan` call while drawing and while a knot is dragged, so the owner sees the result before the bake. `TerrainFeaturesPanel : TerrainToolPanel` (`DisplayName` "Features"): recipe grid with thumbnails (click arms draw-outline, the box icon arms drag-box), list of features in the scene, selected-feature card (recipe, seed with reroll, Regenerate, Detach, locked count, stale-tile line).
 
 ### 6.7 Lines and fields

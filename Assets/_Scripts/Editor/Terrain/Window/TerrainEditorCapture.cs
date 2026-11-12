@@ -14,7 +14,7 @@ public static class TerrainEditorCapture
     const int RepaintsBeforeGrab = 35;
     const string DefaultFolder = "Library/TerrainEditorCaptures";
 
-    static readonly string[] PanelNamesByIndex = { "world", "paint", "sculpt", "generate", "roads", "water", "decals", "props", "nav" };
+    static readonly string[] PanelNamesByIndex = { "world", "paint", "sculpt", "generate", "roads", "water", "decals", "props", "nav", "features" };
 
     public static bool IsRunning { get; private set; }
 
@@ -26,7 +26,7 @@ public static class TerrainEditorCapture
 
     public static void CaptureAllTabs(string folder, Vector2 windowSize)
     {
-        CaptureTabs(folder, windowSize, new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8 });
+        CaptureTabs(folder, windowSize, new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 });
     }
 
     public static void CaptureTabs(string folder, Vector2 windowSize, int[] panelIndices)

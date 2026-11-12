@@ -218,7 +218,11 @@ public static class TerrainFeatureBaker
             TerrainTileBuilder.Rebuild(tile);
         }
 
-        // WF-2: TerrainAreaFiller.FillTile(tile, stamps) goes here.
+        TerrainAreaFillResult fillResult = TerrainAreaFiller.FillTile(tile, stamps);
+        if (fillResult.demotedCount > 0)
+        {
+            Debug.Log("Tile " + coordinate + ": " + fillResult.demotedCount + " trees became cards (interactable cap " + TerrainPlatformProfile.Active.maxInteractablePropsPerTile + ").");
+        }
         EditorSceneManager.SaveScene(tile.gameObject.scene);
     }
 

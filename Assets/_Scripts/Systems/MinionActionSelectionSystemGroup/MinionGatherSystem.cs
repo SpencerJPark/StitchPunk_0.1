@@ -17,6 +17,7 @@ public partial struct MinionGatherSystem : ISystem
     private ComponentLookup<Dead>                    _deadLookup;
     private ComponentLookup<Despawn>                 _despawnLookup;
     private ComponentLookup<Faction>                 _factionLookup;
+    private ComponentLookup<HarvestableNodeKey>      _harvestableNodeKeyLookup;
     private ComponentLookup<LocalTransform>          _transformLookup;
     private ComponentLookup<ResourceNode>            _resourceNodeLookup;
     private ComponentLookup<Workstation>             _workstationLookup;
@@ -33,6 +34,7 @@ public partial struct MinionGatherSystem : ISystem
         _deadLookup         = state.GetComponentLookup<Dead>(true);
         _despawnLookup      = state.GetComponentLookup<Despawn>(false);
         _factionLookup      = state.GetComponentLookup<Faction>(true);
+        _harvestableNodeKeyLookup = state.GetComponentLookup<HarvestableNodeKey>(true);
         _transformLookup    = state.GetComponentLookup<LocalTransform>(true);
         _resourceNodeLookup = state.GetComponentLookup<ResourceNode>(false);
         _workstationLookup  = state.GetComponentLookup<Workstation>(true);
@@ -49,6 +51,7 @@ public partial struct MinionGatherSystem : ISystem
         _deadLookup.Update(ref state);
         _despawnLookup.Update(ref state);
         _factionLookup.Update(ref state);
+        _harvestableNodeKeyLookup.Update(ref state);
         _transformLookup.Update(ref state);
         _resourceNodeLookup.Update(ref state);
         _workstationLookup.Update(ref state);
@@ -70,6 +73,7 @@ public partial struct MinionGatherSystem : ISystem
             deadLookup          = _deadLookup,
             despawnLookup       = _despawnLookup,
             factionLookup       = _factionLookup,
+            harvestableNodeKeyLookup = _harvestableNodeKeyLookup,
             transformLookup     = _transformLookup,
             resourceNodeLookup  = _resourceNodeLookup,
             workstationLookup   = _workstationLookup,
@@ -113,6 +117,7 @@ public partial struct MinionGatherJob : IJobEntity
     [ReadOnly] public ComponentLookup<CampLootLocked>       campLootLockedLookup;
     [ReadOnly] public ComponentLookup<Dead>                 deadLookup;
     [ReadOnly] public ComponentLookup<Faction>              factionLookup;
+    [ReadOnly] public ComponentLookup<HarvestableNodeKey>   harvestableNodeKeyLookup;
     [ReadOnly] public ComponentLookup<LocalTransform>       transformLookup;
     [ReadOnly] public ComponentLookup<Workstation>          workstationLookup;
     [ReadOnly] public NativeArray<Entity>                   nodeEntities;
@@ -244,7 +249,8 @@ public partial struct MinionGatherJob : IJobEntity
             resourceNode.remaining -= taken;
             resourceNodeLookup[harvestedNode] = resourceNode;
             nodeEmptied = resourceNode.remaining <= 0;
-            if (nodeEmptied) commandBuffer.DestroyEntity(harvestedNode);
+            // A keyed node (a terrain tree) stays as a stump; the harvested-node ledger regrows it.
+            if (nodeEmptied && !harvestableNodeKeyLookup.HasComponent(harvestedNode)) commandBuffer.DestroyEntity(harvestedNode);
         }
 
         // Pick the follow-up now: after the node is gone its position is no longer known.
