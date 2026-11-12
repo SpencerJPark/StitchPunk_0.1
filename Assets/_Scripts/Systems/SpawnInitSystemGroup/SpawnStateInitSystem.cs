@@ -3,19 +3,8 @@ using DotsMovementToolkit;
 using Unity.Burst;
 using Unity.Entities;
 
-/// <summary>
-/// Resets every root-entity enableable component to its correct spawn state on
-/// newly spawned or reclaimed body entities.
-///
-/// Runs after UnitSpawnerSystem.ecb.Playback() has created the real entities,
-/// so all ComponentLookup operations are direct and immediate (no ECB required).
-/// Filtering on [WithAll&lt;NewlySpawned&gt;] keeps this to a no-op on all other frames.
-///
-/// To add a component that needs a specific initial state at spawn:
-///   1. Add a ComponentLookup field for it in OnCreate / OnUpdate.
-///   2. Add a HasComponent + SetComponentEnabled call in OnUpdate.
-///   No edits to UnitSpawnerSystem are needed.
-/// </summary>
+// Resets enableable components on NewlySpawned entities, including pool-reclaimed bodies.
+// Runs after spawner playback, so lookup writes are direct (no ECB).
 [UpdateInGroup(typeof(SpawnInitSystemGroup))]
 [BurstCompile]
 public partial struct SpawnStateInitSystem : ISystem
@@ -72,7 +61,7 @@ public partial struct SpawnStateInitSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        // Lookup writes on the main thread don't wait for in-flight jobs (ZombifyJob writes Undead/ZombifyRequest).
+        // Main-thread lookup writes don't wait for in-flight jobs (ZombifyJob writes Undead/ZombifyRequest).
         state.CompleteDependency();
 
         _deadLookup.Update(ref state);
@@ -100,41 +89,35 @@ public partial struct SpawnStateInitSystem : ISystem
         foreach ((RefRO<NewlySpawned> _, Entity entity) in
             SystemAPI.Query<RefRO<NewlySpawned>>().WithEntityAccess())
         {
-            // Health / life state — Dead disabled means alive; units start alive.
             if (_deadLookup.HasComponent(entity))
                 _deadLookup.SetComponentEnabled(entity, false);
 
-            // Ragdoll — disabled until death. A pool-reclaimed corpse must drop the ragdoll it was
-            // launched with before it can be handed out as a fresh spawn.
+            // A pool-reclaimed corpse must drop the ragdoll it was launched with.
             if (_ragdollActorLookup.HasComponent(entity))
                 _ragdollActorLookup.SetComponentEnabled(entity, false);
             if (_ragdollLaunchLookup.HasComponent(entity))
                 _ragdollLaunchLookup.SetComponentEnabled(entity, false);
 
-            // Faction / revive state — citizens start as neither undead nor minion.
             if (_undeadLookup.HasComponent(entity))
                 _undeadLookup.SetComponentEnabled(entity, false);
             if (_minionLookup.HasComponent(entity))
                 _minionLookup.SetComponentEnabled(entity, false);
             if (_reviveLookup.HasComponent(entity))
                 _reviveLookup.SetComponentEnabled(entity, false);
-            // A pool-reclaimed body must never carry the conversion the previous life requested.
+            // A reclaimed body must not carry the previous life's conversion request.
             if (_zombifyLookup.HasComponent(entity))
                 _zombifyLookup.SetComponentEnabled(entity, false);
             if (_selectedLookup.HasComponent(entity))
                 _selectedLookup.SetComponentEnabled(entity, false);
-            // A pool-reclaimed body must never carry the previous life's cutscene binding, nor the
-            // "we already asked it to walk to a mark" flag, which would swallow its next order.
+            // Stale cutscene binding or mark-issued flag would swallow the next order.
             if (_cutsceneActorLookup.HasComponent(entity))
                 _cutsceneActorLookup.SetComponentEnabled(entity, false);
             if (_cutsceneMarkIssuedLookup.HasComponent(entity))
                 _cutsceneMarkIssuedLookup.SetComponentEnabled(entity, false);
-            // A pool-reclaimed corpse still lying from its last life stands straight back up: Restoring makes
-            // FakeRagdollPoseSystem put its rest pose back and switch the knock-down off.
+            // Restoring makes FakeRagdollPoseSystem put the rest pose back for a reclaimed corpse.
             if (_fakeRagdollLookup.HasComponent(entity) && _fakeRagdollLookup.IsComponentEnabled(entity))
                 _fakeRagdollLookup.GetRefRW(entity).ValueRW.phase = FakeRagdollPhase.Restoring;
 
-            // Pathfinding — disabled until a path is requested.
             if (_pathRequestLookup.HasComponent(entity))
                 _pathRequestLookup.SetComponentEnabled(entity, false);
             if (_dStarLookup.HasComponent(entity))
@@ -146,28 +129,21 @@ public partial struct SpawnStateInitSystem : ISystem
             if (_hordeLookup.HasComponent(entity))
                 _hordeLookup.SetComponentEnabled(entity, false);
 
-            // v2 utility brain — enabled on spawn so the new pipeline starts immediately.
             if (_utilityBrainV2Lookup.HasComponent(entity))
                 _utilityBrainV2Lookup.SetComponentEnabled(entity, true);
 
-            // Movement/Gravity — disabled by a previous death; a reclaimed pool unit must
-            // start able to move and fall again.
+            // Death disables Movement and Gravity; a reclaimed unit must move and fall again.
             if (_movementLookup.HasComponent(entity))
                 _movementLookup.SetComponentEnabled(entity, true);
             if (_gravityLookup.HasComponent(entity))
                 _gravityLookup.SetComponentEnabled(entity, true);
 
-            // Playback layers — a reclaimed actor may carry stale state from its previous life (a
-            // corpse's finished Death clip, mid-blend Action layer). Hard-stop every layer in the
-            // six-layer convention (§4) so UnitAnimationAssignmentSystem's IsPlaying check reads
-            // false and re-issues the Base idle clip fresh, rather than reading a stale "is playing"
-            // answer from the layer's leftover state.
+            // Hard-stop every layer so UnitAnimationAssignmentSystem's IsPlaying check reads false
+            // and re-issues the Base idle clip, not a stale clip from the previous life.
             if (_animationCommandPendingLookup.HasComponent(entity) && _animationCommandLookup.HasBuffer(entity))
             {
                 DynamicBuffer<AnimationCommand> resetCommands = _animationCommandLookup[entity];
-                // Six-layer convention (Base/Action/Override/Face/Eyes/Mouth = indices 0-5); the
-                // AnimationToolkitLayer enum that used to name this is gone (ActorProfileCutover P4),
-                // but raw layer indices stay legal for this kind of hard reset (spec §5 P4).
+                // Layers 0-5: Base/Action/Override/Face/Eyes/Mouth.
                 for (byte layerIndex = 0; layerIndex <= 5; layerIndex++)
                 {
                     PlaybackApi.Stop(

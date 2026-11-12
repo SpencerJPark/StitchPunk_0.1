@@ -2,14 +2,9 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 
-// Converts a LIVING unit into its zombie form by composing the two mechanisms that already exist:
-// SwapBrainRequest (unit type, faction, attacks, motivations) and ChangeDesignRequest (skin tag +
-// alternate palette colours). Corpses are ReviveRequestSystem's job — this one only touches units
-// whose Dead is disabled.
-//
-// Ordered between ReviveRequestSystem and SwapBrainSystem so the swap this stamps is consumed in
-// the SAME frame, and DesignSystemGroup (after Health) applies the re-skin the same frame too — the
-// conversion is visible on the frame it is requested.
+// Converts a living unit into its zombie form via SwapBrainRequest and ChangeDesignRequest.
+// Corpses are ReviveRequestSystem's job.
+// Ordered before SwapBrainSystem so the swap and the re-skin both land on the frame it is requested.
 [BurstCompile]
 [UpdateInGroup(typeof(HealthSystemGroup))]
 [UpdateAfter(typeof(ReviveRequestSystem))]
@@ -20,9 +15,7 @@ public partial struct ZombifySystem : ISystem
     private ComponentLookup<ChangeDesignRequest> changeDesignLookup;
     private ComponentLookup<Undead>              undeadLookup;
 
-    // The documented conversion convention (see CharacterPalette / ChangeDesignRequest): the skin
-    // group's shape tag moves to the zombie designs, and every palette entry switches to its
-    // alternative colour, so the character keeps its rolled identity in zombie form.
+    // Skin shape tag moves to the zombie designs; palette entries switch to alternate colours.
     private FixedString32Bytes skinPaletteGroup;
     private FixedString32Bytes zombiePaletteTag;
 
@@ -64,8 +57,7 @@ public partial struct ZombifySystem : ISystem
 }
 
 [BurstCompile]
-// Dead disabled = alive. A unit with no Dead component (nothing that HealthAuthoring baked) is not
-// convertible and is filtered out here rather than half-converted.
+// Dead disabled = alive. Units with no Dead component are filtered out rather than half-converted.
 [WithDisabled(typeof(Dead))]
 public partial struct ZombifyJob : IJobEntity
 {
@@ -77,8 +69,7 @@ public partial struct ZombifyJob : IJobEntity
     public FixedString32Bytes zombiePaletteTag;
     public float deltaTime;
 
-    // Single-threaded .Schedule() — the ComponentLookup writes below are unrestricted, and a
-    // conversion is a rare one-shot with nothing to gain from parallelism.
+    // Single-threaded because the ComponentLookup writes below are unrestricted.
     public void Execute(
         Entity entity,
         ref ZombifyRequest zombifyRequest,
@@ -92,8 +83,7 @@ public partial struct ZombifyJob : IJobEntity
                 return;
         }
 
-        // No declared converted form (or already in it) — consume and stay as-is, mirroring the
-        // revive path's becomesUnitType == None rule.
+        // No converted form (or already in it): consume the request and stay as-is.
         UnitType targetUnitType = zombifyRequest.targetUnitType;
         if (targetUnitType == UnitType.None)
         {
@@ -111,18 +101,13 @@ public partial struct ZombifyJob : IJobEntity
             return;
         }
 
-        // A swap is already in flight this frame (a revive stamped one just before us, and
-        // SwapBrainSystem will consume it below). Overwriting it would lose that conversion, and
-        // SwapBrainSystem's end-of-frame ECB would disable the request we just enabled — so wait a
-        // frame with the request still enabled instead.
+        // A swap is already in flight (a revive stamped one). Overwriting it would lose that
+        // conversion, so wait a frame with this request still enabled.
         if (swapBrainLookup.IsComponentEnabled(entity))
             return;
 
         swapBrainLookup[entity] = new SwapBrainRequest { newUnit = targetUnitType };
         swapBrainLookup.SetComponentEnabled(entity, true);
-
-        // SwapBrainSystem fires ActionInterruptRequest itself, so the live behavior is torn down
-        // and re-decided with the new brain — nothing to fire here.
 
         if (changeDesignLookup.HasComponent(entity))
         {
@@ -140,7 +125,6 @@ public partial struct ZombifyJob : IJobEntity
             changeDesignLookup.SetComponentEnabled(entity, true);
         }
 
-        // Same end state as a reanimated corpse: the unit is undead from here on.
         if (undeadLookup.HasComponent(entity))
             undeadLookup.SetComponentEnabled(entity, true);
 
