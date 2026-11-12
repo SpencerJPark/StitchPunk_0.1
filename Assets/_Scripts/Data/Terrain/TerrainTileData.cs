@@ -1,4 +1,16 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
+
+[Serializable]
+public struct TerrainTileAreaEntry
+{
+    public string featureId;
+    public TerrainAreaRecipe recipe;
+    public int seed;
+    public int cropIndex;
+    public float rowDirectionDegrees;
+}
 
 [CreateAssetMenu(menuName = "Stitch Punk/Terrain/Tile Data", fileName = "TerrainTileData")]
 public class TerrainTileData : ScriptableObject
@@ -18,6 +30,8 @@ public class TerrainTileData : ScriptableObject
     public float[] handHeightDelta;
     public float[] riverHeightDelta;
     public float[] roadHeightDelta;
+    [Tooltip("Building pads; part of the HeightAt sum.")]
+    public float[] areaHeightDelta;
 
     public Texture2D baseMask;
     [Tooltip("RGBA paint overlay, A = painted.")]
@@ -26,6 +40,11 @@ public class TerrainTileData : ScriptableObject
     [Tooltip("R shallow water, G deep water, B mud.")]
     public Texture2D surfaceOverlay;
     public Texture2D compositeSdf;
+
+    [Tooltip("areaIndex - 1 indexes this list")]
+    public List<TerrainTileAreaEntry> areaEntries;
+    [Tooltip("R = areaIndex, G = edge distance byte, A = 255 where the area paints ground")]
+    public Texture2D areaMask;
 
     public bool handAuthored;
     public int revision;
@@ -51,6 +70,10 @@ public class TerrainTileData : ScriptableObject
         {
             roadHeightDelta = new float[HeightSampleCount];
         }
+        if (areaHeightDelta == null || areaHeightDelta.Length != HeightSampleCount)
+        {
+            areaHeightDelta = new float[HeightSampleCount];
+        }
     }
 
     public float HeightAt(int sampleX, int sampleZ)
@@ -61,7 +84,8 @@ public class TerrainTileData : ScriptableObject
         return ValueOrZero(baseHeights, index)
             + ValueOrZero(handHeightDelta, index)
             + ValueOrZero(riverHeightDelta, index)
-            + ValueOrZero(roadHeightDelta, index);
+            + ValueOrZero(roadHeightDelta, index)
+            + ValueOrZero(areaHeightDelta, index);
     }
 
     public float SampleBilinear(float worldX, float worldZ)
@@ -85,7 +109,7 @@ public class TerrainTileData : ScriptableObject
         int clampedX = Mathf.Clamp(sampleX, 0, HeightSamplesPerSide - 1);
         int clampedZ = Mathf.Clamp(sampleZ, 0, HeightSamplesPerSide - 1);
         int index = clampedZ * HeightSamplesPerSide + clampedX;
-        return ValueOrZero(baseHeights, index) + ValueOrZero(handHeightDelta, index) + ValueOrZero(riverHeightDelta, index);
+        return ValueOrZero(baseHeights, index) + ValueOrZero(handHeightDelta, index) + ValueOrZero(riverHeightDelta, index) + ValueOrZero(areaHeightDelta, index);
     }
 
     public float SampleBilinearExcludingRoad(float worldX, float worldZ)
@@ -109,7 +133,7 @@ public class TerrainTileData : ScriptableObject
         int clampedX = Mathf.Clamp(sampleX, 0, HeightSamplesPerSide - 1);
         int clampedZ = Mathf.Clamp(sampleZ, 0, HeightSamplesPerSide - 1);
         int index = clampedZ * HeightSamplesPerSide + clampedX;
-        return ValueOrZero(baseHeights, index) + ValueOrZero(handHeightDelta, index) + ValueOrZero(roadHeightDelta, index);
+        return ValueOrZero(baseHeights, index) + ValueOrZero(handHeightDelta, index) + ValueOrZero(roadHeightDelta, index) + ValueOrZero(areaHeightDelta, index);
     }
 
     public float SampleBilinearExcludingRiver(float worldX, float worldZ)

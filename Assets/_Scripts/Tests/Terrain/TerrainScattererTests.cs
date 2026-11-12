@@ -238,6 +238,40 @@ namespace StitchPunk.Tests
         }
 
         [Test]
+        public void PropGenerate_ThroughTileSampler_PlantsNothingInsideAnArea()
+        {
+            const int maskResolution = 16;
+            TerrainScatterSet set = BuildScatterSet(false);
+            TerrainTileData tileData = ScriptableObject.CreateInstance<TerrainTileData>();
+            try
+            {
+                tileData.coordinate = Vector2Int.zero;
+                tileData.EnsureHeightArrays();
+                Color32[] grassComposite = new Color32[maskResolution * maskResolution];
+                Color32[] areaMask = new Color32[maskResolution * maskResolution];
+                for (int texelIndex = 0; texelIndex < grassComposite.Length; texelIndex++)
+                {
+                    grassComposite[texelIndex] = new Color32(255, 0, 0, 255);
+                    bool westHalf = texelIndex % maskResolution < maskResolution / 2;
+                    areaMask[texelIndex] = westHalf ? new Color32(1, 0, 0, 255) : new Color32(0, 0, 0, 0);
+                }
+                TerrainTileSampler tileSampler = new TerrainTileSampler(tileData, grassComposite, null, areaMask, maskResolution, false);
+
+                int created = TerrainScatterGenerator.GenerateWithSampler(scatterParent, set, tileSampler, tileSampler.WorldRect, 81);
+
+                Assert.Greater(created, 0);
+                foreach (Vector3 propPosition in ChildPositions(scatterParent))
+                {
+                    Assert.GreaterOrEqual(propPosition.x, 0f, "a prop was planted on area-owned ground (west half of tile 0,0)");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(tileData);
+            }
+        }
+
+        [Test]
         public void PropGenerate_CreatesInstancesWithMarkers_AndRespectsSpacing()
         {
             TerrainScatterSet set = BuildScatterSet(false);
