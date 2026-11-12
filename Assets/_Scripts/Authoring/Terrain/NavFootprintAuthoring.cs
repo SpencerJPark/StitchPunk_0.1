@@ -18,6 +18,7 @@ public class NavFootprintAuthoring : MonoBehaviour
     }
 #endif
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<NavFootprintAuthoring>
     {
         public override void Bake(NavFootprintAuthoring authoring)

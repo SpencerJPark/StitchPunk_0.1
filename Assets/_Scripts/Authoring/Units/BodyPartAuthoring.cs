@@ -44,6 +44,7 @@ public class BodyPartAuthoring : MonoBehaviour
     [Tooltip("This part is an item attach socket (e.g. ItemLeftHand). Flagged in the BodyPart buffer.")]
     public bool isItemSocket;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<BodyPartAuthoring>
     {
         public override void Bake(BodyPartAuthoring authoring)

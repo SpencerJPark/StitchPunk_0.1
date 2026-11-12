@@ -23,6 +23,28 @@ public struct TerrainBiomeRule
     public float weight;
 }
 
+[System.Serializable]
+public struct TerrainMountainFeature
+{
+    [Tooltip("World X,Z. Same as the end point for a single peak; different for a ridge between the two.")]
+    public Vector2 startWorld;
+    public Vector2 endWorld;
+    public float radiusMetres;
+    public float heightMetres;
+}
+
+[System.Serializable]
+public struct TerrainFlatArea
+{
+    [Tooltip("World X,Z.")]
+    public Vector2 centreWorld;
+    [Tooltip("Ground is exactly heightMetres inside this radius.")]
+    public float flatRadiusMetres;
+    [Tooltip("Generated terrain is untouched beyond this radius.")]
+    public float blendEndRadiusMetres;
+    public float heightMetres;
+}
+
 [CreateAssetMenu(menuName = "Stitch Punk/Terrain/Generation Profile", fileName = "TerrainGenerationProfile")]
 public class TerrainGenerationProfile : ScriptableObject
 {
@@ -51,6 +73,15 @@ public class TerrainGenerationProfile : ScriptableObject
 
     [Tooltip("x: 0 at the foot, 1 at the peak.")]
     public AnimationCurve mountainProfile = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+
+    [Tooltip("Extra peaks and ridges, shaped by mountainProfile. Overlapping features take the highest, they do not stack.")]
+    public List<TerrainMountainFeature> mountains = new List<TerrainMountainFeature>();
+
+    [Tooltip("Added to the noise before mountains, so signed noise does not read as sea everywhere.")]
+    public float landLiftMetres = 0f;
+
+    [Tooltip("Level ground for camps and towns, blended into the terrain around it.")]
+    public List<TerrainFlatArea> flatAreas = new List<TerrainFlatArea>();
 
     public List<TerrainBiomeRule> biomeRules = new List<TerrainBiomeRule>
     {

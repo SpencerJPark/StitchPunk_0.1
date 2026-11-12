@@ -17,6 +17,7 @@ public class TerrainSpawnMarkerAuthoring : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, radiusMetres);
     }
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<TerrainSpawnMarkerAuthoring>
     {
         public override void Bake(TerrainSpawnMarkerAuthoring authoring)

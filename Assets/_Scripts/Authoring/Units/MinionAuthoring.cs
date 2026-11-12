@@ -14,6 +14,7 @@ public class MinionAuthoring : MonoBehaviour
     public GameObject selectedVisual;
     public float showScale;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<MinionAuthoring>
     {
         public override void Bake(MinionAuthoring authoring)

@@ -36,6 +36,46 @@ public static class TerrainGenerateTool
         return generatedCount;
     }
 
+    // Freshly created tiles take the terrain of the procedural region they landed in, so a grown grid is never a flat grass slab
+    // next to generated hills. Tiles outside every region are left as created.
+    public static int GenerateNewTilesInsideRegions(IReadOnlyList<Vector2Int> newTileCoordinates)
+    {
+        TerrainRegion[] regions = UnityEngine.Object.FindObjectsByType<TerrainRegion>(FindObjectsInactive.Exclude);
+        int generatedCount = 0;
+        try
+        {
+            for (int tileIndex = 0; tileIndex < newTileCoordinates.Count; tileIndex++)
+            {
+                Vector2Int coordinate = newTileCoordinates[tileIndex];
+                TerrainRegion coveringRegion = ProceduralRegionCovering(regions, coordinate);
+                if (coveringRegion == null) continue;
+
+                EditorUtility.DisplayProgressBar("Generate New Tiles", "Tile " + coordinate.x + ", " + coordinate.y,
+                    tileIndex / (float)newTileCoordinates.Count);
+                bool wasOpen = TerrainTileCreator.FindTileAt(coordinate) != null;
+                if (GenerateOneTile(coveringRegion, coordinate, false)) generatedCount++;
+                // An open tile is live-baked on every reload, so only tiles the owner opened stay open.
+                if (!wasOpen) TerrainTilesPanel.SaveAndCloseTile(coordinate);
+            }
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+        }
+        return generatedCount;
+    }
+
+    static TerrainRegion ProceduralRegionCovering(TerrainRegion[] regions, Vector2Int coordinate)
+    {
+        foreach (TerrainRegion region in regions)
+        {
+            if (region.mode == TerrainRegionMode.Hand || region.profile == null) continue;
+            foreach (Vector2Int insideCoordinate in region.TilesInside())
+                if (insideCoordinate == coordinate) return region;
+        }
+        return null;
+    }
+
     static bool GenerateOneTile(TerrainRegion region, Vector2Int coordinate, bool allowHandAuthored)
     {
         TerrainTile tile = TerrainTileCreator.FindTileAt(coordinate);

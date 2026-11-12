@@ -12,6 +12,7 @@ public class OutlineAuthoring : MonoBehaviour
     [SerializeField, Range(0f, 10f)] 
     private float outlineWidth = 2f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<OutlineAuthoring>
     {
         public override void Bake(OutlineAuthoring authoring)

@@ -8,6 +8,7 @@ public class FactoryGridAuthoring : MonoBehaviour
     public int width  = 20;
     public int height = 20;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<FactoryGridAuthoring>
     {
         public override void Bake(FactoryGridAuthoring authoring)

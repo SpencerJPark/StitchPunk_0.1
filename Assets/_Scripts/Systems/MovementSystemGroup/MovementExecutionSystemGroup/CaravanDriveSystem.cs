@@ -25,8 +25,8 @@ public partial struct CaravanDriveSystem : ISystem
     // Long enough that the front probe of a pitched body still finds the ground on a steep descent.
     private const float GROUND_PROBE_ABOVE = 8f;
     private const float GROUND_PROBE_BELOW = 14f;
-    // A miss inside the window above used to keep the old height for good: a caravan that outran tile streaming (4x time
-    // when zoomed out) was left flying over valleys or buried in hills. This long ray finds the ground again.
+    // Fallback only when neither the short ray nor the tile height field found ground (scenes without terrain tiles):
+    // a ray can miss a tile seam or start under a steep slope, the height data cannot.
     private const float REGROUND_PROBE_METRES = 1000f;
     // The body only swings round after the heading while it is actually rolling.
     private const float ROLLING_SPEED = 0.03f;
@@ -42,9 +42,12 @@ public partial struct CaravanDriveSystem : ISystem
     private const int WHEEL_REAR_LEFT = 2;
     private const int WHEEL_REAR_RIGHT = 3;
 
+    private EntityQuery loadedTileHeightFieldQuery;
+
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
+        loadedTileHeightFieldQuery = SystemAPI.QueryBuilder().WithAll<TerrainTileHeightField>().Build();
         state.RequireForUpdate<Caravan>();
         state.RequireForUpdate<VehicleLibrary>();
         state.RequireForUpdate<PhysicsWorldSingleton>();
@@ -79,6 +82,8 @@ public partial struct CaravanDriveSystem : ISystem
         ComponentLookup<Item> itemLookup = SystemAPI.GetComponentLookup<Item>(true);
         NativeList<ColliderCastHit> wallHits = new NativeList<ColliderCastHit>(16, Allocator.Temp);
         NativeList<Unity.Physics.RaycastHit> groundHits = new NativeList<Unity.Physics.RaycastHit>(8, Allocator.Temp);
+        NativeArray<TerrainTileHeightField> loadedTileHeightFields =
+            loadedTileHeightFieldQuery.ToComponentDataArray<TerrainTileHeightField>(Allocator.Temp);
 
         Entity seatedDriver = Entity.Null;
         float3 seatPosition = float3.zero;
@@ -140,7 +145,7 @@ public partial struct CaravanDriveSystem : ISystem
                 float3 bumperFootprint = position + math.rotate(yawRotation,
                     new float3(0f, 0f, profile.frontBumperLocalZ - profile.halfWidth));
                 float groundHeightAtBumper = math.max(position.y,
-                    GroundHeightUnder(collisionWorld, groundFilter, ref groundHits, bumperFootprint, caravanEntity, driverEntity));
+                    GroundHeightUnder(collisionWorld, groundFilter, ref groundHits, in loadedTileHeightFields, bumperFootprint, caravanEntity, driverEntity));
                 float allowedFraction = FrontBumperClearFraction(collisionWorld, wallFilter, ref wallHits, position, yawRotation,
                     groundHeightAtBumper - position.y, travelDirection, stepLength, ref profile, caravanEntity, driverEntity, in itemLookup);
                 if (allowedFraction < 1f)
@@ -166,7 +171,7 @@ public partial struct CaravanDriveSystem : ISystem
             {
                 float3 contactLocal = WheelContactLocal(ref profile, wheelIndex);
                 float3 probePosition = position + bodyRight * contactLocal.x + bodyForward * contactLocal.z;
-                wheelGroundFound[wheelIndex] = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits,
+                wheelGroundFound[wheelIndex] = TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits, in loadedTileHeightFields,
                     probePosition, caravanEntity, driverEntity, out float wheelGroundHeight);
                 wheelGroundHeights[wheelIndex] = wheelGroundHeight;
             }
@@ -258,6 +263,7 @@ public partial struct CaravanDriveSystem : ISystem
 
         wallHits.Dispose();
         groundHits.Dispose();
+        loadedTileHeightFields.Dispose();
     }
 
     // Fraction of this frame's step the front bumper can travel before it meets a wall (1 = clear).
@@ -301,11 +307,12 @@ public partial struct CaravanDriveSystem : ISystem
         in CollisionWorld collisionWorld,
         CollisionFilter groundFilter,
         ref NativeList<Unity.Physics.RaycastHit> groundHits,
+        in NativeArray<TerrainTileHeightField> loadedTileHeightFields,
         float3 position,
         Entity caravanEntity,
         Entity driverEntity)
     {
-        TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits, position, caravanEntity, driverEntity, out float groundHeight);
+        TryGroundHeightUnder(collisionWorld, groundFilter, ref groundHits, in loadedTileHeightFields, position, caravanEntity, driverEntity, out float groundHeight);
         return groundHeight;
     }
 
@@ -318,16 +325,19 @@ public partial struct CaravanDriveSystem : ISystem
             isFrontWheel ? profile.wheelFrontAxleLocalZ : profile.wheelRearAxleLocalZ);
     }
 
-    // groundHeight is position.y when nothing was hit.
+    // The tile height field is a floor the ray result never goes below (props above terrain still win via max).
+    // groundHeight is position.y when nothing was found.
     private static bool TryGroundHeightUnder(
         in CollisionWorld collisionWorld,
         CollisionFilter groundFilter,
         ref NativeList<Unity.Physics.RaycastHit> groundHits,
+        in NativeArray<TerrainTileHeightField> loadedTileHeightFields,
         float3 position,
         Entity caravanEntity,
         Entity driverEntity,
         out float groundHeight)
     {
+        bool fieldSampled = TerrainHeightSampler.TrySampleGroundHeight(in loadedTileHeightFields, position, out float fieldHeight);
         float3 up = new float3(0f, 1f, 0f);
         RaycastInput groundRay = new RaycastInput
         {
@@ -338,7 +348,7 @@ public partial struct CaravanDriveSystem : ISystem
 
         groundHits.Clear();
         collisionWorld.CastRay(groundRay, ref groundHits);
-        if (!HasGroundHit(ref groundHits, caravanEntity, driverEntity))
+        if (!fieldSampled && !HasGroundHit(ref groundHits, caravanEntity, driverEntity))
         {
             groundRay.Start = position + up * REGROUND_PROBE_METRES;
             groundRay.End = position - up * REGROUND_PROBE_METRES;
@@ -356,6 +366,11 @@ public partial struct CaravanDriveSystem : ISystem
             if (groundHit.Fraction >= bestFraction) continue;
             bestFraction = groundHit.Fraction;
             groundHeight = groundHit.Position.y;
+            foundGround = true;
+        }
+        if (fieldSampled)
+        {
+            groundHeight = foundGround ? math.max(groundHeight, fieldHeight) : fieldHeight;
             foundGround = true;
         }
         return foundGround;

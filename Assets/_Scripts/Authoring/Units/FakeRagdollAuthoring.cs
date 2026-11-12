@@ -17,6 +17,7 @@ public class FakeRagdollAuthoring : MonoBehaviour
         public float flailDegrees;
     }
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<FakeRagdollAuthoring>
     {
         public override void Bake(FakeRagdollAuthoring authoring)

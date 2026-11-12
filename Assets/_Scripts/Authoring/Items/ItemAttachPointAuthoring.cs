@@ -6,6 +6,7 @@ using UnityEngine;
 // Reference this child in ItemAuthoring.gripPoint on the item root so the system can find it.
 public class ItemAttachPointAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<ItemAttachPointAuthoring>
     {
         public override void Bake(ItemAttachPointAuthoring authoring)

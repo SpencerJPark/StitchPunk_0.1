@@ -16,6 +16,18 @@ public sealed class TerrainGeneratePanel : TerrainToolPanel
     readonly Button generateButton = new Button();
     readonly Button previewButton = new Button();
     readonly Label regeneratedLabel = new Label();
+    const string SeedSessionKey = "TerrainGeneratePanel.RandomWorldSeed";
+    const string SizeIndexSessionKey = "TerrainGeneratePanel.RandomWorldSizeIndex";
+    const int PreviewResolutionPixels = 128;
+    const long PreviewDebounceMilliseconds = 200;
+    static readonly int[] RandomWorldTilesPerSide = { 7, 11 };
+    readonly Image worldPreviewImage = new Image();
+    readonly IntegerField seedField = new IntegerField();
+    readonly Label buildStatusLabel = new Label();
+    Texture2D worldPreviewTexture;
+    IVisualElementScheduledItem previewDebounce;
+    int randomWorldSeed;
+    int randomWorldSizeIndex;
     TerrainRegion selectedRegion;
     IVisualElementScheduledItem refreshTimer;
     string regeneratedText = string.Empty;
@@ -34,6 +46,8 @@ public sealed class TerrainGeneratePanel : TerrainToolPanel
         Label hint = new Label("Fill a region's tiles from its profile. Preview One Tile shows heights only; the Height panel's Rebuild Tile Mesh button undoes the preview.");
         hint.AddToClassList("terrain-panel-hint");
         Add(hint);
+
+        Add(BuildRandomWorldCard());
 
         Add(regionListContainer);
 
@@ -80,11 +94,104 @@ public sealed class TerrainGeneratePanel : TerrainToolPanel
         if (refreshTimer == null) refreshTimer = schedule.Execute(RefreshRegionList).Every(1000);
         else refreshTimer.Resume();
         RefreshRegionList();
+        RenderWorldPreviewNow();
     }
 
     public override void OnHidden()
     {
         if (refreshTimer != null) refreshTimer.Pause();
+        if (previewDebounce != null) previewDebounce.Pause();
+        DestroyWorldPreviewTexture();
+    }
+
+    VisualElement BuildRandomWorldCard()
+    {
+        randomWorldSeed = SessionState.GetInt(SeedSessionKey, 12345);
+        randomWorldSizeIndex = Mathf.Clamp(SessionState.GetInt(SizeIndexSessionKey, 0), 0, RandomWorldTilesPerSide.Length - 1);
+
+        VisualElement cardBody;
+        VisualElement card = TerrainUi.MakeCard("Random world", out cardBody);
+        cardBody.Add(TerrainUi.MakeHint("Reroll until the map looks right, then build it. Hills are shaded, mountains are pale, red dots are locations, white is the camp."));
+
+        worldPreviewImage.scaleMode = ScaleMode.ScaleToFit;
+        worldPreviewImage.RegisterCallback<GeometryChangedEvent>((GeometryChangedEvent geometryChanged) =>
+        {
+            float width = worldPreviewImage.layout.width;
+            if (width > 0f && !Mathf.Approximately(worldPreviewImage.style.height.value.value, width)) worldPreviewImage.style.height = width;
+        });
+        cardBody.Add(worldPreviewImage);
+
+        VisualElement seedRow = new VisualElement();
+        seedRow.AddToClassList("terrain-row");
+        seedField.label = "Seed";
+        seedField.SetValueWithoutNotify(randomWorldSeed);
+        seedField.RegisterValueChangedCallback((ChangeEvent<int> changeEvent) => OnRandomWorldSeedChanged(changeEvent.newValue));
+        seedRow.Add(seedField);
+        seedRow.Add(TerrainUi.MakeIconSquare("Refresh", "Reroll seed", RerollRandomWorldSeed));
+        cardBody.Add(seedRow);
+
+        VisualElement sizeRow = new VisualElement();
+        sizeRow.AddToClassList("terrain-row");
+        Label sizeLabel = new Label("Size");
+        sizeLabel.AddToClassList("terrain-label");
+        sizeRow.Add(sizeLabel);
+        sizeRow.Add(TerrainUi.MakeSegmented(new string[] { "7 x 7", "11 x 11" }, randomWorldSizeIndex, OnRandomWorldSizeChanged));
+        cardBody.Add(sizeRow);
+
+        cardBody.Add(TerrainUi.MakePrimary("Build World", null, "Replace the RandomWorld terrain and scene with this seed", BuildRandomWorldAfterConfirm));
+        buildStatusLabel.AddToClassList("terrain-panel-hint");
+        cardBody.Add(buildStatusLabel);
+        return card;
+    }
+
+    void OnRandomWorldSeedChanged(int newSeed)
+    {
+        randomWorldSeed = newSeed;
+        SessionState.SetInt(SeedSessionKey, newSeed);
+        if (previewDebounce == null) previewDebounce = schedule.Execute(RenderWorldPreviewNow);
+        previewDebounce.Pause();
+        previewDebounce.ExecuteLater(PreviewDebounceMilliseconds);
+    }
+
+    void RerollRandomWorldSeed()
+    {
+        int newSeed = UnityEngine.Random.Range(1, 1000000);
+        seedField.SetValueWithoutNotify(newSeed);
+        randomWorldSeed = newSeed;
+        SessionState.SetInt(SeedSessionKey, newSeed);
+        RenderWorldPreviewNow();
+    }
+
+    void OnRandomWorldSizeChanged(int sizeIndex)
+    {
+        randomWorldSizeIndex = sizeIndex;
+        SessionState.SetInt(SizeIndexSessionKey, sizeIndex);
+        RenderWorldPreviewNow();
+    }
+
+    void RenderWorldPreviewNow()
+    {
+        if (previewDebounce != null) previewDebounce.Pause();
+        worldPreviewTexture = TerrainWorldRecipePreview.RenderToTexture(randomWorldSeed, RandomWorldTilesPerSide[randomWorldSizeIndex], PreviewResolutionPixels, worldPreviewTexture);
+        worldPreviewImage.image = worldPreviewTexture;
+    }
+
+    void DestroyWorldPreviewTexture()
+    {
+        worldPreviewImage.image = null;
+        if (worldPreviewTexture != null) Object.DestroyImmediate(worldPreviewTexture);
+        worldPreviewTexture = null;
+    }
+
+    void BuildRandomWorldAfterConfirm()
+    {
+        int tilesPerSide = RandomWorldTilesPerSide[randomWorldSizeIndex];
+        if (!EditorUtility.DisplayDialog("Build random world",
+                "Seed " + randomWorldSeed + ", " + tilesPerSide + " x " + tilesPerSide + " tiles.\n\nThis replaces Assets/Terrain/RandomWorld and the RandomWorld scene (Assets/Scenes/RandomWorld.unity).",
+                "Build World", "Cancel"))
+            return;
+        buildStatusLabel.text = TerrainRandomWorldBuilder.BuildRandomWorld(tilesPerSide, randomWorldSeed);
+        RaiseStatusChanged();
     }
 
     static int CountTiles(TerrainRegion region)

@@ -6,6 +6,7 @@ public class BrainLibraryAuthoring : MonoBehaviour
 {
     public BrainLibrarySO library;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<BrainLibraryAuthoring>
     {
         public override void Bake(BrainLibraryAuthoring authoring)

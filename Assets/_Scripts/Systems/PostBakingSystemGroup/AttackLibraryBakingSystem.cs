@@ -1,6 +1,7 @@
 using Unity.Collections;
 using Unity.Entities;
 
+[BakingVersion("stitchpunk", 1)]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct AttackLibraryBakingSystem : ISystem

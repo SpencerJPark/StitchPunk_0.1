@@ -5,6 +5,7 @@ public class AnimSoundEventLibraryAuthoring : MonoBehaviour
 {
     public AnimSoundEventMappingSO library;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<AnimSoundEventLibraryAuthoring>
     {
         public override void Bake(AnimSoundEventLibraryAuthoring authoring)

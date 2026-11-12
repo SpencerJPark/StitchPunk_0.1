@@ -69,6 +69,7 @@ public class PlayerControllerAuthoring : MonoBehaviour
     [Tooltip("Prefab with WorkstationAuthoring, instantiated when the player deploys (CampLoop_System.md §5).")]
     public GameObject workstationPrefab;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<PlayerControllerAuthoring> {
 
         public override void Bake(PlayerControllerAuthoring controllerAuthoring) {

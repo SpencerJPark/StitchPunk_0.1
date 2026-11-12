@@ -6,6 +6,7 @@ using Unity.Entities;
 // UnitBakingUtil.BakeRequirements) into the Movement component added by MovementAuthoring.
 // Units without a brain authoring (player, BaseUnit) have no UnitSpeedBakingData and keep
 // their MovementAuthoring values.
+[BakingVersion("stitchpunk", 1)]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct UnitSpeedBakingSystem : ISystem

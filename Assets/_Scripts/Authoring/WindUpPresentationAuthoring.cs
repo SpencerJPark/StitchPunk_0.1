@@ -11,6 +11,7 @@ public class WindUpPresentationAuthoring : MonoBehaviour
     [Tooltip("Visual scale multiplier at the end of the wind-up.")]
     [Range(1f, 1.5f)] public float scaleMaximum = 1.10f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<WindUpPresentationAuthoring>
     {
         public override void Bake(WindUpPresentationAuthoring authoring)

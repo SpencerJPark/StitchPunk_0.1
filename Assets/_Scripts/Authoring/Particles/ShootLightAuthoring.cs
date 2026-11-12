@@ -5,6 +5,7 @@ public class ShootLightAuthoring : MonoBehaviour
 {
     public float timer;
     
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<ShootLightAuthoring> {
         public override void Bake(ShootLightAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);

@@ -34,7 +34,94 @@ public static class TerrainNavBaker
         return tiles.Length;
     }
 
+    [MenuItem("Stitch Punk/Terrain/Bake Nav (Stale Open Tiles)")]
+    private static void BakeStaleOpenTilesMenu()
+    {
+        int bakedTileCount = BakeStaleOpenTiles(true);
+        Debug.Log("TerrainNavBaker: baked nav for " + bakedTileCount + " stale open tile(s).");
+    }
+
+    public static int BakeStaleOpenTiles(bool saveScenes)
+    {
+        TerrainTile[] tiles = Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include);
+        int bakedTileCount = 0;
+        for (int tileIndex = 0; tileIndex < tiles.Length; tileIndex++)
+        {
+            if (!IsNavStale(tiles[tileIndex]))
+            {
+                continue;
+            }
+            if (saveScenes)
+            {
+                BakeTile(tiles[tileIndex]);
+            }
+            else
+            {
+                BakeTileWithoutSaving(tiles[tileIndex]);
+            }
+            bakedTileCount++;
+        }
+        return bakedTileCount;
+    }
+
+    public static bool IsNavStale(TerrainTile tile)
+    {
+        TerrainTileNavAuthoring authoring = tile.GetComponent<TerrainTileNavAuthoring>();
+        if (authoring == null || authoring.costs == null || authoring.costs.Length != CellsPerSide * CellsPerSide)
+        {
+            return true;
+        }
+        if (tile.tileData != null && authoring.bakedFromTileDataRevision != tile.tileData.revision)
+        {
+            return true;
+        }
+        return authoring.bakedFromBlockerHash != BlockerHashOf(tile);
+    }
+
+    // Prop scatter does not bump tileData.revision, so blockers are fingerprinted separately.
+    public static int BlockerHashOf(TerrainTile tile)
+    {
+        int wallLayer = LayerMask.NameToLayer(WallLayerName);
+        if (wallLayer < 0)
+        {
+            return 0;
+        }
+        // Bounds of a collider moved this frame are stale until the transforms sync.
+        Physics.SyncTransforms();
+        Collider[] colliders = tile.GetComponentsInChildren<Collider>(false);
+        int combinedHash = 0;
+        for (int colliderIndex = 0; colliderIndex < colliders.Length; colliderIndex++)
+        {
+            Collider collider = colliders[colliderIndex];
+            if (!collider.enabled || collider.gameObject.layer != wallLayer)
+            {
+                continue;
+            }
+            Vector3 centre = collider.bounds.center;
+            Vector3 size = collider.bounds.size;
+            // Not System.HashCode: it is seeded per process, so every tile would read as stale after an Editor restart.
+            int colliderHash = 17;
+            unchecked
+            {
+                colliderHash = colliderHash * 31 + Mathf.RoundToInt(centre.x * 100f);
+                colliderHash = colliderHash * 31 + Mathf.RoundToInt(centre.y * 100f);
+                colliderHash = colliderHash * 31 + Mathf.RoundToInt(centre.z * 100f);
+                colliderHash = colliderHash * 31 + Mathf.RoundToInt(size.x * 100f);
+                colliderHash = colliderHash * 31 + Mathf.RoundToInt(size.y * 100f);
+                colliderHash = colliderHash * 31 + Mathf.RoundToInt(size.z * 100f);
+            }
+            combinedHash = unchecked(combinedHash + colliderHash);
+        }
+        return combinedHash;
+    }
+
     public static void BakeTile(TerrainTile tile)
+    {
+        BakeTileWithoutSaving(tile);
+        EditorSceneManager.SaveScene(tile.gameObject.scene);
+    }
+
+    public static void BakeTileWithoutSaving(TerrainTile tile)
     {
         int wallLayer = LayerMask.NameToLayer(WallLayerName);
         int wallLayerMask = wallLayer >= 0 ? 1 << wallLayer : 0;
@@ -54,9 +141,10 @@ public static class TerrainNavBaker
         authoring.coordinate = tile.tileCoordinate;
         authoring.costs = costs;
         authoring.surface = surface;
+        authoring.bakedFromTileDataRevision = tile.tileData != null ? tile.tileData.revision : -1;
+        authoring.bakedFromBlockerHash = BlockerHashOf(tile);
         EditorUtility.SetDirty(authoring);
         EditorSceneManager.MarkSceneDirty(tile.gameObject.scene);
-        EditorSceneManager.SaveScene(tile.gameObject.scene);
 
         int blockedCount = 0;
         int heavyCount = 0;

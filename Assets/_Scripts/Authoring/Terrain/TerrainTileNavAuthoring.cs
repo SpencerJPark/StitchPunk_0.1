@@ -12,6 +12,11 @@ public class TerrainTileNavAuthoring : MonoBehaviour
     public int layerCount = 1;
     public Vector2Int coordinate;
 
+    // What the bytes above were baked from; the editor re-bakes nav only when either no longer matches the tile.
+    public int bakedFromTileDataRevision = -1;
+    public int bakedFromBlockerHash;
+
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<TerrainTileNavAuthoring>
     {
         public override void Bake(TerrainTileNavAuthoring authoring)

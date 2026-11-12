@@ -6,6 +6,8 @@ public class TerrainTileData : ScriptableObject
     public const float TileSizeMetres = 100f;
     public const int HeightSamplesPerSide = 101;
     public const int HeightSampleCount = 101 * 101;
+    // The ground's top face sits this far under the height data, so decals and feet do not z-fight a floor at zero.
+    public const float GroundTopHeightMetres = -0.03f;
 
     public Vector2Int coordinate;
     public int maskResolution = 256;

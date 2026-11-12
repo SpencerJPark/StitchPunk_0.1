@@ -14,6 +14,7 @@ public class LoggingConfigAuthoring : MonoBehaviour
     public bool health       = true;
     public bool general      = true;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<LoggingConfigAuthoring>
     {
         public override void Bake(LoggingConfigAuthoring authoring)

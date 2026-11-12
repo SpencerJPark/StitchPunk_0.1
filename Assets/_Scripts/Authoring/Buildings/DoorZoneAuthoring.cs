@@ -25,6 +25,7 @@ public class DoorZoneAuthoring : MonoBehaviour
         Gizmos.DrawWireCube(center, size);
     }
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<DoorZoneAuthoring>
     {
         public override void Bake(DoorZoneAuthoring authoring)

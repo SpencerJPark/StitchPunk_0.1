@@ -5,6 +5,7 @@ public class ItemLibraryAuthoring : MonoBehaviour
 {
     public ItemLibrarySO library;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<ItemLibraryAuthoring>
     {
         public override void Bake(ItemLibraryAuthoring authoring)

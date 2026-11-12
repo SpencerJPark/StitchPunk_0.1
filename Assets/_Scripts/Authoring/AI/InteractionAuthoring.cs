@@ -10,6 +10,7 @@ public class InteractionAuthoring : MonoBehaviour
     [Tooltip("Whether the player can directly target and interact with this entity.")]
     public bool playerInteractable;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<InteractionAuthoring>
     {
         public override void Bake(InteractionAuthoring authoring)

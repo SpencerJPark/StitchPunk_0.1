@@ -20,6 +20,7 @@ public class TerrainWorldAuthoring : MonoBehaviour
     public int maxLoadsPerFrame = 1;
     public List<TerrainTileSceneRef> tiles = new List<TerrainTileSceneRef>();
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<TerrainWorldAuthoring>
     {
         public override void Bake(TerrainWorldAuthoring authoring)

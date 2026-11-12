@@ -38,7 +38,7 @@ public static class TerrainProceduralGenerator
             noiseHeight = (remapped - 0.5f) * 2f * maxAmplitude;
         }
 
-        float height = profile.baseHeightMetres + noiseHeight;
+        float height = profile.baseHeightMetres + noiseHeight + profile.landLiftMetres;
 
         if (profile.mountainRadiusMetres > 0f)
         {
@@ -51,7 +51,55 @@ public static class TerrainProceduralGenerator
             }
         }
 
-        return Mathf.Max(height, profile.flattenBelowMetres);
+        if (profile.mountains != null)
+        {
+            Vector2 worldPoint = new Vector2(worldX, worldZ);
+            float tallestContribution = 0f;
+            for (int mountainIndex = 0; mountainIndex < profile.mountains.Count; mountainIndex++)
+            {
+                TerrainMountainFeature mountain = profile.mountains[mountainIndex];
+                if (mountain.radiusMetres <= 0f) continue;
+
+                float distanceToFeature = DistanceToSegment(worldPoint, mountain.startWorld, mountain.endWorld);
+                if (distanceToFeature >= mountain.radiusMetres) continue;
+
+                float closeness = 1f - distanceToFeature / mountain.radiusMetres;
+                float profileValue = profile.mountainProfile != null ? profile.mountainProfile.Evaluate(closeness) : closeness;
+                tallestContribution = Mathf.Max(tallestContribution, mountain.heightMetres * profileValue);
+            }
+            height += tallestContribution;
+        }
+
+        height = Mathf.Max(height, profile.flattenBelowMetres);
+
+        // Last, so a flat area wins over the mountains and the sea floor clamp inside its radius.
+        if (profile.flatAreas != null)
+        {
+            Vector2 worldPoint = new Vector2(worldX, worldZ);
+            for (int areaIndex = 0; areaIndex < profile.flatAreas.Count; areaIndex++)
+            {
+                TerrainFlatArea flatArea = profile.flatAreas[areaIndex];
+                float distanceToCentre = Vector2.Distance(worldPoint, flatArea.centreWorld);
+                float weight;
+                if (flatArea.blendEndRadiusMetres <= flatArea.flatRadiusMetres)
+                    weight = distanceToCentre <= flatArea.flatRadiusMetres ? 0f : 1f;
+                else
+                    weight = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(flatArea.flatRadiusMetres, flatArea.blendEndRadiusMetres, distanceToCentre));
+                height = Mathf.Lerp(flatArea.heightMetres, height, weight);
+            }
+        }
+
+        return height;
+    }
+
+    private static float DistanceToSegment(Vector2 point, Vector2 segmentStart, Vector2 segmentEnd)
+    {
+        Vector2 segment = segmentEnd - segmentStart;
+        float lengthSquared = segment.sqrMagnitude;
+        if (lengthSquared <= 0f) return Vector2.Distance(point, segmentStart);
+
+        float along = Mathf.Clamp01(Vector2.Dot(point - segmentStart, segment) / lengthSquared);
+        return Vector2.Distance(point, segmentStart + segment * along);
     }
 
     public static void GenerateHeights(TerrainGenerationProfile profile, Vector2Int tileCoordinate, float[] outHeights)

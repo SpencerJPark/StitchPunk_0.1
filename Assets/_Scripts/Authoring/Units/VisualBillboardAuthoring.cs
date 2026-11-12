@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class VisualBillboardAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<VisualBillboardAuthoring>
     {
         public override void Bake(VisualBillboardAuthoring authoring)

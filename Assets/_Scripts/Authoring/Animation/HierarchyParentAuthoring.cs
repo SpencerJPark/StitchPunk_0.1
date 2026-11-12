@@ -6,6 +6,7 @@ public class HierarchyParentAuthoring : MonoBehaviour
 {
     public bool includeAllDescendants = true;
     
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<HierarchyParentAuthoring>
     {
         public override void Bake(HierarchyParentAuthoring authoring)

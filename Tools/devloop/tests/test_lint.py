@@ -133,6 +133,53 @@ class LintRulesTests(unittest.TestCase):
         ]
         self.assertEqual([], single_letter_findings)
 
+    def test_baking_version_rule_flags_baker_without_attribute_but_not_with_one_or_in_comment(self) -> None:
+        unversioned_path: str = _write_temporary_csharp_file(
+            self.temporary_directory,
+            "UnversionedAuthoring.cs",
+            "public class UnversionedAuthoring\n{\n    class Baker : Baker<UnversionedAuthoring>\n    {\n    }\n}\n",
+        )
+        versioned_path: str = _write_temporary_csharp_file(
+            self.temporary_directory,
+            "VersionedAuthoring.cs",
+            "[BakingVersion(\"stitchpunk\", 1)]\npublic class VersionedAuthoring\n{\n"
+            "    class Baker : Baker<VersionedAuthoring>\n    {\n    }\n}\n",
+        )
+        commented_path: str = _write_temporary_csharp_file(
+            self.temporary_directory,
+            "CommentedAuthoring.cs",
+            "public class CommentedAuthoring\n{\n    // class Baker : Baker<CommentedAuthoring>\n}\n",
+        )
+        baking_system_path: str = _write_temporary_csharp_file(
+            self.temporary_directory,
+            "UnversionedBakingSystem.cs",
+            "[WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]\npublic partial class UnversionedBakingSystem\n{\n}\n",
+        )
+
+        report: lint.LintReport = lint.lint_paths(
+            self.temporary_directory, [unversioned_path, versioned_path, commented_path, baking_system_path]
+        )
+
+        self.assertEqual(
+            ["UnversionedAuthoring.cs", "UnversionedBakingSystem.cs"],
+            sorted(finding.file_path for finding in report.findings),
+        )
+        self.assertTrue(all(finding.rule_id == "baking-version" for finding in report.findings))
+
+    def test_baking_version_rule_flags_changed_baker_only_when_no_changed_line_mentions_the_attribute(self) -> None:
+        source_text: str = "[BakingVersion(\"stitchpunk\", 2)]\npublic class Authoring\n{\n}\n"
+
+        stale_findings: list[lint.LintFinding] = lint._unbumped_baking_version_findings(
+            "Authoring.cs", source_text, ["        int added = 1;"]
+        )
+        bumped_findings: list[lint.LintFinding] = lint._unbumped_baking_version_findings(
+            "Authoring.cs", source_text, ["[BakingVersion(\"stitchpunk\", 1)]", "[BakingVersion(\"stitchpunk\", 2)]"]
+        )
+
+        self.assertEqual(1, len(stale_findings))
+        self.assertEqual("baking-version", stale_findings[0].rule_id)
+        self.assertEqual([], bumped_findings)
+
 
 if __name__ == "__main__":
     unittest.main()

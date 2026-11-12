@@ -8,6 +8,7 @@ public class BaseParentAuthoring : MonoBehaviour
 {
     [FormerlySerializedAs("characterRoot")] public GameObject parentEntity;
     
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<BaseParentAuthoring>
     {
         public override void Bake(BaseParentAuthoring authoring)

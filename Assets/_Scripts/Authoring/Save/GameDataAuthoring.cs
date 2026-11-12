@@ -22,6 +22,7 @@ public class GameDataAuthoring : MonoBehaviour
     [Range(0f, 1f)] public float sfxVolume     = 0.9f;
     [Range(0f, 1f)] public float ambientVolume = 0.7f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<GameDataAuthoring>
     {
         public override void Bake(GameDataAuthoring authoring)

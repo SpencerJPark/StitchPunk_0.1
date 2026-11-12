@@ -5,6 +5,7 @@ public class EffectLibraryAuthoring : MonoBehaviour
 {
     public EffectLibrarySO library;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<EffectLibraryAuthoring>
     {
         public override void Bake(EffectLibraryAuthoring authoring)

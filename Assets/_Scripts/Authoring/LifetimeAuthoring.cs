@@ -5,6 +5,7 @@ public class LifetimeAuthoring : MonoBehaviour
 {
     public float seconds = 3f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<LifetimeAuthoring>
     {
         public override void Bake(LifetimeAuthoring authoring)

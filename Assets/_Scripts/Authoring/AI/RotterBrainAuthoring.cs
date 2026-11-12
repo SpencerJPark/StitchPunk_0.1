@@ -6,6 +6,7 @@ public class RotterBrainAuthoring : MonoBehaviour
     public bool active = true;
     public UnitLibrarySO unitLibrary;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<RotterBrainAuthoring>
     {
         public override void Bake(RotterBrainAuthoring authoring)

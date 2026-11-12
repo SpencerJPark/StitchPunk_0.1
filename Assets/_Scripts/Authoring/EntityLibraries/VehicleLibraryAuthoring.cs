@@ -5,6 +5,7 @@ public class VehicleLibraryAuthoring : MonoBehaviour
 {
     public VehicleLibrarySO library;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<VehicleLibraryAuthoring>
     {
         public override void Bake(VehicleLibraryAuthoring authoring)

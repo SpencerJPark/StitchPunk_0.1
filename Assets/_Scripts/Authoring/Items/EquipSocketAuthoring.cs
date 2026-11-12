@@ -5,6 +5,7 @@ using UnityEngine;
 // Marks this entity as the socket point that items snap to when equipped.
 public class EquipSocketAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<EquipSocketAuthoring>
     {
         public override void Bake(EquipSocketAuthoring authoring)

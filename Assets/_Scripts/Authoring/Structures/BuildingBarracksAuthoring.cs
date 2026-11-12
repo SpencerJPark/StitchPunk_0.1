@@ -6,6 +6,7 @@ public class BuildingBarracksAuthoring : MonoBehaviour {
     
     public float progressMax;
     
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<BuildingBarracksAuthoring> {
         public override void Bake(BuildingBarracksAuthoring authoring) {
             Entity entity = GetEntity(TransformUsageFlags.Dynamic);

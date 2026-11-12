@@ -34,6 +34,7 @@ public class CaravanAuthoring : MonoBehaviour
     public float smokeCoverDelaySeconds = 0.35f;
     public float smokeLingerSeconds = 1.5f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<CaravanAuthoring>
     {
         public override void Bake(CaravanAuthoring authoring)

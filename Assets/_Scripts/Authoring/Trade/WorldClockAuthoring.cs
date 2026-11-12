@@ -9,6 +9,7 @@ public class WorldClockAuthoring : MonoBehaviour
     [Tooltip("A day and a new week begin here. 0.25 = 06:00.")]
     [Range(0f, 1f)] public float dayStartTimeOfDay01 = 0.25f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<WorldClockAuthoring>
     {
         public override void Bake(WorldClockAuthoring authoring)

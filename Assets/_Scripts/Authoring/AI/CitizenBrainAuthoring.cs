@@ -10,6 +10,7 @@ public class CitizenBrainAuthoring : MonoBehaviour
              "Leave null if this unit cannot visually hold items.")]
     public GameObject handSocket;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<CitizenBrainAuthoring>
     {
         public override void Bake(CitizenBrainAuthoring authoring)

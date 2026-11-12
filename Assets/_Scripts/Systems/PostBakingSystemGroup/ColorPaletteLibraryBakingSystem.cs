@@ -13,6 +13,7 @@ using UnityEngine;
 // raw — unlike the material inspector it does NOT auto-convert colour properties — and the project
 // renders in Linear. Skipping this washes every palette colour out (same gotcha as
 // BodyPartAuthoring's tintColor bake).
+[BakingVersion("stitchpunk", 1)]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
 public partial struct ColorPaletteLibraryBakingSystem : ISystem

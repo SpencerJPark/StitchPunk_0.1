@@ -852,3 +852,8 @@ The trade letter used `top: 50%; margin-top: -260px` and grew with its offers; f
 - The first streaming update must load the ring with `BlockOnImport | BlockOnStreamIn`; units simulate from frame one and fall through ground that is still streaming.
 - A new `.cs` whose `.meta` is written after Unity's compile started can be left out of its assembly for good, with no error. `AssetDatabase.MoveAsset` re-registers it.
 - A test that creates GameObjects in the ACTIVE scene can leak them into `CampLoop.unity` on the next `SaveScene(active)` (it once grew 100k lines). Run such tests in `EditorSceneManager.NewPreviewScene()` and check `git diff --stat Assets/Scenes/CampLoop.unity` afterwards.
+
+## Every Baker and baking system carries `[BakingVersion]`: bump it when baked output changes (2026-11-11)
+- Without the attribute Unity keys every subscene import on the assembly's module id. 16 baking systems live in `StitchPunk.Systems`, so any system edit re-imported every subscene. With it (`[BakingVersion("stitchpunk", N)]` on all of them), a subscene re-bakes only when its own content, a type it uses, or a version number changes.
+- The trap this buys: edit a `Bake` body and forget to bump N, and every cached subscene keeps the OLD bake with no error. `devloop lint` rule `baking-version` flags a changed baker file whose version line did not change, and any baker that lacks the attribute (one unversioned baker puts the whole assembly back on rebake-on-every-change, with a console warning).
+- Never hash editor-persisted state with `System.HashCode`: it is seeded per process, so the value changes on every Editor restart (`TerrainNavBaker.BlockerHashOf` uses a hand-rolled combine).

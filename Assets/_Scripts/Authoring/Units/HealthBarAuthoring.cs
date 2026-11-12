@@ -7,6 +7,7 @@ public class HealthBarAuthoring : MonoBehaviour {
     public GameObject healthGameObject;
 
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<HealthBarAuthoring> {
         
         public override void Bake(HealthBarAuthoring authoring) {

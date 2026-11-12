@@ -25,6 +25,7 @@ public class LegacyEntityLibraryAuthoring : MonoBehaviour {
     public GameObject buildingConstructionPrefabGameObject;
 
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<LegacyEntityLibraryAuthoring> {
 
 

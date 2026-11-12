@@ -11,6 +11,7 @@ public class PigeonArmTargetAuthoring : MonoBehaviour
         Gizmos.DrawLine(transform.position, transform.position + Vector3.up * 0.3f);
     }
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<PigeonArmTargetAuthoring>
     {
         public override void Bake(PigeonArmTargetAuthoring authoring)

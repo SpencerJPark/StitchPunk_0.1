@@ -11,6 +11,7 @@ public class ColorPaletteLibraryAuthoring : MonoBehaviour
     [Tooltip("ScriptableObject holding every ColorPaletteSO that should be baked into the ColorPaletteLibrary blob.")]
     public ColorPaletteLibrarySO library;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<ColorPaletteLibraryAuthoring>
     {
         public override void Bake(ColorPaletteLibraryAuthoring authoring)

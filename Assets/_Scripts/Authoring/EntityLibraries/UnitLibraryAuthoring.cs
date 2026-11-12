@@ -5,6 +5,7 @@ public class UnitLibraryAuthoring : MonoBehaviour
 {
     public UnitLibrarySO unitLibrary;
 
+    [BakingVersion("stitchpunk", 1)]
     public class UnitLibraryBaker : Baker<UnitLibraryAuthoring>
     {
         public override void Bake(UnitLibraryAuthoring authoring)

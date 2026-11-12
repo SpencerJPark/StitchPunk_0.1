@@ -12,6 +12,7 @@ public class EmotePoolAuthoring : MonoBehaviour
     public float viewDistance = 35f;
     public float headHeight = 2.1f;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<EmotePoolAuthoring>
     {
         public override void Bake(EmotePoolAuthoring authoring)

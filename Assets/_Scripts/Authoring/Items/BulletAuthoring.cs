@@ -8,6 +8,7 @@ public class BulletAuthoring : MonoBehaviour {
     public int damageAmount;
 
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<BulletAuthoring> {
 
 

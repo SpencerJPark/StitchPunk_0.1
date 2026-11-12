@@ -9,6 +9,7 @@ public class ResourceNodeAuthoring : MonoBehaviour
     public float harvestSeconds = 3f;
     public int loadPerTrip = 1;
 
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<ResourceNodeAuthoring>
     {
         public override void Bake(ResourceNodeAuthoring authoring)

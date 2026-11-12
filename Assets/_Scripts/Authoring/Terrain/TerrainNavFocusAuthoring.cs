@@ -6,6 +6,7 @@ using UnityEngine;
 [AddComponentMenu("Stitch Punk/Terrain/Nav Focus")]
 public class TerrainNavFocusAuthoring : MonoBehaviour
 {
+    [BakingVersion("stitchpunk", 1)]
     public class Baker : Baker<TerrainNavFocusAuthoring>
     {
         public override void Bake(TerrainNavFocusAuthoring authoring)
