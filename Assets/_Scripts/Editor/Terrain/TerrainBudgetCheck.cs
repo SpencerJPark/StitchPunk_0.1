@@ -47,12 +47,15 @@ public static class TerrainBudgetCheck
         bool overMask = result.maskResolution > MaxMaskResolution;
         bool overMesh = result.meshVertexCount > MaxMeshVertices;
         bool overRibbons = result.ribbonVertexCount > MaxRibbonVerticesPerTile;
-        result.isOverBudget = overMarkers || overMask || overMesh || overRibbons;
+        int interactablePropCap = TerrainPlatformProfile.Active.maxInteractablePropsPerTile;
+        bool overInteractableProps = result.propCount > interactablePropCap;
+        result.isOverBudget = overMarkers || overMask || overMesh || overRibbons || overInteractableProps;
 
         string markerPart = decalsPlusProps + " / " + MaxDecalsPlusPropsPerTile + " decals+props" + (overMarkers ? " OVER" : "");
         string maskPart = "mask " + result.maskResolution + (overMask ? " OVER" : "");
         string meshPart = result.meshVertexCount + " verts" + (overMesh ? " OVER" : "");
-        result.summary = markerPart + ", " + maskPart + ", " + meshPart;
+        string interactablePart = "Interactable props " + result.propCount + " / " + interactablePropCap + (overInteractableProps ? " OVER" : "");
+        result.summary = markerPart + ", " + interactablePart + ", " + maskPart + ", " + meshPart;
         if (result.ribbonVertexCount > 0)
             result.summary += ", " + result.ribbonVertexCount + " ribbon verts" + (overRibbons ? " OVER" : "");
         return result;

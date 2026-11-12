@@ -8,6 +8,12 @@ public struct TerrainScatterPrefab
     public float weight;
 }
 
+public enum TerrainScatterTier
+{
+    Interactable,
+    Dressing
+}
+
 [System.Serializable]
 public struct TerrainScatterRuleData
 {
@@ -27,6 +33,9 @@ public struct TerrainScatterRuleData
     public bool alignToNormal;
     public float densityPer100SquareMetres;
     public bool blocksNavigation;
+    public TerrainScatterTier tier;
+    public int cardAtlasEntry;
+    public Vector2 cardSizeMetres;
 }
 
 [CreateAssetMenu(menuName = "Stitch Punk/Terrain/Scatter Set", fileName = "TerrainScatterSet")]
@@ -53,6 +62,7 @@ public class TerrainScatterSet : ScriptableObject
         rule.alignToNormal = false;
         rule.densityPer100SquareMetres = 1f;
         rule.blocksNavigation = false;
+        rule.cardSizeMetres = new Vector2(3f, 5f);
         return rule;
     }
 

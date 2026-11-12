@@ -294,6 +294,20 @@ namespace StitchPunk.Tests
         }
 
         [Test]
+        public void PropGenerate_DressingTierRule_NeverInstantiatesPrefabs()
+        {
+            TerrainScatterSet set = BuildScatterSet(false);
+            TerrainScatterRuleData dressingRule = set.rules[0];
+            dressingRule.tier = TerrainScatterTier.Dressing;
+            set.rules[0] = dressingRule;
+
+            int created = TerrainScatterGenerator.GenerateWithSampler(scatterParent, set, sampler, SixtyMetreRect, 51);
+
+            Assert.AreEqual(0, created);
+            Assert.AreEqual(0, scatterParent.childCount);
+        }
+
+        [Test]
         public void PropClearUnlocked_NeverRemovesLockedProps()
         {
             TerrainScatterSet set = BuildScatterSet(false);
