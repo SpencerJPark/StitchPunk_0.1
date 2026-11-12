@@ -646,9 +646,13 @@ public static class TerrainOpenTilesSessionRestore
     const double RETRY_SECONDS = 10.0;
     static double retryUntilTime;
 
+    // Reopened once per window: a tile the user closes while the window is still running must stay closed.
+    static readonly HashSet<string> tileNamesReopenedThisWindow = new HashSet<string>();
+
     static void BeginRetryWindow()
     {
         retryUntilTime = EditorApplication.timeSinceStartup + RETRY_SECONDS;
+        tileNamesReopenedThisWindow.Clear();
     }
 
     const string OPEN_TILES_SESSION_KEY = "TerrainEditor.OpenTiles";
@@ -678,7 +682,7 @@ public static class TerrainOpenTilesSessionRestore
         foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
         {
             if (!recordedNameSet.Contains(subScene.name) || subScene.EditingScene.isLoaded) continue;
-            if (subScene.SceneAsset == null) continue;
+            if (subScene.SceneAsset == null || !tileNamesReopenedThisWindow.Add(subScene.name)) continue;
             SubSceneEditorUtility.EditScene(subScene);
         }
     }
@@ -686,8 +690,15 @@ public static class TerrainOpenTilesSessionRestore
     static void RecordOpenTilesInLoadedScenes()
     {
         List<string> openTileNames = new List<string>();
+        bool anyTileSubScene = false;
         foreach (SubScene subScene in UnityEngine.Object.FindObjectsByType<SubScene>(FindObjectsInactive.Include))
-            if (subScene.name.StartsWith("Tile_") && subScene.EditingScene.isLoaded) openTileNames.Add(subScene.name);
+        {
+            if (!subScene.name.StartsWith("Tile_")) continue;
+            anyTileSubScene = true;
+            if (subScene.EditingScene.isLoaded) openTileNames.Add(subScene.name);
+        }
+        // A scene without terrain open must not wipe the record of the terrain scene's open tiles.
+        if (!anyTileSubScene) return;
         openTileNames.Sort();
         string joinedNames = string.Join("\n", openTileNames);
         if (joinedNames != SessionState.GetString(OPEN_TILES_SESSION_KEY, "")) SessionState.SetString(OPEN_TILES_SESSION_KEY, joinedNames);

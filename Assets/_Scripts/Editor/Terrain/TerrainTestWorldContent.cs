@@ -11,8 +11,8 @@ using UnityEngine.Splines;
 // Fills the Create Test World grid: hills and one mountain, roads, a river with a ford and a bridge, props, spawn markers
 public static class TerrainTestWorldContent
 {
-    const string RoadProfilePath = "Assets/ScriptableObjects/Terrain/Roads/DirtTrack_RoadProfile.asset";
-    const string WaterMaterialPath = "Assets/PaintedGround/Materials/M_PaintedWater.mat";
+    internal const string RoadProfilePath = "Assets/ScriptableObjects/Terrain/Roads/DirtTrack_RoadProfile.asset";
+    internal const string WaterMaterialPath ="Assets/PaintedGround/Materials/M_PaintedWater.mat";
     const string RoadsRootName = "TestWorldRoads";
     const string WaterRootName = "TestWorldWater";
     const string GenerationProfileName = "TestWorldGeneration.asset";
@@ -25,7 +25,7 @@ public static class TerrainTestWorldContent
     const int DecalSeed = 1337;
     const int MarkerSeed = 99;
     const int RoadKnotCount = 9;
-    const float RoadWidthMetres = 4f;
+    internal const float RoadWidthMetres = 4f;
 
     struct WorldLayout
     {
@@ -151,7 +151,7 @@ public static class TerrainTestWorldContent
         return CreateAssetInTestFolder(profile, GenerationProfileName);
     }
 
-    static TAsset CreateAssetInTestFolder<TAsset>(TAsset asset, string fileName) where TAsset : ScriptableObject
+    internal static TAsset CreateAssetInTestFolder<TAsset>(TAsset asset, string fileName) where TAsset : ScriptableObject
     {
         string assetPath = TerrainTestWorldBuilder.ActiveTarget.tileFolder + "/" + fileName;
         if (!AssetDatabase.IsValidFolder(TerrainTestWorldBuilder.ActiveTarget.tileFolder))
@@ -232,7 +232,19 @@ public static class TerrainTestWorldContent
         FillSpline(container.Spline, knotCount, closed, knotIndex => pointAtFraction(knotIndex * fractionStep));
     }
 
-    static void FillSpline(Spline spline, int knotCount, bool closed, Func<int, Vector3> pointAtKnot)
+    internal static void CreateRoad(string roadName, Transform parent, TerrainRoadProfile roadProfile, List<Vector3> polyline)
+    {
+        GameObject roadObject = new GameObject(roadName);
+        roadObject.transform.SetParent(parent, false);
+        SplineContainer container = roadObject.AddComponent<SplineContainer>();
+        TerrainRoad road = roadObject.AddComponent<TerrainRoad>();
+        road.profile = roadProfile;
+        road.priority = 0;
+        road.widthOverrideMetres = RoadWidthMetres;
+        FillSpline(container.Spline, polyline.Count, false, knotIndex => polyline[knotIndex]);
+    }
+
+    internal static void FillSpline(Spline spline, int knotCount, bool closed, Func<int, Vector3> pointAtKnot)
     {
         spline.Clear();
         for (int knotIndex = 0; knotIndex < knotCount; knotIndex++)
@@ -318,6 +330,30 @@ public static class TerrainTestWorldContent
             TerrainScatterGenerator.Generate(tile, scatterSet, ScatterSeed, null);
     }
 
+    internal static void ScatterProps(int scatterSeed)
+    {
+        TerrainScatterSet scatterSet = FindFirstAsset<TerrainScatterSet>();
+        if (scatterSet == null)
+        {
+            Debug.LogWarning("[Terrain] No TerrainScatterSet asset in the project; trees and rocks skipped.");
+            return;
+        }
+        foreach (TerrainTile tile in UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include))
+            TerrainScatterGenerator.Generate(tile, scatterSet, scatterSeed, null);
+    }
+
+    internal static void ScatterDecals(int decalSeed)
+    {
+        TerrainDecalSet decalSet = FindFirstAsset<TerrainDecalSet>();
+        if (decalSet == null)
+        {
+            Debug.LogWarning("[Terrain] No TerrainDecalSet asset in the project; decals skipped.");
+            return;
+        }
+        foreach (TerrainTile tile in UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include))
+            TerrainDecalScatterer.Scatter(tile, decalSet, decalSeed, null);
+    }
+
     static void ScatterDecals(WorldLayout layout)
     {
         TerrainDecalSet decalSet = FindFirstAsset<TerrainDecalSet>();
@@ -355,7 +391,7 @@ public static class TerrainTestWorldContent
         }
     }
 
-    static void PlaceOneMarker(Vector3 position, bool persistent, int index)
+    internal static void PlaceOneMarker(Vector3 position, bool persistent, int index)
     {
         Vector2Int coordinate = TerrainTile.CoordinateContaining(position);
         TerrainTile tile = TerrainTileCreator.FindTileAt(coordinate);

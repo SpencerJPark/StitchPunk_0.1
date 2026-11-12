@@ -82,7 +82,7 @@ public static class TerrainNavAutoBaker
         isBakingInsideSave = true;
         try
         {
-            int bakedTileCount = TerrainNavBaker.BakeStaleOpenTiles(true);
+            int bakedTileCount = TerrainNavBaker.BakeStaleOpenTiles(false);
             if (bakedTileCount > 0)
             {
                 Debug.Log("TerrainNavAutoBaker: re-baked nav for " + bakedTileCount + " stale tile(s) before Play.");

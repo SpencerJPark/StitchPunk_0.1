@@ -91,6 +91,11 @@
     margin-bottom: 8px;
 }
 
+/* R07/R08: a field sharing a row with an icon button takes the leftover width */
+.terrain-row > IntegerField {
+    flex-grow: 1;
+}
+
 .terrain-label {
     width: 96px;
     flex-shrink: 0;

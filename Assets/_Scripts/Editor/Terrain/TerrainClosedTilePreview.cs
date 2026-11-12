@@ -49,6 +49,7 @@ public static class TerrainClosedTilePreview
     static void PollWhileEditing()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+        if (EditorApplication.isCompiling || EditorApplication.isUpdating) return;
         if (EditorApplication.timeSinceStartup < nextPollTime) return;
         nextPollTime = EditorApplication.timeSinceStartup + POLL_SECONDS;
         if (!IsPreviewEnabled) return;
