@@ -3,21 +3,29 @@ using System.IO;
 using UnityEngine;
 
 // Read-only scatter sampler over one tile: composite hard mask for biome, surface overlay for water, tile data for height.
+// Area-owned texels are blocked unless includeAreaTexels (WF-D17): an area's own filler plants there, tile-wide scatter must not.
 public class TerrainTileSampler : ITerrainScatterSampler
 {
     private const byte ChannelThreshold = 127;
     private const float NormalProbeMetres = 0.5f;
 
-    private readonly TerrainTile tile;
+    private readonly TerrainTileData tileData;
     private readonly Color32[] compositeMask;
     private readonly Color32[] surfaceOverlay;
+    private readonly Color32[] areaMask;
     private readonly int resolution;
+    private readonly bool includeAreaTexels;
 
     public Rect WorldRect { get; }
 
-    public TerrainTileSampler(TerrainTile tile)
+    public TerrainTileSampler(TerrainTile tile) : this(tile, false)
     {
-        this.tile = tile;
+    }
+
+    public TerrainTileSampler(TerrainTile tile, bool includeAreaTexels)
+    {
+        tileData = tile.tileData;
+        this.includeAreaTexels = includeAreaTexels;
         Vector2Int coordinate = tile.tileCoordinate;
         WorldRect = new Rect(coordinate.x * TerrainTile.TileSizeMetres - 50f, coordinate.y * TerrainTile.TileSizeMetres - 50f, TerrainTile.TileSizeMetres, TerrainTile.TileSizeMetres);
 
@@ -31,14 +39,29 @@ public class TerrainTileSampler : ITerrainScatterSampler
         Color32[] paintOverlay = ReadSameResolution(TerrainTileAssets.PaintOverlayPath(coordinate));
         Color32[] roadMask = ReadSameResolution(TerrainTileAssets.RoadMaskPath(coordinate));
         surfaceOverlay = ReadSameResolution(TerrainTileAssets.SurfaceOverlayPath(coordinate));
+        areaMask = TerrainCompositor.ReadAreaMask(tileData, resolution);
 
         compositeMask = new Color32[baseMask.Length];
-        TerrainCompositor.CompositeTexels(baseMask, paintOverlay, null, roadMask, resolution, new RectInt(0, 0, resolution, resolution), compositeMask);
+        TerrainCompositor.CompositeTexels(baseMask, areaMask, TerrainCompositor.AreaLayerColoursFor(tileData), paintOverlay, null, roadMask,
+            resolution, new RectInt(0, 0, resolution, resolution), compositeMask);
+    }
+
+    // Masks already in memory; used by tests and by callers that composited themselves.
+    public TerrainTileSampler(TerrainTileData tileData, Color32[] compositeMask, Color32[] surfaceOverlay, Color32[] areaMask, int resolution, bool includeAreaTexels)
+    {
+        this.tileData = tileData;
+        this.compositeMask = compositeMask;
+        this.surfaceOverlay = surfaceOverlay;
+        this.areaMask = areaMask;
+        this.resolution = resolution;
+        this.includeAreaTexels = includeAreaTexels;
+        Vector2 minCorner = tileData.WorldMinCorner();
+        WorldRect = new Rect(minCorner.x, minCorner.y, TerrainTileData.TileSizeMetres, TerrainTileData.TileSizeMetres);
     }
 
     public float HeightAt(float worldX, float worldZ)
     {
-        return tile.tileData.SampleBilinear(worldX, worldZ);
+        return tileData.SampleBilinear(worldX, worldZ);
     }
 
     public Vector3 NormalAt(float worldX, float worldZ)
@@ -70,6 +93,11 @@ public class TerrainTileSampler : ITerrainScatterSampler
             {
                 return false;
             }
+        }
+
+        if (!includeAreaTexels && areaMask != null && areaMask[texelIndex].r != TerrainAreaRasterizer.NoArea)
+        {
+            return false;
         }
 
         Color32 composite = compositeMask[texelIndex];

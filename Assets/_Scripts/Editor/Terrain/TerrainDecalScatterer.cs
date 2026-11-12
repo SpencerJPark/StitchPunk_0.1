@@ -84,7 +84,8 @@ public static class TerrainDecalScatterer
     public static int Scatter(TerrainTile tile, TerrainDecalSet set, int seed, Rect? worldRegion)
     {
         Transform decalParent = FindOrCreateChild(tile.transform, DecalsChildName);
-        TerrainTileSampler sampler = new TerrainTileSampler(tile);
+        // Ground decals belong inside areas too; only props are left to the area filler.
+        TerrainTileSampler sampler = new TerrainTileSampler(tile, true);
         Rect rect = sampler.WorldRect;
         if (worldRegion.HasValue)
         {

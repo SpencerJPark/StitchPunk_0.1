@@ -9,18 +9,18 @@ public class TerrainEditorWindow : EditorWindow
 {
     const string ToolIndexSessionKey = "TerrainEditor.ToolIndex";
     const int FooterRefreshMilliseconds = 500;
-    const int PanelCount = 9;
+    const int PanelCount = 10;
     const string FooterSeparator = "  \u2022  ";
 
-    static readonly string[] TabLabels = { "World", "Sculpt", "Paint", "Roads", "Water", "Decals", "Props", "Generate", "Nav" };
+    static readonly string[] TabLabels = { "World", "Sculpt", "Paint", "Features", "Roads", "Water", "Decals", "Props", "Generate", "Nav" };
     // Monochrome editor built-in icons (verified to resolve), one weight like the rest of the rail (R21).
     static readonly string[] TabIcons =
     {
-        "Grid.Default", "TerrainInspector.TerrainToolRaise", "TerrainInspector.TerrainToolSplat", "TerrainInspector.TerrainToolSmoothHeight", "d_Particle Effect",
+        "Grid.Default", "TerrainInspector.TerrainToolRaise", "TerrainInspector.TerrainToolSplat", "Tree Icon", "TerrainInspector.TerrainToolSmoothHeight", "d_Particle Effect",
         "d_Image Icon", "TerrainInspector.TerrainToolTrees", "d_Profiler.Rendering", "TerrainInspector.TerrainToolSettings"
     };
-    // Display position -> panel index (0 Tiles, 1 Paint, 2 Height, 3 Generate, 4 Roads, 5 Water, 6 Decals, 7 Scatter, 8 Nav).
-    static readonly int[] PanelIndexByTabPosition = { 0, 2, 1, 4, 5, 6, 7, 3, 8 };
+    // Display position -> panel index (0 Tiles, 1 Paint, 2 Height, 3 Generate, 4 Roads, 5 Water, 6 Decals, 7 Scatter, 8 Nav, 9 Features).
+    static readonly int[] PanelIndexByTabPosition = { 0, 2, 1, 9, 4, 5, 6, 7, 3, 8 };
 
     readonly TerrainToolPanel[] panelsByToolIndex = new TerrainToolPanel[PanelCount];
 
@@ -115,6 +115,7 @@ public class TerrainEditorWindow : EditorWindow
                 case 6: panelsByToolIndex[toolIndex] = new TerrainDecalPanel(); break;
                 case 7: panelsByToolIndex[toolIndex] = new TerrainScatterPanel(); break;
                 case 8: panelsByToolIndex[toolIndex] = new TerrainNavPanel(); break;
+                case 9: panelsByToolIndex[toolIndex] = new TerrainFeaturesPanel(); break;
             }
         }
         return panelsByToolIndex[toolIndex];
