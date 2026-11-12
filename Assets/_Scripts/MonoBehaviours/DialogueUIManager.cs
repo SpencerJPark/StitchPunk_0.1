@@ -4,46 +4,11 @@ using Unity.Entities;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>
-/// Drives the subtitle dialogue UI. Walks the DialogueSequenceSO node graph and
-/// shows the appropriate UI for each node type the player reaches.
-///
-/// How it works:
-///   DialogueStartSystem (ECS) detects the player interacting near a DialogueProvider NPC
-///   and enables ActiveDialogue on the manager entity with the sequence ID to play.
-///
-///   Each Update() this MonoBehaviour checks whether ActiveDialogue just became enabled.
-///   When a new sequence starts it builds two lookup tables from the SO, finds the entry
-///   node, then calls DisplayNode() to walk through the graph:
-///
-///   - Line node:      Show speaker name + subtitle text. Wait for the player to press
-///                     Interact, then follow the "out" connection to the next node.
-///   - Decision node:  Show choice buttons (one per branch). When the player picks one,
-///                     follow that branch's output connection to the next node.
-///   - Event node:     Fire the event ID via OnDialogueEvent, then immediately follow
-///                     "out" without waiting for player input.
-///   - End node:       Close the dialogue panel and mark the sequence as played.
-///
-/// Entry point selection:
-///   On first play the Start node is used. If the sequence has been played before AND a
-///   Refresher node exists in the tree, execution starts from the Refresher node instead.
-///   A sequence is only marked as played when it ends naturally via an End node.
-///
-/// Registry:
-///   Populate sequenceAssets in the inspector with every DialogueSequenceSO used in
-///   this scene. A Dictionary is built at Awake for O(1) lookup.
-///
-/// Choice buttons:
-///   Wire up as many Button + Label pairs in choiceButtons / choiceButtonLabels as the
-///   maximum number of Decision branches you expect in this scene. Unused buttons are
-///   hidden automatically. Branches beyond the wired button count are silently skipped.
-/// </summary>
+// Walks the DialogueSequenceSO node graph that DialogueStartSystem enables via ActiveDialogue.
+// A sequence is marked played only when it ends through an End node; a played sequence starts at its Refresher node if one exists.
+// Decision branches beyond the wired choice button count are silently skipped.
 public class DialogueUIManager : MonoBehaviour
 {
-    // ------------------------------------------------------------------
-    // Inspector references
-    // ------------------------------------------------------------------
-
     [Header("Canvas References")]
     [Tooltip("Root panel shown when dialogue is active. Hidden when dialogue ends.")]
     [SerializeField] private GameObject dialoguePanel;
@@ -70,38 +35,17 @@ public class DialogueUIManager : MonoBehaviour
              "The manager builds a Dictionary<int, SO> from this list at Awake for fast lookup.")]
     [SerializeField] private List<DialogueSequenceSO> sequenceAssets;
 
-    // ------------------------------------------------------------------
-    // ECS references (resolved in Start)
-    // ------------------------------------------------------------------
-
     private EntityManager entityManager;
     private Entity managerEntity;
     private Entity playerEntity;
     private Entity gameDataEntity;
 
-    // ------------------------------------------------------------------
-    // Asset registry
-    // ------------------------------------------------------------------
-
     private Dictionary<int, DialogueSequenceSO> sequenceRegistry = new Dictionary<int, DialogueSequenceSO>();
 
-    // ------------------------------------------------------------------
-    // Node graph lookup tables (rebuilt each time a new sequence starts)
-    // ------------------------------------------------------------------
-
-    /// <summary>Maps nodeId → node data for the currently playing sequence.</summary>
     private Dictionary<string, DialogueNodeData> nodeById = new Dictionary<string, DialogueNodeData>();
 
-    /// <summary>
-    /// Maps (fromNodeId, fromPortId) → toNodeId for the currently playing sequence.
-    /// Used to follow any output port to the next node in one lookup.
-    /// </summary>
     private Dictionary<(string nodeId, string portId), string> connectionMap =
         new Dictionary<(string, string), string>();
-
-    // ------------------------------------------------------------------
-    // Runtime state
-    // ------------------------------------------------------------------
 
     private DialogueSequenceSO currentSequence;
     private string currentNodeId;
@@ -112,13 +56,7 @@ public class DialogueUIManager : MonoBehaviour
     private float unresolvedSeconds;
     private bool hasReportedUnresolvedEntities;
 
-    // Captures the current Decision node's branches while awaiting a choice,
-    // so the button callbacks know which branch portId to follow.
     private List<DialogueDecisionBranch> pendingBranches = new List<DialogueDecisionBranch>();
-
-    // ------------------------------------------------------------------
-    // Unity lifecycle
-    // ------------------------------------------------------------------
 
     private void Awake()
     {
@@ -139,13 +77,8 @@ public class DialogueUIManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Resolves the three entities this manager writes through. Called from Update until it
-    /// succeeds, never once from Start: in a SubScene project the baked entities stream in a frame
-    /// or more after Start runs, so a one-shot resolve there finds an empty world and never retries
-    /// — the manager then sits inert for the whole session with one misleading "no entity found"
-    /// error behind it. Found 2026-09-06 wiring dialogue into DOTSTestScene for the first time.
-    /// </summary>
+    // Called from Update until it succeeds, never once from Start: SubScene entities stream in after Start,
+    // so a one-shot resolve would leave the manager inert all session.
     private bool TryResolveEcsReferences()
     {
         World world = World.DefaultGameObjectInjectionWorld;
@@ -198,10 +131,6 @@ public class DialogueUIManager : MonoBehaviour
         }
     }
 
-    // ------------------------------------------------------------------
-    // Sequence lifecycle
-    // ------------------------------------------------------------------
-
     private void BeginSequence(int sequenceId)
     {
         if (!sequenceRegistry.TryGetValue(sequenceId, out DialogueSequenceSO sequence))
@@ -218,7 +147,6 @@ public class DialogueUIManager : MonoBehaviour
 
         BuildLookupTables(sequence);
 
-        // Use the Refresher node if the sequence has been played before and one exists.
         bool alreadyPlayed = HasBeenPlayed(sequenceId);
         string refresherNodeId = alreadyPlayed ? FindRefresherNodeId() : null;
         string entryNodeId     = refresherNodeId ?? FindStartNodeId();
@@ -246,10 +174,6 @@ public class DialogueUIManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// Builds nodeById and connectionMap from the loaded sequence SO.
-    /// Called once at the start of each new sequence.
-    /// </summary>
     private void BuildLookupTables(DialogueSequenceSO sequence)
     {
         nodeById.Clear();
@@ -287,9 +211,6 @@ public class DialogueUIManager : MonoBehaviour
         return null;
     }
 
-    /// <summary>
-    /// Follows the output port named portId from currentNodeId and displays the next node.
-    /// </summary>
     private void AdvanceFromCurrentNode(string portId)
     {
         AdvanceFromCurrentNode_FromNode(currentNodeId, portId);
@@ -320,9 +241,7 @@ public class DialogueUIManager : MonoBehaviour
         CloseDialoguePanel();
     }
 
-    // A scene that genuinely has no DialogueManagerAuthoring, Player or GameDataTag looks exactly
-    // like one whose SubScene has not streamed in yet, so the complaint waits until it cannot be the
-    // second — and is said once rather than every frame.
+    // A scene missing these entities looks identical to a SubScene still streaming in, so the error waits out a grace period.
     private void ReportUnresolvedEntitiesOnce()
     {
         if (hasReportedUnresolvedEntities) return;
@@ -347,10 +266,6 @@ public class DialogueUIManager : MonoBehaviour
         dialoguePanel.SetActive(false);
         choiceGroup.SetActive(false);
     }
-
-    // ------------------------------------------------------------------
-    // Node display
-    // ------------------------------------------------------------------
 
     private void DisplayNode(string nodeId)
     {
@@ -393,10 +308,6 @@ public class DialogueUIManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Shows the subtitle text and speaker name. Waits for the player to press Interact
-    /// before following the "out" connection to the next node.
-    /// </summary>
     private void DisplayLineNode(DialogueLineNodeData lineNode)
     {
         choiceGroup.SetActive(false);
@@ -410,10 +321,6 @@ public class DialogueUIManager : MonoBehaviour
             speakerNameLabel.text = lineNode.speakerName;
     }
 
-    /// <summary>
-    /// Shows one choice button per branch. The player taps a button to follow that branch's
-    /// output port to the next node. Branches beyond the wired button count are skipped.
-    /// </summary>
     private void DisplayDecisionNode(DialogueDecisionNodeData decisionNode)
     {
         awaitingChoice   = true;
@@ -446,10 +353,6 @@ public class DialogueUIManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Fires the event ID (if any) and immediately follows "out" without waiting for input.
-    /// The player does not see this node.
-    /// </summary>
     private void DisplayEventNode(DialogueEventNodeData eventNode)
     {
         if (eventNode.eventId != DialogueIds.Events.None)
@@ -459,13 +362,8 @@ public class DialogueUIManager : MonoBehaviour
             entityManager.SetComponentEnabled<OnDialogueEvent>(managerEntity, true);
         }
 
-        // Continue immediately — no player input needed.
         AdvanceFromCurrentNode("out");
     }
-
-    // ------------------------------------------------------------------
-    // Choice selection
-    // ------------------------------------------------------------------
 
     private void OnChoiceSelected(int buttonIndex)
     {
@@ -479,18 +377,8 @@ public class DialogueUIManager : MonoBehaviour
         AdvanceFromCurrentNode(chosenPortId);
     }
 
-    // ------------------------------------------------------------------
-    // Input helper
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// Returns true if OnInteractPlayerInput is enabled on the player entity this frame,
-    /// and disables it (consuming the input event) before returning.
-    ///
-    /// ECS simulation runs before MonoBehaviour Update() in the Unity player loop.
-    /// DialogueStartSystem consumes this event on the frame that starts dialogue,
-    /// so this method only sees it on subsequent "advance" frames.
-    /// </summary>
+    // ECS runs before MonoBehaviour Update; DialogueStartSystem consumes the interact event on the starting frame,
+    // so this only sees later "advance" presses.
     private bool ConsumeInteractInput()
     {
         if (!entityManager.IsComponentEnabled<OnInteractPlayerInput>(playerEntity)) return false;

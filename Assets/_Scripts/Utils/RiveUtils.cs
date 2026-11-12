@@ -4,16 +4,9 @@ using Rive.Components;
 using System;
 using System.Collections.Generic;
 
-/// <summary>
-/// Static helpers for common Rive Widget operations.
-/// </summary>
 public static class RiveUtils
 {
-    /// <summary>
-    /// Subscribes to a widget's status changes and invokes <paramref name="onLoaded"/>
-    /// when the widget reaches <see cref="WidgetStatus.Loaded"/>.
-    /// If the widget is already loaded the callback fires immediately.
-    /// </summary>
+    // Fires immediately if the widget is already loaded.
     public static void OnLoaded(RiveWidget widget, Action onLoaded)
     {
         if (widget == null || onLoaded == null) return;
@@ -34,11 +27,7 @@ public static class RiveUtils
         widget.OnWidgetStatusChanged += HandleStatusChanged;
     }
 
-    /// <summary>
-    /// Creates a <see cref="RivePropertyCache"/> backed by the widget's current
-    /// <see cref="ViewModelInstance"/>, or returns null if the widget is not loaded
-    /// or has no bound view model.
-    /// </summary>
+    // Returns null if the widget is not loaded or has no bound view model.
     public static RivePropertyCache GetPropertyCache(RiveWidget widget)
     {
         if (widget == null || widget.Status != WidgetStatus.Loaded) return null;
@@ -48,12 +37,7 @@ public static class RiveUtils
     }
 }
 
-/// <summary>
-/// Wraps a <see cref="ViewModelInstance"/> and caches property handles for
-/// efficient repeated get/set access. Supports nested property paths using
-/// forward-slash notation (e.g. "Parent/Child/count"), which is resolved
-/// natively by the Rive runtime.
-/// </summary>
+// Paths may be nested with slashes ("Parent/Child/count"); the Rive runtime resolves them.
 public class RivePropertyCache
 {
     private readonly ViewModelInstance m_viewModel;
@@ -71,8 +55,6 @@ public class RivePropertyCache
     {
         m_viewModel = viewModelInstance;
     }
-
-    // ── Setters ──────────────────────────────────────────────────────────────
 
     public void SetNumber(string path, float value)
     {
@@ -116,8 +98,6 @@ public class RivePropertyCache
             prop.Trigger();
     }
 
-    // ── Getters ──────────────────────────────────────────────────────────────
-
     public float GetNumber(string path, float fallback = 0f)
     {
         return TryGet(m_numbers, path, m_viewModel.GetNumberProperty, out ViewModelInstanceNumberProperty prop)
@@ -152,8 +132,6 @@ public class RivePropertyCache
             ? prop.Value
             : UnityEngine.Color.clear;
     }
-
-    // ── Observers (subscribe) ────────────────────────────────────────────────
 
     public void WatchNumber(string path, Action<float> onChange)
     {
@@ -191,8 +169,6 @@ public class RivePropertyCache
             prop.OnTriggered += onFired;
     }
 
-    // ── Observers (unsubscribe) ──────────────────────────────────────────────
-
     public void UnwatchNumber(string path, Action<float> onChange)
     {
         if (m_numbers.TryGetValue(path, out ViewModelInstanceNumberProperty prop))
@@ -229,51 +205,33 @@ public class RivePropertyCache
             prop.OnTriggered -= onFired;
     }
 
-    // ── Raw property access (for types not covered above) ────────────────────
-
-    /// <summary>Returns the cached number property handle, or null if not found.</summary>
     public ViewModelInstanceNumberProperty NumberProperty(string path)
     {
         TryGet(m_numbers, path, m_viewModel.GetNumberProperty, out ViewModelInstanceNumberProperty prop);
         return prop;
     }
 
-    /// <summary>Returns the cached trigger property handle, or null if not found.</summary>
     public ViewModelInstanceTriggerProperty TriggerProperty(string path)
     {
         TryGet(m_triggers, path, m_viewModel.GetTriggerProperty, out ViewModelInstanceTriggerProperty prop);
         return prop;
     }
 
-    /// <summary>
-    /// Returns the list property at <paramref name="path"/> for manual list
-    /// manipulation (Add, Remove, Insert, Swap, etc.).
-    /// Result is NOT cached — store the reference yourself if calling repeatedly.
-    /// </summary>
+    // List, image and artboard handles are not cached; store the reference if calling repeatedly.
     public ViewModelInstanceListProperty GetListProperty(string path)
     {
         return m_viewModel?.GetListProperty(path);
     }
 
-    /// <summary>
-    /// Returns the image property at <paramref name="path"/> for runtime image swapping.
-    /// Result is NOT cached — store the reference yourself if calling repeatedly.
-    /// </summary>
     public ViewModelInstanceImageProperty GetImageProperty(string path)
     {
         return m_viewModel?.GetImageProperty(path);
     }
 
-    /// <summary>
-    /// Returns the artboard property at <paramref name="path"/> for runtime artboard swapping.
-    /// Result is NOT cached — store the reference yourself if calling repeatedly.
-    /// </summary>
     public ViewModelInstanceArtboardProperty GetArtboardProperty(string path)
     {
         return m_viewModel?.GetArtboardProperty(path);
     }
-
-    // ── Internal ─────────────────────────────────────────────────────────────
 
     private bool TryGet<T>(
         Dictionary<string, T> cache,

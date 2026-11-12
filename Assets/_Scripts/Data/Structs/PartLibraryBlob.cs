@@ -1,24 +1,12 @@
 using Unity.Collections;
 using Unity.Entities;
 
-// Shared, immutable per-part DESIGN config, baked once into an enum-indexed blob by
-// PartLibraryBakingSystem and read from Burst jobs via the PartLibrary singleton. Design-only:
-// ragdoll/physics config lives on the joint empties (RagdollJointAuthoring → RagdollJointBakeData +
-// RagdollLandingZone buffer), fully separate from this blob.
-//
-// A part belongs to a shape-tag `group` and lists DESIGNS. Each design bundles one tagged
-// texture-slice span with its own palette slots, so shape and colour switch together: the character
-// rolls one tag per group (CharacterPalette.groups, shared by every part in that group), the part's
-// slice comes from the designs matching that tag (plus tag-independent empty-tag designs), and the
-// matched design's slots say which palette colours feed _BaseColor/_SecondaryColor/_TertiaryColor.
+// Design-only per-part config, baked by PartLibraryBakingSystem; ragdoll config lives elsewhere (RagdollJointAuthoring).
+// The character rolls one tag per group (CharacterPalette.groups); a part uses the designs matching that tag plus empty-tag designs.
 // Entities carry only a UnitPartId index into `parts`.
 
-// One palette reference on a design. The palette type is the colour sharing group — the character
-// rolls ONE index per ColorPaletteType (full palette length); the slot clamps that index into its
-// [minColorIndex, maxColorIndex] window at apply, so parts with the same window match exactly and a
-// narrowed window stays as close as possible. An unrolled palette falls back to minColorIndex (the
-// window start is the authored default). useAlternateColor statically shows the palette entry's
-// alternative variant for this slot (the character-level alt mode does the same for every slot).
+// The character rolls one index per ColorPaletteType; the slot clamps it into [minColorIndex, maxColorIndex].
+// An unrolled palette falls back to minColorIndex.
 public struct PartPaletteSlot
 {
     public ColorPaletteType palette;        // None = slot unused (apply skips the property write)
@@ -27,7 +15,6 @@ public struct PartPaletteSlot
     public bool             useAlternateColor; // always show the alternative variant (e.g. zombie skin)
 }
 
-// One look for a part: a tagged texture-slice span + the colours that go with it.
 public struct PartDesignDef
 {
     public FixedString32Bytes tag;             // shape/colour label; empty = tag-independent ("any")
@@ -46,10 +33,8 @@ public struct PartDef
     public FixedString32Bytes group;        // shared shape-tag group this part follows ("Skin"/"Hair"/empty)
     public BlobArray<PartDesignDef> designs;
 
-    // Direction alt-view offsets (DirectionFacing_System.md §4): frames to step from the rolled
-    // design's rest slice for that facing. 0 everywhere = the part never changes art with facing
-    // (it only mirrors, via PartFacing.mirrorX, if at all). No East slot — the roster default
-    // (Six) never resolves to true profile; an Eight-count actor's true-profile parts read 0.
+    // Frames to step from the rolled design's rest slice per facing; 0 = art never changes with facing.
+    // No East slot: the default Six-direction roster never resolves to true profile.
     public int viewOffsetSouthEast;
     public int viewOffsetNorthEast;
     public int viewOffsetSouth;

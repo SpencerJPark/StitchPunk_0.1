@@ -9,40 +9,17 @@ using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
 
-/// <summary>
-/// Drives narrative event execution. Reads OnNarrativeEvent from the ECS singleton,
-/// looks up the matching NarrativeEventSO, and runs its action groups via UniTask.
-///
-/// Groups execute sequentially; actions within a group run in parallel.
-/// Uses destroyCancellationToken so all async work cancels cleanly on scene unload.
-///
-/// Setup:
-///   1. Place ONE of these alongside a NarrativeEventAuthoring component.
-///   2. Assign every NarrativeEventSO used in the scene to eventAssets.
-///   3. NarrativeEventAuthoring bakes the singleton entity; this MonoBehaviour connects to it.
-/// </summary>
+// Place ONE per scene beside NarrativeEventAuthoring. Groups run sequentially, actions within a group in parallel.
 public class NarrativeEventManager : MonoBehaviour
 {
-    // ------------------------------------------------------------------
-    // Inspector references
-    // ------------------------------------------------------------------
-
     [Header("Narrative Assets")]
     [Tooltip("Every NarrativeEventSO used in this scene. " +
              "A Dictionary keyed by eventId is built at Start for O(1) lookup.")]
     [SerializeField] private List<NarrativeEventSO> eventAssets;
 
-    // ------------------------------------------------------------------
-    // ECS references (resolved in Start)
-    // ------------------------------------------------------------------
-
     private EntityManager _entityManager;
     private Entity _narrativeEntity;
     private Entity _dialogueManagerEntity;
-
-    // ------------------------------------------------------------------
-    // Asset and entity registries (built at Start)
-    // ------------------------------------------------------------------
 
     private Dictionary<int, NarrativeEventSO> _eventRegistry;
     private Dictionary<int, Entity> _entityRegistry;
@@ -50,20 +27,13 @@ public class NarrativeEventManager : MonoBehaviour
     // Trigger entities that should be re-armed after the current event.
     private readonly List<Entity> _repeatableTriggers = new List<Entity>();
 
-    // ------------------------------------------------------------------
-    // Unity lifecycle
-    // ------------------------------------------------------------------
-
     private void Start()
     {
         BuildEventRegistry();
     }
 
-    // Resolved lazily from Update, never once from Start: in a SubScene project the baked entities
-    // stream in a frame or more after Start runs, so a one-shot resolve there finds an empty world
-    // and never retries. Same shape as DialogueUIManager.TryResolveEcsReferences, found there first —
-    // silent on the ordinary "not streamed in yet" path; ReportUnresolvedEntitiesOnce below is the
-    // only thing allowed to log, and only after a real grace period.
+    // Resolved lazily from Update, never from Start: SubScene entities stream in after Start runs.
+    // Stays silent while not streamed in; only ReportUnresolvedEntitiesOnce may log, after a grace period.
     private bool TryResolveEcsReferences()
     {
         World world = World.DefaultGameObjectInjectionWorld;
@@ -86,9 +56,7 @@ public class NarrativeEventManager : MonoBehaviour
     private float _unresolvedSeconds;
     private bool _hasReportedUnresolvedEntities;
 
-    // A scene that genuinely has no NarrativeEventAuthoring/DialogueManagerAuthoring looks exactly
-    // like one whose SubScene has not streamed in yet, so the complaint waits until it cannot be the
-    // second — and is said once rather than every frame. Mirrors DialogueUIManager's own guard.
+    // A scene with no authoring looks like an unstreamed SubScene, so complain once after the grace period.
     private void ReportUnresolvedEntitiesOnce()
     {
         if (_hasReportedUnresolvedEntities) return;
@@ -126,10 +94,6 @@ public class NarrativeEventManager : MonoBehaviour
         ExecuteEventAsync(narrativeSO, destroyCancellationToken).Forget();
     }
 
-    // ------------------------------------------------------------------
-    // Initialisation helpers
-    // ------------------------------------------------------------------
-
     private void BuildEventRegistry()
     {
         _eventRegistry = new Dictionary<int, NarrativeEventSO>();
@@ -158,10 +122,6 @@ public class NarrativeEventManager : MonoBehaviour
         entities.Dispose();
         entityIdQuery.Dispose();
     }
-
-    // ------------------------------------------------------------------
-    // Event execution
-    // ------------------------------------------------------------------
 
     private async UniTaskVoid ExecuteEventAsync(NarrativeEventSO so, CancellationToken ct)
     {
@@ -244,10 +204,6 @@ public class NarrativeEventManager : MonoBehaviour
         }
     }
 
-    // ------------------------------------------------------------------
-    // Per-action implementations
-    // ------------------------------------------------------------------
-
     private async UniTask ExecuteDialogueTriggerAsync(DialogueTriggerAction action, CancellationToken ct)
     {
         if (_dialogueManagerEntity == Entity.Null) return;
@@ -314,9 +270,7 @@ public class NarrativeEventManager : MonoBehaviour
             return;
         }
 
-        // PlaybackApi.PlayAnimation itself needs an EnabledRefRW from a ComponentLookup, which is
-        // internal to EntityManager outside a job/system — so this builds the same command shape
-        // (CommandKind.PlayAnimation, keyed) by hand, same as before the cutover.
+        // PlaybackApi.PlayAnimation needs an EnabledRefRW unavailable outside a job/system, so build the command by hand.
         _entityManager.GetBuffer<AnimationCommand>(entity).Add(new AnimationCommand
         {
             kind          = CommandKind.PlayAnimation,
@@ -386,8 +340,7 @@ public class NarrativeEventManager : MonoBehaviour
         });
         _entityManager.SetComponentEnabled<ZombifyRequest>(entity, true);
 
-        // ZombifySystem disables the request once it has composed the conversion — including the
-        // case where the unit has no zombie form, so this never waits forever.
+        // ZombifySystem disables the request even when the unit has no zombie form, so this never waits forever.
         if (action.waitForConversion)
         {
             await UniTask.WaitUntil(
@@ -433,10 +386,8 @@ public class NarrativeEventManager : MonoBehaviour
 
         if (!action.waitForCompletion) return;
 
-        // CutsceneStartSystem consumes the signal on a later ECS tick — wait for the cutscene to
-        // actually become active (or be dropped, e.g. a stage lookup miss) before waiting for it
-        // to end. Checking "!ActiveCutscene enabled" alone would resolve immediately, since the
-        // request has not started yet the instant this signal is created.
+        // CutsceneStartSystem consumes the signal on a later tick, so wait for active (or dropped) first;
+        // checking "!ActiveCutscene enabled" alone would resolve immediately.
         await UniTask.WaitUntil(
             () => _entityManager.IsComponentEnabled<ActiveCutscene>(_narrativeEntity)
                 || !_entityManager.Exists(signalEntity),
@@ -468,10 +419,6 @@ public class NarrativeEventManager : MonoBehaviour
 
         CameraManager.Instance.ExitCinematic();
     }
-
-    // ------------------------------------------------------------------
-    // Entity lookup helper
-    // ------------------------------------------------------------------
 
     private bool TryGetEntity(int narrativeEntityId, out Entity entity)
     {

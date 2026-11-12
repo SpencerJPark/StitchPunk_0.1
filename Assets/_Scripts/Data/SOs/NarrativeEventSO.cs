@@ -3,16 +3,7 @@ using System.Collections.Generic;
 using DotsAnimationToolkit.Authoring;
 using UnityEngine;
 
-/// <summary>
-/// One scripted narrative event: an ordered list of action groups.
-///
-/// Groups execute sequentially — the next group does not start until every action
-/// in the current group has completed. Within a group, all actions run in parallel.
-///
-/// Assign this to NarrativeEventManager in the inspector and set eventId to match
-/// a constant in NarrativeIds.Events. Place a NarrativeEventTriggerAuthoring (for
-/// proximity trigger) or wire a dialogue event via NarrativeIds.DialogueBridge to fire it.
-/// </summary>
+// Groups run one at a time (next starts when every action in the current one completes); actions inside a group run in parallel.
 [CreateAssetMenu(fileName = "NarrativeEvent_New", menuName = "Dots Animation/Narrative Event")]
 public class NarrativeEventSO : ScriptableObject
 {
@@ -29,14 +20,6 @@ public class NarrativeEventSO : ScriptableObject
     public List<NarrativeActionGroup> groups = new List<NarrativeActionGroup>();
 }
 
-// ---------------------------------------------------------------------------
-// Action group
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// One step in a narrative event. All actions inside run in parallel.
-/// The next group does not start until every action in this group is done.
-/// </summary>
 [Serializable]
 public class NarrativeActionGroup
 {
@@ -49,14 +32,6 @@ public class NarrativeActionGroup
     public List<NarrativeActionBase> actions = new List<NarrativeActionBase>();
 }
 
-// ---------------------------------------------------------------------------
-// Action base and concrete types
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// Base class for all narrative actions. Every action can optionally target an entity
-/// identified by its NarrativeEntityId baked in the scene.
-/// </summary>
 [Serializable]
 public abstract class NarrativeActionBase
 {
@@ -65,10 +40,7 @@ public abstract class NarrativeActionBase
     public int targetEntityId = -1;
 }
 
-/// <summary>
-/// Triggers a dialogue sequence on the target NPC.
-/// The group waits until the dialogue finishes before advancing.
-/// </summary>
+// The group waits until the dialogue finishes.
 [Serializable]
 public class DialogueTriggerAction : NarrativeActionBase
 {
@@ -78,10 +50,7 @@ public class DialogueTriggerAction : NarrativeActionBase
     public DialogueSequenceSO sequence;
 }
 
-/// <summary>
-/// Moves the target NPC to a waypoint entity's world position.
-/// The group waits until the NPC's Movement.isMoving becomes false before advancing.
-/// </summary>
+// The group waits until the NPC's Movement.isMoving becomes false.
 [Serializable]
 public class MoveNPCAction : NarrativeActionBase
 {
@@ -90,11 +59,7 @@ public class MoveNPCAction : NarrativeActionBase
     public int waypointEntityId = -1;
 }
 
-/// <summary>
-/// Forces a specific animation clip on the target entity.
-/// If duration is greater than zero the group waits that many seconds before advancing.
-/// If duration is zero the animation starts and the group advances immediately.
-/// </summary>
+// duration > 0 holds the group that many seconds; 0 advances immediately.
 [Serializable]
 public class PlayAnimationAction : NarrativeActionBase
 {
@@ -116,10 +81,7 @@ public class PlayAnimationAction : NarrativeActionBase
     public bool looping;
 }
 
-/// <summary>
-/// Toggles an IEnableableComponent on the target entity.
-/// This action completes instantly — it does not block the group from advancing.
-/// </summary>
+// Completes instantly; never blocks the group.
 [Serializable]
 public class EnableComponentAction : NarrativeActionBase
 {
@@ -130,10 +92,7 @@ public class EnableComponentAction : NarrativeActionBase
     public bool enable;
 }
 
-/// <summary>
-/// Converts the target unit into its zombie form (brain swap + re-skin) through ZombifyRequest.
-/// Only units baked by UnitBakingUtil carry the request; corpses convert through revive instead.
-/// </summary>
+// Only units baked by UnitBakingUtil carry ZombifyRequest; corpses convert through revive instead.
 [Serializable]
 public class ZombifyAction : NarrativeActionBase
 {
@@ -149,11 +108,7 @@ public class ZombifyAction : NarrativeActionBase
     public bool waitForConversion;
 }
 
-/// <summary>
-/// Moves the cinematic camera to look at the target entity (or leaves the cinematic target
-/// in place if targetEntityId is -1), holds for holdDuration seconds, then returns to the
-/// gameplay camera. The group waits for the full hold before advancing.
-/// </summary>
+// targetEntityId -1 leaves the cinematic target in place. The group waits for the full hold.
 [Serializable]
 public class CinematicCameraAction : NarrativeActionBase
 {
@@ -166,12 +121,7 @@ public class CinematicCameraAction : NarrativeActionBase
     public Vector3 targetOffset;
 }
 
-/// <summary>
-/// Plays a baked cutscene (G1). Identity is <see cref="CutsceneAsset.StableId"/> — how
-/// <c>CutsceneApi.TryFindStage</c> finds the baked <c>CutsceneStage</c> — never the asset
-/// reference itself, which lives only in the editor. The group waits for the cutscene to complete
-/// when waitForCompletion is true (see NarrativeEventManager.ExecutePlayCutsceneAsync).
-/// </summary>
+// Runtime identity is CutsceneAsset.StableId (CutsceneApi.TryFindStage), never the asset reference, which exists only in the editor.
 [Serializable]
 public class PlayCutsceneAction : NarrativeActionBase
 {
@@ -189,7 +139,6 @@ public class PlayCutsceneAction : NarrativeActionBase
     public List<CutsceneSlotEntityOverride> overrides = new List<CutsceneSlotEntityOverride>();
 }
 
-/// <summary>One slot to NarrativeEntityId override entry for <see cref="PlayCutsceneAction"/>.</summary>
 [Serializable]
 public class CutsceneSlotEntityOverride
 {
@@ -200,15 +149,7 @@ public class CutsceneSlotEntityOverride
     public int narrativeEntityId = -1;
 }
 
-// ---------------------------------------------------------------------------
-// Toggle type enum
-// ---------------------------------------------------------------------------
-
-/// <summary>
-/// Known IEnableableComponent types that narrative actions can toggle.
-/// Add new entries here when a new toggleable component needs to be wired up.
-/// Resolved to ComponentType at runtime in NarrativeEventManager.
-/// </summary>
+// Resolved to ComponentType in NarrativeEventManager; add an entry per newly toggleable component.
 public enum NarrativeToggleType
 {
     DialogueProvider,
