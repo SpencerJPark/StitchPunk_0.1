@@ -89,6 +89,7 @@ When auditing this folder, the status line in each doc is the thing that rots, n
 | **Ragdoll Bodies + Death Tuning** (RG: eleven ragdoll bodies on `NewRig`, baked `RagdollLaunch`, torque-axis + mass-scaling fix, preview/in-game/revive verification, launch tuning) | [RagdollTuning_System.md](../NewPlans/RagdollTuning_System.md) | 🔨 T1–T3 code built 2026-09-07; bodies authored; T4–T10 owner-paced |
 | **Unit Design** (per-part random texture indices, minion persistence) | [UnitDesign_System.md](../Completed/UnitDesign_System.md) | ✔️ spec retired · [verify](../Verification/verify-unit-design-system.md) still open |
 | **Character Rig** (unified `BodyPart` registry + `PartLibrary` blob + shape×color design grid; replaces Design/Ragdoll2D/AnimationTarget/Animator authorings; enables palette-swap zombification) | [CharacterRig_System.md](../Completed/CharacterRig_System.md) | ✔️ spec retired · [verify](../Verification/verify-characterrig.md) still open (+ hardening doc) |
+| **World Features** (forests, farmland, villages and rail as drawable shapes; stamps and a world sketcher that only create editable features; cuttable trees with a respawn ledger; rail graph and stations for rideable trains) | [WorldFeatures_System.md](WorldFeatures_System.md) | 📝 spec written 2026-11-11; spikes WF-S1 to WF-S4 first; open decisions WF-Q1 to WF-Q7 |
 | Human → Zombie Conversion | — | ⬜ not started |
 | Menu UI | — | ⬜ not started |
 | Interactions/Behaviors (bulk, AI-assisted SO setup) | — | ⬜ not started |
