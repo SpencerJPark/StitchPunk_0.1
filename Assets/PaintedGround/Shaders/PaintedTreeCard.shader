@@ -70,7 +70,8 @@ Shader "Painted/TreeCard"
             float upMetres = cardCorner01.y * cardSizeMetres.y * scaleUp;
             float3 baseCentreWS = positionWS - builtRightWS * acrossMetres - upWS * upMetres;
 
-            float3 facingRightWS = builtRightWS;
+            // No camera facing set (Scene view, edit mode): face -Z like the fixed game camera; the built axis carries a random scatter yaw.
+            float3 facingRightWS = float3(1, 0, 0);
             if (_TerrainCardFacingRight.w >= 0.5 && length(_TerrainCardFacingRight.xyz) > 1e-4)
                 facingRightWS = normalize(_TerrainCardFacingRight.xyz);
 
