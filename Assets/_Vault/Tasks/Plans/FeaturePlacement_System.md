@@ -61,7 +61,20 @@ Runtime: shared Trample field (bend + crush) that placed objects READ; they neve
 
 ## 3. Execution protocol
 
-Same as WF section 3: the orchestrator (Opus) owns spikes, shaders, the Editor and Unity MCP, `[orchestrator]` shared-file edits, captures, commits and merges; `[parallel-safe]` tasks go to Sonnet `worker`s with the WF brief template; `verifier` for doubted reports; never `general-purpose`; subagents never touch `mcp__UnityMCP__*`. Check `ListAgents` first and build in a worktree (`spec/feature-placement`) if a peer is on `main`. After each wave: `python Tools/devloop/devloop.py gate game`, `python Tools/devloop/devloop.py lint`, the Editor pass (refresh, console, the named fixtures only), revert-to-fail on every new fixture, tick the boxes, append one log line, commit with explicit paths.
+**The orchestrator observes; lower tiers do the work (owner rule, memory `feedback_low_tier_subagents`).** Tokens spent in the orchestrator are the expensive ones.
+
+| Who | Model | Does | Never does |
+|---|---|---|---|
+| Orchestrator | Opus | briefs, reads diffs, runs the gate and lint, Unity MCP (refresh, console, tests, `execute_code` probes and spikes, asset creation), reads captures, ticks boxes, writes the log line, commits and merges | writes code, except a one-line fix found while checking a diff |
+| `worker` | `model: sonnet` | every code edit: C#, shaders, USS, including the `[shared]` files | Unity MCP, more than two files, whole-file reads over 300 lines |
+| `verifier` | `model: sonnet` | behaviour reviews of a worker diff the orchestrator doubts, Burst and aliasing reviews, R01 to R22 audits of the orchestrator's capture PNGs | edits |
+| `verifier` | `model: haiku` | pure greps and inventories: "list every `duringSceneGui +=` under Editor/Terrain", "find the save hook for `HarvestedNodeLedgerSnapshot`", name-drift checks before a wave | judgement calls, reviews |
+
+Every spawn prompt states its tier explicitly (`model: sonnet` or `model: haiku`). Prefer a scripted check (gate, lint, `git diff --stat`, a grep the orchestrator runs itself) over spawning any agent. Never `general-purpose`; a capped agent is never resumed (respawn with the remainder); after a 429, diff before respawning.
+
+**Task tags.** `[parallel-safe]`: a Sonnet worker in the wave's single spawn message. `[shared]`: a Sonnet worker too, but it edits a file in section 9, so it runs alone in its wave (or with tasks touching other files) and the orchestrator tells any peer session first. `[orchestrator]`: Editor or MCP work only (probes, assets, bakes, Play checks, captures); if such a task turns out to need code, the code is briefed to a worker.
+
+**Waves.** Spawn every task of a wave in one message; tasks code against the pinned surfaces in section 6, so none waits for another. Use the WF section 3 brief template (two files max, named line ranges, pasted pinned surface, Must-fail cell, `gate` before the report, stop at turn 30, report of 30 lines or fewer). Check `ListAgents` first and build in a worktree (`spec/feature-placement`) if a peer is on `main`. After each wave: `python Tools/devloop/devloop.py gate game`, `python Tools/devloop/devloop.py lint`, the Editor pass (refresh, console, the named fixtures only), revert-to-fail on every new fixture, tick the boxes, append one log line, commit with explicit paths.
 
 **UI hard rule (root `CLAUDE.md`).** FP-0 and FP-1 change Scene-view UI and the Features tab: every brief names `Docs/AnimationToolkit/EditorStyleGuide.md` and R01 to R22. Before and after captures of the Features tab (`TerrainEditorCapture.CaptureTabs`) and of the Scene view with the overlay are read by the orchestrator. Overlay placement and mouse feel are owner checkpoints, because synthetic events do not reach `duringSceneGui` (WF-D15).
 
@@ -216,8 +229,9 @@ Every wave ends with the gate, lint, the named fixtures and a commit.
 | [ ] | FP-S0 **[orchestrator]** | probe only | section 7 |
 | [ ] | FP-0-1 **[parallel-safe]** | `Window/TerrainEditorVisibility.cs`, `Tests/Terrain/TerrainEditorVisibilityTests.cs` | Fixture fails if: `Changed` fires twice for the same value; going hidden while drawing leaves `TerrainFeatureTool.IsDrawing` true. |
 | [ ] | FP-0-2 **[parallel-safe]** | `Window/TerrainToolOverlay.cs`, `Window/TerrainSceneHud.cs` | 6.1; delete `DrawInSceneView` and its styles; overlay content rebuilds on `TerrainSceneHud.Changed`; keycaps as UI Toolkit labels with the `TerrainUi` kit and existing USS classes; new classes listed in the report for the orchestrator. Guide R01 to R22. |
-| [ ] | FP-0-3 **[orchestrator]** | `TerrainEditorWindow.cs`, every `duringSceneGui` handler under `Editor/Terrain/`, `TerrainFeatureTool.DrawHud` (delete; route its lines to the overlay toast and hints) | FP-D17. `grep -rn "duringSceneGui +=" Assets/_Scripts/Editor/Terrain` lists them; one early-out line each. |
-| [ ] | FP-0-4 **[orchestrator]** | captures | Scene view before (the covered strip) and after (the overlay docked top-left, then with the Terrain Editor hidden behind the Inspector: no overlay, clicking the ground selects normally). |
+| [ ] | FP-0-3a **[shared]** | `TerrainEditorWindow.cs`, `Features/TerrainFeatureTool.cs` | FP-D17: visibility events set `TerrainEditorVisibility`; tool early-outs; delete `DrawHud` and route its lines to the overlay toast and hints. |
+| [ ] | FP-0-3b **[parallel-safe]** (one worker per two files) | the other `duringSceneGui` handlers | A Haiku verifier lists them first (`grep -rn "duringSceneGui +=" Assets/_Scripts/Editor/Terrain`); one early-out line each. |
+| [ ] | FP-0-4 **[orchestrator]** | captures (Sonnet verifier audits the PNGs against R01 to R22) | Scene view before (the covered strip) and after (the overlay docked top-left, then with the Terrain Editor hidden behind the Inspector: no overlay, clicking the ground selects normally). |
 | [ ] | ⏸ **FP-0 owner checkpoint** | | Owner: dock the Terrain Editor beside the Inspector, open Features, start drawing, check the overlay is readable and drag it where you like; click the Inspector tab, check the overlay is gone and clicks in the Scene view no longer add points; click back. |
 
 **FP-1 Placement model + `+ New feature`**
@@ -228,11 +242,12 @@ Every wave ends with the gate, lint, the named fixtures and a commit.
 | [ ] | FP-1-2 **[parallel-safe]** | `MonoBehaviours/Terrain/TerrainPath.cs` | gate only; copy `TerrainArea`'s event raising and bounds |
 | [ ] | FP-1-3 **[parallel-safe]** | `Features/TerrainFeaturePlacement.cs`, `Tests/Terrain/TerrainFeaturePlacementTests.cs` | a point on a shared tile border is owned by both or neither tile; a gap segment still gets a fence segment; Segments mode leaves a segment whose ends are not consecutive posts; Rows ignores `rowDirectionDegrees` (rotating it 90 degrees does not swap the row and column counts of a square); the same seed gives different points for different tile rects |
 | [ ] | FP-1-4 **[parallel-safe]** | `Features/TerrainFeatureShapes.cs`, `Tests/Terrain/TerrainFeatureShapesTests.cs` | Circle knots are not all at `radiusMetres`; `IsAllowed(Straight, ClosedArea)` returns false or `closed` false (a straight-edged area is allowed and closed); `IsAllowed(Circle, OpenPath)` returns true |
-| [ ] | FP-1-5 **[parallel-safe]** (wave B) | `Features/TerrainPathBaker.cs` | Mirrors the filler: per open tile, `PlanAlongPath`; Interactable placeables instantiated under the tile's `Features` child with `TerrainScatterMarker.sourceFeatureId` (lock rules WF-D6 apply); Segments mode stretches `segmentPrefab` along the chord (scale Z = chord length / prefab length, pitch from the two end heights); Dressing placeables become cards through `TerrainCardSource`. Wire into `TerrainFeatureBaker` beside the area pass **[orchestrator]**. |
-| [ ] | FP-1-6 **[orchestrator]** | `TerrainAreaFiller.cs` | accept `TerrainFeatureRecipe` with a Fill placer or a Rows placer; keep `TerrainForestRecipe` until FP-1-9 |
-| [ ] | FP-1-7 **[orchestrator]** | `TerrainFeatureTool.cs` | `BeginDraw`, shapes, open paths, gaps (Alt+click), keys 1 to 5 |
+| [ ] | FP-1-5 **[parallel-safe]** (wave B) | `Features/TerrainPathBaker.cs` | Mirrors the filler: per open tile, `PlanAlongPath`; Interactable placeables instantiated under the tile's `Features` child with `TerrainScatterMarker.sourceFeatureId` (lock rules WF-D6 apply); Segments mode stretches `segmentPrefab` along the chord (scale Z = chord length / prefab length, pitch from the two end heights); Dressing placeables become cards through `TerrainCardSource`. Wiring into `TerrainFeatureBaker` beside the area pass is FP-1-5b. |
+| [ ] | FP-1-5b **[shared]** (wave C) | `Features/TerrainFeatureBaker.cs` | call `TerrainPathBaker` beside the area pass; `TerrainPath` changes mark tiles stale like areas |
+| [ ] | FP-1-6 **[shared]** | `TerrainAreaFiller.cs` | accept `TerrainFeatureRecipe` with a Fill placer or a Rows placer; keep `TerrainForestRecipe` until FP-1-9 |
+| [ ] | FP-1-7 **[shared]** (wave B, after FP-0-3a merged) | `TerrainFeatureTool.cs` | `BeginDraw`, shapes, open paths, gaps (Alt+click), keys 1 to 5 |
 | [ ] | FP-1-8 **[parallel-safe]** | `Window/TerrainFeaturesPanel.cs` | `+ New feature` (R12) opens the categorised picker; Create recipe… (placer kind + folder, writes, selects and pings); the feature list shows `TerrainArea` and `TerrainPath` together; the selected card shows recipe, seed, density (Fill), spacing (Along path), row direction (Rows). Guide R01 to R22. |
-| [ ] | FP-1-9 **[orchestrator]** | convert menu, assets, delete `TerrainForestRecipe` once nothing references it | Assets: the Forest recipe converted; placeholder recipes **Tree Row** (Along path, Points, Tree.prefab), **Wooden Fence** and **Stone Wall** (Along path, Segments, placeholder post + rail boxes). Captures of the Features tab and the picker. Bake one of each on tile (0,0), look in Play, delete, rebake clean. |
+| [ ] | FP-1-9 **[orchestrator]** (convert-menu code and the final `TerrainForestRecipe` deletion go to a Sonnet worker) | convert menu, assets, delete `TerrainForestRecipe` once nothing references it | Assets: the Forest recipe converted; placeholder recipes **Tree Row** (Along path, Points, Tree.prefab), **Wooden Fence** and **Stone Wall** (Along path, Segments, placeholder post + rail boxes). Captures of the Features tab and the picker. Bake one of each on tile (0,0), look in Play, delete, rebake clean. |
 | [ ] | ⏸ **FP-1 owner checkpoint** | | Owner: Features, `+ New feature`, Wooden Fence, draw a straight fence, then a curved one, Alt+click a knot for a gate; draw a Tree Row; then Create recipe… from your own prefab and draw it. |
 
 **FP-2 Fences block and break**
@@ -242,7 +257,7 @@ Every wave ends with the gate, lint, the named fixtures and a commit.
 | [ ] | FP-2-1 **[parallel-safe]** | `Authoring/Terrain/BreakableAuthoring.cs`, `Components/Terrain/BreakableComponents.cs` | gate only; `dots-authoring-baker` rules |
 | [ ] | FP-2-2 **[parallel-safe]** | `Systems/TerrainSystemGroup/BrokenPieceRecordSystem.cs`, `BrokenPieceRestoreSystem.cs`, `Tests/PlayMode/Terrain/BrokenPieceTests.cs` | copy the HarvestedNode pair; fails if a reloaded tile shows the piece intact before it is due, or it never comes back after `respawnAfterGameDays` |
 | [ ] | FP-S2 **[orchestrator]** | probe | section 7 |
-| [ ] | FP-2-3 **[orchestrator]** (wave B) | `TrampleCrushContactSystem.cs`, the nav path from FP-S2, the save hook, the visual swap (copy `HarvestedNodeStumpPresentationSystem`) | PlayMode: a caravan driven through a fence breaks the touched segments only; a unit on foot is stopped by an intact segment. |
+| [ ] | FP-2-3 **[parallel-safe]** (wave B, split: one worker per pair) | `TrampleCrushContactSystem.cs` + the nav change from FP-S2; `BrokenPiecePresentationSystem.cs` (copy `HarvestedNodeStumpPresentationSystem`) + the save hook **[shared]**. Orchestrator runs the PlayMode check. | PlayMode: a caravan driven through a fence breaks the touched segments only; a unit on foot is stopped by an intact segment. |
 | [ ] | ⏸ **FP-2 owner checkpoint** | | Owner: drive the caravan through a fence, walk a minion to the gate gap, save, reload, check the broken pieces are still broken. |
 
 **FP-3 Tall grass bends** (run FP-S1 first)
@@ -251,7 +266,7 @@ Every wave ends with the gate, lint, the named fixtures and a commit.
 |---|---|---|---|
 | [ ] | FP-3-1 **[parallel-safe]** | `Components/Terrain/TrampleComponents.cs`, `Authoring/Terrain/TrampleSourceAuthoring.cs` | gate only |
 | [ ] | FP-3-2 **[parallel-safe]** | `Authoring/Terrain/TerrainCardSourceAuthoring.cs`, `Features/TerrainCardBatchMeshBuilder.cs` (expand card sources), its existing test file | a card source's local offset is not rotated by the placement yaw |
-| [ ] | FP-3-3 **[orchestrator]** | `Painted/TrampleCard` shader (copy `Painted/TreeCard`; bend from `_TrampleBendField`, crush hook left at 0), `TrampleBendFieldSystem`, grass placeholder prefab + recipe (Ground cover, Fill, Dressing), `TrampleSourceAuthoring` on unit prefabs and the caravan | Play: a minion walking through grass leaves a bent wake that recovers in about 2 s; frame cost against FP-S1. Capture. |
+| [ ] | FP-3-3 **[parallel-safe]** workers (shader; `TrampleBendFieldSystem`) then **[orchestrator]** (prefab, recipe, adding `TrampleSourceAuthoring` to unit prefabs and the caravan via MCP, Play check) | `Painted/TrampleCard` shader (copy `Painted/TreeCard`; bend from `_TrampleBendField`, crush hook left at 0), `TrampleBendFieldSystem`, grass placeholder prefab + recipe (Ground cover, Fill, Dressing), `TrampleSourceAuthoring` on unit prefabs and the caravan | Play: a minion walking through grass leaves a bent wake that recovers in about 2 s; frame cost against FP-S1. Capture. |
 
 **FP-4 Wheat is mowed flat**
 
@@ -260,12 +275,12 @@ Every wave ends with the gate, lint, the named fixtures and a commit.
 | [ ] | FP-4-1 **[parallel-safe]** | `Utils/Terrain/TrampleCrushRasterizer.cs`, `Tests/Terrain/TrampleCrushRasterizerTests.cs` | a stroke crossing a tile border writes only one tile; direction is reversed for a stroke drawn end to start (it must follow travel direction); amount is not 0 at exactly `regrowGameDays` |
 | [ ] | FP-4-2 **[parallel-safe]** | `Systems/TerrainSystemGroup/TrampleCrushRecordSystem.cs`, `Tests/PlayMode/Terrain/TrampleCrushRecordTests.cs` | a Brush source records a stroke; a Crush source moving 10 m in a straight line records more than one stroke |
 | [ ] | FP-4-3 **[parallel-safe]** | `TrampleCrushSaveSystem.cs`, `TrampleCrushLoadSyncSystem.cs` | copy the HarvestedNode save pair; newest strokes win when over capacity |
-| [ ] | FP-4-4 **[orchestrator]** | `TrampleCrushTextureSystem`, crush branch of `Painted/TrampleCard` (FP-D13), wheat placeholder prefab + recipe (Areas, Rows, Dressing, crop ground layer) | Play: drive the caravan across a wheat field; the cards lie flat along the wheel path and read as a stripe; a minion walking through only bends them; advance the clock past regrowth and the field stands again; save and reload mid-regrowth. Captures at near and mid zoom. |
+| [ ] | FP-4-4 **[parallel-safe]** workers (`TrampleCrushTextureSystem`; shader crush branch) then **[orchestrator]** (assets, Play check) | `TrampleCrushTextureSystem`, crush branch of `Painted/TrampleCard` (FP-D13), wheat placeholder prefab + recipe (Areas, Rows, Dressing, crop ground layer) | Play: drive the caravan across a wheat field; the cards lie flat along the wheel path and read as a stripe; a minion walking through only bends them; advance the clock past regrowth and the field stands again; save and reload mid-regrowth. Captures at near and mid zoom. |
 | [ ] | ⏸ **FP-4 owner checkpoint** | | Owner: draw a wheat field and a tall grass patch, walk minions through both, drive the caravan across both, judge the look of the flattened tracks. |
 
 ## 9. Shared files and other sessions
 
-Shared edits, all **[orchestrator]**: `TerrainEditorWindow`, `TerrainFeatureTool`, `TerrainFeatureBaker`, `TerrainAreaFiller`, `TerrainCardBatchMeshBuilder`, `TerrainEditor.uss`, unit prefabs, the caravan prefab, the save hook. Tell any peer on the terrain editor before starting a phase that touches them.
+Shared files (tasks touching them are tagged **[shared]** and written by a Sonnet worker running alone on that file): `TerrainEditorWindow`, `TerrainFeatureTool`, `TerrainFeatureBaker`, `TerrainAreaFiller`, `TerrainCardBatchMeshBuilder`, `TerrainEditor.uss`, unit prefabs, the caravan prefab, the save hook. Tell any peer on the terrain editor before starting a phase that touches them.
 
 ## 10. Effect on the WF spec
 
