@@ -47,6 +47,8 @@ public static class TerrainCardBatchMeshBuilder
         Vector3[] normals = new Vector3[vertexCount];
         Vector2[] uvZero = new Vector2[vertexCount];
         Vector2[] uvTwo = new Vector2[vertexCount];
+        Vector2[] cardSizes = new Vector2[vertexCount];
+        float largestCardWidth = 0f;
         Color[] colors = new Color[vertexCount];
         int[] indices = new int[cards.Count * IndicesPerCard];
 
@@ -73,9 +75,11 @@ public static class TerrainCardBatchMeshBuilder
             uvTwo[firstVertex + 2] = new Vector2(0f, 1f);
             uvTwo[firstVertex + 3] = new Vector2(1f, 1f);
 
+            largestCardWidth = Mathf.Max(largestCardWidth, card.sizeMetres.x);
             Color cardColor = new Color(card.tint01, 1f, 1f, 1f);
             for (int cornerIndex = 0; cornerIndex < VerticesPerCard; cornerIndex++)
             {
+                cardSizes[firstVertex + cornerIndex] = new Vector2(card.sizeMetres.x, card.sizeMetres.y);
                 normals[firstVertex + cornerIndex] = faceNormal;
                 colors[firstVertex + cornerIndex] = cardColor;
             }
@@ -96,8 +100,13 @@ public static class TerrainCardBatchMeshBuilder
         mesh.colors = colors;
         mesh.uv = uvZero;
         mesh.SetUVs(2, uvTwo);
+        mesh.SetUVs(3, cardSizes);
         mesh.triangles = indices;
         mesh.RecalculateBounds();
+        // Vertex-shader billboarding swings vertices outside the static bounds and Unity would cull the batch.
+        Bounds expandedBounds = mesh.bounds;
+        expandedBounds.Expand(new Vector3(largestCardWidth * 2f, 0f, largestCardWidth * 2f));
+        mesh.bounds = expandedBounds;
         return mesh;
     }
 }

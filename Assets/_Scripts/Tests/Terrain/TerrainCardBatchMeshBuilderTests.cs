@@ -79,6 +79,28 @@ namespace StitchPunk.Tests
         }
 
         [Test]
+        public void CardSizeIsWrittenToUvThree_ForEveryVertexOfTheCard()
+        {
+            List<TerrainCard> cards = new List<TerrainCard>
+            {
+                CreateCard(Vector3.zero, new Vector2(2f, 3f), new Rect(0f, 0f, 1f, 1f)),
+                CreateCard(new Vector3(5f, 0f, 5f), new Vector2(1f, 1.5f), new Rect(0f, 0f, 1f, 1f))
+            };
+
+            Mesh mesh = BuildMesh(cards, Vector3.zero, 0f, out int unusedCount);
+
+            List<Vector2> sizes = new List<Vector2>();
+            mesh.GetUVs(3, sizes);
+            Assert.AreEqual(8, sizes.Count);
+            for (int vertexIndex = 0; vertexIndex < sizes.Count; vertexIndex++)
+            {
+                Vector2 expected = cards[vertexIndex / 4].sizeMetres;
+                Assert.AreEqual(expected.x, sizes[vertexIndex].x, Tolerance);
+                Assert.AreEqual(expected.y, sizes[vertexIndex].y, Tolerance);
+            }
+        }
+
+        [Test]
         public void CameraYaw_RotatesTheWidthAxis()
         {
             List<TerrainCard> cards = new List<TerrainCard>

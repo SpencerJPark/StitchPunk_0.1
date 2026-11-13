@@ -1,6 +1,6 @@
 // Painted/TreeCard  -  upright, two-sided, alpha-clipped tree cards baked into one mesh per tile (TerrainCardBatchMeshBuilder).
-// Vertex data: uv = atlas sprite uv, uv2 = (0/1 across, 0 base / 1 top), colour.r = per-card tint 0..1.
-// Cards are static quads facing the fixed camera yaw; CameraWorldLean leans them with the world, so the shader never billboards.
+// Vertex data: uv = atlas sprite uv, uv2 = (0/1 across, 0 base / 1 top), uv3 = card (width, height) metres, colour.r = per-card tint 0..1.
+// Cards billboard to the camera yaw in the vertex shader from _TerrainCardFacingRight; never pitch (CameraWorldLean leans them).
 
 Shader "Painted/TreeCard"
 {
@@ -52,6 +52,33 @@ Shader "Painted/TreeCard"
 
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
 
+        // Global set by the camera yaw driver: xyz = flat camera right in world, w = 1 when valid.
+        float4 _TerrainCardFacingRight;
+
+        // Yaw-only billboard around the card's base centre; CameraWorldLean owns pitch.
+        void BillboardCardToCameraYaw(float3 positionOS, float3 normalOS, float2 cardCorner01, float2 cardSizeMetres,
+                                      out float3 positionWS, out float3 normalWS)
+        {
+            float3 upWS = float3(0, 1, 0);
+            positionWS = TransformObjectToWorld(positionOS);
+            float3 builtNormalWS = normalize(TransformObjectToWorldDir(normalOS));
+            float3 builtRightWS = normalize(cross(upWS, -builtNormalWS));
+            // A part hidden with a tiny scale must stay tiny after billboarding.
+            float scaleAcross = length(float3(UNITY_MATRIX_M._m00, UNITY_MATRIX_M._m10, UNITY_MATRIX_M._m20));
+            float scaleUp = length(float3(UNITY_MATRIX_M._m01, UNITY_MATRIX_M._m11, UNITY_MATRIX_M._m21));
+            float acrossMetres = (cardCorner01.x - 0.5) * cardSizeMetres.x * scaleAcross;
+            float upMetres = cardCorner01.y * cardSizeMetres.y * scaleUp;
+            float3 baseCentreWS = positionWS - builtRightWS * acrossMetres - upWS * upMetres;
+
+            float3 facingRightWS = builtRightWS;
+            if (_TerrainCardFacingRight.w >= 0.5 && length(_TerrainCardFacingRight.xyz) > 1e-4)
+                facingRightWS = normalize(_TerrainCardFacingRight.xyz);
+
+            positionWS = baseCentreWS + facingRightWS * acrossMetres + upWS * upMetres;
+            // right = +X gives -Z, toward a camera looking along +Z.
+            normalWS = cross(upWS, facingRightWS);
+        }
+
         half SampleCardAlpha(float2 uv)
         {
             return SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv).a;
@@ -88,6 +115,7 @@ Shader "Painted/TreeCard"
                 float3 normalOS   : NORMAL;
                 float2 uv         : TEXCOORD0;
                 float2 uv2        : TEXCOORD2;
+                float2 uv3        : TEXCOORD3;
                 float4 color      : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -111,9 +139,8 @@ Shader "Painted/TreeCard"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionWS = TransformObjectToWorld(IN.positionOS.xyz);
+                BillboardCardToCameraYaw(IN.positionOS.xyz, IN.normalOS, IN.uv2, IN.uv3, OUT.positionWS, OUT.normalWS);
                 OUT.positionCS = TransformWorldToHClip(OUT.positionWS);
-                OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
                 OUT.uv         = TRANSFORM_TEX(IN.uv, _BaseMap);
                 OUT.heightFraction = IN.uv2.y;
                 OUT.tint01     = IN.color.r;
@@ -174,6 +201,8 @@ Shader "Painted/TreeCard"
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
                 float2 uv         : TEXCOORD0;
+                float2 uv2        : TEXCOORD2;
+                float2 uv3        : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -189,8 +218,9 @@ Shader "Painted/TreeCard"
                 Varyings OUT = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
-                float3 positionWS = TransformObjectToWorld(IN.positionOS.xyz);
-                float3 normalWS = TransformObjectToWorldNormal(IN.normalOS);
+                float3 positionWS;
+                float3 normalWS;
+                BillboardCardToCameraYaw(IN.positionOS.xyz, IN.normalOS, IN.uv2, IN.uv3, positionWS, normalWS);
                 #if _CASTING_PUNCTUAL_LIGHT_SHADOW
                     float3 lightDirectionWS = normalize(_LightPosition - positionWS);
                 #else
@@ -237,7 +267,10 @@ Shader "Painted/TreeCard"
             struct Attributes
             {
                 float4 positionOS : POSITION;
+                float3 normalOS   : NORMAL;
                 float2 uv         : TEXCOORD0;
+                float2 uv2        : TEXCOORD2;
+                float2 uv3        : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -255,7 +288,10 @@ Shader "Painted/TreeCard"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
+                float3 billboardPositionWS;
+                float3 billboardNormalWS;
+                BillboardCardToCameraYaw(IN.positionOS.xyz, IN.normalOS, IN.uv2, IN.uv3, billboardPositionWS, billboardNormalWS);
+                OUT.positionCS = TransformWorldToHClip(billboardPositionWS);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 return OUT;
             }
@@ -289,6 +325,8 @@ Shader "Painted/TreeCard"
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
                 float2 uv         : TEXCOORD0;
+                float2 uv2        : TEXCOORD2;
+                float2 uv3        : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -307,8 +345,11 @@ Shader "Painted/TreeCard"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(OUT);
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS.xyz);
-                OUT.normalWS   = TransformObjectToWorldNormal(IN.normalOS);
+                float3 billboardPositionWS;
+                float3 billboardNormalWS;
+                BillboardCardToCameraYaw(IN.positionOS.xyz, IN.normalOS, IN.uv2, IN.uv3, billboardPositionWS, billboardNormalWS);
+                OUT.positionCS = TransformWorldToHClip(billboardPositionWS);
+                OUT.normalWS   = billboardNormalWS;
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 return OUT;
             }

@@ -31,3 +31,9 @@ public struct HarvestedNodeVisualPart : IComponentData
     public Entity node;
     public byte showWhenStump;
 }
+
+// The part's baked LocalToWorld, captured once, so hiding can scale it and showing can restore it.
+public struct HarvestedNodeVisualPartRestingMatrix : IComponentData
+{
+    public Unity.Mathematics.float4x4 localToWorld;
+}

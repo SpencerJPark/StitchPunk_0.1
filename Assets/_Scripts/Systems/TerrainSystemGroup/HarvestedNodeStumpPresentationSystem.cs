@@ -14,16 +14,37 @@ public partial struct HarvestedNodeStumpPresentationSystem : ISystem
 
     private ComponentLookup<HarvestedNodeStump> harvestedNodeStumpLookup;
 
+    private EntityQuery visualPartsMissingRestingMatrixQuery;
+
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<HarvestedNodeVisualPart>();
         harvestedNodeStumpLookup = state.GetComponentLookup<HarvestedNodeStump>(true);
+        visualPartsMissingRestingMatrixQuery = SystemAPI.QueryBuilder()
+            .WithAll<HarvestedNodeVisualPart, LocalToWorld>()
+            .WithNone<HarvestedNodeVisualPartRestingMatrix>()
+            .Build();
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        if (!visualPartsMissingRestingMatrixQuery.IsEmptyIgnoreFilter)
+        {
+            NativeArray<Entity> newParts = visualPartsMissingRestingMatrixQuery.ToEntityArray(Allocator.Temp);
+            state.EntityManager.AddComponent<HarvestedNodeVisualPartRestingMatrix>(visualPartsMissingRestingMatrixQuery);
+            for (int partIndex = 0; partIndex < newParts.Length; partIndex++)
+            {
+                Entity part = newParts[partIndex];
+                state.EntityManager.SetComponentData(part, new HarvestedNodeVisualPartRestingMatrix
+                {
+                    localToWorld = state.EntityManager.GetComponentData<LocalToWorld>(part).Value
+                });
+            }
+            newParts.Dispose();
+        }
+
         harvestedNodeStumpLookup.Update(ref state);
         state.Dependency = new ApplyVisualPartVisibilityJob
         {
@@ -36,7 +57,8 @@ public partial struct HarvestedNodeStumpPresentationSystem : ISystem
     {
         [ReadOnly] public ComponentLookup<HarvestedNodeStump> harvestedNodeStumpLookup;
 
-        private void Execute(ref PostTransformMatrix postTransformMatrix, in HarvestedNodeVisualPart visualPart)
+        // These are static tile entities, so LocalToWorld is written directly; a dynamic part would have it overwritten by the transform system.
+        private void Execute(ref LocalToWorld localToWorld, in HarvestedNodeVisualPartRestingMatrix restingMatrix, in HarvestedNodeVisualPart visualPart)
         {
             if (!harvestedNodeStumpLookup.HasComponent(visualPart.node))
             {
@@ -45,13 +67,15 @@ public partial struct HarvestedNodeStumpPresentationSystem : ISystem
 
             bool nodeIsStump = harvestedNodeStumpLookup.IsComponentEnabled(visualPart.node);
             bool visible = nodeIsStump == (visualPart.showWhenStump != 0);
-            float targetScale = visible ? 1f : HiddenScale;
-            if (postTransformMatrix.Value.c0.x == targetScale)
+            float4x4 target = visible
+                ? restingMatrix.localToWorld
+                : math.mul(restingMatrix.localToWorld, float4x4.Scale(HiddenScale));
+            if (math.abs(localToWorld.Value.c0.x - target.c0.x) <= 1e-6f)
             {
                 return;
             }
 
-            postTransformMatrix.Value = visible ? float4x4.identity : float4x4.Scale(HiddenScale);
+            localToWorld.Value = target;
         }
     }
 }
