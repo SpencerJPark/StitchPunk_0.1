@@ -299,6 +299,7 @@ WaitForClipFinished(Action) → RequestPickup → StopAnimation`) → item gets 
 | `Systems/ItemSystemGroup/ItemEquipSystemGroup/ItemConsumeSystem.cs` | consumable branch |
 | `Utils/BrainBlobUtils.cs`, `Utils/BehaviorQualifiers.cs`, `Utils/AIUtils.cs` | helpers |
 | `Utils/BehaviorCommands/*.cs` | per-family command handlers + `BehaviorCommandContext` (2026-08-29 split) |
+| `Utils/UnitStateLookups.cs` | awareness `{LocalTransform, Dead}` bundle (2026-11-13). Use `TryGetTransformUnlessDead` (no `Dead` counts as live) or `TryGetTransformIfAlive` (strict: Flee and SelfDefence); never swap them. Interaction, Navigation, GuardPost and ThreatDecay keep raw lookups. |
 | `Utils/BehaviorCommandCatalog.cs` | `IsImplemented`/`IsBlocking` — the one source of truth both bake validation and the interpreter consult |
 | `Data/SOs/BehaviorSO.cs`, `Data/SOs/UtilityActionSO.cs`, `Data/SOs/BrainSO.cs` | authoring SOs |
 | `Tests/PlayMode/BehaviorExecutionSystemTests.cs` | first PlayMode World fixture over the interpreter — command-index progression |

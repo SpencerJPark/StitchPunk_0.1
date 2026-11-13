@@ -34,6 +34,9 @@ Scene: `Assets/Scenes/CampLoop.unity`. Re-enter Play mode so the subscene rebake
 ## Readability refactor 2026-11-13 (BehaviorExecution shared command context)
 - [ ] Bandits still patrol, sit, throw, shoot and heal as before.
 
+## Readability refactor 2026-11-13 part 4 (awareness UnitStateLookups bundle)
+- [ ] Awareness: bandits and zombies still notice, flee, retreat and fight as before.
+
 ## Known gaps
 - No throw lead and no face-target command; since H5 throws and shots aim where you stood when the wind-up started (by design, so you can dodge).
 - Bullets are instantiated and destroyed, not pooled.
