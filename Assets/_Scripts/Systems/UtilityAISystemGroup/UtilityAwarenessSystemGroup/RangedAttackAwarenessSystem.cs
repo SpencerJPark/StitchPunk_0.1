@@ -29,8 +29,7 @@ public partial struct RangedAttackAwarenessSystem : ISystem
     public const float SIDE_STEP_ALLY_COUNT_RADIUS_METERS   = 10f;
 
     private ComponentLookup<Item>            itemLookup;
-    private ComponentLookup<LocalTransform>  transformLookup;
-    private ComponentLookup<Dead>            deadLookup;
+    private UnitStateLookups unitStateLookups;
     private ComponentLookup<GuardPost>       guardPostLookup;
     private ComponentLookup<TacticsCooldown> tacticsCooldownLookup;
     private ComponentLookup<Faction>         factionLookup;
@@ -44,8 +43,7 @@ public partial struct RangedAttackAwarenessSystem : ISystem
         state.RequireForUpdate<ItemLibrary>();
         state.RequireForUpdate<BrainLibrary>();
         itemLookup            = state.GetComponentLookup<Item>(true);
-        transformLookup       = state.GetComponentLookup<LocalTransform>(true);
-        deadLookup            = state.GetComponentLookup<Dead>(true);
+        unitStateLookups      = UnitStateLookups.Create(ref state);
         guardPostLookup       = state.GetComponentLookup<GuardPost>(true);
         tacticsCooldownLookup = state.GetComponentLookup<TacticsCooldown>(false);
         factionLookup         = state.GetComponentLookup<Faction>(true);
@@ -57,8 +55,7 @@ public partial struct RangedAttackAwarenessSystem : ISystem
     public void OnUpdate(ref SystemState state)
     {
         itemLookup.Update(ref state);
-        transformLookup.Update(ref state);
-        deadLookup.Update(ref state);
+        unitStateLookups.Update(ref state);
         guardPostLookup.Update(ref state);
         tacticsCooldownLookup.Update(ref state);
         factionLookup.Update(ref state);
@@ -73,8 +70,7 @@ public partial struct RangedAttackAwarenessSystem : ISystem
         state.Dependency = new RangedAttackAwarenessJob
         {
             itemLookup            = itemLookup,
-            transformLookup       = transformLookup,
-            deadLookup            = deadLookup,
+            unitStateLookups      = unitStateLookups,
             guardPostLookup       = guardPostLookup,
             tacticsCooldownLookup = tacticsCooldownLookup,
             factionLookup         = factionLookup,
@@ -118,8 +114,7 @@ public partial struct RangedAttackAwarenessSystem : ISystem
 public partial struct RangedAttackAwarenessJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<Item>           itemLookup;
-    [ReadOnly] public ComponentLookup<LocalTransform> transformLookup;
-    [ReadOnly] public ComponentLookup<Dead>           deadLookup;
+    public UnitStateLookups unitStateLookups;
     [ReadOnly] public ComponentLookup<GuardPost>      guardPostLookup;
     // Each iteration writes only its own entity's cooldown.
     [NativeDisableParallelForRestriction] public ComponentLookup<TacticsCooldown> tacticsCooldownLookup;
@@ -163,8 +158,7 @@ public partial struct RangedAttackAwarenessJob : IJobEntity
             target = stateMachine.targetEntity;
 
         if (target == Entity.Null) return;
-        if (EntityUtils.IsDead(in deadLookup, target)) return;
-        if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform)) return;
+        if (!unitStateLookups.TryGetTransformUnlessDead(target, out LocalTransform targetTransform)) return;
 
         float3 offset   = targetTransform.Position - transform.Position;
         float  distance = math.length(new float2(offset.x, offset.z));
@@ -230,8 +224,7 @@ public partial struct RangedAttackAwarenessJob : IJobEntity
         do
         {
             if (ally == self || ally == target) continue;
-            if (EntityUtils.IsDead(in deadLookup, ally)) continue;
-            if (!transformLookup.TryGetComponent(ally, out LocalTransform allyTransform)) continue;
+            if (!unitStateLookups.TryGetTransformUnlessDead(ally, out LocalTransform allyTransform)) continue;
             if (RangedAttackAwarenessSystem.IsPointInLineOfFire(shooterPosition, targetPosition, allyTransform.Position))
                 return true;
         } while (factionEntities.TryGetNextValue(out ally, ref allyIterator));
@@ -286,8 +279,7 @@ public partial struct RangedAttackAwarenessJob : IJobEntity
         do
         {
             if (ally == self) continue;
-            if (EntityUtils.IsDead(in deadLookup, ally)) continue;
-            if (!transformLookup.TryGetComponent(ally, out LocalTransform allyTransform)) continue;
+            if (!unitStateLookups.TryGetTransformUnlessDead(ally, out LocalTransform allyTransform)) continue;
 
             float2 toAlly = allyTransform.Position.xz - shooterPosition.xz;
             if (math.lengthsq(toAlly) > radiusSquared) continue;

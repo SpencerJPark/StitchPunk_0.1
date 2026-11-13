@@ -19,23 +19,20 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
 {
     public const int SELF_DEFENCE_PRIORITY = AIPriorityTier.Defend;
 
-    private ComponentLookup<Dead>           _deadLookup;
-    private ComponentLookup<LocalTransform> _transformLookup;
+    private UnitStateLookups unitStateLookups;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<UnitDataLibrary>();
         state.RequireForUpdate<BrainLibrary>();
-        _deadLookup      = state.GetComponentLookup<Dead>(true);
-        _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        unitStateLookups = UnitStateLookups.Create(ref state);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        _deadLookup.Update(ref state);
-        _transformLookup.Update(ref state);
+        unitStateLookups.Update(ref state);
 
         BlobAssetReference<UnitLibraryBlob> unitLibrary =
             SystemAPI.GetSingleton<UnitDataLibrary>().library;
@@ -51,13 +48,12 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
 
         state.Dependency = new SelfDefenceAwarenessJob
         {
-            deadLookup      = _deadLookup,
-            transformLookup = _transformLookup,
-            unitLibrary     = unitLibrary,
-            aiConfig        = brainLibrary.blob,
-            ecb             = ecb,
-            loggingEnabled  = loggingEnabled,
-            timestamp       = SystemAPI.Time.ElapsedTime,
+            unitStateLookups = unitStateLookups,
+            unitLibrary      = unitLibrary,
+            aiConfig         = brainLibrary.blob,
+            ecb              = ecb,
+            loggingEnabled   = loggingEnabled,
+            timestamp        = SystemAPI.Time.ElapsedTime,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -68,8 +64,7 @@ public partial struct SelfDefenceAwarenessSystem : ISystem
 [WithDisabled(typeof(CutsceneActor))]
 public partial struct SelfDefenceAwarenessJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<Dead>                 deadLookup;
-    [ReadOnly] public ComponentLookup<LocalTransform>       transformLookup;
+    public UnitStateLookups unitStateLookups;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>   unitLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>  aiConfig;
     public bool   loggingEnabled;
@@ -109,10 +104,7 @@ public partial struct SelfDefenceAwarenessJob : IJobEntity
             if (threat.threatScore <= topThreat)
                 continue;
 
-            if (!EntityUtils.IsAlive(in deadLookup, threat.attackerEntity))
-                continue;
-
-            if (!transformLookup.TryGetComponent(threat.attackerEntity, out LocalTransform attackerTransform)
+            if (!unitStateLookups.TryGetTransformIfAlive(threat.attackerEntity, out LocalTransform attackerTransform)
                 || math.distancesq(transform.Position, attackerTransform.Position) > rangeSq)
                 continue;
 

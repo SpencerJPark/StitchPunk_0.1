@@ -11,8 +11,7 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct DrunkAwarenessSystem : ISystem
 {
-    private ComponentLookup<LocalTransform> _transformLookup;
-    private ComponentLookup<Dead>           _deadLookup;
+    private UnitStateLookups unitStateLookups;
     private ComponentLookup<CutsceneActor>  _cutsceneActorLookup;
     private ComponentLookup<StateMachine>   _stateMachineLookup;
     private ComponentLookup<Conversation>   _conversationLookup;
@@ -25,8 +24,7 @@ public partial struct DrunkAwarenessSystem : ISystem
     {
         state.RequireForUpdate<FactionRegistry>();
         state.RequireForUpdate<BrainLibrary>();
-        _transformLookup       = state.GetComponentLookup<LocalTransform>(true);
-        _deadLookup            = state.GetComponentLookup<Dead>(true);
+        unitStateLookups = UnitStateLookups.Create(ref state);
         _cutsceneActorLookup   = state.GetComponentLookup<CutsceneActor>(true);
         _stateMachineLookup    = state.GetComponentLookup<StateMachine>(true);
         _conversationLookup    = state.GetComponentLookup<Conversation>(true);
@@ -38,8 +36,7 @@ public partial struct DrunkAwarenessSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        _transformLookup.Update(ref state);
-        _deadLookup.Update(ref state);
+        unitStateLookups.Update(ref state);
         _cutsceneActorLookup.Update(ref state);
         _stateMachineLookup.Update(ref state);
         _conversationLookup.Update(ref state);
@@ -52,8 +49,7 @@ public partial struct DrunkAwarenessSystem : ISystem
 
         state.Dependency = new DrunkAwarenessJob
         {
-            transformLookup       = _transformLookup,
-            deadLookup            = _deadLookup,
+            unitStateLookups = unitStateLookups,
             cutsceneActorLookup   = _cutsceneActorLookup,
             stateMachineLookup    = _stateMachineLookup,
             conversationLookup    = _conversationLookup,
@@ -78,8 +74,7 @@ public partial struct DrunkAwarenessJob : IJobEntity
     private const float BRAWL_RANGE           = 4f;
     private const float BRAWL_UTILITY         = 0.95f;
 
-    [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
-    [ReadOnly] public ComponentLookup<Dead>                    deadLookup;
+    public UnitStateLookups unitStateLookups;
     [ReadOnly] public ComponentLookup<CutsceneActor>           cutsceneActorLookup;
     [ReadOnly] public ComponentLookup<StateMachine>            stateMachineLookup;
     [ReadOnly] public ComponentLookup<Conversation>            conversationLookup;
@@ -161,7 +156,7 @@ public partial struct DrunkAwarenessJob : IJobEntity
         do
         {
             if (candidate == self) continue;
-            if (!transformLookup.TryGetComponent(candidate, out LocalTransform candidateTransform)) continue;
+            if (!unitStateLookups.transform.TryGetComponent(candidate, out LocalTransform candidateTransform)) continue;
 
             float distanceSq = math.distancesq(myPosition, candidateTransform.Position);
             if (distanceSq > nearestDistanceSq) continue;
@@ -177,8 +172,8 @@ public partial struct DrunkAwarenessJob : IJobEntity
     private bool IsValidBrawlTarget(Entity candidate)
     {
         if (candidate == Entity.Null) return false;
-        if (!transformLookup.HasComponent(candidate)) return false;
-        if (EntityUtils.IsDead(in deadLookup, candidate)) return false;
+        if (!unitStateLookups.transform.HasComponent(candidate)) return false;
+        if (unitStateLookups.IsDead(candidate)) return false;
         if (cutsceneActorLookup.HasComponent(candidate) && cutsceneActorLookup.IsComponentEnabled(candidate)) return false;
         if (playerLookup.HasComponent(candidate)) return false;
         if (minionLookup.HasComponent(candidate) && minionLookup.IsComponentEnabled(candidate)) return false;

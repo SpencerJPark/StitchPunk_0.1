@@ -28,23 +28,20 @@ public partial struct FleeAwarenessSystem : ISystem
         return healthRatio < CRITICAL_HEALTH && (1f - healthRatio) * (1f - bravery) > BREAK_OFF_THRESHOLD;
     }
 
-    private ComponentLookup<Dead>           _deadLookup;
-    private ComponentLookup<LocalTransform> _transformLookup;
+    private UnitStateLookups unitStateLookups;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<GameSceneTag>();
         state.RequireForUpdate<BrainLibrary>();
-        _deadLookup      = state.GetComponentLookup<Dead>(true);
-        _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        unitStateLookups = UnitStateLookups.Create(ref state);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        _deadLookup.Update(ref state);
-        _transformLookup.Update(ref state);
+        unitStateLookups.Update(ref state);
 
         BrainLibrary brainLibrary = SystemAPI.GetSingleton<BrainLibrary>();
 
@@ -58,8 +55,7 @@ public partial struct FleeAwarenessSystem : ISystem
 
         state.Dependency = new FleeAwarenessJob
         {
-            deadLookup      = _deadLookup,
-            transformLookup = _transformLookup,
+            unitStateLookups = unitStateLookups,
             aiConfig        = brainLibrary.blob,
             ecb             = ecb,
             loggingEnabled  = loggingEnabled,
@@ -74,8 +70,7 @@ public partial struct FleeAwarenessSystem : ISystem
 [WithDisabled(typeof(CutsceneActor))]
 public partial struct FleeAwarenessJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<Dead>                deadLookup;
-    [ReadOnly] public ComponentLookup<LocalTransform>      transformLookup;
+    public UnitStateLookups unitStateLookups;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
     public bool   loggingEnabled;
     public double timestamp;
@@ -122,10 +117,7 @@ public partial struct FleeAwarenessJob : IJobEntity
             if (threat.threatScore <= topThreat)
                 continue;
 
-            if (!EntityUtils.IsAlive(in deadLookup, threat.attackerEntity))
-                continue;
-
-            if (!transformLookup.TryGetComponent(threat.attackerEntity, out LocalTransform attackerTransform)
+            if (!unitStateLookups.TryGetTransformIfAlive(threat.attackerEntity, out LocalTransform attackerTransform)
                 || math.distancesq(transform.Position, attackerTransform.Position) > rangeSq)
                 continue;
 
