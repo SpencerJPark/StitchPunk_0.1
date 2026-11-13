@@ -93,6 +93,7 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - `TerrainAreaFiller` plans through `TerrainAreaRestrictedSampler`, splits Interactable/Dressing tiers with the per-tile cap, and bakes `Cards_n` sub-assets drawn with `Painted/TreeCard`.
 - Generated objects carry `TerrainGeneratedMarker` / `TerrainScatterMarker.sourceFeatureId` and lock on any Undo-recorded edit (`TerrainGeneratedLockWatcher`; generators wrap work in `SuppressLocking`).
 - Cut trees: `HarvestableNodeAuthoring` + `HarvestedNodeRecord`/`RestoreSystem` ledger, saved with the Player.
+- Next: `Tasks/Plans/FeaturePlacement_System.md` (features place prefabs; objects own behaviour). Two editor traps it fixes: a docked Terrain Editor hidden behind another tab never gets `OnDisable`, so tools and the HUD stay live; the raw IMGUI HUD strip is drawn under Scene view overlays.
 
 ## Traps
 - Tile subscenes are `AutoLoadScene=false` and draw nothing in the Scene view when closed; `TerrainOpenTilesSessionRestore` (TerrainTilesPanel.cs) reopens every `Tile_*` subscene for ~10 s after a reload, scene open or Play exit. Closing a tile on purpose lasts until the next one of those.

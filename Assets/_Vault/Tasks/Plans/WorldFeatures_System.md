@@ -546,6 +546,8 @@ Each row is one worker task unless marked; every wave ends with the gate, lint, 
 
 **WF-5 Lines and fields** (run WF-S2 first)
 
+> 2026-11-13: WF-5-1 and WF-5-2 are replaced by `FeaturePlacement_System.md` (`TerrainPath` + Along path placer). Do not build them. WF-5-3 to WF-5-6 still stand.
+
 | ✓ | Task | Files | Fixture must fail if |
 |---|---|---|---|
 | [ ] | WF-5-1 **[parallel-safe]** | `Data/Terrain/TerrainLineRecipe.cs`, `MonoBehaviours/Terrain/TerrainLine.cs` | gate only |
