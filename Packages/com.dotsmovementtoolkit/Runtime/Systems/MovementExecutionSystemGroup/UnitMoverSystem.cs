@@ -112,7 +112,7 @@ public partial struct UnitMoverJob : IJobEntity
     // A head-on push into a round trunk projects to almost no sideways motion, which reads as
     // "stopped dead". Past a small angle the slide keeps at least this share of the blocked move,
     // so pushing into an obstacle creeps round it slowly.
-    private const float MinimumSlideShareOfBlockedMove = 0.25f;
+    private const float MinimumSlideShareOfBlockedMove = 0.2f;
     // Turns smaller than this (quaternion dot) skip the wall check; slerp converges asymptotically.
     private const float NegligibleTurnDot = 0.99999f;
     // Below this share the push is treated as square-on and the unit simply stops.
