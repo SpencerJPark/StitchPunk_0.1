@@ -109,39 +109,44 @@ public partial struct BehaviorExecutionSystem : ISystem
         bool loggingEnabled = !SystemAPI.TryGetSingleton<LoggingConfig>(out LoggingConfig loggingCfg)
             || (loggingCfg.EnabledCategories & (int)LogCategory.StateMachine) != 0;
 
+        BehaviorCommandContext sharedCommandContext = new BehaviorCommandContext
+        {
+            transformLookup               = _transformLookup,
+            unitEquipLookup               = _unitEquipLookup,
+            waypointLookup                = _waypointLookup,
+            deadLookup                    = _deadLookup,
+            motivationLookup              = _motivationLookup,
+            socialInviteLookup            = _socialInviteLookup,
+            stateMachineLookup            = _stateMachineLookup,
+            unitFacingLookup              = _unitFacingLookup,
+            animEventOutputLookup         = _animEventOutputLookup,
+            animEventsPendingLookup       = _animEventsPendingLookup,
+            waypointCells                 = registry.waypointCells,
+            unitLibrary                   = unitLibrary,
+            attackRequestLookup           = _attackRequestLookup,
+            rangedAimLookup               = _rangedAimLookup,
+            itemLookup                    = _itemLookup,
+            itemLibrary                   = itemLibrary,
+            pickupRequestLookup           = _pickupRequestLookup,
+            equipByLookup                 = _equipByLookup,
+            attachedToLookup              = _attachedToLookup,
+            attachItemRequestLookup       = _attachItemRequestLookup,
+            animationCommandPendingLookup = _animationCommandPendingLookup,
+            animationCommandLookup        = _animationCommandLookup,
+            ecb                           = ecb,
+            deltaTime                     = deltaTime,
+            timestamp                     = SystemAPI.Time.ElapsedTime,
+            loggingEnabled                = loggingEnabled,
+        };
+
         state.Dependency = new BehaviorExecutionJob
         {
-            behaviorLib              = behaviorLib.blob,
-            unitLibrary              = unitLibrary,
-            transformLookup          = _transformLookup,
-            attackRequestLookup      = _attackRequestLookup,
-            itemLookup               = _itemLookup,
-            rangedAimLookup          = _rangedAimLookup,
-            itemLibrary              = itemLibrary,
-            pickupRequestLookup      = _pickupRequestLookup,
-            equipByLookup            = _equipByLookup,
-            attachedToLookup         = _attachedToLookup,
-            attachItemRequestLookup  = _attachItemRequestLookup,
-            unitEquipLookup          = _unitEquipLookup,
-            waypointLookup           = _waypointLookup,
-            deadLookup               = _deadLookup,
-            animationCommandPendingLookup = _animationCommandPendingLookup,
-            animationCommandLookup   = _animationCommandLookup,
-            motivationLookup         = _motivationLookup,
-            stateMachineLookup       = _stateMachineLookup,
-            unitFacingLookup         = _unitFacingLookup,
-            socialInviteLookup       = _socialInviteLookup,
-            animEventOutputLookup    = _animEventOutputLookup,
-            animEventsPendingLookup  = _animEventsPendingLookup,
-            playbackLayerLookup      = _playbackLayerLookup,
-            emoteStateLookup         = _emoteStateLookup,
-            intoxicationLookup       = _intoxicationLookup,
-            movementLookup           = _movementLookup,
-            waypointCells            = registry.waypointCells,
-            deltaTime                = deltaTime,
-            ecb                      = ecb,
-            timestamp                = SystemAPI.Time.ElapsedTime,
-            loggingEnabled           = loggingEnabled,
+            behaviorLib         = behaviorLib.blob,
+            playbackLayerLookup = _playbackLayerLookup,
+            emoteStateLookup    = _emoteStateLookup,
+            intoxicationLookup  = _intoxicationLookup,
+            movementLookup      = _movementLookup,
+            sharedCommandContext = sharedCommandContext,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -155,46 +160,13 @@ public partial struct BehaviorExecutionSystem : ISystem
 public partial struct BehaviorExecutionJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<BehaviorLibraryBlob>       behaviorLib;
-    [ReadOnly] public BlobAssetReference<UnitLibraryBlob>           unitLibrary;
-    [ReadOnly] public ComponentLookup<LocalTransform>                transformLookup;
-    [ReadOnly] public ComponentLookup<Item>                          itemLookup;
-    [ReadOnly] public BlobAssetReference<ItemLibraryBlob>            itemLibrary;
-    [ReadOnly] public ComponentLookup<UnitEquip>                     unitEquipLookup;
-    [ReadOnly] public NativeParallelMultiHashMap<int2, Entity>        waypointCells;
-    [ReadOnly] public ComponentLookup<NavigationWaypoint>            waypointLookup;
-    [ReadOnly] public ComponentLookup<Dead>                          deadLookup;
-    [ReadOnly] public BufferLookup<Motivation>                       motivationLookup;
-    [ReadOnly] public ComponentLookup<SocialInvite>                  socialInviteLookup;
-    [ReadOnly] public BufferLookup<AnimEventOutput>                  animEventOutputLookup;
-    [ReadOnly] public ComponentLookup<AnimEventsPending>             animEventsPendingLookup;
     [ReadOnly] public BufferLookup<PlaybackLayer>                    playbackLayerLookup;
-
-    // Read-only lookup aliases the StateMachine this job writes by ref. Safe: qualifier checks only
-    // read OTHER units' StateMachine (the target's), and each unit writes only its own.
-    [ReadOnly] [NativeDisableContainerSafetyRestriction]
-    public ComponentLookup<StateMachine> stateMachineLookup;
-
-    [ReadOnly] public ComponentLookup<UnitFacing> unitFacingLookup;
-
-    // NativeDisableParallelForRestriction is safe: each unit/item is owned by at most one
-    // executing behavior at a time, so no two threads write to the same component.
-    [NativeDisableParallelForRestriction] public ComponentLookup<AttackRequest>     attackRequestLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<RangedAim>         rangedAimLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<PickupRequest>     pickupRequestLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<EquipBy>           equipByLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<AttachedTo>        attachedToLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<AttachItemRequest> attachItemRequestLookup;
-    [NativeDisableParallelForRestriction] public ComponentLookup<AnimationCommandPending> animationCommandPendingLookup;
-    [NativeDisableParallelForRestriction] public BufferLookup<AnimationCommand>     animationCommandLookup;
-
     [NativeDisableParallelForRestriction] public ComponentLookup<EmoteState>   emoteStateLookup;
     [NativeDisableParallelForRestriction] public ComponentLookup<Intoxication> intoxicationLookup;
     [ReadOnly] public ComponentLookup<Movement> movementLookup;
 
-    public float  deltaTime;
-    public double timestamp;
-    public bool   loggingEnabled;
-    public EntityCommandBuffer.ParallelWriter ecb;
+    // Shared by all units; RunExecute copies it and sets only entityIndex, never writes the shared copy.
+    public BehaviorCommandContext sharedCommandContext;
 
     public void Execute(
         [EntityIndexInQuery] int               entityIndex,
@@ -225,10 +197,10 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 if (stateMachine.targetEntity != Entity.Null)
                     PushRecent(ref recentWaypoints, stateMachine.targetEntity);
 
-                if (loggingEnabled)
-                    LogUtil.Log(ref ecb, entityIndex,
+                if (sharedCommandContext.loggingEnabled)
+                    LogUtil.Log(ref sharedCommandContext.ecb, entityIndex,
                         $"[BehaviorExecution] Entity {unit.Index} behavior {stateMachine.activeBehavior.Name()} complete (action: {stateMachine.action.Name()})",
-                        LogLevel.Info, timestamp, category: LogCategory.StateMachine);
+                        LogLevel.Info, sharedCommandContext.timestamp, category: LogCategory.StateMachine);
 
                 StateMachineTransitions.ResetToIdle(ref stateMachine);
                 break;
@@ -282,41 +254,13 @@ public partial struct BehaviorExecutionJob : IJobEntity
         }
 
         // Wall time since behavior start for LoopUntil; survives blocking commands resetting CommandTimer.
-        stateMachine.LoopTimer += deltaTime;
+        stateMachine.LoopTimer += sharedCommandContext.deltaTime;
 
         ref BehaviorCommand cmd =
             ref behavior.executionSequence[stateMachine.CurrentCommandIndex];
 
-        BehaviorCommandContext context = new BehaviorCommandContext
-        {
-            transformLookup               = transformLookup,
-            unitEquipLookup               = unitEquipLookup,
-            waypointLookup                = waypointLookup,
-            deadLookup                    = deadLookup,
-            motivationLookup              = motivationLookup,
-            socialInviteLookup            = socialInviteLookup,
-            stateMachineLookup            = stateMachineLookup,
-            unitFacingLookup              = unitFacingLookup,
-            animEventOutputLookup         = animEventOutputLookup,
-            animEventsPendingLookup       = animEventsPendingLookup,
-            waypointCells                 = waypointCells,
-            unitLibrary                   = unitLibrary,
-            attackRequestLookup           = attackRequestLookup,
-            rangedAimLookup               = rangedAimLookup,
-            itemLookup                    = itemLookup,
-            itemLibrary                   = itemLibrary,
-            pickupRequestLookup           = pickupRequestLookup,
-            equipByLookup                 = equipByLookup,
-            attachedToLookup              = attachedToLookup,
-            attachItemRequestLookup       = attachItemRequestLookup,
-            animationCommandPendingLookup = animationCommandPendingLookup,
-            animationCommandLookup        = animationCommandLookup,
-            ecb                           = ecb,
-            entityIndex                   = entityIndex,
-            deltaTime                     = deltaTime,
-            timestamp                     = timestamp,
-            loggingEnabled                = loggingEnabled,
-        };
+        BehaviorCommandContext context = sharedCommandContext;
+        context.entityIndex = entityIndex;
 
         switch (cmd.type)
         {
@@ -367,7 +311,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 break;
 
             case BehaviorCommandType.ModifyMotivation:
-                RequestCommands.RunModifyMotivation(ecb, entityIndex, unit, in cmd);
+                RequestCommands.RunModifyMotivation(sharedCommandContext.ecb, entityIndex, unit, in cmd);
                 break;
 
             case BehaviorCommandType.PlayAnimation:
@@ -383,11 +327,11 @@ public partial struct BehaviorExecutionJob : IJobEntity
                 break;
 
             case BehaviorCommandType.StopAnimation:
-                AnimationCommands.RunStopAnimation(animationCommandPendingLookup, animationCommandLookup, playbackLayerLookup, unit);
+                AnimationCommands.RunStopAnimation(sharedCommandContext.animationCommandPendingLookup, sharedCommandContext.animationCommandLookup, playbackLayerLookup, unit);
                 break;
 
             case BehaviorCommandType.ReleaseInteraction:
-                MiscCommands.RunReleaseInteraction(timestamp, in cmd, stateMachine.targetEntity, ref recentInteractions);
+                MiscCommands.RunReleaseInteraction(sharedCommandContext.timestamp, in cmd, stateMachine.targetEntity, ref recentInteractions);
                 break;
 
             case BehaviorCommandType.PlaySound:
@@ -405,11 +349,11 @@ public partial struct BehaviorExecutionJob : IJobEntity
             default:
                 // No interpreter arm — bake validation (BehaviorCommandCatalog) should have
                 // warned already; this is the runtime backstop for data that slipped past it.
-                if (loggingEnabled)
+                if (sharedCommandContext.loggingEnabled)
                 {
-                    LogUtil.Log(ref ecb, entityIndex,
+                    LogUtil.Log(ref sharedCommandContext.ecb, entityIndex,
                         $"[BehaviorExecution] Unimplemented command {cmd.type.Name()} in {stateMachine.activeBehavior.Name()} — skipping",
-                        LogLevel.Warning, timestamp, category: LogCategory.StateMachine);
+                        LogLevel.Warning, sharedCommandContext.timestamp, category: LogCategory.StateMachine);
                 }
                 break;
         }
