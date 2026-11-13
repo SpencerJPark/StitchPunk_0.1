@@ -31,6 +31,9 @@ Scene: `Assets/Scenes/CampLoop.unity`. Re-enter Play mode so the subscene rebake
 - [ ] Stand so a bandit is between you and a shooter: a careful shooter side-steps, a careless one shoots its friend.
 - [ ] A rock or bullet that hits a fellow bandit hurts it (no fight breaks out yet; that comes with DamageReaction).
 
+## Readability refactor 2026-11-13 (BehaviorExecution shared command context)
+- [ ] Bandits still patrol, sit, throw, shoot and heal as before.
+
 ## Known gaps
 - No throw lead and no face-target command; since H5 throws and shots aim where you stood when the wind-up started (by design, so you can dodge).
 - Bullets are instantiated and destroyed, not pooled.

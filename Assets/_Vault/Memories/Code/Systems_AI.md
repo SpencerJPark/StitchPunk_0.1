@@ -120,7 +120,7 @@ thin job shell (phase machine, command-index advance, dispatch switch) — **per
 in `Utils/BehaviorCommands/*.cs`** (2026-08-29 split, one static handler class per family:
 `MovementCommands`, `WaitLoopCommands`, `AnimationCommands`, `ItemCommands`, `RequestCommands`,
 `MiscCommands`, `WaitForAnimEventCommand`, `WaitForClipFinishedCommand`, plus the `BehaviorCommandContext`
-struct bundling lookups/ECB/blob refs). Add a new `BehaviorCommandType` arm there, not inline in the
+struct bundling lookups/ECB/blob refs — built once per job in OnUpdate as `sharedCommandContext`, copied per unit with only `entityIndex` set; the job's safety attributes live on the context's fields, nested, and Unity honours them (2026-11-13, job 77→52 µs at 13 units)). Add a new `BehaviorCommandType` arm there, not inline in the
 switch. Blocking commands: Approach, WaitTime, FleeFromTarget, LoopUntil, WaitForAnimEvent,
 WaitForClipFinished, WindUp (each owns its own `CurrentCommandIndex`/timer advancement). Fire-and-advance:
 PlayAnimation, PlayActionAnimation, RequestAttack, RequestPickup, RequestThrow, RequestShoot, ModifyMotivation,
