@@ -130,7 +130,7 @@ public partial struct MinionStandingOrderJob : IJobEntity
     }
 
     private bool IsAlive(Entity entity) =>
-        entity != Entity.Null && deadLookup.HasComponent(entity) && !deadLookup.IsComponentEnabled(entity);
+        entity != Entity.Null && EntityUtils.IsAlive(in deadLookup, entity);
 
     private static float PlanarDistance(float3 from, float3 to) =>
         math.distance(new float2(from.x, from.z), new float2(to.x, to.z));

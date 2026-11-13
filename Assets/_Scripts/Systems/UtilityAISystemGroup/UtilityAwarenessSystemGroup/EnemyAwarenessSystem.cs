@@ -115,7 +115,7 @@ public partial struct CombatAwarenessJob : IJobEntity
                 if (candidate == self)
                     continue;
 
-                if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate))
+                if (EntityUtils.IsDead(in deadLookup, candidate))
                     continue;
 
                 // DamageEventSystem makes a puppeted actor immune, so committing to one would leave

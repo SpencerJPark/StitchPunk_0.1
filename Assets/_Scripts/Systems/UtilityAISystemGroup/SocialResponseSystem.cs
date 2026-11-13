@@ -90,8 +90,7 @@ public partial struct SocialResponseJob : IJobEntity
             || !stateMachineLookup.TryGetComponent(initiator, out StateMachine initiatorStateMachine)
             || initiatorStateMachine.action != ActionType.Talk
             || initiatorStateMachine.targetEntity != self
-            || !deadLookup.HasComponent(initiator)
-            || deadLookup.IsComponentEnabled(initiator))
+            || !EntityUtils.IsAlive(in deadLookup, initiator))
             return;
 
         // Already paired with this initiator — the responder's own RequestSocialResponse

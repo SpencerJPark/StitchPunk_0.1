@@ -173,8 +173,7 @@ public partial struct AttackRequestJob : IJobEntity
         Entity victim, in AttackBlob attackBlob)
     {
         // Alive means Dead is present but disabled.
-        bool victimAlive = deadLookup.HasComponent(victim) &&
-                           !deadLookup.IsComponentEnabled(victim);
+        bool victimAlive = EntityUtils.IsAlive(in deadLookup, victim);
 
         if (!victimAlive ||
             !transformLookup.TryGetComponent(victim, out LocalTransform victimTransform))

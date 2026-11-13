@@ -57,7 +57,7 @@ public partial struct ThrownItemHitSystem : ISystem
                 .WithAll<Health>()
                 .WithEntityAccess())
         {
-            if (deadLookup.HasComponent(entity) && deadLookup.IsComponentEnabled(entity))
+            if (EntityUtils.IsDead(in deadLookup, entity))
                 continue;
             if (dodgeInvulnerableLookup.HasComponent(entity) && dodgeInvulnerableLookup.IsComponentEnabled(entity))
                 continue;

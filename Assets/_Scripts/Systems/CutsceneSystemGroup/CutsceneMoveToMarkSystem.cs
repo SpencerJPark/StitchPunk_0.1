@@ -4,10 +4,8 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Transforms;
 
-// The game's legs for the toolkit's marks lane (A64): the cutscene says where a slot must stand and
-// judges arrival itself, this walks the unit there through the ordinary pathfinding pipeline.
-// The Player is excluded on purpose (G2 §4) — they walk to their own mark on their own input, and
-// the rendezvous hold waits for them exactly as it waits for anyone else.
+// Walks units to their marks via the ordinary pathfinding; the toolkit judges arrival.
+// The Player is excluded on purpose: they walk to their own mark on their own input.
 [BurstCompile]
 [UpdateInGroup(typeof(CutsceneSystemGroup))]
 [UpdateAfter(typeof(CutsceneStartSystem))]
@@ -49,12 +47,8 @@ public partial struct IssueMarkPathRequestJob : IJobEntity
     }
 }
 
-// The mirror: the toolkit disabled the order (arrived, timed out, skipped, or the cutscene ended),
-// so the walk we started has to end with it. The switch-off is read as [WithPresent] plus an explicit
-// ValueRO check rather than [WithDisabled] — measured 2026-09-06, a [WithDisabled] on the order
-// matched nothing here while a hand-built query with the identical constraints matched (Gotchas.md).
-// Movement is [WithPresent] rather than enabled-only so a unit that died mid-walk still clears the
-// flag instead of carrying it into its next life.
+// Ends the walk when the toolkit disables the order. Uses [WithPresent] plus a ValueRO check, not
+// [WithDisabled], which matched nothing here (Gotchas.md). Movement is [WithPresent] so a unit that died mid-walk still clears the flag.
 [BurstCompile]
 [WithPresent(typeof(CutsceneMoveToMark))]
 [WithPresent(typeof(PathRequest))]
@@ -74,9 +68,7 @@ public partial struct ClearResolvedMarkJob : IJobEntity
 
         MovementAPI.HaltPathing(ref pathRequest, pathRequestEnabled);
 
-        // Stop where the unit stands, not at the mark: an arrival is already inside tolerance and a
-        // timeout has placed the unit on the mark, so its own position is the right answer either
-        // way — and it is the same "stop now" idiom CutsceneStartSystem uses when gating an actor.
+        // Stop where the unit stands: an arrival is inside tolerance and a timeout has placed it on the mark.
         movement.targetPosition = localTransform.Position;
 
         cutsceneMarkIssuedEnabled.ValueRW = false;

@@ -128,7 +128,7 @@ public struct DamageExpandJob : IJobParallelFor
             if (candidate == damageEvent.sourceEntity)
                 continue;
 
-            if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate))
+            if (EntityUtils.IsDead(in deadLookup, candidate))
                 continue;
 
             float deltaX = targets[t].position.x - damageEvent.sourcePosition.x;

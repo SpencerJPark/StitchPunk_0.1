@@ -163,7 +163,7 @@ public partial struct RangedAttackAwarenessJob : IJobEntity
             target = stateMachine.targetEntity;
 
         if (target == Entity.Null) return;
-        if (deadLookup.HasComponent(target) && deadLookup.IsComponentEnabled(target)) return;
+        if (EntityUtils.IsDead(in deadLookup, target)) return;
         if (!transformLookup.TryGetComponent(target, out LocalTransform targetTransform)) return;
 
         float3 offset   = targetTransform.Position - transform.Position;
@@ -230,7 +230,7 @@ public partial struct RangedAttackAwarenessJob : IJobEntity
         do
         {
             if (ally == self || ally == target) continue;
-            if (deadLookup.HasComponent(ally) && deadLookup.IsComponentEnabled(ally)) continue;
+            if (EntityUtils.IsDead(in deadLookup, ally)) continue;
             if (!transformLookup.TryGetComponent(ally, out LocalTransform allyTransform)) continue;
             if (RangedAttackAwarenessSystem.IsPointInLineOfFire(shooterPosition, targetPosition, allyTransform.Position))
                 return true;
@@ -286,7 +286,7 @@ public partial struct RangedAttackAwarenessJob : IJobEntity
         do
         {
             if (ally == self) continue;
-            if (deadLookup.HasComponent(ally) && deadLookup.IsComponentEnabled(ally)) continue;
+            if (EntityUtils.IsDead(in deadLookup, ally)) continue;
             if (!transformLookup.TryGetComponent(ally, out LocalTransform allyTransform)) continue;
 
             float2 toAlly = allyTransform.Position.xz - shooterPosition.xz;

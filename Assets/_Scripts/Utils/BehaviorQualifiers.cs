@@ -32,7 +32,7 @@ public static class BehaviorQualifiers
         {
             if (target == Entity.Null) return true;
             if (!transformLookup.HasComponent(target)) return true; // entity destroyed
-            if (deadLookup.HasComponent(target) && deadLookup.IsComponentEnabled(target)) return true;
+            if (EntityUtils.IsDead(in deadLookup, target)) return true;
         }
 
         if ((qualifier & LoopQualifier.TargetLost) != 0)

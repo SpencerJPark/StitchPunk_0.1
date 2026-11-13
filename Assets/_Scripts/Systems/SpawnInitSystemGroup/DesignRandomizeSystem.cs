@@ -3,15 +3,9 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-// Rolls a per-character palette once on first spawn: one shape tag per group — picked from the rig
-// authoring's RandomTagOption pool (CharacterRigAuthoring.randomTags), so AUTHORING decides what a
-// random spawn may look like and conversion-only tags (e.g. "Zombie") never roll — one colour index
-// per palette type referenced by the character's designs (full palette length; slots narrow it
-// through their [min,max] window at apply), and a random shape offset per design-driven body part.
-// The palette is shared, so hair + mustache always match and skin is uniform across parts. Runs
-// after BodyPartInitSystem (buffer built) and before MinionRestoreApplySystem (a restored minion's
-// saved palette/shapes overwrite the wasted roll before DesignApplySystem fans it out). One-shot:
-// consumes RandomizeDesign by disabling it.
+// Rolls a per-character palette once on first spawn, then disables RandomizeDesign. Only tags in the rig's
+// RandomTagOption pool roll, so conversion-only tags (e.g. "Zombie") never appear on a random spawn.
+// Runs before MinionRestoreApplySystem so a restored minion's saved palette overwrites the wasted roll.
 [BurstCompile]
 [UpdateInGroup(typeof(SpawnInitSystemGroup))]
 [UpdateAfter(typeof(BodyPartInitSystem))]
@@ -62,8 +56,6 @@ public partial struct DesignRandomizeJob : IJobEntity
     {
         Random random = Random.CreateFromIndex(seedBase + (uint)indexInQuery);
 
-        // Roll one tag per group from the AUTHORED pool — one pass per distinct group in the buffer:
-        // count that group's candidates, pick one, skip groups already rolled.
         palette.groups.Clear();
         for (int optionIndex = 0; optionIndex < randomTags.Length; optionIndex++)
         {
@@ -89,10 +81,7 @@ public partial struct DesignRandomizeJob : IJobEntity
             }
         }
 
-        // Roll one colour index per palette type referenced by the character's designs. Full palette
-        // length — each design slot narrows the shared roll through its own [min,max] window at
-        // apply, so a "fixed" colour is just a [n,n] window. Fresh roll always starts in primary
-        // colours (alternate mode is a conversion state).
+        // Full palette length: each design slot narrows the shared roll through its own [min,max] window at apply.
         palette.colors.Clear();
         palette.useAlternateColors = 0;
         FixedList64Bytes<ColorPaletteType> rolledPalettes = default;
@@ -111,7 +100,6 @@ public partial struct DesignRandomizeJob : IJobEntity
             DesignApplyUtil.SetColorIndex(ref palette.colors, rolledPalettes[paletteIndex], chosenColorIndex);
         }
 
-        // Roll a shape offset within each part's tag pool.
         persistedDesign.slots.Clear();
         for (int partIndex = 0; partIndex < parts.Length; partIndex++)
         {
@@ -135,8 +123,7 @@ public partial struct DesignRandomizeJob : IJobEntity
         randomizeDesignEnabled.ValueRW = false;
     }
 
-    // Whether a group already has a rolled entry (1) or not (0) — tiny helper because GetTag cannot
-    // distinguish "unset" from "rolled an empty tag".
+    // GetTag cannot distinguish "unset" from "rolled an empty tag".
     private static int GetTagCount(in FixedList512Bytes<PaletteEntry> groups, in FixedString32Bytes group)
     {
         for (int entryIndex = 0; entryIndex < groups.Length; entryIndex++)

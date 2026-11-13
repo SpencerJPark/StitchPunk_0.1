@@ -66,8 +66,7 @@ public static class AIUtils
     public static bool IsTargetDead(Entity hostile, ComponentLookup<Dead> deadLookup)
     {
         return hostile != Entity.Null &&
-               deadLookup.HasComponent(hostile) && 
-               deadLookup.IsComponentEnabled(hostile);
+               EntityUtils.IsDead(in deadLookup, hostile);
     }
     
     public static bool IsTargetOutOfRange(

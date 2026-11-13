@@ -30,20 +30,11 @@ public partial struct FloatingWorldOriginSystem : ISystem
 
         nextCheckTime = time + CHECK_INTERVAL;
 
-        // ───────────────────────────────────────────────
-        // 1. Get the player entity (tag + only one)
-        // ───────────────────────────────────────────────
         Entity playerEntity = SystemAPI.GetSingletonEntity<Player>();
 
-        // ───────────────────────────────────────────────
-        // 2. Get its LocalTransform
-        // ───────────────────────────────────────────────
         LocalTransform playerTransform = SystemAPI.GetComponent<LocalTransform>(playerEntity);
         float3 playerPosition = playerTransform.Position;
 
-        // ───────────────────────────────────────────────
-        // 3. Check distance
-        // ───────────────────────────────────────────────
         float distanceSquared = math.lengthsq(playerPosition);
         float maxDistanceSquared = MAX_DISTANCE_FROM_ORIGIN * MAX_DISTANCE_FROM_ORIGIN;
 
@@ -52,14 +43,8 @@ public partial struct FloatingWorldOriginSystem : ISystem
             return;
         }
 
-        // ───────────────────────────────────────────────
-        // 4. Compute offset (negative of player position)
-        // ───────────────────────────────────────────────
         float3 offset = -playerPosition;
 
-        // ───────────────────────────────────────────────
-        // 5. Schedule job to shift all LocalTransforms
-        // ───────────────────────────────────────────────
         ShiftWorldJob shiftJob = new ShiftWorldJob
         {
             offset = offset

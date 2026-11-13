@@ -3,17 +3,9 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-// Reads the scored UtilityActions buffer and writes the winning action to StateMachine.
-// Selection rules (in order):
-//   1. Player-ordered entry (isPlayerOrdered == true) always wins unconditionally.
-//   2. Highest priority tier gate — lower-priority options are ignored.
-//   3. Within the top tier: highest totalUtility wins.
-// Does not interrupt an in-flight behavior with the same action.
-// A non-player winner preempts a live behavior only if winnerPriority > activePriority and
-// winnerPriority >= that behavior's minimumInterruptPriority.
-// Never clobbers a live behavior: when one is active, the winner is written to the StateMachine
-// pending fields only if it outranks activePriority; BehaviorInterruptSystem performs the swap
-// same-frame after running interruptionCleanup.
+// Picks the winner from UtilityActions: a player-ordered entry first, else top priority tier, then highest totalUtility.
+// Never clobbers a live behavior: a winner that outranks activePriority goes into the StateMachine
+// pending fields and BehaviorInterruptSystem performs the swap the same frame.
 [BurstCompile]
 [UpdateInGroup(typeof(ActionSelectionSystemGroup), OrderLast = true)]
 public partial struct WinnerSelectionSystem : ISystem
@@ -74,7 +66,6 @@ public partial struct WinnerSelectJob : IJobEntity
         UtilityActions best   = default;
         bool           found  = false;
 
-        // Player-ordered entry wins unconditionally — check first.
         for (int actionIndex = 0; actionIndex < actions.Length; actionIndex++)
         {
             if (!actions[actionIndex].isPlayerOrdered) continue;
@@ -83,7 +74,6 @@ public partial struct WinnerSelectJob : IJobEntity
             break;
         }
 
-        // Otherwise: priority tier gate + highest utility.
         if (!found)
         {
             int highestPriority = int.MinValue;
@@ -106,9 +96,8 @@ public partial struct WinnerSelectJob : IJobEntity
 
         if (!found) return;
 
-        // Don't interrupt an in-flight behavior with the same action — let it complete naturally.
-        // Exception: a player order to a different target/destination always re-targets (orders
-        // are one-shot consumed by MinionActionSelectionSystem, so this can't re-preempt every frame).
+        // Same action as the live one is left alone, except a player order to a different target
+        // always re-targets (orders are consumed once, so it cannot re-preempt every frame).
         bool sameTarget = best.targetEntity == stateMachine.targetEntity
             && best.hasTargetPosition == stateMachine.hasTargetPosition
             && math.all(best.targetPosition == stateMachine.targetPosition);
@@ -138,8 +127,7 @@ public partial struct WinnerSelectJob : IJobEntity
             return;
         }
 
-        // A behavior is live — preempt only when the winner outranks it and clears its interrupt
-        // threshold. Pending fields are consumed by BehaviorInterruptSystem this frame; live state is never touched here.
+        // Preempt only if winnerPriority > activePriority and >= the behavior's minimumInterruptPriority.
         int minimumInterruptPriority = 0;
         int activeBehaviorIndex = (int)stateMachine.activeBehavior;
         if (activeBehaviorIndex >= 0 && activeBehaviorIndex < behaviorLib.Value.behaviors.Length)

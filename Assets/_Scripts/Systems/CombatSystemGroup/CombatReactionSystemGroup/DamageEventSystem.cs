@@ -75,7 +75,7 @@ public partial struct DamageEventSystem : ISystem
             if (!healthLookup.HasComponent(target))
                 continue;
 
-            if (deadLookup.HasComponent(target) && deadLookup.IsComponentEnabled(target))
+            if (EntityUtils.IsDead(in deadLookup, target))
                 continue;
 
             // A puppeted cutscene actor cannot flee or fight back, so it is immune; an on-camera death

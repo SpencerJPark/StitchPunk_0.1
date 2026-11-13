@@ -5,14 +5,8 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Audio;
 
-/// <summary>
-/// Managed playback bridge for the Sound System ("ECS decides, MonoBehaviour plays"). Each LateUpdate
-/// it writes the ListenerPosition + CameraView singletons from the active camera, reads the
-/// ResolvedVoices the ECS mix produced, and drives a pool of AudioSources: one-shots fire on a free
-/// voice, loops are kept alive by stableVoiceKey and stopped when they drop out of the list. It also
-/// crossfades the music stems toward MusicState and applies the per-machine UserSettings volumes to the
-/// AudioMixer. Backend-agnostic — swap this layer for FMOD/Wwise without touching any ECS system.
-/// </summary>
+// ECS decides, this plays: drives a pool of AudioSources from the ResolvedVoices the ECS mix produced.
+// Loops are kept alive by stableVoiceKey and stopped when they drop out of the list.
 public class AudioManager : PersistentSingleton<AudioManager>
 {
     [Header("Mixer")]
@@ -148,8 +142,7 @@ public class AudioManager : PersistentSingleton<AudioManager>
         return true;
     }
 
-    // The AudioListener rides the active camera (assumed present on it). Here we publish the camera's
-    // ground point + view radius so ECS culling/WorldMood agree with what the player sees.
+    // Publishes the camera's ground point and view radius so ECS culling/WorldMood agree with what the player sees.
     private void WriteListenerAndView()
     {
         Camera cam = Camera.main;
@@ -165,10 +158,8 @@ public class AudioManager : PersistentSingleton<AudioManager>
             _cameraViewQuery.SetSingleton(new CameraView { center = ground, viewRadius = ComputeGroundViewRadius(cam, ground) });
     }
 
-    // Circumscribing ground-plane radius of what the camera actually sees: intersect the four
-    // viewport-corner rays with y = 0 and take the farthest hit from the ground center. Clamped to
-    // [cameraViewRadius, maxCameraViewRadius]; falls back to cameraViewRadius when no ray hits
-    // (camera looking up / parallel to the ground).
+    // Farthest hit of the four viewport-corner rays on y = 0, clamped to [cameraViewRadius, maxCameraViewRadius];
+    // falls back to cameraViewRadius when no ray hits (camera looking up).
     private float ComputeGroundViewRadius(Camera cam, float3 groundCenter)
     {
         float maxDistanceSq = 0f;

@@ -62,7 +62,7 @@ public partial struct FakeRagdollMotionJob : IJobEntity
 
     private void Execute(Entity unitEntity, ref LocalTransform unitTransform, ref FakeRagdoll fakeRagdoll)
     {
-        bool isDead = deadLookup.HasComponent(unitEntity) && deadLookup.IsComponentEnabled(unitEntity);
+        bool isDead = EntityUtils.IsDead(in deadLookup, unitEntity);
         fakeRagdoll.phaseSeconds += deltaTime;
 
         switch (fakeRagdoll.phase)

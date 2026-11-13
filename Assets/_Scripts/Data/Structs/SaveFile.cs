@@ -1,14 +1,6 @@
 using System;
 
-/// <summary>
-/// Root DTO written to / read from disk as JSON by the generic save system.
-///
-/// These classes hold ONLY JsonUtility-safe primitives (strings, ints, arrays). Component
-/// state is captured generically as Base64 raw bytes inside <see cref="ComponentRecord.data"/> —
-/// so ECS types (float3, quaternion, enums) ride along inside the Base64 blob and never appear
-/// as raw fields here. This is what lets the system save any IPersist-marked component with no
-/// per-field code (contrast the old hand-written PlayerSaveData).
-/// </summary>
+// JSON save DTOs: JsonUtility-safe primitives only. Component state rides as Base64 raw bytes, so ECS types never appear as fields.
 [Serializable]
 public class SaveFile
 {
@@ -17,7 +9,6 @@ public class SaveFile
     public EntityRecord[] entities;
 }
 
-/// <summary>Lightweight, text-only header for populating a future load menu.</summary>
 [Serializable]
 public class SaveHeader
 {
@@ -26,10 +17,6 @@ public class SaveHeader
     public string sceneLabel;
 }
 
-/// <summary>
-/// Role string constants for <see cref="EntityRecord.role"/>. v1 persists two singletons located
-/// by tag; a <c>SaveRole</c> enum + PersistId arrive with the multi-entity (minion) phase.
-/// </summary>
 public static class SaveRoles
 {
     public const string Player   = "Player";
@@ -37,7 +24,6 @@ public static class SaveRoles
     public const string Minion   = "Minion";
 }
 
-/// <summary>One persisted entity. <see cref="role"/> tells load which entity to patch.</summary>
 [Serializable]
 public class EntityRecord
 {
@@ -49,7 +35,6 @@ public class EntityRecord
     public int unitType;     // (int)UnitType — pool key to respawn the body prefab from
 }
 
-/// <summary>One component's snapshot: its type name, enabled bit, and Base64 raw bytes.</summary>
 [Serializable]
 public class ComponentRecord
 {

@@ -7,7 +7,7 @@ using Unity.Rendering;
 using Unity.Transforms;
 
 // Drives a roll started by PlayerRollStartSystem. Runs after PlayerMoveSystem so its target and
-// speed win, and lets the toolkit's UnitMoverSystem do the moving so walls still slide (RL-D2).
+// speed win, and lets the toolkit's UnitMoverSystem do the moving so walls still slide.
 // Also owns the end of the roll (i-frames off, cooldown, queued attack) and the afterimage spawns.
 [BurstCompile]
 [UpdateInGroup(typeof(MovementFollowerSystemGroup))]
@@ -91,7 +91,7 @@ public partial struct PlayerRollMoveSystem : ISystem
             playerRoll.ValueRW.elapsed += deltaTime;
             float currentFraction = math.saturate(playerRoll.ValueRO.elapsed / settings.rollDuration);
 
-            // Exact slice of the curve's integral (RL-D3), so the roll covers rollDistance at any frame rate.
+            // Exact slice of the curve's integral, so the roll covers rollDistance at any frame rate.
             float distanceThisFrame = RollDistanceBetween(previousFraction, currentFraction, settings.rollDistance,
                 settings.rollDuration, playerRoll.ValueRO.restoreMoveSpeed, settings.speedCurvePower);
             // The frame that crosses the end runs the leftover time at walk speed, or that frame hitches.
@@ -116,9 +116,7 @@ public partial struct PlayerRollMoveSystem : ISystem
         }
     }
 
-    // speed(t) = walk + burst * (1 - t)^power: the burst eases out into walking speed rather than to zero,
-    // so a held direction carries straight on after landing with no dead stop. The burst is sized so the
-    // whole roll still covers rollDistance.
+    // speed(t) = walk + burst * (1 - t)^power: eases out into walking speed, not zero, so there is no dead stop after landing.
     public static float RollDistanceBetween(float fromFraction, float toFraction, float rollDistance,
         float rollDuration, float walkSpeed, float speedCurvePower)
     {
@@ -152,7 +150,6 @@ public partial struct PlayerRollMoveSystem : ISystem
         playerRoll.ValueRW.attackQueued = false;
         SystemAPI.SetComponentEnabled<DodgeInvulnerable>(playerEntity, false);
 
-        // PlayerAttackSystem picks the press up next frame through its normal path (RL-O5).
         if (queueAttack)
             SystemAPI.SetComponentEnabled<OnAttackPlayerInput>(playerEntity, true);
 
@@ -162,9 +159,7 @@ public partial struct PlayerRollMoveSystem : ISystem
             playerRoll.ValueRO.direction);
     }
 
-    // Copies every rendered entity under the player's billboarded Visual and freezes the copy at its
-    // current world pose (RL-D8). The copy has no LocalTransform, so the transform system leaves its
-    // LocalToWorld alone and AfterimageFadeSystem can shrink it in place.
+    // The copy has no LocalTransform, so the transform system leaves its LocalToWorld alone and AfterimageFadeSystem can shrink it in place.
     private void SpawnAfterimages(ref SystemState state, Entity playerEntity, PlayerRollSettings settings,
         ref EntityCommandBuffer entityCommandBuffer)
     {

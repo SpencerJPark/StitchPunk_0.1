@@ -3,16 +3,8 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 
-// Consumes an enabled SwapBrainRequest and re-keys the unit's brain to req.newUnit:
-// swaps UtilityBrain.unitType / UnitData.unitType + Faction, and rebuilds the
-// AttackFaction / AvailableAttack / Motivation buffers from the UnitDataLibrary blob entry.
-// Fires ActionInterruptRequest so the new brain re-enters action selection, then consumes
-// the request. Generic — any caller (revive, future feral turn, debug) can stamp + enable
-// SwapBrainRequest to convert a unit's brain in place.
-//
-// Rebuilt motivations default to decayRate = 0 (the blob carries no decay data), so a
-// converted unit's needs stay satisfied and it is driven by combat/wander — acceptable for
-// PlayerZombie. See MinionRevival_System §4.
+// Any caller can enable a SwapBrainRequest to convert a unit's brain in place (unitType, Faction, attack and motivation buffers).
+// Rebuilt motivations get decayRate = 0 (the blob has no decay data), so a converted unit's needs stay satisfied.
 [BurstCompile]
 [UpdateInGroup(typeof(HealthSystemGroup))]
 [UpdateAfter(typeof(ReviveRequestSystem))]
@@ -45,18 +37,13 @@ public partial struct SwapBrainSystem : ISystem
 }
 
 [BurstCompile]
-// WithPresent(UtilityBrain): a revived minion has UtilityBrain DISABLED (death turned the utility
-// AI off and revive leaves it off — decisions come from the player). The swap must still run to
-// rebuild faction/attacks/motivations, so match the brain whether enabled or disabled; ref
-// UtilityBrain stays writable under WithPresent.
+// WithPresent(UtilityBrain): a revived minion keeps UtilityBrain disabled, but the swap must still run, so match it either way.
 [WithPresent(typeof(UtilityBrain))]
 public partial struct SwapBrainJob : IJobEntity
 {
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob> unitLibrary;
     public EntityCommandBuffer.ParallelWriter ecb;
 
-    // SwapBrainRequest (in) is the enabled trigger; UtilityBrain (ref) is matched via WithPresent
-    // (above), so the swap runs even while the brain is disabled. The request is consumed via the ECB.
     public void Execute(
         [ChunkIndexInQuery] int sortKey,
         Entity entity,

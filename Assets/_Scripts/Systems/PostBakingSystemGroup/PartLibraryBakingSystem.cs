@@ -1,11 +1,8 @@
 using Unity.Collections;
 using Unity.Entities;
 
-// Bakes the PartLibrarySO into an enum-indexed PartLibraryBlob (Data-Blob-Pointer pattern), one
-// PartDef slot per UnitPartId. Mirrors ItemLibraryBakingSystem; the nested design BlobArrays are
-// hand-built. Tag/group strings are copied into FixedString32Bytes (Burst-safe). Every slot gets a
-// safe default so a missing SO can never index out of range at runtime. DESIGN only — ragdoll
-// config bakes through RagdollJointAuthoring on the joint empties, never through this blob.
+// Every UnitPartId slot gets a safe default so a missing SO never indexes out of range at runtime.
+// Design data only: ragdoll config bakes through RagdollJointAuthoring, never this blob.
 [BakingVersion("stitchpunk", 1)]
 [WorldSystemFilter(WorldSystemFilterFlags.BakingSystem)]
 [UpdateInGroup(typeof(PostBakingSystemGroup))]
@@ -33,7 +30,6 @@ public partial struct PartLibraryBakingSystem : ISystem
         ref PartLibraryBlob root = ref builder.ConstructRoot<PartLibraryBlob>();
         BlobBuilderArray<PartDef> partsBuilder = builder.Allocate(ref root.parts, partCount);
 
-        // Seed every slot with a safe default (no designs).
         for (int index = 0; index < partCount; index++)
         {
             ref PartDef def = ref partsBuilder[index];
@@ -42,7 +38,6 @@ public partial struct PartLibraryBakingSystem : ISystem
             builder.Allocate(ref def.designs, 0);
         }
 
-        // Overwrite the slots that have an authored SO.
         bool[] slotAuthored = new bool[partCount];
         foreach (UnitPartSO partSO in librarySO.parts)
         {
@@ -72,8 +67,7 @@ public partial struct PartLibraryBakingSystem : ISystem
                 PartDesign source = partSO.designs[designIndex];
                 if (source == null)
                 {
-                    // A default struct would be a phantom 1-slice empty-tag design (slice 0 in every
-                    // pool) — bake an inverted span instead so RangeCount resolves to 0.
+                    // A default struct would be a phantom 1-slice design in every pool; bake an inverted span so RangeCount is 0.
                     designsBuilder[designIndex] = new PartDesignDef
                     {
                         tag             = default,
@@ -84,9 +78,7 @@ public partial struct PartLibraryBakingSystem : ISystem
                     continue;
                 }
 
-                // "Full texture range" resolves to the part's real array depth here at bake — the
-                // runtime pool math needs true slice counts (an oversized span would bias random
-                // rolls onto GPU-clamped end slices).
+                // Full texture range resolves to the real array depth here; an oversized span would bias random rolls onto GPU-clamped end slices.
                 int minTextureIndex = source.minTextureIndex;
                 int maxTextureIndex = source.maxTextureIndex;
                 int step            = source.step > 0 ? source.step : 1;
@@ -142,11 +134,7 @@ public partial struct PartLibraryBakingSystem : ISystem
         }
     }
 
-    // Managed PaletteSlot (SO class) → blittable PartPaletteSlot. Null-safe: an unset inspector
-    // slot bakes as unused (palette None). useFullRange bakes a [0, short.MaxValue] window — the
-    // resolve-time clamp to the palette's real length turns that into "the whole palette", so the
-    // library never needs to know palette sizes. Indices clamp into short range, never negative,
-    // and the window end never precedes its start.
+    // useFullRange bakes a [0, short.MaxValue] window; the resolve-time clamp to the palette length makes it the whole palette.
     private static PartPaletteSlot ToPaletteSlot(PaletteSlot source)
     {
         if (source == null) return default;
@@ -179,8 +167,7 @@ public partial struct PartLibraryBakingSystem : ISystem
         };
     }
 
-    // Managed-side string → FixedString32Bytes (baking is not Burst). Warns on truncation —
-    // two tags longer than the ~29-byte capacity would otherwise silently collide into one tag.
+    // Warns on truncation: two tags longer than the ~29-byte capacity would silently collide into one.
     private static FixedString32Bytes ToFixed(string value, string assetName, string fieldDescription)
     {
         FixedString32Bytes result = default;

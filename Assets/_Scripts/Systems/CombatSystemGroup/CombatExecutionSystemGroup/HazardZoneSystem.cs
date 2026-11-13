@@ -42,7 +42,7 @@ public partial struct HazardZoneSystem : ISystem
         foreach ((RefRO<LocalTransform> transform, Entity entity) in
             SystemAPI.Query<RefRO<LocalTransform>>().WithAll<Health>().WithEntityAccess())
         {
-            if (deadLookup.HasComponent(entity) && deadLookup.IsComponentEnabled(entity))
+            if (EntityUtils.IsDead(in deadLookup, entity))
                 continue;
             targets.Add(new HazardTarget { entity = entity, position = transform.ValueRO.Position });
         }

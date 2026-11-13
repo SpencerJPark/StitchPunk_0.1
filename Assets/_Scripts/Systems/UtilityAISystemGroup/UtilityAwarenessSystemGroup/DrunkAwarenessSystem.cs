@@ -178,7 +178,7 @@ public partial struct DrunkAwarenessJob : IJobEntity
     {
         if (candidate == Entity.Null) return false;
         if (!transformLookup.HasComponent(candidate)) return false;
-        if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate)) return false;
+        if (EntityUtils.IsDead(in deadLookup, candidate)) return false;
         if (cutsceneActorLookup.HasComponent(candidate) && cutsceneActorLookup.IsComponentEnabled(candidate)) return false;
         if (playerLookup.HasComponent(candidate)) return false;
         if (minionLookup.HasComponent(candidate) && minionLookup.IsComponentEnabled(candidate)) return false;

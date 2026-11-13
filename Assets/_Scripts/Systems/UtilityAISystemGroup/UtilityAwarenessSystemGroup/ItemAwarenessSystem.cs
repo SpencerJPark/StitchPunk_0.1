@@ -171,8 +171,6 @@ public partial struct ItemAwarenessJob : IJobEntity
         NearestCandidate nearestHeal  = NearestCandidate.None;
         NearestCandidate nearestFood  = NearestCandidate.None;
         NearestCandidate nearestDrink = NearestCandidate.None;
-        NeedType foodMotivation  = NeedType.Hunger; float foodDelta  = 0f;
-        NeedType drinkMotivation = NeedType.Hunger; float drinkDelta = 0f;
 
         int2 centerCell = InteractionSpatialHashSystem.GetCell(myPos);
         int  cellRange  = (int)math.ceil(awareness.range / InteractionSpatialHashSystem.CELL_SIZE);
@@ -221,18 +219,12 @@ public partial struct ItemAwarenessJob : IJobEntity
                                 ConsiderCandidate(ref nearestHeal, itemEntity, distSq);
                             break;
                         case EffectType.Feed:
-                            if (wantConsume && ConsiderCandidate(ref nearestFood, itemEntity, distSq))
-                            {
-                                foodMotivation = PrimaryNeedOf(ref effectBlob);
-                                foodDelta      = effectBlob.value;
-                            }
+                            if (wantConsume)
+                                ConsiderCandidate(ref nearestFood, itemEntity, distSq);
                             break;
                         case EffectType.Hydrate:
-                            if (wantConsume && ConsiderCandidate(ref nearestDrink, itemEntity, distSq))
-                            {
-                                drinkMotivation = PrimaryNeedOf(ref effectBlob);
-                                drinkDelta      = effectBlob.value;
-                            }
+                            if (wantConsume)
+                                ConsiderCandidate(ref nearestDrink, itemEntity, distSq);
                             break;
                     }
                 }
@@ -286,7 +278,7 @@ public partial struct ItemAwarenessJob : IJobEntity
                     Entity attacker = threats[threatIndex].attackerEntity;
                     if (!transformLookup.TryGetComponent(attacker, out LocalTransform attackerTransform))
                         continue;
-                    if (deadLookup.HasComponent(attacker) && deadLookup.IsComponentEnabled(attacker))
+                    if (EntityUtils.IsDead(in deadLookup, attacker))
                         continue;
                     nearestHostileDistance = math.min(nearestHostileDistance,
                         math.distance(transform.Position, attackerTransform.Position));
@@ -354,19 +346,13 @@ public partial struct ItemAwarenessJob : IJobEntity
     }
 
     // Strictly nearer wins, so the first item found keeps a tie.
-    private static bool ConsiderCandidate(ref NearestCandidate current, Entity candidate, float distanceSquared)
+    // Strictly nearer wins, so the first item found keeps a tie.
+    private static void ConsiderCandidate(ref NearestCandidate current, Entity candidate, float distanceSquared)
     {
         if (distanceSquared >= current.distanceSquared)
-            return false;
+            return;
         current.entity          = candidate;
         current.distanceSquared = distanceSquared;
-        return true;
-    }
-
-    private static NeedType PrimaryNeedOf(ref EffectBlob effectBlob)
-    {
-        return effectBlob.behaviours.Length > 0 && effectBlob.behaviours[0] != NeedType.None
-            ? effectBlob.behaviours[0] : NeedType.Hunger;
     }
 
     private bool PassesItemFilters(Entity self, Entity itemEntity, float3 myPos, float rangeSq, out int typeIndex, out float distSq)

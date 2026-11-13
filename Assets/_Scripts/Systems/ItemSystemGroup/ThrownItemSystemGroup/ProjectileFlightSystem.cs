@@ -41,7 +41,7 @@ public partial struct ProjectileFlightSystem : ISystem
                 .WithAll<Health>()
                 .WithEntityAccess())
         {
-            if (deadLookup.HasComponent(entity) && deadLookup.IsComponentEnabled(entity)) continue;
+            if (EntityUtils.IsDead(in deadLookup, entity)) continue;
             if (dodgeInvulnerableLookup.HasComponent(entity) && dodgeInvulnerableLookup.IsComponentEnabled(entity)) continue;
             candidates.Add(new ProjectileHitCandidate { entity = entity, position = transform.ValueRO.Position });
         }
