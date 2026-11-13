@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 377f00bfd6c644c4787408f578367d67, type: 3}
+  m_Name: ForestScatterSet
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainScatterSet
+  rules:
+  - label: Trees
+    prefabs:
+    - prefab: {fileID: 6668611670620172075, guid: 43f3dd4ba5650ee49b51c4f6407940d5, type: 3}
+      weight: 1
+    onDirt: 0.3
+    onGrass: 1
+    onForest: 1
+    onStone: 0
+    slopeRangeDegrees: {x: 0, y: 35}
+    heightRange: {x: -1000, y: 5000}
+    minSpacingMetres: 3.5
+    clusterNoiseScale: 0
+    clusterThreshold: 0
+    scaleRange: {x: 0.8, y: 1.2}
+    yawJitterDegrees: 360
+    alignToNormal: 0
+    densityPer100SquareMetres: 2
+    blocksNavigation: 0
+    tier: 0
+    cardAtlasEntry: 0
+    cardSizeMetres: {x: 4, y: 7}
+  - label: Undergrowth cards
+    prefabs: []
+    onDirt: 0.3
+    onGrass: 1
+    onForest: 1
+    onStone: 0.1
+    slopeRangeDegrees: {x: 0, y: 35}
+    heightRange: {x: -1000, y: 5000}
+    minSpacingMetres: 3
+    clusterNoiseScale: 0
+    clusterThreshold: 0
+    scaleRange: {x: 0.8, y: 1.2}
+    yawJitterDegrees: 360
+    alignToNormal: 0
+    densityPer100SquareMetres: 2
+    blocksNavigation: 0
+    tier: 1
+    cardAtlasEntry: 2
+    cardSizeMetres: {x: 2.5, y: 4}

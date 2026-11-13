@@ -101,6 +101,7 @@ GameObject:
   - component: {fileID: 3551305960910716544}
   - component: {fileID: 3572135226656577726}
   - component: {fileID: 7878427507456142528}
+  - component: {fileID: 3382452413607933493}
   m_Layer: 6
   m_Name: Tree
   m_TagString: Untagged
@@ -164,6 +165,19 @@ CapsuleCollider:
   m_Height: 3.2
   m_Direction: 1
   m_Center: {x: 0, y: 1.6, z: 0}
+--- !u!114 &3382452413607933493
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6668611670620172075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f6b3f8e27242fb49a0742ee8004bfce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::HarvestableNodeAuthoring
+  respawnAfterGameDays: 3
 --- !u!1 &9013492306168643875
 GameObject:
   m_ObjectHideFlags: 0
