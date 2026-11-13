@@ -10,6 +10,7 @@ public struct TerrainTileAreaEntry
     public int seed;
     public int cropIndex;
     public float rowDirectionDegrees;
+    public float densityMultiplier;
 }
 
 [CreateAssetMenu(menuName = "Stitch Punk/Terrain/Tile Data", fileName = "TerrainTileData")]

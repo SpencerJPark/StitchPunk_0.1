@@ -72,6 +72,7 @@ public static class TerrainFeaturePreview
     private static Vector2[] outlineXZ;
     private static TerrainAreaRecipe recipe;
     private static int seed;
+    private static float densityMultiplier = 1f;
     private static double lastPlanTime;
     private static bool replanPending;
     private static List<TerrainScatterPlacement> dotPlacements = new List<TerrainScatterPlacement>();
@@ -80,13 +81,19 @@ public static class TerrainFeaturePreview
 
     public static void SetOutline(IReadOnlyList<Vector2> newOutlineXZ, TerrainAreaRecipe newRecipe, int newSeed)
     {
+        SetOutline(newOutlineXZ, newRecipe, newSeed, 1f);
+    }
+
+    public static void SetOutline(IReadOnlyList<Vector2> newOutlineXZ, TerrainAreaRecipe newRecipe, int newSeed, float newDensityMultiplier)
+    {
         if (newOutlineXZ == null || newOutlineXZ.Count < 3)
         {
             Clear();
             return;
         }
 
-        bool recipeOrSeedChanged = newRecipe != recipe || newSeed != seed;
+        bool recipeOrSeedChanged = newRecipe != recipe || newSeed != seed || !Mathf.Approximately(newDensityMultiplier, densityMultiplier);
+        densityMultiplier = newDensityMultiplier;
         outlineXZ = new Vector2[newOutlineXZ.Count];
         for (int pointIndex = 0; pointIndex < outlineXZ.Length; pointIndex++)
         {
@@ -187,8 +194,16 @@ public static class TerrainFeaturePreview
         TerrainAreaRestrictedSampler restrictedSampler = new TerrainAreaRestrictedSampler(
             previewGroundSampler, stamp, forestRecipe.clearingNoiseScaleMetres, forestRecipe.clearingThreshold01);
         Rect boundsXZ = new Rect(minimumX, minimumZ, maximumX - minimumX, maximumZ - minimumZ);
+        List<TerrainScatterRule> previewRules = TerrainScatterGenerator.RulesFrom(forestRecipe.scatterSet);
+        float safeMultiplier = densityMultiplier > 0f ? densityMultiplier : 1f;
+        for (int ruleIndex = 0; ruleIndex < previewRules.Count; ruleIndex++)
+        {
+            TerrainScatterRule scaledRule = previewRules[ruleIndex];
+            scaledRule.densityPer100SquareMetres *= safeMultiplier;
+            previewRules[ruleIndex] = scaledRule;
+        }
         List<TerrainScatterPlacement> planned = TerrainScatterPlanner.Plan(
-            TerrainScatterGenerator.RulesFrom(forestRecipe.scatterSet), restrictedSampler, boundsXZ, seed, null);
+            previewRules, restrictedSampler, boundsXZ, seed, null);
 
         if (planned.Count <= MaxDots)
         {

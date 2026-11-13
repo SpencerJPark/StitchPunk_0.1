@@ -1,48 +1,57 @@
 using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 
-// A cut tree reads as a stump: the root's PostTransformMatrix flattens Y. Children inherit it because the parent's LocalToWorld (post transform included) feeds theirs.
+// A cut tree swaps visuals: each child render part is shown or collapsed to near-zero scale depending on whether its node is a stump.
 [BurstCompile]
 [UpdateInGroup(typeof(TerrainSystemGroup))]
 [UpdateAfter(typeof(HarvestedNodeRestoreSystem))]
 public partial struct HarvestedNodeStumpPresentationSystem : ISystem
 {
-    private const float StumpHeightScale = 0.15f;
+    private const float HiddenScale = 0.001f;
 
-    private EntityQuery nodesMissingPostTransformMatrixQuery;
+    private ComponentLookup<HarvestedNodeStump> harvestedNodeStumpLookup;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
     {
-        nodesMissingPostTransformMatrixQuery = SystemAPI.QueryBuilder()
-            .WithAll<HarvestableNodeKey>()
-            .WithNone<PostTransformMatrix>()
-            .Build();
+        state.RequireForUpdate<HarvestedNodeVisualPart>();
+        harvestedNodeStumpLookup = state.GetComponentLookup<HarvestedNodeStump>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        if (!nodesMissingPostTransformMatrixQuery.IsEmptyIgnoreFilter)
+        harvestedNodeStumpLookup.Update(ref state);
+        state.Dependency = new ApplyVisualPartVisibilityJob
         {
-            // Added zeroed; the job below writes the real matrix this same update.
-            state.EntityManager.AddComponent<PostTransformMatrix>(nodesMissingPostTransformMatrixQuery);
-        }
-
-        state.Dependency = new ApplyStumpScaleJob().Schedule(state.Dependency);
+            harvestedNodeStumpLookup = harvestedNodeStumpLookup
+        }.Schedule(state.Dependency);
     }
 
     [BurstCompile]
-    [WithPresent(typeof(HarvestedNodeStump))]
-    private partial struct ApplyStumpScaleJob : IJobEntity
+    private partial struct ApplyVisualPartVisibilityJob : IJobEntity
     {
-        private void Execute(EnabledRefRO<HarvestedNodeStump> harvestedNodeStumpEnabled,
-            ref PostTransformMatrix postTransformMatrix, in HarvestableNodeKey nodeKey)
+        [ReadOnly] public ComponentLookup<HarvestedNodeStump> harvestedNodeStumpLookup;
+
+        private void Execute(ref PostTransformMatrix postTransformMatrix, in HarvestedNodeVisualPart visualPart)
         {
-            float heightScale = harvestedNodeStumpEnabled.ValueRO ? StumpHeightScale : 1f;
-            postTransformMatrix.Value = float4x4.Scale(1f, heightScale, 1f);
+            if (!harvestedNodeStumpLookup.HasComponent(visualPart.node))
+            {
+                return;
+            }
+
+            bool nodeIsStump = harvestedNodeStumpLookup.IsComponentEnabled(visualPart.node);
+            bool visible = nodeIsStump == (visualPart.showWhenStump != 0);
+            float targetScale = visible ? 1f : HiddenScale;
+            if (postTransformMatrix.Value.c0.x == targetScale)
+            {
+                return;
+            }
+
+            postTransformMatrix.Value = visible ? float4x4.identity : float4x4.Scale(HiddenScale);
         }
     }
 }

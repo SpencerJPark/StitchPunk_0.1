@@ -33,6 +33,8 @@ public static class TerrainFeatureTool
     private static TerrainAreaRecipe pendingRecipe;
     private static int pendingSeed;
     private static readonly List<Vector2> pendingPointsXZ = new List<Vector2>();
+    private static readonly List<bool> pendingPointIsSharp = new List<bool>();
+    private const int PreviewSamplesPerSegment = 8;
     private static Vector2 boxCornerA;
     private static Vector2 boxCornerB;
     private static bool boxDragging;
@@ -117,6 +119,7 @@ public static class TerrainFeatureTool
         drawMode = DrawMode.None;
         pendingRecipe = null;
         pendingPointsXZ.Clear();
+        pendingPointIsSharp.Clear();
         boxDragging = false;
         hudMessage = null;
         TerrainFeaturePreview.Clear();
@@ -429,6 +432,7 @@ public static class TerrainFeatureTool
         }
 
         pendingPointsXZ.Add(new Vector2(mouseGround.x, mouseGround.z));
+        pendingPointIsSharp.Add(currentEvent.shift);
         currentEvent.Use();
     }
 
@@ -441,10 +445,11 @@ public static class TerrainFeatureTool
         }
 
         List<Vector2> finishedOutline = new List<Vector2>(pendingPointsXZ);
+        List<bool> finishedSharpFlags = new List<bool>(pendingPointIsSharp);
         TerrainAreaRecipe recipe = pendingRecipe;
         int seed = pendingSeed;
         CancelDrawing();
-        CreateArea(finishedOutline, recipe, seed);
+        CreateArea(finishedOutline, recipe, seed, finishedSharpFlags);
     }
 
     private static void HandleEditMouseDown(Event currentEvent, int controlId)
@@ -479,7 +484,7 @@ public static class TerrainFeatureTool
         Undo.RecordObject(container, "Insert Area Knot");
         Vector3 localPoint = container.transform.InverseTransformPoint(OnGround(closestPoint));
         int insertIndex = Mathf.Clamp(segmentIndex + 1, 1, container.Spline.Count);
-        container.Spline.Insert(insertIndex, (float3)localPoint, TangentMode.Linear);
+        container.Spline.Insert(insertIndex, (float3)localPoint, TangentMode.AutoSmooth);
         selectedKnotIndex = insertIndex;
         EditorUtility.SetDirty(container);
         TerrainFeatureEvents.Raise(trackedArea);
@@ -523,10 +528,12 @@ public static class TerrainFeatureTool
         }
 
         BezierKnot knot = spline[selectedKnotIndex];
+        TangentMode existingTangentMode = spline.GetTangentMode(selectedKnotIndex);
         knot.Position = (float3)container.transform.InverseTransformPoint(mouseGround);
         spline.SetKnot(selectedKnotIndex, knot);
+        spline.SetTangentMode(selectedKnotIndex, existingTangentMode);
         EditorUtility.SetDirty(container);
-        TerrainFeaturePreview.SetOutline(trackedArea.OutlineWorldXZ(PreviewSegmentMetres), trackedArea.recipe, trackedArea.seed);
+        TerrainFeaturePreview.SetOutline(trackedArea.OutlineWorldXZ(PreviewSegmentMetres), trackedArea.recipe, trackedArea.seed, trackedArea.densityMultiplier);
     }
 
     private static void HandleMouseUp()
@@ -576,6 +583,7 @@ public static class TerrainFeatureTool
                 if (pendingPointsXZ.Count > 0)
                 {
                     pendingPointsXZ.RemoveAt(pendingPointsXZ.Count - 1);
+                    pendingPointIsSharp.RemoveAt(pendingPointIsSharp.Count - 1);
                 }
 
                 currentEvent.Use();
@@ -591,7 +599,34 @@ public static class TerrainFeatureTool
         }
     }
 
-    private static void CreateArea(IReadOnlyList<Vector2> outlineXZ, TerrainAreaRecipe recipe, int seed)
+    private static List<Vector2> SmoothedOutlineXZ(IReadOnlyList<Vector2> pointsXZ, IReadOnlyList<bool> sharpFlags)
+    {
+        List<Vector2> sampled = new List<Vector2>();
+        if (pointsXZ.Count < 3)
+        {
+            sampled.AddRange(pointsXZ);
+            return sampled;
+        }
+
+        Spline temporarySpline = new Spline();
+        for (int pointIndex = 0; pointIndex < pointsXZ.Count; pointIndex++)
+        {
+            bool isSharp = sharpFlags != null && pointIndex < sharpFlags.Count && sharpFlags[pointIndex];
+            temporarySpline.Add(new float3(pointsXZ[pointIndex].x, 0f, pointsXZ[pointIndex].y), isSharp ? TangentMode.Linear : TangentMode.AutoSmooth);
+        }
+
+        temporarySpline.Closed = true;
+        int totalSamples = pointsXZ.Count * PreviewSamplesPerSegment;
+        for (int sampleIndex = 0; sampleIndex < totalSamples; sampleIndex++)
+        {
+            float3 position = SplineUtility.EvaluatePosition(temporarySpline, sampleIndex / (float)totalSamples);
+            sampled.Add(new Vector2(position.x, position.z));
+        }
+
+        return sampled;
+    }
+
+    private static void CreateArea(IReadOnlyList<Vector2> outlineXZ, TerrainAreaRecipe recipe, int seed, IReadOnlyList<bool> sharpFlags = null)
     {
         Vector2 centroidXZ = Vector2.zero;
         for (int pointIndex = 0; pointIndex < outlineXZ.Count; pointIndex++)
@@ -613,7 +648,8 @@ public static class TerrainFeatureTool
         for (int pointIndex = 0; pointIndex < outlineXZ.Count; pointIndex++)
         {
             Vector3 local = OnGround(outlineXZ[pointIndex]) - centroid;
-            spline.Add(new float3(local.x, local.y, local.z), TangentMode.Linear);
+            bool isSharp = sharpFlags == null || (pointIndex < sharpFlags.Count && sharpFlags[pointIndex]);
+            spline.Add(new float3(local.x, local.y, local.z), isSharp ? TangentMode.Linear : TangentMode.AutoSmooth);
         }
 
         spline.Closed = true;
@@ -654,8 +690,29 @@ public static class TerrainFeatureTool
                 fixedPoints[pointIndex] = OnGround(pendingPointsXZ[pointIndex]);
             }
 
+            List<Vector2> smoothedPreviewPoints = null;
+            if (mouseGroundValid)
+            {
+                List<Vector2> previewControlPoints = new List<Vector2>(pendingPointsXZ);
+                List<bool> previewSharpFlags = new List<bool>(pendingPointIsSharp);
+                previewControlPoints.Add(new Vector2(mouseGround.x, mouseGround.z));
+                previewSharpFlags.Add(Event.current != null && Event.current.shift);
+                smoothedPreviewPoints = SmoothedOutlineXZ(previewControlPoints, previewSharpFlags);
+            }
+
             Handles.color = OutlineColour;
-            if (fixedPoints.Length >= 2)
+            if (smoothedPreviewPoints != null && smoothedPreviewPoints.Count >= 3)
+            {
+                Vector3[] smoothedLoop = new Vector3[smoothedPreviewPoints.Count + 1];
+                for (int sampleIndex = 0; sampleIndex < smoothedPreviewPoints.Count; sampleIndex++)
+                {
+                    smoothedLoop[sampleIndex] = OnGround(smoothedPreviewPoints[sampleIndex]);
+                }
+
+                smoothedLoop[smoothedPreviewPoints.Count] = smoothedLoop[0];
+                Handles.DrawAAPolyLine(4f, smoothedLoop);
+            }
+            else if (fixedPoints.Length >= 2)
             {
                 Handles.DrawAAPolyLine(4f, fixedPoints);
             }
@@ -667,21 +724,9 @@ public static class TerrainFeatureTool
                 Handles.DotHandleCap(0, fixedPoints[pointIndex], Quaternion.identity, size, EventType.Repaint);
             }
 
-            if (mouseGroundValid && fixedPoints.Length >= 1)
+            if (smoothedPreviewPoints != null)
             {
-                Handles.color = RubberBandColour;
-                Handles.DrawAAPolyLine(2f, fixedPoints[fixedPoints.Length - 1], mouseGround);
-                if (fixedPoints.Length >= 2)
-                {
-                    Handles.DrawAAPolyLine(2f, mouseGround, fixedPoints[0]);
-                }
-            }
-
-            if (mouseGroundValid)
-            {
-                List<Vector2> previewPoints = new List<Vector2>(pendingPointsXZ);
-                previewPoints.Add(new Vector2(mouseGround.x, mouseGround.z));
-                TerrainFeaturePreview.SetOutline(previewPoints, pendingRecipe, pendingSeed);
+                TerrainFeaturePreview.SetOutline(smoothedPreviewPoints, pendingRecipe, pendingSeed, 1f);
             }
         }
         else if (boxDragging)
@@ -743,7 +788,7 @@ public static class TerrainFeatureTool
         }
         else if (drawMode == DrawMode.Outline)
         {
-            line = "Click to add points. Enter or click the first point to close. Backspace removes the last point. Esc cancels.";
+            line = "Click to add points. Enter or click the first point to close. Shift+click: sharp corner. Backspace removes the last point. Esc cancels.";
         }
         else if (drawMode == DrawMode.Box)
         {

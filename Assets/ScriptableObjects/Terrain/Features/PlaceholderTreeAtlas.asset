@@ -17,15 +17,20 @@ MonoBehaviour:
   - serializedVersion: 2
     x: 0
     y: 0
-    width: 0.33333334
+    width: 0.25
     height: 1
   - serializedVersion: 2
-    x: 0.33333334
+    x: 0.25
     y: 0
-    width: 0.33333334
+    width: 0.25
     height: 1
   - serializedVersion: 2
-    x: 0.6666667
+    x: 0.5
     y: 0
-    width: 0.33333334
+    width: 0.25
+    height: 1
+  - serializedVersion: 2
+    x: 0.75
+    y: 0
+    width: 0.25
     height: 1

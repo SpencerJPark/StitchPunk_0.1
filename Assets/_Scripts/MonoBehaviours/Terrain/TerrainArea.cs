@@ -44,6 +44,10 @@ public class TerrainArea : MonoBehaviour
     [Tooltip("Negative = along the longest edge")]
     public float rowDirectionDegrees = -1f;
 
+    [Tooltip("Scales how many trees/props the recipe plants in this area (1 = the recipe's density)")]
+    [Range(0.1f, 5f)]
+    public float densityMultiplier = 1f;
+
     private SplineContainer cachedContainer;
     private Vector3 lastPosition;
     private Quaternion lastRotation;

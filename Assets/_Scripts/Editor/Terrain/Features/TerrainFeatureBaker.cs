@@ -193,6 +193,7 @@ public static class TerrainFeatureBaker
             entry.seed = area.seed;
             entry.cropIndex = area.cropIndex;
             entry.rowDirectionDegrees = area.rowDirectionDegrees;
+            entry.densityMultiplier = area.densityMultiplier;
             entries.Add(entry);
         }
 

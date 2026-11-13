@@ -273,6 +273,22 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         });
         cardBody.Add(ToolkitChrome.MakePropertyRow("Priority", priorityField, "Where features overlap, the higher priority wins"));
 
+        System.Action densityRefresh;
+        cardBody.Add(TerrainUi.MakeSliderRow(
+            "Density",
+            0.1f,
+            5f,
+            () => area.densityMultiplier,
+            (float newDensity) =>
+            {
+                Undo.RecordObject(area, "Change feature density");
+                area.densityMultiplier = newDensity;
+                EditorUtility.SetDirty(area);
+                TerrainFeatureEvents.Raise(area);
+            },
+            "How many trees this area plants, relative to the recipe (1 = recipe density). Spacing still limits the maximum.",
+            out densityRefresh));
+
         VisualElement badgeRow = new VisualElement();
         badgeRow.AddToClassList("terrain-badge-row");
         badgeRow.Add(ToolkitChrome.MakeBadge(CountLockedMarkers(area) + " locked", ToolkitStatusTone.Neutral));

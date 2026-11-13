@@ -165,6 +165,14 @@ public static class TerrainAreaFiller
 
                 TerrainScatterSet scatterSet = recipe.scatterSet;
                 List<TerrainScatterRule> rules = TerrainScatterGenerator.RulesFrom(scatterSet);
+                // Minimum spacing is untouched, so spacing still caps how dense the multiplier can get.
+                float multiplier = entry.densityMultiplier > 0f ? entry.densityMultiplier : 1f;
+                for (int scaleRuleIndex = 0; scaleRuleIndex < rules.Count; scaleRuleIndex++)
+                {
+                    TerrainScatterRule scaledRule = rules[scaleRuleIndex];
+                    scaledRule.densityPer100SquareMetres *= multiplier;
+                    rules[scaleRuleIndex] = scaledRule;
+                }
                 TerrainTileSampler tileSampler = new TerrainTileSampler(tile, true);
                 TerrainAreaRestrictedSampler sampler = new TerrainAreaRestrictedSampler(tileSampler, stamp, recipe.clearingNoiseScaleMetres, recipe.clearingThreshold01);
                 List<TerrainScatterPlacement> planned = TerrainScatterPlanner.Plan(rules, sampler, tileSampler.WorldRect, TerrainDecalScatterer.SeedFor(entry.seed, coordinate), obstacles);

@@ -24,3 +24,10 @@ public struct HarvestedNodeLedgerSnapshot : IComponentData, IPersist
     public byte hasData;
     public Unity.Collections.FixedList4096Bytes<HarvestedNodeLedgerEntry> entries;
 }
+
+// A child render entity of a harvestable node that is shown either while the node is whole or while it is a stump.
+public struct HarvestedNodeVisualPart : IComponentData
+{
+    public Entity node;
+    public byte showWhenStump;
+}
