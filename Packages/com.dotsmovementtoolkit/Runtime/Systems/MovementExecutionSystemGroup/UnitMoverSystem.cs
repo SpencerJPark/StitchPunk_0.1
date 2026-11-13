@@ -102,6 +102,16 @@ public partial struct UnitMoverJob : IJobEntity
         movement.isMoving = math.lengthsq(actualMove) > 1e-6f;
     }
 
+    // A head-on push into a round trunk projects to almost no sideways motion, which reads as
+    // "stopped dead". Past a small angle the slide keeps at least this share of the blocked move.
+    private const float MinimumSlideShareOfBlockedMove = 0.5f;
+    // Below this share the push is treated as square-on and the unit simply stops.
+    private const float SquareOnSlideShareThreshold = 0.02f;
+    // Normals flatter than this are floor or ceiling; only walls push a unit out sideways.
+    private const float MinimumHorizontalNormalForPushOut = 0.5f;
+    private const int MaximumPushOutIterations = 4;
+    private const float PushOutSkinMetres = 0.002f;
+
     private unsafe float3 CalculateMovementWithCollision(
         float3 currentPosition,
         float3 desiredMove,
@@ -111,7 +121,19 @@ public partial struct UnitMoverJob : IJobEntity
     {
         ColliderCastHit hit;
         bool haveHit = CastCollider(currentPosition, desiredMove, collider, orientation, out hit);
-        
+
+        // A cast that starts inside a wall reports a meaningless normal and lets the unit walk
+        // through. Turning swings an off-centre collider into walls unchecked, so this is common.
+        if (haveHit && hit.Fraction <= 0f)
+        {
+            float3 pushedOutPosition = PushOutOfWalls(currentPosition, collider, orientation);
+            if (math.any(pushedOutPosition != currentPosition))
+            {
+                currentPosition = pushedOutPosition;
+                haveHit = CastCollider(currentPosition, desiredMove, collider, orientation, out hit);
+            }
+        }
+
         if (!haveHit)
         {
             return currentPosition + desiredMove;
@@ -175,12 +197,54 @@ public partial struct UnitMoverJob : IJobEntity
         float3 remainingMove = desiredMove * (1f - hit.Fraction);
         float3 slideDir = remainingMove - math.dot(remainingMove, normal) * normal;
 
-        if (math.lengthsq(slideDir) < 0.0001f)
+        float remainingLength = math.length(remainingMove);
+        float slideLength = math.length(slideDir);
+        if (remainingLength < 1e-5f || slideLength < remainingLength * SquareOnSlideShareThreshold)
         {
             return hitPos;
         }
 
+        float boostedSlideLength = math.max(slideLength, remainingLength * MinimumSlideShareOfBlockedMove);
+        slideDir *= boostedSlideLength / slideLength;
+
         return TrySlideAlongSurface(hitPos, slideDir, collider, orientation);
+    }
+
+    private unsafe float3 PushOutOfWalls(float3 position, Unity.Physics.Collider* collider, quaternion orientation)
+    {
+        NativeList<DistanceHit> overlaps = new NativeList<DistanceHit>(8, Allocator.Temp);
+        for (int iteration = 0; iteration < MaximumPushOutIterations; iteration++)
+        {
+            ColliderDistanceInput overlapInput = new ColliderDistanceInput
+            {
+                Collider = collider,
+                Transform = new RigidTransform(orientation, position),
+                Scale = 1f,
+                MaxDistance = 0f,
+            };
+            overlaps.Clear();
+            collisionWorld.CalculateDistance(overlapInput, ref overlaps);
+
+            // Resolve the deepest wall overlap first; the normal points out of the wall.
+            float deepestPenetration = 0f;
+            float3 deepestHorizontalNormal = float3.zero;
+            for (int overlapIndex = 0; overlapIndex < overlaps.Length; overlapIndex++)
+            {
+                DistanceHit overlap = overlaps[overlapIndex];
+                float3 horizontalNormal = new float3(overlap.SurfaceNormal.x, 0f, overlap.SurfaceNormal.z);
+                if (math.length(horizontalNormal) < MinimumHorizontalNormalForPushOut) continue;
+                if (-overlap.Distance > deepestPenetration)
+                {
+                    deepestPenetration = -overlap.Distance;
+                    deepestHorizontalNormal = math.normalize(horizontalNormal);
+                }
+            }
+
+            if (deepestPenetration <= 0f) break;
+            position += deepestHorizontalNormal * (deepestPenetration + PushOutSkinMetres);
+        }
+        overlaps.Dispose();
+        return position;
     }
 
     private unsafe float3 TrySlideAlongSurface(
