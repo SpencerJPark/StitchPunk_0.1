@@ -130,3 +130,4 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - `Painted/Card` is the old grass-tuft shader; tree cards use `Painted/TreeCard`.
 - A single-assembly `devloop gate` in a worktree reports phantom CS0246 for types added in a sibling assembly; use `gate game`.
 - A Burst-compiled ISystem can keep running its old code after a source mutation in a revert-to-fail check; run the PlayMode check with BurstCompiler.Options.EnableBurstCompilation = false (World Features, 2026-11-13).
+- Tile scatter and props bake as STATIC entities (Static tag, no LocalTransform): a runtime PostTransformMatrix never reaches LocalToWorld, and a baker-added PostTransformMatrix is stripped on uniform scale. To change a tile prop's look at runtime write LocalToWorld from a captured resting matrix (HarvestedNodeStumpPresentationSystem). A vertex-shader billboard that rebuilds a quad from stored sizes must multiply them by the object scale, or scale-hidden parts still draw (2026-11-13).
