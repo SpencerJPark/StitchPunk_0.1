@@ -269,6 +269,11 @@ public static class TerrainRoadTool
 
     private static void OnSceneGui(SceneView sceneView)
     {
+        if (!TerrainEditorVisibility.ToolsLive)
+        {
+            return;
+        }
+
         if (!isActive)
         {
             return;

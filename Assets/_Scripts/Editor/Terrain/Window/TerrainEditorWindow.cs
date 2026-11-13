@@ -73,8 +73,49 @@ public class TerrainEditorWindow : EditorWindow
         SelectTool(restoredIndex);
     }
 
+    void OnEnable()
+    {
+        // After a domain reload a hidden docked tab still gets OnEnable, so visibility is checked once the panel exists.
+        EditorApplication.delayCall += ApplyVisibilityAfterEnable;
+    }
+
+    void ApplyVisibilityAfterEnable()
+    {
+        if (this == null)
+        {
+            return;
+        }
+
+        bool isVisible = rootVisualElement.panel != null;
+        TerrainEditorVisibility.SetToolsLive(isVisible);
+        if (isVisible)
+        {
+            RestoreSceneHudHints();
+        }
+    }
+
+    void OnBecameVisible()
+    {
+        TerrainEditorVisibility.SetToolsLive(true);
+        RestoreSceneHudHints();
+    }
+
+    void OnBecameInvisible()
+    {
+        TerrainEditorVisibility.SetToolsLive(false);
+    }
+
+    void RestoreSceneHudHints()
+    {
+        if (shownPanel != null)
+        {
+            TerrainSceneHud.SetActiveTool(shownPanel.DisplayName, shownPanel.KeyHints);
+        }
+    }
+
     void OnDisable()
     {
+        TerrainEditorVisibility.SetToolsLive(false);
         Selection.selectionChanged -= RefreshFooter;
         if (footerRefreshTimer != null)
         {
@@ -139,7 +180,10 @@ public class TerrainEditorWindow : EditorWindow
         contentHost.Add(shownPanel);
         shownPanel.StatusChanged += RefreshFooter;
         shownPanel.OnShown();
-        TerrainSceneHud.SetActiveTool(shownPanel.DisplayName, shownPanel.KeyHints);
+        if (TerrainEditorVisibility.ToolsLive)
+        {
+            TerrainSceneHud.SetActiveTool(shownPanel.DisplayName, shownPanel.KeyHints);
+        }
 
         setSelectedTabPosition(Array.IndexOf(PanelIndexByTabPosition, toolIndex));
 

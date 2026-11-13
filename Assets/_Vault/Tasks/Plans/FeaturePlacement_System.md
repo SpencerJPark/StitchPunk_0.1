@@ -1,5 +1,5 @@
 ---
-status: SPEC READY (2026-11-13), nothing built. Owner Q&A done (FP-D1 to FP-D4). Start at FP-S0, then phase FP-0.
+status: FP-0 BUILT (2026-11-13), waiting on the FP-0 owner checkpoint (Spencer/FeaturePlacement_FP0_Checkpoint.md); FP-1 starts after it.
 extends: Tasks/Plans/WorldFeatures_System.md (WF). This spec replaces WF-5's line tasks (WF-5-1, WF-5-2) and becomes the way every later WF stamp places objects.
 reference: Tasks/Claude/coveredUp.png (Features hint strip hidden under the Scene view tool overlay and the Clip Editor overlay)
 names verified against: main at d3ba2a1e (2026-11-13). If a name has drifted, grep, follow the code, and note the drift in the log.
@@ -226,11 +226,11 @@ Every wave ends with the gate, lint, the named fixtures and a commit.
 
 | ✓ | Task | Files | Notes and fixture |
 |---|---|---|---|
-| [ ] | FP-S0 **[orchestrator]** | probe only | section 7 |
-| [ ] | FP-0-1 **[parallel-safe]** | `Window/TerrainEditorVisibility.cs`, `Tests/Terrain/TerrainEditorVisibilityTests.cs` | Fixture fails if: `Changed` fires twice for the same value; going hidden while drawing leaves `TerrainFeatureTool.IsDrawing` true. |
-| [ ] | FP-0-2 **[parallel-safe]** | `Window/TerrainToolOverlay.cs`, `Window/TerrainSceneHud.cs` | 6.1; delete `DrawInSceneView` and its styles; overlay content rebuilds on `TerrainSceneHud.Changed`; keycaps as UI Toolkit labels with the `TerrainUi` kit and existing USS classes; new classes listed in the report for the orchestrator. Guide R01 to R22. |
-| [ ] | FP-0-3a **[shared]** | `TerrainEditorWindow.cs`, `Features/TerrainFeatureTool.cs` | FP-D17: visibility events set `TerrainEditorVisibility`; tool early-outs; delete `DrawHud` and route its lines to the overlay toast and hints. |
-| [ ] | FP-0-3b **[parallel-safe]** (one worker per two files) | the other `duringSceneGui` handlers | A Haiku verifier lists them first (`grep -rn "duringSceneGui +=" Assets/_Scripts/Editor/Terrain`); one early-out line each. |
+| [x] | FP-S0 **[orchestrator]** | probe only | section 7 |
+| [x] | FP-0-1 **[parallel-safe]** | `Window/TerrainEditorVisibility.cs`, `Tests/Terrain/TerrainEditorVisibilityTests.cs` | Fixture fails if: `Changed` fires twice for the same value; going hidden while drawing leaves `TerrainFeatureTool.IsDrawing` true. |
+| [x] | FP-0-2 **[parallel-safe]** | `Window/TerrainToolOverlay.cs`, `Window/TerrainSceneHud.cs` | 6.1; delete `DrawInSceneView` and its styles; overlay content rebuilds on `TerrainSceneHud.Changed`; keycaps as UI Toolkit labels with the `TerrainUi` kit and existing USS classes; new classes listed in the report for the orchestrator. Guide R01 to R22. |
+| [x] | FP-0-3a **[shared]** | `TerrainEditorWindow.cs`, `Features/TerrainFeatureTool.cs` | FP-D17: visibility events set `TerrainEditorVisibility`; tool early-outs; delete `DrawHud` and route its lines to the overlay toast and hints. |
+| [x] | FP-0-3b **[parallel-safe]** (one worker per two files) | the other `duringSceneGui` handlers | A Haiku verifier lists them first (`grep -rn "duringSceneGui +=" Assets/_Scripts/Editor/Terrain`); one early-out line each. |
 | [ ] | FP-0-4 **[orchestrator]** | captures (Sonnet verifier audits the PNGs against R01 to R22) | Scene view before (the covered strip) and after (the overlay docked top-left, then with the Terrain Editor hidden behind the Inspector: no overlay, clicking the ground selects normally). |
 | [ ] | ⏸ **FP-0 owner checkpoint** | | Owner: dock the Terrain Editor beside the Inspector, open Features, start drawing, check the overlay is readable and drag it where you like; click the Inspector tab, check the overlay is gone and clicks in the Scene view no longer add points; click back. |
 
@@ -304,3 +304,4 @@ Headless: every fixture above; the gate and lint per wave; `StitchPunk.Tests` an
 ## 12. Log (append one line per wave, newest last)
 
 - 2026-11-13 spec v1 from the owner's Features feedback and Q&A (FP-D1 to FP-D4). Root causes confirmed in code: HUD drawn by raw IMGUI under the overlays (`TerrainSceneHud.DrawInSceneView`, `TerrainFeatureTool.DrawHud`); tools cleared only in `TerrainEditorWindow.OnDisable`, which a docked tab switch never calls; `TerrainFeatureTool.OnSceneGui` is live whenever a `TerrainArea` is selected. Nothing built.
+- 2026-11-13 FP-S0 + FP-0 wave A (5 Sonnet workers, one wave): docked-tab OnBecameVisible/Invisible confirmed by IL + live tab switch (Terrain_Spikes.md); `TerrainEditorVisibility` gate, `TerrainToolOverlay` (UI Toolkit, replaces both IMGUI HUDs), early-outs in feature/road/brush/decal handlers (no water handler exists; water uses the road tool). Gate game PASS, lint PASS, `TerrainEditorVisibilityTests` 2/2, revert-to-fail both red. Live check: ToolsLive and overlay `displayed` follow Terrain/Inspector tab switches both ways. FP-0-4: no pixel capture (Editor never had OS focus); overlay audited by measured layout instead: R01 nothing clipped, R02 13/12/11, R07 24 px rows, 4 px gaps; orchestrator fixes: keycap padding 6 to 4 px (R04), drawing line cut to what the hints do not say (R03). Shape segmented control deferred to FP-1-7. Capture + feel owed at the owner checkpoint.

@@ -183,6 +183,12 @@ public static class TerrainBrushOverlay
 
     static void OnSceneGui(SceneView sceneView)
     {
+        if (!TerrainEditorVisibility.ToolsLive)
+        {
+            strokeInProgress = false;
+            return;
+        }
+
         if (Application.isPlaying) return;
         if (BrushState.activeTool == TerrainBrushTool.None)
         {

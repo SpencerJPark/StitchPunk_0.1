@@ -549,3 +549,67 @@
     margin-top: 4px;
     margin-bottom: 6px;
 }
+
+/* Scene-view overlay (key hints, cursor readout, toast). No gap property in this dialect: spacing is child margins. */
+.terrain-overlay {
+    flex-direction: column;
+    padding: 8px;
+    min-width: 220px;
+    max-width: 360px;
+    background-color: var(--toolkit-surface);
+}
+
+.terrain-overlay > * {
+    margin-bottom: 4px;
+}
+
+.terrain-overlay-title {
+    font-size: var(--toolkit-text-title);
+    -unity-font-style: bold;
+    color: var(--toolkit-text);
+    white-space: normal;
+}
+
+.terrain-overlay-hint-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: var(--toolkit-height-control);
+}
+
+.terrain-overlay-hint-row > * {
+    margin-right: 4px;
+}
+
+.terrain-keycap {
+    font-size: var(--toolkit-text-body);
+    padding: 0 4px;
+    height: var(--toolkit-height-field);
+    border-width: 1px;
+    border-color: var(--toolkit-field-border);
+    border-radius: var(--toolkit-radius-field);
+    background-color: var(--toolkit-field);
+    color: var(--toolkit-text);
+    -unity-text-align: middle-center;
+    flex-shrink: 0;
+}
+
+.terrain-overlay-action {
+    font-size: var(--toolkit-text-body);
+    color: var(--toolkit-color-muted);
+    white-space: normal;
+    flex-shrink: 1;
+}
+
+.terrain-overlay-cursor {
+    font-size: var(--toolkit-text-meta);
+    color: var(--toolkit-color-muted);
+    white-space: normal;
+    margin-top: 4px;
+}
+
+.terrain-overlay-toast {
+    font-size: var(--toolkit-text-body);
+    color: var(--toolkit-color-warning);
+    white-space: normal;
+    margin-top: 4px;
+}

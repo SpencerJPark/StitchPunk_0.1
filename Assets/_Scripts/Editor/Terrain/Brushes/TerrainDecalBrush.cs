@@ -119,6 +119,11 @@ public static class TerrainDecalBrush
 
     static void DrawRegionRectangle(SceneView sceneView)
     {
+        if (!TerrainEditorVisibility.ToolsLive)
+        {
+            return;
+        }
+
         if (!strokeActive || BrushState.activeTool != TerrainBrushTool.DecalRegion) return;
 
         Rect region = RegionRect();

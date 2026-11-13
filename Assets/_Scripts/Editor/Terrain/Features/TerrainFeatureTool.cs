@@ -23,6 +23,8 @@ public static class TerrainFeatureTool
     private const float MinimumBoxSideMetres = 1f;
     private const int MinimumOutlinePointCount = 3;
     private const double HudMessageSeconds = 3.0;
+    private const string OutlineDrawingInstructions = "Drawing an outline. Shift+click makes a sharp corner; click the first point to close.";
+    private const string BoxDrawingInstructions = "Drag to draw a box.";
     private const float PreviewSegmentMetres = 2f;
 
     private static readonly Color OutlineColour = new Color(0.95f, 0.95f, 0.9f, 1f);
@@ -49,8 +51,7 @@ public static class TerrainFeatureTool
     private static int dragControlId;
     private static int hoverKnotIndex = -1;
 
-    private static string hudMessage;
-    private static double hudMessageExpiry;
+    private static bool wroteDrawingInstructions;
     private static SceneView lastSceneView;
 
     private static readonly Dictionary<Vector2Int, TerrainTileData> tileDataCache = new Dictionary<Vector2Int, TerrainTileData>();
@@ -93,6 +94,8 @@ public static class TerrainFeatureTool
         pendingRecipe = recipe;
         pendingSeed = new System.Random().Next();
         tileDataCache.Clear();
+        TerrainSceneHud.SetCursorInfo(OutlineDrawingInstructions);
+        wroteDrawingInstructions = true;
         SceneView.RepaintAll();
     }
 
@@ -111,6 +114,8 @@ public static class TerrainFeatureTool
         pendingRecipe = areaRecipe;
         pendingSeed = new System.Random().Next();
         tileDataCache.Clear();
+        TerrainSceneHud.SetCursorInfo(BoxDrawingInstructions);
+        wroteDrawingInstructions = true;
         SceneView.RepaintAll();
     }
 
@@ -121,7 +126,11 @@ public static class TerrainFeatureTool
         pendingPointsXZ.Clear();
         pendingPointIsSharp.Clear();
         boxDragging = false;
-        hudMessage = null;
+        if (wroteDrawingInstructions)
+        {
+            TerrainSceneHud.SetCursorInfo(string.Empty);
+            wroteDrawingInstructions = false;
+        }
         TerrainFeaturePreview.Clear();
         SceneView.RepaintAll();
     }
@@ -265,12 +274,16 @@ public static class TerrainFeatureTool
 
     private static void ShowHud(string message)
     {
-        hudMessage = message;
-        hudMessageExpiry = EditorApplication.timeSinceStartup + HudMessageSeconds;
+        TerrainSceneHud.ShowToast(message, HudMessageSeconds);
     }
 
     private static void OnSceneGui(SceneView sceneView)
     {
+        if (!TerrainEditorVisibility.ToolsLive)
+        {
+            return;
+        }
+
         bool editingSelectedArea = drawMode == DrawMode.None && trackedArea != null;
         if (drawMode == DrawMode.None && !editingSelectedArea)
         {
@@ -676,8 +689,6 @@ public static class TerrainFeatureTool
         {
             DrawSelectedArea();
         }
-
-        DrawHud();
     }
 
     private static void DrawPending()
@@ -777,32 +788,6 @@ public static class TerrainFeatureTool
         {
             TerrainFeaturePreview.Draw();
         }
-    }
-
-    private static void DrawHud()
-    {
-        string line = null;
-        if (hudMessage != null && EditorApplication.timeSinceStartup < hudMessageExpiry)
-        {
-            line = hudMessage;
-        }
-        else if (drawMode == DrawMode.Outline)
-        {
-            line = "Click to add points. Enter or click the first point to close. Shift+click: sharp corner. Backspace removes the last point. Esc cancels.";
-        }
-        else if (drawMode == DrawMode.Box)
-        {
-            line = "Drag to draw a box. Esc cancels.";
-        }
-
-        if (line == null)
-        {
-            return;
-        }
-
-        Handles.BeginGUI();
-        GUI.Label(new Rect(12f, 12f, 900f, 22f), line, EditorStyles.boldLabel);
-        Handles.EndGUI();
     }
 }
 #endif
