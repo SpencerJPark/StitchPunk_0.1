@@ -1,20 +1,7 @@
 using UnityEngine;
 
-/// <summary>
-/// Apply to any serialized field to show it in the inspector only while a SIBLING bool field has
-/// the given value — the field is hidden entirely (no disabled greyout) otherwise. Works inside
-/// nested [Serializable] classes/structs and list elements (the condition is resolved next to the
-/// decorated field, not on the root object).
-///
-/// Usage:
-///   public bool useFullRange = true;
-///   [ShowWhen("useFullRange", false)]   // visible only while useFullRange is UNCHECKED
-///   public int minColorIndex;
-///
-///   public bool hasAlternative;
-///   [ShowWhen("hasAlternative")]        // visible only while hasAlternative is CHECKED
-///   public Color alternative;
-/// </summary>
+// Hides the field unless a SIBLING bool has the given value. Resolved next to the field, so it
+// works in nested serializable types and list elements. Usage: [ShowWhen("useFullRange", false)]
 public class ShowWhenAttribute : PropertyAttribute
 {
     public readonly string conditionField;

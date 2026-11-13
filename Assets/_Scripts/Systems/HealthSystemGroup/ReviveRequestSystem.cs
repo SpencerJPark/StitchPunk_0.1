@@ -84,8 +84,7 @@ public partial struct ReviveJob : IJobEntity
         EnabledRefRW<Movement>      movementEnabled,
         EnabledRefRW<Gravity>       gravityEnabled)
     {
-        // Only a corpse with a declared converted form (becomesUnitType) can be revived. With no
-        // zombie form there is nothing to reanimate into — consume the request and stay dead.
+        // No becomesUnitType means nothing to reanimate into: consume the request and stay dead.
         int srcIdx = unitLibrary.Value.FindByUnitType(unitData.unitType);
         UnitType becomes = srcIdx >= 0 ? unitLibrary.Value.units[srcIdx].becomesUnitType : UnitType.None;
         if (becomes == UnitType.None || !swapBrainLookup.HasComponent(entity))
@@ -97,21 +96,19 @@ public partial struct ReviveJob : IJobEntity
         health.healthAmount   = health.healthAmountMax;
         reviveRequestEnabled.ValueRW = false;
         undeadEnabled.ValueRW = true;
-        // Dead disabled = alive. Disabling it also drops this entity from the [WithAll(Dead)]
-        // filter next frame, so the revive runs exactly once.
+        // Disabling Dead also drops this entity from [WithAll(Dead)], so the revive runs once.
         deadEnabled.ValueRW   = false;
         movementEnabled.ValueRW = true;
         gravityEnabled.ValueRW  = true;
 
-        // Alive again — no longer a reviver target (DeathSystem re-enables this on re-kill).
+        // DeathSystem re-enables PlayerInteractable on re-kill.
         if (playerInteractableLookup.HasComponent(entity))
             playerInteractableLookup.SetComponentEnabled(entity, false);
 
         // Clear the death latch so a re-killed reanimated unit re-enters DeathSystem.
         unitAction.current = ActionType.Idle;
 
-        // Play the profile's Resurrection body animation (ragdoll Stop trigger rides on this clip)
-        // and stop the DeathFace clip left playing on the corpse. Both optional (key 0 = no-op).
+        // The ragdoll Stop trigger rides on the Resurrection clip. Key 0 = no clip, skipped.
         if (animationCommandLookup.HasBuffer(entity) && animationCommandPendingLookup.HasComponent(entity))
         {
             ref UnitDataBlob unitBlob = ref unitLibrary.Value.units[srcIdx];
@@ -130,7 +127,6 @@ public partial struct ReviveJob : IJobEntity
                     ref animationCommands,
                     animationCommandPendingLookup.GetEnabledRefRW<AnimationCommandPending>(entity),
                     deathFaceAnimationKey);
-            // The face a living unit wears again (by convention "ResurrectionFace", e.g. the blink).
             if (resurrectionFaceKey != 0)
                 PlaybackApi.PlayAnimation(
                     ref animationCommands,
@@ -138,11 +134,8 @@ public partial struct ReviveJob : IJobEntity
                     resurrectionFaceKey);
         }
 
-        // Convert the brain to the zombie form — SwapBrainSystem (same frame, after this) rebuilds
-        // faction/attacks/motivations — and hand the unit to the player: enable Minion (selectable)
-        // + PlayerUnitBrain (decisions now come from player commands). UtilityBrain stays DISABLED
-        // (death left it off) — a revived minion is never driven by utility AI. Single-threaded
-        // .Schedule() makes these ComponentLookup writes safe.
+        // SwapBrainSystem rebuilds faction/attacks later this frame. UtilityBrain stays disabled:
+        // a revived minion is player-driven. Single-threaded .Schedule() keeps lookup writes safe.
         swapBrainLookup[entity] = new SwapBrainRequest { newUnit = becomes };
         swapBrainLookup.SetComponentEnabled(entity, true);
 
@@ -151,8 +144,7 @@ public partial struct ReviveJob : IJobEntity
         if (playerBrainLookup.HasComponent(entity))
             playerBrainLookup.SetComponentEnabled(entity, true);
 
-        // Fire an interrupt so the action system tears down DeathAction and re-enters action
-        // selection on the next frame.
+        // Interrupt tears down DeathAction so action selection re-enters next frame.
         if (interruptLookup.HasComponent(entity))
             interruptLookup.SetComponentEnabled(entity, true);
     }

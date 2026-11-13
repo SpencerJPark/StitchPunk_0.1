@@ -4,17 +4,8 @@ using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
 
-/// <summary>
-/// Watches for an enabled LoadRequest. When found, reads the JSON save file for that slot and
-/// restores each saved entity record. Player/GameData singletons are patched in place (generically,
-/// via <see cref="SaveSerialization"/>); minions are respawned from the pool prefab by UnitType and
-/// patched a frame later by <c>MinionRestoreApplySystem</c> (after spawn-init settles).
-///
-/// Call order note: enable LoadRequest only AFTER the game scene has spawned the player entity.
-/// Manual loads (UI button click) always satisfy this since the player already exists.
-///
-/// Replaces the old hand-written LoadSystem. [BurstCompile] intentionally omitted — managed I/O.
-/// </summary>
+// Enable LoadRequest only after the game scene has spawned the player entity.
+// Minions are respawned here and patched a frame later by MinionRestoreApplySystem. No Burst: managed I/O.
 [UpdateInGroup(typeof(SaveSystemGroup))]
 [UpdateAfter(typeof(PersistentSaveSystem))]
 public partial struct PersistentLoadSystem : ISystem
@@ -93,9 +84,7 @@ public partial struct PersistentLoadSystem : ISystem
         Debug.Log($"[PersistentLoadSystem] Loaded slot {loadRequest.slot} from {path}");
     }
 
-    // Despawns current owned minions, then instantiates the saved roster from the pool prefabs.
-    // Component patching (Health, Minion-enabled, transform) is deferred to MinionRestoreApplySystem,
-    // which runs after spawn-init so the restored enabled bits aren't clobbered by SpawnStateInitSystem.
+    // Component patching is deferred to MinionRestoreApplySystem so SpawnStateInitSystem cannot clobber the restored enabled bits.
     private void RestoreMinions(EntityManager entityManager, List<EntityRecord> minionRecords)
     {
         if (unitDataLibraryQuery.IsEmptyIgnoreFilter)

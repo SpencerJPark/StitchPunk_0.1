@@ -337,16 +337,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
         int followOrdinal = 0;
         for (int i = 0; i < minions.Length; i++)
         {
-            if (!entityManager.HasComponent<MinionStandingOrder>(minions[i])) continue;
-            SquadCommandManager.EndGather(entityManager, minions[i]);
-            entityManager.SetComponentData(minions[i], new MinionStandingOrder
-            {
-                type = StandingOrderType.FollowCommander,
-                formationSlotIndex = followOrdinal + 1,
-                engageRadius = 8f,
-                lastIssuedDestination = new float3(float.MaxValue),
-                lastIssuedTime = -1000,
-            });
+            if (!MinionOrderWriter.TryGiveFollowOrder(entityManager, minions[i], followOrdinal + 1)) continue;
             followOrdinal++;
             if (entityManager.HasComponent<PlayerUnitBrain>(minions[i]))
                 entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
@@ -369,8 +360,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     {
         for (int minionIndex = 0; minionIndex < minions.Length; minionIndex++)
         {
-            if (!entityManager.HasComponent<OnMinionReturnCommand>(minions[minionIndex])) continue;
-            entityManager.SetComponentEnabled<OnMinionReturnCommand>(minions[minionIndex], true);
+            if (!MinionOrderWriter.TryGiveReturnOrder(entityManager, minions[minionIndex])) continue;
             entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[minionIndex], true);
         }
     }
@@ -438,9 +428,7 @@ public class UnitSelectionManager : RegulatorSingleton<UnitSelectionManager>, IU
     {
         for (int i = 0; i < minions.Length; i++)
         {
-            if (!entityManager.HasComponent<OnMinionAttackCommand>(minions[i])) continue;
-            entityManager.SetComponentData(minions[i], new OnMinionAttackCommand { targetEntity = target });
-            entityManager.SetComponentEnabled<OnMinionAttackCommand>(minions[i], true);
+            if (!MinionOrderWriter.TryGiveAttackOrder(entityManager, minions[i], target)) continue;
             entityManager.SetComponentEnabled<PlayerUnitBrain>(minions[i], true);
         }
     }

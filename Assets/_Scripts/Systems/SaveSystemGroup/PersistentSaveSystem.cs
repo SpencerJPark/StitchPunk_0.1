@@ -5,21 +5,12 @@ using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
 
-/// <summary>
-/// Watches for an enabled SaveRequest. When found, snapshots every IPersist-marked component
-/// on the Player and GameData singletons (generically, via <see cref="SaveSerialization"/>) into
-/// a <see cref="SaveFile"/> and writes it to disk as JSON.
-///
-/// Replaces the old hand-written SaveSystem — there is no player-specific copy code here.
-/// [BurstCompile] intentionally omitted — reflection / JsonUtility / System.IO are managed.
-/// </summary>
+// Not [BurstCompile]: reflection, JsonUtility and System.IO are managed.
 [UpdateInGroup(typeof(SaveSystemGroup))]
 [UpdateAfter(typeof(AutoSaveTimerSystem))]
 public partial struct PersistentSaveSystem : ISystem
 {
-    // Built once here rather than inside WriteMinionRecords: building a query is a lookup against
-    // every archetype in the world, which is what Unity's "create queries in OnCreate" warning is
-    // about. WithDisabled<Dead> is part of the query, so the alive-only filter still lives with it.
+    // Built in OnCreate, not per save: query building scans every archetype. Alive-only via WithDisabled<Dead>.
     private EntityQuery aliveMinionQuery;
     private bool warnedForActiveCutscene;
 
@@ -60,7 +51,7 @@ public partial struct PersistentSaveSystem : ISystem
         if (!state.EntityManager.IsComponentEnabled<SaveRequest>(gameDataEntity))
             return;
 
-        // Consume immediately — subsequent systems won't re-trigger this frame.
+        // Consume immediately so nothing re-triggers this frame.
         state.EntityManager.SetComponentEnabled<SaveRequest>(gameDataEntity, false);
 
         SaveRequest saveRequest = state.EntityManager.GetComponentData<SaveRequest>(gameDataEntity);
@@ -96,15 +87,13 @@ public partial struct PersistentSaveSystem : ISystem
         Debug.Log($"[PersistentSaveSystem] Saved to slot {saveRequest.slot}: {path}");
     }
 
-    // Writes one record per alive owned minion (Minion enabled, Dead disabled). Dead minions are
-    // skipped — they simply despawn on reload.
+    // Dead minions are skipped; they despawn on reload.
     private void WriteMinionRecords(EntityManager entityManager, List<EntityRecord> entities)
     {
         NativeArray<Entity> minions = aliveMinionQuery.ToEntityArray(Allocator.Temp);
 
         foreach (Entity minion in minions)
         {
-            // Assign a stable identity the first time a minion is saved.
             if (!entityManager.HasComponent<PersistId>(minion))
                 entityManager.AddComponentData(minion, new PersistId { value = NewPersistId() });
 

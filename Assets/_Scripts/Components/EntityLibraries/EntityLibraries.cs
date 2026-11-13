@@ -30,17 +30,6 @@ public struct AttackLibraryReference : IComponentData
 }
 
 
-// public struct FactoryLibrary : IComponentData
-// {
-//     public BlobAssetReference<FactoryLibraryBlob> blob;
-// }
-//
-// public struct FactoryLibraryReference : IComponentData
-// {
-//     public UnityObjectRef<FactoryLibrarySO> library;
-// }
-
-
 public struct InteractionLibrary : IComponentData
 {
     public BlobAssetReference<InteractionLibraryBlob> library;
@@ -52,7 +41,6 @@ public struct InteractionLibraryReference : IComponentData
 }
 
 
-// Utility AI v2 — behaviors library (enum-indexed by BehaviorType), referenced directly by systems.
 public struct BehaviorLibrary : IComponentData
 {
     public BlobAssetReference<BehaviorLibraryBlob> blob;
@@ -64,7 +52,6 @@ public struct BehaviorLibraryReference : IComponentData
 }
 
 
-// Utility AI v2 — brains + action defs. Singleton holding the master AIConfig blob.
 public struct BrainLibrary : IComponentData
 {
     public BlobAssetReference<BrainLibraryBlob> blob;
@@ -77,9 +64,7 @@ public struct BrainLibraryEntry : IBufferElementData
 }
 
 
-// Colour palettes (enum-indexed by ColorPaletteType) — the single source of truth for every colour
-// in the game. Read by the design pipeline (DesignRandomizeSystem colour roll,
-// DesignApplyUtil.ResolveColor); future world/UI consumers read the same singleton.
+// Single source of truth for every colour in the game; read by DesignRandomizeSystem and DesignApplyUtil.ResolveColor.
 public struct ColorPaletteLibrary : IComponentData
 {
     public BlobAssetReference<ColorPaletteLibraryBlob> blob;
@@ -91,7 +76,6 @@ public struct ColorPaletteLibraryReference : IComponentData
 }
 
 
-// Animation Toolkit event → sound mapping. Consumed by AnimEventSoundSystem (SoundSystemGroup).
 public struct AnimSoundEventLibrary : IComponentData
 {
     public BlobAssetReference<AnimSoundEventMappingBlob> blob;
@@ -102,8 +86,6 @@ public struct AnimSoundEventLibraryReference : IComponentData
     public UnityObjectRef<AnimSoundEventMappingSO> library;
 }
 
-// Vehicle profiles (enum-indexed by VehicleType): how each vehicle drives, crashes and rides, and where its
-// driver and puller sit per facing. Read by the caravan drive/board/crash systems and VehiclePoseSystem.
 public struct VehicleLibrary : IComponentData
 {
     public BlobAssetReference<VehicleLibraryBlob> library;
@@ -114,8 +96,7 @@ public struct VehicleLibraryReference : IComponentData
     public UnityObjectRef<VehicleLibrarySO> library;
 }
 
-// Trade clients, order templates and tuning (Trade_System.md section 4). Lives on the TradeBoard entity; read by
-// WeeklyOrderGenerationSystem.
+// Lives on the TradeBoard entity.
 public struct ClientLibrary : IComponentData
 {
     public BlobAssetReference<ClientLibraryBlob> library;

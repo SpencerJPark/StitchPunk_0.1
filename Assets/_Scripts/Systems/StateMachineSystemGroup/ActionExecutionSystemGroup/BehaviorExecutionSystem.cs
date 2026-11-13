@@ -7,10 +7,8 @@ using Unity.Transforms;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
-// Runs the Execute → Complete phase machine for all UtilityBrain units.
-// Execution sequences are fully authored in BehaviorSO. Designers compose behaviors from
-// BehaviorCommandType steps. Requests (PathRequest, AttackRequest, PickupRequest) are the API
-// boundary to downstream systems — this system enables them; downstream systems do the work.
+// Interprets the chosen BehaviorSO's command sequence. Requests (PathRequest, AttackRequest, PickupRequest)
+// are the boundary: this system enables them, downstream systems do the work.
 [BurstCompile]
 [UpdateInGroup(typeof(ActionExecutionSystemGroup))]
 public partial struct BehaviorExecutionSystem : ISystem
@@ -149,9 +147,7 @@ public partial struct BehaviorExecutionSystem : ISystem
 }
 
 [BurstCompile]
-// WithPresent (not WithAll): the StateMachine/execution half must run even when UtilityBrain is
-// disabled — corpses (their death behavior still executes) and player minions (decisions come from
-// the player, the brain is off). brain.unitType stays readable under WithPresent.
+// WithPresent (not WithAll): must run with UtilityBrain disabled, for corpses (death behavior) and player minions.
 [WithPresent(typeof(UtilityBrain))]
 [WithPresent(typeof(PathRequest))]
 // An abstract unit's position is a route, not a transform: running commands on it would re-enable the PathRequest the tier switched off.
@@ -285,8 +281,7 @@ public partial struct BehaviorExecutionJob : IJobEntity
             return;
         }
 
-        // Wall time since behavior start — read by LoopUntil; unlike CommandTimer it survives
-        // blocking commands resetting their own timers.
+        // Wall time since behavior start for LoopUntil; survives blocking commands resetting CommandTimer.
         stateMachine.LoopTimer += deltaTime;
 
         ref BehaviorCommand cmd =

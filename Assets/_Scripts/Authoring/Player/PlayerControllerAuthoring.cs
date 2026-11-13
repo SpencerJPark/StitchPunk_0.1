@@ -83,11 +83,8 @@ public class PlayerControllerAuthoring : MonoBehaviour
                 factionType = FactionType.Player,
             });
 
-            // Reviver targeting: PlayerTargetingSystem writes the nearest PlayerInteractable
-            // (e.g. a revivable corpse) here; PlayerReviverSystem reads it. Both query
-            // WithPresent<Target>, so the component must exist on the player — baked disabled
-            // (no target until one is in range). The player is not a UnitAuthoring entity, so
-            // this is the only place Target gets added to the player.
+            // Reviver systems query WithPresent<Target>, so Target must exist on the player (baked disabled).
+            // The player is not a UnitAuthoring entity, so this is the only place it gets added.
 
             AddComponent(entity, new MovePlayerInput());
             SetComponentEnabled<MovePlayerInput>(entity, false);
@@ -103,8 +100,6 @@ public class PlayerControllerAuthoring : MonoBehaviour
 
             AddComponent(entity, new PlayerSelectedAttack { damageSource = controllerAuthoring.defaultAttack });
 
-            // Player melee combat scaffolding — maintained/consumed by the PlayerInputSystemGroup
-            // combat systems. Both start disabled: no target and off cooldown.
             AddComponent(entity, new CombatTarget());
             SetComponentEnabled<CombatTarget>(entity, false);
 
@@ -193,7 +188,6 @@ public class PlayerControllerAuthoring : MonoBehaviour
             AddComponent(entity, new OnMinionFollowCommand());
             SetComponentEnabled<OnMinionFollowCommand>(entity, false);
 
-            // Minion group input components
             AddComponent(entity, new OnCycleGroupInput());
             SetComponentEnabled<OnCycleGroupInput>(entity, false);
 
@@ -209,7 +203,6 @@ public class PlayerControllerAuthoring : MonoBehaviour
             AddComponent(entity, new OnSnapCameraBackInput());
             SetComponentEnabled<OnSnapCameraBackInput>(entity, false);
 
-            // Minion group data — one group unlocked by default
             AddComponent(entity, new PlayerMinionGroupsData
             {
                 unlockedGroupCount = controllerAuthoring.startingGroupCount,
@@ -218,7 +211,6 @@ public class PlayerControllerAuthoring : MonoBehaviour
 
             AddComponent(entity, new PlayerSquadSettings { onFootCommandRadius = controllerAuthoring.onFootCommandRadius });
 
-            // Create 4 persistent horde entities (one per group slot) and store refs in buffer
             DynamicBuffer<PlayerHordeSlot> hordeSlots = AddBuffer<PlayerHordeSlot>(entity);
             for (int slotIndex = 0; slotIndex < 4; slotIndex++)
             {
@@ -271,7 +263,7 @@ public class PlayerControllerAuthoring : MonoBehaviour
             AddBuffer<ResourceChangeRequest>(entity);
             AddComponent(entity, new ResourceShortfall());
             SetComponentEnabled<ResourceShortfall>(entity, false);
-            // Null = the player holds the ledger; a caravan takes it over when it links (Caravan_System.md §5).
+            // Null = the player holds the ledger; a caravan takes it over when it links.
             AddComponent(entity, new ResourceLedgerLink { ledgerHolder = Entity.Null });
             AddComponent(entity, new PlayerResourcesSnapshot
             {
@@ -283,8 +275,6 @@ public class PlayerControllerAuthoring : MonoBehaviour
                 revivalRound  = controllerAuthoring.startingRevivalRounds,
             });
 
-            // The player is not baked through UnitBakingUtil — add the cutscene gate here.
-            // Workstation deploy/mount state — all baked off; WorkstationInputSystemGroup drives them.
             Entity workstationPrefabEntity = controllerAuthoring.workstationPrefab != null
                 ? GetEntity(controllerAuthoring.workstationPrefab, TransformUsageFlags.Dynamic)
                 : Entity.Null;

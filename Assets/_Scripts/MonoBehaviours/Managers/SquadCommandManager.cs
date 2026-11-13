@@ -285,17 +285,7 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
         switch (command)
         {
             case QuickCommandType.Follow:
-                if (!entityManager.HasComponent<MinionStandingOrder>(member)) return;
-                EndGather(entityManager, member);
-                // Slot 0 stays the player's own spot, so members start at slot 1.
-                entityManager.SetComponentData(member, new MinionStandingOrder
-                {
-                    type = StandingOrderType.FollowCommander,
-                    formationSlotIndex = memberOrdinal + 1,
-                    engageRadius = 8f,
-                    lastIssuedDestination = new float3(float.MaxValue),
-                    lastIssuedTime = -1000,
-                });
+                if (!MinionOrderWriter.TryGiveFollowOrder(entityManager, member, memberOrdinal + 1)) return;
                 break;
             case QuickCommandType.Hold:
                 if (!entityManager.HasComponent<MinionStandingOrder>(member)) return;
@@ -310,13 +300,10 @@ public class SquadCommandManager : MonoBehaviour, IUpdateObserver
                 });
                 break;
             case QuickCommandType.AttackTarget:
-                if (!entityManager.HasComponent<OnMinionAttackCommand>(member)) return;
-                entityManager.SetComponentData(member, new OnMinionAttackCommand { targetEntity = targetEntity });
-                entityManager.SetComponentEnabled<OnMinionAttackCommand>(member, true);
+                if (!MinionOrderWriter.TryGiveAttackOrder(entityManager, member, targetEntity)) return;
                 break;
             case QuickCommandType.Return:
-                if (!entityManager.HasComponent<OnMinionReturnCommand>(member)) return;
-                entityManager.SetComponentEnabled<OnMinionReturnCommand>(member, true);
+                if (!MinionOrderWriter.TryGiveReturnOrder(entityManager, member)) return;
                 break;
             case QuickCommandType.Gather:
                 if (!TryGetPlayer(out Entity gatherPlayer)) return;

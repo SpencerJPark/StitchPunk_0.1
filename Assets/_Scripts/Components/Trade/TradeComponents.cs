@@ -3,7 +3,7 @@ using Unity.Mathematics;
 
 public enum TradeOrderState : byte { Offered, Accepted, Delivered, Failed, Expired, Declined }
 
-// Singleton. Orders and relationships are buffers on it, not entities (TR-A3): the save system cannot remap Entity fields.
+// Singleton. Orders and relationships are buffers on it, not entities: the save system cannot remap Entity fields.
 public struct TradeBoard : IComponentData
 {
     public uint worldSeed;   // 0 = pick a random seed on the first roll
@@ -36,15 +36,14 @@ public struct ClientRelationship : IBufferElementData
     public int ordersFailed;
 }
 
-// One entry per weekly roll; PigeonSpawnSystem (Phase 2) drains it.
+// One entry per weekly roll; PigeonSpawnSystem drains it.
 [InternalBufferCapacity(0)]
 public struct PendingPigeon : IBufferElementData
 {
     public int weekNumber;
 }
 
-// On the TradeBoard. The player pressed the mail button: PigeonSpawnSystem sends the pending letter's pigeon, then disables this.
-// Without it, mail just waits (the HUD shows a notification) instead of the pigeon arriving on its own.
+// On the TradeBoard. Mail button pressed: PigeonSpawnSystem sends the pending letter's pigeon, then disables this.
 public struct PigeonSummonRequest : IComponentData, IEnableableComponent { }
 
 // Throws the current week away and rolls it again with this seed (debug menu; proves same seed -> same week).
@@ -74,7 +73,6 @@ public struct TradeOrderResponseRequest : IBufferElementData
 // On the TradeBoard. Enabled while the letter is on screen; the UI toggles it, PigeonReadSystem sends perched pigeons off when it rises.
 public struct TradeLetterOpen : IComponentData, IEnableableComponent { }
 
-// On the TradeBoard (baked from TradeBoardAuthoring).
 public struct TradePigeonSettings : IComponentData
 {
     public Entity prefab;
@@ -87,8 +85,7 @@ public struct TradePigeonSettings : IComponentData
     public float letterOpenDelaySeconds;    // landed -> letter opens; the window the player's reach animation will fill
 }
 
-// Tag on a child entity of the player (PigeonArmTargetAuthoring). Its world position is where the pigeon lands, so it can be
-// moved in the editor and later driven by the arm-out animation.
+// Tag on a child entity of the player. Its world position is where the pigeon lands.
 public struct PigeonArmTarget : IComponentData { }
 
 public struct CarrierPigeon : IComponentData
@@ -111,7 +108,7 @@ public struct PigeonFlight : IComponentData
 public struct TradeHandOverRequest : IComponentData, IEnableableComponent { }
 
 // On a unit the player handed over. It is no longer a Minion: it walks to its stand point, idles, and is despawned once the
-// player is far away and cannot see it (DeliveredUnitDespawnSystem). It stays a normal unit meanwhile (TR-D16).
+// player is far away and cannot see it (DeliveredUnitDespawnSystem).
 public struct DeliveredToClient : IComponentData
 {
     public int dropOffId;
@@ -123,7 +120,7 @@ public struct DeliveredToClient : IComponentData
 
 public enum TradeToastKind : byte { None, HandOverRefused, HandOverDone, OrderFailed }
 
-// Last notable trade result, shown for a few seconds by TradeOrdersHudUI. A new sequence number means a new message.
+// Last notable trade result, shown by TradeOrdersHudUI. A new sequence number means a new message.
 public struct TradeToast : IComponentData
 {
     public int sequence;
@@ -133,8 +130,8 @@ public struct TradeToast : IComponentData
 }
 
 // Save mirrors, on the Player (its save identity), added at runtime by TradeSaveSyncSystem. The generic save copies IPersist
-// components byte for byte, so they are flat unmanaged structs (no Entity), flags are bytes, and the board buffers ride in FixedLists
-// (Trade_System.md TR-A10). hasData is 1 while a snapshot is waiting to be applied by TradeLoadSyncSystem.
+// components byte for byte, so they are flat unmanaged structs (no Entity), flags are bytes, and the board buffers ride in FixedLists.
+// hasData is 1 while a snapshot is waiting to be applied by TradeLoadSyncSystem.
 public struct WorldClockSnapshot : IComponentData, IPersist
 {
     public byte  hasData;
