@@ -132,7 +132,7 @@ This is the content milestone that unblocks judging everything else. Detail of e
 | M2-3 | **Journal**: active missions, accepted orders with due days, reputation; later the suspect board | C+U | 📝 `Journal_System.md` (absorbs the notebook from the demo guide) |
 | M2-4 | Camp Loop phase 6: raid on the parked caravan | C | ✅ `Plans/CampLoop_System.md` §8 |
 | M2-5 | Damage Reaction (fight / flee / help / forgive) | C | ✅ after M0-3 restores it |
-| M2-6 | Save: entity remap, travel autosave, slot handling | C | ✅ `Plans/Save_System.md` phases 4–6 |
+| M2-6 | Save: exact-moment snapshot, travel autosave, slot handling | C | ✅ `Plans/SaveAndTitle_System.md` (supersedes Save_System phases 4–6) |
 | M2-7 | Zombie conversion composer | C | ✅ `Plans/ZombieConversion_System.md` (small) |
 | M2-8 | Something to spend coin on: caravan upgrades v1 (storage, command radius, a third squad, furnace rate) bought at a village smith | C+U | 📝 `CaravanUpgrades_System.md`. Without a sink, coin means nothing until M6 |
 | M2-9 | Three starter missions + one story mission authored | C+content | Clear the bandit camp; deliver stokers to the Bellfounders; find a missing farmhand (ends in a zombie twist); story: a letter from the groundskeeper |
@@ -226,7 +226,7 @@ Starts in M2 with placeholders; this is the pass that makes them real. The HUD a
 | M7-4 | Workstation menu: summon, craft, repair, furnace as a physical workbench | U | Replace `WorkstationMenu.uxml` |
 | M7-5 | Journal and map: missions, orders, reputation, suspect board, world map with events | U | With M2-3 |
 | M7-6 | Dialogue: your call is white text on black that pops in; add speaker name and a skip | U | `Design_Decisions.md` |
-| M7-7 | Menus: main, pause, settings (audio, controls, display), save slots, game over | U | `MainMenuUI`, `SettingsMenuUI` exist as stubs |
+| M7-7 | Menus: main, pause, settings (audio, controls, display), save slots, game over | U | `Plans/SaveAndTitle_System.md` Phase 4 (title, pause, save list); `SettingsMenuUI` reused |
 | M7-8 | World-space UI: health bars, selection rings, order markers, drop-off poles, interact prompts, emote icons (replace the generated `EmoteAtlas.png`) | U+A | |
 | M7-9 | Controller pass: every screen works on a pad (Switch and Deck targets) | C+U | |
 | M7-10 | Juice: screen shake, hit flash, pickup pops, coin count-up, summon smoke, revive lightning | A+C+S | With M4-7 |
@@ -369,7 +369,7 @@ Sourcing order for speed: a commercial library for sets A–D first, replace the
 |---|---|---|
 | Q1 | Is the first public slice the **open-world week loop** (this roadmap) or the **academy story demo** (`Home.md`)? | The loop. It is 80 % built, and the academy needs a whole second environment and cast |
 | Q2 | Which modular kit did you buy, and is it imported somewhere I did not see? | Import it under `Assets/Models/Kit/<Name>/`, then I list it piece by piece |
-| Q3 | Final game UI in **Rive** (the earlier plan) or stay on **UI Toolkit** with art? | UI Toolkit for menus, letters and journal (text-heavy, pad navigation), Rive only for small animated pieces: the pigeon, seals, the horse |
+| Q3 | Final game UI in **Rive** (the earlier plan) or stay on **UI Toolkit** with art? | UI Toolkit for menus, letters and journal (text-heavy, pad navigation), Rive only for small animated pieces: the pigeon, seals, the horse. **Answered 2026-11-13 for menus: Rive behind a view seam, UI Toolkit v1 first (SaveAndTitle SM-A4)** |
 | Q4 | One line each for the Carpenter Beetle, Hunter and Deadnote | — |
 | Q5 | Bosses: are the rival engineer, bandit chief and sky whale the right first three? | Yes |
 | Q6 | Mission givers: letters only, or also people and notice boards in villages? | All three; letters for clients and story, the board for filler |
