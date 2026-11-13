@@ -14,8 +14,7 @@ using Unity.Transforms;
 [UpdateInGroup(typeof(UtilityAwarenessSystemGroup))]
 public partial struct SocialAwarenessSystem : ISystem
 {
-    private ComponentLookup<LocalTransform> _transformLookup;
-    private ComponentLookup<Dead>           _deadLookup;
+    private UnitStateLookups                unitStateLookups;
     private ComponentLookup<StateMachine>   _stateMachineLookup;
 
     [BurstCompile]
@@ -25,16 +24,14 @@ public partial struct SocialAwarenessSystem : ISystem
         state.RequireForUpdate<FactionRegistry>();
         state.RequireForUpdate<UnitDataLibrary>();
         state.RequireForUpdate<BrainLibrary>();
-        _transformLookup    = state.GetComponentLookup<LocalTransform>(true);
-        _deadLookup         = state.GetComponentLookup<Dead>(true);
+        unitStateLookups    = UnitStateLookups.Create(ref state);
         _stateMachineLookup = state.GetComponentLookup<StateMachine>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        _transformLookup.Update(ref state);
-        _deadLookup.Update(ref state);
+        unitStateLookups.Update(ref state);
         _stateMachineLookup.Update(ref state);
 
         FactionRegistry registry = SystemAPI.GetSingleton<FactionRegistry>();
@@ -44,8 +41,7 @@ public partial struct SocialAwarenessSystem : ISystem
 
         state.Dependency = new SocialAwarenessJob
         {
-            transformLookup    = _transformLookup,
-            deadLookup         = _deadLookup,
+            unitStateLookups   = unitStateLookups,
             stateMachineLookup = _stateMachineLookup,
             factionEntities    = registry.entities,
             unitLibrary        = unitLibrary,
@@ -61,8 +57,7 @@ public partial struct SocialAwarenessSystem : ISystem
 [WithDisabled(typeof(CutsceneActor))]
 public partial struct SocialAwarenessJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
-    [ReadOnly] public ComponentLookup<Dead>                    deadLookup;
+    public UnitStateLookups                                    unitStateLookups;
     [ReadOnly] public ComponentLookup<StateMachine>            stateMachineLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>      unitLibrary;
@@ -109,10 +104,7 @@ public partial struct SocialAwarenessJob : IJobEntity
                 if (candidate == self)
                     continue;
 
-                if (EntityUtils.IsDead(in deadLookup, candidate))
-                    continue;
-
-                if (!transformLookup.TryGetComponent(candidate, out LocalTransform candidateTransform))
+                if (!unitStateLookups.TryGetTransformUnlessDead(candidate, out LocalTransform candidateTransform))
                     continue;
 
                 float distSq = math.distancesq(myPos, candidateTransform.Position);

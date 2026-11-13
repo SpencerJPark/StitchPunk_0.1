@@ -31,8 +31,7 @@ public partial struct ItemAwarenessSystem : ISystem
     private ComponentLookup<Item>          _itemLookup;
     private ComponentLookup<EquipBy>       _equipByLookup;
     private ComponentLookup<ThrownItemRequest> _thrownItemRequestLookup;
-    private ComponentLookup<LocalTransform> _transformLookup;
-    private ComponentLookup<Dead>          _deadLookup;
+    private UnitStateLookups unitStateLookups;
 
     [BurstCompile]
     public void OnCreate(ref SystemState state)
@@ -47,8 +46,7 @@ public partial struct ItemAwarenessSystem : ISystem
         _itemLookup       = state.GetComponentLookup<Item>(true);
         _equipByLookup    = state.GetComponentLookup<EquipBy>(true);
         _thrownItemRequestLookup = state.GetComponentLookup<ThrownItemRequest>(true);
-        _transformLookup  = state.GetComponentLookup<LocalTransform>(true);
-        _deadLookup       = state.GetComponentLookup<Dead>(true);
+        unitStateLookups = UnitStateLookups.Create(ref state);
     }
 
     [BurstCompile]
@@ -58,8 +56,7 @@ public partial struct ItemAwarenessSystem : ISystem
         _itemLookup.Update(ref state);
         _equipByLookup.Update(ref state);
         _thrownItemRequestLookup.Update(ref state);
-        _transformLookup.Update(ref state);
-        _deadLookup.Update(ref state);
+        unitStateLookups.Update(ref state);
 
         BlobAssetReference<ItemLibraryBlob> itemLibrary =
             SystemAPI.GetSingleton<ItemLibrary>().library;
@@ -86,8 +83,7 @@ public partial struct ItemAwarenessSystem : ISystem
             itemLookup      = _itemLookup,
             equipByLookup   = _equipByLookup,
             thrownItemRequestLookup = _thrownItemRequestLookup,
-            transformLookup = _transformLookup,
-            deadLookup      = _deadLookup,
+            unitStateLookups = unitStateLookups,
             itemLibrary     = itemLibrary,
             effectLibrary   = effectLibrary,
             aiConfig        = aiConfig,
@@ -110,8 +106,7 @@ public partial struct ItemAwarenessJob : IJobEntity
     [ReadOnly] public ComponentLookup<Item>                         itemLookup;
     [ReadOnly] public ComponentLookup<EquipBy>                      equipByLookup;
     [ReadOnly] public ComponentLookup<ThrownItemRequest>            thrownItemRequestLookup;
-    [ReadOnly] public ComponentLookup<LocalTransform>               transformLookup;
-    [ReadOnly] public ComponentLookup<Dead>                         deadLookup;
+    public UnitStateLookups unitStateLookups;
     [ReadOnly] public BlobAssetReference<ItemLibraryBlob>           itemLibrary;
     [ReadOnly] public BlobAssetReference<EffectLibraryBlob>         effectLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>          aiConfig;
@@ -151,7 +146,7 @@ public partial struct ItemAwarenessJob : IJobEntity
                 || option.targetEntity == Entity.Null)
                 continue;
             combatTarget = option.targetEntity;
-            if (transformLookup.TryGetComponent(combatTarget, out LocalTransform targetTransform))
+            if (unitStateLookups.transform.TryGetComponent(combatTarget, out LocalTransform targetTransform))
                 combatTargetDistance = math.distance(transform.Position, targetTransform.Position);
             break;
         }
@@ -276,9 +271,7 @@ public partial struct ItemAwarenessJob : IJobEntity
                 for (int threatIndex = 0; threatIndex < threats.Length; threatIndex++)
                 {
                     Entity attacker = threats[threatIndex].attackerEntity;
-                    if (!transformLookup.TryGetComponent(attacker, out LocalTransform attackerTransform))
-                        continue;
-                    if (EntityUtils.IsDead(in deadLookup, attacker))
+                    if (!unitStateLookups.TryGetTransformUnlessDead(attacker, out LocalTransform attackerTransform))
                         continue;
                     nearestHostileDistance = math.min(nearestHostileDistance,
                         math.distance(transform.Position, attackerTransform.Position));
@@ -374,9 +367,9 @@ public partial struct ItemAwarenessJob : IJobEntity
         ref ItemBlob blob = ref itemLibrary.Value.items[typeIndex];
         if (blob.category == ItemCategory.None) return false;
 
-        if (!transformLookup.TryGetComponent(itemEntity, out LocalTransform xf)) return false;
+        if (!unitStateLookups.transform.TryGetComponent(itemEntity, out LocalTransform itemTransform)) return false;
 
-        distSq = math.distancesq(myPos, xf.Position);
+        distSq = math.distancesq(myPos, itemTransform.Position);
         return !(distSq > rangeSq);
     }
 

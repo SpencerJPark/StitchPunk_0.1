@@ -19,8 +19,7 @@ public partial struct AllyAlertSystem : ISystem
     public const float ALERT_DURATION_SECONDS = 6f;
     public const int   ALERT_RESPONSE_PRIORITY = AIPriorityTier.Defend;
 
-    private ComponentLookup<Dead>           _deadLookup;
-    private ComponentLookup<LocalTransform> _transformLookup;
+    private UnitStateLookups                unitStateLookups;
     private ComponentLookup<AllyAlert>      _allyAlertLookup;
     private ComponentLookup<ThinkRate>      _thinkRateLookup;
 
@@ -31,8 +30,7 @@ public partial struct AllyAlertSystem : ISystem
         state.RequireForUpdate<FactionRegistry>();
         state.RequireForUpdate<UnitDataLibrary>();
         state.RequireForUpdate<BrainLibrary>();
-        _deadLookup      = state.GetComponentLookup<Dead>(true);
-        _transformLookup = state.GetComponentLookup<LocalTransform>(true);
+        unitStateLookups = UnitStateLookups.Create(ref state);
         _allyAlertLookup = state.GetComponentLookup<AllyAlert>(false);
         _thinkRateLookup = state.GetComponentLookup<ThinkRate>(false);
     }
@@ -40,8 +38,7 @@ public partial struct AllyAlertSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        _deadLookup.Update(ref state);
-        _transformLookup.Update(ref state);
+        unitStateLookups.Update(ref state);
         _allyAlertLookup.Update(ref state);
         _thinkRateLookup.Update(ref state);
 
@@ -54,20 +51,18 @@ public partial struct AllyAlertSystem : ISystem
         state.Dependency = new RaiseAlarmBroadcastJob
         {
             factionEntities  = factionRegistry.entities,
-            transformLookup  = _transformLookup,
+            unitStateLookups = unitStateLookups,
             allyAlertLookup  = _allyAlertLookup,
             thinkRateLookup  = _thinkRateLookup,
-            deadLookup       = _deadLookup,
             deltaTime        = deltaTime,
         }.Schedule(state.Dependency);
 
         state.Dependency = new AllyAlertResponseJob
         {
-            deadLookup      = _deadLookup,
-            transformLookup = _transformLookup,
-            unitLibrary     = unitLibrary,
-            aiConfig        = brainLibrary.blob,
-            deltaTime       = deltaTime,
+            unitStateLookups = unitStateLookups,
+            unitLibrary      = unitLibrary,
+            aiConfig         = brainLibrary.blob,
+            deltaTime        = deltaTime,
         }.ScheduleParallel(state.Dependency);
     }
 }
@@ -78,10 +73,9 @@ public partial struct AllyAlertSystem : ISystem
 public partial struct RaiseAlarmBroadcastJob : IJobEntity
 {
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
-    [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
+    public UnitStateLookups                                    unitStateLookups;
     public ComponentLookup<AllyAlert>                          allyAlertLookup;
     public ComponentLookup<ThinkRate>                          thinkRateLookup;
-    [ReadOnly] public ComponentLookup<Dead>                    deadLookup;
     public float deltaTime;
 
     public void Execute(
@@ -117,7 +111,7 @@ public partial struct RaiseAlarmBroadcastJob : IJobEntity
         }
 
         if (target == Entity.Null) return;
-        if (EntityUtils.IsDead(in deadLookup, target)) return;
+        if (unitStateLookups.IsDead(target)) return;
 
         float radiusSq = raiseAlarm.radius * raiseAlarm.radius;
 
@@ -128,8 +122,7 @@ public partial struct RaiseAlarmBroadcastJob : IJobEntity
             {
                 if (ally == self) continue;
                 if (!allyAlertLookup.HasComponent(ally)) continue;
-                if (EntityUtils.IsDead(in deadLookup, ally)) continue;
-                if (!transformLookup.TryGetComponent(ally, out LocalTransform allyTransform)) continue;
+                if (!unitStateLookups.TryGetTransformUnlessDead(ally, out LocalTransform allyTransform)) continue;
                 if (math.distancesq(transform.Position, allyTransform.Position) > radiusSq) continue;
 
                 bool alreadyAlertedToTarget = allyAlertLookup.IsComponentEnabled(ally)
@@ -165,8 +158,7 @@ public partial struct RaiseAlarmBroadcastJob : IJobEntity
 [WithDisabled(typeof(CutsceneActor))]
 public partial struct AllyAlertResponseJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<Dead>                deadLookup;
-    [ReadOnly] public ComponentLookup<LocalTransform>      transformLookup;
+    public UnitStateLookups unitStateLookups;
     [ReadOnly] public BlobAssetReference<UnitLibraryBlob>  unitLibrary;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob> aiConfig;
     public float deltaTime;
@@ -182,8 +174,8 @@ public partial struct AllyAlertResponseJob : IJobEntity
         allyAlert.remaining -= deltaTime;
 
         bool targetGone = allyAlert.target == Entity.Null
-            || !transformLookup.HasComponent(allyAlert.target)
-            || EntityUtils.IsDead(in deadLookup, allyAlert.target);
+            || !unitStateLookups.transform.HasComponent(allyAlert.target)
+            || unitStateLookups.IsDead(allyAlert.target);
 
         if (allyAlert.remaining <= 0f || targetGone)
         {

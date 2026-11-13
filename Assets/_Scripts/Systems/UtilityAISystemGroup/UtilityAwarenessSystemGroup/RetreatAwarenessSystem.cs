@@ -20,8 +20,7 @@ public partial struct RetreatAwarenessSystem : ISystem
     public const float SAFER_BY_METERS      = 3f;
     public const int   RETREAT_SLOT_COUNT   = 6;
 
-    private ComponentLookup<LocalTransform> transformLookup;
-    private ComponentLookup<Dead>           deadLookup;
+    private UnitStateLookups unitStateLookups;
     private ComponentLookup<GuardPost>      guardPostLookup;
 
     [BurstCompile]
@@ -30,16 +29,14 @@ public partial struct RetreatAwarenessSystem : ISystem
         state.RequireForUpdate<FactionRegistry>();
         state.RequireForUpdate<BrainLibrary>();
 
-        transformLookup = state.GetComponentLookup<LocalTransform>(true);
-        deadLookup      = state.GetComponentLookup<Dead>(true);
+        unitStateLookups = UnitStateLookups.Create(ref state);
         guardPostLookup = state.GetComponentLookup<GuardPost>(true);
     }
 
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        transformLookup.Update(ref state);
-        deadLookup.Update(ref state);
+        unitStateLookups.Update(ref state);
         guardPostLookup.Update(ref state);
 
         FactionRegistry registry     = SystemAPI.GetSingleton<FactionRegistry>();
@@ -47,8 +44,7 @@ public partial struct RetreatAwarenessSystem : ISystem
 
         state.Dependency = new RetreatAwarenessJob
         {
-            transformLookup = transformLookup,
-            deadLookup      = deadLookup,
+            unitStateLookups = unitStateLookups,
             guardPostLookup = guardPostLookup,
             factionEntities = registry.entities,
             aiConfig        = brainLibrary.blob,
@@ -62,8 +58,7 @@ public partial struct RetreatAwarenessSystem : ISystem
 [WithDisabled(typeof(CutsceneActor))]
 public partial struct RetreatAwarenessJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<LocalTransform>          transformLookup;
-    [ReadOnly] public ComponentLookup<Dead>                    deadLookup;
+    public UnitStateLookups unitStateLookups;
     [ReadOnly] public ComponentLookup<GuardPost>               guardPostLookup;
     [ReadOnly] public NativeParallelMultiHashMap<byte, Entity> factionEntities;
     [ReadOnly] public BlobAssetReference<BrainLibraryBlob>     aiConfig;
@@ -129,8 +124,7 @@ public partial struct RetreatAwarenessJob : IJobEntity
             do
             {
                 if (candidate == self) continue;
-                if (EntityUtils.IsDead(in deadLookup, candidate)) continue;
-                if (!transformLookup.TryGetComponent(candidate, out LocalTransform candidateTransform)) continue;
+                if (!unitStateLookups.TryGetTransformUnlessDead(candidate, out LocalTransform candidateTransform)) continue;
 
                 float distance = math.distance(myPos, candidateTransform.Position);
                 if (distance * distance <= outnumberedSq)
@@ -158,8 +152,7 @@ public partial struct RetreatAwarenessJob : IJobEntity
             do
             {
                 if (ally == self) continue;
-                if (EntityUtils.IsDead(in deadLookup, ally)) continue;
-                if (!transformLookup.TryGetComponent(ally, out LocalTransform allyTransform)) continue;
+                if (!unitStateLookups.TryGetTransformUnlessDead(ally, out LocalTransform allyTransform)) continue;
 
                 float distanceToSelf = math.distance(myPos, allyTransform.Position);
                 if (distanceToSelf * distanceToSelf <= outnumberedSq)
