@@ -30,7 +30,7 @@ MonoBehaviour:
     yawJitterDegrees: 360
     alignToNormal: 0
     densityPer100SquareMetres: 2
-    blocksNavigation: 0
+    blocksNavigation: 1
     tier: 0
     cardAtlasEntry: 0
     cardSizeMetres: {x: 4, y: 7}
@@ -49,7 +49,7 @@ MonoBehaviour:
     yawJitterDegrees: 360
     alignToNormal: 0
     densityPer100SquareMetres: 2
-    blocksNavigation: 0
+    blocksNavigation: 1
     tier: 1
     cardAtlasEntry: 2
     cardSizeMetres: {x: 2.5, y: 4}

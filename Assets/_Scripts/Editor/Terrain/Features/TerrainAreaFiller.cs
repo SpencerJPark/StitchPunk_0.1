@@ -21,6 +21,10 @@ public static class TerrainAreaFiller
     // camera yaw the cards face; WF-S1 confirms the value
     public const float CardCameraYawDegrees = 0f;
 
+    public const string CardCollidersRootName = "CardColliders";
+    // trunk only, so units can walk between trees
+    private const float CardTrunkColliderRadiusMetres = 0.4f;
+
     private const string ScatterChildName = "Scatter";
     private const string NavigationWallLayerName = "PathfindingWalls";
     private static readonly Vector2 FallbackCardSizeMetres = new Vector2(3f, 5f);
@@ -112,6 +116,14 @@ public static class TerrainAreaFiller
             {
                 Object.DestroyImmediate(doomed[doomedIndex]);
             }
+
+            Transform oldCardColliders = tile.transform.Find(CardCollidersRootName);
+            if (oldCardColliders != null)
+            {
+                Object.DestroyImmediate(oldCardColliders.gameObject);
+            }
+            List<Vector3> blockingCardBases = new List<Vector3>();
+            List<float> blockingCardHeights = new List<float>();
 
             int interactableUsed = 0;
             List<TerrainScatterObstacle> obstacles = new List<TerrainScatterObstacle>();
@@ -270,12 +282,51 @@ public static class TerrainAreaFiller
                     card.tint01 = TintFromPosition(placement.position);
                     atlasCards.Add(card);
                     result.cardCount++;
+                    if (ruleData.blocksNavigation)
+                    {
+                        blockingCardBases.Add(card.basePosition);
+                        blockingCardHeights.Add(card.sizeMetres.y);
+                    }
                 }
             }
 
+            BuildCardColliders(tile, blockingCardBases, blockingCardHeights);
             BakeCardMeshes(tile, tileData, atlasOrder, cardsByAtlas);
         }
         return result;
+    }
+
+    // One GameObject with a capsule per card bakes to a single compound collider.
+    private static void BuildCardColliders(TerrainTile tile, List<Vector3> basePositions, List<float> heights)
+    {
+        if (basePositions.Count == 0)
+        {
+            return;
+        }
+        Vector2Int coordinate = tile.tileCoordinate;
+        Vector3 rootPosition = new Vector3(coordinate.x * TerrainTileData.TileSizeMetres, 0f, coordinate.y * TerrainTileData.TileSizeMetres);
+        GameObject rootObject = new GameObject(CardCollidersRootName);
+        rootObject.transform.SetParent(tile.transform, false);
+        rootObject.transform.position = rootPosition;
+        int wallLayer = LayerMask.NameToLayer(NavigationWallLayerName);
+        if (wallLayer >= 0)
+        {
+            rootObject.layer = wallLayer;
+        }
+        else
+        {
+            Debug.LogWarning("TerrainAreaFiller: layer '" + NavigationWallLayerName + "' not found; card colliders keep the default layer.");
+        }
+        rootObject.isStatic = true;
+        for (int cardIndex = 0; cardIndex < basePositions.Count; cardIndex++)
+        {
+            CapsuleCollider capsule = rootObject.AddComponent<CapsuleCollider>();
+            capsule.direction = 1;
+            capsule.radius = CardTrunkColliderRadiusMetres;
+            capsule.height = heights[cardIndex];
+            capsule.center = (basePositions[cardIndex] - rootPosition) + Vector3.up * heights[cardIndex] * 0.5f;
+        }
+        Debug.Log("TerrainAreaFiller: " + basePositions.Count + " card trunk colliders on tile " + coordinate);
     }
 
     private static void BakeCardMeshes(TerrainTile tile, TerrainTileData tileData, List<TerrainCardAtlas> atlasOrder, Dictionary<TerrainCardAtlas, List<TerrainCard>> cardsByAtlas)
