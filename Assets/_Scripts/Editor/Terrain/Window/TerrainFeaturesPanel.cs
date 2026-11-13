@@ -27,6 +27,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
     IVisualElementScheduledItem drawingPollTimer;
     TerrainAreaRecipe armedRecipe;
     bool lastKnownDrawing;
+    bool hierarchyChangedPending;
     int areaCount;
 
     public override string DisplayName => "Features";
@@ -57,6 +58,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         TerrainFeatureTool.SelectionChanged += Refresh;
         TerrainFeatureBaker.BakeFinished += Refresh;
         Selection.selectionChanged += Refresh;
+        EditorApplication.hierarchyChanged += MarkHierarchyChanged;
         if (drawingPollTimer == null) drawingPollTimer = schedule.Execute(RefreshIfDrawingStateChanged).Every(DrawingPollIntervalMilliseconds);
         else drawingPollTimer.Resume();
         Refresh();
@@ -67,20 +69,35 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         TerrainFeatureTool.SelectionChanged -= Refresh;
         TerrainFeatureBaker.BakeFinished -= Refresh;
         Selection.selectionChanged -= Refresh;
+        EditorApplication.hierarchyChanged -= MarkHierarchyChanged;
+        hierarchyChangedPending = false;
         if (drawingPollTimer != null) drawingPollTimer.Pause();
         TerrainFeatureTool.CancelDrawing();
         armedRecipe = null;
         DestroyThumbnailSprites();
     }
 
+    void MarkHierarchyChanged()
+    {
+        hierarchyChangedPending = true;
+    }
+
     void RefreshIfDrawingStateChanged()
     {
+        if (hierarchyChangedPending)
+        {
+            hierarchyChangedPending = false;
+            Refresh();
+            return;
+        }
         if (TerrainFeatureTool.IsDrawing == lastKnownDrawing) return;
         Refresh();
     }
 
     void Refresh()
     {
+        // Sync first: a change here re-enters Refresh via SelectionChanged, which must finish before this rebuild starts.
+        TerrainFeatureTool.SyncWithCurrentSelection();
         lastKnownDrawing = TerrainFeatureTool.IsDrawing;
         if (!lastKnownDrawing) armedRecipe = null;
 
@@ -176,11 +193,8 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
             }
         }
 
-        if (recipe.groundLayer != null)
-        {
-            Color32 layerColour = TerrainSplatCodec.ColourOfLayer(recipe.groundLayer);
-            chip.style.backgroundColor = new Color(layerColour.r / 255f, layerColour.g / 255f, layerColour.b / 255f, 1f);
-        }
+        Color32 layerColour = TerrainSplatCodec.ColourOfLayer(recipe.groundLayer);
+        chip.style.backgroundColor = new Color(layerColour.r / 255f, layerColour.g / 255f, layerColour.b / 255f, 1f);
     }
 
     VisualElement BuildFeatureList(TerrainArea[] areas)

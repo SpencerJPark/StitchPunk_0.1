@@ -63,7 +63,19 @@ public static class TerrainFeatureTool
         Selection.selectionChanged += RefreshTrackedSelection;
     }
 
-    public static Component SelectedFeature => trackedArea;
+    public static Component SelectedFeature
+    {
+        get
+        {
+            RefreshTrackedSelection();
+            return trackedArea;
+        }
+    }
+
+    public static void SyncWithCurrentSelection()
+    {
+        RefreshTrackedSelection();
+    }
 
     public static bool IsDrawing => drawMode != DrawMode.None;
 
