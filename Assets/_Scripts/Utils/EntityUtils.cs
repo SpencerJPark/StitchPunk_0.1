@@ -13,4 +13,11 @@ public static class EntityUtils
         seed = math.max(seed, 1u);
         return new Random(seed);
     }
+
+    // Dead enabled = dead. A unit that never baked Dead counts as neither dead nor alive.
+    public static bool IsDead(in ComponentLookup<Dead> deadLookup, Entity entity)
+        => deadLookup.HasComponent(entity) && deadLookup.IsComponentEnabled(entity);
+
+    public static bool IsAlive(in ComponentLookup<Dead> deadLookup, Entity entity)
+        => deadLookup.HasComponent(entity) && !deadLookup.IsComponentEnabled(entity);
 }

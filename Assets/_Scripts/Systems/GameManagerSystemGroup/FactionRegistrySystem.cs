@@ -53,7 +53,7 @@ public partial struct FactionRegistrySystem : ISystem
             SystemAPI.Query<RefRO<Faction>>().WithNone<AbstractSimulation>().WithEntityAccess())
         {
             // Skip entities that are dead (if they have the Dead component and it is enabled)
-            if (deadLookup.HasComponent(entity) && deadLookup.IsComponentEnabled(entity))
+            if (EntityUtils.IsDead(in deadLookup, entity))
                 continue;
 
             registry.ValueRW.entities.Add((byte)faction.ValueRO.factionType, entity);

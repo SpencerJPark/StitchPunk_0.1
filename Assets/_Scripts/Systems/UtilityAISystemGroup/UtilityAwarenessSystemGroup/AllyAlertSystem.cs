@@ -117,7 +117,7 @@ public partial struct RaiseAlarmBroadcastJob : IJobEntity
         }
 
         if (target == Entity.Null) return;
-        if (deadLookup.HasComponent(target) && deadLookup.IsComponentEnabled(target)) return;
+        if (EntityUtils.IsDead(in deadLookup, target)) return;
 
         float radiusSq = raiseAlarm.radius * raiseAlarm.radius;
 
@@ -128,7 +128,7 @@ public partial struct RaiseAlarmBroadcastJob : IJobEntity
             {
                 if (ally == self) continue;
                 if (!allyAlertLookup.HasComponent(ally)) continue;
-                if (deadLookup.HasComponent(ally) && deadLookup.IsComponentEnabled(ally)) continue;
+                if (EntityUtils.IsDead(in deadLookup, ally)) continue;
                 if (!transformLookup.TryGetComponent(ally, out LocalTransform allyTransform)) continue;
                 if (math.distancesq(transform.Position, allyTransform.Position) > radiusSq) continue;
 
@@ -183,7 +183,7 @@ public partial struct AllyAlertResponseJob : IJobEntity
 
         bool targetGone = allyAlert.target == Entity.Null
             || !transformLookup.HasComponent(allyAlert.target)
-            || (deadLookup.HasComponent(allyAlert.target) && deadLookup.IsComponentEnabled(allyAlert.target));
+            || EntityUtils.IsDead(in deadLookup, allyAlert.target);
 
         if (allyAlert.remaining <= 0f || targetGone)
         {

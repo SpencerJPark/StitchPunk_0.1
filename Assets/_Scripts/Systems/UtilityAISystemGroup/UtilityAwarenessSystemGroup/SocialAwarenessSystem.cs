@@ -109,7 +109,7 @@ public partial struct SocialAwarenessJob : IJobEntity
                 if (candidate == self)
                     continue;
 
-                if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate))
+                if (EntityUtils.IsDead(in deadLookup, candidate))
                     continue;
 
                 if (!transformLookup.TryGetComponent(candidate, out LocalTransform candidateTransform))

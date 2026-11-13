@@ -122,8 +122,7 @@ public partial struct FleeAwarenessJob : IJobEntity
             if (threat.threatScore <= topThreat)
                 continue;
 
-            if (!deadLookup.HasComponent(threat.attackerEntity)
-                || deadLookup.IsComponentEnabled(threat.attackerEntity))
+            if (!EntityUtils.IsAlive(in deadLookup, threat.attackerEntity))
                 continue;
 
             if (!transformLookup.TryGetComponent(threat.attackerEntity, out LocalTransform attackerTransform)

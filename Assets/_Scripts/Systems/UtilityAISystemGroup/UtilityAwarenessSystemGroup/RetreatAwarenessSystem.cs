@@ -129,7 +129,7 @@ public partial struct RetreatAwarenessJob : IJobEntity
             do
             {
                 if (candidate == self) continue;
-                if (deadLookup.HasComponent(candidate) && deadLookup.IsComponentEnabled(candidate)) continue;
+                if (EntityUtils.IsDead(in deadLookup, candidate)) continue;
                 if (!transformLookup.TryGetComponent(candidate, out LocalTransform candidateTransform)) continue;
 
                 float distance = math.distance(myPos, candidateTransform.Position);
@@ -158,7 +158,7 @@ public partial struct RetreatAwarenessJob : IJobEntity
             do
             {
                 if (ally == self) continue;
-                if (deadLookup.HasComponent(ally) && deadLookup.IsComponentEnabled(ally)) continue;
+                if (EntityUtils.IsDead(in deadLookup, ally)) continue;
                 if (!transformLookup.TryGetComponent(ally, out LocalTransform allyTransform)) continue;
 
                 float distanceToSelf = math.distance(myPos, allyTransform.Position);

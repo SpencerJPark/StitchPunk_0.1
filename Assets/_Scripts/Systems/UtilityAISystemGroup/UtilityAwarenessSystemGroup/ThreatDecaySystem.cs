@@ -48,8 +48,7 @@ public partial struct ThreatDecayJob : IJobEntity
 
             // Immediate removal: null ref, despawned attacker (no Dead component), or dead attacker.
             if (threat.attackerEntity == Entity.Null
-                || !deadLookup.HasComponent(threat.attackerEntity)
-                || deadLookup.IsComponentEnabled(threat.attackerEntity))
+                || !EntityUtils.IsAlive(in deadLookup, threat.attackerEntity))
             {
                 threats.RemoveAt(threatIndex);
                 continue;
