@@ -17,12 +17,28 @@ using Unity.Physics.Systems;
 // GameSceneTag entity exists (baked via the GameSceneTag prefab in the active subscene).
 // When the requirement is unmet the group skips ALL child systems — this is the single
 // plug-point for scene gating, and later for per-feature toggle singletons.
+// While a SimulationHold singleton exists (frozen behind the title menu) the group is skipped unless it opts in.
 public abstract partial class GameSceneSystemGroup : ComponentSystemGroup
 {
+    protected virtual bool RunsDuringSimulationHold => false;
+
+    // CreateEntityQuery, not GetEntityQuery/SystemAPI: those register the query on the group and change when it runs.
+    private EntityQuery simulationHoldQuery;
+
     protected override void OnCreate()
     {
         base.OnCreate();
         RequireForUpdate<GameSceneTag>();
+        simulationHoldQuery = EntityManager.CreateEntityQuery(ComponentType.ReadOnly<SimulationHold>());
+    }
+
+    protected override void OnUpdate()
+    {
+        if (!RunsDuringSimulationHold && !simulationHoldQuery.IsEmptyIgnoreFilter)
+        {
+            return;
+        }
+        base.OnUpdate();
     }
 }
 
@@ -235,8 +251,16 @@ public partial class DespawnSystemGroup : GameSceneSystemGroup { }
 // physics world is only rebuilt on a fixed step, so unloading anywhere else leaves a stale world that ray casts (UnitGravityJob) read freed blobs from.
 [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
 [UpdateBefore(typeof(PhysicsSystemGroup))]
-public partial class TerrainStreamingSystemGroup : GameSceneSystemGroup { }
+public partial class TerrainStreamingSystemGroup : GameSceneSystemGroup
+{
+    // Streaming keeps loading the world behind the title menu.
+    protected override bool RunsDuringSimulationHold => true;
+}
 
 // Runs last in LateSimulationSystemGroup — all spawns, despawns, and game logic are settled.
 [UpdateInGroup(typeof(LateSimulationSystemGroup), OrderLast = true)]
-public partial class SaveSystemGroup : GameSceneSystemGroup { }
+public partial class SaveSystemGroup : GameSceneSystemGroup
+{
+    // The save group must commit a preloaded moment during the hold.
+    protected override bool RunsDuringSimulationHold => true;
+}

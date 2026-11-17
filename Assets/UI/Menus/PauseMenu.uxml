@@ -1,0 +1,38 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="PauseMenu.uss" />
+    <ui:VisualElement name="pause-root" class="pause-root">
+        <ui:VisualElement name="pause-panel" class="pause-panel">
+            <ui:VisualElement name="pause-main" class="pause-screen">
+                <ui:Label text="Paused" class="pause-title" />
+                <ui:Button name="pause-resume" text="Resume" class="pause-button" />
+                <ui:Button name="pause-save" text="Save" class="pause-button" />
+                <ui:Label name="pause-save-blocked" text="Can't save during a cutscene" class="pause-caption" />
+                <ui:Button name="pause-load" text="Load" class="pause-button" />
+                <ui:Button name="pause-options" text="Options" class="pause-button" />
+                <ui:Button name="pause-return-to-title" text="Return to Title" class="pause-button" />
+                <ui:Button name="pause-quit" text="Quit" class="pause-button" />
+            </ui:VisualElement>
+            <ui:VisualElement name="pause-save-list" class="pause-screen">
+                <ui:Label text="Save" class="pause-title" />
+                <ui:Button name="pause-new-save" text="New save" class="pause-button" />
+                <ui:ScrollView name="pause-save-rows" class="pause-rows" />
+                <ui:Button name="pause-save-list-back" text="Back" class="pause-button" />
+            </ui:VisualElement>
+            <ui:VisualElement name="pause-load-list" class="pause-screen">
+                <ui:Label text="Load" class="pause-title" />
+                <ui:ScrollView name="pause-load-rows" class="pause-rows" />
+                <ui:Button name="pause-load-list-back" text="Back" class="pause-button" />
+            </ui:VisualElement>
+            <ui:VisualElement name="pause-confirm" class="pause-screen">
+                <ui:Label name="pause-confirm-message" text="Are you sure?" class="pause-message" />
+                <ui:Button name="pause-confirm-yes" text="Yes" class="pause-button" />
+                <ui:Button name="pause-confirm-no" text="No" class="pause-button" />
+            </ui:VisualElement>
+            <ui:VisualElement name="pause-options-screen" class="pause-screen">
+                <ui:Label text="Options" class="pause-title" />
+                <ui:Label text="Options are not available yet." class="pause-message" />
+                <ui:Button name="pause-options-back" text="Back" class="pause-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

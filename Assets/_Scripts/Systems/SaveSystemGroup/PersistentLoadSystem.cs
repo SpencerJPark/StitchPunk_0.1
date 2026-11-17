@@ -37,21 +37,38 @@ public partial struct PersistentLoadSystem : ISystem
         if (!state.EntityManager.IsComponentEnabled<LoadRequest>(gameDataEntity))
             return;
 
+        // Leave the request enabled while a save is being written: it retries next frame instead of being dropped.
+        if (SaveNotifications.IsSaveInProgress)
+            return;
+
         state.EntityManager.SetComponentEnabled<LoadRequest>(gameDataEntity, false);
 
         LoadRequest loadRequest = state.EntityManager.GetComponentData<LoadRequest>(gameDataEntity);
-        string path = SavePaths.GetSlotPath(loadRequest.slot);
+        string requestedSaveId = loadRequest.saveId.ToString();
 
-        if (!System.IO.File.Exists(path))
+        SaveHeaderV2 header;
+        bool headerFound = string.IsNullOrEmpty(requestedSaveId)
+            ? SaveSlotStore.TryGetNewest(out header)
+            : SaveSlotStore.TryReadHeader(requestedSaveId, out header);
+        if (!headerFound || header == null)
         {
-            Debug.LogWarning($"[PersistentLoadSystem] No save file found at slot {loadRequest.slot}: {path}");
+            Debug.LogWarning($"[PersistentLoadSystem] No save found for '{requestedSaveId}'.");
+            SaveNotifications.RaiseLoadFailed(requestedSaveId);
             return;
         }
 
-        SaveFile saveFile = JsonUtility.FromJson<SaveFile>(System.IO.File.ReadAllText(path));
+        if (!SaveSlotStore.TryReadFile(header.saveId, SaveSlotStore.ProgressFileName, out byte[] progressBytes))
+        {
+            Debug.LogWarning($"[PersistentLoadSystem] Missing {SaveSlotStore.ProgressFileName} for {header.saveId}.");
+            SaveNotifications.RaiseLoadFailed(header.saveId);
+            return;
+        }
+
+        SaveFile saveFile = JsonUtility.FromJson<SaveFile>(System.Text.Encoding.UTF8.GetString(progressBytes));
         if (saveFile?.entities == null)
         {
             Debug.LogWarning("[PersistentLoadSystem] Save file is empty or malformed — aborting load.");
+            SaveNotifications.RaiseLoadFailed(header.saveId);
             return;
         }
 
@@ -79,9 +96,28 @@ public partial struct PersistentLoadSystem : ISystem
             }
         }
 
-        RestoreMinions(entityManager, minionRecords);
+        World stagingWorld = null;
+        if (header.hasMomentLayer && !MomentPreload.TryTake(header.saveId, out stagingWorld))
+        {
+            if (MomentFiles.TryReadMomentBytes(header.saveId, out byte[] rawSnapshotBytes))
+                stagingWorld = MomentSnapshot.DeserializeIntoStagingWorld(rawSnapshotBytes);
+        }
 
-        Debug.Log($"[PersistentLoadSystem] Loaded slot {loadRequest.slot} from {path}");
+        if (stagingWorld != null)
+        {
+            // MomentSnapshotCommitSystem runs right after this system and replaces every MomentPersist entity.
+            PendingMomentCommit.Set(stagingWorld, header.savedElapsedTime);
+        }
+        else
+        {
+            RestoreMinions(entityManager, minionRecords);
+            if (header.hasMomentLayer)
+                Debug.Log($"[PersistentLoadSystem] Moment layer unavailable for {header.saveId}: units reset to the progress layer");
+        }
+
+        MomentPreload.Discard();
+        SaveNotifications.RaiseLoadFinished(header.saveId);
+        Debug.Log($"[PersistentLoadSystem] Loaded {header.saveId}");
     }
 
     // Component patching is deferred to MinionRestoreApplySystem so SpawnStateInitSystem cannot clobber the restored enabled bits.

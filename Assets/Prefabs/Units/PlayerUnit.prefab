@@ -329,6 +329,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3094532311958105572, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8133296669580640463}
+    - targetCorrespondingSourceObject: {fileID: 3094532311958105572, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6890853574144893361}
     - targetCorrespondingSourceObject: {fileID: 2772220204455685815, guid: cb67cdde893742a49b6cdba4aa16db10, type: 3}
       insertIndex: -1
       addedObject: {fileID: 756013118837625890}
@@ -450,3 +453,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::StrategicSizeAuthoring
   category: 4
+--- !u!114 &6890853574144893361
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6406896981973988313}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d18b5e510832f14fbce823fd8eaa6d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::MomentPersistAuthoring

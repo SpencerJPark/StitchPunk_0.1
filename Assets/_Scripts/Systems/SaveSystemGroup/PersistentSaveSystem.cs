@@ -8,26 +8,38 @@ using UnityEngine;
 // Not [BurstCompile]: reflection, JsonUtility and System.IO are managed.
 [UpdateInGroup(typeof(SaveSystemGroup))]
 [UpdateAfter(typeof(AutoSaveTimerSystem))]
-public partial struct PersistentSaveSystem : ISystem
+public partial class PersistentSaveSystem : SystemBase
 {
     // Built in OnCreate, not per save: query building scans every archetype. Alive-only via WithDisabled<Dead>.
     private EntityQuery aliveMinionQuery;
     private bool warnedForActiveCutscene;
 
-    public void OnCreate(ref SystemState state)
-    {
-        aliveMinionQuery = new EntityQueryBuilder(Allocator.Temp)
-            .WithAll<Minion, UnitData, LocalTransform>()
-            .WithDisabled<Dead>()
-            .Build(ref state);
+    // Completion is raised on the main thread from OnUpdate; the task only flips the success flag.
+    private System.Threading.Tasks.Task pendingWriteTask;
+    private string pendingSaveId;
+    private SaveKind pendingSaveKind;
+    private volatile bool pendingWriteSucceeded;
 
-        state.RequireForUpdate<GameSceneTag>();
-        state.RequireForUpdate<GameDataTag>();
-        state.RequireForUpdate<Player>();
+    protected override void OnCreate()
+    {
+        aliveMinionQuery = GetEntityQuery(new EntityQueryBuilder(Allocator.Temp)
+            .WithAll<Minion, UnitData, LocalTransform>()
+            .WithDisabled<Dead>());
+
+        RequireForUpdate<GameSceneTag>();
+        RequireForUpdate<GameDataTag>();
+        RequireForUpdate<Player>();
     }
 
-    public void OnUpdate(ref SystemState state)
+    protected override void OnUpdate()
     {
+        if (pendingWriteTask != null && pendingWriteTask.IsCompleted)
+        {
+            SaveNotifications.RaiseSaveFinished(pendingSaveId, pendingWriteSucceeded);
+            Debug.Log($"[PersistentSaveSystem] Saved {pendingSaveKind} {pendingSaveId}");
+            pendingWriteTask = null;
+        }
+
         Entity gameDataEntity = SystemAPI.GetSingletonEntity<GameDataTag>();
 
         bool cutsceneActive = SystemAPI.TryGetSingletonEntity<NarrativeEventTag>(out Entity narrativeEntity)
@@ -37,27 +49,39 @@ public partial struct PersistentSaveSystem : ISystem
         {
             warnedForActiveCutscene = false;
         }
-        else if (state.EntityManager.IsComponentEnabled<SaveRequest>(gameDataEntity))
+        else if (EntityManager.IsComponentEnabled<SaveRequest>(gameDataEntity))
         {
-            state.EntityManager.SetComponentEnabled<SaveRequest>(gameDataEntity, false);
+            EntityManager.SetComponentEnabled<SaveRequest>(gameDataEntity, false);
             if (!warnedForActiveCutscene)
             {
                 Debug.LogWarning("[PersistentSaveSystem] Save request skipped — a cutscene is active.");
+                SaveNotifications.RaiseSaveBlocked("Can't save during a cutscene");
                 warnedForActiveCutscene = true;
             }
             return;
         }
 
-        if (!state.EntityManager.IsComponentEnabled<SaveRequest>(gameDataEntity))
+        if (!EntityManager.IsComponentEnabled<SaveRequest>(gameDataEntity))
             return;
 
         // Consume immediately so nothing re-triggers this frame.
-        state.EntityManager.SetComponentEnabled<SaveRequest>(gameDataEntity, false);
+        EntityManager.SetComponentEnabled<SaveRequest>(gameDataEntity, false);
 
-        SaveRequest saveRequest = state.EntityManager.GetComponentData<SaveRequest>(gameDataEntity);
+        if (SaveNotifications.IsSaveInProgress)
+        {
+            SaveNotifications.RaiseSaveBlocked("A save is already being written");
+            return;
+        }
+
+        SaveRequest saveRequest = EntityManager.GetComponentData<SaveRequest>(gameDataEntity);
+        SaveKind kind = (SaveKind)saveRequest.kind;
+        string saveId = kind == SaveKind.Manual && saveRequest.overwriteSaveId.Length > 0
+            ? saveRequest.overwriteSaveId.ToString()
+            : SaveSlotStore.CreateSaveFolder(kind);
+
         Entity playerEntity = SystemAPI.GetSingletonEntity<Player>();
 
-        EntityManager entityManager = state.EntityManager;
+        EntityManager entityManager = EntityManager;
         List<EntityRecord> entities = new List<EntityRecord>
         {
             SaveSerialization.WriteEntity(entityManager, playerEntity, SaveRoles.Player),
@@ -66,7 +90,8 @@ public partial struct PersistentSaveSystem : ISystem
 
         WriteMinionRecords(entityManager, entities);
 
-        PlayTimeTracker playTimeTracker = state.EntityManager.GetComponentData<PlayTimeTracker>(gameDataEntity);
+        PlayTimeTracker playTimeTracker = EntityManager.GetComponentData<PlayTimeTracker>(gameDataEntity);
+        string locationLabel = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
 
         SaveFile saveFile = new SaveFile
         {
@@ -75,16 +100,77 @@ public partial struct PersistentSaveSystem : ISystem
             {
                 timestampUnix    = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 totalPlaySeconds = playTimeTracker.totalSeconds,
-                sceneLabel       = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name,
+                sceneLabel       = locationLabel,
             },
             entities = entities.ToArray(),
         };
 
-        string json = JsonUtility.ToJson(saveFile, true);
-        string path = SavePaths.GetSlotPath(saveRequest.slot);
-        System.IO.File.WriteAllText(path, json);
+        byte[] progressBytes = System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(saveFile, false));
 
-        Debug.Log($"[PersistentSaveSystem] Saved to slot {saveRequest.slot}: {path}");
+        byte[] momentBytes = null;
+        string layoutHash = "";
+        bool hasMomentLayer = false;
+        try
+        {
+            System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            momentBytes = MomentSnapshot.Capture(EntityManager, out layoutHash, out int referencedObjectCount);
+            stopwatch.Stop();
+            hasMomentLayer = momentBytes != null;
+            int momentByteCount = momentBytes != null ? momentBytes.Length : 0;
+            Debug.Log($"[PersistentSaveSystem] Moment capture {stopwatch.ElapsedMilliseconds} ms, {momentByteCount} bytes, {referencedObjectCount} referenced objects");
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning($"[PersistentSaveSystem] Moment capture failed, saving without a moment layer: {exception}");
+            momentBytes = null;
+            hasMomentLayer = false;
+        }
+
+        SaveHeaderV2 header = new SaveHeaderV2
+        {
+            saveId = saveId,
+            kind = kind,
+            timestampUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            totalPlaySeconds = playTimeTracker.totalSeconds,
+            locationLabel = locationLabel,
+            buildVersion = Application.version,
+            hasMomentLayer = hasMomentLayer,
+            momentLayoutHash = hasMomentLayer ? layoutHash : "",
+            savedElapsedTime = SystemAPI.Time.ElapsedTime,
+        };
+
+        SaveNotifications.RaiseSaveStarted(saveId, kind);
+
+        pendingSaveId = saveId;
+        pendingSaveKind = kind;
+        pendingWriteSucceeded = false;
+        pendingWriteTask = System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                if (hasMomentLayer)
+                {
+                    using (System.IO.MemoryStream compressed = new System.IO.MemoryStream())
+                    {
+                        using (System.IO.Compression.GZipStream gzip = new System.IO.Compression.GZipStream(
+                            compressed, System.IO.Compression.CompressionLevel.Fastest, true))
+                        {
+                            gzip.Write(momentBytes, 0, momentBytes.Length);
+                        }
+                        SaveSlotStore.WriteFileAtomically(saveId, SaveSlotStore.MomentFileName, compressed.ToArray());
+                    }
+                }
+
+                SaveSlotStore.WriteFileAtomically(saveId, SaveSlotStore.ProgressFileName, progressBytes);
+                // Header last: a save without a header is invisible, so a crash never shows a half save.
+                SaveSlotStore.WriteHeader(header);
+                pendingWriteSucceeded = true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError($"[PersistentSaveSystem] Save write failed for {saveId}: {exception}");
+            }
+        });
     }
 
     // Dead minions are skipped; they despawn on reload.
@@ -118,6 +204,4 @@ public partial struct PersistentSaveSystem : ISystem
             BitConverter.ToUInt32(guid, 8),
             BitConverter.ToUInt32(guid, 12));
     }
-
-    public void OnDestroy(ref SystemState state) { }
 }

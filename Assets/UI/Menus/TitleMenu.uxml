@@ -1,0 +1,60 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="TitleMenu.uss" />
+    <ui:VisualElement name="title-root" class="title-root">
+        <ui:VisualElement name="title-gradient" class="title-gradient" picking-mode="Ignore" />
+
+        <ui:VisualElement name="screen-splash" class="screen splash-screen" focusable="true">
+            <ui:Label name="splash-title" text="STITCH PUNK" class="game-title" />
+            <ui:Label name="splash-prompt" text="Press any button" class="splash-prompt" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="screen-main" class="screen">
+            <ui:Label text="STITCH PUNK" class="game-title" />
+            <ui:Button name="btn-continue" text="Continue" class="menu-button" />
+            <ui:VisualElement name="continue-card" class="continue-card">
+                <ui:VisualElement name="continue-thumbnail" class="continue-thumbnail" />
+                <ui:VisualElement class="continue-info">
+                    <ui:Label name="continue-location" class="continue-location" />
+                    <ui:Label name="continue-playtime" class="continue-detail" />
+                    <ui:Label name="continue-date" class="continue-detail" />
+                    <ui:Label name="continue-spinner" text="..." class="continue-spinner" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Button name="btn-new-game" text="New Game" class="menu-button" />
+            <ui:Button name="btn-load-game" text="Load Game" class="menu-button" />
+            <ui:Button name="btn-options" text="Options" class="menu-button" />
+            <ui:Button name="btn-credits" text="Credits" class="menu-button" />
+            <ui:Button name="btn-quit" text="Quit" class="menu-button" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="screen-load-list" class="screen">
+            <ui:Label text="Load Game" class="screen-heading" />
+            <ui:ScrollView name="save-list" class="save-list" />
+            <ui:Label name="save-list-empty" text="No saves yet" class="empty-label" />
+            <ui:Button name="btn-load-back" text="Back" class="menu-button" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="screen-confirm-new-game" class="screen">
+            <ui:Label text="Start a new game? Your saves are kept." class="screen-heading" />
+            <ui:Button name="btn-new-yes" text="Yes" class="menu-button" />
+            <ui:Button name="btn-new-no" text="No" class="menu-button" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="screen-confirm-delete" class="screen">
+            <ui:Label text="Delete this save? This can't be undone." class="screen-heading" />
+            <ui:Button name="btn-delete-yes" text="Yes" class="menu-button" />
+            <ui:Button name="btn-delete-no" text="No" class="menu-button" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="screen-options" class="screen">
+            <ui:Label text="Options" class="screen-heading" />
+            <ui:Button name="btn-options-back" text="Back" class="menu-button" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="screen-credits" class="screen">
+            <ui:Label text="Stitch Punk" class="screen-heading" />
+            <ui:Label text="Credits coming soon" class="empty-label" />
+            <ui:Button name="btn-credits-back" text="Back" class="menu-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

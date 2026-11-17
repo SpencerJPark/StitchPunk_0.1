@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 32289091829435340}
   - component: {fileID: 5444995936881423396}
   - component: {fileID: 4076395277923253341}
+  - component: {fileID: 4576916378702959047}
   m_Layer: 0
   m_Name: CarrierPigeon
   m_TagString: Untagged
@@ -103,4 +104,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d25660dd82b4bed4ebe39afa6d64a1b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::CarrierPigeonAuthoring
-  priorityRadius: 4
+--- !u!114 &4576916378702959047
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5577060405969263306}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d18b5e510832f14fbce823fd8eaa6d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::MomentPersistAuthoring

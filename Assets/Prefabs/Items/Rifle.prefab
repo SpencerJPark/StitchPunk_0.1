@@ -59,6 +59,7 @@ GameObject:
   - component: {fileID: 6957501006262967675}
   - component: {fileID: 2792856275485991149}
   - component: {fileID: 5844791506633707637}
+  - component: {fileID: 3399192083158576294}
   m_Layer: 10
   m_Name: Rifle
   m_TagString: Untagged
@@ -200,3 +201,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: StitchPunk.Authoring::GravityAuthoring
   fallSpeed: 2
   groundOffset: 0.5
+--- !u!114 &3399192083158576294
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8995440563598542113}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d18b5e510832f14fbce823fd8eaa6d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::MomentPersistAuthoring

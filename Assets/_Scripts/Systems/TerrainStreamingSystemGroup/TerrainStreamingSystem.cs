@@ -40,6 +40,11 @@ public partial struct TerrainStreamingSystem : ISystem
             foundFocus = true;
             break;
         }
+        if (SystemAPI.TryGetSingleton(out TerrainStreamingFocusOverride focusOverride))
+        {
+            focusPosition = focusOverride.position;
+            foundFocus = true;
+        }
         if (!foundFocus)
             return;
 

@@ -366,15 +366,18 @@ Runs `OrderLast` inside `LateSimulationSystemGroup` — after all spawns, despaw
 | System | File | Purpose |
 |---|---|---|
 | `PlayTimeTrackerSystem` | `PlayTimeTrackerSystem.cs` | Accumulates `DeltaTime` into `PlayTimeTracker.totalSeconds` each frame |
-| `AutoSaveTimerSystem` | `AutoSaveTimerSystem.cs` | Ticks `AutoSaveTimer`; enables `SaveRequest { slot = 0 }` when interval elapses |
-| `PersistentSaveSystem` | `PersistentSaveSystem.cs` | Consumes `SaveRequest`; `SaveSerialization.WriteEntity` over Player+GameData singletons → `SaveFile` DTO → JSON on disk |
-| `PersistentLoadSystem` | `PersistentLoadSystem.cs` | Consumes `LoadRequest`; reads JSON → `SaveSerialization.ApplyEntity` restores each record onto its singleton (by `role`) |
+| `AutoSaveTimerSystem` | `AutoSaveTimerSystem.cs` | Ticks `AutoSaveTimer`; when due, creates the `AutoSavePending` singleton (it no longer enables `SaveRequest` itself) |
+| `TravelAutoSaveSystem` | `TravelAutoSaveSystem.cs` | Player moved ≥ 50 m since the last travel save → `AutoSavePending` |
+| `AutoSaveCombatQuietSystem` | `AutoSaveCombatQuietSystem.cs` | SM-D8: turns `AutoSavePending` into `SaveRequest { kind = Autosave }` only after 3 s with no live unit's `AggressiveState` enabled |
+| `PersistentSaveSystem` | `PersistentSaveSystem.cs` | **SystemBase.** Consumes `SaveRequest { kind, overwriteSaveId }`; progress JSON (Player, GameData, minion records) + `MomentSnapshot.Capture` on the main thread, then gzip + `SaveSlotStore` writes on a `Task` (header written last). Raises `SaveNotifications` |
+| `PersistentLoadSystem` | `PersistentLoadSystem.cs` | Consumes `LoadRequest { saveId }` (empty = newest); applies progress; moment layer → `PendingMomentCommit` (takes `MomentPreload` if BootFlow preloaded it) and skips `RestoreMinions`, else respawns minions as before |
+| `MomentSnapshotCommitSystem` | `MomentSnapshotCommitSystem.cs` | After the load: destroys live `MomentPersist` entities, `MoveEntitiesFrom` the staging world, restores `ElapsedTime` and the fixed-step clock |
 
-`SaveSerialization.cs` (non-system helper) holds the encoder; `SaveSystem.cs`/`LoadSystem.cs` were **deleted** (superseded).
+**Two layers (SaveAndTitle spec).** *Progress* = the generic `IPersist` JSON below, version-tolerant. *Moment* = `MomentSnapshot` (`SerializeUtility.SerializeWorld` of every `MomentPersist` entity + its `LinkedEntityGroup`, via a staging world). A layout manifest of `StableTypeHash`es rejects the moment layer **before** `DeserializeWorld` when a component changed; the save then falls back to progress (units reset). Traps found by the spikes, all handled in `MomentSnapshot.cs`: `BlobAssetOwner` must be stripped (SerializeWorld throws on its pointer), `SceneTag`/`SceneSection` are stripped so committed units belong to no subscene (and survive `SceneManager.LoadScene` — `BootFlow` destroys such orphans on boot), the ~100 render Materials/Meshes in `referencedObjects` are written as a `(type, name)` table and resolved with `Resources.FindObjectsOfTypeAll`, and `FixedRateCatchUpManager.m_LastFixedUpdateTime` is set by reflection because `World.SetTime` doesn't move it (physics would stall or fast-forward). `CopyEntitiesFrom` nulls Entity fields pointing outside the moment set — the player is a unit, so put `MomentPersistAuthoring` on it too.
 
-**Slot convention:** slot `0` = auto-save, slots `1–3` = manual slots.  
-**Save path:** `Application.persistentDataPath/save_slot_{N}.json` (see `SavePaths.cs`).  
-**No `[BurstCompile]`** on `PersistentSaveSystem` / `PersistentLoadSystem` / `SaveSerialization` — reflection, `JsonUtility`, and `System.IO` are managed. `PlayTimeTrackerSystem` and `AutoSaveTimerSystem` are fully Burst-compiled.
+**Files:** `SaveSlotStore` (Core) — `persistentDataPath/saves/<saveId>/{header.json, progress.json, moment.bin.gz, thumb.png}`, atomic `.tmp` → `File.Replace` with `.bak` fallback, 5-autosave ring, one `quicksave`, unlimited manual. Old `save_slot_N.json` files are no longer read.
+**Hold:** a `SimulationHold` singleton stops every `GameSceneSystemGroup` except `TerrainStreamingSystemGroup` and `SaveSystemGroup` (`RunsDuringSimulationHold`), and `SimulationHoldSystem` (GameManagerSystemGroup) disables `PhysicsSystemGroup` + the two toolkit groups, which are not scene-gated.
+**No `[BurstCompile]`** on the save/load/commit systems or `SaveSerialization` — reflection, `JsonUtility`, and `System.IO` are managed. `PlayTimeTrackerSystem` and `AutoSaveTimerSystem` are Burst-compiled.
 
 ---
 

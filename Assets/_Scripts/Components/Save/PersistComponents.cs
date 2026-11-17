@@ -10,6 +10,9 @@ public struct PersistId : IComponentData
     public Hash128 value;
 }
 
+// Opt-in: this entity and its LinkedEntityGroup go into the exact-moment snapshot (SaveAndTitle SM-D1).
+public struct MomentPersist : IComponentData { }
+
 // Placed on a minion during load; MinionRestoreApplySystem patches the saved components by recordId, then removes it.
 public struct RestorePending : IComponentData
 {

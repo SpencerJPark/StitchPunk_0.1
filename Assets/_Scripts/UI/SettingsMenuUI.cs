@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 // Placeholder view until the Rive menu exists: every option reads and writes UserSettings / InputRebinding / SaveLoadBridge,
@@ -23,10 +21,6 @@ public class SettingsMenuUI : MonoBehaviour
     private static readonly Color CreamColor = new Color(0.94f, 0.9f, 0.78f);
     private static readonly Color MutedColor = new Color(0.62f, 0.6f, 0.54f);
 
-    private const int AutosaveSlot = 0;
-    private const int FirstManualSlot = 1;
-    private const int LastManualSlot = 3;
-    private const int MainMenuSceneBuildIndex = 0;
     private const long ConfirmWindowMilliseconds = 3000;
 
     [SerializeField] private UIDocument menuDocument;
@@ -218,20 +212,22 @@ public class SettingsMenuUI : MonoBehaviour
 
         Label statusLabel = CreateLabel("", 18f, MutedColor);
 
-        List<Label> slotLabels = new List<Label>();
-        List<Button> loadButtons = new List<Button>();
-        Action refreshSlots = () =>
-        {
-            for (int slotRow = 0; slotRow < slotLabels.Count; slotRow++)
-            {
-                int slot = slotRow == 0 ? AutosaveSlot : FirstManualSlot + slotRow - 1;
-                slotLabels[slotRow].text = DescribeSlot(slot);
-                loadButtons[slotRow].SetEnabled(File.Exists(GetSlotPath(slot)));
-            }
-        };
+        VisualElement saveListHost = new VisualElement();
+        Action refreshSlots = () => RebuildSaveList(saveListHost, statusLabel);
 
-        for (int slot = AutosaveSlot; slot <= LastManualSlot; slot++)
-            contentHost.Add(BuildSaveSlotRow(slot, statusLabel, slotLabels, loadButtons, refreshSlots));
+        Button newSaveButton = CreateButton("New save", () =>
+        {
+            saveLoadBridge.RequestSave(SaveKind.Manual);
+            statusLabel.text = "Saving...";
+            overlay.schedule.Execute(() =>
+            {
+                statusLabel.text = "Saved.";
+                refreshSlots();
+            }).StartingIn(700);
+        }, TileColor, 18f);
+        contentHost.Add(newSaveButton);
+        contentHost.Add(CreateSpacer(8f));
+        contentHost.Add(saveListHost);
 
         refreshSlots();
         contentHost.Add(statusLabel);
@@ -242,62 +238,47 @@ public class SettingsMenuUI : MonoBehaviour
         contentHost.Add(CreateConfirmButton("Quit to Desktop", QuitToDesktop));
     }
 
-    private VisualElement BuildSaveSlotRow(int rowSlot, Label statusLabel, List<Label> slotLabels, List<Button> loadButtons, Action refreshSlots)
+    private void RebuildSaveList(VisualElement saveListHost, Label statusLabel)
     {
-        VisualElement row = CreateRow();
-        Label slotLabel = CreateLabel("", 20f, CreamColor);
-        slotLabel.style.flexGrow = 1f;
-        row.Add(slotLabel);
-        slotLabels.Add(slotLabel);
-
-        if (rowSlot != AutosaveSlot)
+        saveListHost.Clear();
+        IReadOnlyList<SaveHeaderV2> headers = SaveSlotStore.ListHeadersNewestFirst();
+        if (headers == null || headers.Count == 0)
         {
-            Button saveButton = CreateButton("Save", () =>
-            {
-                saveLoadBridge.RequestSave(rowSlot);
-                statusLabel.text = "Saving to slot " + rowSlot + "...";
-                overlay.schedule.Execute(() =>
-                {
-                    statusLabel.text = "Saved to slot " + rowSlot + ".";
-                    refreshSlots();
-                }).StartingIn(700);
-            }, TileColor, 18f);
-            saveButton.style.width = 110f;
-            row.Add(saveButton);
+            saveListHost.Add(CreateLabel("No saves yet", 20f, MutedColor));
+            return;
         }
 
-        Button loadButton = CreateButton("Load", () =>
+        foreach (SaveHeaderV2 header in headers)
         {
-            statusLabel.text = "Loading slot " + rowSlot + "...";
-            saveLoadBridge.RequestLoad(rowSlot);
-        }, TileColor, 18f);
-        loadButton.style.width = 110f;
-        loadButton.style.marginLeft = 8f;
-        row.Add(loadButton);
-        loadButtons.Add(loadButton);
+            string saveId = header.saveId;
+            VisualElement row = CreateRow();
+            Label saveLabel = CreateLabel(DescribeSave(header), 20f, CreamColor);
+            saveLabel.style.flexGrow = 1f;
+            row.Add(saveLabel);
 
-        return row;
+            Button loadButton = CreateButton("Load", () =>
+            {
+                statusLabel.text = "Loading...";
+                saveLoadBridge.RequestLoad(saveId);
+            }, TileColor, 18f);
+            loadButton.style.width = 110f;
+            loadButton.style.marginLeft = 8f;
+            row.Add(loadButton);
+            saveListHost.Add(row);
+        }
     }
 
-    private static string DescribeSlot(int slot)
+    private static string DescribeSave(SaveHeaderV2 header)
     {
-        string slotName = slot == AutosaveSlot ? "Autosave" : "Slot " + slot;
-        string path = GetSlotPath(slot);
-        if (!File.Exists(path))
-            return slotName + "  -  Empty";
-        return slotName + "  -  " + File.GetLastWriteTime(path).ToString("yyyy-MM-dd HH:mm");
-    }
-
-    // Mirrors SavePaths (Systems assembly, not referenced from UI) — keep the file naming in sync.
-    private static string GetSlotPath(int slot)
-    {
-        return Path.Combine(Application.persistentDataPath, "save_slot_" + slot + ".json");
+        string kindName = header.kind == SaveKind.Autosave ? "Auto" : header.kind == SaveKind.Quicksave ? "Quick" : "Manual";
+        string localTime = DateTimeOffset.FromUnixTimeSeconds(header.timestampUnix).LocalDateTime.ToString("yyyy-MM-dd HH:mm");
+        return kindName + "  -  " + localTime + "  -  " + header.locationLabel;
     }
 
     private static void QuitToMainMenu()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(MainMenuSceneBuildIndex);
+        BootFlow.ReturnToTitle();
     }
 
     private static void QuitToDesktop()

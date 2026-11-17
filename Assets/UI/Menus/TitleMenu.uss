@@ -1,0 +1,214 @@
+.title-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.title-gradient {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 40%;
+    background-color: rgba(8, 6, 4, 0.82);
+    border-right-width: 0;
+}
+
+.screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 46%;
+    padding: 80px 0 60px 110px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.game-title {
+    font-size: 96px;
+    color: rgb(237, 227, 200);
+    -unity-font-style: bold;
+    letter-spacing: 6px;
+    margin-bottom: 48px;
+    white-space: normal;
+}
+
+.screen-heading {
+    font-size: 56px;
+    color: rgb(237, 227, 200);
+    -unity-font-style: bold;
+    margin-bottom: 36px;
+    white-space: normal;
+}
+
+.empty-label {
+    font-size: 32px;
+    color: rgb(201, 164, 92);
+    margin-bottom: 24px;
+}
+
+.splash-prompt {
+    font-size: 40px;
+    color: rgb(201, 164, 92);
+    opacity: 1;
+    transition-property: opacity;
+    transition-duration: 0.8s;
+    transition-timing-function: ease-in-out;
+}
+
+.splash-pulse-dim {
+    opacity: 0.2;
+}
+
+.menu-button {
+    font-size: 40px;
+    color: rgb(237, 227, 200);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    margin: 2px 0;
+    padding: 6px 24px 6px 44px;
+    -unity-text-align: middle-left;
+    transition-property: color, translate;
+    transition-duration: 0.12s;
+}
+
+.menu-button:hover,
+.menu-button:focus {
+    color: rgb(201, 164, 92);
+    background-image: none;
+    border-bottom-width: 3px;
+    border-bottom-color: rgb(201, 164, 92);
+    translate: 8px 0;
+}
+
+.menu-button:focus {
+    color: rgb(255, 232, 160);
+}
+
+.menu-button:focus {
+    border-left-width: 6px;
+    border-left-color: rgb(255, 232, 160);
+}
+
+.continue-card {
+    flex-direction: row;
+    margin: 4px 0 18px 44px;
+    padding: 10px;
+    background-color: rgba(237, 227, 200, 0.08);
+    border-left-width: 3px;
+    border-left-color: rgb(201, 164, 92);
+}
+
+.continue-thumbnail {
+    width: 192px;
+    height: 108px;
+    background-color: rgba(0, 0, 0, 0.5);
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.continue-info {
+    margin-left: 16px;
+    justify-content: center;
+}
+
+.continue-location {
+    font-size: 26px;
+    color: rgb(237, 227, 200);
+}
+
+.continue-detail {
+    font-size: 20px;
+    color: rgb(201, 164, 92);
+}
+
+.continue-spinner {
+    font-size: 24px;
+    color: rgb(201, 164, 92);
+}
+
+.save-list {
+    width: 900px;
+    max-height: 560px;
+    margin-bottom: 24px;
+}
+
+.save-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.save-row-thumbnail {
+    width: 96px;
+    height: 54px;
+    margin-right: 10px;
+    flex-shrink: 0;
+    border-radius: 3px;
+}
+
+.save-row-main {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    background-color: rgba(237, 227, 200, 0.06);
+    border-width: 0;
+    border-left-width: 4px;
+    border-left-color: rgba(0, 0, 0, 0);
+    padding: 8px 14px;
+}
+
+.save-row-main:hover,
+.save-row-main:focus {
+    background-color: rgba(201, 164, 92, 0.22);
+    border-left-color: rgb(201, 164, 92);
+}
+
+.save-row-kind {
+    font-size: 22px;
+    color: rgb(201, 164, 92);
+    width: 90px;
+    -unity-font-style: bold;
+}
+
+.save-row-location {
+    font-size: 28px;
+    color: rgb(237, 227, 200);
+    width: 280px;
+    -unity-text-align: middle-left;
+}
+
+.save-row-playtime {
+    font-size: 24px;
+    color: rgb(237, 227, 200);
+    width: 90px;
+}
+
+.save-row-date {
+    font-size: 22px;
+    color: rgb(201, 164, 92);
+    width: 190px;
+}
+
+.save-row-badge {
+    font-size: 18px;
+    color: rgb(230, 130, 90);
+    margin-left: 8px;
+}
+
+.save-row-delete {
+    font-size: 22px;
+    color: rgb(237, 227, 200);
+    background-color: rgba(120, 40, 30, 0.45);
+    border-width: 0;
+    margin-left: 8px;
+    padding: 8px 16px;
+}
+
+.save-row-delete:hover,
+.save-row-delete:focus {
+    color: rgb(255, 232, 160);
+    background-color: rgba(170, 55, 40, 0.8);
+}

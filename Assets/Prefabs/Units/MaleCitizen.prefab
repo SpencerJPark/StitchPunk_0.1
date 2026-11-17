@@ -4354,6 +4354,7 @@ GameObject:
   - component: {fileID: 8157836579268367819}
   - component: {fileID: 4970892448338541378}
   - component: {fileID: 5746543758714055047}
+  - component: {fileID: 9003038799234868535}
   m_Layer: 6
   m_Name: MaleCitizen
   m_TagString: Untagged
@@ -4634,6 +4635,18 @@ MonoBehaviour:
     flailDegrees: 30
   - limb: {fileID: 2994085987834843631}
     flailDegrees: 20
+--- !u!114 &9003038799234868535
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9101195342176660511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d18b5e510832f14fbce823fd8eaa6d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::MomentPersistAuthoring
 --- !u!1 &9122829769299922516
 GameObject:
   m_ObjectHideFlags: 0

@@ -2,8 +2,8 @@ using Unity.Burst;
 using Unity.Entities;
 
 /// <summary>
-/// Ticks the auto-save interval. When the timer elapses, enables SaveRequest (slot 0)
-/// on the save entity so PersistentSaveSystem will write on the next update.
+/// Ticks the auto-save interval. When the timer elapses, creates the AutoSavePending singleton;
+/// AutoSaveCombatQuietSystem turns it into an Autosave SaveRequest once no unit has been in combat for a while.
 /// Resets the timer immediately so the next interval starts from zero.
 /// Does nothing if a SaveRequest is already pending (avoids stacked triggers).
 /// </summary>
@@ -36,8 +36,11 @@ public partial struct AutoSaveTimerSystem : ISystem
 
         autoSaveTimer.ValueRW.elapsedSeconds = 0f;
 
-        SystemAPI.SetComponent(saveEntity, new SaveRequest { slot = 0 });
-        SystemAPI.SetComponentEnabled<SaveRequest>(saveEntity, true);
+        if (!SystemAPI.HasSingleton<AutoSavePending>())
+        {
+            Entity pendingEntity = state.EntityManager.CreateEntity();
+            state.EntityManager.AddComponent<AutoSavePending>(pendingEntity);
+        }
     }
 
     [BurstCompile]

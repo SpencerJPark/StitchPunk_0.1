@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 833034329802253627}
   - component: {fileID: 8177151103903159796}
+  - component: {fileID: 3205408082920511434}
   m_Layer: 0
   m_Name: Bullet
   m_TagString: Untagged
@@ -46,6 +47,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: StitchPunk.Authoring::ProjectileAuthoring
   radius: 0.05
+--- !u!114 &3205408082920511434
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1637852350750643074}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d18b5e510832f14fbce823fd8eaa6d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: StitchPunk.Authoring::MomentPersistAuthoring
 --- !u!1 &3561626648617526266
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,6 +1,6 @@
 # Save and Title: exact-moment saves, title menu, instant Continue
 
-> **Status:** 📝 spec ready 2026-11-13, nothing built. Start with the SP spikes (section 7).
+> **Status:** 🔨 code built 2026-11-17 (Phases 1-5); open: run SL-2-6 + SL-5-4 fixtures, SL-3-6 Game.unity wiring, play checks SL-2-7 + SL-4-7. Then retire to Verification.
 > **Supersedes:** [`Save_System.md`](Save_System.md) phases 4 to 6 (roadmap M2-6), and covers roadmap M7-7 (menus). Phases 1 to 3 of that spec stay as they are: they become the progress layer below.
 > **Execution:** the orchestrator (Opus) briefs, gates and observes. **Sonnet** workers and verifiers do the editing and reviewing, and **Haiku** does the greps and inventories. Section 3 says who does what.
 
@@ -167,21 +167,21 @@ If SP-1 fails because snapshot entities carry managed references that cannot be 
 
 | ✓ | Task | Files | Fixture fails if |
 |---|---|---|---|
-| [ ] | SL-1-1 **[parallel-safe]** | `Core/Saving/SaveSlotStore.cs`, `Tests/SaveSlotStoreTests.cs` | a sixth autosave does not delete the oldest; a corrupt `header.json` hides the save instead of falling back to `.bak`; a write interrupted after the `.tmp` (simulated) leaves the old file unreadable |
-| [ ] | SL-1-2 **[parallel-safe]** | `Core/Saving/SaveHeaderV2.cs` (with `SaveKind`) | gate only |
-| [ ] | SL-1-3 **[parallel-safe]** | `MonoBehaviours/SaveThumbnailCapture.cs` | gate only. 320×180 PNG from `ScreenCapture.CaptureScreenshotAsTexture` at end of frame, UI layer excluded if possible |
-| [ ] | SL-1-4 **[shared]** (after 1-1/1-2) | `PersistentSaveSystem.cs`, `PersistentLoadSystem.cs` | gate only. Write and read `progress.json` through `SaveSlotStore`. `SaveRequest.slot` becomes a `SaveKind` plus a target `saveId`; keep the field name `slot` and add `int kind`, where -1 means load the newest. Delete `SavePaths.cs` once there are no callers (a Haiku grep confirms) |
+| [x] | SL-1-1 **[parallel-safe]** | `Core/Saving/SaveSlotStore.cs`, `Tests/SaveSlotStoreTests.cs` | a sixth autosave does not delete the oldest; a corrupt `header.json` hides the save instead of falling back to `.bak`; a write interrupted after the `.tmp` (simulated) leaves the old file unreadable |
+| [x] | SL-1-2 **[parallel-safe]** | `Core/Saving/SaveHeaderV2.cs` (with `SaveKind`) | gate only |
+| [x] | SL-1-3 **[parallel-safe]** | `MonoBehaviours/SaveThumbnailCapture.cs` | gate only. 320×180 PNG from `ScreenCapture.CaptureScreenshotAsTexture` at end of frame, UI layer excluded if possible |
+| [x] | SL-1-4 **[shared]** (after 1-1/1-2) | `PersistentSaveSystem.cs`, `PersistentLoadSystem.cs` | gate only. Write and read `progress.json` through `SaveSlotStore`. `SaveRequest.slot` becomes a `SaveKind` plus a target `saveId`; keep the field name `slot` and add `int kind`, where -1 means load the newest. Delete `SavePaths.cs` once there are no callers (a Haiku grep confirms) |
 
 ### Phase 2: moment layer (after SP-1 to SP-3 and SP-5)
 
 | ✓ | Task | Files | Fixture fails if |
 |---|---|---|---|
-| [ ] | SL-2-1 **[parallel-safe]** | `Components/Save/PersistComponents.cs` (+`MomentPersist`), `Authoring/Save/MomentPersistAuthoring.cs` | gate only |
-| [ ] | SL-2-1b **[orchestrator]** | prefabs from SP-5(a) | `MomentPersistAuthoring` added to each spawned prefab through MCP, then rebaked |
-| [ ] | SL-2-2 **[parallel-safe]** | `SaveSystemGroup/MomentSnapshot.cs` | gate only. Capture: query `MomentPersist`, expand through `LinkedEntityGroup`, stage, write the manifest, serialize. If SP-2 says yes, the staging copy removes `SceneSection`/`SceneTag` |
-| [ ] | SL-2-3 **[parallel-safe]** | `SaveSystemGroup/MomentSnapshotCommitSystem.cs` | gate only. Runs `[UpdateAfter(PersistentLoadSystem)]`; commits `PendingMomentCommit` per SM-D4, then sets a `MomentCommitted` flag for this frame so the minion restore path is skipped |
-| [ ] | SL-2-4 **[shared]** | `PersistentSaveSystem.cs`, `PersistentLoadSystem.cs` | gate only. Save also writes `moment.bin.gz` and `savedElapsedTime`. On load: if the layout matches, deserialize into staging and set `PendingMomentCommit`, then skip `RestoreMinions`; otherwise use today's path |
-| [ ] | SL-2-5 **[parallel-safe]** (one worker per two files) | files from SP-5(b) and SP-5(d) | per item: a static runtime cache is cleared or rebuilt on commit; a stored absolute time either stays valid through SP-3 or becomes a relative "remaining seconds" value |
+| [x] | SL-2-1 **[parallel-safe]** | `Components/Save/PersistComponents.cs` (+`MomentPersist`), `Authoring/Save/MomentPersistAuthoring.cs` | gate only |
+| [x] | SL-2-1b **[orchestrator]** | prefabs from SP-5(a) | `MomentPersistAuthoring` added to each spawned prefab through MCP, then rebaked |
+| [x] | SL-2-2 **[parallel-safe]** | `SaveSystemGroup/MomentSnapshot.cs` | gate only. Capture: query `MomentPersist`, expand through `LinkedEntityGroup`, stage, write the manifest, serialize. If SP-2 says yes, the staging copy removes `SceneSection`/`SceneTag` |
+| [x] | SL-2-3 **[parallel-safe]** | `SaveSystemGroup/MomentSnapshotCommitSystem.cs` | gate only. Runs `[UpdateAfter(PersistentLoadSystem)]`; commits `PendingMomentCommit` per SM-D4, then sets a `MomentCommitted` flag for this frame so the minion restore path is skipped |
+| [x] | SL-2-4 **[shared]** | `PersistentSaveSystem.cs`, `PersistentLoadSystem.cs` | gate only. Save also writes `moment.bin.gz` and `savedElapsedTime`. On load: if the layout matches, deserialize into staging and set `PendingMomentCommit`, then skip `RestoreMinions`; otherwise use today's path |
+| [x] | SL-2-5 **[parallel-safe]** (one worker per two files) | files from SP-5(b) and SP-5(d) | per item: a static runtime cache is cleared or rebuilt on commit; a stored absolute time either stays valid through SP-3 or becomes a relative "remaining seconds" value |
 | [ ] | SL-2-6 **[parallel-safe]** | `Tests/PlayMode/Save/MomentSnapshotTests.cs` | a unit mid-attack (attack state plus timer) does not return to the same state and timer after Capture → Deserialize → Commit; an altered manifest hash is accepted instead of rejected; a body-part child is missing after commit |
 | [ ] | SL-2-7 **[orchestrator]** | Play check | In `Game.unity`, with Skip on: start a fight, quicksave, wait 5 s, load. The same swings land at the same moment and the projectiles are still in flight. Record the capture time in ms (the hitch) |
 
@@ -189,32 +189,32 @@ If SP-1 fails because snapshot entities carry managed references that cannot be 
 
 | ✓ | Task | Files | Fixture fails if |
 |---|---|---|---|
-| [ ] | SL-3-1 **[shared]** | `Systems/SystemGroups.cs` (the `GameSceneSystemGroup.OnUpdate` override skips while `SimulationHold` exists), `Components/Save/GameDataComponents.cs` (+`SimulationHold`) | gate only |
-| [ ] | SL-3-2 **[parallel-safe]** | `SaveSystemGroup/SimulationHoldPhysicsSystem.cs` | gate only. Uses whatever mechanism SP-4 found (for example, toggling `PhysicsSystemGroup.Enabled`) |
-| [ ] | SL-3-3 **[parallel-safe]** | `MonoBehaviours/BootFlow.cs` | gate only. Implements 6.4 and SM-D10; logs `[BootFlow] preload ms`, then `continue→control ms` |
-| [ ] | SL-3-4 **[parallel-safe]** | `Editor/Boot/SkipTitleInEditorMenu.cs` | gate only. Menu toggle plus checkmark, stored in `EditorPrefs` |
-| [ ] | SL-3-5 **[shared, terrain peer]** | the terrain streaming focus (file named by a Haiku grep for the streaming focus source) | gate only. Adds an override focus position that `BootFlow` sets before the hold is released. **Tell the terrain session first** |
+| [x] | SL-3-1 **[shared]** | `Systems/SystemGroups.cs` (the `GameSceneSystemGroup.OnUpdate` override skips while `SimulationHold` exists), `Components/Save/GameDataComponents.cs` (+`SimulationHold`) | gate only |
+| [x] | SL-3-2 **[parallel-safe]** | `SaveSystemGroup/SimulationHoldPhysicsSystem.cs` | gate only. Uses whatever mechanism SP-4 found (for example, toggling `PhysicsSystemGroup.Enabled`) |
+| [x] | SL-3-3 **[parallel-safe]** | `MonoBehaviours/BootFlow.cs` | gate only. Implements 6.4 and SM-D10; logs `[BootFlow] preload ms`, then `continue→control ms` |
+| [x] | SL-3-4 **[parallel-safe]** | `Editor/Boot/SkipTitleInEditorMenu.cs` | gate only. Menu toggle plus checkmark, stored in `EditorPrefs` |
+| [x] | SL-3-5 **[shared, terrain peer]** | the terrain streaming focus (file named by a Haiku grep for the streaming focus source) | gate only. Adds an override focus position that `BootFlow` sets before the hold is released. **Tell the terrain session first** |
 | [ ] | SL-3-6 **[orchestrator]** | `Game.unity`, build settings | Add `BootFlow` and the title camera to `Game.unity`; replace the missing `Main.unity` entry with `Game.unity`; retire `MainMenuUI.cs` once nothing references it. Play: the title appears in under 2 s, the world is frozen behind it, and Continue reaches control in under 0.5 s (measured from the log) |
 
 ### Phase 4: menus (UI Toolkit v1 behind the seam)
 
 | ✓ | Task | Files | Fixture fails if |
 |---|---|---|---|
-| [ ] | SL-4-1 **[parallel-safe]** | `UI/Menus/TitleMenuController.cs` (+ the 6.3 interfaces), `Tests/TitleMenuControllerTests.cs` | Back from LoadList does not return to Main; NewGame with existing saves skips ConfirmNewGame; Continue is offered when there are no saves |
-| [ ] | SL-4-2 **[parallel-safe]** | `UI/Menus/UITKTitleMenuView.cs`, `UI/Menus/TitleMenu.uxml` (+`.uss`) | gate only. Splash ("Press any button"), Main (Continue with thumbnail, location, play time and date; New Game; Load Game; Options → `SettingsMenuUI`; Credits; Quit, hidden on consoles), focus rules from 6.3 |
-| [ ] | SL-4-3 **[parallel-safe]** | `UI/Menus/SaveListView.cs`, `UI/Menus/SaveList.uxml` | gate only. Shared by title Load, pause Save and pause Load: rows with thumbnail, kind icon, location, play time and date, the "units reset" badge, Delete with confirm, and "New save" at the top in Save mode |
-| [ ] | SL-4-4 **[shared]** | `MonoBehaviours/GameMenuManager.cs` → `PauseMenuController` + `IPauseMenuView` | gate only. Resume, Save, Load, Options, Return to Title (SM-D12 warning), Quit |
-| [ ] | SL-4-5 **[parallel-safe]** | `UI/SaveIndicatorUI.cs` | gate only. A corner icon while a save is being written; a "Saved" toast; a "Can't save during a cutscene" toast |
-| [ ] | SL-4-6 **[parallel-safe]** | `MonoBehaviours/QuicksaveInput.cs` + an Input System action | gate only. F5 quicksave and F9 quickload by default (pad: none); rebindable through `InputRebinding` |
+| [x] | SL-4-1 **[parallel-safe]** | `UI/Menus/TitleMenuController.cs` (+ the 6.3 interfaces), `Tests/TitleMenuControllerTests.cs` | Back from LoadList does not return to Main; NewGame with existing saves skips ConfirmNewGame; Continue is offered when there are no saves |
+| [x] | SL-4-2 **[parallel-safe]** | `UI/Menus/UITKTitleMenuView.cs`, `UI/Menus/TitleMenu.uxml` (+`.uss`) | gate only. Splash ("Press any button"), Main (Continue with thumbnail, location, play time and date; New Game; Load Game; Options → `SettingsMenuUI`; Credits; Quit, hidden on consoles), focus rules from 6.3 |
+| [x] | SL-4-3 **[parallel-safe]** | `UI/Menus/SaveListView.cs`, `UI/Menus/SaveList.uxml` | gate only. Shared by title Load, pause Save and pause Load: rows with thumbnail, kind icon, location, play time and date, the "units reset" badge, Delete with confirm, and "New save" at the top in Save mode |
+| [x] | SL-4-4 **[shared]** | `MonoBehaviours/GameMenuManager.cs` → `PauseMenuController` + `IPauseMenuView` | gate only. Resume, Save, Load, Options, Return to Title (SM-D12 warning), Quit |
+| [x] | SL-4-5 **[parallel-safe]** | `UI/SaveIndicatorUI.cs` | gate only. A corner icon while a save is being written; a "Saved" toast; a "Can't save during a cutscene" toast |
+| [x] | SL-4-6 **[parallel-safe]** | `MonoBehaviours/QuicksaveInput.cs` + an Input System action | gate only. F5 quicksave and F9 quickload by default (pad: none); rebindable through `InputRebinding` |
 | [ ] | SL-4-7 **[orchestrator]** | captures of Splash, Main, LoadList, Confirm, the pause menu and the save list (Sonnet verifier audits them against the 6.3 rules) | Pad-only walk-through: New Game → play → pause → save → Return to Title → Continue lands at the saved moment |
 
 ### Phase 5: triggers and robustness
 
 | ✓ | Task | Files | Fixture fails if |
 |---|---|---|---|
-| [ ] | SL-5-1 **[parallel-safe]** | `SaveSystemGroup/AutoSaveCombatQuietSystem.cs`, `AutoSaveTimerSystem.cs` | gate only. The SM-D8 3 s combat-quiet gate; autosaves become `SaveKind.Autosave` |
-| [ ] | SL-5-2 **[parallel-safe]** | `SaveSystemGroup/TravelAutoSaveSystem.cs` | gate only. The old Save_System phase 5 (50 m threshold), feeding the autosave ring |
-| [ ] | SL-5-3 **[parallel-safe]** | `PersistentSaveSystem.cs` write path → `Task.Run` compress + `WriteFileAtomically` | gate only. Capture stays on the main thread; logs the main-thread ms |
+| [x] | SL-5-1 **[parallel-safe]** | `SaveSystemGroup/AutoSaveCombatQuietSystem.cs`, `AutoSaveTimerSystem.cs` | gate only. The SM-D8 3 s combat-quiet gate; autosaves become `SaveKind.Autosave` |
+| [x] | SL-5-2 **[parallel-safe]** | `SaveSystemGroup/TravelAutoSaveSystem.cs` | gate only. The old Save_System phase 5 (50 m threshold), feeding the autosave ring |
+| [x] | SL-5-3 **[parallel-safe]** | `PersistentSaveSystem.cs` write path → `Task.Run` compress + `WriteFileAtomically` | gate only. Capture stays on the main thread; logs the main-thread ms |
 | [ ] | SL-5-4 **[parallel-safe]** | `Tests/PlayMode/Save/SaveFallbackTests.cs` | an old progress JSON missing a newly added field fails to load; a rejected moment layer still restores the player position |
 
 ### Phase 6: Rive and backdrop (not scheduled; becomes its own spec when the art exists)
@@ -252,3 +252,21 @@ Files that need a solo Sonnet worker: `SystemGroups.cs`, `PersistentSaveSystem.c
 ## 12. Log (one line per wave, newest last)
 
 - 2026-11-13 spec written; owner answers SM-A1 to SM-A4 recorded.
+- 2026-11-13 Phase 1 wave: SaveSlotStore + SaveHeaderV2 (Core), SaveSlotStoreTests 3/3 green, SaveThumbnailCapture. Tests asmdef now references Core + UI.
+- 2026-11-13 spikes (CampLoop.unity, 14 units incl. the player):
+  - **SP-1 pass, with two corrections to SM-D2.** 14 unit roots expand through `LinkedEntityGroup` to 547 entities. Copy takes 3 ms, serialize 29 ms, deserialize 3 ms. Raw size is 574 KB, 37 KB gzipped (gzip 60 ms, so it runs off-thread). Round-trip gives 547→547 entities with matching positions. Correction (a): `SerializeWorld` throws on `BlobAssetOwner` (a pointer field), so the staging copy must strip it. `DeserializeWorld` re-adds its own. Correction (b): `referencedObjects` is never empty, because all 103 entries are render Materials/Meshes from `RenderMeshArray`. So they are not a bug. They are written as an object table `(type, name)` in the manifest and resolved on load with `Resources.FindObjectsOfTypeAll`. An unresolved entry rejects the moment layer, which falls back to progress.
+  - **SP-2 yes.** Instantiated units and the player all carry `SceneSection`/`SceneTag`. The staging copy strips both, so committed entities belong to no section and survive tile unloads by construction. Known limit: `CopyEntitiesFrom` nulls Entity fields that point outside the moment set (for example a target on a static building), so the AI re-picks. The **player is a unit** and is in the moment set, so unit→player targets survive.
+  - **SP-3 yes, plus one fix.** `UpdateWorldTimeSystem` accumulates from the current `ElapsedTime`, so `World.SetTime` sticks. The 15+ AI/combat `timestamp`/`*ReadyAtSeconds` fields therefore stay valid without conversion, and SL-2-5 shrinks to the two statics (`MinionRestoreQueue.nextId` is harmless; `PersistRegistry.initialized` is a type cache that stays valid). But `FixedRateCatchUpManager.m_LastFixedUpdateTime` does not follow, so physics would stall after a backward jump or fast-forward after a forward one. Commit realigns it by reflection and logs a warning if the field is missing.
+  - **SP-4 pass.** Zero entities moved over 297 held frames at 16.6 ms per frame, but only when the hold covers every `GameSceneSystemGroup` except `TerrainStreamingSystemGroup` and `SaveSystemGroup`, **plus** `PhysicsSystemGroup`, `DotsMovementToolkit.MovementSystemGroup` and `DotsAnimationToolkit.AnimationToolkitSystemGroup`. Those last three are not scene-gated. `TerrainSystemGroup` must be held as well, because it runs the abstract unit tier, which walks units. So SL-3-2 becomes `GameManagerSystemGroup/SimulationHoldSystem.cs`, which toggles the three foreign groups the same frame.
+  - **SP-5** inventory: unit bodies come from `UnitSpawnerSystem`, `WorkstationSummonSpawnSystem` and `PersistentLoadSystem`; projectiles from `AiShootSystem`; there are also `WorkstationDeploySystem`, `PigeonSpawnSystem` and `StartingWeaponSpawnSystem`. There are no class IComponentData and no `AddComponentObject`. Absolute times are listed in the agent output and covered by SP-3.
+  - **Assembly correction to section 6.3/6.4.** UI references MonoBehaviours, so `BootFlow` (MonoBehaviours) cannot see `UI/Menus`. The interfaces and `TitleMenuController` therefore move to `Core/Menus/` (pure C#, referenced by both). The views stay in `UI/Menus/`.
+  - `Game.unity` has 25 entities and no gameplay subscene. The title flow is built for it as SM-A2 says, and the play checks run in CampLoop until Game.unity has content.
+- 2026-11-17 audit + wave (Opus orchestrator, Sonnet verifiers/workers, Haiku scouts). Found Phases 1-5 already coded but uncommitted; two verifiers audited it against this spec.
+  - **Fixes:** `MomentSnapshot.Commit` now disposes the staging world in `finally` (a throw after the destroy used to leak it); F5/F9 are ignored while `SimulationHold` exists; Continue/LoadSave guarded against double presses; confirm screens focus "No"; `preload ms` is also logged with no saves.
+  - **SL-2-3 deviation:** no `MomentCommitted` flag; `PersistentLoadSystem` decides the minion-restore skip inline when it hands off `PendingMomentCommit`. **SL-3-2 lives at** `GameManagerSystemGroup/SimulationHoldSystem.cs` (per SP-4).
+  - **SL-4-3:** `UI/Menus/SaveListView.cs` (plain C#, no uxml) now serves title Load, pause Save and pause Load; Save mode can overwrite only Manual saves.
+  - **SL-4-6 limit:** F5/F9 are not rebindable, because `InputRebinding` takes a single asset.
+  - **SL-2-1b:** `MomentPersistAuthoring` is on PlayerUnit, MaleCitizen (Bandit and the three PlayerZombie prefabs are variants and inherit it), Bullet, Pistol, Rifle, Workstation, CarrierPigeon. Corpses are the same unit entity. No hazard zone, dropped item or caravan is spawned at runtime today.
+  - **Risk for the play check:** PlayerUnit is *placed* in the CampLoop/TerrainWorld subscenes, so after a commit the authored player could come back as a duplicate if its subscene ever unloads and reloads mid-session.
+  - **Build settings:** Game.unity only, at index 0 (`Main.unity` removed).
+  - **Tests:** `Tests/PlayMode/Save/MomentSnapshotTests.cs` (3) and `SaveFallbackTests.cs` (1; a size mismatch skips only that component) pass the gate but have **not run**: a peer's dirty TerrainWorld.unity blocks the scene switch PlayMode needs.

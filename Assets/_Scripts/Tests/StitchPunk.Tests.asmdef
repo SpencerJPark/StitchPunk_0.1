@@ -22,6 +22,8 @@
         "UnityEngine.TestRunner",
         "PaintedGround.Runtime",
         "GUID:c95a7648b65e55b4596f0b63bed42a28",
+        "GUID:6df075a5896f0b74686d0aa5033bab69",
+        "GUID:02e773e4fca7493489da5be77e30bc13",
         "UnityEditor.TestRunner"
     ],
     "includePlatforms": [
