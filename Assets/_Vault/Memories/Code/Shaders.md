@@ -12,6 +12,39 @@ custom-function files are gone):
 | `Nodes/` | **Reflection-API node library** — one Shader Graph node per `.hlsl` file (see below) |
 | `Legacy/` | Parked graph experiments only (old outline/2D iterations, `TextureArray.shadersubgraph`). Nothing in production references anything here, and nothing here references deleted assets (verified — `OutlineShader.shadergraph` had to be deleted with its subgraphs because the ShaderGraph importer NREs on missing subgraph dependencies rather than failing gracefully). Delete the rest at will; git history keeps them |
 
+## One lighting model everywhere — painted lighting (2026-11-11)
+
+**Supersedes every "Cel Shaded Lighting/Uniform" wiring claim below.** All eight production graphs in
+`Graphs/` were converted in place from the `Cel Shaded Uniform` node to the ground's own
+`SG_Lighting` custom function (`PaintedGroundGraph.hlsl` → `PaintedLighting_float` in
+`PaintedGroundCore.hlsl`), so ground, units and props share one light. Owner call: cohesion over a
+separate cel look; a fullscreen cel render feature was rejected (Forward+ has no G-buffer, and
+per-object response would need a material-ID buffer).
+
+- **Converter:** `.claude/skills/shader-edit/scripts/convert_cel_to_painted_lighting.py <in> <out>`
+  (clones the node, seven light keywords and four properties from `2DPaintedShader`; proven by
+  converting `2DShader` and diffing against that hand-made oracle). Re-run it on any new cel graph.
+  `2DPaintedShader` / `2DPaintedArrayShader` are now duplicates of `2DShader` / `2DArrayShader`.
+- **Per-material shadow response = the four painted dials.** `_ShadowStrength` is "how much cast
+  shadow lands on me", `_NdotLInfluence` is form shading, `_AmbientTint` is this material's shadow
+  colour, `_PointLightBoost` scales point lights. **Eyes stay bright in shadow by setting
+  `_ShadowStrength 0` + `_NdotLInfluence 0`** (`Materials/Units/Eyes.mat`) — no special shader.
+- **Global dials** live on `TerrainLightingBridge`: ambient tint (shadow-side colour, existing),
+  `shadowSoftening` (`_StitchShadowSoftening`) and `shadowBandHardness`
+  (`_StitchShadowBandHardness`, 1 = hard cel edge on cast shadows and form shading, ground included).
+  Unset globals read 0 = no change.
+- **Coloured shadows through glass.** `Core/RenderFeatures/TintedGlassShadowFeature.cs` draws every
+  shader pass tagged `LightMode = StitchTintedShadow` from the sun into a 1024² light-space texture
+  (rgb = filtered light colour, multiply-blended; a = depth01 of the nearest glass, min-blended) and
+  publishes `_StitchTintedShadowTexture` / `_StitchTintedShadowWorldToLight` /
+  `_StitchTintedShadowParams`. `PaintedLighting_float` multiplies the sun by it for anything further
+  from the sun than the glass. `Shaders/StitchGlass.shader` (`StitchPunk/Glass`) is the first caster;
+  it has no ShadowCaster pass on purpose (an ordinary shadow would black out the colour).
+  **The feature must be added to `Game_Renderer.asset` by hand**, and it uses the camera's cull
+  results, so off-screen glass does not cast.
+- `Nodes/Lighting/CelShaded*.hlsl` are now unreferenced by production graphs (parked, not deleted).
+- **Not yet seen in the Editor as of writing** — if this note still says so, the look is unverified.
+
 ## Reflection-API node convention (Unity 6.5+)
 
 `.hlsl` files that `#include "ShaderApiReflectionSupport.hlsl"` (package-provided;
@@ -496,3 +529,9 @@ What changed against `2DShader`, and why each one is load-bearing:
   branch, alpha clip, double-sided, cast shadows. The stray unused `_Float` property was
   dropped. Only the plain Texture2D variant was built; the array / packed-array variants
   are the same swap if the look lands.
+
+## Vertex-flattened meshes tried and rejected (2026-11-17)
+Experiment: flatten a 3D prop onto a plane in the vertex shader (world Z, camera forward, object Z) so it reads as a 2.5D cut-out at any rotation. Owner verdict: plain 3D looked best; the code was deleted, and the kept cross gravestones (`Models/Props/CrossGravestone.asset`, `Materials/Objects/GravestoneStone.mat` on 3DShader) sit in `TerrainWorld_Sub` east of the caravan. If it is ever revisited:
+- `RobertsCrossRenderFeature`'s normal capture uses `overrideMaterial`, which replaces the vertex shader, so it outlines the UNFLATTENED mesh. The fix that worked: give flattened renderers an exclusive rendering-layer bit, filter it out of the override list, and draw a second list of the shader's own normals pass. `SilhouetteOutlineFeature` draws the object's own passes, so it needs nothing.
+- Rendering-layer filtering matches on ANY shared bit (so the exclusive bit must be the ONLY bit), and shadow casters are filtered by the light's rendering layers (so the sun needs that bit too).
+- Camera-forward flattening is invisible at FOV 15 (only depth and shadows change) and shows shadow acne. Object-Z flattening goes edge-on at 90°.
