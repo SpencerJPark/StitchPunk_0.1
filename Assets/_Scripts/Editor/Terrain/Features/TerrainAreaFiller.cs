@@ -158,6 +158,7 @@ public static class TerrainAreaFiller
             }
             stampOrder.Sort((int left, int right) => areas[left].areaIndex.CompareTo(areas[right].areaIndex));
 
+            bool warnedAboutRowsDressing = false;
             int navigationLayer = -1;
             bool navigationLayerResolved = false;
             for (int orderIndex = 0; orderIndex < stampOrder.Count; orderIndex++)
@@ -169,123 +170,176 @@ public static class TerrainAreaFiller
                     continue;
                 }
                 TerrainTileAreaEntry entry = tileData.areaEntries[entryIndex];
-                TerrainForestRecipe recipe = entry.recipe as TerrainForestRecipe;
-                if (recipe == null || recipe.scatterSet == null)
-                {
-                    continue;
-                }
-
-                TerrainScatterSet scatterSet = recipe.scatterSet;
-                List<TerrainScatterRule> rules = TerrainScatterGenerator.RulesFrom(scatterSet);
-                // Minimum spacing is untouched, so spacing still caps how dense the multiplier can get.
-                float multiplier = entry.densityMultiplier > 0f ? entry.densityMultiplier : 1f;
-                for (int scaleRuleIndex = 0; scaleRuleIndex < rules.Count; scaleRuleIndex++)
-                {
-                    TerrainScatterRule scaledRule = rules[scaleRuleIndex];
-                    scaledRule.densityPer100SquareMetres *= multiplier;
-                    rules[scaleRuleIndex] = scaledRule;
-                }
                 TerrainTileSampler tileSampler = new TerrainTileSampler(tile, true);
-                TerrainAreaRestrictedSampler sampler = new TerrainAreaRestrictedSampler(tileSampler, stamp, recipe.clearingNoiseScaleMetres, recipe.clearingThreshold01);
-                List<TerrainScatterPlacement> planned = TerrainScatterPlanner.Plan(rules, sampler, tileSampler.WorldRect, TerrainDecalScatterer.SeedFor(entry.seed, coordinate), obstacles);
-
-                Rect tileRect = tileSampler.WorldRect;
-                List<TerrainScatterPlacement> owned = new List<TerrainScatterPlacement>();
-                List<float> edgeDistances = new List<float>();
-                for (int plannedIndex = 0; plannedIndex < planned.Count; plannedIndex++)
+                TerrainForestRecipe forestRecipe = entry.recipe as TerrainForestRecipe;
+                TerrainFeatureRecipe featureRecipe = entry.recipe as TerrainFeatureRecipe;
+                TerrainScatterSet scatterSet = null;
+                TerrainScatterSet transientScatterSet = null;
+                TerrainCardAtlas cardAtlas = null;
+                float interiorDemotionMetres = 0f;
+                float clearingNoiseScaleMetres = 0f;
+                float clearingThreshold01 = 0f;
+                if (forestRecipe != null)
                 {
-                    TerrainScatterPlacement placement = planned[plannedIndex];
-                    int texelX = Mathf.Clamp(Mathf.FloorToInt((placement.position.x - tileRect.xMin) / tileRect.width * resolution), 0, resolution - 1);
-                    int texelZ = Mathf.Clamp(Mathf.FloorToInt((placement.position.z - tileRect.yMin) / tileRect.height * resolution), 0, resolution - 1);
-                    if (ownerAreaIndex[texelZ * resolution + texelX] != stamp.areaIndex)
-                    {
-                        continue;
-                    }
-                    owned.Add(placement);
-                    edgeDistances.Add(sampler.EdgeDistanceMetresAt(placement.position.x, placement.position.z));
+                    scatterSet = forestRecipe.scatterSet;
+                    cardAtlas = forestRecipe.cardAtlas;
+                    interiorDemotionMetres = forestRecipe.interiorDemotionMetres;
+                    clearingNoiseScaleMetres = forestRecipe.clearingNoiseScaleMetres;
+                    clearingThreshold01 = forestRecipe.clearingThreshold01;
                 }
-
-                List<TerrainScatterTier> ruleTiers = new List<TerrainScatterTier>();
-                for (int ruleIndex = 0; ruleIndex < scatterSet.rules.Count; ruleIndex++)
+                else if (featureRecipe != null)
                 {
-                    ruleTiers.Add(scatterSet.rules[ruleIndex].tier);
-                }
-
-                List<int> interactableIndices = new List<int>();
-                List<int> cardIndices = new List<int>();
-                int demoted;
-                SplitTiers(owned, edgeDistances, ruleTiers, recipe.interiorDemotionMetres, capRemaining, interactableIndices, cardIndices, out demoted);
-                result.demotedCount += demoted;
-
-                for (int listIndex = 0; listIndex < interactableIndices.Count; listIndex++)
-                {
-                    int placementIndex = interactableIndices[listIndex];
-                    TerrainScatterPlacement placement = owned[placementIndex];
-                    System.Random pickRandom = new System.Random(unchecked(entry.seed * 73856093) ^ (placementIndex * 19349663));
-                    GameObject prefab = scatterSet.PickPrefab(placement.ruleIndex, (float)pickRandom.NextDouble());
-                    if (prefab == null)
+                    TerrainRowsPlacer rowsPlacer = featureRecipe.placer as TerrainRowsPlacer;
+                    TerrainFillPlacer fillPlacer = featureRecipe.placer as TerrainFillPlacer;
+                    if (rowsPlacer != null)
                     {
-                        continue;
-                    }
-                    TerrainScatterRuleData ruleData = scatterSet.rules[placement.ruleIndex];
-                    GameObject instance = InstantiateScatterInstance(scatterParent, prefab, placement, ruleData);
-                    if (instance == null)
-                    {
-                        continue;
-                    }
-                    instance.GetComponent<TerrainScatterMarker>().sourceFeatureId = entry.featureId;
-                    if (ruleData.blocksNavigation)
-                    {
-                        if (!navigationLayerResolved)
+                        bool skippedDressing;
+                        TerrainAreaFillResult rowsResult = PlaceRowsArea(
+                            tileData, tileSampler.WorldRect, resolution, ownerAreaIndex, stamp, entry, featureRecipe, rowsPlacer,
+                            scatterParent, capRemaining, out skippedDressing);
+                        result.interactableCount += rowsResult.interactableCount;
+                        capRemaining -= rowsResult.interactableCount;
+                        if (skippedDressing && !warnedAboutRowsDressing)
                         {
-                            navigationLayerResolved = true;
-                            navigationLayer = LayerMask.NameToLayer(NavigationWallLayerName);
+                            warnedAboutRowsDressing = true;
+                            Debug.LogWarning("TerrainAreaFiller: Rows placers have no card atlas, so Dressing placeables were skipped on tile " + coordinate);
                         }
-                        if (navigationLayer >= 0)
-                        {
-                            SetLayerRecursively(instance, navigationLayer);
-                        }
+                        continue;
                     }
-                    result.interactableCount++;
-                    capRemaining--;
+                    if (fillPlacer != null)
+                    {
+                        transientScatterSet = ScatterSetFromFillRecipe(featureRecipe, fillPlacer);
+                        scatterSet = transientScatterSet;
+                        cardAtlas = fillPlacer.cardAtlas;
+                        interiorDemotionMetres = fillPlacer.interiorDemotionMetres;
+                        clearingNoiseScaleMetres = fillPlacer.clearingNoiseScaleMetres;
+                        clearingThreshold01 = fillPlacer.clearingThreshold01;
+                    }
                 }
-
-                TerrainCardAtlas atlas = recipe.cardAtlas;
-                if (atlas == null || atlas.spriteUvRects == null || atlas.spriteUvRects.Count == 0)
+                if (scatterSet == null)
                 {
                     continue;
                 }
-                List<TerrainCard> atlasCards;
-                if (!cardsByAtlas.TryGetValue(atlas, out atlasCards))
+
+                try
                 {
-                    atlasCards = new List<TerrainCard>();
-                    cardsByAtlas[atlas] = atlasCards;
-                    atlasOrder.Add(atlas);
-                }
-                for (int listIndex = 0; listIndex < cardIndices.Count; listIndex++)
-                {
-                    TerrainScatterPlacement placement = owned[cardIndices[listIndex]];
-                    TerrainScatterRuleData ruleData = scatterSet.rules[placement.ruleIndex];
-                    Vector2 baseSize = ruleData.cardSizeMetres;
-                    if (baseSize.x <= 0f || baseSize.y <= 0f)
+                    List<TerrainScatterRule> rules = TerrainScatterGenerator.RulesFrom(scatterSet);
+                    // Minimum spacing is untouched, so spacing still caps how dense the multiplier can get.
+                    float multiplier = entry.densityMultiplier > 0f ? entry.densityMultiplier : 1f;
+                    for (int scaleRuleIndex = 0; scaleRuleIndex < rules.Count; scaleRuleIndex++)
                     {
-                        baseSize = FallbackCardSizeMetres;
+                        TerrainScatterRule scaledRule = rules[scaleRuleIndex];
+                        scaledRule.densityPer100SquareMetres *= multiplier;
+                        rules[scaleRuleIndex] = scaledRule;
                     }
-                    TerrainCard card = new TerrainCard();
-                    card.basePosition = new Vector3(
-                        placement.position.x,
-                        tileData.SampleBilinear(placement.position.x, placement.position.z) + TerrainTileData.GroundTopHeightMetres,
-                        placement.position.z);
-                    card.sizeMetres = baseSize * placement.scale;
-                    int uvIndex = ((ruleData.cardAtlasEntry % atlas.spriteUvRects.Count) + atlas.spriteUvRects.Count) % atlas.spriteUvRects.Count;
-                    card.uvRect = atlas.spriteUvRects[uvIndex];
-                    card.tint01 = TintFromPosition(placement.position);
-                    atlasCards.Add(card);
-                    result.cardCount++;
-                    if (ruleData.blocksNavigation)
+                    TerrainAreaRestrictedSampler sampler = new TerrainAreaRestrictedSampler(tileSampler, stamp, clearingNoiseScaleMetres, clearingThreshold01);
+                    List<TerrainScatterPlacement> planned = TerrainScatterPlanner.Plan(rules, sampler, tileSampler.WorldRect, TerrainDecalScatterer.SeedFor(entry.seed, coordinate), obstacles);
+
+                    Rect tileRect = tileSampler.WorldRect;
+                    List<TerrainScatterPlacement> owned = new List<TerrainScatterPlacement>();
+                    List<float> edgeDistances = new List<float>();
+                    for (int plannedIndex = 0; plannedIndex < planned.Count; plannedIndex++)
                     {
-                        blockingCardBases.Add(card.basePosition);
-                        blockingCardHeights.Add(card.sizeMetres.y);
+                        TerrainScatterPlacement placement = planned[plannedIndex];
+                        int texelX = Mathf.Clamp(Mathf.FloorToInt((placement.position.x - tileRect.xMin) / tileRect.width * resolution), 0, resolution - 1);
+                        int texelZ = Mathf.Clamp(Mathf.FloorToInt((placement.position.z - tileRect.yMin) / tileRect.height * resolution), 0, resolution - 1);
+                        if (ownerAreaIndex[texelZ * resolution + texelX] != stamp.areaIndex)
+                        {
+                            continue;
+                        }
+                        owned.Add(placement);
+                        edgeDistances.Add(sampler.EdgeDistanceMetresAt(placement.position.x, placement.position.z));
+                    }
+
+                    List<TerrainScatterTier> ruleTiers = new List<TerrainScatterTier>();
+                    for (int ruleIndex = 0; ruleIndex < scatterSet.rules.Count; ruleIndex++)
+                    {
+                        ruleTiers.Add(scatterSet.rules[ruleIndex].tier);
+                    }
+
+                    List<int> interactableIndices = new List<int>();
+                    List<int> cardIndices = new List<int>();
+                    int demoted;
+                    SplitTiers(owned, edgeDistances, ruleTiers, interiorDemotionMetres, capRemaining, interactableIndices, cardIndices, out demoted);
+                    result.demotedCount += demoted;
+
+                    for (int listIndex = 0; listIndex < interactableIndices.Count; listIndex++)
+                    {
+                        int placementIndex = interactableIndices[listIndex];
+                        TerrainScatterPlacement placement = owned[placementIndex];
+                        System.Random pickRandom = new System.Random(unchecked(entry.seed * 73856093) ^ (placementIndex * 19349663));
+                        GameObject prefab = scatterSet.PickPrefab(placement.ruleIndex, (float)pickRandom.NextDouble());
+                        if (prefab == null)
+                        {
+                            continue;
+                        }
+                        TerrainScatterRuleData ruleData = scatterSet.rules[placement.ruleIndex];
+                        GameObject instance = InstantiateScatterInstance(scatterParent, prefab, placement, ruleData);
+                        if (instance == null)
+                        {
+                            continue;
+                        }
+                        instance.GetComponent<TerrainScatterMarker>().sourceFeatureId = entry.featureId;
+                        if (ruleData.blocksNavigation)
+                        {
+                            if (!navigationLayerResolved)
+                            {
+                                navigationLayerResolved = true;
+                                navigationLayer = LayerMask.NameToLayer(NavigationWallLayerName);
+                            }
+                            if (navigationLayer >= 0)
+                            {
+                                SetLayerRecursively(instance, navigationLayer);
+                            }
+                        }
+                        result.interactableCount++;
+                        capRemaining--;
+                    }
+
+                    TerrainCardAtlas atlas = cardAtlas;
+                    if (atlas == null || atlas.spriteUvRects == null || atlas.spriteUvRects.Count == 0)
+                    {
+                        continue;
+                    }
+                    List<TerrainCard> atlasCards;
+                    if (!cardsByAtlas.TryGetValue(atlas, out atlasCards))
+                    {
+                        atlasCards = new List<TerrainCard>();
+                        cardsByAtlas[atlas] = atlasCards;
+                        atlasOrder.Add(atlas);
+                    }
+                    for (int listIndex = 0; listIndex < cardIndices.Count; listIndex++)
+                    {
+                        TerrainScatterPlacement placement = owned[cardIndices[listIndex]];
+                        TerrainScatterRuleData ruleData = scatterSet.rules[placement.ruleIndex];
+                        Vector2 baseSize = ruleData.cardSizeMetres;
+                        if (baseSize.x <= 0f || baseSize.y <= 0f)
+                        {
+                            baseSize = FallbackCardSizeMetres;
+                        }
+                        TerrainCard card = new TerrainCard();
+                        card.basePosition = new Vector3(
+                            placement.position.x,
+                            tileData.SampleBilinear(placement.position.x, placement.position.z) + TerrainTileData.GroundTopHeightMetres,
+                            placement.position.z);
+                        card.sizeMetres = baseSize * placement.scale;
+                        int uvIndex = ((ruleData.cardAtlasEntry % atlas.spriteUvRects.Count) + atlas.spriteUvRects.Count) % atlas.spriteUvRects.Count;
+                        card.uvRect = atlas.spriteUvRects[uvIndex];
+                        card.tint01 = TintFromPosition(placement.position);
+                        atlasCards.Add(card);
+                        result.cardCount++;
+                        if (ruleData.blocksNavigation)
+                        {
+                            blockingCardBases.Add(card.basePosition);
+                            blockingCardHeights.Add(card.sizeMetres.y);
+                        }
+                    }
+                }
+                finally
+                {
+                    if (transientScatterSet != null)
+                    {
+                        Object.DestroyImmediate(transientScatterSet);
                     }
                 }
             }
@@ -294,6 +348,124 @@ public static class TerrainAreaFiller
             BakeCardMeshes(tile, tileData, atlasOrder, cardsByAtlas);
         }
         return result;
+    }
+
+    public static TerrainScatterSet ScatterSetFromFillRecipe(TerrainFeatureRecipe recipe, TerrainFillPlacer fill)
+    {
+        TerrainScatterSet scatterSet = ScriptableObject.CreateInstance<TerrainScatterSet>();
+        scatterSet.hideFlags = HideFlags.HideAndDontSave;
+        float totalWeight = 0f;
+        for (int placeableIndex = 0; placeableIndex < recipe.placeables.Count; placeableIndex++)
+        {
+            totalWeight += Mathf.Max(0f, recipe.placeables[placeableIndex].weight);
+        }
+        if (totalWeight <= 0f)
+        {
+            return scatterSet;
+        }
+        for (int placeableIndex = 0; placeableIndex < recipe.placeables.Count; placeableIndex++)
+        {
+            TerrainPlaceable placeable = recipe.placeables[placeableIndex];
+            if (placeable.weight <= 0f)
+            {
+                continue;
+            }
+            TerrainScatterRuleData rule = TerrainScatterSet.CreateRule(placeable.prefab != null ? placeable.prefab.name : "Dressing");
+            rule.prefabs = new List<TerrainScatterPrefab>();
+            if (placeable.prefab != null)
+            {
+                TerrainScatterPrefab scatterPrefab = new TerrainScatterPrefab();
+                scatterPrefab.prefab = placeable.prefab;
+                scatterPrefab.weight = 1f;
+                rule.prefabs.Add(scatterPrefab);
+            }
+            // The area paints its own ground layer, so every surface is allowed.
+            rule.onDirt = 1f;
+            rule.onGrass = 1f;
+            rule.onForest = 1f;
+            rule.onStone = 1f;
+            rule.slopeRangeDegrees = new Vector2(0f, fill.maxSlopeDegrees);
+            rule.heightRange = new Vector2(-1000f, 5000f);
+            rule.minSpacingMetres = fill.minSpacingMetres;
+            rule.scaleRange = fill.scaleRange;
+            rule.yawJitterDegrees = 360f;
+            rule.densityPer100SquareMetres = fill.densityPer100SquareMetres * placeable.weight / totalWeight;
+            rule.tier = placeable.tier;
+            rule.cardAtlasEntry = placeable.cardAtlasEntry;
+            rule.cardSizeMetres = placeable.cardSizeMetres;
+            rule.blocksNavigation = placeable.blocksNavigation;
+            scatterSet.rules.Add(rule);
+        }
+        return scatterSet;
+    }
+
+    // Plans from entry.seed alone so every tile that touches the area agrees on the same layout.
+    private static TerrainAreaFillResult PlaceRowsArea(
+        TerrainTileData tileData,
+        Rect tileRect,
+        int resolution,
+        byte[] ownerAreaIndex,
+        TerrainAreaStamp stamp,
+        TerrainTileAreaEntry entry,
+        TerrainFeatureRecipe recipe,
+        TerrainRowsPlacer rowsPlacer,
+        Transform scatterParent,
+        int capRemaining,
+        out bool skippedDressing)
+    {
+        TerrainAreaFillResult rowsResult = new TerrainAreaFillResult();
+        skippedDressing = false;
+        List<TerrainPlacementResult> planned = TerrainFeaturePlacement.PlanRows(stamp.outlineXZ, rowsPlacer, recipe.placeables.Count, entry.seed);
+        int navigationLayer = LayerMask.NameToLayer(NavigationWallLayerName);
+        for (int plannedIndex = 0; plannedIndex < planned.Count; plannedIndex++)
+        {
+            TerrainPlacementResult planResult = planned[plannedIndex];
+            if (!TerrainFeaturePlacement.IsOwnedByTile(planResult.localXZ, tileRect))
+            {
+                continue;
+            }
+            int texelX = Mathf.Clamp(Mathf.FloorToInt((planResult.localXZ.x - tileRect.xMin) / tileRect.width * resolution), 0, resolution - 1);
+            int texelZ = Mathf.Clamp(Mathf.FloorToInt((planResult.localXZ.y - tileRect.yMin) / tileRect.height * resolution), 0, resolution - 1);
+            if (ownerAreaIndex[texelZ * resolution + texelX] != stamp.areaIndex)
+            {
+                continue;
+            }
+            if (planResult.placeableIndex < 0 || planResult.placeableIndex >= recipe.placeables.Count)
+            {
+                continue;
+            }
+            TerrainPlaceable placeable = recipe.placeables[planResult.placeableIndex];
+            if (placeable.tier == TerrainScatterTier.Dressing)
+            {
+                skippedDressing = true;
+                continue;
+            }
+            if (placeable.prefab == null || rowsResult.interactableCount >= capRemaining)
+            {
+                continue;
+            }
+            TerrainScatterPlacement placement = new TerrainScatterPlacement();
+            placement.ruleIndex = planResult.placeableIndex;
+            placement.position = new Vector3(
+                planResult.localXZ.x,
+                tileData.SampleBilinear(planResult.localXZ.x, planResult.localXZ.y) + TerrainTileData.GroundTopHeightMetres,
+                planResult.localXZ.y);
+            placement.normal = Vector3.up;
+            placement.yawDegrees = planResult.yawDegrees;
+            placement.scale = planResult.scale;
+            GameObject instance = InstantiateScatterInstance(scatterParent, placeable.prefab, placement, new TerrainScatterRuleData());
+            if (instance == null)
+            {
+                continue;
+            }
+            instance.GetComponent<TerrainScatterMarker>().sourceFeatureId = entry.featureId;
+            if (placeable.blocksNavigation && navigationLayer >= 0)
+            {
+                SetLayerRecursively(instance, navigationLayer);
+            }
+            rowsResult.interactableCount++;
+        }
+        return rowsResult;
     }
 
     // One GameObject with a capsule per card bakes to a single compound collider.

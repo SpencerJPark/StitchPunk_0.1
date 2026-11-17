@@ -44,6 +44,15 @@ public static class TerrainFeatureBaker
         {
             pendingAffectedBounds.Add(previousBounds);
         }
+        else
+        {
+            // Cold cache after a domain reload or scene load: ask the baked tile data where this area last baked
+            TerrainArea featureAsArea = feature as TerrainArea;
+            if (!ReferenceEquals(featureAsArea, null))
+            {
+                AddTilesLastBakedWithFeature(featureAsArea.featureId);
+            }
+        }
 
         if (area == null)
         {
@@ -298,6 +307,39 @@ public static class TerrainFeatureBaker
     private static bool TileSceneExists(Vector2Int coordinate)
     {
         return AssetDatabase.LoadAssetAtPath<SceneAsset>(TerrainTileAssets.TileScenePath(coordinate)) != null;
+    }
+
+    private static void AddTilesLastBakedWithFeature(string featureId)
+    {
+        if (string.IsNullOrEmpty(featureId))
+        {
+            return;
+        }
+
+        foreach (string guid in AssetDatabase.FindAssets("t:TerrainTileData"))
+        {
+            TerrainTileData tileData = AssetDatabase.LoadAssetAtPath<TerrainTileData>(AssetDatabase.GUIDToAssetPath(guid));
+            if (tileData == null || tileData.areaEntries == null)
+            {
+                continue;
+            }
+
+            foreach (TerrainTileAreaEntry entry in tileData.areaEntries)
+            {
+                if (entry.featureId != featureId)
+                {
+                    continue;
+                }
+
+                float tileMinX = tileData.coordinate.x * TerrainTileData.TileSizeMetres - 50f;
+                float tileMinZ = tileData.coordinate.y * TerrainTileData.TileSizeMetres - 50f;
+                float insetCentreOffset = TerrainTileData.TileSizeMetres * 0.5f;
+                Vector3 insideTileCentre = new Vector3(tileMinX + insetCentreOffset, 0f, tileMinZ + insetCentreOffset);
+                Vector3 insideTileSize = new Vector3(TerrainTileData.TileSizeMetres - 2f, 1f, TerrainTileData.TileSizeMetres - 2f);
+                pendingAffectedBounds.Add(new Bounds(insideTileCentre, insideTileSize));
+                break;
+            }
+        }
     }
 
     private static void AddTilesOverlapping(Bounds worldBounds, HashSet<Vector2Int> tilesOut)
