@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace StitchPunk.Tests
 {
@@ -80,6 +81,57 @@ namespace StitchPunk.Tests
             Assert.AreEqual(0, interactable.Count);
             Assert.AreEqual(3, cards.Count);
             Assert.AreEqual(0, demoted);
+        }
+
+        private static TerrainFeatureRecipe RecipeWithWeights(params float[] weights)
+        {
+            TerrainFeatureRecipe recipe = ScriptableObject.CreateInstance<TerrainFeatureRecipe>();
+            recipe.placeables = new List<TerrainPlaceable>();
+            for (int weightIndex = 0; weightIndex < weights.Length; weightIndex++)
+            {
+                TerrainPlaceable placeable = new TerrainPlaceable();
+                placeable.weight = weights[weightIndex];
+                recipe.placeables.Add(placeable);
+            }
+            return recipe;
+        }
+
+        [Test]
+        public void ScatterSetFromFillRecipeSplitsDensityByWeightAndCopiesSlopeCap()
+        {
+            TerrainFeatureRecipe recipe = RecipeWithWeights(1f, 3f);
+            TerrainFillPlacer fill = new TerrainFillPlacer();
+            fill.densityPer100SquareMetres = 4f;
+            fill.maxSlopeDegrees = 20f;
+            TerrainScatterSet scatterSet = TerrainAreaFiller.ScatterSetFromFillRecipe(recipe, fill);
+            try
+            {
+                Assert.AreEqual(2, scatterSet.rules.Count);
+                Assert.AreEqual(1f, scatterSet.rules[0].densityPer100SquareMetres, 0.0001f);
+                Assert.AreEqual(3f, scatterSet.rules[1].densityPer100SquareMetres, 0.0001f);
+                Assert.AreEqual(20f, scatterSet.rules[0].slopeRangeDegrees.y, 0.0001f);
+            }
+            finally
+            {
+                Object.DestroyImmediate(scatterSet);
+                Object.DestroyImmediate(recipe);
+            }
+        }
+
+        [Test]
+        public void ScatterSetFromFillRecipeSkipsZeroWeightPlaceables()
+        {
+            TerrainFeatureRecipe recipe = RecipeWithWeights(0f, 2f);
+            TerrainScatterSet scatterSet = TerrainAreaFiller.ScatterSetFromFillRecipe(recipe, new TerrainFillPlacer());
+            try
+            {
+                Assert.AreEqual(1, scatterSet.rules.Count);
+            }
+            finally
+            {
+                Object.DestroyImmediate(scatterSet);
+                Object.DestroyImmediate(recipe);
+            }
         }
     }
 }

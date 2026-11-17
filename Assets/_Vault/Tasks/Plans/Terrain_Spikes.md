@@ -83,3 +83,12 @@ Run through the Unity MCP, 2026-10-30. Each finding is the answer plus the TT-D 
 - Focus is separate: `hasFocus` changes do not pass through Register/Deregister.
 - Second signal that works: a hidden tab's `rootVisualElement.panel` is null (Terrain hidden: null; shown: non-null). Used in `OnEnable` (delayCall) because a hidden docked tab still gets `OnEnable` after a domain reload.
 - No polling fallback needed.
+
+## FP-S3 Elevation and move repro (2026-11-17, Feature Placement)
+- Setup: TestWorld tiles (1,2)+(1,3) (hill, ground 3.6 to 24.8 m), Forest `TerrainArea` 40 x 24 m at (100, 240) straddling their border, created through `TerrainFeatureTool.CreateArea` (reflection), seed 4242.
+- **Instance height: correct.** 48 instances (40 + 8), `y - (SampleBilinear + GroundTopHeightMetres)` = +0.030 m for every one; against the tile `MeshCollider` (`Ground_Tile_x_z`, RaycastAll skipping the trees' own colliders) worst 0.037 m, mean 0.030. The filler takes y from `tileData.SampleBilinear` at the final world XZ (TerrainAreaFiller ~line 277), not from the outline plane. Not reproduced in data; what the owner saw is most likely the undraped outline (below) or the trap that authoring-mode tiles draw flat in the Scene view.
+- **Outline: off the ground.** Knots sit on the ground (0.00 m each, `CreateArea` uses `OnGround`), but the spline between them is straight in 3D: worst gap 4.89 m at (92.2, 13.6, 252.0) across a 24 m edge. FP-D27 (FP-L-1/FP-L-5); not a one-line fix.
+- **Move: trees left behind after a domain reload.** `TerrainFeatureBaker.OnFeatureChanged` marks the previous bounds only from its static `lastBounds` cache, which a domain reload (any recompile) empties and which never holds areas loaded with the scene. Warm cache: moving 20 m rebaked both tiles, 0 left behind. Cold cache (cleared to mimic a reload) then a 32 m move whose new bounds miss tile (1,2): **40/40 old trees stayed in (1,2)**, none locked; tile open, not stale. Third reason (by design): a closed tile only joins `StaleTiles`.
+- Side note: in edit mode `TerrainArea.Update` (the transform-move detector) only runs while the Editor ticks; with the Editor unfocused a scripted move is not seen until the next tick. Not an owner-facing bug (a gizmo drag ticks).
+- **FP-S3-fix:** when an area has no cached previous bounds, also mark every tile whose `TerrainTileData.areaEntries` holds its `featureId` (the tiles it last baked into).
+- Cleanup: probe area deleted, `RebakeAllFeatures(false)`, both tile scenes closed and their files restored from git.
