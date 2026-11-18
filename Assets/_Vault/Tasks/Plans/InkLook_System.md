@@ -83,9 +83,8 @@ Ground material (`PaintedGround.shader`) additions:
 
 | Property | Meaning |
 |---|---|
-| `_InkDetailArray` (Texture2DArray) | the `T_InkDetail_*` slices, built with the existing Texture Packer (`TexturePackerConfig`) |
-| `_InkDetailSlices` (float4) | slice per layer: x = base, y = R, z = G, w = B |
-| `_InkDetailTileMetres` (float4) | world metres per detail tile, per layer |
+| `_InkDetailBaseTex`, `_InkDetailRTex`, `_InkDetailGTex`, `_InkDetailBTex` (2D, default `"gray"`) | one `T_InkDetail_*` per layer slot, mirroring `_BaseTex`/`_LayerRTex..BTex` |
+| `_InkDetailTileMetres` (float4) | world metres per detail tile, per layer (x base, y R, z G, w B) |
 | `_InkDetailParams` (float4) | x = line strength, y = tone strength, z = scratch strength |
 | `_TransitionAtlas` + keyword `_GROUND_TRANSITION_TILES` | DS-style transitions instead of the fringe |
 | `_TransitionCellMetres` | grid cell size (default 2 m) |
@@ -137,7 +136,7 @@ Each layer's colour is multiplied by its ink-detail slice, sampled world XZ at t
 the way DS multiplies tint × noise:
 
 ```hlsl
-float3 detail = SAMPLE_TEXTURE2D_ARRAY(_InkDetailArray, sampler, wxz / tileMetres, slice).rgb;
+float3 detail = SAMPLE_TEXTURE2D(detailTex, sampler_BaseTex, wxz / tileMetres).rgb;
 layerCol *= lerp(1.0, detail.g * 2.0, _InkDetailParams.y);       // per-stone tone
 layerCol *= 1.0 - detail.b * _InkDetailParams.z * 0.25;          // scratch strokes
 ink = max(ink, detail.r * _InkDetailParams.x);                   // lines join the existing ink
@@ -166,38 +165,60 @@ Don't Starve look. Cell size is the dial: 2 m is a guess. ← DECISION D4
 
 The fringe path stays the default; the keyword is per material so two tiles can sit side by side.
 
-## File manifest
+## File manifest (sizes measured 2026-11-18)
 
-| File | Change |
-|---|---|
-| `Tools/inkplaceholders/generate_ink_placeholders.py` | new (P0, done) |
-| `Assets/PaintedGround/Textures/Ink/*.png` | new placeholders (P0, done) |
-| `Assets/PaintedGround/Textures/Ink/InkDetail_Array` (TexturePackerConfig + generated array) | new |
-| `Assets/PaintedGround/Shaders/Include/PaintedGroundCore.hlsl` | hatch globals, `StitchHatchUV`, hatch + grain in `PaintedLighting_float`; `PaintedTransitionTile_float` |
-| `Assets/PaintedGround/Shaders/PaintedGround.shader` | detail array props + sampling, transition keyword path |
-| `Assets/_Scripts/MonoBehaviours/Terrain/TerrainLightingBridge.cs` | hatch texture, strength, metres, space mode, grain, ink colour, boil |
-| `Assets/_Vault/Memories/Code/Shaders.md`, `Terrain.md` | record the outcome |
+| File | Lines | Change |
+|---|---|---|
+| `Tools/inkplaceholders/generate_ink_placeholders.py` | — | new (P0, done) |
+| `Assets/PaintedGround/Textures/Ink/*.png` | — | new placeholders (P0, done) |
+| `Assets/PaintedGround/Shaders/Include/PaintedGroundCore.hlsl` | 213 | hatch globals, `StitchHatchUV`, hatch + grain in `PaintedLighting_float`; `PaintedTransitionTile_float` |
+| `Assets/PaintedGround/Shaders/PaintedGround.shader` | 520 | detail texture props + sampling, transition keyword path |
+| `Assets/_Scripts/MonoBehaviours/Terrain/TerrainLightingBridge.cs` | 67 | hatch texture, strength, metres, space mode, grain, ink colour, boil |
+| `Assets/_Vault/Memories/Code/Shaders.md`, `Terrain.md` | — | record the outcome |
 
-## Build phases
+**Blast radius of the core edit:** `PaintedGroundCore.hlsl` is included by `PaintedGround.shader:219`,
+`PaintedRibbon.shader:104`, `PaintedTreeCard.shader:111`, `Shaders/StitchGlass.shader:80`,
+`Include/PaintedGroundGraph.hlsl:11` (all eight production graphs) and `Include/PaintedGroundNodes.hlsl:21`.
+A syntax error there turns every lit material pink, so T2 is compiled in the Editor before anything else lands.
 
-- **P0 Placeholders** done (above).
-- **P1 Hatch + grain** (R1): core function + bridge dials, default strength 0, so nothing changes until turned
-  on. Verify in `Game.unity` / `CampLoop`: a unit walking in and out of a building shadow, a camera pan, a
-  rotate if the camera can, in each space mode.
-- **P2 Ground ink detail** (R2): Texture Packer array, shader sampling, one TerrainWorld tile material set
-  up (cobble on the stone layer, grass, dirt).
-- **P3 Tile transitions** (R3): keyword path on one tile's material, next to a fringe tile.
-- **P4 Owner look pass:** captures of each mode next to `TextureInspo.png`; owner picks, losers deleted.
-- **P5 (after the pick)** owner's hand-drawn sheets drop in over the placeholders; units/props get their
-  own detail sheet if the ground-only result makes them look too clean.
+## Build tasks (token budget)
+
+The whole build is roughly 250 lines across three files. **Run it inline in one orchestrator session;
+do not spawn workers.** A worker brief would cost more than the edit, and no worker can check a shader
+(the devloop gate covers C# only, subagents never touch MCP). The only gate for T2/T4/T5 is the
+orchestrator's `refresh_unity` → `read_console` (filter `Shader error`), then one capture.
+
+Read only the anchors below. Do not read whole files; every anchor is grep-able by the quoted name.
+
+| Task | Edits | Read first (anchors) | Depends | Check |
+|---|---|---|---|---|
+| **T1** import settings | 5 `.meta` via `manage_texture` / execute_code: sRGB off; Repeat (atlas Clamp) | — | — | Inspector shows Linear |
+| **T2** hatch + grain (R1) | `PaintedGroundCore.hlsl` only | globals block `_TerrainAmbientColor`…`_StitchTintedShadowParams` (~123–138); `PaintedLighting_float` (~162–211) | T1 | Editor shader compile; capture with strength 0 must equal before |
+| **T3** bridge dials | `TerrainLightingBridge.cs` only | whole file (67 lines) | — [parallel-safe with T2] | `devloop.py gate` on its assembly; lint |
+| **T4** ground detail (R2) | `PaintedGround.shader` only | Properties `_LayerRTex` (~34–36); `TEXTURE2D(_LayerRTex)` (~222); `half3 Layer(` (~272); layer calls (~316–323); `PaintedFinish_float(` (~340) | — [parallel-safe with T2/T3] | Editor compile; capture of one tile |
+| **T5** transitions (R3) | `PaintedGroundCore.hlsl` (new function after `PaintedFringe_float`, ~99) + `PaintedGround.shader` (keyword `#pragma` ~205–207, branch around ~316–333) | `PaintedFringe_float` (~78–99) as the output contract | T2, T4 (same files) | Editor compile; seam + saddle captures |
+| **T6** look pass (P4) | one TerrainWorld tile material, bridge values | — | T1–T5 | owner reads captures vs `TextureInspo.png` |
+
+Paste-ready facts so the build session does not rediscover them:
+- `Layer(TEXTURE2D_PARAM(tex, samp), float2 wxz, float tileSize, half patchMask)` is the per-layer sampler in
+  `PaintedGround.shader`; the detail sample goes beside it, not inside `PaintedLayer_float` (shared with graphs).
+- `PaintedFringe_float` outputs `(colOut, inkOut, rimOut)` and is chained `col, ink, rim → col, ink, rim`
+  across R, G, B, then the cliff pass (row 3). The transition function keeps that exact signature shape.
+- Bridge pattern: cache `Shader.PropertyToID` in static readonly ints, `SetGlobal*` in `Update`, reset to
+  zero in `OnDisable` (lines ~46–60).
+- Unity 6.5 Shader Graph custom functions see `UNITY_MATRIX_V` and `GetObjectToWorldMatrix()`; verify by a
+  compile, not from memory.
+
+**Later, after the owner picks (not budgeted here):** the owner's hand-drawn sheets replace the
+placeholders with no code change; units/props get their own detail sheet only if ground-only looks too clean.
 
 ## Verification
 
 - Compile: `refresh_unity` → `read_console` (shaders: look for shader compile errors on `Painted/Ground`
   and on one converted graph, e.g. `2DShader`, since all of them include the core).
 - With every new dial at 0 the frame must be identical to before (diff a capture).
-- P1: captures of a shadowed unit and shadowed ground in modes 0/1/2, then a short pan; the swim check needs the owner's eye.
-- P3: a capture where a grass patch crosses a 100 m tile seam, and one at a saddle (two diagonal corners).
+- T2: captures of a shadowed unit and shadowed ground in modes 0/1/2, then a short pan; the swim check needs the owner's eye.
+- T5: a capture where a grass patch crosses a 100 m tile seam, and one at a saddle (two diagonal corners).
 
 ## Open decisions
 
@@ -205,8 +226,10 @@ Recorded defaults (architecture calls, decided here; overturn freely):
 - [x] D1 Hatch lives in `PaintedLighting_float` (all shaders at once), not per graph.
 - [x] D2 One hatch mask from `shade * ndl`: cast shadows and form shading hatch alike.
 - [x] D6 Transition tiles read the existing SDF corners; no new paint data or editor work in this experiment.
+- [x] D10 Detail sheets are four plain 2D slots, not a Texture2DArray: no array builder exists for
+      Assets (the Texture Packer is a toolkit flipbook tab), and the ground already has four layer slots.
 - [x] D7 Mips: default box filter for the first look. If strokes go grey when zoomed out, author mips in the
-      Texture Packer (thicker, sparser lines per level).
+      generator script as extra mip PNGs (thicker, sparser lines per level).
 
 Owner look calls (answer after P4 captures):
 - [ ] D3 Hatch space mode: 0 world / 1 camera-plane / 2 camera-plane object-anchored (+ per-actor anchor if parts seam).
