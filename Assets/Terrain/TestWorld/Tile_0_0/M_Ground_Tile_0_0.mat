@@ -42,6 +42,22 @@ Material:
         m_Texture: {fileID: 2800000, guid: b814c64dc471e42478868629ea691943, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _InkDetailBTex:
+        m_Texture: {fileID: 2800000, guid: 7bd74a22d63ce85449974418fa151314, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _InkDetailBaseTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _InkDetailGTex:
+        m_Texture: {fileID: 2800000, guid: 0487ce70e769b7d42aa6fb389ae15148, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _InkDetailRTex:
+        m_Texture: {fileID: 2800000, guid: 0487ce70e769b7d42aa6fb389ae15148, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _LayerBTex:
         m_Texture: {fileID: 2800000, guid: 345097c00584a1945ab86164f958103c, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -60,6 +76,10 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _SplatMap:
         m_Texture: {fileID: 2800000, guid: 3557cef387aa93f4c80245b3d40935f3, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _TransitionAtlas:
+        m_Texture: {fileID: 2800000, guid: 43112f9851361ef4a833f6cc848d1d27, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
@@ -82,11 +102,16 @@ Material:
     - _Splat: 1
     - _SplatGradStep: 1.22
     - _StrategicProxy: 0
+    - _TransitionCellMetres: 2
     - _UseCliffs: 1
+    - _UseInkDetail: 0
     - _UseSecond: 1
+    - _UseTransitionTiles: 0
     m_Colors:
     - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
     - _InkColor: {r: 0.024620876, g: 0.93207544, b: 0.25639436, a: 1}
+    - _InkDetailParams: {r: 1, g: 0.6, b: 1, a: 0}
+    - _InkDetailTileMetres: {r: 6, g: 4, b: 5, a: 4}
     - _MacroDark: {r: 0.35999998, g: 0.38999996, b: 0.45, a: 1}
     - _MacroLight: {r: 0.58, g: 0.54999995, b: 0.47999996, a: 1}
     - _RimColor: {r: 0.95, g: 0.92, b: 0.8, a: 0}

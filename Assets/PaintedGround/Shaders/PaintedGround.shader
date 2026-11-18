@@ -71,6 +71,23 @@ Shader "Painted/Ground"
         _RimColor ("Highlight rim (A = strength)", Color) = (0.95, 0.92, 0.80, 0.55)
         _InkColor ("Ink line (A = strength)", Color) = (0.12, 0.10, 0.12, 0.75)
 
+        [Header(Ink detail)]
+        // Ink look experiment: one sheet per layer slot, multiplied over the layer like Don't Starve's tint x stroke noise.
+        // R = ink lines (drawn with _InkColor), G = per-shape tone (0.5 neutral), B = scratch strokes. Linear, Repeat.
+        [Toggle(_INK_DETAIL)] _UseInkDetail ("Ink detail sheets", Float) = 0
+        [NoScaleOffset] _InkDetailBaseTex ("Base detail", 2D) = "gray" {}
+        [NoScaleOffset] _InkDetailRTex    ("R detail",    2D) = "gray" {}
+        [NoScaleOffset] _InkDetailGTex    ("G detail",    2D) = "gray" {}
+        [NoScaleOffset] _InkDetailBTex    ("B detail",    2D) = "gray" {}
+        _InkDetailTileMetres ("Detail tile metres (Base, R, G, B)", Vector) = (6, 4, 5, 4)
+        _InkDetailParams ("Line, tone, scratch strength", Vector) = (1, 0.6, 1, 0)
+
+        [Header(Tile transitions)]
+        // Replaces the fringe with grid-snapped pre-drawn transition tiles. World splat map only.
+        [Toggle(_GROUND_TRANSITION_TILES)] _UseTransitionTiles ("Tile transitions instead of fringe", Float) = 0
+        [NoScaleOffset] _TransitionAtlas ("Transition atlas (8 x 4 cells)", 2D) = "black" {}
+        _TransitionCellMetres ("Transition cell size (m)", Range(0.5, 8)) = 2
+
         [Header(Cliffs)]
         [Toggle(_CLIFFS)] _UseCliffs ("Cliff texture on steep faces", Float) = 1
         [NoScaleOffset] _CliffTex ("Cliff texture", 2D) = "gray" {}
@@ -130,6 +147,9 @@ Shader "Painted/Ground"
             half   _NdotLInfluence;
             half   _PointLightBoost;
             float  _StrategicProxy;
+            float4 _InkDetailTileMetres;
+            float4 _InkDetailParams;
+            float  _TransitionCellMetres;
         CBUFFER_END
 
         // Zoomed out, the far-view stand-in (same material on a coarse mesh) replaces the real tiles completely, so streaming never swaps the look.
@@ -205,6 +225,8 @@ Shader "Painted/Ground"
             #pragma shader_feature_local _SPLAT_VERTEXCOLOR _SPLAT_WORLDTEXTURE
             #pragma shader_feature_local_fragment _SECOND_SAMPLE
             #pragma shader_feature_local_fragment _CLIFFS
+            #pragma shader_feature_local_fragment _INK_DETAIL
+            #pragma shader_feature_local_fragment _GROUND_TRANSITION_TILES
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
@@ -216,6 +238,7 @@ Shader "Painted/Ground"
             #pragma multi_compile _ DOTS_INSTANCING_ON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #define STITCH_HATCH_WORLD_ANCHORED
             #include "Include/PaintedGroundCore.hlsl"
 
             TEXTURE2D(_BaseTex);        SAMPLER(sampler_BaseTex);   // shared by all colour layers
@@ -227,6 +250,11 @@ Shader "Painted/Ground"
             TEXTURE2D(_BlendNoiseTex);
             TEXTURE2D(_FringeTex);
             TEXTURE2D(_SplatMap);
+            TEXTURE2D(_InkDetailBaseTex);
+            TEXTURE2D(_InkDetailRTex);
+            TEXTURE2D(_InkDetailGTex);
+            TEXTURE2D(_InkDetailBTex);
+            TEXTURE2D(_TransitionAtlas);
             SAMPLER(sampler_trilinear_repeat);   // trilinear: bilinear mips switch in hard lines that slide down the screen while zooming
             SAMPLER(sampler_linear_clamp);
 
@@ -280,6 +308,21 @@ Shader "Painted/Ground"
                 return (half3)c;
             }
 
+            // Lines are inked into the layer colour rather than the shared ink channel, so they are covered exactly as far as
+            // the layer is (fringe or tile coverage), and drawn with the same pen as the edges.
+            half3 InkedLayer(TEXTURE2D_PARAM(tex, samp), TEXTURE2D_PARAM(detailTex, detailSamp), float2 wxz, float tileSize,
+                             float detailTileMetres, half patchMask)
+            {
+                half3 layerColour = Layer(TEXTURE2D_ARGS(tex, samp), wxz, tileSize, patchMask);
+            #if defined(_INK_DETAIL)
+                half3 detail = Layer(TEXTURE2D_ARGS(detailTex, detailSamp), wxz, detailTileMetres, patchMask);
+                layerColour *= lerp(1.0h, detail.g * 2.0h, (half)_InkDetailParams.y);
+                layerColour *= 1.0h - detail.b * (half)_InkDetailParams.z * 0.25h;
+                layerColour = lerp(layerColour, layerColour * _InkColor.rgb, saturate(detail.r * (half)_InkDetailParams.x) * _InkColor.a);
+            #endif
+                return layerColour;
+            }
+
             half4 frag(Varyings IN) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
@@ -313,14 +356,35 @@ Shader "Painted/Ground"
                 // ---- layers, painted back to front with their fringes --------------------
                 float fringeLen = _FringeSize;
                 float fringeWid = _FringeSize / FRINGE_ASPECT * _FringeStretch;
-                float3 col = Layer(TEXTURE2D_ARGS(_BaseTex, sampler_BaseTex), wxz, _TileSizes.x, patchMask);
+                float3 col = InkedLayer(TEXTURE2D_ARGS(_BaseTex, sampler_BaseTex), TEXTURE2D_ARGS(_InkDetailBaseTex, sampler_BaseTex), wxz, _TileSizes.x, _InkDetailTileMetres.x, patchMask);
+                float3 layerRColour = InkedLayer(TEXTURE2D_ARGS(_LayerRTex, sampler_BaseTex), TEXTURE2D_ARGS(_InkDetailRTex, sampler_BaseTex), wxz, _TileSizes.y, _InkDetailTileMetres.y, patchMask);
+                float3 layerGColour = InkedLayer(TEXTURE2D_ARGS(_LayerGTex, sampler_BaseTex), TEXTURE2D_ARGS(_InkDetailGTex, sampler_BaseTex), wxz, _TileSizes.z, _InkDetailTileMetres.z, patchMask);
+                float3 layerBColour = InkedLayer(TEXTURE2D_ARGS(_LayerBTex, sampler_BaseTex), TEXTURE2D_ARGS(_InkDetailBTex, sampler_BaseTex), wxz, _TileSizes.w, _InkDetailTileMetres.w, patchMask);
                 float  ink = 0, rim = 0;
+            #if defined(_GROUND_TRANSITION_TILES) && defined(_SPLAT_WORLDTEXTURE)
+                // Four corner taps shared by all three channels; a corner's world position gives the same value in every cell that owns it.
+                float  transitionCellMetres = max(_TransitionCellMetres, 0.1);
+                float2 cellCoordinate = wxz / transitionCellMetres;
+                float2 cellOrigin = floor(cellCoordinate) * transitionCellMetres;
+                float2 splatScale = 1.0 / max(_SplatBounds.zw, 0.001);
+                float3 cornerTopLeft     = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (cellOrigin + float2(0, transitionCellMetres) - _SplatBounds.xy) * splatScale, 0).rgb;
+                float3 cornerTopRight    = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (cellOrigin + transitionCellMetres - _SplatBounds.xy) * splatScale, 0).rgb;
+                float3 cornerBottomRight = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (cellOrigin + float2(transitionCellMetres, 0) - _SplatBounds.xy) * splatScale, 0).rgb;
+                float3 cornerBottomLeft  = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (cellOrigin - _SplatBounds.xy) * splatScale, 0).rgb;
+                PaintedTransitionTile_float(_TransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.r, cornerTopRight.r, cornerBottomRight.r, cornerBottomLeft.r),
+                                            cellCoordinate, 0.0, layerRColour, col, ink, rim, col, ink, rim);
+                PaintedTransitionTile_float(_TransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.g, cornerTopRight.g, cornerBottomRight.g, cornerBottomLeft.g),
+                                            cellCoordinate, 17.0, layerGColour, col, ink, rim, col, ink, rim);
+                PaintedTransitionTile_float(_TransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.b, cornerTopRight.b, cornerBottomRight.b, cornerBottomLeft.b),
+                                            cellCoordinate, 31.0, layerBColour, col, ink, rim, col, ink, rim);
+            #else
                 PaintedFringe_float(_FringeTex, sampler_BaseTex, w.r, gR, wxz, 0, FRINGE_ROWS, fringeWid, fringeLen, brush.r, _BlendNoiseAmount,
-                                    Layer(TEXTURE2D_ARGS(_LayerRTex, sampler_BaseTex), wxz, _TileSizes.y, patchMask), col, ink, rim, col, ink, rim);
+                                    layerRColour, col, ink, rim, col, ink, rim);
                 PaintedFringe_float(_FringeTex, sampler_BaseTex, w.g, gG, wxz, 1, FRINGE_ROWS, fringeWid, fringeLen, brush.g, _BlendNoiseAmount,
-                                    Layer(TEXTURE2D_ARGS(_LayerGTex, sampler_BaseTex), wxz, _TileSizes.z, patchMask), col, ink, rim, col, ink, rim);
+                                    layerGColour, col, ink, rim, col, ink, rim);
                 PaintedFringe_float(_FringeTex, sampler_BaseTex, w.b, gB, wxz, 2, FRINGE_ROWS, fringeWid, fringeLen, brush.b, _BlendNoiseAmount,
-                                    Layer(TEXTURE2D_ARGS(_LayerBTex, sampler_BaseTex), wxz, _TileSizes.w, patchMask), col, ink, rim, col, ink, rim);
+                                    layerBColour, col, ink, rim, col, ink, rim);
+            #endif
 
             #if defined(_CLIFFS)
                 half2 cw = pow(abs(n.xz), 4.0h);

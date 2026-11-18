@@ -96,6 +96,10 @@ related: "[[Editor]], [[Data]], [[Gotchas]]"
 - Next: `Tasks/Plans/FeaturePlacement_System.md` (features place prefabs; objects own behaviour). Two editor traps it fixes: a docked Terrain Editor hidden behind another tab never gets `OnDisable`, so tools and the HUD stay live; the raw IMGUI HUD strip is drawn under Scene view overlays.
 - Feature Placement FP-1 (2026-11-17): `TerrainFeatureRecipe` (shape support, `[SerializeReference]` placer: Fill / Along path / Rows, weighted `TerrainPlaceable`s) is the new recipe; `TerrainForestRecipe` remains until every asset is converted (`Stitch Punk/Terrain/Convert Forest Recipes`). Open lines and fence loops are `TerrainPath` (no area mask); `TerrainPathBaker` runs after the filler on every baked tile and owns every generated instance whose `sourceFeatureId` is not in `areaEntries`. Planners (`TerrainFeaturePlacement`) are pure and plan in feature-local XZ with stable `placementId`s.
 
+## Ink look on the ground (2026-11-18)
+`Painted/Ground` has two off-by-default keywords from the Ink Look experiment: ink detail sheets and Don't Starve-style
+tile transitions (grid-snapped marching squares off the same SDF corners). See `Shaders.md`, "Ink look experiment".
+
 ## Traps
 - Tile subscenes are `AutoLoadScene=false` and draw nothing in the Scene view when closed; `TerrainOpenTilesSessionRestore` (TerrainTilesPanel.cs) reopens every `Tile_*` subscene for ~10 s after a reload, scene open or Play exit. Closing a tile on purpose lasts until the next one of those.
 - A test that creates GameObjects in the ACTIVE scene can leak them, and any later `SaveScene(active)` (tile creation does this) writes them into CampLoop.unity (it grew by 100k lines). Scatter tests run in `EditorSceneManager.NewPreviewScene()` (an additive `NewScene` throws "untitled scene unsaved" because the test runner leaves an untitled scene open); check `git diff --stat Assets/Scenes/CampLoop.unity` after any test run that touches scene objects.

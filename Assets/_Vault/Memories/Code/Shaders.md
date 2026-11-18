@@ -45,6 +45,20 @@ per-object response would need a material-ID buffer).
 - `Nodes/Lighting/CelShaded*.hlsl` are now unreferenced by production graphs (parked, not deleted).
 - **Not yet seen in the Editor as of writing** — if this note still says so, the look is unverified.
 
+## Ink look experiment — hatch, ink detail, tile transitions (2026-11-18)
+
+Spec + build log: `Tasks/Verification/InkLook_System.md`; owner look pass `verify-ink-look.md`. All off by default.
+- **Hatch + paper grain live in `PaintedLighting_float`**, gated by `_StitchHatchParams` (x strength, w grain; both 0 =
+  no texture tap). Dials on `TerrainLightingBridge` ("Ink look"); hatch texture unassigned = off. Space mode 2
+  anchors to `GetObjectToWorldMatrix()` origin, except where the includer defines `STITCH_HATCH_WORLD_ANCHORED`
+  (the ground does: an anchored tile origin on yawed camera axes would break the hatch at every 100 m seam).
+- **Ground** (`Painted/Ground`): `_INK_DETAIL` multiplies each layer by its `T_InkDetail_*` sheet and inks the lines
+  into the layer colour (`InkedLayer`); `_GROUND_TRANSITION_TILES` swaps the fringe for `PaintedTransitionTile_float`
+  (world splat map only; vertex-colour splats fall back to the fringe).
+- **Checking a shader variant compiles:** `ShaderUtil.CompilePass(material, passIndex, true)` on a temp material with
+  the keywords enabled, then `ShaderUtil.GetShaderMessages(shader)`. One variant per `execute_code` call: compiling
+  every pass of several variants in one call timed out silently (null result).
+
 ## Reflection-API node convention (Unity 6.5+)
 
 `.hlsl` files that `#include "ShaderApiReflectionSupport.hlsl"` (package-provided;

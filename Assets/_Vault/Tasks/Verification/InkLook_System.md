@@ -1,6 +1,6 @@
 ---
 title: Ink Look (hand-drawn detail, hatched shadows, tiled ground transitions)
-status: spec ready (exploration)
+status: built T1-T5 2026-11-18, T6 owner look pass open
 created: 2026-11-18
 area: Shaders / PaintedGround
 ---
@@ -219,6 +219,29 @@ placeholders with no code change; units/props get their own detail sheet only if
 - With every new dial at 0 the frame must be identical to before (diff a capture).
 - T2: captures of a shadowed unit and shadowed ground in modes 0/1/2, then a short pan; the swim check needs the owner's eye.
 - T5: a capture where a grass patch crosses a 100 m tile seam, and one at a saddle (two diagonal corners).
+
+## Build log (2026-11-18, T1-T5)
+
+All of T1-T5 built inline; C# gate + lint pass on `StitchPunk.MonoBehaviours`; `Painted/Ground` (world-texture and
+vertex-colour variants, every new keyword on), Ribbon, TreeCard, Glass and the `2DShader` graph compile with no messages
+(`ShaderUtil.CompilePass(material, pass, true)` per variant, then `GetShaderMessages`). Nothing seen on screen yet.
+
+Where the build differs from the text above:
+- **Detail lines are inked into the layer colour**, not `max`-ed into the shared `ink` channel (`InkedLayer` in
+  `PaintedGround.shader`). Same pen (`_InkColor`), but the lines are covered exactly as far as the layer is; a shared
+  channel would have let a buried layer's lines show through the layer painted over it.
+- **Ink detail is behind a keyword** (`_INK_DETAIL`, default off) as well as the strength vector, so an off material
+  costs no extra samples.
+- **Mode 2 never anchors the ground.** `PaintedGround.shader` defines `STITCH_HATCH_WORLD_ANCHORED` before including the
+  core: subtracting a tile origin projected on yawed camera axes is not a whole number of hatch tiles, so the hatch
+  would have jumped at every 100 m seam. Units, props and graphs still anchor to their object origin.
+- **Hatch and grain skip the texture tap when both dials are 0** (uniform branch), so the "all dials 0 = identical"
+  check holds by construction.
+- **Tile transitions need the world splat map**; with `_SPLAT_VERTEXCOLOR` the keyword falls back to the fringe.
+  The atlas is sampled with `SampleGrad` from the continuous cell coordinate so cell borders do not drop to the
+  smallest mip in a one-pixel line.
+- **Material staged:** `Terrain/TestWorld/Tile_0_0/M_Ground_Tile_0_0.mat` has the detail sheets (Base Dirt, R/G Grass,
+  B Cobble) and the atlas assigned, both keywords off. The bridge's hatch texture is not assigned in any scene yet.
 
 ## Open decisions
 

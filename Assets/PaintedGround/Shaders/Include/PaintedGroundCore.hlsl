@@ -99,6 +99,43 @@ void PaintedFringe_float(Texture2D fringe, SamplerState ss,
 }
 
 // ---------------------------------------------------------------------------------------------
+// 3b. Tile transition (Don't Starve style), same in/out shape as PaintedFringe_float.
+//     The border art is drawn in tile space so it never bends round a curve: each grid cell takes
+//     the 16-case marching-squares pattern of its 4 corner weights and samples that pre-drawn cell.
+//     cornerWeights = (top-left, top-right, bottom-right, bottom-left), top = +Z. Corners are shared
+//     with the neighbouring cells, so neighbours always agree and no seam can open.
+//     Atlas: 8 x 4 cells, case c variant v at column c % 8, row c / 8 + 2v. R coverage, G rim, B ink.
+// ---------------------------------------------------------------------------------------------
+void PaintedTransitionTile_float(Texture2D atlas, SamplerState ss,
+                                 float4 cornerWeights, float2 cellCoordinate, float variantSeed,
+                                 float3 layerCol, float3 colIn, float inkIn, float rimIn,
+                                 out float3 colOut, out float inkOut, out float rimOut)
+{
+    float4 cornerInside = step(0.5, cornerWeights);
+    float  caseIndex = dot(cornerInside, float4(1, 2, 4, 8));
+    float2 cellIndex = floor(cellCoordinate);
+    float2 cellLocal = frac(cellCoordinate);
+    float  variant = step(0.5, frac(sin(dot(cellIndex + variantSeed, float2(12.9898, 78.233))) * 43758.5453));
+
+    // Half a texel inset (128 px cells) so bilinear filtering never reads the neighbouring atlas cell.
+    const float halfTexelInCell = 0.5 / 128.0;
+    float2 insetLocal = clamp(cellLocal, halfTexelInCell, 1.0 - halfTexelInCell);
+    float  atlasColumn = fmod(caseIndex, 8.0);
+    float  atlasRow = floor(caseIndex / 8.0) + 2.0 * variant;
+    float2 atlasUV = float2((atlasColumn + insetLocal.x) / 8.0, 1.0 - (atlasRow + 1.0 - insetLocal.y) / 4.0);
+
+    // Gradients from the continuous coordinate: the frac() jump at cell borders would pick the smallest mip in a one-pixel line.
+    float2 atlasDdx = ddx(cellCoordinate) / float2(8.0, 4.0);
+    float2 atlasDdy = ddy(cellCoordinate) / float2(8.0, 4.0);
+    float3 tile = atlas.SampleGrad(ss, atlasUV, atlasDdx, atlasDdy).rgb;
+
+    float a = tile.r;
+    colOut = lerp(colIn, layerCol, a);
+    rimOut = max(rimIn * (1.0 - a), tile.g);
+    inkOut = max(inkIn * (1.0 - a), tile.b);
+}
+
+// ---------------------------------------------------------------------------------------------
 // 4. Macro variation, rim and ink, applied once at the end.
 // ---------------------------------------------------------------------------------------------
 void PaintedFinish_float(float3 col, float macroNoise, float3 macroDark, float3 macroLight,
@@ -134,8 +171,45 @@ float _StitchShadowBandHardness;  // 0 = soft painted falloff, 1 = hard cel edge
 float4x4 _StitchTintedShadowWorldToLight;  // world position -> (u, v, depth01), depth01 = 0 nearest the sun
 float4 _StitchTintedShadowParams;          // x = enabled, y = depth bias, z = strength
 
+// Ink look, pushed by TerrainLightingBridge. Hatch strength and grain both 0 when unset = no change.
+float4 _StitchHatchParams;  // x = hatch strength, y = metres per hatch tile, z = space mode (0 world, 1 camera plane, 2 camera plane + object anchor), w = paper grain
+float4 _StitchInkColor;     // rgb = the one ink colour
+float4 _StitchHatchBoil;    // x = boil frames per second (0 = off), y = boil offset in tiles
+
 #ifndef SHADERGRAPH_PREVIEW
 TEXTURE2D(_StitchTintedShadowTexture);     // rgb = colour the sunlight was filtered to, a = depth01 of the nearest glass
+TEXTURE2D(_StitchHatchTexture);            // R = "/" hatch strokes, G = paper grain (0.5 neutral)
+
+// The ground defines STITCH_HATCH_WORLD_ANCHORED: its 100 m tiles must stay world-fixed, and an object-anchored phase would
+// jump at every tile seam whenever the camera is yawed off the world axes.
+float2 StitchHatchUV(float3 positionWS, float3 normalWS)
+{
+    float spaceMode = _StitchHatchParams.z;
+    float2 planeCoordinates;
+    if (spaceMode < 0.5)
+    {
+        float3 absoluteNormal = abs(normalWS);
+        if (absoluteNormal.y >= max(absoluteNormal.x, absoluteNormal.z))
+            planeCoordinates = positionWS.xz;
+        else if (absoluteNormal.x >= absoluteNormal.z)
+            planeCoordinates = positionWS.zy;
+        else
+            planeCoordinates = positionWS.xy;
+    }
+    else
+    {
+        float3 anchoredPosition = positionWS;
+    #ifndef STITCH_HATCH_WORLD_ANCHORED
+        if (spaceMode > 1.5)
+            anchoredPosition -= GetObjectToWorldMatrix()._m03_m13_m23;
+    #endif
+        planeCoordinates = float2(dot(anchoredPosition, UNITY_MATRIX_V[0].xyz), dot(anchoredPosition, UNITY_MATRIX_V[1].xyz));
+    }
+
+    float boilFrame = _StitchHatchBoil.x > 0.0 ? fmod(floor(_Time.y * _StitchHatchBoil.x), 3.0) : 0.0;
+    float2 boilOffset = boilFrame * _StitchHatchBoil.y * float2(0.37, 0.61);
+    return planeCoordinates / max(_StitchHatchParams.y, 0.01) + boilOffset;
+}
 
 float3 StitchTintedSunlight(float3 positionWS)
 {
@@ -187,6 +261,17 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
 
     lighting = SampleSH(half3(0, 1, 0)) * ambientTint * lerp(float3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
     lighting += mainLight.color * StitchTintedSunlight(positionWS) * (shade * ndl);
+
+    // Hatching only adds strokes inside the one shadow tone, never a second darkness level. Point lights are
+    // added after it, so a lamp lifts the surroundings of the strokes but not the strokes themselves.
+    if (_StitchHatchParams.x > 0.0 || _StitchHatchParams.w > 0.0)
+    {
+        float  sunBlocked = 1.0 - shade * ndl;
+        float2 hatchTap = SAMPLE_TEXTURE2D(_StitchHatchTexture, sampler_LinearRepeat, StitchHatchUV(positionWS, normalWS)).rg;
+        float  hatchInkAmount = hatchTap.r * smoothstep(0.35, 0.65, sunBlocked) * _StitchHatchParams.x;
+        lighting *= lerp(float3(1, 1, 1), _StitchInkColor.rgb, hatchInkAmount);
+        lighting *= lerp(1.0, hatchTap.g * 2.0, _StitchHatchParams.w);
+    }
 
     #if defined(_ADDITIONAL_LIGHTS) || defined(_ADDITIONAL_LIGHTS_VERTEX)
         #if USE_CLUSTER_LIGHT_LOOP
