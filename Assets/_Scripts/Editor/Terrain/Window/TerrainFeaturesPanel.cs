@@ -112,7 +112,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         features.AddRange(Object.FindObjectsByType<TerrainPath>(FindObjectsInactive.Include));
         areaCount = features.Count;
 
-        bool noRecipesAtAll = FindAssetsOfType<TerrainFeatureRecipe>().Count == 0 && FindAssetsOfType<TerrainForestRecipe>().Count == 0;
+        bool noRecipesAtAll = FindAssetsOfType<TerrainFeatureRecipe>().Count == 0;
         if (noRecipesAtAll && features.Count == 0)
         {
             contentHost.Add(TerrainUi.MakeEmpty("No recipes yet", "A recipe says what a feature looks like and how it is placed. Make one to start drawing features.", "Create recipe...", () => { pickerOpen = true; choosingPlacerKind = true; Refresh(); }));
@@ -153,15 +153,13 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         }
 
         List<TerrainFeatureRecipe> featureRecipes = FindAssetsOfType<TerrainFeatureRecipe>();
-        List<TerrainForestRecipe> forestRecipes = FindAssetsOfType<TerrainForestRecipe>();
 
         TerrainFeatureCategory[] categories = (TerrainFeatureCategory[])System.Enum.GetValues(typeof(TerrainFeatureCategory));
         string[] categoryTitles = { "Areas", "Lines and fences", "Ground cover" };
         foreach (TerrainFeatureCategory category in categories)
         {
-            bool isAreas = category == TerrainFeatureCategory.Areas;
             List<TerrainFeatureRecipe> inCategory = featureRecipes.FindAll((TerrainFeatureRecipe recipe) => recipe.category == category);
-            if (inCategory.Count == 0 && !(isAreas && forestRecipes.Count > 0)) continue;
+            if (inCategory.Count == 0) continue;
 
             Label header = new Label(categoryTitles[(int)category]);
             header.AddToClassList("toolkit-hint");
@@ -171,21 +169,13 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
                 TerrainFeatureRecipe capturedRecipe = recipe;
                 pickerBody.Add(BuildPickerRow(recipe, RecipeDisplayName(recipe), ShapeMeta(recipe.supportedShapes), () => PickFeatureRecipe(capturedRecipe)));
             }
-            if (isAreas)
-            {
-                foreach (TerrainForestRecipe forestRecipe in forestRecipes)
-                {
-                    TerrainForestRecipe capturedForest = forestRecipe;
-                    pickerBody.Add(BuildPickerRow(forestRecipe, forestRecipe.name, "legacy", () => ArmOutline(capturedForest)));
-                }
-            }
         }
 
         pickerBody.Add(TerrainUi.MakeSecondary("Create recipe...", ToolkitIcons.Plus, "Make a new feature recipe asset", () => { choosingPlacerKind = true; Refresh(); }));
         return pickerCard;
     }
 
-    VisualElement BuildPickerRow(TerrainAreaRecipe recipe, string title, string meta, System.Action onPick)
+    VisualElement BuildPickerRow(TerrainFeatureRecipe recipe, string title, string meta, System.Action onPick)
     {
         VisualElement row = new VisualElement();
         row.AddToClassList("toolkit-list-row");
@@ -265,23 +255,23 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         Refresh();
     }
 
-    void ApplyThumbnail(VisualElement chip, TerrainAreaRecipe recipe)
+    void ApplyThumbnail(VisualElement chip, TerrainFeatureRecipe recipe)
     {
-        TerrainFeatureRecipe featureRecipe = recipe as TerrainFeatureRecipe;
-        if (featureRecipe != null && featureRecipe.thumbnail != null)
+        if (recipe.thumbnail != null)
         {
-            chip.style.backgroundImage = new StyleBackground(featureRecipe.thumbnail);
+            chip.style.backgroundImage = new StyleBackground(recipe.thumbnail);
             return;
         }
 
-        TerrainForestRecipe forestRecipe = recipe as TerrainForestRecipe;
-        if (forestRecipe != null && forestRecipe.cardAtlas != null && forestRecipe.cardAtlas.material != null
-            && forestRecipe.cardAtlas.spriteUvRects != null && forestRecipe.cardAtlas.spriteUvRects.Count > 0)
+        TerrainFillPlacer fillPlacer = recipe.placer as TerrainFillPlacer;
+        TerrainCardAtlas cardAtlas = fillPlacer != null ? fillPlacer.cardAtlas : null;
+        if (cardAtlas != null && cardAtlas.material != null
+            && cardAtlas.spriteUvRects != null && cardAtlas.spriteUvRects.Count > 0)
         {
-            Texture2D atlasTexture = forestRecipe.cardAtlas.material.mainTexture as Texture2D;
+            Texture2D atlasTexture = cardAtlas.material.mainTexture as Texture2D;
             if (atlasTexture != null)
             {
-                Rect uvRect = forestRecipe.cardAtlas.spriteUvRects[0];
+                Rect uvRect = cardAtlas.spriteUvRects[0];
                 Rect pixelRect = new Rect(uvRect.x * atlasTexture.width, uvRect.y * atlasTexture.height, uvRect.width * atlasTexture.width, uvRect.height * atlasTexture.height);
                 if (pixelRect.width >= 1f && pixelRect.height >= 1f)
                 {
@@ -490,14 +480,6 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
             if (asset != null) assets.Add(asset);
         }
         return assets;
-    }
-
-    void ArmOutline(TerrainAreaRecipe recipe)
-    {
-        pickerOpen = false;
-        armedRecipe = recipe;
-        TerrainFeatureTool.BeginDrawOutline(recipe);
-        Refresh();
     }
 
     void TogglePicker()
