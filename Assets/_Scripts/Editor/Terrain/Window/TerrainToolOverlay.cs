@@ -38,15 +38,49 @@ public sealed class TerrainToolOverlay : Overlay
         {
             TerrainSceneHud.Changed -= rebuildOnHudChanged;
             TerrainSceneHud.Changed += rebuildOnHudChanged;
+            TerrainFeatureTool.DrawStateChanged -= rebuildOnHudChanged;
+            TerrainFeatureTool.DrawStateChanged += rebuildOnHudChanged;
             Rebuild(root);
         });
-        root.RegisterCallback<DetachFromPanelEvent>(detachEvent => TerrainSceneHud.Changed -= rebuildOnHudChanged);
+        root.RegisterCallback<DetachFromPanelEvent>(detachEvent =>
+        {
+            TerrainSceneHud.Changed -= rebuildOnHudChanged;
+            TerrainFeatureTool.DrawStateChanged -= rebuildOnHudChanged;
+        });
         return root;
     }
 
     private void ApplyVisibility()
     {
         displayed = TerrainEditorVisibility.ToolsLive;
+    }
+
+    private static VisualElement BuildShapeRow(TerrainFeatureRecipe drawRecipe)
+    {
+        TerrainFeatureShapeKind[] shapeKinds =
+        {
+            TerrainFeatureShapeKind.Curve,
+            TerrainFeatureShapeKind.Straight,
+            TerrainFeatureShapeKind.Box,
+            TerrainFeatureShapeKind.Circle,
+            TerrainFeatureShapeKind.Polygon
+        };
+        string[] shapeLabels = { "Curve", "Line", "Box", "Circle", "Poly" };
+
+        VisualElement segmented = TerrainUi.MakeSegmented(
+            shapeLabels,
+            (int)TerrainFeatureTool.DrawShape,
+            (int selectedIndex) => TerrainFeatureTool.SetDrawShape(shapeKinds[selectedIndex]));
+
+        for (int shapeIndex = 0; shapeIndex < shapeKinds.Length && shapeIndex < segmented.childCount; shapeIndex++)
+        {
+            bool shapeClosed;
+            bool shapeAllowed = TerrainFeatureShapes.IsAllowed(shapeKinds[shapeIndex], drawRecipe.supportedShapes, out shapeClosed);
+            VisualElement segmentItem = segmented[shapeIndex];
+            segmentItem.tooltip = (shapeIndex + 1).ToString() + "  " + shapeKinds[shapeIndex].ToString();
+            segmentItem.SetEnabled(shapeAllowed);
+        }
+        return segmented;
     }
 
     private static void Rebuild(VisualElement root)
@@ -59,6 +93,12 @@ public sealed class TerrainToolOverlay : Overlay
             Label titleLabel = new Label(toolName);
             titleLabel.AddToClassList(TitleClassName);
             root.Add(titleLabel);
+        }
+
+        TerrainFeatureRecipe drawRecipe = TerrainFeatureTool.IsDrawing ? TerrainFeatureTool.DrawRecipe : null;
+        if (drawRecipe != null)
+        {
+            root.Add(BuildShapeRow(drawRecipe));
         }
 
         IReadOnlyList<TerrainKeyHint> hints = TerrainSceneHud.ActiveHints;
