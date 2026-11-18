@@ -93,6 +93,7 @@ When auditing this folder, the status line in each doc is the thing that rots, n
 | **World Features** (forests, farmland, villages and rail as drawable shapes; stamps and a world sketcher that only create editable features; cuttable trees with a respawn ledger; rail graph and stations for rideable trains) | [WorldFeatures_System.md](WorldFeatures_System.md) | 📝 spec written 2026-11-11; spikes WF-S1 to WF-S4 first; open decisions WF-Q1 to WF-Q7 |
 | **Feature Placement** (features are shapes + a placer; placed prefabs own their behaviour; `+ New feature`, straight/curve/box/circle/polygon shapes, fences that block and break, tall grass that bends, wheat that vehicles mow flat; terrain Scene overlay shown only while the Terrain Editor tab is visible) | [FeaturePlacement_System.md](FeaturePlacement_System.md) | ✅ spec ready 2026-11-13; FP-S0 then FP-0; open FP-Q1 to FP-Q6 |
 | Human → Zombie Conversion | — | ⬜ not started |
+| **Ink Look** (hand-drawn ink exploration: diagonal hatched shadows in the shared lighting function, ground ink-detail array, Don't Starve-style marching-squares ground transitions; placeholders in `PaintedGround/Textures/Ink/`) | [InkLook_System.md](InkLook_System.md) | ✅ spec ready, P0 placeholders done 2026-11-18 |
 | Menu UI | — | ⬜ not started |
 | Interactions/Behaviors (bulk, AI-assisted SO setup) | — | ⬜ not started |
 | Trade System Group | — | 🔍 built (WorldTimeSystemGroup + TradeSystemGroup + TradeInputSystemGroup); play-test owed |
