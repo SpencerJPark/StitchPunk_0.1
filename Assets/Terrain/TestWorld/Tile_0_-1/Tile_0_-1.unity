@@ -269,6 +269,8 @@ MonoBehaviour:
   cellsPerSide: 100
   layerCount: 1
   coordinate: {x: 0, y: -1}
+  bakedFromTileDataRevision: 131
+  bakedFromBlockerHash: 0
 --- !u!1 &104894060
 GameObject:
   m_ObjectHideFlags: 0
@@ -358,7 +360,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 104894060}
-  m_Mesh: {fileID: -386712744153181153, guid: 40ce47f954e2f1f4eaa1873fc24f547a, type: 2}
+  m_Mesh: {fileID: 7396214291567624531, guid: 40ce47f954e2f1f4eaa1873fc24f547a, type: 2}
 --- !u!1 &404616137
 GameObject:
   m_ObjectHideFlags: 0

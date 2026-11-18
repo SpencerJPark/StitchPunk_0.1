@@ -81,6 +81,7 @@ Material:
     - _ShadowStrength: 0.6
     - _Splat: 1
     - _SplatGradStep: 1.22
+    - _StrategicProxy: 0
     - _UseCliffs: 1
     - _UseSecond: 1
     m_Colors:

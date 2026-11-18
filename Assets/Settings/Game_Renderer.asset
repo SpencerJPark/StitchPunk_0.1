@@ -16,12 +16,13 @@ MonoBehaviour:
   settings:
     outlineLayerMask:
       serializedVersion: 2
-      m_Bits: 1928
+      m_Bits: 1920
+    flattenedRenderingLayerMask: 1073741824
     robertsCrossMaterial: {fileID: 2100000, guid: 14a97ad2ce613324f999eb312ce251b4, type: 2}
     normalCaptureShader: {fileID: 4800000, guid: ad2b20eee37990d4eaa5a0839c82812f, type: 3}
     robertsCrossMultiplier: 1
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
-    outlineThickness: 1.5
+    outlineThickness: 1
     depthThreshold: 0.1
     normalThreshold: 0.3
     renderPassEvent: 300
@@ -118,7 +119,8 @@ MonoBehaviour:
   - {fileID: -5118561301527254510}
   - {fileID: -426405127042186823}
   - {fileID: -712246035429518486}
-  m_RendererFeatureMap: 122a68959d37f7b8b9c13ed0cb1a15fa6a138b2101981df6
+  - {fileID: 7312045518830964211}
+  m_RendererFeatureMap: 122a68959d37f7b8b9c13ed0cb1a15fa6a138b2101981df6f30d6893a89a7965
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_AssetVersion: 3
@@ -147,3 +149,27 @@ MonoBehaviour:
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 0
   m_TileOnlyMode: 0
+--- !u!114 &7312045518830964211
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f7401125d4ab094e9b9cd6e69716ac9, type: 3}
+  m_Name: TintedGlassShadowFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  settings:
+    layerMask:
+      serializedVersion: 2
+      m_Bits: 4294967295
+    textureSize: 1024
+    coverageRadius: 40
+    focusDistance: 20
+    depthRange: 200
+    depthBias: 0.002
+    strength: 1
+    renderPassEvent: 250

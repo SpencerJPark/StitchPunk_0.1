@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 571debd1ffe39b34aafc4f2fc0d473bf, type: 3}
+  m_Name: tree1_Cutout
+  m_EditorClassIdentifier: DotsAnimationToolkit.Editor::DotsAnimationToolkit.Editor.CutoutAsset
+  flipbook: {fileID: 2800000, guid: 35063f49d7d57aa4581a1d4d984934c2, type: 3}
+  pixelsPerUnit: 100
+  outlinePixels:
+  - {x: 29, y: 86}
+  - {x: 101.32198, y: 0.724823}
+  - {x: 167.84212, y: 4.637771}
+  - {x: 220, y: 66}
+  - {x: 249.40253, y: 117.748436}
+  - {x: 239.45923, y: 321.58575}
+  - {x: 157.6997, y: 493.56268}
+  - {x: 126.79311, y: 512.87933}
+  - {x: 16.441605, y: 353.26373}
+  - {x: 6.451869, y: 205.91507}
+  originPixels: {x: 128, y: 0}
+  artPositionWorld: {x: 0, y: 0}
+  innerEdges: []
+  facing: 0
+  normalMode: 0
+  roundness: 0.5
+  fitVertexBudget: 10
+  fitPaddingPixels: 2
+  referenceImage: {fileID: 0}
+  referenceRectWorld:
+    serializedVersion: 2
+    x: -0.5
+    y: 0
+    width: 1
+    height: 1
+  referenceOpacity: 0.6
+  outputMesh: {fileID: 4300000, guid: 5f1cd03c164abad4ea9ba37f513db1cc, type: 2}
+  outputPath: Assets/Models/UnitMeshes/tree1.asset

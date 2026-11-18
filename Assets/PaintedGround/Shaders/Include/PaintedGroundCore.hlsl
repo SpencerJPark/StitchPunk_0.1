@@ -126,6 +126,39 @@ float4 _TerrainAmbientColor;   // rgb = ambient multiplier, a = blend amount (0 
 float _TerrainLightningFlash;  // added to the final lighting
 float _TerrainGroundExposureBoost;  // lighting is multiplied by 1 + this (0 = off); set by WorldAtmosphereDriver
 
+// Global look dials, pushed by TerrainLightingBridge. Both read 0 when unset, which changes nothing.
+float _StitchShadowSoftening;     // 0 = each material's own shadow strength, 1 = no cast shadows anywhere
+float _StitchShadowBandHardness;  // 0 = soft painted falloff, 1 = hard cel edge on shadows and form shading
+
+// Coloured light through glass, written by TintedGlassShadowFeature. Params x = 0 when the feature is absent.
+float4x4 _StitchTintedShadowWorldToLight;  // world position -> (u, v, depth01), depth01 = 0 nearest the sun
+float4 _StitchTintedShadowParams;          // x = enabled, y = depth bias, z = strength
+
+#ifndef SHADERGRAPH_PREVIEW
+TEXTURE2D(_StitchTintedShadowTexture);     // rgb = colour the sunlight was filtered to, a = depth01 of the nearest glass
+
+float3 StitchTintedSunlight(float3 positionWS)
+{
+    if (_StitchTintedShadowParams.x < 0.5)
+        return float3(1, 1, 1);
+
+    float3 lightCoord = mul(_StitchTintedShadowWorldToLight, float4(positionWS, 1.0)).xyz;
+    if (any(lightCoord.xy < 0.0) || any(lightCoord.xy > 1.0))
+        return float3(1, 1, 1);
+
+    float4 glass = SAMPLE_TEXTURE2D_LOD(_StitchTintedShadowTexture, sampler_LinearClamp, lightCoord.xy, 0);
+    // Only surfaces further from the sun than the glass are tinted, so the glass itself and anything above it stay clean.
+    float behindGlass = step(glass.a + _StitchTintedShadowParams.y, lightCoord.z);
+    return lerp(float3(1, 1, 1), glass.rgb, behindGlass * _StitchTintedShadowParams.z);
+}
+
+float StitchBandedLightAmount(float lightAmount, float bandCentre, float bandHalfWidth)
+{
+    float banded = smoothstep(bandCentre - bandHalfWidth, bandCentre + bandHalfWidth, lightAmount);
+    return lerp(lightAmount, banded, saturate(_StitchShadowBandHardness));
+}
+#endif
+
 void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
                            float3 ambientTint, float shadowStrength, float ndotlInfluence,
                            float pointBoost, out float3 lighting)
@@ -147,11 +180,13 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
 
     // The positionWS overload applies URP's soft fade near the shadow distance; the shadowCoord-only one cuts shadows off in a hard line.
     Light mainLight = GetMainLight(shadowCoord, positionWS, half4(1, 1, 1, 1));
-    float shade = lerp(1.0, mainLight.shadowAttenuation, shadowStrength);
-    float ndl   = lerp(1.0, saturate(dot(normalWS, mainLight.direction)), ndotlInfluence);
+    float castShadow  = StitchBandedLightAmount(mainLight.shadowAttenuation, 0.5, 0.05);
+    float formShading = StitchBandedLightAmount(saturate(dot(normalWS, mainLight.direction)), 0.025, 0.025);
+    float shade = lerp(1.0, castShadow, shadowStrength * (1.0 - saturate(_StitchShadowSoftening)));
+    float ndl   = lerp(1.0, formShading, ndotlInfluence);
 
     lighting = SampleSH(half3(0, 1, 0)) * ambientTint * lerp(float3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
-    lighting += mainLight.color * (shade * ndl);
+    lighting += mainLight.color * StitchTintedSunlight(positionWS) * (shade * ndl);
 
     #if defined(_ADDITIONAL_LIGHTS) || defined(_ADDITIONAL_LIGHTS_VERTEX)
         #if USE_CLUSTER_LIGHT_LOOP

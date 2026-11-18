@@ -300,6 +300,8 @@ MonoBehaviour:
   cellsPerSide: 100
   layerCount: 1
   coordinate: {x: 1, y: -1}
+  bakedFromTileDataRevision: 257
+  bakedFromBlockerHash: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
