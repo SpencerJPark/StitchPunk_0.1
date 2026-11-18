@@ -194,7 +194,7 @@ If SP-1 fails because snapshot entities carry managed references that cannot be 
 | [x] | SL-3-3 **[parallel-safe]** | `MonoBehaviours/BootFlow.cs` | gate only. Implements 6.4 and SM-D10; logs `[BootFlow] preload ms`, then `continue→control ms` |
 | [x] | SL-3-4 **[parallel-safe]** | `Editor/Boot/SkipTitleInEditorMenu.cs` | gate only. Menu toggle plus checkmark, stored in `EditorPrefs` |
 | [x] | SL-3-5 **[shared, terrain peer]** | the terrain streaming focus (file named by a Haiku grep for the streaming focus source) | gate only. Adds an override focus position that `BootFlow` sets before the hold is released. **Tell the terrain session first** |
-| [ ] | SL-3-6 **[orchestrator]** | `Game.unity`, build settings | Add `BootFlow` and the title camera to `Game.unity`; replace the missing `Main.unity` entry with `Game.unity`; retire `MainMenuUI.cs` once nothing references it. Play: the title appears in under 2 s, the world is frozen behind it, and Continue reaches control in under 0.5 s (measured from the log) |
+| [x] | SL-3-6 **[orchestrator]** | `Game.unity`, build settings | Add `BootFlow` and the title camera to `Game.unity`; replace the missing `Main.unity` entry with `Game.unity`; retire `MainMenuUI.cs` once nothing references it. Play: the title appears in under 2 s, the world is frozen behind it, and Continue reaches control in under 0.5 s (measured from the log) |
 
 ### Phase 4: menus (UI Toolkit v1 behind the seam)
 
@@ -270,3 +270,12 @@ Files that need a solo Sonnet worker: `SystemGroups.cs`, `PersistentSaveSystem.c
   - **Risk for the play check:** PlayerUnit is *placed* in the CampLoop/TerrainWorld subscenes, so after a commit the authored player could come back as a duplicate if its subscene ever unloads and reloads mid-session.
   - **Build settings:** Game.unity only, at index 0 (`Main.unity` removed).
   - **Tests:** `Tests/PlayMode/Save/MomentSnapshotTests.cs` (3) and `SaveFallbackTests.cs` (1; a size mismatch skips only that component) pass the gate but have **not run**: a peer's dirty TerrainWorld.unity blocks the scene switch PlayMode needs.
+- 2026-11-17 SL-3-6 + title play check (CampLoop, Skip off):
+  - **Passed:** world held behind the title; Splash and Main captured (in `Captures/`); Continue → commit 3 ms; `continue->control 10 ms`; no errors after the commit.
+  - **Fixed:**
+    - `BootFlow`'s load query named the enableable `LoadRequest`, so `GetSingletonEntity` threw.
+    - The title text wrapped onto three lines.
+    - Gameplay HUDs showed over the title. They are now hidden while it is up: any UIDocument with sortingOrder < 90.
+    - A commit replaces the player entity, so its stale handle crashed 13 managed and system caches. Each now re-resolves when its cached handle stops existing or loses its marker (Player / WorkstationSummonOption): PlayerInputManager, UnitSelectionManager, CameraTarget, CameraZoom, Dialogue, CutsceneDebugTrigger, WorkstationMenuUI, MinionGroupHUD, OutlineUI, UnitSelectionBox, UnitSelectionCursor, InteractionHighlightSystem.
+  - **Wiring:** `Game.unity` has no GameData or Player, so Continue there drops into the authored scene. CampLoop has the full flow, and its Options opens `SettingsMenuUI`.
+  - **Still open:** SL-4-7 captures (LoadList, Confirm, pause menu, save list) plus the gamepad-only walk-through; retire the spec to Verification (draft `verify-save-and-title.md` exists).

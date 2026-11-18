@@ -111,7 +111,8 @@ public class OutlineUI : MonoBehaviour, IUpdateObserver
     
     private bool ShouldRenderOutline()
     {
-        if (playerEntity == Entity.Null || !entityManager.Exists(playerEntity))
+        // Loading a save replaces the player entity; re-resolve when the cached handle died.
+        if (playerEntity == Entity.Null || !entityManager.Exists(playerEntity) || !entityManager.HasComponent<Player>(playerEntity))
         {
             EntityQuery playerQuery = entityManager.CreateEntityQuery(typeof(Player));
             

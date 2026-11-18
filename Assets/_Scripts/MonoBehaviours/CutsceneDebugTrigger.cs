@@ -265,7 +265,8 @@ public class CutsceneDebugTrigger : MonoBehaviour
     // Fires once per issued mark, so a player who then walks away is not fought.
     private void TryAutoWalkPlayerToMark(EntityManager entityManager)
     {
-        if (playerEntity == Entity.Null || !entityManager.Exists(playerEntity))
+        // A save load replaces the player with a new handle, so a cached one must be re-checked, not trusted.
+        if (playerEntity == Entity.Null || !entityManager.Exists(playerEntity) || !entityManager.HasComponent<Player>(playerEntity))
         {
             if (playerQuery.IsEmpty) return;
             playerEntity = playerQuery.GetSingletonEntity();

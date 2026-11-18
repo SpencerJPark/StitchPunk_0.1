@@ -92,7 +92,8 @@ public class CameraZoomController : MonoBehaviour, IUpdateObserver
     {
         if (hasPlayer)
         {
-            if (entityManager.Exists(playerEntity)) return true;
+            // Loading a save replaces the player entity; re-resolve when the cached handle died.
+            if (entityManager.Exists(playerEntity) && entityManager.HasComponent<Player>(playerEntity)) return true;
             hasPlayer = false;
         }
 

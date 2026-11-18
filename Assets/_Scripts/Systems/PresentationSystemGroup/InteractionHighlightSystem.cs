@@ -36,9 +36,18 @@ partial struct InteractionHighlightSystem : ISystem
 
     public void OnUpdate(ref SystemState state)
     {
-        if (playerEntity == Entity.Null || !state.EntityManager.Exists(playerEntity))
+        // A save's moment commit destroys and recreates units, so cached handles can be dead.
+        if (playerEntity == Entity.Null
+            || !state.EntityManager.Exists(playerEntity)
+            || !state.EntityManager.HasComponent<Player>(playerEntity))
         {
             playerEntity = SystemAPI.GetSingletonEntity<Player>();
+        }
+
+        if (previousEntity != Entity.Null && !state.EntityManager.Exists(previousEntity))
+        {
+            highlightChildrenList.Clear();
+            previousEntity = Entity.Null;
         }
 
         FindNextTarget(ref state);
@@ -67,10 +76,15 @@ partial struct InteractionHighlightSystem : ISystem
     [BurstCompile]
     private void FindNextTarget(ref SystemState state)
     {
-        bool hasTarget = state.EntityManager.IsComponentEnabled<Target>(playerEntity);
+        bool hasTarget = state.EntityManager.HasComponent<Target>(playerEntity)
+            && state.EntityManager.IsComponentEnabled<Target>(playerEntity);
         nextEntity = hasTarget
             ? state.EntityManager.GetComponentData<Target>(playerEntity).entity
             : Entity.Null;
+        if (nextEntity != Entity.Null && !state.EntityManager.Exists(nextEntity))
+        {
+            nextEntity = Entity.Null;
+        }
     }
 
     private void ResetPreviousChildren(ref SystemState state)

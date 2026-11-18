@@ -381,6 +381,14 @@ public class DialogueUIManager : MonoBehaviour
     // so this only sees later "advance" presses.
     private bool ConsumeInteractInput()
     {
+        // A save load replaces the player with a new handle, so re-resolve a dead cached one.
+        if (!entityManager.Exists(playerEntity) || !entityManager.HasComponent<Player>(playerEntity))
+        {
+            EntityQuery playerQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Player>());
+            if (playerQuery.IsEmpty) return false;
+            playerEntity = playerQuery.GetSingletonEntity();
+        }
+
         if (!entityManager.IsComponentEnabled<OnInteractPlayerInput>(playerEntity)) return false;
         entityManager.SetComponentEnabled<OnInteractPlayerInput>(playerEntity, false);
         return true;

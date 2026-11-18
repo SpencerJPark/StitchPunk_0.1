@@ -136,7 +136,9 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
 
     private bool TryResolvePlayerEntity()
     {
-        if (playerEntityResolved) return true;
+        // Loading a save replaces the player entity; re-resolve when the cached handle died.
+        if (playerEntityResolved && entityManager.Exists(playerEntity) && entityManager.HasComponent<Player>(playerEntity)) return true;
+        playerEntityResolved = false;
         if (playerQuery.IsEmpty) return false;
         playerEntity = playerQuery.GetSingletonEntity();
         playerEntityResolved = true;

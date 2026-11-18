@@ -143,6 +143,12 @@ public class WorkstationMenuUI : MonoBehaviour
             currentWorkstation = mountedWorkstationEntity;
         }
 
+        if (currentPlayer != Entity.Null && !(entityManager.Exists(currentPlayer) && entityManager.HasComponent<Player>(currentPlayer)))
+            currentPlayer = Entity.Null;
+        if (currentWorkstation != Entity.Null
+            && !(entityManager.Exists(currentWorkstation) && entityManager.HasBuffer<WorkstationSummonOption>(currentWorkstation)))
+            currentWorkstation = Entity.Null;
+
         bool shouldShow = currentWorkstation != Entity.Null;
         if (shouldShow != wasVisible)
         {
@@ -267,6 +273,11 @@ public class WorkstationMenuUI : MonoBehaviour
     {
         if (summonList == null || !entityManager.HasBuffer<WorkstationSummonOption>(currentWorkstation))
             return;
+
+        // A save load replaces the workstation with a new handle; a dead cached handle forces the rebuild.
+        if (builtForWorkstation != Entity.Null
+            && (!entityManager.Exists(builtForWorkstation) || !entityManager.HasBuffer<WorkstationSummonOption>(builtForWorkstation)))
+            builtForWorkstation = Entity.Null;
 
         DynamicBuffer<WorkstationSummonOption> options = entityManager.GetBuffer<WorkstationSummonOption>(currentWorkstation, true);
         if (options.Length == builtSummonOptionCount && builtForWorkstation == currentWorkstation)

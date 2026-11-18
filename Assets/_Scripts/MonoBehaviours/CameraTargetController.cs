@@ -32,7 +32,8 @@ public class CameraTargetController : MonoBehaviour, IUpdateObserver
             _hasPlayer = true;
         }
 
-        if (!_entityManager.Exists(_playerEntity))
+        // Loading a save replaces the player entity; re-resolve when the cached handle died.
+        if (!_entityManager.Exists(_playerEntity) || !_entityManager.HasComponent<Player>(_playerEntity))
         {
             _hasPlayer = false;
             return;
