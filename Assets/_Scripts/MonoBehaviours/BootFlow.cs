@@ -75,8 +75,37 @@ public class BootFlow : MonoBehaviour, ITitleMenuActions
         RefreshSaveList();
         controller = new TitleMenuController(view, this, model);
         controller.Start();
+        HideGameplayHudDocuments();
         backdrop?.Enter();
         PreloadNewestSaveAsync().Forget();
+    }
+
+    // Gameplay HUDs sort below the pause menu (90); the title, options and save indicator sort at or above it.
+    private const float HighestGameplayHudSortingOrder = 89f;
+    private readonly System.Collections.Generic.List<UnityEngine.UIElements.UIDocument> hiddenHudDocuments =
+        new System.Collections.Generic.List<UnityEngine.UIElements.UIDocument>();
+
+    private void HideGameplayHudDocuments()
+    {
+        UnityEngine.UIElements.UIDocument[] documents =
+            FindObjectsByType<UnityEngine.UIElements.UIDocument>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        foreach (UnityEngine.UIElements.UIDocument document in documents)
+        {
+            if (document.sortingOrder > HighestGameplayHudSortingOrder || document.rootVisualElement == null || !document.rootVisualElement.visible)
+                continue;
+            document.rootVisualElement.visible = false;
+            hiddenHudDocuments.Add(document);
+        }
+    }
+
+    private void RestoreGameplayHudDocuments()
+    {
+        foreach (UnityEngine.UIElements.UIDocument document in hiddenHudDocuments)
+        {
+            if (document != null && document.rootVisualElement != null)
+                document.rootVisualElement.visible = true;
+        }
+        hiddenHudDocuments.Clear();
     }
 
     private void DestroyOrphanedMomentEntities()
@@ -235,7 +264,8 @@ public class BootFlow : MonoBehaviour, ITitleMenuActions
 
     private void RequestLoad(string saveId)
     {
-        using (EntityQuery gameDataQuery = entityManager.CreateEntityQuery(typeof(GameDataTag), typeof(LoadRequest)))
+        // LoadRequest is enableable, and GetSingletonEntity refuses queries that name an enableable type.
+        using (EntityQuery gameDataQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<GameDataTag>()))
         {
             if (gameDataQuery.IsEmptyIgnoreFilter)
             {
@@ -283,6 +313,7 @@ public class BootFlow : MonoBehaviour, ITitleMenuActions
         if (world != null && world.IsCreated && entityManager.Exists(focusOverrideEntity))
             entityManager.DestroyEntity(focusOverrideEntity);
         ReleaseHold();
+        RestoreGameplayHudDocuments();
         view?.Hide(titleFadeSeconds);
         backdrop?.Exit(titleFadeSeconds);
         controller?.Stop();

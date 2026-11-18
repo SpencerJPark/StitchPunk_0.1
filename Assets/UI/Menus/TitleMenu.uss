@@ -28,12 +28,12 @@
 }
 
 .game-title {
-    font-size: 96px;
+    font-size: 76px;
     color: rgb(237, 227, 200);
     -unity-font-style: bold;
     letter-spacing: 6px;
     margin-bottom: 48px;
-    white-space: normal;
+    white-space: nowrap;
 }
 
 .screen-heading {
