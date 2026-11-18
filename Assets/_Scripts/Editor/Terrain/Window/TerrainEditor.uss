@@ -651,6 +651,9 @@
 
 .terrain-picker-row .terrain-swatch-chip {
     flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-bottom: 0;
     margin-right: 4px;
 }
 
