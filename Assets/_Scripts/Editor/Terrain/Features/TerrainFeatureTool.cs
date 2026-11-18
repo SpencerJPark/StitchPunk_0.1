@@ -208,6 +208,11 @@ public static class TerrainFeatureTool
     {
         pendingPointsXZ.Clear();
         pendingPointIsSharp.Clear();
+        if (boxDragging || circleDragging)
+        {
+            GUIUtility.hotControl = 0;
+        }
+
         boxDragging = false;
         circleDragging = false;
         TerrainFeaturePreview.Clear();
@@ -383,6 +388,26 @@ public static class TerrainFeatureTool
             }
         }
 
+        EditorUtility.SetDirty(path);
+    }
+
+    private static void ShiftGapIndicesAfterKnotInsert(TerrainPath path, int insertIndex)
+    {
+        bool splitSegmentStartIsGap = path.gapKnotIndices.Contains(insertIndex - 1);
+        for (int gapIndex = 0; gapIndex < path.gapKnotIndices.Count; gapIndex++)
+        {
+            if (path.gapKnotIndices[gapIndex] >= insertIndex)
+            {
+                path.gapKnotIndices[gapIndex]++;
+            }
+        }
+
+        if (splitSegmentStartIsGap && !path.gapKnotIndices.Contains(insertIndex))
+        {
+            path.gapKnotIndices.Add(insertIndex);
+        }
+
+        path.gapKnotIndices.Sort();
         EditorUtility.SetDirty(path);
     }
 
@@ -783,6 +808,13 @@ public static class TerrainFeatureTool
         Undo.RecordObject(container, "Insert Feature Knot");
         Vector3 localPoint = container.transform.InverseTransformPoint(OnGround(closestPoint));
         int insertIndex = Mathf.Clamp(segmentIndex + 1, 1, container.Spline.Count);
+        TerrainPath insertedIntoPath = trackedFeature as TerrainPath;
+        if (insertedIntoPath != null)
+        {
+            Undo.RecordObject(insertedIntoPath, "Insert Feature Knot");
+            ShiftGapIndicesAfterKnotInsert(insertedIntoPath, insertIndex);
+        }
+
         container.Spline.Insert(insertIndex, (float3)localPoint, TangentMode.AutoSmooth);
         selectedKnotIndex = insertIndex;
         EditorUtility.SetDirty(container);
