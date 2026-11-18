@@ -36,6 +36,7 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     private InputAction closeLetterAction;
 
     private bool menuOpen;
+    private bool titleScreenOwnsInput;
     private ActionMaps mapBeforeMenu;
 
     // A panel that needs the real pointer (the trade letter) borrows the pause menu's mode: UI map, free cursor, world frozen.
@@ -316,6 +317,8 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     {
         // Escape cancels a rebind and is also this action's key; that press must not close the menu under the player.
         if (InputRebinding.IsRebinding || Time.frameCount - InputRebinding.LastRebindEndFrame <= 1) return;
+        // UI/Cancel is bound here too; on the title it means Back, never "open the pause menu".
+        if (titleScreenOwnsInput) return;
 
         if (menuOpen)
             CloseMenu();
@@ -350,6 +353,25 @@ public class PlayerInputManager : MonoBehaviour, IUpdateObserver
     }
 
     public bool IsModalUiOpen => modalUiOpen;
+
+    // The UI input module only reads the UI map, so the title gets no key, pad or mouse input while the gameplay map is current.
+    public void BeginTitleScreenInput()
+    {
+        titleScreenOwnsInput = true;
+        playerInput?.SwitchCurrentActionMap(UI_ACTION_MAP_NAME);
+    }
+
+    public void EndTitleScreenInput()
+    {
+        if (!titleScreenOwnsInput) return;
+        titleScreenOwnsInput = false;
+
+        // A loaded save may have the player mounted or driving; restore whatever map its entity carries.
+        if (TryResolvePlayerEntity())
+            ApplyActionMapSwitch(entityManager.GetComponentData<PlayerActionMap>(playerEntity).activeActionMap);
+        else
+            playerInput?.SwitchCurrentActionMap(PLAYER_ACTION_MAP_NAME);
+    }
 
     public bool OpenLetterPressedThisFrame() => openLetterAction != null && openLetterAction.WasPressedThisFrame();
 

@@ -80,6 +80,13 @@ public class BootFlow : MonoBehaviour, ITitleMenuActions
         PreloadNewestSaveAsync().Forget();
     }
 
+    // Start, not Awake: PlayerInputManager.Awake switches to the gameplay map and must run first.
+    private void Start()
+    {
+        if (controller != null && !titleFinished)
+            PlayerInputManager.Instance?.BeginTitleScreenInput();
+    }
+
     // Gameplay HUDs sort below the pause menu (90); the title, options and save indicator sort at or above it.
     private const float HighestGameplayHudSortingOrder = 89f;
     private readonly System.Collections.Generic.List<UnityEngine.UIElements.UIDocument> hiddenHudDocuments =
@@ -314,6 +321,7 @@ public class BootFlow : MonoBehaviour, ITitleMenuActions
             entityManager.DestroyEntity(focusOverrideEntity);
         ReleaseHold();
         RestoreGameplayHudDocuments();
+        PlayerInputManager.Instance?.EndTitleScreenInput();
         view?.Hide(titleFadeSeconds);
         backdrop?.Exit(titleFadeSeconds);
         controller?.Stop();
