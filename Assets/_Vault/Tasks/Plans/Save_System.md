@@ -1,7 +1,7 @@
 # Save System — Design Spec
 
 > **Status:** ◐ partially built — **Phases 1–3 + the bridge landed** (`PersistRegistry`, `SaveSerialization`, `PersistentSaveSystem`, `PersistentLoadSystem`, `MinionRestoreQueue`, `SaveLoadBridge`/`DebugSaveMenu`). **Remaining: Phase 4** (`EntityRemapSystem` — no `Entity`-field remap exists yet, so `UnitEquip`/`PlayerHordeSlot` refs do not survive a reload), **Phase 5** (`TravelAutoSaveSystem`; time autosave works), **Phase 6** (version tolerance, delete-slot, empty-slot handling). `PersistedDesignSlot` was never built — design round-trips some other way; confirm before reviving that ← DECISION.
-> **Superseded 2026-11-13:** phases 4–6 are replaced by [`SaveAndTitle_System.md`](SaveAndTitle_System.md) (moment snapshot layer + title/boot flow). Phases 1–3 remain the progress layer.
+> **Superseded 2026-11-13:** phases 4–6 are replaced by [`SaveAndTitle_System.md`](../Verification/SaveAndTitle_System.md) (moment snapshot layer + title/boot flow). Phases 1–3 remain the progress layer.
 > **Raw source:** [`../futureneedsplan.md`](../futureneedsplan.md) → "SaveSystem" (save data from data components, unique-minion permanence, time + travel autosave, manual save in menu UI)
 
 ---

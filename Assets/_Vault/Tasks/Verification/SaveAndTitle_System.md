@@ -1,7 +1,7 @@
 # Save and Title: exact-moment saves, title menu, instant Continue
 
-> **Status:** 🔨 code built 2026-11-17 (Phases 1-5); open: run SL-2-6 + SL-5-4 fixtures, SL-3-6 Game.unity wiring, play checks SL-2-7 + SL-4-7. Then retire to Verification.
-> **Supersedes:** [`Save_System.md`](Save_System.md) phases 4 to 6 (roadmap M2-6), and covers roadmap M7-7 (menus). Phases 1 to 3 of that spec stay as they are: they become the progress layer below.
+> **Status:** ◐ built 2026-11-17 (Phases 1–5), awaiting the owner's play-test: [verify-save-and-title.md](verify-save-and-title.md). Phase 6 (Rive + backdrop) is unscheduled and becomes its own spec.
+> **Supersedes:** [`Save_System.md`](../Plans/Save_System.md) phases 4 to 6 (roadmap M2-6), and covers roadmap M7-7 (menus). Phases 1 to 3 of that spec stay as they are: they become the progress layer below.
 > **Execution:** the orchestrator (Opus) briefs, gates and observes. **Sonnet** workers and verifiers do the editing and reviewing, and **Haiku** does the greps and inventories. Section 3 says who does what.
 
 ## 0. What the owner asked for
@@ -182,8 +182,8 @@ If SP-1 fails because snapshot entities carry managed references that cannot be 
 | [x] | SL-2-3 **[parallel-safe]** | `SaveSystemGroup/MomentSnapshotCommitSystem.cs` | gate only. Runs `[UpdateAfter(PersistentLoadSystem)]`; commits `PendingMomentCommit` per SM-D4, then sets a `MomentCommitted` flag for this frame so the minion restore path is skipped |
 | [x] | SL-2-4 **[shared]** | `PersistentSaveSystem.cs`, `PersistentLoadSystem.cs` | gate only. Save also writes `moment.bin.gz` and `savedElapsedTime`. On load: if the layout matches, deserialize into staging and set `PendingMomentCommit`, then skip `RestoreMinions`; otherwise use today's path |
 | [x] | SL-2-5 **[parallel-safe]** (one worker per two files) | files from SP-5(b) and SP-5(d) | per item: a static runtime cache is cleared or rebuilt on commit; a stored absolute time either stays valid through SP-3 or becomes a relative "remaining seconds" value |
-| [ ] | SL-2-6 **[parallel-safe]** | `Tests/PlayMode/Save/MomentSnapshotTests.cs` | a unit mid-attack (attack state plus timer) does not return to the same state and timer after Capture → Deserialize → Commit; an altered manifest hash is accepted instead of rejected; a body-part child is missing after commit |
-| [ ] | SL-2-7 **[orchestrator]** | Play check | In `Game.unity`, with Skip on: start a fight, quicksave, wait 5 s, load. The same swings land at the same moment and the projectiles are still in flight. Record the capture time in ms (the hitch) |
+| [x] | SL-2-6 **[parallel-safe]** | `Tests/PlayMode/Save/MomentSnapshotTests.cs` | a unit mid-attack (attack state plus timer) does not return to the same state and timer after Capture → Deserialize → Commit; an altered manifest hash is accepted instead of rejected; a body-part child is missing after commit |
+| [x] | SL-2-7 **[orchestrator]** | Play check | In `Game.unity`, with Skip on: start a fight, quicksave, wait 5 s, load. The same swings land at the same moment and the projectiles are still in flight. Record the capture time in ms (the hitch) |
 
 ### Phase 3: holding the world and booting
 
@@ -206,7 +206,7 @@ If SP-1 fails because snapshot entities carry managed references that cannot be 
 | [x] | SL-4-4 **[shared]** | `MonoBehaviours/GameMenuManager.cs` → `PauseMenuController` + `IPauseMenuView` | gate only. Resume, Save, Load, Options, Return to Title (SM-D12 warning), Quit |
 | [x] | SL-4-5 **[parallel-safe]** | `UI/SaveIndicatorUI.cs` | gate only. A corner icon while a save is being written; a "Saved" toast; a "Can't save during a cutscene" toast |
 | [x] | SL-4-6 **[parallel-safe]** | `MonoBehaviours/QuicksaveInput.cs` + an Input System action | gate only. F5 quicksave and F9 quickload by default (pad: none); rebindable through `InputRebinding` |
-| [ ] | SL-4-7 **[orchestrator]** | captures of Splash, Main, LoadList, Confirm, the pause menu and the save list (Sonnet verifier audits them against the 6.3 rules) | Pad-only walk-through: New Game → play → pause → save → Return to Title → Continue lands at the saved moment |
+| [x] | SL-4-7 **[orchestrator]** | captures of Splash, Main, LoadList, Confirm, the pause menu and the save list (Sonnet verifier audits them against the 6.3 rules) | Pad-only walk-through: New Game → play → pause → save → Return to Title → Continue lands at the saved moment |
 
 ### Phase 5: triggers and robustness
 
@@ -215,7 +215,7 @@ If SP-1 fails because snapshot entities carry managed references that cannot be 
 | [x] | SL-5-1 **[parallel-safe]** | `SaveSystemGroup/AutoSaveCombatQuietSystem.cs`, `AutoSaveTimerSystem.cs` | gate only. The SM-D8 3 s combat-quiet gate; autosaves become `SaveKind.Autosave` |
 | [x] | SL-5-2 **[parallel-safe]** | `SaveSystemGroup/TravelAutoSaveSystem.cs` | gate only. The old Save_System phase 5 (50 m threshold), feeding the autosave ring |
 | [x] | SL-5-3 **[parallel-safe]** | `PersistentSaveSystem.cs` write path → `Task.Run` compress + `WriteFileAtomically` | gate only. Capture stays on the main thread; logs the main-thread ms |
-| [ ] | SL-5-4 **[parallel-safe]** | `Tests/PlayMode/Save/SaveFallbackTests.cs` | an old progress JSON missing a newly added field fails to load; a rejected moment layer still restores the player position |
+| [x] | SL-5-4 **[parallel-safe]** | `Tests/PlayMode/Save/SaveFallbackTests.cs` | an old progress JSON missing a newly added field fails to load; a rejected moment layer still restores the player position |
 
 ### Phase 6: Rive and backdrop (not scheduled; becomes its own spec when the art exists)
 
@@ -279,3 +279,6 @@ Files that need a solo Sonnet worker: `SystemGroups.cs`, `PersistentSaveSystem.c
     - A commit replaces the player entity, so its stale handle crashed 13 managed and system caches. Each now re-resolves when its cached handle stops existing or loses its marker (Player / WorkstationSummonOption): PlayerInputManager, UnitSelectionManager, CameraTarget, CameraZoom, Dialogue, CutsceneDebugTrigger, WorkstationMenuUI, MinionGroupHUD, OutlineUI, UnitSelectionBox, UnitSelectionCursor, InteractionHighlightSystem.
   - **Wiring:** `Game.unity` has no GameData or Player, so Continue there drops into the authored scene. CampLoop has the full flow, and its Options opens `SettingsMenuUI`.
   - **Still open:** SL-4-7 captures (LoadList, Confirm, pause menu, save list) plus the gamepad-only walk-through; retire the spec to Verification (draft `verify-save-and-title.md` exists).
+- 2026-11-18 SL-4-7 captures (CampLoop, `Captures/`): LoadList, ConfirmNewGame ("No" focused), New Game → title fades and HUDs return, pause Main (Resume focused), pause Save list ("New save" focused; the quicksave row is disabled in Save mode).
+  - **Fixed:** save rows overflowed the panel (location column now flexes with an ellipsis; vertical-only ScrollViews); the title backing panel widened 40% → 50% so rows sit on it; `SettingsMenuUI` opened its legacy pause overlay alongside the UITK pause view (now skipped when `GameMenuManager.HasPauseMenuView`); pause Options was wired to nothing in CampLoop (now `SettingsMenuUI.OpenFromMainMenu`).
+  - The pad-only walk-through can't be driven over MCP; it is on the owner's checklist. Spec retired to Verification.

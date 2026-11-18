@@ -31,6 +31,8 @@ public class GameMenuManager : MonoBehaviour, IPauseMenuActions
     private PauseMenuModel pauseMenuModel;
     private PauseMenuController pauseMenuController;
 
+    public bool HasPauseMenuView => pauseMenuController != null;
+
     private void Awake()
     {
         Instance = this;

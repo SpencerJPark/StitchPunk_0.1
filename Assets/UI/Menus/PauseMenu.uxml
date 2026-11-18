@@ -15,12 +15,12 @@
             <ui:VisualElement name="pause-save-list" class="pause-screen">
                 <ui:Label text="Save" class="pause-title" />
                 <ui:Button name="pause-new-save" text="New save" class="pause-button" />
-                <ui:ScrollView name="pause-save-rows" class="pause-rows" />
+                <ui:ScrollView name="pause-save-rows" mode="Vertical" horizontal-scroller-visibility="Hidden" class="pause-rows" />
                 <ui:Button name="pause-save-list-back" text="Back" class="pause-button" />
             </ui:VisualElement>
             <ui:VisualElement name="pause-load-list" class="pause-screen">
                 <ui:Label text="Load" class="pause-title" />
-                <ui:ScrollView name="pause-load-rows" class="pause-rows" />
+                <ui:ScrollView name="pause-load-rows" mode="Vertical" horizontal-scroller-visibility="Hidden" class="pause-rows" />
                 <ui:Button name="pause-load-list-back" text="Back" class="pause-button" />
             </ui:VisualElement>
             <ui:VisualElement name="pause-confirm" class="pause-screen">

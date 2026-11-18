@@ -11,7 +11,7 @@
     left: 0;
     top: 0;
     bottom: 0;
-    width: 40%;
+    width: 50%;
     background-color: rgba(8, 6, 4, 0.82);
     border-right-width: 0;
 }
@@ -153,6 +153,9 @@
     flex-direction: row;
     align-items: center;
     flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
     background-color: rgba(237, 227, 200, 0.06);
     border-width: 0;
     border-left-width: 4px;
@@ -176,7 +179,11 @@
 .save-row-location {
     font-size: 28px;
     color: rgb(237, 227, 200);
-    width: 280px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     -unity-text-align: middle-left;
 }
 
@@ -189,7 +196,8 @@
 .save-row-date {
     font-size: 22px;
     color: rgb(201, 164, 92);
-    width: 190px;
+    width: 170px;
+    flex-shrink: 0;
 }
 
 .save-row-badge {
@@ -199,6 +207,7 @@
 }
 
 .save-row-delete {
+    flex-shrink: 0;
     font-size: 22px;
     color: rgb(237, 227, 200);
     background-color: rgba(120, 40, 30, 0.45);

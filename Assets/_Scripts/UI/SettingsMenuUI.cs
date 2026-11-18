@@ -71,9 +71,16 @@ public class SettingsMenuUI : MonoBehaviour
     private void OnGameMenuVisibilityChanged(bool isOpen)
     {
         if (isOpen)
+        {
+            // With the UI Toolkit pause view present, settings open only through its Options button.
+            if (GameMenuManager.Instance != null && GameMenuManager.Instance.HasPauseMenuView)
+                return;
             Open(true);
+        }
         else
+        {
             HideOverlay();
+        }
     }
 
     private void Open(bool inGame)

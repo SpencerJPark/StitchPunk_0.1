@@ -29,7 +29,7 @@
 
         <ui:VisualElement name="screen-load-list" class="screen">
             <ui:Label text="Load Game" class="screen-heading" />
-            <ui:ScrollView name="save-list" class="save-list" />
+            <ui:ScrollView name="save-list" mode="Vertical" horizontal-scroller-visibility="Hidden" class="save-list" />
             <ui:Label name="save-list-empty" text="No saves yet" class="empty-label" />
             <ui:Button name="btn-load-back" text="Back" class="menu-button" />
         </ui:VisualElement>
