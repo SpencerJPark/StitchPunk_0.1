@@ -19,6 +19,12 @@ Spec: `Tasks/Plans/FeaturePlacement_System.md` (FP-1). About 10 minutes. Nothing
 3. Look: the rails starting in that stretch are gone, the posts stay. Alt+click it again to close the gap.
 4. Also try: drag a knot (the fence follows after a moment), Ctrl+click on the line to insert a knot, select a knot and press Delete.
 
+## 2b. Edit a fence after drawing it
+1. With the Features tab showing, click any post or rail of the fence in the Scene view: the whole fence (its path) gets selected and its knots show.
+2. Drag a knot to reshape; Ctrl+click on the line to add a knot; select a knot and press Delete; Alt+click a knot for a gate. Move the whole fence with the Move tool.
+3. To hand-edit one single post instead, pick it in the Hierarchy.
+4. Drawing or editing over a tile that is not open now opens that tile and bakes at once (before 2026-11-18 it only marked the tile stale).
+
 ## 3. Tree row
 1. New feature, **Tree Row**. Draw a curve; Enter.
 2. Look: a tree every ~6 m along the line, on the ground.
