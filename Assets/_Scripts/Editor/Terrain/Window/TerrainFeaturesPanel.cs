@@ -28,6 +28,8 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
     TerrainAreaRecipe armedRecipe;
     bool lastKnownDrawing;
     bool hierarchyChangedPending;
+    bool pickerOpen;
+    bool choosingPlacerKind;
     int areaCount;
 
     public override string DisplayName => "Features";
@@ -49,6 +51,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         VisualElement actions;
         VisualElement body;
         VisualElement pane = TerrainUi.MakePane("Features", out actions, out body);
+        actions.Add(TerrainUi.MakePrimary("New feature", ToolkitIcons.Plus, "Pick a recipe, then draw the feature in the Scene view", TogglePicker));
         Add(pane);
         body.Add(contentHost);
     }
@@ -104,75 +107,173 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         DestroyThumbnailSprites();
         contentHost.Clear();
 
-        TerrainArea[] areas = Object.FindObjectsByType<TerrainArea>(FindObjectsInactive.Include);
-        areaCount = areas.Length;
+        List<Component> features = new List<Component>();
+        features.AddRange(Object.FindObjectsByType<TerrainArea>(FindObjectsInactive.Include));
+        features.AddRange(Object.FindObjectsByType<TerrainPath>(FindObjectsInactive.Include));
+        areaCount = features.Count;
 
-        contentHost.Add(BuildRecipeGrid());
-        contentHost.Add(BuildFeatureList(areas));
+        bool noRecipesAtAll = FindAssetsOfType<TerrainFeatureRecipe>().Count == 0 && FindAssetsOfType<TerrainForestRecipe>().Count == 0;
+        if (noRecipesAtAll && features.Count == 0)
+        {
+            contentHost.Add(TerrainUi.MakeEmpty("No recipes yet", "A recipe says what a feature looks like and how it is placed. Make one to start drawing features.", "Create recipe...", () => { pickerOpen = true; choosingPlacerKind = true; Refresh(); }));
+            if (pickerOpen) contentHost.Add(BuildPicker());
+            RaiseStatusChanged();
+            return;
+        }
 
-        TerrainArea selectedArea = TerrainFeatureTool.SelectedFeature as TerrainArea;
-        if (selectedArea != null) contentHost.Add(BuildSelectedFeatureCard(selectedArea));
+        if (pickerOpen) contentHost.Add(BuildPicker());
+        contentHost.Add(BuildFeatureList(features));
+
+        Component selectedFeature = TerrainFeatureTool.SelectedFeature;
+        if (selectedFeature != null) contentHost.Add(BuildSelectedFeatureCard(selectedFeature));
 
         RaiseStatusChanged();
     }
 
-    VisualElement BuildRecipeGrid()
+    enum PlacerKind
     {
-        VisualElement gridBody;
-        VisualElement card = TerrainUi.MakeCard("Draw a feature", out gridBody);
-
-        List<TerrainAreaRecipe> recipes = FindAllRecipes();
-        if (recipes.Count == 0)
-        {
-            gridBody.Add(TerrainUi.MakeEmpty("No recipes yet", "A recipe says what a feature looks like. Make one with Assets > Create > Stitch Punk > Terrain > Forest Recipe, then click it here to draw an outline.", null, null));
-            return card;
-        }
-
-        gridBody.Add(TerrainUi.MakeHint("Click a recipe to draw its outline in the Scene view, or the box to drag out a rectangle."));
-
-        VisualElement tileWrap = new VisualElement();
-        tileWrap.AddToClassList("terrain-feature-grid");
-        foreach (TerrainAreaRecipe recipe in recipes)
-            tileWrap.Add(BuildRecipeTile(recipe));
-        gridBody.Add(tileWrap);
-
-        if (TerrainFeatureTool.IsDrawing && armedRecipe != null)
-            gridBody.Add(ToolkitChrome.MakeBadge("Drawing " + armedRecipe.name, ToolkitStatusTone.Neutral));
-
-        return card;
+        Fill,
+        AlongPath,
+        Rows
     }
 
-    VisualElement BuildRecipeTile(TerrainAreaRecipe recipe)
+    VisualElement BuildPicker()
     {
-        bool isArmed = TerrainFeatureTool.IsDrawing && armedRecipe == recipe;
+        VisualElement pickerBody;
+        VisualElement pickerCard = TerrainUi.MakeCard("New feature", out pickerBody);
 
-        VisualElement tile = new VisualElement();
-        tile.AddToClassList("terrain-swatch");
-        tile.AddToClassList("terrain-feature-tile");
-        tile.EnableInClassList("terrain-swatch--selected", isArmed);
-        tile.tooltip = "Draw an outline for " + recipe.name;
+        if (choosingPlacerKind)
+        {
+            pickerBody.Add(TerrainUi.MakeHint("How does the new recipe place things?"));
+            pickerBody.Add(TerrainUi.MakeSecondary("Fill an area", null, "Scatter placeables across a drawn area", () => CreateRecipeAsset(PlacerKind.Fill)));
+            pickerBody.Add(TerrainUi.MakeSecondary("Along a path", null, "Repeat placeables along a line, such as a fence", () => CreateRecipeAsset(PlacerKind.AlongPath)));
+            pickerBody.Add(TerrainUi.MakeSecondary("In rows", null, "Plant placeables in ordered rows", () => CreateRecipeAsset(PlacerKind.Rows)));
+            pickerBody.Add(TerrainUi.MakeGhost("Back", null, "Return to the recipe list", () => { choosingPlacerKind = false; Refresh(); }));
+            return pickerCard;
+        }
+
+        List<TerrainFeatureRecipe> featureRecipes = FindAssetsOfType<TerrainFeatureRecipe>();
+        List<TerrainForestRecipe> forestRecipes = FindAssetsOfType<TerrainForestRecipe>();
+
+        TerrainFeatureCategory[] categories = (TerrainFeatureCategory[])System.Enum.GetValues(typeof(TerrainFeatureCategory));
+        string[] categoryTitles = { "Areas", "Lines and fences", "Ground cover" };
+        foreach (TerrainFeatureCategory category in categories)
+        {
+            bool isAreas = category == TerrainFeatureCategory.Areas;
+            List<TerrainFeatureRecipe> inCategory = featureRecipes.FindAll((TerrainFeatureRecipe recipe) => recipe.category == category);
+            if (inCategory.Count == 0 && !(isAreas && forestRecipes.Count > 0)) continue;
+
+            Label header = new Label(categoryTitles[(int)category]);
+            header.AddToClassList("toolkit-hint");
+            pickerBody.Add(header);
+            foreach (TerrainFeatureRecipe recipe in inCategory)
+            {
+                TerrainFeatureRecipe capturedRecipe = recipe;
+                pickerBody.Add(BuildPickerRow(recipe, RecipeDisplayName(recipe), ShapeMeta(recipe.supportedShapes), () => PickFeatureRecipe(capturedRecipe)));
+            }
+            if (isAreas)
+            {
+                foreach (TerrainForestRecipe forestRecipe in forestRecipes)
+                {
+                    TerrainForestRecipe capturedForest = forestRecipe;
+                    pickerBody.Add(BuildPickerRow(forestRecipe, forestRecipe.name, "legacy", () => ArmOutline(capturedForest)));
+                }
+            }
+        }
+
+        pickerBody.Add(TerrainUi.MakeSecondary("Create recipe...", ToolkitIcons.Plus, "Make a new feature recipe asset", () => { choosingPlacerKind = true; Refresh(); }));
+        return pickerCard;
+    }
+
+    VisualElement BuildPickerRow(TerrainAreaRecipe recipe, string title, string meta, System.Action onPick)
+    {
+        VisualElement row = new VisualElement();
+        row.AddToClassList("toolkit-list-row");
+        row.AddToClassList("terrain-road-row");
 
         VisualElement chip = new VisualElement();
         chip.AddToClassList("terrain-swatch-chip");
         ApplyThumbnail(chip, recipe);
-        tile.Add(chip);
+        row.Add(chip);
 
-        Label nameLabel = new Label(recipe.name);
-        nameLabel.AddToClassList("toolkit-hint");
-        nameLabel.AddToClassList("terrain-feature-tile-name");
-        tile.Add(nameLabel);
+        Label nameLabel = new Label(title);
+        nameLabel.AddToClassList("terrain-road-name");
+        row.Add(nameLabel);
+        Label metaLabel = new Label(meta);
+        metaLabel.AddToClassList("toolkit-hint");
+        row.Add(metaLabel);
 
-        Button boxButton = TerrainUi.MakeIconSquare(BoxIconName, "Drag out a rectangle for " + recipe.name, () => ArmBox(recipe));
-        boxButton.AddToClassList("terrain-feature-tile-box");
-        boxButton.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => clickEvent.StopPropagation());
-        tile.Add(boxButton);
+        row.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => onPick());
+        return row;
+    }
 
-        tile.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => ArmOutline(recipe));
-        return tile;
+    static string RecipeDisplayName(TerrainFeatureRecipe recipe)
+    {
+        return string.IsNullOrEmpty(recipe.displayName) ? recipe.name : recipe.displayName;
+    }
+
+    static string ShapeMeta(TerrainFeatureShapeSupport shapes)
+    {
+        List<string> parts = new List<string>();
+        if ((shapes & TerrainFeatureShapeSupport.ClosedArea) != 0) parts.Add("area");
+        if ((shapes & TerrainFeatureShapeSupport.ClosedLoop) != 0) parts.Add("loop");
+        if ((shapes & TerrainFeatureShapeSupport.OpenPath) != 0) parts.Add("line");
+        return string.Join(", ", parts);
+    }
+
+    void PickFeatureRecipe(TerrainFeatureRecipe recipe)
+    {
+        pickerOpen = false;
+        armedRecipe = recipe;
+        TerrainFeatureTool.BeginDraw(recipe, recipe.defaultShape);
+        Refresh();
+    }
+
+    void CreateRecipeAsset(PlacerKind placerKind)
+    {
+        string assetPath = EditorUtility.SaveFilePanelInProject("New feature recipe", "NewFeatureRecipe", "asset", "Where to save the new feature recipe");
+        if (string.IsNullOrEmpty(assetPath)) return;
+
+        TerrainFeatureRecipe recipe = ScriptableObject.CreateInstance<TerrainFeatureRecipe>();
+        recipe.displayName = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+        switch (placerKind)
+        {
+            case PlacerKind.Fill:
+                recipe.placer = new TerrainFillPlacer();
+                recipe.category = TerrainFeatureCategory.Areas;
+                recipe.supportedShapes = TerrainFeatureShapeSupport.ClosedArea;
+                recipe.defaultShape = TerrainFeatureShapeKind.Curve;
+                break;
+            case PlacerKind.Rows:
+                recipe.placer = new TerrainRowsPlacer();
+                recipe.category = TerrainFeatureCategory.Areas;
+                recipe.supportedShapes = TerrainFeatureShapeSupport.ClosedArea;
+                recipe.defaultShape = TerrainFeatureShapeKind.Box;
+                break;
+            default:
+                recipe.placer = new TerrainAlongPathPlacer();
+                recipe.category = TerrainFeatureCategory.LinesAndFences;
+                recipe.supportedShapes = TerrainFeatureShapeSupport.OpenPath | TerrainFeatureShapeSupport.ClosedLoop;
+                recipe.defaultShape = TerrainFeatureShapeKind.Straight;
+                break;
+        }
+        AssetDatabase.CreateAsset(recipe, assetPath);
+        AssetDatabase.SaveAssets();
+        Selection.activeObject = recipe;
+        EditorGUIUtility.PingObject(recipe);
+        choosingPlacerKind = false;
+        Refresh();
     }
 
     void ApplyThumbnail(VisualElement chip, TerrainAreaRecipe recipe)
     {
+        TerrainFeatureRecipe featureRecipe = recipe as TerrainFeatureRecipe;
+        if (featureRecipe != null && featureRecipe.thumbnail != null)
+        {
+            chip.style.backgroundImage = new StyleBackground(featureRecipe.thumbnail);
+            return;
+        }
+
         TerrainForestRecipe forestRecipe = recipe as TerrainForestRecipe;
         if (forestRecipe != null && forestRecipe.cardAtlas != null && forestRecipe.cardAtlas.material != null
             && forestRecipe.cardAtlas.spriteUvRects != null && forestRecipe.cardAtlas.spriteUvRects.Count > 0)
@@ -197,52 +298,72 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         chip.style.backgroundColor = new Color(layerColour.r / 255f, layerColour.g / 255f, layerColour.b / 255f, 1f);
     }
 
-    VisualElement BuildFeatureList(TerrainArea[] areas)
+    static TerrainAreaRecipe RecipeOf(Component feature)
+    {
+        TerrainArea area = feature as TerrainArea;
+        if (area != null) return area.recipe;
+        TerrainPath path = feature as TerrainPath;
+        return path != null ? path.recipe : null;
+    }
+
+    static string RecipeNameOf(Component feature)
+    {
+        TerrainAreaRecipe recipe = RecipeOf(feature);
+        if (recipe == null) return "no recipe";
+        TerrainFeatureRecipe featureRecipe = recipe as TerrainFeatureRecipe;
+        return featureRecipe != null ? RecipeDisplayName(featureRecipe) : recipe.name;
+    }
+
+    VisualElement BuildFeatureList(List<Component> features)
     {
         VisualElement listBody;
         VisualElement card = TerrainUi.MakeCard("In the loaded scenes", out listBody);
 
-        if (areas.Length == 0)
+        if (features.Count == 0)
         {
-            listBody.Add(TerrainUi.MakeHint("No features yet. Draw one from a recipe above."));
+            listBody.Add(TerrainUi.MakeHint("No features yet. Press New feature to draw one."));
             return card;
         }
 
-        TerrainArea selectedArea = TerrainFeatureTool.SelectedFeature as TerrainArea;
-        foreach (TerrainArea area in areas)
+        Component selectedFeature = TerrainFeatureTool.SelectedFeature;
+        foreach (Component feature in features)
         {
-            TerrainArea capturedArea = area;
+            Component capturedFeature = feature;
             VisualElement row = new VisualElement();
             row.AddToClassList("toolkit-list-row");
             row.AddToClassList("terrain-road-row");
-            row.EnableInClassList("toolkit-list-row--selected", area == selectedArea);
-            Label nameLabel = new Label(area.name);
+            row.EnableInClassList("toolkit-list-row--selected", feature == selectedFeature);
+            Label nameLabel = new Label(feature.name);
             nameLabel.AddToClassList("terrain-road-name");
-            Label recipeLabel = new Label(area.recipe != null ? area.recipe.name : "no recipe");
+            Label recipeLabel = new Label(RecipeNameOf(feature));
             recipeLabel.AddToClassList("toolkit-hint");
             row.Add(nameLabel);
             row.Add(recipeLabel);
-            row.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => SelectAndFrame(capturedArea));
+            row.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => SelectAndFrame(capturedFeature));
             listBody.Add(row);
         }
         return card;
     }
 
-    VisualElement BuildSelectedFeatureCard(TerrainArea area)
+    VisualElement BuildSelectedFeatureCard(Component feature)
     {
         VisualElement cardBody;
         VisualElement card = TerrainUi.MakeCard("Selected feature", out cardBody);
 
+        TerrainArea area = feature as TerrainArea;
+        TerrainPath path = feature as TerrainPath;
+
         ObjectField recipeField = new ObjectField();
         recipeField.objectType = typeof(TerrainAreaRecipe);
         recipeField.allowSceneObjects = false;
-        recipeField.SetValueWithoutNotify(area.recipe);
+        recipeField.SetValueWithoutNotify(RecipeOf(feature));
         recipeField.RegisterValueChangedCallback((ChangeEvent<Object> changeEvent) =>
         {
-            Undo.RecordObject(area, "Change feature recipe");
-            area.recipe = changeEvent.newValue as TerrainAreaRecipe;
-            EditorUtility.SetDirty(area);
-            TerrainFeatureEvents.Raise(area);
+            Undo.RecordObject(feature, "Change feature recipe");
+            if (area != null) area.recipe = changeEvent.newValue as TerrainAreaRecipe;
+            else if (path != null) path.recipe = changeEvent.newValue as TerrainFeatureRecipe;
+            EditorUtility.SetDirty(feature);
+            TerrainFeatureEvents.Raise(feature);
             Refresh();
         });
         cardBody.Add(ToolkitChrome.MakePropertyRow("Recipe", recipeField, "What this feature grows and paints"));
@@ -250,18 +371,37 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         VisualElement seedRow = new VisualElement();
         seedRow.AddToClassList("terrain-seed-row");
         IntegerField seedField = new IntegerField();
-        seedField.SetValueWithoutNotify(area.seed);
+        seedField.SetValueWithoutNotify(area != null ? area.seed : path.seed);
         seedField.RegisterValueChangedCallback((ChangeEvent<int> changeEvent) =>
         {
-            Undo.RecordObject(area, "Change feature seed");
-            area.seed = changeEvent.newValue;
-            EditorUtility.SetDirty(area);
-            TerrainFeatureEvents.Raise(area);
+            Undo.RecordObject(feature, "Change feature seed");
+            SetSeed(feature, changeEvent.newValue);
+            EditorUtility.SetDirty(feature);
+            TerrainFeatureEvents.Raise(feature);
         });
         seedRow.Add(seedField);
-        seedRow.Add(TerrainUi.MakeIconSquare(RerollIconName, "Roll a new random seed and regenerate", () => RerollSeed(area)));
+        seedRow.Add(TerrainUi.MakeIconSquare(RerollIconName, "Roll a new random seed and regenerate", () => RerollSeed(feature)));
         cardBody.Add(ToolkitChrome.MakePropertyRow("Seed", seedRow, "Same seed, same scatter"));
 
+        if (area != null) AddAreaControls(cardBody, area);
+        AddPlacerReadout(cardBody, RecipeOf(feature) as TerrainFeatureRecipe);
+
+        cardBody.Add(TerrainUi.MakeSecondary("Regenerate", RerollIconName, "Regenerate this feature's scatter, keeping locked items", () => TerrainFeatureEvents.Raise(feature)));
+
+        int staleTileCount = TerrainFeatureBaker.StaleTiles.Count;
+        if (staleTileCount > 0)
+        {
+            Label staleLabel = new Label(staleTileCount + " tiles need a rebake");
+            staleLabel.AddToClassList("terrain-warning");
+            cardBody.Add(staleLabel);
+            cardBody.Add(TerrainUi.MakePrimary("Bake stale tiles", null, "Rebake every tile a feature has changed", () => TerrainFeatureBaker.RebakeAllFeatures(true)));
+        }
+
+        return card;
+    }
+
+    void AddAreaControls(VisualElement cardBody, TerrainArea area)
+    {
         IntegerField priorityField = new IntegerField();
         priorityField.SetValueWithoutNotify(area.priority);
         priorityField.RegisterValueChangedCallback((ChangeEvent<int> changeEvent) =>
@@ -286,26 +426,100 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
                 EditorUtility.SetDirty(area);
                 TerrainFeatureEvents.Raise(area);
             },
-            "How many trees this area plants, relative to the recipe (1 = recipe density). Spacing still limits the maximum.",
+            "How many items this area plants, relative to the recipe (1 = recipe density). Spacing still limits the maximum.",
             out densityRefresh));
 
         VisualElement badgeRow = new VisualElement();
         badgeRow.AddToClassList("terrain-badge-row");
         badgeRow.Add(ToolkitChrome.MakeBadge(CountLockedMarkers(area) + " locked", ToolkitStatusTone.Neutral));
         cardBody.Add(badgeRow);
+    }
 
-        cardBody.Add(TerrainUi.MakeSecondary("Regenerate", RerollIconName, "Regenerate this feature's scatter, keeping locked items", () => TerrainFeatureEvents.Raise(area)));
+    static void AddPlacerReadout(VisualElement cardBody, TerrainFeatureRecipe recipe)
+    {
+        if (recipe == null || recipe.placer == null) return;
 
-        int staleTileCount = TerrainFeatureBaker.StaleTiles.Count;
-        if (staleTileCount > 0)
+        TerrainFillPlacer fillPlacer = recipe.placer as TerrainFillPlacer;
+        if (fillPlacer != null)
         {
-            Label staleLabel = new Label(staleTileCount + " tiles need a rebake");
-            staleLabel.AddToClassList("terrain-warning");
-            cardBody.Add(staleLabel);
-            cardBody.Add(TerrainUi.MakePrimary("Bake stale tiles", null, "Rebake every tile a feature has changed", () => TerrainFeatureBaker.RebakeAllFeatures(true)));
+            cardBody.Add(ToolkitChrome.MakePropertyRow("Recipe density", MakeReadoutLabel(fillPlacer.densityPer100SquareMetres.ToString("0.##") + " per 100 m2"), "Set on the recipe asset"));
+            return;
         }
 
-        return card;
+        TerrainAlongPathPlacer alongPathPlacer = recipe.placer as TerrainAlongPathPlacer;
+        if (alongPathPlacer != null)
+        {
+            cardBody.Add(ToolkitChrome.MakePropertyRow("Spacing", MakeReadoutLabel(alongPathPlacer.spacingMetres.ToString("0.##") + " m"), "Set on the recipe asset"));
+            cardBody.Add(ToolkitChrome.MakePropertyRow("Mode", MakeReadoutLabel(alongPathPlacer.mode.ToString()), "Set on the recipe asset"));
+            return;
+        }
+
+        TerrainRowsPlacer rowsPlacer = recipe.placer as TerrainRowsPlacer;
+        if (rowsPlacer != null)
+        {
+            string directionText = float.IsNaN(rowsPlacer.rowDirectionDegrees) ? "auto" : rowsPlacer.rowDirectionDegrees.ToString("0.#") + " deg";
+            cardBody.Add(ToolkitChrome.MakePropertyRow("Row direction", MakeReadoutLabel(directionText), "Set on the recipe asset"));
+        }
+    }
+
+    static Label MakeReadoutLabel(string text)
+    {
+        Label label = new Label(text);
+        label.AddToClassList("toolkit-hint");
+        return label;
+    }
+
+    static void SetSeed(Component feature, int seed)
+    {
+        TerrainArea area = feature as TerrainArea;
+        if (area != null)
+        {
+            area.seed = seed;
+            return;
+        }
+        TerrainPath path = feature as TerrainPath;
+        if (path != null) path.seed = seed;
+    }
+
+    static List<T> FindAssetsOfType<T>() where T : Object
+    {
+        List<T> assets = new List<T>();
+        foreach (string guid in AssetDatabase.FindAssets("t:" + typeof(T).Name))
+        {
+            T asset = AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid));
+            if (asset != null) assets.Add(asset);
+        }
+        return assets;
+    }
+
+    void ArmOutline(TerrainAreaRecipe recipe)
+    {
+        pickerOpen = false;
+        armedRecipe = recipe;
+        TerrainFeatureTool.BeginDrawOutline(recipe);
+        Refresh();
+    }
+
+    void TogglePicker()
+    {
+        pickerOpen = !pickerOpen;
+        choosingPlacerKind = false;
+        Refresh();
+    }
+
+    void SelectAndFrame(Component feature)
+    {
+        Selection.activeObject = feature.gameObject;
+        TerrainFeatureTool.FrameSelected();
+        Refresh();
+    }
+
+    static void RerollSeed(Component feature)
+    {
+        Undo.RecordObject(feature, "Reroll feature seed");
+        SetSeed(feature, Random.Range(1, int.MaxValue));
+        EditorUtility.SetDirty(feature);
+        TerrainFeatureEvents.Raise(feature);
     }
 
     static int CountLockedMarkers(TerrainArea area)
@@ -316,46 +530,6 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
             if (marker.locked && marker.sourceFeatureId == area.featureId) lockedCount++;
         }
         return lockedCount;
-    }
-
-    static List<TerrainAreaRecipe> FindAllRecipes()
-    {
-        List<TerrainAreaRecipe> recipes = new List<TerrainAreaRecipe>();
-        foreach (string guid in AssetDatabase.FindAssets("t:TerrainAreaRecipe"))
-        {
-            TerrainAreaRecipe recipe = AssetDatabase.LoadAssetAtPath<TerrainAreaRecipe>(AssetDatabase.GUIDToAssetPath(guid));
-            if (recipe != null) recipes.Add(recipe);
-        }
-        return recipes;
-    }
-
-    void ArmOutline(TerrainAreaRecipe recipe)
-    {
-        armedRecipe = recipe;
-        TerrainFeatureTool.BeginDrawOutline(recipe);
-        Refresh();
-    }
-
-    void ArmBox(TerrainAreaRecipe recipe)
-    {
-        armedRecipe = recipe;
-        TerrainFeatureTool.BeginDragBox(recipe);
-        Refresh();
-    }
-
-    void SelectAndFrame(TerrainArea area)
-    {
-        Selection.activeObject = area.gameObject;
-        TerrainFeatureTool.FrameSelected();
-        Refresh();
-    }
-
-    static void RerollSeed(TerrainArea area)
-    {
-        Undo.RecordObject(area, "Reroll feature seed");
-        area.seed = Random.Range(1, int.MaxValue);
-        EditorUtility.SetDirty(area);
-        TerrainFeatureEvents.Raise(area);
     }
 
     void DestroyThumbnailSprites()

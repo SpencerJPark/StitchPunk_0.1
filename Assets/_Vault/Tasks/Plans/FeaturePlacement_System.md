@@ -185,6 +185,24 @@ public static class TerrainFeatureShapes
     public static bool IsAllowed(TerrainFeatureShapeKind kind, TerrainFeatureShapeSupport support, out bool closed);
 }
 ```
+Wave B pins (orchestrator, 2026-11-17):
+```csharp
+// TerrainFeatureTool additions
+public static void BeginDraw(TerrainFeatureRecipe recipe, TerrainFeatureShapeKind shape);
+public static void SetDrawShape(TerrainFeatureShapeKind shape);          // ignored when the recipe does not allow it
+public static TerrainFeatureShapeKind DrawShape { get; }
+public static TerrainFeatureRecipe DrawRecipe { get; }                     // null when not drawing or drawing a legacy recipe
+public static event Action DrawStateChanged;                               // BeginDraw, SetDrawShape, CancelDrawing, finish
+// SelectedFeature (Component) now returns a TerrainArea or a TerrainPath.
+
+// Editor/Terrain/Features/TerrainPathBaker.cs
+public static class TerrainPathBaker
+{
+    // Runs after TerrainAreaFiller.FillTile on the same tile. Clears unlocked generated instances whose sourceFeatureId is not an area in tileData.areaEntries, then places every path's results owned by the tile.
+    public static int BakeTile(TerrainTile tile, IReadOnlyList<TerrainPath> allPaths);   // returns instances placed
+}
+```
+FP-1 card rule: Dressing placeables on paths and Rows are skipped (one warning per tile) until `TerrainCardSource` (FP-3-2); the filler rebuilds `Cards_n` from areas only.
 `TerrainFeatureTool` gains `BeginDraw(TerrainFeatureRecipe recipe, TerrainFeatureShapeKind shape)` (replaces `BeginDrawOutline`/`BeginDragBox` callers; keep both as thin wrappers until FP-1's last wave), `SetDrawShape(TerrainFeatureShapeKind)`, and `static TerrainFeatureShapeKind DrawShape`. Circle: click centre, drag radius. Box: drag. Open paths: Enter finishes, double-click finishes. Closed: Enter or click the first knot. Alt+click a knot on a selected `TerrainPath` toggles a gap.
 
 ### 6.3 Trample runtime (FP-3, FP-4)

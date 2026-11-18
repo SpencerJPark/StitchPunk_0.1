@@ -10,7 +10,7 @@ using UnityEngine.Splines;
 [InitializeOnLoad]
 public static class TerrainFeatureTool
 {
-    private enum DrawMode { None, Outline, Box }
+    private enum DrawMode { None, Outline, Box, Circle }
 
     private const float KnotPickPixels = 10f;
     private const float SegmentPickPixels = 8f;
@@ -25,11 +25,15 @@ public static class TerrainFeatureTool
     private const double HudMessageSeconds = 3.0;
     private const string OutlineDrawingInstructions = "Drawing an outline. Shift+click makes a sharp corner; click the first point to close.";
     private const string BoxDrawingInstructions = "Drag to draw a box.";
+    private const string GapHint = "Alt+click a knot to toggle a gap (skips the segment after it).";
+    private const int MinimumOpenPointCount = 2;
+    private const float MinimumCircleRadiusMetres = 1f;
     private const float PreviewSegmentMetres = 2f;
 
     private static readonly Color OutlineColour = new Color(0.95f, 0.95f, 0.9f, 1f);
     private static readonly Color RubberBandColour = new Color(1f, 1f, 1f, 0.6f);
     private static readonly Color SelectionBlue = new Color(0.24f, 0.55f, 1f, 1f);
+    private static readonly Color GapColour = new Color(1f, 0.25f, 0.2f, 1f);
 
     private static DrawMode drawMode = DrawMode.None;
     private static TerrainAreaRecipe pendingRecipe;
@@ -40,11 +44,15 @@ public static class TerrainFeatureTool
     private static Vector2 boxCornerA;
     private static Vector2 boxCornerB;
     private static bool boxDragging;
+    private static Vector2 circleCentre;
+    private static float circleRadius;
+    private static bool circleDragging;
+    private static TerrainFeatureShapeKind drawShape = TerrainFeatureShapeKind.Curve;
 
     private static bool mouseGroundValid;
     private static Vector3 mouseGround;
 
-    private static TerrainArea trackedArea;
+    private static Component trackedFeature;
     private static int selectedKnotIndex = -1;
     private static bool knotDragging;
     // GetControlID is order-dependent, so the id seen at mouse-down is what the drag is compared against.
@@ -59,6 +67,7 @@ public static class TerrainFeatureTool
     private static readonly List<Vector2> knotScreenPositions = new List<Vector2>();
 
     public static event Action SelectionChanged;
+    public static event Action DrawStateChanged;
 
     static TerrainFeatureTool()
     {
@@ -71,7 +80,7 @@ public static class TerrainFeatureTool
         get
         {
             RefreshTrackedSelection();
-            return trackedArea;
+            return trackedFeature;
         }
     }
 
@@ -82,6 +91,59 @@ public static class TerrainFeatureTool
 
     public static bool IsDrawing => drawMode != DrawMode.None;
 
+    public static TerrainFeatureShapeKind DrawShape => drawShape;
+
+    public static TerrainFeatureRecipe DrawRecipe => IsDrawing ? pendingRecipe as TerrainFeatureRecipe : null;
+
+    public static void BeginDraw(TerrainFeatureRecipe recipe, TerrainFeatureShapeKind shape)
+    {
+        if (recipe == null)
+        {
+            return;
+        }
+
+        bool closedUnused;
+        TerrainFeatureShapeKind chosenShape = shape;
+        if (!TerrainFeatureShapes.IsAllowed(chosenShape, recipe.supportedShapes, out closedUnused))
+        {
+            chosenShape = recipe.defaultShape;
+            if (!TerrainFeatureShapes.IsAllowed(chosenShape, recipe.supportedShapes, out closedUnused))
+            {
+                ShowHud(recipe.name + " has no drawable shape");
+                return;
+            }
+        }
+
+        StartDrawing(recipe, chosenShape);
+    }
+
+    public static void SetDrawShape(TerrainFeatureShapeKind shape)
+    {
+        TerrainFeatureRecipe featureRecipe = DrawRecipe;
+        bool closedUnused;
+        if (featureRecipe == null || !TerrainFeatureShapes.IsAllowed(shape, featureRecipe.supportedShapes, out closedUnused))
+        {
+            if (IsDrawing)
+            {
+                ShowHud(shape + " is not available for this recipe");
+            }
+
+            return;
+        }
+
+        if (shape == drawShape)
+        {
+            return;
+        }
+
+        ResetPendingShapeState();
+        drawShape = shape;
+        drawMode = DrawModeForShape(shape);
+        PublishDrawingHint();
+        DrawStateChanged?.Invoke();
+        SceneView.RepaintAll();
+    }
+
     public static void BeginDrawOutline(TerrainAreaRecipe recipe)
     {
         if (recipe == null)
@@ -89,14 +151,14 @@ public static class TerrainFeatureTool
             return;
         }
 
-        CancelDrawing();
-        drawMode = DrawMode.Outline;
-        pendingRecipe = recipe;
-        pendingSeed = new System.Random().Next();
-        tileDataCache.Clear();
-        TerrainSceneHud.SetCursorInfo(OutlineDrawingInstructions);
-        wroteDrawingInstructions = true;
-        SceneView.RepaintAll();
+        TerrainFeatureRecipe featureRecipe = recipe as TerrainFeatureRecipe;
+        if (featureRecipe != null)
+        {
+            BeginDraw(featureRecipe, TerrainFeatureShapeKind.Curve);
+            return;
+        }
+
+        StartDrawing(recipe, TerrainFeatureShapeKind.Curve);
     }
 
     public static void BeginDragBox(ScriptableObject recipe)
@@ -109,80 +171,265 @@ public static class TerrainFeatureTool
             return;
         }
 
+        TerrainFeatureRecipe featureRecipe = areaRecipe as TerrainFeatureRecipe;
+        if (featureRecipe != null)
+        {
+            BeginDraw(featureRecipe, TerrainFeatureShapeKind.Box);
+            return;
+        }
+
+        StartDrawing(areaRecipe, TerrainFeatureShapeKind.Box);
+    }
+
+    private static void StartDrawing(TerrainAreaRecipe recipe, TerrainFeatureShapeKind shape)
+    {
         CancelDrawing();
-        drawMode = DrawMode.Box;
-        pendingRecipe = areaRecipe;
+        drawShape = shape;
+        drawMode = DrawModeForShape(shape);
+        pendingRecipe = recipe;
         pendingSeed = new System.Random().Next();
         tileDataCache.Clear();
-        TerrainSceneHud.SetCursorInfo(BoxDrawingInstructions);
-        wroteDrawingInstructions = true;
+        PublishDrawingHint();
+        DrawStateChanged?.Invoke();
         SceneView.RepaintAll();
     }
 
-    public static void CancelDrawing()
+    private static DrawMode DrawModeForShape(TerrainFeatureShapeKind shape)
     {
-        drawMode = DrawMode.None;
-        pendingRecipe = null;
+        if (shape == TerrainFeatureShapeKind.Box)
+        {
+            return DrawMode.Box;
+        }
+
+        return shape == TerrainFeatureShapeKind.Circle ? DrawMode.Circle : DrawMode.Outline;
+    }
+
+    private static void ResetPendingShapeState()
+    {
         pendingPointsXZ.Clear();
         pendingPointIsSharp.Clear();
+        if (boxDragging || circleDragging)
+        {
+            GUIUtility.hotControl = 0;
+        }
+
         boxDragging = false;
-        if (wroteDrawingInstructions)
+        circleDragging = false;
+        TerrainFeaturePreview.Clear();
+    }
+
+    private static bool PendingShapeIsClosed()
+    {
+        TerrainFeatureRecipe featureRecipe = pendingRecipe as TerrainFeatureRecipe;
+        if (featureRecipe == null)
+        {
+            return true;
+        }
+
+        bool closed;
+        TerrainFeatureShapes.IsAllowed(drawShape, featureRecipe.supportedShapes, out closed);
+        return closed;
+    }
+
+    private static bool PendingShapeCreatesArea()
+    {
+        TerrainFeatureRecipe featureRecipe = pendingRecipe as TerrainFeatureRecipe;
+        if (featureRecipe == null)
+        {
+            return true;
+        }
+
+        return PendingShapeIsClosed() && (featureRecipe.supportedShapes & TerrainFeatureShapeSupport.ClosedArea) != 0;
+    }
+
+    private static void PublishDrawingHint()
+    {
+        string hint;
+        if (!(pendingRecipe is TerrainFeatureRecipe))
+        {
+            hint = drawMode == DrawMode.Box ? BoxDrawingInstructions : OutlineDrawingInstructions;
+        }
+        else if (drawMode == DrawMode.Box)
+        {
+            hint = "Box: drag corner to corner. 1-5 shape, Esc cancels.";
+        }
+        else if (drawMode == DrawMode.Circle)
+        {
+            hint = "Circle: press at the centre, drag for radius. 1-5 shape, Esc cancels.";
+        }
+        else if (PendingShapeIsClosed())
+        {
+            hint = drawShape + ": click points; Enter or click the first point to close. 1-5 shape, Esc cancels.";
+        }
+        else
+        {
+            hint = drawShape + ": click points; Enter or double-click to finish. 1-5 shape, Esc cancels.";
+        }
+
+        TerrainSceneHud.SetCursorInfo(hint);
+        wroteDrawingInstructions = true;
+    }
+
+    private static void UpdateSelectionHint()
+    {
+        if (IsDrawing)
+        {
+            return;
+        }
+
+        if (trackedFeature is TerrainPath)
+        {
+            TerrainSceneHud.SetCursorInfo(GapHint);
+            wroteDrawingInstructions = true;
+        }
+        else if (wroteDrawingInstructions)
         {
             TerrainSceneHud.SetCursorInfo(string.Empty);
             wroteDrawingInstructions = false;
         }
-        TerrainFeaturePreview.Clear();
+    }
+
+    private static SplineContainer ContainerOf(Component feature)
+    {
+        TerrainArea area = feature as TerrainArea;
+        if (area != null)
+        {
+            return area.Container;
+        }
+
+        TerrainPath path = feature as TerrainPath;
+        return path != null ? path.Container : null;
+    }
+
+    private static Bounds WorldBoundsOf(Component feature)
+    {
+        TerrainArea area = feature as TerrainArea;
+        return area != null ? area.WorldBounds() : ((TerrainPath)feature).WorldBounds();
+    }
+
+    private static bool TrackedFeatureIsClosed()
+    {
+        SplineContainer container = ContainerOf(trackedFeature);
+        return container == null || trackedFeature is TerrainArea || container.Spline.Closed;
+    }
+
+    private static int MinimumKnotCountOfTrackedFeature()
+    {
+        return TrackedFeatureIsClosed() ? MinimumOutlinePointCount : MinimumOpenPointCount;
+    }
+
+    public static void CancelDrawing()
+    {
+        bool wasDrawing = IsDrawing;
+        drawMode = DrawMode.None;
+        pendingRecipe = null;
+        ResetPendingShapeState();
+        UpdateSelectionHint();
+        if (wasDrawing)
+        {
+            DrawStateChanged?.Invoke();
+        }
+
         SceneView.RepaintAll();
     }
 
     public static void FrameSelected()
     {
         SceneView view = lastSceneView != null ? lastSceneView : SceneView.lastActiveSceneView;
-        if (trackedArea == null || view == null)
+        if (trackedFeature == null || view == null)
         {
             return;
         }
 
-        view.Frame(trackedArea.WorldBounds(), false);
+        view.Frame(WorldBoundsOf(trackedFeature), false);
     }
 
     public static void DeleteSelectedKnot()
     {
-        if (trackedArea == null || selectedKnotIndex < 0)
+        if (trackedFeature == null || selectedKnotIndex < 0)
         {
             return;
         }
 
-        SplineContainer container = trackedArea.Container;
+        SplineContainer container = ContainerOf(trackedFeature);
         Spline spline = container != null ? container.Spline : null;
-        if (spline == null || selectedKnotIndex >= spline.Count || spline.Count <= MinimumOutlinePointCount)
+        if (spline == null || selectedKnotIndex >= spline.Count || spline.Count <= MinimumKnotCountOfTrackedFeature())
         {
             return;
         }
 
-        Undo.RecordObject(container, "Delete Area Knot");
+        TerrainPath trackedPath = trackedFeature as TerrainPath;
+        if (trackedPath != null)
+        {
+            Undo.RecordObject(trackedPath, "Delete Path Knot");
+            ShiftGapIndicesAfterKnotRemoval(trackedPath, selectedKnotIndex);
+        }
+
+        Undo.RecordObject(container, "Delete Feature Knot");
         spline.RemoveAt(selectedKnotIndex);
         selectedKnotIndex = -1;
         EditorUtility.SetDirty(container);
-        TerrainFeatureEvents.Raise(trackedArea);
+        TerrainFeatureEvents.Raise(trackedFeature);
         SelectionChanged?.Invoke();
         SceneView.RepaintAll();
     }
 
-    private static void RefreshTrackedSelection()
+    private static void ShiftGapIndicesAfterKnotRemoval(TerrainPath path, int removedKnotIndex)
     {
-        TerrainArea selectedArea = null;
-        if (Selection.activeGameObject != null)
+        for (int gapIndex = path.gapKnotIndices.Count - 1; gapIndex >= 0; gapIndex--)
         {
-            selectedArea = Selection.activeGameObject.GetComponent<TerrainArea>();
+            if (path.gapKnotIndices[gapIndex] == removedKnotIndex)
+            {
+                path.gapKnotIndices.RemoveAt(gapIndex);
+            }
+            else if (path.gapKnotIndices[gapIndex] > removedKnotIndex)
+            {
+                path.gapKnotIndices[gapIndex]--;
+            }
         }
 
-        if (selectedArea == trackedArea)
+        EditorUtility.SetDirty(path);
+    }
+
+    private static void ShiftGapIndicesAfterKnotInsert(TerrainPath path, int insertIndex)
+    {
+        bool splitSegmentStartIsGap = path.gapKnotIndices.Contains(insertIndex - 1);
+        for (int gapIndex = 0; gapIndex < path.gapKnotIndices.Count; gapIndex++)
+        {
+            if (path.gapKnotIndices[gapIndex] >= insertIndex)
+            {
+                path.gapKnotIndices[gapIndex]++;
+            }
+        }
+
+        if (splitSegmentStartIsGap && !path.gapKnotIndices.Contains(insertIndex))
+        {
+            path.gapKnotIndices.Add(insertIndex);
+        }
+
+        path.gapKnotIndices.Sort();
+        EditorUtility.SetDirty(path);
+    }
+
+    private static void RefreshTrackedSelection()
+    {
+        Component selectedFeature = null;
+        if (Selection.activeGameObject != null)
+        {
+            selectedFeature = Selection.activeGameObject.GetComponent<TerrainArea>();
+            if (selectedFeature == null)
+            {
+                selectedFeature = Selection.activeGameObject.GetComponent<TerrainPath>();
+            }
+        }
+
+        if (selectedFeature == trackedFeature)
         {
             return;
         }
 
-        trackedArea = selectedArea;
+        trackedFeature = selectedFeature;
+        UpdateSelectionHint();
         selectedKnotIndex = -1;
         knotDragging = false;
         SelectionChanged?.Invoke();
@@ -284,7 +531,7 @@ public static class TerrainFeatureTool
             return;
         }
 
-        bool editingSelectedArea = drawMode == DrawMode.None && trackedArea != null;
+        bool editingSelectedArea = drawMode == DrawMode.None && trackedFeature != null;
         if (drawMode == DrawMode.None && !editingSelectedArea)
         {
             return;
@@ -321,14 +568,17 @@ public static class TerrainFeatureTool
                 sceneView.Repaint();
                 break;
             case EventType.MouseDown:
-                if (currentEvent.button == 0 && !currentEvent.alt)
+                if (currentEvent.button == 0)
                 {
                     UpdateMouseGround(currentEvent.mousePosition);
                     if (IsDrawing)
                     {
-                        HandleDrawMouseDown(currentEvent, controlId);
+                        if (!currentEvent.alt)
+                        {
+                            HandleDrawMouseDown(currentEvent, controlId);
+                        }
                     }
-                    else
+                    else if (!currentEvent.alt || trackedFeature is TerrainPath)
                     {
                         HandleEditMouseDown(currentEvent, controlId);
                     }
@@ -337,7 +587,7 @@ public static class TerrainFeatureTool
                 break;
             case EventType.MouseDrag:
                 UpdateMouseGround(currentEvent.mousePosition);
-                if (GUIUtility.hotControl == dragControlId && (knotDragging || boxDragging))
+                if (GUIUtility.hotControl == dragControlId && (knotDragging || boxDragging || circleDragging))
                 {
                     HandleDrag();
                     currentEvent.Use();
@@ -346,7 +596,7 @@ public static class TerrainFeatureTool
                 sceneView.Repaint();
                 break;
             case EventType.MouseUp:
-                if (GUIUtility.hotControl == dragControlId && (knotDragging || boxDragging))
+                if (GUIUtility.hotControl == dragControlId && (knotDragging || boxDragging || circleDragging))
                 {
                     HandleMouseUp();
                     GUIUtility.hotControl = 0;
@@ -372,7 +622,7 @@ public static class TerrainFeatureTool
     {
         knotWorldPositions.Clear();
         knotScreenPositions.Clear();
-        SplineContainer container = trackedArea.Container;
+        SplineContainer container = ContainerOf(trackedFeature);
         Spline spline = container != null ? container.Spline : null;
         if (spline == null)
         {
@@ -433,52 +683,108 @@ public static class TerrainFeatureTool
             return;
         }
 
-        if (pendingPointsXZ.Count >= 1)
+        if (drawMode == DrawMode.Circle)
+        {
+            circleCentre = new Vector2(mouseGround.x, mouseGround.z);
+            circleRadius = 0f;
+            circleDragging = true;
+            GUIUtility.hotControl = controlId;
+            dragControlId = controlId;
+            currentEvent.Use();
+            return;
+        }
+
+        bool closedShape = PendingShapeIsClosed();
+        if (!closedShape && currentEvent.clickCount == 2)
+        {
+            TryFinishClickShape();
+            currentEvent.Use();
+            return;
+        }
+
+        if (closedShape && pendingPointsXZ.Count >= 1)
         {
             Vector2 firstScreen = HandleUtility.WorldToGUIPoint(OnGround(pendingPointsXZ[0]));
             if (Vector2.Distance(firstScreen, currentEvent.mousePosition) <= CloseOutlinePixels)
             {
-                TryCloseOutline();
+                TryFinishClickShape();
                 currentEvent.Use();
                 return;
             }
         }
 
         pendingPointsXZ.Add(new Vector2(mouseGround.x, mouseGround.z));
-        pendingPointIsSharp.Add(currentEvent.shift);
+        pendingPointIsSharp.Add(ClickPointIsSharp(currentEvent.shift));
         currentEvent.Use();
     }
 
-    private static void TryCloseOutline()
+    private static bool ClickPointIsSharp(bool shiftHeld)
     {
-        if (pendingPointsXZ.Count < MinimumOutlinePointCount || TerrainFeatureEditing.IsSelfIntersecting(pendingPointsXZ))
+        return TerrainFeatureShapes.KnotsAreSharp(drawShape) || (drawShape == TerrainFeatureShapeKind.Curve && shiftHeld);
+    }
+
+    private static void TryFinishClickShape()
+    {
+        bool closedShape = PendingShapeIsClosed();
+        int minimumPointCount = closedShape ? MinimumOutlinePointCount : MinimumOpenPointCount;
+        if (pendingPointsXZ.Count < minimumPointCount)
+        {
+            ShowHud("Add at least " + minimumPointCount + " points");
+            return;
+        }
+
+        if (PendingShapeCreatesArea() && TerrainFeatureEditing.IsSelfIntersecting(pendingPointsXZ))
         {
             ShowHud("Outline crosses itself — move or remove a point");
             return;
         }
 
-        List<Vector2> finishedOutline = new List<Vector2>(pendingPointsXZ);
-        List<bool> finishedSharpFlags = new List<bool>(pendingPointIsSharp);
+        FinishShape(new List<Vector2>(pendingPointsXZ), new List<bool>(pendingPointIsSharp));
+    }
+
+    private static void FinishShape(List<Vector2> finishedKnotsXZ, List<bool> finishedSharpFlags)
+    {
         TerrainAreaRecipe recipe = pendingRecipe;
         int seed = pendingSeed;
+        bool closed = PendingShapeIsClosed();
+        bool createsArea = PendingShapeCreatesArea();
         CancelDrawing();
-        CreateArea(finishedOutline, recipe, seed, finishedSharpFlags);
+        if (createsArea)
+        {
+            CreateArea(finishedKnotsXZ, recipe, seed, finishedSharpFlags);
+        }
+        else
+        {
+            CreatePath(finishedKnotsXZ, (TerrainFeatureRecipe)recipe, seed, finishedSharpFlags, closed);
+        }
     }
 
     private static void HandleEditMouseDown(Event currentEvent, int controlId)
     {
         Vector2 mouse = currentEvent.mousePosition;
         int knotIndex = NearestKnotIndex(mouse);
+        TerrainPath trackedPath = trackedFeature as TerrainPath;
+        if (currentEvent.alt)
+        {
+            if (trackedPath != null && knotIndex >= 0)
+            {
+                ToggleGapKnot(trackedPath, knotIndex);
+                currentEvent.Use();
+            }
+
+            return;
+        }
+
         if (knotIndex >= 0)
         {
             selectedKnotIndex = knotIndex;
-            BeginKnotDrag(controlId, "Move Area Knot");
+            BeginKnotDrag(controlId, "Move Feature Knot");
             SelectionChanged?.Invoke();
             currentEvent.Use();
             return;
         }
 
-        if (!currentEvent.control || !mouseGroundValid || knotWorldPositions.Count < MinimumOutlinePointCount)
+        if (!currentEvent.control || !mouseGroundValid || knotWorldPositions.Count < MinimumKnotCountOfTrackedFeature())
         {
             return;
         }
@@ -492,24 +798,49 @@ public static class TerrainFeatureTool
             return;
         }
 
-        SplineContainer container = trackedArea.Container;
+        SplineContainer container = ContainerOf(trackedFeature);
+        if (!container.Spline.Closed && segmentIndex >= container.Spline.Count - 1)
+        {
+            return;
+        }
+
         Undo.IncrementCurrentGroup();
-        Undo.RecordObject(container, "Insert Area Knot");
+        Undo.RecordObject(container, "Insert Feature Knot");
         Vector3 localPoint = container.transform.InverseTransformPoint(OnGround(closestPoint));
         int insertIndex = Mathf.Clamp(segmentIndex + 1, 1, container.Spline.Count);
+        TerrainPath insertedIntoPath = trackedFeature as TerrainPath;
+        if (insertedIntoPath != null)
+        {
+            Undo.RecordObject(insertedIntoPath, "Insert Feature Knot");
+            ShiftGapIndicesAfterKnotInsert(insertedIntoPath, insertIndex);
+        }
+
         container.Spline.Insert(insertIndex, (float3)localPoint, TangentMode.AutoSmooth);
         selectedKnotIndex = insertIndex;
         EditorUtility.SetDirty(container);
-        TerrainFeatureEvents.Raise(trackedArea);
+        TerrainFeatureEvents.Raise(trackedFeature);
         SelectionChanged?.Invoke();
         currentEvent.Use();
+    }
+
+    private static void ToggleGapKnot(TerrainPath path, int knotIndex)
+    {
+        Undo.RecordObject(path, "Toggle Path Gap");
+        if (!path.gapKnotIndices.Remove(knotIndex))
+        {
+            path.gapKnotIndices.Add(knotIndex);
+        }
+
+        EditorUtility.SetDirty(path);
+        TerrainFeatureEvents.Raise(path);
+        SceneView.RepaintAll();
     }
 
     private static void BeginKnotDrag(int controlId, string undoName)
     {
         tileDataCache.Clear();
         Undo.IncrementCurrentGroup();
-        Undo.RecordObject(trackedArea.Container, undoName);
+        Undo.RecordObject(ContainerOf(trackedFeature), undoName);
         knotDragging = true;
         GUIUtility.hotControl = controlId;
         dragControlId = controlId;
@@ -522,18 +853,35 @@ public static class TerrainFeatureTool
             if (mouseGroundValid)
             {
                 boxCornerB = new Vector2(mouseGround.x, mouseGround.z);
-                TerrainFeaturePreview.SetOutline(TerrainFeatureEditing.BoxOutline(boxCornerA, boxCornerB), pendingRecipe, pendingSeed);
+                if (PendingShapeCreatesArea())
+                {
+                    TerrainFeaturePreview.SetOutline(TerrainFeatureShapes.BoxKnots(boxCornerA, boxCornerB), pendingRecipe, pendingSeed);
+                }
             }
 
             return;
         }
 
-        if (trackedArea == null || !mouseGroundValid)
+        if (circleDragging)
+        {
+            if (mouseGroundValid)
+            {
+                circleRadius = Vector2.Distance(circleCentre, new Vector2(mouseGround.x, mouseGround.z));
+                if (PendingShapeCreatesArea() && circleRadius >= MinimumCircleRadiusMetres)
+                {
+                    TerrainFeaturePreview.SetOutline(SmoothedOutlineXZ(TerrainFeatureShapes.CircleKnots(circleCentre, circleRadius), null, true), pendingRecipe, pendingSeed);
+                }
+            }
+
+            return;
+        }
+
+        if (trackedFeature == null || !mouseGroundValid)
         {
             return;
         }
 
-        SplineContainer container = trackedArea.Container;
+        SplineContainer container = ContainerOf(trackedFeature);
         Spline spline = container.Spline;
         if (selectedKnotIndex < 0 || selectedKnotIndex >= spline.Count)
         {
@@ -546,7 +894,11 @@ public static class TerrainFeatureTool
         spline.SetKnot(selectedKnotIndex, knot);
         spline.SetTangentMode(selectedKnotIndex, existingTangentMode);
         EditorUtility.SetDirty(container);
-        TerrainFeaturePreview.SetOutline(trackedArea.OutlineWorldXZ(PreviewSegmentMetres), trackedArea.recipe, trackedArea.seed, trackedArea.densityMultiplier);
+        TerrainArea trackedArea = trackedFeature as TerrainArea;
+        if (trackedArea != null)
+        {
+            TerrainFeaturePreview.SetOutline(trackedArea.OutlineWorldXZ(PreviewSegmentMetres), trackedArea.recipe, trackedArea.seed, trackedArea.densityMultiplier);
+        }
     }
 
     private static void HandleMouseUp()
@@ -561,20 +913,42 @@ public static class TerrainFeatureTool
                 return;
             }
 
-            List<Vector2> boxOutline = TerrainFeatureEditing.BoxOutline(boxCornerA, boxCornerB);
-            TerrainAreaRecipe recipe = pendingRecipe;
-            int seed = pendingSeed;
-            CancelDrawing();
-            CreateArea(boxOutline, recipe, seed);
+            List<Vector2> boxKnots = TerrainFeatureShapes.BoxKnots(boxCornerA, boxCornerB);
+            FinishShape(boxKnots, FilledFlags(boxKnots.Count, true));
+            return;
+        }
+
+        if (circleDragging)
+        {
+            circleDragging = false;
+            if (circleRadius < MinimumCircleRadiusMetres)
+            {
+                TerrainFeaturePreview.Clear();
+                return;
+            }
+
+            List<Vector2> circleKnots = TerrainFeatureShapes.CircleKnots(circleCentre, circleRadius);
+            FinishShape(circleKnots, FilledFlags(circleKnots.Count, false));
             return;
         }
 
         knotDragging = false;
         TerrainFeaturePreview.Clear();
-        if (trackedArea != null)
+        if (trackedFeature != null)
         {
-            TerrainFeatureEvents.Raise(trackedArea);
+            TerrainFeatureEvents.Raise(trackedFeature);
         }
+    }
+
+    private static List<bool> FilledFlags(int count, bool value)
+    {
+        List<bool> flags = new List<bool>(count);
+        for (int flagIndex = 0; flagIndex < count; flagIndex++)
+        {
+            flags.Add(value);
+        }
+
+        return flags;
     }
 
     private static void HandleKeyDown(Event currentEvent)
@@ -588,7 +962,12 @@ public static class TerrainFeatureTool
             }
             else if (drawMode == DrawMode.Outline && (currentEvent.keyCode == KeyCode.Return || currentEvent.keyCode == KeyCode.KeypadEnter))
             {
-                TryCloseOutline();
+                TryFinishClickShape();
+                currentEvent.Use();
+            }
+            else if (currentEvent.keyCode >= KeyCode.Alpha1 && currentEvent.keyCode <= KeyCode.Alpha5 && DrawRecipe != null)
+            {
+                SetDrawShape((TerrainFeatureShapeKind)(currentEvent.keyCode - KeyCode.Alpha1));
                 currentEvent.Use();
             }
             else if (drawMode == DrawMode.Outline && currentEvent.keyCode == KeyCode.Backspace)
@@ -612,10 +991,10 @@ public static class TerrainFeatureTool
         }
     }
 
-    private static List<Vector2> SmoothedOutlineXZ(IReadOnlyList<Vector2> pointsXZ, IReadOnlyList<bool> sharpFlags)
+    private static List<Vector2> SmoothedOutlineXZ(IReadOnlyList<Vector2> pointsXZ, IReadOnlyList<bool> sharpFlags, bool closed)
     {
         List<Vector2> sampled = new List<Vector2>();
-        if (pointsXZ.Count < 3)
+        if (pointsXZ.Count < (closed ? 3 : 2))
         {
             sampled.AddRange(pointsXZ);
             return sampled;
@@ -628,9 +1007,11 @@ public static class TerrainFeatureTool
             temporarySpline.Add(new float3(pointsXZ[pointIndex].x, 0f, pointsXZ[pointIndex].y), isSharp ? TangentMode.Linear : TangentMode.AutoSmooth);
         }
 
-        temporarySpline.Closed = true;
-        int totalSamples = pointsXZ.Count * PreviewSamplesPerSegment;
-        for (int sampleIndex = 0; sampleIndex < totalSamples; sampleIndex++)
+        temporarySpline.Closed = closed;
+        int segmentCount = closed ? pointsXZ.Count : pointsXZ.Count - 1;
+        int totalSamples = segmentCount * PreviewSamplesPerSegment;
+        int sampleCount = closed ? totalSamples : totalSamples + 1;
+        for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
         {
             float3 position = SplineUtility.EvaluatePosition(temporarySpline, sampleIndex / (float)totalSamples);
             sampled.Add(new Vector2(position.x, position.z));
@@ -679,6 +1060,47 @@ public static class TerrainFeatureTool
         SceneView.RepaintAll();
     }
 
+    private static void CreatePath(IReadOnlyList<Vector2> knotsXZ, TerrainFeatureRecipe recipe, int seed, IReadOnlyList<bool> sharpFlags, bool closed)
+    {
+        Vector2 centroidXZ = Vector2.zero;
+        for (int pointIndex = 0; pointIndex < knotsXZ.Count; pointIndex++)
+        {
+            centroidXZ += knotsXZ[pointIndex];
+        }
+
+        centroidXZ /= knotsXZ.Count;
+        tileDataCache.Clear();
+        Vector3 centroid = OnGround(centroidXZ);
+
+        GameObject pathObject = new GameObject("Path - " + recipe.name, typeof(SplineContainer), typeof(TerrainPath));
+        SceneManager.MoveGameObjectToScene(pathObject, SceneManager.GetActiveScene());
+        pathObject.transform.position = centroid;
+
+        SplineContainer container = pathObject.GetComponent<SplineContainer>();
+        Spline spline = container.Spline;
+        spline.Clear();
+        for (int pointIndex = 0; pointIndex < knotsXZ.Count; pointIndex++)
+        {
+            Vector3 local = OnGround(knotsXZ[pointIndex]) - centroid;
+            bool isSharp = pointIndex < sharpFlags.Count && sharpFlags[pointIndex];
+            spline.Add(new float3(local.x, local.y, local.z), isSharp ? TangentMode.Linear : TangentMode.AutoSmooth);
+        }
+
+        spline.Closed = closed;
+
+        TerrainPath path = pathObject.GetComponent<TerrainPath>();
+        path.recipe = recipe;
+        path.seed = seed;
+        path.closedLoop = closed;
+
+        Undo.RegisterCreatedObjectUndo(pathObject, "Create Path");
+        EditorUtility.SetDirty(path);
+        Selection.activeGameObject = pathObject;
+        RefreshTrackedSelection();
+        TerrainFeatureEvents.Raise(path);
+        SceneView.RepaintAll();
+    }
+
     private static void DrawAll(bool editingSelectedArea)
     {
         if (IsDrawing)
@@ -695,6 +1117,7 @@ public static class TerrainFeatureTool
     {
         if (drawMode == DrawMode.Outline)
         {
+            bool closedShape = PendingShapeIsClosed();
             Vector3[] fixedPoints = new Vector3[pendingPointsXZ.Count];
             for (int pointIndex = 0; pointIndex < pendingPointsXZ.Count; pointIndex++)
             {
@@ -707,20 +1130,25 @@ public static class TerrainFeatureTool
                 List<Vector2> previewControlPoints = new List<Vector2>(pendingPointsXZ);
                 List<bool> previewSharpFlags = new List<bool>(pendingPointIsSharp);
                 previewControlPoints.Add(new Vector2(mouseGround.x, mouseGround.z));
-                previewSharpFlags.Add(Event.current != null && Event.current.shift);
-                smoothedPreviewPoints = SmoothedOutlineXZ(previewControlPoints, previewSharpFlags);
+                previewSharpFlags.Add(ClickPointIsSharp(Event.current != null && Event.current.shift));
+                smoothedPreviewPoints = SmoothedOutlineXZ(previewControlPoints, previewSharpFlags, closedShape);
             }
 
             Handles.color = OutlineColour;
             if (smoothedPreviewPoints != null && smoothedPreviewPoints.Count >= 3)
             {
-                Vector3[] smoothedLoop = new Vector3[smoothedPreviewPoints.Count + 1];
+                int loopLength = smoothedPreviewPoints.Count + (closedShape ? 1 : 0);
+                Vector3[] smoothedLoop = new Vector3[loopLength];
                 for (int sampleIndex = 0; sampleIndex < smoothedPreviewPoints.Count; sampleIndex++)
                 {
                     smoothedLoop[sampleIndex] = OnGround(smoothedPreviewPoints[sampleIndex]);
                 }
 
-                smoothedLoop[smoothedPreviewPoints.Count] = smoothedLoop[0];
+                if (closedShape)
+                {
+                    smoothedLoop[smoothedPreviewPoints.Count] = smoothedLoop[0];
+                }
+
                 Handles.DrawAAPolyLine(4f, smoothedLoop);
             }
             else if (fixedPoints.Length >= 2)
@@ -735,14 +1163,27 @@ public static class TerrainFeatureTool
                 Handles.DotHandleCap(0, fixedPoints[pointIndex], Quaternion.identity, size, EventType.Repaint);
             }
 
-            if (smoothedPreviewPoints != null)
+            if (smoothedPreviewPoints != null && PendingShapeCreatesArea())
             {
                 TerrainFeaturePreview.SetOutline(smoothedPreviewPoints, pendingRecipe, pendingSeed, 1f);
             }
         }
+        else if (circleDragging && circleRadius >= MinimumCircleRadiusMetres)
+        {
+            List<Vector2> circleOutline = SmoothedOutlineXZ(TerrainFeatureShapes.CircleKnots(circleCentre, circleRadius), null, true);
+            Vector3[] circleLoop = new Vector3[circleOutline.Count + 1];
+            for (int pointIndex = 0; pointIndex < circleOutline.Count; pointIndex++)
+            {
+                circleLoop[pointIndex] = OnGround(circleOutline[pointIndex]);
+            }
+
+            circleLoop[circleOutline.Count] = circleLoop[0];
+            Handles.color = OutlineColour;
+            Handles.DrawAAPolyLine(4f, circleLoop);
+        }
         else if (boxDragging)
         {
-            List<Vector2> boxOutline = TerrainFeatureEditing.BoxOutline(boxCornerA, boxCornerB);
+            List<Vector2> boxOutline = TerrainFeatureShapes.BoxKnots(boxCornerA, boxCornerB);
             Vector3[] boxLoop = new Vector3[boxOutline.Count + 1];
             for (int pointIndex = 0; pointIndex < boxOutline.Count; pointIndex++)
             {
@@ -764,15 +1205,25 @@ public static class TerrainFeatureTool
             return;
         }
 
-        Vector3[] loop = new Vector3[knotWorldPositions.Count + 1];
-        for (int knotIndex = 0; knotIndex < knotWorldPositions.Count; knotIndex++)
+        TerrainPath selectedPath = trackedFeature as TerrainPath;
+        bool closedOutline = TrackedFeatureIsClosed();
+        int segmentCount = closedOutline ? knotWorldPositions.Count : knotWorldPositions.Count - 1;
+        for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
         {
-            loop[knotIndex] = knotWorldPositions[knotIndex];
+            bool isGapSegment = selectedPath != null && selectedPath.gapKnotIndices.Contains(segmentIndex);
+            Vector3 segmentStart = knotWorldPositions[segmentIndex];
+            Vector3 segmentEnd = knotWorldPositions[(segmentIndex + 1) % knotWorldPositions.Count];
+            if (isGapSegment)
+            {
+                Handles.color = GapColour;
+                Handles.DrawDottedLine(segmentStart, segmentEnd, 6f);
+            }
+            else
+            {
+                Handles.color = OutlineColour;
+                Handles.DrawAAPolyLine(4f, segmentStart, segmentEnd);
+            }
         }
-
-        loop[knotWorldPositions.Count] = knotWorldPositions[0];
-        Handles.color = OutlineColour;
-        Handles.DrawAAPolyLine(4f, loop);
 
         for (int knotIndex = 0; knotIndex < knotWorldPositions.Count; knotIndex++)
         {

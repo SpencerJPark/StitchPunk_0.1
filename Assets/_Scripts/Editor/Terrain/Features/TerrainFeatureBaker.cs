@@ -34,7 +34,8 @@ public static class TerrainFeatureBaker
     private static void OnFeatureChanged(Component feature)
     {
         TerrainArea area = feature as TerrainArea;
-        if (area == null && !lastBounds.ContainsKey(feature))
+        TerrainPath path = feature as TerrainPath;
+        if (area == null && path == null && !lastBounds.ContainsKey(feature))
         {
             return;
         }
@@ -46,23 +47,34 @@ public static class TerrainFeatureBaker
         }
         else
         {
-            // Cold cache after a domain reload or scene load: ask the baked tile data where this area last baked
+            // Cold cache after a domain reload or scene load: ask the baked tile data where this feature last baked
             TerrainArea featureAsArea = feature as TerrainArea;
+            TerrainPath featureAsPath = feature as TerrainPath;
             if (!ReferenceEquals(featureAsArea, null))
             {
                 AddTilesLastBakedWithFeature(featureAsArea.featureId);
             }
+            else if (!ReferenceEquals(featureAsPath, null))
+            {
+                AddOpenTilesScatteredByPath(featureAsPath.featureId);
+            }
         }
 
-        if (area == null)
-        {
-            lastBounds.Remove(feature);
-        }
-        else
+        if (area != null)
         {
             Bounds newBounds = area.WorldBounds();
             pendingAffectedBounds.Add(newBounds);
             lastBounds[feature] = newBounds;
+        }
+        else if (path != null)
+        {
+            Bounds newBounds = path.WorldBounds();
+            pendingAffectedBounds.Add(newBounds);
+            lastBounds[feature] = newBounds;
+        }
+        else
+        {
+            lastBounds.Remove(feature);
         }
 
         lastEventTime = EditorApplication.timeSinceStartup;
@@ -106,6 +118,11 @@ public static class TerrainFeatureBaker
             AddTilesOverlapping(area.WorldBounds(), affectedTiles);
         }
 
+        foreach (TerrainPath path in FindAllPaths())
+        {
+            AddTilesOverlapping(path.WorldBounds(), affectedTiles);
+        }
+
         // A tile that already has an area mask must be re-baked so a deleted area clears it
         foreach (string guid in AssetDatabase.FindAssets("_AreaMask t:Texture2D", new string[] { "Assets" }))
         {
@@ -135,10 +152,10 @@ public static class TerrainFeatureBaker
 
     public static void BakeTile(TerrainTile tile)
     {
-        BakeTile(tile, FindAllAreas());
+        BakeTile(tile, FindAllAreas(), FindAllPaths());
     }
 
-    private static void BakeTile(TerrainTile tile, IReadOnlyList<TerrainArea> allAreas)
+    private static void BakeTile(TerrainTile tile, IReadOnlyList<TerrainArea> allAreas, IReadOnlyList<TerrainPath> allPaths)
     {
         TerrainTileData tileData = tile.tileData;
         if (tileData == null)
@@ -146,6 +163,13 @@ public static class TerrainFeatureBaker
             return;
         }
 
+        BakeAreaPass(tile, tileData, allAreas);
+        TerrainPathBaker.BakeTile(tile, allPaths);
+        EditorSceneManager.SaveScene(tile.gameObject.scene);
+    }
+
+    private static void BakeAreaPass(TerrainTile tile, TerrainTileData tileData, IReadOnlyList<TerrainArea> allAreas)
+    {
         Vector2Int coordinate = tile.tileCoordinate;
         int resolution = tileData.maskResolution > 0 ? tileData.maskResolution : TerrainSplatCodec.FallbackMaskResolution;
 
@@ -233,7 +257,6 @@ public static class TerrainFeatureBaker
         {
             Debug.Log("Tile " + coordinate + ": " + fillResult.demotedCount + " trees became cards (interactable cap " + TerrainPlatformProfile.Active.maxInteractablePropsPerTile + ").");
         }
-        EditorSceneManager.SaveScene(tile.gameObject.scene);
     }
 
     private static void BakeTiles(HashSet<Vector2Int> affectedTiles, bool openMissingTiles)
@@ -264,6 +287,7 @@ public static class TerrainFeatureBaker
         if (tilesToBake.Count > 0)
         {
             List<TerrainArea> allAreas = FindAllAreas();
+            List<TerrainPath> allPaths = FindAllPaths();
             bool showProgress = tilesToBake.Count > ProgressBarTileThreshold;
             try
             {
@@ -277,7 +301,7 @@ public static class TerrainFeatureBaker
                     TerrainTile tile = TerrainTileCreator.FindTileAt(tilesToBake[tileIndex]);
                     if (tile != null)
                     {
-                        BakeTile(tile, allAreas);
+                        BakeTile(tile, allAreas, allPaths);
                         staleTiles.Remove(tilesToBake[tileIndex]);
                     }
                 }
@@ -297,6 +321,11 @@ public static class TerrainFeatureBaker
     private static List<TerrainArea> FindAllAreas()
     {
         return new List<TerrainArea>(UnityEngine.Object.FindObjectsByType<TerrainArea>(FindObjectsInactive.Exclude));
+    }
+
+    private static List<TerrainPath> FindAllPaths()
+    {
+        return new List<TerrainPath>(UnityEngine.Object.FindObjectsByType<TerrainPath>(FindObjectsInactive.Exclude));
     }
 
     private static string AreaMaskPath(Vector2Int coordinate)
@@ -331,13 +360,44 @@ public static class TerrainFeatureBaker
                     continue;
                 }
 
-                float tileMinX = tileData.coordinate.x * TerrainTileData.TileSizeMetres - 50f;
-                float tileMinZ = tileData.coordinate.y * TerrainTileData.TileSizeMetres - 50f;
-                float insetCentreOffset = TerrainTileData.TileSizeMetres * 0.5f;
-                Vector3 insideTileCentre = new Vector3(tileMinX + insetCentreOffset, 0f, tileMinZ + insetCentreOffset);
-                Vector3 insideTileSize = new Vector3(TerrainTileData.TileSizeMetres - 2f, 1f, TerrainTileData.TileSizeMetres - 2f);
-                pendingAffectedBounds.Add(new Bounds(insideTileCentre, insideTileSize));
+                pendingAffectedBounds.Add(InsideTileBounds(tileData.coordinate));
                 break;
+            }
+        }
+    }
+
+    private static Bounds InsideTileBounds(Vector2Int coordinate)
+    {
+        float tileMinX = coordinate.x * TerrainTileData.TileSizeMetres - 50f;
+        float tileMinZ = coordinate.y * TerrainTileData.TileSizeMetres - 50f;
+        float insetCentreOffset = TerrainTileData.TileSizeMetres * 0.5f;
+        Vector3 insideTileCentre = new Vector3(tileMinX + insetCentreOffset, 0f, tileMinZ + insetCentreOffset);
+        Vector3 insideTileSize = new Vector3(TerrainTileData.TileSizeMetres - 2f, 1f, TerrainTileData.TileSizeMetres - 2f);
+        return new Bounds(insideTileCentre, insideTileSize);
+    }
+
+    private static void AddOpenTilesScatteredByPath(string featureId)
+    {
+        if (string.IsNullOrEmpty(featureId))
+        {
+            return;
+        }
+
+        foreach (TerrainTile tile in UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Exclude))
+        {
+            Transform scatterParent = tile.transform.Find("Scatter");
+            if (scatterParent == null)
+            {
+                continue;
+            }
+
+            foreach (TerrainScatterMarker marker in scatterParent.GetComponentsInChildren<TerrainScatterMarker>(true))
+            {
+                if (marker.sourceFeatureId == featureId)
+                {
+                    pendingAffectedBounds.Add(InsideTileBounds(tile.tileCoordinate));
+                    break;
+                }
             }
         }
     }
