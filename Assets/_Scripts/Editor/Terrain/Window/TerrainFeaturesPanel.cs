@@ -182,6 +182,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         VisualElement row = new VisualElement();
         row.AddToClassList("toolkit-list-row");
         row.AddToClassList("terrain-road-row");
+        row.AddToClassList("terrain-picker-row");
 
         VisualElement chip = new VisualElement();
         chip.AddToClassList("terrain-swatch-chip");
@@ -192,13 +193,16 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         nameLabel.AddToClassList("terrain-road-name");
         nameLabel.AddToClassList("terrain-ellipsis-label");
         nameLabel.tooltip = title;
-        row.Add(nameLabel);
         Label metaLabel = new Label(meta);
         metaLabel.AddToClassList("toolkit-hint");
         metaLabel.AddToClassList("terrain-ellipsis-label");
-        metaLabel.AddToClassList("terrain-picker-meta");
         metaLabel.tooltip = meta;
-        row.Add(metaLabel);
+
+        VisualElement textColumn = new VisualElement();
+        textColumn.AddToClassList("terrain-picker-text");
+        textColumn.Add(nameLabel);
+        textColumn.Add(metaLabel);
+        row.Add(textColumn);
 
         row.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => onPick());
         return row;
@@ -400,6 +404,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
 
         Button regenerateButton = TerrainUi.MakeSecondary("Regenerate", RerollIconName, "Regenerate this feature's scatter, keeping locked items", () => TerrainFeatureEvents.Raise(feature));
         regenerateButton.AddToClassList("terrain-fit-button");
+        regenerateButton.AddToClassList("terrain-ellipsis-button");
         cardBody.Add(regenerateButton);
 
         int staleTileCount = TerrainFeatureBaker.StaleTiles.Count;

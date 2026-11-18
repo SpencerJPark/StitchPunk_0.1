@@ -642,8 +642,23 @@
     white-space: nowrap;
 }
 
-.terrain-picker-meta {
-    flex-shrink: 3;
+.terrain-picker-row {
+    height: auto;
+    min-height: 24px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.terrain-picker-row .terrain-swatch-chip {
+    flex-shrink: 0;
+    margin-right: 4px;
+}
+
+.terrain-picker-text {
+    flex-direction: column;
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .terrain-ellipsis-button {
