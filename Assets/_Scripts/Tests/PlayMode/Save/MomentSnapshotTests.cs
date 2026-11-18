@@ -116,7 +116,10 @@ namespace StitchPunk.Tests.PlayMode
 
             EntityQuery childQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<AttackCooldown>());
             Assert.AreEqual(1, childQuery.CalculateEntityCount());
-            Entity restoredChild = childQuery.GetSingletonEntity();
+            // AttackCooldown is enableable, and GetSingletonEntity refuses queries over enableable types.
+            Unity.Collections.NativeArray<Entity> restoredChildren = childQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
+            Entity restoredChild = restoredChildren[0];
+            restoredChildren.Dispose();
             childQuery.Dispose();
             Assert.AreEqual(7f, entityManager.GetComponentData<AttackCooldown>(restoredChild).remaining);
 

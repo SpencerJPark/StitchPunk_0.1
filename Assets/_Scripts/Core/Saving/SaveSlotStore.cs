@@ -27,9 +27,22 @@ public static class SaveSlotStore
             {
                 return rootDirectoryOverride;
             }
-            return Path.Combine(Application.persistentDataPath, "saves");
+            if (string.IsNullOrEmpty(cachedDefaultRootDirectory))
+            {
+                cachedDefaultRootDirectory = Path.Combine(Application.persistentDataPath, "saves");
+            }
+            return cachedDefaultRootDirectory;
         }
         set { rootDirectoryOverride = value; }
+    }
+
+    // The save write runs on a Task, and persistentDataPath throws off the main thread: resolve it before any save.
+    static string cachedDefaultRootDirectory;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void CacheDefaultRootDirectoryOnMainThread()
+    {
+        cachedDefaultRootDirectory = Path.Combine(Application.persistentDataPath, "saves");
     }
 
     public static string GetSaveFolderPath(string saveId)
