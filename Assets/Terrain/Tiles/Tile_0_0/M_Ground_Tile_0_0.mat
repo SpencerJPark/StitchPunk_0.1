@@ -94,7 +94,7 @@ Material:
     - _FringeSize: 14
     - _FringeStretch: 0.5
     - _MacroSize: 140
-    - _MacroStrength: 0.6
+    - _MacroStrength: 0.15
     - _NdotLInfluence: 0.15
     - _PatchSize: 35
     - _PointLightBoost: 1
@@ -104,7 +104,7 @@ Material:
     - _Splat: 1
     - _SplatGradStep: 1.22
     - _StrategicProxy: 0
-    - _TransitionCellMetres: 2
+    - _TransitionCellMetres: 4
     - _UseCliffs: 1
     - _UseInkDetail: 1
     - _UseSecond: 1
@@ -112,8 +112,8 @@ Material:
     m_Colors:
     - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
     - _InkColor: {r: 0.024620876, g: 0.93207544, b: 0.25639436, a: 1}
-    - _InkDetailParams: {r: 1, g: 0.6, b: 1, a: 0}
-    - _InkDetailTileMetres: {r: 10, g: 8, b: 8, a: 8}
+    - _InkDetailParams: {r: 1, g: 0.6, b: 1, a: 1}
+    - _InkDetailTileMetres: {r: 6, g: 6, b: 6, a: 6}
     - _MacroDark: {r: 0.35999998, g: 0.38999996, b: 0.45, a: 1}
     - _MacroLight: {r: 0.58, g: 0.54999995, b: 0.47999996, a: 1}
     - _RimColor: {r: 0.95, g: 0.92, b: 0.8, a: 0}

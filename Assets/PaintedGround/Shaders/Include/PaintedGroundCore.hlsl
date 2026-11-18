@@ -175,6 +175,7 @@ float4 _StitchTintedShadowParams;          // x = enabled, y = depth bias, z = s
 float4 _StitchHatchParams;  // x = hatch strength, y = metres per hatch tile, z = space mode (0 world, 1 camera plane, 2 camera plane + object anchor), w = paper grain
 float4 _StitchInkColor;     // rgb = the one ink colour
 float4 _StitchHatchBoil;    // x = boil frames per second (0 = off), y = boil offset in tiles
+float  _StitchInkShadowLift; // 0 = shadows darken as before, 1 = shadows are drawn only by the hatch (the ink reference)
 
 #ifndef SHADERGRAPH_PREVIEW
 TEXTURE2D(_StitchTintedShadowTexture);     // rgb = colour the sunlight was filtered to, a = depth01 of the nearest glass
@@ -260,13 +261,14 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
     float ndl   = lerp(1.0, formShading, ndotlInfluence);
 
     lighting = SampleSH(half3(0, 1, 0)) * ambientTint * lerp(float3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
-    lighting += mainLight.color * StitchTintedSunlight(positionWS) * (shade * ndl);
+    float sunAmount = shade * ndl;
+    lighting += mainLight.color * StitchTintedSunlight(positionWS) * lerp(sunAmount, 1.0, saturate(_StitchInkShadowLift));
 
     // Hatching only adds strokes inside the one shadow tone, never a second darkness level. Point lights are
     // added after it, so a lamp lifts the surroundings of the strokes but not the strokes themselves.
     if (_StitchHatchParams.x > 0.0 || _StitchHatchParams.w > 0.0)
     {
-        float  sunBlocked = 1.0 - shade * ndl;
+        float  sunBlocked = 1.0 - sunAmount;
         float2 hatchTap = SAMPLE_TEXTURE2D(_StitchHatchTexture, sampler_LinearRepeat, StitchHatchUV(positionWS, normalWS)).rg;
         float  hatchInkAmount = hatchTap.r * smoothstep(0.35, 0.65, sunBlocked) * _StitchHatchParams.x;
         lighting *= lerp(float3(1, 1, 1), _StitchInkColor.rgb, hatchInkAmount);

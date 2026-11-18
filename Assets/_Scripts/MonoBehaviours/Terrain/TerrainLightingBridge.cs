@@ -12,6 +12,7 @@ public class TerrainLightingBridge : MonoBehaviour
     static readonly int HatchParamsPropertyId = Shader.PropertyToID("_StitchHatchParams");
     static readonly int InkColorPropertyId = Shader.PropertyToID("_StitchInkColor");
     static readonly int HatchBoilPropertyId = Shader.PropertyToID("_StitchHatchBoil");
+    static readonly int InkShadowLiftPropertyId = Shader.PropertyToID("_StitchInkShadowLift");
 
     public enum HatchSpaceMode
     {
@@ -43,16 +44,20 @@ public class TerrainLightingBridge : MonoBehaviour
 
     [Min(0.05f)]
     [Tooltip("Metres per hatch texture tile. Keep it a divisor of 100 so the hatch stays continuous across terrain tiles.")]
-    public float hatchTileMetres = 10f;
+    public float hatchTileMetres = 5f;
 
     [Tooltip("World = glued to the world. Camera plane = always / on screen. Object anchored = the hatch rides with each moving object.")]
     public HatchSpaceMode hatchSpaceMode = HatchSpaceMode.CameraPlaneObjectAnchored;
 
     [Range(0f, 1f)]
+    [Tooltip("1 = shadows no longer darken anything: they are drawn only by the hatch strokes, like the ink reference.")]
+    public float shadowDrawnOnlyByHatch = 1f;
+
+    [Range(0f, 1f)]
     public float paperGrainStrength = 0f;
 
     [Tooltip("One pen for the hatch strokes.")]
-    public Color inkColor = new Color(0.36f, 0.24f, 0.15f, 1f);
+    public Color inkColor = new Color(0.17f, 0.12f, 0.09f, 1f);
 
     [Min(0f)]
     [Tooltip("Hand-drawn shimmer: the hatch jumps between three offsets this many times a second. 0 = off.")]
@@ -99,6 +104,7 @@ public class TerrainLightingBridge : MonoBehaviour
         Shader.SetGlobalFloat(ShadowBandHardnessPropertyId, 0f);
         Shader.SetGlobalVector(HatchParamsPropertyId, Vector4.zero);
         Shader.SetGlobalVector(HatchBoilPropertyId, Vector4.zero);
+        Shader.SetGlobalFloat(InkShadowLiftPropertyId, 0f);
     }
 
     void PushInkLookGlobals()
@@ -114,6 +120,8 @@ public class TerrainLightingBridge : MonoBehaviour
         Shader.SetGlobalVector(HatchParamsPropertyId, hatchParams);
         Shader.SetGlobalVector(InkColorPropertyId, new Vector4(inkColor.r, inkColor.g, inkColor.b, 1f));
         Shader.SetGlobalVector(HatchBoilPropertyId, new Vector4(hatchBoilFramesPerSecond, hatchBoilOffsetTiles, 0f, 0f));
+        // Without hatching a lifted shadow would simply vanish, so the lift only applies while the hatch draws it.
+        Shader.SetGlobalFloat(InkShadowLiftPropertyId, hasHatchTexture && hatchStrength > 0f ? shadowDrawnOnlyByHatch : 0f);
     }
 
     internal static float AdvanceFlash(float currentFlash, float flashPerSecondDecay, float deltaTime)

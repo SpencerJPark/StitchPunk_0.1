@@ -79,8 +79,8 @@ Shader "Painted/Ground"
         [NoScaleOffset] _InkDetailRTex    ("R detail",    2D) = "gray" {}
         [NoScaleOffset] _InkDetailGTex    ("G detail",    2D) = "gray" {}
         [NoScaleOffset] _InkDetailBTex    ("B detail",    2D) = "gray" {}
-        _InkDetailTileMetres ("Detail tile metres (Base, R, G, B)", Vector) = (10, 8, 8, 8)
-        _InkDetailParams ("Line, tone, scratch strength", Vector) = (1, 0.6, 1, 0)
+        _InkDetailTileMetres ("Detail tile metres (Base, R, G, B)", Vector) = (6, 6, 6, 6)
+        _InkDetailParams ("Line, tone, scratch strength, flatten painted texture", Vector) = (1, 0.6, 1, 1)
 
         [Header(Tile transitions)]
         // Replaces the fringe with grid-snapped pre-drawn transition tiles. World splat map only.
@@ -315,6 +315,10 @@ Shader "Painted/Ground"
             {
                 half3 layerColour = Layer(TEXTURE2D_ARGS(tex, samp), wxz, tileSize, patchMask);
             #if defined(_INK_DETAIL)
+                // Flatten: the reference is one flat local colour per surface with all detail in ink. The smallest mip is the
+                // painted texture's own average, so the palette is kept without picking colours by hand.
+                half3 flatLocalColour = SAMPLE_TEXTURE2D_LOD(tex, samp, float2(0.5, 0.5), 14).rgb;
+                layerColour = lerp(layerColour, flatLocalColour, (half)_InkDetailParams.w);
                 half3 detail = Layer(TEXTURE2D_ARGS(detailTex, detailSamp), wxz, detailTileMetres, patchMask);
                 layerColour *= lerp(1.0h, detail.g * 2.0h, (half)_InkDetailParams.y);
                 layerColour *= 1.0h - detail.b * (half)_InkDetailParams.z * 0.25h;
@@ -403,7 +407,8 @@ Shader "Painted/Ground"
 
                 // ---- macro variation, rim, ink --------------------------------------------
                 // Ink stays at full strength zoomed out too: fading it made the painted marks vanish when zooming.
-                half4 inkColorForView = _InkColor;
+                // One pen: the bridge's ink colour replaces this material's edge ink while the ink look is pushed.
+                half4 inkColorForView = _StitchInkColor.a > 0.5 ? half4((half3)_StitchInkColor.rgb, 1.0h) : _InkColor;
                 PaintedFinish_float(col, macroNoise, _MacroDark.rgb, _MacroLight.rgb, _MacroStrength, rim, _RimColor, ink, inkColorForView, col);
 
                 // ---- lighting -------------------------------------------------------------

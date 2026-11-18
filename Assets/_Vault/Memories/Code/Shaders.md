@@ -55,6 +55,13 @@ Spec + build log: `Tasks/Verification/InkLook_System.md`; owner look pass `verif
 - **Ground** (`Painted/Ground`): `_INK_DETAIL` multiplies each layer by its `T_InkDetail_*` sheet and inks the lines
   into the layer colour (`InkedLayer`); `_GROUND_TRANSITION_TILES` swaps the fringe for `PaintedTransitionTile_float`
   (world splat map only; vertex-colour splats fall back to the fringe).
+- **Ink look = no shadow darkening.** `_StitchInkShadowLift` 1 makes the sun ignore the shadow while the hatch still
+  reads `shade * ndl`; ground `_InkDetailParams.w` flattens layers to their smallest-mip average. Judge the look
+  against `Tasks/Claude/TextureInspo.png`, never against the spec text.
+- **Editor captures after a recompile render empty** (only plain GameObjects): the tile subscenes close and the
+  Editor World does not tick while Unity is unfocused. `World.DefaultGameObjectInjectionWorld.Update()` ~20 times in
+  `execute_code` rebuilds the renderables; then `Camera.main` (moved temporarily) + `Render()` into an RT works. A
+  second `new Camera` + `CopyFrom` rendered the main camera's view regardless of its transform.
 - **Checking a shader variant compiles:** `ShaderUtil.CompilePass(material, passIndex, true)` on a temp material with
   the keywords enabled, then `ShaderUtil.GetShaderMessages(shader)`. One variant per `execute_code` call: compiling
   every pass of several variants in one call timed out silently (null result).

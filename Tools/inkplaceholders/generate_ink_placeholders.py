@@ -89,7 +89,7 @@ def generate_cobble_detail(size=512, seed=7):
     tone_image = Image.new("L", (size, size), 128)
     ink_draw = ImageDraw.Draw(ink_image)
     tone_draw = ImageDraw.Draw(tone_image)
-    row_count = 20
+    row_count = 16
     row_height = size / row_count
     for row_index in range(row_count):
         widths = random_generator.uniform(0.9, 1.9, 40) * row_height * 1.5
@@ -102,27 +102,27 @@ def generate_cobble_detail(size=512, seed=7):
         for stone_width in widths:
             centre_x = left_edge + stone_width / 2
             outline = wobbly_stone_outline(centre_x, centre_y + random_generator.normal(0, 0.8),
-                                           stone_width / 2 - 1.6, row_height / 2 - 1.4, random_generator)
+                                           stone_width / 2 - 3.0, row_height / 2 - 2.6, random_generator)
             tone_value = int(np.clip(128 + random_generator.normal(0, 22), 70, 190))
             for offset_x in (-size, 0, size):
                 for offset_y in (-size, 0, size):
                     tone_draw.polygon([(point_x + offset_x, point_y + offset_y) for point_x, point_y in outline], fill=tone_value)
-            draw_wrapped_line(ink_draw, outline, size, 2, 255)
+            draw_wrapped_line(ink_draw, outline + outline[:1], size, 4, 255)
             # A short inner hook stroke on some stones, the "drawn by hand" tell in the reference.
             if random_generator.random() < 0.45:
                 hook_start_x = centre_x - stone_width * 0.25
                 hook = [(hook_start_x, centre_y + row_height * 0.18),
                         (hook_start_x + stone_width * 0.2, centre_y + row_height * 0.24)]
-                draw_wrapped_line(ink_draw, hook, size, 1, 200)
+                draw_wrapped_line(ink_draw, hook, size, 3, 230)
             left_edge += stone_width
     ink_layer = np.asarray(ink_image.filter(ImageFilter.GaussianBlur(0.6)), dtype=np.float64) / 255.0
-    ink_layer = pencil_break_up(ink_layer, size, seed + 3)
+    ink_layer = np.clip(ink_layer * (0.85 + 0.15 * tileable_value_noise(size, size // 4, seed + 3)), 0, 1)
     tone_layer = np.asarray(tone_image, dtype=np.float64) / 255.0
-    scratch_layer = generate_scratch_strokes(size, seed + 9, stroke_count=220, stroke_length=7, curl=0.4)
+    scratch_layer = generate_scratch_strokes(size, seed + 9, stroke_count=220, stroke_length=7, curl=0.4, line_width=2)
     return ink_layer, tone_layer, scratch_layer
 
 
-def generate_scratch_strokes(size, seed, stroke_count, stroke_length, curl):
+def generate_scratch_strokes(size, seed, stroke_count, stroke_length, curl, line_width=1):
     """Short curved hair strokes in loose clumps, like the Don't Starve ground noise."""
     random_generator = np.random.default_rng(seed)
     stroke_image = Image.new("L", (size, size), 0)
@@ -142,15 +142,15 @@ def generate_scratch_strokes(size, seed, stroke_count, stroke_length, curl):
                 current_angle = angle + bend * progress
                 hair_points.append((start_x + math.cos(current_angle) * stroke_length * progress * 2,
                                     start_y + math.sin(current_angle) * stroke_length * progress * 2))
-            draw_wrapped_line(stroke_draw, hair_points, size, 1, int(random_generator.uniform(150, 255)))
+            draw_wrapped_line(stroke_draw, hair_points, size, line_width, int(random_generator.uniform(190, 255)))
     stroke_layer = np.asarray(stroke_image, dtype=np.float64) / 255.0
     return pencil_break_up(stroke_layer, size, seed + 5)
 
 
 def generate_grass_detail(size=512, seed=21):
-    ink_layer = generate_scratch_strokes(size, seed, stroke_count=420, stroke_length=6, curl=0.9)
+    ink_layer = generate_scratch_strokes(size, seed, stroke_count=320, stroke_length=8, curl=0.9, line_width=3)
     tone_layer = 0.5 + (tileable_fractal_noise(size, 6, 3, seed + 2) - 0.5) * 0.35
-    scratch_layer = generate_scratch_strokes(size, seed + 40, stroke_count=160, stroke_length=4, curl=0.3)
+    scratch_layer = generate_scratch_strokes(size, seed + 40, stroke_count=300, stroke_length=6, curl=0.3, line_width=2)
     return ink_layer, tone_layer, scratch_layer
 
 
@@ -158,20 +158,20 @@ def generate_dirt_detail(size=512, seed=33):
     random_generator = np.random.default_rng(seed)
     pebble_image = Image.new("L", (size, size), 0)
     pebble_draw = ImageDraw.Draw(pebble_image)
-    for pebble_index in range(70):
+    for pebble_index in range(110):
         centre_x, centre_y = random_generator.uniform(0, size, 2)
-        radius = random_generator.uniform(2.5, 6.5)
+        radius = random_generator.uniform(4.0, 10.0)
         outline = wobbly_stone_outline(centre_x, centre_y, radius * 1.3, radius, random_generator, point_count=12)
-        draw_wrapped_line(pebble_draw, outline, size, 1, 230)
+        draw_wrapped_line(pebble_draw, outline + outline[:1], size, 3, 240)
     pebble_layer = np.asarray(pebble_image.filter(ImageFilter.GaussianBlur(0.4)), dtype=np.float64) / 255.0
-    stipple = (tileable_value_noise(size, size // 2, seed + 4) > 0.93).astype(np.float64) * 0.7
-    ink_layer = pencil_break_up(np.clip(pebble_layer + stipple, 0, 1), size, seed + 6)
+    stipple = (tileable_value_noise(size, size // 3, seed + 4) > 0.9).astype(np.float64) * 0.9
+    ink_layer = np.clip(pebble_layer + stipple, 0, 1)
     tone_layer = 0.5 + (tileable_fractal_noise(size, 5, 3, seed + 8) - 0.5) * 0.3
-    scratch_layer = generate_scratch_strokes(size, seed + 50, stroke_count=90, stroke_length=5, curl=0.2)
+    scratch_layer = generate_scratch_strokes(size, seed + 50, stroke_count=160, stroke_length=7, curl=0.2, line_width=2)
     return ink_layer, tone_layer, scratch_layer
 
 
-def generate_hatch(size=256, line_spacing=8, seed=55):
+def generate_hatch(size=128, line_spacing=4, seed=55):
     """'/' diagonal pencil hatching. x + y = constant is a '/' line with y pointing down the image."""
     pixel_y, pixel_x = np.mgrid[0:size, 0:size].astype(np.float64)
     lines_per_tile = size // line_spacing
@@ -180,13 +180,13 @@ def generate_hatch(size=256, line_spacing=8, seed=55):
     line_index = np.floor(across / line_spacing).astype(int) % lines_per_tile
     wobble = (periodic_noise_1d(along + line_index * 97.0, size, 16, seed) - 0.5) * 1.6
     distance_to_line = np.abs(np.mod(across + wobble, line_spacing) - line_spacing / 2)
-    stroke_core = np.clip(1.6 - distance_to_line / 1.25, 0, 1)  # ~3 px solid core, first look read as a grey smear
+    stroke_core = np.clip(1.4 - distance_to_line / 0.8, 0, 1)
     # Strokes start and stop: each line gets its own gap pattern and pressure along its length.
     gap_noise = periodic_noise_1d(along + line_index * 53.0, size, 10, seed + 1)
-    pressure = 0.8 + 0.2 * periodic_noise_1d(along + line_index * 31.0, size, 24, seed + 2)
-    stroke_visible = np.clip((gap_noise - 0.12) * 6.0, 0, 1)
-    hatch_layer = pencil_break_up(stroke_core * stroke_visible * pressure, size, seed + 3)
-    paper_layer = 0.5 + (tileable_fractal_noise(size, 32, 3, seed + 4) - 0.5) * 0.6
+    pressure = 0.9 + 0.1 * periodic_noise_1d(along + line_index * 31.0, size, 24, seed + 2)
+    stroke_visible = np.clip((gap_noise - 0.1) * 8.0, 0, 1)
+    hatch_layer = np.clip(stroke_core * stroke_visible * pressure, 0, 1)
+    paper_layer = 0.5 + (tileable_fractal_noise(size, 16, 3, seed + 4) - 0.5) * 0.6
     return hatch_layer, paper_layer
 
 
@@ -204,7 +204,10 @@ def atlas_cell_origin(case_index, variant):
 
 
 def generate_transition_cell(case_index, variant, seed):
+    """Don't Starve style edge: the turf ends in hairy brush flicks poking outward, with clusters of curved ink
+    strokes along the edge and no continuous outline or highlight band (DontStarveTiles.png)."""
     cell = ATLAS_CELL_PIXELS
+    random_generator = np.random.default_rng(seed)
     corner_top_left = 1.0 if case_index & 1 else 0.0
     corner_top_right = 1.0 if case_index & 2 else 0.0
     corner_bottom_right = 1.0 if case_index & 4 else 0.0
@@ -217,24 +220,63 @@ def generate_transition_cell(case_index, variant, seed):
     distance_to_border = np.minimum(np.minimum(pixel_u, 1 - pixel_u), np.minimum(pixel_v, 1 - pixel_v))
     border_fade = np.clip((distance_to_border - 0.04) / 0.18, 0, 1)
     border_fade = border_fade * border_fade * (3 - 2 * border_fade)
-    wobble = (tileable_fractal_noise(cell, 2, 3, seed) - 0.5) * 0.32 * border_fade
+    wobble = (tileable_fractal_noise(cell, 2, 3, seed) - 0.5) * 0.45 * border_fade
     field = field + wobble
     gradient_v, gradient_u = np.gradient(field)
     gradient_length = np.sqrt(gradient_u ** 2 + gradient_v ** 2) + 1e-6
     signed_pixels = (field - 0.5) / gradient_length            # > 0 inside, in pixels
-    coverage = np.clip(signed_pixels / 1.5 + 0.5, 0, 1)
-    rim = np.clip(1.0 - np.abs(signed_pixels - 5.0) / 3.0, 0, 1) * (signed_pixels > 0)
-    ink_line = np.clip(1.0 - np.abs(signed_pixels - 1.0) / 1.6, 0, 1)
-    # Tufts: hair strokes poking outward from the edge, drawn on the inside band.
-    # Tuft and pencil noise use one seed for every case: the noise tiles at the cell size, so a line
-    # leaving one cell continues unbroken into whichever case sits next to it.
-    tuft_noise = tileable_value_noise(cell, 16, 4242)
-    tufts = np.clip(1.0 - np.abs(signed_pixels - 3.5) / 2.5, 0, 1) * (tuft_noise > 0.72)
-    ink_line = pencil_break_up(np.clip(ink_line + tufts * 0.8, 0, 1), cell, 4343)
-    if case_index == 0:
-        coverage[:] = 0; rim[:] = 0; ink_line[:] = 0
-    if case_index == 15:
-        coverage[:] = 1; rim[:] = 0; ink_line[:] = 0
+    coverage = np.clip(signed_pixels / 1.2 + 0.5, 0, 1)
+    rim = np.zeros((cell, cell))
+    ink_line = np.zeros((cell, cell))
+    if case_index == 0 or case_index == 15:
+        coverage[:] = 0.0 if case_index == 0 else 1.0
+        return coverage, rim, ink_line
+
+    flick_image = Image.new("L", (cell, cell), 0)
+    stroke_image = Image.new("L", (cell, cell), 0)
+    flick_draw = ImageDraw.Draw(flick_image)
+    stroke_draw = ImageDraw.Draw(stroke_image)
+    # Strokes only away from the cell border: there the edge is the shared field alone, so neighbours always join.
+    edge_rows, edge_columns = np.nonzero((np.abs(signed_pixels) < 0.8) & (border_fade > 0.2))
+    if len(edge_rows) > 0:
+        chosen = random_generator.choice(len(edge_rows), size=min(len(edge_rows), 45), replace=False)
+        for chosen_index in chosen:
+            row, column = edge_rows[chosen_index], edge_columns[chosen_index]
+            outward_u = -gradient_u[row, column] / gradient_length[row, column]
+            outward_v = -gradient_v[row, column] / gradient_length[row, column]
+            tangent_u, tangent_v = -outward_v, outward_u
+            lean = random_generator.normal(0, 0.45)
+            flick_length = random_generator.uniform(5, 14)
+            start = (column - outward_u * 3, row - outward_v * 3)
+            middle = (column + (outward_u + tangent_u * lean * 0.5) * flick_length * 0.5,
+                      row + (outward_v + tangent_v * lean * 0.5) * flick_length * 0.5)
+            tip = (column + (outward_u + tangent_u * lean) * flick_length,
+                   row + (outward_v + tangent_v * lean) * flick_length)
+            # The flick is part of the turf: it adds coverage outward.
+            flick_draw.line([start, middle, tip], fill=255, width=3, joint="curve")
+            # Most flicks get an ink stroke drawn down their middle and curving back along the edge.
+            if random_generator.random() < 0.35:
+                back = (column - tangent_u * lean * 6 - outward_u * 4, row - tangent_v * lean * 6 - outward_v * 4)
+                stroke_draw.line([tip, middle, back], fill=int(random_generator.uniform(200, 255)), width=1, joint="curve")
+        # Clusters of curved strokes just inside the edge, following it.
+        inner_rows, inner_columns = np.nonzero((signed_pixels > 2.0) & (signed_pixels < 7.0) & (border_fade > 0.2))
+        if len(inner_rows) > 0:
+            for chosen_index in random_generator.choice(len(inner_rows), size=min(len(inner_rows), 12), replace=False):
+                row, column = inner_rows[chosen_index], inner_columns[chosen_index]
+                tangent_u = gradient_v[row, column] / gradient_length[row, column]
+                tangent_v = -gradient_u[row, column] / gradient_length[row, column]
+                arc_length = random_generator.uniform(5, 11)
+                bow = random_generator.normal(0, 1.5)
+                stroke_draw.line([(column - tangent_u * arc_length, row - tangent_v * arc_length),
+                                  (column + bow * tangent_v, row - bow * tangent_u),
+                                  (column + tangent_u * arc_length, row + tangent_v * arc_length)],
+                                 fill=int(random_generator.uniform(170, 240)), width=1, joint="curve")
+    flick_layer = np.asarray(flick_image.filter(ImageFilter.GaussianBlur(0.5)), dtype=np.float64) / 255.0
+    stroke_layer = np.asarray(stroke_image.filter(ImageFilter.GaussianBlur(0.4)), dtype=np.float64) / 255.0
+    coverage = np.maximum(coverage, flick_layer)
+    # A broken pencil trace on the edge itself, never a solid outline.
+    edge_trace = np.clip(1.0 - np.abs(signed_pixels) / 1.2, 0, 1) * (tileable_value_noise(cell, 12, 4343) > 0.45)
+    ink_line = np.clip(stroke_layer * 1.2 + edge_trace * 0.7, 0, 1)
     return coverage, rim, ink_line
 
 
@@ -287,7 +329,7 @@ def main():
         Image.fromarray((np.clip(surface_strip, 0, 1) * 255).astype(np.uint8)).save(os.path.join(preview_directory, "preview_surfaces.png"))
         # Shadow preview: half of the cobble tile in a flat one-tone shadow with hatching on top.
         cobble_preview = previews[0].copy()
-        hatch_tiled = np.tile(hatch_layer, (2, 2))
+        hatch_tiled = np.tile(hatch_layer, (4, 4))
         shadow_mask = np.zeros(cobble_preview.shape[:2]); shadow_mask[:, 256:] = 1
         shadowed = cobble_preview * 0.72 * np.array((0.85, 0.85, 1.0))[None, None, :]
         shadowed = shadowed * (1 - hatch_tiled[..., None] * 0.55)

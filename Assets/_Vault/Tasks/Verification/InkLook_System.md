@@ -243,6 +243,24 @@ Where the build differs from the text above:
 - **Material staged:** `Terrain/TestWorld/Tile_0_0/M_Ground_Tile_0_0.mat` has the detail sheets (Base Dirt, R/G Grass,
   B Cobble) and the atlas assigned, both keywords off. The bridge's hatch texture is not assigned in any scene yet.
 
+## Owner feedback round 1 (2026-11-18)
+
+Owner verdict on the first switched-on captures: "nothing like the example". The build had been judged against the
+spec text, never against `TextureInspo.png` / `DontStarveTiles.png`. Fixed in the same session:
+- **Shadows are drawn only by the hatch.** New global `_StitchInkShadowLift` (bridge: `shadowDrawnOnlyByHatch`,
+  default 1, pushed only while the hatch draws): the sun term ignores the shadow, the hatch still reads it.
+- **Flat local colour.** `_InkDetailParams.w` flattens each painted layer to its own smallest-mip average, so all
+  surface detail comes from the ink sheets (the reference is flat colour + ink). Macro strength on the two CampLoop
+  tile materials 0.6 -> 0.15.
+- **One pen** for detail lines and edge ink: `_StitchInkColor` (0.17, 0.12, 0.09) whenever the bridge pushes it; the
+  tile's own `_InkColor` is bright green.
+- **Placeholder art redrawn to the reference:** packed outlined cobbles, sparse grass strokes, pebbles + stipple, all
+  with 3-4 px lines so they survive minification; hatch 128 px at 4 px pitch, 5 m per tile (about 4 px on screen
+  at play zoom); transition cells redrawn Don't Starve style (outward turf flicks, sparse curved strokes, no
+  outline, no highlight band). Transition cell 4 m.
+- Not touched by the ground changes: roads (`Painted/Ribbon`), tree cards, props and units keep their old look
+  apart from the hatch.
+
 ## Open decisions
 
 Recorded defaults (architecture calls, decided here; overturn freely):
