@@ -10,10 +10,14 @@ Judge the Ink Look experiment ([InkLook_System.md](InkLook_System.md)) against `
 and `DontStarveTiles.png`, then answer D3, D4, D5, D8 and D9 in the spec. Everything is off by default, so each
 piece can be toggled live in one Play session. Shader compile is already clean; only the look is open.
 
-## Setup
-- [ ] Open `Assets/Scenes/TerrainWorld.unity`. On the `TerrainLightingBridge` object, assign
-      `PaintedGround/Textures/Ink/T_InkHatch.png` to **Hatch Texture** (without it hatch and grain stay off).
-- [ ] With every new dial at 0 and both material keywords off, the frame looks exactly as before.
+## Setup (done 2026-11-18 in CampLoop)
+- `Assets/Scenes/CampLoop.unity` has an **Ink Look Bridge** object (hatch 1, 10 m tiles, object-anchored, grain 0.3,
+  hatch texture assigned). Disable the object to A/B the whole hatch + grain look.
+- Both CampLoop ground materials (`Terrain/Tiles/Tile_0_0` and `Tile_-1_0`) have ink detail and tile transitions on;
+  untick the two toggles on the material to A/B them.
+- First captures: ink detail and transitions read clearly; hatch reads in tree and cart shadows at play zoom, but
+  only after the placeholder strokes were made bolder (the first hatch averaged 7 % ink and read as a grey smear).
+- Known unrelated: two `Quad` objects in CampLoop have no material and render magenta.
 
 ## Hatched shadows (R1, every lit material)
 - [ ] Bridge: **Hatch Strength** 1. Diagonal `/` strokes appear only inside shadow (cast shadows and the dark side

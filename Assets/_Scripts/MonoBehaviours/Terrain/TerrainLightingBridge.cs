@@ -43,7 +43,7 @@ public class TerrainLightingBridge : MonoBehaviour
 
     [Min(0.05f)]
     [Tooltip("Metres per hatch texture tile. Keep it a divisor of 100 so the hatch stays continuous across terrain tiles.")]
-    public float hatchTileMetres = 2f;
+    public float hatchTileMetres = 10f;
 
     [Tooltip("World = glued to the world. Camera plane = always / on screen. Object anchored = the hatch rides with each moving object.")]
     public HatchSpaceMode hatchSpaceMode = HatchSpaceMode.CameraPlaneObjectAnchored;

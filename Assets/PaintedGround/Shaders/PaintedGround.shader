@@ -79,7 +79,7 @@ Shader "Painted/Ground"
         [NoScaleOffset] _InkDetailRTex    ("R detail",    2D) = "gray" {}
         [NoScaleOffset] _InkDetailGTex    ("G detail",    2D) = "gray" {}
         [NoScaleOffset] _InkDetailBTex    ("B detail",    2D) = "gray" {}
-        _InkDetailTileMetres ("Detail tile metres (Base, R, G, B)", Vector) = (6, 4, 5, 4)
+        _InkDetailTileMetres ("Detail tile metres (Base, R, G, B)", Vector) = (10, 8, 8, 8)
         _InkDetailParams ("Line, tone, scratch strength", Vector) = (1, 0.6, 1, 0)
 
         [Header(Tile transitions)]
@@ -318,7 +318,10 @@ Shader "Painted/Ground"
                 half3 detail = Layer(TEXTURE2D_ARGS(detailTex, detailSamp), wxz, detailTileMetres, patchMask);
                 layerColour *= lerp(1.0h, detail.g * 2.0h, (half)_InkDetailParams.y);
                 layerColour *= 1.0h - detail.b * (half)_InkDetailParams.z * 0.25h;
-                layerColour = lerp(layerColour, layerColour * _InkColor.rgb, saturate(detail.r * (half)_InkDetailParams.x) * _InkColor.a);
+                // One pen (D5): the bridge's _StitchInkColor when it is pushed (a = 1), else this material's edge ink.
+                half3 detailPenColour = _StitchInkColor.a > 0.5 ? (half3)_StitchInkColor.rgb : _InkColor.rgb;
+                half  detailPenStrength = _StitchInkColor.a > 0.5 ? 1.0h : _InkColor.a;
+                layerColour = lerp(layerColour, layerColour * detailPenColour, saturate(detail.r * (half)_InkDetailParams.x) * detailPenStrength);
             #endif
                 return layerColour;
             }

@@ -180,11 +180,11 @@ def generate_hatch(size=256, line_spacing=8, seed=55):
     line_index = np.floor(across / line_spacing).astype(int) % lines_per_tile
     wobble = (periodic_noise_1d(along + line_index * 97.0, size, 16, seed) - 0.5) * 1.6
     distance_to_line = np.abs(np.mod(across + wobble, line_spacing) - line_spacing / 2)
-    stroke_core = np.clip(1.0 - distance_to_line / 1.25, 0, 1)
+    stroke_core = np.clip(1.6 - distance_to_line / 1.25, 0, 1)  # ~3 px solid core, first look read as a grey smear
     # Strokes start and stop: each line gets its own gap pattern and pressure along its length.
     gap_noise = periodic_noise_1d(along + line_index * 53.0, size, 10, seed + 1)
-    pressure = 0.55 + 0.45 * periodic_noise_1d(along + line_index * 31.0, size, 24, seed + 2)
-    stroke_visible = np.clip((gap_noise - 0.22) * 6.0, 0, 1)
+    pressure = 0.8 + 0.2 * periodic_noise_1d(along + line_index * 31.0, size, 24, seed + 2)
+    stroke_visible = np.clip((gap_noise - 0.12) * 6.0, 0, 1)
     hatch_layer = pencil_break_up(stroke_core * stroke_visible * pressure, size, seed + 3)
     paper_layer = 0.5 + (tileable_fractal_noise(size, 32, 3, seed + 4) - 0.5) * 0.6
     return hatch_layer, paper_layer
