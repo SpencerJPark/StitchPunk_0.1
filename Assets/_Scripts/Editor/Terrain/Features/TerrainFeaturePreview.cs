@@ -181,9 +181,26 @@ public static class TerrainFeaturePreview
         outlineCentroid = sum / outlineXZ.Length;
 
         dotPlacements = new List<TerrainScatterPlacement>();
-        TerrainForestRecipe forestRecipe = recipe as TerrainForestRecipe;
-        if (forestRecipe == null || forestRecipe.scatterSet == null) return;
+        TerrainFeatureRecipe featureRecipe = recipe as TerrainFeatureRecipe;
+        TerrainFillPlacer fillPlacer = featureRecipe != null ? featureRecipe.placer as TerrainFillPlacer : null;
+        if (fillPlacer == null) return;
 
+        TerrainScatterSet transientScatterSet = TerrainAreaFiller.ScatterSetFromFillRecipe(featureRecipe, fillPlacer);
+        if (transientScatterSet == null) return;
+        try
+        {
+            PlanFillDots(fillPlacer, transientScatterSet, minimumX, minimumZ, maximumX, maximumZ);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(transientScatterSet);
+        }
+    }
+
+    private static void PlanFillDots(
+        TerrainFillPlacer fillPlacer, TerrainScatterSet scatterSet,
+        float minimumX, float minimumZ, float maximumX, float maximumZ)
+    {
         TerrainAreaStamp stamp = new TerrainAreaStamp
         {
             outlineXZ = outlineXZ,
@@ -192,9 +209,9 @@ public static class TerrainFeaturePreview
             areaIndex = 1
         };
         TerrainAreaRestrictedSampler restrictedSampler = new TerrainAreaRestrictedSampler(
-            previewGroundSampler, stamp, forestRecipe.clearingNoiseScaleMetres, forestRecipe.clearingThreshold01);
+            previewGroundSampler, stamp, fillPlacer.clearingNoiseScaleMetres, fillPlacer.clearingThreshold01);
         Rect boundsXZ = new Rect(minimumX, minimumZ, maximumX - minimumX, maximumZ - minimumZ);
-        List<TerrainScatterRule> previewRules = TerrainScatterGenerator.RulesFrom(forestRecipe.scatterSet);
+        List<TerrainScatterRule> previewRules = TerrainScatterGenerator.RulesFrom(scatterSet);
         float safeMultiplier = densityMultiplier > 0f ? densityMultiplier : 1f;
         for (int ruleIndex = 0; ruleIndex < previewRules.Count; ruleIndex++)
         {

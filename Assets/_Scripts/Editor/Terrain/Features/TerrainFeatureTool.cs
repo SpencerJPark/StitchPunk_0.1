@@ -23,8 +23,6 @@ public static class TerrainFeatureTool
     private const float MinimumBoxSideMetres = 1f;
     private const int MinimumOutlinePointCount = 3;
     private const double HudMessageSeconds = 3.0;
-    private const string OutlineDrawingInstructions = "Drawing an outline. Shift+click makes a sharp corner; click the first point to close.";
-    private const string BoxDrawingInstructions = "Drag to draw a box.";
     private const string GapHint = "Alt+click a knot to toggle a gap (skips the segment after it).";
     private const int MinimumOpenPointCount = 2;
     private const float MinimumCircleRadiusMetres = 1f;
@@ -36,7 +34,7 @@ public static class TerrainFeatureTool
     private static readonly Color GapColour = new Color(1f, 0.25f, 0.2f, 1f);
 
     private static DrawMode drawMode = DrawMode.None;
-    private static TerrainAreaRecipe pendingRecipe;
+    private static TerrainFeatureRecipe pendingRecipe;
     private static int pendingSeed;
     private static readonly List<Vector2> pendingPointsXZ = new List<Vector2>();
     private static readonly List<bool> pendingPointIsSharp = new List<bool>();
@@ -93,7 +91,7 @@ public static class TerrainFeatureTool
 
     public static TerrainFeatureShapeKind DrawShape => drawShape;
 
-    public static TerrainFeatureRecipe DrawRecipe => IsDrawing ? pendingRecipe as TerrainFeatureRecipe : null;
+    public static TerrainFeatureRecipe DrawRecipe => IsDrawing ? pendingRecipe : null;
 
     public static void BeginDraw(TerrainFeatureRecipe recipe, TerrainFeatureShapeKind shape)
     {
@@ -144,44 +142,7 @@ public static class TerrainFeatureTool
         SceneView.RepaintAll();
     }
 
-    public static void BeginDrawOutline(TerrainAreaRecipe recipe)
-    {
-        if (recipe == null)
-        {
-            return;
-        }
-
-        TerrainFeatureRecipe featureRecipe = recipe as TerrainFeatureRecipe;
-        if (featureRecipe != null)
-        {
-            BeginDraw(featureRecipe, TerrainFeatureShapeKind.Curve);
-            return;
-        }
-
-        StartDrawing(recipe, TerrainFeatureShapeKind.Curve);
-    }
-
-    public static void BeginDragBox(ScriptableObject recipe)
-    {
-        TerrainAreaRecipe areaRecipe = recipe as TerrainAreaRecipe;
-        if (areaRecipe == null)
-        {
-            Debug.Log("Stamps arrive in WF-6");
-            CancelDrawing();
-            return;
-        }
-
-        TerrainFeatureRecipe featureRecipe = areaRecipe as TerrainFeatureRecipe;
-        if (featureRecipe != null)
-        {
-            BeginDraw(featureRecipe, TerrainFeatureShapeKind.Box);
-            return;
-        }
-
-        StartDrawing(areaRecipe, TerrainFeatureShapeKind.Box);
-    }
-
-    private static void StartDrawing(TerrainAreaRecipe recipe, TerrainFeatureShapeKind shape)
+    private static void StartDrawing(TerrainFeatureRecipe recipe, TerrainFeatureShapeKind shape)
     {
         CancelDrawing();
         drawShape = shape;
@@ -220,12 +181,7 @@ public static class TerrainFeatureTool
 
     private static bool PendingShapeIsClosed()
     {
-        TerrainFeatureRecipe featureRecipe = pendingRecipe as TerrainFeatureRecipe;
-        if (featureRecipe == null)
-        {
-            return true;
-        }
-
+        TerrainFeatureRecipe featureRecipe = pendingRecipe;
         bool closed;
         TerrainFeatureShapes.IsAllowed(drawShape, featureRecipe.supportedShapes, out closed);
         return closed;
@@ -233,23 +189,14 @@ public static class TerrainFeatureTool
 
     private static bool PendingShapeCreatesArea()
     {
-        TerrainFeatureRecipe featureRecipe = pendingRecipe as TerrainFeatureRecipe;
-        if (featureRecipe == null)
-        {
-            return true;
-        }
-
+        TerrainFeatureRecipe featureRecipe = pendingRecipe;
         return PendingShapeIsClosed() && (featureRecipe.supportedShapes & TerrainFeatureShapeSupport.ClosedArea) != 0;
     }
 
     private static void PublishDrawingHint()
     {
         string hint;
-        if (!(pendingRecipe is TerrainFeatureRecipe))
-        {
-            hint = drawMode == DrawMode.Box ? BoxDrawingInstructions : OutlineDrawingInstructions;
-        }
-        else if (drawMode == DrawMode.Box)
+        if (drawMode == DrawMode.Box)
         {
             hint = "Box: drag corner to corner. 1-5 shape, Esc cancels.";
         }

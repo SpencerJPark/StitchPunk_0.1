@@ -171,7 +171,6 @@ public static class TerrainAreaFiller
                 }
                 TerrainTileAreaEntry entry = tileData.areaEntries[entryIndex];
                 TerrainTileSampler tileSampler = new TerrainTileSampler(tile, true);
-                TerrainForestRecipe forestRecipe = entry.recipe as TerrainForestRecipe;
                 TerrainFeatureRecipe featureRecipe = entry.recipe as TerrainFeatureRecipe;
                 TerrainScatterSet scatterSet = null;
                 TerrainScatterSet transientScatterSet = null;
@@ -179,15 +178,7 @@ public static class TerrainAreaFiller
                 float interiorDemotionMetres = 0f;
                 float clearingNoiseScaleMetres = 0f;
                 float clearingThreshold01 = 0f;
-                if (forestRecipe != null)
-                {
-                    scatterSet = forestRecipe.scatterSet;
-                    cardAtlas = forestRecipe.cardAtlas;
-                    interiorDemotionMetres = forestRecipe.interiorDemotionMetres;
-                    clearingNoiseScaleMetres = forestRecipe.clearingNoiseScaleMetres;
-                    clearingThreshold01 = forestRecipe.clearingThreshold01;
-                }
-                else if (featureRecipe != null)
+                if (featureRecipe != null)
                 {
                     TerrainRowsPlacer rowsPlacer = featureRecipe.placer as TerrainRowsPlacer;
                     TerrainFillPlacer fillPlacer = featureRecipe.placer as TerrainFillPlacer;

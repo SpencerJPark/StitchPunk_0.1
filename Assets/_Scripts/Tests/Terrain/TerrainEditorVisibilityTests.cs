@@ -8,7 +8,7 @@ namespace StitchPunk.Tests
     {
         private bool toolsLiveBeforeTest;
         private int changedCount;
-        private TerrainForestRecipe recipe;
+        private TerrainFeatureRecipe recipe;
 
         private void CountChanged()
         {
@@ -51,9 +51,11 @@ namespace StitchPunk.Tests
         [Test]
         public void GoingHiddenWhileDrawingCancelsTheDrawing()
         {
-            recipe = ScriptableObject.CreateInstance<TerrainForestRecipe>();
+            recipe = ScriptableObject.CreateInstance<TerrainFeatureRecipe>();
+            recipe.placer = new TerrainFillPlacer();
+            recipe.supportedShapes = TerrainFeatureShapeSupport.ClosedArea;
             TerrainEditorVisibility.SetToolsLive(true);
-            TerrainFeatureTool.BeginDrawOutline(recipe);
+            TerrainFeatureTool.BeginDraw(recipe, TerrainFeatureShapeKind.Curve);
             Assert.IsTrue(TerrainFeatureTool.IsDrawing);
 
             TerrainEditorVisibility.SetToolsLive(false);
