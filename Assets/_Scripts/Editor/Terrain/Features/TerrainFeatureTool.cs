@@ -23,7 +23,8 @@ public static class TerrainFeatureTool
     private const float MinimumBoxSideMetres = 1f;
     private const int MinimumOutlinePointCount = 3;
     private const double HudMessageSeconds = 3.0;
-    private const string GapHint = "Alt+click a knot to toggle a gap (skips the segment after it).";
+    private const string GapHint = "Drag knots to move, Ctrl+click inserts, Delete removes, Alt+click toggles a gap.";
+    private const string AreaHint = "Drag knots to move, Ctrl+click inserts, Delete removes.";
     private const int MinimumOpenPointCount = 2;
     private const float MinimumCircleRadiusMetres = 1f;
     private const float PreviewSegmentMetres = 2f;
@@ -70,7 +71,68 @@ public static class TerrainFeatureTool
     static TerrainFeatureTool()
     {
         SceneView.duringSceneGui += OnSceneGui;
-        Selection.selectionChanged += RefreshTrackedSelection;
+        Selection.selectionChanged += OnSelectionChanged;
+    }
+
+    private static bool redirectingSelection;
+
+    private static void OnSelectionChanged()
+    {
+        RedirectPlacedPieceSelectionToFeature();
+        RefreshTrackedSelection();
+    }
+
+    // Hand-editing a single placed piece is still possible from the Hierarchy.
+    private static void RedirectPlacedPieceSelectionToFeature()
+    {
+        if (redirectingSelection || IsDrawing || !TerrainEditorVisibility.ToolsLive
+            || Selection.gameObjects.Length != 1 || Selection.activeGameObject == null)
+        {
+            return;
+        }
+
+        TerrainScatterMarker marker = Selection.activeGameObject.GetComponentInParent<TerrainScatterMarker>();
+        if (marker == null || string.IsNullOrEmpty(marker.sourceFeatureId))
+        {
+            return;
+        }
+
+        GameObject featureObject = null;
+        foreach (TerrainArea area in UnityEngine.Object.FindObjectsByType<TerrainArea>())
+        {
+            if (area.featureId == marker.sourceFeatureId)
+            {
+                featureObject = area.gameObject;
+                break;
+            }
+        }
+
+        if (featureObject == null)
+        {
+            foreach (TerrainPath path in UnityEngine.Object.FindObjectsByType<TerrainPath>())
+            {
+                if (path.featureId == marker.sourceFeatureId)
+                {
+                    featureObject = path.gameObject;
+                    break;
+                }
+            }
+        }
+
+        if (featureObject == null)
+        {
+            return;
+        }
+
+        redirectingSelection = true;
+        try
+        {
+            Selection.activeGameObject = featureObject;
+        }
+        finally
+        {
+            redirectingSelection = false;
+        }
     }
 
     public static Component SelectedFeature
@@ -227,6 +289,11 @@ public static class TerrainFeatureTool
         if (trackedFeature is TerrainPath)
         {
             TerrainSceneHud.SetCursorInfo(GapHint);
+            wroteDrawingInstructions = true;
+        }
+        else if (trackedFeature is TerrainArea)
+        {
+            TerrainSceneHud.SetCursorInfo(AreaHint);
             wroteDrawingInstructions = true;
         }
         else if (wroteDrawingInstructions)
