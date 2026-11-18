@@ -642,8 +642,50 @@
     white-space: nowrap;
 }
 
+.terrain-picker-meta {
+    flex-shrink: 3;
+}
+
+.terrain-ellipsis-button {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.terrain-ellipsis-button .unity-label {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .terrain-fit-button {
     flex-shrink: 0;
     width: auto;
     align-self: flex-start;
+}
+
+.terrain-card--narrow .toolkit-property-row {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.terrain-card--narrow .toolkit-property-row .toolkit-property-row__label.unity-label {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+}
+
+.terrain-card--narrow .toolkit-property-row .toolkit-property-row__field {
+    width: auto;
+    min-width: 0;
+    flex-grow: 1;
+    margin-top: 2px;
+}
+
+.terrain-card--narrow .terrain-fit-button.unity-button {
+    align-self: stretch;
+    width: auto;
+    min-width: 0;
 }
