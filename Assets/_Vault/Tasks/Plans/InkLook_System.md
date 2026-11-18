@@ -231,7 +231,7 @@ Recorded defaults (architecture calls, decided here; overturn freely):
 - [x] D7 Mips: default box filter for the first look. If strokes go grey when zoomed out, author mips in the
       generator script as extra mip PNGs (thicker, sparser lines per level).
 
-Owner look calls (answer after P4 captures):
+Owner look calls (answer after the T6 captures):
 - [ ] D3 Hatch space mode: 0 world / 1 camera-plane / 2 camera-plane object-anchored (+ per-actor anchor if parts seam).
 - [ ] D4 Transition cell size (2 m default) and whether transitions replace the fringe everywhere.
 - [ ] D5 One ink colour for hatch, detail, edges and outlines (`RobertsCross`), or separate.
