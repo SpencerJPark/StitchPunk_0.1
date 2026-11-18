@@ -9,13 +9,42 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 23f6df45c24f540459bd4958a5a87919, type: 3}
+  m_Script: {fileID: 11500000, guid: 77ac4ce5416bacb4594020a435ee6b15, type: 3}
   m_Name: Forest
-  m_EditorClassIdentifier: StitchPunk.Data::TerrainForestRecipe
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainFeatureRecipe
   paintsGround: 1
   groundLayer: 2
-  scatterSet: {fileID: 11400000, guid: bf511514e7e8d8a4eb63beb5ff7e8881, type: 2}
-  cardAtlas: {fileID: 11400000, guid: 7f00de02d3401044f8f0edfc0310e603, type: 2}
-  interiorDemotionMetres: 12
-  clearingNoiseScaleMetres: 60
-  clearingThreshold01: 0
+  displayName: Forest
+  thumbnail: {fileID: 0}
+  category: 0
+  supportedShapes: 4
+  defaultShape: 0
+  placer:
+    rid: 2332137159361560659
+  placeables:
+  - prefab: {fileID: 6668611670620172075, guid: 43f3dd4ba5650ee49b51c4f6407940d5, type: 3}
+    weight: 2
+    tier: 0
+    cardAtlasEntry: 0
+    cardSizeMetres: {x: 4, y: 7}
+    blocksNavigation: 1
+  - prefab: {fileID: 0}
+    weight: 2
+    tier: 1
+    cardAtlasEntry: 2
+    cardSizeMetres: {x: 2.5, y: 4}
+    blocksNavigation: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 2332137159361560659
+      type: {class: TerrainFillPlacer, ns: , asm: StitchPunk.Data}
+      data:
+        densityPer100SquareMetres: 4
+        minSpacingMetres: 3
+        scaleRange: {x: 0.8, y: 1.2}
+        maxSlopeDegrees: 35
+        cardAtlas: {fileID: 11400000, guid: 7f00de02d3401044f8f0edfc0310e603, type: 2}
+        interiorDemotionMetres: 12
+        clearingNoiseScaleMetres: 60
+        clearingThreshold01: 0

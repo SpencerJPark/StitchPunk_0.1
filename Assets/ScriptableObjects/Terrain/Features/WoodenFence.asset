@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77ac4ce5416bacb4594020a435ee6b15, type: 3}
+  m_Name: WoodenFence
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainFeatureRecipe
+  paintsGround: 0
+  groundLayer: 2
+  displayName: Wooden Fence
+  thumbnail: {fileID: 0}
+  category: 1
+  supportedShapes: 3
+  defaultShape: 1
+  placer:
+    rid: 2332137159361560657
+  placeables:
+  - prefab: {fileID: 7470792974674339525, guid: cad0c2480e1ea7e4c9f073f0d10f0977, type: 3}
+    weight: 1
+    tier: 0
+    cardAtlasEntry: 0
+    cardSizeMetres: {x: 0, y: 0}
+    blocksNavigation: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 2332137159361560657
+      type: {class: TerrainAlongPathPlacer, ns: , asm: StitchPunk.Data}
+      data:
+        mode: 1
+        spacingMetres: 2.5
+        jitterMetres: 0
+        sideOffsetMetres: 0
+        alignToPath: 1
+        segmentPrefab: {fileID: 5029769520766197187, guid: 11d624c25808dfb4fbdae58e3f2135a7, type: 3}

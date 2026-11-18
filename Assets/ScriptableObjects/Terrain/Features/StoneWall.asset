@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77ac4ce5416bacb4594020a435ee6b15, type: 3}
+  m_Name: StoneWall
+  m_EditorClassIdentifier: StitchPunk.Data::TerrainFeatureRecipe
+  paintsGround: 0
+  groundLayer: 2
+  displayName: Stone Wall
+  thumbnail: {fileID: 0}
+  category: 1
+  supportedShapes: 3
+  defaultShape: 1
+  placer:
+    rid: 2332137159361560658
+  placeables:
+  - prefab: {fileID: 4798597473064246360, guid: 4b74a7a0b03acfe48bf0e3ce0658fdab, type: 3}
+    weight: 1
+    tier: 0
+    cardAtlasEntry: 0
+    cardSizeMetres: {x: 0, y: 0}
+    blocksNavigation: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 2332137159361560658
+      type: {class: TerrainAlongPathPlacer, ns: , asm: StitchPunk.Data}
+      data:
+        mode: 1
+        spacingMetres: 3
+        jitterMetres: 0
+        sideOffsetMetres: 0
+        alignToPath: 1
+        segmentPrefab: {fileID: 4363420649031270774, guid: 29b42a80da00cc640ab620d0612aa0ce, type: 3}
