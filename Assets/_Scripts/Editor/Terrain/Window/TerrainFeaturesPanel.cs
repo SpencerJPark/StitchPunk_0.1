@@ -307,7 +307,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
     VisualElement BuildFeatureList(List<Component> features)
     {
         VisualElement listBody;
-        VisualElement card = TerrainUi.MakeCard("In the loaded scenes", out listBody);
+        VisualElement card = TerrainUi.MakeCard("In scene", out listBody);
 
         if (features.Count == 0)
         {
@@ -325,8 +325,13 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
             row.EnableInClassList("toolkit-list-row--selected", feature == selectedFeature);
             Label nameLabel = new Label(feature.name);
             nameLabel.AddToClassList("terrain-road-name");
-            Label recipeLabel = new Label(RecipeNameOf(feature));
+            nameLabel.AddToClassList("terrain-ellipsis-label");
+            nameLabel.tooltip = feature.name;
+            string recipeName = RecipeNameOf(feature);
+            Label recipeLabel = new Label(recipeName);
             recipeLabel.AddToClassList("toolkit-hint");
+            recipeLabel.AddToClassList("terrain-ellipsis-label");
+            recipeLabel.tooltip = recipeName;
             row.Add(nameLabel);
             row.Add(recipeLabel);
             row.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => SelectAndFrame(capturedFeature));
@@ -338,7 +343,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
     VisualElement BuildSelectedFeatureCard(Component feature)
     {
         VisualElement cardBody;
-        VisualElement card = TerrainUi.MakeCard("Selected feature", out cardBody);
+        VisualElement card = TerrainUi.MakeCard("Selected", out cardBody);
 
         TerrainArea area = feature as TerrainArea;
         TerrainPath path = feature as TerrainPath;
@@ -346,6 +351,7 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         ObjectField recipeField = new ObjectField();
         recipeField.objectType = typeof(TerrainAreaRecipe);
         recipeField.allowSceneObjects = false;
+        recipeField.AddToClassList("terrain-ellipsis-field");
         recipeField.SetValueWithoutNotify(RecipeOf(feature));
         recipeField.RegisterValueChangedCallback((ChangeEvent<Object> changeEvent) =>
         {
@@ -376,15 +382,20 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
         if (area != null) AddAreaControls(cardBody, area);
         AddPlacerReadout(cardBody, RecipeOf(feature) as TerrainFeatureRecipe);
 
-        cardBody.Add(TerrainUi.MakeSecondary("Regenerate", RerollIconName, "Regenerate this feature's scatter, keeping locked items", () => TerrainFeatureEvents.Raise(feature)));
+        Button regenerateButton = TerrainUi.MakeSecondary("Regenerate", RerollIconName, "Regenerate this feature's scatter, keeping locked items", () => TerrainFeatureEvents.Raise(feature));
+        regenerateButton.AddToClassList("terrain-fit-button");
+        cardBody.Add(regenerateButton);
 
         int staleTileCount = TerrainFeatureBaker.StaleTiles.Count;
         if (staleTileCount > 0)
         {
             Label staleLabel = new Label(staleTileCount + " tiles need a rebake");
             staleLabel.AddToClassList("terrain-warning");
+            staleLabel.tooltip = staleLabel.text;
             cardBody.Add(staleLabel);
-            cardBody.Add(TerrainUi.MakePrimary("Bake stale tiles", null, "Rebake every tile a feature has changed", () => TerrainFeatureBaker.RebakeAllFeatures(true)));
+            Button bakeButton = TerrainUi.MakePrimary("Bake stale tiles", null, "Rebake every tile a feature has changed", () => TerrainFeatureBaker.RebakeAllFeatures(true));
+            bakeButton.AddToClassList("terrain-fit-button");
+            cardBody.Add(bakeButton);
         }
 
         return card;
@@ -456,6 +467,8 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
     {
         Label label = new Label(text);
         label.AddToClassList("toolkit-hint");
+        label.AddToClassList("terrain-ellipsis-label");
+        label.tooltip = text;
         return label;
     }
 

@@ -613,3 +613,37 @@
     white-space: normal;
     margin-top: 4px;
 }
+
+/* R01: a label that cannot fit ellipsizes (callers set the tooltip) and yields width before its siblings do. */
+.terrain-ellipsis-label {
+    flex-grow: 0;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.terrain-road-name.terrain-ellipsis-label {
+    flex-grow: 1;
+}
+
+.terrain-ellipsis-field {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.terrain-ellipsis-field .unity-object-field-display__label {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.terrain-fit-button {
+    flex-shrink: 0;
+    width: auto;
+    align-self: flex-start;
+}
