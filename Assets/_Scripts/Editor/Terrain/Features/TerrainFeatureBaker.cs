@@ -20,6 +20,7 @@ public static class TerrainFeatureBaker
     private static readonly HashSet<Vector2Int> staleTiles = new HashSet<Vector2Int>();
     private static double lastEventTime;
     private static bool updateHooked;
+    private static bool pendingOpenMissingTiles;
 
     public static IReadOnlyCollection<Vector2Int> StaleTiles => staleTiles;
 
@@ -77,6 +78,12 @@ public static class TerrainFeatureBaker
             lastBounds.Remove(feature);
         }
 
+        // The feature being edited must show its result, so its closed tiles get opened; scene loads and unselected features do not
+        if (feature != null && UnityEditor.Selection.activeGameObject == feature.gameObject)
+        {
+            pendingOpenMissingTiles = true;
+        }
+
         lastEventTime = EditorApplication.timeSinceStartup;
         if (!updateHooked)
         {
@@ -107,7 +114,9 @@ public static class TerrainFeatureBaker
         }
         pendingAffectedBounds.Clear();
 
-        BakeTiles(affectedTiles, false);
+        bool openMissingTiles = pendingOpenMissingTiles;
+        pendingOpenMissingTiles = false;
+        BakeTiles(affectedTiles, openMissingTiles);
     }
 
     public static void RebakeAllFeatures(bool openMissingTiles)
