@@ -171,7 +171,9 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
             }
         }
 
-        pickerBody.Add(TerrainUi.MakeSecondary("Create recipe...", ToolkitIcons.Plus, "Make a new feature recipe asset", () => { choosingPlacerKind = true; Refresh(); }));
+        Button createRecipeButton = TerrainUi.MakeSecondary("Create recipe...", ToolkitIcons.Plus, "Make a new feature recipe asset", () => { choosingPlacerKind = true; Refresh(); });
+        createRecipeButton.AddToClassList("terrain-ellipsis-button");
+        pickerBody.Add(createRecipeButton);
         return pickerCard;
     }
 
@@ -188,9 +190,14 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
 
         Label nameLabel = new Label(title);
         nameLabel.AddToClassList("terrain-road-name");
+        nameLabel.AddToClassList("terrain-ellipsis-label");
+        nameLabel.tooltip = title;
         row.Add(nameLabel);
         Label metaLabel = new Label(meta);
         metaLabel.AddToClassList("toolkit-hint");
+        metaLabel.AddToClassList("terrain-ellipsis-label");
+        metaLabel.AddToClassList("terrain-picker-meta");
+        metaLabel.tooltip = meta;
         row.Add(metaLabel);
 
         row.RegisterCallback<ClickEvent>((ClickEvent clickEvent) => onPick());
@@ -344,6 +351,15 @@ public sealed class TerrainFeaturesPanel : TerrainToolPanel
     {
         VisualElement cardBody;
         VisualElement card = TerrainUi.MakeCard("Selected", out cardBody);
+
+        // Below this content width the label column starves the field column, so rows stack.
+        const float NarrowCardContentWidth = 170f;
+        card.RegisterCallback<GeometryChangedEvent>((GeometryChangedEvent geometryEvent) =>
+        {
+            bool shouldBeNarrow = cardBody.contentRect.width < NarrowCardContentWidth;
+            if (shouldBeNarrow != card.ClassListContains("terrain-card--narrow"))
+                card.EnableInClassList("terrain-card--narrow", shouldBeNarrow);
+        });
 
         TerrainArea area = feature as TerrainArea;
         TerrainPath path = feature as TerrainPath;
