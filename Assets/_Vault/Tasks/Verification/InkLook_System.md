@@ -290,6 +290,17 @@ the World anchor, hatch slid over a unit walking along X but not along Z.
   The fix is a per-actor anchor (root position as a per-instance property, the `BodyPartTint` pattern), not built.
 - Open: characters whose card faces away from the sun are hatched all over (capture 10).
 
+## Owner feedback round 4 (2026-11-20) — characters: real shade only, lines slide
+
+Owner: with the Object anchor the lines did not move on characters at all; asked for both "hatch only in real shade" and
+"lines slide over them".
+- Flat cards hatch only from cast shadows: the six `2D*` graphs now call `SG_CardLighting` (`PaintedGroundGraph.hlsl` ->
+  `PaintedCardLighting_float`); 3D graphs, tree cards, ribbon and glass keep `SG_Lighting` / `PaintedLighting_float`.
+  Renaming a graph's Custom Function is a two-line JSON edit (`m_FunctionName` + the node `m_Name`); same ports.
+- Object lines are slices of one fixed 3D direction (1, -1, -1): "/" on cards and on horizontal surfaces, and a unit
+  moves through them equally along X and Z (captures 12-14). Anchor default back to World.
+- Still open: per-part seams under the Object anchor (per-actor anchor not built); not visible under World.
+
 ## Open decisions
 
 Recorded defaults (architecture calls, decided here; overturn freely):

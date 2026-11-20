@@ -54,8 +54,8 @@ Spec + build log: `Tasks/Verification/InkLook_System.md`; look pass `verify-ink-
   zoomed-out stand-ins are baked material copies (`TerrainStrategicBaker`) and never picked them up.
 - **Hatch = `StitchGroundHatchLines` in `PaintedGround.shader`**, analytic and world-locked, constant on-screen spacing
   via octave stepping (a fixed-size texture hatch was rejected: swam with the camera, pixelated close, vanished far).
-  Objects are hatched too (2026-11-20) via `StitchObjectHatchLines` in `PaintedLighting_float`, anchor default Object
-  (World on camera-facing cards only moves with X motion). The hatch mask ignores material shade strength (objects run
+  Objects are hatched too (2026-11-20) via `StitchObjectHatchLines` (slices of one 3D direction, anchor default World);
+  the `2D*` graphs call `SG_CardLighting` so flat cards hatch only from cast shadows. The hatch mask ignores material shade strength (objects run
   N.L influence 0.15 and never crossed it). Units are multi-part entities: part-border seams until a per-actor anchor.
 - `StitchPaintedLighting` (core) = the lighting body with hatch + shadow lift inputs; `PaintedLighting_float` passes 0, 0.
 - **Editor captures after a recompile render empty** (only plain GameObjects): the tile subscenes close and the

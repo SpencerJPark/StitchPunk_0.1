@@ -402,7 +402,7 @@ Shader "Painted/Ground"
             #if defined(STITCH_INK_LOOK)
                 float hatchLines = StitchHatchLines(wxz, _StitchInkHatchParams.y, _StitchInkHatchParams.z) * _StitchInkHatchParams.x;
                 StitchPaintedLighting(StrategicProxyShadingPosition(posWS), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
-                                      _ShadowStrength, _NdotLInfluence, _PointLightBoost, hatchLines, _StitchInkHatchParams.w, lighting);
+                                      _ShadowStrength, _NdotLInfluence, _PointLightBoost, hatchLines, _StitchInkHatchParams.w, 1.0, lighting);
             #else
                 PaintedLighting_float(StrategicProxyShadingPosition(posWS), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
                                       _ShadowStrength, _NdotLInfluence, _PointLightBoost, lighting);

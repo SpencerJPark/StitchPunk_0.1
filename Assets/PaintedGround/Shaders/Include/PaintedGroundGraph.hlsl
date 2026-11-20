@@ -77,4 +77,16 @@ void SG_Lighting_float(float3 posWS, float3 normalWS, float3 ambientTint, float 
 #endif
 }
 
+// The 2D (flat card) graphs call this one: with the ink look, a card is hatched only where a cast shadow falls on it.
+void SG_CardLighting_float(float3 posWS, float3 normalWS, float3 ambientTint, float shadowStrength,
+                           float ndotlInfluence, float pointBoost, out float3 lighting)
+{
+#ifdef SHADERGRAPH_PREVIEW
+    lighting = float3(1, 1, 1);
+#else
+    float2 screenUV = ComputeNormalizedDeviceCoordinates(posWS, UNITY_MATRIX_VP);
+    PaintedCardLighting_float(posWS, normalize(normalWS), screenUV, ambientTint, shadowStrength, ndotlInfluence, pointBoost, lighting);
+#endif
+}
+
 #endif
