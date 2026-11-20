@@ -113,20 +113,31 @@ void PaintedTransitionTile_float(Texture2D atlas, SamplerState ss,
 {
     float4 cornerInside = step(0.5, cornerWeights);
     float  caseIndex = dot(cornerInside, float4(1, 2, 4, 8));
+    // Fully outside / fully inside cells never sample: at low mips the atlas cells bleed into each other and drew a grid.
+    if (caseIndex < 0.5)
+    {
+        colOut = colIn; inkOut = inkIn; rimOut = rimIn;
+        return;
+    }
+    if (caseIndex > 14.5)
+    {
+        colOut = layerCol; inkOut = 0.0; rimOut = 0.0;
+        return;
+    }
     float2 cellIndex = floor(cellCoordinate);
     float2 cellLocal = frac(cellCoordinate);
     float  variant = step(0.5, frac(sin(dot(cellIndex + variantSeed, float2(12.9898, 78.233))) * 43758.5453));
 
-    // Half a texel inset (128 px cells) so bilinear filtering never reads the neighbouring atlas cell.
-    const float halfTexelInCell = 0.5 / 128.0;
-    float2 insetLocal = clamp(cellLocal, halfTexelInCell, 1.0 - halfTexelInCell);
-    float  atlasColumn = fmod(caseIndex, 8.0);
-    float  atlasRow = floor(caseIndex / 8.0) + 2.0 * variant;
-    float2 atlasUV = float2((atlasColumn + insetLocal.x) / 8.0, 1.0 - (atlasRow + 1.0 - insetLocal.y) / 4.0);
-
     // Gradients from the continuous coordinate: the frac() jump at cell borders would pick the smallest mip in a one-pixel line.
     float2 atlasDdx = ddx(cellCoordinate) / float2(8.0, 4.0);
     float2 atlasDdy = ddy(cellCoordinate) / float2(8.0, 4.0);
+    // Inset by half a texel of the mip actually sampled (128 px cells at mip 0), so filtering never reads the neighbouring cell.
+    float  texelsPerPixel = max(length(ddx(cellCoordinate)), length(ddy(cellCoordinate))) * 128.0;
+    float  insetInCell = min(0.5 * max(texelsPerPixel, 1.0) / 128.0, 0.25);
+    float2 insetLocal = clamp(cellLocal, insetInCell, 1.0 - insetInCell);
+    float  atlasColumn = fmod(caseIndex, 8.0);
+    float  atlasRow = floor(caseIndex / 8.0) + 2.0 * variant;
+    float2 atlasUV = float2((atlasColumn + insetLocal.x) / 8.0, 1.0 - (atlasRow + 1.0 - insetLocal.y) / 4.0);
     float3 tile = atlas.SampleGrad(ss, atlasUV, atlasDdx, atlasDdy).rgb;
 
     float a = tile.r;
