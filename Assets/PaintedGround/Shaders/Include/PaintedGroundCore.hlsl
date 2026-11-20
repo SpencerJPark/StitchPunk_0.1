@@ -303,7 +303,11 @@ void StitchPaintedLighting(float3 positionWS, float3 normalWS, float2 screenUV,
 
     lighting = SampleSH(half3(0, 1, 0)) * ambientTint * lerp(float3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
     lighting += mainLight.color * StitchTintedSunlight(positionWS) * lerp(sunAmount, 1.0, saturate(shadowLift));
-    float hatchInk = hatchLines * smoothstep(0.3, 0.7, 1.0 - sunAmount);
+    // Where to hatch ignores how strongly the material darkens: objects keep N.L influence low (0.15), so a wall facing away
+    // from the sun would never pass the threshold. A material that takes no shade at all (eyes: both 0) still never hatches.
+    float hatchCast = shadowStrength > 0.001 ? castShadow : 1.0;
+    float hatchForm = ndotlInfluence > 0.001 ? formShading : 1.0;
+    float hatchInk = hatchLines * smoothstep(0.3, 0.7, 1.0 - hatchCast * hatchForm);
     lighting *= lerp(float3(1, 1, 1), _StitchInkColor.rgb, hatchInk);
 
     #if defined(_ADDITIONAL_LIGHTS) || defined(_ADDITIONAL_LIGHTS_VERTEX)

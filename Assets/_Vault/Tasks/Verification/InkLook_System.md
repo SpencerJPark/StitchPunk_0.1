@@ -277,6 +277,19 @@ characters in shade, too big, pixelated, vanishes zoomed out. Texture hatch drop
 - Ground materials and the Main Camera override in CampLoop restored to their pre-experiment values.
 - Not compiled in the Editor yet (Unity was closed).
 
+## Owner feedback round 3 (2026-11-20) — hatch on objects
+
+Owner: ground shadows better, but caravan, building and characters had no hatch, so the look could not be judged; with
+the World anchor, hatch slid over a unit walking along X but not along Z.
+- `PaintedLighting_float` (every graph) now draws `StitchObjectHatchLines` in shade: the plane the surface mostly faces,
+  same pixel spacing as the ground. Bridge: `objectHatchStrength` 1, `objectHatchAnchor`, `objectShadowDrawnOnlyByHatch` 0.5.
+- **Anchor default = Object.** World on a camera-facing card uses the X/Y plane, so only X motion moves the lines.
+- **Hatch mask ignores the material's darkening strength**: objects keep N.L influence at 0.15, so a wall facing away
+  from the sun never crossed the threshold. A material with both shade dials at 0 (eyes) still never hatches.
+- Open: units are many part entities, each with its own origin, so faint seams show at part borders (captures 10/11).
+  The fix is a per-actor anchor (root position as a per-instance property, the `BodyPartTint` pattern), not built.
+- Open: characters whose card faces away from the sun are hatched all over (capture 10).
+
 ## Open decisions
 
 Recorded defaults (architecture calls, decided here; overturn freely):

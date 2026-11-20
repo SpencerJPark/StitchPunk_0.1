@@ -23,7 +23,8 @@ public class TerrainLightingBridge : MonoBehaviour
 
     public enum ObjectHatchAnchor
     {
-        // Lines fixed in the world: static things never change, a walking unit moves through them.
+        // Lines fixed in the world. On camera-facing cards (units) this is inconsistent: the card's plane holds only X and Y,
+        // so walking along X slides the lines but walking along Z does not.
         World = 0,
         // Lines measured from each object's origin: they ride with a moving unit, but can jump where its body parts meet.
         Object = 1,
@@ -89,7 +90,7 @@ public class TerrainLightingBridge : MonoBehaviour
     [Tooltip("Hatch lines in the shade on characters, props and buildings (every painted-lighting graph). 0 = ground only.")]
     public float objectHatchStrength = 1f;
 
-    public ObjectHatchAnchor objectHatchAnchor = ObjectHatchAnchor.World;
+    public ObjectHatchAnchor objectHatchAnchor = ObjectHatchAnchor.Object;
 
     [Range(0f, 1f)]
     [Tooltip("1 = shade on objects stops darkening and only the hatch draws it; 0 = normal shade tone with hatch on top.")]
