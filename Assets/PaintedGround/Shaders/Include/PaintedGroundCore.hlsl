@@ -185,9 +185,72 @@ float4 _StitchTintedShadowParams;          // x = enabled, y = depth bias, z = s
 // Ink look, pushed by TerrainLightingBridge while the global STITCH_INK_LOOK keyword is on. Only the ground reads them.
 float4 _StitchInkColor;        // rgb = the one ink colour
 float4 _StitchInkHatchParams;  // x = hatch strength, y = line spacing in screen pixels, z = line width in pixels, w = shadow drawn only by the hatch
+float4 _StitchInkObjectHatchParams;  // objects (every graph + PaintedLighting_float): x = strength (0 = off), y = anchor (0 world, 1 object), z = shadow drawn only by the hatch
 
 #ifndef SHADERGRAPH_PREVIEW
 TEXTURE2D(_StitchTintedShadowTexture);     // rgb = colour the sunlight was filtered to, a = depth01 of the nearest glass
+
+// Float-only hash (no uint maths, so every graph target compiles it). Wrapped to 2^16 lines, which keeps sin() precise; at
+// the finest pitch that is a 64 m period, far beyond anything visible.
+float StitchHashLine(float lineIdentity)
+{
+    float wrapped = fmod(abs(lineIdentity), 65536.0);
+    return frac(sin(wrapped * 12.9898 + 4.1414) * 43758.5453);
+}
+
+float StitchHatchDashKept(float lineIdentity, float along, float pitch)
+{
+    float lineRandom = StitchHashLine(lineIdentity);
+    float dashLength = pitch * (14.0 + lineRandom * 10.0);
+    float dashIndex = floor(along / dashLength + lineRandom * 7.0);
+    return step(0.22, StitchHashLine(lineIdentity * 1.618 + fmod(dashIndex, 4096.0) * 7.13));
+}
+
+// Diagonal ink hatch drawn analytically on a plane (metres): fixed to that plane, anti-aliased to a fixed pixel width (never
+// pixelated), and the same spacing on screen at every zoom: the world pitch steps in octaves and every other line fades out
+// between them, so zooming out thins the lines instead of blurring them to grey. Fragment stage only (screen derivatives).
+float StitchHatchLines(float2 planeCoordinates, float spacingPixels, float lineWidthPixels)
+{
+    const float BasePitchMetres = 1.0 / 1024.0;
+    float across = (planeCoordinates.x - planeCoordinates.y) * 0.70710678;   // "/" on screen for the default camera
+    float along  = (planeCoordinates.x + planeCoordinates.y) * 0.70710678;
+    float metresPerPixel = max(length(float2(ddx(across), ddy(across))), 1e-6);
+    float octave = log2(max(spacingPixels, 1.0) * metresPerPixel / BasePitchMetres);
+    float octaveFloor = floor(octave);
+    float fadeToCoarser = octave - octaveFloor;
+    float octaveScale = exp2(octaveFloor);
+    float pitch = BasePitchMetres * octaveScale;
+
+    float lineIndex = floor(across / pitch + 0.5);
+    float survivesCoarser = 1.0 - abs(fmod(lineIndex, 2.0));
+    float lineWeight = lerp(1.0 - fadeToCoarser, 1.0, survivesCoarser);
+    // Same identity for the same line at every octave, so the dash rhythm does not reshuffle while zooming.
+    float lineIdentity = lineIndex * octaveScale;
+    float dashKept = lerp(StitchHatchDashKept(lineIdentity, along, pitch),
+                          StitchHatchDashKept(lineIdentity, along, pitch * 2.0), fadeToCoarser);
+
+    float distancePixels = abs(across / pitch - lineIndex) * pitch / metresPerPixel;
+    float lineCoverage = saturate(lineWidthPixels * 0.5 + 0.5 - distancePixels);
+    return lineCoverage * lineWeight * dashKept;
+}
+
+// Objects: the plane the surface mostly faces, so walls, roofs and billboards all get the same "/" diagonal. Anchor 1 measures
+// from the object's origin, so the lines ride with a moving unit instead of the unit walking through them.
+float StitchObjectHatchLines(float3 positionWS, float3 normalWS)
+{
+    float3 anchoredPosition = positionWS;
+    if (_StitchInkObjectHatchParams.y > 0.5)
+        anchoredPosition -= GetObjectToWorldMatrix()._m03_m13_m23;
+    float3 absoluteNormal = abs(normalWS);
+    float2 planeCoordinates;
+    if (absoluteNormal.y >= max(absoluteNormal.x, absoluteNormal.z))
+        planeCoordinates = anchoredPosition.xz;
+    else if (absoluteNormal.z >= absoluteNormal.x)
+        planeCoordinates = anchoredPosition.xy;
+    else
+        planeCoordinates = anchoredPosition.zy;
+    return StitchHatchLines(planeCoordinates, _StitchInkHatchParams.y, _StitchInkHatchParams.z) * _StitchInkObjectHatchParams.x;
+}
 
 float3 StitchTintedSunlight(float3 positionWS)
 {
@@ -272,7 +335,14 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
 #ifdef SHADERGRAPH_PREVIEW
     lighting = float3(1, 1, 1);
 #else
-    StitchPaintedLighting(positionWS, normalWS, screenUV, ambientTint, shadowStrength, ndotlInfluence, pointBoost, 0.0, 0.0, lighting);
+    float hatchLines = 0.0;
+    float shadowLift = 0.0;
+    if (_StitchInkObjectHatchParams.x > 0.0)
+    {
+        hatchLines = StitchObjectHatchLines(positionWS, normalWS);
+        shadowLift = _StitchInkObjectHatchParams.z;
+    }
+    StitchPaintedLighting(positionWS, normalWS, screenUV, ambientTint, shadowStrength, ndotlInfluence, pointBoost, hatchLines, shadowLift, lighting);
 #endif
 }
 

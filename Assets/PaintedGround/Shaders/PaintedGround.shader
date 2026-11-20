@@ -310,52 +310,6 @@ Shader "Painted/Ground"
                 return layerColour;
             }
 
-            uint StitchPcgHash(uint value)
-            {
-                uint state = value * 747796405u + 2891336453u;
-                uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
-                return (word >> 22u) ^ word;
-            }
-
-            float StitchHatchDashKept(float lineIdentity, float along, float pitch)
-            {
-                uint lineHash = StitchPcgHash((uint)(int)lineIdentity);
-                float lineRandom = (lineHash & 0xFFFFu) / 65535.0;
-                float dashLength = pitch * (14.0 + lineRandom * 10.0);
-                float dashIndex = floor(along / dashLength + lineRandom * 7.0);
-                uint dashHash = StitchPcgHash(lineHash ^ ((uint)(int)dashIndex * 2654435761u));
-                return step(0.22, (dashHash & 0xFFFFu) / 65535.0);
-            }
-
-            // Diagonal ink hatch drawn analytically instead of from a texture: world-locked (it never slides when the camera
-            // turns or pans), anti-aliased to a fixed pixel width (never pixelated), and the same spacing on screen at every
-            // zoom: the world pitch steps in octaves and every other line fades out between them, so zooming out thins the
-            // lines instead of blurring them to grey.
-            float StitchGroundHatchLines(float2 positionXZ, float spacingPixels, float lineWidthPixels)
-            {
-                const float BasePitchMetres = 1.0 / 1024.0;
-                float across = (positionXZ.x - positionXZ.y) * 0.70710678;   // "/" on screen for the default north-facing camera
-                float along  = (positionXZ.x + positionXZ.y) * 0.70710678;
-                float metresPerPixel = max(length(float2(ddx(across), ddy(across))), 1e-6);
-                float octave = log2(max(spacingPixels, 1.0) * metresPerPixel / BasePitchMetres);
-                float octaveFloor = floor(octave);
-                float fadeToCoarser = octave - octaveFloor;
-                float octaveScale = exp2(octaveFloor);
-                float pitch = BasePitchMetres * octaveScale;
-
-                float lineIndex = floor(across / pitch + 0.5);
-                float survivesCoarser = 1.0 - abs(fmod(lineIndex, 2.0));
-                float lineWeight = lerp(1.0 - fadeToCoarser, 1.0, survivesCoarser);
-                // Same identity for the same world line at every octave, so the dash rhythm does not reshuffle while zooming.
-                float lineIdentity = lineIndex * octaveScale;
-                float dashKept = lerp(StitchHatchDashKept(lineIdentity, along, pitch),
-                                      StitchHatchDashKept(lineIdentity, along, pitch * 2.0), fadeToCoarser);
-
-                float distancePixels = abs(across / pitch - lineIndex) * pitch / metresPerPixel;
-                float lineCoverage = saturate(lineWidthPixels * 0.5 + 0.5 - distancePixels);
-                return lineCoverage * lineWeight * dashKept;
-            }
-
             half4 frag(Varyings IN) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(IN);
@@ -446,7 +400,7 @@ Shader "Painted/Ground"
                 // ---- lighting -------------------------------------------------------------
                 float3 lighting;
             #if defined(STITCH_INK_LOOK)
-                float hatchLines = StitchGroundHatchLines(wxz, _StitchInkHatchParams.y, _StitchInkHatchParams.z) * _StitchInkHatchParams.x;
+                float hatchLines = StitchHatchLines(wxz, _StitchInkHatchParams.y, _StitchInkHatchParams.z) * _StitchInkHatchParams.x;
                 StitchPaintedLighting(StrategicProxyShadingPosition(posWS), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
                                       _ShadowStrength, _NdotLInfluence, _PointLightBoost, hatchLines, _StitchInkHatchParams.w, lighting);
             #else
