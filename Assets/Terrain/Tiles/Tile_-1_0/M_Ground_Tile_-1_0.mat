@@ -13,8 +13,6 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _CLIFFS
-  - _GROUND_TRANSITION_TILES
-  - _INK_DETAIL
   - _SECOND_SAMPLE
   - _SPLAT_WORLDTEXTURE
   m_InvalidKeywords: []
@@ -44,22 +42,6 @@ Material:
         m_Texture: {fileID: 2800000, guid: b814c64dc471e42478868629ea691943, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _InkDetailBTex:
-        m_Texture: {fileID: 2800000, guid: 7bd74a22d63ce85449974418fa151314, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _InkDetailBaseTex:
-        m_Texture: {fileID: 2800000, guid: cac5f7c61ec23ce4eb1c2e3b598a8363, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _InkDetailGTex:
-        m_Texture: {fileID: 2800000, guid: 0487ce70e769b7d42aa6fb389ae15148, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _InkDetailRTex:
-        m_Texture: {fileID: 2800000, guid: 0487ce70e769b7d42aa6fb389ae15148, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
     - _LayerBTex:
         m_Texture: {fileID: 2800000, guid: 345097c00584a1945ab86164f958103c, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -80,10 +62,6 @@ Material:
         m_Texture: {fileID: 2800000, guid: fa052a2011cf022429ac9312d1c3fc3f, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    - _TransitionAtlas:
-        m_Texture: {fileID: 2800000, guid: 43112f9851361ef4a833f6cc848d1d27, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BlendNoiseAmount: 0.039
@@ -94,7 +72,7 @@ Material:
     - _FringeSize: 14
     - _FringeStretch: 0.5
     - _MacroSize: 140
-    - _MacroStrength: 0.15
+    - _MacroStrength: 0.6
     - _NdotLInfluence: 0.15
     - _PatchSize: 35
     - _PointLightBoost: 1
@@ -104,16 +82,11 @@ Material:
     - _Splat: 1
     - _SplatGradStep: 1.22
     - _StrategicProxy: 0
-    - _TransitionCellMetres: 4
     - _UseCliffs: 1
-    - _UseInkDetail: 1
     - _UseSecond: 1
-    - _UseTransitionTiles: 1
     m_Colors:
     - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
     - _InkColor: {r: 0.024620876, g: 0.93207544, b: 0.25639436, a: 1}
-    - _InkDetailParams: {r: 1, g: 0.6, b: 1, a: 1}
-    - _InkDetailTileMetres: {r: 6, g: 6, b: 6, a: 6}
     - _MacroDark: {r: 0.35999998, g: 0.38999996, b: 0.45, a: 1}
     - _MacroLight: {r: 0.58, g: 0.54999995, b: 0.47999996, a: 1}
     - _RimColor: {r: 0.95, g: 0.92, b: 0.8, a: 0}

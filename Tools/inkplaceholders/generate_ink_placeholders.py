@@ -5,7 +5,6 @@ Output: Assets/PaintedGround/Textures/Ink/ (+ a preview sheet in the scratch dir
 
 Channel layouts (the shader reads these, keep them in sync with the spec):
   T_InkDetail_<Surface>.png  R = ink lines (1 = full ink), G = per-shape tone (0.5 = neutral), B = scratch strokes
-  T_InkHatch.png             R = diagonal hatch strokes, G = paper grain (0.5 = neutral)
   T_TransitionAtlas.png      8 x 4 cells of 128 px: column = case % 8 + 8 * variant... see atlas_cell_origin()
                              R = coverage, G = highlight rim, B = ink line
 """
@@ -171,29 +170,6 @@ def generate_dirt_detail(size=512, seed=33):
     return ink_layer, tone_layer, scratch_layer
 
 
-def generate_hatch(size=128, line_spacing=4, seed=55):
-    """'/' diagonal pencil hatching. x + y = constant is a '/' line with y pointing down the image."""
-    pixel_y, pixel_x = np.mgrid[0:size, 0:size].astype(np.float64)
-    lines_per_tile = size // line_spacing
-    across = pixel_x + pixel_y
-    along = pixel_x - pixel_y
-    line_index = np.floor(across / line_spacing).astype(int) % lines_per_tile
-    wobble = (periodic_noise_1d(along + line_index * 97.0, size, 16, seed) - 0.5) * 1.6
-    distance_to_line = np.abs(np.mod(across + wobble, line_spacing) - line_spacing / 2)
-    stroke_core = np.clip(1.4 - distance_to_line / 0.8, 0, 1)
-    # Strokes start and stop: each line gets its own gap pattern and pressure along its length.
-    gap_noise = periodic_noise_1d(along + line_index * 53.0, size, 10, seed + 1)
-    pressure = 0.9 + 0.1 * periodic_noise_1d(along + line_index * 31.0, size, 24, seed + 2)
-    stroke_visible = np.clip((gap_noise - 0.1) * 8.0, 0, 1)
-    hatch_layer = np.clip(stroke_core * stroke_visible * pressure, 0, 1)
-    paper_layer = 0.5 + (tileable_fractal_noise(size, 16, 3, seed + 4) - 0.5) * 0.6
-    return hatch_layer, paper_layer
-
-
-# ---- Transition atlas (marching squares, Don't Starve style) ---------------------------------
-# Case bits: 1 = top-left, 2 = top-right, 4 = bottom-right, 8 = bottom-left corner is inside the layer.
-# Atlas: 8 columns x 4 rows of 128 px. Variant 0 = rows 0-1, variant 1 = rows 2-3; case c sits at
-# column c % 8, row (c // 8) + 2 * variant. The shader must use the same mapping.
 ATLAS_CELL_PIXELS = 128
 ATLAS_COLUMNS = 8
 ATLAS_ROWS = 4
@@ -318,8 +294,6 @@ def main():
     for surface_name, ((ink_layer, tone_layer, scratch_layer), base_colour) in surfaces.items():
         to_rgb_image(ink_layer, tone_layer, scratch_layer).save(os.path.join(OUTPUT_DIRECTORY, f"T_InkDetail_{surface_name}.png"))
         previews.append(preview_surface(ink_layer, tone_layer, scratch_layer, base_colour, ink_colour))
-    hatch_layer, paper_layer = generate_hatch()
-    to_rgb_image(hatch_layer, paper_layer, np.zeros_like(hatch_layer)).save(os.path.join(OUTPUT_DIRECTORY, "T_InkHatch.png"))
     atlas = generate_transition_atlas()
     Image.fromarray((atlas * 255).astype(np.uint8), "RGB").save(os.path.join(OUTPUT_DIRECTORY, "T_TransitionAtlas.png"))
 
@@ -327,14 +301,6 @@ def main():
         os.makedirs(preview_directory, exist_ok=True)
         surface_strip = np.concatenate(previews, axis=1)
         Image.fromarray((np.clip(surface_strip, 0, 1) * 255).astype(np.uint8)).save(os.path.join(preview_directory, "preview_surfaces.png"))
-        # Shadow preview: half of the cobble tile in a flat one-tone shadow with hatching on top.
-        cobble_preview = previews[0].copy()
-        hatch_tiled = np.tile(hatch_layer, (4, 4))
-        shadow_mask = np.zeros(cobble_preview.shape[:2]); shadow_mask[:, 256:] = 1
-        shadowed = cobble_preview * 0.72 * np.array((0.85, 0.85, 1.0))[None, None, :]
-        shadowed = shadowed * (1 - hatch_tiled[..., None] * 0.55)
-        shadow_preview = cobble_preview * (1 - shadow_mask[..., None]) + shadowed * shadow_mask[..., None]
-        Image.fromarray((np.clip(shadow_preview, 0, 1) * 255).astype(np.uint8)).save(os.path.join(preview_directory, "preview_hatch_shadow.png"))
         atlas_preview = np.where(atlas[..., :1] > 0.5, np.array((0.50, 0.46, 0.24)), np.array((0.62, 0.52, 0.36)))
         atlas_preview = atlas_preview * (1 + atlas[..., 1:2] * 0.25)
         atlas_preview = atlas_preview * (1 - atlas[..., 2:3]) + atlas_preview * np.array(ink_colour) * atlas[..., 2:3]

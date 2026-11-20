@@ -45,19 +45,17 @@ per-object response would need a material-ID buffer).
 - `Nodes/Lighting/CelShaded*.hlsl` are now unreferenced by production graphs (parked, not deleted).
 - **Not yet seen in the Editor as of writing** — if this note still says so, the look is unverified.
 
-## Ink look experiment — hatch, ink detail, tile transitions (2026-11-18)
+## Ink look experiment — ground ink detail, tile edges, hatched shadows (2026-11-18/19)
 
-Spec + build log: `Tasks/Verification/InkLook_System.md`; owner look pass `verify-ink-look.md`. All off by default.
-- **Hatch + paper grain live in `PaintedLighting_float`**, gated by `_StitchHatchParams` (x strength, w grain; both 0 =
-  no texture tap). Dials on `TerrainLightingBridge` ("Ink look"); hatch texture unassigned = off. Space mode 2
-  anchors to `GetObjectToWorldMatrix()` origin, except where the includer defines `STITCH_HATCH_WORLD_ANCHORED`
-  (the ground does: an anchored tile origin on yawed camera axes would break the hatch at every 100 m seam).
-- **Ground** (`Painted/Ground`): `_INK_DETAIL` multiplies each layer by its `T_InkDetail_*` sheet and inks the lines
-  into the layer colour (`InkedLayer`); `_GROUND_TRANSITION_TILES` swaps the fringe for `PaintedTransitionTile_float`
-  (world splat map only; vertex-colour splats fall back to the fringe).
-- **Ink look = no shadow darkening.** `_StitchInkShadowLift` 1 makes the sun ignore the shadow while the hatch still
-  reads `shade * ndl`; ground `_InkDetailParams.w` flattens layers to their smallest-mip average. Judge the look
-  against `Tasks/Claude/TextureInspo.png`, never against the spec text.
+Spec + build log: `Tasks/Verification/InkLook_System.md`; look pass `verify-ink-look.md`. Judge it against
+`Tasks/Claude/TextureInspo.png`, never against the spec text.
+- **Global, ground only.** `TerrainLightingBridge.inkLookEnabled` turns on the global keyword `STITCH_INK_LOOK` and the
+  `_Stitch*` ink globals; only `Painted/Ground` reads them. Per-material ink properties were removed on purpose: the
+  zoomed-out stand-ins are baked material copies (`TerrainStrategicBaker`) and never picked them up.
+- **Hatch = `StitchGroundHatchLines` in `PaintedGround.shader`**, analytic and world-locked, constant on-screen spacing
+  via octave stepping (a fixed-size texture hatch was rejected: swam with the camera, pixelated close, vanished far).
+  Never hatch units or props (rejected: weird on characters, rides with moving objects).
+- `StitchPaintedLighting` (core) = the lighting body with hatch + shadow lift inputs; `PaintedLighting_float` passes 0, 0.
 - **Editor captures after a recompile render empty** (only plain GameObjects): the tile subscenes close and the
   Editor World does not tick while Unity is unfocused. `World.DefaultGameObjectInjectionWorld.Update()` ~20 times in
   `execute_code` rebuilds the renderables; then `Camera.main` (moved temporarily) + `Render()` into an RT works. A

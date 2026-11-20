@@ -171,46 +171,12 @@ float _StitchShadowBandHardness;  // 0 = soft painted falloff, 1 = hard cel edge
 float4x4 _StitchTintedShadowWorldToLight;  // world position -> (u, v, depth01), depth01 = 0 nearest the sun
 float4 _StitchTintedShadowParams;          // x = enabled, y = depth bias, z = strength
 
-// Ink look, pushed by TerrainLightingBridge. Hatch strength and grain both 0 when unset = no change.
-float4 _StitchHatchParams;  // x = hatch strength, y = metres per hatch tile, z = space mode (0 world, 1 camera plane, 2 camera plane + object anchor), w = paper grain
-float4 _StitchInkColor;     // rgb = the one ink colour
-float4 _StitchHatchBoil;    // x = boil frames per second (0 = off), y = boil offset in tiles
-float  _StitchInkShadowLift; // 0 = shadows darken as before, 1 = shadows are drawn only by the hatch (the ink reference)
+// Ink look, pushed by TerrainLightingBridge while the global STITCH_INK_LOOK keyword is on. Only the ground reads them.
+float4 _StitchInkColor;        // rgb = the one ink colour
+float4 _StitchInkHatchParams;  // x = hatch strength, y = line spacing in screen pixels, z = line width in pixels, w = shadow drawn only by the hatch
 
 #ifndef SHADERGRAPH_PREVIEW
 TEXTURE2D(_StitchTintedShadowTexture);     // rgb = colour the sunlight was filtered to, a = depth01 of the nearest glass
-TEXTURE2D(_StitchHatchTexture);            // R = "/" hatch strokes, G = paper grain (0.5 neutral)
-
-// The ground defines STITCH_HATCH_WORLD_ANCHORED: its 100 m tiles must stay world-fixed, and an object-anchored phase would
-// jump at every tile seam whenever the camera is yawed off the world axes.
-float2 StitchHatchUV(float3 positionWS, float3 normalWS)
-{
-    float spaceMode = _StitchHatchParams.z;
-    float2 planeCoordinates;
-    if (spaceMode < 0.5)
-    {
-        float3 absoluteNormal = abs(normalWS);
-        if (absoluteNormal.y >= max(absoluteNormal.x, absoluteNormal.z))
-            planeCoordinates = positionWS.xz;
-        else if (absoluteNormal.x >= absoluteNormal.z)
-            planeCoordinates = positionWS.zy;
-        else
-            planeCoordinates = positionWS.xy;
-    }
-    else
-    {
-        float3 anchoredPosition = positionWS;
-    #ifndef STITCH_HATCH_WORLD_ANCHORED
-        if (spaceMode > 1.5)
-            anchoredPosition -= GetObjectToWorldMatrix()._m03_m13_m23;
-    #endif
-        planeCoordinates = float2(dot(anchoredPosition, UNITY_MATRIX_V[0].xyz), dot(anchoredPosition, UNITY_MATRIX_V[1].xyz));
-    }
-
-    float boilFrame = _StitchHatchBoil.x > 0.0 ? fmod(floor(_Time.y * _StitchHatchBoil.x), 3.0) : 0.0;
-    float2 boilOffset = boilFrame * _StitchHatchBoil.y * float2(0.37, 0.61);
-    return planeCoordinates / max(_StitchHatchParams.y, 0.01) + boilOffset;
-}
 
 float3 StitchTintedSunlight(float3 positionWS)
 {
@@ -234,13 +200,13 @@ float StitchBandedLightAmount(float lightAmount, float bandCentre, float bandHal
 }
 #endif
 
-void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
-                           float3 ambientTint, float shadowStrength, float ndotlInfluence,
-                           float pointBoost, out float3 lighting)
+#ifndef SHADERGRAPH_PREVIEW
+// hatchLines (0..1 ink coverage) is drawn only where the sun is blocked, before point lights so a lamp does not erase the
+// strokes; shadowLift 1 stops the shadow darkening at all, so the strokes alone draw it. Both 0 = the plain painted lighting.
+void StitchPaintedLighting(float3 positionWS, float3 normalWS, float2 screenUV,
+                           float3 ambientTint, float shadowStrength, float ndotlInfluence, float pointBoost,
+                           float hatchLines, float shadowLift, out float3 lighting)
 {
-#ifdef SHADERGRAPH_PREVIEW
-    lighting = float3(1, 1, 1);
-#else
     InputData inputData = (InputData)0;                       // name required by LIGHT_LOOP_BEGIN
     inputData.positionWS = positionWS;
     inputData.normalWS = normalWS;
@@ -259,21 +225,12 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
     float formShading = StitchBandedLightAmount(saturate(dot(normalWS, mainLight.direction)), 0.025, 0.025);
     float shade = lerp(1.0, castShadow, shadowStrength * (1.0 - saturate(_StitchShadowSoftening)));
     float ndl   = lerp(1.0, formShading, ndotlInfluence);
+    float sunAmount = shade * ndl;
 
     lighting = SampleSH(half3(0, 1, 0)) * ambientTint * lerp(float3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
-    float sunAmount = shade * ndl;
-    lighting += mainLight.color * StitchTintedSunlight(positionWS) * lerp(sunAmount, 1.0, saturate(_StitchInkShadowLift));
-
-    // Hatching only adds strokes inside the one shadow tone, never a second darkness level. Point lights are
-    // added after it, so a lamp lifts the surroundings of the strokes but not the strokes themselves.
-    if (_StitchHatchParams.x > 0.0 || _StitchHatchParams.w > 0.0)
-    {
-        float  sunBlocked = 1.0 - sunAmount;
-        float2 hatchTap = SAMPLE_TEXTURE2D(_StitchHatchTexture, sampler_LinearRepeat, StitchHatchUV(positionWS, normalWS)).rg;
-        float  hatchInkAmount = hatchTap.r * smoothstep(0.35, 0.65, sunBlocked) * _StitchHatchParams.x;
-        lighting *= lerp(float3(1, 1, 1), _StitchInkColor.rgb, hatchInkAmount);
-        lighting *= lerp(1.0, hatchTap.g * 2.0, _StitchHatchParams.w);
-    }
+    lighting += mainLight.color * StitchTintedSunlight(positionWS) * lerp(sunAmount, 1.0, saturate(shadowLift));
+    float hatchInk = hatchLines * smoothstep(0.3, 0.7, 1.0 - sunAmount);
+    lighting *= lerp(float3(1, 1, 1), _StitchInkColor.rgb, hatchInk);
 
     #if defined(_ADDITIONAL_LIGHTS) || defined(_ADDITIONAL_LIGHTS_VERTEX)
         #if USE_CLUSTER_LIGHT_LOOP
@@ -294,6 +251,17 @@ void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
 
     lighting *= 1.0 + _TerrainGroundExposureBoost;
     lighting += _TerrainLightningFlash.xxx;
+}
+#endif
+
+void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
+                           float3 ambientTint, float shadowStrength, float ndotlInfluence,
+                           float pointBoost, out float3 lighting)
+{
+#ifdef SHADERGRAPH_PREVIEW
+    lighting = float3(1, 1, 1);
+#else
+    StitchPaintedLighting(positionWS, normalWS, screenUV, ambientTint, shadowStrength, ndotlInfluence, pointBoost, 0.0, 0.0, lighting);
 #endif
 }
 

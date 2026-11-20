@@ -261,6 +261,22 @@ spec text, never against `TextureInspo.png` / `DontStarveTiles.png`. Fixed in th
 - Not touched by the ground changes: roads (`Painted/Ribbon`), tree cards, props and units keep their old look
   apart from the hatch.
 
+## Owner feedback round 2 (2026-11-19) — hatch redesigned
+
+Owner on round 1: zoom-out broke; hatch bad on moving objects (maybe static only), swims when the camera turns, odd on
+characters in shade, too big, pixelated, vanishes zoomed out. Texture hatch dropped. Now:
+- **Hatch is ground-only and procedural** (`StitchGroundHatchLines` in `PaintedGround.shader`): world-locked diagonal
+  lines computed per pixel, anti-aliased to a fixed pixel width, constant spacing on screen at every zoom (world pitch
+  steps in octaves, every other line fades between them). Characters and props keep their normal shading; the shadow
+  they cast on the ground is hatched. `T_InkHatch.png` deleted.
+- **The ink look is global**, not per material: keyword `STITCH_INK_LOOK` + `_Stitch*` globals from
+  `TerrainLightingBridge` (`inkLookEnabled`). The zoomed-out stand-in chunks are separate baked material copies made
+  before the ink existed, which is why zoom-out showed the old ground; a global reaches them with no rebake.
+- **Shadow lift is ground-only**: `StitchPaintedLighting` (core) takes hatch lines + lift; `PaintedLighting_float`
+  calls it with 0, 0, so every graph is unchanged from before the experiment.
+- Ground materials and the Main Camera override in CampLoop restored to their pre-experiment values.
+- Not compiled in the Editor yet (Unity was closed).
+
 ## Open decisions
 
 Recorded defaults (architecture calls, decided here; overturn freely):

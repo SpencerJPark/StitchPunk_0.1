@@ -71,23 +71,6 @@ Shader "Painted/Ground"
         _RimColor ("Highlight rim (A = strength)", Color) = (0.95, 0.92, 0.80, 0.55)
         _InkColor ("Ink line (A = strength)", Color) = (0.12, 0.10, 0.12, 0.75)
 
-        [Header(Ink detail)]
-        // Ink look experiment: one sheet per layer slot, multiplied over the layer like Don't Starve's tint x stroke noise.
-        // R = ink lines (drawn with _InkColor), G = per-shape tone (0.5 neutral), B = scratch strokes. Linear, Repeat.
-        [Toggle(_INK_DETAIL)] _UseInkDetail ("Ink detail sheets", Float) = 0
-        [NoScaleOffset] _InkDetailBaseTex ("Base detail", 2D) = "gray" {}
-        [NoScaleOffset] _InkDetailRTex    ("R detail",    2D) = "gray" {}
-        [NoScaleOffset] _InkDetailGTex    ("G detail",    2D) = "gray" {}
-        [NoScaleOffset] _InkDetailBTex    ("B detail",    2D) = "gray" {}
-        _InkDetailTileMetres ("Detail tile metres (Base, R, G, B)", Vector) = (6, 6, 6, 6)
-        _InkDetailParams ("Line, tone, scratch strength, flatten painted texture", Vector) = (1, 0.6, 1, 1)
-
-        [Header(Tile transitions)]
-        // Replaces the fringe with grid-snapped pre-drawn transition tiles. World splat map only.
-        [Toggle(_GROUND_TRANSITION_TILES)] _UseTransitionTiles ("Tile transitions instead of fringe", Float) = 0
-        [NoScaleOffset] _TransitionAtlas ("Transition atlas (8 x 4 cells)", 2D) = "black" {}
-        _TransitionCellMetres ("Transition cell size (m)", Range(0.5, 8)) = 2
-
         [Header(Cliffs)]
         [Toggle(_CLIFFS)] _UseCliffs ("Cliff texture on steep faces", Float) = 1
         [NoScaleOffset] _CliffTex ("Cliff texture", 2D) = "gray" {}
@@ -147,9 +130,6 @@ Shader "Painted/Ground"
             half   _NdotLInfluence;
             half   _PointLightBoost;
             float  _StrategicProxy;
-            float4 _InkDetailTileMetres;
-            float4 _InkDetailParams;
-            float  _TransitionCellMetres;
         CBUFFER_END
 
         // Zoomed out, the far-view stand-in (same material on a coarse mesh) replaces the real tiles completely, so streaming never swaps the look.
@@ -225,8 +205,8 @@ Shader "Painted/Ground"
             #pragma shader_feature_local _SPLAT_VERTEXCOLOR _SPLAT_WORLDTEXTURE
             #pragma shader_feature_local_fragment _SECOND_SAMPLE
             #pragma shader_feature_local_fragment _CLIFFS
-            #pragma shader_feature_local_fragment _INK_DETAIL
-            #pragma shader_feature_local_fragment _GROUND_TRANSITION_TILES
+            // Global, set by TerrainLightingBridge: ink detail, Don't Starve tile edges and hatched shadows on every ground material at once.
+            #pragma multi_compile_fragment _ STITCH_INK_LOOK
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
@@ -238,7 +218,6 @@ Shader "Painted/Ground"
             #pragma multi_compile _ DOTS_INSTANCING_ON
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-            #define STITCH_HATCH_WORLD_ANCHORED
             #include "Include/PaintedGroundCore.hlsl"
 
             TEXTURE2D(_BaseTex);        SAMPLER(sampler_BaseTex);   // shared by all colour layers
@@ -250,11 +229,15 @@ Shader "Painted/Ground"
             TEXTURE2D(_BlendNoiseTex);
             TEXTURE2D(_FringeTex);
             TEXTURE2D(_SplatMap);
-            TEXTURE2D(_InkDetailBaseTex);
-            TEXTURE2D(_InkDetailRTex);
-            TEXTURE2D(_InkDetailGTex);
-            TEXTURE2D(_InkDetailBTex);
-            TEXTURE2D(_TransitionAtlas);
+            // Ink look globals (TerrainLightingBridge), deliberately outside the material CBUFFER.
+            TEXTURE2D(_StitchInkDetailBaseTex);
+            TEXTURE2D(_StitchInkDetailRTex);
+            TEXTURE2D(_StitchInkDetailGTex);
+            TEXTURE2D(_StitchInkDetailBTex);
+            TEXTURE2D(_StitchTransitionAtlas);
+            float4 _StitchInkDetailTileMetres;   // world metres per detail tile: Base, R, G, B
+            float4 _StitchInkDetailParams;       // x = line, y = tone, z = scratch strength, w = flatten painted texture
+            float  _StitchTransitionCellMetres;
             SAMPLER(sampler_trilinear_repeat);   // trilinear: bilinear mips switch in hard lines that slide down the screen while zooming
             SAMPLER(sampler_linear_clamp);
 
@@ -314,20 +297,63 @@ Shader "Painted/Ground"
                              float detailTileMetres, half patchMask)
             {
                 half3 layerColour = Layer(TEXTURE2D_ARGS(tex, samp), wxz, tileSize, patchMask);
-            #if defined(_INK_DETAIL)
+            #if defined(STITCH_INK_LOOK)
                 // Flatten: the reference is one flat local colour per surface with all detail in ink. The smallest mip is the
                 // painted texture's own average, so the palette is kept without picking colours by hand.
                 half3 flatLocalColour = SAMPLE_TEXTURE2D_LOD(tex, samp, float2(0.5, 0.5), 14).rgb;
-                layerColour = lerp(layerColour, flatLocalColour, (half)_InkDetailParams.w);
+                layerColour = lerp(layerColour, flatLocalColour, (half)_StitchInkDetailParams.w);
                 half3 detail = Layer(TEXTURE2D_ARGS(detailTex, detailSamp), wxz, detailTileMetres, patchMask);
-                layerColour *= lerp(1.0h, detail.g * 2.0h, (half)_InkDetailParams.y);
-                layerColour *= 1.0h - detail.b * (half)_InkDetailParams.z * 0.25h;
-                // One pen (D5): the bridge's _StitchInkColor when it is pushed (a = 1), else this material's edge ink.
-                half3 detailPenColour = _StitchInkColor.a > 0.5 ? (half3)_StitchInkColor.rgb : _InkColor.rgb;
-                half  detailPenStrength = _StitchInkColor.a > 0.5 ? 1.0h : _InkColor.a;
-                layerColour = lerp(layerColour, layerColour * detailPenColour, saturate(detail.r * (half)_InkDetailParams.x) * detailPenStrength);
+                layerColour *= lerp(1.0h, detail.g * 2.0h, (half)_StitchInkDetailParams.y);
+                layerColour *= 1.0h - detail.b * (half)_StitchInkDetailParams.z * 0.25h;
+                layerColour = lerp(layerColour, layerColour * (half3)_StitchInkColor.rgb, saturate(detail.r * (half)_StitchInkDetailParams.x));
             #endif
                 return layerColour;
+            }
+
+            uint StitchPcgHash(uint value)
+            {
+                uint state = value * 747796405u + 2891336453u;
+                uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+                return (word >> 22u) ^ word;
+            }
+
+            float StitchHatchDashKept(float lineIdentity, float along, float pitch)
+            {
+                uint lineHash = StitchPcgHash((uint)(int)lineIdentity);
+                float lineRandom = (lineHash & 0xFFFFu) / 65535.0;
+                float dashLength = pitch * (14.0 + lineRandom * 10.0);
+                float dashIndex = floor(along / dashLength + lineRandom * 7.0);
+                uint dashHash = StitchPcgHash(lineHash ^ ((uint)(int)dashIndex * 2654435761u));
+                return step(0.22, (dashHash & 0xFFFFu) / 65535.0);
+            }
+
+            // Diagonal ink hatch drawn analytically instead of from a texture: world-locked (it never slides when the camera
+            // turns or pans), anti-aliased to a fixed pixel width (never pixelated), and the same spacing on screen at every
+            // zoom: the world pitch steps in octaves and every other line fades out between them, so zooming out thins the
+            // lines instead of blurring them to grey.
+            float StitchGroundHatchLines(float2 positionXZ, float spacingPixels, float lineWidthPixels)
+            {
+                const float BasePitchMetres = 1.0 / 1024.0;
+                float across = (positionXZ.x - positionXZ.y) * 0.70710678;   // "/" on screen for the default north-facing camera
+                float along  = (positionXZ.x + positionXZ.y) * 0.70710678;
+                float metresPerPixel = max(length(float2(ddx(across), ddy(across))), 1e-6);
+                float octave = log2(max(spacingPixels, 1.0) * metresPerPixel / BasePitchMetres);
+                float octaveFloor = floor(octave);
+                float fadeToCoarser = octave - octaveFloor;
+                float octaveScale = exp2(octaveFloor);
+                float pitch = BasePitchMetres * octaveScale;
+
+                float lineIndex = floor(across / pitch + 0.5);
+                float survivesCoarser = 1.0 - abs(fmod(lineIndex, 2.0));
+                float lineWeight = lerp(1.0 - fadeToCoarser, 1.0, survivesCoarser);
+                // Same identity for the same world line at every octave, so the dash rhythm does not reshuffle while zooming.
+                float lineIdentity = lineIndex * octaveScale;
+                float dashKept = lerp(StitchHatchDashKept(lineIdentity, along, pitch),
+                                      StitchHatchDashKept(lineIdentity, along, pitch * 2.0), fadeToCoarser);
+
+                float distancePixels = abs(across / pitch - lineIndex) * pitch / metresPerPixel;
+                float lineCoverage = saturate(lineWidthPixels * 0.5 + 0.5 - distancePixels);
+                return lineCoverage * lineWeight * dashKept;
             }
 
             half4 frag(Varyings IN) : SV_Target
@@ -363,14 +389,14 @@ Shader "Painted/Ground"
                 // ---- layers, painted back to front with their fringes --------------------
                 float fringeLen = _FringeSize;
                 float fringeWid = _FringeSize / FRINGE_ASPECT * _FringeStretch;
-                float3 col = InkedLayer(TEXTURE2D_ARGS(_BaseTex, sampler_BaseTex), TEXTURE2D_ARGS(_InkDetailBaseTex, sampler_BaseTex), wxz, _TileSizes.x, _InkDetailTileMetres.x, patchMask);
-                float3 layerRColour = InkedLayer(TEXTURE2D_ARGS(_LayerRTex, sampler_BaseTex), TEXTURE2D_ARGS(_InkDetailRTex, sampler_BaseTex), wxz, _TileSizes.y, _InkDetailTileMetres.y, patchMask);
-                float3 layerGColour = InkedLayer(TEXTURE2D_ARGS(_LayerGTex, sampler_BaseTex), TEXTURE2D_ARGS(_InkDetailGTex, sampler_BaseTex), wxz, _TileSizes.z, _InkDetailTileMetres.z, patchMask);
-                float3 layerBColour = InkedLayer(TEXTURE2D_ARGS(_LayerBTex, sampler_BaseTex), TEXTURE2D_ARGS(_InkDetailBTex, sampler_BaseTex), wxz, _TileSizes.w, _InkDetailTileMetres.w, patchMask);
+                float3 col = InkedLayer(TEXTURE2D_ARGS(_BaseTex, sampler_BaseTex), TEXTURE2D_ARGS(_StitchInkDetailBaseTex, sampler_BaseTex), wxz, _TileSizes.x, _StitchInkDetailTileMetres.x, patchMask);
+                float3 layerRColour = InkedLayer(TEXTURE2D_ARGS(_LayerRTex, sampler_BaseTex), TEXTURE2D_ARGS(_StitchInkDetailRTex, sampler_BaseTex), wxz, _TileSizes.y, _StitchInkDetailTileMetres.y, patchMask);
+                float3 layerGColour = InkedLayer(TEXTURE2D_ARGS(_LayerGTex, sampler_BaseTex), TEXTURE2D_ARGS(_StitchInkDetailGTex, sampler_BaseTex), wxz, _TileSizes.z, _StitchInkDetailTileMetres.z, patchMask);
+                float3 layerBColour = InkedLayer(TEXTURE2D_ARGS(_LayerBTex, sampler_BaseTex), TEXTURE2D_ARGS(_StitchInkDetailBTex, sampler_BaseTex), wxz, _TileSizes.w, _StitchInkDetailTileMetres.w, patchMask);
                 float  ink = 0, rim = 0;
-            #if defined(_GROUND_TRANSITION_TILES) && defined(_SPLAT_WORLDTEXTURE)
+            #if defined(STITCH_INK_LOOK) && defined(_SPLAT_WORLDTEXTURE)
                 // Four corner taps shared by all three channels; a corner's world position gives the same value in every cell that owns it.
-                float  transitionCellMetres = max(_TransitionCellMetres, 0.1);
+                float  transitionCellMetres = max(_StitchTransitionCellMetres, 0.1);
                 float2 cellCoordinate = wxz / transitionCellMetres;
                 float2 cellOrigin = floor(cellCoordinate) * transitionCellMetres;
                 float2 splatScale = 1.0 / max(_SplatBounds.zw, 0.001);
@@ -378,11 +404,11 @@ Shader "Painted/Ground"
                 float3 cornerTopRight    = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (cellOrigin + transitionCellMetres - _SplatBounds.xy) * splatScale, 0).rgb;
                 float3 cornerBottomRight = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (cellOrigin + float2(transitionCellMetres, 0) - _SplatBounds.xy) * splatScale, 0).rgb;
                 float3 cornerBottomLeft  = SAMPLE_TEXTURE2D_LOD(_SplatMap, sampler_linear_clamp, (cellOrigin - _SplatBounds.xy) * splatScale, 0).rgb;
-                PaintedTransitionTile_float(_TransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.r, cornerTopRight.r, cornerBottomRight.r, cornerBottomLeft.r),
+                PaintedTransitionTile_float(_StitchTransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.r, cornerTopRight.r, cornerBottomRight.r, cornerBottomLeft.r),
                                             cellCoordinate, 0.0, layerRColour, col, ink, rim, col, ink, rim);
-                PaintedTransitionTile_float(_TransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.g, cornerTopRight.g, cornerBottomRight.g, cornerBottomLeft.g),
+                PaintedTransitionTile_float(_StitchTransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.g, cornerTopRight.g, cornerBottomRight.g, cornerBottomLeft.g),
                                             cellCoordinate, 17.0, layerGColour, col, ink, rim, col, ink, rim);
-                PaintedTransitionTile_float(_TransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.b, cornerTopRight.b, cornerBottomRight.b, cornerBottomLeft.b),
+                PaintedTransitionTile_float(_StitchTransitionAtlas, sampler_linear_clamp, float4(cornerTopLeft.b, cornerTopRight.b, cornerBottomRight.b, cornerBottomLeft.b),
                                             cellCoordinate, 31.0, layerBColour, col, ink, rim, col, ink, rim);
             #else
                 PaintedFringe_float(_FringeTex, sampler_BaseTex, w.r, gR, wxz, 0, FRINGE_ROWS, fringeWid, fringeLen, brush.r, _BlendNoiseAmount,
@@ -407,14 +433,26 @@ Shader "Painted/Ground"
 
                 // ---- macro variation, rim, ink --------------------------------------------
                 // Ink stays at full strength zoomed out too: fading it made the painted marks vanish when zooming.
-                // One pen: the bridge's ink colour replaces this material's edge ink while the ink look is pushed.
-                half4 inkColorForView = _StitchInkColor.a > 0.5 ? half4((half3)_StitchInkColor.rgb, 1.0h) : _InkColor;
-                PaintedFinish_float(col, macroNoise, _MacroDark.rgb, _MacroLight.rgb, _MacroStrength, rim, _RimColor, ink, inkColorForView, col);
+            #if defined(STITCH_INK_LOOK)
+                // One pen for edges, detail and hatch; the macro tint mostly goes, the reference is flat local colour.
+                half4 inkColorForView = half4((half3)_StitchInkColor.rgb, 1.0h);
+                half  macroStrengthForView = _MacroStrength * (1.0h - 0.75h * (half)_StitchInkDetailParams.w);
+            #else
+                half4 inkColorForView = _InkColor;
+                half  macroStrengthForView = _MacroStrength;
+            #endif
+                PaintedFinish_float(col, macroNoise, _MacroDark.rgb, _MacroLight.rgb, macroStrengthForView, rim, _RimColor, ink, inkColorForView, col);
 
                 // ---- lighting -------------------------------------------------------------
                 float3 lighting;
+            #if defined(STITCH_INK_LOOK)
+                float hatchLines = StitchGroundHatchLines(wxz, _StitchInkHatchParams.y, _StitchInkHatchParams.z) * _StitchInkHatchParams.x;
+                StitchPaintedLighting(StrategicProxyShadingPosition(posWS), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
+                                      _ShadowStrength, _NdotLInfluence, _PointLightBoost, hatchLines, _StitchInkHatchParams.w, lighting);
+            #else
                 PaintedLighting_float(StrategicProxyShadingPosition(posWS), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
                                       _ShadowStrength, _NdotLInfluence, _PointLightBoost, lighting);
+            #endif
 
                 col *= lighting;
                 col = MixFog(col, IN.fogFactor);
