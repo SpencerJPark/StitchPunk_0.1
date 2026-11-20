@@ -182,78 +182,11 @@ float _StitchShadowBandHardness;  // 0 = soft painted falloff, 1 = hard cel edge
 float4x4 _StitchTintedShadowWorldToLight;  // world position -> (u, v, depth01), depth01 = 0 nearest the sun
 float4 _StitchTintedShadowParams;          // x = enabled, y = depth bias, z = strength
 
-// Ink look, pushed by TerrainLightingBridge while the global STITCH_INK_LOOK keyword is on. Only the ground reads them.
+// Ink look, pushed by TerrainLightingBridge while the global STITCH_INK_LOOK keyword is on. Only the ground reads it.
 float4 _StitchInkColor;        // rgb = the one ink colour
-float4 _StitchInkHatchParams;  // x = hatch strength, y = line spacing in screen pixels, z = line width in pixels, w = shadow drawn only by the hatch
-float4 _StitchInkObjectHatchParams;  // objects (every graph + PaintedLighting_float): x = strength (0 = off), y = anchor (0 world, 1 object), z = shadow drawn only by the hatch
 
 #ifndef SHADERGRAPH_PREVIEW
 TEXTURE2D(_StitchTintedShadowTexture);     // rgb = colour the sunlight was filtered to, a = depth01 of the nearest glass
-
-// Float-only hash (no uint maths, so every graph target compiles it). Wrapped to 2^16 lines, which keeps sin() precise; at
-// the finest pitch that is a 64 m period, far beyond anything visible.
-float StitchHashLine(float lineIdentity)
-{
-    float wrapped = fmod(abs(lineIdentity), 65536.0);
-    return frac(sin(wrapped * 12.9898 + 4.1414) * 43758.5453);
-}
-
-float StitchHatchDashKept(float lineIdentity, float along, float pitch)
-{
-    float lineRandom = StitchHashLine(lineIdentity);
-    float dashLength = pitch * (14.0 + lineRandom * 10.0);
-    float dashIndex = floor(along / dashLength + lineRandom * 7.0);
-    return step(0.22, StitchHashLine(lineIdentity * 1.618 + fmod(dashIndex, 4096.0) * 7.13));
-}
-
-// Diagonal ink hatch drawn analytically on a plane (metres): fixed to that plane, anti-aliased to a fixed pixel width (never
-// pixelated), and the same spacing on screen at every zoom: the world pitch steps in octaves and every other line fades out
-// between them, so zooming out thins the lines instead of blurring them to grey. Fragment stage only (screen derivatives).
-// across = metres measured across the lines, along = metres along them.
-float StitchHatchLinesAcross(float across, float along, float spacingPixels, float lineWidthPixels)
-{
-    const float BasePitchMetres = 1.0 / 1024.0;
-    float metresPerPixel = max(length(float2(ddx(across), ddy(across))), 1e-6);
-    float octave = log2(max(spacingPixels, 1.0) * metresPerPixel / BasePitchMetres);
-    float octaveFloor = floor(octave);
-    float fadeToCoarser = octave - octaveFloor;
-    float octaveScale = exp2(octaveFloor);
-    float pitch = BasePitchMetres * octaveScale;
-
-    float lineIndex = floor(across / pitch + 0.5);
-    float survivesCoarser = 1.0 - abs(fmod(lineIndex, 2.0));
-    float lineWeight = lerp(1.0 - fadeToCoarser, 1.0, survivesCoarser);
-    // Same identity for the same line at every octave, so the dash rhythm does not reshuffle while zooming.
-    float lineIdentity = lineIndex * octaveScale;
-    float dashKept = lerp(StitchHatchDashKept(lineIdentity, along, pitch),
-                          StitchHatchDashKept(lineIdentity, along, pitch * 2.0), fadeToCoarser);
-
-    float distancePixels = abs(across / pitch - lineIndex) * pitch / metresPerPixel;
-    float lineCoverage = saturate(lineWidthPixels * 0.5 + 0.5 - distancePixels);
-    return lineCoverage * lineWeight * dashKept;
-}
-
-// Lines on a flat plane (metres): "/" on screen for the default north-facing camera.
-float StitchHatchLines(float2 planeCoordinates, float spacingPixels, float lineWidthPixels)
-{
-    float across = (planeCoordinates.x - planeCoordinates.y) * 0.70710678;
-    float along  = (planeCoordinates.x + planeCoordinates.y) * 0.70710678;
-    return StitchHatchLinesAcross(across, along, spacingPixels, lineWidthPixels);
-}
-
-// Objects: the lines are slices of one fixed 3D direction, so they read "/" on camera-facing cards (x - y) and on horizontal
-// surfaces (x - z, matching the ground), and a unit moves through them the same way along X or Z (a per-face plane only held
-// X on cards, so Z motion did nothing). Anchor 1 measures from the object's origin instead.
-float StitchObjectHatchLines(float3 positionWS)
-{
-    const float3 AcrossDirection = float3(1.0, -1.0, -1.0) * 0.57735027;
-    const float3 AlongDirection  = float3(1.0, 1.0, 0.0) * 0.70710678;
-    float3 anchoredPosition = positionWS;
-    if (_StitchInkObjectHatchParams.y > 0.5)
-        anchoredPosition -= GetObjectToWorldMatrix()._m03_m13_m23;
-    return StitchHatchLinesAcross(dot(anchoredPosition, AcrossDirection), dot(anchoredPosition, AlongDirection),
-                                  _StitchInkHatchParams.y, _StitchInkHatchParams.z) * _StitchInkObjectHatchParams.x;
-}
 
 float3 StitchTintedSunlight(float3 positionWS)
 {
@@ -277,13 +210,13 @@ float StitchBandedLightAmount(float lightAmount, float bandCentre, float bandHal
 }
 #endif
 
-#ifndef SHADERGRAPH_PREVIEW
-// hatchLines (0..1 ink coverage) is drawn only where the sun is blocked, before point lights so a lamp does not erase the
-// strokes; shadowLift 1 stops the shadow darkening at all, so the strokes alone draw it. Both 0 = the plain painted lighting.
-void StitchPaintedLighting(float3 positionWS, float3 normalWS, float2 screenUV,
-                           float3 ambientTint, float shadowStrength, float ndotlInfluence, float pointBoost,
-                           float hatchLines, float shadowLift, float hatchFromFormShading, out float3 lighting)
+void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
+                           float3 ambientTint, float shadowStrength, float ndotlInfluence,
+                           float pointBoost, out float3 lighting)
 {
+#ifdef SHADERGRAPH_PREVIEW
+    lighting = float3(1, 1, 1);
+#else
     InputData inputData = (InputData)0;                       // name required by LIGHT_LOOP_BEGIN
     inputData.positionWS = positionWS;
     inputData.normalWS = normalWS;
@@ -302,16 +235,9 @@ void StitchPaintedLighting(float3 positionWS, float3 normalWS, float2 screenUV,
     float formShading = StitchBandedLightAmount(saturate(dot(normalWS, mainLight.direction)), 0.025, 0.025);
     float shade = lerp(1.0, castShadow, shadowStrength * (1.0 - saturate(_StitchShadowSoftening)));
     float ndl   = lerp(1.0, formShading, ndotlInfluence);
-    float sunAmount = shade * ndl;
 
     lighting = SampleSH(half3(0, 1, 0)) * ambientTint * lerp(float3(1, 1, 1), _TerrainAmbientColor.rgb, _TerrainAmbientColor.a);
-    lighting += mainLight.color * StitchTintedSunlight(positionWS) * lerp(sunAmount, 1.0, saturate(shadowLift));
-    // Where to hatch ignores how strongly the material darkens: objects keep N.L influence low (0.15), so a wall facing away
-    // from the sun would never pass the threshold. A material that takes no shade at all (eyes: both 0) still never hatches.
-    float hatchCast = shadowStrength > 0.001 ? castShadow : 1.0;
-    float hatchForm = (ndotlInfluence > 0.001 && hatchFromFormShading > 0.5) ? formShading : 1.0;
-    float hatchInk = hatchLines * smoothstep(0.3, 0.7, 1.0 - hatchCast * hatchForm);
-    lighting *= lerp(float3(1, 1, 1), _StitchInkColor.rgb, hatchInk);
+    lighting += mainLight.color * StitchTintedSunlight(positionWS) * (shade * ndl);
 
     #if defined(_ADDITIONAL_LIGHTS) || defined(_ADDITIONAL_LIGHTS_VERTEX)
         #if USE_CLUSTER_LIGHT_LOOP
@@ -332,48 +258,6 @@ void StitchPaintedLighting(float3 positionWS, float3 normalWS, float2 screenUV,
 
     lighting *= 1.0 + _TerrainGroundExposureBoost;
     lighting += _TerrainLightningFlash.xxx;
-}
-#endif
-
-#ifndef SHADERGRAPH_PREVIEW
-// Objects with the ink look on: hatch lines in shade. Flat cards (characters, sprite props) pass hatchFromFormShading 0: a
-// card has no real form, so only a cast shadow hatches it.
-void StitchObjectLighting(float3 positionWS, float3 normalWS, float2 screenUV,
-                          float3 ambientTint, float shadowStrength, float ndotlInfluence, float pointBoost,
-                          float hatchFromFormShading, out float3 lighting)
-{
-    float hatchLines = 0.0;
-    float shadowLift = 0.0;
-    if (_StitchInkObjectHatchParams.x > 0.0)
-    {
-        hatchLines = StitchObjectHatchLines(positionWS);
-        shadowLift = _StitchInkObjectHatchParams.z;
-    }
-    StitchPaintedLighting(positionWS, normalWS, screenUV, ambientTint, shadowStrength, ndotlInfluence, pointBoost,
-                          hatchLines, shadowLift, hatchFromFormShading, lighting);
-}
-#endif
-
-void PaintedLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
-                           float3 ambientTint, float shadowStrength, float ndotlInfluence,
-                           float pointBoost, out float3 lighting)
-{
-#ifdef SHADERGRAPH_PREVIEW
-    lighting = float3(1, 1, 1);
-#else
-    StitchObjectLighting(positionWS, normalWS, screenUV, ambientTint, shadowStrength, ndotlInfluence, pointBoost, 1.0, lighting);
-#endif
-}
-
-// Same as PaintedLighting_float for flat cards: hatched only where a cast shadow falls on them.
-void PaintedCardLighting_float(float3 positionWS, float3 normalWS, float2 screenUV,
-                               float3 ambientTint, float shadowStrength, float ndotlInfluence,
-                               float pointBoost, out float3 lighting)
-{
-#ifdef SHADERGRAPH_PREVIEW
-    lighting = float3(1, 1, 1);
-#else
-    StitchObjectLighting(positionWS, normalWS, screenUV, ambientTint, shadowStrength, ndotlInfluence, pointBoost, 0.0, lighting);
 #endif
 }
 

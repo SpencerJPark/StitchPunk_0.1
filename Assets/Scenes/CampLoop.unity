@@ -48055,10 +48055,6 @@ MonoBehaviour:
   inkScratchStrength: 1
   flattenPaintedTextures: 1
   transitionCellMetres: 4
-  hatchStrength: 1
-  hatchSpacingPixels: 5
-  hatchLineWidthPixels: 1
-  shadowDrawnOnlyByHatch: 1
   inkColor: {r: 0.17, g: 0.12, b: 0.09, a: 1}
 --- !u!4 &1785101017
 Transform:

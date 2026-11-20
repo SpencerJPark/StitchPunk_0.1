@@ -5,6 +5,8 @@ updated: 2026-11-20
 area: Shaders / PaintedGround
 ---
 
+> **Historical:** hatch shading was removed on 2026-11-20 (owner call). These shots show the hatch as it was.
+
 Spec: [[InkLook_System]] · checklist: [[verify-ink-look]] · reference: `Tasks/Claude/TextureInspo.png`
 
 Captured in the Editor from the CampLoop Main Camera (1600×900), Ink Look Bridge on, Object Hatch Anchor = World. The magenta squares are two `Quad` objects in CampLoop with no material; they are not part of this work.

@@ -205,7 +205,7 @@ Shader "Painted/Ground"
             #pragma shader_feature_local _SPLAT_VERTEXCOLOR _SPLAT_WORLDTEXTURE
             #pragma shader_feature_local_fragment _SECOND_SAMPLE
             #pragma shader_feature_local_fragment _CLIFFS
-            // Global, set by TerrainLightingBridge: ink detail, Don't Starve tile edges and hatched shadows on every ground material at once.
+            // Global, set by TerrainLightingBridge: ink detail and Don't Starve tile edges on every ground material at once.
             #pragma multi_compile_fragment _ STITCH_INK_LOOK
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
@@ -388,7 +388,7 @@ Shader "Painted/Ground"
                 // ---- macro variation, rim, ink --------------------------------------------
                 // Ink stays at full strength zoomed out too: fading it made the painted marks vanish when zooming.
             #if defined(STITCH_INK_LOOK)
-                // One pen for edges, detail and hatch; the macro tint mostly goes, the reference is flat local colour.
+                // One pen for edges and detail; the macro tint mostly goes, the reference is flat local colour.
                 half4 inkColorForView = half4((half3)_StitchInkColor.rgb, 1.0h);
                 half  macroStrengthForView = _MacroStrength * (1.0h - 0.75h * (half)_StitchInkDetailParams.w);
             #else
@@ -399,14 +399,8 @@ Shader "Painted/Ground"
 
                 // ---- lighting -------------------------------------------------------------
                 float3 lighting;
-            #if defined(STITCH_INK_LOOK)
-                float hatchLines = StitchHatchLines(wxz, _StitchInkHatchParams.y, _StitchInkHatchParams.z) * _StitchInkHatchParams.x;
-                StitchPaintedLighting(StrategicProxyShadingPosition(posWS), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
-                                      _ShadowStrength, _NdotLInfluence, _PointLightBoost, hatchLines, _StitchInkHatchParams.w, 1.0, lighting);
-            #else
                 PaintedLighting_float(StrategicProxyShadingPosition(posWS), n, GetNormalizedScreenSpaceUV(IN.positionCS), _AmbientTint.rgb,
                                       _ShadowStrength, _NdotLInfluence, _PointLightBoost, lighting);
-            #endif
 
                 col *= lighting;
                 col = MixFog(col, IN.fogFactor);

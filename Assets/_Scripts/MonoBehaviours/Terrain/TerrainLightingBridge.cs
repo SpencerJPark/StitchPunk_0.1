@@ -10,8 +10,6 @@ public class TerrainLightingBridge : MonoBehaviour
     static readonly int ShadowBandHardnessPropertyId = Shader.PropertyToID("_StitchShadowBandHardness");
     const string InkLookKeyword = "STITCH_INK_LOOK";
     static readonly int InkColorPropertyId = Shader.PropertyToID("_StitchInkColor");
-    static readonly int InkHatchParamsPropertyId = Shader.PropertyToID("_StitchInkHatchParams");
-    static readonly int InkObjectHatchParamsPropertyId = Shader.PropertyToID("_StitchInkObjectHatchParams");
     static readonly int InkDetailBasePropertyId = Shader.PropertyToID("_StitchInkDetailBaseTex");
     static readonly int InkDetailRPropertyId = Shader.PropertyToID("_StitchInkDetailRTex");
     static readonly int InkDetailGPropertyId = Shader.PropertyToID("_StitchInkDetailGTex");
@@ -20,14 +18,6 @@ public class TerrainLightingBridge : MonoBehaviour
     static readonly int InkDetailTileMetresPropertyId = Shader.PropertyToID("_StitchInkDetailTileMetres");
     static readonly int InkDetailParamsPropertyId = Shader.PropertyToID("_StitchInkDetailParams");
     static readonly int TransitionCellMetresPropertyId = Shader.PropertyToID("_StitchTransitionCellMetres");
-
-    public enum ObjectHatchAnchor
-    {
-        // Lines fixed in the world: static things never change, a walking unit moves through them the same way along X or Z.
-        World = 0,
-        // Lines measured from each object's origin: they ride with a moving unit, but jump where its body parts meet.
-        Object = 1,
-    }
 
     public Color ambientTint = Color.white;
 
@@ -43,7 +33,7 @@ public class TerrainLightingBridge : MonoBehaviour
     [Tooltip("0 = soft painted falloff, 1 = hard cel edge on cast shadows and form shading.")]
     public float shadowBandHardness = 0f;
 
-    [Header("Ink look (ground only: ink detail, tile edges, hatched shadows)")]
+    [Header("Ink look (ground only: ink detail, flat colour, tile edges)")]
     [Tooltip("Global: every Painted/Ground material, the zoomed-out stand-ins included. Needs all five textures below.")]
     public bool inkLookEnabled = false;
 
@@ -70,32 +60,7 @@ public class TerrainLightingBridge : MonoBehaviour
     [Range(1f, 8f)]
     public float transitionCellMetres = 4f;
 
-    [Range(0f, 1f)]
-    [Tooltip("Hatch lines in the ground's shadows. Characters and props are never hatched.")]
-    public float hatchStrength = 1f;
-
-    [Range(2f, 12f)]
-    [Tooltip("Gap between hatch lines on screen. Constant at every zoom: zooming out thins the lines, it never blurs them.")]
-    public float hatchSpacingPixels = 5f;
-
-    [Range(0.5f, 2.5f)]
-    public float hatchLineWidthPixels = 1f;
-
-    [Range(0f, 1f)]
-    [Tooltip("1 = shadows on the ground stop darkening: the hatch alone draws them, like the ink reference.")]
-    public float shadowDrawnOnlyByHatch = 1f;
-
-    [Range(0f, 1f)]
-    [Tooltip("Hatch lines in the shade on buildings and props, and on characters where a cast shadow falls on them. 0 = ground only.")]
-    public float objectHatchStrength = 1f;
-
-    public ObjectHatchAnchor objectHatchAnchor = ObjectHatchAnchor.World;
-
-    [Range(0f, 1f)]
-    [Tooltip("1 = shade on objects stops darkening and only the hatch draws it; 0 = normal shade tone with hatch on top.")]
-    public float objectShadowDrawnOnlyByHatch = 0.5f;
-
-    [Tooltip("One pen for detail lines, edges and hatch.")]
+    [Tooltip("One pen for detail lines and edges.")]
     public Color inkColor = new Color(0.17f, 0.12f, 0.09f, 1f);
 
     float currentFlash;
@@ -135,7 +100,6 @@ public class TerrainLightingBridge : MonoBehaviour
         Shader.SetGlobalFloat(ShadowSofteningPropertyId, 0f);
         Shader.SetGlobalFloat(ShadowBandHardnessPropertyId, 0f);
         Shader.DisableKeyword(InkLookKeyword);
-        Shader.SetGlobalVector(InkObjectHatchParamsPropertyId, Vector4.zero);
     }
 
     bool InkLookReady()
@@ -148,7 +112,6 @@ public class TerrainLightingBridge : MonoBehaviour
         if (!InkLookReady())
         {
             Shader.DisableKeyword(InkLookKeyword);
-            Shader.SetGlobalVector(InkObjectHatchParamsPropertyId, Vector4.zero);
             return;
         }
         Shader.SetGlobalTexture(InkDetailBasePropertyId, inkDetailBase);
@@ -160,11 +123,6 @@ public class TerrainLightingBridge : MonoBehaviour
         Shader.SetGlobalVector(InkDetailParamsPropertyId, new Vector4(inkLineStrength, inkToneStrength, inkScratchStrength, flattenPaintedTextures));
         Shader.SetGlobalFloat(TransitionCellMetresPropertyId, transitionCellMetres);
         Shader.SetGlobalVector(InkColorPropertyId, new Vector4(inkColor.r, inkColor.g, inkColor.b, 1f));
-        // Without hatching a lifted shadow would simply vanish, so the lift only applies while the hatch draws it.
-        float shadowLift = hatchStrength > 0f ? shadowDrawnOnlyByHatch : 0f;
-        Shader.SetGlobalVector(InkHatchParamsPropertyId, new Vector4(hatchStrength, hatchSpacingPixels, hatchLineWidthPixels, shadowLift));
-        float objectShadowLift = objectHatchStrength > 0f ? objectShadowDrawnOnlyByHatch : 0f;
-        Shader.SetGlobalVector(InkObjectHatchParamsPropertyId, new Vector4(objectHatchStrength, (float)objectHatchAnchor, objectShadowLift, 0f));
         Shader.EnableKeyword(InkLookKeyword);
     }
 

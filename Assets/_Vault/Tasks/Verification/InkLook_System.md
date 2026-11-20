@@ -301,6 +301,15 @@ Owner: with the Object anchor the lines did not move on characters at all; asked
   moves through them equally along X and Z (captures 12-14). Anchor default back to World.
 - Still open: per-part seams under the Object anchor (per-actor anchor not built); not visible under World.
 
+## Owner call (2026-11-20): hatch shading removed
+
+"Remove hatch shading, it looks bad." Every hatch path is gone: ground hatch, object hatch, card lighting entry
+(`SG_CardLighting`; the six 2D graphs call `SG_Lighting` again), shadow lift, and the bridge's hatch dials.
+`PaintedLighting_float` is byte-for-byte the pre-experiment function, so shadows darken as before. Kept: ink detail
+sheets, flat local colour, Don't Starve tile edges, one ink colour (`STITCH_INK_LOOK`, bridge `inkLookEnabled`).
+Rejected approaches, for the record: texture hatch (swam, pixelated, vanished far), procedural world/object hatch on
+ground, objects and cards. Do not re-propose hatching without a new reference from the owner.
+
 ## Open decisions
 
 Recorded defaults (architecture calls, decided here; overturn freely):

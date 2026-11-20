@@ -3498,7 +3498,7 @@
     "m_Group": {
         "m_Id": ""
     },
-    "m_Name": "SG_CardLighting (Custom Function)",
+    "m_Name": "SG_Lighting (Custom Function)",
     "m_DrawState": {
         "m_Expanded": true,
         "m_Position": {
@@ -3541,7 +3541,7 @@
         "m_SerializableColors": []
     },
     "m_SourceType": 0,
-    "m_FunctionName": "SG_CardLighting",
+    "m_FunctionName": "SG_Lighting",
     "m_FunctionSource": "7f3a1c9e5b2d4e6f8a9b0c1d2e3f4a5b",
     "m_FunctionSourceUsePragmas": true,
     "m_FunctionBody": "Enter function body here..."

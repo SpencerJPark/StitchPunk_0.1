@@ -52,12 +52,9 @@ Spec + build log: `Tasks/Verification/InkLook_System.md`; look pass `verify-ink-
 - **Global, ground only.** `TerrainLightingBridge.inkLookEnabled` turns on the global keyword `STITCH_INK_LOOK` and the
   `_Stitch*` ink globals; only `Painted/Ground` reads them. Per-material ink properties were removed on purpose: the
   zoomed-out stand-ins are baked material copies (`TerrainStrategicBaker`) and never picked them up.
-- **Hatch = `StitchGroundHatchLines` in `PaintedGround.shader`**, analytic and world-locked, constant on-screen spacing
-  via octave stepping (a fixed-size texture hatch was rejected: swam with the camera, pixelated close, vanished far).
-  Objects are hatched too (2026-11-20) via `StitchObjectHatchLines` (slices of one 3D direction, anchor default World);
-  the `2D*` graphs call `SG_CardLighting` so flat cards hatch only from cast shadows. The hatch mask ignores material shade strength (objects run
-  N.L influence 0.15 and never crossed it). Units are multi-part entities: part-border seams until a per-actor anchor.
-- `StitchPaintedLighting` (core) = the lighting body with hatch + shadow lift inputs; `PaintedLighting_float` passes 0, 0.
+- **Hatch shading was tried and removed (owner, 2026-11-20: "looks bad").** Texture hatch, then procedural world/object
+  hatch on ground, objects and flat cards; all code deleted, `PaintedLighting_float` restored. Do not re-propose without a
+  new owner reference.
 - **Editor captures after a recompile render empty** (only plain GameObjects): the tile subscenes close and the
   Editor World does not tick while Unity is unfocused. `World.DefaultGameObjectInjectionWorld.Update()` ~20 times in
   `execute_code` rebuilds the renderables (after a scene reopen also call `EditorApplication.update.Invoke()` in the same loop, or
