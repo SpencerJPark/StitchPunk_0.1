@@ -58,7 +58,9 @@ Spec + build log: `Tasks/Verification/InkLook_System.md`; look pass `verify-ink-
 - `StitchPaintedLighting` (core) = the lighting body with hatch + shadow lift inputs; `PaintedLighting_float` passes 0, 0.
 - **Editor captures after a recompile render empty** (only plain GameObjects): the tile subscenes close and the
   Editor World does not tick while Unity is unfocused. `World.DefaultGameObjectInjectionWorld.Update()` ~20 times in
-  `execute_code` rebuilds the renderables; then `Camera.main` (moved temporarily) + `Render()` into an RT works. A
+  `execute_code` rebuilds the renderables (after a scene reopen also call `EditorApplication.update.Invoke()` in the same loop, or
+  live baking never runs: 49 renderables instead of ~390; shoot in a separate call after the count settles, or the first shots
+  render black); then `Camera.main` (moved temporarily) + `Render()` into an RT works. A
   second `new Camera` + `CopyFrom` rendered the main camera's view regardless of its transform.
 - **Checking a shader variant compiles:** `ShaderUtil.CompilePass(material, passIndex, true)` on a temp material with
   the keywords enabled, then `ShaderUtil.GetShaderMessages(shader)`. One variant per `execute_code` call: compiling
