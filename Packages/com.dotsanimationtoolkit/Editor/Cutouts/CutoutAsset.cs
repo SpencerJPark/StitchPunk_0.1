@@ -59,10 +59,35 @@ namespace DotsAnimationToolkit.Editor
         [Tooltip("Project-relative .asset path of the generated mesh.")]
         public string outputPath = string.Empty;
 
+        [Tooltip("Region of the texture this piece uses, in texture pixels. Zero size means the whole texture. Outline and origin are local to this rect, (0,0) = its bottom-left.")]
+        public RectInt sourceRectPixels;
+
+        [Tooltip("Rotation baked into the vertices about the origin, in degrees.")]
+        public float rotationDegrees;
+
+        [Tooltip("Cells of a sheet flipbook in play order, all one size. Empty means a still piece.")]
+        public List<RectInt> sheetFrameCells = new List<RectInt>();
+
+        public bool IsSheetFlipbook => sheetFrameCells != null && sheetFrameCells.Count > 1;
+
+        public RectInt ResolveSourceRectPixels()
+        {
+            if (sourceRectPixels.width > 0 && sourceRectPixels.height > 0)
+            {
+                return sourceRectPixels;
+            }
+            Texture sourceTexture = ResolveSourceTexture();
+            return sourceTexture == null ? new RectInt(0, 0, 0, 0) : new RectInt(0, 0, sourceTexture.width, sourceTexture.height);
+        }
+
         public Vector2Int FrameSize
         {
             get
             {
+                if (sourceRectPixels.width > 0 && sourceRectPixels.height > 0)
+                {
+                    return sourceRectPixels.size;
+                }
                 Texture sourceTexture = ResolveSourceTexture();
                 return sourceTexture == null ? Vector2Int.zero : new Vector2Int(sourceTexture.width, sourceTexture.height);
             }

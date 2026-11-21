@@ -22,4 +22,10 @@ namespace DotsAnimationToolkit.Editor
         Flat,
         Rounded
     }
+
+    public enum CutoutAssemblyOutputKind
+    {
+        LayeredSet,
+        Merged
+    }
 }

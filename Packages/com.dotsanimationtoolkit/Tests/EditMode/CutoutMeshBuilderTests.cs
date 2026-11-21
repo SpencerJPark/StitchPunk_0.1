@@ -92,5 +92,34 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 Assert.AreEqual(45f, Vector3.Angle(normals[index], new Vector3(0f, 0f, -1f)), 0.5f);
             }
         }
+
+        [Test]
+        public void SheetRectNinetyDegrees_UVsStayInsideRectAndPositionsTurn()
+        {
+            RectInt sourceRect = new RectInt(100, 200, 40, 80);
+            Vector2Int sheetSize = new Vector2Int(512, 512);
+            Vector2[] outline =
+            {
+                new Vector2(0f, 0f), new Vector2(40f, 0f), new Vector2(40f, 80f), new Vector2(0f, 80f),
+            };
+            bool built = CutoutMeshBuilder.TryBuild(outline, null, sourceRect, sheetSize, new Vector2(20f, 0f), 90f,
+                100f, CutoutFacing.PositiveZ, CutoutNormalMode.Flat, 0f, mesh);
+            Assert.IsTrue(built);
+
+            const float epsilon = 0.0001f;
+            Vector2[] uvs = mesh.uv;
+            foreach (Vector2 uv in uvs)
+            {
+                Assert.GreaterOrEqual(uv.x, 100f / 512f - epsilon);
+                Assert.LessOrEqual(uv.x, 140f / 512f + epsilon);
+                Assert.GreaterOrEqual(uv.y, 200f / 512f - epsilon);
+                Assert.LessOrEqual(uv.y, 280f / 512f + epsilon);
+            }
+
+            // 90 degrees counter-clockwise maps +Y to -X: corner (40,80) is (20,80) px from the origin, so it lands at (-0.8, 0.2) units.
+            Vector3 topRightCorner = mesh.vertices[2];
+            Assert.AreEqual(-0.8f, topRightCorner.x, epsilon);
+            Assert.AreEqual(0.2f, topRightCorner.y, epsilon);
+        }
     }
 }

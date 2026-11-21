@@ -18,6 +18,22 @@ namespace DotsAnimationToolkit.Editor
             float pixelsPerUnit, CutoutFacing facing, CutoutNormalMode normalMode, float roundness,
             IReadOnlyList<Vector2Int> innerEdges, Mesh target, out string failureReason)
         {
+            return TryBuildCore(outlinePixels, innerEdges, new RectInt(0, 0, frameSize.x, frameSize.y), frameSize, originPixels,
+                0f, pixelsPerUnit, facing, normalMode, roundness, target, out failureReason);
+        }
+
+        public static bool TryBuild(IReadOnlyList<Vector2> outlinePixels, IReadOnlyList<Vector2Int> innerEdges,
+            RectInt sourceRectPixels, Vector2Int sheetSizePixels, Vector2 originPixels, float rotationDegrees,
+            float pixelsPerUnit, CutoutFacing facing, CutoutNormalMode normalMode, float roundness, Mesh target)
+        {
+            return TryBuildCore(outlinePixels, innerEdges, sourceRectPixels, sheetSizePixels, originPixels, rotationDegrees,
+                pixelsPerUnit, facing, normalMode, roundness, target, out string ignoredFailureReason);
+        }
+
+        private static bool TryBuildCore(IReadOnlyList<Vector2> outlinePixels, IReadOnlyList<Vector2Int> innerEdges,
+            RectInt sourceRectPixels, Vector2Int frameSize, Vector2 originPixels, float rotationDegrees,
+            float pixelsPerUnit, CutoutFacing facing, CutoutNormalMode normalMode, float roundness, Mesh target, out string failureReason)
+        {
             failureReason = string.Empty;
             if (outlinePixels == null || outlinePixels.Count < 3)
             {
@@ -56,7 +72,7 @@ namespace DotsAnimationToolkit.Editor
                 Vector2 pixel = outlinePixels[index];
                 Vector2 unitPosition = (pixel - originPixels) / pixelsPerUnit;
                 positions[index] = new Vector3(unitPosition.x, unitPosition.y, 0f);
-                uvs[index] = new Vector2(pixel.x / frameSize.x, pixel.y / frameSize.y);
+                uvs[index] = new Vector2((sourceRectPixels.xMin + pixel.x) / frameSize.x, (sourceRectPixels.yMin + pixel.y) / frameSize.y);
                 positionSum += positions[index];
             }
             Vector3 centroid = positionSum / vertexCount;
@@ -75,6 +91,19 @@ namespace DotsAnimationToolkit.Editor
                 outward.z = 0f;
                 outward = outward.sqrMagnitude > 0f ? outward.normalized : Vector3.zero;
                 normals[index] = (facingNormal + outward * bendTangent).normalized;
+            }
+
+            // Rotation happens after the roundness bend so the bulge stays attached to the outline.
+            if (rotationDegrees != 0f)
+            {
+                float rotationRadians = rotationDegrees * Mathf.Deg2Rad;
+                float cosine = Mathf.Cos(rotationRadians);
+                float sine = Mathf.Sin(rotationRadians);
+                for (int index = 0; index < vertexCount; index++)
+                {
+                    positions[index] = RotateInXY(positions[index], cosine, sine);
+                    normals[index] = RotateInXY(normals[index], cosine, sine);
+                }
             }
 
             // Ear clipping yields CCW in XY; Unity's -Z front face is clockwise in XY, so flip for NegativeZ.
@@ -96,6 +125,11 @@ namespace DotsAnimationToolkit.Editor
             target.RecalculateTangents();
             target.RecalculateBounds();
             return true;
+        }
+
+        private static Vector3 RotateInXY(Vector3 value, float cosine, float sine)
+        {
+            return new Vector3(value.x * cosine - value.y * sine, value.x * sine + value.y * cosine, value.z);
         }
 
         public static float AreaFractionOfQuad(IReadOnlyList<Vector2> outlinePixels, Vector2Int frameSize)

@@ -8,12 +8,11 @@ namespace DotsAnimationToolkit.Editor
 {
     public sealed class CutoutCanvasElement : VisualElement
     {
-        public const float MinorGridWorldUnits = 0.1f;
-        public const float MajorGridWorldUnits = 1f;
+        public const float MinorGridWorldUnits = CutoutCanvasGrid.MinorGridWorldUnits;
+        public const float MajorGridWorldUnits = CutoutCanvasGrid.MajorGridWorldUnits;
 
         private const float MinimumPointsPerWorldUnit = 4f;
         private const float MaximumPointsPerWorldUnit = 20000f;
-        private const float MinimumGridLineSpacingPoints = 6f;
         private const float MinimumAxisLabelSpacingPoints = 48f;
         private const int AxisLabelPoolLimit = 64;
         private const float RailClearancePoints = 48f;
@@ -632,39 +631,6 @@ namespace DotsAnimationToolkit.Editor
             return new Color(1f, 1f, 1f, alpha);
         }
 
-        private static void StrokeSegments(Painter2D painter, List<Vector2> segmentEndpoints, Color color, float width)
-        {
-            if (segmentEndpoints.Count == 0)
-            {
-                return;
-            }
-
-            painter.strokeColor = color;
-            painter.lineWidth = width;
-            painter.BeginPath();
-            for (int index = 0; index + 1 < segmentEndpoints.Count; index += 2)
-            {
-                painter.MoveTo(segmentEndpoints[index]);
-                painter.LineTo(segmentEndpoints[index + 1]);
-            }
-
-            painter.Stroke();
-        }
-
-        private void AddVerticalLine(List<Vector2> segmentEndpoints, float worldX)
-        {
-            float elementX = WorldToElement(new Vector2(worldX, 0f)).x;
-            segmentEndpoints.Add(new Vector2(elementX, 0f));
-            segmentEndpoints.Add(new Vector2(elementX, layout.height));
-        }
-
-        private void AddHorizontalLine(List<Vector2> segmentEndpoints, float worldY)
-        {
-            float elementY = WorldToElement(new Vector2(0f, worldY)).y;
-            segmentEndpoints.Add(new Vector2(0f, elementY));
-            segmentEndpoints.Add(new Vector2(layout.width, elementY));
-        }
-
         private void OnGenerateGrid(MeshGenerationContext context)
         {
             if (!HasUsableLayout())
@@ -672,64 +638,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            Painter2D painter = context.painter2D;
-            Vector2 worldMin = ElementToWorld(new Vector2(0f, layout.height));
-            Vector2 worldMax = ElementToWorld(new Vector2(layout.width, 0f));
-
-            List<Vector2> minorSegments = new List<Vector2>();
-            List<Vector2> majorSegments = new List<Vector2>();
-            bool drawMinor = MinorGridWorldUnits * zoomPointsPerWorldUnit >= MinimumGridLineSpacingPoints;
-
-            if (drawMinor)
-            {
-                int firstMinorX = Mathf.FloorToInt(worldMin.x / MinorGridWorldUnits);
-                int lastMinorX = Mathf.CeilToInt(worldMax.x / MinorGridWorldUnits);
-                for (int index = firstMinorX; index <= lastMinorX; index++)
-                {
-                    if (index % 10 != 0)
-                    {
-                        AddVerticalLine(minorSegments, index * MinorGridWorldUnits);
-                    }
-                }
-
-                int firstMinorY = Mathf.FloorToInt(worldMin.y / MinorGridWorldUnits);
-                int lastMinorY = Mathf.CeilToInt(worldMax.y / MinorGridWorldUnits);
-                for (int index = firstMinorY; index <= lastMinorY; index++)
-                {
-                    if (index % 10 != 0)
-                    {
-                        AddHorizontalLine(minorSegments, index * MinorGridWorldUnits);
-                    }
-                }
-            }
-
-            int firstMajorX = Mathf.FloorToInt(worldMin.x / MajorGridWorldUnits);
-            int lastMajorX = Mathf.CeilToInt(worldMax.x / MajorGridWorldUnits);
-            for (int index = firstMajorX; index <= lastMajorX; index++)
-            {
-                if (index != 0)
-                {
-                    AddVerticalLine(majorSegments, index * MajorGridWorldUnits);
-                }
-            }
-
-            int firstMajorY = Mathf.FloorToInt(worldMin.y / MajorGridWorldUnits);
-            int lastMajorY = Mathf.CeilToInt(worldMax.y / MajorGridWorldUnits);
-            for (int index = firstMajorY; index <= lastMajorY; index++)
-            {
-                if (index != 0)
-                {
-                    AddHorizontalLine(majorSegments, index * MajorGridWorldUnits);
-                }
-            }
-
-            List<Vector2> axisSegments = new List<Vector2>();
-            AddVerticalLine(axisSegments, 0f);
-            AddHorizontalLine(axisSegments, 0f);
-
-            StrokeSegments(painter, minorSegments, WhiteWithAlpha(0.04f), 1f);
-            StrokeSegments(painter, majorSegments, WhiteWithAlpha(0.09f), 1f);
-            StrokeSegments(painter, axisSegments, WhiteWithAlpha(0.22f), 1f);
+            CutoutCanvasGrid.Paint(context, new Vector2(layout.width, layout.height), zoomPointsPerWorldUnit, WorldToElement, ElementToWorld);
         }
 
         private void AppendRectPath(Painter2D painter, Vector2 topLeft, Vector2 bottomRight)
