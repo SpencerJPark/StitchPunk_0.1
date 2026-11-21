@@ -59,7 +59,7 @@ namespace StitchPunk.Tests
             mesh = TerraceTileMeshBuilder.BuildTerracedTileMesh(tile, world, null, null, 0f);
 
             Assert.AreEqual(0, CountOpenEdges(mesh, false), "open edges away from the rim");
-            Assert.AreEqual(0, CountOpenEdges(mesh, true), "open edges on the rim");
+            Assert.AreEqual(400, CountOpenEdges(mesh, true), "rim of an untouched tile edge is one open edge per 1 m cell");
             Assert.AreEqual(1, TerraceTileMeshBuilder.LastBuildOutlineChains.Count);
             TerraceOutlineChain chain = TerraceTileMeshBuilder.LastBuildOutlineChains[0];
             Assert.AreEqual(-world.terraceLevelHeightMetres, chain.bottomHeights[0] - chain.points[0].y, 1e-3f);
