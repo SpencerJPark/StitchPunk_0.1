@@ -1,5 +1,5 @@
 ---
-status: SPECCED 2026-11-21. T0 look spike in progress; T1 onward waits for the T0 captures to be accepted.
+status: BUILDING 2026-11-21. T0 accepted by the owner; T1 onward in progress on branch spec/terraces.
 reference: Tasks/Captures/References/ (owner's reference shots: flat plateaus, vertical cliffs, rounded outlines, clean biome ends)
 captures: Tasks/Captures/Terraces_<date>/NN_<what_it_shows>.png, one folder per capture pass
 extends: Tasks/Verification/Terrain_System.md (tile data, bakers, nav, streaming, strategic stand-in)
@@ -116,3 +116,8 @@ Spec retires to `Tasks/Verification/Terraces_System.md` with `verify-terraces.md
 ## 8. Log (one line per wave, newest last)
 
 - 2026-11-21 Spec written. T0 spike code written (gate + lint pass, Painted/Ribbon walls opaque, T_EdgeFringe alphaIsTransparency off). Not yet run: Editor closed. Next: menu Build Terrace Spike, then Capture Terrace Spike, read 01-05.
+- 2026-11-21 T0 run: captures `Terraces_2026-11-21/01..05` judged by the orchestrator against References. Owner accepted: "continue, the edges do look weird, but I figure you'll fix them down the line". Carry forward:
+  - **T6 lip is wrong:** renders as a solid black band with jagged red/yellow teeth (02, 04). Fringe texture/material is wrong, not a grass overhang. Fix in T6.
+  - **Walls read as a short plain grey-blue curb.** Reference `3_dse_04` wants tall dark walls with vertical striations. Check the 3 m height actually lands (T3/T5 capture) and treat Painted/Ribbon as unfit: T6 takes the `PaintedCliff.shader` branch.
+  - **No dark foot fringe** at the wall base. T6 foot strip must read dark.
+  - **Spike-only artefacts, do not carry over:** red debug outline on plateau tops; kinks where Chaikin chains join (the circle has 4 bumps); a fan of thin lines on the ground inside the concave notch (04). T3 test/capture must show the real cut mesh has no fan.

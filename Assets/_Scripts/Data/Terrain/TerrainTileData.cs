@@ -22,6 +22,9 @@ public class TerrainTileData : ScriptableObject
     // The ground's top face sits this far under the height data, so decals and feet do not z-fight a floor at zero.
     public const float GroundTopHeightMetres = -0.03f;
 
+    public const int TerraceCellsPerSide = 100;            // 1 m cells, index z * 100 + x, cell 0 = min corner
+    public const byte NoHandTerraceLevel = 255;
+
     public Vector2Int coordinate;
     public int maskResolution = 256;
 
@@ -33,6 +36,9 @@ public class TerrainTileData : ScriptableObject
     public float[] roadHeightDelta;
     [Tooltip("Building pads; part of the HeightAt sum.")]
     public float[] areaHeightDelta;
+
+    public byte[] baseTerraceLevels;                        // length 10000, null = all 0
+    public byte[] handTerraceLevels;                        // length 10000, null = no overrides
 
     public Texture2D baseMask;
     [Tooltip("RGBA paint overlay, A = painted.")]
@@ -52,6 +58,16 @@ public class TerrainTileData : ScriptableObject
 
     [Tooltip("revision the compositor last built compositeSdf from; differs from revision when the tile needs a re-composite")]
     public int compositedRevision = -1;
+
+    public void EnsureHandTerraceLevels()
+    {
+        int expectedLength = TerraceCellsPerSide * TerraceCellsPerSide;
+        if (handTerraceLevels == null || handTerraceLevels.Length != expectedLength)
+        {
+            handTerraceLevels = new byte[expectedLength];
+            Array.Fill(handTerraceLevels, NoHandTerraceLevel);
+        }
+    }
 
     public void EnsureHeightArrays()
     {

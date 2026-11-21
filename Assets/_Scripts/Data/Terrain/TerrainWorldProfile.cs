@@ -29,6 +29,11 @@ public class TerrainWorldProfile : ScriptableObject
 
     public int maxTileLoadsPerFrame = 1;
 
+    [Header("Terraces")]
+    public float terraceLevelHeightMetres = 3f;
+    public int maxTerraceLevels = 3;
+    [Tooltip("Rounded outline corner radius in metres")] public float terraceCornerRadiusMetres = 2.5f;
+
     public string groundLayerName = "Ground";
 
     public Material tileMaterialTemplate;
