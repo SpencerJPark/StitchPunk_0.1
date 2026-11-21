@@ -80,6 +80,10 @@ Binding reference: [`Docs/AnimationToolkit/EditorStyleGuide.md`](../../../../Doc
 
 > **Spec files cleared 2026-09-30.** Every spec above is built; the files were removed from this folder in `c64bb0b5`. Read one back with `git show c64bb0b5^:Assets/_Vault/Tasks/AnimationPackage/<name>`. **Next: RC1** — `Assets/_Vault/Spencer/Archive/next-session-rc1-spec-prompt.md`.
 
+### Phase 8 — asset pipeline
+
+- [ ] **A113 — Cutout sheets** (`0.67.0`, specced 2026-11-21) — many pieces from one atlas by alpha, sheet flipbooks on the AtlasRect path, rotation, Assemble mode with Layered or Merged (rigid-bone VAT) output. `A113_CutoutSheets_Spec.md`.
+
 ## 2. Standing owner calls these specs inherit (do not re-ask)
 
 - Names, never numbers, in game code and editor surfaces (HANDOFF §5).
