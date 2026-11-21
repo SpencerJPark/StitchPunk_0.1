@@ -186,6 +186,10 @@ public static class TerrainNavBaker
             Physics.SyncTransforms();
         }
 
+        bool[] terraceWallCells = BuildTerraceWallCellMask(tile);
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindInProject();
+        float profileHeight = worldProfile != null ? worldProfile.terraceLevelHeightMetres : 0f;
+
         for (int cellZ = 0; cellZ < CellsPerSide; cellZ++)
         {
             for (int cellX = 0; cellX < CellsPerSide; cellX++)
@@ -197,6 +201,7 @@ public static class TerrainNavBaker
                 input.slopeDegrees = SlopeDegreesAt(tile, worldX, worldZ);
                 input.roadCost = TerrainNavCellRules.LeaveGroundCost;
                 input.groundCost = 1;
+                input.crossesTerraceWall = terraceWallCells != null && terraceWallCells[cellZ * CellsPerSide + cellX];
 
                 if (compositeMask != null)
                 {
@@ -223,7 +228,7 @@ public static class TerrainNavBaker
 
                 if (wallLayerMask != 0)
                 {
-                    float groundHeight = tile.tileData.SampleBilinear(worldX, worldZ);
+                    float groundHeight = tile.tileData.SampleBilinear(worldX, worldZ) + TerraceLevelField.ResolvedLevel(tile.tileData, cellX, cellZ) * profileHeight;
                     Vector3 probeCentre = new Vector3(worldX, groundHeight + PropProbeHeightMetres, worldZ);
                     if (Physics.CheckSphere(probeCentre, PropProbeRadiusMetres, wallLayerMask, QueryTriggerInteraction.Ignore))
                     {
@@ -245,6 +250,65 @@ public static class TerrainNavBaker
                 surfaceOut[outputIndex] = (byte)cell.surface;
             }
         }
+    }
+
+    private static bool[] BuildTerraceWallCellMask(TerrainTile tile)
+    {
+        TerrainWorldProfile profile = TerrainWorldProfile.FindInProject();
+        if (profile == null)
+        {
+            return null;
+        }
+
+        System.Func<Vector2Int, TerrainTileData> neighbourLookup = FindNeighbourTileData;
+        if (!TerraceTileAssembly.TileNeedsTerracedPath(tile.tileData, tile.tileCoordinate, neighbourLookup))
+        {
+            return null;
+        }
+
+        List<TerraceRampFootprint> ramps = TerraceTileAssembly.CollectRampFootprints(tile.tileData, tile.tileCoordinate, profile);
+        Mesh scratchMesh = TerraceTileMeshBuilder.BuildTerracedTileMesh(tile.tileData, profile, neighbourLookup, ramps, TerrainTileCreator.GroundTopHeight);
+        List<TerraceOutlineChain> chains = new List<TerraceOutlineChain>(TerraceTileMeshBuilder.LastBuildOutlineChains);
+        UnityEngine.Object.DestroyImmediate(scratchMesh);
+
+        bool[] mask = new bool[CellsPerSide * CellsPerSide];
+        const float StepMetres = 0.25f;
+        for (int chainIndex = 0; chainIndex < chains.Count; chainIndex++)
+        {
+            Vector3[] points = chains[chainIndex].points;
+            if (points == null)
+            {
+                continue;
+            }
+            for (int pointIndex = 0; pointIndex + 1 < points.Length; pointIndex++)
+            {
+                Vector3 segmentStart = points[pointIndex];
+                Vector3 segmentEnd = points[pointIndex + 1];
+                float segmentLength = new Vector2(segmentEnd.x - segmentStart.x, segmentEnd.z - segmentStart.z).magnitude;
+                int stepCount = Mathf.Max(1, Mathf.CeilToInt(segmentLength / StepMetres));
+                for (int stepIndex = 0; stepIndex <= stepCount; stepIndex++)
+                {
+                    Vector3 samplePoint = Vector3.Lerp(segmentStart, segmentEnd, (float)stepIndex / stepCount);
+                    int cellX = Mathf.FloorToInt(samplePoint.x + 50f);
+                    int cellZ = Mathf.FloorToInt(samplePoint.z + 50f);
+                    if (cellX >= 0 && cellX < CellsPerSide && cellZ >= 0 && cellZ < CellsPerSide)
+                    {
+                        mask[cellZ * CellsPerSide + cellX] = true;
+                    }
+                }
+            }
+        }
+        return mask;
+    }
+
+    private static TerrainTileData FindNeighbourTileData(Vector2Int coordinate)
+    {
+        TerrainTile neighbour = TerrainTileCreator.FindTileAt(coordinate);
+        if (neighbour == null)
+        {
+            return null;
+        }
+        return neighbour.tileData;
     }
 
     private static float SlopeDegreesAt(TerrainTile tile, float worldX, float worldZ)

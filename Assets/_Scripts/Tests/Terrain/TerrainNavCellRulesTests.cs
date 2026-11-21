@@ -24,6 +24,18 @@ namespace StitchPunk.Tests
         }
 
         [Test]
+        public void TerraceWallBeatsRoadAndIsAWall()
+        {
+            TerrainNavCellInput input = FlatGround(1);
+            input.onRoad = true;
+            input.roadCost = 2;
+            input.crossesTerraceWall = true;
+            TerrainNavCell cell = TerrainNavCellRules.Classify(input);
+            Assert.AreEqual(TerrainNavCellRules.WallCost, cell.cost);
+            Assert.AreEqual(TerrainSurface.Normal, cell.surface);
+        }
+
+        [Test]
         public void SlopeOfExactlyFortyFiveDegreesIsAWallButFortyFourPointNineIsNot()
         {
             TerrainNavCellInput input = FlatGround(1);
