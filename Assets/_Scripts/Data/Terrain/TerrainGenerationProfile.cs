@@ -113,4 +113,16 @@ public class TerrainGenerationProfile : ScriptableObject
             weight = 1f
         }
     };
+
+    [Header("Terraces")]
+    public bool generateTerraces = false;
+
+    [Tooltip("Terrace noise frequency; lower means larger plateaus.")]
+    public float terraceNoiseFrequencyPerMetre = 0.006f;
+
+    [Tooltip("Noise in 0..1 at or above entry k gives level k + 1.")]
+    public float[] terraceLevelThresholds = { 0.55f, 0.7f, 0.85f };
+
+    [Tooltip("Plateaus smaller than this that do not touch the generation window border are removed.")]
+    public float minPlateauAreaSquareMetres = 150f;
 }

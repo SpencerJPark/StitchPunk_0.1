@@ -76,6 +76,21 @@ public static class TerrainGenerateTool
         return null;
     }
 
+    // Writes only the procedural layer; the owner's handTerraceLevels always win and are never touched here.
+    static void GenerateBaseTerraceLevels(TerrainGenerationProfile profile, Vector2Int coordinate, TerrainTileData tileData)
+    {
+        if (!profile.generateTerraces)
+        {
+            tileData.baseTerraceLevels = null;
+            return;
+        }
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindInProject();
+        int maxLevels = worldProfile != null ? worldProfile.maxTerraceLevels : 3;
+        byte[] levels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
+        TerrainProceduralGenerator.GenerateTerraceLevels(profile, coordinate, maxLevels, levels);
+        tileData.baseTerraceLevels = levels;
+    }
+
     static bool GenerateOneTile(TerrainRegion region, Vector2Int coordinate, bool allowHandAuthored)
     {
         TerrainTile tile = TerrainTileCreator.FindTileAt(coordinate);
@@ -92,6 +107,7 @@ public static class TerrainGenerateTool
 
         tileData.EnsureHeightArrays();
         TerrainProceduralGenerator.GenerateHeights(region.profile, coordinate, tileData.baseHeights);
+        GenerateBaseTerraceLevels(region.profile, coordinate, tileData);
 
         int resolution = tileData.maskResolution > 0 ? tileData.maskResolution : TerrainSplatCodec.FallbackMaskResolution;
         Color32[] maskPixels = new Color32[resolution * resolution];

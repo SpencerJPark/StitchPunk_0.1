@@ -8,6 +8,7 @@ public static class TerrainProceduralGenerator
 {
     private const int SamplesPerSide = TerrainTileData.HeightSamplesPerSide;
     private const float TileSizeMetres = TerrainTileData.TileSizeMetres;
+    private const int TerraceCellsPerSide = 100;
 
     public static float AnalyticHeightAt(TerrainGenerationProfile profile, float worldX, float worldZ)
     {
@@ -149,6 +150,92 @@ public static class TerrainProceduralGenerator
                 }
 
                 outMask[texelZ * resolution + texelX] = TerrainSplatCodec.ColourOfLayer(chosenLayer);
+            }
+        }
+    }
+
+    public static void GenerateTerraceLevels(TerrainGenerationProfile profile, Vector2Int tileCoordinate, int maxLevels, byte[] outLevels)
+    {
+        System.Array.Clear(outLevels, 0, outLevels.Length);
+        if (!profile.generateTerraces || profile.terraceLevelThresholds == null || profile.terraceLevelThresholds.Length == 0 || maxLevels <= 0)
+            return;
+
+        const int margin = 50;
+        const int windowSide = TerraceCellsPerSide + 2 * margin;
+        float2 seedOffset = CreateSeedOffset(profile.seed) + new float2(913.7f, -421.3f);
+        float minCornerX = tileCoordinate.x * TileSizeMetres - TileSizeMetres * 0.5f - margin;
+        float minCornerZ = tileCoordinate.y * TileSizeMetres - TileSizeMetres * 0.5f - margin;
+        float[] thresholds = profile.terraceLevelThresholds;
+
+        byte[] windowLevels = new byte[windowSide * windowSide];
+        for (int cellZ = 0; cellZ < windowSide; cellZ++)
+        {
+            for (int cellX = 0; cellX < windowSide; cellX++)
+            {
+                float2 centre = new float2(minCornerX + cellX + 0.5f, minCornerZ + cellZ + 0.5f);
+                float noise01 = noise.snoise(centre * profile.terraceNoiseFrequencyPerMetre + seedOffset) * 0.5f + 0.5f;
+                int level = 0;
+                for (int thresholdIndex = 0; thresholdIndex < thresholds.Length && level < maxLevels; thresholdIndex++)
+                {
+                    if (noise01 >= thresholds[thresholdIndex]) level++;
+                }
+                windowLevels[cellZ * windowSide + cellX] = (byte)level;
+            }
+        }
+
+        // Window-border components may continue past the window, so they are kept; neighbouring tiles then agree.
+        bool[] visited = new bool[windowLevels.Length];
+        int[] stack = new int[windowLevels.Length];
+        int[] componentCells = new int[windowLevels.Length];
+        for (int level = 1; level <= maxLevels; level++)
+        {
+            System.Array.Clear(visited, 0, visited.Length);
+            for (int startIndex = 0; startIndex < windowLevels.Length; startIndex++)
+            {
+                if (visited[startIndex] || windowLevels[startIndex] < level) continue;
+
+                int stackCount = 0;
+                int componentCount = 0;
+                bool touchesBorder = false;
+                stack[stackCount++] = startIndex;
+                visited[startIndex] = true;
+                while (stackCount > 0)
+                {
+                    int cellIndex = stack[--stackCount];
+                    componentCells[componentCount++] = cellIndex;
+                    int cellX = cellIndex % windowSide;
+                    int cellZ = cellIndex / windowSide;
+                    if (cellX == 0 || cellZ == 0 || cellX == windowSide - 1 || cellZ == windowSide - 1) touchesBorder = true;
+
+                    for (int direction = 0; direction < 4; direction++)
+                    {
+                        int neighbourX = cellX + (direction == 0 ? 1 : direction == 1 ? -1 : 0);
+                        int neighbourZ = cellZ + (direction == 2 ? 1 : direction == 3 ? -1 : 0);
+                        if (neighbourX < 0 || neighbourZ < 0 || neighbourX >= windowSide || neighbourZ >= windowSide) continue;
+
+                        int neighbourIndex = neighbourZ * windowSide + neighbourX;
+                        if (visited[neighbourIndex] || windowLevels[neighbourIndex] < level) continue;
+
+                        visited[neighbourIndex] = true;
+                        stack[stackCount++] = neighbourIndex;
+                    }
+                }
+
+                if (touchesBorder || componentCount >= profile.minPlateauAreaSquareMetres) continue;
+
+                for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+                {
+                    int culledIndex = componentCells[componentIndex];
+                    if (windowLevels[culledIndex] >= level) windowLevels[culledIndex] = (byte)(level - 1);
+                }
+            }
+        }
+
+        for (int cellZ = 0; cellZ < TerraceCellsPerSide; cellZ++)
+        {
+            for (int cellX = 0; cellX < TerraceCellsPerSide; cellX++)
+            {
+                outLevels[cellZ * TerraceCellsPerSide + cellX] = windowLevels[(cellZ + margin) * windowSide + cellX + margin];
             }
         }
     }
