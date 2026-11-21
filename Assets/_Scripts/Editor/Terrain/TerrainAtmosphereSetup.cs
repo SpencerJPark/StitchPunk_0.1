@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// Adds the day/night + weather driver to the open scene (it needs the scene's sun) and creates the rain material.
+// Adds the day/night + weather driver to the open scene and creates the rain material.
 public static class TerrainAtmosphereSetup
 {
     private const string RainMaterialPath = "Assets/Terrain/Profiles/M_Rain.mat";
@@ -13,13 +13,6 @@ public static class TerrainAtmosphereSetup
     [MenuItem("Stitch Punk/Terrain/Set Up Atmosphere (Day Night Weather)")]
     public static void EnsureInOpenScene()
     {
-        Light sun = FindSun();
-        if (sun == null)
-        {
-            Debug.LogError("[Atmosphere] No directional light in the open scene.");
-            return;
-        }
-
         WorldAtmosphereDriver driver = Object.FindFirstObjectByType<WorldAtmosphereDriver>();
         if (driver == null)
         {
@@ -35,24 +28,11 @@ public static class TerrainAtmosphereSetup
         }
 
         SerializedObject driverObject = new SerializedObject(driver);
-        driverObject.FindProperty("sun").objectReferenceValue = sun;
         driverObject.FindProperty("lightingBridge").objectReferenceValue = bridge;
         driverObject.FindProperty("rainMaterial").objectReferenceValue = LoadOrCreateRainMaterial();
         driverObject.ApplyModifiedProperties();
         EditorSceneManager.MarkSceneDirty(driver.gameObject.scene);
-        Debug.Log("[Atmosphere] Driver wired to '" + sun.name + "'. Save the scene to keep it.");
-    }
-
-    private static Light FindSun()
-    {
-        if (RenderSettings.sun != null)
-            return RenderSettings.sun;
-        foreach (Light light in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
-        {
-            if (light.type == LightType.Directional)
-                return light;
-        }
-        return null;
+        Debug.Log("[Atmosphere] Driver wired. Save the scene to keep it.");
     }
 
     private static Material LoadOrCreateRainMaterial()

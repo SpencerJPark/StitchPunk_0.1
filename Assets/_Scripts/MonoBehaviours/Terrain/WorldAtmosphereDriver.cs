@@ -9,14 +9,13 @@ public enum WeatherKind
     Storm,
 }
 
-// Time of day (from the shared WorldClock) and weather drive the sun, ambient, background, lightning and rain. Ground, props and the
-// zoomed-out strategic layer all read the same light and ambient, so they change colour together.
+// Time of day (from the shared WorldClock) and weather drive the camera background, ground exposure, lightning and rain.
+// It does not touch the sun Light or RenderSettings ambient: lighting is authored in the scene.
 public class WorldAtmosphereDriver : MonoBehaviour
 {
     [Serializable]
     public struct WeatherLook
     {
-        public float sunScale;
         public float ambientScale;
         [Range(0f, 1f)] public float saturation;
         public float rainParticlesPerSecond;
@@ -27,42 +26,31 @@ public class WorldAtmosphereDriver : MonoBehaviour
     private static readonly int GroundExposureBoostId = Shader.PropertyToID("_TerrainGroundExposureBoost");
     private const string DebugToggleName = "Atmosphere";
     private const float WeatherEasePerSecond = 0.4f;
-    private const float FlashAmbientBoost = 0.3f;
     private const float RainBoxMetresAtGround = 70f;
     private const float RainBoxMetresZoomedOut = 900f;
     private const float RainFallMetresPerSecond = 45f;
     private const float RainLifetimeSeconds = 0.7f;
     private const float RainMaximumPerSecond = 9000f;
 
-    [SerializeField] private Light sun;
     [SerializeField] private TerrainLightingBridge lightingBridge;
     [SerializeField] private Material rainMaterial;
 
     [Header("Time of day (0 = midnight)")]
-    public Gradient sunColour = BuildSunColour();
-    public AnimationCurve sunIntensity = BuildSunIntensity();
-    public Gradient ambientColour = BuildAmbientColour();
     public Gradient backgroundColour = BuildBackgroundColour();
     [Tooltip("Ground-only brightness: the painted ground albedo is dark, so it is lifted without blowing out units and props.")]
     public float groundExposureBoost = 0.7f;
 
     [Header("Weather")]
     public WeatherKind weather = WeatherKind.Clear;
-    public WeatherLook clearLook = new WeatherLook { sunScale = 1f, ambientScale = 1f, saturation = 1f };
-    public WeatherLook cloudyLook = new WeatherLook { sunScale = 0.4f, ambientScale = 1.15f, saturation = 0.75f };
+    public WeatherLook clearLook = new WeatherLook { ambientScale = 1f, saturation = 1f };
+    public WeatherLook cloudyLook = new WeatherLook { ambientScale = 1.15f, saturation = 0.75f };
     public WeatherLook stormLook = new WeatherLook
     {
-        sunScale = 0.12f, ambientScale = 0.7f, saturation = 0.55f,
+        ambientScale = 0.7f, saturation = 0.55f,
         rainParticlesPerSecond = 6500f, lightningMinSeconds = 4f, lightningMaxSeconds = 11f,
     };
     public bool autoWeather = true;
     public Vector2 autoWeatherMinutesRange = new Vector2(5f, 12f);
-
-    [Header("Sun direction (fixed all day and night; only colour and brightness follow the clock)")]
-    [Tooltip("Compass direction the light travels, 0 = north. 180 = sun in the north, shadows point south toward the camera.")]
-    [Range(0f, 360f)] public float sunLightTravelYawDegrees = 180f;
-    [Tooltip("Lower = longer shadows.")]
-    [Range(10f, 90f)] public float sunElevationDegrees = 50f;
 
     [Header("Debug override")]
     public bool useManualTimeOfDay;
@@ -117,7 +105,6 @@ public class WorldAtmosphereDriver : MonoBehaviour
     {
         return new WeatherLook
         {
-            sunScale = Mathf.Lerp(from.sunScale, to.sunScale, amount),
             ambientScale = Mathf.Lerp(from.ambientScale, to.ambientScale, amount),
             saturation = Mathf.Lerp(from.saturation, to.saturation, amount),
             rainParticlesPerSecond = Mathf.Lerp(from.rainParticlesPerSecond, to.rainParticlesPerSecond, amount),
@@ -148,19 +135,7 @@ public class WorldAtmosphereDriver : MonoBehaviour
     private void ApplyLighting(float timeOfDay01)
     {
         Shader.SetGlobalFloat(GroundExposureBoostId, groundExposureBoost);
-        float flash = lightingBridge != null ? lightingBridge.CurrentFlash : 0f;
         float saturation = blendedLook.saturation;
-
-        if (sun != null)
-        {
-            sun.color = Desaturate(sunColour.Evaluate(timeOfDay01), saturation);
-            sun.intensity = sunIntensity.Evaluate(timeOfDay01) * blendedLook.sunScale;
-            sun.transform.rotation = Quaternion.Euler(sunElevationDegrees, sunLightTravelYawDegrees, 0f);
-        }
-
-        Color ambient = Desaturate(ambientColour.Evaluate(timeOfDay01), saturation) * blendedLook.ambientScale;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = ambient + Color.white * (flash * FlashAmbientBoost);
 
         if (cachedCamera == null)
         {
@@ -318,40 +293,6 @@ public class WorldAtmosphereDriver : MonoBehaviour
         useManualTimeOfDay = GUILayout.Toggle(useManualTimeOfDay, "Manual time of day");
         manualTimeOfDay01 = GUILayout.HorizontalSlider(manualTimeOfDay01, 0f, 1f);
         GUILayout.EndArea();
-    }
-
-    private static Gradient BuildSunColour()
-    {
-        return BuildGradient(
-            (0.00f, new Color(0.40f, 0.50f, 1.00f)),
-            (0.22f, new Color(0.40f, 0.50f, 1.00f)),
-            (0.27f, new Color(1.00f, 0.72f, 0.50f)),
-            (0.50f, new Color(1.00f, 0.97f, 0.88f)),
-            (0.68f, new Color(1.00f, 0.96f, 0.82f)),
-            (0.75f, new Color(1.00f, 0.80f, 0.52f)),
-            (0.80f, new Color(0.66f, 0.42f, 0.55f)),
-            (0.85f, new Color(0.40f, 0.50f, 1.00f)));
-    }
-
-    private static AnimationCurve BuildSunIntensity()
-    {
-        return new AnimationCurve(
-            new Keyframe(0.00f, 0.5f), new Keyframe(0.22f, 0.5f), new Keyframe(0.27f, 0.75f),
-            new Keyframe(0.35f, 1.25f), new Keyframe(0.50f, 1.4f), new Keyframe(0.68f, 1.35f),
-            new Keyframe(0.75f, 1.0f), new Keyframe(0.80f, 0.4f), new Keyframe(0.85f, 0.5f), new Keyframe(1.00f, 0.5f));
-    }
-
-    private static Gradient BuildAmbientColour()
-    {
-        return BuildGradient(
-            (0.00f, new Color(0.16f, 0.22f, 0.44f)),
-            (0.22f, new Color(0.16f, 0.22f, 0.44f)),
-            (0.27f, new Color(0.42f, 0.34f, 0.34f)),
-            (0.50f, new Color(0.42f, 0.47f, 0.38f)),
-            (0.68f, new Color(0.40f, 0.46f, 0.36f)),
-            (0.75f, new Color(0.42f, 0.30f, 0.28f)),
-            (0.80f, new Color(0.24f, 0.20f, 0.34f)),
-            (0.85f, new Color(0.16f, 0.22f, 0.44f)));
     }
 
     private static Gradient BuildBackgroundColour()

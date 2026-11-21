@@ -27,3 +27,5 @@ public partial struct CaravanBrokenSystem : ISystem
         }
     }
 }
+
+// the zoom out doesnt work anymore, the hatch looks bad on moving objects, it maybe should only exist for static, the hatch also moves when the camera turns which looks bad, it casts really weird on characters being static on them when they are in shade, overall it has a very bad feel to it, I also think the hatch should be smaller and finer like the example, still too big in general, it also fully disapears when zoomed out which is noticable and looks bad.
