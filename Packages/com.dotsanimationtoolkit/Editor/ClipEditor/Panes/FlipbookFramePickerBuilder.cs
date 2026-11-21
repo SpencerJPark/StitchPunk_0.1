@@ -15,7 +15,7 @@ namespace DotsAnimationToolkit.Editor
     /// </summary>
     public static class FlipbookFramePickerBuilder
     {
-        public const string AtlasTrackHint = "flipbooks bind Slice tracks";
+        public const string AtlasTrackHint = "Slice tracks bind flipbooks; bind a sheet flipbook here";
         public const string NoFrameChoice = "(no frame)";
 
         public static ObjectField BuildFlipbookField(SpriteTrack track, Action<FlipbookAsset> flipbookPicked)
@@ -54,6 +54,54 @@ namespace DotsAnimationToolkit.Editor
                 }
             });
             return flipbookField;
+        }
+
+        public static ObjectField BuildSheetFlipbookField(SpriteTrack track, Action<SheetFlipbookAsset> sheetFlipbookPicked)
+        {
+            ObjectField sheetField = new ObjectField("Sheet Flipbook");
+            sheetField.objectType = typeof(SheetFlipbookAsset);
+            sheetField.allowSceneObjects = false;
+            sheetField.SetValueWithoutNotify(track.sheetFlipbook);
+            sheetField.tooltip =
+                "The sheet flipbook this atlas-rect track's frames are picked from. Authoring-only; never baked.";
+            sheetField.RegisterValueChangedCallback(changeEvent =>
+            {
+                sheetFlipbookPicked(changeEvent.newValue as SheetFlipbookAsset);
+            });
+            return sheetField;
+        }
+
+        public static PopupField<string> BuildSheetFramePopup(
+            string label, SheetFlipbookAsset sheetFlipbook, Unity.Mathematics.float4 currentAtlasRect,
+            Action<int> frameIndexPicked)
+        {
+            List<string> choices = new List<string>();
+            int currentFrameIndex = -1;
+            if (sheetFlipbook != null && sheetFlipbook.frames != null)
+            {
+                for (int frameIndex = 0; frameIndex < sheetFlipbook.frames.Count; frameIndex++)
+                {
+                    choices.Add(sheetFlipbook.frames[frameIndex].name);
+                    if (currentFrameIndex < 0
+                        && Unity.Mathematics.math.all(sheetFlipbook.AtlasRectForFrame(frameIndex) == currentAtlasRect))
+                    {
+                        currentFrameIndex = frameIndex;
+                    }
+                }
+            }
+            choices.Add(NoFrameChoice);
+
+            string currentChoice = currentFrameIndex >= 0 ? choices[currentFrameIndex] : NoFrameChoice;
+            PopupField<string> framePopup = new PopupField<string>(label, choices, currentChoice);
+            framePopup.RegisterValueChangedCallback(changeEvent =>
+            {
+                int pickedFrameIndex = choices.IndexOf(changeEvent.newValue);
+                if (pickedFrameIndex >= 0 && pickedFrameIndex < choices.Count - 1)
+                {
+                    frameIndexPicked(pickedFrameIndex);
+                }
+            });
+            return framePopup;
         }
 
         public static PopupField<string> BuildFramePopup(

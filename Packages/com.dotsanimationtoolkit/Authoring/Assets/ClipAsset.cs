@@ -292,6 +292,9 @@ namespace DotsAnimationToolkit.Authoring
         [FormerlySerializedAs("sheet")]
         public FlipbookAsset flipbook;
 
+        [Tooltip("The sheet flipbook an AtlasRect track picks frames from. Authoring-only; never baked.")]
+        public SheetFlipbookAsset sheetFlipbook;
+
         /// <summary>Keys in strictly ascending <c>normalizedTime</c> order.</summary>
         public List<SpriteKey> keys = new List<SpriteKey>();
     }

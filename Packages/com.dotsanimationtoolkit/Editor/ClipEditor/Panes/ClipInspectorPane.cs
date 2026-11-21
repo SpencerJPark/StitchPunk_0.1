@@ -682,7 +682,33 @@ namespace DotsAnimationToolkit.Editor
             inspectorPane.Add(flipbookField);
             if (track.mode == SpriteFrameMode.AtlasRect)
             {
-                inspectorPane.Add(MakeHint(FlipbookFramePickerBuilder.AtlasTrackHint));
+                inspectorPane.Add(FlipbookFramePickerBuilder.BuildSheetFlipbookField(track, pickedSheetFlipbook =>
+                {
+                    RecordClipEdit("Bind Sheet Flipbook");
+                    track.sheetFlipbook = pickedSheetFlipbook;
+                    CommitClipEdit();
+                    RequestInspectorRebuild();
+                }));
+                if (track.sheetFlipbook == null)
+                {
+                    inspectorPane.Add(MakeHint(FlipbookFramePickerBuilder.AtlasTrackHint));
+                }
+                else
+                {
+                    inspectorPane.Add(FlipbookFramePickerBuilder.BuildSheetFramePopup(
+                        "Frame",
+                        track.sheetFlipbook,
+                        key.atlasRect,
+                        pickedFrameIndex =>
+                        {
+                            RecordClipEdit("Edit Flipbook Key");
+                            SpriteKey editedKey = track.keys[address.keyIndex];
+                            editedKey.atlasRect = track.sheetFlipbook.AtlasRectForFrame(pickedFrameIndex);
+                            track.keys[address.keyIndex] = editedKey;
+                            CommitClipEdit();
+                            RequestInspectorRebuild();
+                        }));
+                }
             }
 
             if (flipbookIsBound)
@@ -1435,7 +1461,33 @@ namespace DotsAnimationToolkit.Editor
             trackBlock.Add(flipbookField);
             if (track.mode == SpriteFrameMode.AtlasRect)
             {
-                trackBlock.Add(MakeHint(FlipbookFramePickerBuilder.AtlasTrackHint));
+                trackBlock.Add(FlipbookFramePickerBuilder.BuildSheetFlipbookField(track, pickedSheetFlipbook =>
+                {
+                    RecordClipEdit("Bind Sheet Flipbook");
+                    track.sheetFlipbook = pickedSheetFlipbook;
+                    CommitClipEdit();
+                    RequestInspectorRebuild();
+                }));
+                if (track.sheetFlipbook == null)
+                {
+                    trackBlock.Add(MakeHint(FlipbookFramePickerBuilder.AtlasTrackHint));
+                }
+                else if (keyCount > 0 && effectiveKeyIndex >= 0)
+                {
+                    trackBlock.Add(FlipbookFramePickerBuilder.BuildSheetFramePopup(
+                        "Frame",
+                        track.sheetFlipbook,
+                        track.keys[effectiveKeyIndex].atlasRect,
+                        pickedFrameIndex =>
+                        {
+                            RecordClipEdit("Edit Flipbook Key");
+                            SpriteKey editedKey = track.keys[effectiveKeyIndex];
+                            editedKey.atlasRect = track.sheetFlipbook.AtlasRectForFrame(pickedFrameIndex);
+                            track.keys[effectiveKeyIndex] = editedKey;
+                            CommitClipEdit();
+                            RequestInspectorRebuild();
+                        }));
+                }
             }
 
             if (keyCount > 0 && effectiveKeyIndex >= 0)
