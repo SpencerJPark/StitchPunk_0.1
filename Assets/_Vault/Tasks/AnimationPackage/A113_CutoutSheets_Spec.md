@@ -296,3 +296,18 @@ on that, and flag it in the checkpoint message.
   (`AtlasTrackHint = "flipbooks bind Slice tracks"`). `AtlasFrameUV = uv*xy + zw` and the identity rest rect make
   S-D8 work with no runtime change. VAT bake poses a rig's Source Prefab (A78), so Merged must emit a skinned
   prefab. `SocketAttachMode.Bone` exists, and whether a part can ride it is P1.
+- 2026-11-21 (spec-lead, worktree `spec/a113`): T0 offline baseline gate PASS (needs a `Library` junction to the
+  stage's Library plus asmdef mtimes matched to the stage, else `GATE UNAVAILABLE`/`GATE STALE`). Probes:
+  - **P1 = NO → §7 escalation.** `SocketResolveSystem`'s `ResolveSocketsJob` carries `[WithNone(typeof(RigPartBinding))]`
+    and reads bake-time `SocketClipTrackBlob` samples, so a rig part cannot follow a Bone socket. Per S-D12 the Merged
+    writer and the assembly inspector **refuse** sheet-flipbook pieces by name. Letting a blinking head ride a VAT
+    bone would need a runtime change (owner call).
+  - **P2:** `ClipComponentModel.PromoteToRigTarget` needs a ClipAsset; the writers set `sourceNodePath` via
+    `PrefabAuthoringBridge.GetHierarchyPath(node, root)` (root excluded, `/`-joined) and call `EnsureStableIds`.
+  - **P3:** grid painter was `CutoutCanvasElement.OnGenerateGrid` :668–730 → now `CutoutCanvasGrid.Paint`.
+  - **P4:** the VAT bake needs a `SkinnedMeshRenderer` with bones (matched by a `VatMesh` target path or the only
+    one), no Animator; clips are sampled with `AnimationMode.SampleAnimationClip` on the prefab root.
+  - Rotation convention: CCW-positive degrees about the origin (+Y → −X at 90°). Assembly `positionWorld` and
+    `extraRotationDegrees` are absolute; writers parent with `worldPositionStays`. Moving a parent on the assembly
+    canvas does not drag its children (T17 may want that).
+  - R12: Sheet card's Find pieces is secondary; Cut N is the one primary and hides Save mesh while pieces are found.

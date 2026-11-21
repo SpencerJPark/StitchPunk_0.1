@@ -29,6 +29,7 @@ namespace DotsAnimationToolkit.Editor
         private readonly ViewportFrameElement viewportFrame;
         private readonly CutoutCanvasElement canvas;
         private readonly CutoutShapeManipulator manipulator;
+        private readonly CutoutSheetOverlay sheetOverlay;
         private readonly CutoutInspectorColumn inspector;
         private readonly Label statusLabel;
         private readonly FlipbookLayerThumbnailCache thumbnailCache = new FlipbookLayerThumbnailCache();
@@ -43,6 +44,8 @@ namespace DotsAnimationToolkit.Editor
         private List<FrameOverhang> overhangs = new List<FrameOverhang>();
         private int frameIndex;
         private bool isSyncingCatalogSelection;
+        private List<CutoutIsland> sheetIslands = new List<CutoutIsland>();
+        private List<List<int>> sheetGroups = new List<List<int>>();
         private bool isDisposed;
 
         public CutoutAsset LoadedCutout { get; private set; }
@@ -119,6 +122,17 @@ namespace DotsAnimationToolkit.Editor
             canvas.style.right = 0f;
             canvas.style.bottom = 0f;
             viewportFrame.ViewportImage.Add(canvas);
+            sheetOverlay = new CutoutSheetOverlay();
+            sheetOverlay.style.position = Position.Absolute;
+            sheetOverlay.style.left = 0f;
+            sheetOverlay.style.top = 0f;
+            sheetOverlay.style.right = 0f;
+            sheetOverlay.style.bottom = 0f;
+            sheetOverlay.style.display = DisplayStyle.None;
+            sheetOverlay.SheetPixelToElement = sheetPixel => canvas.PixelToElement(sheetPixel);
+            sheetOverlay.SelectionChanged += OnSheetSelectionChanged;
+            viewportFrame.ViewportImage.Add(sheetOverlay);
+            canvas.ViewChanged += sheetOverlay.Refresh;
             manipulator = new CutoutShapeManipulator(canvas);
             canvas.AddManipulator(manipulator);
             canvas.ShapeChanged += OnCanvasShapeChanged;
@@ -141,6 +155,12 @@ namespace DotsAnimationToolkit.Editor
             canvas.FrameStepKeyPressed += OnFrameStepRequested;
             inspector.AllFramesGhostToggled += OnAllFramesGhostToggled;
             inspector.FitToArtRequested += OnFitToArtRequested;
+            inspector.RotationRequested += OnRotationRequested;
+            inspector.FindPiecesRequested += OnFindPiecesRequested;
+            inspector.GroupAsFlipbookRequested += OnGroupAsFlipbookRequested;
+            inspector.SplitGroupRequested += OnSplitGroupRequested;
+            inspector.MergeIslandsRequested += OnMergeIslandsRequested;
+            inspector.CutPiecesRequested += OnCutPiecesRequested;
             inspector.FitSettingsChanged += OnFitSettingsChanged;
             inspector.OriginPixelsChanged += OnOriginPixelsChanged;
             inspector.OriginPresetRequested += OnOriginPresetRequested;
@@ -369,7 +389,7 @@ namespace DotsAnimationToolkit.Editor
         {
             canvas.SetCutout(
                 workingCopy.outlinePixels, workingCopy.innerEdges, workingCopy.originPixels, workingCopy.artPositionWorld,
-                workingCopy.pixelsPerUnit, workingCopy.FrameSize);
+                workingCopy.pixelsPerUnit, workingCopy.FrameSize, workingCopy.rotationDegrees);
             canvas.SetFrameTexture(FrameTextureAt(frameIndex));
             canvas.SetAllFramesGhost(ghostTexture);
             canvas.SetReference(workingCopy.referenceImage, workingCopy.referenceRectWorld, workingCopy.referenceOpacity);
@@ -401,6 +421,7 @@ namespace DotsAnimationToolkit.Editor
 
             workingCopy = null;
             ghostTexture = null;
+            ResetSheetState();
             layerMasks = null;
             unionMask = null;
             overhangs = new List<FrameOverhang>();
@@ -451,6 +472,10 @@ namespace DotsAnimationToolkit.Editor
             bool hasCutout = workingCopy != null;
             viewportFrame.ShowEmptyState(!hasCutout);
             saveMeshButton.SetEnabled(hasCutout);
+            if (!hasCutout)
+            {
+                RefreshSheetUi();
+            }
             badgeRow.style.display = hasCutout ? DisplayStyle.Flex : DisplayStyle.None;
 
             if (!hasCutout)
@@ -493,6 +518,8 @@ namespace DotsAnimationToolkit.Editor
                 workingCopy.FrameCount,
                 FrameName(frameIndex),
                 canvas.IsAllFramesGhostVisible);
+            inspector.ShowRotation(workingCopy.rotationDegrees);
+            RefreshSheetUi();
         }
 
         private void SetStatus(string text, ToolkitStatusTone tone)
@@ -574,11 +601,13 @@ namespace DotsAnimationToolkit.Editor
             }
 
             workingCopy.originPixels = canvas.OriginPixels;
+            workingCopy.rotationDegrees = canvas.RotationDegrees;
             workingCopy.artPositionWorld = canvas.ArtPositionWorld;
             workingCopy.pixelsPerUnit = canvas.PixelsPerUnit;
             workingCopy.referenceRectWorld = canvas.ReferenceRectWorld;
             MarkEdited();
             canvas.IsOutlineInvalid = PolygonTriangulator.IsSelfIntersecting(workingCopy.outlinePixels);
+            sheetOverlay.Refresh();
             RefreshAll();
         }
 
@@ -932,6 +961,280 @@ namespace DotsAnimationToolkit.Editor
             editMeshToggle.SetValueWithoutNotify(isEditing);
             editModeSegmented.style.display = isEditing ? DisplayStyle.Flex : DisplayStyle.None;
             ToolkitChrome.SetSegmentedSelection(editModeSegmented, canvas.Mode == CutoutCanvasMode.EditEdges ? 1 : 0);
+        }
+
+        private bool IsSheetSource => workingCopy != null && workingCopy.ResolveImage() != null;
+
+        private void ResetSheetState()
+        {
+            sheetIslands = new List<CutoutIsland>();
+            sheetGroups = new List<List<int>>();
+            if (sheetOverlay != null)
+            {
+                sheetOverlay.SetIslands(sheetIslands, new List<int>());
+                sheetOverlay.style.display = DisplayStyle.None;
+            }
+        }
+
+        private void RefreshSheetUi()
+        {
+            bool hasPieces = IsSheetSource && sheetIslands.Count > 0;
+            sheetOverlay.style.display = hasPieces ? DisplayStyle.Flex : DisplayStyle.None;
+            saveMeshButton.style.display = hasPieces ? DisplayStyle.None : DisplayStyle.Flex;
+            inspector.ShowSheetState(IsSheetSource, sheetIslands.Count, sheetOverlay.Selection.Count);
+        }
+
+        private List<int> BuildGroupIndexPerIsland()
+        {
+            List<int> groupIndexPerIsland = new List<int>(sheetIslands.Count);
+            for (int islandIndex = 0; islandIndex < sheetIslands.Count; islandIndex++)
+            {
+                groupIndexPerIsland.Add(-1);
+            }
+
+            for (int groupIndex = 0; groupIndex < sheetGroups.Count; groupIndex++)
+            {
+                foreach (int islandIndex in sheetGroups[groupIndex])
+                {
+                    groupIndexPerIsland[islandIndex] = groupIndex;
+                }
+            }
+
+            return groupIndexPerIsland;
+        }
+
+        private void PushSheetStateIntoOverlay(IReadOnlyList<int> selection)
+        {
+            sheetOverlay.SetIslands(sheetIslands, BuildGroupIndexPerIsland());
+            sheetOverlay.SetSelection(selection);
+            RefreshSheetUi();
+        }
+
+        private void OnSheetSelectionChanged(IReadOnlyList<int> selection)
+        {
+            RefreshSheetUi();
+        }
+
+        private void OnRotationRequested(float rotationDegrees)
+        {
+            if (workingCopy == null)
+            {
+                return;
+            }
+
+            RecordUndo();
+            workingCopy.rotationDegrees = rotationDegrees;
+            PushWorkingCopyIntoCanvas();
+            MarkEdited();
+            RefreshAll();
+        }
+
+        private void OnFindPiecesRequested()
+        {
+            Texture2D sheet = IsSheetSource ? workingCopy.ResolveImage() : null;
+            if (sheet == null)
+            {
+                return;
+            }
+
+            List<bool[]> sheetMasks = CutoutAlphaTracer.ReadSourceMasks(sheet, inspector.SheetAlphaThreshold);
+            if (sheetMasks == null || sheetMasks.Count == 0)
+            {
+                SetStatus("The sheet could not be read.", ToolkitStatusTone.Warning);
+                return;
+            }
+
+            sheetIslands = CutoutIslandFinder.FindIslands(
+                sheetMasks[0], new Vector2Int(sheet.width, sheet.height),
+                inspector.SheetJoinDistancePixels, inspector.SheetMinimumPieceSizePixels);
+            List<CutoutSheetFlipbookSuggestion> suggestions = CutoutIslandFinder.SuggestSheetFlipbooks(
+                sheetIslands, CutoutIslandFinder.DefaultSizeTolerancePixels);
+            sheetGroups = new List<List<int>>();
+            foreach (CutoutSheetFlipbookSuggestion suggestion in suggestions)
+            {
+                sheetGroups.Add(new List<int>(suggestion.islandIndices));
+            }
+
+            PushSheetStateIntoOverlay(new List<int>());
+            SetStatus("Found " + sheetIslands.Count + " pieces, " + sheetGroups.Count + " suggested flipbooks", ToolkitStatusTone.Neutral);
+        }
+
+        private List<int> SelectedIslandIndicesAscending()
+        {
+            List<int> selected = new List<int>(sheetOverlay.Selection);
+            selected.Sort();
+            return selected;
+        }
+
+        private void RemoveIslandsFromGroups(List<int> islandIndices)
+        {
+            foreach (List<int> group in sheetGroups)
+            {
+                group.RemoveAll(memberIndex => islandIndices.Contains(memberIndex));
+            }
+
+            sheetGroups.RemoveAll(group => group.Count < 2);
+        }
+
+        private void OnGroupAsFlipbookRequested()
+        {
+            List<int> selected = SelectedIslandIndicesAscending();
+            if (selected.Count < 2)
+            {
+                return;
+            }
+
+            RemoveIslandsFromGroups(selected);
+            selected.Sort((left, right) => CompareIslandsInReadingOrder(sheetIslands[left], sheetIslands[right]));
+            sheetGroups.Add(selected);
+            PushSheetStateIntoOverlay(selected);
+        }
+
+        private static int CompareIslandsInReadingOrder(CutoutIsland left, CutoutIsland right)
+        {
+            float rowHeight = Mathf.Max(1f, Mathf.Max(left.boundsPixels.height, right.boundsPixels.height));
+            float rowDifference = right.boundsPixels.center.y - left.boundsPixels.center.y;
+            if (Mathf.Abs(rowDifference) > rowHeight * 0.5f)
+            {
+                return rowDifference > 0f ? 1 : -1;
+            }
+
+            return left.boundsPixels.center.x.CompareTo(right.boundsPixels.center.x);
+        }
+
+        private void OnSplitGroupRequested()
+        {
+            List<int> selected = SelectedIslandIndicesAscending();
+            if (selected.Count == 0)
+            {
+                return;
+            }
+
+            RemoveIslandsFromGroups(selected);
+            PushSheetStateIntoOverlay(selected);
+        }
+
+        private void OnMergeIslandsRequested()
+        {
+            List<int> selected = SelectedIslandIndicesAscending();
+            if (selected.Count < 2)
+            {
+                return;
+            }
+
+            int keptIndex = selected[0];
+            RectInt unionBounds = sheetIslands[keptIndex].boundsPixels;
+            int opaqueTotal = 0;
+            foreach (int islandIndex in selected)
+            {
+                RectInt bounds = sheetIslands[islandIndex].boundsPixels;
+                int unionMinX = Mathf.Min(unionBounds.xMin, bounds.xMin);
+                int unionMinY = Mathf.Min(unionBounds.yMin, bounds.yMin);
+                int unionMaxX = Mathf.Max(unionBounds.xMax, bounds.xMax);
+                int unionMaxY = Mathf.Max(unionBounds.yMax, bounds.yMax);
+                unionBounds = new RectInt(unionMinX, unionMinY, unionMaxX - unionMinX, unionMaxY - unionMinY);
+                opaqueTotal += sheetIslands[islandIndex].opaquePixelCount;
+            }
+
+            RemoveIslandsFromGroups(selected);
+
+            int[] newIndexPerOldIndex = new int[sheetIslands.Count];
+            List<CutoutIsland> mergedIslands = new List<CutoutIsland>(sheetIslands.Count);
+            for (int oldIndex = 0; oldIndex < sheetIslands.Count; oldIndex++)
+            {
+                if (oldIndex == keptIndex)
+                {
+                    newIndexPerOldIndex[oldIndex] = mergedIslands.Count;
+                    mergedIslands.Add(new CutoutIsland { boundsPixels = unionBounds, opaquePixelCount = opaqueTotal });
+                }
+                else if (selected.Contains(oldIndex))
+                {
+                    newIndexPerOldIndex[oldIndex] = -1;
+                }
+                else
+                {
+                    newIndexPerOldIndex[oldIndex] = mergedIslands.Count;
+                    mergedIslands.Add(sheetIslands[oldIndex]);
+                }
+            }
+
+            foreach (List<int> group in sheetGroups)
+            {
+                for (int memberSlot = 0; memberSlot < group.Count; memberSlot++)
+                {
+                    group[memberSlot] = newIndexPerOldIndex[group[memberSlot]];
+                }
+            }
+
+            sheetIslands = mergedIslands;
+            PushSheetStateIntoOverlay(new List<int> { newIndexPerOldIndex[keptIndex] });
+        }
+
+        private List<RectInt> BuildCellsForGroup(List<int> group)
+        {
+            int cellWidth = 0;
+            int cellHeight = 0;
+            foreach (int islandIndex in group)
+            {
+                cellWidth = Mathf.Max(cellWidth, sheetIslands[islandIndex].boundsPixels.width);
+                cellHeight = Mathf.Max(cellHeight, sheetIslands[islandIndex].boundsPixels.height);
+            }
+
+            List<RectInt> cells = new List<RectInt>(group.Count);
+            foreach (int islandIndex in group)
+            {
+                Vector2 centre = sheetIslands[islandIndex].boundsPixels.center;
+                cells.Add(new RectInt(
+                    Mathf.RoundToInt(centre.x - cellWidth * 0.5f),
+                    Mathf.RoundToInt(centre.y - cellHeight * 0.5f),
+                    cellWidth,
+                    cellHeight));
+            }
+
+            return cells;
+        }
+
+        private void OnCutPiecesRequested()
+        {
+            Texture2D sheet = IsSheetSource ? workingCopy.ResolveImage() : null;
+            if (sheet == null || sheetIslands.Count == 0)
+            {
+                return;
+            }
+
+            List<int> groupIndexPerIsland = BuildGroupIndexPerIsland();
+            List<CutoutIsland> stills = new List<CutoutIsland>();
+            for (int islandIndex = 0; islandIndex < sheetIslands.Count; islandIndex++)
+            {
+                if (groupIndexPerIsland[islandIndex] < 0)
+                {
+                    stills.Add(sheetIslands[islandIndex]);
+                }
+            }
+
+            List<CutoutSheetFlipbookSuggestion> groups = new List<CutoutSheetFlipbookSuggestion>();
+            foreach (List<int> group in sheetGroups)
+            {
+                groups.Add(new CutoutSheetFlipbookSuggestion
+                {
+                    islandIndices = new List<int>(group),
+                    cells = BuildCellsForGroup(group)
+                });
+            }
+
+            CutoutSheetBatchSettings settings = CutoutSheetBatchSettings.Default;
+            settings.outputFolder = CutoutMeshWriter.RecallMeshFolder();
+            settings.pixelsPerUnit = workingCopy.pixelsPerUnit;
+            settings.originPreset = inspector.SheetOriginPreset;
+            settings.writePrefabPerStill = inspector.SheetWritePrefabPerStill;
+
+            bool written = CutoutSheetBatchWriter.TryWriteBatch(sheet, stills, groups, settings, out string report);
+            if (written)
+            {
+                cutoutCatalog.RescanProject();
+            }
+
+            SetStatus(report, written ? ToolkitStatusTone.Ok : ToolkitStatusTone.Error);
         }
 
         private void SaveMesh()

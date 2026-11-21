@@ -89,12 +89,26 @@ namespace DotsAnimationToolkit.Editor
 
             Mesh existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(outputPath);
             Mesh targetMesh = existingMesh != null ? existingMesh : new Mesh();
+            Texture sourceTexture = workingCopy.ResolveSourceTexture();
             bool built = CutoutMeshBuilder.TryBuild(
-                workingCopy.outlinePixels, workingCopy.FrameSize, workingCopy.originPixels, workingCopy.pixelsPerUnit,
-                workingCopy.facing, workingCopy.normalMode, workingCopy.roundness, workingCopy.innerEdges,
-                targetMesh, out failureReason);
+                workingCopy.outlinePixels, workingCopy.innerEdges, workingCopy.ResolveSourceRectPixels(),
+                new Vector2Int(sourceTexture.width, sourceTexture.height), workingCopy.originPixels, workingCopy.rotationDegrees,
+                workingCopy.pixelsPerUnit, workingCopy.facing, workingCopy.normalMode, workingCopy.roundness, targetMesh);
+            failureReason = string.Empty;
             if (!built)
             {
+                // The sheet overload drops the reason, so re-run the plain overload on a scratch mesh to report why.
+                Mesh scratchMesh = new Mesh();
+                CutoutMeshBuilder.TryBuild(
+                    workingCopy.outlinePixels, workingCopy.FrameSize, workingCopy.originPixels, workingCopy.pixelsPerUnit,
+                    workingCopy.facing, workingCopy.normalMode, workingCopy.roundness, workingCopy.innerEdges,
+                    scratchMesh, out failureReason);
+                UnityEngine.Object.DestroyImmediate(scratchMesh);
+                if (string.IsNullOrEmpty(failureReason))
+                {
+                    failureReason = "The mesh could not be built.";
+                }
+
                 if (existingMesh == null)
                 {
                     UnityEngine.Object.DestroyImmediate(targetMesh);
