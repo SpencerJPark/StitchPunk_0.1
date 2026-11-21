@@ -12,7 +12,7 @@ namespace DotsAnimationToolkit.Editor
         public const float HandlePickRadiusPoints = 8f;
         public const float EdgePickDistancePoints = 6f;
 
-        private enum DragKind { None, Origin, Vertex, ReferenceMove, ReferenceResize, ArtMove, ArtScale, EdgeRubberBand }
+        private enum DragKind { None, Origin, Vertex, ReferenceMove, ReferenceResize, ArtMove, ArtScale, EdgeRubberBand, Rotation }
 
         public event Action EditStarting;
         public event Action EditFinished;
@@ -29,6 +29,8 @@ namespace DotsAnimationToolkit.Editor
         private Vector2 scaleHeldPixel;
         private Vector2 scaleHeldWorld;
         private Vector2 scaleDraggedPixel;
+        private float rotationStartDegrees;
+        private float rotationPressPointerDegrees;
 
         public CutoutShapeManipulator(CutoutCanvasElement canvas)
         {
@@ -97,6 +99,14 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
+            if (IsOnRotationRing(localPosition))
+            {
+                rotationStartDegrees = canvas.RotationDegrees;
+                rotationPressPointerDegrees = PointerAngleAboutOriginDegrees(localPosition);
+                BeginDrag(pointerEvent, DragKind.Rotation);
+                return;
+            }
+
             if (canvas.IsShapeVisible)
             {
                 Vector2Int frameSize = canvas.FrameSize;
@@ -123,7 +133,7 @@ namespace DotsAnimationToolkit.Editor
             }
 
             Vector2 pointerWorld = canvas.ElementToWorld(localPosition);
-            if (canvas.IsShapeVisible && canvas.ArtRectWorld.Contains(pointerWorld))
+            if (canvas.IsShapeVisible && canvas.ArtContainsWorldPoint(pointerWorld))
             {
                 artPressWorld = pointerWorld;
                 artStartLocation = canvas.ArtPositionWorld;
@@ -241,6 +251,9 @@ namespace DotsAnimationToolkit.Editor
                 case DragKind.Origin:
                     canvas.SetOriginPixels(SnapPixelFromElement(localPosition, useGrid));
                     break;
+                case DragKind.Rotation:
+                    DragRotation(localPosition, useGrid);
+                    break;
                 case DragKind.Vertex:
                     if (dragVertexIndex >= 0 && dragVertexIndex < canvas.OutlinePixels.Count)
                     {
@@ -271,6 +284,35 @@ namespace DotsAnimationToolkit.Editor
             pointerEvent.StopPropagation();
         }
 
+        private bool IsOnRotationRing(Vector2 localPosition)
+        {
+            if (!canvas.IsOriginVisible)
+            {
+                return false;
+            }
+
+            float distanceFromOrigin = (localPosition - canvas.PixelToElement(canvas.OriginPixels)).magnitude;
+            return Mathf.Abs(distanceFromOrigin - CutoutCanvasElement.RotationRingRadiusPoints) <= CutoutCanvasElement.RotationRingPickBandPoints;
+        }
+
+        private float PointerAngleAboutOriginDegrees(Vector2 localPosition)
+        {
+            Vector2 fromOriginWorld = canvas.ElementToWorld(localPosition) - canvas.ArtPositionWorld;
+            return Mathf.Atan2(fromOriginWorld.y, fromOriginWorld.x) * Mathf.Rad2Deg;
+        }
+
+        // Ctrl gives a free angle; otherwise the result snaps to 90 degree steps.
+        private void DragRotation(Vector2 localPosition, bool isFreeAngle)
+        {
+            float newDegrees = rotationStartDegrees + Mathf.DeltaAngle(rotationPressPointerDegrees, PointerAngleAboutOriginDegrees(localPosition));
+            if (!isFreeAngle)
+            {
+                newDegrees = Mathf.Round(newDegrees / 90f) * 90f;
+            }
+
+            canvas.SetRotationDegrees(Mathf.DeltaAngle(0f, newDegrees));
+        }
+
         private void MoveArt(Vector2 pointerWorld, bool useGrid)
         {
             Vector2 newLocation = artStartLocation + (pointerWorld - artPressWorld);
@@ -291,7 +333,8 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            float worldDistanceAlongDiagonal = Vector2.Dot(pointerWorld - scaleHeldWorld, pixelDiagonal / pixelDiagonalLength);
+            Vector2 worldDiagonalDirection = CutoutCanvasElement.RotateDegrees(pixelDiagonal / pixelDiagonalLength, canvas.RotationDegrees);
+            float worldDistanceAlongDiagonal = Vector2.Dot(pointerWorld - scaleHeldWorld, worldDiagonalDirection);
             if (worldDistanceAlongDiagonal <= 0.0001f)
             {
                 return;
@@ -469,6 +512,10 @@ namespace DotsAnimationToolkit.Editor
             int hoveredVertex = -1;
             int hoveredEdge = -1;
             int hoveredInnerEdge = -1;
+            canvas.IsRotationRingHovered = canvas.HasCutout
+                && canvas.Mode == CutoutCanvasMode.Object
+                && IsOnRotationRing(localPosition)
+                && !IsWithinPickRadius(localPosition, canvas.PixelToElement(canvas.OriginPixels));
             if (canvas.HasCutout && canvas.IsShapeVisible)
             {
                 if (canvas.Mode == CutoutCanvasMode.EditVertices)

@@ -19,6 +19,8 @@ namespace DotsAnimationToolkit.Editor
         private const float HandleSizePoints = 7f;
         private const float HoveredHandleSizePoints = 10f;
         private const float OriginCircleRadiusPoints = 7f;
+        public const float RotationRingRadiusPoints = 16f;
+        public const float RotationRingPickBandPoints = 4f;
         private const float FrameAllMarginFactor = 1.2f;
         private const float DefaultPointsPerWorldUnit = 200f;
 
@@ -37,6 +39,8 @@ namespace DotsAnimationToolkit.Editor
         private List<Vector2> outlinePixels;
         private Vector2 originPixels;
         private Vector2 artPositionWorld;
+        private float rotationDegrees;
+        private bool isRotationRingHovered;
         private List<Vector2Int> innerEdges = new List<Vector2Int>();
         private readonly List<int> cachedTriangles = new List<int>();
         private readonly List<int> cachedSkippedEdgeIndices = new List<int>();
@@ -79,14 +83,43 @@ namespace DotsAnimationToolkit.Editor
         public List<Vector2Int> InnerEdges => innerEdges;
         public IReadOnlyList<int> SkippedInnerEdgeIndices => cachedSkippedEdgeIndices;
 
+        public float RotationDegrees => rotationDegrees;
+
+        public bool IsRotationRingHovered
+        {
+            get => isRotationRingHovered;
+            set
+            {
+                if (isRotationRingHovered == value)
+                {
+                    return;
+                }
+
+                isRotationRingHovered = value;
+                overlayLayer.MarkDirtyRepaint();
+            }
+        }
+
         public Rect ArtRectWorld
         {
             get
             {
-                Vector2 minWorld = PixelToWorld(Vector2.zero);
-                Vector2 maxWorld = PixelToWorld(new Vector2(frameSize.x, frameSize.y));
-                return Rect.MinMaxRect(minWorld.x, minWorld.y, maxWorld.x, maxWorld.y);
+                Vector2 firstWorld = PixelToWorld(Vector2.zero);
+                Vector2 secondWorld = PixelToWorld(new Vector2(frameSize.x, 0f));
+                Vector2 thirdWorld = PixelToWorld(new Vector2(frameSize.x, frameSize.y));
+                Vector2 fourthWorld = PixelToWorld(new Vector2(0f, frameSize.y));
+                float minX = Mathf.Min(Mathf.Min(firstWorld.x, secondWorld.x), Mathf.Min(thirdWorld.x, fourthWorld.x));
+                float maxX = Mathf.Max(Mathf.Max(firstWorld.x, secondWorld.x), Mathf.Max(thirdWorld.x, fourthWorld.x));
+                float minY = Mathf.Min(Mathf.Min(firstWorld.y, secondWorld.y), Mathf.Min(thirdWorld.y, fourthWorld.y));
+                float maxY = Mathf.Max(Mathf.Max(firstWorld.y, secondWorld.y), Mathf.Max(thirdWorld.y, fourthWorld.y));
+                return Rect.MinMaxRect(minX, minY, maxX, maxY);
             }
+        }
+
+        public bool ArtContainsWorldPoint(Vector2 world)
+        {
+            Vector2 pixel = WorldToPixel(world);
+            return pixel.x >= 0f && pixel.y >= 0f && pixel.x <= frameSize.x && pixel.y <= frameSize.y;
         }
 
         public CutoutCanvasMode Mode
@@ -256,8 +289,9 @@ namespace DotsAnimationToolkit.Editor
             RegisterCallback<NavigationMoveEvent>(OnNavigationMove);
         }
 
-        public void SetCutout(List<Vector2> outlinePixels, List<Vector2Int> innerEdges, Vector2 originPixels, Vector2 artPositionWorld, float pixelsPerUnit, Vector2Int frameSize)
+        public void SetCutout(List<Vector2> outlinePixels, List<Vector2Int> innerEdges, Vector2 originPixels, Vector2 artPositionWorld, float pixelsPerUnit, Vector2Int frameSize, float rotationDegrees = 0f)
         {
+            this.rotationDegrees = rotationDegrees;
             this.outlinePixels = outlinePixels;
             this.innerEdges = innerEdges ?? new List<Vector2Int>();
             this.originPixels = originPixels;
@@ -284,7 +318,7 @@ namespace DotsAnimationToolkit.Editor
         {
             Vector2 heldWorld = PixelToWorld(heldPixel);
             pixelsPerUnit = Mathf.Max(1f, newPixelsPerUnit);
-            artPositionWorld = heldWorld - (heldPixel - originPixels) / pixelsPerUnit;
+            artPositionWorld = heldWorld - RotateDegrees((heldPixel - originPixels) / pixelsPerUnit, rotationDegrees);
             Refresh();
         }
 
@@ -314,9 +348,42 @@ namespace DotsAnimationToolkit.Editor
 
         public void SetOriginPixels(Vector2 newOriginPixels)
         {
-            artPositionWorld += (newOriginPixels - originPixels) / pixelsPerUnit;
+            artPositionWorld += RotateDegrees((newOriginPixels - originPixels) / pixelsPerUnit, rotationDegrees);
             originPixels = newOriginPixels;
             Refresh();
+        }
+
+        public void SetRotationDegrees(float newRotationDegrees)
+        {
+            rotationDegrees = newRotationDegrees;
+            Refresh();
+        }
+
+        public static Vector2 RotateDegrees(Vector2 vector, float degrees)
+        {
+            float radians = degrees * Mathf.Deg2Rad;
+            float cosine = Mathf.Cos(radians);
+            float sine = Mathf.Sin(radians);
+            return new Vector2(vector.x * cosine - vector.y * sine, vector.x * sine + vector.y * cosine);
+        }
+
+        // Element-space corners (top-left, top-right, bottom-right, bottom-left of the art frame) after rotation.
+        public void GetFrameCornersElement(Vector2[] cornersOut)
+        {
+            cornersOut[0] = PixelToElement(new Vector2(0f, frameSize.y));
+            cornersOut[1] = PixelToElement(new Vector2(frameSize.x, frameSize.y));
+            cornersOut[2] = PixelToElement(new Vector2(frameSize.x, 0f));
+            cornersOut[3] = PixelToElement(Vector2.zero);
+        }
+
+        private static void AppendQuadPath(Painter2D painter, Vector2[] corners)
+        {
+            painter.BeginPath();
+            painter.MoveTo(corners[0]);
+            painter.LineTo(corners[1]);
+            painter.LineTo(corners[2]);
+            painter.LineTo(corners[3]);
+            painter.ClosePath();
         }
 
         public void SetFrameTexture(Texture frameTexture)
@@ -403,12 +470,12 @@ namespace DotsAnimationToolkit.Editor
 
         public Vector2 PixelToWorld(Vector2 pixel)
         {
-            return artPositionWorld + (pixel - originPixels) / pixelsPerUnit;
+            return artPositionWorld + RotateDegrees((pixel - originPixels) / pixelsPerUnit, rotationDegrees);
         }
 
         public Vector2 WorldToPixel(Vector2 world)
         {
-            return (world - artPositionWorld) * pixelsPerUnit + originPixels;
+            return RotateDegrees(world - artPositionWorld, -rotationDegrees) * pixelsPerUnit + originPixels;
         }
 
         public Vector2 WorldToElement(Vector2 world)
@@ -473,6 +540,13 @@ namespace DotsAnimationToolkit.Editor
             Refresh();
         }
 
+        private void RotateImageAboutOrigin(Image image, Vector2 imageTopLeftElement)
+        {
+            Vector2 originElement = WorldToElement(artPositionWorld);
+            image.style.transformOrigin = new TransformOrigin(originElement.x - imageTopLeftElement.x, originElement.y - imageTopLeftElement.y, 0f);
+            image.style.rotate = new Rotate(Angle.Degrees(-rotationDegrees));
+        }
+
         private void PlaceImage(Image image, Vector2 topLeftElement, Vector2 sizeElement, bool shouldShow)
         {
             image.style.display = shouldShow ? DisplayStyle.Flex : DisplayStyle.None;
@@ -489,14 +563,19 @@ namespace DotsAnimationToolkit.Editor
             Vector2 frameElementSize = Vector2.zero;
             if (hasFrame)
             {
-                Vector2 bottomLeftElement = PixelToElement(Vector2.zero);
-                Vector2 topRightElement = PixelToElement(new Vector2(frameSize.x, frameSize.y));
+                Vector2 bottomLeftElement = WorldToElement(artPositionWorld + (Vector2.zero - originPixels) / pixelsPerUnit);
+                Vector2 topRightElement = WorldToElement(artPositionWorld + (new Vector2(frameSize.x, frameSize.y) - originPixels) / pixelsPerUnit);
                 frameTopLeft = new Vector2(bottomLeftElement.x, topRightElement.y);
                 frameElementSize = new Vector2(topRightElement.x - bottomLeftElement.x, bottomLeftElement.y - topRightElement.y);
             }
 
             PlaceImage(ghostImageElement, frameTopLeft, frameElementSize, hasFrame && hasGhostTexture && isAllFramesGhostVisible);
             PlaceImage(frameImageElement, frameTopLeft, frameElementSize, hasFrame && hasFrameTexture);
+            if (hasFrame)
+            {
+                RotateImageAboutOrigin(ghostImageElement, frameTopLeft);
+                RotateImageAboutOrigin(frameImageElement, frameTopLeft);
+            }
 
             Vector2 referenceTopLeft = WorldToElement(new Vector2(referenceRectWorld.xMin, referenceRectWorld.yMax));
             Vector2 referenceBottomRight = WorldToElement(new Vector2(referenceRectWorld.xMax, referenceRectWorld.yMin));
@@ -678,9 +757,9 @@ namespace DotsAnimationToolkit.Editor
 
             if (hasFrame)
             {
-                Vector2 bottomLeftElement = PixelToElement(Vector2.zero);
-                Vector2 topRightElement = PixelToElement(new Vector2(frameSize.x, frameSize.y));
-                AppendRectPath(painter, new Vector2(bottomLeftElement.x, topRightElement.y), new Vector2(topRightElement.x, bottomLeftElement.y));
+                Vector2[] frameCorners = new Vector2[4];
+                GetFrameCornersElement(frameCorners);
+                AppendQuadPath(painter, frameCorners);
                 painter.strokeColor = WhiteWithAlpha(0.2f);
                 painter.lineWidth = 1f;
                 painter.Stroke();
@@ -886,24 +965,31 @@ namespace DotsAnimationToolkit.Editor
 
         private void DrawObjectModeFrame(Painter2D painter)
         {
-            Vector2 bottomLeftElement = PixelToElement(Vector2.zero);
-            Vector2 topRightElement = PixelToElement(new Vector2(frameSize.x, frameSize.y));
-            Vector2 topLeft = new Vector2(bottomLeftElement.x, topRightElement.y);
-            Vector2 bottomRight = new Vector2(topRightElement.x, bottomLeftElement.y);
-            AppendRectPath(painter, topLeft, bottomRight);
+            Vector2[] frameCorners = new Vector2[4];
+            GetFrameCornersElement(frameCorners);
+            AppendQuadPath(painter, frameCorners);
             painter.strokeColor = WhiteWithAlpha(0.6f);
             painter.lineWidth = 1f;
             painter.Stroke();
 
-            StrokeHandleSquare(painter, topLeft, HandleSizePoints, false);
-            StrokeHandleSquare(painter, new Vector2(bottomRight.x, topLeft.y), HandleSizePoints, false);
-            StrokeHandleSquare(painter, bottomRight, HandleSizePoints, false);
-            StrokeHandleSquare(painter, new Vector2(topLeft.x, bottomRight.y), HandleSizePoints, false);
+            for (int cornerIndex = 0; cornerIndex < frameCorners.Length; cornerIndex++)
+            {
+                StrokeHandleSquare(painter, frameCorners[cornerIndex], HandleSizePoints, false);
+            }
         }
 
         private void DrawOriginMarker(Painter2D painter)
         {
             Vector2 centre = WorldToElement(artPositionWorld);
+            if (mode == CutoutCanvasMode.Object)
+            {
+                painter.strokeColor = isRotationRingHovered ? ToolkitPalette.Selected : ToolkitPalette.MarkerRoot;
+                painter.lineWidth = isRotationRingHovered ? 2.5f : 1f;
+                painter.BeginPath();
+                painter.Arc(centre, RotationRingRadiusPoints, Angle.Degrees(0f), Angle.Degrees(360f), ArcDirection.Clockwise);
+                painter.Stroke();
+            }
+
             painter.strokeColor = ToolkitPalette.MarkerRoot;
             painter.lineWidth = 1.5f;
             painter.BeginPath();

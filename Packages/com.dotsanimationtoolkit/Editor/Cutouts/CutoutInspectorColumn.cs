@@ -28,6 +28,18 @@ namespace DotsAnimationToolkit.Editor
         public event Action ClearEdgesRequested;
         public event Action<string> OutputNameChanged;
         public event Action OutputBrowseRequested;
+        public event Action<float> RotationRequested;
+        public event Action FindPiecesRequested;
+        public event Action GroupAsFlipbookRequested;
+        public event Action SplitGroupRequested;
+        public event Action MergeIslandsRequested;
+        public event Action CutPiecesRequested;
+
+        public float SheetAlphaThreshold => sheetThresholdSlider.value;
+        public int SheetJoinDistancePixels => Mathf.Max(0, sheetJoinDistanceField.value);
+        public int SheetMinimumPieceSizePixels => Mathf.Max(0, sheetMinimumSizeField.value);
+        public Vector2 SheetOriginPreset => SheetOriginPresetPoints[Mathf.Max(0, sheetOriginPresetField.index)];
+        public bool SheetWritePrefabPerStill => sheetPrefabPerStillToggle.value;
 
         private const float OriginPresetToleranceInPixels = 0.5f;
         private const float MinimumReferenceSizeInWorldUnits = 0.01f;
@@ -43,6 +55,30 @@ namespace DotsAnimationToolkit.Editor
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), new Vector2(0f, 0f),
             new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f),
         };
+
+        private static readonly string[] SheetOriginPresetNames =
+        {
+            "Bottom centre", "Centre", "Bottom left", "Bottom right", "Top left", "Top right",
+        };
+
+        private static readonly Vector2[] SheetOriginPresetPoints =
+        {
+            new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2(0f, 0f),
+            new Vector2(1f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f),
+        };
+
+        private readonly FloatField rotationField;
+        private readonly VisualElement sheetCard;
+        private readonly Slider sheetThresholdSlider;
+        private readonly IntegerField sheetJoinDistanceField;
+        private readonly IntegerField sheetMinimumSizeField;
+        private readonly Label sheetSelectionLabel;
+        private readonly DropdownField sheetOriginPresetField;
+        private readonly Toggle sheetPrefabPerStillToggle;
+        private readonly Button sheetGroupButton;
+        private readonly Button sheetSplitButton;
+        private readonly Button sheetMergeButton;
+        private readonly Button sheetCutButton;
 
         private readonly VisualElement scrollContent;
         private readonly VisualElement noCutoutHint;
@@ -194,6 +230,26 @@ namespace DotsAnimationToolkit.Editor
             originBody.Add(ToolkitChrome.MakePropertyRow("Pivot (px)", originField,
                 "The mesh's (0,0,0), in the art's pixels: the part rotates about it. Drag the ⊕ or type it; it can sit anywhere, even off the art."));
 
+            VisualElement rotationControl = new VisualElement { name = "cutouts-rotation-control" };
+            rotationControl.style.flexDirection = FlexDirection.Row;
+            rotationControl.style.alignItems = Align.Center;
+            rotationControl.style.flexGrow = 1f;
+            rotationField = new FloatField { name = "cutouts-rotation", isDelayed = true };
+            rotationField.style.flexGrow = 1f;
+            rotationField.RegisterValueChangedCallback((ChangeEvent<float> changeEvent) =>
+            {
+                float wrappedDegrees = WrapDegrees(changeEvent.newValue);
+                rotationField.SetValueWithoutNotify(wrappedDegrees);
+                RotationRequested?.Invoke(wrappedDegrees);
+            });
+            rotationControl.Add(rotationField);
+            rotationControl.Add(ToolkitChrome.MakeIconSquare(() => RotationRequested?.Invoke(WrapDegrees(rotationField.value + 90f)),
+                "d_RotateTool", "Rotate 90 degrees counter-clockwise"));
+            rotationControl.Add(ToolkitChrome.MakeIconSquare(() => RotationRequested?.Invoke(WrapDegrees(rotationField.value - 90f)),
+                "d_RotateTool", "Rotate 90 degrees clockwise"));
+            originBody.Add(ToolkitChrome.MakePropertyRow("Rotation (°)", rotationControl,
+                "The art's rotation about the origin, in degrees; counter-clockwise is positive."));
+
             locationField = new Vector2Field { name = "cutouts-location" };
             locationField.RegisterValueChangedCallback((ChangeEvent<Vector2> changeEvent) => LocationChanged?.Invoke(changeEvent.newValue));
             originBody.Add(ToolkitChrome.MakePropertyRow("Location", locationField,
@@ -210,6 +266,61 @@ namespace DotsAnimationToolkit.Editor
             });
             originBody.Add(ToolkitChrome.MakePropertyRow("Preset", originPresetField,
                 "The mesh's (0,0,0): the part rotates about it. Put it on the joint."));
+
+            // Sheet
+            VisualElement sheetBody;
+            sheetCard = ToolkitChrome.MakeCard("cutouts-card-sheet", "Sheet", out sheetBody, out _);
+            scrollContent.Add(sheetCard);
+
+            sheetBody.Add(ToolkitChrome.MakeSecondaryAction(() => FindPiecesRequested?.Invoke(), "d_Search Icon",
+                "Find every separate piece of art on this image.", "Find pieces"));
+
+            sheetThresholdSlider = new Slider(0f, 1f) { name = "cutouts-sheet-threshold", showInputField = true };
+            sheetThresholdSlider.SetValueWithoutNotify(0.1f);
+            sheetBody.Add(ToolkitChrome.MakePropertyRow("Threshold", sheetThresholdSlider,
+                "Pixels with alpha at or below this count as empty (0 to 1)."));
+
+            sheetJoinDistanceField = new IntegerField { name = "cutouts-sheet-join-distance", isDelayed = true, value = 3 };
+            sheetBody.Add(ToolkitChrome.MakePropertyRow("Join (px)", sheetJoinDistanceField,
+                "Art closer together than this many pixels is treated as one piece."));
+
+            sheetMinimumSizeField = new IntegerField { name = "cutouts-sheet-minimum-size", isDelayed = true, value = 16 };
+            sheetBody.Add(ToolkitChrome.MakePropertyRow("Min size (px)", sheetMinimumSizeField,
+                "Pieces smaller than this on both sides are ignored as specks."));
+
+            sheetSelectionLabel = new Label { name = "cutouts-sheet-selection" };
+            sheetBody.Add(ToolkitChrome.MakePropertyRow("Selected", sheetSelectionLabel, "Pieces selected out of all pieces found."));
+
+            VisualElement sheetGroupActionsRow = new VisualElement { name = "cutouts-sheet-actions" };
+            sheetGroupActionsRow.AddToClassList("toolkit-action-run");
+            sheetGroupActionsRow.AddToClassList("cutouts-shape-actions");
+            sheetGroupButton = ToolkitChrome.MakeSecondaryAction(() => GroupAsFlipbookRequested?.Invoke(), "d_Linked",
+                "Turn the selected pieces into the frames of one flipbook.", "Group as flipbook");
+            sheetSplitButton = ToolkitChrome.MakeSecondaryAction(() => SplitGroupRequested?.Invoke(), "d_Unlinked",
+                "Break the selected flipbook back into separate pieces.", "Split");
+            sheetMergeButton = ToolkitChrome.MakeSecondaryAction(() => MergeIslandsRequested?.Invoke(), "d_Grid.FillTool",
+                "Merge the selected pieces into a single piece.", "Merge islands");
+            sheetGroupActionsRow.Add(sheetGroupButton);
+            sheetGroupActionsRow.Add(sheetSplitButton);
+            sheetGroupActionsRow.Add(sheetMergeButton);
+            sheetBody.Add(sheetGroupActionsRow);
+
+            sheetOriginPresetField = new DropdownField(new System.Collections.Generic.List<string>(SheetOriginPresetNames), 0)
+            {
+                name = "cutouts-sheet-origin-preset",
+            };
+            sheetBody.Add(ToolkitChrome.MakePropertyRow("Origin", sheetOriginPresetField,
+                "Where each cut piece's origin goes, as a point on that piece."));
+
+            sheetPrefabPerStillToggle = new Toggle { name = "cutouts-sheet-prefab-per-still" };
+            sheetBody.Add(ToolkitChrome.MakePropertyRow("Prefab per still", sheetPrefabPerStillToggle,
+                "Also write a prefab for every single-frame piece."));
+
+            sheetCutButton = ToolkitChrome.MakePrimaryAction(() => CutPiecesRequested?.Invoke(), "d_SaveAs",
+                "Write a cutout for every piece.", "Cut 0 pieces");
+            sheetBody.Add(sheetCutButton);
+
+            ShowSheetState(false, 0, 0);
 
             // Facing
             VisualElement facingBody;
@@ -332,6 +443,29 @@ namespace DotsAnimationToolkit.Editor
             outputNameField.SetValueWithoutNotify(System.IO.Path.GetFileNameWithoutExtension(cutout.outputPath));
             string outputFolder = System.IO.Path.GetDirectoryName(cutout.outputPath);
             outputPathRow.Path = string.IsNullOrEmpty(outputFolder) ? string.Empty : outputFolder.Replace('\\', '/');
+        }
+
+        public void ShowRotation(float degrees)
+        {
+            rotationField.SetValueWithoutNotify(WrapDegrees(degrees));
+        }
+
+        public void ShowSheetState(bool isImageSource, int pieceCount, int selectedCount)
+        {
+            sheetCard.style.display = isImageSource ? DisplayStyle.Flex : DisplayStyle.None;
+            sheetSelectionLabel.text = selectedCount + " of " + pieceCount + " selected";
+            ToolkitIcons.SetButtonIconAndText(sheetCutButton, "d_SaveAs", "Cut " + pieceCount + (pieceCount == 1 ? " piece" : " pieces"));
+            sheetCutButton.SetEnabled(pieceCount > 0);
+            sheetGroupButton.SetEnabled(selectedCount > 1);
+            sheetSplitButton.SetEnabled(selectedCount > 0);
+            sheetMergeButton.SetEnabled(selectedCount > 1);
+        }
+
+        // Result is in (-180, 180].
+        private static float WrapDegrees(float degrees)
+        {
+            float wrappedDegrees = Mathf.Repeat(degrees + 180f, 360f) - 180f;
+            return wrappedDegrees <= -180f ? 180f : wrappedDegrees;
         }
 
         private int FindMatchingOriginPresetIndex(CutoutAsset cutout)
