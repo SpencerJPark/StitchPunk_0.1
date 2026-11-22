@@ -458,7 +458,8 @@ namespace DotsAnimationToolkit.Editor
             for (int guidIndex = 0; guidIndex < guids.Length; guidIndex++)
             {
                 CutoutAsset candidate = AssetDatabase.LoadAssetAtPath<CutoutAsset>(AssetDatabase.GUIDToAssetPath(guids[guidIndex]));
-                if (candidate != null && candidate.flipbook == source)
+                // Sheet pieces wrap the same texture; opening the image itself means its whole-image cutout.
+                if (candidate != null && candidate.flipbook == source && candidate.sourceRectPixels.width <= 0)
                 {
                     return candidate;
                 }
@@ -502,7 +503,7 @@ namespace DotsAnimationToolkit.Editor
                 return;
             }
 
-            layerMasks = CutoutAlphaTracer.ReadSourceMasks(workingCopy.ResolveSourceTexture(), CutoutAlphaTracer.DefaultAlphaThreshold);
+            layerMasks = ReadPieceMasks(workingCopy);
             unionMask = CutoutAlphaTracer.Union(layerMasks);
             BuildGhostTexture(workingCopy.FrameSize);
 
@@ -516,6 +517,29 @@ namespace DotsAnimationToolkit.Editor
             canvas.FrameAll();
             RecomputeOverhangs();
             RefreshAll();
+        }
+
+        // A sheet piece's outline lives in its own rect, so its masks are cropped out of the whole-sheet read;
+        // a sheet flipbook gets one mask per cell, like the layers of a flipbook array.
+        private static List<bool[]> ReadPieceMasks(CutoutAsset cutout)
+        {
+            Texture sourceTexture = cutout.ResolveSourceTexture();
+            List<bool[]> sourceMasks = CutoutAlphaTracer.ReadSourceMasks(sourceTexture, CutoutAlphaTracer.DefaultAlphaThreshold);
+            RectInt pieceRect = cutout.ResolveSourceRectPixels();
+            Vector2Int sheetSize = new Vector2Int(sourceTexture.width, sourceTexture.height);
+            bool coversWholeSource = pieceRect.x == 0 && pieceRect.y == 0 && pieceRect.size == sheetSize;
+            if (coversWholeSource || sourceMasks == null || sourceMasks.Count != 1)
+            {
+                return sourceMasks;
+            }
+
+            List<RectInt> cellRects = cutout.IsSheetFlipbook ? cutout.sheetFrameCells : new List<RectInt> { pieceRect };
+            List<bool[]> pieceMasks = new List<bool[]>(cellRects.Count);
+            for (int cellIndex = 0; cellIndex < cellRects.Count; cellIndex++)
+            {
+                pieceMasks.Add(CutoutIslandFinder.CropMask(sourceMasks[0], sheetSize, cellRects[cellIndex]));
+            }
+            return pieceMasks;
         }
 
         private void BuildGhostTexture(Vector2Int frameSize)
