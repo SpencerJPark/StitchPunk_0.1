@@ -395,6 +395,8 @@ namespace DotsAnimationToolkit.Tests.EditMode
         private static readonly HashSet<string> PlainNounStaticClasses = new HashSet<string>
         {
             "GifEncoding", "PngSequenceWriter", "CutoutCanvasGrid",
+            "CutoutIslandFinder", "CutoutSheetBatchWriter", "CutoutAssemblyLayeredWriter", "CutoutAssemblyMergedWriter",
+            "PartInputCheck", "VatMaterialUpgrader",
             "EasingPresets", "ClipKeyClipboard", "CutsceneKeyClipboard", "RestPoseCapture",
             "AnimEventMaskKeys", "ConstantsGenerator",
             "CutsceneBlockTiming", "AuthoringPathHash", "AuthoringPathText",
