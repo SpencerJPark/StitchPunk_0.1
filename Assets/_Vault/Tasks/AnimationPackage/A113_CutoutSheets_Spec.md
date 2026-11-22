@@ -1,6 +1,6 @@
 # Amendment A113 — Cutout sheets: many pieces from one atlas, sheet flipbooks, rotation, assemblies
 
-> **Status:** 📝 specced 2026-11-21, not built. Owner answered the shape questions the same day (§1) — buildable.
+> **Status:** ✅ built 2026-11-22 on `spec/a113` (T0–T16 done, captures in `Tasks/Captures/A113_2026-11-22/`); T17 owner gesture checkpoint open. See §7.
 > Ships as **0.67.0** (one minor bump at the end, not per wave).
 > **Why:** the owner wants a fast asset pipeline. Today Cutouts makes one mesh from one whole image or flipbook.
 > Two kinds of sheet need more: a **pure atlas** (the nature atlas: dozens of still trees, rocks and bushes on one

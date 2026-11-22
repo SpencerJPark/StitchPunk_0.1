@@ -52,7 +52,9 @@ Editor's reconciliation panel will tell you (see
 through.
 
 A part's quad can be swapped for a mesh fitted to its art, which cuts the
-fragment cost of empty pixels; see [`cutouts.md`](cutouts.md).
+fragment cost of empty pixels; see [`cutouts.md`](cutouts.md). If your parts are drawn on one
+character sheet, the Cutouts tab's **Sheets** and **Assemble** modes cut every part and build this prefab and its
+rig for you (`cutouts.md`, "Sheets" and "Assemble").
 
 ### 2. Create the rig asset
 

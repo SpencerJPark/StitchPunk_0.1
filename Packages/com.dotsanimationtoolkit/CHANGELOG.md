@@ -8,6 +8,34 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.67.0] — Cutout sheets: many pieces from one atlas, sheet flipbooks, rotation, assemblies
+
+### Added
+- **Sheets in the Cutouts tab.** Open an atlas image and **Find pieces**: islands are found by alpha (Threshold,
+  Join, Min size) and outlined on the canvas, grey for stills and one colour per suggested flipbook. Islands of
+  matching size on a row or grid pitch are suggested as one flipbook; click, Shift-click or rubber-band to select,
+  then **Group**, **Split** or **Merge**. **Cut N pieces** writes one `CutoutAsset` + `Mesh` per still and per
+  flipbook into `<Folder>/<Sheet>/`, re-saved in place by name (GUIDs kept). The origin preset defaults to bottom
+  centre; **Prefab per still** optionally writes a MeshFilter/MeshRenderer prefab for each still.
+- **Sheet flipbooks stay on the sheet.** A flipbook cut from a sheet carries its first cell's sheet UVs and plays
+  through the existing AtlasRect path; no texture array, no runtime or shader change. The new `SheetFlipbookAsset`
+  (Authoring) holds the cells; in the Clip Editor an AtlasRect track accepts it in the Flipbook field and its
+  frame popup writes the key's atlas rect by frame name.
+- **Rotation.** Rotation (°) in the Origin card with ⟲90 / ⟳90, and a ring around the origin in Object mode that
+  snaps to 90° (Ctrl for a free angle). The rotation is baked into the mesh's vertices; the transform stays at
+  identity. The canvas draws the art rotated, so what you see is what bakes.
+- **Assemble mode** (rail toggle beside Edit) with an **Assemblies** section in the sidebar. Drag cutouts onto the
+  canvas, move and rotate them, `[` / `]` for draw order, drag one origin onto another piece to parent it.
+  **Build prefab** writes either a **Layered** set (a prefab with one node per piece plus a `RigAsset`: Quad for
+  stills, FlipbookPlane for sheet flipbooks; draw order becomes a 0.001-unit z offset) or a **Merged** mesh (one
+  skinned mesh, one bone per piece weighted 100%, a `RigAsset` with a VatMesh target, ready for the VAT Bake tab).
+  The material is picked, never authored. Merged takes still pieces only and names any sheet flipbook it refuses:
+  a separate part cannot follow a VAT bone at runtime, so animated faces belong in a Layered set.
+
+### Fixed
+- A fitted outline can no longer end up outside its frame: the second edge-removal pass could push a corner a few
+  pixels out, which put mesh UVs outside a sheet piece's rect.
+
 ## [0.66.0] — Materials tab: a per-part input check
 
 ### Changed

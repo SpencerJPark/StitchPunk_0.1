@@ -28,9 +28,9 @@ Three modes:
   a one-frame source, so the frame stepper and All frames are hidden.
 
 There is one shape per flipbook, because every layer of an array is the same
-size. An image's cutout always spans the whole texture (UVs 0–1): for an atlas,
-draw the outline around the part you want on the full sheet, and use the atlas
-texture itself in the material.
+size. An image opened from the sidebar is a whole-image cutout (UVs 0–1). To
+cut many pieces from one atlas, use the Sheet card (see **Sheets** below);
+those pieces each keep their own rect of the sheet and share its one material.
 
 ## The canvas
 
@@ -139,8 +139,71 @@ Saving again rewrites the same mesh asset and keeps its GUID, so every
 `MeshFilter` using it updates. Renaming a saved cutout moves the mesh asset on
 the next Save and keeps the GUID, so those MeshFilters keep working.
 
+## Sheets
+
+For an atlas or character sheet: open the image, then in the **Sheet** card
+press **Find pieces**. Every island of opaque pixels is outlined on the canvas.
+**Threshold** is the alpha that counts as opaque, **Join** merges islands closer
+than that many pixels (a hand drawn apart from its arm), and **Min size** drops
+specks. Stills are grey; islands of the same size on a regular row or grid are
+suggested as one flipbook and share a colour.
+
+Click an island to select it, Shift-click to add, drag a rubber band for many.
+**Group** turns the selected stills into one flipbook (frames in reading order),
+**Split** breaks a flipbook back into stills, **Merge** fuses islands into one
+piece. **Cut N pieces** writes one `CutoutAsset` and mesh per still and per
+flipbook into `<Folder>/<Sheet name>/`. Cutting again re-saves them in place,
+so references survive. **Origin** sets every new piece's pivot (bottom centre by
+default, for things that stand); **Prefab per still** also writes a prefab
+with a MeshFilter and MeshRenderer for each still, ready to place in a scene.
+
+Each piece's mesh carries UVs inside its own rect of the sheet, so a whole sheet
+is one texture and one material. A flipbook's mesh shows its first cell; its
+`SheetFlipbookAsset` lists the cells, and in the Clip Editor an AtlasRect sprite
+track accepts it and picks frames by name. All cells of a flipbook are grown to
+one size, centred on each island.
+
+Opening a cut piece shows only its own art. A flipbook piece steps through its
+cells with the frame stepper.
+
+## Rotation
+
+Atlases pack pieces sideways. **Rotation (°)** in the Origin card turns the
+piece about its origin; ⟲90 and ⟳90 step it. In Object mode, drag the ring
+around the origin: it snaps to 90°, hold Ctrl for a free angle. The rotation is
+baked into the mesh's vertices, so the piece stands the right way up in game
+with its transform at identity. The origin stays where you put it; set it again
+after rotating if you want it at the new bottom.
+
+## Assemble
+
+The **Assemble** rail toggle swaps the canvas for an assembly: several cutouts
+posed together into one character. Create one under **Assemblies** in the
+sidebar, then drag cutouts from the list onto the canvas.
+
+- Drag a piece to move it; drag its ring to rotate it (90° snap, Ctrl for free).
+- `[` and `]` change draw order; Delete removes the piece.
+- Drag a piece's origin dot onto another piece to parent it (forearm under upper
+  arm); drop it on empty grid to unparent. Bone lines show the hierarchy.
+
+The inspector lists the pieces with their draw order and parent, and picks the
+output:
+
+- **Layered**: a prefab with one node per piece, nested as parented, each with
+  a MeshFilter and MeshRenderer, plus a `RigAsset` (Quad for stills,
+  FlipbookPlane for sheet flipbooks). Animate it with transform and sprite
+  tracks, as in [`cutout-characters.md`](cutout-characters.md). Draw order
+  becomes a small step toward the camera.
+- **Merged**: the still pieces welded into one skinned mesh with one bone per
+  piece, weighted fully, plus a `RigAsset` whose target is a VAT mesh. Animate
+  the bones in Unity's Animation window and bake in the VAT Bake tab. Merged
+  takes stills only and names any sheet flipbook it refuses; put a blinking head
+  in a Layered set.
+
+**Material** is picked, not made: the build assigns it to every renderer.
+
 ## What this tab does not do
 
 It does not assign the mesh to a rig part; the Materials tab owns part
-renderers. It does not build several islands into one mesh, and it does not
-subdivide for bending or VAT.
+renderers. It does not subdivide for bending or paint smooth skin weights; a
+Merged assembly is rigid, one bone per piece.

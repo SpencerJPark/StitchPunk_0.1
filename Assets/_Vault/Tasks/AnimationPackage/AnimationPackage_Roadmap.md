@@ -82,7 +82,7 @@ Binding reference: [`Docs/AnimationToolkit/EditorStyleGuide.md`](../../../../Doc
 
 ### Phase 8 — asset pipeline
 
-- [ ] **A113 — Cutout sheets** (`0.67.0`, specced 2026-11-21) — many pieces from one atlas by alpha, sheet flipbooks on the AtlasRect path, rotation, Assemble mode with Layered or Merged (rigid-bone VAT) output. `A113_CutoutSheets_Spec.md`.
+- [x] **A113 — Cutout sheets** (`0.67.0`, specced 2026-11-21, built + Editor-gated 2026-11-22; T17 owner gestures open) — many pieces from one atlas by alpha, sheet flipbooks on the AtlasRect path, rotation, Assemble mode with Layered or Merged (rigid-bone VAT) output. `A113_CutoutSheets_Spec.md`.
 
 ## 2. Standing owner calls these specs inherit (do not re-ask)
 
