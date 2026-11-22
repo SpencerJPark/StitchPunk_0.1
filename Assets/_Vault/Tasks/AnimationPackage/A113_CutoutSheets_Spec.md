@@ -311,3 +311,15 @@ on that, and flag it in the checkpoint message.
     `extraRotationDegrees` are absolute; writers parent with `worldPositionStays`. Moving a parent on the assembly
     canvas does not drag its children (T17 may want that).
   - R12: Sheet card's Find pieces is secondary; Cut N is the one primary and hides Save mesh while pieces are found.
+- 2026-11-22 (orchestrator, Editor gate on the stage): owner call — **animated faces never need Merged**; S-D12's
+  refusal is final, no runtime change. Gate at `7b123187`+: compile clean; A113 fixtures 24/24; full EditMode
+  1260/1260; PlayMode 450/450. Conformance_G needed the four writer/finder names (plus `PartInputCheck`,
+  `VatMaterialUpgrader`, already failing on main) on the plain-noun allowlist. T16 headless drives:
+  NatureAtlas 6 islands → 6 stills; CharacterSheet 11 islands → 1 four-frame flipbook + 7 stills; flipbook keys
+  (1,1,0.21875,0) / (1,1,0.65625,0). Two bugs fixed: `FitOutline`'s second edge-removal pass pushed corners outside
+  the frame (2/6 nature meshes had UVs outside their rect → clamp, `0f0bf897`); the Layered writer read node names
+  after `DestroyImmediate` (crash, `c3c2caf8`). After the fixes: 14/14 meshes inside their rects; Layered build =
+  5 targets (4 Quad + Head FlipbookPlane); Merged = 32 verts on 4 bones, VatMesh target, refuses the flipbook head
+  by name; a two-bone clip bakes to VAT (10 frames × 4 bones, frames differ). **Still owed:** every capture (the
+  Editor was unfocused, so GrabPixels returns stale frames), the Clip Editor atlas-key popup by hand, the
+  CHANGELOG/docs/HANDOFF close-out, T17.
