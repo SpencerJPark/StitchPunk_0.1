@@ -52,9 +52,11 @@ namespace DotsAnimationToolkit.Editor
             }
 
             string[] nodePaths = new string[nodes.Length];
+            string[] nodeNames = new string[nodes.Length];
             for (int nodeIndex = 0; nodeIndex < nodes.Length; nodeIndex++)
             {
                 nodePaths[nodeIndex] = PrefabAuthoringBridge.GetHierarchyPath(nodes[nodeIndex].transform, rootObject.transform);
+                nodeNames[nodeIndex] = nodes[nodeIndex].name;
             }
 
             GameObject savedPrefab = PrefabUtility.SaveAsPrefabAsset(rootObject, prefabPath);
@@ -71,7 +73,7 @@ namespace DotsAnimationToolkit.Editor
                 AssetDatabase.CreateAsset(rig, rigPath);
             }
             rig.sourcePrefab = savedPrefab;
-            RebuildRigTargets(rig, assembly, nodePaths, nodes);
+            RebuildRigTargets(rig, assembly, nodePaths, nodeNames);
             rig.EnsureStableIds();
 
             assembly.outputPrefab = savedPrefab;
@@ -88,7 +90,7 @@ namespace DotsAnimationToolkit.Editor
             return true;
         }
 
-        private static void RebuildRigTargets(RigAsset rig, CutoutAssemblyAsset assembly, string[] nodePaths, GameObject[] nodes)
+        private static void RebuildRigTargets(RigAsset rig, CutoutAssemblyAsset assembly, string[] nodePaths, string[] nodeNames)
         {
             List<RigTargetDefinition> previousTargets = rig.targets ?? new List<RigTargetDefinition>();
             List<RigTargetDefinition> rebuiltTargets = new List<RigTargetDefinition>(nodePaths.Length);
@@ -100,7 +102,7 @@ namespace DotsAnimationToolkit.Editor
                     target = new RigTargetDefinition();
                     target.sourceNodePath = nodePaths[nodeIndex];
                 }
-                target.displayName = nodes[nodeIndex].name;
+                target.displayName = nodeNames[nodeIndex];
                 target.kind = assembly.pieces[nodeIndex].cutout.IsSheetFlipbook ? TargetKind.FlipbookPlane : TargetKind.Quad;
                 rebuiltTargets.Add(target);
             }
