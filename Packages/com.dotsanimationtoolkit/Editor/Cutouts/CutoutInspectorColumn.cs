@@ -295,11 +295,11 @@ namespace DotsAnimationToolkit.Editor
             sheetGroupActionsRow.AddToClassList("toolkit-action-run");
             sheetGroupActionsRow.AddToClassList("cutouts-shape-actions");
             sheetGroupButton = ToolkitChrome.MakeSecondaryAction(() => GroupAsFlipbookRequested?.Invoke(), "d_Linked",
-                "Turn the selected pieces into the frames of one flipbook.", "Group as flipbook");
+                "Group as flipbook: turn the selected pieces into the frames of one flipbook.", "Group");
             sheetSplitButton = ToolkitChrome.MakeSecondaryAction(() => SplitGroupRequested?.Invoke(), "d_Unlinked",
                 "Break the selected flipbook back into separate pieces.", "Split");
             sheetMergeButton = ToolkitChrome.MakeSecondaryAction(() => MergeIslandsRequested?.Invoke(), "d_Grid.FillTool",
-                "Merge the selected pieces into a single piece.", "Merge islands");
+                "Merge islands: merge the selected pieces into a single piece.", "Merge");
             sheetGroupActionsRow.Add(sheetGroupButton);
             sheetGroupActionsRow.Add(sheetSplitButton);
             sheetGroupActionsRow.Add(sheetMergeButton);

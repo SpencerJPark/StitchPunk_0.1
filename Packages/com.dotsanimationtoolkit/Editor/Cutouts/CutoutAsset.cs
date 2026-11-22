@@ -102,7 +102,11 @@ namespace DotsAnimationToolkit.Editor
                 {
                     return array.depth;
                 }
-                return ResolveImage() != null ? 1 : 0;
+                if (ResolveImage() == null)
+                {
+                    return 0;
+                }
+                return IsSheetFlipbook ? sheetFrameCells.Count : 1;
             }
         }
 

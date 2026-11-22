@@ -323,3 +323,13 @@ on that, and flag it in the checkpoint message.
   by name; a two-bone clip bakes to VAT (10 frames × 4 bones, frames differ). **Still owed:** every capture (the
   Editor was unfocused, so GrabPixels returns stale frames), the Clip Editor atlas-key popup by hand, the
   CHANGELOG/docs/HANDOFF close-out, T17.
+- 2026-11-22 (orchestrator, captures): before/after shots in `Tasks/Captures/A113_2026-11-22/` (character-sheet shots
+  are tagged PLACEHOLDER_ART). They found three more bugs, all fixed: loading any sheet-cut cutout threw SetPixels32
+  out of bounds (masks were the whole sheet; now cropped per piece/cell), opening a sheet image picked up one of its
+  pieces, and Object mode drew the whole sheet inside a piece's frame (the canvas Image now gets the piece's UV
+  rect; a sheet flipbook's FrameCount is its cell count, so the stepper walks the cells). Sheet card's three group
+  buttons overflowed the row → labels "Group / Split / Merge" (full words in tooltips). Re-run after the fixes:
+  Cutout + conformance fixtures 27/27. For T17: the rotation ring was not visible in a still capture (maybe
+  hover-only); rotating keeps the origin where the preset put it pre-rotation, so it lands on the side; the Sheet
+  card still shows (with "Cut 0 pieces") when a sheet piece is open; island outlines are faint on dark art.
+  Previews were magenta because the drive assemblies had no material (owner picks it, S-D11).

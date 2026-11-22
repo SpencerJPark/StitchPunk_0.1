@@ -393,6 +393,13 @@ namespace DotsAnimationToolkit.Editor
             Refresh();
         }
 
+        // A sheet piece shows only its own rect of the shared texture; a whole image or array layer passes (0,0,1,1).
+        public void SetFrameSourceUvRect(Rect normalisedSourceRect)
+        {
+            frameImageElement.uv = normalisedSourceRect;
+            frameImageElement.MarkDirtyRepaint();
+        }
+
         public void SetAllFramesGhost(Texture2D ghostTexture)
         {
             ghostImageElement.image = ghostTexture;

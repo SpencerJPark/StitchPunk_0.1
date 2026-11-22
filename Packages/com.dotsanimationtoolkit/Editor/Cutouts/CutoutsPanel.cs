@@ -567,6 +567,7 @@ namespace DotsAnimationToolkit.Editor
                 workingCopy.outlinePixels, workingCopy.innerEdges, workingCopy.originPixels, workingCopy.artPositionWorld,
                 workingCopy.pixelsPerUnit, workingCopy.FrameSize, workingCopy.rotationDegrees);
             canvas.SetFrameTexture(FrameTextureAt(frameIndex));
+            canvas.SetFrameSourceUvRect(FrameSourceUvRect(frameIndex));
             canvas.SetAllFramesGhost(ghostTexture);
             canvas.SetReference(workingCopy.referenceImage, workingCopy.referenceRectWorld, workingCopy.referenceOpacity);
             canvas.IsOutlineInvalid = PolygonTriangulator.IsSelfIntersecting(workingCopy.outlinePixels);
@@ -601,6 +602,22 @@ namespace DotsAnimationToolkit.Editor
             layerMasks = null;
             unionMask = null;
             overhangs = new List<FrameOverhang>();
+        }
+
+        private Rect FrameSourceUvRect(int textureFrameIndex)
+        {
+            Texture2D image = workingCopy.ResolveImage();
+            if (image == null || image.width <= 0 || image.height <= 0)
+            {
+                return new Rect(0f, 0f, 1f, 1f);
+            }
+
+            RectInt sourceRect = workingCopy.IsSheetFlipbook
+                ? workingCopy.sheetFrameCells[Mathf.Clamp(textureFrameIndex, 0, workingCopy.sheetFrameCells.Count - 1)]
+                : workingCopy.ResolveSourceRectPixels();
+            return new Rect(
+                sourceRect.x / (float)image.width, sourceRect.y / (float)image.height,
+                sourceRect.width / (float)image.width, sourceRect.height / (float)image.height);
         }
 
         private Texture FrameTextureAt(int textureFrameIndex)
@@ -887,6 +904,7 @@ namespace DotsAnimationToolkit.Editor
 
             frameIndex = ((frameIndex + step) % frameCount + frameCount) % frameCount;
             canvas.SetFrameTexture(FrameTextureAt(frameIndex));
+            canvas.SetFrameSourceUvRect(FrameSourceUvRect(frameIndex));
             RefreshInspector();
         }
 
@@ -899,6 +917,7 @@ namespace DotsAnimationToolkit.Editor
 
             frameIndex = Mathf.Clamp(requestedFrameIndex, 0, workingCopy.FrameCount - 1);
             canvas.SetFrameTexture(FrameTextureAt(frameIndex));
+            canvas.SetFrameSourceUvRect(FrameSourceUvRect(frameIndex));
             RefreshInspector();
         }
 
