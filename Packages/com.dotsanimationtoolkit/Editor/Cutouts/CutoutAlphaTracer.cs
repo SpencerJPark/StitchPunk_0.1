@@ -128,7 +128,14 @@ namespace DotsAnimationToolkit.Editor
             }
             if (clipped.Count > budget)
             {
+                // Edge removal extends neighbouring edges, which can push a corner back past the frame.
                 clipped = SimplifyByEdgeRemoval(clipped, budget);
+                for (int pointIndex = 0; pointIndex < clipped.Count; pointIndex++)
+                {
+                    clipped[pointIndex] = new Vector2(
+                        Mathf.Clamp(clipped[pointIndex].x, 0f, size.x),
+                        Mathf.Clamp(clipped[pointIndex].y, 0f, size.y));
+                }
             }
             return clipped;
         }
