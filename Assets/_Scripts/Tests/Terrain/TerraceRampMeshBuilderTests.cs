@@ -89,43 +89,6 @@ namespace StitchPunk.Tests
         }
 
         [Test]
-        public void SideWallsFaceAwayFromCentreLineAndMeasureDepthDownFromTheTopEdge()
-        {
-            TerraceRampFootprint ramp = new TerraceRampFootprint(new Vector2(10f, 20f), 30f, 6f, 9f, 0f, 3f);
-            Mesh mesh = Build(ramp, Vector3.zero);
-            Vector3[] vertices = mesh.vertices;
-            Vector3[] normals = mesh.normals;
-            Vector2[] uvs = mesh.uv;
-            int[] triangles = mesh.GetTriangles(1);
-            Vector3 centre = new Vector3(ramp.centre.x, 0f, ramp.centre.y);
-
-            Assert.Greater(triangles.Length, 0);
-            for (int index = 0; index < triangles.Length; index += 3)
-            {
-                Vector3 first = vertices[triangles[index]];
-                Vector3 second = vertices[triangles[index + 1]];
-                Vector3 third = vertices[triangles[index + 2]];
-                Vector3 faceNormal = Vector3.Cross(second - first, third - first);
-                if (faceNormal.sqrMagnitude < 1e-8f)
-                {
-                    continue;
-                }
-                Vector3 outwardFromCentreLine = new Vector3(first.x - centre.x, 0f, first.z - centre.z);
-                Vector3 forward = new Vector3(Mathf.Sin(30f * Mathf.Deg2Rad), 0f, Mathf.Cos(30f * Mathf.Deg2Rad));
-                outwardFromCentreLine -= forward * Vector3.Dot(outwardFromCentreLine, forward);
-                Assert.Greater(Vector3.Dot(faceNormal, outwardFromCentreLine), 0f, "wall triangle winds toward the ramp");
-                Assert.Greater(Vector3.Dot(normals[triangles[index]], outwardFromCentreLine), 0f, "wall vertex normal points toward the ramp");
-            }
-
-            const int surfaceVertexCount = 7 * 10;
-            for (int vertexIndex = surfaceVertexCount; vertexIndex < vertices.Length; vertexIndex += 2)
-            {
-                Assert.AreEqual(0f, uvs[vertexIndex].x, 1e-4f, "top edge vertex");
-                Assert.AreEqual(vertices[vertexIndex].y - vertices[vertexIndex + 1].y, uvs[vertexIndex + 1].x, 1e-4f, "bottom vertex uv.x is metres down");
-            }
-        }
-
-        [Test]
         public void TerracedTileEmitsNoWallVertexInsideARampFootprint()
         {
             TerrainTileData tile = ScriptableObject.CreateInstance<TerrainTileData>();

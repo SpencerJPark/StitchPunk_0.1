@@ -16,9 +16,8 @@ Material:
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 3000
-  stringTagMap:
-    RenderType: Transparent
+  m_CustomRenderQueue: 2450
+  stringTagMap: {}
   disabledShaderPasses: []
   m_LockedProperties: 
   m_SavedProperties:
@@ -31,23 +30,23 @@ Material:
     m_Ints: []
     m_Floats:
     - _Cull: 0
-    - _DstBlend: 10
+    - _DstBlend: 0
     - _GradientMetres: 3
     - _LipAlphaCutoff: 0.5
     - _MetresPerTile: 4
-    - _Mode: 2
+    - _Mode: 1
     - _NdotLInfluence: 0.15
     - _PointLightBoost: 1
     - _ShadowStrength: 0.6
-    - _SrcBlend: 5
+    - _SrcBlend: 1
     - _StriationDensity: 2.5
     - _StriationStrength: 0.6
     - _StriationStretch: 0.12
-    - _ZWrite: 0
+    - _ZWrite: 1
     m_Colors:
     - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
     - _BottomColor: {r: 0.079999976, g: 0.079999976, b: 0.10999996, a: 1}
-    - _LipColor: {r: 0.29999998, g: 0.37999994, b: 0.21999997, a: 1}
+    - _LipColor: {r: 0.36, g: 0.46, b: 0.24, a: 1}
     - _TopColor: {r: 0.21999997, g: 0.23999995, b: 0.29999998, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

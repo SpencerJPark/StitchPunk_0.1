@@ -29,7 +29,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Cull: 0
+    - _Cull: 2
     - _DstBlend: 0
     - _GradientMetres: 3
     - _LipAlphaCutoff: 0.5
@@ -45,8 +45,8 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
-    - _BottomColor: {r: 0.079999976, g: 0.079999976, b: 0.10999996, a: 1}
+    - _BottomColor: {r: 0.36, g: 0.33, b: 0.3, a: 1}
     - _LipColor: {r: 0.29999998, g: 0.37999994, b: 0.21999997, a: 1}
-    - _TopColor: {r: 0.21999997, g: 0.23999995, b: 0.29999998, a: 1}
+    - _TopColor: {r: 0.58, g: 0.53, b: 0.46, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

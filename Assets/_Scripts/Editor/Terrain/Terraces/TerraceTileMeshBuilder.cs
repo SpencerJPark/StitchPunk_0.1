@@ -9,6 +9,10 @@ public sealed class TerraceOutlineChain
     public Vector3[] points;
     public float[] bottomHeights;
     public float startArcPhase;
+    // TX-D11 profile per point: outward = toward the lower side; top fillet radius; horizontal distance from the point to the grass foot end.
+    public Vector2[] outwardNormals;
+    public float[] topRoundMetres;
+    public float[] footOffsetMetres;
 }
 
 // Pure mesh generation for one terraced tile; no scene or AssetDatabase access.
