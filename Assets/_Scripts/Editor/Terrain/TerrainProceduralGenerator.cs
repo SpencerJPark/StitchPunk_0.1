@@ -131,55 +131,100 @@ public static class TerrainProceduralGenerator
                 float worldX = minCornerX + (texelX + 0.5f) * texelSizeMetres;
                 float worldZ = minCornerZ + (texelZ + 0.5f) * texelSizeMetres;
 
-                float height = AnalyticHeightAt(profile, worldX, worldZ);
-                float slopeAlongX = (AnalyticHeightAt(profile, worldX + 1f, worldZ) - AnalyticHeightAt(profile, worldX - 1f, worldZ)) * 0.5f;
-                float slopeAlongZ = (AnalyticHeightAt(profile, worldX, worldZ + 1f) - AnalyticHeightAt(profile, worldX, worldZ - 1f)) * 0.5f;
-                float slopeDegrees = Mathf.Atan(Mathf.Sqrt(slopeAlongX * slopeAlongX + slopeAlongZ * slopeAlongZ)) * Mathf.Rad2Deg;
-
-                TerrainSplatLayer chosenLayer = TerrainSplatLayer.Dirt;
-                for (int ruleIndex = 0; ruleIndex < profile.biomeRules.Count; ruleIndex++)
-                {
-                    TerrainBiomeRule rule = profile.biomeRules[ruleIndex];
-                    if (height < rule.heightRange.x || height > rule.heightRange.y) continue;
-                    if (slopeDegrees < rule.slopeRangeDegrees.x || slopeDegrees > rule.slopeRangeDegrees.y) continue;
-
-                    float2 ruleNoisePosition = new float2(worldX, worldZ) * rule.noiseFrequency + seedOffset + new float2(ruleIndex * 17.3f, 0f);
-                    float ruleNoise01 = noise.snoise(ruleNoisePosition) * 0.5f + 0.5f;
-                    if (ruleNoise01 * rule.weight >= rule.noiseThreshold)
-                        chosenLayer = rule.layer;
-                }
-
-                outMask[texelZ * resolution + texelX] = TerrainSplatCodec.ColourOfLayer(chosenLayer);
+                outMask[texelZ * resolution + texelX] = TerrainSplatCodec.ColourOfLayer(BiomeLayerAt(profile, worldX, worldZ, seedOffset));
             }
         }
+    }
+
+    private static TerrainSplatLayer BiomeLayerAt(TerrainGenerationProfile profile, float worldX, float worldZ, float2 seedOffset)
+    {
+        float height = AnalyticHeightAt(profile, worldX, worldZ);
+        float slopeAlongX = (AnalyticHeightAt(profile, worldX + 1f, worldZ) - AnalyticHeightAt(profile, worldX - 1f, worldZ)) * 0.5f;
+        float slopeAlongZ = (AnalyticHeightAt(profile, worldX, worldZ + 1f) - AnalyticHeightAt(profile, worldX, worldZ - 1f)) * 0.5f;
+        float slopeDegrees = Mathf.Atan(Mathf.Sqrt(slopeAlongX * slopeAlongX + slopeAlongZ * slopeAlongZ)) * Mathf.Rad2Deg;
+
+        TerrainSplatLayer chosenLayer = TerrainSplatLayer.Dirt;
+        for (int ruleIndex = 0; ruleIndex < profile.biomeRules.Count; ruleIndex++)
+        {
+            TerrainBiomeRule rule = profile.biomeRules[ruleIndex];
+            if (height < rule.heightRange.x || height > rule.heightRange.y) continue;
+            if (slopeDegrees < rule.slopeRangeDegrees.x || slopeDegrees > rule.slopeRangeDegrees.y) continue;
+
+            float2 ruleNoisePosition = new float2(worldX, worldZ) * rule.noiseFrequency + seedOffset + new float2(ruleIndex * 17.3f, 0f);
+            float ruleNoise01 = noise.snoise(ruleNoisePosition) * 0.5f + 0.5f;
+            if (ruleNoise01 * rule.weight >= rule.noiseThreshold)
+                chosenLayer = rule.layer;
+        }
+        return chosenLayer;
     }
 
     public static void GenerateTerraceLevels(TerrainGenerationProfile profile, Vector2Int tileCoordinate, int maxLevels, byte[] outLevels)
     {
         System.Array.Fill(outLevels, (byte)TerrainTileData.TerraceLevelBias);
-        if (!profile.generateTerraces || profile.terraceLevelThresholds == null || profile.terraceLevelThresholds.Length == 0 || maxLevels <= 0)
+        if (profile.terraceBiomeRules == null || profile.terraceBiomeRules.Count == 0 || maxLevels <= 0)
             return;
 
         const int margin = 50;
         const int windowSide = TerraceCellsPerSide + 2 * margin;
-        float2 seedOffset = CreateSeedOffset(profile.seed) + new float2(913.7f, -421.3f);
+        const int maxLevelMagnitude = 3;
+        const float uphillProbeMetres = 6f;
+        const float downhillDropMetres = 1.5f;
+        float2 biomeSeedOffset = CreateSeedOffset(profile.seed);
+        float2 plateauSeedOffset = biomeSeedOffset + new float2(913.7f, -421.3f);
+        float2 cliffSeedOffset = biomeSeedOffset + new float2(-307.9f, 655.1f);
         float minCornerX = tileCoordinate.x * TileSizeMetres - TileSizeMetres * 0.5f - margin;
         float minCornerZ = tileCoordinate.y * TileSizeMetres - TileSizeMetres * 0.5f - margin;
-        float[] thresholds = profile.terraceLevelThresholds;
 
-        byte[] windowLevels = new byte[windowSide * windowSide];
+        sbyte[] windowLevels = new sbyte[windowSide * windowSide];
+        int[] cellRuleIndices = new int[windowSide * windowSide];
         for (int cellZ = 0; cellZ < windowSide; cellZ++)
         {
             for (int cellX = 0; cellX < windowSide; cellX++)
             {
-                float2 centre = new float2(minCornerX + cellX + 0.5f, minCornerZ + cellZ + 0.5f);
-                float noise01 = noise.snoise(centre * profile.terraceNoiseFrequencyPerMetre + seedOffset) * 0.5f + 0.5f;
-                int level = 0;
-                for (int thresholdIndex = 0; thresholdIndex < thresholds.Length && level < maxLevels; thresholdIndex++)
+                int cellIndex = cellZ * windowSide + cellX;
+                float worldX = minCornerX + cellX + 0.5f;
+                float worldZ = minCornerZ + cellZ + 0.5f;
+                TerrainSplatLayer biome = BiomeLayerAt(profile, worldX, worldZ, biomeSeedOffset);
+                int ruleIndex = -1;
+                for (int searchIndex = 0; searchIndex < profile.terraceBiomeRules.Count; searchIndex++)
                 {
-                    if (noise01 >= thresholds[thresholdIndex]) level++;
+                    if (!profile.terraceBiomeRules[searchIndex].enabled || profile.terraceBiomeRules[searchIndex].biome != biome) continue;
+                    ruleIndex = searchIndex;
+                    break;
                 }
-                windowLevels[cellZ * windowSide + cellX] = (byte)level;
+                cellRuleIndices[cellIndex] = ruleIndex;
+                if (ruleIndex < 0) continue;
+
+                TerraceBiomeRule rule = profile.terraceBiomeRules[ruleIndex];
+                float2 centre = new float2(worldX, worldZ);
+                float plateauNoise01 = noise.snoise(centre * rule.plateauNoiseFrequencyPerMetre + plateauSeedOffset) * 0.5f + 0.5f;
+                int levelCap = Mathf.Min(rule.maxLevel, maxLevels);
+                int level = 0;
+                if (rule.plateauThresholds != null)
+                {
+                    for (int thresholdIndex = 0; thresholdIndex < rule.plateauThresholds.Length && level < levelCap; thresholdIndex++)
+                    {
+                        if (plateauNoise01 >= rule.plateauThresholds[thresholdIndex]) level++;
+                    }
+                }
+
+                if (level == 0 && rule.cliffOnSlope)
+                {
+                    float height = AnalyticHeightAt(profile, worldX, worldZ);
+                    float slopeAlongX = (AnalyticHeightAt(profile, worldX + 1f, worldZ) - AnalyticHeightAt(profile, worldX - 1f, worldZ)) * 0.5f;
+                    float slopeAlongZ = (AnalyticHeightAt(profile, worldX, worldZ + 1f) - AnalyticHeightAt(profile, worldX, worldZ - 1f)) * 0.5f;
+                    float gradientLength = Mathf.Sqrt(slopeAlongX * slopeAlongX + slopeAlongZ * slopeAlongZ);
+                    float slopeDegrees = Mathf.Atan(gradientLength) * Mathf.Rad2Deg;
+                    float cliffNoise01 = noise.snoise(centre * (rule.plateauNoiseFrequencyPerMetre * 2f) + cliffSeedOffset) * 0.5f + 0.5f;
+                    if (slopeDegrees > rule.cliffSlopeDegrees && cliffNoise01 < rule.cliffChance)
+                    {
+                        // Steep candidate sitting well below the ground 6 m uphill is the downhill part of the patch, so it drops a level and the contour becomes a cliff.
+                        float uphillX = worldX + slopeAlongX / gradientLength * uphillProbeMetres;
+                        float uphillZ = worldZ + slopeAlongZ / gradientLength * uphillProbeMetres;
+                        if (height < AnalyticHeightAt(profile, uphillX, uphillZ) - downhillDropMetres) level = -1;
+                    }
+                }
+                windowLevels[cellIndex] = (sbyte)level;
             }
         }
 
@@ -187,12 +232,14 @@ public static class TerrainProceduralGenerator
         bool[] visited = new bool[windowLevels.Length];
         int[] stack = new int[windowLevels.Length];
         int[] componentCells = new int[windowLevels.Length];
-        for (int level = 1; level <= maxLevels; level++)
+        for (int levelStep = 0; levelStep < 2 * maxLevelMagnitude; levelStep++)
         {
+            int levelSign = levelStep < maxLevelMagnitude ? 1 : -1;
+            int level = levelStep % maxLevelMagnitude + 1;
             System.Array.Clear(visited, 0, visited.Length);
             for (int startIndex = 0; startIndex < windowLevels.Length; startIndex++)
             {
-                if (visited[startIndex] || windowLevels[startIndex] < level) continue;
+                if (visited[startIndex] || windowLevels[startIndex] * levelSign < level) continue;
 
                 int stackCount = 0;
                 int componentCount = 0;
@@ -214,19 +261,21 @@ public static class TerrainProceduralGenerator
                         if (neighbourX < 0 || neighbourZ < 0 || neighbourX >= windowSide || neighbourZ >= windowSide) continue;
 
                         int neighbourIndex = neighbourZ * windowSide + neighbourX;
-                        if (visited[neighbourIndex] || windowLevels[neighbourIndex] < level) continue;
+                        if (visited[neighbourIndex] || windowLevels[neighbourIndex] * levelSign < level) continue;
 
                         visited[neighbourIndex] = true;
                         stack[stackCount++] = neighbourIndex;
                     }
                 }
 
-                if (touchesBorder || componentCount >= profile.minPlateauAreaSquareMetres) continue;
+                int firstCellRuleIndex = cellRuleIndices[startIndex];
+                float minAreaSquareMetres = firstCellRuleIndex >= 0 ? profile.terraceBiomeRules[firstCellRuleIndex].minPlateauAreaSquareMetres : 0f;
+                if (touchesBorder || componentCount >= minAreaSquareMetres) continue;
 
                 for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
                 {
                     int culledIndex = componentCells[componentIndex];
-                    if (windowLevels[culledIndex] >= level) windowLevels[culledIndex] = (byte)(level - 1);
+                    if (windowLevels[culledIndex] * levelSign >= level) windowLevels[culledIndex] = (sbyte)(levelSign * (level - 1));
                 }
             }
         }

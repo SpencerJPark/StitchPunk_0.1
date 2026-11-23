@@ -79,7 +79,7 @@ public static class TerrainGenerateTool
     // Writes only the procedural layer; the owner's handTerraceLevels always win and are never touched here.
     static void GenerateBaseTerraceLevels(TerrainGenerationProfile profile, Vector2Int coordinate, TerrainTileData tileData)
     {
-        if (!profile.generateTerraces)
+        if (profile.terraceBiomeRules == null || profile.terraceBiomeRules.Count == 0)
         {
             tileData.baseTerraceLevels = null;
             return;

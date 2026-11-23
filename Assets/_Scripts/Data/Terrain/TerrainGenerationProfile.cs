@@ -24,6 +24,23 @@ public struct TerrainBiomeRule
 }
 
 [System.Serializable]
+public struct TerraceBiomeRule
+{
+    public TerrainSplatLayer biome;
+    public bool enabled;
+    [Tooltip("Plateau noise in 0..1 at or above entry k gives level k + 1.")]
+    public float[] plateauThresholds;
+    public float plateauNoiseFrequencyPerMetre;
+    [Range(0, 3)] public int maxLevel;
+    [Tooltip("Plateaus smaller than this that do not touch the generation window border are removed.")]
+    public float minPlateauAreaSquareMetres;
+    [Tooltip("Where the ground slope exceeds cliffSlopeDegrees and cliff noise passes, the downhill side gets level -1.")]
+    public bool cliffOnSlope;
+    public float cliffSlopeDegrees;
+    [Range(0, 1)] public float cliffChance;
+}
+
+[System.Serializable]
 public struct TerrainMountainFeature
 {
     [Tooltip("World X,Z. Same as the end point for a single peak; different for a ridge between the two.")]
@@ -115,14 +132,32 @@ public class TerrainGenerationProfile : ScriptableObject
     };
 
     [Header("Terraces")]
-    public bool generateTerraces = false;
-
-    [Tooltip("Terrace noise frequency; lower means larger plateaus.")]
-    public float terraceNoiseFrequencyPerMetre = 0.006f;
-
-    [Tooltip("Noise in 0..1 at or above entry k gives level k + 1.")]
-    public float[] terraceLevelThresholds = { 0.55f, 0.7f, 0.85f };
-
-    [Tooltip("Plateaus smaller than this that do not touch the generation window border are removed.")]
-    public float minPlateauAreaSquareMetres = 150f;
+    [Tooltip("A biome with no enabled rule gets no terraces.")]
+    public List<TerraceBiomeRule> terraceBiomeRules = new List<TerraceBiomeRule>
+    {
+        new TerraceBiomeRule
+        {
+            biome = TerrainSplatLayer.Grass,
+            enabled = true,
+            plateauThresholds = new float[] { 0.6f, 0.78f },
+            plateauNoiseFrequencyPerMetre = 0.006f,
+            maxLevel = 2,
+            minPlateauAreaSquareMetres = 150f,
+            cliffOnSlope = true,
+            cliffSlopeDegrees = 12f,
+            cliffChance = 0.5f
+        },
+        new TerraceBiomeRule
+        {
+            biome = TerrainSplatLayer.Stone,
+            enabled = true,
+            plateauThresholds = new float[] { 0.5f },
+            plateauNoiseFrequencyPerMetre = 0.01f,
+            maxLevel = 1,
+            minPlateauAreaSquareMetres = 100f,
+            cliffOnSlope = true,
+            cliffSlopeDegrees = 8f,
+            cliffChance = 0.8f
+        }
+    };
 }
