@@ -140,6 +140,302 @@ namespace DotsAnimationToolkit.Editor
             return clipped;
         }
 
+        // A sheet piece needs a concave outline: a convex hull around a tree swallows its neighbours' art, and the
+        // mesh samples the shared sheet, so that art would show. Falls back to FitOutline when tracing fails.
+        public static List<Vector2> FitTracedOutline(bool[] mask, Vector2Int size, int vertexBudget, float paddingPixels)
+        {
+            int budget = Mathf.Max(4, vertexBudget);
+            int growPixels = Mathf.Max(0, Mathf.CeilToInt(paddingPixels));
+            // Closing first fills the gaps between spikes, so a few vertices wrap the silhouette instead of
+            // zig-zagging through the leaves; closing only ever adds pixels, so nothing of the art is lost.
+            int closingRadius = Mathf.Max(growPixels, Mathf.RoundToInt(Mathf.Max(size.x, size.y) / (float)(budget + 4)));
+            bool[] closedMask = ErodeSquare(DilateSquare(mask, size, closingRadius), size, closingRadius - growPixels);
+            bool[] grownMask = closedMask;
+            List<Vector2> contour = TraceLargestOuterContour(grownMask, size);
+            if (contour.Count < 3)
+            {
+                return FitOutline(mask, size, vertexBudget, paddingPixels);
+            }
+
+            List<Vector2> simplified = SimplifyClosedContourToBudget(contour, budget);
+            for (int pointIndex = 0; pointIndex < simplified.Count; pointIndex++)
+            {
+                simplified[pointIndex] = new Vector2(
+                    Mathf.Clamp(simplified[pointIndex].x, 0f, size.x),
+                    Mathf.Clamp(simplified[pointIndex].y, 0f, size.y));
+            }
+            if (simplified.Count < 3 || PolygonTriangulator.IsSelfIntersecting(simplified))
+            {
+                return FitOutline(mask, size, vertexBudget, paddingPixels);
+            }
+            if (PolygonTriangulator.SignedArea(simplified) < 0f)
+            {
+                simplified.Reverse();
+            }
+            return simplified;
+        }
+
+        static bool[] ErodeSquare(bool[] mask, Vector2Int size, int distance)
+        {
+            if (distance <= 0)
+            {
+                return mask;
+            }
+            bool[] inverted = new bool[mask.Length];
+            for (int pixelIndex = 0; pixelIndex < mask.Length; pixelIndex++)
+            {
+                inverted[pixelIndex] = !mask[pixelIndex];
+            }
+            bool[] grownGaps = DilateSquare(inverted, size, distance);
+            bool[] eroded = new bool[mask.Length];
+            for (int pixelIndex = 0; pixelIndex < mask.Length; pixelIndex++)
+            {
+                eroded[pixelIndex] = !grownGaps[pixelIndex];
+            }
+            return eroded;
+        }
+
+        static bool[] DilateSquare(bool[] mask, Vector2Int size, int distance)
+        {
+            if (distance <= 0)
+            {
+                return mask;
+            }
+            bool[] horizontal = new bool[mask.Length];
+            for (int rowIndex = 0; rowIndex < size.y; rowIndex++)
+            {
+                int lastFilledColumn = int.MinValue;
+                for (int columnIndex = 0; columnIndex < size.x + distance; columnIndex++)
+                {
+                    if (columnIndex < size.x && mask[rowIndex * size.x + columnIndex])
+                    {
+                        lastFilledColumn = columnIndex;
+                    }
+                    int targetColumn = columnIndex - distance;
+                    if (targetColumn >= 0 && targetColumn < size.x)
+                    {
+                        bool filledWithinReach = lastFilledColumn != int.MinValue && columnIndex - lastFilledColumn <= 2 * distance;
+                        horizontal[rowIndex * size.x + targetColumn] = filledWithinReach;
+                    }
+                }
+            }
+
+            bool[] dilated = new bool[mask.Length];
+            for (int columnIndex = 0; columnIndex < size.x; columnIndex++)
+            {
+                int lastFilledRow = int.MinValue;
+                for (int rowIndex = 0; rowIndex < size.y + distance; rowIndex++)
+                {
+                    if (rowIndex < size.y && horizontal[rowIndex * size.x + columnIndex])
+                    {
+                        lastFilledRow = rowIndex;
+                    }
+                    int targetRow = rowIndex - distance;
+                    if (targetRow >= 0 && targetRow < size.y)
+                    {
+                        bool filledWithinReach = lastFilledRow != int.MinValue && rowIndex - lastFilledRow <= 2 * distance;
+                        dilated[targetRow * size.x + columnIndex] = filledWithinReach;
+                    }
+                }
+            }
+            return dilated;
+        }
+
+        // Walks the pixel-edge boundary with the filled side on the left, so the biggest loop is the outer contour.
+        static List<Vector2> TraceLargestOuterContour(bool[] mask, Vector2Int size)
+        {
+            int cornerStride = size.x + 1;
+            Dictionary<int, List<int>> outgoingEdges = new Dictionary<int, List<int>>();
+            for (int pixelY = 0; pixelY < size.y; pixelY++)
+            {
+                for (int pixelX = 0; pixelX < size.x; pixelX++)
+                {
+                    if (!mask[pixelY * size.x + pixelX])
+                    {
+                        continue;
+                    }
+                    int bottomLeft = pixelY * cornerStride + pixelX;
+                    int bottomRight = bottomLeft + 1;
+                    int topLeft = bottomLeft + cornerStride;
+                    int topRight = topLeft + 1;
+                    if (pixelY == 0 || !mask[(pixelY - 1) * size.x + pixelX])
+                    {
+                        AddBoundaryEdge(outgoingEdges, bottomLeft, bottomRight);
+                    }
+                    if (pixelX == size.x - 1 || !mask[pixelY * size.x + pixelX + 1])
+                    {
+                        AddBoundaryEdge(outgoingEdges, bottomRight, topRight);
+                    }
+                    if (pixelY == size.y - 1 || !mask[(pixelY + 1) * size.x + pixelX])
+                    {
+                        AddBoundaryEdge(outgoingEdges, topRight, topLeft);
+                    }
+                    if (pixelX == 0 || !mask[pixelY * size.x + pixelX - 1])
+                    {
+                        AddBoundaryEdge(outgoingEdges, topLeft, bottomLeft);
+                    }
+                }
+            }
+
+            List<Vector2> largestLoop = new List<Vector2>();
+            float largestArea = 0f;
+            List<int> startCorners = new List<int>(outgoingEdges.Keys);
+            foreach (int startCorner in startCorners)
+            {
+                while (outgoingEdges.TryGetValue(startCorner, out List<int> remaining) && remaining.Count > 0)
+                {
+                    List<Vector2> loop = new List<Vector2>();
+                    int currentCorner = startCorner;
+                    while (outgoingEdges.TryGetValue(currentCorner, out List<int> exits) && exits.Count > 0)
+                    {
+                        int nextCorner = exits[exits.Count - 1];
+                        exits.RemoveAt(exits.Count - 1);
+                        loop.Add(new Vector2(currentCorner % cornerStride, currentCorner / cornerStride));
+                        currentCorner = nextCorner;
+                        if (currentCorner == startCorner)
+                        {
+                            break;
+                        }
+                    }
+                    float loopArea = PolygonTriangulator.SignedArea(loop);
+                    if (loopArea > largestArea)
+                    {
+                        largestArea = loopArea;
+                        largestLoop = loop;
+                    }
+                }
+            }
+            return RemoveCollinearPoints(largestLoop);
+        }
+
+        static void AddBoundaryEdge(Dictionary<int, List<int>> outgoingEdges, int fromCorner, int toCorner)
+        {
+            if (!outgoingEdges.TryGetValue(fromCorner, out List<int> exits))
+            {
+                exits = new List<int>(1);
+                outgoingEdges.Add(fromCorner, exits);
+            }
+            exits.Add(toCorner);
+        }
+
+        static List<Vector2> RemoveCollinearPoints(List<Vector2> loop)
+        {
+            List<Vector2> corners = new List<Vector2>(loop.Count / 2);
+            int count = loop.Count;
+            for (int pointIndex = 0; pointIndex < count; pointIndex++)
+            {
+                Vector2 previous = loop[(pointIndex - 1 + count) % count];
+                Vector2 current = loop[pointIndex];
+                Vector2 next = loop[(pointIndex + 1) % count];
+                float cross = (current.x - previous.x) * (next.y - current.y) - (current.y - previous.y) * (next.x - current.x);
+                if (Mathf.Abs(cross) > ParallelEdgeEpsilon)
+                {
+                    corners.Add(current);
+                }
+            }
+            return corners;
+        }
+
+        // Douglas-Peucker on the closed loop, with the tolerance searched until the result fits the budget.
+        static List<Vector2> SimplifyClosedContourToBudget(List<Vector2> contour, int budget)
+        {
+            if (contour.Count <= budget)
+            {
+                return new List<Vector2>(contour);
+            }
+
+            int farthestIndex = 0;
+            float farthestDistance = -1f;
+            for (int pointIndex = 1; pointIndex < contour.Count; pointIndex++)
+            {
+                float distance = (contour[pointIndex] - contour[0]).sqrMagnitude;
+                if (distance > farthestDistance)
+                {
+                    farthestDistance = distance;
+                    farthestIndex = pointIndex;
+                }
+            }
+
+            float lowTolerance = 0f;
+            float highTolerance = Mathf.Sqrt(farthestDistance);
+            List<Vector2> best = SimplifyClosedContour(contour, farthestIndex, highTolerance);
+            for (int searchStep = 0; searchStep < 24; searchStep++)
+            {
+                float middleTolerance = (lowTolerance + highTolerance) * 0.5f;
+                List<Vector2> candidate = SimplifyClosedContour(contour, farthestIndex, middleTolerance);
+                if (candidate.Count <= budget)
+                {
+                    best = candidate;
+                    highTolerance = middleTolerance;
+                }
+                else
+                {
+                    lowTolerance = middleTolerance;
+                }
+            }
+            return best;
+        }
+
+        static List<Vector2> SimplifyClosedContour(List<Vector2> contour, int splitIndex, float tolerance)
+        {
+            bool[] keep = new bool[contour.Count];
+            keep[0] = true;
+            keep[splitIndex] = true;
+            MarkDouglasPeucker(contour, 0, splitIndex, tolerance, keep);
+            MarkDouglasPeucker(contour, splitIndex, contour.Count, tolerance, keep);
+            List<Vector2> kept = new List<Vector2>();
+            for (int pointIndex = 0; pointIndex < contour.Count; pointIndex++)
+            {
+                if (keep[pointIndex])
+                {
+                    kept.Add(contour[pointIndex]);
+                }
+            }
+            return kept;
+        }
+
+        // endIndex may equal contour.Count, meaning the loop's wrap back to point 0.
+        static void MarkDouglasPeucker(List<Vector2> contour, int startIndex, int endIndex, float tolerance, bool[] keep)
+        {
+            Stack<Vector2Int> spans = new Stack<Vector2Int>();
+            spans.Push(new Vector2Int(startIndex, endIndex));
+            while (spans.Count > 0)
+            {
+                Vector2Int span = spans.Pop();
+                Vector2 spanStart = contour[span.x];
+                Vector2 spanEnd = contour[span.y % contour.Count];
+                float worstDistance = -1f;
+                int worstIndex = -1;
+                for (int pointIndex = span.x + 1; pointIndex < span.y; pointIndex++)
+                {
+                    float distance = DistanceToSegment(contour[pointIndex], spanStart, spanEnd);
+                    if (distance > worstDistance)
+                    {
+                        worstDistance = distance;
+                        worstIndex = pointIndex;
+                    }
+                }
+                if (worstIndex >= 0 && worstDistance > tolerance)
+                {
+                    keep[worstIndex] = true;
+                    spans.Push(new Vector2Int(span.x, worstIndex));
+                    spans.Push(new Vector2Int(worstIndex, span.y));
+                }
+            }
+        }
+
+        static float DistanceToSegment(Vector2 point, Vector2 segmentStart, Vector2 segmentEnd)
+        {
+            Vector2 segment = segmentEnd - segmentStart;
+            float lengthSquared = segment.sqrMagnitude;
+            if (lengthSquared <= ParallelEdgeEpsilon)
+            {
+                return (point - segmentStart).magnitude;
+            }
+            float along = Mathf.Clamp01(Vector2.Dot(point - segmentStart, segment) / lengthSquared);
+            return (point - (segmentStart + segment * along)).magnitude;
+        }
+
         public static bool ContainsPoint(IReadOnlyList<Vector2> polygon, Vector2 point)
         {
             bool inside = false;

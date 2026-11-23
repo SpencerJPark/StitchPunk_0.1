@@ -8,6 +8,17 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.67.1] — Sheet pieces follow their real shape
+
+### Fixed
+- **Cut N pieces cut badly on a packed atlas.** Each piece was fitted with an 8-point convex hull, which on a tree
+  is a blob that swallows its neighbours' art (and the mesh samples the shared sheet, so that art showed). Pieces
+  now get a traced concave outline of their own silhouette, closed first so a few points wrap spiky foliage
+  instead of slicing through it, from a mask holding only that piece's island. Default budget 24 points.
+- **Two trees became one piece.** Find pieces defaulted to Threshold 0.1, where soft anti-aliased edges join
+  neighbouring art; it now defaults to 0.5, and Cut N uses the same threshold Find pieces used.
+- Fit to art on an opened sheet piece uses the same traced outline.
+
 ## [0.67.0] — Cutout sheets: many pieces from one atlas, sheet flipbooks, rotation, assemblies
 
 ### Added

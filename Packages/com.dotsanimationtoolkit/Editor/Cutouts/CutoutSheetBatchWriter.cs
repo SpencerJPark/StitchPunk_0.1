@@ -15,15 +15,19 @@ namespace DotsAnimationToolkit.Editor
         public int fitVertexBudget;
         public float fitPaddingPixels;
         public bool writePrefabPerStill;
+        public int joinDistancePixels;
+        public float alphaThreshold;
 
         public static CutoutSheetBatchSettings Default => new CutoutSheetBatchSettings
         {
             outputFolder = "Assets",
             pixelsPerUnit = 100f,
             originPreset = new Vector2(0.5f, 0f),
-            fitVertexBudget = 8,
+            fitVertexBudget = 24,
             fitPaddingPixels = 2f,
-            writePrefabPerStill = false
+            writePrefabPerStill = false,
+            joinDistancePixels = CutoutIslandFinder.DefaultJoinDistancePixels,
+            alphaThreshold = 0.5f
         };
     }
 
@@ -58,7 +62,7 @@ namespace DotsAnimationToolkit.Editor
                 return false;
             }
 
-            List<bool[]> sourceMasks = CutoutAlphaTracer.ReadSourceMasks(sheet, CutoutAlphaTracer.DefaultAlphaThreshold);
+            List<bool[]> sourceMasks = CutoutAlphaTracer.ReadSourceMasks(sheet, settings.alphaThreshold);
             if (sourceMasks.Count == 0 || sourceMasks[0] == null)
             {
                 report = "Could not read the sheet's pixels.";
@@ -75,7 +79,8 @@ namespace DotsAnimationToolkit.Editor
                 for (int stillIndex = 0; stillIndex < stillCount; stillIndex++)
                 {
                     RectInt bounds = stills[stillIndex].boundsPixels;
-                    bool[] pieceMask = CutoutIslandFinder.CropMask(sheetMask, sheetSize, bounds);
+                    bool[] pieceMask = CutoutIslandFinder.KeepLargestIsland(
+                        CutoutIslandFinder.CropMask(sheetMask, sheetSize, bounds), bounds.size, settings.joinDistancePixels);
                     string pieceName = sheet.name + "_" + stillIndex.ToString("00");
                     WritePiece(sheet, folder, pieceName, pieceMask, bounds, null, settings, out Mesh pieceMesh);
                     if (settings.writePrefabPerStill && pieceMesh != null)
@@ -95,7 +100,8 @@ namespace DotsAnimationToolkit.Editor
                     List<bool[]> cellMasks = new List<bool[]>(cells.Count);
                     for (int cellIndex = 0; cellIndex < cells.Count; cellIndex++)
                     {
-                        cellMasks.Add(CutoutIslandFinder.CropMask(sheetMask, sheetSize, cells[cellIndex]));
+                        cellMasks.Add(CutoutIslandFinder.KeepLargestIsland(
+                            CutoutIslandFinder.CropMask(sheetMask, sheetSize, cells[cellIndex]), cells[cellIndex].size, settings.joinDistancePixels));
                     }
 
                     bool[] unionMask = CutoutAlphaTracer.Union(cellMasks);
@@ -129,7 +135,7 @@ namespace DotsAnimationToolkit.Editor
         {
             Vector2Int rectSize = sourceRect.size;
             Vector2 origin = new Vector2(settings.originPreset.x * rectSize.x, settings.originPreset.y * rectSize.y);
-            List<Vector2> outline = CutoutAlphaTracer.FitOutline(mask, rectSize, settings.fitVertexBudget, settings.fitPaddingPixels);
+            List<Vector2> outline = CutoutAlphaTracer.FitTracedOutline(mask, rectSize, settings.fitVertexBudget, settings.fitPaddingPixels);
 
             string meshPath = folder + "/" + pieceName + "_Mesh.asset";
             string assetPath = folder + "/" + pieceName + ".asset";

@@ -935,8 +935,12 @@ namespace DotsAnimationToolkit.Editor
             }
 
             int safeVertexBudget = Mathf.Max(CutoutAsset.MinimumVertexCount, workingCopy.fitVertexBudget);
-            List<Vector2> fittedOutline = CutoutAlphaTracer.FitOutline(
-                unionMask, workingCopy.FrameSize, safeVertexBudget, workingCopy.fitPaddingPixels);
+            bool isSheetPiece = workingCopy.sourceRectPixels.width > 0;
+            List<Vector2> fittedOutline = isSheetPiece
+                ? CutoutAlphaTracer.FitTracedOutline(
+                    CutoutIslandFinder.KeepLargestIsland(unionMask, workingCopy.FrameSize, CutoutIslandFinder.DefaultJoinDistancePixels),
+                    workingCopy.FrameSize, safeVertexBudget, workingCopy.fitPaddingPixels)
+                : CutoutAlphaTracer.FitOutline(unionMask, workingCopy.FrameSize, safeVertexBudget, workingCopy.fitPaddingPixels);
             if (fittedOutline.Count < CutoutAsset.MinimumVertexCount)
             {
                 SetStatus("No art found to fit; every frame is transparent.", ToolkitStatusTone.Warning);
@@ -1422,6 +1426,8 @@ namespace DotsAnimationToolkit.Editor
             settings.pixelsPerUnit = workingCopy.pixelsPerUnit;
             settings.originPreset = inspector.SheetOriginPreset;
             settings.writePrefabPerStill = inspector.SheetWritePrefabPerStill;
+            settings.joinDistancePixels = inspector.SheetJoinDistancePixels;
+            settings.alphaThreshold = inspector.SheetAlphaThreshold;
 
             bool written = CutoutSheetBatchWriter.TryWriteBatch(sheet, stills, groups, settings, out string report);
             if (written)

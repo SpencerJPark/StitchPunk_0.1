@@ -207,6 +207,72 @@ namespace DotsAnimationToolkit.Editor
             return cropped;
         }
 
+        // A piece's rect on a packed sheet usually catches a neighbour's leaves too; keep only the biggest joined island.
+        public static bool[] KeepLargestIsland(bool[] mask, Vector2Int size, int joinDistancePixels)
+        {
+            bool[] dilated = Dilate(mask, size, Mathf.Max(0, joinDistancePixels));
+            int[] labels = new int[mask.Length];
+            Stack<int> pending = new Stack<int>();
+            int nextLabel = 0;
+            int largestLabel = 0;
+            int largestOpaqueCount = 0;
+            for (int startIndex = 0; startIndex < mask.Length; startIndex++)
+            {
+                if (!dilated[startIndex] || labels[startIndex] != 0)
+                {
+                    continue;
+                }
+                nextLabel++;
+                int opaqueCount = 0;
+                labels[startIndex] = nextLabel;
+                pending.Push(startIndex);
+                while (pending.Count > 0)
+                {
+                    int pixelIndex = pending.Pop();
+                    if (mask[pixelIndex])
+                    {
+                        opaqueCount++;
+                    }
+                    int pixelX = pixelIndex % size.x;
+                    int pixelY = pixelIndex / size.x;
+                    for (int offsetY = -1; offsetY <= 1; offsetY++)
+                    {
+                        int neighbourY = pixelY + offsetY;
+                        if (neighbourY < 0 || neighbourY >= size.y)
+                        {
+                            continue;
+                        }
+                        for (int offsetX = -1; offsetX <= 1; offsetX++)
+                        {
+                            int neighbourX = pixelX + offsetX;
+                            if (neighbourX < 0 || neighbourX >= size.x)
+                            {
+                                continue;
+                            }
+                            int neighbourIndex = neighbourY * size.x + neighbourX;
+                            if (dilated[neighbourIndex] && labels[neighbourIndex] == 0)
+                            {
+                                labels[neighbourIndex] = nextLabel;
+                                pending.Push(neighbourIndex);
+                            }
+                        }
+                    }
+                }
+                if (opaqueCount > largestOpaqueCount)
+                {
+                    largestOpaqueCount = opaqueCount;
+                    largestLabel = nextLabel;
+                }
+            }
+
+            bool[] isolated = new bool[mask.Length];
+            for (int pixelIndex = 0; pixelIndex < mask.Length; pixelIndex++)
+            {
+                isolated[pixelIndex] = mask[pixelIndex] && labels[pixelIndex] == largestLabel;
+            }
+            return isolated;
+        }
+
         static bool[] Dilate(bool[] mask, Vector2Int size, int distance)
         {
             if (distance == 0)

@@ -61,5 +61,35 @@ namespace DotsAnimationToolkit.Tests.EditMode
                 }
             }
         }
+
+        [Test]
+        public void LShapedPiece_TracedOutlineLeavesTheNotchOut()
+        {
+            Vector2Int size = new Vector2Int(120, 120);
+            bool[] mask = new bool[size.x * size.y];
+            FillBlock(mask, size, new RectInt(0, 0, 120, 30));
+            FillBlock(mask, size, new RectInt(0, 0, 30, 120));
+            Vector2 insideTheNotch = new Vector2(60f, 60f);
+
+            List<Vector2> traced = CutoutAlphaTracer.FitTracedOutline(mask, size, 12, 2f);
+
+            Assert.IsFalse(CutoutAlphaTracer.ContainsPoint(traced, insideTheNotch));
+            Assert.IsTrue(CutoutAlphaTracer.ContainsPoint(traced, new Vector2(15f, 100f)));
+            Assert.IsTrue(CutoutAlphaTracer.ContainsPoint(traced, new Vector2(100f, 15f)));
+        }
+
+        [Test]
+        public void NeighbourBlobInsideTheRect_IsDroppedByKeepLargestIsland()
+        {
+            Vector2Int size = new Vector2Int(60, 60);
+            bool[] mask = new bool[size.x * size.y];
+            FillBlock(mask, size, new RectInt(0, 0, 40, 40));
+            FillBlock(mask, size, new RectInt(52, 52, 8, 8));
+
+            bool[] isolated = CutoutIslandFinder.KeepLargestIsland(mask, size, CutoutIslandFinder.DefaultJoinDistancePixels);
+
+            Assert.IsTrue(isolated[10 * size.x + 10]);
+            Assert.IsFalse(isolated[55 * size.x + 55]);
+        }
     }
 }

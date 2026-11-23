@@ -276,7 +276,7 @@ namespace DotsAnimationToolkit.Editor
                 "Find every separate piece of art on this image.", "Find pieces"));
 
             sheetThresholdSlider = new Slider(0f, 1f) { name = "cutouts-sheet-threshold", showInputField = true };
-            sheetThresholdSlider.SetValueWithoutNotify(0.1f);
+            sheetThresholdSlider.SetValueWithoutNotify(0.5f);
             sheetBody.Add(ToolkitChrome.MakePropertyRow("Threshold", sheetThresholdSlider,
                 "Pixels with alpha at or below this count as empty (0 to 1)."));
 

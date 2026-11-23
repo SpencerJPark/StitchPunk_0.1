@@ -157,6 +157,11 @@ so references survive. **Origin** sets every new piece's pivot (bottom centre by
 default, for things that stand); **Prefab per still** also writes a prefab
 with a MeshFilter and MeshRenderer for each still, ready to place in a scene.
 
+Each piece's outline is traced from its own silhouette (24 points by default):
+it follows the shape, concave where the art is, and ignores any neighbour's
+art that falls inside its rectangle. If two pieces come out as one, raise
+**Threshold** (soft edges touching) or lower **Join**.
+
 Each piece's mesh carries UVs inside its own rect of the sheet, so a whole sheet
 is one texture and one material. A flipbook's mesh shows its first cell; its
 `SheetFlipbookAsset` lists the cells, and in the Clip Editor an AtlasRect sprite
