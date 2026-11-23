@@ -21,7 +21,7 @@ public static class TerrainTileBuilder
         MakeTransformTerrainReady(tile);
 
         Mesh newMesh;
-        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindInProject();
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
         if (worldProfile != null && TerraceTileAssembly.TileNeedsTerracedPath(tileData, tile.tileCoordinate, LookUpNeighbourData))
         {
             lastBuildRamps = TerraceTileAssembly.CollectRampFootprints(tileData, tile.tileCoordinate, worldProfile);

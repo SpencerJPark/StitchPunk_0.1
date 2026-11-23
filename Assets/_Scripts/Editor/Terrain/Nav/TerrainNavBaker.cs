@@ -187,7 +187,7 @@ public static class TerrainNavBaker
         }
 
         bool[] terraceWallCells = BuildTerraceWallCellMask(tile);
-        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindInProject();
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
         float profileHeight = worldProfile != null ? worldProfile.terraceLevelHeightMetres : 0f;
 
         for (int cellZ = 0; cellZ < CellsPerSide; cellZ++)
@@ -254,7 +254,7 @@ public static class TerrainNavBaker
 
     private static bool[] BuildTerraceWallCellMask(TerrainTile tile)
     {
-        TerrainWorldProfile profile = TerrainWorldProfile.FindInProject();
+        TerrainWorldProfile profile = TerrainWorldProfile.FindOrCreateInProject();
         if (profile == null)
         {
             return null;

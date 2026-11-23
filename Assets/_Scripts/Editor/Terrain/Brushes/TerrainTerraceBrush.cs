@@ -224,7 +224,7 @@ public static class TerrainTerraceBrush
             int sourceLevel;
             if (!TryReadLevel(hitPoint, out sourceLevel)) return;
 
-            TerrainWorldProfile profile = TerrainWorldProfile.FindInProject();
+            TerrainWorldProfile profile = TerrainWorldProfile.FindOrCreateInProject();
             strokeMaxLevel = profile != null ? profile.maxTerraceLevels : 3;
             strokeCornerRadius = profile != null ? profile.terraceCornerRadiusMetres : 2.5f;
             strokeSourceLevel = sourceLevel;

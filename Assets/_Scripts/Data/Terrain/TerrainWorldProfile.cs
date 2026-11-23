@@ -58,5 +58,29 @@ public class TerrainWorldProfile : ScriptableObject
         string path = AssetDatabase.GUIDToAssetPath(guids[0]);
         return AssetDatabase.LoadAssetAtPath<TerrainWorldProfile>(path);
     }
+
+    public static TerrainWorldProfile FindOrCreateInProject()
+    {
+        TerrainWorldProfile existingProfile = FindInProject();
+        if (existingProfile != null)
+        {
+            return existingProfile;
+        }
+        const string folderPath = "Assets/ScriptableObjects/Terrain";
+        if (!AssetDatabase.IsValidFolder(folderPath))
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/ScriptableObjects"))
+            {
+                AssetDatabase.CreateFolder("Assets", "ScriptableObjects");
+            }
+            AssetDatabase.CreateFolder("Assets/ScriptableObjects", "Terrain");
+        }
+        string assetPath = folderPath + "/TerrainWorldProfile.asset";
+        TerrainWorldProfile createdProfile = CreateInstance<TerrainWorldProfile>();
+        AssetDatabase.CreateAsset(createdProfile, assetPath);
+        AssetDatabase.SaveAssets();
+        Debug.LogWarning("TerrainWorldProfile: none in the project, created " + assetPath + " with defaults (terraces need it).");
+        return createdProfile;
+    }
 #endif
 }

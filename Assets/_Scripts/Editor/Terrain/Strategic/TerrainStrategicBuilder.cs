@@ -48,7 +48,7 @@ public static class TerrainStrategicBuilder
     {
         coarseMesh = null;
         colourTexture = null;
-        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindInProject();
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
         levelHeightMetresForBuild = worldProfile != null ? worldProfile.terraceLevelHeightMetres : 0f;
         if (!AnyTileInChunk(profile, superChunkCoordinate, tiles))
         {

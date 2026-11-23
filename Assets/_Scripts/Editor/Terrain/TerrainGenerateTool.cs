@@ -84,7 +84,7 @@ public static class TerrainGenerateTool
             tileData.baseTerraceLevels = null;
             return;
         }
-        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindInProject();
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
         int maxLevels = worldProfile != null ? worldProfile.maxTerraceLevels : 3;
         byte[] levels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
         TerrainProceduralGenerator.GenerateTerraceLevels(profile, coordinate, maxLevels, levels);

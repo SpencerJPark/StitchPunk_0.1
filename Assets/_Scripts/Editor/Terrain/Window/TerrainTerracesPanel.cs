@@ -95,13 +95,13 @@ public sealed class TerrainTerracesPanel : TerrainToolPanel
 
     static float ReadCornerRadius()
     {
-        TerrainWorldProfile profile = TerrainWorldProfile.FindInProject();
+        TerrainWorldProfile profile = TerrainWorldProfile.FindOrCreateInProject();
         return profile != null ? profile.terraceCornerRadiusMetres : 0.5f;
     }
 
     static void WriteCornerRadius(float value)
     {
-        TerrainWorldProfile profile = TerrainWorldProfile.FindInProject();
+        TerrainWorldProfile profile = TerrainWorldProfile.FindOrCreateInProject();
         if (profile == null)
             return;
         Undo.RecordObject(profile, "Change terrace corner radius");
@@ -137,7 +137,7 @@ public sealed class TerrainTerracesPanel : TerrainToolPanel
         modeHint.text = ModeHints[modeIndex];
         refreshBrushSize();
 
-        bool hasProfile = TerrainWorldProfile.FindInProject() != null;
+        bool hasProfile = TerrainWorldProfile.FindOrCreateInProject() != null;
         cornerRadiusRow.style.display = hasProfile ? DisplayStyle.Flex : DisplayStyle.None;
         noProfileState.style.display = hasProfile ? DisplayStyle.None : DisplayStyle.Flex;
         if (hasProfile)
