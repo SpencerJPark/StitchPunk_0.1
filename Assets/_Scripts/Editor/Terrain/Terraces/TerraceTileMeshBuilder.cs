@@ -30,23 +30,44 @@ public static class TerraceTileMeshBuilder
         IReadOnlyList<TerraceRampFootprint> ramps,
         float verticalOffsetMetres)
     {
-        int levelCount = Mathf.Max(1, world.maxTerraceLevels);
-        float[][] signedDistance = new float[levelCount][];
-        for (int threshold = 1; threshold <= levelCount; threshold++)
+        int levelLimit = Mathf.Clamp(world.maxTerraceLevels, 1, TerrainTileData.MaxTerraceLevel);
+        int firstThreshold = Mathf.Max(TerrainTileData.MinTerraceLevel + 1, 1 - levelLimit);
+        int lastThreshold = levelLimit;
+        float[][] signedDistance = new float[lastThreshold - firstThreshold + 1][];
+        bool anyLevelIsNonZero = false;
+        for (int threshold = firstThreshold; threshold <= lastThreshold; threshold++)
         {
-            signedDistance[threshold - 1] = TerraceLevelField.BuildSignedDistance(
+            float[] field = TerraceLevelField.BuildSignedDistance(
                 data, threshold, world.terraceCornerRadiusMetres, neighbourLookup, SamplesPerMetre);
+            signedDistance[threshold - firstThreshold] = field;
+            // Level 0 everywhere means thresholds <= 0 are all inside and thresholds >= 1 all outside.
+            if (threshold <= 0 ? AnySampleNegative(field) : AnySampleNonNegative(field))
+            {
+                anyLevelIsNonZero = true;
+            }
         }
 
         LastBuildOutlineChains = new List<TerraceOutlineChain>();
         LastBuildMultiCrossingSubcells = 0;
-        if (!AnySampleNonNegative(signedDistance[0]))
+        if (!anyLevelIsNonZero)
         {
             return TerrainMeshBuilder.BuildTileMesh(data, 1, neighbourLookup, verticalOffsetMetres);
         }
 
-        TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, verticalOffsetMetres, signedDistance, ramps);
+        TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, verticalOffsetMetres, signedDistance, firstThreshold, ramps);
         return build.BuildMesh();
+    }
+
+    private static bool AnySampleNegative(float[] samples)
+    {
+        for (int index = 0; index < samples.Length; index++)
+        {
+            if (samples[index] < 0f)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool AnySampleNonNegative(float[] samples)
@@ -75,6 +96,7 @@ public static class TerraceTileMeshBuilder
         private readonly float levelHeight;
         private readonly float verticalOffset;
         private readonly float[][] signedDistance;
+        private readonly int firstThreshold;
         private readonly Vector2 tileWorldCentre;
         private readonly List<Vector2[]> rampCorners = new List<Vector2[]>();
         private readonly List<Vector4> rampBounds = new List<Vector4>();
@@ -92,8 +114,10 @@ public static class TerraceTileMeshBuilder
             float levelHeight,
             float verticalOffset,
             float[][] signedDistance,
+            int firstThreshold,
             IReadOnlyList<TerraceRampFootprint> ramps)
         {
+            this.firstThreshold = firstThreshold;
             this.data = data;
             this.levelHeight = levelHeight;
             this.verticalOffset = verticalOffset;
@@ -164,14 +188,14 @@ public static class TerraceTileMeshBuilder
         {
             for (int sampleIndex = 0; sampleIndex < levels.Length; sampleIndex++)
             {
-                int level = 0;
-                for (int threshold = 1; threshold <= signedDistance.Length; threshold++)
+                int level = firstThreshold - 1;
+                for (int fieldIndex = 0; fieldIndex < signedDistance.Length; fieldIndex++)
                 {
-                    if (signedDistance[threshold - 1][sampleIndex] < 0f)
+                    if (signedDistance[fieldIndex][sampleIndex] < 0f)
                     {
                         break;
                     }
-                    level = threshold;
+                    level = firstThreshold + fieldIndex;
                 }
                 levels[sampleIndex] = level;
             }
@@ -311,7 +335,7 @@ public static class TerraceTileMeshBuilder
 
         private void EmitMarchedSubcell(int[] cornerIndices, Vector2[] cornerPositions, int lowestLevel)
         {
-            float[] field = signedDistance[lowestLevel];
+            float[] field = signedDistance[lowestLevel + 1 - firstThreshold];
             bool[] inside = new bool[4];
             Vector2[] isoPoints = new Vector2[4];
             bool[] crossing = new bool[4];
@@ -444,7 +468,8 @@ public static class TerraceTileMeshBuilder
         private void AddWallSegment(Vector2 start, Vector2 end, int lowerLevel, Vector2 normal)
         {
             Vector2 midpointLocal = (start + end) * 0.5f;
-            if (InsideAnyRamp(midpointLocal))
+            // Endpoints too: a segment straddling the footprint edge has its midpoint outside and floats over the opening.
+            if (InsideAnyRamp(midpointLocal) || InsideAnyRamp(start) || InsideAnyRamp(end))
             {
                 return;
             }

@@ -25,17 +25,18 @@ namespace StitchPunk.Tests
             TerrainTileData tile = ScriptableObject.CreateInstance<TerrainTileData>();
             tile.coordinate = coordinate;
             tile.baseTerraceLevels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
+            System.Array.Fill(tile.baseTerraceLevels, (byte)TerrainTileData.TerraceLevelBias);
             createdTiles.Add(tile);
             return tile;
         }
 
-        private static void FillCells(TerrainTileData tile, int minX, int maxX, int minZ, int maxZ, byte level)
+        private static void FillCells(TerrainTileData tile, int minX, int maxX, int minZ, int maxZ, int level)
         {
             for (int cellZ = minZ; cellZ <= maxZ; cellZ++)
             {
                 for (int cellX = minX; cellX <= maxX; cellX++)
                 {
-                    tile.baseTerraceLevels[cellZ * TerrainTileData.TerraceCellsPerSide + cellX] = level;
+                    tile.baseTerraceLevels[cellZ * TerrainTileData.TerraceCellsPerSide + cellX] = (byte)(level + TerrainTileData.TerraceLevelBias);
                 }
             }
         }
@@ -120,7 +121,7 @@ namespace StitchPunk.Tests
             TerrainTileData tile = CreateTile(Vector2Int.zero);
             Assert.AreEqual(0, TerraceLevelField.ResolvedLevel(tile, 5, 5));
 
-            tile.baseTerraceLevels[5 * TerrainTileData.TerraceCellsPerSide + 5] = 2;
+            tile.baseTerraceLevels[5 * TerrainTileData.TerraceCellsPerSide + 5] = 2 + TerrainTileData.TerraceLevelBias;
             tile.handTerraceLevels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
             for (int cellIndex = 0; cellIndex < tile.handTerraceLevels.Length; cellIndex++)
             {
@@ -129,7 +130,7 @@ namespace StitchPunk.Tests
 
             Assert.AreEqual(2, TerraceLevelField.ResolvedLevel(tile, 5, 5));
 
-            tile.handTerraceLevels[5 * TerrainTileData.TerraceCellsPerSide + 5] = 0;
+            tile.handTerraceLevels[5 * TerrainTileData.TerraceCellsPerSide + 5] = TerrainTileData.TerraceLevelBias;
             Assert.AreEqual(0, TerraceLevelField.ResolvedLevel(tile, 5, 5));
 
             tile.baseTerraceLevels = null;

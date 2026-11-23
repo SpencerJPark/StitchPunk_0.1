@@ -156,7 +156,7 @@ public static class TerrainProceduralGenerator
 
     public static void GenerateTerraceLevels(TerrainGenerationProfile profile, Vector2Int tileCoordinate, int maxLevels, byte[] outLevels)
     {
-        System.Array.Clear(outLevels, 0, outLevels.Length);
+        System.Array.Fill(outLevels, (byte)TerrainTileData.TerraceLevelBias);
         if (!profile.generateTerraces || profile.terraceLevelThresholds == null || profile.terraceLevelThresholds.Length == 0 || maxLevels <= 0)
             return;
 
@@ -235,7 +235,7 @@ public static class TerrainProceduralGenerator
         {
             for (int cellX = 0; cellX < TerraceCellsPerSide; cellX++)
             {
-                outLevels[cellZ * TerraceCellsPerSide + cellX] = windowLevels[(cellZ + margin) * windowSide + cellX + margin];
+                outLevels[cellZ * TerraceCellsPerSide + cellX] = (byte)(windowLevels[(cellZ + margin) * windowSide + cellX + margin] + TerrainTileData.TerraceLevelBias);
             }
         }
     }

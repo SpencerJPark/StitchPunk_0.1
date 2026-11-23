@@ -11,19 +11,20 @@ public static class TerraceLevelField
     private const int CellsPerSide = TerrainTileData.TerraceCellsPerSide;
     private const double NoFeatureDistanceSquared = 1e20;
 
-    public static byte ResolvedLevel(TerrainTileData data, int cellX, int cellZ)
+    // Signed level -3..+3.
+    public static int ResolvedLevel(TerrainTileData data, int cellX, int cellZ)
     {
         int cellIndex = cellZ * CellsPerSide + cellX;
         byte[] handLevels = data.handTerraceLevels;
         if (handLevels != null && cellIndex < handLevels.Length && handLevels[cellIndex] != TerrainTileData.NoHandTerraceLevel)
         {
-            return handLevels[cellIndex];
+            return handLevels[cellIndex] - TerrainTileData.TerraceLevelBias;
         }
 
         byte[] baseLevels = data.baseTerraceLevels;
         if (baseLevels != null && cellIndex < baseLevels.Length)
         {
-            return baseLevels[cellIndex];
+            return baseLevels[cellIndex] - TerrainTileData.TerraceLevelBias;
         }
 
         return 0;
@@ -48,7 +49,7 @@ public static class TerraceLevelField
         int marginSamples = marginCells * samplesPerMetreClamped;
         int paddedSide = side + 2 * marginSamples;
 
-        byte[] paddedLevels = BuildPaddedLevels(data, marginCells, neighbourLookup);
+        int[] paddedLevels = BuildPaddedLevels(data, marginCells, neighbourLookup);
         bool[] inside = new bool[paddedSide * paddedSide];
         for (int sampleZ = 0; sampleZ < paddedSide; sampleZ++)
         {
@@ -92,13 +93,13 @@ public static class TerraceLevelField
         return signedDistance;
     }
 
-    private static byte[] BuildPaddedLevels(
+    private static int[] BuildPaddedLevels(
         TerrainTileData data,
         int marginCells,
         Func<Vector2Int, TerrainTileData> neighbourLookup)
     {
         int paddedCells = CellsPerSide + 2 * marginCells;
-        byte[] paddedLevels = new byte[paddedCells * paddedCells];
+        int[] paddedLevels = new int[paddedCells * paddedCells];
         for (int paddedZ = 0; paddedZ < paddedCells; paddedZ++)
         {
             int worldCellZ = paddedZ - marginCells;

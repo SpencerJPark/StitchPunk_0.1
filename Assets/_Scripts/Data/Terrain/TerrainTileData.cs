@@ -24,6 +24,10 @@ public class TerrainTileData : ScriptableObject
 
     public const int TerraceCellsPerSide = 100;            // 1 m cells, index z * 100 + x, cell 0 = min corner
     public const byte NoHandTerraceLevel = 255;
+    // Terrace bytes store the signed level plus this bias (stored 0..6 = level -3..+3).
+    public const int TerraceLevelBias = 3;
+    public const int MinTerraceLevel = -3;
+    public const int MaxTerraceLevel = 3;
 
     public Vector2Int coordinate;
     public int maskResolution = 256;
@@ -37,8 +41,8 @@ public class TerrainTileData : ScriptableObject
     [Tooltip("Building pads; part of the HeightAt sum.")]
     public float[] areaHeightDelta;
 
-    public byte[] baseTerraceLevels;                        // length 10000, null = all 0
-    public byte[] handTerraceLevels;                        // length 10000, null = no overrides
+    public byte[] baseTerraceLevels;                        // length 10000, biased bytes (level + TerraceLevelBias), null = all level 0
+    public byte[] handTerraceLevels;                        // length 10000, biased bytes, 255 = no override, null = no overrides
 
     public Texture2D baseMask;
     [Tooltip("RGBA paint overlay, A = painted.")]

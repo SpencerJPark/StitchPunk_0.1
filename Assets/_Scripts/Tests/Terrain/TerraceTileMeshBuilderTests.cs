@@ -19,6 +19,7 @@ namespace StitchPunk.Tests
             tile = ScriptableObject.CreateInstance<TerrainTileData>();
             tile.EnsureHeightArrays();
             tile.baseTerraceLevels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
+            System.Array.Fill(tile.baseTerraceLevels, (byte)TerrainTileData.TerraceLevelBias);
             world = ScriptableObject.CreateInstance<TerrainWorldProfile>();
         }
 
@@ -96,13 +97,36 @@ namespace StitchPunk.Tests
             }
         }
 
-        private void FillLevel(int minCellX, int maxCellX, int minCellZ, int maxCellZ, byte level)
+        [Test]
+        public void SunkenHalfOnSlopedTileGivesEveryWallPointAThreeMetreDrop()
+        {
+            for (int sampleZ = 0; sampleZ < TerrainTileData.HeightSamplesPerSide; sampleZ++)
+            {
+                for (int sampleX = 0; sampleX < TerrainTileData.HeightSamplesPerSide; sampleX++)
+                {
+                    tile.baseHeights[sampleZ * TerrainTileData.HeightSamplesPerSide + sampleX] = sampleX * 0.1f;
+                }
+            }
+            FillLevel(0, 49, 0, 99, -1);
+            mesh = TerraceTileMeshBuilder.BuildTerracedTileMesh(tile, world, null, null, 0f);
+
+            Assert.Greater(TerraceTileMeshBuilder.LastBuildOutlineChains.Count, 0);
+            foreach (TerraceOutlineChain chain in TerraceTileMeshBuilder.LastBuildOutlineChains)
+            {
+                for (int pointIndex = 0; pointIndex < chain.points.Length; pointIndex++)
+                {
+                    Assert.AreEqual(world.terraceLevelHeightMetres, chain.points[pointIndex].y - chain.bottomHeights[pointIndex], 0.05f);
+                }
+            }
+        }
+
+        private void FillLevel(int minCellX, int maxCellX, int minCellZ, int maxCellZ, int level)
         {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++)
             {
                 for (int cellX = minCellX; cellX <= maxCellX; cellX++)
                 {
-                    tile.baseTerraceLevels[cellZ * TerrainTileData.TerraceCellsPerSide + cellX] = level;
+                    tile.baseTerraceLevels[cellZ * TerrainTileData.TerraceCellsPerSide + cellX] = (byte)(level + TerrainTileData.TerraceLevelBias);
                 }
             }
         }

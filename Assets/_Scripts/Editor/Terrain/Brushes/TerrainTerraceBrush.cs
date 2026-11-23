@@ -230,8 +230,8 @@ public static class TerrainTerraceBrush
             strokeSourceLevel = sourceLevel;
             strokeClears = currentEvent.control;
             if (strokeClears) strokeTargetLevel = TerrainTileData.NoHandTerraceLevel;
-            else if (currentEvent.shift) strokeTargetLevel = Mathf.Max(sourceLevel - 1, 0);
-            else strokeTargetLevel = Mathf.Min(sourceLevel + 1, strokeMaxLevel);
+            else if (currentEvent.shift) strokeTargetLevel = Mathf.Max(sourceLevel - 1, Mathf.Max(TerrainTileData.MinTerraceLevel, -strokeMaxLevel));
+            else strokeTargetLevel = Mathf.Min(sourceLevel + 1, Mathf.Min(TerrainTileData.MaxTerraceLevel, strokeMaxLevel));
 
             strokeActive = true;
             strokeTiles.Clear();
@@ -307,7 +307,9 @@ public static class TerrainTerraceBrush
                             touchedThisTile = true;
                         }
 
-                        data.handTerraceLevels[cellZ * CellsPerSide + cellX] = (byte)strokeTargetLevel;
+                        data.handTerraceLevels[cellZ * CellsPerSide + cellX] = strokeClears
+                                ? TerrainTileData.NoHandTerraceLevel
+                                : (byte)(strokeTargetLevel + TerrainTileData.TerraceLevelBias);
                         changedAny = true;
                     }
                 }
@@ -339,7 +341,8 @@ public static class TerrainTerraceBrush
             float originX = coordinate.x * TileSizeMetres - TileSizeMetres * 0.5f;
             float originZ = coordinate.y * TileSizeMetres - TileSizeMetres * 0.5f;
 
-            for (int threshold = 1; threshold <= strokeMaxLevel; threshold++)
+            int firstContourThreshold = Mathf.Max(TerrainTileData.MinTerraceLevel + 1, 1 - strokeMaxLevel);
+            for (int threshold = firstContourThreshold; threshold <= strokeMaxLevel; threshold++)
             {
                 float[] distances = TerraceLevelField.BuildSignedDistance(data, threshold, strokeCornerRadius, LookupTileData, 1);
                 if (distances == null || distances.Length < sampleSide * sampleSide) continue;

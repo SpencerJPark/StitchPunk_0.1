@@ -52,7 +52,7 @@ public static class TerraceTileAssembly
         {
             for (int cellX = 0; cellX < TerrainTileData.TerraceCellsPerSide; cellX++)
             {
-                if (TerraceLevelField.ResolvedLevel(data, cellX, cellZ) > 0)
+                if (TerraceLevelField.ResolvedLevel(data, cellX, cellZ) != 0)
                     return true;
             }
         }
