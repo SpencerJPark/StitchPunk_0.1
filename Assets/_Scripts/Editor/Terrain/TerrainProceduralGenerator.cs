@@ -4,6 +4,13 @@ using UnityEngine;
 
 // Pure function of (profile, world position). Noise is sampled in world coordinates so neighbouring
 // tiles agree exactly on their shared edge; never read a neighbour tile from here.
+public struct TerraceRampPlacement
+{
+    public Vector2 centreWorld;
+    public float yawDegrees;
+    public int lowerLevel;
+}
+
 public static class TerrainProceduralGenerator
 {
     private const int SamplesPerSide = TerrainTileData.HeightSamplesPerSide;
@@ -160,6 +167,11 @@ public static class TerrainProceduralGenerator
 
     public static void GenerateTerraceLevels(TerrainGenerationProfile profile, Vector2Int tileCoordinate, int maxLevels, byte[] outLevels)
     {
+        GenerateTerraceLevels(profile, tileCoordinate, maxLevels, outLevels, null);
+    }
+
+    public static void GenerateTerraceLevels(TerrainGenerationProfile profile, Vector2Int tileCoordinate, int maxLevels, byte[] outLevels, System.Collections.Generic.List<TerraceRampPlacement> outRamps)
+    {
         System.Array.Fill(outLevels, (byte)TerrainTileData.TerraceLevelBias);
         if (profile.terraceBiomeRules == null || profile.terraceBiomeRules.Count == 0 || maxLevels <= 0)
             return;
@@ -280,6 +292,13 @@ public static class TerrainProceduralGenerator
             }
         }
 
+        if (outRamps != null)
+        {
+            float tileMinCornerX = tileCoordinate.x * TileSizeMetres - TileSizeMetres * 0.5f;
+            float tileMinCornerZ = tileCoordinate.y * TileSizeMetres - TileSizeMetres * 0.5f;
+            PlanRampsAndCullUnreachableRegions(windowLevels, windowSide, maxLevelMagnitude, minCornerX, minCornerZ, tileMinCornerX, tileMinCornerZ, outRamps);
+        }
+
         for (int cellZ = 0; cellZ < TerraceCellsPerSide; cellZ++)
         {
             for (int cellX = 0; cellX < TerraceCellsPerSide; cellX++)
@@ -287,6 +306,157 @@ public static class TerrainProceduralGenerator
                 outLevels[cellZ * TerraceCellsPerSide + cellX] = (byte)(windowLevels[(cellZ + margin) * windowSide + cellX + margin] + TerrainTileData.TerraceLevelBias);
             }
         }
+    }
+
+    private const float RampWidthMetres = 6f;
+    private const float RampRunMetres = 9f;
+
+    private static void PlanRampsAndCullUnreachableRegions(sbyte[] windowLevels, int windowSide, int maxLevelMagnitude, float minCornerX, float minCornerZ, float tileMinCornerX, float tileMinCornerZ, System.Collections.Generic.List<TerraceRampPlacement> outRamps)
+    {
+        int blockDepthCells = Mathf.CeilToInt(RampRunMetres * 0.5f + 1f);
+        int minRunCells = Mathf.CeilToInt(RampWidthMetres + 2f);
+        bool[] visited = new bool[windowLevels.Length];
+        bool[] edgeCellIsRampable = new bool[windowLevels.Length];
+        int[] stack = new int[windowLevels.Length];
+        int[] regionCells = new int[windowLevels.Length];
+        int[] directionStepX = { 1, -1, 0, 0 };
+        int[] directionStepZ = { 0, 0, 1, -1 };
+
+        for (int magnitude = maxLevelMagnitude; magnitude >= 1; magnitude--)
+        {
+            System.Array.Clear(visited, 0, visited.Length);
+            for (int startIndex = 0; startIndex < windowLevels.Length; startIndex++)
+            {
+                int regionLevel = windowLevels[startIndex];
+                if (visited[startIndex] || regionLevel == 0 || Mathf.Abs(regionLevel) != magnitude) continue;
+
+                int stackCount = 0;
+                int regionCount = 0;
+                bool touchesBorder = false;
+                stack[stackCount++] = startIndex;
+                visited[startIndex] = true;
+                while (stackCount > 0)
+                {
+                    int cellIndex = stack[--stackCount];
+                    regionCells[regionCount++] = cellIndex;
+                    int cellX = cellIndex % windowSide;
+                    int cellZ = cellIndex / windowSide;
+                    if (cellX == 0 || cellZ == 0 || cellX == windowSide - 1 || cellZ == windowSide - 1) touchesBorder = true;
+                    for (int direction = 0; direction < 4; direction++)
+                    {
+                        int neighbourX = cellX + directionStepX[direction];
+                        int neighbourZ = cellZ + directionStepZ[direction];
+                        if (neighbourX < 0 || neighbourZ < 0 || neighbourX >= windowSide || neighbourZ >= windowSide) continue;
+                        int neighbourIndex = neighbourZ * windowSide + neighbourX;
+                        if (visited[neighbourIndex] || windowLevels[neighbourIndex] != regionLevel) continue;
+                        visited[neighbourIndex] = true;
+                        stack[stackCount++] = neighbourIndex;
+                    }
+                }
+
+                // A region touching the window border may continue outside it, so it is neither ramped nor culled here.
+                if (touchesBorder) continue;
+
+                int targetLevel = regionLevel - (int)Mathf.Sign(regionLevel);
+                int bestDirection = -1;
+                int bestLength = 0;
+                int bestStartX = 0;
+                int bestStartZ = 0;
+                for (int direction = 0; direction < 4; direction++)
+                {
+                    int stepX = directionStepX[direction];
+                    int stepZ = directionStepZ[direction];
+                    for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
+                    {
+                        int cellX = regionCells[regionIndex] % windowSide;
+                        int cellZ = regionCells[regionIndex] / windowSide;
+                        edgeCellIsRampable[regionCells[regionIndex]] = IsRampBlockClear(windowLevels, windowSide, cellX, cellZ, stepX, stepZ, blockDepthCells, regionLevel, targetLevel);
+                    }
+
+                    for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
+                    {
+                        int cellX = regionCells[regionIndex] % windowSide;
+                        int cellZ = regionCells[regionIndex] / windowSide;
+                        if (!edgeCellIsRampable[regionCells[regionIndex]]) continue;
+
+                        int runStepX = stepX != 0 ? 0 : 1;
+                        int runStepZ = stepX != 0 ? 1 : 0;
+                        int previousX = cellX - runStepX;
+                        int previousZ = cellZ - runStepZ;
+                        bool previousIsRampable = previousX >= 0 && previousZ >= 0 && edgeCellIsRampable[previousZ * windowSide + previousX] && windowLevels[previousZ * windowSide + previousX] == regionLevel;
+                        if (previousIsRampable) continue;
+
+                        int runLength = 0;
+                        int walkX = cellX;
+                        int walkZ = cellZ;
+                        while (walkX < windowSide && walkZ < windowSide && windowLevels[walkZ * windowSide + walkX] == regionLevel && edgeCellIsRampable[walkZ * windowSide + walkX])
+                        {
+                            runLength++;
+                            walkX += runStepX;
+                            walkZ += runStepZ;
+                        }
+
+                        if (runLength < minRunCells) continue;
+                        bool isBetter = runLength > bestLength
+                            || (runLength == bestLength && (cellZ < bestStartZ || (cellZ == bestStartZ && cellX < bestStartX)));
+                        if (!isBetter) continue;
+                        bestLength = runLength;
+                        bestStartX = cellX;
+                        bestStartZ = cellZ;
+                        bestDirection = direction;
+                    }
+
+                    // Stale marks must not leak into the next direction's run detection.
+                    for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
+                        edgeCellIsRampable[regionCells[regionIndex]] = false;
+                }
+
+                if (bestDirection < 0)
+                {
+                    for (int regionIndex = 0; regionIndex < regionCount; regionIndex++)
+                        windowLevels[regionCells[regionIndex]] = (sbyte)targetLevel;
+                    continue;
+                }
+
+                int outwardX = directionStepX[bestDirection];
+                int outwardZ = directionStepZ[bestDirection];
+                float edgeX = bestStartX + (outwardX > 0 ? 1f : 0f) + (outwardX == 0 ? bestLength * 0.5f : 0f);
+                float edgeZ = bestStartZ + (outwardZ > 0 ? 1f : 0f) + (outwardZ == 0 ? bestLength * 0.5f : 0f);
+                Vector2 centreWorld = new Vector2(minCornerX + edgeX, minCornerZ + edgeZ);
+                if (centreWorld.x < tileMinCornerX || centreWorld.x >= tileMinCornerX + TileSizeMetres) continue;
+                if (centreWorld.y < tileMinCornerZ || centreWorld.y >= tileMinCornerZ + TileSizeMetres) continue;
+
+                float towardHigherSign = regionLevel > 0 ? -1f : 1f;
+                float forwardX = outwardX * towardHigherSign;
+                float forwardZ = outwardZ * towardHigherSign;
+                TerraceRampPlacement placement = new TerraceRampPlacement
+                {
+                    centreWorld = centreWorld,
+                    yawDegrees = Mathf.Atan2(forwardX, forwardZ) * Mathf.Rad2Deg,
+                    lowerLevel = Mathf.Min(regionLevel, targetLevel)
+                };
+                outRamps.Add(placement);
+            }
+        }
+    }
+
+    private static bool IsRampBlockClear(sbyte[] windowLevels, int windowSide, int cellX, int cellZ, int stepX, int stepZ, int blockDepthCells, int regionLevel, int targetLevel)
+    {
+        if (cellX + stepX < 0 || cellZ + stepZ < 0 || cellX + stepX >= windowSide || cellZ + stepZ >= windowSide) return false;
+        if (windowLevels[(cellZ + stepZ) * windowSide + cellX + stepX] != targetLevel) return false;
+
+        for (int depth = 0; depth < blockDepthCells; depth++)
+        {
+            int innerX = cellX - stepX * depth;
+            int innerZ = cellZ - stepZ * depth;
+            int outerX = cellX + stepX * (depth + 1);
+            int outerZ = cellZ + stepZ * (depth + 1);
+            if (innerX < 0 || innerZ < 0 || innerX >= windowSide || innerZ >= windowSide) return false;
+            if (outerX < 0 || outerZ < 0 || outerX >= windowSide || outerZ >= windowSide) return false;
+            if (windowLevels[innerZ * windowSide + innerX] != regionLevel) return false;
+            if (windowLevels[outerZ * windowSide + outerX] != targetLevel) return false;
+        }
+        return true;
     }
 
     private static float2 CreateSeedOffset(int seed)
