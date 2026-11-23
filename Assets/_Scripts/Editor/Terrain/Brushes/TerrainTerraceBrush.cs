@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public enum TerrainTerraceBrushMode { Paint, Ramp }
+public enum TerrainTerraceBrushMode { Plateau, Cliff, Ramp }
 
 public static class TerrainTerraceBrush
 {
@@ -23,7 +23,7 @@ public static class TerrainTerraceBrush
     private static readonly Color BrushColor = new Color(1f, 1f, 1f, 0.9f);
     private static readonly Color RampColor = new Color(0.4f, 0.9f, 1f, 0.95f);
 
-    private static TerrainTerraceBrushMode activeMode = TerrainTerraceBrushMode.Paint;
+    private static TerrainTerraceBrushMode activeMode = TerrainTerraceBrushMode.Plateau;
     private static float brushRadiusMetres = 6f;
     private static bool isEnabled;
 
@@ -81,9 +81,10 @@ public static class TerrainTerraceBrush
         get
         {
             if (activeMode == TerrainTerraceBrushMode.Ramp) return rampActive ? "Ramp: level " + rampStartLevel + " up" : "Ramp";
-            if (!strokeActive) return "Paint";
-            if (strokeClears) return "Paint: clear";
-            return "Paint: level " + strokeSourceLevel + " → " + strokeTargetLevel;
+            string modeName = activeMode == TerrainTerraceBrushMode.Cliff ? "Cliff" : "Plateau";
+            if (!strokeActive) return modeName;
+            if (strokeClears) return modeName + ": clear";
+            return modeName + ": level " + strokeSourceLevel + " → " + strokeTargetLevel;
         }
     }
 
@@ -170,7 +171,7 @@ public static class TerrainTerraceBrush
         if (currentEvent.type == EventType.MouseMove) return;
         if (currentEvent.button != 0) return;
 
-        if (activeMode == TerrainTerraceBrushMode.Paint) HandlePaintEvent(currentEvent, hitGround, hitPoint);
+        if (activeMode != TerrainTerraceBrushMode.Ramp) HandlePaintEvent(currentEvent, hitGround, hitPoint);
         else HandleRampEvent(currentEvent, hitGround, hitPoint);
     }
 
@@ -230,7 +231,7 @@ public static class TerrainTerraceBrush
             strokeSourceLevel = sourceLevel;
             strokeClears = currentEvent.control;
             if (strokeClears) strokeTargetLevel = TerrainTileData.NoHandTerraceLevel;
-            else if (currentEvent.shift) strokeTargetLevel = Mathf.Max(sourceLevel - 1, Mathf.Max(TerrainTileData.MinTerraceLevel, -strokeMaxLevel));
+            else if ((activeMode == TerrainTerraceBrushMode.Plateau) == currentEvent.shift) strokeTargetLevel = Mathf.Max(sourceLevel - 1, Mathf.Max(TerrainTileData.MinTerraceLevel, -strokeMaxLevel));
             else strokeTargetLevel = Mathf.Min(sourceLevel + 1, Mathf.Min(TerrainTileData.MaxTerraceLevel, strokeMaxLevel));
 
             strokeActive = true;

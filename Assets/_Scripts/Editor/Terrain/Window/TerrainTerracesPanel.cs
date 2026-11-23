@@ -7,18 +7,19 @@ using UnityEngine.UIElements;
 
 public sealed class TerrainTerracesPanel : TerrainToolPanel
 {
-    static readonly string[] ModeLabels = { "Paint", "Ramp" };
+    static readonly string[] ModeLabels = { "Plateau", "Cliff", "Ramp" };
 
     static readonly string[] ModeHints =
     {
-        "Drag to raise a plateau one level above where you start. Shift lowers, Ctrl clears your paint.",
+        "Drag to raise a flat plateau one level above where you start. Shift lowers, Ctrl clears your paint.",
+        "Drag over the low side of a hill: it drops one level and the stroke edge becomes a cliff. Shift raises, Ctrl clears.",
         "Press on the lower ground, drag up across the edge, release: places a ramp."
     };
 
     static readonly TerrainKeyHint[] Hints =
     {
         new TerrainKeyHint { keys = "Drag", action = "paint" },
-        new TerrainKeyHint { keys = "Shift", action = "lower" },
+        new TerrainKeyHint { keys = "Shift", action = "invert" },
         new TerrainKeyHint { keys = "Ctrl", action = "clear" },
         new TerrainKeyHint { keys = "[ ]", action = "size" }
     };
