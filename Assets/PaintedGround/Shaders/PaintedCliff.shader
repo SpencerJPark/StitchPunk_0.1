@@ -27,6 +27,7 @@ Shader "Painted/Cliff"
         [Header(Lip)]
         _LipColor ("Lip colour", Color) = (0.30, 0.38, 0.22, 1)
         _LipAlphaCutoff ("Lip alpha cutoff", Range(0, 1)) = 0.5
+        _BladeDensity ("Grass blades per fringe tile", Range(4, 64)) = 24
 
         [Header(Lighting)]
         _AmbientTint     ("Ambient tint", Color) = (1, 1, 1, 1)
@@ -59,6 +60,7 @@ Shader "Painted/Cliff"
             float  _StriationDensity;
             float  _StriationStretch;
             half   _LipAlphaCutoff;
+            float  _BladeDensity;
             half   _ShadowStrength;
             half   _NdotLInfluence;
             half   _PointLightBoost;
@@ -98,13 +100,22 @@ Shader "Painted/Cliff"
             return _Mode < 0.5 ? float2(uv.y, uv.x) / _MetresPerTile : uv;
         }
 
-        // Lip clips on texture alpha; Foot never writes depth/normals; Wall is always solid.
+        // Procedural grass blades: uv.y 1 = root (solid), 0 = tip (jagged); positive result = covered.
+        float CliffBladeCoverage(float2 uv)
+        {
+            float scaledAlong = uv.x * _BladeDensity;
+            float bladeHeight = 0.55 + 0.45 * CliffHash(float2(floor(scaledAlong), 3.7));
+            float bladeTaper = 1 - 2 * abs(frac(scaledAlong) - 0.5);
+            return bladeHeight * (0.25 + 0.75 * bladeTaper) - (1 - uv.y);
+        }
+
+        // Lip clips on procedural blades; Foot never writes depth/normals; Wall is always solid.
         float CliffCoverageClipValue(float2 uv, float4 vertexColor)
         {
             if (_Mode > 1.5)
                 return -1;
             if (_Mode > 0.5)
-                return SAMPLE_TEXTURE2D_LOD(_SurfaceTex, sampler_SurfaceTex, CliffSurfaceUV(uv), 0).a - _LipAlphaCutoff;
+                return CliffBladeCoverage(uv);
             return 1;
         }
         ENDHLSL
@@ -193,8 +204,8 @@ Shader "Painted/Cliff"
                 }
                 else if (_Mode < 1.5)
                 {
-                    clip(surface.a - _LipAlphaCutoff);
-                    baseColour = _LipColor.rgb * lerp(1, surface.rgb, 0.5);
+                    clip(CliffBladeCoverage(IN.uv));
+                    baseColour = _LipColor.rgb * lerp(0.65, 1, saturate(1 - IN.uv.y));
                 }
                 else
                 {

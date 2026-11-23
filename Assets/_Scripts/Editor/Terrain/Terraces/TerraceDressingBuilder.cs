@@ -5,12 +5,16 @@ using UnityEngine.Rendering;
 
 public static class TerraceDressingBuilder
 {
-    const float LipInwardMetres = 0.6f;
-    const float LipOuterDroopMetres = 0.25f;
-    const float SurfaceLiftMetres = 0.02f;
-    const float FootWallAlpha = 0.7f;
+    const float DefaultTopRoundMetres = 0.75f;
+    const float DefaultFootOffsetMetres = 1.5f;
+    const float LipInwardMetres = 0.3f;
+    const float LipLiftMetres = 0.03f;
+    const float FootTuftBottomDropMetres = 0.05f;
+    const float FootTuftHeightMetres = 0.35f;
+    const float FootTuftLeanMetres = 0.15f;
+    const float FootTuftOutwardMetres = 0.05f;
 
-    // submesh 0 = grass lip at the wall top, submesh 1 = dark foot fringe on the lower ground.
+    // submesh 0 = grass curtain over the top fillet, submesh 1 = grass tufts at the foot of the wall.
     public static Mesh BuildLipAndFootMesh(IReadOnlyList<TerraceOutlineChain> chains, float fringeSizeMetres)
     {
         if (chains == null || chains.Count == 0)
@@ -22,7 +26,6 @@ public static class TerraceDressingBuilder
         List<Color> colors = new List<Color>();
         List<int> lipIndices = new List<int>();
         List<int> footIndices = new List<int>();
-        float lipOuterMetres = fringeSizeMetres * 0.5f;
 
         for (int chainIndex = 0; chainIndex < chains.Count; chainIndex++)
         {
@@ -31,42 +34,32 @@ public static class TerraceDressingBuilder
                 continue;
 
             int pointCount = chain.points.Length;
-            Vector2[] outwardNormals = ComputeOutwardNormals(chain.points);
-            float arcMetres = 0f;
-            int lipStart = positions.Count;
-            for (int pointIndex = 0; pointIndex < pointCount; pointIndex++)
+            Vector2[] outwardNormals = chain.outwardNormals != null && chain.outwardNormals.Length == pointCount
+                ? chain.outwardNormals
+                : ComputeOutwardNormals(chain.points);
+
+            float[] arcMetres = new float[pointCount];
+            for (int pointIndex = 1; pointIndex < pointCount; pointIndex++)
+                arcMetres[pointIndex] = arcMetres[pointIndex - 1] + HorizontalDistance(chain.points[pointIndex - 1], chain.points[pointIndex]);
+
+            int runStart = -1;
+            for (int pointIndex = 0; pointIndex <= pointCount; pointIndex++)
             {
-                if (pointIndex > 0)
-                    arcMetres += HorizontalDistance(chain.points[pointIndex - 1], chain.points[pointIndex]);
-                Vector3 point = chain.points[pointIndex];
-                Vector2 outward = outwardNormals[pointIndex];
-                float uvAlong = (chain.startArcPhase + arcMetres) / fringeSizeMetres;
-
-                positions.Add(new Vector3(point.x - outward.x * LipInwardMetres, point.y + SurfaceLiftMetres, point.z - outward.y * LipInwardMetres));
-                positions.Add(new Vector3(point.x + outward.x * lipOuterMetres, point.y - LipOuterDroopMetres, point.z + outward.y * lipOuterMetres));
-                AddColumnAttributes(normals, uvs, colors, uvAlong, Color.white, Color.white);
+                bool collapsed = pointIndex == pointCount || IsCollapsed(chain, pointIndex);
+                if (!collapsed)
+                {
+                    if (runStart < 0)
+                        runStart = pointIndex;
+                    continue;
+                }
+                if (runStart >= 0 && pointIndex - runStart >= 2)
+                    AddRun(chain, outwardNormals, arcMetres, runStart, pointIndex, fringeSizeMetres,
+                           positions, normals, uvs, colors, lipIndices, footIndices);
+                runStart = -1;
             }
-            AddStripIndices(lipIndices, lipStart, pointCount);
-
-            float footArcMetres = 0f;
-            int footStart = positions.Count;
-            for (int pointIndex = 0; pointIndex < pointCount; pointIndex++)
-            {
-                if (pointIndex > 0)
-                    footArcMetres += HorizontalDistance(chain.points[pointIndex - 1], chain.points[pointIndex]);
-                Vector3 point = chain.points[pointIndex];
-                Vector2 outward = outwardNormals[pointIndex];
-                float footY = chain.bottomHeights[pointIndex] + SurfaceLiftMetres;
-                float uvAlong = (chain.startArcPhase + footArcMetres) / fringeSizeMetres;
-
-                positions.Add(new Vector3(point.x, footY, point.z));
-                positions.Add(new Vector3(point.x + outward.x * fringeSizeMetres, footY, point.z + outward.y * fringeSizeMetres));
-                AddColumnAttributes(normals, uvs, colors, uvAlong, new Color(0f, 0f, 0f, FootWallAlpha), new Color(0f, 0f, 0f, 0f));
-            }
-            AddStripIndices(footIndices, footStart, pointCount);
         }
 
-        if (lipIndices.Count == 0)
+        if (lipIndices.Count == 0 && footIndices.Count == 0)
             return null;
 
         Mesh mesh = new Mesh();
@@ -81,6 +74,56 @@ public static class TerraceDressingBuilder
         mesh.SetTriangles(footIndices, 1);
         mesh.RecalculateBounds();
         return mesh;
+    }
+
+    // A zero top radius marks a profile that collapsed beside a ramp opening; no dressing crosses it.
+    static bool IsCollapsed(TerraceOutlineChain chain, int pointIndex)
+    {
+        return chain.topRoundMetres != null && chain.topRoundMetres.Length > pointIndex && chain.topRoundMetres[pointIndex] <= 0f;
+    }
+
+    static void AddRun(TerraceOutlineChain chain, Vector2[] outwardNormals, float[] arcMetres, int firstPoint, int endPoint,
+                       float fringeSizeMetres, List<Vector3> positions, List<Vector3> normals, List<Vector2> uvs,
+                       List<Color> colors, List<int> lipIndices, List<int> footIndices)
+    {
+        int columnCount = endPoint - firstPoint;
+
+        int lipStart = positions.Count;
+        for (int pointIndex = firstPoint; pointIndex < endPoint; pointIndex++)
+        {
+            Vector3 point = chain.points[pointIndex];
+            Vector2 outward = outwardNormals[pointIndex];
+            float topRound = HasValue(chain.topRoundMetres, pointIndex) ? chain.topRoundMetres[pointIndex] : DefaultTopRoundMetres;
+            float uvAlong = (chain.startArcPhase + arcMetres[pointIndex]) / fringeSizeMetres;
+            float outerReach = topRound * 0.95f + 0.1f;
+
+            positions.Add(new Vector3(point.x - outward.x * LipInwardMetres, point.y + LipLiftMetres, point.z - outward.y * LipInwardMetres));
+            positions.Add(new Vector3(point.x + outward.x * outerReach, point.y - topRound * 0.6f - 0.35f, point.z + outward.y * outerReach));
+            AddColumnAttributes(normals, uvs, colors, uvAlong, 1f, 0f);
+        }
+        AddStripIndices(lipIndices, lipStart, columnCount);
+
+        int footStart = positions.Count;
+        for (int pointIndex = firstPoint; pointIndex < endPoint; pointIndex++)
+        {
+            Vector3 point = chain.points[pointIndex];
+            Vector2 outward = outwardNormals[pointIndex];
+            float footOffset = HasValue(chain.footOffsetMetres, pointIndex) ? chain.footOffsetMetres[pointIndex] : DefaultFootOffsetMetres;
+            float uvAlong = (chain.startArcPhase + arcMetres[pointIndex]) / fringeSizeMetres;
+            float rootReach = footOffset + FootTuftOutwardMetres;
+            float tipReach = rootReach + FootTuftLeanMetres;
+            float bottomHeight = chain.bottomHeights[pointIndex];
+
+            positions.Add(new Vector3(point.x + outward.x * rootReach, bottomHeight - FootTuftBottomDropMetres, point.z + outward.y * rootReach));
+            positions.Add(new Vector3(point.x + outward.x * tipReach, bottomHeight + FootTuftHeightMetres, point.z + outward.y * tipReach));
+            AddColumnAttributes(normals, uvs, colors, uvAlong, 1f, 0f);
+        }
+        AddStripIndices(footIndices, footStart, columnCount);
+    }
+
+    static bool HasValue(float[] values, int pointIndex)
+    {
+        return values != null && values.Length > pointIndex;
     }
 
     // Assumption: the lower side (the side the wall faces) is to the RIGHT of travel direction.
@@ -114,15 +157,15 @@ public static class TerraceDressingBuilder
         return new Vector2(to.x - from.x, to.z - from.z).magnitude;
     }
 
-    // Column layout is inner then outer; uv.y is 1 at the inner edge and 0 at the outer edge.
-    static void AddColumnAttributes(List<Vector3> normals, List<Vector2> uvs, List<Color> colors, float uvAlong, Color innerColor, Color outerColor)
+    // Column layout is first then second vertex; uv.y runs firstV to secondV, vertex colours stay white.
+    static void AddColumnAttributes(List<Vector3> normals, List<Vector2> uvs, List<Color> colors, float uvAlong, float firstV, float secondV)
     {
         normals.Add(Vector3.up);
         normals.Add(Vector3.up);
-        uvs.Add(new Vector2(uvAlong, 1f));
-        uvs.Add(new Vector2(uvAlong, 0f));
-        colors.Add(innerColor);
-        colors.Add(outerColor);
+        uvs.Add(new Vector2(uvAlong, firstV));
+        uvs.Add(new Vector2(uvAlong, secondV));
+        colors.Add(Color.white);
+        colors.Add(Color.white);
     }
 
     // With outward on the right of travel this winding faces up in Unity's clockwise-front convention.

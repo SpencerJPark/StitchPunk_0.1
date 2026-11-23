@@ -58,7 +58,8 @@ public static class TerraceTileMeshBuilder
             return TerrainMeshBuilder.BuildTileMesh(data, 1, neighbourLookup, verticalOffsetMetres);
         }
 
-        TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, verticalOffsetMetres, signedDistance, firstThreshold, ramps);
+        TileBuild build = new TileBuild(data, world.terraceLevelHeightMetres, verticalOffsetMetres, signedDistance, firstThreshold, ramps,
+            world.terraceTopRoundMetres, world.terraceFootRoundMetres);
         return build.BuildMesh();
     }
 
@@ -97,6 +98,10 @@ public static class TerraceTileMeshBuilder
     private sealed class TileBuild
     {
         private readonly TerrainTileData data;
+        private const int FilletSteps = 4;
+        private const float FootLiftMetres = 0.03f;
+        private readonly float topRoundMetres;
+        private readonly float footRoundMetres;
         private readonly float levelHeight;
         private readonly float verticalOffset;
         private readonly float[][] signedDistance;
@@ -119,8 +124,12 @@ public static class TerraceTileMeshBuilder
             float verticalOffset,
             float[][] signedDistance,
             int firstThreshold,
-            IReadOnlyList<TerraceRampFootprint> ramps)
+            IReadOnlyList<TerraceRampFootprint> ramps,
+            float topRoundMetres,
+            float footRoundMetres)
         {
+            this.topRoundMetres = Mathf.Max(0f, topRoundMetres);
+            this.footRoundMetres = Mathf.Max(0f, footRoundMetres);
             this.firstThreshold = firstThreshold;
             this.data = data;
             this.levelHeight = levelHeight;
@@ -624,68 +633,196 @@ public static class TerraceTileMeshBuilder
 
             Vector2 worldStart = wallSegments[chainSegments[0]].start - new Vector2(HalfTile, HalfTile) + tileWorldCentre;
             float arcPhase = HashToArcPhase(worldStart);
-            List<Vector3> points = new List<Vector3>();
-            List<float> bottomHeights = new List<float>();
+            int segmentCount = chainSegments.Count;
+            int pointCount = segmentCount + 1;
+            Vector2[] chainPoints = new Vector2[pointCount];
+            int[] pointLowerLevels = new int[pointCount];
+            float[] pointArcs = new float[pointCount];
+            float[] tops = new float[pointCount];
+            float[] bottoms = new float[pointCount];
             float arcLength = 0f;
-            for (int index = 0; index < chainSegments.Count; index++)
+            for (int index = 0; index < segmentCount; index++)
             {
                 WallSegment segment = wallSegments[chainSegments[index]];
-                float startTop = LayerHeight(segment.start) + (segment.lowerLevel + 1) * levelHeight;
-                float startBottom = LayerHeight(segment.start) + segment.lowerLevel * levelHeight;
-                float endTop = LayerHeight(segment.end) + (segment.lowerLevel + 1) * levelHeight;
-                float endBottom = LayerHeight(segment.end) + segment.lowerLevel * levelHeight;
-                float segmentLength = Vector2.Distance(segment.start, segment.end);
                 if (index == 0)
                 {
-                    points.Add(new Vector3(segment.start.x - HalfTile, startTop, segment.start.y - HalfTile));
-                    bottomHeights.Add(startBottom);
+                    chainPoints[0] = segment.start;
+                    pointLowerLevels[0] = segment.lowerLevel;
+                    pointArcs[0] = arcPhase;
                 }
-                points.Add(new Vector3(segment.end.x - HalfTile, endTop, segment.end.y - HalfTile));
-                bottomHeights.Add(endBottom);
-                EmitWallQuad(segment, startTop, startBottom, endTop, endBottom, arcPhase + arcLength, arcPhase + arcLength + segmentLength);
-                arcLength += segmentLength;
+                arcLength += Vector2.Distance(segment.start, segment.end);
+                chainPoints[index + 1] = segment.end;
+                pointLowerLevels[index + 1] = segment.lowerLevel;
+                pointArcs[index + 1] = arcPhase + arcLength;
             }
+
+            List<Vector3> points = new List<Vector3>();
+            List<float> bottomHeights = new List<float>();
+            for (int index = 0; index < pointCount; index++)
+            {
+                float groundHeight = LayerHeight(chainPoints[index]);
+                tops[index] = groundHeight + (pointLowerLevels[index] + 1) * levelHeight;
+                bottoms[index] = groundHeight + pointLowerLevels[index] * levelHeight;
+                points.Add(new Vector3(chainPoints[index].x - HalfTile, tops[index], chainPoints[index].y - HalfTile));
+                bottomHeights.Add(bottoms[index]);
+            }
+
+            bool chainIsClosed = segmentCount > 1 && Vector2.Distance(chainPoints[0], chainPoints[segmentCount]) < 1e-3f;
+            Vector2[] outward = new Vector2[pointCount];
+            float[] topRounds = new float[pointCount];
+            float[] footRounds = new float[pointCount];
+            float[] batters = new float[pointCount];
+            float[] footOffsets = new float[pointCount];
+            float[] footHeights = new float[pointCount];
+            for (int index = 0; index < pointCount; index++)
+            {
+                Vector2 summed = Vector2.zero;
+                if (index > 0)
+                {
+                    summed += wallSegments[chainSegments[index - 1]].normal;
+                }
+                if (index < segmentCount)
+                {
+                    summed += wallSegments[chainSegments[index]].normal;
+                }
+                if (chainIsClosed && (index == 0 || index == segmentCount))
+                {
+                    summed = wallSegments[chainSegments[0]].normal + wallSegments[chainSegments[segmentCount - 1]].normal;
+                }
+                outward[index] = summed.sqrMagnitude > 1e-8f ? summed.normalized : wallSegments[chainSegments[Mathf.Min(index, segmentCount - 1)]].normal;
+
+                float wallHeight = tops[index] - bottoms[index];
+                float topRound = Mathf.Min(topRoundMetres, 0.3f * wallHeight);
+                float footRound = Mathf.Min(footRoundMetres, 0.3f * wallHeight);
+                float batter = 0.08f * wallHeight;
+                float footOffset = topRound + batter + footRound;
+                if (InsideAnyRamp(chainPoints[index] + outward[index] * footOffset))
+                {
+                    topRound = 0f;
+                    footRound = 0f;
+                    batter = 0f;
+                    footOffset = 0f;
+                }
+                topRounds[index] = topRound;
+                footRounds[index] = footRound;
+                batters[index] = batter;
+                footOffsets[index] = footOffset;
+                footHeights[index] = footOffset > 0f
+                    ? LayerHeight(chainPoints[index] + outward[index] * footOffset) + pointLowerLevels[index] * levelHeight + FootLiftMetres
+                    : bottoms[index];
+            }
+
+            EmitCliffStrips(chainPoints, outward, pointArcs, tops, bottoms, footHeights, topRounds, footRounds, batters);
 
             TerraceOutlineChain chain = new TerraceOutlineChain();
             chain.points = points.ToArray();
             chain.bottomHeights = bottomHeights.ToArray();
             chain.startArcPhase = arcPhase;
+            chain.outwardNormals = outward;
+            chain.topRoundMetres = topRounds;
+            chain.footOffsetMetres = footOffsets;
             LastBuildOutlineChains.Add(chain);
         }
 
-        private void EmitWallQuad(WallSegment segment, float startTop, float startBottom, float endTop, float endBottom, float startArc, float endArc)
+        // Group 0 = convex top fillet (grass), 1 = steep face (rock), 2 = concave foot fillet (grass).
+        private void EmitCliffStrips(
+            Vector2[] chainPoints, Vector2[] outward, float[] pointArcs, float[] tops, float[] bottoms,
+            float[] footHeights, float[] topRounds, float[] footRounds, float[] batters)
         {
-            Vector3 topStart = new Vector3(segment.start.x - HalfTile, startTop, segment.start.y - HalfTile);
-            Vector3 topEnd = new Vector3(segment.end.x - HalfTile, endTop, segment.end.y - HalfTile);
-            Vector3 bottomEnd = new Vector3(segment.end.x - HalfTile, endBottom, segment.end.y - HalfTile);
-            Vector3 bottomStart = new Vector3(segment.start.x - HalfTile, startBottom, segment.start.y - HalfTile);
-            Vector3 wallNormal = new Vector3(segment.normal.x, 0f, segment.normal.y);
-
-            int baseIndex = positions.Count;
-            positions.Add(topStart);
-            positions.Add(topEnd);
-            positions.Add(bottomEnd);
-            positions.Add(bottomStart);
-            for (int corner = 0; corner < 4; corner++)
+            int pointCount = chainPoints.Length;
+            int[] groupRowCounts = { FilletSteps + 1, 2, FilletSteps + 1 };
+            for (int group = 0; group < 3; group++)
             {
-                normals.Add(wallNormal);
-            }
-            uvs.Add(new Vector2(0f, startArc));
-            uvs.Add(new Vector2(0f, endArc));
-            uvs.Add(new Vector2(endTop - endBottom, endArc));
-            uvs.Add(new Vector2(startTop - startBottom, startArc));
+                int rowCount = groupRowCounts[group];
+                int[][] rowVertices = new int[rowCount][];
+                for (int row = 0; row < rowCount; row++)
+                {
+                    rowVertices[row] = new int[pointCount];
+                    for (int index = 0; index < pointCount; index++)
+                    {
+                        float wallHeight = tops[index] - bottoms[index];
+                        float topRound = topRounds[index];
+                        float footRound = footRounds[index];
+                        float batter = batters[index];
+                        float faceRun = Mathf.Max(0f, wallHeight - footRound - topRound);
+                        float outwardMetres;
+                        float downMetres;
+                        float normalOut;
+                        float normalUp;
+                        float profileArc = 0f;
+                        float angle = row / (float)FilletSteps * Mathf.PI * 0.5f;
+                        if (group == 0)
+                        {
+                            outwardMetres = topRound * Mathf.Sin(angle);
+                            downMetres = topRound * (1f - Mathf.Cos(angle));
+                            normalOut = Mathf.Sin(angle);
+                            normalUp = Mathf.Cos(angle);
+                        }
+                        else if (group == 1)
+                        {
+                            float faceLength = Mathf.Sqrt(batter * batter + faceRun * faceRun);
+                            outwardMetres = row == 0 ? topRound : topRound + batter;
+                            downMetres = row == 0 ? topRound : wallHeight - footRound;
+                            normalOut = faceLength > 1e-6f ? faceRun / faceLength : 1f;
+                            normalUp = faceLength > 1e-6f ? batter / faceLength : 0f;
+                            profileArc = topRound * Mathf.PI * 0.5f + (row == 0 ? 0f : faceLength);
+                        }
+                        else
+                        {
+                            outwardMetres = topRound + batter + footRound * (1f - Mathf.Cos(angle));
+                            downMetres = wallHeight - footRound + footRound * Mathf.Sin(angle);
+                            normalOut = Mathf.Cos(angle);
+                            normalUp = Mathf.Sin(angle);
+                        }
 
-            bool facesLowerSide = Vector3.Dot(Vector3.Cross(topEnd - topStart, bottomEnd - topStart), wallNormal) > 0f;
-            int secondCorner = facesLowerSide ? 1 : 2;
-            int thirdCorner = facesLowerSide ? 2 : 1;
-            wallTriangles.Add(baseIndex);
-            wallTriangles.Add(baseIndex + secondCorner);
-            wallTriangles.Add(baseIndex + thirdCorner);
-            int fourthSecond = facesLowerSide ? 2 : 3;
-            int fourthThird = facesLowerSide ? 3 : 2;
-            wallTriangles.Add(baseIndex);
-            wallTriangles.Add(baseIndex + fourthSecond);
-            wallTriangles.Add(baseIndex + fourthThird);
+                        Vector2 tileMetres = chainPoints[index] + outward[index] * outwardMetres;
+                        float height = tops[index] - downMetres;
+                        if (group == 2 && footRound > 0f)
+                        {
+                            height += (footHeights[index] - bottoms[index]) * ((downMetres - (wallHeight - footRound)) / footRound);
+                        }
+                        Vector3 normal = new Vector3(outward[index].x * normalOut, normalUp, outward[index].y * normalOut);
+                        Vector2 uv = group == 1
+                            ? new Vector2(profileArc, pointArcs[index])
+                            : new Vector2(
+                                (tileWorldCentre.x + tileMetres.x - HalfTile) / TerrainTileData.TileSizeMetres,
+                                (tileWorldCentre.y + tileMetres.y - HalfTile) / TerrainTileData.TileSizeMetres);
+                        positions.Add(new Vector3(tileMetres.x - HalfTile, height, tileMetres.y - HalfTile));
+                        normals.Add(normal.normalized);
+                        uvs.Add(uv);
+                        rowVertices[row][index] = positions.Count - 1;
+                    }
+                }
+
+                List<int> target = group == 1 ? wallTriangles : groundTriangles;
+                float[] roundings = group == 0 ? topRounds : footRounds;
+                for (int row = 0; row < rowCount - 1; row++)
+                {
+                    for (int index = 0; index < pointCount - 1; index++)
+                    {
+                        if (group != 1 && roundings[index] <= 0f && roundings[index + 1] <= 0f)
+                        {
+                            continue;
+                        }
+                        EmitProfileQuad(rowVertices[row][index], rowVertices[row][index + 1], rowVertices[row + 1][index + 1], rowVertices[row + 1][index], target);
+                    }
+                }
+            }
+        }
+
+        private void EmitProfileQuad(int first, int second, int third, int fourth, List<int> target)
+        {
+            Vector3 firstPosition = positions[first];
+            Vector3 facing = Vector3.Cross(positions[second] - firstPosition, positions[third] - firstPosition)
+                + Vector3.Cross(positions[third] - firstPosition, positions[fourth] - firstPosition);
+            Vector3 vertexNormal = normals[first] + normals[second] + normals[third] + normals[fourth];
+            bool facesOutward = Vector3.Dot(facing, vertexNormal) > 0f;
+            target.Add(first);
+            target.Add(facesOutward ? second : third);
+            target.Add(facesOutward ? third : second);
+            target.Add(first);
+            target.Add(facesOutward ? third : fourth);
+            target.Add(facesOutward ? fourth : third);
         }
 
         private static long QuantisedKey(Vector2 tileMetres)

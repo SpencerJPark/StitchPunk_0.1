@@ -50,15 +50,23 @@ public class TerrainWorldProfile : ScriptableObject
     }
 
 #if UNITY_EDITOR
+    // Sculpt strokes call this every frame; the AssetDatabase search is cached until the asset is destroyed.
+    static TerrainWorldProfile cachedProjectProfile;
+
     public static TerrainWorldProfile FindInProject()
     {
+        if (cachedProjectProfile != null)
+        {
+            return cachedProjectProfile;
+        }
         string[] guids = AssetDatabase.FindAssets("t:TerrainWorldProfile");
         if (guids.Length == 0)
         {
             return null;
         }
         string path = AssetDatabase.GUIDToAssetPath(guids[0]);
-        return AssetDatabase.LoadAssetAtPath<TerrainWorldProfile>(path);
+        cachedProjectProfile = AssetDatabase.LoadAssetAtPath<TerrainWorldProfile>(path);
+        return cachedProjectProfile;
     }
 
     public static TerrainWorldProfile FindOrCreateInProject()
@@ -80,6 +88,7 @@ public class TerrainWorldProfile : ScriptableObject
         string assetPath = folderPath + "/TerrainWorldProfile.asset";
         TerrainWorldProfile createdProfile = CreateInstance<TerrainWorldProfile>();
         AssetDatabase.CreateAsset(createdProfile, assetPath);
+        cachedProjectProfile = createdProfile;
         AssetDatabase.SaveAssets();
         Debug.LogWarning("TerrainWorldProfile: none in the project, created " + assetPath + " with defaults (terraces need it).");
         return createdProfile;
