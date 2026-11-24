@@ -114,7 +114,7 @@ public static class TerraceTileMeshBuilder
         private readonly bool[] cellSubdivided = new bool[CellsPerSide * CellsPerSide];
         private readonly List<Vector3> positions = new List<Vector3>();
         private readonly List<Vector3> normals = new List<Vector3>();
-        private readonly List<Vector2> uvs = new List<Vector2>();
+        private readonly List<Vector4> uvs = new List<Vector4>();
         private readonly List<int> groundTriangles = new List<int>();
         private readonly List<int> wallTriangles = new List<int>();
         private readonly List<WallSegment> wallSegments = new List<WallSegment>();
@@ -675,6 +675,7 @@ public static class TerraceTileMeshBuilder
             float[] batters = new float[pointCount];
             float[] footOffsets = new float[pointCount];
             float[] footHeights = new float[pointCount];
+            const int ReachNeighbourWindow = 12;
             for (int index = 0; index < pointCount; index++)
             {
                 Vector2 summed = Vector2.zero;
@@ -708,8 +709,55 @@ public static class TerraceTileMeshBuilder
                 footRounds[index] = footRound;
                 batters[index] = batter;
                 footOffsets[index] = footOffset;
-                footHeights[index] = footOffset > 0f
-                    ? LayerHeight(chainPoints[index] + outward[index] * footOffset) + pointLowerLevels[index] * levelHeight + FootLiftMetres
+            }
+
+            // Limit each point's reach to where its outward ray meets a neighbour's ray, so concave corners cannot fold over.
+            for (int index = 0; index < pointCount; index++)
+            {
+                float footOffset = footOffsets[index];
+                if (footOffset > 0f)
+                {
+                    float maxReach = footOffset;
+                    for (int offset = -ReachNeighbourWindow; offset <= ReachNeighbourWindow; offset++)
+                    {
+                        if (offset == 0)
+                        {
+                            continue;
+                        }
+                        int neighbour = index + offset;
+                        if (chainIsClosed)
+                        {
+                            neighbour = ((neighbour % segmentCount) + segmentCount) % segmentCount;
+                            if (neighbour == index)
+                            {
+                                continue;
+                            }
+                        }
+                        else if (neighbour < 0 || neighbour > pointCount - 1)
+                        {
+                            continue;
+                        }
+                        float denominator = outward[index].x * outward[neighbour].y - outward[index].y * outward[neighbour].x;
+                        if (Mathf.Abs(denominator) < 1e-4f)
+                        {
+                            continue;
+                        }
+                        Vector2 delta = chainPoints[neighbour] - chainPoints[index];
+                        float reachAlongOwn = (delta.x * outward[neighbour].y - delta.y * outward[neighbour].x) / denominator;
+                        float reachAlongNeighbour = (delta.x * outward[index].y - delta.y * outward[index].x) / denominator;
+                        if (reachAlongOwn > 0f && reachAlongNeighbour > 0f)
+                        {
+                            maxReach = Mathf.Min(maxReach, reachAlongOwn);
+                        }
+                    }
+                    float scale = Mathf.Clamp(0.9f * maxReach / footOffset, 0.05f, 1f);
+                    topRounds[index] *= scale;
+                    footRounds[index] *= scale;
+                    batters[index] *= scale;
+                    footOffsets[index] *= scale;
+                }
+                footHeights[index] = footOffsets[index] > 0f
+                    ? LayerHeight(chainPoints[index] + outward[index] * footOffsets[index]) + pointLowerLevels[index] * levelHeight + FootLiftMetres
                     : bottoms[index];
             }
 
@@ -751,10 +799,14 @@ public static class TerraceTileMeshBuilder
                         float downMetres;
                         float normalOut;
                         float normalUp;
-                        float profileArc = 0f;
+                        float topGrassEndArc = topRound * Mathf.PI * 0.5f;
+                        float faceLength = Mathf.Sqrt(batter * batter + faceRun * faceRun);
+                        float footGrassStartArc = topGrassEndArc + faceLength;
+                        float arcMetres;
                         float angle = row / (float)FilletSteps * Mathf.PI * 0.5f;
                         if (group == 0)
                         {
+                            arcMetres = topRound * angle;
                             outwardMetres = topRound * Mathf.Sin(angle);
                             downMetres = topRound * (1f - Mathf.Cos(angle));
                             normalOut = Mathf.Sin(angle);
@@ -762,15 +814,15 @@ public static class TerraceTileMeshBuilder
                         }
                         else if (group == 1)
                         {
-                            float faceLength = Mathf.Sqrt(batter * batter + faceRun * faceRun);
+                            arcMetres = row == 0 ? topGrassEndArc : footGrassStartArc;
                             outwardMetres = row == 0 ? topRound : topRound + batter;
                             downMetres = row == 0 ? topRound : wallHeight - footRound;
                             normalOut = faceLength > 1e-6f ? faceRun / faceLength : 1f;
                             normalUp = faceLength > 1e-6f ? batter / faceLength : 0f;
-                            profileArc = topRound * Mathf.PI * 0.5f + (row == 0 ? 0f : faceLength);
                         }
                         else
                         {
+                            arcMetres = footGrassStartArc + footRound * angle;
                             outwardMetres = topRound + batter + footRound * (1f - Mathf.Cos(angle));
                             downMetres = wallHeight - footRound + footRound * Mathf.Sin(angle);
                             normalOut = Mathf.Cos(angle);
@@ -784,11 +836,12 @@ public static class TerraceTileMeshBuilder
                             height += (footHeights[index] - bottoms[index]) * ((downMetres - (wallHeight - footRound)) / footRound);
                         }
                         Vector3 normal = new Vector3(outward[index].x * normalOut, normalUp, outward[index].y * normalOut);
-                        Vector2 uv = group == 1
-                            ? new Vector2(profileArc, pointArcs[index])
-                            : new Vector2(
-                                (tileWorldCentre.x + tileMetres.x - HalfTile) / TerrainTileData.TileSizeMetres,
-                                (tileWorldCentre.y + tileMetres.y - HalfTile) / TerrainTileData.TileSizeMetres);
+                        // +10 marks a profiled vertex (z > 1) so the shader can tell it from ramp side walls that carry float2 uv.
+                        Vector4 uv = new Vector4(
+                            arcMetres,
+                            pointArcs[index],
+                            10f + arcMetres - topGrassEndArc,
+                            10f + footGrassStartArc - arcMetres);
                         positions.Add(new Vector3(tileMetres.x - HalfTile, height, tileMetres.y - HalfTile));
                         normals.Add(normal.normalized);
                         uvs.Add(uv);
@@ -796,7 +849,6 @@ public static class TerraceTileMeshBuilder
                     }
                 }
 
-                List<int> target = group == 1 ? wallTriangles : groundTriangles;
                 float[] roundings = group == 0 ? topRounds : footRounds;
                 for (int row = 0; row < rowCount - 1; row++)
                 {
@@ -806,25 +858,27 @@ public static class TerraceTileMeshBuilder
                         {
                             continue;
                         }
-                        EmitProfileQuad(rowVertices[row][index], rowVertices[row][index + 1], rowVertices[row + 1][index + 1], rowVertices[row + 1][index], target);
+                        EmitProfileQuad(rowVertices[row][index], rowVertices[row][index + 1], rowVertices[row + 1][index + 1], rowVertices[row + 1][index]);
                     }
                 }
             }
         }
 
-        private void EmitProfileQuad(int first, int second, int third, int fourth, List<int> target)
+        private void EmitProfileQuad(int first, int second, int third, int fourth)
+        {
+            EmitProfileTriangleFacingItsNormals(first, second, third);
+            EmitProfileTriangleFacingItsNormals(first, third, fourth);
+        }
+
+        private void EmitProfileTriangleFacingItsNormals(int first, int second, int third)
         {
             Vector3 firstPosition = positions[first];
-            Vector3 facing = Vector3.Cross(positions[second] - firstPosition, positions[third] - firstPosition)
-                + Vector3.Cross(positions[third] - firstPosition, positions[fourth] - firstPosition);
-            Vector3 vertexNormal = normals[first] + normals[second] + normals[third] + normals[fourth];
+            Vector3 facing = Vector3.Cross(positions[second] - firstPosition, positions[third] - firstPosition);
+            Vector3 vertexNormal = normals[first] + normals[second] + normals[third];
             bool facesOutward = Vector3.Dot(facing, vertexNormal) > 0f;
-            target.Add(first);
-            target.Add(facesOutward ? second : third);
-            target.Add(facesOutward ? third : second);
-            target.Add(first);
-            target.Add(facesOutward ? third : fourth);
-            target.Add(facesOutward ? fourth : third);
+            wallTriangles.Add(first);
+            wallTriangles.Add(facesOutward ? second : third);
+            wallTriangles.Add(facesOutward ? third : second);
         }
 
         private static long QuantisedKey(Vector2 tileMetres)

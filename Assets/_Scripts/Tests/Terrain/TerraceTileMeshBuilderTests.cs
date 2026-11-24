@@ -129,7 +129,7 @@ namespace StitchPunk.Tests
                 Vector3 frontNormal = Vector3.Cross(second - first, third - first);
                 Vector3 centroid = (first + second + third) / 3f;
                 Vector2 outward = NearestOutwardNormal(centroid);
-                Assert.Greater(Vector3.Dot(frontNormal, new Vector3(outward.x, 0f, outward.y)), 0f, "wall triangle faces inward at " + centroid);
+                Assert.Greater(Vector3.Dot(frontNormal, new Vector3(outward.x, 1f, outward.y)), 0f, "profile triangle faces inward or down at " + centroid);
             }
 
             int[] groundTriangles = mesh.GetTriangles(0);

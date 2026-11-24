@@ -5,16 +5,13 @@ using UnityEngine.Rendering;
 
 public static class TerraceDressingBuilder
 {
-    const float DefaultTopRoundMetres = 0.75f;
     const float DefaultFootOffsetMetres = 1.5f;
-    const float LipInwardMetres = 0.3f;
-    const float LipLiftMetres = 0.03f;
-    const float FootTuftBottomDropMetres = 0.05f;
-    const float FootTuftHeightMetres = 0.35f;
-    const float FootTuftLeanMetres = 0.15f;
-    const float FootTuftOutwardMetres = 0.05f;
+    const float FootTuftRootInsetMetres = 0.05f;
+    const float FootTuftLeanMetres = 0.08f;
+    const float FootTuftHeightMetres = 0.28f;
+    const float FootTuftBottomDropMetres = 0.03f;
 
-    // submesh 0 = grass curtain over the top fillet, submesh 1 = grass tufts at the foot of the wall.
+    // submesh 0 = lip (always empty, the cliff shader paints the top tufts), submesh 1 = short grass fringe at the foot fillet's outer edge.
     public static Mesh BuildLipAndFootMesh(IReadOnlyList<TerraceOutlineChain> chains, float fringeSizeMetres)
     {
         if (chains == null || chains.Count == 0)
@@ -59,7 +56,7 @@ public static class TerraceDressingBuilder
             }
         }
 
-        if (lipIndices.Count == 0 && footIndices.Count == 0)
+        if (footIndices.Count == 0)
             return null;
 
         Mesh mesh = new Mesh();
@@ -88,21 +85,6 @@ public static class TerraceDressingBuilder
     {
         int columnCount = endPoint - firstPoint;
 
-        int lipStart = positions.Count;
-        for (int pointIndex = firstPoint; pointIndex < endPoint; pointIndex++)
-        {
-            Vector3 point = chain.points[pointIndex];
-            Vector2 outward = outwardNormals[pointIndex];
-            float topRound = HasValue(chain.topRoundMetres, pointIndex) ? chain.topRoundMetres[pointIndex] : DefaultTopRoundMetres;
-            float uvAlong = (chain.startArcPhase + arcMetres[pointIndex]) / fringeSizeMetres;
-            float outerReach = topRound * 0.95f + 0.1f;
-
-            positions.Add(new Vector3(point.x - outward.x * LipInwardMetres, point.y + LipLiftMetres, point.z - outward.y * LipInwardMetres));
-            positions.Add(new Vector3(point.x + outward.x * outerReach, point.y - topRound * 0.6f - 0.35f, point.z + outward.y * outerReach));
-            AddColumnAttributes(normals, uvs, colors, uvAlong, 1f, 0f);
-        }
-        AddStripIndices(lipIndices, lipStart, columnCount);
-
         int footStart = positions.Count;
         for (int pointIndex = firstPoint; pointIndex < endPoint; pointIndex++)
         {
@@ -110,8 +92,8 @@ public static class TerraceDressingBuilder
             Vector2 outward = outwardNormals[pointIndex];
             float footOffset = HasValue(chain.footOffsetMetres, pointIndex) ? chain.footOffsetMetres[pointIndex] : DefaultFootOffsetMetres;
             float uvAlong = (chain.startArcPhase + arcMetres[pointIndex]) / fringeSizeMetres;
-            float rootReach = footOffset + FootTuftOutwardMetres;
-            float tipReach = rootReach + FootTuftLeanMetres;
+            float rootReach = footOffset - FootTuftRootInsetMetres;
+            float tipReach = footOffset + FootTuftLeanMetres;
             float bottomHeight = HasValue(chain.footHeights, pointIndex) ? chain.footHeights[pointIndex] : chain.bottomHeights[pointIndex];
 
             positions.Add(new Vector3(point.x + outward.x * rootReach, bottomHeight - FootTuftBottomDropMetres, point.z + outward.y * rootReach));

@@ -1,5 +1,5 @@
 // Painted/Cliff  -  terrace wall, grass lip and dark foot fringe in one shader (Entities Graphics compatible).
-// _Mode 0 Wall: uv = (metres down from the top, metres along); opaque dark gradient with vertical striations.
+// _Mode 0 Wall: uv = float4(arc metres down from top, metres along, 10 + arc below top-fillet end (<1 = no grass), 10 + arc above foot-fillet start); rock + fillet grass.
 // _Mode 1 Lip : uv = (along / fringe size, 0 outer .. 1 inner); alpha-clipped against _SurfaceTex alpha, grass tinted.
 // _Mode 2 Foot: same uv; black, alpha from vertex colour alpha. Set _SrcBlend/_DstBlend/_ZWrite/_Cull per material.
 
@@ -23,6 +23,14 @@ Shader "Painted/Cliff"
         _StriationStrength ("Striation strength", Range(0, 1)) = 0.6
         _StriationDensity ("Striations per metre", Range(0.5, 8)) = 2.5
         _StriationStretch ("Striation vertical stretch", Range(0.02, 1)) = 0.12
+        _SurfaceStrength ("Surface texture tint strength", Range(0, 1)) = 0.45
+        _GrassTuftMinMetres ("Grass tuft min metres", Float) = 0.15
+        _GrassTuftMaxMetres ("Grass tuft max metres", Float) = 0.35
+        _WallBladesPerMetre ("Wall grass blades per metre", Range(4, 40)) = 14
+        _OverhangShadowStrength ("Shadow under tufts", Range(0, 1)) = 0.3
+        _FootShadowMetres ("Foot shadow metres", Float) = 0.5
+        _FootShadowStrength ("Foot shadow strength", Range(0, 1)) = 0.45
+        _FootGrassStartMetres ("Foot grass start metres", Float) = 0.55
 
         [Header(Lip)]
         _LipColor ("Lip colour", Color) = (0.30, 0.38, 0.22, 1)
@@ -59,6 +67,14 @@ Shader "Painted/Cliff"
             half   _StriationStrength;
             float  _StriationDensity;
             float  _StriationStretch;
+            half   _SurfaceStrength;
+            float  _GrassTuftMinMetres;
+            float  _GrassTuftMaxMetres;
+            float  _WallBladesPerMetre;
+            half   _OverhangShadowStrength;
+            float  _FootShadowMetres;
+            half   _FootShadowStrength;
+            float  _FootGrassStartMetres;
             half   _LipAlphaCutoff;
             float  _BladeDensity;
             half   _ShadowStrength;
@@ -151,7 +167,7 @@ Shader "Painted/Cliff"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
-                float2 uv         : TEXCOORD0;
+                float4 uv         : TEXCOORD0;
                 float4 color      : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -161,7 +177,7 @@ Shader "Painted/Cliff"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 float3 normalWS   : TEXCOORD1;
-                float2 uv         : TEXCOORD2;
+                float4 uv         : TEXCOORD2;
                 float4 color      : TEXCOORD3;
                 half   fogFactor  : TEXCOORD4;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
@@ -189,7 +205,7 @@ Shader "Painted/Cliff"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(IN);
 
                 float3 normalWS = normalize(IN.normalWS);
-                float4 surface = SAMPLE_TEXTURE2D(_SurfaceTex, sampler_SurfaceTex, CliffSurfaceUV(IN.uv));
+                float4 surface = SAMPLE_TEXTURE2D(_SurfaceTex, sampler_SurfaceTex, CliffSurfaceUV(IN.uv.xy));
                 float3 baseColour;
                 float alpha = 1;
 
@@ -200,11 +216,37 @@ Shader "Painted/Cliff"
                     float2 grooveUV = float2(IN.uv.y * _StriationDensity, IN.uv.x * _StriationDensity * _StriationStretch);
                     float groove = lerp(CliffValueNoise(grooveUV), CliffValueNoise(grooveUV * float2(2.7, 1.3) + 17.3), 0.35);
                     float striation = lerp(1, 0.35 + 0.9 * groove, _StriationStrength);
-                    baseColour = slate * surface.rgb * striation;
+                    float3 rockColour = slate * lerp(float3(1, 1, 1), surface.rgb, _SurfaceStrength) * striation;
+                    baseColour = rockColour;
+
+                    if (IN.uv.z > 1)
+                    {
+                        float belowTopGrass = IN.uv.z - 10;
+                        float aboveFootGrass = IN.uv.w - 10;
+
+                        float topBladeScaled = IN.uv.y * _WallBladesPerMetre;
+                        float topBladeHash = CliffHash(float2(floor(topBladeScaled), 9.1));
+                        float topBladeTaper = 1 - 2 * abs(frac(topBladeScaled) - 0.5);
+                        float topTuftMetres = lerp(_GrassTuftMinMetres, _GrassTuftMaxMetres, topBladeHash) * (0.3 + 0.7 * topBladeTaper);
+
+                        rockColour *= lerp(1 - _OverhangShadowStrength, 1, saturate((belowTopGrass - topTuftMetres) / 0.4));
+                        float3 wallColour = rockColour;
+                        if (belowTopGrass < topTuftMetres)
+                            wallColour = _LipColor.rgb * lerp(0.8, 1, saturate(-belowTopGrass / 0.5));
+
+                        float footInto = -aboveFootGrass;
+                        float footBladeHash = CliffHash(float2(floor(topBladeScaled), 23.7));
+                        float footTuftMetres = lerp(_GrassTuftMinMetres, _GrassTuftMaxMetres, footBladeHash) * (0.3 + 0.7 * topBladeTaper);
+                        if (footInto > _FootGrassStartMetres - footTuftMetres)
+                            wallColour = _LipColor.rgb * 0.9;
+
+                        wallColour *= lerp(1 - _FootShadowStrength, 1, saturate(abs(aboveFootGrass) / max(_FootShadowMetres, 0.001)));
+                        baseColour = wallColour;
+                    }
                 }
                 else if (_Mode < 1.5)
                 {
-                    clip(CliffBladeCoverage(IN.uv));
+                    clip(CliffBladeCoverage(IN.uv.xy));
                     baseColour = _LipColor.rgb * lerp(0.65, 1, saturate(1 - IN.uv.y));
                 }
                 else

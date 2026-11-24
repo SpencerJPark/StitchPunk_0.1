@@ -31,22 +31,30 @@ Material:
     m_Floats:
     - _Cull: 2
     - _DstBlend: 0
+    - _FootGrassStartMetres: 0.55
+    - _FootShadowMetres: 0.5
+    - _FootShadowStrength: 0.45
     - _GradientMetres: 3
+    - _GrassTuftMaxMetres: 0.35
+    - _GrassTuftMinMetres: 0.15
     - _LipAlphaCutoff: 0.5
     - _MetresPerTile: 4
     - _Mode: 0
     - _NdotLInfluence: 0.15
+    - _OverhangShadowStrength: 0.3
     - _PointLightBoost: 1
     - _ShadowStrength: 0.6
     - _SrcBlend: 1
     - _StriationDensity: 2.5
     - _StriationStrength: 0.6
     - _StriationStretch: 0.12
+    - _SurfaceStrength: 0.45
+    - _WallBladesPerMetre: 14
     - _ZWrite: 1
     m_Colors:
     - _AmbientTint: {r: 1, g: 1, b: 1, a: 1}
-    - _BottomColor: {r: 0.36, g: 0.33, b: 0.3, a: 1}
-    - _LipColor: {r: 0.29999998, g: 0.37999994, b: 0.21999997, a: 1}
-    - _TopColor: {r: 0.58, g: 0.53, b: 0.46, a: 1}
+    - _BottomColor: {r: 0.56, g: 0.51, b: 0.45, a: 1}
+    - _LipColor: {r: 0.36, g: 0.46, b: 0.24, a: 1}
+    - _TopColor: {r: 0.74, g: 0.69, b: 0.6, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
