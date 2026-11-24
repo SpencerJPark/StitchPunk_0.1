@@ -14,6 +14,8 @@ namespace DotsAnimationToolkit.Editor
         private readonly VisualElement assemblyRowContainer;
         private CutoutAssemblyAsset selectedAssembly;
 
+        public VisualElement HeaderActions { get; }
+
         public event Action<CutoutAssemblyAsset> AssemblyActivated;
         public event Action<CutoutAssemblyAsset> AssemblyCreated;
         public event Action<CutoutAssemblyAsset, string> AssemblyRenamed;
@@ -22,26 +24,20 @@ namespace DotsAnimationToolkit.Editor
         public CutoutAssemblyListElement()
         {
             name = "assemblies-list";
-            style.flexShrink = 0f;
+            style.flexGrow = 1f;
 
-            VisualElement assemblyHeader = new VisualElement();
-            assemblyHeader.AddToClassList("toolkit-pane-header");
-            Label assemblyTitle = new Label("Assemblies");
-            assemblyTitle.AddToClassList("toolkit-pane-title");
-            assemblyHeader.Add(assemblyTitle);
-            VisualElement assemblyActions = ToolkitChrome.MakeIconSquareRun("assemblies-actions");
-            assemblyActions.AddToClassList("toolkit-pane-actions");
+            // The sidebar owns the header, so the + button is handed over rather than drawn here.
+            HeaderActions = ToolkitChrome.MakeIconSquareRun("assemblies-actions");
+            HeaderActions.AddToClassList("toolkit-pane-actions");
             Button newAssemblyButton = ToolkitChrome.MakeIconSquare(
                 CreateNewAssembly, "d_Toolbar Plus", "New assembly: a character built from several cutouts");
             newAssemblyButton.name = "assemblies-new-button";
-            assemblyActions.Add(newAssemblyButton);
-            assemblyHeader.Add(assemblyActions);
-            Add(assemblyHeader);
+            HeaderActions.Add(newAssemblyButton);
 
             ScrollView assemblyScroll = new ScrollView();
             assemblyScroll.name = "assemblies-list-rows";
             assemblyScroll.AddToClassList("toolkit-list-surface");
-            assemblyScroll.style.maxHeight = 220f;
+            assemblyScroll.style.flexGrow = 1f;
             assemblyRowContainer = assemblyScroll.contentContainer;
             Add(assemblyScroll);
 

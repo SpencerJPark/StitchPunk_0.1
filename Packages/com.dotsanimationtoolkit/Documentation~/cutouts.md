@@ -183,8 +183,9 @@ after rotating if you want it at the new bottom.
 ## Assemblies (its own tab)
 
 The **Assemblies** tab, right after Cutouts, poses several cutouts together
-into one character. Press **+** under Assemblies in its sidebar, then drag
-cutouts from the Cutouts list below onto the canvas.
+into one character. Its sidebar has two modes, **Assemblies | Cutouts**: press
+**+** in Assemblies mode to start one, then switch to Cutouts and drag pieces
+onto the canvas.
 
 - Drag a piece to move it; drag its ring to rotate it (90° snap, Ctrl for free).
 - `[` and `]` change draw order; Delete removes the piece.

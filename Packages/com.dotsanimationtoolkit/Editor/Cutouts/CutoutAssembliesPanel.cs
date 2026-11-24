@@ -10,6 +10,9 @@ namespace DotsAnimationToolkit.Editor
     // The Assemblies tab: assemblies and cutouts on the left, the assembly canvas in the middle, its inspector on the right.
     public sealed class CutoutAssembliesPanel : VisualElement, IDisposable
     {
+        private const string AssembliesModeName = "assemblies";
+        private const string CutoutsModeName = "cutouts";
+
         private readonly CutoutAssemblyListElement assemblyList;
         private readonly CutoutCatalogColumn cutoutCatalog;
         private readonly ViewportFrameElement viewportFrame;
@@ -47,13 +50,10 @@ namespace DotsAnimationToolkit.Editor
                 newCutoutButton.style.display = DisplayStyle.None;
             }
 
-            VisualElement sidebar = ToolkitChrome.MakeColumn("assemblies-sidebar");
-            sidebar.Add(assemblyList);
-            VisualElement cutoutHeader = ToolkitChrome.MakePaneHeader("Cutouts", out Label _, out VisualElement cutoutHeaderActions);
-            cutoutHeader.tooltip = "Drag a cutout onto the canvas to add it to the open assembly.";
-            cutoutHeaderActions.Add(cutoutCatalog.HeaderActions);
-            sidebar.Add(cutoutHeader);
-            sidebar.Add(cutoutCatalog);
+            CatalogSidebarElement sidebar = new CatalogSidebarElement { name = "assemblies-sidebar" };
+            sidebar.AddMode(AssembliesModeName, "Assemblies", assemblyList, assemblyList.HeaderActions);
+            sidebar.AddMode(CutoutsModeName, "Cutouts", cutoutCatalog, cutoutCatalog.HeaderActions);
+            sidebar.SetMode(AssembliesModeName);
 
             VisualElement centreColumn = ToolkitChrome.MakeColumn("assemblies-centre-column");
             centreColumn.AddToClassList("toolkit-column--flush");
@@ -79,7 +79,7 @@ namespace DotsAnimationToolkit.Editor
             viewportFrame.SetEmptyState(
                 "assemblies-empty-state",
                 "No assembly open",
-                "Pick an assembly on the left, or press + to start one, then drag cutouts onto the canvas.");
+                "Pick an assembly on the left, or press + to start one, then drag pieces in from the Cutouts list.");
             centreColumn.Add(viewportFrame);
 
             VisualElement statusRow = ToolkitChrome.MakeStatusRow(out statusLabel, out VisualElement _, true);
@@ -139,7 +139,7 @@ namespace DotsAnimationToolkit.Editor
             ShowAssembly(assembly);
             if (assembly != null && assembly.pieces.Count == 0)
             {
-                SetStatus("Drag cutouts from the list onto the canvas", ToolkitStatusTone.Neutral);
+                SetStatus("Switch the sidebar to Cutouts and drag them onto the canvas", ToolkitStatusTone.Neutral);
             }
         }
 

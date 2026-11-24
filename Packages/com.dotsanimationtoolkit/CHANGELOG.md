@@ -8,6 +8,12 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.68.1] — Assemblies sidebar modes
+
+### Changed
+- The Assemblies tab's sidebar switches between **Assemblies | Cutouts** like the Cutouts tab's sidebar, instead of
+  stacking both lists. Open an assembly in Assemblies mode, then switch to Cutouts and drag pieces onto the canvas.
+
 ## [0.68.0] — Assemblies get their own tab
 
 ### Changed
