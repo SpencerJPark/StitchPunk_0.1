@@ -196,6 +196,132 @@ namespace StitchPunk.Tests
             Assert.DoesNotThrow(() => HeightAt(12f, 34f));
         }
 
+        private void MakeSingleDirtTerraceRule()
+        {
+            MakeFlatNoiselessProfile();
+            profile.biomeRules.Clear();
+            profile.terraceBiomeRules.Clear();
+            profile.terraceBiomeRules.Add(new TerraceBiomeRule
+            {
+                biome = TerrainSplatLayer.Dirt,
+                enabled = true,
+                plateauThresholds = new float[] { 0.45f },
+                plateauNoiseFrequencyPerMetre = 0.02f,
+                maxLevel = 1,
+                minPlateauAreaSquareMetres = 30f,
+                cliffOnSlope = false,
+            });
+        }
+
+        [Test]
+        public void GeneratedTerracesAreDeterministicAndOnlyWriteTheirOwnOutputs()
+        {
+            MakeSingleDirtTerraceRule();
+            byte[] firstLevels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
+            byte[] secondLevels = new byte[firstLevels.Length];
+            System.Collections.Generic.List<TerraceRampPlacement> firstRamps = new System.Collections.Generic.List<TerraceRampPlacement>();
+            System.Collections.Generic.List<TerraceRampPlacement> secondRamps = new System.Collections.Generic.List<TerraceRampPlacement>();
+
+            TerrainProceduralGenerator.GenerateTerraceLevels(profile, Vector2Int.zero, 3, firstLevels, firstRamps);
+            TerrainProceduralGenerator.GenerateTerraceLevels(profile, Vector2Int.zero, 3, secondLevels, secondRamps);
+
+            CollectionAssert.AreEqual(firstLevels, secondLevels);
+            Assert.AreEqual(firstRamps.Count, secondRamps.Count);
+        }
+
+        [Test]
+        public void EveryRaisedRegionAwayFromTheTileRimHasARampOnItsEdge()
+        {
+            MakeSingleDirtTerraceRule();
+            const int Side = TerrainTileData.TerraceCellsPerSide;
+            int regionsChecked = 0;
+            for (int tileX = 0; tileX <= 2; tileX++)
+            {
+                Vector2Int tileCoordinate = new Vector2Int(tileX, 0);
+                byte[] levels = new byte[Side * Side];
+                System.Collections.Generic.List<TerraceRampPlacement> ramps = new System.Collections.Generic.List<TerraceRampPlacement>();
+                TerrainProceduralGenerator.GenerateTerraceLevels(profile, tileCoordinate, 3, levels, ramps);
+                float minCornerX = tileCoordinate.x * TerrainTileData.TileSizeMetres - TerrainTileData.TileSizeMetres * 0.5f;
+                float minCornerZ = tileCoordinate.y * TerrainTileData.TileSizeMetres - TerrainTileData.TileSizeMetres * 0.5f;
+
+                bool[] visited = new bool[Side * Side];
+                for (int startCell = 0; startCell < Side * Side; startCell++)
+                {
+                    int level = levels[startCell] - TerrainTileData.TerraceLevelBias;
+                    if (level == 0 || visited[startCell]) continue;
+                    bool touchesRim = false;
+                    System.Collections.Generic.List<int> regionCells = new System.Collections.Generic.List<int>();
+                    System.Collections.Generic.Stack<int> pending = new System.Collections.Generic.Stack<int>();
+                    pending.Push(startCell);
+                    visited[startCell] = true;
+                    while (pending.Count > 0)
+                    {
+                        int cell = pending.Pop();
+                        regionCells.Add(cell);
+                        int cellX = cell % Side;
+                        int cellZ = cell / Side;
+                        if (cellX == 0 || cellZ == 0 || cellX == Side - 1 || cellZ == Side - 1) touchesRim = true;
+                        for (int direction = 0; direction < 4; direction++)
+                        {
+                            int neighbourX = cellX + (direction == 0 ? 1 : direction == 1 ? -1 : 0);
+                            int neighbourZ = cellZ + (direction == 2 ? 1 : direction == 3 ? -1 : 0);
+                            if (neighbourX < 0 || neighbourZ < 0 || neighbourX >= Side || neighbourZ >= Side) continue;
+                            int neighbour = neighbourZ * Side + neighbourX;
+                            if (visited[neighbour] || levels[neighbour] - TerrainTileData.TerraceLevelBias != level) continue;
+                            visited[neighbour] = true;
+                            pending.Push(neighbour);
+                        }
+                    }
+                    if (touchesRim) continue;
+
+                    regionsChecked++;
+                    int lowerNeighbourLevel = level - (level > 0 ? 1 : -1);
+                    bool rampFound = false;
+                    foreach (int cell in regionCells)
+                    {
+                        int cellX = cell % Side;
+                        int cellZ = cell / Side;
+                        for (int direction = 0; direction < 4 && !rampFound; direction++)
+                        {
+                            int offsetX = direction == 0 ? 1 : direction == 1 ? -1 : 0;
+                            int offsetZ = direction == 2 ? 1 : direction == 3 ? -1 : 0;
+                            int neighbour = (cellZ + offsetZ) * Side + cellX + offsetX;
+                            if (levels[neighbour] - TerrainTileData.TerraceLevelBias != lowerNeighbourLevel) continue;
+                            Vector2 edgeCentre = new Vector2(
+                                minCornerX + cellX + 0.5f + offsetX * 0.5f,
+                                minCornerZ + cellZ + 0.5f + offsetZ * 0.5f);
+                            foreach (TerraceRampPlacement placement in ramps)
+                            {
+                                float distanceAlongEdge = offsetX != 0
+                                    ? Mathf.Max(0f, Mathf.Abs(placement.centreWorld.y - edgeCentre.y) - 0.5f)
+                                    : Mathf.Max(0f, Mathf.Abs(placement.centreWorld.x - edgeCentre.x) - 0.5f);
+                                float distanceAcrossEdge = offsetX != 0
+                                    ? Mathf.Abs(placement.centreWorld.x - edgeCentre.x)
+                                    : Mathf.Abs(placement.centreWorld.y - edgeCentre.y);
+                                if (Mathf.Sqrt(distanceAlongEdge * distanceAlongEdge + distanceAcrossEdge * distanceAcrossEdge) > 1f) continue;
+                                rampFound = true;
+                                float yawRadians = placement.yawDegrees * Mathf.Deg2Rad;
+                                Vector2 forward = new Vector2(Mathf.Sin(yawRadians), Mathf.Cos(yawRadians));
+                                int lowSample = SignedLevelAtWorld(levels, minCornerX, minCornerZ, placement.centreWorld - forward * 2f);
+                                int highSample = SignedLevelAtWorld(levels, minCornerX, minCornerZ, placement.centreWorld + forward * 2f);
+                                Assert.Less(lowSample, highSample, "ramp forward must run from the lower to the higher side");
+                            }
+                        }
+                        if (rampFound) break;
+                    }
+                    Assert.IsTrue(rampFound, "raised region has no ramp on its edge");
+                }
+            }
+            if (regionsChecked == 0) Assert.Inconclusive("No region away from the tile rim in tiles (0..2, 0).");
+        }
+
+        private static int SignedLevelAtWorld(byte[] levels, float minCornerX, float minCornerZ, Vector2 world)
+        {
+            int cellX = Mathf.Clamp(Mathf.FloorToInt(world.x - minCornerX), 0, TerrainTileData.TerraceCellsPerSide - 1);
+            int cellZ = Mathf.Clamp(Mathf.FloorToInt(world.y - minCornerZ), 0, TerrainTileData.TerraceCellsPerSide - 1);
+            return levels[cellZ * TerrainTileData.TerraceCellsPerSide + cellX] - TerrainTileData.TerraceLevelBias;
+        }
+
         private float[] GenerateTile(Vector2Int tileCoordinate)
         {
             float[] heights = new float[TerrainTileData.HeightSampleCount];
