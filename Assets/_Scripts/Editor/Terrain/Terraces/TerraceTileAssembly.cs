@@ -10,6 +10,8 @@ public static class TerraceTileAssembly
     public const string DressingChildName = "TerraceDressing";
     public const string RampChildPrefix = "TerraceRamp_";
     public const string DressingMeshName = "TerraceDressingMesh";
+    public const string WallsChildName = "TerraceWalls";
+    public const string WallsMeshName = "TerraceWallsMesh";
     public const string RampMeshNamePrefix = "TerraceRampMesh_";
     public const string MaterialFolder = "Assets/PaintedGround/Materials/Terraces";
 
@@ -183,14 +185,12 @@ public static class TerraceTileAssembly
         Material lipMaterial = GetOrCreateLipMaterial();
         Material footMaterial = GetOrCreateFootMaterial();
 
+        // The tile mesh's submesh 1 (cliff profile) never draws on the GPU, in or out of a subscene; the tile renders
+        // submesh 0 only, the profile renders from its own child mesh, and the tile collider keeps the combined mesh.
         if (tileRenderer != null)
-        {
-            bool tileHasWallSubMesh = tileMesh != null && tileMesh.subMeshCount >= 2;
-            tileRenderer.sharedMaterials = tileHasWallSubMesh
-                ? new Material[] { groundMaterial, wallMaterial }
-                : new Material[] { groundMaterial };
-        }
+            tileRenderer.sharedMaterials = new Material[] { groundMaterial };
 
+        ApplyWallsChild(tile, tileMesh, wallMaterial, persist);
         ApplyDressingChild(tile, chains, lipMaterial, footMaterial, persist);
 
         int rampCount = 0;
@@ -218,6 +218,71 @@ public static class TerraceTileAssembly
         }
 
         RemoveRampChildrenFrom(tile, rampCount, persist);
+    }
+
+    static void ApplyWallsChild(TerrainTile tile, Mesh tileMesh, Material wallMaterial, bool persist)
+    {
+        Transform existingChild = tile.transform.Find(WallsChildName);
+        Mesh wallsMesh = BuildWallsMeshFromProfileSubMesh(tileMesh);
+        if (wallsMesh == null)
+        {
+            if (existingChild != null)
+                DestroyChildAndMeshes(existingChild.gameObject, persist);
+            if (persist)
+                RemoveSubAssetByName(tile.tileData, WallsMeshName);
+            return;
+        }
+
+        Transform child = existingChild != null ? existingChild : CreateChild(tile.transform, WallsChildName);
+        MeshFilter filter = GetOrAdd<MeshFilter>(child.gameObject);
+        MeshRenderer meshRenderer = GetOrAdd<MeshRenderer>(child.gameObject);
+        filter.sharedMesh = ResolveMeshForChild(tile, filter.sharedMesh, wallsMesh, WallsMeshName, persist);
+        meshRenderer.sharedMaterials = new Material[] { wallMaterial };
+    }
+
+    // Compacts submesh 1 of the combined tile mesh into a standalone single-submesh mesh, keeping the float4 uv0.
+    static Mesh BuildWallsMeshFromProfileSubMesh(Mesh tileMesh)
+    {
+        if (tileMesh == null || tileMesh.subMeshCount < 2)
+            return null;
+        int[] profileIndices = tileMesh.GetTriangles(1);
+        if (profileIndices.Length == 0)
+            return null;
+
+        Vector3[] tilePositions = tileMesh.vertices;
+        Vector3[] tileNormals = tileMesh.normals;
+        List<Vector4> tileUvs = new List<Vector4>();
+        tileMesh.GetUVs(0, tileUvs);
+        bool hasNormals = tileNormals != null && tileNormals.Length == tilePositions.Length;
+        bool hasUvs = tileUvs.Count == tilePositions.Length;
+
+        Dictionary<int, int> tileToWallsVertex = new Dictionary<int, int>();
+        List<Vector3> wallsPositions = new List<Vector3>();
+        List<Vector3> wallsNormals = new List<Vector3>();
+        List<Vector4> wallsUvs = new List<Vector4>();
+        int[] wallsIndices = new int[profileIndices.Length];
+        for (int indexPosition = 0; indexPosition < profileIndices.Length; indexPosition++)
+        {
+            int tileVertex = profileIndices[indexPosition];
+            if (!tileToWallsVertex.TryGetValue(tileVertex, out int wallsVertex))
+            {
+                wallsVertex = wallsPositions.Count;
+                tileToWallsVertex.Add(tileVertex, wallsVertex);
+                wallsPositions.Add(tilePositions[tileVertex]);
+                wallsNormals.Add(hasNormals ? tileNormals[tileVertex] : Vector3.up);
+                wallsUvs.Add(hasUvs ? tileUvs[tileVertex] : Vector4.zero);
+            }
+            wallsIndices[indexPosition] = wallsVertex;
+        }
+
+        Mesh wallsMesh = new Mesh();
+        wallsMesh.indexFormat = wallsPositions.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+        wallsMesh.SetVertices(wallsPositions);
+        wallsMesh.SetNormals(wallsNormals);
+        wallsMesh.SetUVs(0, wallsUvs);
+        wallsMesh.SetTriangles(wallsIndices, 0);
+        wallsMesh.RecalculateBounds();
+        return wallsMesh;
     }
 
     static void ApplyDressingChild(TerrainTile tile, IReadOnlyList<TerraceOutlineChain> chains, Material lipMaterial, Material footMaterial, bool persist)
@@ -372,10 +437,17 @@ public static class TerraceTileAssembly
         if (dressing != null)
             DestroyChildAndMeshes(dressing.gameObject, persist);
 
+        Transform walls = tile.transform.Find(WallsChildName);
+        if (walls != null)
+            DestroyChildAndMeshes(walls.gameObject, persist);
+
         RemoveRampChildrenFrom(tile, 0, persist);
 
         if (persist)
+        {
             RemoveSubAssetByName(tile.tileData, DressingMeshName);
+            RemoveSubAssetByName(tile.tileData, WallsMeshName);
+        }
 
         MeshRenderer tileRenderer = tile.GetComponent<MeshRenderer>();
         if (tileRenderer != null && tileRenderer.sharedMaterials.Length > 1)
