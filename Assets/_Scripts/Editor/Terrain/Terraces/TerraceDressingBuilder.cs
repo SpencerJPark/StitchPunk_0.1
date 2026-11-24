@@ -112,7 +112,7 @@ public static class TerraceDressingBuilder
             float uvAlong = (chain.startArcPhase + arcMetres[pointIndex]) / fringeSizeMetres;
             float rootReach = footOffset + FootTuftOutwardMetres;
             float tipReach = rootReach + FootTuftLeanMetres;
-            float bottomHeight = chain.bottomHeights[pointIndex];
+            float bottomHeight = HasValue(chain.footHeights, pointIndex) ? chain.footHeights[pointIndex] : chain.bottomHeights[pointIndex];
 
             positions.Add(new Vector3(point.x + outward.x * rootReach, bottomHeight - FootTuftBottomDropMetres, point.z + outward.y * rootReach));
             positions.Add(new Vector3(point.x + outward.x * tipReach, bottomHeight + FootTuftHeightMetres, point.z + outward.y * tipReach));

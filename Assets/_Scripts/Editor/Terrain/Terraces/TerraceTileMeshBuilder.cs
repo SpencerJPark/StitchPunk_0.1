@@ -13,6 +13,7 @@ public sealed class TerraceOutlineChain
     public Vector2[] outwardNormals;
     public float[] topRoundMetres;
     public float[] footOffsetMetres;
+    public float[] footHeights;          // lifted lower-ground height at the foot end; tufts stand on it
 }
 
 // Pure mesh generation for one terraced tile; no scene or AssetDatabase access.
@@ -721,6 +722,7 @@ public static class TerraceTileMeshBuilder
             chain.outwardNormals = outward;
             chain.topRoundMetres = topRounds;
             chain.footOffsetMetres = footOffsets;
+            chain.footHeights = footHeights;
             LastBuildOutlineChains.Add(chain);
         }
 
