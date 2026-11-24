@@ -34,11 +34,6 @@ namespace DotsAnimationToolkit.Editor
         private readonly Label statusLabel;
         private readonly FlipbookLayerThumbnailCache thumbnailCache = new FlipbookLayerThumbnailCache();
 
-        private CutoutAssemblyCanvasElement assemblyCanvas;
-        private CutoutAssemblyInspector assemblyInspector;
-        private ToolbarToggle assembleToggle;
-        private CutoutAssemblyAsset activeAssembly;
-        private bool isAssembleMode;
         private VisualElement editModeSegmented;
         private ToolbarToggle editMeshToggle;
         private CutoutCanvasMode lastEditMode = CutoutCanvasMode.EditVertices;
@@ -91,10 +86,6 @@ namespace DotsAnimationToolkit.Editor
             cutoutCatalog.NewRequested += OnCutoutNewRequested;
             cutoutCatalog.RenameRequested += OnCutoutRenameRequested;
             cutoutCatalog.DeleteRequested += OnCutoutDeleteRequested;
-            cutoutCatalog.AssemblyActivated += OnAssemblyActivated;
-            cutoutCatalog.AssemblyCreated += assembly => SetStatus("Created " + assembly.name, ToolkitStatusTone.Ok);
-            cutoutCatalog.AssemblyRenamed += (assembly, newName) => SetStatus("Renamed to " + newName, ToolkitStatusTone.Ok);
-            cutoutCatalog.AssemblyDeleted += OnAssemblyDeleted;
 
             flipbookCatalog = new FlipbookCatalogColumn();
             flipbookCatalog.FlipbookSelected += LoadFlipbookSource;
@@ -149,16 +140,6 @@ namespace DotsAnimationToolkit.Editor
             manipulator.EditFinished += OnManipulatorEditFinished;
             manipulator.EdgeRejected += OnEdgeRejected;
             canvas.ModeChanged += OnCanvasModeChanged;
-            assemblyCanvas = new CutoutAssemblyCanvasElement();
-            assemblyCanvas.style.position = Position.Absolute;
-            assemblyCanvas.style.left = 0f;
-            assemblyCanvas.style.top = 0f;
-            assemblyCanvas.style.right = 0f;
-            assemblyCanvas.style.bottom = 0f;
-            assemblyCanvas.style.display = DisplayStyle.None;
-            assemblyCanvas.RegisterCallback<DragUpdatedEvent>(OnAssemblyCanvasDragUpdated);
-            assemblyCanvas.RegisterCallback<DragPerformEvent>(OnAssemblyCanvasDragPerformed);
-            viewportFrame.ViewportImage.Add(assemblyCanvas);
             BuildRail();
             viewportFrame.SetEmptyState("cutouts-empty-state", "Nothing picked", "Pick a cutout, a flipbook or an image on the left.");
             centreColumn.Add(viewportFrame);
@@ -198,21 +179,8 @@ namespace DotsAnimationToolkit.Editor
             CoverPaneSplitView inspectorSplit =
                 new CoverPaneSplitView("Cutouts.Inspector", 1, 320f, TwoPaneSplitViewOrientation.Horizontal);
             inspectorSplit.style.flexGrow = 1f;
-            assemblyInspector = new CutoutAssemblyInspector();
-            assemblyInspector.style.display = DisplayStyle.None;
-            assemblyInspector.StatusReported += OnAssemblyStatusReported;
-            assemblyCanvas.PieceSelected += assemblyInspector.SetSelectedPiece;
-            assemblyInspector.PieceSelected += assemblyCanvas.SetSelectedPiece;
-            assemblyCanvas.AssemblyEdited += assemblyInspector.Refresh;
-            assemblyInspector.AssemblyEdited += assemblyCanvas.MarkDirtyRepaint;
-
-            // The split view takes exactly two panes, so both inspectors share one host.
-            VisualElement inspectorHost = new VisualElement { name = "cutouts-inspector-host" };
-            inspectorHost.style.flexGrow = 1f;
-            inspectorHost.Add(inspector);
-            inspectorHost.Add(assemblyInspector);
             inspectorSplit.Add(centreColumn);
-            inspectorSplit.Add(inspectorHost);
+            inspectorSplit.Add(inspector);
 
             CoverPaneSplitView sidebarSplit =
                 // Three modes plus two header buttons need ~300pt or the buttons wrap under the segmented control;
@@ -297,17 +265,7 @@ namespace DotsAnimationToolkit.Editor
                 "d_ViewToolZoom",
                 "Frame the art (F). Wheel zooms at the cursor; middle-drag or Alt+drag pans.",
                 "Frame",
-                () =>
-                {
-                    if (isAssembleMode)
-                    {
-                        assemblyCanvas.FrameAll();
-                    }
-                    else
-                    {
-                        canvas.FrameAll();
-                    }
-                });
+                () => canvas.FrameAll());
 
             ToolbarToggle shapeToggle = viewportFrame.AddRailToggle(
                 ToolkitGlyphs.Resolve(ToolkitGlyphId.Cutouts), "Show the shape and its vertices", "Shape", true);
@@ -329,116 +287,6 @@ namespace DotsAnimationToolkit.Editor
                 "Edit");
             editMeshToggle.RegisterValueChangedCallback(
                 changeEvent => canvas.Mode = changeEvent.newValue ? lastEditMode : CutoutCanvasMode.Object);
-
-            assembleToggle = viewportFrame.AddRailToggle(
-                "d_PrefabModel Icon",
-                "Assemble: build a character from several cutouts. Drag cutouts from the list onto the canvas.",
-                "Assemble");
-            assembleToggle.RegisterValueChangedCallback(changeEvent => SetAssembleMode(changeEvent.newValue));
-        }
-
-        private void SetAssembleMode(bool isAssembling)
-        {
-            isAssembleMode = isAssembling;
-            assembleToggle.SetValueWithoutNotify(isAssembling);
-            DisplayStyle shapeDisplay = isAssembling ? DisplayStyle.None : DisplayStyle.Flex;
-            DisplayStyle assemblyDisplay = isAssembling ? DisplayStyle.Flex : DisplayStyle.None;
-            canvas.style.display = shapeDisplay;
-            inspector.style.display = shapeDisplay;
-            editMeshToggle.style.display = shapeDisplay;
-            assemblyCanvas.style.display = assemblyDisplay;
-            assemblyInspector.style.display = assemblyDisplay;
-            if (isAssembling)
-            {
-                editModeSegmented.style.display = DisplayStyle.None;
-            }
-            else
-            {
-                OnCanvasModeChanged();
-            }
-
-            // RefreshAll re-applies the shape-side overlay, Save Mesh and empty state for the mode just entered.
-            RefreshAll();
-            if (isAssembling && activeAssembly == null)
-            {
-                SetStatus("Pick or create an assembly first", ToolkitStatusTone.Neutral);
-            }
-        }
-
-        private void OnAssemblyActivated(CutoutAssemblyAsset assembly)
-        {
-            activeAssembly = assembly;
-            assemblyCanvas.SetAssembly(assembly);
-            assemblyInspector.SetAssembly(assembly);
-            if (!isAssembleMode)
-            {
-                SetAssembleMode(true);
-            }
-
-            assemblyCanvas.FrameAll();
-        }
-
-        private void OnAssemblyDeleted(CutoutAssemblyAsset deletedAssembly)
-        {
-            if (activeAssembly == deletedAssembly)
-            {
-                activeAssembly = null;
-                assemblyCanvas.SetAssembly(null);
-                assemblyInspector.SetAssembly(null);
-            }
-
-            SetStatus("Deleted assembly", ToolkitStatusTone.Ok);
-        }
-
-        private void OnAssemblyStatusReported(string report)
-        {
-            SetStatus(report, ToolkitStatusTone.Neutral);
-        }
-
-        private static CutoutAsset FindDraggedCutout()
-        {
-            UnityEngine.Object[] references = DragAndDrop.objectReferences;
-            for (int referenceIndex = 0; referenceIndex < references.Length; referenceIndex++)
-            {
-                CutoutAsset cutout = references[referenceIndex] as CutoutAsset;
-                if (cutout != null)
-                {
-                    return cutout;
-                }
-            }
-
-            return null;
-        }
-
-        private void OnAssemblyCanvasDragUpdated(DragUpdatedEvent dragEvent)
-        {
-            if (FindDraggedCutout() == null)
-            {
-                return;
-            }
-
-            DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
-            dragEvent.StopPropagation();
-        }
-
-        private void OnAssemblyCanvasDragPerformed(DragPerformEvent dragEvent)
-        {
-            CutoutAsset draggedCutout = FindDraggedCutout();
-            if (draggedCutout == null)
-            {
-                return;
-            }
-
-            DragAndDrop.AcceptDrag();
-            dragEvent.StopPropagation();
-            if (activeAssembly == null)
-            {
-                SetStatus("Pick or create an assembly first", ToolkitStatusTone.Warning);
-                return;
-            }
-
-            Vector2 localPosition = assemblyCanvas.WorldToLocal(dragEvent.mousePosition);
-            assemblyCanvas.AddPiece(draggedCutout, assemblyCanvas.ElementToWorld(localPosition));
         }
 
         private static bool SourceHasArray(UnityEngine.Object source)
@@ -663,7 +511,7 @@ namespace DotsAnimationToolkit.Editor
         private void RefreshAll()
         {
             bool hasCutout = workingCopy != null;
-            viewportFrame.ShowEmptyState(!hasCutout && !isAssembleMode);
+            viewportFrame.ShowEmptyState(!hasCutout);
             saveMeshButton.SetEnabled(hasCutout);
             if (!hasCutout)
             {
@@ -1178,8 +1026,8 @@ namespace DotsAnimationToolkit.Editor
         private void RefreshSheetUi()
         {
             bool hasPieces = IsSheetSource && sheetIslands.Count > 0;
-            sheetOverlay.style.display = hasPieces && !isAssembleMode ? DisplayStyle.Flex : DisplayStyle.None;
-            saveMeshButton.style.display = hasPieces || isAssembleMode ? DisplayStyle.None : DisplayStyle.Flex;
+            sheetOverlay.style.display = hasPieces ? DisplayStyle.Flex : DisplayStyle.None;
+            saveMeshButton.style.display = hasPieces ? DisplayStyle.None : DisplayStyle.Flex;
             inspector.ShowSheetState(IsSheetSource, sheetIslands.Count, sheetOverlay.Selection.Count);
         }
 

@@ -180,11 +180,11 @@ baked into the mesh's vertices, so the piece stands the right way up in game
 with its transform at identity. The origin stays where you put it; set it again
 after rotating if you want it at the new bottom.
 
-## Assemble
+## Assemblies (its own tab)
 
-The **Assemble** rail toggle swaps the canvas for an assembly: several cutouts
-posed together into one character. Create one under **Assemblies** in the
-sidebar, then drag cutouts from the list onto the canvas.
+The **Assemblies** tab, right after Cutouts, poses several cutouts together
+into one character. Press **+** under Assemblies in its sidebar, then drag
+cutouts from the Cutouts list below onto the canvas.
 
 - Drag a piece to move it; drag its ring to rotate it (90° snap, Ctrl for free).
 - `[` and `]` change draw order; Delete removes the piece.

@@ -16,6 +16,9 @@ namespace DotsAnimationToolkit.Editor
         /// <summary>Draw a tight flat mesh around a flipbook's art, shared by every frame, and save it as a Mesh asset.</summary>
         Cutouts = 15,
 
+        /// <summary>Pose cutouts into one character and build a layered prefab or a merged, rigid-bone mesh from it.</summary>
+        Assemblies = 16,
+
         Materials = 10,
 
         Rigs = 3,

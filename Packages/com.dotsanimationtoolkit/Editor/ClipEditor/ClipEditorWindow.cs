@@ -192,6 +192,8 @@ namespace DotsAnimationToolkit.Editor
         private FlipbooksPanel flipbooksPanel;
         private VisualElement cutoutsPane;
         private CutoutsPanel cutoutsPanel;
+        private VisualElement assembliesPane;
+        private CutoutAssembliesPanel assembliesPanel;
         private VisualElement materialsPane;
         private MaterialsPanel materialsPanel;
         private VisualElement retargetPane;
@@ -218,11 +220,11 @@ namespace DotsAnimationToolkit.Editor
         /// because every switch has to write the ones that did not change, and a lookup miss would
         /// leave one lit alongside the new one.
         /// </summary>
-        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[16];
+        private readonly ToolbarToggle[] tabToggles = new ToolbarToggle[17];
 
         /// <summary>The tab icon images, indexed by <see cref="ClipEditorTab"/>, held so their tone
         /// can be re-applied when the active tab changes.</summary>
-        private readonly Image[] tabIconImages = new Image[16];
+        private readonly Image[] tabIconImages = new Image[17];
 
         /// <summary>
         /// Drawn glyph for each tab, keyed by element name rather than <see cref="ClipEditorTab"/>
@@ -233,6 +235,7 @@ namespace DotsAnimationToolkit.Editor
             { "tab-texture-packer", ToolkitGlyphId.TexturePacker },
             { "tab-flipbooks", ToolkitGlyphId.Flipbooks },
             { "tab-cutouts", ToolkitGlyphId.Cutouts },
+            { "tab-assemblies", ToolkitGlyphId.Assemblies },
             { "tab-clip-sets", ToolkitGlyphId.ClipSets },
             { "tab-new-rig", ToolkitGlyphId.Rigs },
             { "tab-materials", ToolkitGlyphId.Materials },
@@ -924,6 +927,11 @@ namespace DotsAnimationToolkit.Editor
                 cutoutsPanel.Dispose();
                 cutoutsPanel = null;
             }
+            if (assembliesPanel != null)
+            {
+                assembliesPanel.Dispose();
+                assembliesPanel = null;
+            }
             materialsPanel?.Dispose();
             materialsPanel = null;
             // The Retarget preview owns a PreviewRenderUtility, which the GC never reclaims.
@@ -1154,6 +1162,7 @@ namespace DotsAnimationToolkit.Editor
             healthPane = rootVisualElement.Q<VisualElement>("health-pane");
             flipbooksPane = rootVisualElement.Q<VisualElement>("flipbooks-pane");
             cutoutsPane = rootVisualElement.Q<VisualElement>("cutouts-pane");
+            assembliesPane = rootVisualElement.Q<VisualElement>("assemblies-pane");
             materialsPane = rootVisualElement.Q<VisualElement>("materials-pane");
             retargetPane = rootVisualElement.Q<VisualElement>("retarget-pane");
             capturePane = rootVisualElement.Q<VisualElement>("capture-pane");
@@ -1446,6 +1455,9 @@ namespace DotsAnimationToolkit.Editor
             BindTab(ClipEditorTab.Cutouts, "tab-cutouts",
                 "Draw a tight flat mesh around a flipbook's art: size it against a reference, fit or hand-edit "
                 + "the outline over every frame, place the origin on the joint, and save a Mesh asset.");
+            BindTab(ClipEditorTab.Assemblies, "tab-assemblies",
+                "Pose cutouts into one character: drag them onto the canvas, parent one to another by its origin, "
+                + "then build a layered prefab or one merged mesh with a bone per piece for VAT baking.");
             BindTab(ClipEditorTab.ClipSets, "tab-clip-sets",
                 "Browse every clip set in the project, create one — name, folder, starting clips — or "
                 + "add and remove clips on an existing one.");
@@ -1707,6 +1719,7 @@ namespace DotsAnimationToolkit.Editor
             ShowHealthTab(activeTab == ClipEditorTab.Health);
             ShowFlipbooksTab(activeTab == ClipEditorTab.Flipbooks);
             ShowCutoutsTab(activeTab == ClipEditorTab.Cutouts);
+            ShowAssembliesTab(activeTab == ClipEditorTab.Assemblies);
             ShowMaterialsTab(activeTab == ClipEditorTab.Materials);
             ShowRetargetTab(activeTab == ClipEditorTab.Retarget);
             ShowCaptureTab(activeTab == ClipEditorTab.Capture);
@@ -2000,6 +2013,27 @@ namespace DotsAnimationToolkit.Editor
             }
 
             cutoutsPane.EnableInClassList(HiddenUssClassName, !isShown);
+        }
+
+        private void ShowAssembliesTab(bool isShown)
+        {
+            if (assembliesPane == null)
+            {
+                return;
+            }
+
+            if (isShown && assembliesPanel == null)
+            {
+                assembliesPanel = new CutoutAssembliesPanel();
+                assembliesPane.Add(assembliesPanel);
+            }
+
+            if (isShown)
+            {
+                assembliesPanel.RescanProject();
+            }
+
+            assembliesPane.EnableInClassList(HiddenUssClassName, !isShown);
         }
 
         // Built with the window so it follows the shared rig from the start; prefab and material edits are

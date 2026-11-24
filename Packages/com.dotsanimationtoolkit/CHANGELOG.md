@@ -8,6 +8,18 @@ All notable changes to the DOTS Animation Toolkit are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.68.0] — Assemblies get their own tab
+
+### Changed
+- **Assemblies is its own tab**, between Cutouts and Rigs, with its own drawn glyph. The sidebar lists assemblies
+  (+ to create, double-click or right-click to rename or delete) above the cutouts to drag onto the canvas; the
+  canvas and the Layered | Merged inspector work as before. The Cutouts tab loses its Assemble rail toggle and
+  its Assemblies section and only cuts. A new assembly starts with the last mesh folder as its output folder.
+
+### Fixed
+- Re-cutting a sheet blanked the name of every piece it re-saved in place (an unnamed template was copied over the
+  asset); a Merged rebuild did the same to its mesh.
+
 ## [0.67.1] — Sheet pieces follow their real shape
 
 ### Fixed

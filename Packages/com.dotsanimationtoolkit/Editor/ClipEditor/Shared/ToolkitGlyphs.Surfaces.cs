@@ -11,6 +11,7 @@ namespace DotsAnimationToolkit.Editor
             RegisterShape(ToolkitGlyphId.VatBake, VatBakeDistance);
             RegisterShape(ToolkitGlyphId.Capture, CaptureDistance);
             RegisterShape(ToolkitGlyphId.Cutouts, CutoutsDistance);
+            RegisterShape(ToolkitGlyphId.Assemblies, AssembliesDistance);
         }
 
         // A mesh outline drawn around art: an irregular hexagon of stroke edges with a filled
@@ -34,6 +35,18 @@ namespace DotsAnimationToolkit.Editor
             }
 
             return Union(outlineDistance, handlesDistance);
+        }
+
+        // Two cut pieces pinned together: a large and a small outlined block overlapping at one filled
+        // joint dot, so it reads as parts being put together rather than as the Cutouts polygon.
+        private static float AssembliesDistance(Vector2 samplePoint)
+        {
+            float largePieceDistance = Mathf.Abs(RoundedBoxDistance(
+                samplePoint, new Vector2(0.38f, 0.62f), new Vector2(0.20f, 0.20f), 0.05f)) - StrokeHalfWidth;
+            float smallPieceDistance = Mathf.Abs(RoundedBoxDistance(
+                samplePoint, new Vector2(0.68f, 0.32f), new Vector2(0.15f, 0.15f), 0.04f)) - StrokeHalfWidth;
+            float jointDistance = CircleDistance(samplePoint, new Vector2(0.55f, 0.46f), 0.085f);
+            return Union(Union(largePieceDistance, smallPieceDistance), jointDistance);
         }
 
         // A material preview ball: a ring with one specular highlight inside it. Two earlier

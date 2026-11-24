@@ -43,9 +43,9 @@ namespace DotsAnimationToolkit.Editor
 
             string meshPath = assembly.outputFolder + "/" + assembly.name + "_Merged.asset";
             Mesh savedMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+            builtMesh.name = assembly.name + "_Merged";
             if (savedMesh == null)
             {
-                builtMesh.name = assembly.name + "_Merged";
                 AssetDatabase.CreateAsset(builtMesh, meshPath);
                 savedMesh = builtMesh;
             }

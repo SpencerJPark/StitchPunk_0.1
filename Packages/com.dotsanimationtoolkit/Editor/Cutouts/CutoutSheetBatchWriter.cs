@@ -180,6 +180,8 @@ namespace DotsAnimationToolkit.Editor
                 Object.DestroyImmediate(targetMesh);
             }
 
+            // CopySerialized copies the object name too, so an unnamed template would blank the re-saved asset's name.
+            template.name = pieceName;
             CutoutAsset existingAsset = AssetDatabase.LoadAssetAtPath<CutoutAsset>(assetPath);
             if (existingAsset != null)
             {
@@ -190,7 +192,6 @@ namespace DotsAnimationToolkit.Editor
             }
             else
             {
-                template.name = pieceName;
                 AssetDatabase.CreateAsset(template, assetPath);
             }
         }
