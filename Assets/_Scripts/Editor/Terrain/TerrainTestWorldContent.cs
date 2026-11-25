@@ -52,6 +52,8 @@ public static class TerrainTestWorldContent
             GenerateTerrain(layout);
             ReportStep("Levelling the camp", 0.32f);
             FlattenCampArea();
+            ReportStep("Building terraces", 0.33f);
+            BuildTerraceShowcase(layout);
             ReportStep("Building roads", 0.35f);
             Transform roadsRoot = CreateRoadNetwork(layout, worldScene);
             ReportStep("Building the river", 0.4f);
@@ -148,7 +150,114 @@ public static class TerrainTestWorldContent
         profile.mountainRadiusMetres = MountainRadiusMetres;
         profile.mountainHeightMetres = MountainHeightMetres;
         profile.mountainProfile = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+        profile.terraceBiomeRules = new List<TerraceBiomeRule>
+        {
+            new TerraceBiomeRule
+            {
+                biome = TerrainSplatLayer.Grass,
+                enabled = true,
+                plateauThresholds = new float[] { 0.58f, 0.76f },
+                plateauNoiseFrequencyPerMetre = 0.008f,
+                maxLevel = 2,
+                minPlateauAreaSquareMetres = 150f,
+                cliffOnSlope = true,
+                cliffSlopeDegrees = 10f,
+                cliffChance = 0.6f
+            }
+        };
         return CreateAssetInTestFolder(profile, GenerationProfileName);
+    }
+
+    const float TerraceCliffInnerRadiusMetres = 105f;
+    const float TerraceCliffBearingHalfWidthDegrees = 25f;
+
+    // Hand plateau by camp, a slope-then-cliff on the mountain flank, two ramps, and one generated quadrant
+    static void BuildTerraceShowcase(WorldLayout layout)
+    {
+        float levelHeight = TerrainWorldProfile.FindOrCreateInProject().terraceLevelHeightMetres;
+        Vector2 directionToCamp = (-layout.mountainCentre).normalized;
+        TerrainTile[] tiles = UnityEngine.Object.FindObjectsByType<TerrainTile>(FindObjectsInactive.Include);
+        List<TerrainTile> tilesToRebuild = new List<TerrainTile>();
+
+        foreach (TerrainTile tile in tiles)
+        {
+            TerrainTileData data = tile.tileData;
+            if (data == null) continue;
+            bool inGeneratedQuadrant = data.coordinate.x >= 1 && data.coordinate.y <= -1;
+            bool changed = false;
+
+            // One quadrant keeps the generated terraces so camp, roads and river stay clear
+            if (!inGeneratedQuadrant)
+            {
+                if (data.baseTerraceLevels != null) { data.baseTerraceLevels = null; changed = true; }
+                foreach (GameObject rootObject in tile.gameObject.scene.GetRootGameObjects())
+                {
+                    if (rootObject.name != "GeneratedTerraceRamp") continue;
+                    UnityEngine.Object.DestroyImmediate(rootObject);
+                    changed = true;
+                }
+            }
+
+            Vector2 minCorner = data.WorldMinCorner();
+            int cellCount = TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide;
+            byte[] handLevels = data.handTerraceLevels != null && data.handTerraceLevels.Length == cellCount ? data.handTerraceLevels : null;
+            for (int cellZ = 0; cellZ < TerrainTileData.TerraceCellsPerSide; cellZ++)
+            {
+                for (int cellX = 0; cellX < TerrainTileData.TerraceCellsPerSide; cellX++)
+                {
+                    float worldX = minCorner.x + cellX + 0.5f;
+                    float worldZ = minCorner.y + cellZ + 0.5f;
+                    int level = int.MinValue;
+                    // Level +1 plateau; its single ramp is at the south edge (the +2 block is skipped, nothing would reach it)
+                    if (worldX >= -40f && worldX < -12f && worldZ >= 15f && worldZ < 39f) level = 1;
+                    Vector2 fromMountain = new Vector2(worldX, worldZ) - layout.mountainCentre;
+                    float distance = fromMountain.magnitude;
+                    if (distance > TerraceCliffInnerRadiusMetres && distance < MountainRadiusMetres
+                        && Vector2.Angle(fromMountain, directionToCamp) <= TerraceCliffBearingHalfWidthDegrees) level = -1;
+                    if (level == int.MinValue) continue;
+                    if (handLevels == null)
+                    {
+                        handLevels = new byte[cellCount];
+                        Array.Fill(handLevels, TerrainTileData.NoHandTerraceLevel);
+                        data.handTerraceLevels = handLevels;
+                    }
+                    handLevels[cellZ * TerrainTileData.TerraceCellsPerSide + cellX] = (byte)(level + TerrainTileData.TerraceLevelBias);
+                    changed = true;
+                }
+            }
+            if (!changed) continue;
+            data.BumpRevision();
+            EditorUtility.SetDirty(data);
+            tilesToRebuild.Add(tile);
+        }
+
+        PlaceShowcaseRamp(tiles, new Vector2(-26f, 15f), 0f, 0, levelHeight);
+        Vector2 cliffCentre = layout.mountainCentre + directionToCamp * TerraceCliffInnerRadiusMetres;
+        Vector2 towardMountain = -directionToCamp;
+        float cliffRampYaw = Mathf.Atan2(towardMountain.x, towardMountain.y) * Mathf.Rad2Deg;
+        PlaceShowcaseRamp(tiles, cliffCentre, cliffRampYaw, -1, levelHeight);
+
+        // Rebuild after the ramps exist: the tile mesh cuts each ramp footprint out of its ground and walls.
+        foreach (TerrainTile tile in tilesToRebuild) TerrainTileBuilder.Rebuild(tile);
+    }
+
+    static void PlaceShowcaseRamp(TerrainTile[] tiles, Vector2 centre, float yawDegrees, int lowerLevel, float levelHeight)
+    {
+        Vector2Int tileCoordinate = new Vector2Int(Mathf.FloorToInt((centre.x + 50f) / 100f), Mathf.FloorToInt((centre.y + 50f) / 100f));
+        foreach (TerrainTile tile in tiles)
+        {
+            if (tile.tileData == null || tile.tileData.coordinate != tileCoordinate) continue;
+            GameObject rampObject = new GameObject("TerraceRamp");
+            TerraceRamp ramp = rampObject.AddComponent<TerraceRamp>();
+            ramp.widthMetres = 6f;
+            ramp.runMetres = 9f;
+            ramp.lowerLevel = lowerLevel;
+            float groundY = tile.tileData.SampleBilinear(centre.x, centre.y) + lowerLevel * levelHeight;
+            rampObject.transform.position = new Vector3(centre.x, groundY, centre.y);
+            rampObject.transform.rotation = Quaternion.Euler(0f, yawDegrees, 0f);
+            SceneManager.MoveGameObjectToScene(rampObject, tile.gameObject.scene);
+            return;
+        }
     }
 
     internal static TAsset CreateAssetInTestFolder<TAsset>(TAsset asset, string fileName) where TAsset : ScriptableObject

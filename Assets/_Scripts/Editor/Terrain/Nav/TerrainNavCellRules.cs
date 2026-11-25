@@ -6,6 +6,7 @@ public struct TerrainNavCellInput
     public float slopeDegrees;
     public bool deepWater;
     public bool shallowWater;
+    public bool crossesTerraceWall;
     public bool onRoad;
     public byte groundCost;
     public byte roadCost;
@@ -35,6 +36,13 @@ public static class TerrainNavCellRules
         {
             cell.cost = WallCost;
             cell.surface = TerrainSurface.Deep;
+            return cell;
+        }
+        // A terrace wall is a vertical cliff: it beats water, road and slope.
+        if (input.crossesTerraceWall)
+        {
+            cell.cost = WallCost;
+            cell.surface = TerrainSurface.Normal;
             return cell;
         }
         if (input.slopeDegrees >= WallSlopeDegrees)

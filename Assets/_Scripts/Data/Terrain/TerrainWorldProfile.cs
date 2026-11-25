@@ -29,6 +29,13 @@ public class TerrainWorldProfile : ScriptableObject
 
     public int maxTileLoadsPerFrame = 1;
 
+    [Header("Terraces")]
+    public float terraceLevelHeightMetres = 3f;
+    public int maxTerraceLevels = 3;
+    [Tooltip("Rounded outline corner radius in metres")] public float terraceCornerRadiusMetres = 2.5f;
+    [Tooltip("Convex grass round-over at a cliff top, metres (TX-D11)")] public float terraceTopRoundMetres = 0.75f;
+    [Tooltip("Concave grass round-out at a cliff foot, metres (TX-D11)")] public float terraceFootRoundMetres = 0.75f;
+
     public string groundLayerName = "Ground";
 
     public Material tileMaterialTemplate;
@@ -43,15 +50,48 @@ public class TerrainWorldProfile : ScriptableObject
     }
 
 #if UNITY_EDITOR
+    // Sculpt strokes call this every frame; the AssetDatabase search is cached until the asset is destroyed.
+    static TerrainWorldProfile cachedProjectProfile;
+
     public static TerrainWorldProfile FindInProject()
     {
+        if (cachedProjectProfile != null)
+        {
+            return cachedProjectProfile;
+        }
         string[] guids = AssetDatabase.FindAssets("t:TerrainWorldProfile");
         if (guids.Length == 0)
         {
             return null;
         }
         string path = AssetDatabase.GUIDToAssetPath(guids[0]);
-        return AssetDatabase.LoadAssetAtPath<TerrainWorldProfile>(path);
+        cachedProjectProfile = AssetDatabase.LoadAssetAtPath<TerrainWorldProfile>(path);
+        return cachedProjectProfile;
+    }
+
+    public static TerrainWorldProfile FindOrCreateInProject()
+    {
+        TerrainWorldProfile existingProfile = FindInProject();
+        if (existingProfile != null)
+        {
+            return existingProfile;
+        }
+        const string folderPath = "Assets/ScriptableObjects/Terrain";
+        if (!AssetDatabase.IsValidFolder(folderPath))
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/ScriptableObjects"))
+            {
+                AssetDatabase.CreateFolder("Assets", "ScriptableObjects");
+            }
+            AssetDatabase.CreateFolder("Assets/ScriptableObjects", "Terrain");
+        }
+        string assetPath = folderPath + "/TerrainWorldProfile.asset";
+        TerrainWorldProfile createdProfile = CreateInstance<TerrainWorldProfile>();
+        AssetDatabase.CreateAsset(createdProfile, assetPath);
+        cachedProjectProfile = createdProfile;
+        AssetDatabase.SaveAssets();
+        Debug.LogWarning("TerrainWorldProfile: none in the project, created " + assetPath + " with defaults (terraces need it).");
+        return createdProfile;
     }
 #endif
 }

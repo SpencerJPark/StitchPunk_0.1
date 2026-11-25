@@ -7,6 +7,8 @@ using UnityEngine;
 
 public static class TerrainGenerateTool
 {
+    const string GeneratedRampName = "GeneratedTerraceRamp";
+
     public static List<Vector2Int> ExistingTilesInside(TerrainRegion region)
     {
         List<Vector2Int> existingTiles = new List<Vector2Int>();
@@ -76,6 +78,48 @@ public static class TerrainGenerateTool
         return null;
     }
 
+    // Writes only the procedural layer; the owner's handTerraceLevels always win and are never touched here.
+    static void GenerateBaseTerraceLevels(TerrainGenerationProfile profile, Vector2Int coordinate, TerrainTileData tileData, List<TerraceRampPlacement> generatedRamps)
+    {
+        if (profile.terraceBiomeRules == null || profile.terraceBiomeRules.Count == 0)
+        {
+            tileData.baseTerraceLevels = null;
+            return;
+        }
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
+        int maxLevels = worldProfile != null ? worldProfile.maxTerraceLevels : 3;
+        byte[] levels = new byte[TerrainTileData.TerraceCellsPerSide * TerrainTileData.TerraceCellsPerSide];
+        TerrainProceduralGenerator.GenerateTerraceLevels(profile, coordinate, maxLevels, levels, generatedRamps);
+        tileData.baseTerraceLevels = levels;
+    }
+
+    // Only objects named GeneratedTerraceRamp are replaced; hand-placed ramps keep their own names.
+    static void ReplaceGeneratedRamps(TerrainTile tile, TerrainTileData tileData, List<TerraceRampPlacement> placements)
+    {
+        UnityEngine.SceneManagement.Scene tileScene = tile.gameObject.scene;
+        foreach (GameObject rootObject in tileScene.GetRootGameObjects())
+            if (rootObject.name == GeneratedRampName && rootObject.GetComponent<TerraceRamp>() != null)
+                UnityEngine.Object.DestroyImmediate(rootObject);
+
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
+        float levelHeightMetres = worldProfile != null ? worldProfile.terraceLevelHeightMetres : 3f;
+        foreach (TerraceRampPlacement placement in placements)
+        {
+            GameObject rampObject = new GameObject(GeneratedRampName);
+            TerraceRamp ramp = rampObject.AddComponent<TerraceRamp>();
+            ramp.widthMetres = 6f;
+            ramp.runMetres = 9f;
+            ramp.lowerLevel = placement.lowerLevel;
+            float baseHeight = tileData.SampleBilinear(placement.centreWorld.x, placement.centreWorld.y);
+            rampObject.transform.position = new Vector3(
+                placement.centreWorld.x,
+                baseHeight + placement.lowerLevel * levelHeightMetres,
+                placement.centreWorld.y);
+            rampObject.transform.rotation = Quaternion.Euler(0f, placement.yawDegrees, 0f);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(rampObject, tileScene);
+        }
+    }
+
     static bool GenerateOneTile(TerrainRegion region, Vector2Int coordinate, bool allowHandAuthored)
     {
         TerrainTile tile = TerrainTileCreator.FindTileAt(coordinate);
@@ -92,6 +136,8 @@ public static class TerrainGenerateTool
 
         tileData.EnsureHeightArrays();
         TerrainProceduralGenerator.GenerateHeights(region.profile, coordinate, tileData.baseHeights);
+        List<TerraceRampPlacement> generatedRamps = new List<TerraceRampPlacement>();
+        GenerateBaseTerraceLevels(region.profile, coordinate, tileData, generatedRamps);
 
         int resolution = tileData.maskResolution > 0 ? tileData.maskResolution : TerrainSplatCodec.FallbackMaskResolution;
         Color32[] maskPixels = new Color32[resolution * resolution];
@@ -112,6 +158,7 @@ public static class TerrainGenerateTool
 
         tileData.BumpRevision();
         TerrainCompositor.Composite(tile);
+        ReplaceGeneratedRamps(tile, tileData, generatedRamps);
         TerrainTileBuilder.Rebuild(tile);
         EditorUtility.SetDirty(tileData);
         EditorUtility.SetDirty(tile);

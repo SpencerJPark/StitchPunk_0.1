@@ -16,6 +16,9 @@ public static class TerrainStrategicBuilder
     private const float FieldPatchSizeMetres = 40f;
     private const int MaxSixteenBitVertexCount = 65535;
 
+    // Fetched once per Build; FindInProject hits the AssetDatabase so it must never run per sample.
+    private static float levelHeightMetresForBuild;
+
     public struct StrategicTexelInput
     {
         public float worldX;
@@ -45,6 +48,8 @@ public static class TerrainStrategicBuilder
     {
         coarseMesh = null;
         colourTexture = null;
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
+        levelHeightMetresForBuild = worldProfile != null ? worldProfile.terraceLevelHeightMetres : 0f;
         if (!AnyTileInChunk(profile, superChunkCoordinate, tiles))
         {
             return false;
@@ -155,14 +160,23 @@ public static class TerrainStrategicBuilder
         TerrainTileData tile;
         if (TryGetOwningTile(tiles, worldX, worldZ, out tile))
         {
-            return tile.SampleBilinear(worldX, worldZ) + TerrainTileCreator.GroundTopHeight;
+            return TileHeightWithTerrace(tile, worldX, worldZ);
         }
         // Chunk edge whose higher neighbour tile does not exist: borrow the tile just inside so the border stays continuous.
         if (TryGetOwningTile(tiles, worldX - 0.001f, worldZ - 0.001f, out tile))
         {
-            return tile.SampleBilinear(worldX, worldZ) + TerrainTileCreator.GroundTopHeight;
+            return TileHeightWithTerrace(tile, worldX, worldZ);
         }
         return TerrainTileCreator.GroundTopHeight;
+    }
+
+    private static float TileHeightWithTerrace(TerrainTileData tile, float worldX, float worldZ)
+    {
+        Vector2 minCorner = tile.WorldMinCorner();
+        int cellX = Mathf.Clamp(Mathf.FloorToInt(worldX - minCorner.x), 0, 99);
+        int cellZ = Mathf.Clamp(Mathf.FloorToInt(worldZ - minCorner.y), 0, 99);
+        int level = TerraceLevelField.ResolvedLevel(tile, cellX, cellZ);
+        return tile.SampleBilinear(worldX, worldZ) + TerrainTileCreator.GroundTopHeight + level * levelHeightMetresForBuild;
     }
 
     private static float[] BuildCoarseHeights(Vector2 chunkMin, int cellsPerSide, float cellSizeMetres, float chunkSizeMetres, IReadOnlyDictionary<Vector2Int, TerrainTileData> tiles)

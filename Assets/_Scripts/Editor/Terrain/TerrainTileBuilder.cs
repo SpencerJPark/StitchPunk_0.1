@@ -9,16 +9,40 @@ public static class TerrainTileBuilder
 {
     public const string TerrainMeshName = "TerrainMesh";
 
+    static List<TerraceOutlineChain> lastBuildChains;
+    static List<TerraceRampFootprint> lastBuildRamps;
+    static bool lastBuildWasTerraced;
+
+    public static bool LastBuildWasTerraced => lastBuildWasTerraced;
+
     public static Mesh BuildMeshInMemory(TerrainTile tile)
     {
         TerrainTileData tileData = tile.tileData != null ? tile.tileData : TerrainTileAssets.EnsureTileData(tile);
         MakeTransformTerrainReady(tile);
 
-        Mesh newMesh = TerrainMeshBuilder.BuildTileMesh(
-            tileData,
-            1,
-            LookUpNeighbourData,
-            TerrainTileCreator.GroundTopHeight);
+        Mesh newMesh;
+        TerrainWorldProfile worldProfile = TerrainWorldProfile.FindOrCreateInProject();
+        if (worldProfile != null && TerraceTileAssembly.TileNeedsTerracedPath(tileData, tile.tileCoordinate, LookUpNeighbourData))
+        {
+            lastBuildRamps = TerraceTileAssembly.CollectRampFootprints(tileData, tile.tileCoordinate, worldProfile);
+            newMesh = TerraceTileMeshBuilder.BuildTerracedTileMesh(
+                tileData,
+                worldProfile,
+                LookUpNeighbourData,
+                lastBuildRamps,
+                TerrainTileCreator.GroundTopHeight);
+            lastBuildChains = TerraceTileMeshBuilder.LastBuildOutlineChains;
+            lastBuildWasTerraced = true;
+        }
+        else
+        {
+            newMesh = TerrainMeshBuilder.BuildTileMesh(
+                tileData,
+                1,
+                LookUpNeighbourData,
+                TerrainTileCreator.GroundTopHeight);
+            lastBuildWasTerraced = false;
+        }
 
         MeshFilter meshFilter = tile.GetComponent<MeshFilter>();
         if (meshFilter == null) meshFilter = tile.gameObject.AddComponent<MeshFilter>();
@@ -30,11 +54,19 @@ public static class TerrainTileBuilder
             // CopySerialized overwrites the name too, and the sub-asset lookup keys on it
             existingMesh.name = TerrainMeshName;
             Object.DestroyImmediate(newMesh);
+            ApplyOrRemoveTerraceChildren(tile, existingMesh, false);
             return existingMesh;
         }
 
         meshFilter.sharedMesh = newMesh;
+        ApplyOrRemoveTerraceChildren(tile, newMesh, false);
         return newMesh;
+    }
+
+    static void ApplyOrRemoveTerraceChildren(TerrainTile tile, Mesh meshUsed, bool persist)
+    {
+        if (lastBuildWasTerraced) TerraceTileAssembly.ApplyTerraceChildren(tile, meshUsed, lastBuildChains, lastBuildRamps, persist);
+        else TerraceTileAssembly.RemoveTerraceChildren(tile, persist);
     }
 
     public static void Rebuild(TerrainTile tile)
@@ -62,6 +94,7 @@ public static class TerrainTileBuilder
         }
 
         EnsureMeshCollider(tile, mesh);
+        ApplyOrRemoveTerraceChildren(tile, mesh, true);
 
         tileData.BumpRevision();
         EditorUtility.SetDirty(tileData);
