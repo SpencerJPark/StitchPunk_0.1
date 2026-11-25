@@ -153,3 +153,4 @@ Spec retires to `Tasks/Verification/Terraces_System.md` with `verify-terraces.md
   2. **Tighter bevel.** The curves are too big; make the rounding a tight bevel, not a 0.75 m fillet.
   3. **Rounded corners in plan view.** Where the outline turns, the corners don't read as rounded; they look faceted or angular.
   4. **Ramps follow the same rules.** Ramp bottoms and side walls get the same corner rounding, bevel and grass-edge rules as the plateau walls.
+  5. **Edges take the ground's material.** The top and foot edge fringes must match the ground material they border where it meets the stone wall: a grass fringe on grass, a stone or dirt fringe on stone or dirt, sampled from the tile's biome splat and painted ground texture. The current fringes are pure flat green and look nothing like the surface they end. This applies to ramps too.
